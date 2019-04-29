@@ -279,13 +279,13 @@ patterns `φ` and `ψ`:
   `φψ`      | matches `φ` then matches `ψ` (concatenation)
   `φ⎮ψ`     | matches `φ` or matches `ψ` (alternation)
   `(φ)`     | matches `φ` as a group
-  `(?:φ)`   | matches `φ` without group capture
-  `(?=φ)`   | matches `φ` without consuming it
+  `(?:φ)`   | matches `φ` as a group without capture
+  `(?=φ)`   | matches `φ` without consuming it, i.e. lookahead (top-level `φ`, not for sub-patterns `φ`)
   `(?^φ)`   | matches `φ` and ignore it to continue matching
   `^φ`      | matches `φ` at the start of input or start of a line
   `φ$`      | matches `φ` at the end of input or end of a line
-  `\Aφ`     | matches `φ` at the start of input
-  `φ\z`     | matches `φ` at the end of input
+  `\Aφ`     | matches `φ` at the start of input (requires option `-o`)
+  `φ\z`     | matches `φ` at the end of input (requires option `-o`)
   `\bφ`     | matches `φ` starting at a word boundary
   `φ\b`     | matches `φ` ending at a word boundary
   `\Bφ`     | matches `φ` starting at a non-word boundary
@@ -307,7 +307,7 @@ follows, from high to low precedence:
   1. Characters, character classes (bracket expressions), escapes, quotation
   2. Grouping `(φ)`, `(?:φ)`, `(?=φ)`, and inline modifiers `(?imsux:φ)`
   3. Quantifiers `?`, `*`, `+`, `{n,m}`
-  4. Concatenation `φψ` (including trailing context `φ/ψ`)
+  4. Concatenation `φψ`
   5. Anchoring `^`, `$`, `\<`, `\>`, `\b`, `\B`, `\A`, `\z` 
   6. Alternation `φ|ψ`
   7. Global modifiers `(?imsux)φ`
