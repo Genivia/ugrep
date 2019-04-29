@@ -34,8 +34,8 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 Universal grep - high-performance universal search utility finds Unicode
-patterns in UTF-8/16/32, ASCII, ISO-8859-1, EBCDIC, code pages 437, 850, 1250
-to 1258, and other file formats.
+patterns in UTF-8/16/32, ASCII, ISO-8859-1, EBCDIC, code pages 437, 850, 858,
+1250 to 1258, and other file formats.
 
 Download and installation:
 
@@ -114,7 +114,7 @@ Compile:
 
 Bugs FIXME:
 
-  - Pattern '^$' does not select empty lines, because find() does not permit empty matches.
+  - Pattern '^$' does not match empty lines, because find() does not permit empty matches.
   - Back-references are not supported.
 
 Wanted TODO:
@@ -494,8 +494,8 @@ int main(int argc, char **argv)
       encoding = format_table[i].encoding;
     }
 
-    // set flags to convert regex to Unicode and enable \uXXXX
-    reflex::convert_flag_type convert_flags = reflex::convert_flag::unicode | reflex::convert_flag::u4;
+    // set flags to convert regex to Unicode
+    reflex::convert_flag_type convert_flags = reflex::convert_flag::unicode;
 
     // add multiline mode modifier
     std::string modifiers = "(?m";
