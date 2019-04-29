@@ -20,6 +20,6 @@ AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 AC_SUBST([AM_CXXFLAGS], ["-Wall -Wunused -Wextra"])
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile])
 
 AC_OUTPUT
