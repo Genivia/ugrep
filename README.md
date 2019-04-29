@@ -29,13 +29,18 @@ pages 437, 850, 858, 1250 to 1258.
 **ugrep** is currently in beta release with new features being added in the
 near future.
 
-If you like **ugrep**, please contribute or let us know what you like, dislike,
-or want to see in future releases.
+If you find **ugrep** interesting, please contribute or let us know what you
+like, dislike, or want to see in future releases.
+
+Dependencies
+------------
+
+RE/flex https://github.com/Genivia/RE-flex
 
 Examples
 --------
 
-### display lines containing capitalized Unicode words
+### 1) display lines containing capitalized Unicode words
 
 To display lines with capitalized Unicode words in `places.txt`:
 
@@ -45,7 +50,7 @@ To include the line and column numbers and color-highlight the matches:
 
     ugrep -n -k --color '\p{Upper}\p{Lower}*' places.txt
 
-### list all capitalized Unicode words
+### 2) list all capitalized Unicode words
 
 To produce a sorted list of all capitalized Unicode words found in `places.txt`:
 
@@ -55,7 +60,7 @@ To display the byte offset of the matches counting from the start of the file:
 
     ugrep -b -o '\p{Upper}\p{Lower}*' places.txt
 
-### display lines containing Unicode characters
+### 3) display lines containing Unicode characters
 
 To display all lines containing laughing face emojis in `birthday.txt`:
 
@@ -65,7 +70,7 @@ Likewise, we can use:
 
     ugrep '[\x{1F600}-\x{1F60F}]' birthday.txt
 
-### display lines containing Unicode names
+### 4) display lines containing Unicode names
 
 To display lines containing the names Gödel (or Goedel), Escher, or Bach:
 
@@ -76,7 +81,7 @@ Bach:
 
     ugrep -v 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
-### count lines containing Unicode names
+### 5) count lines containing Unicode names
 
 To count the number of lines containing the names Gödel (or Goedel), Escher, or
 Bach:
@@ -88,7 +93,7 @@ Escher, or Bach:
 
     ugrep -c -g 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
-### check if a file contains any non-ASCII (i.e. Unicode) characters
+### 6) check if a file contains any non-ASCII (i.e. Unicode) characters
 
 To check if `myfile` contains any non-ASCII Unicode character:
 
@@ -98,7 +103,7 @@ To invert the match:
 
     ugrep -v -q '[^[:ascii:]]' myfile && echo "does not contain Unicode"
 
-### searching UTF-encoded files
+### 7) searching UTF-encoded files
 
 To search for `lorem` in a UTF-16 file:
 
@@ -112,7 +117,7 @@ When utf16lorem.txt has no UTF-16 BOM:
 
     ugrep --file-format=UTF-16 -w -i 'lorem' utf16lorem.txt
 
-### searching for identifiers in source code
+### 8) searching for identifiers in source code
 
 To search for the identifier `main` as a word:
 
@@ -235,6 +240,8 @@ Bugs - FIXME
 - Pattern `^$` does not match empty lines, because `find()` does not permit
   empty matches.
 - Back-references are not supported.
+- There are reported cases where lazy quantifiers misbehave, best to avoid them
+  unless the patterns are simple.
 
 Pattern syntax
 --------------
@@ -325,7 +332,7 @@ list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
 
 ### POSIX and Unicode character categories
 
-  POSIX form   | POSIX Category | Matches
+  POSIX form   | POSIX category | Matches
   ------------ | -------------- | ---------------------------------------------
   `[:ascii:]`  | `\p{ASCII}`    | matches any ASCII character
   `[:space:]`  | `\p{Space}`    | matches a white space character `[ \t\n\v\f\r]` same as `\s`
