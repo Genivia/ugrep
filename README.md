@@ -35,7 +35,9 @@ or want to see in future releases.
 Examples
 --------
 
-### display the lines in a file that contain capitalized Unicode words
+### display lines containing capitalized Unicode words
+
+To display lines with capitalized Unicode words in `places.txt`:
 
     ugrep '\p{Upper}\p{Lower}*' places.txt
 
@@ -43,23 +45,29 @@ To include the line and column numbers and color-highlight the matches:
 
     ugrep -n -k --color '\p{Upper}\p{Lower}*' places.txt
 
-### list all capitalized Unicode words in a file
+### list all capitalized Unicode words
 
-    ugrep -o '\p{Upper}\p{Lower}*' places.txt
+To produce a sorted list of all capitalized Unicode words found in `places.txt`:
 
-To include the byte offset of the matches counting from the start of the file:
+    ugrep -o '\p{Upper}\p{Lower}*' places.txt | sort -u
+
+To display the byte offset of the matches counting from the start of the file:
 
     ugrep -b -o '\p{Upper}\p{Lower}*' places.txt
 
 ### display lines containing Unicode characters
 
-    ugrep -o '[😀-😏]' birthday.txt
+To display all lines containing laughing face emojis in `birthday.txt`:
 
-Or:
+    ugrep '[😀-😏]' birthday.txt
 
-    ugrep -o '[\x{1F600}-\x{1F60F}]' birthday.txt
+Likewise, we can use:
 
-### display lines containing the names Gödel (or Goedel), Escher, or Bach
+    ugrep '[\x{1F600}-\x{1F60F}]' birthday.txt
+
+### display lines containing Unicode names
+
+To display lines containing the names Gödel (or Goedel), Escher, or Bach:
 
     ugrep 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
@@ -67,6 +75,8 @@ To display lines that do not contain the names Gödel (or Goedel), Escher, or
 Bach:
 
     ugrep -v 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
+
+### count lines containing Unicode names
 
 To count the number of lines containing the names Gödel (or Goedel), Escher, or
 Bach:
@@ -80,6 +90,8 @@ Escher, or Bach:
 
 ### check if a file contains any non-ASCII (i.e. Unicode) characters
 
+To check if `myfile` contains any non-ASCII Unicode character:
+
     ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
 To invert the match:
@@ -87,6 +99,8 @@ To invert the match:
     ugrep -v -q '[^[:ascii:]]' myfile && echo "does not contain Unicode"
 
 ### searching UTF-encoded files
+
+To search for `lorem` in a UTF-16 file:
 
     ugrep 'lorem' utf16lorem.txt
 
@@ -98,216 +112,28 @@ When utf16lorem.txt has no UTF-16 BOM:
 
     ugrep --file-format=UTF-16 -w -i 'lorem' utf16lorem.txt
 
-### search for an identifier in source code
+### searching for identifiers in source code
+
+To search for the identifier `main` as a word:
 
     ugrep -nk -o '\<main\>' myfile.cpp
 
-Using a "negative pattern" to ignore unwanted matches in C/C++ quoted strings
-(C/C++ strings are matched with `"(\\.|\\\r?\n|[^\\\n"])*"` and may span
-multiple lines, so we should use option `-o` to block-buffer the input):
+This also finds `main` in strings.  We can use a "negative pattern" to ignore
+unwanted matches in C/C++ quoted strings (C/C++ strings are matched with
+`"(\\.|\\\r?\n|[^\\\n"])*"` and may span multiple lines, so we should use
+option `-o` to block-buffer the input):
 
     ugrep -nk -o -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' myfile.cpp
 
-Using a negative pattern to also ignore unwanted matches in C/C++ comments:
+We can use a negative pattern to also ignore unwanted matches in C/C++
+comments:
 
-    ugrep -nk -o -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*(.|\n)*?\*/)' myfile.cpp
+    ugrep -nk -o -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\*[^/])*\*/)' myfile.cpp
 
-Pattern syntax
---------------
+To produce a sorted list of all Unicode identifiers in Java source code while
+skipping strings and comments:
 
-A pattern is an extended set of regular expressions, with nested sub-expression
-patterns `φ` and `ψ`:
-
-  Pattern   | Matches
-  --------- | -----------------------------------------------------------------
-  `x`       | matches the character `x`, where `x` is not a special character
-  `.`       | matches any single character except newline (unless in dotall mode)
-  `\.`      | matches `.` (dot), special characters are escaped with a backslash
-  `\n`      | matches a newline, others are `\a` (BEL), `\b` (BS), `\t` (HT), `\v` (VT), `\f` (FF), and `\r` (CR)
-  `\0`      | matches the NUL character
-  `\cX`     | matches the control character `X` mod 32 (e.g. `\cA` is `\x01`)
-  `\0177`   | matches an 8-bit character with octal value `177`
-  `\x7f`    | matches an 8-bit character with hexadecimal value `7f`
-  `\x{3B1}` | matches Unicode character U+03B1 or `α`
-  `\p{C}`   | matches a character in category C
-  `\Q...\E` | matches the quoted content between `\Q` and `\E` literally
-  `[abc]`   | matches one of `a`, `b`, or `c`
-  `[0-9]`   | matches a digit `0` to `9`
-  `[^0-9]`  | matches any character except a digit
-  `φ?`      | matches `φ` zero or one time (optional)
-  `φ*`      | matches `φ` zero or more times (repetition)
-  `φ+`      | matches `φ` one or more times (repetition)
-  `φ{2,5}`  | matches `φ` two to five times (repetition)
-  `φ{2,}`   | matches `φ` at least two times (repetition)
-  `φ{2}`    | matches `φ` exactly two times (repetition)
-  `φ??`     | matches `φ` zero or once as needed (lazy optional)
-  `φ*?`     | matches `φ` a minimum number of times as needed (lazy repetition)
-  `φ+?`     | matches `φ` a minimum number of times at least once as needed (lazy repetition)
-  `φ{2,5}?` | matches `φ` two to five times as needed (lazy repetition)
-  `φ{2,}?`  | matches `φ` at least two times or more as needed (lazy repetition)
-  `φψ`      | matches `φ` then matches `ψ` (concatenation)
-  `φ⎮ψ`     | matches `φ` or matches `ψ` (alternation)
-  `(φ)`     | matches `φ` as a group
-  `(?:φ)`   | matches `φ` without group capture
-  `(?=φ)`   | matches `φ` without consuming it
-  `(?^φ)`   | matches `φ` and ignore it to continue matching
-  `^φ`      | matches `φ` at the start of input or start of a line
-  `φ$`      | matches `φ` at the end of input or end of a line
-  `\Aφ`     | matches `φ` at the start of input
-  `φ\z`     | matches `φ` at the end of input
-  `\bφ`     | matches `φ` starting at a word boundary
-  `φ\b`     | matches `φ` ending at a word boundary
-  `\Bφ`     | matches `φ` starting at a non-word boundary
-  `φ\B`     | matches `φ` ending at a non-word boundary
-  `\<φ`     | matches `φ` that starts a word
-  `\>φ`     | matches `φ` that starts a non-word
-  `φ\<`     | matches `φ` that ends a non-word
-  `φ\>`     | matches `φ` that ends a word
-  `\i`      | matches an indent
-  `\j`      | matches a dedent
-  `(?i:φ)`  | matches `φ` ignoring case
-  `(?s:φ)`  | `.` (dot) in `φ` matches newline
-  `(?x:φ)`  | ignore all whitespace and comments in `φ`
-  `(?#:X)`  | all of `X` is skipped as a comment
-
-The order of precedence for composing larger patterns from sub-patterns is as
-follows, from high to low precedence:
-
-1. Characters, character classes (bracket expressions), escapes, quotation
-2. Grouping `(φ)`, `(?:φ)`, `(?=φ)`, and inline modifiers `(?imsux:φ)`
-3. Quantifiers `?`, `*`, `+`, `{n,m}`
-4. Concatenation `φψ` (including trailing context `φ/ψ`)
-5. Anchoring `^`, `$`, `\<`, `\>`, `\b`, `\B`, `\A`, `\z` 
-6. Alternation `φ|ψ`
-7. Global modifiers `(?imsux)φ`
-
-### POSIX and Unicode character classes
-
-Character classes in bracket lists represent sets of characters.  Sets can be
-inverted, subtracted, intersected, and merged:
-
-  Pattern           | Matches
-  ----------------- | ---------------------------------------------------------
-  `[a-zA-Z]`        | matches a letter
-  `[^a-zA-Z]`       | matches a non-letter (character class inversion)
-  `[a-z−−[aeiou]]`  | matches a consonant (character class subtraction)
-  `[a-z&&[^aeiou]]` | matches a consonant (character class intersection)
-  `[a-z⎮⎮[A-Z]]`    | matches a letter (character class union)
-
-Bracket lists cannot be empty, so `[]` and `[^]` are invalid.  In fact, the
-first character after the bracket is always part of the list.  So `[][]` is a
-list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
-`]` and `[`, and `[-^]` is a list that matches a `-` and a `^`.
-
-### POSIX and Unicode character categories
-
-  POSIX Category | POSIX form   | Matches
-  -------------- | ------------ | -----------------------------------------------
-  `\p{ASCII}`    | `[:ascii:]`  | matches any ASCII character
-  `\p{Space}`    | `[:space:]`  | matches a white space character `[ \t\n\v\f\r]` same as `\s`
-  `\p{Xdigit}`   | `[:xdigit:]` | matches a hex digit `[0-9A-Fa-f]`
-  `\p{Cntrl}`    | `[:cntrl:]`  | matches a control character `[\x00-\0x1f\x7f]`
-  `\p{Print}`    | `[:print:]`  | matches a printable character `[\x20-\x7e]`
-  `\p{Alnum}`    | `[:alnum:]`  | matches a alphanumeric character `[0-9A-Za-z]`
-  `\p{Alpha}`    | `[:alpha:]`  | matches a letter `[A-Za-z]`
-  `\p{Blank}`    | `[:blank:]`  | matches a blank `[ \t]` same as `\h`
-  `\p{Digit}`    | `[:digit:]`  | matches a digit `[0-9]` same as `\d`
-  `\p{Graph}`    | `[:graph:]`  | matches a visible character `[\x21-\x7e]`
-  `\p{Lower}`    | `[:lower:]`  | matches a lower case letter `[a-z]` same as `\l`
-  `\p{Punct}`    | `[:punct:]`  | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
-  `\p{Upper}`    | `[:upper:]`  | matches an upper case letter `[A-Z]` same as `\u`
-  `\p{Word}`     | `[:word:]`   | matches a word character `[0-9A-Za-z_]` same as `\w`
-  `\d`           | `[:digit:]`  | matches a digit `[0-9]`
-  `\D`           | `[:^digit:]` | matches a non-digit `[^0-9]`
-  `\h`           | `[:blank:]`  | matches a blank character `[ \t]`
-  `\H`           | `[:^blank:]` | matches a non-blank character `[^ \t]`
-                 | `[:space:]`  | matches a white space character `[ \t\n\v\f\r]`
-                 | `[:^space:]` | matches a non-white space `[^ \t\n\v\f\r]`
-                 | `[:lower:]`  | matches a lower case letter `[a-z]`
-                 | `[:^lower:]` | matches a non-lower case letter `[^a-z]`
-                 | `[:upper:]`  | matches an upper case letter `[A-Z]`
-                 | `[:^upper:]` | matches a nonupper case letter `[^A-Z]`
-                 | `[:word:]`   | matches a word character `[0-9A-Za-z_]`
-                 | `[:^word:]`  | matches a non-word character `[^0-9A-Za-z_]`
-
-The POSIX form can only be used in bracket lists, for example
-`[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  
-
-You can also use the capitalized `\P{C}` form that has the same meaning as
-`\p{^C}`, which matches any character except characters in the class `C`.
-For example, `\P{ASCII}` is the same as `\p{^ASCII}` which is the same as
-`[^[:ascii:]]`.  A word of caution: because POSIX character categories only
-cover ASCII, `[[:^ascii]]` is empty and invalid to use.  By contrast,
-`[^[:ascii]]` is a Unicode character class that excludes the ASCII character
-category.
-
-  Unicode category                       | Matches
-  -------------------------------------- | ------------------------------------
-  `.`                                    | matches any single Unicode character except newline (including \ref invalid-utf)
-  `\X`                                   | matches any ISO-8859-1 or Unicode character (with or without the `−−unicode` option)
-  `\R`                                   | matches a Unicode line break
-  `\s`, `\p{Zs}`                         | matches a white space character with Unicode sub-propert Zs
-  `\l`, `\p{Ll}`                         | matches a lower case letter with Unicode sub-property Ll
-  `\u`, `\p{Lu}`                         | matches an upper case letter with Unicode sub-property Lu
-  `\w`, `\p{Word}`                       | matches a Unicode word character with property L, Nd, or Pc
-  `\p{Unicode}`                          | matches any Unicode character (U+00 to U+10FFFF minus U+D800 to U+DFFF)
-  `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F)
-  `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+80 to U+10FFFF minus U+D800 to U+DFFF)
-  `\p{Letter}`                           | matches a character with Unicode property Letter
-  `\p{Mark}`                             | matches a character with Unicode property Mark
-  `\p{Separator}`                        | matches a character with Unicode property Separator
-  `\p{Symbol}`                           | matches a character with Unicode property Symbol
-  `\p{Number}`                           | matches a character with Unicode property Number
-  `\p{Punctuation}`                      | matches a character with Unicode property Punctuation
-  `\p{Other}`                            | matches a character with Unicode property Other
-  `\p{Lowercase_Letter}`, `\p{Ll}`       | matches a character with Unicode sub-property Ll
-  `\p{Uppercase_Letter}`, `\p{Lu}`       | matches a character with Unicode sub-property Lu
-  `\p{Titlecase_Letter}`, `\p{Lt}`       | matches a character with Unicode sub-property Lt
-  `\p{Modifier_Letter}`, `\p{Lm}`        | matches a character with Unicode sub-property Lm
-  `\p{Other_Letter}`, `\p{Lo}`           | matches a character with Unicode sub-property Lo
-  `\p{Non_Spacing_Mark}`, `\p{Mn}`       | matches a character with Unicode sub-property Mn
-  `\p{Spacing_Combining_Mark}`, `\p{Mc}` | matches a character with Unicode sub-property Mc
-  `\p{Enclosing_Mark}`, `\p{Me}`         | matches a character with Unicode sub-property Me
-  `\p{Space_Separator}`, `\p{Zs}`        | matches a character with Unicode sub-property Zs
-  `\p{Line_Separator}`, `\p{Zl}`         | matches a character with Unicode sub-property Zl
-  `\p{Paragraph_Separator}`, `\p{Zp}`    | matches a character with Unicode sub-property Zp
-  `\p{Math_Symbol}`, `\p{Sm}`            | matches a character with Unicode sub-property Sm
-  `\p{Currency_Symbol}`, `\p{Sc}`        | matches a character with Unicode sub-property Sc
-  `\p{Modifier_Symbol}`, `\p{Sk}`        | matches a character with Unicode sub-property Sk
-  `\p{Other_Symbol}`, `\p{So}`           | matches a character with Unicode sub-property So
-  `\p{Decimal_Digit_Number}`, `\p{Nd}`   | matches a character with Unicode sub-property Nd
-  `\p{Letter_Number}`, `\p{Nl}`          | matches a character with Unicode sub-property Nl
-  `\p{Other_Number}`, `\p{No}`           | matches a character with Unicode sub-property No
-  `\p{Dash_Punctuation}`, `\p{Pd}`       | matches a character with Unicode sub-property Pd
-  `\p{Open_Punctuation}`, `\p{Ps}`       | matches a character with Unicode sub-property Ps
-  `\p{Close_Punctuation}`, `\p{Pe}`      | matches a character with Unicode sub-property Pe
-  `\p{Initial_Punctuation}`, `\p{Pi}`    | matches a character with Unicode sub-property Pi
-  `\p{Final_Punctuation}`, `\p{Pf}`      | matches a character with Unicode sub-property Pf
-  `\p{Connector_Punctuation}`, `\p{Pc}`  | matches a character with Unicode sub-property Pc
-  `\p{Other_Punctuation}`, `\p{Po}`      | matches a character with Unicode sub-property Po
-  `\p{Control}`, `\p{Cc}`                | matches a character with Unicode sub-property Cc
-  `\p{Format}`, `\p{Cf}`                 | matches a character with Unicode sub-property Cf
-  `\p{UnicodeIdentifierStart}`           | matches a character in the Unicode IdentifierStart class
-  `\p{UnicodeIdentifierPart}`            | matches a character in the Unicode IdentifierPart class
-  `\p{IdentifierIgnorable}`              | matches a character in the IdentifierIgnorable class
-  `\p{JavaIdentifierStart}`              | matches a character in the Java IdentifierStart class
-  `\p{JavaIdentifierPart}`               | matches a character in the Java IdentifierPart class
-  `\p{CsIdentifierStart}`                | matches a character in the C# IdentifierStart class
-  `\p{CsIdentifierPart}`                 | matches a character in the C# IdentifierPart class
-  `\p{PythonIdentifierStart}`            | matches a character in the Python IdentifierStart class
-  `\p{PythonIdentifierPart}`             | matches a character in the Python IdentifierPart class
-
-To specify a Unicode block as a category use `\p{IsBlockName}` with a Unicode
-`BlockName`.
-
-To specify a Unicode language script, use `\p{Language}` with a Unicode
-`Language`.
-
-Unicode language script character classes differ from the Unicode blocks that
-have a similar name.  For example, the `\p{Greek}` class represents Greek and
-Coptic letters and differs from the Unicode block `\p{IsGreek}` that spans a
-specific Unicode block of Greek and Coptic characters only, which also includes
-unassigned characters.
+    ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\*[^/])*\*/)' myfile.java | sort -u
 
 Command-line options
 --------------------
@@ -409,6 +235,203 @@ Bugs - FIXME
 - Pattern `^$` does not match empty lines, because `find()` does not permit
   empty matches.
 - Back-references are not supported.
+
+Pattern syntax
+--------------
+
+A pattern is an extended set of regular expressions, with nested sub-expression
+patterns `φ` and `ψ`:
+
+  Pattern   | Matches
+  --------- | -----------------------------------------------------------------
+  `x`       | matches the character `x`, where `x` is not a special character
+  `.`       | matches any single character except newline (unless in dotall mode)
+  `\.`      | matches `.` (dot), special characters are escaped with a backslash
+  `\n`      | matches a newline, others are `\a` (BEL), `\b` (BS), `\t` (HT), `\v` (VT), `\f` (FF), and `\r` (CR)
+  `\0`      | matches the NUL character
+  `\cX`     | matches the control character `X` mod 32 (e.g. `\cA` is `\x01`)
+  `\0177`   | matches an 8-bit character with octal value `177`
+  `\x7f`    | matches an 8-bit character with hexadecimal value `7f`
+  `\x{3B1}` | matches Unicode character U+03B1 or `α`
+  `\p{C}`   | matches a character in category C
+  `\Q...\E` | matches the quoted content between `\Q` and `\E` literally
+  `[abc]`   | matches one of `a`, `b`, or `c`
+  `[0-9]`   | matches a digit `0` to `9`
+  `[^0-9]`  | matches any character except a digit
+  `φ?`      | matches `φ` zero or one time (optional)
+  `φ*`      | matches `φ` zero or more times (repetition)
+  `φ+`      | matches `φ` one or more times (repetition)
+  `φ{2,5}`  | matches `φ` two to five times (repetition)
+  `φ{2,}`   | matches `φ` at least two times (repetition)
+  `φ{2}`    | matches `φ` exactly two times (repetition)
+  `φ??`     | matches `φ` zero or once as needed (lazy optional)
+  `φ*?`     | matches `φ` a minimum number of times as needed (lazy repetition)
+  `φ+?`     | matches `φ` a minimum number of times at least once as needed (lazy repetition)
+  `φ{2,5}?` | matches `φ` two to five times as needed (lazy repetition)
+  `φ{2,}?`  | matches `φ` at least two times or more as needed (lazy repetition)
+  `φψ`      | matches `φ` then matches `ψ` (concatenation)
+  `φ⎮ψ`     | matches `φ` or matches `ψ` (alternation)
+  `(φ)`     | matches `φ` as a group
+  `(?:φ)`   | matches `φ` without group capture
+  `(?=φ)`   | matches `φ` without consuming it
+  `(?^φ)`   | matches `φ` and ignore it to continue matching
+  `^φ`      | matches `φ` at the start of input or start of a line
+  `φ$`      | matches `φ` at the end of input or end of a line
+  `\Aφ`     | matches `φ` at the start of input
+  `φ\z`     | matches `φ` at the end of input
+  `\bφ`     | matches `φ` starting at a word boundary
+  `φ\b`     | matches `φ` ending at a word boundary
+  `\Bφ`     | matches `φ` starting at a non-word boundary
+  `φ\B`     | matches `φ` ending at a non-word boundary
+  `\<φ`     | matches `φ` that starts a word
+  `\>φ`     | matches `φ` that starts a non-word
+  `φ\<`     | matches `φ` that ends a non-word
+  `φ\>`     | matches `φ` that ends a word
+  `\i`      | matches an indent
+  `\j`      | matches a dedent
+  `(?i:φ)`  | matches `φ` ignoring case
+  `(?s:φ)`  | `.` (dot) in `φ` matches newline
+  `(?x:φ)`  | ignore all whitespace and comments in `φ`
+  `(?#:X)`  | all of `X` is skipped as a comment
+
+The order of precedence for composing larger patterns from sub-patterns is as
+follows, from high to low precedence:
+
+  1. Characters, character classes (bracket expressions), escapes, quotation
+  2. Grouping `(φ)`, `(?:φ)`, `(?=φ)`, and inline modifiers `(?imsux:φ)`
+  3. Quantifiers `?`, `*`, `+`, `{n,m}`
+  4. Concatenation `φψ` (including trailing context `φ/ψ`)
+  5. Anchoring `^`, `$`, `\<`, `\>`, `\b`, `\B`, `\A`, `\z` 
+  6. Alternation `φ|ψ`
+  7. Global modifiers `(?imsux)φ`
+
+### POSIX and Unicode character classes
+
+Character classes in bracket lists represent sets of characters.  Sets can be
+inverted, subtracted, intersected, and merged:
+
+  Pattern           | Matches
+  ----------------- | ---------------------------------------------------------
+  `[a-zA-Z]`        | matches a letter
+  `[^a-zA-Z]`       | matches a non-letter (character class inversion)
+  `[a-z−−[aeiou]]`  | matches a consonant (character class subtraction)
+  `[a-z&&[^aeiou]]` | matches a consonant (character class intersection)
+  `[a-z⎮⎮[A-Z]]`    | matches a letter (character class union)
+
+Bracket lists cannot be empty, so `[]` and `[^]` are invalid.  In fact, the
+first character after the bracket is always part of the list.  So `[][]` is a
+list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
+`]` and `[`, and `[-^]` is a list that matches a `-` and a `^`.
+
+### POSIX and Unicode character categories
+
+  POSIX form   | POSIX Category | Matches
+  ------------ | -------------- | ---------------------------------------------
+  `[:ascii:]`  | `\p{ASCII}`    | matches any ASCII character
+  `[:space:]`  | `\p{Space}`    | matches a white space character `[ \t\n\v\f\r]` same as `\s`
+  `[:xdigit:]` | `\p{Xdigit}`   | matches a hex digit `[0-9A-Fa-f]`
+  `[:cntrl:]`  | `\p{Cntrl}`    | matches a control character `[\x00-\0x1f\x7f]`
+  `[:print:]`  | `\p{Print}`    | matches a printable character `[\x20-\x7e]`
+  `[:alnum:]`  | `\p{Alnum}`    | matches a alphanumeric character `[0-9A-Za-z]`
+  `[:alpha:]`  | `\p{Alpha}`    | matches a letter `[A-Za-z]`
+  `[:blank:]`  | `\p{Blank}`    | matches a blank `[ \t]` same as `\h`
+  `[:digit:]`  | `\p{Digit}`    | matches a digit `[0-9]` same as `\d`
+  `[:graph:]`  | `\p{Graph}`    | matches a visible character `[\x21-\x7e]`
+  `[:lower:]`  | `\p{Lower}`    | matches a lower case letter `[a-z]` same as `\l`
+  `[:punct:]`  | `\p{Punct}`    | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
+  `[:upper:]`  | `\p{Upper}`    | matches an upper case letter `[A-Z]` same as `\u`
+  `[:word:]`   | `\p{Word}`     | matches a word character `[0-9A-Za-z_]` same as `\w`
+  `[:digit:]`  | `\d`           | matches a digit `[0-9]`
+  `[:^digit:]` | `\D`           | matches a non-digit `[^0-9]`
+  `[:blank:]`  | `\h`           | matches a blank character `[ \t]`
+  `[:^blank:]` | `\H`           | matches a non-blank character `[^ \t]`
+  `[:space:]`  |                | matches a white space character `[ \t\n\v\f\r]`
+  `[:^space:]` |                | matches a non-white space `[^ \t\n\v\f\r]`
+  `[:lower:]`  |                | matches a lower case letter `[a-z]`
+  `[:^lower:]` |                | matches a non-lower case letter `[^a-z]`
+  `[:upper:]`  |                | matches an upper case letter `[A-Z]`
+  `[:^upper:]` |                | matches a nonupper case letter `[^A-Z]`
+  `[:word:]`   |                | matches a word character `[0-9A-Za-z_]`
+  `[:^word:]`  |                | matches a non-word character `[^0-9A-Za-z_]`
+
+The POSIX form can only be used in bracket lists, for example
+`[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  
+
+You can also use the capitalized `\P{C}` form that has the same meaning as
+`\p{^C}`, which matches any character except characters in the class `C`.
+For example, `\P{ASCII}` is the same as `\p{^ASCII}` which is the same as
+`[^[:ascii:]]`.  A word of caution: because POSIX character categories only
+cover ASCII, `[[:^ascii]]` is empty and invalid to use.  By contrast,
+`[^[:ascii]]` is a Unicode character class that excludes the ASCII character
+category.
+
+  Unicode category                       | Matches
+  -------------------------------------- | ------------------------------------
+  `.`                                    | matches any single Unicode character except newline
+  `\X`                                   | matches any ISO-8859-1 or Unicode character
+  `\R`                                   | matches a Unicode line break
+  `\s`, `\p{Zs}`                         | matches a white space character with Unicode sub-propert Zs
+  `\l`, `\p{Ll}`                         | matches a lower case letter with Unicode sub-property Ll
+  `\u`, `\p{Lu}`                         | matches an upper case letter with Unicode sub-property Lu
+  `\w`, `\p{Word}`                       | matches a Unicode word character with property L, Nd, or Pc
+  `\p{Unicode}`                          | matches any Unicode character (U+00 to U+10FFFF minus U+D800 to U+DFFF)
+  `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F)
+  `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+80 to U+10FFFF minus U+D800 to U+DFFF)
+  `\p{Letter}`                           | matches a character with Unicode property Letter
+  `\p{Mark}`                             | matches a character with Unicode property Mark
+  `\p{Separator}`                        | matches a character with Unicode property Separator
+  `\p{Symbol}`                           | matches a character with Unicode property Symbol
+  `\p{Number}`                           | matches a character with Unicode property Number
+  `\p{Punctuation}`                      | matches a character with Unicode property Punctuation
+  `\p{Other}`                            | matches a character with Unicode property Other
+  `\p{Lowercase_Letter}`, `\p{Ll}`       | matches a character with Unicode sub-property Ll
+  `\p{Uppercase_Letter}`, `\p{Lu}`       | matches a character with Unicode sub-property Lu
+  `\p{Titlecase_Letter}`, `\p{Lt}`       | matches a character with Unicode sub-property Lt
+  `\p{Modifier_Letter}`, `\p{Lm}`        | matches a character with Unicode sub-property Lm
+  `\p{Other_Letter}`, `\p{Lo}`           | matches a character with Unicode sub-property Lo
+  `\p{Non_Spacing_Mark}`, `\p{Mn}`       | matches a character with Unicode sub-property Mn
+  `\p{Spacing_Combining_Mark}`, `\p{Mc}` | matches a character with Unicode sub-property Mc
+  `\p{Enclosing_Mark}`, `\p{Me}`         | matches a character with Unicode sub-property Me
+  `\p{Space_Separator}`, `\p{Zs}`        | matches a character with Unicode sub-property Zs
+  `\p{Line_Separator}`, `\p{Zl}`         | matches a character with Unicode sub-property Zl
+  `\p{Paragraph_Separator}`, `\p{Zp}`    | matches a character with Unicode sub-property Zp
+  `\p{Math_Symbol}`, `\p{Sm}`            | matches a character with Unicode sub-property Sm
+  `\p{Currency_Symbol}`, `\p{Sc}`        | matches a character with Unicode sub-property Sc
+  `\p{Modifier_Symbol}`, `\p{Sk}`        | matches a character with Unicode sub-property Sk
+  `\p{Other_Symbol}`, `\p{So}`           | matches a character with Unicode sub-property So
+  `\p{Decimal_Digit_Number}`, `\p{Nd}`   | matches a character with Unicode sub-property Nd
+  `\p{Letter_Number}`, `\p{Nl}`          | matches a character with Unicode sub-property Nl
+  `\p{Other_Number}`, `\p{No}`           | matches a character with Unicode sub-property No
+  `\p{Dash_Punctuation}`, `\p{Pd}`       | matches a character with Unicode sub-property Pd
+  `\p{Open_Punctuation}`, `\p{Ps}`       | matches a character with Unicode sub-property Ps
+  `\p{Close_Punctuation}`, `\p{Pe}`      | matches a character with Unicode sub-property Pe
+  `\p{Initial_Punctuation}`, `\p{Pi}`    | matches a character with Unicode sub-property Pi
+  `\p{Final_Punctuation}`, `\p{Pf}`      | matches a character with Unicode sub-property Pf
+  `\p{Connector_Punctuation}`, `\p{Pc}`  | matches a character with Unicode sub-property Pc
+  `\p{Other_Punctuation}`, `\p{Po}`      | matches a character with Unicode sub-property Po
+  `\p{Control}`, `\p{Cc}`                | matches a character with Unicode sub-property Cc
+  `\p{Format}`, `\p{Cf}`                 | matches a character with Unicode sub-property Cf
+  `\p{UnicodeIdentifierStart}`           | matches a character in the Unicode IdentifierStart class
+  `\p{UnicodeIdentifierPart}`            | matches a character in the Unicode IdentifierPart class
+  `\p{IdentifierIgnorable}`              | matches a character in the IdentifierIgnorable class
+  `\p{JavaIdentifierStart}`              | matches a character in the Java IdentifierStart class
+  `\p{JavaIdentifierPart}`               | matches a character in the Java IdentifierPart class
+  `\p{CsIdentifierStart}`                | matches a character in the C# IdentifierStart class
+  `\p{CsIdentifierPart}`                 | matches a character in the C# IdentifierPart class
+  `\p{PythonIdentifierStart}`            | matches a character in the Python IdentifierStart class
+  `\p{PythonIdentifierPart}`             | matches a character in the Python IdentifierPart class
+
+To specify a Unicode block as a category use `\p{IsBlockName}` with a Unicode
+`BlockName`.
+
+To specify a Unicode language script, use `\p{Language}` with a Unicode
+`Language`.
+
+Unicode language script character classes differ from the Unicode blocks that
+have a similar name.  For example, the `\p{Greek}` class represents Greek and
+Coptic letters and differs from the Unicode block `\p{IsGreek}` that spans a
+specific Unicode block of Greek and Coptic characters only, which also includes
+unassigned characters.
 
 [reflex-url]: https://www.genivia.com/reflex.html
 [bsd-3-image]: https://img.shields.io/badge/license-BSD%203--Clause-blue.svg
