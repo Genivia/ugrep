@@ -6,7 +6,7 @@
 if [ "$#" = 1 ]
 then
 
-if [ -x ugrep ] 
+if [ -x src/ugrep ] 
 then
 
 echo
@@ -36,7 +36,7 @@ CP-858, CP-1250 to CP-1258 when the file format is specified as an option.
 .PP
 The following options are available:
 END
-./ugrep --help \
+src/ugrep --help \
 | sed -e 's/\([^\\]\)\\/\1\\\\/g' \
 | sed \
   -e '/^$/ d' \

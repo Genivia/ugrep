@@ -28,14 +28,22 @@
 
 /**
 @file      ugrep.cpp
-@brief     Universal grep utility - Unicode-aware grep
+@brief     Universal grep - high-performance Unicode file search utility
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
-The ugrep utility extends grep with Unicode patterns.  ugrep accepts Unicode
-regex patterns and scans files encoded in UTF-8/16/32, ASCII, ISO-8859-1,
-EBCDIC, and other code pages.  ugrep requires the RE/flex library.
+Universal grep - high-performance universal search utility finds Unicode
+patterns in UTF-8/16/32, ASCII, ISO-8859-1, EBCDIC, code pages 437, 850, 1250
+to 1258, and other file formats.
+
+Download and installation:
+
+  https://github.com/Genivia/ugrep
+
+Requires:
+
+  RE/flex - https://github.com/Genivia/RE-flex
 
 Features:
 
@@ -107,6 +115,7 @@ Compile:
 Bugs FIXME:
 
   - Pattern '^$' does not select empty lines, because find() does not permit empty matches.
+  - Back-references are not supported.
 
 Wanted TODO:
 
@@ -379,6 +388,9 @@ int main(int argc, char **argv)
           case '?':
             help();
 
+          case '\0':
+            break;
+
           default:
             help("unknown option -", arg);
         }
@@ -403,19 +415,23 @@ int main(int argc, char **argv)
   // remove the ending '|' from the |-concatenated regexes in the regex string
   regex.pop_back();
 
-  // if the specified regex is empty then it matches every line
   if (regex.empty())
+  {
+    // if the specified regex is empty then it matches every line
     regex.assign(".*");
+  }
+  else
+  {
+    // if -F --fixed-strings: make regex literal with \Q and \E
+    if (flag_fixed_strings)
+      regex.insert(0, "\\Q").append("\\E");
 
-  // if -F --fixed-strings: make regex literal with \Q and \E
-  if (flag_fixed_strings)
-    regex.insert(0, "\\Q").append("\\E");
-
-  // if -w or -x: make the regex word- or line-anchored, respectively
-  if (flag_word_regexp)
-    regex.insert(0, "\\<").append("\\>");
-  else if (flag_line_regexp)
-    regex.insert(0, "^").append("$");
+    // if -w or -x: make the regex word- or line-anchored, respectively
+    if (flag_word_regexp)
+      regex.insert(0, "\\<(").append(")\\>");
+    else if (flag_line_regexp)
+      regex.insert(0, "^(").append(")$");
+  }
 
   // if -v invert-match: options -g --no-group and -o --only-matching options cannot be used
   if (flag_invert_match)
@@ -478,13 +494,26 @@ int main(int argc, char **argv)
       encoding = format_table[i].encoding;
     }
 
+    // set flags to convert regex to Unicode and enable \uXXXX
+    reflex::convert_flag_type convert_flags = reflex::convert_flag::unicode | reflex::convert_flag::u4;
+
+    // add multiline mode modifier
     std::string modifiers = "(?m";
     if (flag_ignore_case)
+    {
+      // add case-insensitive regex modifier, applies to ASCII only
       modifiers.append("i");
+    }
     if (flag_free_space)
+    {
+      // this is needed to check free-space conformance by the converter
+      convert_flags |= reflex::convert_flag::freespace;
+      // add free-space regex modifier
       modifiers.append("x");
+    }
     modifiers.append(")");
 
+    // if --tabs=N then set pattern matching options to tab size
     std::string pattern_options;
     if (flag_tabs)
     {
@@ -494,7 +523,7 @@ int main(int argc, char **argv)
         help("invalid value for option --tabs");
     }
 
-    reflex::Pattern pattern(reflex::Matcher::convert(modifiers + regex, reflex::convert_flag::unicode), pattern_options);
+    reflex::Pattern pattern(modifiers + reflex::Matcher::convert(regex, convert_flags), pattern_options);
 
     if (infiles.empty())
     {
