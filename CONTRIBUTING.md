@@ -24,6 +24,7 @@ Do you have a patch that fixes a bug?
 
 - Use the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
   as a guideline to write the source code for the patch.
+- Open a new GitHub pull request with the patch.
 - Write a clear log message for your commits.  One-line messages are fine for
   small changes, but bigger changes should look like this:
 
