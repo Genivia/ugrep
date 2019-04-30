@@ -54,22 +54,22 @@ Examples
 
 ### 1) display lines containing capitalized Unicode words
 
-To display lines with capitalized Unicode words in `places.txt`:
+To display lines with Unicode words in `places.txt`:
 
-    ugrep '\p{Upper}\p{Lower}*' places.txt
+    ugrep '\w+' places.txt
 
 To include the line and column numbers and color-highlight the matches:
 
-    ugrep -n -k --color '\p{Upper}\p{Lower}*' places.txt
+    ugrep -n -k --color '\w+' places.txt
 
 To produce a sorted list of all capitalized Unicode words in `places.txt`:
 
-    ugrep -o '\p{Upper}\p{Lower}*' places.txt | sort -u
+    ugrep -o '\w+' places.txt | sort -u
 
 To display the byte offset of the matches next to the matching word, counting
 from the start of the file:
 
-    ugrep -b -o '\p{Upper}\p{Lower}*' places.txt
+    ugrep -b -o '\w+' places.txt
 
 ### 2) display lines containing Unicode characters
 
@@ -388,9 +388,9 @@ Man page
 
                   $ ugrep -cgw '[Pp]atricia' myfile
 
-           To list all capitalized Unicode words in a file:
+           To list all Unicode words in a file:
 
-                  $ ugrep -o '\p{Upper}\p{Lower}*' myfile
+                  $ ugrep -o '\w+' myfile
 
            To  list  all  laughing  face  emojis  (Unicode  code points U+1F600 to
            U+1F60F) in a file:
@@ -558,34 +558,24 @@ list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
 
 ### POSIX and Unicode character categories
 
-  POSIX form   | POSIX category | Matches
-  ------------ | -------------- | ---------------------------------------------
-  `[:ascii:]`  | `\p{ASCII}`    | matches any ASCII character
-  `[:space:]`  | `\p{Space}`    | matches a white space character `[ \t\n\v\f\r]` same as `\s`
-  `[:xdigit:]` | `\p{Xdigit}`   | matches a hex digit `[0-9A-Fa-f]`
-  `[:cntrl:]`  | `\p{Cntrl}`    | matches a control character `[\x00-\0x1f\x7f]`
-  `[:print:]`  | `\p{Print}`    | matches a printable character `[\x20-\x7e]`
-  `[:alnum:]`  | `\p{Alnum}`    | matches a alphanumeric character `[0-9A-Za-z]`
-  `[:alpha:]`  | `\p{Alpha}`    | matches a letter `[A-Za-z]`
-  `[:blank:]`  | `\p{Blank}`    | matches a blank `[ \t]` same as `\h`
-  `[:digit:]`  | `\p{Digit}`    | matches a digit `[0-9]` same as `\d`
-  `[:graph:]`  | `\p{Graph}`    | matches a visible character `[\x21-\x7e]`
-  `[:lower:]`  | `\p{Lower}`    | matches a lower case letter `[a-z]` same as `\l`
-  `[:punct:]`  | `\p{Punct}`    | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
-  `[:upper:]`  | `\p{Upper}`    | matches an upper case letter `[A-Z]` same as `\u`
-  `[:word:]`   | `\p{Word}`     | matches a word character `[0-9A-Za-z_]` same as `\w`
-  `[:digit:]`  | `\d`           | matches a digit `[0-9]`
-  `[:^digit:]` | `\D`           | matches a non-digit `[^0-9]`
-  `[:blank:]`  | `\h`           | matches a blank character `[ \t]`
-  `[:^blank:]` | `\H`           | matches a non-blank character `[^ \t]`
-  `[:space:]`  |                | matches a white space character `[ \t\n\v\f\r]`
-  `[:^space:]` |                | matches a non-white space `[^ \t\n\v\f\r]`
-  `[:lower:]`  |                | matches a lower case letter `[a-z]`
-  `[:^lower:]` |                | matches a non-lower case letter `[^a-z]`
-  `[:upper:]`  |                | matches an upper case letter `[A-Z]`
-  `[:^upper:]` |                | matches a nonupper case letter `[^A-Z]`
-  `[:word:]`   |                | matches a word character `[0-9A-Za-z_]`
-  `[:^word:]`  |                | matches a non-word character `[^0-9A-Za-z_]`
+  POSIX form   | POSIX category    | Matches
+  ------------ | ----------------- | ---------------------------------------------
+  `[:ascii:]`  | `\p{ASCII}`       | matches any ASCII character
+  `[:space:]`  | `\p{Space}`       | matches a white space character `[ \t\n\v\f\r]`
+  `[:xdigit:]` | `\p{Xdigit}`      | matches a hex digit `[0-9A-Fa-f]`
+  `[:cntrl:]`  | `\p{Cntrl}`       | matches a control character `[\x00-\0x1f\x7f]`
+  `[:print:]`  | `\p{Print}`       | matches a printable character `[\x20-\x7e]`
+  `[:alnum:]`  | `\p{Alnum}`       | matches a alphanumeric character `[0-9A-Za-z]`
+  `[:alpha:]`  | `\p{Alpha}`       | matches a letter `[A-Za-z]`
+  `[:blank:]`  | `\p{Blank}`, `\h` | matches a blank `[ \t]`
+  `[:digit:]`  | `\p{Digit}`, `\d` | matches a digit `[0-9]`
+  `[:graph:]`  | `\p{Graph}`       | matches a visible character `[\x21-\x7e]`
+  `[:lower:]`  |                   | matches a lower case letter `[a-z]`
+  `[:punct:]`  | `\p{Punct}`       | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
+  `[:upper:]`  |                   | matches an upper case letter `[A-Z]`
+  `[:word:]`   |                   | matches a word character `[0-9A-Za-z_]`
+  `[:^digit:]` | `\D`              | matches a non-digit `[^0-9]`
+  `[:^blank:]` | `\H`              | matches a non-blank character `[^ \t]`
 
 The POSIX form can only be used in bracket lists, for example
 `[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  

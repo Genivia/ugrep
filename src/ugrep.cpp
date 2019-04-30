@@ -71,14 +71,14 @@ The differences and additions compared to GNU grep:
 
 Examples:
 
-  # display the lines in places.txt that contain capitalized Unicode words
-  ugrep '\p{Upper}\p{Lower}*' places.txt
+  # display the lines in places.txt that contain Unicode words
+  ugrep '\w+' places.txt
 
   # display the lines in places.txt with capitalized Unicode words color-highlighted
-  ugrep --color=auto '\p{Upper}\p{Lower}*' places.txt
+  ugrep --color=auto '\w+' places.txt
 
   # list all capitalized Unicode words in places.txt
-  ugrep -o '\p{Upper}\p{Lower}*' places.txt
+  ugrep -o '\w+' places.txt
 
   # list all laughing face emojis (Unicode code points U+1F600 to U+1F60F) in birthday.txt 
   ugrep -o '[😀-😏]' birthday.txt
@@ -127,7 +127,7 @@ Wanted TODO:
   - Like grep, we want to traverse directory contents to search files, and support options -R and -r, --recursive.
   - Like grep, -A, -B, and -C, --context to display the context of a match.
   - Like grep, -f, --file=file to read patterns from a file.
-  - Like grep, -T should insert tabs (and backspace!) at columns.
+  - Like grep, -T should insert tabs (followed by a backspace!) at columns.
   - Should we detect "binary files" like grep and skip them?
   - Should we open files in binary mode "rb" when --binary-files option is specified?
   - ... anything else?
