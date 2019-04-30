@@ -250,6 +250,20 @@ The following options are currently available:
     1       No lines were selected.
     >1      An error occurred.
 
+The differences with GNU grep:
+
+- Regular expression patterns are more expressive, see further below.  Extended
+  regular expression syntax is the default (i.e. option `-E`, as egrep).
+- When option `-b` is used with option `-o` or with option `-g`, ugrep displays
+  the exact byte offset of the pattern match instead of the byte offset of the
+  start of the matched line.
+- Adds option `-g`, `--no-group` to not group matches per line.  This option
+  displays a matched input line again for each additional pattern match.  This
+  option lets option `-c` report the total number of pattern matches per file
+  instead of the number of lines matched per file.
+- Adds option `-k`, `--column-number` to display the column number, taking tab
+  spacing into account by expanding tabs, as specified by option `--tabs`.
+
 Wanted - TODO
 -------------
 

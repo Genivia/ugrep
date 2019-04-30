@@ -62,7 +62,7 @@ Differences with grep:
     This option also changes option -c to report the total number of pattern
     matches per file instead of the number of lines matched.
   - Adds option -k, --column-number to display the column number, taking tab
-    spacing into account by expanding tabs.
+    spacing into account by expanding tabs, as specified by option --tabs.
 
 Examples:
 
@@ -895,20 +895,20 @@ void help(const char *message, const char *arg)
             the respective matched line, starting at column 1.  Tabs are\n\
             expanded before columns are counted.\n\
     -L, --files-without-match\n\
-             Only the names of files not containing selected lines are written\n\
-             to standard output.  Pathnames are listed once per file searched.\n\
-             If the standard input is searched, the string ``(standard input)''\n\
-             is written.\n\
+            Only the names of files not containing selected lines are written\n\
+            to standard output.  Pathnames are listed once per file searched.\n\
+            If the standard input is searched, the string ``(standard input)''\n\
+            is written.\n\
     -l, --files-with-matches\n\
-             Only the names of files containing selected lines are written to\n\
-             standard output.  ugrep will only search a file until a match has\n\
-             been found, making searches potentially less expensive.  Pathnames\n\
-             are listed once per file searched.  If the standard input is\n\
-             searched, the string ``(standard input)'' is written.\n\
+            Only the names of files containing selected lines are written to\n\
+            standard output.  ugrep will only search a file until a match has\n\
+            been found, making searches potentially less expensive.  Pathnames\n\
+            are listed once per file searched.  If the standard input is\n\
+            searched, the string ``(standard input)'' is written.\n\
     --label\n\
-             This option disables options -H, -L, and -l when standard input is\n\
-             read, to remove ``(standard input)'' where a file name would\n\
-             normally be printed.\n\
+            This option disables options -H, -L, and -l when standard input is\n\
+            read, to remove ``(standard input)'' where a file name would\n\
+            normally be printed.\n\
     -m num, --max-count=num\n\
             Stop reading the file after num matches.\n\
     -n, --line-number\n\
