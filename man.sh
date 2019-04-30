@@ -18,8 +18,9 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcEFgHhiknoqsVvwx\fR] [\fB--colour\fR[=\fIwhen\fR]|\fB--color\fR[=\fIwhen\fR]]
-      [\fB-e\fR \fIpattern\fR] [\fIpattern\fR] [\fIfile\fR \fI...\fR]
+[\fB-bcEFGgHhikLlmnoqsTVvwxZ\fR] [\fB--colour\fR[=\fIwhen\fR]|\fB--color\fR[=\fIwhen\fR]]
+      [\fB-e\fR \fIpattern\fR] [--free-space] [--label[=label]] [--tabs=size]
+      [\fIpattern\fR] [\fIfile\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -55,8 +56,8 @@ src/ugrep --help \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
 cat >> man/ugrep.1 << 'END'
 .PP
-The regular expression pattern syntax extends ERE POSIX syntax.  For an
-overview of the syntax see README.md or visit:
+The regular expression pattern syntax is an extended form of the POSIX ERE
+syntax.  For an overview of the syntax see README.md or visit:
 .IP
 https://github.com/Genivia/ugrep
 .PP
@@ -65,7 +66,8 @@ is not possible in line-buffered mode.  Pattern matches may span multiple lines
 in block-buffered mode, which is enabled by one of the options \fB-c\fR,
 \fB-o\fR, or \fB-q\fR (unless combined with option \fB-v\fR).
 .PP
-If no file arguments are specified, the standard input is used.
+If no file arguments are specified, or if `-' is specified, the standard input
+is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -76,9 +78,41 @@ No lines were selected.
 An error occurred.
 .SH ENVIRONMENT
 .IP \fBGREP_COLOR\fR
-May be used to specify one or more ANSI SGR parameters to highlight matches
-with option \fB--color\fR, e.g. 1;35;40 shows pattern matches in bold magenta
-text on a black background.
+May be used to specify ANSI SGR parameters to highlight matches when option
+\fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
+on a black background.
+.IP \fBGREP_COLORS\fR
+May be used to specify ANSI SGR parameters to highlight matches and other
+attributes when option \fB--color\fR is used.  Its value is a colon-separated
+list of ANSI SGR parameters that defaults to
+\fBmt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
+\fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
+\fBGREP_COLOR\fR.
+.SH GREP_COLORS
+.IP \fBsl=\fR
+SGR substring for selected lines.
+.IP \fBcx=\fR
+SGR substring for context lines.
+.IP \fBrv\fR
+Swaps the \fBsl=\fR and \fBcx=\fR capabilities when \fB-v\fR is specified.
+.IP \fBmt=\fR
+SGR substring for matching text in any matching line.
+.IP \fBms=\fR
+SGR substring for matching text in a selected line.  The substring \fBmt=\fR by
+default.
+.IP \fBmc=\fR
+SGR substring for matching text in a context line.  The substring \fBmt=\fR by
+default.
+.IP \fBfn=\fR
+SGR substring for file names.
+.IP \fBln=\fR
+SGR substring for line numbers.
+.IP \fBcn=\fR
+SGR substring for column numbers.
+.IP \fBbn=\fR
+SGR substring for byte offsets.
+.IP \fBse=\fR
+SGR substring for separators.
 .SH EXAMPLES
 To find all occurrences of the word `patricia' in a file:
 .IP
@@ -106,11 +140,11 @@ To check if a file contains any non-ASCII (i.e. Unicode) characters:
 .IP
 $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 .PP
-To list all C/C++ comments in a file (using a pattern with lazy repetitions),
-displaying their line and column numbers using options \fB-n\fR and \fB-k\fR,
-and option \fB-o\fR that allows for matching patterns across multiple lines:
+To list all C/C++ comments in a file displaying their line and column numbers
+using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
+matching patterns across multiple lines:
 .IP
-$ ugrep -nko -e '//.*' -e '/\\*(.|\\n)*?\\*/' myfile
+$ ugrep -nko -e '//.*' -e '/\\*([^*]|\\*[^/])*\\*/' myfile
 .PP
 To list the lines that need fixing in a C/C++ source file by looking for the
 word FIXME while skipping any FIXME in quoted strings by using a negative

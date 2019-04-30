@@ -1,10 +1,11 @@
-.TH UGREP "1" "April 28, 2019" "ugrep 1.0.0" "User Commands"
+.TH UGREP "1" "April 30, 2019" "ugrep 1.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcEFgHhiknoqsVvwx\fR] [\fB--colour\fR[=\fIwhen\fR]|\fB--color\fR[=\fIwhen\fR]]
-      [\fB-e\fR \fIpattern\fR] [\fIpattern\fR] [\fIfile\fR \fI...\fR]
+[\fB-bcEFGgHhikLlmnoqsTVvwxZ\fR] [\fB--colour\fR[=\fIwhen\fR]|\fB--color\fR[=\fIwhen\fR]]
+      [\fB-e\fR \fIpattern\fR] [--free-space] [--label[=label]] [--tabs=size]
+      [\fIpattern\fR] [\fIfile\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -31,11 +32,12 @@ When used with option \fB\-g\fR, counts the number of patterns matched.
 .TP
 \fB\-\-colour\fR[=\fI\fR\fIwhen\fR], \fB\-\-color\fR[=\fI\fR\fIwhen\fR]
 Mark up the matching text with the expression stored in the
-GREP_COLOR environment variable.  The possible values of when can
-be `never', `always' or `auto'.
+GREP_COLOR or GREP_COLORS environment variable.  The possible
+values of when can be `never', `always' or `auto'.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
-Ignored, intended for grep compatibility.
+Interpret patterns as extended regular expressions (EREs). This is
+the default.
 .TP
 \fB\-e\fR pattern, \fB\-\-regexp\fR=\fIpattern\fR
 Specify a pattern used during the search of the input: an input
@@ -52,20 +54,25 @@ CP\-1252 CP\-1253 CP\-1254 CP\-1255 CP\-1256 CP\-1257 CP\-1258
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings (i.e. force ugrep to
-behave as fgrep).
+behave as fgrep but less efficiently).
 .TP
 \fB\-\-free\-space\fR
 Spacing (blanks and tabs) in regular expressions are ignored.
+.TP
+\fB\-G\fR, \fB\-\-basic\-regexp\fR
+Interpret pattern as a basic regular expression (i.e. force ugrep
+to behave as traditional grep).
 .TP
 \fB\-g\fR, \fB\-\-no\-group\fR
 Do not group pattern matches on the same line.  Display the
 matched line again for each additional pattern match.
 .TP
-\fB\-H\fR
-Always print filename headers with output lines.
+\fB\-H\fR, \fB\-\-with\-filename\fR
+Always print the filename with output lines.  This is the default
+when there is more than one file to search.
 .TP
 \fB\-h\fR, \fB\-\-no\-filename\fR
-Never print filename headers (i.e. filenames) with output lines.
+Never print filenames with output lines.
 .TP
 \fB\-?\fR, \fB\-\-help\fR
 Print a help message.
@@ -79,6 +86,27 @@ By default, ugrep is case sensitive.
 The column number of a matched pattern is displayed in front of
 the respective matched line, starting at column 1.  Tabs are
 expanded before columns are counted.
+.TP
+\fB\-L\fR, \fB\-\-files\-without\-match\fR
+Only the names of files not containing selected lines are written
+to standard output.  Pathnames are listed once per file searched.
+If the standard input is searched, the string ``(standard input)''
+is written.
+.TP
+\fB\-l\fR, \fB\-\-files\-with\-matches\fR
+Only the names of files containing selected lines are written to
+standard output.  ugrep will only search a file until a match has
+been found, making searches potentially less expensive.  Pathnames
+are listed once per file searched.  If the standard input is
+searched, the string ``(standard input)'' is written.
+.TP
+\fB\-\-label\fR[=\fI\fR\fIlabel\fR]
+Displays the label value when input is read from standard input
+where a file name would normally be printed in the output.  This
+option applies to options \fB\-H\fR, \fB\-L\fR, and \fB\-l\fR.
+.TP
+\fB\-m\fR num, \fB\-\-max\-count\fR=\fInum\fR
+Stop reading the input after num matches.
 .TP
 \fB\-n\fR, \fB\-\-line\-number\fR
 Each output line is preceded by its relative line number in the
@@ -98,6 +126,10 @@ expensive.  Allows a pattern match to span multiple lines.
 Silent mode.  Nonexistent and unreadable files are ignored (i.e.
 their error messages are suppressed).
 .TP
+\fB\-T\fR, \fB\-\-initial\-tab\fR
+Make sure that the first character of the actual line content lies
+on a tab stop when displayed.
+.TP
 \fB\-\-tabs\fR=\fIsize\fR
 Set the tab size to 1, 2, 4, or 8 to expand tabs for option \fB\-k\fR.
 .TP
@@ -115,9 +147,12 @@ The pattern is searched for as a word (as if surrounded by
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against an entire pattern are considered
 to be matching lines (as if surrounded by ^ and $).
+.TP
+\fB\-Z\fR, \fB\-\-null\fR
+Prints a zero\-byte after the file name.
 .PP
-The regular expression pattern syntax extends ERE POSIX syntax.  For an
-overview of the syntax see README.md or visit:
+The regular expression pattern syntax is an extended form of the POSIX ERE
+syntax.  For an overview of the syntax see README.md or visit:
 .IP
 https://github.com/Genivia/ugrep
 .PP
@@ -126,7 +161,8 @@ is not possible in line-buffered mode.  Pattern matches may span multiple lines
 in block-buffered mode, which is enabled by one of the options \fB-c\fR,
 \fB-o\fR, or \fB-q\fR (unless combined with option \fB-v\fR).
 .PP
-If no file arguments are specified, the standard input is used.
+If no file arguments are specified, or if `-' is specified, the standard input
+is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -137,9 +173,41 @@ No lines were selected.
 An error occurred.
 .SH ENVIRONMENT
 .IP \fBGREP_COLOR\fR
-May be used to specify one or more ANSI SGR parameters to highlight matches
-with option \fB--color\fR, e.g. 1;35;40 shows pattern matches in bold magenta
-text on a black background.
+May be used to specify ANSI SGR parameters to highlight matches when option
+\fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
+on a black background.
+.IP \fBGREP_COLORS\fR
+May be used to specify ANSI SGR parameters to highlight matches and other
+attributes when option \fB--color\fR is used.  Its value is a colon-separated
+list of ANSI SGR parameters that defaults to
+\fBmt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
+\fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
+\fBGREP_COLOR\fR.
+.SH GREP_COLORS
+.IP \fBsl=\fR
+SGR substring for selected lines.
+.IP \fBcx=\fR
+SGR substring for context lines.
+.IP \fBrv\fR
+Swaps the \fBsl=\fR and \fBcx=\fR capabilities when \fB-v\fR is specified.
+.IP \fBmt=\fR
+SGR substring for matching text in any matching line.
+.IP \fBms=\fR
+SGR substring for matching text in a selected line.  The substring \fBmt=\fR by
+default.
+.IP \fBmc=\fR
+SGR substring for matching text in a context line.  The substring \fBmt=\fR by
+default.
+.IP \fBfn=\fR
+SGR substring for file names.
+.IP \fBln=\fR
+SGR substring for line numbers.
+.IP \fBcn=\fR
+SGR substring for column numbers.
+.IP \fBbn=\fR
+SGR substring for byte offsets.
+.IP \fBse=\fR
+SGR substring for separators.
 .SH EXAMPLES
 To find all occurrences of the word `patricia' in a file:
 .IP
@@ -167,11 +235,11 @@ To check if a file contains any non-ASCII (i.e. Unicode) characters:
 .IP
 $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 .PP
-To list all C/C++ comments in a file (using a pattern with lazy repetitions),
-displaying their line and column numbers using options \fB-n\fR and \fB-k\fR,
-and option \fB-o\fR that allows for matching patterns across multiple lines:
+To list all C/C++ comments in a file displaying their line and column numbers
+using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
+matching patterns across multiple lines:
 .IP
-$ ugrep -nko -e '//.*' -e '/\\*(.|\\n)*?\\*/' myfile
+$ ugrep -nko -e '//.*' -e '/\\*([^*]|\\*[^/])*\\*/' myfile
 .PP
 To list the lines that need fixing in a C/C++ source file by looking for the
 word FIXME while skipping any FIXME in quoted strings by using a negative

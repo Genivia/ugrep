@@ -143,126 +143,303 @@ skipping strings and comments:
 
     ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\*[^/])*\*/)' myfile.java | sort -u
 
-Command-line options
---------------------
+Man page
+--------
 
-The following options are currently available:
+    UGREP(1)                         User Commands                        UGREP(1)
 
-    -b, --byte-offset
-            The offset in bytes of a matched pattern is displayed in front of
-            the respective matched line.
-    -c, --count
-            Only a count of selected lines is written to standard output.
-            When used with option -g, counts the number of patterns matched.
-    --colour[=when], --color[=when]
-            Mark up the matching text with the expression stored in the
-            GREP_COLOR environment variable.  The possible values of when can
-            be `never', `always' or `auto'.
-    -E, --extended-regexp
-            Interpret patterns as extended regular expressions (EREs). This is
-            the default.
-    -e pattern, --regexp=pattern
-            Specify a pattern used during the search of the input: an input
-            line is selected if it matches any of the specified patterns.
-            This option is most useful when multiple -e options are used to
-            specify multiple patterns, or when a pattern begins with a dash
-            (`-').
-    --file-format=format
-            The input file format.  The possible values of format can be:
-            binary ISO-8859-1 ASCII EBCDIC UTF-8 UTF-16 UTF-16BE UTF-16LE
-            UTF-32 UTF-32BE UTF-32LE CP-437 CP-850 CP-855 CP-1250 CP-1251
-            CP-1252 CP-1253 CP-1254 CP-1255 CP-1256 CP-1257 CP-1258
-    -F, --fixed-strings
-            Interpret pattern as a set of fixed strings (i.e. force ugrep to
-            behave as fgrep).
-    --free-space
-            Spacing (blanks and tabs) in regular expressions are ignored.
-    -G, --basic-regexp
-            Interpret pattern as a basic regular expression (i.e. force ugrep
-            to behave as traditional grep).
-    -g, --no-group
-            Do not group pattern matches on the same line.  Display the
-            matched line again for each additional pattern match.
-    -H
-            Always print filename headers with output lines.
-    -h, --no-filename
-            Never print filename headers (i.e. filenames) with output lines.
-    -?, --help
-            Print a help message.
-    -i, --ignore-case
-            Perform case insensitive matching. This option applies
-            case-insensitive matching of ASCII characters in the input.
-            By default, ugrep is case sensitive.
-    -k, --column-number
-            The column number of a matched pattern is displayed in front of
-            the respective matched line, starting at column 1.  Tabs are
-            expanded before columns are counted.
-    -L, --files-without-match
-             Only the names of files not containing selected lines are written
-             to standard output.  Pathnames are listed once per file searched.
-             If the standard input is searched, the string ``(standard input)''
-             is written.
-    -l, --files-with-matches
-             Only the names of files containing selected lines are written to
-             standard output.  ugrep will only search a file until a match has
-             been found, making searches potentially less expensive.  Pathnames
-             are listed once per file searched.  If the standard input is
-             searched, the string ``(standard input)'' is written.
-    --label
-             This option disables options -H, -L, and -l when standard input is
-             read, to remove ``(standard input)'' where a file name would
-             normally be printed.
-    -m num, --max-count=num
-            Stop reading the file after num matches.
-    -n, --line-number
-            Each output line is preceded by its relative line number in the
-            file, starting at line 1.  The line number counter is reset for
-            each file processed.
-    --null
-            Prints a zero-byte after the file name.
-    -o, --only-matching
-            Prints only the matching part of the lines.  Allows a pattern
-            match to span multiple lines.
-    -q, --quiet, --silent
-            Quiet mode: suppress normal output.  ugrep will only search a file
-            until a match has been found, making searches potentially less
-            expensive.  Allows a pattern match to span multiple lines.
-    -s, --no-messages
-            Silent mode.  Nonexistent and unreadable files are ignored (i.e.
-            their error messages are suppressed).
-    --tabs=size
-            Set the tab size to 1, 2, 4, or 8 to expand tabs for option -k.
-    -V, --version
-            Display version information and exit.
-    -v, --invert-match
-            Selected lines are those not matching any of the specified
-            patterns.
-    -w, --word-regexp
-            The pattern is searched for as a word (as if surrounded by
-            `\<' and `\>').
-    -x, --line-regexp
-            Only input lines selected against an entire pattern are considered
-            to be matching lines (as if surrounded by ^ and $).
 
-    The ugrep utility exits with one of the following values:
 
-    0       One or more lines were selected.
-    1       No lines were selected.
-    >1      An error occurred.
+    NAME
+           ugrep -- universal file pattern searcher
 
-The differences with GNU grep:
+    SYNOPSIS
+           ugrep [-bcEFGgHhikLlmnoqsTVvwxZ] [--colour[=when]|--color[=when]]
+                 [-e pattern] [--free-space] [--label[=label]] [--tabs=size]
+                 [pattern] [file ...]
+
+    DESCRIPTION
+           The  ugrep utility searches any given input files, selecting lines that
+           match one or more patterns.  By default, a  pattern  matches  an  input
+           line  if  the  regular expression (RE) in the pattern matches the input
+           line without its trailing newline.  An empty expression  matches  every
+           line.   Each  input  line  that matches at least one of the patterns is
+           written to the standard output.
+
+           The ugrep utility normalizes Unicode input, so ugrep  can  be  used  to
+           search  for  Unicode  patterns  in text files encoded in UTF-8, UTF-16,
+           UTF-32 by detecting UTF BOM in the input.  When no UTF BOM is detected,
+           ugrep  searches  for  Unicode  patterns  in UTF-8 input, which includes
+           ASCII input.  ugrep searches input files encoded in ISO-8859-1, EBCDIC,
+           CP-437,  CP-850,  CP-858,  CP-1250  to  CP-1258 when the file format is
+           specified as an option.
+
+           The following options are available:
+
+           -b, --byte-offset
+                  The offset in bytes of a matched pattern is displayed  in  front
+                  of the respective matched line.
+
+           -c, --count
+                  Only  a  count  of selected lines is written to standard output.
+                  When used with option -g, counts the number of patterns matched.
+
+           --colour[=when], --color[=when]
+                  Mark  up  the  matching  text  with the expression stored in the
+                  GREP_COLOR or GREP_COLORS environment  variable.   The  possible
+                  values of when can be `never', `always' or `auto'.
+
+           -E, --extended-regexp
+                  Interpret  patterns as extended regular expressions (EREs). This
+                  is the default.
+
+           -e pattern, --regexp=pattern
+                  Specify a pattern used during the search of the input: an  input
+                  line  is  selected  if it matches any of the specified patterns.
+                  This option is most useful when multiple -e options are used  to
+                  specify  multiple patterns, or when a pattern begins with a dash
+                  (`-').
+
+           --file-format=format
+                  The input file format.  The possible values of  format  can  be:
+                  binary  ISO-8859-1  ASCII  EBCDIC UTF-8 UTF-16 UTF-16BE UTF-16LE
+                  UTF-32 UTF-32BE UTF-32LE CP-437 CP-850  CP-855  CP-1250  CP-1251
+                  CP-1252 CP-1253 CP-1254 CP-1255 CP-1256 CP-1257 CP-1258
+
+           -F, --fixed-strings
+                  Interpret pattern as a set of fixed strings (i.e. force ugrep to
+                  behave as fgrep but less efficiently).
+
+           --free-space
+                  Spacing (blanks and tabs) in regular expressions are ignored.
+
+           -G, --basic-regexp
+                  Interpret pattern as a  basic  regular  expression  (i.e.  force
+                  ugrep to behave as traditional grep).
+
+           -g, --no-group
+                  Do  not  group  pattern  matches  on the same line.  Display the
+                  matched line again for each additional pattern match.
+
+           -H, --with-filename
+                  Always print the  filename  with  output  lines.   This  is  the
+                  default when there is more than one file to search.
+
+           -h, --no-filename
+                  Never print filenames with output lines.
+
+           -?, --help
+                  Print a help message.
+
+           -i, --ignore-case
+                  Perform   case   insensitive   matching.   This  option  applies
+                  case-insensitive matching of ASCII characters in the input.   By
+                  default, ugrep is case sensitive.
+
+           -k, --column-number
+                  The  column number of a matched pattern is displayed in front of
+                  the respective matched line, starting at  column  1.   Tabs  are
+                  expanded before columns are counted.
+
+           -L, --files-without-match
+                  Only  the names of files not containing selected lines are writ-
+                  ten to standard output.  Pathnames  are  listed  once  per  file
+                  searched.   If  the  standard  input  is  searched,  the  string
+                  ``(standard input)'' is written.
+
+           -l, --files-with-matches
+                  Only the names of files containing selected lines are written to
+                  standard  output.   ugrep  will only search a file until a match
+                  has been found,  making  searches  potentially  less  expensive.
+                  Pathnames  are  listed  once per file searched.  If the standard
+                  input is searched, the string ``(standard input)'' is written.
+
+           --label[=label]
+                  Displays the label value when input is read from standard  input
+                  where a file name would normally be printed in the output.  This
+                  option applies to options -H, -L, and -l.
+
+           -m num, --max-count=num
+                  Stop reading the input after num matches.
+
+           -n, --line-number
+                  Each output line is preceded by its relative line number in  the
+                  file,  starting at line 1.  The line number counter is reset for
+                  each file processed.
+
+           -o, --only-matching
+                  Prints only the matching part of the lines.   Allows  a  pattern
+                  match to span multiple lines.
+
+           -q, --quiet, --silent
+                  Quiet  mode:  suppress  normal output.  ugrep will only search a
+                  file until a match has been found, making  searches  potentially
+                  less  expensive.  Allows a pattern match to span multiple lines.
+
+           -s, --no-messages
+                  Silent mode.  Nonexistent and unreadable files are ignored (i.e.
+                  their error messages are suppressed).
+
+           -T, --initial-tab
+                  Make  sure  that  the first character of the actual line content
+                  lies on a tab stop when displayed.
+
+           --tabs=size
+                  Set the tab size to 1, 2, 4, or 8 to expand tabs for option  -k.
+
+           -V, --version
+                  Display version information and exit.
+
+           -v, --invert-match
+                  Selected  lines are those not matching any of the specified pat-
+                  terns.
+
+           -w, --word-regexp
+                  The pattern is searched for as a word (as if surrounded by  `\<'
+                  and `\>').
+
+           -x, --line-regexp
+                  Only  input lines selected against an entire pattern are consid-
+                  ered to be matching lines (as if surrounded by ^ and $).
+
+           -Z, --null
+                  Prints a zero-byte after the file name.
+
+           The regular expression pattern syntax is an extended form of the  POSIX
+           ERE syntax.  For an overview of the syntax see README.md or visit:
+
+                  https://github.com/Genivia/ugrep
+
+           Note  that  `.'  matches any non-newline character.  Matching a newline
+           character is not possible in line-buffered mode.  Pattern  matches  may
+           span  multiple lines in block-buffered mode, which is enabled by one of
+           the options -c, -o, or -q (unless combined with option -v).
+
+           If no file arguments are specified, or if `-' is specified,  the  stan-
+           dard input is used.
+
+    EXIT STATUS
+           The ugrep utility exits with one of the following values:
+
+           0      One or more lines were selected.
+
+           1      No lines were selected.
+
+           >1     An error occurred.
+
+    ENVIRONMENT
+           GREP_COLOR
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  when option --color is used, e.g. 1;35;40 shows pattern  matches
+                  in bold magenta text on a black background.
+
+           GREP_COLORS
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  and other attributes when option --color is used.  Its value  is
+                  a  colon-separated  list of ANSI SGR parameters that defaults to
+                  mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36.  The mt=,  ms=,  and  mc=
+                  capabilities of GREP_COLORS have priority over GREP_COLOR.
+
+    GREP_COLORS
+           sl=    SGR substring for selected lines.
+
+           cx=    SGR substring for context lines.
+
+           rv     Swaps the sl= and cx= capabilities when -v is specified.
+
+           mt=    SGR substring for matching text in any matching line.
+
+           ms=    SGR  substring  for  matching text in a selected line.  The sub-
+                  string mt= by default.
+
+           mc=    SGR substring for matching text in a  context  line.   The  sub-
+                  string mt= by default.
+
+           fn=    SGR substring for file names.
+
+           ln=    SGR substring for line numbers.
+
+           cn=    SGR substring for column numbers.
+
+           bn=    SGR substring for byte offsets.
+
+           se=    SGR substring for separators.
+
+    EXAMPLES
+           To find all occurrences of the word `patricia' in a file:
+
+                  $ ugrep -w 'patricia' myfile
+
+           To  count the number of lines containing the word `patricia' or `Patri-
+           cia` in a file:
+
+                  $ ugrep -cw '[Pp]atricia' myfile
+
+           To count the total number of times the word  `patricia'  or  `Patricia`
+           occur in a file:
+
+                  $ ugrep -cgw '[Pp]atricia' myfile
+
+           To list all capitalized Unicode words in a file:
+
+                  $ ugrep -o '\p{Upper}\p{Lower}*' myfile
+
+           To  list  all  laughing  face  emojis  (Unicode  code points U+1F600 to
+           U+1F60F) in a file:
+
+                  $ ugrep -o '[\x{1F600}-\x{1F60F}]' myfile
+
+           To check if a file contains any non-ASCII (i.e. Unicode) characters:
+
+                  $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
+
+           To list all C/C++ comments in a file displaying their line  and  column
+           numbers using options -n and -k, and option -o that allows for matching
+           patterns across multiple lines:
+
+                  $ ugrep -nko -e '//.*' -e '/\*([^*]|\*[^/])*\*/' myfile
+
+           To list the lines that need fixing in a C/C++ source  file  by  looking
+           for  the word FIXME while skipping any FIXME in quoted strings by using
+           a negative pattern `(?^X)' to ignore quoted strings:
+
+                  $ ugrep -no -e 'FIXME' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' myfile
+
+    BUGS
+           Report bugs at:
+
+                  https://github.com/Genivia/ugrep/issues
+
+
+    LICENSE
+           ugrep  is  released under the BSD-3 license.  All parts of the software
+           have reasonable copyright terms permitting free  redistribution.   This
+           includes the ability to reuse all or parts of the ugrep source tree.
+
+    SEE ALSO
+           grep(1).
+
+
+
+    ugrep 1.1.0                     April 30, 2019                        UGREP(1)
+
+ugrep versus grep
+-----------------
 
 - Regular expression patterns are more expressive, see further below.  Extended
   regular expression syntax is the default (i.e. option `-E`, as egrep).
+- When option `-o` is used, ugrep searches by file instead of by line, matching
+  patterns that include newlines (`\n`).  Matching patterns that include
+  newlines is not possible with grep.
 - When option `-b` is used with option `-o` or with option `-g`, ugrep displays
   the exact byte offset of the pattern match instead of the byte offset of the
-  start of the matched line.
-- Adds option `-g`, `--no-group` to not group matches per line.  This option
-  displays a matched input line again for each additional pattern match.  This
-  option lets option `-c` report the total number of pattern matches per file
-  instead of the number of lines matched per file.
-- Adds option `-k`, `--column-number` to display the column number, taking tab
-  spacing into account by expanding tabs, as specified by option `--tabs`.
+  start of the matched line.  Reporting exact byte offsets makes more sense.
+- New option `-g`, `--no-group` to not group matches per line, a ugrep feature.
+  This option displays a matched input line again for each additional pattern
+  match.  This option is useful with option `-c` to report the total number of
+  pattern matches per file instead of the number of lines matched per file.
+- New option `-k`, `--column-number` to display the column number, taking tab
+  spacing into account by expanding tabs, as specified by new option `--tabs`.
 
 Wanted - TODO
 -------------

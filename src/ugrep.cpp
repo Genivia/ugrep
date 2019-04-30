@@ -43,26 +43,31 @@ Download and installation:
 
 Requires:
 
-  RE/flex - https://github.com/Genivia/RE-flex
+  https://github.com/Genivia/RE-flex
 
 Features:
 
-  - Patterns are ERE POSIX syntax compliant, extended with RE/flex pattern syntax.
-  - Unicode support for \p{} character categories, bracket list classes, etc.
-  - File encoding support for UTF-8/16/32, EBCDIC, and many other code pages.
-  - ugrep command-line options are the same as grep, simulates grep behavior.
+- Patterns are ERE POSIX syntax compliant, extended with RE/flex pattern syntax.
+- Unicode support for \p{} character categories, bracket list classes, etc.
+- File encoding support for UTF-8/16/32, EBCDIC, and many other code pages.
+- ugrep command-line options are the same as grep, simulates grep behavior.
 
-Differences with grep:
+The differences and additions compared to GNU grep:
 
-  - When option -b is used with option -o or with option -g, ugrep displays the
-    exact byte offset of the pattern match instead of the byte offset of the
-    start of the matched line.
-  - Adds option -g, --no-group to not group matches per line.  This option
-    displays a matched input line again for each additional pattern match.
-    This option also changes option -c to report the total number of pattern
-    matches per file instead of the number of lines matched.
-  - Adds option -k, --column-number to display the column number, taking tab
-    spacing into account by expanding tabs, as specified by option --tabs.
+- Regular expression patterns are more expressive, see further below.  Extended
+  regular expression syntax is the default (i.e. option `-E`, as egrep).
+- When option `-o` is used, ugrep searches by file instead of by line, matching
+  patterns that include newlines (`\n`).  Matching patterns that include
+  newlines is not possible with grep.
+- When option `-b` is used with option `-o` or with option `-g`, ugrep displays
+  the exact byte offset of the pattern match instead of the byte offset of the
+  start of the matched line.  Reporting exact byte offsets makes more sense.
+- New option `-g`, `--no-group` to not group matches per line, a ugrep feature.
+  This option displays a matched input line again for each additional pattern
+  match.  This option is useful with option `-c` to report the total number of
+  pattern matches per file instead of the number of lines matched per file.
+- New option `-k`, `--column-number` to display the column number, taking tab
+  spacing into account by expanding tabs, as specified by new option `--tabs`.
 
 Examples:
 
@@ -120,8 +125,9 @@ Bugs FIXME:
 Wanted TODO:
 
   - Like grep, we want to traverse directory contents to search files, and support options -R and -r, --recursive.
-  - Like grep, we want -A, -B, and -C, --context to display the context of a match.
-  - Like grep, we want -f, --file=file to read patterns from a file.
+  - Like grep, -A, -B, and -C, --context to display the context of a match.
+  - Like grep, -f, --file=file to read patterns from a file.
+  - Like grep, -T should insert tabs (and backspace!) at columns.
   - Should we detect "binary files" like grep and skip them?
   - Should we open files in binary mode "rb" when --binary-files option is specified?
   - ... anything else?
@@ -143,7 +149,7 @@ Wanted TODO:
 #endif
 
 // ugrep version
-#define VERSION "1.0.0"
+#define VERSION "1.1.0"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -159,11 +165,22 @@ Wanted TODO:
 #define EXIT_FAIL  1 // No lines were selected
 #define EXIT_ERROR 2 // An error occurred
 
-// GREP_COLOR environment variable
-const char *grep_color = NULL;
+// ANSI SGR substrings extracted from GREP_COLORS
+#define SGR "\033["
+std::string color_sl;
+std::string color_cx;
+std::string color_mt;
+std::string color_ms;
+std::string color_mc;
+std::string color_fn;
+std::string color_ln;
+std::string color_cn;
+std::string color_bn;
+std::string color_se;
+std::string color_off;
 
 // ugrep command-line options
-bool flag_filename            = false;
+bool flag_with_filename       = false;
 bool flag_no_filename         = false;
 bool flag_no_group            = false;
 bool flag_no_messages         = false;
@@ -180,18 +197,20 @@ bool flag_only_matching       = false;
 bool flag_quiet               = false;
 bool flag_files_with_match    = false;
 bool flag_files_without_match = false;
-bool flag_label               = false;
 bool flag_null                = false;
 bool flag_basic_regexp        = false;
 bool flag_word_regexp         = false;
 bool flag_line_regexp         = false;
+bool flag_initial_tab         = false;
 const char *flag_color        = NULL;
 const char *flag_file_format  = NULL;
+const char *flag_label        = "(standard input)";
 size_t flag_max_count         = 0;
 size_t flag_tabs              = 8;
 
 // function protos
 bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *infile);
+void set_color(const char *grep_colors, const char *parameter, std::string& color);
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
 
@@ -229,25 +248,16 @@ int main(int argc, char **argv)
   std::string regex;
   std::vector<const char*> infiles;
 
-  bool color_term = false;
-
-#ifndef OS_WIN
-  // check whether we have a color terminal
-  const char *term = getenv("TERM");
-  color_term = term && (strstr(term, "ansi") || strstr(term, "xterm") || strstr(term, "color"));
-  grep_color = getenv("GREP_COLOR");
-#endif
- 
   // parse ugrep command-line options and arguments
   for (int i = 1; i < argc; ++i)
   {
     const char *arg = argv[i];
 
-    if (*arg == '-'
+    if ((*arg == '-'
 #ifdef OS_WIN
      || *arg == '/'
 #endif
-     )
+     ) && arg[1])
     {
       bool is_grouped = true;
 
@@ -288,10 +298,14 @@ int main(int argc, char **argv)
               help();
             else if (strcmp(arg, "ignore-case") == 0)
               flag_ignore_case = true;
+            else if (strcmp(arg, "initial-tab") == 0)
+              flag_initial_tab = true;
             else if (strcmp(arg, "invert-match") == 0)
               flag_invert_match = true;
             else if (strcmp(arg, "label") == 0)
-              flag_label = true;
+              flag_label = "";
+            else if (strncmp(arg, "label=", 6) == 0)
+              flag_label = arg + 6;
             else if (strcmp(arg, "line-number") == 0)
               flag_line_number = true;
             else if (strcmp(arg, "line-regexp") == 0)
@@ -316,6 +330,8 @@ int main(int argc, char **argv)
               flag_tabs = (size_t)strtoull(arg + 5, NULL, 10);
             else if (strcmp(arg, "version") == 0)
               version();
+            else if (strcmp(arg, "with-filename") == 0)
+              flag_with_filename = true;
             else if (strcmp(arg, "word-regexp") == 0)
               flag_word_regexp = true;
             else
@@ -358,12 +374,10 @@ int main(int argc, char **argv)
             break;
 
           case 'H':
-            flag_filename = true;
-            flag_no_filename = false;
+            flag_with_filename = true;
             break;
 
           case 'h':
-            flag_filename = false;
             flag_no_filename = true;
             break;
 
@@ -410,6 +424,10 @@ int main(int argc, char **argv)
             flag_no_messages = true;
             break;
 
+          case 'T':
+            flag_initial_tab = true;
+            break;
+
           case 'V':
             version();
             break;
@@ -426,11 +444,12 @@ int main(int argc, char **argv)
             flag_line_regexp = true;
             break;
 
+          case 'Z':
+            flag_null = true;
+            break;
+
           case '?':
             help();
-
-          case '\0':
-            break;
 
           default:
             help("unknown option -", arg);
@@ -452,6 +471,10 @@ int main(int argc, char **argv)
   // if no regex pattern was specified then exit
   if (regex.empty())
     help();
+
+  // if no files were specified then read standard input
+  if (infiles.empty())
+    infiles.push_back("-");
 
   // remove the ending '|' from the |-concatenated regexes in the regex string
   regex.pop_back();
@@ -487,28 +510,76 @@ int main(int argc, char **argv)
 
   // display file name if more than one input file is specified and option -h --no-filename is not specified
   if (infiles.size() > 1 && !flag_no_filename)
-    flag_filename = true;
+    flag_with_filename = true;
 
-  // (re)set grep_color depending on color_term, isatty(), and the ugrep --color option
-  if (!flag_color || strcmp(flag_color, "never") == 0)
+  // (re)set flag_color depending on color_term and isatty()
+  if (flag_color)
   {
-    grep_color = NULL;
-  }
-  else if (strcmp(flag_color, "always") == 0)
-  {
-    if (!grep_color)
-      grep_color = "1";
-  }
-  else if (strcmp(flag_color, "auto") == 0)
-  {
-    if (!color_term || !isatty(1))
-      grep_color = NULL;
-    else if (!grep_color)
-      grep_color = "1";
-  }
-  else
-  {
-    help("unknown --color=when value");
+    if (strcmp(flag_color, "never") == 0)
+    {
+      flag_color = NULL;
+    }
+    else if (strcmp(flag_color, "auto") == 0)
+    {
+      bool color_term = false;
+
+#ifndef OS_WIN
+      // check whether we have a color terminal
+      const char *term = getenv("TERM");
+      color_term = term && (strstr(term, "ansi") || strstr(term, "xterm") || strstr(term, "color"));
+#endif
+
+      if (!color_term || !isatty(1))
+        flag_color = NULL;
+    }
+    else if (strcmp(flag_color, "always") != 0)
+    {
+      help("unknown --color=when value");
+    }
+
+    if (flag_color)
+    {
+      const char *grep_color = NULL;
+      const char *grep_colors = NULL;
+
+#ifndef OS_WIN
+      // get GREP_COLOR and GREP_COLORS environment variables
+      grep_color = getenv("GREP_COLOR");
+      grep_colors = getenv("GREP_COLORS");
+#endif
+
+      if (grep_color)
+        color_mt.assign(SGR).append(grep_color).push_back('m');
+      else if (grep_colors == NULL)
+        grep_colors = "mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36";
+
+      if (grep_colors)
+      {
+        // parse GREP_COLORS
+
+        set_color(grep_colors, "sl", color_sl); // selected line
+        set_color(grep_colors, "cx", color_cx); // context line
+        set_color(grep_colors, "mt", color_mt); // matching text in any line
+        set_color(grep_colors, "ms", color_ms); // matching text in selected line
+        set_color(grep_colors, "mc", color_mc); // matching text in a context line
+        set_color(grep_colors, "fn", color_fn); // file name
+        set_color(grep_colors, "ln", color_ln); // line number
+        set_color(grep_colors, "cn", color_cn); // column number
+        set_color(grep_colors, "bn", color_bn); // byte offset
+        set_color(grep_colors, "se", color_se); // separators
+
+        if (flag_invert_match && strstr(grep_colors, "rv"))
+          color_sl.swap(color_cx);
+      }
+
+      // if ms= or mc= are not specified, use the mt= value
+      if (color_ms.empty())
+        color_ms = color_mt;
+      if (color_mc.empty())
+        color_mc = color_mt;
+
+      color_off.assign(SGR "0m");
+    }
   }
 
   // if any match was found in any of the input files then we set found==true
@@ -573,41 +644,25 @@ int main(int argc, char **argv)
     // construct the DFA pattern
     reflex::Pattern pattern(modified_regex, pattern_options);
 
-    if (infiles.empty())
-    {
-      // read standard input to find pattern matches
+    // read each file to find pattern matches
 
-      if (flag_label)
+    for (auto infile : infiles)
+    {
+      FILE *file = strcmp(infile, "-") == 0 ? stdin : fopen(infile, "r");
+
+      if (file == NULL)
       {
-        // disable -H, -L, and -l
-        flag_filename = false;
-        flag_files_with_match = false;
-        flag_files_without_match = false;
+        if (flag_no_messages)
+          continue;
+
+        perror("Cannot open file for reading");
+        exit(EXIT_ERROR);
       }
 
-      found |= ugrep(pattern, stdin, encoding, "(standard input)");
-    }
-    else
-    {
-      // read each file to find pattern matches
+      found |= ugrep(pattern, file, encoding, file != stdin ? infile : flag_label);
 
-      for (auto infile : infiles)
-      {
-        FILE *file = fopen(infile, "r");
-
-        if (file == NULL)
-        {
-          if (flag_no_messages)
-            continue;
-
-          perror("Cannot open file for reading");
-          exit(EXIT_ERROR);
-        }
-
-        found |= ugrep(pattern, file, encoding, infile);
-
+      if (file != stdin)
         fclose(file);
-      }
     }
   }
   catch (reflex::regex_error& error)
@@ -624,15 +679,15 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 {
   size_t matches = 0;
 
-  std::string label, mark, unmark;
+  std::string label;
 
-  if (flag_filename && infile)
-    label.assign(infile).push_back(flag_null ? '\0' : ':');
-
-  if (grep_color)
+  if (flag_with_filename)
   {
-    mark.assign("\033[").append(grep_color).append("m");
-    unmark.assign("\033[0m");
+    label.assign(color_fn).append(infile).append(color_off);
+    if (flag_null)
+      label.push_back('\0');
+    else
+      label.append(color_se).append(":").append(color_off);
   }
 
   // create an input object to read the file (or stdin) using the given file format encoding
@@ -652,9 +707,9 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
     if (!flag_quiet && ((matches && flag_files_with_match) || (!matches && flag_files_without_match)))
     {
       if (flag_null)
-        std::cout << infile << "\0";
+        std::cout << color_fn << infile << color_off << "\0";
       else
-        std::cout << infile << std::endl;
+        std::cout << color_fn << infile << color_off << std::endl;
     }
   }
   else if (flag_count)
@@ -744,10 +799,10 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
         {
           std::cout << label;
           if (flag_line_number)
-            std::cout << lineno << ":";
+            std::cout << color_ln << lineno << color_off << color_se << ":" << color_off;
           if (flag_byte_offset)
-            std::cout << byte_offset << ":";
-          std::cout << line << std::endl;
+            std::cout << color_bn << byte_offset << color_off << color_se << ":" << color_off;
+          std::cout << color_sl << line << color_off << std::endl;
           ++matches;
         }
       }
@@ -759,12 +814,12 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
         {
           std::cout << label;
           if (flag_line_number)
-            std::cout << lineno << ":";
+            std::cout << color_ln << lineno << color_off << color_se << ":" << color_off;
           if (flag_column_number)
-            std::cout << match.columno() + 1 << ":";
+            std::cout << color_cn << match.columno() + 1 << color_off << color_se << ":" << color_off;
           if (flag_byte_offset)
-            std::cout << byte_offset << ":";
-          std::cout << line.substr(0, match.first()) << mark << match.text() << unmark << line.substr(match.last()) << std::endl;
+            std::cout << color_bn << byte_offset << color_off << color_se << ":" << color_off;
+          std::cout << color_sl << line.substr(0, match.first()) << color_off << color_ms << match.text() << color_off << color_sl << line.substr(match.last()) << color_off << std::endl;
           ++matches;
         }
       }
@@ -780,24 +835,24 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
           {
             std::cout << label;
             if (flag_line_number)
-              std::cout << lineno << ":";
+              std::cout << color_ln << lineno << color_off << color_se << ":" << color_off;
             if (flag_column_number)
-              std::cout << match.columno() + 1 << ":";
+              std::cout << color_cn << match.columno() + 1 << color_off << color_se << ":" << color_off;
             if (flag_byte_offset)
-              std::cout << byte_offset + match.first() << ":";
-            std::cout << line.substr(0, match.first()) << mark << match.text() << unmark;
+              std::cout << color_bn << byte_offset + match.first() << color_off << color_se << ":" << color_off;
+            std::cout << color_sl << line.substr(0, match.first()) << color_off << color_ms << match.text() << color_off;
             last = match.last();
             ++matches;
           }
           else
           {
-            std::cout << line.substr(last, match.first() - last) << mark << match.text() << unmark;
+            std::cout << color_sl << line.substr(last, match.first() - last) << color_off << color_ms << match.text() << color_off;
             last = match.last();
           }
         }
 
         if (last > 0)
-          std::cout << line.substr(last) << std::endl;
+          std::cout << color_sl << line.substr(last) << color_off << std::endl;
       }
 
       if (flag_max_count > 0 && matches >= flag_max_count)
@@ -821,14 +876,14 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
         lineno = match.lineno();
         std::cout << label;
         if (flag_line_number)
-          std::cout << lineno << ":";
+          std::cout << color_ln << lineno << color_off << color_se << ":" << color_off;
         if (flag_column_number)
-          std::cout << match.columno() + 1 << ":";
+          std::cout << color_cn << match.columno() + 1 << color_off << color_se << ":" << color_off;
         if (flag_byte_offset)
-          std::cout << match.first() << ":";
+          std::cout << color_bn << match.first() << color_off << color_se << ":" << color_off;
         ++matches;
       }
-      std::cout << mark << match.text() << unmark << std::endl;
+      std::cout << color_ms << match.text() << color_off << std::endl;
 
       if (flag_max_count > 0 && matches >= flag_max_count)
         break;
@@ -838,12 +893,28 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
   return matches > 0;
 }
 
+// Convert GREP_COLORS to set color substring
+void set_color(const char *grep_colors, const char *parameter, std::string& color)
+{
+  const char *substring = strstr(grep_colors, parameter);
+
+  if (substring != NULL && substring[2] == '=')
+  {
+    substring += 3;
+    const char *colon = strchr(substring, ':');
+    if (colon == NULL)
+      colon = substring + strlen(substring);
+    if (colon > substring)
+      color.assign(SGR).append(substring, colon - substring).push_back('m');
+  }
+}
+
 // Display help information with an optional diagnostic message and exit
 void help(const char *message, const char *arg)
 {
   if (message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
-  std::cout << "Usage: ugrep [-bcEFgHhiknoqsVvwx] [--colour[=when]|--color[=when]] [-e pattern] [pattern] [file ...]\n\
+  std::cout << "Usage: ugrep [-bcEFGgHhikLlmnoqsTVvwxZ] [--colour[=when]|--color[=when]] [-e pattern] [--free-space] [--label[=label]] [--tabs=size] [pattern] [file ...]\n\
 \n\
     -b, --byte-offset\n\
             The offset in bytes of a matched pattern is displayed in front of\n\
@@ -853,8 +924,8 @@ void help(const char *message, const char *arg)
             When used with option -g, counts the number of patterns matched.\n\
     --colour[=when], --color[=when]\n\
             Mark up the matching text with the expression stored in the\n\
-            GREP_COLOR environment variable.  The possible values of when can\n\
-            be `never', `always' or `auto'.\n\
+            GREP_COLOR or GREP_COLORS environment variable.  The possible\n\
+            values of when can be `never', `always' or `auto'.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
@@ -871,7 +942,7 @@ void help(const char *message, const char *arg)
   std::cout << "\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings (i.e. force ugrep to\n\
-            behave as fgrep).\n\
+            behave as fgrep but less efficiently).\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -880,10 +951,11 @@ void help(const char *message, const char *arg)
     -g, --no-group\n\
             Do not group pattern matches on the same line.  Display the\n\
             matched line again for each additional pattern match.\n\
-    -H\n\
-            Always print filename headers with output lines.\n\
+    -H, --with-filename\n\
+            Always print the filename with output lines.  This is the default\n\
+            when there is more than one file to search.\n\
     -h, --no-filename\n\
-            Never print filename headers (i.e. filenames) with output lines.\n\
+            Never print filenames with output lines.\n\
     -?, --help\n\
             Print a help message.\n\
     -i, --ignore-case\n\
@@ -905,18 +977,16 @@ void help(const char *message, const char *arg)
             been found, making searches potentially less expensive.  Pathnames\n\
             are listed once per file searched.  If the standard input is\n\
             searched, the string ``(standard input)'' is written.\n\
-    --label\n\
-            This option disables options -H, -L, and -l when standard input is\n\
-            read, to remove ``(standard input)'' where a file name would\n\
-            normally be printed.\n\
+    --label[=label]\n\
+            Displays the label value when input is read from standard input\n\
+            where a file name would normally be printed in the output.  This\n\
+            option applies to options -H, -L, and -l.\n\
     -m num, --max-count=num\n\
-            Stop reading the file after num matches.\n\
+            Stop reading the input after num matches.\n\
     -n, --line-number\n\
             Each output line is preceded by its relative line number in the\n\
             file, starting at line 1.  The line number counter is reset for\n\
             each file processed.\n\
-    --null\n\
-            Prints a zero-byte after the file name.\n\
     -o, --only-matching\n\
             Prints only the matching part of the lines.  Allows a pattern\n\
             match to span multiple lines.\n\
@@ -927,6 +997,9 @@ void help(const char *message, const char *arg)
     -s, --no-messages\n\
             Silent mode.  Nonexistent and unreadable files are ignored (i.e.\n\
             their error messages are suppressed).\n\
+    -T, --initial-tab\n\
+            Make sure that the first character of the actual line content lies\n\
+            on a tab stop when displayed.\n\
     --tabs=size\n\
             Set the tab size to 1, 2, 4, or 8 to expand tabs for option -k.\n\
     -V, --version\n\
@@ -940,6 +1013,8 @@ void help(const char *message, const char *arg)
     -x, --line-regexp\n\
             Only input lines selected against an entire pattern are considered\n\
             to be matching lines (as if surrounded by ^ and $).\n\
+    -Z, --null\n\
+            Prints a zero-byte after the file name.\n\
 \n\
     The ugrep utility exits with one of the following values:\n\
 \n\
