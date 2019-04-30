@@ -1,5 +1,3 @@
-[![license][bsd-3-image]][bsd-3-url]
-
 ugrep: universal grep
 =====================
 
@@ -29,13 +27,19 @@ pages 437, 850, 858, 1250 to 1258.
 **ugrep** is currently in beta release with new features being added in the
 near future.
 
-If you find **ugrep** interesting, please contribute or let us know what you
-like, dislike, or want to see in future releases.
+Regex patterns are converted to
+[DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
+matching.  Rare and pathelogical cases are known to exist that may increase the
+initial running time for DFA construction.  The resulting DFAs still yield
+significant speedups to search large files.
+
+If you find **ugrep** interesting, feel free to share, distribute, contribute,
+or let us know what you like, dislike, or want to see in future releases!
 
 Dependencies
 ------------
 
-RE/flex https://github.com/Genivia/RE-flex
+https://github.com/Genivia/RE-flex
 
 Examples
 --------
@@ -50,17 +54,16 @@ To include the line and column numbers and color-highlight the matches:
 
     ugrep -n -k --color '\p{Upper}\p{Lower}*' places.txt
 
-### 2) list all capitalized Unicode words
-
-To produce a sorted list of all capitalized Unicode words found in `places.txt`:
+To produce a sorted list of all capitalized Unicode words in `places.txt`:
 
     ugrep -o '\p{Upper}\p{Lower}*' places.txt | sort -u
 
-To display the byte offset of the matches counting from the start of the file:
+To display the byte offset of the matches next to the matching word, counting
+from the start of the file:
 
     ugrep -b -o '\p{Upper}\p{Lower}*' places.txt
 
-### 3) display lines containing Unicode characters
+### 2) display lines containing Unicode characters
 
 To display all lines containing laughing face emojis in `birthday.txt`:
 
@@ -70,7 +73,7 @@ Likewise, we can use:
 
     ugrep '[\x{1F600}-\x{1F60F}]' birthday.txt
 
-### 4) display lines containing Unicode names
+### 3) display lines containing Unicode names
 
 To display lines containing the names Gödel (or Goedel), Escher, or Bach:
 
@@ -81,7 +84,7 @@ Bach:
 
     ugrep -v 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
-### 5) count lines containing Unicode names
+### 4) count lines containing Unicode names
 
 To count the number of lines containing the names Gödel (or Goedel), Escher, or
 Bach:
@@ -93,7 +96,7 @@ Escher, or Bach:
 
     ugrep -c -g 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
-### 6) check if a file contains any non-ASCII (i.e. Unicode) characters
+### 5) check if a file contains any non-ASCII (i.e. Unicode) characters
 
 To check if `myfile` contains any non-ASCII Unicode character:
 
@@ -103,7 +106,7 @@ To invert the match:
 
     ugrep -v -q '[^[:ascii:]]' myfile && echo "does not contain Unicode"
 
-### 7) searching UTF-encoded files
+### 6) searching UTF-encoded files
 
 To search for `lorem` in a UTF-16 file:
 
@@ -117,7 +120,7 @@ When utf16lorem.txt has no UTF-16 BOM:
 
     ugrep --file-format=UTF-16 -w -i 'lorem' utf16lorem.txt
 
-### 8) searching for identifiers in source code
+### 7) searching for identifiers in source code
 
 To search for the identifier `main` as a word:
 
@@ -156,7 +159,8 @@ The following options are currently available:
             GREP_COLOR environment variable.  The possible values of when can
             be `never', `always' or `auto'.
     -E, --extended-regexp
-            Ignored, intended for grep compatibility.
+            Interpret patterns as extended regular expressions (EREs). This is
+            the default.
     -e pattern, --regexp=pattern
             Specify a pattern used during the search of the input: an input
             line is selected if it matches any of the specified patterns.
@@ -173,6 +177,9 @@ The following options are currently available:
             behave as fgrep).
     --free-space
             Spacing (blanks and tabs) in regular expressions are ignored.
+    -G, --basic-regexp
+            Interpret pattern as a basic regular expression (i.e. force ugrep
+            to behave as traditional grep).
     -g, --no-group
             Do not group pattern matches on the same line.  Display the
             matched line again for each additional pattern match.
@@ -190,10 +197,29 @@ The following options are currently available:
             The column number of a matched pattern is displayed in front of
             the respective matched line, starting at column 1.  Tabs are
             expanded before columns are counted.
+    -L, --files-without-match
+             Only the names of files not containing selected lines are written
+             to standard output.  Pathnames are listed once per file searched.
+             If the standard input is searched, the string ``(standard input)''
+             is written.
+    -l, --files-with-matches
+             Only the names of files containing selected lines are written to
+             standard output.  ugrep will only search a file until a match has
+             been found, making searches potentially less expensive.  Pathnames
+             are listed once per file searched.  If the standard input is
+             searched, the string ``(standard input)'' is written.
+    --label
+             This option disables options -H, -L, and -l when standard input is
+             read, to remove ``(standard input)'' where a file name would
+             normally be printed.
+    -m num, --max-count=num
+            Stop reading the file after num matches.
     -n, --line-number
             Each output line is preceded by its relative line number in the
             file, starting at line 1.  The line number counter is reset for
             each file processed.
+    --null
+            Prints a zero-byte after the file name.
     -o, --only-matching
             Prints only the matching part of the lines.  Allows a pattern
             match to span multiple lines.
@@ -259,7 +285,8 @@ patterns `φ` and `ψ`:
   `\cX`     | matches the control character `X` mod 32 (e.g. `\cA` is `\x01`)
   `\0177`   | matches an 8-bit character with octal value `177`
   `\x7f`    | matches an 8-bit character with hexadecimal value `7f`
-  `\x{3B1}` | matches Unicode character U+03B1 or `α`
+  `\x{3B1}` | matches Unicode character U+03B1, i.e. `α`
+  `\u{3B1}` | matches Unicode character U+03B1, i.e. `α`
   `\p{C}`   | matches a character in category C
   `\Q...\E` | matches the quoted content between `\Q` and `\E` literally
   `[abc]`   | matches one of `a`, `b`, or `c`
