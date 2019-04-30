@@ -41,6 +41,14 @@ Dependencies
 
 https://github.com/Genivia/RE-flex
 
+Installation
+------------
+
+    ./configure; make
+
+This builds `ugrep` in the `src` directory.  To install the ugrep utility and
+the ugrep manual page, execute `sudo make install`.
+
 Examples
 --------
 
@@ -599,9 +607,9 @@ category.
   `\l`, `\p{Ll}`                         | matches a lower case letter with Unicode sub-property Ll
   `\u`, `\p{Lu}`                         | matches an upper case letter with Unicode sub-property Lu
   `\w`, `\p{Word}`                       | matches a Unicode word character with property L, Nd, or Pc
-  `\p{Unicode}`                          | matches any Unicode character (U+00 to U+10FFFF minus U+D800 to U+DFFF)
+  `\p{Unicode}`                          | matches any Unicode character (U+0000 to U+10FFFF minus U+D800 to U+DFFF)
   `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F)
-  `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+80 to U+10FFFF minus U+D800 to U+DFFF)
+  `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+0080 to U+10FFFF minus U+D800 to U+DFFF)
   `\p{Letter}`                           | matches a character with Unicode property Letter
   `\p{Mark}`                             | matches a character with Unicode property Mark
   `\p{Separator}`                        | matches a character with Unicode property Separator

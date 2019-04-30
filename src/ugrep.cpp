@@ -914,7 +914,10 @@ void help(const char *message, const char *arg)
 {
   if (message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
-  std::cout << "Usage: ugrep [-bcEFGgHhikLlmnoqsTVvwxZ] [--colour[=when]|--color[=when]] [-e pattern] [--free-space] [--label[=label]] [--tabs=size] [pattern] [file ...]\n\
+  std::cout <<
+"Usage: ugrep [-bcEFGgHhikLlmnoqsTVvwxZ] [--colour[=when]|--color[=when]]\n\
+              [-e pattern] [--free-space] [--label[=label]] [--tabs=size]\n\
+              [pattern] [file ...]\n\
 \n\
     -b, --byte-offset\n\
             The offset in bytes of a matched pattern is displayed in front of\n\
