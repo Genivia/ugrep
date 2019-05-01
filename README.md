@@ -44,15 +44,23 @@ https://github.com/Genivia/RE-flex
 Installation
 ------------
 
-    ./configure; make
+    $ ./configure; make
 
-This builds `ugrep` in the `src` directory.  To install the ugrep utility and
-the ugrep manual page, execute `sudo make install`.
+This builds `ugrep` in the `src` directory:
+
+    $ src/ugrep -V
+    ugrep 1.1.0 x86_64-apple-darwin16.7.0
+
+Optionally, install the ugrep utility and the ugrep manual page:
+
+    $ sudo make install
+    $ ugrep -V
+    ugrep 1.1.0 x86_64-apple-darwin16.7.0
 
 Examples
 --------
 
-### 1) display lines containing capitalized Unicode words
+### 1) display lines containing Unicode words
 
 To display lines with Unicode words in `places.txt`:
 
@@ -62,7 +70,7 @@ To include the line and column numbers and color-highlight the matches:
 
     ugrep -n -k --color '\w+' places.txt
 
-To produce a sorted list of all capitalized Unicode words in `places.txt`:
+To produce a sorted list of all Unicode words in `places.txt`:
 
     ugrep -o '\w+' places.txt | sort -u
 
@@ -436,9 +444,9 @@ ugrep versus grep
 
 - Regular expression patterns are more expressive, see further below.  Extended
   regular expression syntax is the default (i.e. option `-E`, as egrep).
-- When option `-o` is used, ugrep searches by file instead of by line, matching
-  patterns that include newlines (`\n`).  Matching patterns that include
-  newlines is not possible with grep.
+- When option `-o` or option `-q` is used, ugrep searches by file instead of
+  by line, matching patterns that include newlines (`\n`), allowing a pattern
+  match to span multiple lines.  This is not possible with grep.
 - When option `-b` is used with option `-o` or with option `-g`, ugrep displays
   the exact byte offset of the pattern match instead of the byte offset of the
   start of the matched line.  Reporting exact byte offsets makes more sense.

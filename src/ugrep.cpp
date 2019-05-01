@@ -45,30 +45,6 @@ Requires:
 
   https://github.com/Genivia/RE-flex
 
-Features:
-
-- Patterns are ERE POSIX syntax compliant, extended with RE/flex pattern syntax.
-- Unicode support for \p{} character categories, bracket list classes, etc.
-- File encoding support for UTF-8/16/32, EBCDIC, and many other code pages.
-- ugrep command-line options are the same as grep, simulates grep behavior.
-
-The differences and additions compared to GNU grep:
-
-- Regular expression patterns are more expressive, see further below.  Extended
-  regular expression syntax is the default (i.e. option `-E`, as egrep).
-- When option `-o` is used, ugrep searches by file instead of by line, matching
-  patterns that include newlines (`\n`).  Matching patterns that include
-  newlines is not possible with grep.
-- When option `-b` is used with option `-o` or with option `-g`, ugrep displays
-  the exact byte offset of the pattern match instead of the byte offset of the
-  start of the matched line.  Reporting exact byte offsets makes more sense.
-- New option `-g`, `--no-group` to not group matches per line, a ugrep feature.
-  This option displays a matched input line again for each additional pattern
-  match.  This option is useful with option `-c` to report the total number of
-  pattern matches per file instead of the number of lines matched per file.
-- New option `-k`, `--column-number` to display the column number, taking tab
-  spacing into account by expanding tabs, as specified by new option `--tabs`.
-
 Examples:
 
   # display the lines in places.txt that contain Unicode words
@@ -893,11 +869,12 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
   return matches > 0;
 }
 
-// Convert GREP_COLORS to set color substring
+// Convert GREP_COLORS and set the color substring to the ANSI SGR sequence
 void set_color(const char *grep_colors, const char *parameter, std::string& color)
 {
   const char *substring = strstr(grep_colors, parameter);
 
+  // check if substring parameter is present in GREP_COLORS
   if (substring != NULL && substring[2] == '=')
   {
     substring += 3;
