@@ -1,11 +1,10 @@
-.TH UGREP "1" "April 30, 2019" "ugrep 1.1.0" "User Commands"
+.TH UGREP "1" "May 01, 2019" "ugrep 1.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcEFGgHhikLlmnoqsTVvwxZ\fR] [\fB--colour\fR[=\fIwhen\fR]|\fB--color\fR[=\fIwhen\fR]]
-      [\fB-e\fR \fIpattern\fR] [--free-space] [--label[=label]] [--tabs=size]
-      [\fIpattern\fR] [\fIfile\fR \fI...\fR]
+[\fB-bcEFfGgHhikLlmnoqsTtVvwXxZz\fR] [\fB--colour\fR[=\fIwhen\fR]|\fB--color\fR[=\fIwhen\fR]]
+      [\fB-e\fR \fIpattern\fR] [--label[=label]] [\fIpattern\fR] [\fIfile\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -44,20 +43,21 @@ Specify a pattern used during the search of the input: an input
 line is selected if it matches any of the specified patterns.
 This option is most useful when multiple \fB\-e\fR options are used to
 specify multiple patterns, or when a pattern begins with a dash
-(`\fB\-'\fR).
-.TP
-\fB\-\-file\-format\fR=\fIformat\fR
-The input file format.  The possible values of format can be:
-binary ISO\-8859\-1 ASCII EBCDIC UTF\-8 UTF\-16 UTF\-16BE UTF\-16LE
-UTF\-32 UTF\-32BE UTF\-32LE CP\-437 CP\-850 CP\-855 CP\-1250 CP\-1251
-CP\-1252 CP\-1253 CP\-1254 CP\-1255 CP\-1256 CP\-1257 CP\-1258
+(`\fB\-'\fR) or when option \fB\-f\fR is used.
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings (i.e. force ugrep to
 behave as fgrep but less efficiently).
 .TP
-\fB\-\-free\-space\fR
-Spacing (blanks and tabs) in regular expressions are ignored.
+\fB\-f\fR file, \fB\-\-file\fR=\fIfile\fR
+ Read one or more newline separated patterns from file.  Empty
+ pattern lines match every input line.
+.TP
+\fB\-\-file\-format\fR=\fIformat\fR
+The input file format.  The possible values of format can be:
+binary ISO\-8859\-1 ASCII EBCDIC UTF\-8 UTF\-16 UTF\-16BE UTF\-16LE
+UTF\-32 UTF\-32BE UTF\-32LE CP437 CP850 CP1250 CP1251 CP1252
+CP1253 CP1254 CP1255 CP1256 CP1257 CP1258
 .TP
 \fB\-G\fR, \fB\-\-basic\-regexp\fR
 Interpret pattern as a basic regular expression (i.e. force ugrep
@@ -126,15 +126,11 @@ expensive.  Allows a pattern match to span multiple lines.
 Silent mode.  Nonexistent and unreadable files are ignored (i.e.
 their error messages are suppressed).
 .TP
-\fB\-\-separator\fR=\fIsep\fR
-The separator between the file name, line number, column number,
-byte offset, and the line matched.  The default is a colon (`:').
-.TP
 \fB\-T\fR, \fB\-\-initial\-tab\fR
 Add a tab space to separate the file name, line number, column
 number, byte offset with the matched line.
 .TP
-\fB\-\-tabs\fR=\fIsize\fR
+\fB\-t\fR size, \fB\-\-tabs\fR=\fIsize\fR
 Set the tab size to 1, 2, 4, or 8 to expand tabs for option \fB\-k\fR.
 .TP
 \fB\-V\fR, \fB\-\-version\fR
@@ -148,12 +144,19 @@ patterns.
 The pattern is searched for as a word (as if surrounded by
 `\\<' and `\\>').
 .TP
+\fB\-X\fR, \fB\-\-free\-space\fR
+Spacing (blanks and tabs) in regular expressions are ignored.
+.TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against an entire pattern are considered
 to be matching lines (as if surrounded by ^ and $).
 .TP
 \fB\-Z\fR, \fB\-\-null\fR
 Prints a zero\-byte after the file name.
+.TP
+\fB\-z\fR sep, \fB\-\-separator\fR=\fIsep\fR
+The separator between the file name, line number, column number,
+byte offset, and the line matched.  The default is a colon (`:').
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
@@ -227,9 +230,13 @@ file:
 .IP
 $ ugrep -cgw '[Pp]atricia' myfile
 .PP
-To list all capitalized Unicode words in a file:
+To list all Unicode words in a file:
 .IP
-$ ugrep -o '\\p{Upper}\\p{Lower}*' myfile
+$ ugrep -o '\\w+' myfile
+.PP
+To list all ASCII words in a file:
+.IP
+$ ugrep -o '[[:word:]]+' myfile
 .PP
 To list all laughing face emojis (Unicode code points U+1F600 to U+1F60F) in a file:
 .IP

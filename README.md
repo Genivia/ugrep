@@ -1,7 +1,7 @@
 ugrep: universal grep
 =====================
 
-A high-performance universal search utility finds Unicode patterns in
+A high-performance universal search utility finds Unicode pattern matches in
 UTF-8/16/32, ASCII, ISO-8859-1, EBCDIC, code pages 437, 850, 858, 1250 to 1258,
 and other file formats.
 
@@ -171,6 +171,10 @@ To display lines with non-static function and method definitions in a C/C++ sour
 
     ugrep -e '^([[:word:]:]+\h*)+\(' -e '(?^^static.*)' file.cpp
 
+To display C/C++ comments and strings using patterns in file `patterns/c_comments` and `patterns/c_strings`
+
+    ugrep -o -f patterns/c_comments -f patterns/c_strings file.cpp
+
 ugrep versus grep
 -----------------
 
@@ -189,6 +193,8 @@ ugrep versus grep
   pattern matches per file instead of the number of lines matched per file.
 - New option `-k`, `--column-number` to display the column number, taking tab
   spacing into account by expanding tabs, as specified by new option `--tabs`.
+- Always assumes UTF-8 locale to support Unicode, e.g. `LANG=en_US.UTF-8`,
+  wheras GNU grep is locale-sensitive.
 
 Man page
 --------
@@ -201,9 +207,8 @@ Man page
            ugrep -- universal file pattern searcher
 
     SYNOPSIS
-           ugrep [-bcEFGgHhikLlmnoqsTVvwxZ] [--colour[=when]|--color[=when]]
-                 [-e pattern] [--free-space] [--label[=label]] [--tabs=size]
-                 [pattern] [file ...]
+           ugrep [-bcEFfGgHhikLlmnoqsTtVvwXxZz] [--colour[=when]|--color[=when]]
+                 [-e pattern] [--label[=label]] [pattern] [file ...]
 
     DESCRIPTION
            The  ugrep utility searches any given input files, selecting lines that
@@ -245,20 +250,21 @@ Man page
                   line  is  selected  if it matches any of the specified patterns.
                   This option is most useful when multiple -e options are used  to
                   specify  multiple patterns, or when a pattern begins with a dash
-                  (`-').
-
-           --file-format=format
-                  The input file format.  The possible values of  format  can  be:
-                  binary  ISO-8859-1  ASCII  EBCDIC UTF-8 UTF-16 UTF-16BE UTF-16LE
-                  UTF-32 UTF-32BE UTF-32LE CP-437 CP-850  CP-855  CP-1250  CP-1251
-                  CP-1252 CP-1253 CP-1254 CP-1255 CP-1256 CP-1257 CP-1258
+                  (`-') or when option -f is used.
 
            -F, --fixed-strings
                   Interpret pattern as a set of fixed strings (i.e. force ugrep to
                   behave as fgrep but less efficiently).
 
-           --free-space
-                  Spacing (blanks and tabs) in regular expressions are ignored.
+           -f file, --file=file
+                   Read one or more newline separated patterns from file.  Empty
+                   pattern lines match every input line.
+
+           --file-format=format
+                  The  input  file  format.  The possible values of format can be:
+                  binary ISO-8859-1 ASCII EBCDIC UTF-8  UTF-16  UTF-16BE  UTF-16LE
+                  UTF-32 UTF-32BE UTF-32LE CP437 CP850 CP1250 CP1251 CP1252 CP1253
+                  CP1254 CP1255 CP1256 CP1257 CP1258
 
            -G, --basic-regexp
                   Interpret pattern as a  basic  regular  expression  (i.e.  force
@@ -327,16 +333,11 @@ Man page
                   Silent mode.  Nonexistent and unreadable files are ignored (i.e.
                   their error messages are suppressed).
 
-           --separator=sep
-                  The separator between the file name, line number, column number,
-                  byte offset, and the line  matched.   The  default  is  a  colon
-                  (`:').
-
            -T, --initial-tab
                   Add  a  tab space to separate the file name, line number, column
                   number, byte offset with the matched line.
 
-           --tabs=size
+           -t size, --tabs=size
                   Set the tab size to 1, 2, 4, or 8 to expand tabs for option  -k.
 
            -V, --version
@@ -350,12 +351,20 @@ Man page
                   The pattern is searched for as a word (as if surrounded by  `\<'
                   and `\>').
 
+           -X, --free-space
+                  Spacing (blanks and tabs) in regular expressions are ignored.
+
            -x, --line-regexp
                   Only  input lines selected against an entire pattern are consid-
                   ered to be matching lines (as if surrounded by ^ and $).
 
            -Z, --null
                   Prints a zero-byte after the file name.
+
+           -z sep, --separator=sep
+                  The separator between the file name, line number, column number,
+                  byte  offset,  and  the  line  matched.   The default is a colon
+                  (`:').
 
            The regular expression pattern syntax is an extended form of the  POSIX
            ERE syntax.  For an overview of the syntax see README.md or visit:
@@ -436,6 +445,10 @@ Man page
 
                   $ ugrep -o '\w+' myfile
 
+           To list all ASCII words in a file:
+
+                  $ ugrep -o '[[:word:]]+' myfile
+
            To  list  all  laughing  face  emojis  (Unicode  code points U+1F600 to
            U+1F60F) in a file:
 
@@ -473,7 +486,7 @@ Man page
 
 
 
-    ugrep 1.1.0                     April 30, 2019                        UGREP(1)
+    ugrep 1.1.0                      May 01, 2019                         UGREP(1)
 
 Wanted - TODO
 -------------
@@ -483,6 +496,7 @@ Wanted - TODO
 - Like grep, read patterns from a file with `-f`, `--file=file`.
 - Should detect "binary files" like grep and skip them?
 - Open files in binary mode "rb" when `--binary-files` option is specified?
+- Make ugrap locale-sensitive, e.g. `LC_COLLATE`?
 - ...
 
 Bugs - FIXME
