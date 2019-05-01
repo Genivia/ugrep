@@ -74,6 +74,10 @@ To produce a sorted list of all Unicode words in `places.txt`:
 
     ugrep -o '\w+' places.txt | sort -u
 
+To produce a sorted list of all ASCII words in `places.txt`
+
+    ugrep -o '[[:word:]]+' places.txt | sort -u
+
 To display the byte offset of the matches next to the matching word, counting
 from the start of the file:
 
@@ -158,6 +162,14 @@ To produce a sorted list of all Unicode identifiers in Java source code while
 skipping strings and comments:
 
     ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\*[^/])*\*/)' myfile.java | sort -u
+
+To display lines with function and method definitions in a C/C++ source file:
+
+    ugrep '^([[:word:]:]+\h*)+\(' file.cpp
+
+To display lines with non-static function and method definitions in a C/C++ source file:
+
+    ugrep -e '^([[:word:]:]+\h*)+\(' -e '(?^^static.*)' file.cpp
 
 ugrep versus grep
 -----------------
@@ -315,9 +327,14 @@ Man page
                   Silent mode.  Nonexistent and unreadable files are ignored (i.e.
                   their error messages are suppressed).
 
+           --separator=sep
+                  The separator between the file name, line number, column number,
+                  byte offset, and the line  matched.   The  default  is  a  colon
+                  (`:').
+
            -T, --initial-tab
-                  Make  sure  that  the first character of the actual line content
-                  lies on a tab stop when displayed.
+                  Add  a  tab space to separate the file name, line number, column
+                  number, byte offset with the matched line.
 
            --tabs=size
                   Set the tab size to 1, 2, 4, or 8 to expand tabs for option  -k.
@@ -583,8 +600,8 @@ list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
   `[:punct:]`  | `\p{Punct}`       | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
   `[:upper:]`  |                   | matches an upper case letter `[A-Z]`
   `[:word:]`   |                   | matches a word character `[0-9A-Za-z_]`
-  `[:^digit:]` | `\D`              | matches a non-digit `[^0-9]`
   `[:^blank:]` | `\H`              | matches a non-blank character `[^ \t]`
+  `[:^digit:]` | `\D`              | matches a non-digit `[^0-9]`
 
 The POSIX form can only be used in bracket lists, for example
 `[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  

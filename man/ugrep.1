@@ -126,9 +126,13 @@ expensive.  Allows a pattern match to span multiple lines.
 Silent mode.  Nonexistent and unreadable files are ignored (i.e.
 their error messages are suppressed).
 .TP
+\fB\-\-separator\fR=\fIsep\fR
+The separator between the file name, line number, column number,
+byte offset, and the line matched.  The default is a colon (`:').
+.TP
 \fB\-T\fR, \fB\-\-initial\-tab\fR
-Make sure that the first character of the actual line content lies
-on a tab stop when displayed.
+Add a tab space to separate the file name, line number, column
+number, byte offset with the matched line.
 .TP
 \fB\-\-tabs\fR=\fIsize\fR
 Set the tab size to 1, 2, 4, or 8 to expand tabs for option \fB\-k\fR.

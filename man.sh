@@ -128,9 +128,13 @@ file:
 .IP
 $ ugrep -cgw '[Pp]atricia' myfile
 .PP
-To list all capitalized Unicode words in a file:
+To list all Unicode words in a file:
 .IP
-$ ugrep -o '\\p{Upper}\\p{Lower}*' myfile
+$ ugrep -o '\\w+' myfile
+.PP
+To list all ASCII words in a file:
+.IP
+$ ugrep -o '[[:word:]]+' myfile
 .PP
 To list all laughing face emojis (Unicode code points U+1F600 to U+1F60F) in a file:
 .IP

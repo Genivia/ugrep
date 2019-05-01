@@ -50,11 +50,17 @@ Examples:
   # display the lines in places.txt that contain Unicode words
   ugrep '\w+' places.txt
 
-  # display the lines in places.txt with capitalized Unicode words color-highlighted
+  # display the lines in places.txt with Unicode words color-highlighted
   ugrep --color=auto '\w+' places.txt
 
-  # list all capitalized Unicode words in places.txt
+  # list all Unicode words in places.txt
   ugrep -o '\w+' places.txt
+
+  # list all ASCII words (using a POSIX character class) in places.txt
+  ugrep -o '[[:word:]]+' places.txt
+
+  # list lines containing the Greek letter α to ω (U+03B1 to U+03C9)
+  ugrep '[α-ω]' places.txt
 
   # list all laughing face emojis (Unicode code points U+1F600 to U+1F60F) in birthday.txt 
   ugrep -o '[😀-😏]' birthday.txt
@@ -88,6 +94,12 @@ Examples:
 
   # check if 'main' is defined in a C/C++ source file, skipping the word 'main' in comments and strings:
   ugrep -q -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/[*]([^*]|[*][^/])*[*]/)' file.cpp
+
+  # display function and method definitions in a C/C++ source file
+  ugrep '^([[:alpha:]:]+\h*)+\(.*' file.cpp
+
+  # display non-static function and method definitions in a C/C++ source file
+  ugrep -e '^([[:alpha:]:]+\h*)+\(.*' -e '(?^^static.*)' file.cpp
 
 Compile:
 
@@ -181,6 +193,7 @@ bool flag_initial_tab         = false;
 const char *flag_color        = NULL;
 const char *flag_file_format  = NULL;
 const char *flag_label        = "(standard input)";
+const char *flag_separator    = ":";
 size_t flag_max_count         = 0;
 size_t flag_tabs              = 8;
 
@@ -302,6 +315,8 @@ int main(int argc, char **argv)
               flag_quiet = true;
             else if (strncmp(arg, "regexp=", 7) == 0)
               regex.append(arg + 7).push_back('|');
+            else if (strncmp(arg, "separator=", 10) == 0)
+              flag_separator = arg + 10;
             else if (strncmp(arg, "tabs=", 5) == 0)
               flag_tabs = (size_t)strtoull(arg + 5, NULL, 10);
             else if (strcmp(arg, "version") == 0)
@@ -654,16 +669,24 @@ int main(int argc, char **argv)
 bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *infile)
 {
   size_t matches = 0;
-
+  std::string sep;
   std::string label;
 
+  // file name, line number, column number, byte offset separator
+  sep.assign(color_se).append(flag_separator).append(color_off);
+
+  // -T adds a tab to the separator
+  if (flag_initial_tab)
+    sep.insert(0, "\t");
+
+  // -H displays the file name
   if (flag_with_filename)
   {
     label.assign(color_fn).append(infile).append(color_off);
     if (flag_null)
       label.push_back('\0');
     else
-      label.append(color_se).append(":").append(color_off);
+      label.append(sep);
   }
 
   // create an input object to read the file (or stdin) using the given file format encoding
@@ -775,9 +798,9 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
         {
           std::cout << label;
           if (flag_line_number)
-            std::cout << color_ln << lineno << color_off << color_se << ":" << color_off;
+            std::cout << color_ln << lineno << color_off << sep;
           if (flag_byte_offset)
-            std::cout << color_bn << byte_offset << color_off << color_se << ":" << color_off;
+            std::cout << color_bn << byte_offset << color_off << sep;
           std::cout << color_sl << line << color_off << std::endl;
           ++matches;
         }
@@ -790,11 +813,11 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
         {
           std::cout << label;
           if (flag_line_number)
-            std::cout << color_ln << lineno << color_off << color_se << ":" << color_off;
+            std::cout << color_ln << lineno << color_off << sep;
           if (flag_column_number)
-            std::cout << color_cn << match.columno() + 1 << color_off << color_se << ":" << color_off;
+            std::cout << color_cn << match.columno() + 1 << color_off << sep;
           if (flag_byte_offset)
-            std::cout << color_bn << byte_offset << color_off << color_se << ":" << color_off;
+            std::cout << color_bn << byte_offset << color_off << sep;
           std::cout << color_sl << line.substr(0, match.first()) << color_off << color_ms << match.text() << color_off << color_sl << line.substr(match.last()) << color_off << std::endl;
           ++matches;
         }
@@ -811,11 +834,11 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
           {
             std::cout << label;
             if (flag_line_number)
-              std::cout << color_ln << lineno << color_off << color_se << ":" << color_off;
+              std::cout << color_ln << lineno << color_off << sep;
             if (flag_column_number)
-              std::cout << color_cn << match.columno() + 1 << color_off << color_se << ":" << color_off;
+              std::cout << color_cn << match.columno() + 1 << color_off << sep;
             if (flag_byte_offset)
-              std::cout << color_bn << byte_offset + match.first() << color_off << color_se << ":" << color_off;
+              std::cout << color_bn << byte_offset + match.first() << color_off << sep;
             std::cout << color_sl << line.substr(0, match.first()) << color_off << color_ms << match.text() << color_off;
             last = match.last();
             ++matches;
@@ -852,11 +875,11 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
         lineno = match.lineno();
         std::cout << label;
         if (flag_line_number)
-          std::cout << color_ln << lineno << color_off << color_se << ":" << color_off;
+          std::cout << color_ln << lineno << color_off << sep;
         if (flag_column_number)
-          std::cout << color_cn << match.columno() + 1 << color_off << color_se << ":" << color_off;
+          std::cout << color_cn << match.columno() + 1 << color_off << sep;
         if (flag_byte_offset)
-          std::cout << color_bn << match.first() << color_off << color_se << ":" << color_off;
+          std::cout << color_bn << match.first() << color_off << sep;
         ++matches;
       }
       std::cout << color_ms << match.text() << color_off << std::endl;
@@ -892,9 +915,7 @@ void help(const char *message, const char *arg)
   if (message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   std::cout <<
-"Usage: ugrep [-bcEFGgHhikLlmnoqsTVvwxZ] [--colour[=when]|--color[=when]]\n\
-              [-e pattern] [--free-space] [--label[=label]] [--tabs=size]\n\
-              [pattern] [file ...]\n\
+"Usage: ugrep [-bcEFGgHhikLlmnoqsTVvwxZ] [--colour[=when]|--color[=when]] [-e pattern] [--free-space] [--label[=label]] [--separator=sep] [--tabs=size] [pattern] [file ...]\n\
 \n\
     -b, --byte-offset\n\
             The offset in bytes of a matched pattern is displayed in front of\n\
@@ -977,9 +998,12 @@ void help(const char *message, const char *arg)
     -s, --no-messages\n\
             Silent mode.  Nonexistent and unreadable files are ignored (i.e.\n\
             their error messages are suppressed).\n\
+    --separator=sep\n\
+            The separator between the file name, line number, column number,\n\
+            byte offset, and the line matched.  The default is a colon (`:').\n\
     -T, --initial-tab\n\
-            Make sure that the first character of the actual line content lies\n\
-            on a tab stop when displayed.\n\
+            Add a tab space to separate the file name, line number, column\n\
+            number, byte offset with the matched line.\n\
     --tabs=size\n\
             Set the tab size to 1, 2, 4, or 8 to expand tabs for option -k.\n\
     -V, --version\n\
