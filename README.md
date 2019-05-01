@@ -159,6 +159,25 @@ skipping strings and comments:
 
     ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\*[^/])*\*/)' myfile.java | sort -u
 
+ugrep versus grep
+-----------------
+
+- Regular expression patterns are more expressive and support Unicode pattern
+  matching, see further below.  Extended regular expression syntax is the
+  default (i.e.  option `-E`, as egrep).
+- When option `-o` or option `-q` is used, ugrep searches by file instead of
+  by line, matching patterns that include newlines (`\n`), allowing a pattern
+  match to span multiple lines.  This is not possible with grep.
+- When option `-b` is used with option `-o` or with option `-g`, ugrep displays
+  the exact byte offset of the pattern match instead of the byte offset of the
+  start of the matched line.  Reporting exact byte offsets makes more sense.
+- New option `-g`, `--no-group` to not group matches per line, a ugrep feature.
+  This option displays a matched input line again for each additional pattern
+  match.  This option is useful with option `-c` to report the total number of
+  pattern matches per file instead of the number of lines matched per file.
+- New option `-k`, `--column-number` to display the column number, taking tab
+  spacing into account by expanding tabs, as specified by new option `--tabs`.
+
 Man page
 --------
 
@@ -438,24 +457,6 @@ Man page
 
 
     ugrep 1.1.0                     April 30, 2019                        UGREP(1)
-
-ugrep versus grep
------------------
-
-- Regular expression patterns are more expressive, see further below.  Extended
-  regular expression syntax is the default (i.e. option `-E`, as egrep).
-- When option `-o` or option `-q` is used, ugrep searches by file instead of
-  by line, matching patterns that include newlines (`\n`), allowing a pattern
-  match to span multiple lines.  This is not possible with grep.
-- When option `-b` is used with option `-o` or with option `-g`, ugrep displays
-  the exact byte offset of the pattern match instead of the byte offset of the
-  start of the matched line.  Reporting exact byte offsets makes more sense.
-- New option `-g`, `--no-group` to not group matches per line, a ugrep feature.
-  This option displays a matched input line again for each additional pattern
-  match.  This option is useful with option `-c` to report the total number of
-  pattern matches per file instead of the number of lines matched per file.
-- New option `-k`, `--column-number` to display the column number, taking tab
-  spacing into account by expanding tabs, as specified by new option `--tabs`.
 
 Wanted - TODO
 -------------
