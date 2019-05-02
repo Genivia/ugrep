@@ -156,12 +156,17 @@ option `-o` to block-buffer the input):
 We can use a negative pattern to also ignore unwanted matches in C/C++
 comments:
 
-    ugrep -nk -o -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\*[^/])*\*/)' myfile.cpp
+    ugrep -nk -o -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|(\*+[^*/]))*\*+\/)' myfile.cpp
+
+This is a lot of work to type in correctly.  There is an easier way by using
+pre-defined patterns:
+
+    ugrep -nk -o -e '\<main\>' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
 
 To produce a sorted list of all Unicode identifiers in Java source code while
 skipping strings and comments:
 
-    ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\*[^/])*\*/)' myfile.java | sort -u
+    ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -f patterns/java_zap_strings -f patterns/java_zap_comments myfile.java | sort -u
 
 To display lines with function and method definitions in a C/C++ source file:
 
@@ -170,10 +175,6 @@ To display lines with function and method definitions in a C/C++ source file:
 To display lines with non-static function and method definitions in a C/C++ source file:
 
     ugrep -e '^([[:word:]:]+\h*)+\(' -e '(?^^static.*)' file.cpp
-
-To display C/C++ comments and strings using patterns in file `patterns/c_comments` and `patterns/c_strings`
-
-    ugrep -o -f patterns/c_comments -f patterns/c_strings file.cpp
 
 ugrep versus grep
 -----------------
@@ -493,7 +494,6 @@ Wanted - TODO
 
 - Like grep, traverse directory contents to search files, and support options `-R` and `-r`, `--recursive`.
 - Like grep, display context with `-A`, `-B`, and `-C`, `--context`.
-- Like grep, read patterns from a file with `-f`, `--file=file`.
 - Should detect "binary files" like grep and skip them?
 - Open files in binary mode "rb" when `--binary-files` option is specified?
 - Make ugrap locale-sensitive, e.g. `LC_COLLATE`?

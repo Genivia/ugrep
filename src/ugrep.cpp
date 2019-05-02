@@ -94,7 +94,7 @@ Examples:
   ugrep -n -o -e 'FIXME' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' file.cpp
 
   # check if 'main' is defined in a C/C++ source file, skipping the word 'main' in comments and strings:
-  ugrep -q -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/[*]([^*]|[*][^/])*[*]/)' file.cpp
+  ugrep -q -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|(\*+[^/\x2A]))*\*+\/)' file.cpp
 
   # display function and method definitions in a C/C++ source file
   ugrep '^([[:alpha:]:]+\h*)+\(.*' file.cpp
