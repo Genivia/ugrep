@@ -514,15 +514,22 @@ Man page
 
     ugrep 1.1.0                      May 02, 2019                         UGREP(1)
 
-Bugs
-----
+Bugs to fix in future updates
+-----------------------------
 
 - Pattern `^$` does not match empty lines, because `find()` does not permit
-  empty matches.
-- Back-references are not supported.
-- There are reported cases where lazy quantifiers misbehave, best to avoid them
-  unless the patterns are simple.
-- Not locale-sensitive, e.g. `LC_COLLATE` has no effect.
+  empty matches.  This can be fixed in RE/flex, but requires some work and
+  testing to avoid infinite `find()` loops on an empty match that does not
+  advance the input cursor.
+- Back-references are not supported.  This will likely not be supported soon
+  with the RE/flex library.  We could use Boost.Regex for this (using RE/flex
+  `BoostMatcher` class), which is faster than PCRE2 but slower than RE/flex
+  `Matcher` class.  With Boost.Regex we can also support Perl-like matching
+  as an option.
+- There are reported cases where lazy quantifiers misbehave when used in
+  negative patterns, so it is best to avoid them unless the patterns are
+  simple.
+- Not locale-sensitive, e.g. `LC_COLLATE` currently has no effect.
 
 Pattern syntax
 --------------
