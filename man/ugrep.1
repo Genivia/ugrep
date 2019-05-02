@@ -250,7 +250,11 @@ To list all C/C++ comments in a file displaying their line and column numbers
 using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
 matching patterns across multiple lines:
 .IP
-$ ugrep -nko -e '//.*' -e '/\\*([^*]|\\*[^/])*\\*/' myfile
+$ ugrep -nko -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile
+.PP
+The same search, but using pre-defined patterns:
+.IP
+$ ugrep -nko -f patterns/c_comments myfile
 .PP
 To list the lines that need fixing in a C/C++ source file by looking for the
 word FIXME while skipping any FIXME in quoted strings by using a negative

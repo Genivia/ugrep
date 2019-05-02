@@ -16,7 +16,8 @@ and negative patterns to skip unwanted pattern matches to produce more precise
 results.
 
 **ugrep** makes it easy to search source code.  For example to find exact
-matches of `main` in C/C++ source code while skipping strings and comments:
+matches of `main` in C/C++ source code while skipping strings and comments
+that may have a match with `main` in them:
 
     ugrep -n -o -e '\<main\>' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
 
@@ -473,7 +474,11 @@ Man page
            numbers using options -n and -k, and option -o that allows for matching
            patterns across multiple lines:
 
-                  $ ugrep -nko -e '//.*' -e '/\*([^*]|\*[^/])*\*/' myfile
+                  $ ugrep -nko -e '//.*' -e '/\*([^*]|(\*+[^*/]))*\*+\/' myfile
+
+           The same search, but using pre-defined patterns:
+
+                  $ ugrep -nko -f patterns/c_comments myfile
 
            To list the lines that need fixing in a C/C++ source  file  by  looking
            for  the word FIXME while skipping any FIXME in quoted strings by using
