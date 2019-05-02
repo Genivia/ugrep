@@ -511,48 +511,6 @@ int main(int argc, char **argv)
     }
   }
 
-  // if -f --file: read patterns from the specified file or files
-  for (std::vector<const char*>::const_iterator i = flag_file.begin(); i != flag_file.end(); ++i)
-  {
-    FILE *file = fopen(*i, "r");
-
-    if (file == NULL)
-    {
-      if (!flag_no_messages)
-        perror("Cannot open file for reading");
-
-      exit(EXIT_ERROR);
-    }
-
-    reflex::Input input(file);
-    std::string line;
-
-    while (input)
-    {
-      int ch;
-
-      // read the next line
-      line.clear();
-      while ((ch = input.get()) != EOF && ch != '\n')
-        line.push_back(ch);
-      if (ch == EOF && line.empty())
-        break;
-
-      // add line to the regex
-      regex.append(line).push_back('|');
-    }
-
-    fclose(file);
-  }
-
-  // if no regex pattern was specified then exit
-  if (regex.empty())
-    help();
-
-  // if no files were specified then read standard input
-  if (infiles.empty())
-    infiles.push_back("-");
-
   // remove the ending '|' from the |-concatenated regexes in the regex string
   regex.pop_back();
 
@@ -573,6 +531,72 @@ int main(int argc, char **argv)
     else if (flag_line_regexp)
       regex.insert(0, "^(").append(")$");
   }
+
+  if (!flag_file.empty())
+  {
+    // add an ending '|' to the regex to concatenate sub-expressions
+    regex.push_back('|');
+
+    // if -f --file: read patterns from the specified file or files
+    for (std::vector<const char*>::const_iterator i = flag_file.begin(); i != flag_file.end(); ++i)
+    {
+      FILE *file = fopen(*i, "r");
+
+#ifndef OS_WIN
+      // could not open, try GREP_PATH environment variable
+      if (file == NULL)
+      {
+        const char *grep_path = getenv("GREP_PATH");
+        if (grep_path != NULL)
+        {
+          std::string path_file(grep_path);
+          path_file.append("/").append(*i);
+          file = fopen(path_file.c_str(), "r");
+        }
+      }
+#endif
+
+      if (file == NULL)
+      {
+        if (!flag_no_messages)
+          perror("Cannot open file for reading");
+
+        exit(EXIT_ERROR);
+      }
+
+      reflex::Input input(file);
+      std::string line;
+
+      while (input)
+      {
+        int ch;
+
+        // read the next line
+        line.clear();
+        while ((ch = input.get()) != EOF && ch != '\n')
+          line.push_back(ch);
+        if (ch == EOF && line.empty())
+          break;
+
+        // add line to the regex if not empty
+        if (!line.empty())
+          regex.append(line).push_back('|');
+      }
+
+      fclose(file);
+    }
+
+    // remove the ending '|' from the |-concatenated regexes in the regex string
+    regex.pop_back();
+  }
+
+  // if no regex pattern was specified then exit
+  if (regex.empty())
+    help();
+
+  // if no files were specified then read standard input
+  if (infiles.empty())
+    infiles.push_back("-");
 
   // if -v --invert-match: options -g --no-group and -o --only-matching options cannot be used
   if (flag_invert_match)
@@ -665,7 +689,7 @@ int main(int argc, char **argv)
   {
     reflex::Input::file_encoding_type encoding = reflex::Input::file_encoding::plain;
 
-    // parse ugrep option --file-format=format
+    // parse ugrep option --file-format=encoding
     if (flag_file_format != NULL)
     {
       int i;
@@ -676,7 +700,7 @@ int main(int argc, char **argv)
           break;
 
       if (format_table[i].format == NULL)
-        help("unknown --file-format=format encoding");
+        help("unknown --file-format=encoding value");
 
       // encoding is the file format used by all input files, if no BOM is present
       encoding = format_table[i].encoding;
@@ -1001,7 +1025,7 @@ void help(const char *message, const char *arg)
   if (message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   std::cout <<
-"Usage: ugrep [-bcEFfGgHhikLlmnoqsTtVvwXxZz] [--colour[=when]|--color[=when]] [-e pattern] [--label[=label]] [pattern] [file ...]\n\
+"Usage: ugrep [-bcEFfGgHhikLlmnoqsTtVvwXxZz] [--colour[=when]|--color[=when]] [--file-format=encoding] [--label[=label]] [-e pattern] [pattern] [file ...]\n\
 \n\
     -b, --byte-offset\n\
             The offset in bytes of a matched pattern is displayed in front of\n\
@@ -1026,10 +1050,12 @@ void help(const char *message, const char *arg)
             Interpret pattern as a set of fixed strings (i.e. force ugrep to\n\
             behave as fgrep but less efficiently).\n\
     -f file, --file=file\n\
-             Read one or more newline separated patterns from file.  Empty\n\
-             pattern lines match every input line.\n\
-    --file-format=format\n\
-            The input file format.  The possible values of format can be:";
+            Read one or more newline separated patterns from file.  Empty\n\
+            pattern lines in the file are ignored.  Options -F, -w, and -x\n\
+            do not apply to these patterns.  If file does not exist, uses\n\
+            the GREP_PATH environment variable to open file.\n\
+    --file-format=encoding\n\
+            The input file format.  The possible values of encoding can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)
     std::cout << (i % 8 ? " " : "\n            ") << format_table[i].format;
   std::cout << "\n\
@@ -1096,13 +1122,13 @@ void help(const char *message, const char *arg)
             Selected lines are those not matching any of the specified\n\
             patterns.\n\
     -w, --word-regexp\n\
-            The pattern is searched for as a word (as if surrounded by\n\
-            `\\<' and `\\>').\n\
+            The pattern or -e patterns are searched for as a word (as if\n\
+            surrounded by `\\<' and `\\>').\n\
     -X, --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -x, --line-regexp\n\
-            Only input lines selected against an entire pattern are considered\n\
-            to be matching lines (as if surrounded by ^ and $).\n\
+            Only input lines selected against the entire pattern or -e patterns\n\
+            are considered to be matching lines (as if surrounded by ^ and $).\n\
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
     -z sep, --separator=sep\n\

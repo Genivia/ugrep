@@ -19,7 +19,8 @@ cat >> man/ugrep.1 << 'END'
 .SH SYNOPSIS
 .B ugrep
 [\fB-bcEFfGgHhikLlmnoqsTtVvwXxZz\fR] [\fB--colour\fR[=\fIwhen\fR]|\fB--color\fR[=\fIwhen\fR]]
-      [\fB-e\fR \fIpattern\fR] [--label[=label]] [\fIpattern\fR] [\fIfile\fR \fI...\fR]
+      [\fB--file-format\fR=\fIencoding\fR] [\fB--label\fR[=\fIlabel\fR]]
+      [\fB-e\fR \fIpattern\fR] [\fIpattern\fR] [\fIfile\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -32,7 +33,8 @@ search for Unicode patterns in text files encoded in UTF-8, UTF-16, UTF-32 by
 detecting UTF BOM in the input.  When no UTF BOM is detected, \fBugrep\fR
 searches for Unicode patterns in UTF-8 input, which includes ASCII input.
 \fBugrep\fR searches input files encoded in ISO-8859-1, EBCDIC, CP-437, CP-850,
-CP-858, CP-1250 to CP-1258 when the file format is specified as an option.
+CP-858, CP-1250 to CP-1258 when the file encoding format is specified with
+option --file-format.
 .PP
 The following options are available:
 END
@@ -76,6 +78,10 @@ No lines were selected.
 .IP >1
 An error occurred.
 .SH ENVIRONMENT
+.IP \fBGREP_PATH\fR
+May be used to specify a file path to pattern files.  The file path is used by
+option -f to open a pattern file, when the file specified with option -f cannot
+be opened.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
