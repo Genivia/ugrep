@@ -15,17 +15,19 @@ POSIX ERE compliant, extended with Unicode character classes, lazy quantifiers,
 and negative patterns to skip unwanted pattern matches to produce more precise
 results.
 
+**ugrep** makes it easy to search source code.  For example to find exact
+matches of `main` in C/C++ source code while skipping strings and comments:
+
+    ugrep -n -o -e '\<main\>' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
+
 **ugrep** searches UTF-encoded input when UTF BOM
 ([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are present
 and ASCII and UTF-8 when no UTF BOM is present.  Option `--file-format` permits
 many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
 pages 437, 850, 858, 1250 to 1258.
 
-**ugrep** uses command-line options that are compatible with GNU
+**ugrep** offers command-line options compatible with GNU
 [grep](https://www.gnu.org/software/grep/manual/grep.html).
-
-**ugrep** is currently in beta release with new features being added in the
-near future.
 
 Regex patterns are converted to
 [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
@@ -33,8 +35,16 @@ matching.  Rare and pathelogical cases are known to exist that may increase the
 initial running time for DFA construction.  The resulting DFAs still yield
 significant speedups to search large files.
 
-If you find **ugrep** interesting, feel free to share, distribute, contribute,
-or let us know what you like, dislike, or want to see in future releases!
+**ugrep** is fully functional.  But we can use your help, for example with:
+
+- Adding more pre-defined patterns to make searching source code easier, see
+  the `patterns` directory.
+- Like grep, we want to traverse directory contents to search files, and
+  support options `-R` and `-r`, `--recursive`.
+- Like grep, `-A`, `-B`, and `-C`, `--context` options to display the context
+  of a match.
+
+We love your feedback (issues) and contributions (pull requests) 😍
 
 Dependencies
 ------------
@@ -489,24 +499,15 @@ Man page
 
     ugrep 1.1.0                      May 01, 2019                         UGREP(1)
 
-Wanted - TODO
--------------
-
-- Like grep, traverse directory contents to search files, and support options `-R` and `-r`, `--recursive`.
-- Like grep, display context with `-A`, `-B`, and `-C`, `--context`.
-- Should detect "binary files" like grep and skip them?
-- Open files in binary mode "rb" when `--binary-files` option is specified?
-- Make ugrap locale-sensitive, e.g. `LC_COLLATE`?
-- ...
-
-Bugs - FIXME
-------------
+Bugs
+----
 
 - Pattern `^$` does not match empty lines, because `find()` does not permit
   empty matches.
 - Back-references are not supported.
 - There are reported cases where lazy quantifiers misbehave, best to avoid them
   unless the patterns are simple.
+- Not locale-sensitive, e.g. `LC_COLLATE` has no effect.
 
 Pattern syntax
 --------------
