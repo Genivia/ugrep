@@ -10,16 +10,16 @@ high-performance regex matching, which is 100 times faster than the GNU C
 POSIX.2 regex library used by the grep utility and 10 times faster than PCRE2
 and RE2.
 
-**ugrep** matches Unicode regex patterns.  The regular expression syntax is
-POSIX ERE compliant, extended with Unicode character classes, lazy quantifiers,
-and negative patterns to skip unwanted pattern matches to produce more precise
-results.
-
 **ugrep** makes it easy to search source code.  For example to find exact
 matches of `main` in C/C++ source code while skipping strings and comments
 that may have a match with `main` in them:
 
-    ugrep -n -o -e '\<main\>' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
+    ugrep -n -o -w -e 'main' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
+
+**ugrep** matches Unicode regex patterns.  The regular expression syntax is
+POSIX ERE compliant, extended with Unicode character classes, lazy quantifiers,
+and negative patterns to skip unwanted pattern matches to produce more precise
+results.
 
 **ugrep** searches UTF-encoded input when UTF BOM
 ([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are present
@@ -170,9 +170,10 @@ comments:
     ugrep -nk -o -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|(\*+[^*/]))*\*+\/)' myfile.cpp
 
 This is a lot of work to type in correctly.  There is an easier way by using
-pre-defined patterns:
+pre-defined patterns and using option `-w` that matches words (as if adding
+`\<` and `\>` to the pattern but not to the `-f` file patterns):
 
-    ugrep -nk -o -e '\<main\>' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
+    ugrep -nk -o -w -e 'main' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
 
 To produce a sorted list of all Unicode identifiers in Java source code while
 skipping strings and comments:
