@@ -2,23 +2,28 @@ ugrep: universal grep
 =====================
 
 A high-performance universal search utility finds Unicode pattern matches in
-UTF-8/16/32, ASCII, ISO-8859-1, EBCDIC, code pages 437, 850, 858, 1250 to 1258,
-and other file formats.
+files.  Offers powerful pattern matching capabilities to search source code.
+Searches UTF-8, UTF-16, UTF-32 input, and other file encodings, such as
+ISO-8859-1, EBCDIC, code pages 437, 850, 858, 1250 to 1258.
+
+**ugrep** options are compatible with
+[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
+options, and can be used as a more powerful replacement of these utilities.
 
 **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
-POSIX.2 regex library used by the grep utility and 10 times faster than PCRE2
+POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2
 and RE2.
 
 **ugrep** makes it easy to search source code.  For example to find exact
 matches of `main` in C/C++ source code while skipping strings and comments
 that may have a match with `main` in them:
 
-    ugrep -n -o -w -e 'main' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
+    ugrep -n -o -w -e 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myfile.cpp
 
-**ugrep** matches Unicode regex patterns.  The regular expression syntax is
-POSIX ERE compliant, extended with Unicode character classes, lazy quantifiers,
-and negative patterns to skip unwanted pattern matches to produce more precise
+**ugrep** matches Unicode patterns.  The regular expression syntax is POSIX ERE
+compliant, extended with Unicode character classes, lazy quantifiers, and
+negative patterns to skip unwanted pattern matches to produce more precise
 results.
 
 **ugrep** searches UTF-encoded input when UTF BOM
@@ -26,9 +31,6 @@ results.
 and ASCII and UTF-8 when no UTF BOM is present.  Option `--file-format` permits
 many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
 pages 437, 850, 858, 1250 to 1258.
-
-**ugrep** offers command-line options compatible with the popular
-[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) utility.
 
 Regex patterns are converted to
 [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
@@ -42,8 +44,6 @@ significant speedups to search large files.
   the `patterns` directory.
 - Like grep, we want ugrep to traverse directory contents to search files, and
   support options `-R` and `-r`, `--recursive`.
-- Like grep, `-A`, `-B`, and `-C`, `--context` options to display the context
-  of a match.
 
 We love your feedback (issues) and contributions (pull requests) ❤️
 
@@ -127,9 +127,9 @@ Escher, or Bach:
 
     ugrep -c -g 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
-### 5) check if a file contains any non-ASCII (i.e. Unicode) characters
+### 5) check if a file contains ASCII or Unicode
 
-To check if `myfile` contains any non-ASCII Unicode character:
+To check if `myfile` contains any non-ASCII Unicode characters:
 
     ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
@@ -137,23 +137,30 @@ To invert the match:
 
     ugrep -v -q '[^[:ascii:]]' myfile && echo "does not contain Unicode"
 
+To check if a file has any invalid Unicode characters (here we include the
+code point U+FFFD as an error, because it is often used to flag invalid UTF
+encodings):
+
+    ugrep -q '[^\p{Unicode}--[\xFFFD]]' myfile && echo "contains invalid Unicode"
+
 ### 6) searching UTF-encoded files
 
-To search for `lorem` in a UTF-16 file:
+To search for `lorem` in a UTF-16 file, color-highlighting the matches:
 
-    ugrep 'lorem' utf16lorem.txt
+    ugrep --color 'lorem' utf16lorem.txt
 
 To make sure we match `lorem` as a word in lower/upper case:
 
-    ugrep -w -i 'lorem' utf16lorem.txt
+    ugrep --color -w -i 'lorem' utf16lorem.txt
 
-When utf16lorem.txt has no UTF-16 BOM:
+When utf16lorem.txt has no UTF-16 BOM we can specify UTF-16 file encoding:
 
     ugrep --file-format=UTF-16 -w -i 'lorem' utf16lorem.txt
 
 ### 7) searching for identifiers in source code
 
-To search for the identifier `main` as a word:
+To search for the identifier `main` as a word, showing line and column numbers
+with the matches:
 
     ugrep -nk -o '\<main\>' myfile.cpp
 
@@ -173,12 +180,16 @@ This is a lot of work to type in correctly.  There is an easier way by using
 pre-defined patterns and using option `-w` that matches words (as if adding
 `\<` and `\>` to the pattern but not to the `-f` file patterns):
 
-    ugrep -nk -o -w -e 'main' -f patterns/c_zap_strings -f patterns/c_zap_comments myfile.cpp
+    ugrep -nk -o -w -e 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myfile.cpp
+
+To search for a word in C/C++ comments, with color-marked results:
+
+    ugrep --color=always -nk -o -f patterns/c/comments myfile.cpp | ugrep -w 'FIXME'
 
 To produce a sorted list of all Unicode identifiers in Java source code while
 skipping strings and comments:
 
-    ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -f patterns/java_zap_strings -f patterns/java_zap_comments myfile.java | sort -u
+    ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -f patterns/java/zap_strings -f patterns/java/zap_comments myfile.java | sort -u
 
 To display lines with function and method definitions in a C/C++ source file:
 
@@ -242,53 +253,75 @@ Man page
 
            The following options are available:
 
+           -A NUM, --after-context=NUM
+                  Print NUM  lines  of  trailing  context  after  matching  lines.
+                  Places  a  line  containing  --  between  contiguous  groups  of
+                  matches.  See also the -B and -C options.
+
+           -B NUM, --before-context=NUM
+                  Print NUM  lines  of  leading  context  before  matching  lines.
+                  Places  a  line  containing  --  between  contiguous  groups  of
+                  matches.  See also the -A and -C options.
+
            -b, --byte-offset
-                  The offset in bytes of a matched pattern is displayed  in  front
-                  of the respective matched line.
+                  The offset in bytes of a matched line is displayed in  front  of
+                  the respective matched line.  With option -g displays the offset
+                  in bytes of each pattern matched.
+
+           -C[NUM], --context[=NUM]
+                  Print NUM lines of leading and trailing context surrounding each
+                  match.  The default is 2 and is equivalent to -A 2 -B 2.  Places
+                  a line containing  --  between  contiguous  groups  of  matches.
+                  Note:  no  whitespace  may  be  given between the option and its
+                  argument.
 
            -c, --count
-                  Only  a  count  of selected lines is written to standard output.
+                  Only a count of selected lines is written  to  standard  output.
                   When used with option -g, counts the number of patterns matched.
+                  With option -v, counts the number of non-matching lines.
 
-           --colour[=when], --color[=when]
-                  Mark  up  the  matching  text  with the expression stored in the
-                  GREP_COLOR or GREP_COLORS environment  variable.   The  possible
-                  values of when can be `never', `always' or `auto'.
+           --colour[=WHEN], --color[=WHEN]
+                  Mark up the matching text with  the  expression  stored  in  the
+                  GREP_COLOR  or  GREP_COLORS  environment variable.  The possible
+                  values of WHEN can be `never', `always' or `auto'.
 
            -E, --extended-regexp
-                  Interpret  patterns as extended regular expressions (EREs). This
+                  Interpret patterns as extended regular expressions (EREs).  This
                   is the default.
 
-           -e pattern, --regexp=pattern
-                  Specify a pattern used during the search of the input: an  input
-                  line  is  selected  if it matches any of the specified patterns.
-                  This option is most useful when multiple -e options are used  to
-                  specify  multiple patterns, or when a pattern begins with a dash
-                  (`-') or when option -f is used.
+           -e PATTERN, --regexp=PATTERN
+                  Specify  a PATTERN used during the search of the input: an input
+                  line is selected if it matches any of  the  specified  patterns.
+                  This  option is most useful when multiple -e options are used to
+                  specify multiple patterns, when a pattern  begins  with  a  dash
+                  (`-'), or when option -f is used.
 
            -F, --fixed-strings
-                  Interpret pattern as a set of fixed strings (i.e. force ugrep to
-                  behave as fgrep but less efficiently).
+                  Interpret  pattern  as a set of fixed strings, separated by new-
+                  lines, any of which is to be  matched.   This  forces  ugrep  to
+                  behave as fgrep but less efficiently.
 
-           -f file, --file=file
-                  Read  one  or  more newline separated patterns from file.  Empty
-                  pattern lines in the file are ignored.  Options -F, -w,  and  -x
-                  do  not  apply  to these patterns.  If file does not exist, uses
-                  the GREP_PATH environment variable to open file.
+           -f FILE, --file=FILE
+                  Read  one  or  more newline separated patterns from FILE.  Empty
+                  pattern lines in the file are not processed.   Options  -F,  -w,
+                  and  -x  do  not  apply  to  patterns in FILE.  If FILE does not
+                  exist, uses the GREP_PATH environment  variable  to  attempt  to
+                  open FILE.
 
-           --file-format=encoding
-                  The input file format.  The possible values of encoding can  be:
-                  binary  ISO-8859-1  ASCII  EBCDIC UTF-8 UTF-16 UTF-16BE UTF-16LE
+           --file-format=ENCODING
+                  The  input file format.  The possible values of ENCODING can be:
+                  binary ISO-8859-1 ASCII EBCDIC UTF-8  UTF-16  UTF-16BE  UTF-16LE
                   UTF-32 UTF-32BE UTF-32LE CP437 CP850 CP1250 CP1251 CP1252 CP1253
                   CP1254 CP1255 CP1256 CP1257 CP1258
 
            -G, --basic-regexp
-                  Interpret  pattern  as  a  basic  regular expression (i.e. force
+                  Interpret pattern as a  basic  regular  expression  (i.e.  force
                   ugrep to behave as traditional grep).
 
            -g, --no-group
-                  Do not group pattern matches on  the  same  line.   Display  the
-                  matched line again for each additional pattern match.
+                  Do  not  group  pattern  matches  on the same line.  Display the
+                  matched line again for each additional pattern match, using  `+'
+                  as separator for each additional line.
 
            -H, --with-filename
                   Always  print  the  filename  with  output  lines.   This is the
@@ -308,7 +341,7 @@ Man page
            -k, --column-number
                   The column number of a matched pattern is displayed in front  of
                   the  respective  matched  line,  starting at column 1.  Tabs are
-                  expanded before columns are counted.
+                  expanded when columns are counted.
 
            -L, --files-without-match
                   Only the names of files not containing selected lines are  writ-
@@ -323,13 +356,13 @@ Man page
                   Pathnames are listed once per file searched.   If  the  standard
                   input is searched, the string ``(standard input)'' is written.
 
-           --label[=label]
-                  Displays  the label value when input is read from standard input
+           --label[=LABEL]
+                  Displays  the LABEL value when input is read from standard input
                   where a file name would normally be printed in the output.  This
                   option applies to options -H, -L, and -l.
 
-           -m num, --max-count=num
-                  Stop reading the input after num matches.
+           -m NUM, --max-count=NUM
+                  Stop reading the input after NUM matches.
 
            -n, --line-number
                   Each  output line is preceded by its relative line number in the
@@ -338,62 +371,66 @@ Man page
 
            -o, --only-matching
                   Prints  only  the  matching part of the lines.  Allows a pattern
-                  match to span multiple lines.
+                  match to span  multiple  lines.   Line  numbers  for  multi-line
+                  matches are displayed with option -n, using `|' as separator for
+                  each additional line matched by the  pattern.   Context  options
+                  -A, -B, and -C are disabled.
 
            -q, --quiet, --silent
-                  Quiet mode: suppress normal output.  ugrep will  only  search  a
-                  file  until  a match has been found, making searches potentially
-                  less expensive.  Allows a pattern match to span multiple  lines.
+                  Quiet  mode:  suppress  normal output.  ugrep will only search a
+                  file until a match has been found, making  searches  potentially
+                  less  expensive.  Allows a pattern match to span multiple lines.
 
            -s, --no-messages
                   Silent mode.  Nonexistent and unreadable files are ignored (i.e.
                   their error messages are suppressed).
 
            -T, --initial-tab
-                  Add a tab space to separate the file name, line  number,  column
-                  number, byte offset with the matched line.
+                  Add  a  tab space to separate the file name, line number, column
+                  number, and byte offset with the matched line.
 
-           -t size, --tabs=size
-                  Set  the tab size to 1, 2, 4, or 8 to expand tabs for option -k.
+           -t NUM, --tabs=NUM
+                  Set the tab size to NUM to expand tabs for option -k.  The value
+                  of NUM may be 1, 2, 4, or 8.
 
            -V, --version
                   Display version information and exit.
 
            -v, --invert-match
-                  Selected lines are those not matching any of the specified  pat-
+                  Selected  lines are those not matching any of the specified pat-
                   terns.
 
            -w, --word-regexp
-                  The  pattern  or  -e  patterns are searched for as a word (as if
+                  The pattern or -e patterns are searched for as  a  word  (as  if
                   surrounded by `\<' and `\>').
 
            -X, --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
 
            -x, --line-regexp
-                  Only input lines selected against the entire pattern or -e  pat-
+                  Only  input lines selected against the entire pattern or -e pat-
                   terns are considered to be matching lines (as if surrounded by ^
                   and $).
 
            -Z, --null
                   Prints a zero-byte after the file name.
 
-           -z sep, --separator=sep
+           -z TEXT, --separator=TEXT
                   The separator between the file name, line number, column number,
-                  byte  offset,  and  the  line  matched.   The default is a colon
+                  byte offset, and the matched  line.   The  default  is  a  colon
                   (`:').
 
-           The regular expression pattern syntax is an extended form of the  POSIX
+           The  regular expression pattern syntax is an extended form of the POSIX
            ERE syntax.  For an overview of the syntax see README.md or visit:
 
                   https://github.com/Genivia/ugrep
 
-           Note  that  `.'  matches any non-newline character.  Matching a newline
-           character is not possible in line-buffered mode.  Pattern  matches  may
-           span  multiple lines in block-buffered mode, which is enabled by one of
+           Note that `.' matches any non-newline character.   Matching  a  newline
+           character  is  not possible in line-buffered mode.  Pattern matches may
+           span multiple lines in block-buffered mode, which is enabled by one  of
            the options -c, -o, or -q (unless combined with option -v).
 
-           If no file arguments are specified, or if `-' is specified,  the  stan-
+           If  no  file arguments are specified, or if `-' is specified, the stan-
            dard input is used.
 
     EXIT STATUS
@@ -407,21 +444,22 @@ Man page
 
     ENVIRONMENT
            GREP_PATH
-                  May  be  used to specify a file path to pattern files.  The file
-                  path is used by option -f to open a pattern file, when the  file
+                  May be used to specify a file path to pattern files.   The  file
+                  path  is used by option -f to open a pattern file, when the file
                   specified with option -f cannot be opened.
 
            GREP_COLOR
-                  May  be used to specify ANSI SGR parameters to highlight matches
-                  when option --color is used, e.g. 1;35;40 shows pattern  matches
+                  May be used to specify ANSI SGR parameters to highlight  matches
+                  when  option --color is used, e.g. 1;35;40 shows pattern matches
                   in bold magenta text on a black background.
 
            GREP_COLORS
-                  May  be used to specify ANSI SGR parameters to highlight matches
-                  and other attributes when option --color is used.  Its value  is
-                  a  colon-separated  list of ANSI SGR parameters that defaults to
-                  mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36.  The mt=,  ms=,  and  mc=
-                  capabilities of GREP_COLORS have priority over GREP_COLOR.
+                  May be used to specify ANSI SGR parameters to highlight  matches
+                  and  other attributes when option --color is used.  Its value is
+                  a colon-separated list of ANSI SGR parameters that  defaults  to
+                  mt=1;31:sl=:cx=:fn=35:ln=32:cn=32:bn=32:se=36.   The  mt=,  ms=,
+                  and  mc=  capabilities  of  GREP_COLORS   have   priority   over
+                  GREP_COLOR.
 
     GREP_COLORS
            sl=    SGR substring for selected lines.
@@ -512,7 +550,7 @@ Man page
 
 
 
-    ugrep 1.1.0                      May 02, 2019                         UGREP(1)
+    ugrep 1.1.0                      May 06, 2019                         UGREP(1)
 
 Bugs to fix in future updates
 -----------------------------
@@ -570,19 +608,19 @@ patterns `φ` and `ψ`:
   `(φ)`     | matches `φ` as a group
   `(?:φ)`   | matches `φ` as a group without capture
   `(?=φ)`   | matches `φ` without consuming it, i.e. lookahead (top-level `φ`, not for sub-patterns `φ`)
-  `(?^φ)`   | matches `φ` and ignore it to continue matching
-  `^φ`      | matches `φ` at the start of input or start of a line
-  `φ$`      | matches `φ` at the end of input or end of a line
-  `\Aφ`     | matches `φ` at the start of input (requires option `-o`)
-  `φ\z`     | matches `φ` at the end of input (requires option `-o`)
-  `\bφ`     | matches `φ` starting at a word boundary
-  `φ\b`     | matches `φ` ending at a word boundary
-  `\Bφ`     | matches `φ` starting at a non-word boundary
-  `φ\B`     | matches `φ` ending at a non-word boundary
-  `\<φ`     | matches `φ` that starts a word
-  `\>φ`     | matches `φ` that starts a non-word
-  `φ\<`     | matches `φ` that ends a non-word
-  `φ\>`     | matches `φ` that ends a word
+  `(?^φ)`   | matches `φ` and ignore it to continue matching (top-level `φ`, not for sub-patterns `φ`)
+  `^φ`      | matches `φ` at the start of input or start of a line (top-level `φ`, not for sub-patterns `φ`)
+  `φ$`      | matches `φ` at the end of input or end of a line (top-level `φ`, not for sub-patterns `φ`)
+  `\Aφ`     | matches `φ` at the start of input (requires option `-o`) (top-level `φ`, not for sub-patterns `φ`)
+  `φ\z`     | matches `φ` at the end of input (requires option `-o`) (top-level `φ`, not for sub-patterns `φ`)
+  `\bφ`     | matches `φ` starting at a word boundary (top-level `φ`, not for sub-patterns `φ`)
+  `φ\b`     | matches `φ` ending at a word boundary (top-level `φ`, not for sub-patterns `φ`)
+  `\Bφ`     | matches `φ` starting at a non-word boundary (top-level `φ`, not for sub-patterns `φ`)
+  `φ\B`     | matches `φ` ending at a non-word boundary (note: top-level regex pattern only)
+  `\<φ`     | matches `φ` that starts a word (top-level `φ`, not for sub-patterns `φ`)
+  `\>φ`     | matches `φ` that starts a non-word (top-level `φ`, not for sub-patterns `φ`)
+  `φ\<`     | matches `φ` that ends a non-word (top-level `φ`, not for sub-patterns `φ`)
+  `φ\>`     | matches `φ` that ends a word (top-level `φ`, not for sub-patterns `φ`)
   `\i`      | matches an indent
   `\j`      | matches a dedent
   `(?i:φ)`  | matches `φ` ignoring case

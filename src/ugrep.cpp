@@ -34,9 +34,8 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 Universal grep: high-performance universal search utility finds Unicode pattern
-matches in UTF-8/16/32, ASCII, ISO-8859-1, EBCDIC, code pages 437, 850, 1250 to
-1258, and other file formats. Offers powerful pattern matching capabilities to
-search source code files.
+matches in files.  Offers powerful pattern matching capabilities to search
+source code.
 
 Download and installation:
 
@@ -102,8 +101,8 @@ Examples:
   # display non-static function and method definitions in a C/C++ source file
   ugrep -e '^([[:alpha:]:]+\h*)+\(.*' -e '(?^^static.*)' file.cpp
 
-  # display C/C++ comments and strings using patterns in file patterns/c_comments and patterns/c_strings
-  ugrep -o -f patterns/c_comments -f patterns/c_strings file.cpp
+  # display C/C++ comments and strings using patterns in file patterns/c/comments and patterns/c/strings
+  ugrep -o -f patterns/c/comments -f patterns/c/strings file.cpp
 
 Compile:
 
@@ -117,7 +116,6 @@ Bugs FIXME:
 Wanted TODO:
 
   - Like grep, we want to traverse directory contents to search files, and support options -R and -r, --recursive.
-  - Like grep, -A, -B, and -C, --context to display the context of a match.
   - Should we detect "binary files" like grep and skip them?
   - Should we open files in binary mode "rb" when --binary-files option is specified?
   - ... anything else?
@@ -195,17 +193,20 @@ bool flag_null                     = false;
 bool flag_basic_regexp             = false;
 bool flag_word_regexp              = false;
 bool flag_line_regexp              = false;
-bool flag_initial_tab              = false;
 const char *flag_color             = NULL;
 const char *flag_file_format       = NULL;
 const char *flag_label             = "(standard input)";
+const char *flag_initial_tab       = "";
 const char *flag_separator         = ":";
+size_t flag_after_context          = 0;
+size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
 size_t flag_tabs                   = 8;
 std::vector<const char*> flag_file;
 
 // function protos
 bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *infile);
+void display(const char *infile, size_t lineno, size_t columno, size_t byte_offset, const char *sep);
 void set_color(const char *grep_colors, const char *parameter, std::string& color);
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
@@ -266,8 +267,12 @@ int main(int argc, char **argv)
         {
           case '-':
             ++arg;
-            if (strcmp(arg, "basic-regexp") == 0)
+            if (strncmp(arg, "after-context=", 14) == 0)
+              flag_after_context = (size_t)strtoull(arg + 14, NULL, 10);
+            else if (strcmp(arg, "basic-regexp") == 0)
               flag_basic_regexp = true;
+            else if (strncmp(arg, "before-context=", 15) == 0)
+              flag_before_context = (size_t)strtoull(arg + 15, NULL, 10);
             else if (strcmp(arg, "byte-offset") == 0)
               flag_byte_offset = true;
             else if (strcmp(arg, "color") == 0 || strcmp(arg, "colour") == 0)
@@ -278,6 +283,10 @@ int main(int argc, char **argv)
               flag_color = arg + 7;
             else if (strcmp(arg, "column-number") == 0)
               flag_column_number = true;
+            else if (strcmp(arg, "context") == 0)
+              flag_after_context = flag_before_context = 2;
+            else if (strncmp(arg, "context=", 8) == 0)
+              flag_after_context = flag_before_context = (size_t)strtoull(arg + 8, NULL, 10);
             else if (strcmp(arg, "count") == 0)
               flag_count = true;
             else if (strcmp(arg, "extended-regexp") == 0)
@@ -299,13 +308,15 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "ignore-case") == 0)
               flag_ignore_case = true;
             else if (strcmp(arg, "initial-tab") == 0)
-              flag_initial_tab = true;
+              flag_initial_tab = "\t";
             else if (strcmp(arg, "invert-match") == 0)
               flag_invert_match = true;
             else if (strcmp(arg, "label") == 0)
               flag_label = "";
             else if (strncmp(arg, "label=", 6) == 0)
               flag_label = arg + 6;
+            else if (strcmp(arg, "line-buffered") == 0)
+              ;
             else if (strcmp(arg, "line-number") == 0)
               flag_line_number = true;
             else if (strcmp(arg, "line-regexp") == 0)
@@ -341,8 +352,39 @@ int main(int argc, char **argv)
             is_grouped = false;
             break;
 
+          case 'A':
+            ++arg;
+            if (*arg)
+              flag_after_context = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+            else if (++i < argc)
+              flag_after_context = (size_t)strtoull(argv[i], NULL, 10);
+            else
+              help("missing number for option -A");
+            is_grouped = false;
+            break;
+
+          case 'B':
+            ++arg;
+            if (*arg)
+              flag_before_context = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+            else if (++i < argc)
+              flag_before_context = (size_t)strtoull(argv[i], NULL, 10);
+            else
+              help("missing number for option -B");
+            is_grouped = false;
+            break;
+
           case 'b':
             flag_byte_offset = true;
+            break;
+
+          case 'C':
+            ++arg;
+            if (*arg)
+              flag_after_context = flag_before_context = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+            else
+              flag_after_context = flag_before_context = 2;
+            is_grouped = false;
             break;
 
           case 'c':
@@ -438,7 +480,7 @@ int main(int argc, char **argv)
             break;
 
           case 'T':
-            flag_initial_tab = true;
+            flag_initial_tab = "\t";
             break;
 
           case 't':
@@ -511,19 +553,32 @@ int main(int argc, char **argv)
     }
   }
 
-  // remove the ending '|' from the |-concatenated regexes in the regex string
-  regex.pop_back();
-
-  if (regex.empty())
+  if (regex.empty() && flag_file.empty())
   {
     // if the specified regex is empty then it matches every line
     regex.assign(".*");
   }
   else
   {
-    // if -F --fixed-strings: make regex literal with \Q and \E
+    // remove the ending '|' from the |-concatenated regexes in the regex string
+    regex.pop_back();
+
+    // -F --fixed-strings: make newline-separated lines in regex literal with \Q and \E
     if (flag_fixed_strings)
-      regex.insert(0, "\\Q").append("\\E");
+    {
+      std::string strings;
+      size_t from = 0;
+      size_t to;
+
+      // split regex at newlines, add \Q \E to each string, separate by |
+      while ((to = regex.find('\n', from)) != std::string::npos)
+      {
+        strings.append("\\Q").append(regex.substr(from, to - from)).append("\\E|");
+        from = to + 1;
+      }
+
+      regex = strings.append(regex.substr(from));
+    }
 
     // if -w or -x: make the regex word- or line-anchored, respectively
     if (flag_word_regexp)
@@ -535,9 +590,10 @@ int main(int argc, char **argv)
   if (!flag_file.empty())
   {
     // add an ending '|' to the regex to concatenate sub-expressions
-    regex.push_back('|');
+    if (!regex.empty())
+      regex.push_back('|');
 
-    // if -f --file: read patterns from the specified file or files
+    // -f --file: read patterns from the specified file or files
     for (std::vector<const char*>::const_iterator i = flag_file.begin(); i != flag_file.end(); ++i)
     {
       FILE *file = fopen(*i, "r");
@@ -779,25 +835,6 @@ int main(int argc, char **argv)
 bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *infile)
 {
   size_t matches = 0;
-  std::string sep;
-  std::string label;
-
-  // file name, line number, column number, byte offset separator
-  sep.assign(color_se).append(flag_separator).append(color_off);
-
-  // -T adds a tab to the separator
-  if (flag_initial_tab)
-    sep.insert(0, "\t");
-
-  // -H displays the file name
-  if (flag_with_filename)
-  {
-    label.assign(color_fn).append(infile).append(color_off);
-    if (flag_null)
-      label.push_back('\0');
-    else
-      label.append(sep);
-  }
 
   // create an input object to read the file (or stdin) using the given file format encoding
   reflex::Input input(file, encoding);
@@ -879,7 +916,18 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
       }
     }
 
-    std::cout << label << matches << std::endl;
+    if (flag_with_filename)
+    {
+      std::cout << color_fn << infile << color_off;
+      if (flag_null)
+        std::cout << (char)'\0' << matches << std::endl;
+      else
+        std::cout << color_se << flag_separator << color_off << matches << std::endl;
+    }
+    else
+    {
+      std::cout << matches << std::endl;
+    }
   }
   else if (flag_line_buffered)
   {
@@ -887,94 +935,252 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
     size_t byte_offset = 0;
     size_t lineno = 1;
-    std::string line;
+    size_t before = 0;
+    size_t after = 0;
+
+    std::vector<size_t> byte_offsets;
+    std::vector<std::string> lines;
+
+    byte_offsets.reserve(flag_before_context + 1);
+    lines.reserve(flag_before_context + 1);
+
+    for (size_t i = 0; i <= flag_before_context; ++i)
+    {
+      byte_offsets.push_back(0);
+      lines.push_back("");
+    }
 
     while (input)
     {
       int ch;
 
+      size_t current = lineno % (flag_before_context + 1);
+
+      byte_offsets[current] = byte_offset;
+
       // read the next line
-      line.clear();
+      lines[current].clear();
       while ((ch = input.get()) != EOF && ch != '\n')
-        line.push_back(ch);
-      if (ch == EOF && line.empty())
+        lines[current].push_back(ch);
+      if (ch == EOF && lines[current].empty())
         break;
+
+      bool before_context = flag_before_context > 0;
+      bool after_context = flag_after_context > 0;
+
+      size_t last = 0;
 
       if (flag_invert_match)
       {
-        // -v invert match: display non-matching line
+        // -v --invert-match: select non-matching line
 
-        if (!reflex::Matcher(pattern, line).find())
+        bool found = false;
+
+        for (auto& match : reflex::Matcher(pattern, lines[current]).find)
         {
-          std::cout << label;
-          if (flag_line_number)
-            std::cout << color_ln << lineno << color_off << sep;
-          if (flag_byte_offset)
-            std::cout << color_bn << byte_offset << color_off << sep;
-          std::cout << color_sl << line << color_off << std::endl;
-          ++matches;
-        }
-      }
-      else if (flag_no_group)
-      {
-        // search the line for pattern matches and display the line again (with exact offset) for each pattern match
-
-        for (auto& match : reflex::Matcher(pattern, line).find)
-        {
-          std::cout << label;
-          if (flag_line_number)
-            std::cout << color_ln << lineno << color_off << sep;
-          if (flag_column_number)
-            std::cout << color_cn << match.columno() + 1 << color_off << sep;
-          if (flag_byte_offset)
-            std::cout << color_bn << byte_offset << color_off << sep;
-          std::cout << color_sl << line.substr(0, match.first()) << color_off << color_ms << match.text() << color_off << color_sl << line.substr(match.last()) << color_off << std::endl;
-          ++matches;
-        }
-      }
-      else
-      {
-        // search the line for pattern matches and display the line just once with all matches
-
-        size_t last = 0;
-
-        for (auto& match : reflex::Matcher(pattern, line).find)
-        {
-          if (last == 0)
+          if (after > 0 && after + flag_after_context >= lineno)
           {
-            std::cout << label;
-            if (flag_line_number)
-              std::cout << color_ln << lineno << color_off << sep;
-            if (flag_column_number)
-              std::cout << color_cn << match.columno() + 1 << color_off << sep;
-            if (flag_byte_offset)
-              std::cout << color_bn << byte_offset + match.first() << color_off << sep;
-            std::cout << color_sl << line.substr(0, match.first()) << color_off << color_ms << match.text() << color_off;
+            // -A NUM option: show context after matched lines
+
+            if (last == 0)
+              display(infile, lineno, match.columno() + 1, byte_offset, "-");
+
+            std::cout <<
+              color_cx << lines[current].substr(last, match.first() - last) << color_off <<
+              color_mc << match.str() << color_off;
+
             last = match.last();
-            ++matches;
           }
           else
           {
-            std::cout << color_sl << line.substr(last, match.first() - last) << color_off << color_ms << match.text() << color_off;
-            last = match.last();
+            found = true;
+
+            break;
           }
         }
 
         if (last > 0)
-          std::cout << color_sl << line.substr(last) << color_off << std::endl;
+        {
+          std::cout << color_cx << lines[current].substr(last) << color_off << std::endl;
+        }
+        else if (!found)
+        {
+          if (after_context)
+          {
+            // -A NUM option: show context after matched lines
+
+            // indicate the end of the group of after lines of the previous matched line
+            if (after + flag_after_context < lineno && matches > 0)
+              std::cout << color_se << "--" << color_off << std::endl;
+
+            // remember the matched line
+            after = lineno;
+          }
+
+          if (before_context)
+          {
+            // -B NUM option: show context before matched lines
+
+            size_t begin = before + 1;
+
+            if (lineno > flag_before_context && begin < lineno - flag_before_context)
+              begin = lineno - flag_before_context;
+
+            // indicate the begin of the group of before lines
+            if (begin < lineno && matches > 0)
+              std::cout << color_se << "--" << color_off << std::endl;
+
+            // display lines before the matched line
+            while (begin < lineno)
+            {
+              last = 0;
+
+              for (auto& match : reflex::Matcher(pattern, lines[begin % (flag_before_context + 1)]).find)
+              {
+                if (last == 0)
+                  display(infile, begin, match.columno() + 1, byte_offsets[begin % (flag_before_context + 1)], "-");
+
+                std::cout <<
+                  color_cx << lines[begin % (flag_before_context + 1)].substr(last, match.first() - last) << color_off <<
+                  color_mc << match.str() << color_off;
+
+                last = match.last();
+              }
+
+              if (last > 0)
+                std::cout << color_cx << lines[begin % (flag_before_context + 1)].substr(last) << color_off << std::endl;
+
+              ++begin;
+            }
+
+            // remember the matched line
+            before = lineno;
+          }
+
+          display(infile, lineno, 1, byte_offsets[current], flag_separator);
+
+          std::cout << color_sl << lines[current] << color_off << std::endl;
+
+          ++matches;
+
+          // max number of matches reached?
+          if (flag_max_count > 0 && matches >= flag_max_count)
+            break;
+        }
+      }
+      else
+      {
+        // search the line for pattern matches
+
+        for (auto& match : reflex::Matcher(pattern, lines[current]).find)
+        {
+          if (after_context)
+          {
+            // -A NUM option: show context after matched lines
+
+            // indicate the end of the group of after lines of the previous matched line
+            if (after + flag_after_context < lineno && matches > 0)
+              std::cout << color_se << "--" << color_off << std::endl;
+
+            // remember the matched line and we're done with the after context
+            after = lineno;
+            after_context = false;
+          }
+
+          if (before_context)
+          {
+            // -B NUM option: show context before matched lines
+
+            size_t begin = before + 1;
+
+            if (lineno > flag_before_context && begin < lineno - flag_before_context)
+              begin = lineno - flag_before_context;
+
+            // indicate the begin of the group of before lines
+            if (begin < lineno && matches > 0)
+              std::cout << color_se << "--" << color_off << std::endl;
+
+            // display lines before the matched line
+            while (begin < lineno)
+            {
+              display(infile, begin, 1, byte_offsets[begin % (flag_before_context + 1)], "-");
+
+              std::cout << color_cx << lines[begin % (flag_before_context + 1)] << color_off << std::endl;
+
+              ++begin;
+            }
+
+            // remember the matched line and we're done with the before context
+            before = lineno;
+            before_context = false;
+          }
+
+          if (flag_no_group)
+          {
+            // -g option: do not group matches on a single line but on multiple lines
+
+            display(infile, lineno, match.columno() + 1, byte_offset + match.first(), last == 0 ? flag_separator : "+");
+
+            std::cout <<
+              color_sl << lines[current].substr(0, match.first()) << color_off <<
+              color_ms << match.str() << color_off <<
+              color_sl << lines[current].substr(match.last()) << color_off << std::endl;
+
+            ++matches;
+
+            // max number of matches reached?
+            if (flag_max_count > 0 && matches >= flag_max_count)
+              goto exit_input;
+          }
+          else
+          {
+            if (last == 0)
+            {
+              display(infile, lineno, match.columno() + 1, byte_offset, flag_separator);
+
+              ++matches;
+            }
+
+            std::cout <<
+              color_sl << lines[current].substr(last, match.first() - last) << color_off <<
+              color_ms << match.str() << color_off;
+          }
+
+          last = match.last();
+        }
+
+        if (last > 0)
+        {
+          if (!flag_no_group)
+            std::cout << color_sl << lines[current].substr(last) << color_off << std::endl;
+        }
+        else if (after > 0 && after + flag_after_context >= lineno)
+        {
+          // -A NUM option: show context after matched lines
+
+          // display line as part of the after context of the matched line
+          display(infile, lineno, 1, byte_offsets[current], "-");
+
+          std::cout << color_cx << lines[current] << color_off << std::endl;
+        }
+
+        // max number of matches reached?
+        if (flag_max_count > 0 && matches >= flag_max_count)
+          break;
       }
 
-      if (flag_max_count > 0 && matches >= flag_max_count)
-        break;
-
       // update byte offset and line number
-      byte_offset += line.size() + 1;
+      byte_offset += lines[current].size() + 1;
       ++lineno;
     }
+
+exit_input:
+    ;
+
   }
   else
   {
-    // block-buffered input: echo all pattern matches
+    // -o option: block-buffered mode displays matched parts only
 
     size_t lineno = 0;
 
@@ -982,24 +1188,99 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
     {
       if (flag_no_group || lineno != match.lineno())
       {
+        // -g option (or new line): do not group matches on a single line but on multiple lines
+
+        const char *separator = lineno != match.lineno() ? flag_separator : "+";
+
         lineno = match.lineno();
-        std::cout << label;
-        if (flag_line_number)
-          std::cout << color_ln << lineno << color_off << sep;
-        if (flag_column_number)
-          std::cout << color_cn << match.columno() + 1 << color_off << sep;
-        if (flag_byte_offset)
-          std::cout << color_bn << match.first() << color_off << sep;
+
+        display(infile, lineno, match.columno() + 1, match.first(), separator);
+
         ++matches;
       }
-      std::cout << color_ms << match.text() << color_off << std::endl;
 
+      std::string string = match.str();
+
+      if (flag_line_number)
+      {
+        // -n -o options: echo multi-line matches line-by-line
+
+        size_t from = 0;
+        size_t to;
+
+        while ((to = string.find('\n', from)) != std::string::npos)
+        {
+          ++lineno;
+
+          std::cout << color_ms << string.substr(from, to - from) << color_off << std::endl;
+
+          display(infile, lineno, 1, match.first() + to + 1, "|");
+
+          from = to + 1;
+        }
+
+        std::cout << color_ms << string.substr(from) << color_off << std::endl;
+      }
+      else
+      {
+        std::cout << color_ms << string << color_off << std::endl;
+      }
+
+      // max number of matches reached?
       if (flag_max_count > 0 && matches >= flag_max_count)
         break;
     }
   }
 
   return matches > 0;
+}
+
+void display(const char *infile, size_t lineno, size_t columno, size_t byte_offset, const char *separator)
+{
+  bool sep = false;
+
+  if (flag_with_filename)
+  {
+    std::cout << color_fn << infile << color_off;
+
+    if (flag_null)
+      std::cout << (char)'\0';
+    else
+      sep = true;
+  }
+
+  if (flag_line_number)
+  {
+    if (sep)
+      std::cout << color_se << separator << color_off << flag_initial_tab;
+
+    std::cout << color_ln << lineno << color_off;
+
+    sep = true;
+  }
+
+  if (flag_column_number)
+  {
+    if (sep)
+      std::cout << color_se << separator << color_off << flag_initial_tab;
+
+    std::cout << color_cn << columno << color_off;
+
+    sep = true;
+  }
+
+  if (flag_byte_offset)
+  {
+    if (sep)
+      std::cout << color_se << separator << color_off << flag_initial_tab;
+
+    std::cout << color_bn << byte_offset << color_off;
+
+    sep = true;
+  }
+
+  if (sep)
+    std::cout << flag_initial_tab << color_se << separator << color_off;
 }
 
 // Convert GREP_COLORS and set the color substring to the ANSI SGR sequence
@@ -1025,37 +1306,53 @@ void help(const char *message, const char *arg)
   if (message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   std::cout <<
-"Usage: ugrep [-bcEFfGgHhikLlmnoqsTtVvwXxZz] [--colour[=when]|--color[=when]] [--file-format=encoding] [--label[=label]] [-e pattern] [pattern] [file ...]\n\
+"Usage: ugrep [-ABbCcEFfGgHhikLlmnoqsTtVvwXxZz] [--colour[=WHEN]|--color[=WHEN]] [--file-format=ENCODING] [--label[=LABEL]] [-e PATTERN] [PATTERN] [FILE ...]\n\
 \n\
+    -A NUM, --after-context=NUM\n\
+            Print NUM lines of trailing context after matching lines.  Places\n\
+            a line containing -- between contiguous groups of matches.  See\n\
+            also the -B and -C options.\n\
+    -B NUM, --before-context=NUM\n\
+            Print NUM lines of leading context before matching lines.  Places\n\
+            a line containing -- between contiguous groups of matches.  See\n\
+            also the -A and -C options.\n\
     -b, --byte-offset\n\
-            The offset in bytes of a matched pattern is displayed in front of\n\
-            the respective matched line.\n\
+            The offset in bytes of a matched line is displayed in front of the\n\
+            respective matched line.  With option -g displays the offset in\n\
+            bytes of each pattern matched.\n\
+    -C[NUM], --context[=NUM]\n\
+            Print NUM lines of leading and trailing context surrounding each\n\
+            match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
+            a line containing -- between contiguous groups of matches.  Note:\n\
+            no whitespace may be given between the option and its argument.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
             When used with option -g, counts the number of patterns matched.\n\
-    --colour[=when], --color[=when]\n\
+            With option -v, counts the number of non-matching lines.\n\
+    --colour[=WHEN], --color[=WHEN]\n\
             Mark up the matching text with the expression stored in the\n\
             GREP_COLOR or GREP_COLORS environment variable.  The possible\n\
-            values of when can be `never', `always' or `auto'.\n\
+            values of WHEN can be `never', `always' or `auto'.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
-    -e pattern, --regexp=pattern\n\
-            Specify a pattern used during the search of the input: an input\n\
+    -e PATTERN, --regexp=PATTERN\n\
+            Specify a PATTERN used during the search of the input: an input\n\
             line is selected if it matches any of the specified patterns.\n\
             This option is most useful when multiple -e options are used to\n\
-            specify multiple patterns, or when a pattern begins with a dash\n\
-            (`-') or when option -f is used.\n\
+            specify multiple patterns, when a pattern begins with a dash (`-'),\n\
+            or when option -f is used.\n\
     -F, --fixed-strings\n\
-            Interpret pattern as a set of fixed strings (i.e. force ugrep to\n\
-            behave as fgrep but less efficiently).\n\
-    -f file, --file=file\n\
-            Read one or more newline separated patterns from file.  Empty\n\
-            pattern lines in the file are ignored.  Options -F, -w, and -x\n\
-            do not apply to these patterns.  If file does not exist, uses\n\
-            the GREP_PATH environment variable to open file.\n\
-    --file-format=encoding\n\
-            The input file format.  The possible values of encoding can be:";
+            Interpret pattern as a set of fixed strings, separated by newlines,\n\
+            any of which is to be matched.  This forces ugrep to behave as\n\
+            fgrep but less efficiently.\n\
+    -f FILE, --file=FILE\n\
+            Read one or more newline separated patterns from FILE.  Empty\n\
+            pattern lines in the file are not processed.  Options -F, -w, and\n\
+            -x do not apply to patterns in FILE.  If FILE does not exist, uses\n\
+            the GREP_PATH environment variable to attempt to open FILE.\n\
+    --file-format=ENCODING\n\
+            The input file format.  The possible values of ENCODING can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)
     std::cout << (i % 8 ? " " : "\n            ") << format_table[i].format;
   std::cout << "\n\
@@ -1064,7 +1361,8 @@ void help(const char *message, const char *arg)
             to behave as traditional grep).\n\
     -g, --no-group\n\
             Do not group pattern matches on the same line.  Display the\n\
-            matched line again for each additional pattern match.\n\
+            matched line again for each additional pattern match, using `+'\n\
+            as separator for each additional line.\n\
     -H, --with-filename\n\
             Always print the filename with output lines.  This is the default\n\
             when there is more than one file to search.\n\
@@ -1079,7 +1377,7 @@ void help(const char *message, const char *arg)
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of\n\
             the respective matched line, starting at column 1.  Tabs are\n\
-            expanded before columns are counted.\n\
+            expanded when columns are counted.\n\
     -L, --files-without-match\n\
             Only the names of files not containing selected lines are written\n\
             to standard output.  Pathnames are listed once per file searched.\n\
@@ -1091,19 +1389,22 @@ void help(const char *message, const char *arg)
             been found, making searches potentially less expensive.  Pathnames\n\
             are listed once per file searched.  If the standard input is\n\
             searched, the string ``(standard input)'' is written.\n\
-    --label[=label]\n\
-            Displays the label value when input is read from standard input\n\
+    --label[=LABEL]\n\
+            Displays the LABEL value when input is read from standard input\n\
             where a file name would normally be printed in the output.  This\n\
             option applies to options -H, -L, and -l.\n\
-    -m num, --max-count=num\n\
-            Stop reading the input after num matches.\n\
+    -m NUM, --max-count=NUM\n\
+            Stop reading the input after NUM matches.\n\
     -n, --line-number\n\
             Each output line is preceded by its relative line number in the\n\
             file, starting at line 1.  The line number counter is reset for\n\
             each file processed.\n\
     -o, --only-matching\n\
             Prints only the matching part of the lines.  Allows a pattern\n\
-            match to span multiple lines.\n\
+            match to span multiple lines.  Line numbers for multi-line matches\n\
+            are displayed with option -n, using `|' as separator for each\n\
+            additional line matched by the pattern.  Context options -A, -B,\n\
+            and -C are disabled.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress normal output.  ugrep will only search a file\n\
             until a match has been found, making searches potentially less\n\
@@ -1113,9 +1414,10 @@ void help(const char *message, const char *arg)
             their error messages are suppressed).\n\
     -T, --initial-tab\n\
             Add a tab space to separate the file name, line number, column\n\
-            number, byte offset with the matched line.\n\
-    -t size, --tabs=size\n\
-            Set the tab size to 1, 2, 4, or 8 to expand tabs for option -k.\n\
+            number, and byte offset with the matched line.\n\
+    -t NUM, --tabs=NUM\n\
+            Set the tab size to NUM to expand tabs for option -k.  The value of\n\
+            NUM may be 1, 2, 4, or 8.\n\
     -V, --version\n\
             Display version information and exit.\n\
     -v, --invert-match\n\
@@ -1131,9 +1433,9 @@ void help(const char *message, const char *arg)
             are considered to be matching lines (as if surrounded by ^ and $).\n\
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
-    -z sep, --separator=sep\n\
+    -z TEXT, --separator=TEXT\n\
             The separator between the file name, line number, column number,\n\
-            byte offset, and the line matched.  The default is a colon (`:').\n\
+            byte offset, and the matched line.  The default is a colon (`:').\n\
 \n\
     The ugrep utility exits with one of the following values:\n\
 \n\
