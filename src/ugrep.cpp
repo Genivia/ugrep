@@ -195,23 +195,26 @@ bool flag_basic_regexp             = false;
 bool flag_word_regexp              = false;
 bool flag_line_regexp              = false;
 bool flag_dereference              = false;
+size_t flag_after_context          = 0;
+size_t flag_before_context         = 0;
+size_t flag_max_count              = 0;
+size_t flag_tabs                   = 8;
 const char *flag_color             = NULL;
 const char *flag_file_format       = NULL;
-const char *flag_include           = NULL;
-const char *flag_include_dir       = NULL;
-const char *flag_exclude           = NULL;
-const char *flag_exclude_dir       = NULL;
 const char *flag_devices           = "read";
 const char *flag_directories       = "read";
 const char *flag_label             = "(standard input)";
 const char *flag_initial_tab       = "";
 const char *flag_separator         = ":";
 const char *flag_group_separator   = "--";
-size_t flag_after_context          = 0;
-size_t flag_before_context         = 0;
-size_t flag_max_count              = 0;
-size_t flag_tabs                   = 8;
 std::vector<const char*> flag_file;
+std::vector<const char*> flag_include;
+std::vector<const char*> flag_include_dir;
+std::vector<const char*> flag_exclude;
+std::vector<const char*> flag_exclude_dir;
+
+// external functions
+extern bool wildmat(const char *text, const char *glob);
 
 // function protos
 bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *infile);
@@ -309,9 +312,9 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "directories=", 12) == 0)
               flag_directories = arg + 12;
             else if (strncmp(arg, "exclude=", 8) == 0)
-              flag_exclude = arg + 8;
+              flag_exclude.push_back(arg + 8);
             else if (strncmp(arg, "exclude-dir=", 12) == 0)
-              flag_exclude_dir = arg + 12;
+              flag_exclude_dir.push_back(arg + 12);
             else if (strcmp(arg, "extended-regexp") == 0)
               ;
             else if (strncmp(arg, "file=", 5) == 0)
@@ -333,9 +336,9 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "ignore-case") == 0)
               flag_ignore_case = true;
             else if (strncmp(arg, "include=", 8) == 0)
-              flag_include = arg + 8;
+              flag_include.push_back(arg + 8);
             else if (strncmp(arg, "include-dir=", 12) == 0)
-              flag_include_dir = arg + 12;
+              flag_include_dir.push_back(arg + 12);
             else if (strcmp(arg, "initial-tab") == 0)
               flag_initial_tab = "\t";
             else if (strcmp(arg, "invert-match") == 0)
@@ -620,6 +623,13 @@ int main(int argc, char **argv)
     }
   }
 
+  // if no regex pattern is specified and no -f file then exit
+  if (regex.empty() && flag_file.empty())
+    help();
+
+  // remove the ending '|' from the |-concatenated regexes in the regex string
+  regex.pop_back();
+
   if (regex.empty() && flag_file.empty())
   {
     // if the specified regex is empty then it matches every line
@@ -627,9 +637,6 @@ int main(int argc, char **argv)
   }
   else
   {
-    // remove the ending '|' from the |-concatenated regexes in the regex string
-    regex.pop_back();
-
     // -F --fixed-strings: make newline-separated lines in regex literal with \Q and \E
     if (flag_fixed_strings)
     {
@@ -710,10 +717,6 @@ int main(int argc, char **argv)
     // remove the ending '|' from the |-concatenated regexes in the regex string
     regex.pop_back();
   }
-
-  // if no regex pattern was specified then exit
-  if (regex.empty())
-    help();
 
   // if no files were specified then read standard input
   if (infiles.empty())
@@ -964,29 +967,69 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
             // directories cannot be read actually, so grep produces a warning message
             if (!flag_no_messages)
               fprintf(stderr, "ugrep: cannot read directory %s\n", infile);
-          }
-          else if (strcmp(flag_directories, "recurse") == 0)
-          {
-            // TODO: check --exclusive-dir and --inclusive-dir globs
 
-            found = recurse(pattern, encoding, infile);
+            return false;
+          }
+
+          if (strcmp(flag_directories, "recurse") == 0)
+          {
+            if (!is_argument)
+            {
+              // exclude directories whose pathname matches any one of the --exclude-dir globs
+              for (auto glob : flag_exclude_dir)
+                if (wildmat(infile, glob))
+                  return false;
+
+              if (!flag_include_dir.empty())
+              {
+                // include directories whose pathname matches any one of the --include-dir globs
+                bool ok = false;
+                for (auto glob : flag_include_dir)
+                  if ((ok = wildmat(infile, glob)))
+                    break;
+                if (!ok)
+                  return false;
+              }
+            }
+
+            return recurse(pattern, encoding, infile);
           }
         }
-        else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
+
+        if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
         {
+          if (!is_argument)
+          {
+            // exclude files whose pathname matches any one of the --exclude globs
+            for (auto glob : flag_exclude)
+              if (wildmat(infile, glob))
+                return false;
+
+            if (!flag_include.empty())
+            {
+              // include files whose pathname matches any one of the --include globs
+              bool ok = false;
+              for (auto glob : flag_include)
+                if ((ok = wildmat(infile, glob)))
+                  break;
+              if (!ok)
+                return false;
+            }
+          }
+
           FILE *file = fopen(infile, "r");
 
           if (file == NULL)
           {
             if (!flag_no_messages)
               perror("ugrep: cannot open file for reading");
-          }
-          else
-          {
-            found = ugrep(pattern, file, encoding, infile);
 
-            fclose(file);
+            return false;
           }
+
+          found = ugrep(pattern, file, encoding, infile);
+
+          fclose(file);
         }
       }
     }
@@ -1025,8 +1068,6 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
 
     while ((dirent = readdir(dir)) != NULL)
     {
-      // TODO: check --exclusive and --inclusive globs
-
       // search directory entries that aren't . or ..
       if (strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0)
       {
@@ -1574,6 +1615,15 @@ void help(const char *message, const char *arg)
             This option is most useful when multiple -e options are used to\n\
             specify multiple patterns, when a pattern begins with a dash (`-'),\n\
             or when option -f is used.\n\
+    --exclude=GLOB\n\
+            Skip files whose path name matches GLOB (using wildcard matching).\n\
+            A path name glob can use *, ?, and [...] as wildcards, and \\ to\n\
+            quote a wildcard or backslash character literally.  Note that\n\
+            --exclude patterns take priority over --include patterns.\n\
+    --exclude-dir=GLOB\n\
+            Exclude directories whose path name matches GLOB from recursive\n\
+            searches.  Note that --exclude-dir patterns take priority over\n\
+            --include-dir patterns.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This forces ugrep to behave as\n\
@@ -1609,6 +1659,15 @@ void help(const char *message, const char *arg)
             Perform case insensitive matching. This option applies\n\
             case-insensitive matching of ASCII characters in the input.\n\
             By default, ugrep is case sensitive.\n\
+    --include=GLOB\n\
+            Search only files whose path name matches GLOB (using wildcard\n\
+            matching).  A path name glob can use *, ?, and [...] as wildcards,\n\
+            and \\ to quote a wildcard or backslash character literally.\n\
+            Note that --exclude patterns take priority over --include patterns.\n\
+    --include-dir=GLOB\n\
+            Only directories whose path name matches GLOB are included in\n\
+            recursive searches.  Note that --exclude-dir patterns take\n\
+            priority over --include-dir patterns.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of\n\
             the respective matched line, starting at column 1.  Tabs are\n\

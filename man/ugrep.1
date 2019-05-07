@@ -82,6 +82,17 @@ This option is most useful when multiple \fB\-e\fR options are used to
 specify multiple patterns, when a pattern begins with a dash (`\fB\-'\fR),
 or when option \fB\-f\fR is used.
 .TP
+\fB\-\-exclude\fR=\fIGLOB\fR
+Skip files whose path name matches GLOB (using wildcard matching).
+A path name glob can use *, ?, and [...] as wildcards, and \\ to
+quote a wildcard or backslash character literally.  Note that
+\fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR patterns.
+.TP
+\fB\-\-exclude\-dir\fR=\fIGLOB\fR
+Exclude directories whose path name matches GLOB from recursive
+searches.  Note that \fB\-\-exclude\-dir\fR patterns take priority over
+\fB\-\-include\-dir\fR patterns.
+.TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
 any of which is to be matched.  This forces ugrep to behave as
@@ -126,6 +137,17 @@ Print a help message.
 Perform case insensitive matching. This option applies
 case\-insensitive matching of ASCII characters in the input.
 By default, ugrep is case sensitive.
+.TP
+\fB\-\-include\fR=\fIGLOB\fR
+Search only files whose path name matches GLOB (using wildcard
+matching).  A path name glob can use *, ?, and [...] as wildcards,
+and \\ to quote a wildcard or backslash character literally.
+Note that \fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR patterns.
+.TP
+\fB\-\-include\-dir\fR=\fIGLOB\fR
+Only directories whose path name matches GLOB are included in
+recursive searches.  Note that \fB\-\-exclude\-dir\fR patterns take
+priority over \fB\-\-include\-dir\fR patterns.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of

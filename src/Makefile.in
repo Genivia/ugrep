@@ -103,7 +103,7 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_ugrep_OBJECTS = ugrep-ugrep.$(OBJEXT)
+am_ugrep_OBJECTS = ugrep-ugrep.$(OBJEXT) ugrep-wildmat.$(OBJEXT)
 ugrep_OBJECTS = $(am_ugrep_OBJECTS)
 ugrep_DEPENDENCIES =
 AM_V_P = $(am__v_P_@AM_V@)
@@ -121,7 +121,8 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/ugrep-ugrep.Po
+am__depfiles_remade = ./$(DEPDIR)/ugrep-ugrep.Po \
+	./$(DEPDIR)/ugrep-wildmat.Po
 am__mv = mv -f
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -274,7 +275,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ugrep_CPPFLAGS = -DPLATFORM=\"$(PLATFORM)\"
-ugrep_SOURCES = ugrep.cpp
+ugrep_SOURCES = ugrep.cpp wildmat.cpp
 ugrep_LDADD = -lreflex
 all: all-am
 
@@ -363,6 +364,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-ugrep.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-wildmat.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -397,6 +399,20 @@ ugrep-ugrep.obj: ugrep.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='ugrep.cpp' object='ugrep-ugrep.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep-ugrep.obj `if test -f 'ugrep.cpp'; then $(CYGPATH_W) 'ugrep.cpp'; else $(CYGPATH_W) '$(srcdir)/ugrep.cpp'; fi`
+
+ugrep-wildmat.o: wildmat.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ugrep-wildmat.o -MD -MP -MF $(DEPDIR)/ugrep-wildmat.Tpo -c -o ugrep-wildmat.o `test -f 'wildmat.cpp' || echo '$(srcdir)/'`wildmat.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ugrep-wildmat.Tpo $(DEPDIR)/ugrep-wildmat.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='wildmat.cpp' object='ugrep-wildmat.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep-wildmat.o `test -f 'wildmat.cpp' || echo '$(srcdir)/'`wildmat.cpp
+
+ugrep-wildmat.obj: wildmat.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ugrep-wildmat.obj -MD -MP -MF $(DEPDIR)/ugrep-wildmat.Tpo -c -o ugrep-wildmat.obj `if test -f 'wildmat.cpp'; then $(CYGPATH_W) 'wildmat.cpp'; else $(CYGPATH_W) '$(srcdir)/wildmat.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ugrep-wildmat.Tpo $(DEPDIR)/ugrep-wildmat.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='wildmat.cpp' object='ugrep-wildmat.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep-wildmat.obj `if test -f 'wildmat.cpp'; then $(CYGPATH_W) 'wildmat.cpp'; else $(CYGPATH_W) '$(srcdir)/wildmat.cpp'; fi`
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -526,6 +542,7 @@ clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/ugrep-ugrep.Po
+	-rm -f ./$(DEPDIR)/ugrep-wildmat.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -572,6 +589,7 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/ugrep-ugrep.Po
+	-rm -f ./$(DEPDIR)/ugrep-wildmat.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

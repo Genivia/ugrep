@@ -38,6 +38,12 @@ matching.  Rare and pathelogical cases are known to exist that may increase the
 initial running time for DFA construction.  The resulting DFAs still yield
 significant speedups to search large files.
 
+**ugrep** is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
+code and does not include any GNU or BSD grep open source code or algorithms.
+**ugrep** is built entirely on the RE/flex open source library and Rich Salz'
+free and open wildmat source code for glob matching with options `--include`
+and `--exclude`.
+
 We love your feedback (issues) and contributions (pull requests) ❤️
 
 Dependencies
@@ -324,6 +330,18 @@ Man page
                   specify  multiple  patterns,  when  a pattern begins with a dash
                   (`-'), or when option -f is used.
 
+           --exclude=GLOB
+                  Skip files whose path name matches GLOB (using  wildcard  match-
+                  ing).   A  path  name glob can use *, ?, and [...] as wildcards,
+                  and \ to quote a  wildcard  or  backslash  character  literally.
+                  Note  that  --exclude patterns take priority over --include pat-
+                  terns.
+
+           --exclude-dir=GLOB
+                  Exclude directories whose path name matches GLOB from  recursive
+                  searches.   Note  that --exclude-dir patterns take priority over
+                  --include-dir patterns.
+
            -F, --fixed-strings
                   Interpret pattern as a set of fixed strings, separated  by  new-
                   lines,  any  of  which  is  to be matched.  This forces ugrep to
@@ -369,6 +387,18 @@ Man page
                   Perform  case  insensitive   matching.   This   option   applies
                   case-insensitive  matching of ASCII characters in the input.  By
                   default, ugrep is case sensitive.
+
+           --include=GLOB
+                  Search only files whose path name matches GLOB  (using  wildcard
+                  matching).   A  path  name glob can use *, ?, and [...] as wild-
+                  cards, and \ to quote a wildcard or backslash  character  liter-
+                  ally.  Note that --exclude patterns take priority over --include
+                  patterns.
+
+           --include-dir=GLOB
+                  Only directories whose path name matches GLOB  are  included  in
+                  recursive  searches.  Note that --exclude-dir patterns take pri-
+                  ority over --include-dir patterns.
 
            -k, --column-number
                   The column number of a matched pattern is displayed in front  of
@@ -600,12 +630,12 @@ Man page
 
     ugrep 1.1.0                      May 07, 2019                         UGREP(1)
 
-Bugs to fix in future updates
------------------------------
+To fix in future updates
+------------------------
 
-- Pattern `^$` does not match empty lines, because `find()` does not permit
-  empty matches.  This can be fixed in RE/flex, but requires some work and
-  testing to avoid infinite `find()` loops on an empty match that does not
+- Pattern `^$` does not match empty lines, because RE/flex `find()` does not
+  permit empty matches.  This can be fixed in RE/flex, but requires some work
+  and testing to avoid infinite `find()` loops on an empty match that does not
   advance the input cursor.
 - Back-references are not supported.  This will likely not be supported soon
   with the RE/flex library.  We could use Boost.Regex for this (using RE/flex
@@ -804,7 +834,3 @@ have a similar name.  For example, the `\p{Greek}` class represents Greek and
 Coptic letters and differs from the Unicode block `\p{IsGreek}` that spans a
 specific Unicode block of Greek and Coptic characters only, which also includes
 unassigned characters.
-
-[reflex-url]: https://www.genivia.com/reflex.html
-[bsd-3-image]: https://img.shields.io/badge/license-BSD%203--Clause-blue.svg
-[bsd-3-url]: https://opensource.org/licenses/BSD-3-Clause
