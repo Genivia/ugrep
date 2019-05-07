@@ -1,11 +1,11 @@
-.TH UGREP "1" "May 06, 2019" "ugrep 1.1.0" "User Commands"
+.TH UGREP "1" "May 07, 2019" "ugrep 1.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcEFfGgHhikLlmnoqsTtVvwXxZz\fR] [\fB--colour\fR[=\fIwhen\fR]|\fB--color\fR[=\fIwhen\fR]]
-      [\fB--file-format\fR=\fIencoding\fR] [\fB--label\fR[=\fIlabel\fR]]
-      [\fB-e\fR \fIpattern\fR] [\fIpattern\fR] [\fIfile\fR \fI...\fR]
+[\fB-bcDdEFGgHhikLlmnoqRrsTtVvwXxZz\fR] [-A NUM] [-B NUM] [-C[NUM]]
+      [\fB-e\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]]
+      [\fB--file-format\fR=\fIENCODING\fR] [\fB--label\fR[=\fILABEL\fR]] [\fIPATTERN\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -25,13 +25,13 @@ The following options are available:
 .TP
 \fB\-A\fR NUM, \fB\-\-after\-context\fR=\fINUM\fR
 Print NUM lines of trailing context after matching lines.  Places
-a line containing \fB\-\-\fR between contiguous groups of matches.  See
-also the \fB\-B\fR and \fB\-C\fR options.
+a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
+the \fB\-B\fR and \fB\-C\fR options.
 .TP
 \fB\-B\fR NUM, \fB\-\-before\-context\fR=\fINUM\fR
 Print NUM lines of leading context before matching lines.  Places
-a line containing \fB\-\-\fR between contiguous groups of matches.  See
-also the \fB\-A\fR and \fB\-C\fR options.
+a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
+the \fB\-A\fR and \fB\-C\fR options.
 .TP
 \fB\-b\fR, \fB\-\-byte\-offset\fR
 The offset in bytes of a matched line is displayed in front of the
@@ -41,7 +41,7 @@ bytes of each pattern matched.
 \fB\-C\fR[NUM], \fB\-\-context\fR[=\fI\fR\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
 match.  The default is 2 and is equivalent to \fB\-A\fR 2 \fB\-B\fR 2.  Places
-a line containing \fB\-\-\fR between contiguous groups of matches.  Note:
+a \fB\-\-group\-separator\fR between contiguous groups of matches.  Note:
 no whitespace may be given between the option and its argument.
 .TP
 \fB\-c\fR, \fB\-\-count\fR
@@ -53,6 +53,23 @@ With option \fB\-v\fR, counts the number of non\-matching lines.
 Mark up the matching text with the expression stored in the
 GREP_COLOR or GREP_COLORS environment variable.  The possible
 values of WHEN can be `never', `always' or `auto'.
+.TP
+\fB\-D\fR ACTION, \fB\-\-devices\fR=\fIACTION\fR
+If an input file is a device, FIFO or socket, use ACTION to process
+it.  By default, ACTION is `read', which means that devices are
+read just as if they were ordinary files.  If ACTION is `skip',
+devices are silently skipped.
+.TP
+\fB\-d\fR ACTION, \fB\-\-directories\fR=\fIACTION\fR
+If an input file is a directory, use ACTION to process it.  By
+default, ACTION is `read', i.e., read directories just as if they
+were ordinary files.  If ACTION is `skip', silently skip
+directories.  If ACTION is `recurse', read all files under each
+directory, recursively, following symbolic links only if they are
+on the command line.  This is equivalent to the \fB\-r\fR option.  If
+ACTION is `dereference\-recurse', read all files under each
+directory, recursively, following symbolic links.  This is
+equivalent to the \fB\-R\fR option.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is
@@ -71,7 +88,7 @@ any of which is to be matched.  This forces ugrep to behave as
 fgrep but less efficiently.
 .TP
 \fB\-f\fR FILE, \fB\-\-file\fR=\fIFILE\fR
-Read one or more newline separated patterns from FILE.  Empty
+Read one or more newline\-separated patterns from FILE.  Empty
 pattern lines in the file are not processed.  Options \fB\-F\fR, \fB\-w\fR, and
 \-x do not apply to patterns in FILE.  If FILE does not exist, uses
 the GREP_PATH environment variable to attempt to open FILE.
@@ -87,9 +104,13 @@ Interpret pattern as a basic regular expression (i.e. force ugrep
 to behave as traditional grep).
 .TP
 \fB\-g\fR, \fB\-\-no\-group\fR
-Do not group pattern matches on the same line.  Display the
-matched line again for each additional pattern match, using `+'
-as separator for each additional line.
+Do not group pattern matches on the same line.  Display the matched
+line again for each additional pattern match, using `+' as the
+field separator for each additional line.
+.TP
+\fB\-\-group\-separator\fR=\fISEP\fR
+Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR. By
+default SEP is a double hyphen (`\fB\-\-\fR').
 .TP
 \fB\-H\fR, \fB\-\-with\-filename\fR
 Always print the filename with output lines.  This is the default
@@ -137,17 +158,33 @@ Each output line is preceded by its relative line number in the
 file, starting at line 1.  The line number counter is reset for
 each file processed.
 .TP
+\fB\-\-no\-group\-separator\fR
+Removes the group separator line from the output for context
+options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
+.TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
 Prints only the matching part of the lines.  Allows a pattern
 match to span multiple lines.  Line numbers for multi\-line matches
-are displayed with option \fB\-n\fR, using `|' as separator for each
-additional line matched by the pattern.  Context options \fB\-A\fR, \fB\-B\fR,
-and \fB\-C\fR are disabled.
+are displayed with option \fB\-n\fR, using `|' as the field separator for
+each additional line matched by the pattern.  Context options \fB\-A\fR,
+\-B, and \fB\-C\fR are disabled.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress normal output.  ugrep will only search a file
 until a match has been found, making searches potentially less
 expensive.  Allows a pattern match to span multiple lines.
+.TP
+\fB\-R\fR, \fB\-\-dereference\-recursive\fR
+Recursively read all files under each directory.  Follow all
+symbolic links, unlike \fB\-r\fR.
+.TP
+\fB\-r\fR, \fB\-\-recursive\fR
+Recursively read all files under each directory, following symbolic
+links only if they are on the command line.
+.TP
+\fB\-S\fR, \fB\-\-dereference\fR
+If \fB\-r\fR is specified, all symbolic links are followed.  This is
+equivalent to the \fB\-R\fR option.
 .TP
 \fB\-s\fR, \fB\-\-no\-messages\fR
 Silent mode.  Nonexistent and unreadable files are ignored (i.e.
@@ -182,9 +219,10 @@ are considered to be matching lines (as if surrounded by ^ and $).
 \fB\-Z\fR, \fB\-\-null\fR
 Prints a zero\-byte after the file name.
 .TP
-\fB\-z\fR TEXT, \fB\-\-separator\fR=\fITEXT\fR
-The separator between the file name, line number, column number,
-byte offset, and the matched line.  The default is a colon (`:').
+\fB\-z\fR SEP, \fB\-\-separator\fR=\fISEP\fR
+Use SEP as field separator between file name, line number, column
+number, byte offset, and the matched line.  The default is a colon
+(`:').
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:

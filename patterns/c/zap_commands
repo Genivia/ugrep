@@ -1,0 +1,1 @@
+(?^^.*[^[:word:]](asm|break|case|catch|continue|default|delete|do|else|for|goto|if|namespace|new|return|switch|throw|while)[^[:word:]].*$)
