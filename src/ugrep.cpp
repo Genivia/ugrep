@@ -123,6 +123,7 @@ Wanted TODO:
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
+#include <iomanip>
 
 // check if we are on a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
@@ -186,6 +187,7 @@ bool flag_fixed_strings            = false;
 bool flag_free_space               = false;
 bool flag_ignore_case              = false;
 bool flag_invert_match             = false;
+bool flag_only_line_number         = false;
 bool flag_line_number              = false;
 bool flag_column_number            = false;
 bool flag_byte_offset              = false;
@@ -216,6 +218,9 @@ std::vector<const char*> flag_include;
 std::vector<const char*> flag_include_dir;
 std::vector<const char*> flag_exclude;
 std::vector<const char*> flag_exclude_dir;
+std::vector<const char*> flag_file_type;
+std::vector<const char*> flag_file_extensions;
+std::vector<const char*> flag_file_magic; // TODO not used yet
 
 // external functions
 extern bool wildmat(const char *text, const char *glob);
@@ -229,7 +234,7 @@ void set_color(const char *grep_colors, const char *parameter, std::string& colo
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
 
-// table of RE/flex file encodings for ugrep option --file-format
+// table of RE/flex file encodings for ugrep option -:, --file-format
 const struct { const char *format; reflex::Input::file_encoding_type encoding; } format_table[] = {
   { "binary",     reflex::Input::file_encoding::plain   },
   { "ISO-8859-1", reflex::Input::file_encoding::latin   },
@@ -257,6 +262,74 @@ const struct { const char *format; reflex::Input::file_encoding_type encoding; }
   { "CP1257",     reflex::Input::file_encoding::cp1257  },
   { "CP1258",     reflex::Input::file_encoding::cp1258  },
   { NULL, 0 }
+};
+
+// table file types for ugrep option -t, --file-type
+const struct { const char *type; const char *extensions; const char *magic; } type_table[] = {
+  { "actionscript", "as,mxml",                                                  NULL },
+  { "ada",          "ada,adb,ads",                                              NULL },
+  { "asm",          "asm,s,S",                                                  NULL },
+  { "asp",          "asp",                                                      NULL },
+  { "aspx",         "master,ascx,asmx,aspx,svc",                                NULL },
+  { "autoconf",     "ac,in",                                                    NULL },
+  { "automake",     "am,in",                                                    NULL },
+  { "awk",          "awk",                                                      NULL },
+  { "basic",        "bas,BAS,cls,frm,ctl,vb,resx",                              NULL },
+  { "batch",        "bat,BAT,cmd,CMD",                                          NULL },
+  { "bison",        "y,yy,yxx",                                                 NULL },
+  { "c",            "c,h,H,hdl",                                                NULL },
+  { "c++",          "cpp,CPP,cc,cxx,CXX,h,hh,H,hpp,hxx,Hxx,HXX",                NULL },
+  { "clojure",      "clj",                                                      NULL },
+  { "csharp",       "cs",                                                       NULL },
+  { "css",          "css",                                                      NULL },
+  { "csv",          "csv",                                                      NULL },
+  { "dart",         "dart",                                                     NULL },
+  { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL },
+  { "erlang",       "erl,hrl",                                                  NULL },
+  { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95",                  NULL },
+  { "go",           "go",                                                       NULL },
+  { "groovy",       "groovy,gtmpl,gpp,grunit,gradle",                           NULL },
+  { "haskell",      "hs,lhs",                                                   NULL },
+  { "html",         "htm,html,xhtml",                                           NULL },
+  { "jade",         "jade",                                                     NULL },
+  { "java",         "java,properties",                                          NULL },
+  { "js",           "js",                                                       NULL },
+  { "json",         "json",                                                     NULL },
+  { "jsp",          "jsp,jspx,jthm,jhtml",                                      NULL },
+  { "less",         "less",                                                     NULL },
+  { "lex",          "l,ll,lxx",                                                 NULL },
+  { "lisp",         "lisp,lsp",                                                 NULL },
+  { "lua",          "lua",                                                      NULL },
+  { "m4",           "m4",                                                       NULL },
+  { "make",         "mk,mak,makefile,Makefile,Makefile.Debug,Makefile.Release", NULL },
+  { "matlab",       "m",                                                        NULL },
+  { "objc",         "m,h",                                                      NULL },
+  { "objcpp",       "mm,h",                                                     NULL },
+  { "ocaml",        "ml,mli",                                                   NULL },
+  { "parrot",       "pir,pasm,pmc,ops,pod,pg,tg",                               NULL },
+  { "perl",         "pl,PL,pm,pod,t,psgi",                                      NULL },
+  { "php",          "php,php3,php4,phtml",                                      NULL },
+  { "python",       "py",                                                       "#!bin/python" },
+  { "R",            "R",                                                        NULL },
+  { "rst",          "rst",                                                      NULL },
+  { "ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec,Rakefile",                 "#!/bin/ruby" },
+  { "rust",         "rs",                                                       NULL },
+  { "scala",        "scala",                                                    NULL },
+  { "scheme",       "scm,ss",                                                   NULL },
+  { "shell",        "sh,bash,csh,tcsh,ksh,zsh,fish",                            "#!/bin/*sh" },
+  { "smalltalk",    "st",                                                       NULL },
+  { "sql",          "sql,ctl",                                                  NULL },
+  { "tcl",          "tcl,itcl,itk",                                             NULL },
+  { "tex",          "tex,cls,sty",                                              NULL },
+  { "text",         "txt,TXT",                                                  NULL },
+  { "tt",           "tt,tt2,ttml",                                              NULL },
+  { "verilog",      "v,vh,sv",                                                  NULL },
+  { "vhdl",         "vhd,vhdl",                                                 NULL },
+  { "vim",          "vim",                                                      NULL },
+  { "xml",          "xml,xsd,dtd,xsl,xslt,wsdl,rss,svg,ent",                    NULL },
+  { "yacc",         "y",                                                        NULL },
+  { "yaml",         "yaml,yml",                                                 NULL },
+  { NULL,           NULL,                                                       NULL }
 };
 
 // ugrep main()
@@ -323,8 +396,12 @@ int main(int argc, char **argv)
               ;
             else if (strncmp(arg, "file=", 5) == 0)
               flag_file.push_back(arg + 5);
+            else if (strncmp(arg, "file-extensions=", 16) == 0)
+              flag_file_extensions.push_back(arg + 16);
             else if (strncmp(arg, "file-format=", 12) == 0)
               flag_file_format = arg + 12;
+            else if (strncmp(arg, "file-type=", 10) == 0)
+              flag_file_type.push_back(arg + 10);
             else if (strcmp(arg, "files-with-match") == 0)
               flag_files_with_match = true;
             else if (strcmp(arg, "files-without-match") == 0)
@@ -369,6 +446,8 @@ int main(int argc, char **argv)
               flag_no_messages = true;
             else if (strcmp(arg, "null") == 0)
               flag_null = true;
+            else if (strcmp(arg, "only-line-number") == 0)
+              flag_only_line_number = true;
             else if (strcmp(arg, "only-matching") == 0)
               flag_only_matching = true;
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
@@ -525,6 +604,10 @@ int main(int argc, char **argv)
             is_grouped = false;
             break;
 
+          case 'N':
+            flag_only_line_number = true;
+            break;
+
           case 'n':
             flag_line_number = true;
             break;
@@ -560,11 +643,11 @@ int main(int argc, char **argv)
           case 't':
             ++arg;
             if (*arg)
-              flag_tabs = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+              flag_file_type.push_back(&arg[*arg == '=']);
             else if (++i < argc)
-              flag_tabs = (size_t)strtoull(argv[i], NULL, 10);
+              flag_file_type.push_back(argv[i]);
             else
-              help("missing number for option -t");
+              help("missing type for option -t");
             is_grouped = false;
             break;
 
@@ -603,8 +686,27 @@ int main(int argc, char **argv)
             is_grouped = false;
             break;
 
-          case '?':
-            help();
+          case '.':
+            ++arg;
+            if (*arg)
+              flag_file_extensions.push_back(&arg[*arg == '=']);
+            else if (++i < argc)
+              flag_file_extensions.push_back(argv[i]);
+            else
+              help("missing extensions for option -.");
+            is_grouped = false;
+            break;
+
+          case ':':
+            ++arg;
+            if (*arg)
+              flag_file_format = &arg[*arg == '='];
+            else if (++i < argc)
+              flag_file_format = argv[i];
+            else
+              help("missing encoding for option -:");
+            is_grouped = false;
+            break;
 
           default:
             help("unknown option -", arg);
@@ -627,9 +729,22 @@ int main(int argc, char **argv)
     }
   }
 
+  // --file-type=list
+  if (flag_file_type.size() == 1 && strcmp(flag_file_type[0], "list") == 0)
+  {
+    int i;
+
+    std::cerr << std::setw(12) << "TYPE" << "   EXTENSIONS" << std::endl;
+
+    for (i = 0; type_table[i].type != NULL; ++i)
+      std::cerr << std::setw(12) << type_table[i].type << " = " << type_table[i].extensions << std::endl;
+
+    exit(EXIT_ERROR);
+  }
+
   // if no regex pattern is specified and no -f file then exit
   if (regex.empty() && flag_file.empty())
-    help();
+    help("");
 
   // remove the ending '|' from the |-concatenated regexes in the regex string
   regex.pop_back();
@@ -745,8 +860,8 @@ int main(int argc, char **argv)
     flag_only_matching = false;
   }
 
-  // if not -o --only-matching: input and output are line-buffered
-  if (!flag_only_matching)
+  // if not -o --only-matching and not -N --only-line-number: input and output are line-buffered
+  if (!flag_only_matching && !flag_only_line_number)
     flag_line_buffered = true;
 
   // normalize -R --dereference-recurse option
@@ -844,30 +959,64 @@ int main(int argc, char **argv)
       strcmp(flag_directories, "dereference-recurse") != 0)
     help("unknown --directories=ACTION value");
 
+  reflex::Input::file_encoding_type encoding = reflex::Input::file_encoding::plain;
+
+  // parse ugrep option --file-format
+  if (flag_file_format != NULL)
+  {
+    int i;
+
+    // scan the format_table[] for a matching format
+    for (i = 0; format_table[i].format != NULL; ++i)
+      if (strcmp(flag_file_format, format_table[i].format) == 0)
+        break;
+
+    if (format_table[i].format == NULL)
+      help("unknown --file-format=ENCODING value");
+
+    // encoding is the file format used by all input files, if no BOM is present
+    encoding = format_table[i].encoding;
+  }
+
+  // parse ugrep option --file-type
+  for (auto type : flag_file_type)
+  {
+    int i;
+
+    // scan the type_table[] for a matching type
+    for (i = 0; type_table[i].type != NULL; ++i)
+      if (strcmp(type, type_table[i].type) == 0)
+        break;
+
+    if (type_table[i].type == NULL)
+      help("unknown --file-type=TYPE value");
+
+    flag_file_extensions.push_back(type_table[i].extensions);
+  }
+
+  // add the --file-extensions as globs to the --include list
+  for (auto extensions : flag_file_extensions)
+  {
+    const char *from = extensions;
+    const char *to;
+    std::string glob;
+
+    while ((to = strchr(from, ',')) != NULL || (to = from + strlen(from)) > from)
+    {
+      flag_include.push_back(strdup(glob.assign("*.").append(from, to - from).c_str()));
+
+      if (*to == '\0')
+        break;
+
+      from = to + 1;
+    }
+  }
+
   // if any match was found in any of the input files then we set found==true
   bool found = false;
 
   try
   {
-    reflex::Input::file_encoding_type encoding = reflex::Input::file_encoding::plain;
-
-    // parse ugrep option --file-format=encoding
-    if (flag_file_format != NULL)
-    {
-      int i;
-
-      // scan the format_table[] for a matching format
-      for (i = 0; format_table[i].format != NULL; ++i)
-        if (strcmp(flag_file_format, format_table[i].format) == 0)
-          break;
-
-      if (format_table[i].format == NULL)
-        help("unknown --file-format=ENCODING value");
-
-      // encoding is the file format used by all input files, if no BOM is present
-      encoding = format_table[i].encoding;
-    }
-
     // set flags to convert regex to Unicode
     reflex::convert_flag_type convert_flags = reflex::convert_flag::unicode;
 
@@ -879,11 +1028,13 @@ int main(int argc, char **argv)
 
     // prepend multiline mode modifier and other modifiers to the converted regex
     std::string modified_regex = "(?m";
+
     if (flag_ignore_case)
     {
       // prepend case-insensitive regex modifier, applies to ASCII only
       modified_regex.append("i");
     }
+
     if (flag_free_space)
     {
       // this is needed to check free-space conformance by the converter
@@ -891,6 +1042,7 @@ int main(int argc, char **argv)
       // prepend free-space regex modifier
       modified_regex.append("x");
     }
+
     modified_regex.append(")").append(reflex::Matcher::convert(regex, convert_flags));
 
     // if --tabs=N then set pattern matching options to tab size
@@ -1525,7 +1677,7 @@ exit_input:
   }
   else
   {
-    // -o option: block-buffered mode displays matched parts only
+    // -o or -N option: block-buffered mode displays matched parts only
 
     size_t lineno = 0;
 
@@ -1543,34 +1695,40 @@ exit_input:
 
         display(infile, lineno, match.columno() + 1, match.first(), separator);
 
+        if (flag_only_line_number)
+          std::cout << std::endl;
+
         ++matches;
       }
 
-      std::string string = match.str();
-
-      if (flag_line_number)
+      if (!flag_only_line_number)
       {
-        // -n -o options: echo multi-line matches line-by-line
+        std::string string = match.str();
 
-        size_t from = 0;
-        size_t to;
-
-        while ((to = string.find('\n', from)) != std::string::npos)
+        if (flag_line_number)
         {
-          ++lineno;
+          // -n -o options: echo multi-line matches line-by-line
 
-          std::cout << color_ms << string.substr(from, to - from) << color_off << std::endl;
+          size_t from = 0;
+          size_t to;
 
-          display(infile, lineno, 1, match.first() + to + 1, "|");
+          while ((to = string.find('\n', from)) != std::string::npos)
+          {
+            ++lineno;
 
-          from = to + 1;
+            std::cout << color_ms << string.substr(from, to - from) << color_off << std::endl;
+
+            display(infile, lineno, 1, match.first() + to + 1, "|");
+
+            from = to + 1;
+          }
+
+          std::cout << color_ms << string.substr(from) << color_off << std::endl;
         }
-
-        std::cout << color_ms << string.substr(from) << color_off << std::endl;
-      }
-      else
-      {
-        std::cout << color_ms << string << color_off << std::endl;
+        else
+        {
+          std::cout << color_ms << string << color_off << std::endl;
+        }
       }
 
       // max number of matches reached?
@@ -1596,7 +1754,7 @@ void display(const char *infile, size_t lineno, size_t columno, size_t byte_offs
       sep = true;
   }
 
-  if (flag_line_number)
+  if (flag_line_number || flag_only_line_number)
   {
     if (sep)
       std::cout << color_se << separator << color_off << flag_initial_tab;
@@ -1647,14 +1805,16 @@ void set_color(const char *grep_colors, const char *parameter, std::string& colo
   }
 }
 
-// Display help information with an optional diagnostic message and exit
+// Display usage/help information with an optional diagnostic message and exit
 void help(const char *message, const char *arg)
 {
-  if (message)
+  if (message && *message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   std::cout <<
-"Usage: ugrep [-bcDdEFGgHhikLlmnoqRrsTtVvwXxZz] [-A NUM] [-B NUM] [-C[NUM]] [-e PATTERN] [-f FILE] [--colour[=WHEN]|--color[=WHEN]] [--file-format=ENCODING] [--label[=LABEL]] [PATTERN] [FILE ...]\n\
-\n\
+"Usage: ugrep [-bcDdEFGgHhikLlmNnoqRrsTtVvwXxZz.:] [-A NUM] [-B NUM] [-C[NUM]] [-e PATTERN] [-f FILE] [--colour[=WHEN]|--color[=WHEN]] [--file-type=TYPES] [--file-format=ENCODING] [--label[=LABEL]] [PATTERN] [FILE ...]\n";
+  if (!message)
+  {
+    std::cout << "\n\
     -A NUM, --after-context=NUM\n\
             Print NUM lines of trailing context after matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
@@ -1722,11 +1882,6 @@ void help(const char *message, const char *arg)
             pattern lines in the file are not processed.  Options -F, -w, and\n\
             -x do not apply to patterns in FILE.  If FILE does not exist, uses\n\
             the GREP_PATH environment variable to attempt to open FILE.\n\
-    --file-format=ENCODING\n\
-            The input file format.  The possible values of ENCODING can be:";
-  for (int i = 0; format_table[i].format != NULL; ++i)
-    std::cout << (i % 8 ? " " : "\n            ") << format_table[i].format;
-  std::cout << "\n\
     -G, --basic-regexp\n\
             Interpret pattern as a basic regular expression (i.e. force ugrep\n\
             to behave as traditional grep).\n\
@@ -1742,7 +1897,7 @@ void help(const char *message, const char *arg)
             when there is more than one file to search.\n\
     -h, --no-filename\n\
             Never print filenames with output lines.\n\
-    -?, --help\n\
+    --help\n\
             Print a help message.\n\
     -i, --ignore-case\n\
             Perform case insensitive matching. This option applies\n\
@@ -1778,6 +1933,10 @@ void help(const char *message, const char *arg)
             option applies to options -H, -L, and -l.\n\
     -m NUM, --max-count=NUM\n\
             Stop reading the input after NUM matches.\n\
+    -N, --only-line-number\n\
+            Each output line is preceded by its relative line number in the\n\
+            file, starting at line 1, without displaying the line matched.  The\n\
+            line number counter is reset for each file processed.\n\
     -n, --line-number\n\
             Each output line is preceded by its relative line number in the\n\
             file, starting at line 1.  The line number counter is reset for\n\
@@ -1810,7 +1969,15 @@ void help(const char *message, const char *arg)
     -T, --initial-tab\n\
             Add a tab space to separate the file name, line number, column\n\
             number, and byte offset with the matched line.\n\
-    -t NUM, --tabs=NUM\n\
+    -t TYPES, --file-type=TYPES\n\
+            Search only files of TYPES, which is a comma-separated list of file\n\
+            types.  Each file type is associated with a set of file name\n\
+            extensions that are used to narrow the search.  The possible values\n\
+            of the file types in the list can be (use -t list for details):";
+  for (int i = 0; type_table[i].type != NULL; ++i)
+    std::cout << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";
+  std::cout << "\n\
+    --tabs=NUM\n\
             Set the tab size to NUM to expand tabs for option -k.  The value of\n\
             NUM may be 1, 2, 4, or 8.\n\
     -V, --version\n\
@@ -1832,6 +1999,16 @@ void help(const char *message, const char *arg)
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset, and the matched line.  The default is a colon\n\
             (`:').\n\
+    -.EXTENSIONS, --file-extensions=EXTENSIONS\n\
+            Search only files whose file name extensions match the specified\n\
+            comma-separated list of file name EXTENSIONS.  This option sets and\n\
+            updates the set of files to search, which is the same as specifying\n\
+            --include='*.ext' for each extension name `ext' in EXTENSIONS.\n\
+    -:ENCODING, --file-format=ENCODING\n\
+            The input file format.  The possible values of ENCODING can be:";
+  for (int i = 0; format_table[i].format != NULL; ++i)
+    std::cout << (i == 0 ? "" : ",") << (i % 6 ? " " : "\n            ") << "`" << format_table[i].format << "'";
+  std::cout << "\n\
 \n\
     The ugrep utility exits with one of the following values:\n\
 \n\
@@ -1839,6 +2016,7 @@ void help(const char *message, const char *arg)
     1       No lines were selected.\n\
     >1      An error occurred.\n\
 " << std::endl;
+  }
   exit(EXIT_ERROR);
 }
 

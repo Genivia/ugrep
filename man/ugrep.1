@@ -1,11 +1,12 @@
-.TH UGREP "1" "May 07, 2019" "ugrep 1.1.0" "User Commands"
+.TH UGREP "1" "May 08, 2019" "ugrep 1.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcDdEFGgHhikLlmnoqRrsTtVvwXxZz\fR] [-A NUM] [-B NUM] [-C[NUM]]
+[\fB-bcDdEFGgHhikLlmNnoqRrsTtVvwXxZz.:\fR] [-A NUM] [-B NUM] [-C[NUM]]
       [\fB-e\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]]
-      [\fB--file-format\fR=\fIENCODING\fR] [\fB--label\fR[=\fILABEL\fR]] [\fIPATTERN\fR] [\fIFILE\fR \fI...\fR]
+      [\fB--file-type\fR=\fITYPES\fR] [\fB--file-format\fR=\fIENCODING\fR] [\fB--label\fR[=\fILABEL\fR]]
+      [\fIPATTERN\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -104,12 +105,6 @@ pattern lines in the file are not processed.  Options \fB\-F\fR, \fB\-w\fR, and
 \-x do not apply to patterns in FILE.  If FILE does not exist, uses
 the GREP_PATH environment variable to attempt to open FILE.
 .TP
-\fB\-\-file\-format\fR=\fIENCODING\fR
-The input file format.  The possible values of ENCODING can be:
-binary ISO\-8859\-1 ASCII EBCDIC UTF\-8 UTF\-16 UTF\-16BE UTF\-16LE
-UTF\-32 UTF\-32BE UTF\-32LE CP437 CP850 CP1250 CP1251 CP1252
-CP1253 CP1254 CP1255 CP1256 CP1257 CP1258
-.TP
 \fB\-G\fR, \fB\-\-basic\-regexp\fR
 Interpret pattern as a basic regular expression (i.e. force ugrep
 to behave as traditional grep).
@@ -130,7 +125,7 @@ when there is more than one file to search.
 \fB\-h\fR, \fB\-\-no\-filename\fR
 Never print filenames with output lines.
 .TP
-\fB\-?\fR, \fB\-\-help\fR
+\fB\-\-help\fR
 Print a help message.
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
@@ -175,6 +170,11 @@ option applies to options \fB\-H\fR, \fB\-L\fR, and \fB\-l\fR.
 \fB\-m\fR NUM, \fB\-\-max\-count\fR=\fINUM\fR
 Stop reading the input after NUM matches.
 .TP
+\fB\-N\fR, \fB\-\-only\-line\-number\fR
+Each output line is preceded by its relative line number in the
+file, starting at line 1, without displaying the line matched.  The
+line number counter is reset for each file processed.
+.TP
 \fB\-n\fR, \fB\-\-line\-number\fR
 Each output line is preceded by its relative line number in the
 file, starting at line 1.  The line number counter is reset for
@@ -216,7 +216,22 @@ their error messages are suppressed).
 Add a tab space to separate the file name, line number, column
 number, and byte offset with the matched line.
 .TP
-\fB\-t\fR NUM, \fB\-\-tabs\fR=\fINUM\fR
+\fB\-t\fR TYPES, \fB\-\-file\-type\fR=\fITYPES\fR
+Search only files of TYPES, which is a comma\-separated list of file
+types.  Each file type is associated with a set of file name
+extensions that are used to narrow the search.  The possible values
+of the file types in the list can be (use \fB\-t\fR list for details):
+`actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
+`awk', `basic', `batch', `bison', `c', `c++', `clojure',
+`csharp', `css', `csv', `dart', `delphi', `erlang', `fortran',
+`go', `groovy', `haskell', `html', `jade', `java', `js',
+`json', `jsp', `less', `lex', `lisp', `lua', `m4',
+`make', `matlab', `objc', `objcpp', `ocaml', `parrot', `perl',
+`php', `python', `R', `rst', `ruby', `rust', `scala',
+`scheme', `shell', `smalltalk', `sql', `tcl', `tex', `text',
+`tt', `verilog', `vhdl', `vim', `xml', `yacc', `yaml'
+.TP
+\fB\-\-tabs\fR=\fINUM\fR
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
 NUM may be 1, 2, 4, or 8.
 .TP
@@ -245,6 +260,19 @@ Prints a zero\-byte after the file name.
 Use SEP as field separator between file name, line number, column
 number, byte offset, and the matched line.  The default is a colon
 (`:').
+.TP
+\fB\-.\fREXTENSIONS, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
+Search only files whose file name extensions match the specified
+comma\-separated list of file name EXTENSIONS.  This option sets and
+updates the set of files to search, which is the same as specifying
+\fB\-\-include\fR=\fI\fR'*.ext' for each extension name `ext' in EXTENSIONS.
+.TP
+\fB\-:\fRENCODING, \fB\-\-file\-format\fR=\fIENCODING\fR
+The input file format.  The possible values of ENCODING can be:
+`binary', `ISO\-8859\-1', `ASCII', `EBCDIC', `UTF\-8', `UTF\-16',
+`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE', `UTF\-32LE', `CP437',
+`CP850', `CP1250', `CP1251', `CP1252', `CP1253', `CP1254',
+`CP1255', `CP1256', `CP1257', `CP1258'
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:

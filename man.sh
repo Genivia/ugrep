@@ -18,9 +18,10 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcDdEFGgHhikLlmnoqRrsTtVvwXxZz\fR] [-A NUM] [-B NUM] [-C[NUM]]
+[\fB-bcDdEFGgHhikLlmNnoqRrsTtVvwXxZz.:\fR] [-A NUM] [-B NUM] [-C[NUM]]
       [\fB-e\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]]
-      [\fB--file-format\fR=\fIENCODING\fR] [\fB--label\fR[=\fILABEL\fR]] [\fIPATTERN\fR] [\fIFILE\fR \fI...\fR]
+      [\fB--file-type\fR=\fITYPES\fR] [\fB--file-format\fR=\fIENCODING\fR] [\fB--label\fR[=\fILABEL\fR]]
+      [\fIPATTERN\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
