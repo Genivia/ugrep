@@ -2,9 +2,9 @@ ugrep: universal grep
 =====================
 
 A high-performance universal file search utility matches Unicode patterns.
-Searches source code with powerful pre-defined patterns.  Searches UTF-8,
-UTF-16, UTF-32 input, and other file encodings, such as ISO-8859-1, EBCDIC,
-code pages 437, 850, 858, 1250 to 1258.
+Searches source code recursively in directory trees using powerful pre-defined
+patterns.  Searches UTF-8, UTF-16, UTF-32 input, and other file encodings, such
+as ISO-8859-1, EBCDIC, code pages 437, 850, 858, 1250 to 1258.
 
 **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
@@ -14,12 +14,17 @@ POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and RE2.
 matches of `main` in C/C++ source code while skipping strings and comments
 that may have a match with `main` in them:
 
-    ugrep -n -o -w 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myfile.cpp
+    ugrep -r -n -o -w 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments --include='*.cpp' myprojects
 
-where `-n` shows line numbers in the output, `-o` for multi-line matches, `-w`
-matches exact words (for example, `mainly` won't be matched), and the `-f`
-options specify two pre-defined patterns to match and ignore strings and
-comments in the input.
+where `-r` is recursive search, `-n` shows line numbers in the output, `-o` for
+multi-line matches, `-w` matches exact words (for example, `mainly` won't be
+matched), the `-f` options specify two pre-defined patterns to match and ignore
+strings and comments in the input, and `--include='*.cpp'` only searches C++
+files.
+
+**ugrep** offers options that are compatible with the
+[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
+utilities, and can be used as a more powerful replacement of these utilities.
 
 **ugrep** matches Unicode patterns.  The regular expression syntax is POSIX ERE
 compliant, extended with Unicode character classes, lazy quantifiers, and
@@ -31,10 +36,6 @@ results.
 and ASCII and UTF-8 when no UTF BOM is present.  Option `--file-format` permits
 many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
 pages 437, 850, 858, 1250 to 1258.
-
-**ugrep** offers options that are compatible with the
-[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
-utilities, and can be used as a more powerful replacement of these utilities.
 
 **ugrep** regex patterns are converted to
 [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
@@ -198,15 +199,15 @@ skipping strings and comments:
 
     ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -f patterns/java/zap_strings -f patterns/java/zap_comments myfile.java | sort -u
 
-To display the name of the file that defines function `qsort` takes some
-effort doign this the old way with a complex pattern:
+With traditional grep and grep-like tools it takes great effort to recursively
+search for the file that defines function `qsort`:
 
-    ugrep -H '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' *.cpp
+    ugrep -r '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
 
-A simpler way is to first select all function definitions using a pre-defined
+With ugrep, we can simply select all function definitions using a pre-defined
 pattern, and then select the one we want:
 
-    ugrep -H -o -f patterns/c/function_defs *.cpp | ugrep 'qsort'
+    ugrep -r -f patterns/c/function_defs myproject | ugrep 'qsort'
 
 ugrep versus grep
 -----------------

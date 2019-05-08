@@ -34,7 +34,8 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 Universal grep: a high-performance universal file search utility matches
-Unicode patterns.  Searches source code with powerful pre-defined patterns. 
+Unicode patterns.  Searches source code recursively in directory trees using
+powerful pre-defined patterns. 
 
 Download and installation:
 
