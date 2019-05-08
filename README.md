@@ -1,25 +1,25 @@
 ugrep: universal grep
 =====================
 
-A high-performance universal search utility finds Unicode pattern matches in
-files.  Offers powerful pattern matching capabilities to search source code.
-Searches UTF-8, UTF-16, UTF-32 input, and other file encodings, such as
-ISO-8859-1, EBCDIC, code pages 437, 850, 858, 1250 to 1258.
-
-**ugrep** options are compatible with the popular
-[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
-utilities, and can be used as a more powerful replacement of these utilities.
+A high-performance universal file search utility matches Unicode patterns.
+Searches source code with powerful pre-defined patterns.  Searches UTF-8,
+UTF-16, UTF-32 input, and other file encodings, such as ISO-8859-1, EBCDIC,
+code pages 437, 850, 858, 1250 to 1258.
 
 **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
-POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2
-and RE2.
+POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and RE2.
 
 **ugrep** makes it easy to search source code.  For example to find exact
 matches of `main` in C/C++ source code while skipping strings and comments
 that may have a match with `main` in them:
 
-    ugrep -n -o -w -e 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myfile.cpp
+    ugrep -n -o -w 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myfile.cpp
+
+where `-n` shows line numbers in the output, `-o` for multi-line matches, `-w`
+matches exact words (for example, `mainly` won't be matched), and the `-f`
+options specify two pre-defined patterns to match and ignore strings and
+comments in the input.
 
 **ugrep** matches Unicode patterns.  The regular expression syntax is POSIX ERE
 compliant, extended with Unicode character classes, lazy quantifiers, and
@@ -31,6 +31,10 @@ results.
 and ASCII and UTF-8 when no UTF BOM is present.  Option `--file-format` permits
 many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
 pages 437, 850, 858, 1250 to 1258.
+
+**ugrep** offers options that are compatible with the
+[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
+utilities, and can be used as a more powerful replacement of these utilities.
 
 **ugrep** regex patterns are converted to
 [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
@@ -220,23 +224,28 @@ pattern `patterns/c/function_defs` and possibly one or more of
 ugrep versus grep
 -----------------
 
-- Regular expression patterns are more expressive and support Unicode pattern
-  matching, see further below.  Extended regular expression syntax is the
-  default (i.e.  option `-E`, as egrep).
-- When option `-o` or option `-q` is used, ugrep searches by file instead of
-  by line, matching patterns that include newlines (`\n`), allowing a pattern
-  match to span multiple lines.  This is not possible with grep.
-- When option `-b` is used with option `-o` or with option `-g`, ugrep displays
-  the exact byte offset of the pattern match instead of the byte offset of the
-  start of the matched line.  Reporting exact byte offsets makes more sense.
-- New option `-g`, `--no-group` to not group matches per line, a ugrep feature.
-  This option displays a matched input line again for each additional pattern
-  match.  This option is useful with option `-c` to report the total number of
-  pattern matches per file instead of the number of lines matched per file.
-- New option `-k`, `--column-number` to display the column number, taking tab
-  spacing into account by expanding tabs, as specified by new option `--tabs`.
-- Always assumes UTF-8 locale to support Unicode, e.g. `LANG=en_US.UTF-8`,
-  wheras GNU grep is locale-sensitive.
+- **ugrep** regular expression patterns are more expressive and support Unicode
+  pattern matching, see further below.  Extended regular expression syntax is
+  the default (i.e.  option `-E`, as egrep).
+- When option `-o` or option `-q` is used, **ugrep** searches by file instead
+  of by line, matching patterns that include newlines (`\n`), allowing a
+  pattern match to span multiple lines.  This is not possible with grep.
+- When option `-b` is used with option `-o` or with option `-g`, **ugrep**
+  displays the exact byte offset of the pattern match instead of the byte
+  offset of the start of the matched line as grep reports.  Reporting exact
+  byte offsets is now possible with **grep**.
+- New option `-g`, `--no-group` to not group matches per line, a **ugrep**
+  feature.  This option displays a matched input line again for each additional
+  pattern match.  This option is particularly useful with option `-c` to report
+  the total number of pattern matches per file instead of the number of lines
+  matched per file.
+- New option `-k`, `--column-number` is added to **ugrep** to display the
+  column number, taking tab spacing into account by expanding tabs, as
+  specified by new option `--tabs`.
+- **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
+  `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
+- BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
+  e.g.  options `-r` versus `-R`, support for `GREP_COLORS`, and more.
 
 Man page
 --------

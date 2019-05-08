@@ -33,9 +33,8 @@
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
-Universal grep: high-performance universal search utility finds Unicode pattern
-matches in files.  Offers powerful pattern matching capabilities to search
-source code.
+Universal grep: a high-performance universal file search utility matches
+Unicode patterns.  Searches source code with powerful pre-defined patterns. 
 
 Download and installation:
 
@@ -110,7 +109,7 @@ Compile:
 
 Bugs FIXME:
 
-  - Pattern '^$' does not match empty lines, because find() does not permit empty matches.
+  - Pattern '^$' does not match empty lines, because RE/flex find() does not permit empty matches.
   - Back-references are not supported.
 
 Wanted TODO:
@@ -131,6 +130,10 @@ Wanted TODO:
 
 // windows has no isatty() or stat()
 #ifdef OS_WIN
+#include <windows.h>
+#include <tchar.h> 
+#include <stdio.h>
+#include <strsafe.h>
 #define isatty(fildes) ((fildes) == 1)
 #else
 #include <dirent.h>
@@ -177,14 +180,14 @@ bool flag_with_filename            = false;
 bool flag_no_filename              = false;
 bool flag_no_group                 = false;
 bool flag_no_messages              = false;
-bool flag_byte_offset              = false;
 bool flag_count                    = false;
 bool flag_fixed_strings            = false;
 bool flag_free_space               = false;
 bool flag_ignore_case              = false;
 bool flag_invert_match             = false;
-bool flag_column_number            = false;
 bool flag_line_number              = false;
+bool flag_column_number            = false;
+bool flag_byte_offset              = false;
 bool flag_line_buffered            = false;
 bool flag_only_matching            = false;
 bool flag_quiet                    = false;
@@ -225,7 +228,7 @@ void set_color(const char *grep_colors, const char *parameter, std::string& colo
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
 
-// table of file formats for ugrep option --file-format
+// table of RE/flex file encodings for ugrep option --file-format
 const struct { const char *format; reflex::Input::file_encoding_type encoding; } format_table[] = {
   { "binary",     reflex::Input::file_encoding::plain   },
   { "ISO-8859-1", reflex::Input::file_encoding::latin   },
@@ -923,28 +926,71 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
   {
     if (strcmp(flag_directories, "read") == 0)
     {
-      fprintf(stderr, "ugrep: cannot read directory %s\n", infile);
+      // directories cannot be read actually, so grep produces a warning message
+      if (!flag_no_messages)
+        fprintf(stderr, "ugrep: cannot read directory %s\n", infile);
+
+      return false;
     }
-    else if (strcmp(flag_directories, "recurse") == 0)
+
+    if (strcmp(flag_directories, "recurse") == 0)
     {
-      found = recurse(pattern, encoding, infile);
+      if (!is_argument)
+      {
+        // exclude directories whose pathname matches any one of the --exclude-dir globs
+        for (auto glob : flag_exclude_dir)
+          if (wildmat(infile, glob))
+            return false;
+
+        if (!flag_include_dir.empty())
+        {
+          // include directories whose pathname matches any one of the --include-dir globs
+          bool ok = false;
+          for (auto glob : flag_include_dir)
+            if ((ok = wildmat(infile, glob)))
+              break;
+          if (!ok)
+            return false;
+        }
+      }
+
+      return recurse(pattern, encoding, infile);
     }
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || strcmp(flag_devices, "read") == 0)
   {
+    if (!is_argument)
+    {
+      // exclude files whose pathname matches any one of the --exclude globs
+      for (auto glob : flag_exclude)
+        if (wildmat(infile, glob))
+          return false;
+
+      if (!flag_include.empty())
+      {
+        // include files whose pathname matches any one of the --include globs
+        bool ok = false;
+        for (auto glob : flag_include)
+          if ((ok = wildmat(infile, glob)))
+            break;
+        if (!ok)
+          return false;
+      }
+    }
+
     FILE *file = fopen(infile, "r");
 
     if (file == NULL)
     {
       if (!flag_no_messages)
         perror("ugrep: cannot open file for reading");
-    }
-    else
-    {
-      found = ugrep(pattern, file, encoding, flag_label);
 
-      fclose(file);
+      return false;
     }
+
+    found = ugrep(pattern, file, encoding, flag_label);
+
+    fclose(file);
   }
 
 #else
@@ -995,8 +1041,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
             return recurse(pattern, encoding, infile);
           }
         }
-
-        if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
+        else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
         {
           if (!is_argument)
           {
@@ -1047,13 +1092,34 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 // Recurse over directory, searching for pattern matches in files and sub-directories
 bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *indir)
 {
+  bool found = false;
+
 #ifdef OS_WIN
 
-  // TODO
+  WIN32_FIND_DATA ffd;
+
+  HANDLE hFind = FindFirstFile(indir, &ffd);
+
+  if (hfind == INVALID_HANDLE_VALUE) 
+  {
+    if (!flag_no_messages)
+      perror("ugrep: cannot open directory for reading");
+
+    return false;
+  } 
+   
+  do
+  {
+    std::string pathname;
+    pathname.assign(indir).append("\\").append(ffd.cFileName);
+
+    found |= find(pattern, encoding, pathname.c_str());
+  }
+  while (FindNextFile(hFind, &ffd) != 0);
+
+  FindClose(hFind);
 
 #else
-
-  bool found = false;
 
   DIR *dir = opendir(indir);
 
@@ -1061,29 +1127,29 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
   {
     if (!flag_no_messages)
       perror("ugrep: cannot open directory for reading");
+
+    return false;
   }
-  else
+
+  struct dirent *dirent;
+
+  while ((dirent = readdir(dir)) != NULL)
   {
-    struct dirent *dirent;
-
-    while ((dirent = readdir(dir)) != NULL)
+    // search directory entries that aren't . or ..
+    if (strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0)
     {
-      // search directory entries that aren't . or ..
-      if (strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0)
-      {
-        std::string pathname;
-        pathname.assign(indir).append("/").append(dirent->d_name);
+      std::string pathname;
+      pathname.assign(indir).append("/").append(dirent->d_name);
 
-        found |= find(pattern, encoding, pathname.c_str());
-      }
+      found |= find(pattern, encoding, pathname.c_str());
     }
-
-    closedir(dir);
   }
 
-  return found;
+  closedir(dir);
 
 #endif
+
+  return found;
 }
 
 // Search file, display pattern matches, return true when pattern matched anywhere
