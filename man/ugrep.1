@@ -3,7 +3,7 @@
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcDdEFGgHhikLlmNnoqRrsTtVvwXxZz.:\fR] [-A NUM] [-B NUM] [-C[NUM]]
+[\fB-bcDdEFGgHhikLlmNnOoqRrsTtVvwXxYyZz\fR] [-A NUM] [-B NUM] [-C[NUM]]
       [\fB-e\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]]
       [\fB--file-type\fR=\fITYPES\fR] [\fB--file-format\fR=\fIENCODING\fR] [\fB--label\fR[=\fILABEL\fR]]
       [\fIPATTERN\fR] [\fIFILE\fR \fI...\fR]
@@ -87,12 +87,13 @@ or when option \fB\-f\fR is used.
 Skip files whose path name matches GLOB (using wildcard matching).
 A path name glob can use *, ?, and [...] as wildcards, and \\ to
 quote a wildcard or backslash character literally.  Note that
-\fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR patterns.
+\fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR patterns.  This
+option may be repeated.
 .TP
 \fB\-\-exclude\-dir\fR=\fIGLOB\fR
 Exclude directories whose path name matches GLOB from recursive
 searches.  Note that \fB\-\-exclude\-dir\fR patterns take priority over
-\fB\-\-include\-dir\fR patterns.
+\fB\-\-include\-dir\fR patterns.  This option may be repeated.
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
@@ -102,8 +103,9 @@ fgrep but less efficiently.
 \fB\-f\fR FILE, \fB\-\-file\fR=\fIFILE\fR
 Read one or more newline\-separated patterns from FILE.  Empty
 pattern lines in the file are not processed.  Options \fB\-F\fR, \fB\-w\fR, and
-\-x do not apply to patterns in FILE.  If FILE does not exist, uses
-the GREP_PATH environment variable to attempt to open FILE.
+\-x do not apply to FILE patterns.  If FILE does not exist, uses
+the GREP_PATH environment variable to attempt to open FILE. This
+option may be repeated.
 .TP
 \fB\-G\fR, \fB\-\-basic\-regexp\fR
 Interpret pattern as a basic regular expression (i.e. force ugrep
@@ -138,11 +140,12 @@ Search only files whose path name matches GLOB (using wildcard
 matching).  A path name glob can use *, ?, and [...] as wildcards,
 and \\ to quote a wildcard or backslash character literally.
 Note that \fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR patterns.
+This option may be repeated.
 .TP
 \fB\-\-include\-dir\fR=\fIGLOB\fR
 Only directories whose path name matches GLOB are included in
 recursive searches.  Note that \fB\-\-exclude\-dir\fR patterns take
-priority over \fB\-\-include\-dir\fR patterns.
+priority over \fB\-\-include\-dir\fR patterns.  This option may be repeated.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of
@@ -184,6 +187,12 @@ each file processed.
 Removes the group separator line from the output for context
 options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
+\fB\-O\fR EXTENSIONS, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
+Search only files whose file name extensions match the specified
+comma\-separated list of file name EXTENSIONS.  This option is the
+same as specifying \fB\-\-include\fR=\fI\fR'*.ext' for each extension name `ext'
+in the EXTENSIONS list.  This option may be repeated.
+.TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
 Prints only the matching part of the lines.  Allows a pattern
 match to span multiple lines.  Line numbers for multi\-line matches
@@ -219,8 +228,8 @@ number, and byte offset with the matched line.
 \fB\-t\fR TYPES, \fB\-\-file\-type\fR=\fITYPES\fR
 Search only files of TYPES, which is a comma\-separated list of file
 types.  Each file type is associated with a set of file name
-extensions that are used to narrow the search.  The possible values
-of the file types in the list can be (use \fB\-t\fR list for details):
+extensions to search.  This option may be repeated.  The possible
+values of type can be (use \fB\-t\fR list to display a detailed list):
 `actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
 `awk', `basic', `batch', `bison', `c', `c++', `clojure',
 `csharp', `css', `csv', `dart', `delphi', `erlang', `fortran',
@@ -253,6 +262,16 @@ Spacing (blanks and tabs) in regular expressions are ignored.
 Only input lines selected against the entire pattern or \fB\-e\fR patterns
 are considered to be matching lines (as if surrounded by ^ and $).
 .TP
+\fB\-Y\fR ENCODING, \fB\-\-file\-format\fR=\fIENCODING\fR
+The input file format.  The possible values of ENCODING can be:
+`binary', `ISO\-8859\-1', `ASCII', `EBCDIC', `UTF\-8', `UTF\-16',
+`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE', `UTF\-32LE', `CP437',
+`CP850', `CP1250', `CP1251', `CP1252', `CP1253', `CP1254',
+`CP1255', `CP1256', `CP1257', `CP1258'
+.TP
+\fB\-y\fR
+Equivalent to \fB\-i\fR.  Obsoleted.
+.TP
 \fB\-Z\fR, \fB\-\-null\fR
 Prints a zero\-byte after the file name.
 .TP
@@ -260,19 +279,6 @@ Prints a zero\-byte after the file name.
 Use SEP as field separator between file name, line number, column
 number, byte offset, and the matched line.  The default is a colon
 (`:').
-.TP
-\fB\-.\fREXTENSIONS, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
-Search only files whose file name extensions match the specified
-comma\-separated list of file name EXTENSIONS.  This option sets and
-updates the set of files to search, which is the same as specifying
-\fB\-\-include\fR=\fI\fR'*.ext' for each extension name `ext' in EXTENSIONS.
-.TP
-\fB\-:\fRENCODING, \fB\-\-file\-format\fR=\fIENCODING\fR
-The input file format.  The possible values of ENCODING can be:
-`binary', `ISO\-8859\-1', `ASCII', `EBCDIC', `UTF\-8', `UTF\-16',
-`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE', `UTF\-32LE', `CP437',
-`CP850', `CP1250', `CP1251', `CP1252', `CP1253', `CP1254',
-`CP1255', `CP1256', `CP1257', `CP1258'
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:

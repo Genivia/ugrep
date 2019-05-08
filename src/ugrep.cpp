@@ -35,7 +35,7 @@
 
 Universal grep: a high-performance universal file search utility matches
 Unicode patterns.  Searches source code recursively in directory trees using
-powerful pre-defined patterns. 
+powerful pre-defined patterns and file selection options.
 
 Download and installation:
 
@@ -612,6 +612,17 @@ int main(int argc, char **argv)
             flag_line_number = true;
             break;
 
+          case 'O':
+            ++arg;
+            if (*arg)
+              flag_file_extensions.push_back(&arg[*arg == '=']);
+            else if (++i < argc)
+              flag_file_extensions.push_back(argv[i]);
+            else
+              help("missing extensions for option -O");
+            is_grouped = false;
+            break;
+
           case 'o':
             flag_only_matching = true;
             break;
@@ -671,6 +682,21 @@ int main(int argc, char **argv)
             flag_line_regexp = true;
             break;
 
+          case 'Y':
+            ++arg;
+            if (*arg)
+              flag_file_format = &arg[*arg == '='];
+            else if (++i < argc)
+              flag_file_format = argv[i];
+            else
+              help("missing encoding for option -:");
+            is_grouped = false;
+            break;
+
+          case 'y':
+            flag_ignore_case = true;
+            break;
+
           case 'Z':
             flag_null = true;
             break;
@@ -683,28 +709,6 @@ int main(int argc, char **argv)
               flag_separator = argv[i];
             else
               help("missing separator for option -z");
-            is_grouped = false;
-            break;
-
-          case '.':
-            ++arg;
-            if (*arg)
-              flag_file_extensions.push_back(&arg[*arg == '=']);
-            else if (++i < argc)
-              flag_file_extensions.push_back(argv[i]);
-            else
-              help("missing extensions for option -.");
-            is_grouped = false;
-            break;
-
-          case ':':
-            ++arg;
-            if (*arg)
-              flag_file_format = &arg[*arg == '='];
-            else if (++i < argc)
-              flag_file_format = argv[i];
-            else
-              help("missing encoding for option -:");
             is_grouped = false;
             break;
 
@@ -734,7 +738,7 @@ int main(int argc, char **argv)
   {
     int i;
 
-    std::cerr << std::setw(12) << "TYPE" << "   EXTENSIONS" << std::endl;
+    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME EXTENSIONS" << std::endl;
 
     for (i = 0; type_table[i].type != NULL; ++i)
       std::cerr << std::setw(12) << type_table[i].type << " = " << type_table[i].extensions << std::endl;
@@ -1045,7 +1049,7 @@ int main(int argc, char **argv)
 
     modified_regex.append(")").append(reflex::Matcher::convert(regex, convert_flags));
 
-    // if --tabs=N then set pattern matching options to tab size
+    // if --tabs=N then set RE/flex pattern matching option T to tab size
     std::string pattern_options;
     if (flag_tabs)
     {
@@ -1740,6 +1744,7 @@ exit_input:
   return matches > 0;
 }
 
+// Display the header part of the match, preceding the matched line
 void display(const char *infile, size_t lineno, size_t columno, size_t byte_offset, const char *separator)
 {
   bool sep = false;
@@ -1811,7 +1816,7 @@ void help(const char *message, const char *arg)
   if (message && *message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   std::cout <<
-"Usage: ugrep [-bcDdEFGgHhikLlmNnoqRrsTtVvwXxZz.:] [-A NUM] [-B NUM] [-C[NUM]] [-e PATTERN] [-f FILE] [--colour[=WHEN]|--color[=WHEN]] [--file-type=TYPES] [--file-format=ENCODING] [--label[=LABEL]] [PATTERN] [FILE ...]\n";
+"Usage: ugrep [-bcDdEFGgHhikLlmNnOoqRrsTtVvwXxYyZz:] [-A NUM] [-B NUM] [-C[NUM]] [-e PATTERN] [-f FILE] [--colour[=WHEN]|--color[=WHEN]] [--file-type=TYPES] [--file-format=ENCODING] [--label[=LABEL]] [PATTERN] [FILE ...]\n";
   if (!message)
   {
     std::cout << "\n\
@@ -1868,11 +1873,12 @@ void help(const char *message, const char *arg)
             Skip files whose path name matches GLOB (using wildcard matching).\n\
             A path name glob can use *, ?, and [...] as wildcards, and \\ to\n\
             quote a wildcard or backslash character literally.  Note that\n\
-            --exclude patterns take priority over --include patterns.\n\
+            --exclude patterns take priority over --include patterns.  This\n\
+            option may be repeated.\n\
     --exclude-dir=GLOB\n\
             Exclude directories whose path name matches GLOB from recursive\n\
             searches.  Note that --exclude-dir patterns take priority over\n\
-            --include-dir patterns.\n\
+            --include-dir patterns.  This option may be repeated.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This forces ugrep to behave as\n\
@@ -1880,8 +1886,9 @@ void help(const char *message, const char *arg)
     -f FILE, --file=FILE\n\
             Read one or more newline-separated patterns from FILE.  Empty\n\
             pattern lines in the file are not processed.  Options -F, -w, and\n\
-            -x do not apply to patterns in FILE.  If FILE does not exist, uses\n\
-            the GREP_PATH environment variable to attempt to open FILE.\n\
+            -x do not apply to FILE patterns.  If FILE does not exist, uses\n\
+            the GREP_PATH environment variable to attempt to open FILE. This\n\
+            option may be repeated.\n\
     -G, --basic-regexp\n\
             Interpret pattern as a basic regular expression (i.e. force ugrep\n\
             to behave as traditional grep).\n\
@@ -1908,10 +1915,11 @@ void help(const char *message, const char *arg)
             matching).  A path name glob can use *, ?, and [...] as wildcards,\n\
             and \\ to quote a wildcard or backslash character literally.\n\
             Note that --exclude patterns take priority over --include patterns.\n\
+            This option may be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose path name matches GLOB are included in\n\
             recursive searches.  Note that --exclude-dir patterns take\n\
-            priority over --include-dir patterns.\n\
+            priority over --include-dir patterns.  This option may be repeated.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of\n\
             the respective matched line, starting at column 1.  Tabs are\n\
@@ -1944,6 +1952,11 @@ void help(const char *message, const char *arg)
     --no-group-separator\n\
             Removes the group separator line from the output for context\n\
             options -A, -B, and -C.\n\
+    -O EXTENSIONS, --file-extensions=EXTENSIONS\n\
+            Search only files whose file name extensions match the specified\n\
+            comma-separated list of file name EXTENSIONS.  This option is the\n\
+            same as specifying --include='*.ext' for each extension name `ext'\n\
+            in the EXTENSIONS list.  This option may be repeated.\n\
     -o, --only-matching\n\
             Prints only the matching part of the lines.  Allows a pattern\n\
             match to span multiple lines.  Line numbers for multi-line matches\n\
@@ -1972,8 +1985,8 @@ void help(const char *message, const char *arg)
     -t TYPES, --file-type=TYPES\n\
             Search only files of TYPES, which is a comma-separated list of file\n\
             types.  Each file type is associated with a set of file name\n\
-            extensions that are used to narrow the search.  The possible values\n\
-            of the file types in the list can be (use -t list for details):";
+            extensions to search.  This option may be repeated.  The possible\n\
+            values of type can be (use -t list to display a detailed list):";
   for (int i = 0; type_table[i].type != NULL; ++i)
     std::cout << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";
   std::cout << "\n\
@@ -1993,22 +2006,19 @@ void help(const char *message, const char *arg)
     -x, --line-regexp\n\
             Only input lines selected against the entire pattern or -e patterns\n\
             are considered to be matching lines (as if surrounded by ^ and $).\n\
+    -Y ENCODING, --file-format=ENCODING\n\
+            The input file format.  The possible values of ENCODING can be:";
+  for (int i = 0; format_table[i].format != NULL; ++i)
+    std::cout << (i == 0 ? "" : ",") << (i % 6 ? " " : "\n            ") << "`" << format_table[i].format << "'";
+  std::cout << "\n\
+    -y\n\
+            Equivalent to -i.  Obsoleted.\n\
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
     -z SEP, --separator=SEP\n\
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset, and the matched line.  The default is a colon\n\
             (`:').\n\
-    -.EXTENSIONS, --file-extensions=EXTENSIONS\n\
-            Search only files whose file name extensions match the specified\n\
-            comma-separated list of file name EXTENSIONS.  This option sets and\n\
-            updates the set of files to search, which is the same as specifying\n\
-            --include='*.ext' for each extension name `ext' in EXTENSIONS.\n\
-    -:ENCODING, --file-format=ENCODING\n\
-            The input file format.  The possible values of ENCODING can be:";
-  for (int i = 0; format_table[i].format != NULL; ++i)
-    std::cout << (i == 0 ? "" : ",") << (i % 6 ? " " : "\n            ") << "`" << format_table[i].format << "'";
-  std::cout << "\n\
 \n\
     The ugrep utility exits with one of the following values:\n\
 \n\

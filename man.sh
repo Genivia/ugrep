@@ -18,7 +18,7 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcDdEFGgHhikLlmNnoqRrsTtVvwXxZz.:\fR] [-A NUM] [-B NUM] [-C[NUM]]
+[\fB-bcDdEFGgHhikLlmNnOoqRrsTtVvwXxYyZz\fR] [-A NUM] [-B NUM] [-C[NUM]]
       [\fB-e\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]]
       [\fB--file-type\fR=\fITYPES\fR] [\fB--file-format\fR=\fIENCODING\fR] [\fB--label\fR[=\fILABEL\fR]]
       [\fIPATTERN\fR] [\fIFILE\fR \fI...\fR]
