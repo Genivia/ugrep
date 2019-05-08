@@ -1239,7 +1239,9 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
       size_t lineno = 0;
 
-      for (auto& match : reflex::Matcher(pattern, input).find)
+      reflex::Matcher matcher(pattern, input);
+
+      for (auto& match : matcher.find)
       {
         if (lineno != match.lineno())
         {
@@ -1312,7 +1314,9 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
         bool found = false;
 
-        for (auto& match : reflex::Matcher(pattern, lines[current]).find)
+        reflex::Matcher matcher(pattern, lines[current]);
+        
+        for (auto& match : matcher.find)
         {
           if (after > 0 && after + flag_after_context >= lineno)
           {
@@ -1371,7 +1375,9 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
             {
               last = 0;
 
-              for (auto& match : reflex::Matcher(pattern, lines[begin % (flag_before_context + 1)]).find)
+              reflex::Matcher matcher(pattern, lines[begin % (flag_before_context + 1)]);
+
+              for (auto& match : matcher.find)
               {
                 if (last == 0)
                   display(infile, begin, match.columno() + 1, byte_offsets[begin % (flag_before_context + 1)], "-");
@@ -1408,7 +1414,9 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
       {
         // search the line for pattern matches
 
-        for (auto& match : reflex::Matcher(pattern, lines[current]).find)
+        reflex::Matcher matcher(pattern, lines[current]);
+
+        for (auto& match : matcher.find)
         {
           if (after_context)
           {
@@ -1520,7 +1528,9 @@ exit_input:
 
     size_t lineno = 0;
 
-    for (auto& match : reflex::Matcher(pattern, input).find)
+    reflex::Matcher matcher(pattern, input);
+
+    for (auto& match : matcher.find)
     {
       if (flag_no_group || lineno != match.lineno())
       {
