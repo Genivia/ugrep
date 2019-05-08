@@ -198,28 +198,15 @@ skipping strings and comments:
 
     ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -f patterns/java/zap_strings -f patterns/java/zap_comments myfile.java | sort -u
 
-To display lines with function and method definitions in a C/C++ source file:
+To display the name of the file that defines function `qsort` takes some
+effort doign this the old way with a complex pattern:
 
-    ugrep '^[[:word:]]+\h*([[:word:]:*&]+\h*)*[[:word:]]+\h*\(' myfile.cpp
+    ugrep -H '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' *.cpp
 
-To display lines with non-static function and method definitions in a C/C++
-source file:
+A simpler way is to first select all function definitions using a pre-defined
+pattern, and then select the one we want:
 
-    ugrep -e '^(\h*[[:word:]:*&]+)+\h+[[:word:]]+\h*\([^;\n]+$' -e '(?^^static.*)' myfile.cpp
-
-To display the name of the file that defines function `qsort`:
-
-    ugrep -H '^(\h*[[:word:]:*&]+)+\h+qsort\h*\([^;\n]+$' *.cpp
-
-Another way is to first select all function definitions without their arguments
-lists and then select the one we want:
-
-    ugrep -H -o '^(\h*[[:word:]:*&]+)+\h+[[:word:]]+\h*\([^;\n]+$' *.cpp | ugrep 'qsort'
-
-This is a complicated pattern to specify, so we should use a pre-defined
-pattern `patterns/c/function_defs` and possibly one or more of
-`patterns/c/zap_static_defs`, `patterns/c/zap_comments`,
-`patterns/c/zap_strings`, `patterns/c/zap_commands`.
+    ugrep -H -o -f patterns/c/function_defs *.cpp | ugrep 'qsort'
 
 ugrep versus grep
 -----------------

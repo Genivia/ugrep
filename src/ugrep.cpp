@@ -673,12 +673,23 @@ int main(int argc, char **argv)
     // -f --file: read patterns from the specified file or files
     for (std::vector<const char*>::const_iterator i = flag_file.begin(); i != flag_file.end(); ++i)
     {
+#ifdef OS_WIN
+
+      FILE *file;
+
+      if (fopen_s(&file, *i, "r") != 0)
+      {
+        perror("ugrep: cannot open -f file for reading");
+        exit(EXIT_ERROR);
+      }
+
+#else
+
       FILE *file = fopen(*i, "r");
 
-#ifndef OS_WIN
-      // could not open, try GREP_PATH environment variable
       if (file == NULL)
       {
+        // could not open, try GREP_PATH environment variable
         const char *grep_path = getenv("GREP_PATH");
         if (grep_path != NULL)
         {
@@ -687,13 +698,14 @@ int main(int argc, char **argv)
           file = fopen(path_file.c_str(), "r");
         }
       }
-#endif
 
       if (file == NULL)
       {
         perror("ugrep: cannot open -f file for reading");
         exit(EXIT_ERROR);
       }
+
+#endif
 
       reflex::Input input(file);
       std::string line;
@@ -885,7 +897,7 @@ int main(int argc, char **argv)
     if (flag_tabs)
     {
       if (flag_tabs == 1 || flag_tabs == 2 || flag_tabs == 4 || flag_tabs == 8)
-        pattern_options.assign("T=").push_back(flag_tabs + '0');
+        pattern_options.assign("T=").push_back((char)flag_tabs + '0');
       else
         help("invalid --tabs=NUM value");
     }
@@ -920,7 +932,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 
 #ifdef OS_WIN
 
-  DWORD attr = GetFileAttributes(infile);
+  DWORD attr = GetFileAttributesA(infile);
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
   {
@@ -978,9 +990,9 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
       }
     }
 
-    FILE *file = fopen(infile, "r");
+    FILE *file;
 
-    if (file == NULL)
+    if (fopen_s(&file, infile, "r") != 0)
     {
       if (!flag_no_messages)
         perror("ugrep: cannot open file for reading");
@@ -988,7 +1000,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
       return false;
     }
 
-    found = ugrep(pattern, file, encoding, flag_label);
+    found = ugrep(pattern, file, encoding, infile);
 
     fclose(file);
   }
@@ -1096,11 +1108,11 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
 
 #ifdef OS_WIN
 
-  WIN32_FIND_DATA ffd;
+  WIN32_FIND_DATAA ffd;
 
-  HANDLE hFind = FindFirstFile(indir, &ffd);
+  HANDLE hFind = FindFirstFileA(indir, &ffd);
 
-  if (hfind == INVALID_HANDLE_VALUE) 
+  if (hFind == INVALID_HANDLE_VALUE) 
   {
     if (!flag_no_messages)
       perror("ugrep: cannot open directory for reading");
@@ -1115,7 +1127,7 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
 
     found |= find(pattern, encoding, pathname.c_str());
   }
-  while (FindNextFile(hFind, &ffd) != 0);
+  while (FindNextFileA(hFind, &ffd) != 0);
 
   FindClose(hFind);
 
