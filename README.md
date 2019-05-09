@@ -26,9 +26,16 @@ only, `-n` shows line numbers in the output, `-o` for multi-line matches
 (for example, `mainly` won't be matched), the `-f` options specify two
 pre-defined patterns to match and ignore strings and comments in the input.
 
-**ugrep** offers options that are compatible with the
-[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
-utilities, and can be used as a more powerful replacement of these.
+**ugrep** searches source code files by file name extension and other criteria
+using option `-t` so specify the type of files to search recursively in a
+directory tree with option `-r`, e.g. `-r -t c++`.
+
+**ugrep** includes a growing database of
+[patterns](https://github.com/Genivia/ugrep/tree/master/patterns) with common
+search patterns to use with option `-f`.  So you don't need to memorize complex
+regex patterns for common search criteria.  Environment variable `GREP_PATH`
+can be set to point to your own directory with patterns that option `-f` uses
+to find files.
 
 **ugrep** matches Unicode patterns.  The regular expression syntax is POSIX ERE
 compliant, extended with Unicode character classes, lazy quantifiers, and
@@ -40,6 +47,10 @@ results.
 and ASCII and UTF-8 when no UTF BOM is present.  Option `--file-format` permits
 many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
 pages 437, 850, 858, 1250 to 1258.
+
+**ugrep** offers options that are compatible with the
+[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
+utilities, and can be used as a more powerful replacement of these.
 
 **ugrep** regex patterns are converted to
 [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
