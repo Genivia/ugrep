@@ -1,1 +1,1 @@
-\p{UnicodeIdentifierStart}\p{UnicodeIdentifierPart}*
+[[:alpha:]_][[:word:]]+
