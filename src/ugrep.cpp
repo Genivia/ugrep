@@ -124,6 +124,8 @@ Wanted TODO:
 #include <reflex/input.h>
 #include <reflex/matcher.h>
 #include <iomanip>
+#include <cctype>
+#include <cstring>
 
 // check if we are on a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
@@ -198,9 +200,11 @@ bool flag_files_with_match         = false;
 bool flag_files_without_match      = false;
 bool flag_null                     = false;
 bool flag_basic_regexp             = false;
+bool flag_perl_regexp              = false;
 bool flag_word_regexp              = false;
 bool flag_line_regexp              = false;
 bool flag_dereference              = false;
+bool flag_no_dereference           = false;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
@@ -213,14 +217,16 @@ const char *flag_label             = "(standard input)";
 const char *flag_initial_tab       = "";
 const char *flag_separator         = ":";
 const char *flag_group_separator   = "--";
-std::vector<const char*> flag_file;
-std::vector<const char*> flag_include;
-std::vector<const char*> flag_include_dir;
-std::vector<const char*> flag_exclude;
-std::vector<const char*> flag_exclude_dir;
-std::vector<const char*> flag_file_type;
-std::vector<const char*> flag_file_extensions;
-std::vector<const char*> flag_file_magic; // TODO not used yet
+std::vector<std::string> flag_file;
+std::vector<std::string> flag_include;
+std::vector<std::string> flag_include_dir;
+std::vector<std::string> flag_include_from;
+std::vector<std::string> flag_exclude;
+std::vector<std::string> flag_exclude_dir;
+std::vector<std::string> flag_exclude_from;
+std::vector<std::string> flag_file_type;
+std::vector<std::string> flag_file_extensions;
+std::vector<std::string> flag_file_magic; // TODO not used yet
 
 // external functions
 extern bool wildmat(const char *text, const char *glob);
@@ -231,8 +237,47 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *indir);
 void display(const char *infile, size_t lineno, size_t columno, size_t byte_offset, const char *sep);
 void set_color(const char *grep_colors, const char *parameter, std::string& color);
+void warning(const char *message, const char *arg);
+void error(const char *message, const char *arg);
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
+
+#ifndef OS_WIN
+// Windows compatible fopen_s()
+inline errno_t fopen_s(FILE **fd, const char *filename, const char *mode)
+{
+  return (*fd = fopen(filename, mode)) == NULL ? errno : 0;
+}
+#endif
+
+// Read a line from the input
+inline bool getline(reflex::Input& input, std::string& line)
+{
+  int ch;
+
+  line.clear();
+  while ((ch = input.get()) != EOF && ch != '\n')
+    line.push_back(ch);
+  return ch == EOF && line.empty();
+}
+
+// Trim line to remove leading and trailing white space
+inline void trim(std::string& line)
+{
+  size_t len = line.length();
+  size_t pos;
+
+  for (pos = 0; pos < len && isspace(line.at(pos)); ++ pos)
+    continue;
+
+  if (pos > 0)
+    line.erase(0, pos);
+
+  for (pos = len - pos; pos > 0 && isspace(line.at(pos - 1)); --pos)
+    continue;
+
+  line.erase(pos);
+}
 
 // table of RE/flex file encodings for ugrep option -:, --file-format
 const struct { const char *format; reflex::Input::file_encoding_type encoding; } format_table[] = {
@@ -286,16 +331,17 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "dart",         "dart",                                                     NULL },
   { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL },
   { "erlang",       "erl,hrl",                                                  NULL },
-  { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95",                  NULL },
+  { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95,f03,F03",          NULL },
   { "go",           "go",                                                       NULL },
   { "groovy",       "groovy,gtmpl,gpp,grunit,gradle",                           NULL },
   { "haskell",      "hs,lhs",                                                   NULL },
   { "html",         "htm,html,xhtml",                                           NULL },
   { "jade",         "jade",                                                     NULL },
   { "java",         "java,properties",                                          NULL },
-  { "js",           "js",                                                       NULL },
+  { "javascript",   "js",                                                       NULL },
   { "json",         "json",                                                     NULL },
   { "jsp",          "jsp,jspx,jthm,jhtml",                                      NULL },
+  { "julia",        "jl",                                                       NULL },
   { "less",         "less",                                                     NULL },
   { "lex",          "l,ll,lxx",                                                 NULL },
   { "lisp",         "lisp,lsp",                                                 NULL },
@@ -307,26 +353,29 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "objcpp",       "mm,h",                                                     NULL },
   { "ocaml",        "ml,mli",                                                   NULL },
   { "parrot",       "pir,pasm,pmc,ops,pod,pg,tg",                               NULL },
-  { "perl",         "pl,PL,pm,pod,t,psgi",                                      NULL },
+  { "pascal",       "pas,pp",                                                   NULL },
+  { "perl",         "pl,PL,pm,pod,t,psgi",                                      "#!/*bin*perl" },
   { "php",          "php,php3,php4,phtml",                                      NULL },
-  { "python",       "py",                                                       "#!bin/python" },
+  { "prolog",       "pl,pro",                                                   NULL },
+  { "python",       "py",                                                       "#!/*bin*python" },
   { "R",            "R",                                                        NULL },
   { "rst",          "rst",                                                      NULL },
-  { "ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec,Rakefile",                 "#!/bin/ruby" },
+  { "ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec,Rakefile",                 "#!/*bin*ruby" },
   { "rust",         "rs",                                                       NULL },
   { "scala",        "scala",                                                    NULL },
   { "scheme",       "scm,ss",                                                   NULL },
-  { "shell",        "sh,bash,csh,tcsh,ksh,zsh,fish",                            "#!/bin/*sh" },
+  { "shell",        "sh,bash,csh,tcsh,ksh,zsh,fish",                            "#!/*bin*sh" },
   { "smalltalk",    "st",                                                       NULL },
   { "sql",          "sql,ctl",                                                  NULL },
+  { "swift",        "swift",                                                    NULL },
   { "tcl",          "tcl,itcl,itk",                                             NULL },
-  { "tex",          "tex,cls,sty",                                              NULL },
-  { "text",         "txt,TXT",                                                  NULL },
+  { "tex",          "tex,cls,sty,bib",                                          NULL },
+  { "text",         "txt,TXT,md",                                               NULL },
   { "tt",           "tt,tt2,ttml",                                              NULL },
   { "verilog",      "v,vh,sv",                                                  NULL },
   { "vhdl",         "vhd,vhdl",                                                 NULL },
   { "vim",          "vim",                                                      NULL },
-  { "xml",          "xml,xsd,dtd,xsl,xslt,wsdl,rss,svg,ent",                    NULL },
+  { "xml",          "xml,xsd,xsl,xslt,wsdl,rss,svg,ent,plist",                  NULL },
   { "yacc",         "y",                                                        NULL },
   { "yaml",         "yaml,yml",                                                 NULL },
   { NULL,           NULL,                                                       NULL }
@@ -389,19 +438,21 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "directories=", 12) == 0)
               flag_directories = arg + 12;
             else if (strncmp(arg, "exclude=", 8) == 0)
-              flag_exclude.push_back(arg + 8);
+              flag_exclude.emplace_back(arg + 8);
             else if (strncmp(arg, "exclude-dir=", 12) == 0)
-              flag_exclude_dir.push_back(arg + 12);
+              flag_exclude_dir.emplace_back(arg + 12);
+            else if (strncmp(arg, "exclude-from=", 13) == 0)
+              flag_exclude_from.emplace_back(arg + 13);
             else if (strcmp(arg, "extended-regexp") == 0)
               ;
             else if (strncmp(arg, "file=", 5) == 0)
-              flag_file.push_back(arg + 5);
+              flag_file.emplace_back(arg + 5);
             else if (strncmp(arg, "file-extensions=", 16) == 0)
-              flag_file_extensions.push_back(arg + 16);
+              flag_file_extensions.emplace_back(arg + 16);
             else if (strncmp(arg, "file-format=", 12) == 0)
               flag_file_format = arg + 12;
             else if (strncmp(arg, "file-type=", 10) == 0)
-              flag_file_type.push_back(arg + 10);
+              flag_file_type.emplace_back(arg + 10);
             else if (strcmp(arg, "files-with-match") == 0)
               flag_files_with_match = true;
             else if (strcmp(arg, "files-without-match") == 0)
@@ -417,9 +468,11 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "ignore-case") == 0)
               flag_ignore_case = true;
             else if (strncmp(arg, "include=", 8) == 0)
-              flag_include.push_back(arg + 8);
+              flag_include.emplace_back(arg + 8);
             else if (strncmp(arg, "include-dir=", 12) == 0)
-              flag_include_dir.push_back(arg + 12);
+              flag_include_dir.emplace_back(arg + 12);
+            else if (strncmp(arg, "include-from=", 13) == 0)
+              flag_include_from.emplace_back(arg + 13);
             else if (strcmp(arg, "initial-tab") == 0)
               flag_initial_tab = "\t";
             else if (strcmp(arg, "invert-match") == 0)
@@ -429,13 +482,15 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "label=", 6) == 0)
               flag_label = arg + 6;
             else if (strcmp(arg, "line-buffered") == 0)
-              ;
+              flag_line_buffered = true;
             else if (strcmp(arg, "line-number") == 0)
               flag_line_number = true;
             else if (strcmp(arg, "line-regexp") == 0)
               flag_line_regexp = true;
             else if (strncmp(arg, "max-count=", 10) == 0)
               flag_max_count = (size_t)strtoull(arg + 10, NULL, 10);
+            else if (strcmp(arg, "no-dereference") == 0)
+              flag_no_dereference = true;
             else if (strcmp(arg, "no-filename") == 0)
               flag_no_filename = true;
             else if (strcmp(arg, "no-group") == 0)
@@ -450,6 +505,8 @@ int main(int argc, char **argv)
               flag_only_line_number = true;
             else if (strcmp(arg, "only-matching") == 0)
               flag_only_matching = true;
+            else if (strcmp(arg, "perl-regexp") == 0)
+              flag_perl_regexp = true;
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
               flag_quiet = true;
             else if (strcmp(arg, "recursive") == 0)
@@ -553,9 +610,9 @@ int main(int argc, char **argv)
           case 'f':
             ++arg;
             if (*arg)
-              flag_file.push_back(&arg[*arg == '=']);
+              flag_file.emplace_back(&arg[*arg == '=']);
             else if (++i < argc)
-              flag_file.push_back(argv[i]);
+              flag_file.emplace_back(argv[i]);
             else
               help("missing file for option -f");
             is_grouped = false;
@@ -615,9 +672,9 @@ int main(int argc, char **argv)
           case 'O':
             ++arg;
             if (*arg)
-              flag_file_extensions.push_back(&arg[*arg == '=']);
+              flag_file_extensions.emplace_back(&arg[*arg == '=']);
             else if (++i < argc)
-              flag_file_extensions.push_back(argv[i]);
+              flag_file_extensions.emplace_back(argv[i]);
             else
               help("missing extensions for option -O");
             is_grouped = false;
@@ -625,6 +682,14 @@ int main(int argc, char **argv)
 
           case 'o':
             flag_only_matching = true;
+            break;
+
+          case 'P':
+            flag_perl_regexp = true;
+            break;
+
+          case 'p':
+            flag_no_dereference = true;
             break;
 
           case 'q':
@@ -654,9 +719,9 @@ int main(int argc, char **argv)
           case 't':
             ++arg;
             if (*arg)
-              flag_file_type.push_back(&arg[*arg == '=']);
+              flag_file_type.emplace_back(&arg[*arg == '=']);
             else if (++i < argc)
-              flag_file_type.push_back(argv[i]);
+              flag_file_type.emplace_back(argv[i]);
             else
               help("missing type for option -t");
             is_grouped = false;
@@ -728,13 +793,13 @@ int main(int argc, char **argv)
       else
       {
         // otherwise add the file argument to the list of files
-        infiles.push_back(arg);
+        infiles.emplace_back(arg);
       }
     }
   }
 
   // --file-type=list
-  if (flag_file_type.size() == 1 && strcmp(flag_file_type[0], "list") == 0)
+  if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
   {
     int i;
 
@@ -774,7 +839,7 @@ int main(int argc, char **argv)
         from = to + 1;
       }
 
-      regex = strings.append(regex.substr(from));
+      regex = strings.append("\\Q").append(regex.substr(from)).append("\\E");
     }
 
     // if -w or -x: make the regex word- or line-anchored, respectively
@@ -791,55 +856,47 @@ int main(int argc, char **argv)
       regex.push_back('|');
 
     // -f --file: read patterns from the specified file or files
-    for (std::vector<const char*>::const_iterator i = flag_file.begin(); i != flag_file.end(); ++i)
+    for (auto i : flag_file)
     {
+      FILE *file = NULL;
+
+      if (fopen_s(&file, i.c_str(), "r") != 0)
+      {
 #ifdef OS_WIN
 
-      FILE *file;
-
-      if (fopen_s(&file, *i, "r") != 0)
-      {
-        perror("ugrep: cannot open -f file for reading");
-        exit(EXIT_ERROR);
-      }
+        error("cannot read", i.c_str());
 
 #else
 
-      FILE *file = fopen(*i, "r");
-
-      if (file == NULL)
-      {
         // could not open, try GREP_PATH environment variable
         const char *grep_path = getenv("GREP_PATH");
+
         if (grep_path != NULL)
         {
           std::string path_file(grep_path);
-          path_file.append("/").append(*i);
-          file = fopen(path_file.c_str(), "r");
-        }
-      }
+          path_file.append("/").append(i);
 
-      if (file == NULL)
-      {
-        perror("ugrep: cannot open -f file for reading");
-        exit(EXIT_ERROR);
-      }
+          if (fopen_s(&file, path_file.c_str(), "r") != 0)
+            error("cannot read", i.c_str());
+        }
+        else
+        {
+          error("cannot read", i.c_str());
+        }
 
 #endif
+      }
 
       reflex::Input input(file);
       std::string line;
 
       while (input)
       {
-        int ch;
-
         // read the next line
-        line.clear();
-        while ((ch = input.get()) != EOF && ch != '\n')
-          line.push_back(ch);
-        if (ch == EOF && line.empty())
+        if (getline(input, line))
           break;
+
+        trim(line);
 
         // add line to the regex if not empty
         if (!line.empty())
@@ -855,7 +912,7 @@ int main(int argc, char **argv)
 
   // if no files were specified then read standard input
   if (infiles.empty())
-    infiles.push_back("-");
+    infiles.emplace_back("-");
 
   // if -v --invert-match: options -g --no-group and -o --only-matching options cannot be used
   if (flag_invert_match)
@@ -874,6 +931,10 @@ int main(int argc, char **argv)
     flag_directories = "recurse";
     flag_dereference = true;
   }
+
+  // normalize -p (no-dereference) and -S (dereference) options, -p taking priority over -S
+  if (flag_no_dereference)
+    flag_dereference = false;
 
   // display file name if more than one input file is specified or options -R -r, and option -h --no-filename is not specified
   if (!flag_no_filename && (infiles.size() > 1 || strcmp(flag_directories, "recurse") == 0))
@@ -982,38 +1043,97 @@ int main(int argc, char **argv)
     encoding = format_table[i].encoding;
   }
 
-  // parse ugrep option --file-type
+  // parse ugrep option --file-type to add --file-extensions and --file-magic
   for (auto type : flag_file_type)
   {
     int i;
 
     // scan the type_table[] for a matching type
     for (i = 0; type_table[i].type != NULL; ++i)
-      if (strcmp(type, type_table[i].type) == 0)
+      if (type == type_table[i].type)
         break;
 
     if (type_table[i].type == NULL)
       help("unknown --file-type=TYPE value");
 
-    flag_file_extensions.push_back(type_table[i].extensions);
+    flag_file_extensions.emplace_back(type_table[i].extensions);
+
+    if (type_table[i].magic != NULL)
+      flag_file_magic.emplace_back(type_table[i].magic);
   }
 
   // add the --file-extensions as globs to the --include list
   for (auto extensions : flag_file_extensions)
   {
-    const char *from = extensions;
-    const char *to;
+    size_t from = 0;
+    size_t to;
     std::string glob;
 
-    while ((to = strchr(from, ',')) != NULL || (to = from + strlen(from)) > from)
+    while ((to = extensions.find(',', from)) != std::string::npos)
     {
-      flag_include.push_back(strdup(glob.assign("*.").append(from, to - from).c_str()));
-
-      if (*to == '\0')
-        break;
-
+      flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, to - from)));
       from = to + 1;
     }
+
+    flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)));
+  }
+
+  // add the --exclude-from as globs to the --exclude list
+  for (auto i : flag_exclude_from)
+  {
+    FILE *file = NULL;
+
+    if (fopen_s(&file, i.c_str(), "r") != 0)
+      error("cannot read", i.c_str());
+
+    // read globs from the specified file or files
+
+    reflex::Input input(file);
+    std::string line;
+
+    while (input)
+    {
+      // read the next line
+      if (getline(input, line))
+        break;
+
+      trim(line);
+
+      // add glob to --exclude
+      if (!line.empty() && line.at(0) != '#')
+        flag_exclude.emplace_back(line);
+    }
+
+    fclose(file);
+  }
+
+  // add the --include-from as globs to the --include list
+  for (auto i : flag_include_from)
+  {
+    FILE *file = NULL;
+
+    if (fopen_s(&file, i.c_str(), "r") != 0)
+      error("cannot read", i.c_str());
+
+    // read globs from the specified file or files
+
+    reflex::Input input(file);
+    std::string line;
+
+    while (input)
+    {
+      // read the next line
+      if (getline(input, line))
+        break;
+
+      trim(line);
+
+      // add glob to --include
+      if (!line.empty() && line.at(0) != '#')
+        flag_include.emplace_back(line);
+    }
+
+    fclose(file);
   }
 
   // if any match was found in any of the input files then we set found==true
@@ -1108,7 +1228,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
       {
         // exclude directories whose pathname matches any one of the --exclude-dir globs
         for (auto glob : flag_exclude_dir)
-          if (wildmat(infile, glob))
+          if (wildmat(infile, glob.c_str()))
             return false;
 
         if (!flag_include_dir.empty())
@@ -1116,7 +1236,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
           // include directories whose pathname matches any one of the --include-dir globs
           bool ok = false;
           for (auto glob : flag_include_dir)
-            if ((ok = wildmat(infile, glob)))
+            if ((ok = wildmat(infile, glob.c_str())))
               break;
           if (!ok)
             return false;
@@ -1132,7 +1252,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
     {
       // exclude files whose pathname matches any one of the --exclude globs
       for (auto glob : flag_exclude)
-        if (wildmat(infile, glob))
+        if (wildmat(infile, glob.c_str()))
           return false;
 
       if (!flag_include.empty())
@@ -1140,7 +1260,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
         // include files whose pathname matches any one of the --include globs
         bool ok = false;
         for (auto glob : flag_include)
-          if ((ok = wildmat(infile, glob)))
+          if ((ok = wildmat(infile, glob.c_str())))
             break;
         if (!ok)
           return false;
@@ -1152,7 +1272,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
     if (fopen_s(&file, infile, "r") != 0)
     {
       if (!flag_no_messages)
-        perror("ugrep: cannot open file for reading");
+        warning("cannot read", infile);
 
       return false;
     }
@@ -1192,7 +1312,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
             {
               // exclude directories whose pathname matches any one of the --exclude-dir globs
               for (auto glob : flag_exclude_dir)
-                if (wildmat(infile, glob))
+                if (wildmat(infile, glob.c_str()))
                   return false;
 
               if (!flag_include_dir.empty())
@@ -1200,7 +1320,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
                 // include directories whose pathname matches any one of the --include-dir globs
                 bool ok = false;
                 for (auto glob : flag_include_dir)
-                  if ((ok = wildmat(infile, glob)))
+                  if ((ok = wildmat(infile, glob.c_str())))
                     break;
                 if (!ok)
                   return false;
@@ -1216,7 +1336,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
           {
             // exclude files whose pathname matches any one of the --exclude globs
             for (auto glob : flag_exclude)
-              if (wildmat(infile, glob))
+              if (wildmat(infile, glob.c_str()))
                 return false;
 
             if (!flag_include.empty())
@@ -1224,7 +1344,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
               // include files whose pathname matches any one of the --include globs
               bool ok = false;
               for (auto glob : flag_include)
-                if ((ok = wildmat(infile, glob)))
+                if ((ok = wildmat(infile, glob.c_str())))
                   break;
               if (!ok)
                 return false;
@@ -1236,7 +1356,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
           if (file == NULL)
           {
             if (!flag_no_messages)
-              perror("ugrep: cannot open file for reading");
+              warning("cannot read", infile);
 
             return false;
           }
@@ -1250,7 +1370,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
   }
   else if (!flag_no_messages)
   {
-    perror("ugrep: cannot stat file");
+    warning("cannot stat", infile);
   }
 
 #endif
@@ -1272,7 +1392,7 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
   if (hFind == INVALID_HANDLE_VALUE) 
   {
     if (!flag_no_messages)
-      perror("ugrep: cannot open directory for reading");
+      warning("cannot open directory", indir);
 
     return false;
   } 
@@ -1295,7 +1415,7 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
   if (dir == NULL)
   {
     if (!flag_no_messages)
-      perror("ugrep: cannot open directory for reading");
+      warning("cannot open directory", indir);
 
     return false;
   }
@@ -1361,13 +1481,8 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
       // -c --count mode w/ -v: count the number of non-matching lines
       while (input)
       {
-        int ch;
-
         // read the next line
-        line.clear();
-        while ((ch = input.get()) != EOF && ch != '\n')
-          line.push_back(ch);
-        if (ch == EOF && line.empty())
+        if (getline(input, line))
           break;
 
         // count this line if not matched
@@ -1424,9 +1539,9 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
       std::cout << matches << std::endl;
     }
   }
-  else if (flag_line_buffered)
+  else if (!flag_only_matching && !flag_only_line_number)
   {
-    // line-buffered input: read input line-by-line and display lines that match the pattern
+    // read input line-by-line and display lines that match the pattern
 
     size_t byte_offset = 0;
     size_t lineno = 1;
@@ -1441,23 +1556,18 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
     for (size_t i = 0; i <= flag_before_context; ++i)
     {
-      byte_offsets.push_back(0);
-      lines.push_back("");
+      byte_offsets.emplace_back(0);
+      lines.emplace_back("");
     }
 
     while (input)
     {
-      int ch;
-
       size_t current = lineno % (flag_before_context + 1);
 
       byte_offsets[current] = byte_offset;
 
       // read the next line
-      lines[current].clear();
-      while ((ch = input.get()) != EOF && ch != '\n')
-        lines[current].push_back(ch);
-      if (ch == EOF && lines[current].empty())
+      if (getline(input, lines[current]))
         break;
 
       bool before_context = flag_before_context > 0;
@@ -1681,7 +1791,7 @@ exit_input:
   }
   else
   {
-    // -o or -N option: block-buffered mode displays matched parts only
+    // -o or -N option: streaming input mode
 
     size_t lineno = 0;
 
@@ -1810,6 +1920,19 @@ void set_color(const char *grep_colors, const char *parameter, std::string& colo
   }
 }
 
+// Display warning message assuming errno is set, like perror()
+void warning(const char *message, const char *arg)
+{
+  std::cerr << "ugrep: " << message << " " << arg << ": " << strerror(errno) << std::endl;
+}
+
+// Display error message assuming errno is set, like perror(), then exit
+void error(const char *message, const char *arg)
+{
+  warning(message, arg);
+  exit(EXIT_ERROR);
+}
+
 // Display usage/help information with an optional diagnostic message and exit
 void help(const char *message, const char *arg)
 {
@@ -1879,6 +2002,10 @@ void help(const char *message, const char *arg)
             Exclude directories whose path name matches GLOB from recursive\n\
             searches.  Note that --exclude-dir patterns take priority over\n\
             --include-dir patterns.  This option may be repeated.\n\
+    --exclude-from=FILE\n\
+            Read the globs from FILE and skip files whose path name matches one\n\
+            or more globs (using wildcard matching).  Comments starting with a\n\
+            `#' and empty lines in FILE are ignored.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This forces ugrep to behave as\n\
@@ -1920,6 +2047,10 @@ void help(const char *message, const char *arg)
             Only directories whose path name matches GLOB are included in\n\
             recursive searches.  Note that --exclude-dir patterns take\n\
             priority over --include-dir patterns.  This option may be repeated.\n\
+    --include-from=FILE\n\
+            Read the globs from FILE and search only files whose path name\n\
+            matches one or more globs (using wildcard matching).  Comments\n\
+            starting with a `#' and empty lines in FILE are ignored.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of\n\
             the respective matched line, starting at column 1.  Tabs are\n\
@@ -1939,12 +2070,16 @@ void help(const char *message, const char *arg)
             Displays the LABEL value when input is read from standard input\n\
             where a file name would normally be printed in the output.  This\n\
             option applies to options -H, -L, and -l.\n\
+    --line-buffered\n\
+            Force output to be line buffered.  By default, output is line\n\
+            buffered when standard output is a terminal and block buffered\n\
+            otherwise.\n\
     -m NUM, --max-count=NUM\n\
             Stop reading the input after NUM matches.\n\
     -N, --only-line-number\n\
-            Each output line is preceded by its relative line number in the\n\
-            file, starting at line 1, without displaying the line matched.  The\n\
-            line number counter is reset for each file processed.\n\
+            The line number of the match in the file is output without\n\
+            displaying the match.  The line number counter is reset for each\n\
+            file processed.\n\
     -n, --line-number\n\
             Each output line is preceded by its relative line number in the\n\
             file, starting at line 1.  The line number counter is reset for\n\
@@ -1963,6 +2098,12 @@ void help(const char *message, const char *arg)
             are displayed with option -n, using `|' as the field separator for\n\
             each additional line matched by the pattern.  Context options -A,\n\
             -B, and -C are disabled.\n\
+    -P, --perl-regexp\n\
+            Interpret PATTERN as a Perl regular expression.  This feature is\n\
+            not yet available.\n\
+    -p, --no-dereference\n\
+            If -R is specified, no symbolic links are followed.  This is the\n\
+            default.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress normal output.  ugrep will only search a file\n\
             until a match has been found, making searches potentially less\n\
@@ -1974,8 +2115,8 @@ void help(const char *message, const char *arg)
             Recursively read all files under each directory, following symbolic\n\
             links only if they are on the command line.\n\
     -S, --dereference\n\
-            If -r is specified, all symbolic links are followed.  This is\n\
-            equivalent to the -R option.\n\
+            If -R is specified, all symbolic links are followed.  The default\n\
+            is not to follow symbolic links.\n\
     -s, --no-messages\n\
             Silent mode.  Nonexistent and unreadable files are ignored (i.e.\n\
             their error messages are suppressed).\n\

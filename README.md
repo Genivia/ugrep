@@ -5,14 +5,15 @@ A high-performance universal file search utility matches Unicode patterns.
 Searches source code recursively in directory trees using powerful pre-defined
 patterns and file selection options.
 
-**ugrep** is evolving and more features will be added.  You can help!
-
 **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
 POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and RE2.
+Because RE/flex is a streaming regex matcher, **ugrep** scans files more
+efficiently with cettain options like `-o`, permitting pattern matches that
+span multiple lines instead of searching per line as with other grep utilities.
 
-**ugrep** makes it easy to search source code and is the only grep-like tool
-that allows you to define negative patterns to "zap" parts in files you want to
+**ugrep** makes it easy to search source code and is the only grep tool that
+allows you to define negative patterns to "zap" parts in files you want to
 skip.  This removes many false positives.  For example to find exact matches of
 `main` in C/C++ source code while skipping strings and comments that may have a
 match with `main` in them:
@@ -27,7 +28,7 @@ pre-defined patterns to match and ignore strings and comments in the input.
 
 **ugrep** offers options that are compatible with the
 [GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
-utilities, and can be used as a more powerful replacement of these utilities.
+utilities, and can be used as a more powerful replacement of these.
 
 **ugrep** matches Unicode patterns.  The regular expression syntax is POSIX ERE
 compliant, extended with Unicode character classes, lazy quantifiers, and
@@ -52,7 +53,8 @@ code and does not include any GNU or BSD grep open source code or algorithms.
 free and open wildmat source code for glob matching with options `--include`
 and `--exclude`.
 
-We love your feedback (issues) and contributions (pull requests) ❤️
+**ugrep** is evolving and more features will be added.  You can help!  We love
+your feedback (issues) and contributions (pull requests) ❤️
 
 ugrep versus other "greps"
 --------------------------
@@ -60,24 +62,26 @@ ugrep versus other "greps"
 - **ugrep** supports "negative patterns" to skip parts of the input that should
   not be matched, such as skipping strings and comments when searching for
   identifiers in source code.
-- **ugrep** regular expression patterns are more expressive and support Unicode
-  pattern matching, see further below.  Extended regular expression syntax is
-  the default (i.e.  option `-E`, as egrep).
-- When option `-o` or option `-q` is used, **ugrep** searches by file instead
-  of by line, matching patterns that include newlines (`\n`), allowing a
-  pattern match to span multiple lines.  This is not possible with grep.
+- When one of the options `-q` (quiet), `-o` (only matching), `-N` (only line
+  number), `-l` (file with match), or `-L` (files without match) is used,
+  **ugrep** performs an even faster streaming-based search of the input file
+  instead of reading the input line-by-line as other grep tools do.  This
+  allows matching patterns that include newlines (`\n`), i.e. a match can span
+  multiple lines.  This is not possible with other grep-like tools.
+- New option `-k`, `--column-number` with **ugrep** to display the column
+  number, taking tab spacing into account by expanding tabs, as specified by
+  option `--tabs`.
+- New option `-g`, `--no-group` to not group matches per line.  This option
+  displays a matched input line again for each additional pattern match.  This
+  option is particularly useful with option `-c` to report the total number of
+  pattern matches per file instead of the number of lines matched per file.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line as grep reports.  Reporting exact
   byte offsets is now possible with **grep**.
-- New option `-g`, `--no-group` to not group matches per line, a **ugrep**
-  feature.  This option displays a matched input line again for each additional
-  pattern match.  This option is particularly useful with option `-c` to report
-  the total number of pattern matches per file instead of the number of lines
-  matched per file.
-- New option `-k`, `--column-number` with **ugrep** to display the column
-  number, taking tab spacing into account by expanding tabs, as specified by
-  new option `--tabs`.
+- **ugrep** regular expression patterns are more expressive than GNU grep and
+  BSD grep and support Unicode pattern matching, see further below.  Extended
+  regular expression syntax is the default (i.e.  option `-E`, as egrep).
 - **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
   `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
 - BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
@@ -669,6 +673,13 @@ Man page
 For future updates
 ------------------
 
+- Skip hidden files and directories, e.g. dot files and Windows hidden files.
+  Skipping dot files can already be done with `--exclude-dir='*.*'` and
+  `--exclude='*/.*'`.
+- Check `.ignore` files for files to ignore.  This is pretty much the same as
+  a form of `--exclude-from`, like GNU grep `--include-from` but to exclude
+  files instead of including them.  The specified `.ignore` glob file may
+  contain `#`-comments and empty lines that should be skipped.
 - Pattern `^$` does not match empty lines, because RE/flex `find()` does not
   permit empty matches.  This can be fixed in RE/flex, but requires some work
   and testing to avoid infinite `find()` loops on an empty match that does not
