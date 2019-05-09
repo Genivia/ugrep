@@ -1935,7 +1935,7 @@ void help(const char *message, const char *arg)
   if (message && *message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   std::cout <<
-"Usage: ugrep [-bcDdEFGgHhikLlmNnOoqRrsTtVvwXxYyZz:] [-A NUM] [-B NUM] [-C[NUM]] [-e PATTERN] [-f FILE] [--colour[=WHEN]|--color[=WHEN]] [--file-type=TYPES] [--file-format=ENCODING] [--label[=LABEL]] [PATTERN] [FILE ...]\n";
+"Usage: ugrep [-bcDdEFGgHhikLlmNnOoPpqRrSsTtVvwXxYyZz:] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN] [-f FILE] [--file-type=TYPES] [--file-format=ENCODING] [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]\n";
   if (!message)
   {
     std::cout << "\n\

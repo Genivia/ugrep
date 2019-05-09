@@ -1,12 +1,11 @@
-.TH UGREP "1" "May 08, 2019" "ugrep 1.1.0" "User Commands"
+.TH UGREP "1" "May 09, 2019" "ugrep 1.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fB-bcDdEFGgHhikLlmNnOoqRrsTtVvwXxYyZz\fR] [-A NUM] [-B NUM] [-C[NUM]]
-      [\fB-e\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]]
-      [\fB--file-type\fR=\fITYPES\fR] [\fB--file-format\fR=\fIENCODING\fR] [\fB--label\fR[=\fILABEL\fR]]
-      [\fIPATTERN\fR] [\fIFILE\fR \fI...\fR]
+[\fIOPTIONS\fR] [-A NUM] [-B NUM] [-C[NUM]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
+      [\fB-f\fR \fIFILE\fR] [\fB--file-type\fR=\fITYPES\fR] [\fB--file-format\fR=\fIENCODING\fR]
+      [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]] [\fB--label\fR[=\fILABEL\fR]] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -95,6 +94,11 @@ Exclude directories whose path name matches GLOB from recursive
 searches.  Note that \fB\-\-exclude\-dir\fR patterns take priority over
 \fB\-\-include\-dir\fR patterns.  This option may be repeated.
 .TP
+\fB\-\-exclude\-from\fR=\fIFILE\fR
+Read the globs from FILE and skip files whose path name matches one
+or more globs (using wildcard matching).  Comments starting with a
+`#' and empty lines in FILE are ignored.
+.TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
 any of which is to be matched.  This forces ugrep to behave as
@@ -147,6 +151,11 @@ Only directories whose path name matches GLOB are included in
 recursive searches.  Note that \fB\-\-exclude\-dir\fR patterns take
 priority over \fB\-\-include\-dir\fR patterns.  This option may be repeated.
 .TP
+\fB\-\-include\-from\fR=\fIFILE\fR
+Read the globs from FILE and search only files whose path name
+matches one or more globs (using wildcard matching).  Comments
+starting with a `#' and empty lines in FILE are ignored.
+.TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of
 the respective matched line, starting at column 1.  Tabs are
@@ -170,13 +179,18 @@ Displays the LABEL value when input is read from standard input
 where a file name would normally be printed in the output.  This
 option applies to options \fB\-H\fR, \fB\-L\fR, and \fB\-l\fR.
 .TP
+\fB\-\-line\-buffered\fR
+Force output to be line buffered.  By default, output is line
+buffered when standard output is a terminal and block buffered
+otherwise.
+.TP
 \fB\-m\fR NUM, \fB\-\-max\-count\fR=\fINUM\fR
 Stop reading the input after NUM matches.
 .TP
 \fB\-N\fR, \fB\-\-only\-line\-number\fR
-Each output line is preceded by its relative line number in the
-file, starting at line 1, without displaying the line matched.  The
-line number counter is reset for each file processed.
+The line number of the match in the file is output without
+displaying the match.  The line number counter is reset for each
+file processed.
 .TP
 \fB\-n\fR, \fB\-\-line\-number\fR
 Each output line is preceded by its relative line number in the
@@ -200,6 +214,14 @@ are displayed with option \fB\-n\fR, using `|' as the field separator for
 each additional line matched by the pattern.  Context options \fB\-A\fR,
 \-B, and \fB\-C\fR are disabled.
 .TP
+\fB\-P\fR, \fB\-\-perl\-regexp\fR
+Interpret PATTERN as a Perl regular expression.  This feature is
+not yet available.
+.TP
+\fB\-p\fR, \fB\-\-no\-dereference\fR
+If \fB\-R\fR is specified, no symbolic links are followed.  This is the
+default.
+.TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress normal output.  ugrep will only search a file
 until a match has been found, making searches potentially less
@@ -214,8 +236,8 @@ Recursively read all files under each directory, following symbolic
 links only if they are on the command line.
 .TP
 \fB\-S\fR, \fB\-\-dereference\fR
-If \fB\-r\fR is specified, all symbolic links are followed.  This is
-equivalent to the \fB\-R\fR option.
+If \fB\-R\fR is specified, all symbolic links are followed.  The default
+is not to follow symbolic links.
 .TP
 \fB\-s\fR, \fB\-\-no\-messages\fR
 Silent mode.  Nonexistent and unreadable files are ignored (i.e.
@@ -233,12 +255,13 @@ values of type can be (use \fB\-t\fR list to display a detailed list):
 `actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
 `awk', `basic', `batch', `bison', `c', `c++', `clojure',
 `csharp', `css', `csv', `dart', `delphi', `erlang', `fortran',
-`go', `groovy', `haskell', `html', `jade', `java', `js',
-`json', `jsp', `less', `lex', `lisp', `lua', `m4',
-`make', `matlab', `objc', `objcpp', `ocaml', `parrot', `perl',
-`php', `python', `R', `rst', `ruby', `rust', `scala',
-`scheme', `shell', `smalltalk', `sql', `tcl', `tex', `text',
-`tt', `verilog', `vhdl', `vim', `xml', `yacc', `yaml'
+`go', `groovy', `haskell', `html', `jade', `java', `javascript',
+`json', `jsp', `julia', `less', `lex', `lisp', `lua',
+`m4', `make', `matlab', `objc', `objcpp', `ocaml', `parrot',
+`pascal', `perl', `php', `prolog', `python', `R', `rst',
+`ruby', `rust', `scala', `scheme', `shell', `smalltalk', `sql',
+`swift', `tcl', `tex', `text', `tt', `verilog', `vhdl',
+`vim', `xml', `yacc', `yaml'
 .TP
 \fB\-\-tabs\fR=\fINUM\fR
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
