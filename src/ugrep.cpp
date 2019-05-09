@@ -193,7 +193,7 @@ bool flag_only_line_number         = false;
 bool flag_line_number              = false;
 bool flag_column_number            = false;
 bool flag_byte_offset              = false;
-bool flag_line_buffered            = false;
+bool flag_line_buffered            = false; // TODO not used yet
 bool flag_only_matching            = false;
 bool flag_quiet                    = false;
 bool flag_files_with_match         = false;
@@ -920,10 +920,6 @@ int main(int argc, char **argv)
     flag_no_group = false;
     flag_only_matching = false;
   }
-
-  // if not -o --only-matching and not -N --only-line-number: input and output are line-buffered
-  if (!flag_only_matching && !flag_only_line_number)
-    flag_line_buffered = true;
 
   // normalize -R --dereference-recurse option
   if (strcmp(flag_directories, "dereference-recurse") == 0)

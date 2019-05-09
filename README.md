@@ -47,6 +47,8 @@ matching.  Rare and pathelogical cases are known to exist that may increase the
 initial running time for DFA construction.  The resulting DFAs still yield
 significant speedups to search large files.
 
+**ugrep** is portable and compiles with MSVC++ to run on Windows.
+
 **ugrep** is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
 code and does not include any GNU or BSD grep open source code or algorithms.
 **ugrep** is built entirely on the RE/flex open source library and Rich Salz'
