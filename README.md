@@ -145,7 +145,7 @@ and comment blocks may span multiple lines, we should use `-o`:
 
 This is a lot of work to type in correctly!  If you are like me, I'm lazy and
 don't want to spend time fiddling with regex patterns when I am working on
-somethine more important.  There is an easier way by using **ugrep**'s
+something more important.  There is an easier way by using **ugrep**'s
 pre-defined patterns (`-f`):
 
     ugrep -r -o -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
@@ -156,25 +156,30 @@ Makefiles, etc.  So let's refine this query by selecting C/C++ files only using
 
     ugrep -r -o -tc,c++ -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
 
-Say we want to search for word `FIXME` in C/C++ comment blocks.  To do so we
-can first select the comment blocks with **ugrep**'s pre-defined `c/comments`
-pattern and then select lines with `FIXME` using a pipe:
+As another example, say we want to search for word `FIXME` in C/C++ comment
+blocks.  To do so we can first select the comment blocks with **ugrep**'s
+pre-defined `c/comments` pattern AND THEN select lines with `FIXME` using a
+pipe:
 
     ugrep -r -o -tc,c++ -nk -f patterns/c/comments myproject | ugrep -w 'FIXME'
 
-We can combine **ugrep** with other utilities.  Say we want to produce a sorted
-list of all identifiers found in Java source code while skipping strings and
-comments:
+Filtering results this way with pipes is generally easier than using AND-OR
+logic that some search tools use.  This approach follows the Unix spirit to
+keep utilities simple and use them in combination for more complex tasks.
+
+Say we want to produce a sorted list of all identifiers found in Java source
+code while skipping strings and comments:
 
     ugrep -r -o -tjava -f patterns/java/names -f patterns/java/zap_strings -f patterns/java/zap_comments myproject | sort -u
 
 This matches Java Unicode identifiers using the regex
-`\p{JavaIdentifierStart}\p{JavaIdentifierPart}*`.
+`\p{JavaIdentifierStart}\p{JavaIdentifierPart}*` defined in
+`patterns/java/names`.
 
 With traditional grep and grep-like tools it takes great effort to recursively
 search for the C/C++ source file that defines function `qsort`, requiring something like:
 
-    grep -r --include='*.c' --include='*.cpp' '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
+    ugrep -r --include='*.c' --include='*.cpp' '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
 
 Fortunately, with **ugrep** we can simply select all function definitions in
 files only with extension `.c` or `.cpp` using option `-Oc,cpp` and by using a
@@ -198,6 +203,10 @@ To skip files and directories from being searched that are defined in
 While searching C++ files (`-tc++`) in the current directory (`.`)for `#define`
 lines (`-f patterns/c++/defines`), this query skips file `config.h` and other
 files and directories declared in `.gitignore`.
+
+Use `--color=always` to highlight matches when pushed through a chain of pipes:
+
+    ugrep -r -tc++ --color=always --exclude-from='.gitignore' -f patterns/c++/defines . | ugrep -w 'Foo.*'
 
 ### Using Unicode
 
