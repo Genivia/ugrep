@@ -29,7 +29,6 @@
 # Executables
 a.out
 ugrep
-*.exe
 
 # Autotools
 .deps

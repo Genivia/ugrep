@@ -340,6 +340,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "csv",          "csv",                                                      NULL },
   { "dart",         "dart",                                                     NULL },
   { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL },
+  { "elixir",       "ex,exs",                                                  NULL },
   { "erlang",       "erl,hrl",                                                  NULL },
   { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95,f03,F03",          NULL },
   { "go",           "go",                                                       NULL },
@@ -352,6 +353,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "json",         "json",                                                     NULL },
   { "jsp",          "jsp,jspx,jthm,jhtml",                                      NULL },
   { "julia",        "jl",                                                       NULL },
+  { "kotlin",       "kt,kts",                                                   NULL },
   { "less",         "less",                                                     NULL },
   { "lex",          "l,ll,lxx",                                                 NULL },
   { "lisp",         "lisp,lsp",                                                 NULL },
@@ -382,6 +384,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "tex",          "tex,cls,sty,bib",                                          NULL },
   { "text",         "txt,TXT,md",                                               NULL },
   { "tt",           "tt,tt2,ttml",                                              NULL },
+  { "typescript",   "ts,tsx",                                                   NULL },
   { "verilog",      "v,vh,sv",                                                  NULL },
   { "vhdl",         "vhd,vhdl",                                                 NULL },
   { "vim",          "vim",                                                      NULL },
@@ -402,11 +405,7 @@ int main(int argc, char **argv)
   {
     const char *arg = argv[i];
 
-    if ((*arg == '-' && arg[1])
-#ifdef OS_WIN
-     || *arg == '/'
-#endif
-     )
+    if (*arg == '-' && arg[1])
     {
       bool is_grouped = true;
 

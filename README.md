@@ -1,9 +1,8 @@
 ugrep: universal grep
 =====================
 
-In many ways a better grep than GNU and BSD grep, offering powerful pre-defined
-search patterns and quick options to selectively search source code files in
-large directory trees.
+Offers powerful pre-defined search patterns and quick options to selectively
+search source code files efficiently in large directory trees.
 
 **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
@@ -150,13 +149,13 @@ pre-defined patterns (`-f`):
 
     ugrep -r -o -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
 
-This also searches through other files than C/C++ source code, like READMEs,
-Makefiles, etc.  So let's refine this query by selecting C/C++ files only using
-`-t`:
+This query also searches through other files than C/C++ source code, like
+READMEs, Makefiles, and so on.  So let's refine this query by selecting C/C++
+files only using option `-tc,c++`:
 
     ugrep -r -o -tc,c++ -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
 
-As another example, say we want to search for word `FIXME` in C/C++ comment
+As another example, we may want to search for word `FIXME` in C/C++ comment
 blocks.  To do so we can first select the comment blocks with **ugrep**'s
 pre-defined `c/comments` pattern AND THEN select lines with `FIXME` using a
 pipe:
@@ -177,14 +176,15 @@ This matches Java Unicode identifiers using the regex
 `patterns/java/names`.
 
 With traditional grep and grep-like tools it takes great effort to recursively
-search for the C/C++ source file that defines function `qsort`, requiring something like:
+search for the C/C++ source file that defines function `qsort`, requiring
+something like this:
 
     ugrep -r --include='*.c' --include='*.cpp' '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
 
 Fortunately, with **ugrep** we can simply select all function definitions in
-files only with extension `.c` or `.cpp` using option `-Oc,cpp` and by using a
+files with extension `.c` or `.cpp` by using option `-Oc,cpp` and by using a
 pre-defined pattern `function_defs` to produce all function definitions.  Then
-select the one we want:
+we select the one we want:
 
     ugrep -r -o -Oc,cpp -nk -f patterns/c/function_defs myproject | ugrep 'qsort'
 
@@ -195,8 +195,9 @@ display the list of file name extensions searched for all available options for
 
     ugrep -tlist
 
-To skip files and directories from being searched that are defined in
-`.gitignore`, use `--exclude-from`:
+We can also skip files and directories from being searched that are defined in
+`.gitignore`.  To do so we use `--exclude-from` to specify a file with files
+and directories (declared as glob patterns) to ignore:
 
     ugrep -r -tc++ --color --exclude-from='.gitignore' -f patterns/c++/defines .
 
@@ -204,7 +205,8 @@ While searching C++ files (`-tc++`) in the current directory (`.`)for `#define`
 lines (`-f patterns/c++/defines`), this query skips file `config.h` and other
 files and directories declared in `.gitignore`.
 
-Use `--color=always` to highlight matches when pushed through a chain of pipes:
+Finally, to highlight matches when pushed through a chain of pipes we should
+use `--color=always`:
 
     ugrep -r -tc++ --color=always --exclude-from='.gitignore' -f patterns/c++/defines . | ugrep -w 'Foo.*'
 
