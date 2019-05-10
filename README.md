@@ -99,6 +99,24 @@ ugrep versus other "greps"
 - BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
   e.g.  options `-r` versus `-R`, support for `GREP_COLORS`, and more.
 
+Speed
+-----
+
+**ugrep** is not yet fully optimized.  The initial performance results look
+promising.  For example, searching for all matches of syntactically-valid
+variants of `#include "..."` in the directory tree from the Qt 5.9.2 root,
+restricted to `.h`, `.hpp`, and `.cpp` files only:
+
+    time egrep -r -o '#[ \t]*include[ \t]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . > &/dev/null
+    3.630u 0.274s 0:03.90 100.0%    0+0k 0+0io 0pf+0w
+
+    time ugrep -r -o '#[ \t]*include[ \t]+"[^"]+"' -Oh,hpp,cpp . >& /dev/null
+    0.837u 0.185s 0:01.02 99.0%     0+0k 0+0io 0pf+0w
+
+Unoptimized, **ugrep** is already 3 times faster than BSD egrep (**ugrep** was
+compiled with clang 9.0.0 -O2, and this test was run on a 2.9 GHz Intel Core
+i7, 16 GB 2133 MHz LPDDR3 machine).
+
 Dependencies
 ------------
 

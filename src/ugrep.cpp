@@ -247,6 +247,8 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname);
 void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep);
 void set_color(const char *grep_colors, const char *parameter, std::string& color);
+bool getline(reflex::Input& input, std::string& line);
+void trim(std::string& line);
 void warning(const char *message, const char *arg);
 void error(const char *message, const char *arg);
 void help(const char *message = NULL, const char *arg = NULL);
@@ -259,35 +261,6 @@ inline errno_t fopen_s(FILE **fd, const char *filename, const char *mode)
   return (*fd = fopen(filename, mode)) == NULL ? errno : 0;
 }
 #endif
-
-// Read a line from the input
-inline bool getline(reflex::Input& input, std::string& line)
-{
-  int ch;
-
-  line.clear();
-  while ((ch = input.get()) != EOF && ch != '\n')
-    line.push_back(ch);
-  return ch == EOF && line.empty();
-}
-
-// Trim line to remove leading and trailing white space
-inline void trim(std::string& line)
-{
-  size_t len = line.length();
-  size_t pos;
-
-  for (pos = 0; pos < len && isspace(line.at(pos)); ++ pos)
-    continue;
-
-  if (pos > 0)
-    line.erase(0, pos);
-
-  for (pos = len - pos; pos > 0 && isspace(line.at(pos - 1)); --pos)
-    continue;
-
-  line.erase(pos);
-}
 
 // table of RE/flex file encodings for ugrep option -:, --file-format
 const struct { const char *format; reflex::Input::file_encoding_type encoding; } format_table[] = {
@@ -1560,6 +1533,8 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
   {
     // read input line-by-line and display lines that match the pattern
 
+    // TODO: line-by-line reading is not yet optimized!!!
+
     size_t byte_offset = 0;
     size_t lineno = 1;
     size_t before = 0;
@@ -1944,6 +1919,35 @@ void set_color(const char *grep_colors, const char *parameter, std::string& colo
     if (colon > substring)
       color.assign(SGR).append(substring, colon - substring).push_back('m');
   }
+}
+
+// Read a line from the input
+bool getline(reflex::Input& input, std::string& line)
+{
+  int ch;
+
+  line.erase();
+  while ((ch = input.get()) != EOF && ch != '\n')
+    line.push_back(ch);
+  return ch == EOF && line.empty();
+}
+
+// Trim line to remove leading and trailing white space
+void trim(std::string& line)
+{
+  size_t len = line.length();
+  size_t pos;
+
+  for (pos = 0; pos < len && isspace(line.at(pos)); ++ pos)
+    continue;
+
+  if (pos > 0)
+    line.erase(0, pos);
+
+  for (pos = len - pos; pos > 0 && isspace(line.at(pos - 1)); --pos)
+    continue;
+
+  line.erase(pos);
 }
 
 // Display warning message assuming errno is set, like perror()
