@@ -2000,8 +2000,9 @@ void help(const char *message, const char *arg)
             --include-dir patterns.  This option may be repeated.\n\
     --exclude-from=FILE\n\
             Read the globs from FILE and skip files whose path name matches one\n\
-            or more globs (using wildcard matching).  Comments starting with a\n\
-            `#' and empty lines in FILE are ignored.\n\
+            or more globs (using wildcard matching).  When FILE is read,\n\
+            #-comment lines and empty lines are ignored. This option may be\n\
+            repeated.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This forces ugrep to behave as\n\
@@ -2045,8 +2046,9 @@ void help(const char *message, const char *arg)
             priority over --include-dir patterns.  This option may be repeated.\n\
     --include-from=FILE\n\
             Read the globs from FILE and search only files whose path name\n\
-            matches one or more globs (using wildcard matching).  Comments\n\
-            starting with a `#' and empty lines in FILE are ignored.\n\
+            matches one or more globs (using wildcard matching).  When FILE is\n\
+            read, #-comment lines and empty lines are ignored.  This option may\n\
+            be repeated.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of\n\
             the respective matched line, starting at column 1.  Tabs are\n\

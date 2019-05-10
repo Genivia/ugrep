@@ -1,41 +1,44 @@
 ugrep: universal grep
 =====================
 
-A high-performance universal file search utility matches Unicode patterns.
-Searches source code recursively in directory trees using powerful pre-defined
-patterns and file selection options.
+In many ways a better grep than GNU and BSD grep, offering powerful pre-defined
+patterns and quick options to search source code recursively.
 
 **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
 POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and RE2.
 Because RE/flex is a streaming regex matcher, **ugrep** scans files more
-efficiently with cettain options like `-o`, permitting pattern matches that
-span multiple lines instead of searching per line as with other grep utilities.
+efficiently with options like `-o`, permitting pattern matches that span
+multiple lines instead of searching per line as with other grep utilities.
 
-**ugrep** makes it easy to search source code and is the only grep tool that
+**ugrep** makes it easy to search source code.  It is the only grep tool that
 allows you to define negative patterns to "zap" parts in files you want to
 skip.  This removes many false positives.  For example to find exact matches of
 `main` in C/C++ source code while skipping strings and comments that may have a
 match with `main` in them:
 
-    ugrep -r -tc,c++ -n -o -w 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myprojects
+    ugrep -r -o -tc,c++ -n -w 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myprojects
 
-where `-r` is recursive search, `-tc,c++` searches C and C++ source code files
-only, `-n` shows line numbers in the output, `-o` for multi-line matches
-(since strings and comments may span multiple lines), `-w` matches exact words
+where `-r` is recursive search, `-o` for multi-line matches (since strings and
+comments may span multiple lines), `-tc,c++` searches C and C++ source code
+files only, `-n` shows line numbers in the output, `-w` matches exact words
 (for example, `mainly` won't be matched), the `-f` options specify two
 pre-defined patterns to match and ignore strings and comments in the input.
 
 **ugrep** searches source code files by file name extension and other criteria
 using option `-t` so specify the type of files to search recursively in a
-directory tree with option `-r`, e.g. `-r -t c++`.
+directory tree with option `-r`, e.g. `-r -tc++`.
 
 **ugrep** includes a growing database of
 [patterns](https://github.com/Genivia/ugrep/tree/master/patterns) with common
 search patterns to use with option `-f`.  So you don't need to memorize complex
 regex patterns for common search criteria.  Environment variable `GREP_PATH`
 can be set to point to your own directory with patterns that option `-f` uses
-to find files.
+to read your pattern files.
+
+**ugrep** offers options that are compatible with the
+[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
+utilities, and can be used as a more powerful replacement of these.
 
 **ugrep** matches Unicode patterns.  The regular expression syntax is POSIX ERE
 compliant, extended with Unicode character classes, lazy quantifiers, and
@@ -47,10 +50,6 @@ results.
 and ASCII and UTF-8 when no UTF BOM is present.  Option `--file-format` permits
 many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
 pages 437, 850, 858, 1250 to 1258.
-
-**ugrep** offers options that are compatible with the
-[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
-utilities, and can be used as a more powerful replacement of these.
 
 **ugrep** regex patterns are converted to
 [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
@@ -75,10 +74,10 @@ ugrep versus other "greps"
 - **ugrep** supports "negative patterns" to skip parts of the input that should
   not be matched, such as skipping strings and comments when searching for
   identifiers in source code.
-- When one of the options `-q` (quiet), `-o` (only matching), `-N` (only line
-  number), `-l` (file with match), or `-L` (files without match) is used,
-  **ugrep** performs an even faster streaming-based search of the input file
-  instead of reading the input line-by-line as other grep tools do.  This
+- When one or more of the options `-q` (quiet), `-o` (only matching), `-N`
+  (only line number), `-l` (file with match), or `-L` (files without match) is
+  used, **ugrep** performs an even faster streaming-based search of the input
+  file instead of reading the input line-by-line as other grep tools do.  This
   allows matching patterns that include newlines (`\n`), i.e. a match can span
   multiple lines.  This is not possible with other grep-like tools.
 - New option `-k`, `--column-number` with **ugrep** to display the column
