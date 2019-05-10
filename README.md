@@ -2,7 +2,8 @@ ugrep: universal grep
 =====================
 
 In many ways a better grep than GNU and BSD grep, offering powerful pre-defined
-patterns and quick options to search source code recursively.
+search patterns and quick options to selectively search source code files in
+large directory trees.
 
 **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
@@ -127,139 +128,136 @@ Optionally, install the ugrep utility and the ugrep manual page:
 Examples
 --------
 
-### 1) display lines containing Unicode words
+### Searching source code
+
+To search for the identifier `main` as a word (`-w`) recursively (`-r`) in
+directory `myproject`, showing the matching line (`-n`) and column (`-k`)
+numbers next to the lines matched:
+
+    ugrep -r -n -k -w 'main' myproject
+
+But this search query also finds `main` in strings and comment blocks.  With
+**ugrep** we can use "negative patterns" of the form `(?^...)` to ignore
+unwanted matches in C/C++ quoted strings and comment blocks.  Because strings
+and comment blocks may span multiple lines, we should use `-o`:
+
+    ugrep -r -o -nkw 'main' '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|(\*+[^*/]))*\*+\/)' myproject
+
+This is a lot of work to type in correctly!  If you are like me, I'm lazy and
+don't want to spend time fiddling with regex patterns when I am working on
+somethine more important.  There is an easier way by using **ugrep**'s
+pre-defined patterns (`-f`):
+
+    ugrep -r -o -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
+
+This also searches through other files than C/C++ source code, like READMEs,
+Makefiles, etc.  So let's refine this query by selecting C/C++ files only using
+`-t`:
+
+    ugrep -r -o -tc,c++ -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
+
+Say we want to search for word `FIXME` in C/C++ comment blocks.  To do so we
+can first select the comment blocks with **ugrep**'s pre-defined `c/comments`
+pattern and then select lines with `FIXME` using a pipe:
+
+    ugrep -r -o -tc,c++ -nk -f patterns/c/comments myproject | ugrep -w 'FIXME'
+
+We can combine **ugrep** with other utilities.  Say we want to produce a sorted
+list of all identifiers found in Java source code while skipping strings and
+comments:
+
+    ugrep -r -o -tjava -f patterns/java/names -f patterns/java/zap_strings -f patterns/java/zap_comments myproject | sort -u
+
+This matches Java Unicode identifiers using the regex
+`\p{JavaIdentifierStart}\p{JavaIdentifierPart}*`.
+
+With traditional grep and grep-like tools it takes great effort to recursively
+search for the C/C++ source file that defines function `qsort`, requiring something like:
+
+    grep -r --include='*.c' --include='*.cpp' '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
+
+Fortunately, with **ugrep** we can simply select all function definitions in
+files only with extension `.c` or `.cpp` using option `-Oc,cpp` and by using a
+pre-defined pattern `function_defs` to produce all function definitions.  Then
+select the one we want:
+
+    ugrep -r -o -Oc,cpp -nk -f patterns/c/function_defs myproject | ugrep 'qsort'
+
+Note that we could have used `-tc,c++` to select C/C++ files, but this also
+includes header files when we want to only search `.c` and `.cpp` files.  To
+display the list of file name extensions searched for all available options for
+`-t` use:
+
+    ugrep -tlist
+
+To skip files and directories from being searched that are defined in
+`.gitignore`, use `--exclude-from`:
+
+    ugrep -r -tc++ --color --exclude-from='.gitignore' -f patterns/c++/defines .
+
+While searching C++ files (`-tc++`) in the current directory (`.`)for `#define`
+lines (`-f patterns/c++/defines`), this query skips file `config.h` and other
+files and directories declared in `.gitignore`.
+
+### Using Unicode
 
 To display lines with Unicode words in `places.txt`:
 
     ugrep '\w+' places.txt
 
-To include the line and column numbers and color-highlight the matches:
+To produce a sorted list of all ASCII words in `places.txt`:
 
-    ugrep -n -k --color '\w+' places.txt
-
-To produce a sorted list of all Unicode words in `places.txt`:
-
-    ugrep -o '\w+' places.txt | sort -u
-
-To produce a sorted list of all ASCII words in `places.txt`
-
-    ugrep -o '[[:word:]]+' places.txt | sort -u
-
-To display the byte offset of the matches next to the matching word, counting
-from the start of the file:
-
-    ugrep -b -o '\w+' places.txt
-
-### 2) display lines containing Unicode characters
+    ugrep '[[:word:]]+' places.txt
 
 To display all lines containing laughing face emojis in `birthday.txt`:
 
     ugrep '[😀-😏]' birthday.txt
 
-Likewise, we can use:
+Likewise, we can use the following for the same results:
 
     ugrep '[\x{1F600}-\x{1F60F}]' birthday.txt
-
-### 3) display lines containing Unicode names
 
 To display lines containing the names Gödel (or Goedel), Escher, or Bach:
 
     ugrep 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
 To display lines that do not contain the names Gödel (or Goedel), Escher, or
-Bach:
+Bach we use option `-v` (invert match):
 
     ugrep -v 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
-### 4) count lines containing Unicode names
-
 To count the number of lines containing the names Gödel (or Goedel), Escher, or
-Bach:
+Bach we use option `-c`:
 
     ugrep -c 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
 To count the total number of occurrences of the names Gödel (or Goedel),
-Escher, or Bach:
+Escher, or Bach we use options `-c` and `-g` (don't group matches on the same
+line):
 
     ugrep -c -g 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
-### 5) check if a file contains ASCII or Unicode
-
-To check if `myfile` contains any non-ASCII Unicode characters:
+To check if `myfile` contains any non-ASCII Unicode characters we use pattern
+`[^[:ascii:]]` (not ASCII) and option `-q` (quick) that only sets the **ugrep**
+exit status to 0 (success) or 1 (failure):
 
     ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
-To invert the match:
-
-    ugrep -v -q '[^[:ascii:]]' myfile && echo "does not contain Unicode"
-
-To check if a file has any invalid Unicode characters (here we include the
-code point U+FFFD as an error, because it is often used to flag invalid UTF
-encodings):
+To check if a file has any invalid Unicode characters:
 
     ugrep -q '[^\p{Unicode}--[\xFFFD]]' myfile && echo "contains invalid Unicode"
 
-### 6) searching UTF-encoded files
+In this example we included the Unicode code point U+FFFD as an error for
+illustrative purposes, because it is often used to flag invalid UTF encodings.
 
-To search for `lorem` in a UTF-16 file, color-highlighting the matches:
+To search for `lorem` in lower or upper case (option `-i` case insensitive) in
+a UTF-16 file (with UTF-16 BOM), while color-highlighting the matches:
 
-    ugrep --color 'lorem' utf16lorem.txt
-
-To make sure we match `lorem` as a word in lower/upper case:
-
-    ugrep --color -w -i 'lorem' utf16lorem.txt
+    ugrep --color -i -w 'lorem' utf16lorem.txt
 
 When utf16lorem.txt has no UTF-16 BOM we can specify UTF-16 file encoding:
 
-    ugrep --file-format=UTF-16 -w -i 'lorem' utf16lorem.txt
-
-### 7) searching source code
-
-To search for the identifier `main` as a word, showing line and column numbers
-with the matches:
-
-    ugrep -nk -o '\<main\>' myfile.cpp
-
-This also finds `main` in strings.  We can use a "negative pattern" to ignore
-unwanted matches in C/C++ quoted strings (C/C++ strings are matched with
-`"(\\.|\\\r?\n|[^\\\n"])*"` and may span multiple lines, so we should use
-option `-o`):
-
-    ugrep -nk -o -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' myfile.cpp
-
-We can use a negative pattern to also ignore unwanted matches in C/C++
-comments:
-
-    ugrep -nk -o -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|(\*+[^*/]))*\*+\/)' myfile.cpp
-
-This is a lot of work to type in correctly.  There is an easier way by using
-pre-defined patterns and using option `-w` that matches words (as if adding
-`\<` and `\>` to the pattern but not to the `-f` file patterns):
-
-    ugrep -nk -o -w -e 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myfile.cpp
-
-To search for word `FIXME` in C/C++ comments, with color-marked results:
-
-    ugrep --color=always -nk -o -f patterns/c/comments myfile.cpp | ugrep -w 'FIXME'
-
-To produce a sorted list of all Unicode identifiers in Java source code while
-skipping strings and comments:
-
-    ugrep -o -e '\p{JavaIdentifierStart}\p{JavaIdentifierPart}*' -f patterns/java/zap_strings -f patterns/java/zap_comments myfile.java | sort -u
-
-With traditional grep and grep-like tools it takes great effort to recursively
-search for the file that defines function `qsort`:
-
-    ugrep -r '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
-
-With ugrep, we can simply select all function definitions using a pre-defined
-pattern, and then select the one we want:
-
-    ugrep -r -f patterns/c/function_defs -f patterns/c/zap_comments myproject | ugrep 'qsort'
-
-Same, but search C and C++ files only as specified by option `-t`:
-
-    ugrep -tc -tc++ -r -f patterns/c/function_defs -f patterns/c/zap_comments myproject | ugrep 'qsort'
+    ugrep --file-format=UTF-16 -i -w 'lorem' utf16lorem.txt
 
 Man page
 --------
@@ -709,12 +707,9 @@ For future updates
 ------------------
 
 - Skip hidden files and directories, e.g. dot files and Windows hidden files.
-  Skipping dot files can already be done with `--exclude-dir='*.*'` and
-  `--exclude='*/.*'`.
-- Check `.ignore` files for files to ignore.  This is pretty much the same as
-  a form of `--exclude-from`, like GNU grep `--include-from` but to exclude
-  files instead of including them.  The specified `.ignore` glob file may
-  contain `#`-comments and empty lines that should be skipped.
+  However, skipping dot files and directories can already be done with
+  `--exclude='.*'` and `--exclude-dir='.*'`, respectively.  Windows hidden
+  files are defined by their attributes returned by GetFileAttributesA.
 - Pattern `^$` does not match empty lines, because RE/flex `find()` does not
   permit empty matches.  This can be fixed in RE/flex, but requires some work
   and testing to avoid infinite `find()` loops on an empty match that does not

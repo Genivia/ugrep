@@ -28,14 +28,14 @@
 
 /**
 @file      ugrep.cpp
-@brief     Universal grep - high-performance Unicode pattern search utility
+@brief     Universal grep - high-performance pattern search utility
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 Universal grep: a high-performance universal file search utility matches
-Unicode patterns.  Searches source code recursively in directory trees using
-powerful pre-defined patterns and file selection options.
+Unicode patterns.  Offers powerful pre-defined search patterns and quick
+options to selectively search source code files in large directory trees.
 
 Download and installation:
 
@@ -134,15 +134,25 @@ Wanted TODO:
 
 // windows has no isatty() or stat()
 #ifdef OS_WIN
+
 #include <windows.h>
 #include <tchar.h> 
 #include <stdio.h>
 #include <strsafe.h>
+
 #define isatty(fildes) ((fildes) == 1)
+#define PATHSEPCHR '\\'
+#define PATHSEPSTR "\\"
+
 #else
+
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#define PATHSEPCHR '/'
+#define PATHSEPSTR "/"
+
 #endif
 
 // ugrep version
@@ -232,10 +242,10 @@ std::vector<std::string> flag_file_magic; // TODO not used yet
 extern bool wildmat(const char *text, const char *glob);
 
 // function protos
-bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *infile);
-bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *infile, bool is_argument = false);
-bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *indir);
-void display(const char *infile, size_t lineno, size_t columno, size_t byte_offset, const char *sep);
+bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname);
+bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
+bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname);
+void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep);
 void set_color(const char *grep_colors, const char *parameter, std::string& color);
 void warning(const char *message, const char *arg);
 void error(const char *message, const char *arg);
@@ -798,7 +808,7 @@ int main(int argc, char **argv)
     }
   }
 
-  // --file-type=list
+  // -t, --file-type=list
   if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
   {
     int i;
@@ -825,7 +835,7 @@ int main(int argc, char **argv)
   }
   else
   {
-    // -F --fixed-strings: make newline-separated lines in regex literal with \Q and \E
+    // -F, --fixed-strings: make newline-separated lines in regex literal with \Q and \E
     if (flag_fixed_strings)
     {
       std::string strings;
@@ -874,7 +884,7 @@ int main(int argc, char **argv)
         if (grep_path != NULL)
         {
           std::string path_file(grep_path);
-          path_file.append("/").append(i);
+          path_file.append(PATHSEPSTR).append(i);
 
           if (fopen_s(&file, path_file.c_str(), "r") != 0)
             error("cannot read", i.c_str());
@@ -1074,7 +1084,7 @@ int main(int argc, char **argv)
     flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)));
   }
 
-  // add the --exclude-from as globs to the --exclude list
+  // add the --exclude-from as globs to the --exclude and --exclude-dir lists
   for (auto i : flag_exclude_from)
   {
     FILE *file = NULL;
@@ -1095,15 +1105,18 @@ int main(int argc, char **argv)
 
       trim(line);
 
-      // add glob to --exclude
+      // add glob to --exclude and --exclude-dir
       if (!line.empty() && line.at(0) != '#')
+      {
         flag_exclude.emplace_back(line);
+        flag_exclude_dir.emplace_back(line);
+      }
     }
 
     fclose(file);
   }
 
-  // add the --include-from as globs to the --include list
+  // add the --include-from as globs to the --include and --include-dir lists
   for (auto i : flag_include_from)
   {
     FILE *file = NULL;
@@ -1124,9 +1137,12 @@ int main(int argc, char **argv)
 
       trim(line);
 
-      // add glob to --include
+      // add glob to --include and --include-dir
       if (!line.empty() && line.at(0) != '#')
+      {
         flag_include.emplace_back(line);
+        flag_include_dir.emplace_back(line);
+      }
     }
 
     fclose(file);
@@ -1182,9 +1198,22 @@ int main(int argc, char **argv)
     for (auto infile : infiles)
     {
       if (strcmp(infile, "-") == 0)
+      {
+        // search standard input
         found |= ugrep(pattern, stdin, encoding, flag_label);
+      }
       else
-        found |= find(pattern, encoding, infile, true);
+      {
+        // search file or directory, get the base name from the infile argument first
+        const char *basename = strrchr(infile, PATHSEPCHR);
+
+        if (basename != NULL)
+          ++basename;
+        else
+          basename = infile;
+
+        found |= find(pattern, encoding, infile, basename, true);
+      }
     }
   }
   catch (reflex::regex_error& error)
@@ -1198,82 +1227,76 @@ int main(int argc, char **argv)
   exit(found ? EXIT_OK : EXIT_FAIL);
 }
 
-// Search file for pattern matches
-bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *infile, bool is_argument)
+// Search file or directory for pattern matches
+bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
 {
   bool found = false;
 
 #ifdef OS_WIN
 
-  DWORD attr = GetFileAttributesA(infile);
+  DWORD attr = GetFileAttributesA(pathname);
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
   {
     if (strcmp(flag_directories, "read") == 0)
     {
-      // directories cannot be read actually, so grep produces a warning message
+      // directories cannot be read actually, so grep produces a warning message (errno is not set)
       if (!flag_no_messages)
-        fprintf(stderr, "ugrep: cannot read directory %s\n", infile);
+        fprintf(stderr, "ugrep: cannot read directory %s\n", pathname);
 
       return false;
     }
 
     if (strcmp(flag_directories, "recurse") == 0)
     {
-      if (!is_argument)
-      {
-        // exclude directories whose pathname matches any one of the --exclude-dir globs
-        for (auto glob : flag_exclude_dir)
-          if (wildmat(infile, glob.c_str()))
-            return false;
-
-        if (!flag_include_dir.empty())
-        {
-          // include directories whose pathname matches any one of the --include-dir globs
-          bool ok = false;
-          for (auto glob : flag_include_dir)
-            if ((ok = wildmat(infile, glob.c_str())))
-              break;
-          if (!ok)
-            return false;
-        }
-      }
-
-      return recurse(pattern, encoding, infile);
-    }
-  }
-  else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || strcmp(flag_devices, "read") == 0)
-  {
-    if (!is_argument)
-    {
-      // exclude files whose pathname matches any one of the --exclude globs
-      for (auto glob : flag_exclude)
-        if (wildmat(infile, glob.c_str()))
+      // exclude directories whose base name matches any one of the --exclude-dir globs
+      for (auto& glob : flag_exclude_dir)
+        if (wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str()))
           return false;
 
-      if (!flag_include.empty())
+      if (!flag_include_dir.empty())
       {
-        // include files whose pathname matches any one of the --include globs
+        // include directories whose base name matches any one of the --include-dir globs
         bool ok = false;
-        for (auto glob : flag_include)
-          if ((ok = wildmat(infile, glob.c_str())))
+        for (auto& glob : flag_include_dir)
+          if ((ok = wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str())))
             break;
         if (!ok)
           return false;
       }
+
+      return recurse(pattern, encoding, pathname);
+    }
+  }
+  else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || strcmp(flag_devices, "read") == 0)
+  {
+    // exclude files whose base name matches any one of the --exclude globs
+    for (auto& glob : flag_exclude)
+      if (wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str()))
+        return false;
+
+    if (!flag_include.empty())
+    {
+      // include files whose base name matches any one of the --include globs
+      bool ok = false;
+      for (auto& glob : flag_include)
+        if ((ok = wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str())))
+          break;
+      if (!ok)
+        return false;
     }
 
     FILE *file;
 
-    if (fopen_s(&file, infile, "r") != 0)
+    if (fopen_s(&file, pathname, "r") != 0)
     {
       if (!flag_no_messages)
-        warning("cannot read", infile);
+        warning("cannot read", pathname);
 
       return false;
     }
 
-    found = ugrep(pattern, file, encoding, infile);
+    found = ugrep(pattern, file, encoding, pathname);
 
     fclose(file);
   }
@@ -1282,82 +1305,76 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 
   struct stat buf;
 
-  // use lstat() to check if infile is a symlink
-  if (lstat(infile, &buf) == 0)
+  // use lstat() to check if pathname is a symlink
+  if (lstat(pathname, &buf) == 0)
   {
-    // symlinks are followed when specified on the command line or with options -R, -S, --dereference
-    if (!S_ISLNK(buf.st_mode) || is_argument || flag_dereference)
+    // symlinks are followed when specified on the command line (unless option -p) or with options -R, -S, --dereference
+    if (!S_ISLNK(buf.st_mode) || (is_argument && !flag_no_dereference) || flag_dereference)
     {
-      // use stat() to check if infile is a directory or a regular file
-      if (stat(infile, &buf) == 0)
+      // if we got a symlink, use stat() to check if pathname is a directory or a regular file
+      if (!S_ISLNK(buf.st_mode) || stat(pathname, &buf) == 0)
       {
         if (S_ISDIR(buf.st_mode))
         {
           if (strcmp(flag_directories, "read") == 0)
           {
-            // directories cannot be read actually, so grep produces a warning message
+            // directories cannot be read actually, so grep produces a warning message (errno is not set)
             if (!flag_no_messages)
-              fprintf(stderr, "ugrep: cannot read directory %s\n", infile);
+              fprintf(stderr, "ugrep: cannot read directory %s\n", pathname);
 
             return false;
           }
 
           if (strcmp(flag_directories, "recurse") == 0)
           {
-            if (!is_argument)
-            {
-              // exclude directories whose pathname matches any one of the --exclude-dir globs
-              for (auto glob : flag_exclude_dir)
-                if (wildmat(infile, glob.c_str()))
-                  return false;
-
-              if (!flag_include_dir.empty())
-              {
-                // include directories whose pathname matches any one of the --include-dir globs
-                bool ok = false;
-                for (auto glob : flag_include_dir)
-                  if ((ok = wildmat(infile, glob.c_str())))
-                    break;
-                if (!ok)
-                  return false;
-              }
-            }
-
-            return recurse(pattern, encoding, infile);
-          }
-        }
-        else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
-        {
-          if (!is_argument)
-          {
-            // exclude files whose pathname matches any one of the --exclude globs
-            for (auto glob : flag_exclude)
-              if (wildmat(infile, glob.c_str()))
+            // exclude directories whose pathname matches any one of the --exclude-dir globs
+            for (auto& glob : flag_exclude_dir)
+              if (wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str()))
                 return false;
 
-            if (!flag_include.empty())
+            if (!flag_include_dir.empty())
             {
-              // include files whose pathname matches any one of the --include globs
+              // include directories whose pathname matches any one of the --include-dir globs
               bool ok = false;
-              for (auto glob : flag_include)
-                if ((ok = wildmat(infile, glob.c_str())))
+              for (auto& glob : flag_include_dir)
+                if ((ok = wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str())))
                   break;
               if (!ok)
                 return false;
             }
+
+            return recurse(pattern, encoding, pathname);
+          }
+        }
+        else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
+        {
+          // exclude files whose pathname matches any one of the --exclude globs
+          for (auto& glob : flag_exclude)
+            if (wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str()))
+              return false;
+
+          if (!flag_include.empty())
+          {
+            // include files whose pathname matches any one of the --include globs
+            bool ok = false;
+            for (auto& glob : flag_include)
+              if ((ok = wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str())))
+                break;
+            if (!ok)
+              return false;
           }
 
-          FILE *file = fopen(infile, "r");
+          FILE *file = fopen(pathname, "r");
 
           if (file == NULL)
           {
             if (!flag_no_messages)
-              warning("cannot read", infile);
+              warning("cannot read", pathname);
 
             return false;
           }
 
-          found = ugrep(pattern, file, encoding, infile);
+          found = ugrep(pattern, file, encoding, pathname);
 
           fclose(file);
         }
@@ -1366,7 +1383,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
   }
   else if (!flag_no_messages)
   {
-    warning("cannot stat", infile);
+    warning("cannot stat", pathname);
   }
 
 #endif
@@ -1375,7 +1392,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 }
 
 // Recurse over directory, searching for pattern matches in files and sub-directories
-bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *indir)
+bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname)
 {
   bool found = false;
 
@@ -1383,22 +1400,23 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
 
   WIN32_FIND_DATAA ffd;
 
-  HANDLE hFind = FindFirstFileA(indir, &ffd);
+  HANDLE hFind = FindFirstFileA(pathname, &ffd);
 
   if (hFind == INVALID_HANDLE_VALUE) 
   {
     if (!flag_no_messages)
-      warning("cannot open directory", indir);
+      warning("cannot open directory", pathname);
 
     return false;
   } 
    
+  std::string dirpathname;
+
   do
   {
-    std::string pathname;
-    pathname.assign(indir).append("\\").append(ffd.cFileName);
+    dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
 
-    found |= find(pattern, encoding, pathname.c_str());
+    found |= find(pattern, encoding, dirpathname.c_str(), ffd.cFileName);
   }
   while (FindNextFileA(hFind, &ffd) != 0);
 
@@ -1406,27 +1424,27 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
 
 #else
 
-  DIR *dir = opendir(indir);
+  DIR *dir = opendir(pathname);
 
   if (dir == NULL)
   {
     if (!flag_no_messages)
-      warning("cannot open directory", indir);
+      warning("cannot open directory", pathname);
 
     return false;
   }
 
   struct dirent *dirent;
+  std::string dirpathname;
 
   while ((dirent = readdir(dir)) != NULL)
   {
     // search directory entries that aren't . or ..
     if (strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0)
     {
-      std::string pathname;
-      pathname.assign(indir).append("/").append(dirent->d_name);
+      dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
 
-      found |= find(pattern, encoding, pathname.c_str());
+      found |= find(pattern, encoding, dirpathname.c_str(), dirent->d_name);
     }
   }
 
@@ -1438,7 +1456,7 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
 }
 
 // Search file, display pattern matches, return true when pattern matched anywhere
-bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *infile)
+bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname)
 {
   size_t matches = 0;
 
@@ -1458,12 +1476,13 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
     if (!flag_quiet && ((matches && flag_files_with_match) || (!matches && flag_files_without_match)))
     {
-      std::cout << color_fn << infile << color_off;
+      std::cout << color_fn << pathname << color_off;
 
       if (flag_null)
-        std::cout << (char)'\0';
-      else
-        std::cout << std::endl;
+        std::cout << (char)(flag_null ? '\0' : '\n');
+
+      if (flag_line_buffered)
+        std::cout.flush();
     }
   }
   else if (flag_count)
@@ -1523,17 +1542,20 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
     if (flag_with_filename)
     {
-      std::cout << color_fn << infile << color_off;
+      std::cout << color_fn << pathname << color_off;
 
       if (flag_null)
-        std::cout << (char)'\0' << matches << std::endl;
+        std::cout << (char)'\0' << matches << "\n";
       else
-        std::cout << color_se << flag_separator << color_off << matches << std::endl;
+        std::cout << color_se << flag_separator << color_off << matches << "\n";
     }
     else
     {
-      std::cout << matches << std::endl;
+      std::cout << matches << "\n";
     }
+
+    if (flag_line_buffered)
+      std::cout.flush();
   }
   else if (!flag_only_matching && !flag_only_line_number)
   {
@@ -1586,7 +1608,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
             // -A NUM option: show context after matched lines, simulates BSD grep -A
 
             if (last == 0)
-              display(infile, lineno, match.columno() + 1, byte_offset, "-");
+              display(pathname, lineno, match.columno() + 1, byte_offset, "-");
 
             std::cout <<
               color_cx << lines[current].substr(last, match.first() - last) << color_off <<
@@ -1604,7 +1626,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
         if (last > 0)
         {
-          std::cout << color_cx << lines[current].substr(last) << color_off << std::endl;
+          std::cout << color_cx << lines[current].substr(last) << color_off << "\n";
         }
         else if (!found)
         {
@@ -1614,7 +1636,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
             // indicate the end of the group of after lines of the previous matched line
             if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
-              std::cout << color_se << flag_group_separator << color_off << std::endl;
+              std::cout << color_se << flag_group_separator << color_off << "\n";
 
             // remember the matched line
             after = lineno;
@@ -1631,7 +1653,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
             // indicate the begin of the group of before lines
             if (begin < lineno && matches > 0 && flag_group_separator != NULL)
-              std::cout << color_se << flag_group_separator << color_off << std::endl;
+              std::cout << color_se << flag_group_separator << color_off << "\n";
 
             // display lines before the matched line
             while (begin < lineno)
@@ -1643,7 +1665,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
               for (auto& match : matcher.find)
               {
                 if (last == 0)
-                  display(infile, begin, match.columno() + 1, byte_offsets[begin % (flag_before_context + 1)], "-");
+                  display(pathname, begin, match.columno() + 1, byte_offsets[begin % (flag_before_context + 1)], "-");
 
                 std::cout <<
                   color_cx << lines[begin % (flag_before_context + 1)].substr(last, match.first() - last) << color_off <<
@@ -1653,7 +1675,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
               }
 
               if (last > 0)
-                std::cout << color_cx << lines[begin % (flag_before_context + 1)].substr(last) << color_off << std::endl;
+                std::cout << color_cx << lines[begin % (flag_before_context + 1)].substr(last) << color_off << "\n";
 
               ++begin;
             }
@@ -1662,9 +1684,12 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
             before = lineno;
           }
 
-          display(infile, lineno, 1, byte_offsets[current], flag_separator);
+          display(pathname, lineno, 1, byte_offsets[current], flag_separator);
 
-          std::cout << color_sl << lines[current] << color_off << std::endl;
+          std::cout << color_sl << lines[current] << color_off << "\n";
+
+          if (flag_line_buffered)
+            std::cout.flush();
 
           ++matches;
 
@@ -1687,7 +1712,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
             // indicate the end of the group of after lines of the previous matched line
             if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
-              std::cout << color_se << flag_group_separator << color_off << std::endl;
+              std::cout << color_se << flag_group_separator << color_off << "\n";
 
             // remember the matched line and we're done with the after context
             after = lineno;
@@ -1705,14 +1730,14 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
             // indicate the begin of the group of before lines
             if (begin < lineno && matches > 0 && flag_group_separator != NULL)
-              std::cout << color_se << flag_group_separator << color_off << std::endl;
+              std::cout << color_se << flag_group_separator << color_off << "\n";
 
             // display lines before the matched line
             while (begin < lineno)
             {
-              display(infile, begin, 1, byte_offsets[begin % (flag_before_context + 1)], "-");
+              display(pathname, begin, 1, byte_offsets[begin % (flag_before_context + 1)], "-");
 
-              std::cout << color_cx << lines[begin % (flag_before_context + 1)] << color_off << std::endl;
+              std::cout << color_cx << lines[begin % (flag_before_context + 1)] << color_off << "\n";
 
               ++begin;
             }
@@ -1726,12 +1751,12 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
           {
             // -g option: do not group matches on a single line but on multiple lines
 
-            display(infile, lineno, match.columno() + 1, byte_offset + match.first(), last == 0 ? flag_separator : "+");
+            display(pathname, lineno, match.columno() + 1, byte_offset + match.first(), last == 0 ? flag_separator : "+");
 
             std::cout <<
               color_sl << lines[current].substr(0, match.first()) << color_off <<
               color_ms << match.str() << color_off <<
-              color_sl << lines[current].substr(match.last()) << color_off << std::endl;
+              color_sl << lines[current].substr(match.last()) << color_off << "\n";
 
             ++matches;
 
@@ -1743,7 +1768,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
           {
             if (last == 0)
             {
-              display(infile, lineno, match.columno() + 1, byte_offset, flag_separator);
+              display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator);
 
               ++matches;
             }
@@ -1759,16 +1784,19 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
         if (last > 0)
         {
           if (!flag_no_group)
-            std::cout << color_sl << lines[current].substr(last) << color_off << std::endl;
+            std::cout << color_sl << lines[current].substr(last) << color_off << "\n";
+
+          if (flag_line_buffered)
+            std::cout.flush();
         }
         else if (after > 0 && after + flag_after_context >= lineno)
         {
           // -A NUM option: show context after matched lines, simulates BSD grep -A
 
           // display line as part of the after context of the matched line
-          display(infile, lineno, 1, byte_offsets[current], "-");
+          display(pathname, lineno, 1, byte_offsets[current], "-");
 
-          std::cout << color_cx << lines[current] << color_off << std::endl;
+          std::cout << color_cx << lines[current] << color_off << "\n";
         }
 
         // max number of matches reached?
@@ -1803,10 +1831,10 @@ exit_input:
 
         lineno = match.lineno();
 
-        display(infile, lineno, match.columno() + 1, match.first(), separator);
+        display(pathname, lineno, match.columno() + 1, match.first(), separator);
 
         if (flag_only_line_number)
-          std::cout << std::endl;
+          std::cout << "\n";
 
         ++matches;
       }
@@ -1826,20 +1854,23 @@ exit_input:
           {
             ++lineno;
 
-            std::cout << color_ms << string.substr(from, to - from) << color_off << std::endl;
+            std::cout << color_ms << string.substr(from, to - from) << color_off << "\n";
 
-            display(infile, lineno, 1, match.first() + to + 1, "|");
+            display(pathname, lineno, 1, match.first() + to + 1, "|");
 
             from = to + 1;
           }
 
-          std::cout << color_ms << string.substr(from) << color_off << std::endl;
+          std::cout << color_ms << string.substr(from) << color_off << "\n";
         }
         else
         {
-          std::cout << color_ms << string << color_off << std::endl;
+          std::cout << color_ms << string << color_off << "\n";
         }
       }
+
+      if (flag_line_buffered)
+        std::cout.flush();
 
       // max number of matches reached?
       if (flag_max_count > 0 && matches >= flag_max_count)
@@ -1851,13 +1882,13 @@ exit_input:
 }
 
 // Display the header part of the match, preceding the matched line
-void display(const char *infile, size_t lineno, size_t columno, size_t byte_offset, const char *separator)
+void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *separator)
 {
   bool sep = false;
 
   if (flag_with_filename)
   {
-    std::cout << color_fn << infile << color_off;
+    std::cout << color_fn << name << color_off;
 
     if (flag_null)
       std::cout << (char)'\0';
@@ -1919,7 +1950,14 @@ void set_color(const char *grep_colors, const char *parameter, std::string& colo
 // Display warning message assuming errno is set, like perror()
 void warning(const char *message, const char *arg)
 {
-  std::cerr << "ugrep: " << message << " " << arg << ": " << strerror(errno) << std::endl;
+  // use safe strerror_s() instead of strerror() when available
+#if defined(__STDC_LIB_EXT1__) || defined(OS_WIN)
+  char errmsg[256]; 
+  strerror_s(errmsg, sizeof(errmsg), errno);
+#else
+  const char *errmsg = strerror(errno);
+#endif
+  std::cerr << "ugrep: " << message << " " << arg << ": " << errmsg << std::endl;
 }
 
 // Display error message assuming errno is set, like perror(), then exit
@@ -1987,22 +2025,22 @@ void help(const char *message, const char *arg)
             line is selected if it matches any of the specified patterns.\n\
             This option is most useful when multiple -e options are used to\n\
             specify multiple patterns, when a pattern begins with a dash (`-'),\n\
-            or when option -f is used.\n\
+            or to specify a pattern after option -f.\n\
     --exclude=GLOB\n\
-            Skip files whose path name matches GLOB (using wildcard matching).\n\
-            A path name glob can use *, ?, and [...] as wildcards, and \\ to\n\
-            quote a wildcard or backslash character literally.  Note that\n\
-            --exclude patterns take priority over --include patterns.  This\n\
-            option may be repeated.\n\
+            Skip files whose name matches GLOB (using wildcard matching). A\n\
+            glob can use *, ?, and [...] as wildcards, and \\ to quote a\n\
+            wildcard or backslash character literally.  Note that --exclude\n\
+            patterns take priority over --include patterns.  This option may be\n\
+            repeated.\n\
     --exclude-dir=GLOB\n\
-            Exclude directories whose path name matches GLOB from recursive\n\
+            Exclude directories whose name matches GLOB from recursive\n\
             searches.  Note that --exclude-dir patterns take priority over\n\
             --include-dir patterns.  This option may be repeated.\n\
     --exclude-from=FILE\n\
-            Read the globs from FILE and skip files whose path name matches one\n\
-            or more globs (using wildcard matching).  When FILE is read,\n\
-            #-comment lines and empty lines are ignored. This option may be\n\
-            repeated.\n\
+            Read the globs from FILE and skip files and directories whose base\n\
+            name matches one or more globs (using wildcard matching).  When\n\
+            FILE is read, lines starting with a `#' and empty lines are\n\
+            ignored. This option may be repeated.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This forces ugrep to behave as\n\
@@ -2035,20 +2073,20 @@ void help(const char *message, const char *arg)
             case-insensitive matching of ASCII characters in the input.\n\
             By default, ugrep is case sensitive.\n\
     --include=GLOB\n\
-            Search only files whose path name matches GLOB (using wildcard\n\
-            matching).  A path name glob can use *, ?, and [...] as wildcards,\n\
-            and \\ to quote a wildcard or backslash character literally.\n\
-            Note that --exclude patterns take priority over --include patterns.\n\
-            This option may be repeated.\n\
+            Search only files whose name matches GLOB (using wildcard\n\
+            matching).  A glob can use *, ?, and [...] as wildcards, and \\ to\n\
+            quote a wildcard or backslash character literally.  Note that\n\
+            --exclude patterns take priority over --include patterns.  This\n\
+            option may be repeated.\n\
     --include-dir=GLOB\n\
-            Only directories whose path name matches GLOB are included in\n\
-            recursive searches.  Note that --exclude-dir patterns take\n\
-            priority over --include-dir patterns.  This option may be repeated.\n\
+            Only directories whose name matches GLOB are included in recursive\n\
+            searches.  Note that --exclude-dir patterns take priority over\n\
+            --include-dir patterns.  This option may be repeated.\n\
     --include-from=FILE\n\
-            Read the globs from FILE and search only files whose path name\n\
-            matches one or more globs (using wildcard matching).  When FILE is\n\
-            read, #-comment lines and empty lines are ignored.  This option may\n\
-            be repeated.\n\
+            Read the globs from FILE and search only files and directories\n\
+            whose name matches one or more globs (using wildcard matching).\n\
+            When FILE is read, lines starting with a `#' and empty lines are\n\
+            ignored.  This option may be repeated.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of\n\
             the respective matched line, starting at column 1.  Tabs are\n\
