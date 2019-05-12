@@ -31,7 +31,7 @@ a.out
 ugrep
 
 # Autotools
-.deps
+.deps/
 .dirstamp
 Makefile
 autom4te.cache
@@ -42,7 +42,7 @@ config.log
 stamp-h1
 
 # Other
-.DS_Store
-*.dSYM
+.DS_Store/
+*.dSYM/
 *.swp
 

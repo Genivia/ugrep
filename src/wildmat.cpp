@@ -1,11 +1,38 @@
-/* wildmat.cpp - modified to fix compiler warnings */
+//  wildmat.cpp
+//
+//  Modified by Robert van Engelen, May 11, 2019 to support gitignore-style glob
+//  matching and to fix errors.
+//
+//  Glob syntax:
+//
+//  **/    matches zero or more directories
+//  /**    when at the end of the glob matches everything after the /
+//  *      matches anything except a /
+//  /      when at the start of the glob matches if the pathname has no /
+//  ?      matches any character except a /
+//  [a-z]  matches one character in the selected range of characters
+//  [^a-z] matches one character not in the selected range of characters
+//  [!a-z] matches one character not in the selected range of characters
+//  \*     matches a * (or any character after the backslash)
+//
+//  Examples:
+//
+//  **/a     matches a, x/a, x/y/a,       but not b, x/b
+//  a/**/b   matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
+//  a/**     matches a/x, a/y, a/x/y,     but not b/x
+//  a/*/b    matches a/x/b, a/y/b,        but not a/x/y/b
+//  /a       matches a,                   but not x/a
+//  /*       matches a, b,                but not x/a
+//  a?b      matches axb, ayb,            but not a, b, ab
+//  a[xy]b   matches axb, ayb             but not a, b, azb
+//  a[a-z]b  matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
+//  a[^xy]b  matches aab, abb, acb, azb,  but not a, b, axb, ayb
+//  a[^a-z]b matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
 
 /* $XConsortium: wildmat.c,v 1.2 94/04/13 18:40:59 rws Exp $ */
 /*
 **
 **  Do shell-style pattern matching for ?, \, [], and * characters.
-**  Might not be robust in face of malformed patterns; e.g., "foo[a-"
-**  could cause a segmentation violation.  It is 8bit clean.
 **
 **  Written by Rich $alz, mirror!rs, Wed Nov 26 19:03:17 EST 1986.
 **  Rich $alz is now <rsalz@bbn.com>.
@@ -39,18 +66,11 @@
 **  on.
 */
 
-#define TRUE                    1
-#define FALSE                   0
-#define ABORT                   -1
+#include <cstring>
 
-
-    /* What character marks an inverted character class? */
-#define NEGATE_CLASS            '^'
-    /* Is "*" a common pattern? */
-#define OPTIMIZE_JUST_STAR
-    /* Do tar(1) matching rules, which ignore a trailing slash? */
-#undef MATCH_TAR_PATTERN
-
+#define TRUE   1
+#define FALSE  0
+#define ABORT -1
 
 /*
 **  Match text and p, return TRUE, FALSE, or ABORT.
@@ -79,29 +99,52 @@ static int DoMatch(const char *text, const char *p)
         continue;
 
       case '?':
-        /* Match anything. */
+        /* Match anything except a /. */
+        if (*text == '/')
+          return FALSE;
         continue;
 
       case '*':
-        while (*++p == '*')
-          /* Consecutive stars act just like one. */
-          continue;
+        if (*++p == '*')
+        {
+          if (*++p == '\0')
+            /* Two trailing stars match everything after /. */
+            return TRUE;
+          if (*p++ == '/')
+          {
+            /* Two consecutive stars followed by a / match zero or more directories. */
+            while (*text)
+            {
+              if ((matched = DoMatch(text++, p)) != FALSE)
+                return matched;
+              if ((text = strchr(text, '/')) == NULL)
+                break;
+              ++text;
+            }
+          }
+          return ABORT;
+        }
         if (*p == '\0')
-          /* Trailing star matches everything. */
-          return TRUE;
+          /* Trailing star matches everything except a /. */
+          return strchr(text, '/') == NULL;
+        /* Match everything except a /. */
         while (*text)
-          if ((matched = DoMatch(text++, p)) != FALSE)
+        {
+          if ((matched = DoMatch(text, p)) != FALSE)
             return matched;
+          if (*text++ == '/')
+            break;
+        }
         return ABORT;
 
       case '[':
-        reverse = p[1] == NEGATE_CLASS ? TRUE : FALSE;
+        reverse = p[1] == '^' || p[1] == '!' ? TRUE : FALSE;
         if (reverse)
           /* Inverted character class. */
           p++;
         for (last = 0400, matched = FALSE; *++p && *p != ']'; last = *p)
           /* This next line requires a good C compiler. */
-          if (*p == '-' ? *text <= *++p && *text >= last : *text == *p)
+          if (*p == '-' && p[1] ? *text <= *++p && *text >= last : *text == *p)
             matched = TRUE;
         if (matched == reverse)
           return FALSE;
@@ -109,22 +152,42 @@ static int DoMatch(const char *text, const char *p)
     }
   }
 
-#ifdef  MATCH_TAR_PATTERN
-  if (*text == '/')
-    return TRUE;
-#endif  /* MATCH_TAR_ATTERN */
   return *text == '\0';
 }
 
-
 /*
-**  User-level routine.  Returns TRUE or FALSE.
+**  User-level routine: pathname or basename matching.  Returns TRUE or FALSE.
 */
-bool wildmat(const char *text, const char *glob)
+bool globmat(const char *pathname, const char *basename, const char *glob)
 {
-#ifdef  OPTIMIZE_JUST_STAR
-  if (glob[0] == '*' && glob[1] == '\0')
-    return TRUE;
-#endif  /* OPTIMIZE_JUST_STAR */
-  return DoMatch(text, glob) == TRUE;
+  /* if the pathname starts with ./ then remove it */
+  if (strncmp(pathname, "./", 2))
+    pathname += 2;
+  /* match pathname if glob contains a /, basename otherwise */
+  if (strchr(glob, '/') != NULL)
+  {
+    /* a leading / means globbing the pathname after removing the / */
+    if (glob[0] == '/')
+      ++glob;
+    return DoMatch(pathname, glob) == TRUE;
+  }
+  return DoMatch(basename, glob) == TRUE;
 }
+
+#ifdef TEST
+
+#include <stdio.h>
+
+int main(int argc, char **argv)
+{
+  if (argc >= 4)
+  {
+    printf("pathname=%s basename=%s glob=%s\n", argv[1], argv[2], argv[3]);
+    if (globmat(argv[1], argv[2], argv[3]))
+      printf("Match\n");
+    else
+      printf("No match\n");
+  }
+}
+
+#endif

@@ -110,6 +110,10 @@ Compile:
 
 Bugs FIXME:
 
+  - glob matching should take more .gitignore rules into account https://git-scm.com/docs/gitignore
+    as in fnmatch(3) meaning that * and ? should not match /
+    leading / in the glob matches a filepath that does not contain /
+  - glob matching in Windows fails when globs use / as path separator
   - Pattern '^$' does not match empty lines, because RE/flex find() does not permit empty matches.
   - Back-references are not supported.
 
@@ -203,7 +207,7 @@ bool flag_only_line_number         = false;
 bool flag_line_number              = false;
 bool flag_column_number            = false;
 bool flag_byte_offset              = false;
-bool flag_line_buffered            = false; // TODO not used yet
+bool flag_line_buffered            = false;
 bool flag_only_matching            = false;
 bool flag_quiet                    = false;
 bool flag_files_with_match         = false;
@@ -228,18 +232,22 @@ const char *flag_initial_tab       = "";
 const char *flag_separator         = ":";
 const char *flag_group_separator   = "--";
 std::vector<std::string> flag_file;
-std::vector<std::string> flag_include;
-std::vector<std::string> flag_include_dir;
-std::vector<std::string> flag_include_from;
-std::vector<std::string> flag_exclude;
-std::vector<std::string> flag_exclude_dir;
-std::vector<std::string> flag_exclude_from;
 std::vector<std::string> flag_file_type;
 std::vector<std::string> flag_file_extensions;
 std::vector<std::string> flag_file_magic; // TODO not used yet
+std::vector<std::string> flag_include;
+std::vector<std::string> flag_include_dir;
+std::vector<std::string> flag_include_from;
+std::vector<std::string> flag_include_override;
+std::vector<std::string> flag_include_override_dir;
+std::vector<std::string> flag_exclude;
+std::vector<std::string> flag_exclude_dir;
+std::vector<std::string> flag_exclude_from;
+std::vector<std::string> flag_exclude_override;
+std::vector<std::string> flag_exclude_override_dir;
 
 // external functions
-extern bool wildmat(const char *text, const char *glob);
+extern bool globmat(const char *pathname, const char *basename, const char *glob);
 
 // function protos
 bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname);
@@ -1077,11 +1085,36 @@ int main(int argc, char **argv)
 
       trim(line);
 
-      // add glob to --exclude and --exclude-dir
-      if (!line.empty() && line.at(0) != '#')
+      // add glob to --exclude and --exclude-dir using gitignore rules
+      if (!line.empty() && line.front() != '#')
       {
-        flag_exclude.emplace_back(line);
-        flag_exclude_dir.emplace_back(line);
+        // gitignore-style ! negate pattern (overrides --exclude and --exclude-dir)
+        if (line.front() == '!' && !line.empty())
+        {
+          line.erase(0, 1);
+
+          // globs ending in / should only match directories
+          if (line.back() == '/')
+            line.pop_back();
+          else
+            flag_exclude_override.emplace_back(line);
+
+          flag_exclude_override_dir.emplace_back(line);
+        }
+        else
+        {
+          // remove leading \ if present
+          if (line.front() == '\\' && !line.empty())
+            line.erase(0, 1);
+
+          // globs ending in / should only match directories
+          if (line.back() == '/')
+            line.pop_back();
+          else
+            flag_exclude.emplace_back(line);
+
+          flag_exclude_dir.emplace_back(line);
+        }
       }
     }
 
@@ -1109,11 +1142,36 @@ int main(int argc, char **argv)
 
       trim(line);
 
-      // add glob to --include and --include-dir
-      if (!line.empty() && line.at(0) != '#')
+      // add glob to --include and --include-dir using gitignore rules
+      if (!line.empty() && line.front() != '#')
       {
-        flag_include.emplace_back(line);
-        flag_include_dir.emplace_back(line);
+        // gitignore-style ! negate pattern (overrides --include and --include-dir)
+        if (line.front() == '!' && !line.empty())
+        {
+          line.erase(0, 1);
+
+          // globs ending in / should only match directories
+          if (line.back() == '/')
+            line.pop_back();
+          else
+            flag_include_override.emplace_back(line);
+
+          flag_include_override_dir.emplace_back(line);
+        }
+        else
+        {
+          // remove leading \ if present
+          if (line.front() == '\\' && !line.empty())
+            line.erase(0, 1);
+
+          // globs ending in / should only match directories
+          if (line.back() == '/')
+            line.pop_back();
+          else
+            flag_include.emplace_back(line);
+
+          flag_include_dir.emplace_back(line);
+        }
       }
     }
 
@@ -1221,20 +1279,38 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 
     if (strcmp(flag_directories, "recurse") == 0)
     {
-      // exclude directories whose base name matches any one of the --exclude-dir globs
-      for (auto& glob : flag_exclude_dir)
-        if (wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str()))
-          return false;
-
-      if (!flag_include_dir.empty())
+      // check for --exclude-dir and --include-dir constraints if pathname != "."
+      if (strcmp(pathname, ".") != 0)
       {
-        // include directories whose base name matches any one of the --include-dir globs
-        bool ok = false;
-        for (auto& glob : flag_include_dir)
-          if ((ok = wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str())))
+        // do not exclude directories that are overridden by ! negation
+        bool negate = false;
+        for (auto& glob : flag_exclude_override_dir)
+          if ((negate = globmat(pathname, basename, glob.c_str())))
             break;
-        if (!ok)
-          return false;
+
+        if (!negate)
+        {
+          // exclude directories whose base name matches any one of the --exclude-dir globs
+          for (auto& glob : flag_exclude_dir)
+            if (globmat(pathname, basename, glob.c_str()))
+              return false;
+        }
+
+        if (!flag_include_dir.empty())
+        {
+          // do not include directories that are overridden by ! negation
+          for (auto& glob : flag_include_override_dir)
+            if (globmat(pathname, basename, glob.c_str()))
+              return false;
+
+          // include directories whose base name matches any one of the --include-dir globs
+          bool ok = false;
+          for (auto& glob : flag_include_dir)
+            if ((ok = globmat(pathname, basename, glob.c_str())))
+              break;
+          if (!ok)
+            return false;
+        }
       }
 
       return recurse(pattern, encoding, pathname);
@@ -1242,17 +1318,31 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || strcmp(flag_devices, "read") == 0)
   {
-    // exclude files whose base name matches any one of the --exclude globs
-    for (auto& glob : flag_exclude)
-      if (wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str()))
-        return false;
+    // do not exclude files that are overridden by ! negation
+    bool negate = false;
+    for (auto& glob : flag_exclude_override)
+      if ((negate = globmat(pathname, basename, glob.c_str())))
+        break;
+
+    if (!negate)
+    {
+      // exclude files whose base name matches any one of the --exclude globs
+      for (auto& glob : flag_exclude)
+        if (globmat(pathname, basename, glob.c_str()))
+          return false;
+    }
 
     if (!flag_include.empty())
     {
+      // do not include files that are overridden by ! negation
+      for (auto& glob : flag_include_override)
+        if (globmat(pathname, basename, glob.c_str()))
+          return false;
+
       // include files whose base name matches any one of the --include globs
       bool ok = false;
       for (auto& glob : flag_include)
-        if ((ok = wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str())))
+        if ((ok = globmat(pathname, basename, glob.c_str())))
           break;
       if (!ok)
         return false;
@@ -1299,20 +1389,38 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 
           if (strcmp(flag_directories, "recurse") == 0)
           {
-            // exclude directories whose pathname matches any one of the --exclude-dir globs
-            for (auto& glob : flag_exclude_dir)
-              if (wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str()))
-                return false;
-
-            if (!flag_include_dir.empty())
+            // check for --exclude-dir and --include-dir constraints if pathname != "."
+            if (strcmp(pathname, ".") != 0)
             {
-              // include directories whose pathname matches any one of the --include-dir globs
-              bool ok = false;
-              for (auto& glob : flag_include_dir)
-                if ((ok = wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str())))
+              // do not exclude directories that are overridden by ! negation
+              bool negate = false;
+              for (auto& glob : flag_exclude_override_dir)
+                if ((negate = globmat(pathname, basename, glob.c_str())))
                   break;
-              if (!ok)
-                return false;
+
+              if (!negate)
+              {
+                // exclude directories whose pathname matches any one of the --exclude-dir globs
+                for (auto& glob : flag_exclude_dir)
+                  if (globmat(pathname, basename, glob.c_str()))
+                    return false;
+              }
+
+              if (!flag_include_dir.empty())
+              {
+                // do not include directories that are overridden by ! negation
+                for (auto& glob : flag_include_override_dir)
+                  if (globmat(pathname, basename, glob.c_str()))
+                    return false;
+
+                // include directories whose pathname matches any one of the --include-dir globs
+                bool ok = false;
+                for (auto& glob : flag_include_dir)
+                  if ((ok = globmat(pathname, basename, glob.c_str())))
+                    break;
+                if (!ok)
+                  return false;
+              }
             }
 
             return recurse(pattern, encoding, pathname);
@@ -1320,17 +1428,31 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
         }
         else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
         {
-          // exclude files whose pathname matches any one of the --exclude globs
-          for (auto& glob : flag_exclude)
-            if (wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str()))
-              return false;
+          // do not exclude files that are overridden by ! negation
+          bool negate = false;
+          for (auto& glob : flag_exclude_override)
+            if ((negate = globmat(pathname, basename, glob.c_str())))
+              break;
+
+          if (!negate)
+          {
+            // exclude files whose pathname matches any one of the --exclude globs
+            for (auto& glob : flag_exclude)
+              if (globmat(pathname, basename, glob.c_str()))
+                return false;
+          }
 
           if (!flag_include.empty())
           {
+            // do not include files that are overridden by ! negation
+            for (auto& glob : flag_include_override)
+              if (globmat(pathname, basename, glob.c_str()))
+                return false;
+
             // include files whose pathname matches any one of the --include globs
             bool ok = false;
             for (auto& glob : flag_include)
-              if ((ok = wildmat(glob.find(PATHSEPCHR) != std::string::npos ? pathname : basename, glob.c_str())))
+              if ((ok = globmat(pathname, basename, glob.c_str())))
                 break;
             if (!ok)
               return false;
@@ -1450,8 +1572,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
     {
       std::cout << color_fn << pathname << color_off;
 
-      if (flag_null)
-        std::cout << (char)(flag_null ? '\0' : '\n');
+      std::cout << (char)(flag_null ? '\0' : '\n');
 
       if (flag_line_buffered)
         std::cout.flush();
@@ -2032,17 +2153,20 @@ void help(const char *message, const char *arg)
     --exclude=GLOB\n\
             Skip files whose name matches GLOB (using wildcard matching). A\n\
             glob can use *, ?, and [...] as wildcards, and \\ to quote a\n\
-            wildcard or backslash character literally.  Note that --exclude\n\
-            patterns take priority over --include patterns.  This option may be\n\
-            repeated.\n\
+            wildcard or backslash character literally.  If GLOB contains /,\n\
+            full pathnames are matched.  Otherwise basenames are matched.  Note\n\
+            that --exclude patterns take priority over --include patterns.\n\
+            This option may be repeated.\n\
     --exclude-dir=GLOB\n\
             Exclude directories whose name matches GLOB from recursive\n\
-            searches.  Note that --exclude-dir patterns take priority over\n\
-            --include-dir patterns.  This option may be repeated.\n\
+            searches.  If GLOB contains /, full pathnames are matched.\n\
+            Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
+            take priority over --include-dir patterns.  This option may be\n\
+            repeated.\n\
     --exclude-from=FILE\n\
-            Read the globs from FILE and skip files and directories whose base\n\
-            name matches one or more globs (using wildcard matching).  When\n\
-            FILE is read, lines starting with a `#' and empty lines are\n\
+            Read the globs from FILE and skip files and directories whose name\n\
+            matches one or more globs (as if specified by --exclude and\n\
+            --exclude-dir).  Lines starting with a `#' and empty lines in FILE\n\
             ignored. This option may be repeated.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
@@ -2078,18 +2202,21 @@ void help(const char *message, const char *arg)
     --include=GLOB\n\
             Search only files whose name matches GLOB (using wildcard\n\
             matching).  A glob can use *, ?, and [...] as wildcards, and \\ to\n\
-            quote a wildcard or backslash character literally.  Note that\n\
-            --exclude patterns take priority over --include patterns.  This\n\
-            option may be repeated.\n\
+            quote a wildcard or backslash character literally.  If GLOB\n\
+            contains /, file pathnames are matched.  Otherwise file basenames\n\
+            are matched.  Note that --exclude patterns take priority over\n\
+            --include patterns.  This option may be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose name matches GLOB are included in recursive\n\
-            searches.  Note that --exclude-dir patterns take priority over\n\
-            --include-dir patterns.  This option may be repeated.\n\
+            searches.  If GLOB contains /, full pathnames are matched.\n\
+            Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
+            take priority over --include-dir patterns.  This option may be\n\
+            repeated.\n\
     --include-from=FILE\n\
             Read the globs from FILE and search only files and directories\n\
-            whose name matches one or more globs (using wildcard matching).\n\
-            When FILE is read, lines starting with a `#' and empty lines are\n\
-            ignored.  This option may be repeated.\n\
+            whose name matches one or more globs (as if specified by --include\n\
+            and --include-dir).  Lines starting with a `#' and empty lines in\n\
+            FILE are ignored.  This option may be repeated.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of\n\
             the respective matched line, starting at column 1.  Tabs are\n\

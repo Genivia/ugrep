@@ -77,6 +77,66 @@ One or more lines were selected.
 No lines were selected.
 .IP >1
 An error occurred.
+.SH GLOBBING
+Globbing is used by options \fB--include\fR, \fB--include-dir\fR,
+\fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
+\fB--exclude-from\fR to match pathnames and basenames.  Globbing supports
+gitignore syntax and the corresponding matching rules.  When a glob contains a
+path separator `/', the pathname is matched.  Otherwise the basename of a file
+or directory is matched.  For example, \fB*.h\fR matches \fIfoo.h\fR and
+\fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not \fIfoo.h\fR and
+not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
+\fIfoo.h\fR but not \fIbar/foo.h\fR.
+.PP
+Syntax:
+.IP \fB**/\fR
+Matches zero or more directories.
+.IP \fB/**\fR
+When at the end of a glob, matches everything after the /.
+.IP \fB*\fR
+Matches anything except a /.
+.IP \fB/\fR
+When used at the begin of a glob, matches if pathname has no /.
+.IP \fB?\fR
+Matches any character except a /.
+.IP \fB[a-z]\fR
+Matches one character in the selected range of characters.
+.IP \fB[^a-z]\fR
+Matches one character not in the selected range of characters.
+.IP \fB[!a-z]\fR
+Matches one character not in the selected range of characters.
+.IP \fB\\\\?\fR
+Matches a ? (or any character after the backslash).
+.PP
+Examples:
+.PP
+.IP \fB**/a\fR
+Matches a, x/a, x/y/a,       but not b, x/b.
+.IP \fBa/**/b\fR
+Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
+.IP \fBa/**\fR
+Matches a/x, a/y, a/x/y,     but not b/x
+.IP \fBa/*/b\fR
+Matches a/x/b, a/y/b,        but not a/x/y/b
+.IP \fB/a\fR
+Matches a,                   but not x/a
+.IP \fB/*\fR
+Matches a, b,                but not x/a, x/b
+.IP \fBa?b\fR
+Matches axb, ayb,            but not a, b, ab
+.IP \fBa[xy]b\fR
+Matches axb, ayb             but not a, b, azb
+.IP \fBa[a-z]b\fR
+Matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
+.IP \fBa[^xy]b\fR
+Matches aab, abb, acb, azb,  but not a, b, axb, ayb
+.IP \fBa[^a-z]b\fR
+Matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
+.PP
+Lines in the \fB--exclude-from\fR and \fB--include-from\fR files are ignored
+when empty or start with a `#'.  The prefix `!' to a glob in such a file
+negates the pattern match, i.e. matching files are excluded except files
+matching the globs prefixed with `!' in the \fB--exclude-from\fR file.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by

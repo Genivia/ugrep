@@ -107,7 +107,7 @@ promising.  For example, searching for all matches of syntactically-valid
 variants of `#include "..."` in the directory tree from the Qt 5.9.2 root,
 restricted to `.h`, `.hpp`, and `.cpp` files only:
 
-    time egrep -r -o '#[ \t]*include[ \t]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . > &/dev/null
+    time egrep -r -o '#[ \t]*include[ \t]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . >& /dev/null
     3.630u 0.274s 0:03.90 100.0%    0+0k 0+0io 0pf+0w
 
     time ugrep -r -o '#[ \t]*include[ \t]+"[^"]+"' -Oh,hpp,cpp . >& /dev/null
@@ -223,10 +223,28 @@ While searching C++ files (`-tc++`) in the current directory (`.`)for `#define`
 lines (`-f patterns/c++/defines`), this query skips file `config.h` and other
 files and directories declared in `.gitignore`.
 
-Finally, to highlight matches when pushed through a chain of pipes we should
-use `--color=always`:
+To highlight matches when pushed through a chain of pipes we should use
+`--color=always`:
 
     ugrep -r -tc++ --color=always --exclude-from='.gitignore' -f patterns/c++/defines . | ugrep -w 'Foo.*'
+
+To list all files in a GitHub project directory that are not ignored by
+`.gitignore`:
+
+    ugrep -r -l '' --exclude-from='.gitignore' .
+
+Where `-l` lists the files specified in `.gitignore` matched by the empty
+pattern `''`, which is a special pattern that can be used to match any
+non-empty file (as per POSIX.1 compliance).
+
+Note that the complement of `--exclude` is not `--include`, so we cannot
+reliably list the files that are ignored with `--include-from='.gitignore'`.
+Only files explicitly specified with `--include` and directories explicitly
+specified with `--include-dir` are visited.  The `--include-from` from lists
+globs that are considered both files and directories to add to `--include` and
+`--include-dir`, respectively.  This means that when a directory or directory
+path is not explicitly listed in this file then it will not be visited using
+`--include-from`.
 
 ### Using Unicode
 
@@ -378,24 +396,28 @@ Man page
                   line  is  selected  if it matches any of the specified patterns.
                   This option is most useful when multiple -e options are used  to
                   specify  multiple  patterns,  when  a pattern begins with a dash
-                  (`-'), or when option -f is used.
+                  (`-'), or to specify a pattern after option -f.
 
            --exclude=GLOB
-                  Skip files whose path name matches GLOB (using  wildcard  match-
-                  ing).   A  path  name glob can use *, ?, and [...] as wildcards,
-                  and \ to quote a  wildcard  or  backslash  character  literally.
-                  Note  that  --exclude patterns take priority over --include pat-
+                  Skip files whose name matches GLOB (using wildcard matching).  A
+                  glob  can  use  *,  ?,  and [...] as wildcards, and \ to quote a
+                  wildcard or backslash character literally.  If GLOB contains  /,
+                  full  pathnames  are  matched.  Otherwise basenames are matched.
+                  Note that --exclude patterns take priority over  --include  pat-
                   terns.  This option may be repeated.
 
            --exclude-dir=GLOB
-                  Exclude directories whose path name matches GLOB from  recursive
-                  searches.   Note  that --exclude-dir patterns take priority over
-                  --include-dir patterns.  This option may be repeated.
+                  Exclude  directories  whose  name  matches  GLOB  from recursive
+                  searches.  If GLOB contains /, full pathnames are matched.  Oth-
+                  erwise  basenames are matched.  Note that --exclude-dir patterns
+                  take priority over --include-dir patterns.  This option  may  be
+                  repeated.
 
            --exclude-from=FILE
-                  Read the globs from FILE and skip files whose path name  matches
-                  one  or more globs (using wildcard matching).  Comments starting
-                  with a `#' and empty lines in FILE are ignored.
+                  Read  the  globs  from FILE and skip files and directories whose
+                  name matches one or more globs (as if specified by --exclude and
+                  --exclude-dir).   Lines  starting  with a `#' and empty lines in
+                  FILE ignored. This option may be repeated.
 
            -F, --fixed-strings
                   Interpret pattern as a set of fixed strings, separated  by  new-
@@ -437,77 +459,81 @@ Man page
                   default, ugrep is case sensitive.
 
            --include=GLOB
-                  Search  only  files whose path name matches GLOB (using wildcard
-                  matching).  A path name glob can use *, ?, and  [...]  as  wild-
-                  cards,  and  \ to quote a wildcard or backslash character liter-
-                  ally.  Note that --exclude patterns take priority over --include
-                  patterns.  This option may be repeated.
+                  Search only files whose name matches GLOB (using wildcard match-
+                  ing).  A glob can use *, ?, and [...] as  wildcards,  and  \  to
+                  quote a wildcard or backslash character literally.  If GLOB con-
+                  tains /, file pathnames are matched.  Otherwise  file  basenames
+                  are  matched.   Note  that --exclude patterns take priority over
+                  --include patterns.  This option may be repeated.
 
            --include-dir=GLOB
-                  Only  directories  whose  path name matches GLOB are included in
-                  recursive searches.  Note that --exclude-dir patterns take  pri-
-                  ority over --include-dir patterns.  This option may be repeated.
+                  Only directories whose name matches GLOB are included in  recur-
+                  sive  searches.  If GLOB contains /, full pathnames are matched.
+                  Otherwise basenames are matched.  Note that  --exclude-dir  pat-
+                  terns  take  priority  over --include-dir patterns.  This option
+                  may be repeated.
 
            --include-from=FILE
-                  Read the globs from FILE and search only files whose  path  name
-                  matches  one  or more globs (using wildcard matching).  Comments
-                  starting with a `#' and empty lines in FILE are ignored.
+                  Read the globs from FILE and search only files  and  directories
+                  whose  name  matches  one  or  more  globs  (as  if specified by
+                  --include and --include-dir).  Lines starting  with  a  `#'  and
+                  empty lines in FILE are ignored.  This option may be repeated.
 
            -k, --column-number
-                  The column number of a matched pattern is displayed in front  of
-                  the  respective  matched  line,  starting at column 1.  Tabs are
+                  The  column number of a matched pattern is displayed in front of
+                  the respective matched line, starting at  column  1.   Tabs  are
                   expanded when columns are counted.
 
            -L, --files-without-match
-                  Only the names of files not containing selected lines are  writ-
-                  ten  to  standard  output.   Pathnames  are listed once per file
+                  Only  the names of files not containing selected lines are writ-
+                  ten to standard output.  Pathnames  are  listed  once  per  file
                   searched.   If  the  standard  input  is  searched,  the  string
                   ``(standard input)'' is written.
 
            -l, --files-with-matches
                   Only the names of files containing selected lines are written to
-                  standard output.  ugrep will only search a file  until  a  match
-                  has  been  found,  making  searches  potentially less expensive.
-                  Pathnames are listed once per file searched.   If  the  standard
+                  standard  output.   ugrep  will only search a file until a match
+                  has been found,  making  searches  potentially  less  expensive.
+                  Pathnames  are  listed  once per file searched.  If the standard
                   input is searched, the string ``(standard input)'' is written.
 
            --label[=LABEL]
-                  Displays  the LABEL value when input is read from standard input
+                  Displays the LABEL value when input is read from standard  input
                   where a file name would normally be printed in the output.  This
                   option applies to options -H, -L, and -l.
 
            --line-buffered
-                  Force  output  to  be line buffered.  By default, output is line
-                  buffered when standard output is a terminal and  block  buffered
+                  Force output to be line buffered.  By default,  output  is  line
+                  buffered  when  standard output is a terminal and block buffered
                   otherwise.
 
            -m NUM, --max-count=NUM
                   Stop reading the input after NUM matches.
 
            -N, --only-line-number
-                  The  line number of the match in the file is output without dis-
-                  playing the match.  The line number counter is  reset  for  each
+                  The line number of the match in the file is output without  dis-
+                  playing  the  match.   The line number counter is reset for each
                   file processed.
 
            -n, --line-number
-                  Each  output line is preceded by its relative line number in the
-                  file, starting at line 1.  The line number counter is reset  for
+                  Each output line is preceded by its relative line number in  the
+                  file,  starting at line 1.  The line number counter is reset for
                   each file processed.
 
            --no-group-separator
-                  Removes  the  group  separator  line from the output for context
+                  Removes the group separator line from  the  output  for  context
                   options -A, -B, and -C.
 
            -O EXTENSIONS, --file-extensions=EXTENSIONS
                   Search only files whose file name extensions match the specified
-                  comma-separated  list  of  file name EXTENSIONS.  This option is
+                  comma-separated list of file name EXTENSIONS.   This  option  is
                   the same as specifying --include='*.ext' for each extension name
                   `ext' in the EXTENSIONS list.  This option may be repeated.
 
            -o, --only-matching
-                  Prints  only  the  matching part of the lines.  Allows a pattern
-                  match to span  multiple  lines.   Line  numbers  for  multi-line
-                  matches  are  displayed  with  option -n, using `|' as the field
+                  Prints only the matching part of the lines.   Allows  a  pattern
+                  match  to  span  multiple  lines.   Line  numbers for multi-line
+                  matches are displayed with option -n, using  `|'  as  the  field
                   separator for each additional line matched by the pattern.  Con-
                   text options -A, -B, and -C are disabled.
 
@@ -520,20 +546,20 @@ Man page
                   default.
 
            -q, --quiet, --silent
-                  Quiet  mode:  suppress  normal output.  ugrep will only search a
-                  file until a match has been found, making  searches  potentially
-                  less  expensive.  Allows a pattern match to span multiple lines.
+                  Quiet mode: suppress normal output.  ugrep will  only  search  a
+                  file  until  a match has been found, making searches potentially
+                  less expensive.  Allows a pattern match to span multiple  lines.
 
            -R, --dereference-recursive
-                  Recursively read all files under  each  directory.   Follow  all
+                  Recursively  read  all  files  under each directory.  Follow all
                   symbolic links, unlike -r.
 
            -r, --recursive
-                  Recursively  read all files under each directory, following sym-
+                  Recursively read all files under each directory, following  sym-
                   bolic links only if they are on the command line.
 
            -S, --dereference
-                  If -R is  specified,  all  symbolic  links  are  followed.   The
+                  If  -R  is  specified,  all  symbolic  links  are followed.  The
                   default is not to follow symbolic links.
 
            -s, --no-messages
@@ -541,24 +567,25 @@ Man page
                   their error messages are suppressed).
 
            -T, --initial-tab
-                  Add a tab space to separate the file name, line  number,  column
+                  Add  a  tab space to separate the file name, line number, column
                   number, and byte offset with the matched line.
 
            -t TYPES, --file-type=TYPES
-                  Search  only  files of TYPES, which is a comma-separated list of
-                  file types.  Each file type is associated with  a  set  of  file
-                  name  extensions  to  search.  This option may be repeated.  The
-                  possible values of type  can  be  (use  -t  list  to  display  a
-                  detailed  list):  `actionscript',  `ada',  `asm', `asp', `aspx',
-                  `autoconf', `automake', `awk', `basic', `batch',  `bison',  `c',
-                  `c++',  `clojure',  `csharp',  `css',  `csv',  `dart', `delphi',
-                  `erlang', `fortran', `go', `groovy', `haskell', `html',  `jade',
-                  `java',  `javascript',  `json',  `jsp',  `julia', `less', `lex',
-                  `lisp',  `lua',  `m4',  `make',  `matlab',   `objc',   `objcpp',
-                  `ocaml',  `parrot', `pascal', `perl', `php', `prolog', `python',
-                  `R',  `rst',  `ruby',  `rust',   `scala',   `scheme',   `shell',
-                  `smalltalk',  `sql',  `swift', `tcl', `tex', `text', `tt', `ver-
-                  ilog', `vhdl', `vim', `xml', `yacc', `yaml'
+                  Search only files of TYPES, which is a comma-separated  list  of
+                  file  types.   Each  file  type is associated with a set of file
+                  name extensions to search.  This option may  be  repeated.   The
+                  possible  values  of  type  can  be  (use  -t  list to display a
+                  detailed list): `actionscript',  `ada',  `asm',  `asp',  `aspx',
+                  `autoconf',  `automake',  `awk', `basic', `batch', `bison', `c',
+                  `c++', `clojure',  `csharp',  `css',  `csv',  `dart',  `delphi',
+                  `elixir',   `erlang',   `fortran',  `go',  `groovy',  `haskell',
+                  `html', `jade', `java', `javascript',  `json',  `jsp',  `julia',
+                  `kotlin',  `less', `lex', `lisp', `lua', `m4', `make', `matlab',
+                  `objc', `objcpp', `ocaml', `parrot',  `pascal',  `perl',  `php',
+                  `prolog',   `python',   `R',  `rst',  `ruby',  `rust',  `scala',
+                  `scheme', `shell', `smalltalk', `sql',  `swift',  `tcl',  `tex',
+                  `text',  `tt',  `typescript',  `verilog',  `vhdl', `vim', `xml',
+                  `yacc', `yaml'
 
            --tabs=NUM
                   Set the tab size to NUM to expand tabs for option -k.  The value
@@ -621,6 +648,69 @@ Man page
            1      No lines were selected.
 
            >1     An error occurred.
+
+    GLOBBING
+           Globbing is used by options --include,  --include-dir,  --include-from,
+           --exclude,  --exclude-dir,  --exclude-from to match pathnames and base-
+           names.  Globbing supports gitignore syntax and the corresponding match-
+           ing  rules.  When a glob contains a path separator `/', the pathname is
+           matched.  Otherwise the basename of a file  or  directory  is  matched.
+           For   example,  *.h  matches  foo.h  and  bar/foo.h.   bar/*.h  matches
+           bar/foo.h but not foo.h and not bar/bar/foo.h.  Use a  leading  `/'  to
+           force /*.h to match foo.h but not bar/foo.h.
+
+           Syntax:
+
+           **/    Matches zero or more directories.
+
+           /**    When at the end of a glob, matches everything after the /.
+
+           *      Matches anything except a /.
+
+           /      When  used at the begin of a glob, matches if pathname has no /.
+
+           ?      Matches any character except a /.
+
+           [a-z]  Matches one character in the selected range of characters.
+
+           [^a-z] Matches one character not in the selected range of characters.
+
+           [!a-z] Matches one character not in the selected range of characters.
+
+           \?     Matches a ? (or any character after the backslash).
+
+           Examples:
+
+
+           **/a   Matches a, x/a, x/y/a,       but not b, x/b.
+
+           a/**/b Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
+
+           a/**   Matches a/x, a/y, a/x/y,     but not b/x
+
+           a/*/b  Matches a/x/b, a/y/b,        but not a/x/y/b
+
+           /a     Matches a,                   but not x/a
+
+           /*     Matches a, b,                but not x/a, x/b
+
+           a?b    Matches axb, ayb,            but not a, b, ab
+
+           a[xy]b Matches axb, ayb             but not a, b, azb
+
+           a[a-z]b
+                  Matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
+
+           a[^xy]b
+                  Matches aab, abb, acb, azb,  but not a, b, axb, ayb
+
+           a[^a-z]b
+                  Matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
+
+           Lines in the --exclude-from and --include-from files are  ignored  when
+           empty  or  start  with  a `#'.  The prefix `!' to a glob in such a file
+           negates the pattern match, i.e.  matching  files  are  excluded  except
+           files  matching the globs prefixed with `!' in the --exclude-from file.
 
     ENVIRONMENT
            GREP_PATH
@@ -730,7 +820,7 @@ Man page
 
 
 
-    ugrep 1.1.0                      May 09, 2019                         UGREP(1)
+    ugrep 1.1.0                      May 11, 2019                         UGREP(1)
 
 For future updates
 ------------------
