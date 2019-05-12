@@ -109,7 +109,6 @@ Matches one character not in the selected range of characters.
 Matches a ? (or any character after the backslash).
 .PP
 Examples:
-.PP
 .IP \fB**/a\fR
 Matches a, x/a, x/y/a,       but not b, x/b.
 .IP \fBa/**/b\fR

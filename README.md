@@ -68,44 +68,12 @@ and `--exclude`.
 **ugrep** is evolving and more features will be added.  You can help!  We love
 your feedback (issues) and contributions (pull requests) ❤️
 
-ugrep versus other "greps"
---------------------------
-
-- **ugrep** supports "negative patterns" to skip parts of the input that should
-  not be matched, such as skipping strings and comments when searching for
-  identifiers in source code.
-- When one or more of the options `-q` (quiet), `-o` (only matching), `-N`
-  (only line number), `-l` (file with match), or `-L` (files without match) is
-  used, **ugrep** performs an even faster streaming-based search of the input
-  file instead of reading the input line-by-line as other grep tools do.  This
-  allows matching patterns that include newlines (`\n`), i.e. a match can span
-  multiple lines.  This is not possible with other grep-like tools.
-- New option `-k`, `--column-number` with **ugrep** to display the column
-  number, taking tab spacing into account by expanding tabs, as specified by
-  option `--tabs`.
-- New option `-g`, `--no-group` to not group matches per line.  This option
-  displays a matched input line again for each additional pattern match.  This
-  option is particularly useful with option `-c` to report the total number of
-  pattern matches per file instead of the number of lines matched per file.
-- When option `-b` is used with option `-o` or with option `-g`, **ugrep**
-  displays the exact byte offset of the pattern match instead of the byte
-  offset of the start of the matched line as grep reports.  Reporting exact
-  byte offsets is now possible with **grep**.
-- **ugrep** regular expression patterns are more expressive than GNU grep and
-  BSD grep and support Unicode pattern matching, see further below.  Extended
-  regular expression syntax is the default (i.e.  option `-E`, as egrep).
-- **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
-  `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
-- BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
-  e.g.  options `-r` versus `-R`, support for `GREP_COLORS`, and more.
-
 Speed
 -----
 
-**ugrep** is not yet fully optimized.  The initial performance results look
-promising.  For example, searching for all matches of syntactically-valid
-variants of `#include "..."` in the directory tree from the Qt 5.9.2 root,
-restricted to `.h`, `.hpp`, and `.cpp` files only:
+Initial performance results look promising.  For example, searching for all
+matches of syntactically-valid variants of `#include "..."` in the directory
+tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files only:
 
     time egrep -r -o '#[ \t]*include[ \t]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . >& /dev/null
     3.630u 0.274s 0:03.90 100.0%    0+0k 0+0io 0pf+0w
@@ -233,8 +201,8 @@ To list all files in a GitHub project directory that are not ignored by
 
     ugrep -r -l '' --exclude-from='.gitignore' .
 
-Where `-l` lists the files specified in `.gitignore` matched by the empty
-pattern `''`, which is a special pattern that can be used to match any
+Where `-l` (files with matches) lists the files specified in `.gitignore`
+matched by the empty pattern `''`, which is typically used to match any
 non-empty file (as per POSIX.1 compliance).
 
 Note that the complement of `--exclude` is not `--include`, so we cannot
@@ -821,6 +789,37 @@ Man page
 
 
     ugrep 1.1.0                      May 11, 2019                         UGREP(1)
+
+ugrep versus other "greps"
+--------------------------
+
+- **ugrep** supports "negative patterns" to skip parts of the input that should
+  not be matched, such as skipping strings and comments when searching for
+  identifiers in source code.
+- When one or more of the options `-q` (quiet), `-o` (only matching), `-N`
+  (only line number), `-l` (file with match), or `-L` (files without match) is
+  used, **ugrep** performs an even faster streaming-based search of the input
+  file instead of reading the input line-by-line as other grep tools do.  This
+  allows matching patterns that include newlines (`\n`), i.e. a match can span
+  multiple lines.  This is not possible with other grep-like tools.
+- New option `-k`, `--column-number` with **ugrep** to display the column
+  number, taking tab spacing into account by expanding tabs, as specified by
+  option `--tabs`.
+- New option `-g`, `--no-group` to not group matches per line.  This option
+  displays a matched input line again for each additional pattern match.  This
+  option is particularly useful with option `-c` to report the total number of
+  pattern matches per file instead of the number of lines matched per file.
+- When option `-b` is used with option `-o` or with option `-g`, **ugrep**
+  displays the exact byte offset of the pattern match instead of the byte
+  offset of the start of the matched line as grep reports.  Reporting exact
+  byte offsets is now possible with **grep**.
+- **ugrep** regular expression patterns are more expressive than GNU grep and
+  BSD grep and support Unicode pattern matching, see further below.  Extended
+  regular expression syntax is the default (i.e.  option `-E`, as egrep).
+- **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
+  `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
+- BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
+  e.g.  options `-r` versus `-R`, support for `GREP_COLORS`, and more.
 
 For future updates
 ------------------
