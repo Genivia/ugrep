@@ -4,15 +4,8 @@ ugrep: universal grep
 Offers powerful pre-defined search patterns and quick options to selectively
 search source code files efficiently in large directory trees.
 
-**ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
-high-performance regex matching, which is 100 times faster than the GNU C
-POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and RE2.
-Because RE/flex is a streaming regex matcher, **ugrep** scans files more
-efficiently with options like `-o`, permitting pattern matches that span
-multiple lines instead of searching per line as with other grep utilities.
-
-**ugrep** makes it easy to search source code.  It is the only grep tool that
-allows you to define negative patterns to "zap" parts in files you want to
+**ugrep** makes it simple to search source code.  It is the only grep tool that
+allows you to define "negative patterns" to "zap" parts in files you want to
 skip.  This removes many false positives.  For example to find exact matches of
 `main` in C/C++ source code while skipping strings and comments that may have a
 match with `main` in them:
@@ -22,12 +15,12 @@ match with `main` in them:
 where `-r` is recursive search, `-o` for multi-line matches (since strings and
 comments may span multiple lines), `-tc,c++` searches C and C++ source code
 files only, `-n` shows line numbers in the output, `-w` matches exact words
-(for example, `mainly` won't be matched), the `-f` options specify two
+(for example, `mainly` won't be matched), and the `-f` options specify two
 pre-defined patterns to match and ignore strings and comments in the input.
 
 **ugrep** searches source code files by file name extension and other criteria
-using option `-t` so specify the type of files to search recursively in a
-directory tree with option `-r`, e.g. `-r -tc++`.
+with option `-t` so specify the type of files to search recursively in a
+directory tree, e.g. `-r -tc++`.
 
 **ugrep** includes a growing database of
 [patterns](https://github.com/Genivia/ugrep/tree/master/patterns) with common
@@ -36,9 +29,19 @@ regex patterns for common search criteria.  Environment variable `GREP_PATH`
 can be set to point to your own directory with patterns that option `-f` uses
 to read your pattern files.
 
+**ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
+high-performance regex matching, which is 100 times faster than the GNU C
+POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and RE2.
+RE/flex is an incremental, streaming regex matcher, meaning it does not read
+all the input at once nor does it require reading the input line-by-line.
+Files are efficiently scanned with options such as `-o`.  As a bonus, this
+option also finds a match of a pattern spanning multiple lines such as comment
+blocks in source code.
+
 **ugrep** offers options that are compatible with the
 [GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
-utilities, and can be used as a more powerful replacement of these.
+utilities, meaning it can be used as a backward-compatible replacement.
+Users have access to the same options they frequently use.
 
 **ugrep** matches Unicode patterns.  The regular expression syntax is POSIX ERE
 compliant, extended with Unicode character classes, lazy quantifiers, and
@@ -57,13 +60,14 @@ matching.  Rare and pathelogical cases are known to exist that may increase the
 initial running time for DFA construction.  The resulting DFAs still yield
 significant speedups to search large files.
 
-**ugrep** is portable and compiles with MSVC++ to run on Windows.
+**ugrep** is portable and compiles with MSVC++ to run on Windows.  Binaries are
+available for Linux, Mac and Windows.
 
 **ugrep** is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
 code and does not include any GNU or BSD grep open source code or algorithms.
-**ugrep** is built entirely on the RE/flex open source library and Rich Salz'
-free and open wildmat source code for glob matching with options `--include`
-and `--exclude`.
+**ugrep** is built entirely on the RE/flex open source library and a modified
+version of Rich Salz' free and open wildmat source code for
+gitignore-compatible glob matching with options `--include` and `--exclude`.
 
 **ugrep** is evolving and more features will be added.  You can help!  We love
 your feedback (issues) and contributions (pull requests) ❤️
@@ -75,15 +79,15 @@ Initial performance results look promising.  For example, searching for all
 matches of syntactically-valid variants of `#include "..."` in the directory
 tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files only:
 
-    time egrep -r -o '#[ \t]*include[ \t]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . >& /dev/null
+    time grep -R -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . >& /dev/null
     3.630u 0.274s 0:03.90 100.0%    0+0k 0+0io 0pf+0w
 
-    time ugrep -r -o '#[ \t]*include[ \t]+"[^"]+"' -Oh,hpp,cpp . >& /dev/null
-    0.837u 0.185s 0:01.02 99.0%     0+0k 0+0io 0pf+0w
+    time ugrep -R -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp . >& /dev/null
+    1.412u 0.270s 0:01.68 100.0%    0+0k 0+0io 0pf+0w
 
-Unoptimized, **ugrep** is already 3 times faster than BSD egrep (**ugrep** was
-compiled with clang 9.0.0 -O2, and this test was run on a 2.9 GHz Intel Core
-i7, 16 GB 2133 MHz LPDDR3 machine).
+Unoptimized (single threaded), **ugrep** is already much faster than BSD grep
+(**ugrep** was compiled with clang 9.0.0 -O2, and this test was run on a 2.9
+GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 machine).
 
 Dependencies
 ------------
@@ -187,14 +191,17 @@ and directories (declared as glob patterns) to ignore:
 
     ugrep -r -tc++ --color --exclude-from='.gitignore' -f patterns/c++/defines .
 
-While searching C++ files (`-tc++`) in the current directory (`.`)for `#define`
-lines (`-f patterns/c++/defines`), this query skips file `config.h` and other
-files and directories declared in `.gitignore`.
+This searches C++ files (`-tc++`) in the current directory (`.`) for `#define`
+lines (`-f patterns/c++/defines`), while skipping files and directories
+declared in `.gitignore` such as `config.h`.
 
 To highlight matches when pushed through a chain of pipes we should use
 `--color=always`:
 
-    ugrep -r -tc++ --color=always --exclude-from='.gitignore' -f patterns/c++/defines . | ugrep -w 'Foo.*'
+    ugrep -r -tc++ --color=always --exclude-from='.gitignore' -f patterns/c++/defines . | ugrep -w 'FOO.*'
+
+This returns a color-highlighted list of all `#define FOO...` macros in our C++
+project in the current directory, skipping files defined in `.gitignore`.
 
 To list all files in a GitHub project directory that are not ignored by
 `.gitignore`:
@@ -203,16 +210,16 @@ To list all files in a GitHub project directory that are not ignored by
 
 Where `-l` (files with matches) lists the files specified in `.gitignore`
 matched by the empty pattern `''`, which is typically used to match any
-non-empty file (as per POSIX.1 compliance).
+non-empty file (as per POSIX.1 grep compliance).
 
 Note that the complement of `--exclude` is not `--include`, so we cannot
 reliably list the files that are ignored with `--include-from='.gitignore'`.
 Only files explicitly specified with `--include` and directories explicitly
 specified with `--include-dir` are visited.  The `--include-from` from lists
 globs that are considered both files and directories to add to `--include` and
-`--include-dir`, respectively.  This means that when a directory or directory
-path is not explicitly listed in this file then it will not be visited using
-`--include-from`.
+`--include-dir`, respectively.  This means that when directory names and
+directory paths are not explicitly listed in this file then it will not be
+visited using `--include-from`.
 
 ### Using Unicode
 
@@ -295,15 +302,15 @@ Man page
            line  if  the  regular expression (RE) in the pattern matches the input
            line without its trailing newline.  An empty expression  matches  every
            line.   Each  input  line  that matches at least one of the patterns is
-           written to the standard output.
+           written to the standard output.  To search for patterns that span  mul-
+           tiple lines, use option -o.
 
-           The ugrep utility normalizes Unicode input, so ugrep  can  be  used  to
-           search  for  Unicode  patterns  in text files encoded in UTF-8, UTF-16,
-           UTF-32 by detecting UTF BOM in the input.  When no UTF BOM is detected,
-           ugrep  searches  for  Unicode  patterns  in UTF-8 input, which includes
-           ASCII input.  ugrep searches input files encoded in ISO-8859-1, EBCDIC,
-           CP-437,  CP-850, CP-858, CP-1250 to CP-1258 when the file encoding for-
-           mat is specified with option --file-format.
+           The  ugrep  utility  normalizes and decodes encoded input to search for
+           the specified ASCII/Unicode patterns.  When the input  contains  a  UTF
+           BOM indicating UTF-8, UTF-16, or UTF-32 input then ugrep always normal-
+           izes the input to UTF-8.  When no UTF BOM is present, ugrep assumes the
+           input  is  ASCII,  UTF-8,  or raw binary.  To specify a different input
+           file encoding, use option --file-format.
 
            The following options are available:
 
@@ -320,7 +327,9 @@ Man page
            -b, --byte-offset
                   The offset in bytes of a matched line is displayed in  front  of
                   the respective matched line.  With option -g displays the offset
-                  in bytes of each pattern matched.
+                  in bytes of each pattern matched.  Byte  offsets  represent  the
+                  position  of  the  match  in  the normalized input, i.e. binary,
+                  ASCII, UTF-8.
 
            -C[NUM], --context[=NUM]
                   Print NUM lines of leading and trailing context surrounding each
@@ -549,7 +558,7 @@ Man page
                   `elixir',   `erlang',   `fortran',  `go',  `groovy',  `haskell',
                   `html', `jade', `java', `javascript',  `json',  `jsp',  `julia',
                   `kotlin',  `less', `lex', `lisp', `lua', `m4', `make', `matlab',
-                  `objc', `objcpp', `ocaml', `parrot',  `pascal',  `perl',  `php',
+                  `objc', `objc++', `ocaml', `parrot',  `pascal',  `perl',  `php',
                   `prolog',   `python',   `R',  `rst',  `ruby',  `rust',  `scala',
                   `scheme', `shell', `smalltalk', `sql',  `swift',  `tcl',  `tex',
                   `text',  `tt',  `typescript',  `verilog',  `vhdl', `vim', `xml',
@@ -601,9 +610,9 @@ Man page
                   https://github.com/Genivia/ugrep
 
            Note that `.' matches any non-newline character.   Matching  a  newline
-           character  is  not possible in line-buffered mode.  Pattern matches may
-           span multiple lines in block-buffered mode, which is enabled by one  of
-           the options -c, -o, or -q (unless combined with option -v).
+           character  `\n'  is  not possible unless one of the options -c, -L, -l,
+           -N, -o, or -q is used (in any combination, but not combined with option
+           -v) to allow a pattern match to span multiple lines.
 
            If  no  file arguments are specified, or if `-' is specified, the stan-
            dard input is used.
@@ -645,10 +654,9 @@ Man page
 
            [!a-z] Matches one character not in the selected range of characters.
 
-           \?     Matches a ? (or any character after the backslash).
+           \?     Matches a ? (or any character specified after the backslash).
 
            Examples:
-
 
            **/a   Matches a, x/a, x/y/a,       but not b, x/b.
 
@@ -788,7 +796,7 @@ Man page
 
 
 
-    ugrep 1.1.0                      May 11, 2019                         UGREP(1)
+    ugrep 1.1.0                      May 12, 2019                         UGREP(1)
 
 ugrep versus other "greps"
 --------------------------
@@ -796,12 +804,13 @@ ugrep versus other "greps"
 - **ugrep** supports "negative patterns" to skip parts of the input that should
   not be matched, such as skipping strings and comments when searching for
   identifiers in source code.
-- When one or more of the options `-q` (quiet), `-o` (only matching), `-N`
-  (only line number), `-l` (file with match), or `-L` (files without match) is
-  used, **ugrep** performs an even faster streaming-based search of the input
-  file instead of reading the input line-by-line as other grep tools do.  This
-  allows matching patterns that include newlines (`\n`), i.e. a match can span
-  multiple lines.  This is not possible with other grep-like tools.
+- **ugrep** uses a streaming approach.  When one or more of the options `-q`
+  (quiet), `-o` (only matching), `-c` (count), `-N` (only line number), `-l`
+  (file with match), or `-L` (files without match) is used, **ugrep** performs
+  an even faster streaming-based search of the input file instead of reading
+  the input line-by-line as other grep tools do.  This allows matching patterns
+  that include newlines (`\n`), i.e. a match can span multiple lines.  This is
+  not possible with other grep-like tools.
 - New option `-k`, `--column-number` with **ugrep** to display the column
   number, taking tab spacing into account by expanding tabs, as specified by
   option `--tabs`.

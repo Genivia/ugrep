@@ -1,7 +1,8 @@
 //  wildmat.cpp
 //
 //  Modified by Robert van Engelen, May 11, 2019 to support gitignore-style glob
-//  matching and to fix errors.
+//  matching, matching / in a glob against the windows \ path separator, to fix
+//  a logic error, and to remove compiler errors.
 //
 //  Glob syntax:
 //
@@ -13,7 +14,7 @@
 //  [a-z]  matches one character in the selected range of characters
 //  [^a-z] matches one character not in the selected range of characters
 //  [!a-z] matches one character not in the selected range of characters
-//  \*     matches a * (or any character after the backslash)
+//  \?     matches a ? (or any character specified after the backslash)
 //
 //  Examples:
 //
@@ -66,7 +67,20 @@
 **  on.
 */
 
+// check if we are on a windows OS
+#if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
+# define OS_WIN
+#endif
+
 #include <cstring>
+
+#ifdef OS_WIN
+#define PATHSEPCHR '\\'
+#define PATHSEPSTR "\\"
+#else
+#define PATHSEPCHR '/'
+#define PATHSEPSTR "/"
+#endif
 
 #define TRUE   1
 #define FALSE  0
@@ -88,6 +102,14 @@ static int DoMatch(const char *text, const char *p)
 
     switch (*p)
     {
+#ifdef OS_WIN
+      case '/':
+        /* / matches \ on Windows */
+        if (*text != '\\')
+          return FALSE;
+        continue;
+#endif
+
       case '\\':
         /* Literal match with following character. */
         p++;
@@ -100,7 +122,7 @@ static int DoMatch(const char *text, const char *p)
 
       case '?':
         /* Match anything except a /. */
-        if (*text == '/')
+        if (*text == PATHSEPCHR)
           return FALSE;
         continue;
 
@@ -117,7 +139,7 @@ static int DoMatch(const char *text, const char *p)
             {
               if ((matched = DoMatch(text++, p)) != FALSE)
                 return matched;
-              if ((text = strchr(text, '/')) == NULL)
+              if ((text = strchr(text, PATHSEPCHR)) == NULL)
                 break;
               ++text;
             }
@@ -126,13 +148,13 @@ static int DoMatch(const char *text, const char *p)
         }
         if (*p == '\0')
           /* Trailing star matches everything except a /. */
-          return strchr(text, '/') == NULL;
+          return strchr(text, PATHSEPCHR) == NULL;
         /* Match everything except a /. */
         while (*text)
         {
           if ((matched = DoMatch(text, p)) != FALSE)
             return matched;
-          if (*text++ == '/')
+          if (*text++ == PATHSEPCHR)
             break;
         }
         return ABORT;
@@ -161,7 +183,7 @@ static int DoMatch(const char *text, const char *p)
 bool globmat(const char *pathname, const char *basename, const char *glob)
 {
   /* if the pathname starts with ./ then remove it */
-  if (strncmp(pathname, "./", 2))
+  if (strncmp(pathname, "." PATHSEPSTR, 2))
     pathname += 2;
   /* match pathname if glob contains a /, basename otherwise */
   if (strchr(glob, '/') != NULL)

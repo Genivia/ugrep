@@ -110,10 +110,6 @@ Compile:
 
 Bugs FIXME:
 
-  - glob matching should take more .gitignore rules into account https://git-scm.com/docs/gitignore
-    as in fnmatch(3) meaning that * and ? should not match /
-    leading / in the glob matches a filepath that does not contain /
-  - glob matching in Windows fails when globs use / as path separator
   - Pattern '^$' does not match empty lines, because RE/flex find() does not permit empty matches.
   - Back-references are not supported.
 
@@ -130,6 +126,7 @@ Wanted TODO:
 #include <iomanip>
 #include <cctype>
 #include <cstring>
+#include <cerrno>
 
 // check if we are on a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
@@ -250,9 +247,9 @@ std::vector<std::string> flag_exclude_override_dir;
 extern bool globmat(const char *pathname, const char *basename, const char *glob);
 
 // function protos
-bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname);
-bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
-bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname);
+bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname);
+bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
+bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
 void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep);
 void set_color(const char *grep_colors, const char *parameter, std::string& color);
 bool getline(reflex::Input& input, std::string& line);
@@ -264,7 +261,7 @@ void version();
 
 #ifndef OS_WIN
 // Windows compatible fopen_s()
-inline errno_t fopen_s(FILE **fd, const char *filename, const char *mode)
+inline int fopen_s(FILE **fd, const char *filename, const char *mode)
 {
   return (*fd = fopen(filename, mode)) == NULL ? errno : 0;
 }
@@ -343,7 +340,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "make",         "mk,mak,makefile,Makefile,Makefile.Debug,Makefile.Release", NULL },
   { "matlab",       "m",                                                        NULL },
   { "objc",         "m,h",                                                      NULL },
-  { "objcpp",       "mm,h",                                                     NULL },
+  { "objc++",       "mm,h",                                                     NULL },
   { "ocaml",        "ml,mli",                                                   NULL },
   { "parrot",       "pir,pasm,pmc,ops,pod,pg,tg",                               NULL },
   { "pascal",       "pas,pp",                                                   NULL },
@@ -1221,8 +1218,9 @@ int main(int argc, char **argv)
         help("invalid --tabs=NUM value");
     }
 
-    // construct the DFA pattern
+    // construct the DFA pattern matcher
     reflex::Pattern pattern(modified_regex, pattern_options);
+    reflex::Matcher matcher(pattern);
 
     // read each file to find pattern matches
     for (auto infile : infiles)
@@ -1230,7 +1228,7 @@ int main(int argc, char **argv)
       if (strcmp(infile, "-") == 0)
       {
         // search standard input
-        found |= ugrep(pattern, stdin, encoding, flag_label);
+        found |= ugrep(matcher, stdin, encoding, flag_label);
       }
       else
       {
@@ -1242,7 +1240,7 @@ int main(int argc, char **argv)
         else
           basename = infile;
 
-        found |= find(pattern, encoding, infile, basename, true);
+        found |= find(matcher, encoding, infile, basename, true);
       }
     }
   }
@@ -1258,7 +1256,7 @@ int main(int argc, char **argv)
 }
 
 // Search file or directory for pattern matches
-bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
+bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
 {
   bool found = false;
 
@@ -1313,7 +1311,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
         }
       }
 
-      return recurse(pattern, encoding, pathname);
+      return recurse(matcher, encoding, pathname);
     }
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || strcmp(flag_devices, "read") == 0)
@@ -1358,7 +1356,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
       return false;
     }
 
-    found = ugrep(pattern, file, encoding, pathname);
+    found = ugrep(matcher, file, encoding, pathname);
 
     fclose(file);
   }
@@ -1423,7 +1421,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
               }
             }
 
-            return recurse(pattern, encoding, pathname);
+            return recurse(matcher, encoding, pathname);
           }
         }
         else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
@@ -1468,7 +1466,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
             return false;
           }
 
-          found = ugrep(pattern, file, encoding, pathname);
+          found = ugrep(matcher, file, encoding, pathname);
 
           fclose(file);
         }
@@ -1486,7 +1484,7 @@ bool find(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, 
 }
 
 // Recurse over directory, searching for pattern matches in files and sub-directories
-bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encoding, const char *pathname)
+bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname)
 {
   bool found = false;
 
@@ -1510,7 +1508,7 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
   {
     dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
 
-    found |= find(pattern, encoding, dirpathname.c_str(), ffd.cFileName);
+    found |= find(matcher, encoding, dirpathname.c_str(), ffd.cFileName);
   }
   while (FindNextFileA(hFind, &ffd) != 0);
 
@@ -1538,7 +1536,7 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
     {
       dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
 
-      found |= find(pattern, encoding, dirpathname.c_str(), dirent->d_name);
+      found |= find(matcher, encoding, dirpathname.c_str(), dirent->d_name);
     }
   }
 
@@ -1550,7 +1548,7 @@ bool recurse(reflex::Pattern& pattern, reflex::Input::file_encoding_type encodin
 }
 
 // Search file, display pattern matches, return true when pattern matched anywhere
-bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname)
+bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname)
 {
   size_t matches = 0;
 
@@ -1561,7 +1559,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
   {
     // -q, -l, or -L: report if a single pattern match was found in the input
 
-    matches = reflex::Matcher(pattern, input).find() != 0;
+    matches = matcher.input(input).find() != 0;
 
     if (flag_invert_match)
       matches = !matches;
@@ -1594,7 +1592,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
           break;
 
         // count this line if not matched
-        if (!reflex::Matcher(pattern, line).find())
+        if (matcher.input(line).find() == 0)
         {
           ++matches;
           if (flag_max_count > 0 && matches >= flag_max_count)
@@ -1606,7 +1604,8 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
     {
       // -c --count mode w/ -g: count the number of patterns matched in the file
 
-      while (reflex::Matcher(pattern, input).find())
+      matcher.input(input);
+      while (matcher.find() != 0)
       {
         ++matches;
         if (flag_max_count > 0 && matches >= flag_max_count)
@@ -1619,7 +1618,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
       size_t lineno = 0;
 
-      reflex::Matcher matcher(pattern, input);
+      matcher.input(input);
 
       for (auto& match : matcher.find)
       {
@@ -1694,7 +1693,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
 
         bool found = false;
 
-        reflex::Matcher matcher(pattern, lines[current]);
+        matcher.input(lines[current]);
         
         for (auto& match : matcher.find)
         {
@@ -1755,7 +1754,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
             {
               last = 0;
 
-              reflex::Matcher matcher(pattern, lines[begin % (flag_before_context + 1)]);
+              matcher.input(lines[begin % (flag_before_context + 1)]);
 
               for (auto& match : matcher.find)
               {
@@ -1797,7 +1796,7 @@ bool ugrep(reflex::Pattern& pattern, FILE *file, reflex::Input::file_encoding_ty
       {
         // search the line for pattern matches
 
-        reflex::Matcher matcher(pattern, lines[current]);
+        matcher.input(lines[current]);
 
         for (auto& match : matcher.find)
         {
@@ -1914,7 +1913,7 @@ exit_input:
 
     size_t lineno = 0;
 
-    reflex::Matcher matcher(pattern, input);
+    matcher.input(input);
 
     for (auto& match : matcher.find)
     {
@@ -2097,7 +2096,7 @@ void help(const char *message, const char *arg)
   if (message && *message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   std::cout <<
-"Usage: ugrep [-bcDdEFGgHhikLlmNnOoPpqRrSsTtVvwXxYyZz:] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN] [-f FILE] [--file-type=TYPES] [--file-format=ENCODING] [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]\n";
+"Usage: ugrep [-bcDdEFGgHhikLlmNnOoPpqRrSsTtVvwXxYyZz] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN] [-f FILE] [--file-type=TYPES] [--file-format=ENCODING] [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]\n";
   if (!message)
   {
     std::cout << "\n\
@@ -2112,7 +2111,8 @@ void help(const char *message, const char *arg)
     -b, --byte-offset\n\
             The offset in bytes of a matched line is displayed in front of the\n\
             respective matched line.  With option -g displays the offset in\n\
-            bytes of each pattern matched.\n\
+            bytes of each pattern matched.  Byte offsets represent the position\n\
+            of the match in the normalized input, i.e. binary, ASCII, UTF-8.\n\
     -C[NUM], --context[=NUM]\n\
             Print NUM lines of leading and trailing context surrounding each\n\
             match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
@@ -2290,8 +2290,8 @@ void help(const char *message, const char *arg)
             Add a tab space to separate the file name, line number, column\n\
             number, and byte offset with the matched line.\n\
     -t TYPES, --file-type=TYPES\n\
-            Search only files of TYPES, which is a comma-separated list of file\n\
-            types.  Each file type is associated with a set of file name\n\
+            Search only files associated with TYPES, a comma-separated list of\n\
+            file types.  Each file type corresponds to a set of file name\n\
             extensions to search.  This option may be repeated.  The possible\n\
             values of type can be (use -t list to display a detailed list):";
   for (int i = 0; type_table[i].type != NULL; ++i)

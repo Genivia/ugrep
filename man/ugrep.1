@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 11, 2019" "ugrep 1.1.0" "User Commands"
+.TH UGREP "1" "May 12, 2019" "ugrep 1.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -12,14 +12,14 @@ match one or more patterns.  By default, a pattern matches an input line if the
 regular expression (RE) in the pattern matches the input line without its
 trailing newline.  An empty expression matches every line.  Each input line
 that matches at least one of the patterns is written to the standard output.
+To search for patterns that span multiple lines, use option \fB-o\fR.
 .PP
-The \fBugrep\fR utility normalizes Unicode input, so \fBugrep\fR can be used to
-search for Unicode patterns in text files encoded in UTF-8, UTF-16, UTF-32 by
-detecting UTF BOM in the input.  When no UTF BOM is detected, \fBugrep\fR
-searches for Unicode patterns in UTF-8 input, which includes ASCII input.
-\fBugrep\fR searches input files encoded in ISO-8859-1, EBCDIC, CP-437, CP-850,
-CP-858, CP-1250 to CP-1258 when the file encoding format is specified with
-option --file-format.
+The \fBugrep\fR utility normalizes and decodes encoded input to search for the
+specified ASCII/Unicode patterns.  When the input contains a UTF BOM indicating
+UTF-8, UTF-16, or UTF-32 input then \fBugrep\fR always normalizes the input to
+UTF-8.  When no UTF BOM is present, \fBugrep\fR assumes the input is ASCII,
+UTF-8, or raw binary.  To specify a different input file encoding, use option
+\fB--file-format\fR.
 .PP
 The following options are available:
 .TP
@@ -36,7 +36,8 @@ the \fB\-A\fR and \fB\-C\fR options.
 \fB\-b\fR, \fB\-\-byte\-offset\fR
 The offset in bytes of a matched line is displayed in front of the
 respective matched line.  With option \fB\-g\fR displays the offset in
-bytes of each pattern matched.
+bytes of each pattern matched.  Byte offsets represent the position
+of the match in the normalized input, i.e. binary, ASCII, UTF\-8.
 .TP
 \fB\-C\fR[NUM], \fB\-\-context\fR[=\fI\fR\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
@@ -265,7 +266,7 @@ values of type can be (use \fB\-t\fR list to display a detailed list):
 `csharp', `css', `csv', `dart', `delphi', `elixir', `erlang',
 `fortran', `go', `groovy', `haskell', `html', `jade', `java',
 `javascript', `json', `jsp', `julia', `kotlin', `less', `lex',
-`lisp', `lua', `m4', `make', `matlab', `objc', `objcpp',
+`lisp', `lua', `m4', `make', `matlab', `objc', `objc++',
 `ocaml', `parrot', `pascal', `perl', `php', `prolog', `python',
 `R', `rst', `ruby', `rust', `scala', `scheme', `shell',
 `smalltalk', `sql', `swift', `tcl', `tex', `text', `tt',
@@ -317,9 +318,9 @@ syntax.  For an overview of the syntax see README.md or visit:
 https://github.com/Genivia/ugrep
 .PP
 Note that `.' matches any non-newline character.  Matching a newline character
-is not possible in line-buffered mode.  Pattern matches may span multiple lines
-in block-buffered mode, which is enabled by one of the options \fB-c\fR,
-\fB-o\fR, or \fB-q\fR (unless combined with option \fB-v\fR).
+`\\n' is not possible unless one of the options \fB-c\fR, \fB-L\fR,
+\fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR is used (in any combination, but not
+combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
 .PP
 If no file arguments are specified, or if `-' is specified, the standard input
 is used.
@@ -360,10 +361,9 @@ Matches one character not in the selected range of characters.
 .IP \fB[!a-z]\fR
 Matches one character not in the selected range of characters.
 .IP \fB\\\\?\fR
-Matches a ? (or any character after the backslash).
+Matches a ? (or any character specified after the backslash).
 .PP
 Examples:
-.PP
 .IP \fB**/a\fR
 Matches a, x/a, x/y/a,       but not b, x/b.
 .IP \fBa/**/b\fR
