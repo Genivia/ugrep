@@ -183,7 +183,7 @@ static int DoMatch(const char *text, const char *p)
 bool globmat(const char *pathname, const char *basename, const char *glob)
 {
   /* if the pathname starts with ./ then remove it */
-  if (strncmp(pathname, "." PATHSEPSTR, 2))
+  if (strncmp(pathname, "." PATHSEPSTR, 2) == 0)
     pathname += 2;
   /* match pathname if glob contains a /, basename otherwise */
   if (strchr(glob, '/') != NULL)

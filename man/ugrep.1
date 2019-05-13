@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 12, 2019" "ugrep 1.1.0" "User Commands"
+.TH UGREP "1" "May 13, 2019" "ugrep 1.1.1" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -228,8 +228,8 @@ Interpret PATTERN as a Perl regular expression.  This feature is
 not yet available.
 .TP
 \fB\-p\fR, \fB\-\-no\-dereference\fR
-If \fB\-R\fR is specified, no symbolic links are followed.  This is the
-default.
+If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
+they are on the command line.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress normal output.  ugrep will only search a file
@@ -245,8 +245,8 @@ Recursively read all files under each directory, following symbolic
 links only if they are on the command line.
 .TP
 \fB\-S\fR, \fB\-\-dereference\fR
-If \fB\-R\fR is specified, all symbolic links are followed.  The default
-is not to follow symbolic links.
+If \fB\-r\fR is specified, all symbolic links are followed, like \fB\-R\fR.  The
+default is not to follow symbolic links.
 .TP
 \fB\-s\fR, \fB\-\-no\-messages\fR
 Silent mode.  Nonexistent and unreadable files are ignored (i.e.
@@ -266,11 +266,12 @@ values of type can be (use \fB\-t\fR list to display a detailed list):
 `csharp', `css', `csv', `dart', `delphi', `elixir', `erlang',
 `fortran', `go', `groovy', `haskell', `html', `jade', `java',
 `javascript', `json', `jsp', `julia', `kotlin', `less', `lex',
-`lisp', `lua', `m4', `make', `matlab', `objc', `objc++',
-`ocaml', `parrot', `pascal', `perl', `php', `prolog', `python',
-`R', `rst', `ruby', `rust', `scala', `scheme', `shell',
-`smalltalk', `sql', `swift', `tcl', `tex', `text', `tt',
-`typescript', `verilog', `vhdl', `vim', `xml', `yacc', `yaml'
+`lisp', `lua', `m4', `make', `markdown', `matlab', `objc',
+`objc++', `ocaml', `parrot', `pascal', `perl', `php', `prolog',
+`python', `R', `rst', `ruby', `rust', `scala', `scheme',
+`shell', `smalltalk', `sql', `swift', `tcl', `tex', `text',
+`tt', `typescript', `verilog', `vhdl', `vim', `xml', `yacc',
+`yaml'
 .TP
 \fB\-\-tabs\fR=\fINUM\fR
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of

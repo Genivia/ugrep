@@ -106,7 +106,7 @@ Examples:
 
 Compile:
 
-  c++ -std=c++11 -o ugrep ugrep.cpp -lreflex
+  c++ -std=c++11 -O2 -o ugrep ugrep.cpp wildmat.cpp -lreflex
 
 Bugs FIXME:
 
@@ -115,6 +115,7 @@ Bugs FIXME:
 
 Wanted TODO:
 
+  - Optimize output performance using fputs(), fwrite(), fflush() instead of using std::cout
   - Detect "binary files" like grep and skip them?
   - Should we open files in binary mode "rb" when --binary-files option is specified?
   - ... anything else?
@@ -2269,8 +2270,8 @@ void help(const char *message, const char *arg)
             Interpret PATTERN as a Perl regular expression.  This feature is\n\
             not yet available.\n\
     -p, --no-dereference\n\
-            If -R is specified, no symbolic links are followed.  This is the\n\
-            default.\n\
+            If -R or -r is specified, no symbolic links are followed, even when\n\
+            they are on the command line.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress normal output.  ugrep will only search a file\n\
             until a match has been found, making searches potentially less\n\
@@ -2282,8 +2283,8 @@ void help(const char *message, const char *arg)
             Recursively read all files under each directory, following symbolic\n\
             links only if they are on the command line.\n\
     -S, --dereference\n\
-            If -R is specified, all symbolic links are followed.  The default\n\
-            is not to follow symbolic links.\n\
+            If -r is specified, all symbolic links are followed, like -R.  The\n\
+            default is not to follow symbolic links.\n\
     -s, --no-messages\n\
             Silent mode.  Nonexistent and unreadable files are ignored (i.e.\n\
             their error messages are suppressed).\n\
