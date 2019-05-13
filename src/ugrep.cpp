@@ -116,6 +116,7 @@ Bugs FIXME:
 Wanted TODO:
 
   - Optimize output performance using fputs(), fwrite(), fflush() instead of using std::cout
+  - Binary file matching turns off Unicode matching, maybe use -U, --binary for this
   - Detect "binary files" like grep and skip them?
   - Should we open files in binary mode "rb" when --binary-files option is specified?
   - ... anything else?
@@ -158,7 +159,7 @@ Wanted TODO:
 #endif
 
 // ugrep version
-#define VERSION "1.1.0"
+#define VERSION "1.1.2"
 
 // enable this macro for RE/flex 1.2.1 to support option -G
 // #define WITH_REFLEX2
@@ -217,6 +218,7 @@ bool flag_word_regexp              = false;
 bool flag_line_regexp              = false;
 bool flag_dereference              = false;
 bool flag_no_dereference           = false;
+bool flag_binary                   = false;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
@@ -402,6 +404,8 @@ int main(int argc, char **argv)
               flag_basic_regexp = true;
             else if (strncmp(arg, "before-context=", 15) == 0)
               flag_before_context = (size_t)strtoull(arg + 15, NULL, 10);
+            else if (strcmp(arg, "binary") == 0)
+              flag_binary = true;
             else if (strcmp(arg, "byte-offset") == 0)
               flag_byte_offset = true;
             else if (strcmp(arg, "color") == 0 || strcmp(arg, "colour") == 0)
@@ -714,6 +718,10 @@ int main(int argc, char **argv)
             else
               help("missing type for option -t");
             is_grouped = false;
+            break;
+
+          case 'U':
+            flag_binary = true;
             break;
 
           case 'V':
@@ -1183,7 +1191,7 @@ int main(int argc, char **argv)
   try
   {
     // set flags to convert regex to Unicode
-    reflex::convert_flag_type convert_flags = reflex::convert_flag::unicode;
+    reflex::convert_flag_type convert_flags = flag_binary ? reflex::convert_flag::none : reflex::convert_flag::unicode;
 
 #if WITH_REFLEX2
     // to convert basic regex (BRE) to extended regex (ERE)
@@ -2302,6 +2310,10 @@ void help(const char *message, const char *arg)
     --tabs=NUM\n\
             Set the tab size to NUM to expand tabs for option -k.  The value of\n\
             NUM may be 1, 2, 4, or 8.\n\
+    -U, --binary\n\
+            Forces PATTERN to match bytes instead of Unicode characters when\n\
+            searching binary files.  For example, `\\xa3' matches byte A3 (hex)\n\
+            instead of UTF-8 byte sequence C2 A3 for Unicode character U+00A3.\n\
     -V, --version\n\
             Display version information and exit.\n\
     -v, --invert-match\n\

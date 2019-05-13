@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 13, 2019" "ugrep 1.1.1" "User Commands"
+.TH UGREP "1" "May 13, 2019" "ugrep 1.1.2" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -276,6 +276,11 @@ values of type can be (use \fB\-t\fR list to display a detailed list):
 \fB\-\-tabs\fR=\fINUM\fR
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
 NUM may be 1, 2, 4, or 8.
+.TP
+\fB\-U\fR, \fB\-\-binary\fR
+Forces PATTERN to match bytes instead of Unicode characters when
+searching binary files.  For example, `\\xa3' matches byte A3 (hex)
+instead of UTF\-8 byte sequence C2 A3 for Unicode character U+00A3.
 .TP
 \fB\-V\fR, \fB\-\-version\fR
 Display version information and exit.

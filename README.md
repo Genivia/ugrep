@@ -10,9 +10,9 @@ skip.  This removes many false positives.  For example to find exact matches of
 `main` in C/C++ source code while skipping strings and comments that may have a
 match with `main` in them:
 
-    ugrep -r -o -tc,c++ -n -w 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myprojects
+    ugrep -R -o -tc,c++ -n -w 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myprojects
 
-where `-r` is recursive search, `-o` for multi-line matches (since strings and
+where `-R` is recursive search, `-o` for multi-line matches (since strings and
 comments may span multiple lines), `-tc,c++` searches C and C++ source code
 files only, `-n` shows line numbers in the output, `-w` matches exact words
 (for example, `mainly` won't be matched), and the `-f` options specify two
@@ -20,7 +20,7 @@ pre-defined patterns to match and ignore strings and comments in the input.
 
 **ugrep** searches source code files by file name extension and other criteria
 with option `-t` to specify the types of files to search recursively in a
-directory tree, for example `-r -tc++` searches C++ source files.
+directory tree, for example `-R -tc++` searches C++ source files.
 
 **ugrep** includes a growing database of
 [patterns](https://github.com/Genivia/ugrep/tree/master/patterns) with common
@@ -103,13 +103,13 @@ This builds `ugrep` in the `src` directory.  You can tell which version it is
 with:
 
     $ src/ugrep -V
-    ugrep 1.1.0 x86_64-apple-darwin16.7.0
+    ugrep 1.1.1 x86_64-apple-darwin16.7.0
 
 Optionally, install the ugrep utility and the ugrep manual page:
 
     $ sudo make install
     $ ugrep -V
-    ugrep 1.1.0 x86_64-apple-darwin16.7.0
+    ugrep 1.1.1 x86_64-apple-darwin16.7.0
 
 Examples
 --------
@@ -182,8 +182,8 @@ display the list of file name extensions searched for all available options for
     ugrep -tlist
 
 We can also skip files and directories from being searched that are defined in
-`.gitignore`.  To do so we use `--exclude-from` to specify a file with files
-and directories (declared as glob patterns) to ignore:
+`.gitignore`.  To do so we use `--exclude-from` to specify a file containing
+glob patterns to match files and directories we want to ignore:
 
     ugrep -R -tc++ --color --exclude-from='.gitignore' -f patterns/c++/defines .
 
@@ -509,30 +509,36 @@ Man page
                   Set the tab size to NUM to expand tabs for option -k.  The value
                   of NUM may be 1, 2, 4, or 8.
 
+           -U, --binary
+                  Forces PATTERN to match bytes instead of Unicode characters when
+                  searching binary files.  For example,  `\xa3'  matches  byte  A3
+                  (hex) instead of UTF-8 byte sequence C2 A3 for Unicode character
+                  U+00A3.
+
            -V, --version
                   Display version information and exit.
 
            -v, --invert-match
-                  Selected  lines are those not matching any of the specified pat-
+                  Selected lines are those not matching any of the specified  pat-
                   terns.
 
            -w, --word-regexp
-                  The pattern or -e patterns are searched for as  a  word  (as  if
+                  The  pattern  or  -e  patterns are searched for as a word (as if
                   surrounded by `\<' and `\>').
 
            -X, --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
 
            -x, --line-regexp
-                  Only  input lines selected against the entire pattern or -e pat-
+                  Only input lines selected against the entire pattern or -e  pat-
                   terns are considered to be matching lines (as if surrounded by ^
                   and $).
 
            -Y ENCODING, --file-format=ENCODING
-                  The  input file format.  The possible values of ENCODING can be:
-                  `binary', `ISO-8859-1', `ASCII',  `EBCDIC',  `UTF-8',  `UTF-16',
-                  `UTF-16BE',   `UTF-16LE',   `UTF-32',   `UTF-32BE',  `UTF-32LE',
-                  `CP437',  `CP850',  `CP1250',  `CP1251',   `CP1252',   `CP1253',
+                  The input file format.  The possible values of ENCODING can  be:
+                  `binary',  `ISO-8859-1',  `ASCII',  `EBCDIC', `UTF-8', `UTF-16',
+                  `UTF-16BE',  `UTF-16LE',   `UTF-32',   `UTF-32BE',   `UTF-32LE',
+                  `CP437',   `CP850',   `CP1250',  `CP1251',  `CP1252',  `CP1253',
                   `CP1254', `CP1255', `CP1256', `CP1257', `CP1258'
 
            -y     Equivalent to -i.  Obsoleted.
@@ -541,21 +547,21 @@ Man page
                   Prints a zero-byte after the file name.
 
            -z SEP, --separator=SEP
-                  Use  SEP as field separator between file name, line number, col-
+                  Use SEP as field separator between file name, line number,  col-
                   umn number, byte offset, and the matched line.  The default is a
                   colon (`:').
 
-           The  regular expression pattern syntax is an extended form of the POSIX
+           The regular expression pattern syntax is an extended form of the  POSIX
            ERE syntax.  For an overview of the syntax see README.md or visit:
 
                   https://github.com/Genivia/ugrep
 
-           Note that `.' matches any non-newline character.   Matching  a  newline
-           character  `\n'  is  not possible unless one of the options -c, -L, -l,
+           Note  that  `.'  matches any non-newline character.  Matching a newline
+           character `\n' is not possible unless one of the options  -c,  -L,  -l,
            -N, -o, or -q is used (in any combination, but not combined with option
            -v) to allow a pattern match to span multiple lines.
 
-           If  no  file arguments are specified, or if `-' is specified, the stan-
+           If no file arguments are specified, or if `-' is specified,  the  stan-
            dard input is used.
 
     EXIT STATUS
@@ -568,13 +574,13 @@ Man page
            >1     An error occurred.
 
     GLOBBING
-           Globbing is used by options --include,  --include-dir,  --include-from,
-           --exclude,  --exclude-dir,  --exclude-from to match pathnames and base-
+           Globbing  is  used by options --include, --include-dir, --include-from,
+           --exclude, --exclude-dir, --exclude-from to match pathnames  and  base-
            names.  Globbing supports gitignore syntax and the corresponding match-
-           ing  rules.  When a glob contains a path separator `/', the pathname is
-           matched.  Otherwise the basename of a file  or  directory  is  matched.
-           For   example,  *.h  matches  foo.h  and  bar/foo.h.   bar/*.h  matches
-           bar/foo.h but not foo.h and not bar/bar/foo.h.  Use a  leading  `/'  to
+           ing rules.  When a glob contains a path separator `/', the pathname  is
+           matched.   Otherwise  the  basename  of a file or directory is matched.
+           For  example,  *.h  matches  foo.h  and  bar/foo.h.   bar/*.h   matches
+           bar/foo.h  but  not  foo.h and not bar/bar/foo.h.  Use a leading `/' to
            force /*.h to match foo.h but not bar/foo.h.
 
            Syntax:
@@ -585,7 +591,7 @@ Man page
 
            *      Matches anything except a /.
 
-           /      When  used at the begin of a glob, matches if pathname has no /.
+           /      When used at the begin of a glob, matches if pathname has no  /.
 
            ?      Matches any character except a /.
 
@@ -624,28 +630,28 @@ Man page
            a[^a-z]b
                   Matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
 
-           Lines in the --exclude-from and --include-from files are  ignored  when
-           empty  or  start  with  a `#'.  The prefix `!' to a glob in such a file
-           negates the pattern match, i.e.  matching  files  are  excluded  except
-           files  matching the globs prefixed with `!' in the --exclude-from file.
+           Lines  in  the --exclude-from and --include-from files are ignored when
+           empty or start with a `#'.  The prefix `!' to a glob  in  such  a  file
+           negates  the  pattern  match,  i.e.  matching files are excluded except
+           files matching the globs prefixed with `!' in the --exclude-from  file.
 
     ENVIRONMENT
            GREP_PATH
-                  May be used to specify a file path to pattern files.   The  file
-                  path  is used by option -f to open a pattern file, when the file
+                  May  be  used to specify a file path to pattern files.  The file
+                  path is used by option -f to open a pattern file, when the  file
                   specified with option -f cannot be opened.
 
            GREP_COLOR
-                  May be used to specify ANSI SGR parameters to highlight  matches
-                  when  option --color is used, e.g. 1;35;40 shows pattern matches
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  when option --color is used, e.g. 1;35;40 shows pattern  matches
                   in bold magenta text on a black background.
 
            GREP_COLORS
-                  May be used to specify ANSI SGR parameters to highlight  matches
-                  and  other attributes when option --color is used.  Its value is
-                  a colon-separated list of ANSI SGR parameters that  defaults  to
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  and other attributes when option --color is used.  Its value  is
+                  a  colon-separated  list of ANSI SGR parameters that defaults to
                   mt=1;31:sl=:cx=:fn=35:ln=32:cn=32:bn=32:se=36.   The  mt=,  ms=,
-                  and  mc=  capabilities  of  GREP_COLORS   have   priority   over
+                  and   mc=   capabilities   of  GREP_COLORS  have  priority  over
                   GREP_COLOR.
 
     GREP_COLORS
@@ -657,10 +663,10 @@ Man page
 
            mt=    SGR substring for matching text in any matching line.
 
-           ms=    SGR  substring  for  matching text in a selected line.  The sub-
+           ms=    SGR substring for matching text in a selected  line.   The  sub-
                   string mt= by default.
 
-           mc=    SGR substring for matching text in a  context  line.   The  sub-
+           mc=    SGR  substring  for  matching  text in a context line.  The sub-
                   string mt= by default.
 
            fn=    SGR substring for file names.
@@ -678,12 +684,12 @@ Man page
 
                   $ ugrep -w 'patricia' myfile
 
-           To  count the number of lines containing the word `patricia' or `Patri-
+           To count the number of lines containing the word `patricia' or  `Patri-
            cia` in a file:
 
                   $ ugrep -cw '[Pp]atricia' myfile
 
-           To count the total number of times the word  `patricia'  or  `Patricia`
+           To  count  the  total number of times the word `patricia' or `Patricia`
            occur in a file:
 
                   $ ugrep -cgw '[Pp]atricia' myfile
@@ -696,7 +702,7 @@ Man page
 
                   $ ugrep -o '[[:word:]]+' myfile
 
-           To  list  all  laughing  face  emojis  (Unicode  code points U+1F600 to
+           To list all laughing  face  emojis  (Unicode  code  points  U+1F600  to
            U+1F60F) in a file:
 
                   $ ugrep -o '[\x{1F600}-\x{1F60F}]' myfile
@@ -705,7 +711,7 @@ Man page
 
                   $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
-           To list all C/C++ comments in a file displaying their line  and  column
+           To  list  all C/C++ comments in a file displaying their line and column
            numbers using options -n and -k, and option -o that allows for matching
            patterns across multiple lines:
 
@@ -715,8 +721,8 @@ Man page
 
                   $ ugrep -nko -f patterns/c_comments myfile
 
-           To list the lines that need fixing in a C/C++ source  file  by  looking
-           for  the word FIXME while skipping any FIXME in quoted strings by using
+           To  list  the  lines that need fixing in a C/C++ source file by looking
+           for the word FIXME while skipping any FIXME in quoted strings by  using
            a negative pattern `(?^X)' to ignore quoted strings:
 
                   $ ugrep -no -e 'FIXME' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' myfile
@@ -728,8 +734,8 @@ Man page
 
 
     LICENSE
-           ugrep  is  released under the BSD-3 license.  All parts of the software
-           have reasonable copyright terms permitting free  redistribution.   This
+           ugrep is released under the BSD-3 license.  All parts of  the  software
+           have  reasonable  copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
@@ -737,7 +743,7 @@ Man page
 
 
 
-    ugrep 1.1.1                      May 13, 2019                         UGREP(1)
+    ugrep 1.1.2                      May 13, 2019                         UGREP(1)
 
 ugrep versus other "greps"
 --------------------------
@@ -1050,8 +1056,8 @@ that contain a `\r`:
 
     ugrep -Rl '\r' --include='*.cpp' .
 
-The same using a glob that matches pathnames (globs with `/`) instead of
-matching basenames (globs without `/`) in the recursive search:
+The same using a .gitignore-style glob that matches pathnames (globs with `/`)
+instead of matching basenames (globs without `/`) in the recursive search:
 
     ugrep -Rl '\r' --include='**/*.cpp' .
 
@@ -1094,11 +1100,12 @@ To list all markdown sections in text files (.txt and .md):
 
     ugrep -Ro -ttext -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*' .
 
-To display multi-line code blocks in markdown files with their line numbers:
+To display multi-line backtick and indented code blocks in markdown files with
+their line numbers:
 
     ugrep -Ro -n -ttext -e '^```([^`]|`[^`]|``[^`])+\n```' -e '^(\t|[ ]{4}).*' .
 
-To find mismatched code (backtick without matching backtick on the same line)
+To find mismatched code (a backtick without matching backtick on the same line)
 in markdown:
 
     ugrep -Ro -n -ttext -e '(?^`[^`\n]*`)' -e '`[^`]+`' .
@@ -1147,3 +1154,14 @@ To use pre-defined patterns to list all `#include` and `#define` in C++ files:
 To list all `#define FOO...` macros in C++ files, color-highlighted:
 
     ugrep --color=always -R -n -tc++ -f patterns/c++/defines . | ugrep 'FOO.*'
+
+To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
+Unicode pattern matching (which would otherwise match `\xaf` as a Unicode
+character U+00A3 with UTF-8 byte sequence C2 A3) and display the result legibly
+with `cat -v`:
+
+    ugrep -o -U '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out | cat -v
+
+To monitor the system log for bug reports:
+
+    tail -f /var/log/system.log | ugrep --color -i -w 'bug'
