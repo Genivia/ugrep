@@ -5,7 +5,7 @@ Offers powerful pre-defined search patterns and quick options to selectively
 search source code files efficiently in large directory trees.
 
 **ugrep** makes it simple to search source code.  It is the only grep tool that
-allows you to define "negative patterns" to "zap" parts in files you want to
+allows you to define *negative patterns* to *zap* parts in files you want to
 skip.  This removes many false positives.  For example to find exact matches of
 `main` in C/C++ source code while skipping strings and comments that may have a
 match with `main` in them:
@@ -121,7 +121,7 @@ numbers next to the lines matched:
     ugrep -r -n -k -w 'main' myproject
 
 But this search query also finds `main` in strings and comment blocks.  With
-**ugrep** we can use "negative patterns" of the form `(?^...)` to ignore
+**ugrep** we can use *negative patterns* of the form `(?^...)` to ignore
 unwanted matches in C/C++ quoted strings and comment blocks.  Because strings
 and comment blocks may span multiple lines, we should use `-o`:
 
@@ -741,7 +741,7 @@ Man page
 ugrep versus other "greps"
 --------------------------
 
-- **ugrep** supports "negative patterns" to skip parts of the input that should
+- **ugrep** supports *negative patterns* to skip parts of the input that should
   not be matched, such as skipping strings and comments when searching for
   identifiers in source code.
 - **ugrep** uses a streaming approach.  When one or more of the options `-q`
@@ -1005,7 +1005,7 @@ To check that a file contains Unicode:
 To list files with invalid UTF content (i.e. invalid UTF-8 byte sequences or
 contain any UTF-8/16/32 code points that are outside the valid Unicode range):
 
-    ugrep -RL '.|(?^\p{Unicode})' .
+    ugrep -Rl '.|(?^\p{Unicode})' .
 
 To list files in the current directory that contain a `\r`:
 
@@ -1043,9 +1043,9 @@ To list all markdown sections in text files (.txt and .md):
 
     ugrep -Ro -ttext -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*' .
 
-To display with line numbers all markdown code blocks in text files:
+To display code blocks in markdown files with their line numbers:
 
-    ugrep -Ro -n -ttext '^```([^`]|`[^`]|``[^`])+\n```' .
+    ugrep -Ro -n -ttext -e '^```([^`]|`[^`]|``[^`])+\n```' -e '^(\t|[ ]{4}).*' .
 
 To find mismatched code (backtick without matching backtick on the same line)
 in markdown:

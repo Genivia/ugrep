@@ -338,6 +338,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "lua",          "lua",                                                      NULL },
   { "m4",           "m4",                                                       NULL },
   { "make",         "mk,mak,makefile,Makefile,Makefile.Debug,Makefile.Release", NULL },
+  { "markdown",     "md",                                                       NULL },
   { "matlab",       "m",                                                        NULL },
   { "objc",         "m,h",                                                      NULL },
   { "objc++",       "mm,h",                                                     NULL },
