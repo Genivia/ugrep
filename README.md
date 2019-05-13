@@ -117,8 +117,6 @@ Optionally, install the ugrep utility and the ugrep manual page:
 Examples
 --------
 
-### Searching source code
-
 To search for the identifier `main` as a word (`-w`) recursively (`-r`) in
 directory `myproject`, showing the matching line (`-n`) and column (`-k`)
 numbers next to the lines matched:
@@ -140,17 +138,18 @@ pre-defined patterns (`-f`):
     ugrep -r -o -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
 
 This query also searches through other files than C/C++ source code, like
-READMEs, Makefiles, and so on.  So let's refine this query by selecting C/C++
-files only using option `-tc,c++`:
+READMEs, Makefiles, and so on.  We're also skipping symlinks with `-r`.  So
+let's refine this query by selecting C/C++ files only using option `-tc,c++`
+and include symlinks to files and directories with `-R`:
 
-    ugrep -r -o -tc,c++ -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
+    ugrep -R -o -tc,c++ -nkw 'main' -f patterns/c/zap_strings -f patterns/c/zap_comments myproject
 
 As another example, we may want to search for word `FIXME` in C/C++ comment
 blocks.  To do so we can first select the comment blocks with **ugrep**'s
 pre-defined `c/comments` pattern AND THEN select lines with `FIXME` using a
 pipe:
 
-    ugrep -r -o -tc,c++ -nk -f patterns/c/comments myproject | ugrep -w 'FIXME'
+    ugrep -R -o -tc,c++ -nk -f patterns/c/comments myproject | ugrep -w 'FIXME'
 
 Filtering results this way with pipes is generally easier than using AND-OR
 logic that some search tools use.  This approach follows the Unix spirit to
@@ -159,7 +158,7 @@ keep utilities simple and use them in combination for more complex tasks.
 Say we want to produce a sorted list of all identifiers found in Java source
 code while skipping strings and comments:
 
-    ugrep -r -o -tjava -f patterns/java/names -f patterns/java/zap_strings -f patterns/java/zap_comments myproject | sort -u
+    ugrep -R -o -tjava -f patterns/java/names -f patterns/java/zap_strings -f patterns/java/zap_comments myproject | sort -u
 
 This matches Java Unicode identifiers using the regex
 `\p{JavaIdentifierStart}\p{JavaIdentifierPart}*` defined in
@@ -169,14 +168,14 @@ With traditional grep and grep-like tools it takes great effort to recursively
 search for the C/C++ source file that defines function `qsort`, requiring
 something like this:
 
-    ugrep -r --include='*.c' --include='*.cpp' '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
+    ugrep -R --include='*.c' --include='*.cpp' '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
 
 Fortunately, with **ugrep** we can simply select all function definitions in
 files with extension `.c` or `.cpp` by using option `-Oc,cpp` and by using a
 pre-defined pattern `function_defs` to produce all function definitions.  Then
 we select the one we want:
 
-    ugrep -r -o -Oc,cpp -nk -f patterns/c/function_defs myproject | ugrep 'qsort'
+    ugrep -R -o -Oc,cpp -nk -f patterns/c/function_defs myproject | ugrep 'qsort'
 
 Note that we could have used `-tc,c++` to select C/C++ files, but this also
 includes header files when we want to only search `.c` and `.cpp` files.  To
@@ -189,7 +188,7 @@ We can also skip files and directories from being searched that are defined in
 `.gitignore`.  To do so we use `--exclude-from` to specify a file with files
 and directories (declared as glob patterns) to ignore:
 
-    ugrep -r -tc++ --color --exclude-from='.gitignore' -f patterns/c++/defines .
+    ugrep -R -tc++ --color --exclude-from='.gitignore' -f patterns/c++/defines .
 
 This searches C++ files (`-tc++`) in the current directory (`.`) for `#define`
 lines (`-f patterns/c++/defines`), while skipping files and directories
@@ -198,7 +197,7 @@ declared in `.gitignore` such as `config.h`.
 To highlight matches when pushed through a chain of pipes we should use
 `--color=always`:
 
-    ugrep -r -tc++ --color=always --exclude-from='.gitignore' -f patterns/c++/defines . | ugrep -w 'FOO.*'
+    ugrep -R -tc++ --color=always --exclude-from='.gitignore' -f patterns/c++/defines . | ugrep -w 'FOO.*'
 
 This returns a color-highlighted list of all `#define FOO...` macros in our C++
 project in the current directory, skipping files defined in `.gitignore`.
@@ -206,7 +205,7 @@ project in the current directory, skipping files defined in `.gitignore`.
 To list all files in a GitHub project directory that are not ignored by
 `.gitignore`:
 
-    ugrep -r -l '' --exclude-from='.gitignore' .
+    ugrep -R -l '' --exclude-from='.gitignore' .
 
 Where `-l` (files with matches) lists the files specified in `.gitignore`
 matched by the empty pattern `''`, which is typically used to match any
@@ -221,65 +220,7 @@ globs that are considered both files and directories to add to `--include` and
 directory paths are not explicitly listed in this file then it will not be
 visited using `--include-from`.
 
-### Using Unicode
-
-To display lines with Unicode words in `places.txt`:
-
-    ugrep '\w+' places.txt
-
-To produce a sorted list of all ASCII words in `places.txt`:
-
-    ugrep '[[:word:]]+' places.txt
-
-To display all lines containing laughing face emojis in `birthday.txt`:
-
-    ugrep '[😀-😏]' birthday.txt
-
-Likewise, we can use the following for the same results:
-
-    ugrep '[\x{1F600}-\x{1F60F}]' birthday.txt
-
-To display lines containing the names Gödel (or Goedel), Escher, or Bach:
-
-    ugrep 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-To display lines that do not contain the names Gödel (or Goedel), Escher, or
-Bach we use option `-v` (invert match):
-
-    ugrep -v 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-To count the number of lines containing the names Gödel (or Goedel), Escher, or
-Bach we use option `-c`:
-
-    ugrep -c 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-To count the total number of occurrences of the names Gödel (or Goedel),
-Escher, or Bach we use options `-c` and `-g` (don't group matches on the same
-line):
-
-    ugrep -c -g 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-To check if `myfile` contains any non-ASCII Unicode characters we use pattern
-`[^[:ascii:]]` (not ASCII) and option `-q` (quick) that only sets the **ugrep**
-exit status to 0 (success) or 1 (failure):
-
-    ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
-
-To check if a file has any invalid Unicode characters:
-
-    ugrep -q '[^\p{Unicode}--[\xFFFD]]' myfile && echo "contains invalid Unicode"
-
-In this example we included the Unicode code point U+FFFD as an error for
-illustrative purposes, because it is often used to flag invalid UTF encodings.
-
-To search for `lorem` in lower or upper case (option `-i` case insensitive) in
-a UTF-16 file (with UTF-16 BOM), while color-highlighting the matches:
-
-    ugrep --color -i -w 'lorem' utf16lorem.txt
-
-When utf16lorem.txt has no UTF-16 BOM we can specify UTF-16 file encoding:
-
-    ugrep --file-format=UTF-16 -i -w 'lorem' utf16lorem.txt
+More examples can be found at the end of this document.
 
 Man page
 --------
@@ -1037,3 +978,117 @@ have a similar name.  For example, the `\p{Greek}` class represents Greek and
 Coptic letters and differs from the Unicode block `\p{IsGreek}` that spans a
 specific Unicode block of Greek and Coptic characters only, which also includes
 unassigned characters.
+
+More ugrep examples
+-------------------
+
+To list all readable non-empty files:
+
+    ugrep -Rl '' .
+
+To list all readable empty files:
+
+    ugrep -RL '' .
+
+To list all files that are ASCII:
+
+    ugrep -Rl '[[:ascii:]]' .
+
+To list all files that are non-ASCII
+
+    ugrep -Rl '[^[:ascii:]]' .
+
+To check that a file contains Unicode:
+
+    ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
+
+To list files with invalid UTF content (i.e. invalid UTF-8 byte sequences or
+contain any UTF-8/16/32 code points that are outside the valid Unicode range):
+
+    ugrep -RL '.|(?^\p{Unicode})' .
+
+To list files in the current directory that contain a `\r`:
+
+    ugrep -rl '\r' --include-dir='/*' .
+
+To list all files that are not ignored by .gitignore:
+
+    ugrep -Rl '' --exclude-from=.gitignore .
+
+To list all files that start with `#!` hashbangs (`-o` is required to match `\A`):
+
+    ugrep -Rlo '\A#\!.*' .
+
+To list all .txt files that do not properly end with a `\n` (`-o` is required to match `\n` or `\Z`):
+
+    ugrep -RLo -Otxt '\n\Z' .
+
+To count the number of lines in a file:
+
+    ugrep -c '\n' myfile.txt
+
+To count the number of ASCII words in a file:
+
+    ugrep -cg '[[:word:]]+' myfile.txt
+
+To count the number of ASCII and Unicode words in a file:
+
+    ugrep -cg '\w+' myfile.txt
+
+To count the number of Unicode characters in a file:
+
+    ugrep -cg '\p{Unicode}' myfile.txt
+
+To list all markdown sections in text files (.txt and .md):
+
+    ugrep -Ro -ttext -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*' .
+
+To display with line numbers all markdown code blocks in text files:
+
+    ugrep -Ro -n -ttext '^```([^`]|`[^`]|``[^`])+\n```' .
+
+To find mismatched code (backtick without matching backtick on the same line)
+in markdown:
+
+    ugrep -Ro -n -ttext -e '(?^`[^`\n]*`)' -e '`[^`]+`' .
+
+To display lines containing laughing face emojis:
+
+    ugrep '[😀-😏]' emojis.txt
+
+Likewise, we can use `\x{hhhh}` to select Unicode character U+hhhh:
+
+    ugrep '[\x{1F600}-\x{1F60F}]' emojis.txt
+
+To display lines containing the names Gödel (or Goedel), Escher, or Bach:
+
+    ugrep 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
+
+To search for `lorem` in lower or upper case in a UTF-16 file with UTF-16 BOM:
+
+    ugrep --color -i -w 'lorem' utf16lorem.txt
+
+To search utf16lorem.txt when this file has no UTF-16 BOM:
+
+    ugrep --file-format=UTF-16 -i -w 'lorem' utf16lorem.txt
+
+To find the line and column numbers of matches of `FIXME...` in C++ files:
+
+    ugrep -R -n -k -tc++ 'FIXME.*' .
+
+To show one line of context before and after a matched line:
+
+    ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
+
+To show three lines of context after a matched line:
+
+    ugrep -A3 -R -n -k -tc++ 'FIXME.*' .
+
+To produce color-highlighted results:
+
+    ugrep --color -R -n -k -tc++ 'FIXME.*' .
+
+To use pre-defined patterns to list all `#include` and `#define` in C++ files:
+
+    ugrep --color -R -tc++ -f patterns/c++/includes -f patterns/c++/defines .
+
