@@ -89,16 +89,13 @@ Unoptimized (single threaded), **ugrep** is already much faster than BSD grep
 (**ugrep** was compiled with clang 9.0.0 -O2, and this test was run on a 2.9
 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 machine).
 
-Dependencies
-------------
-
-https://github.com/Genivia/RE-flex
-
 Installation
 ------------
 
-First install RE/flex from https://github.com/Genivia/RE-flex then download
-ugrep from https://github.com/Genivia/ugrep and execute:
+Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
+
+To build ugrep, first install RE/flex from https://github.com/Genivia/RE-flex
+then download ugrep from https://github.com/Genivia/ugrep and execute:
 
     $ ./configure; make
 
@@ -220,7 +217,10 @@ globs that are considered both files and directories to add to `--include` and
 directory paths are not explicitly listed in this file then it will not be
 visited using `--include-from`.
 
-More examples can be found at the end of this document.
+Looking for more?
+-----------------
+
+More examples can be found toward the end of this README.
 
 Man page
 --------
