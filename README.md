@@ -1012,13 +1012,19 @@ contain any UTF-8/16/32 code points that are outside the valid Unicode range):
 
     ugrep -Rl '.|(?^\p{Unicode})' .
 
-To list files in the current directory that contain a `\r`:
+To list files with names starting with `foo` in the current directory, that
+contain a `\r`:
 
-    ugrep -l '\r' *
+    ugrep -sl '\r' foo*
 
-The same list is obtained using recursion with an inclusion contraint:
+The same list is obtained using recursion with a directory inclusion contraint:
 
-    ugrep -Rl '\r' --include-dir='/*' .
+    ugrep -Rl '\r' --include-dir='/foo*' .
+
+To list files in the current directory, `docs`, and `docs/latest`, but not
+deeper, that contain `\r`:
+
+    ugrep -sl '\r' * docs/* docs/latest/*
 
 To list files in directory `docs/latest` and deeper, that contain `\r`:
 
@@ -1033,6 +1039,25 @@ To only list files in the current directory and in the sub-directories `docs`
 and `docs/latest` but not deeper, that contain a `\r`:
 
     ugrep -Rl '\r' --include-dir='docs' --include-dir='docs/latest' .
+
+To only list files that are on a sub-directory path that includes sub-directory
+`docs` anywhere, that contain a `\r':
+
+    ugrep -Rl '\r' --include='**/docs/**' .
+
+To list .cpp files in the current directory and any sub-directory at any depth,
+that contain a `\r`:
+
+    ugrep -Rl '\r' --include='*.cpp' .
+
+The same using a glob that matches pathnames (globs with `/`) instead of
+matching basenames (globs without `/`) in the recursive search:
+
+    ugrep -Rl '\r' --include='**/*.cpp' .
+
+The same but using the short option `-O` to match file name extensions:
+
+    ugrep -Rl '\r' -Ocpp .
 
 To list all files in the current directory and deeper that are not ignored by
 .gitignore:

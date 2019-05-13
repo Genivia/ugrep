@@ -75,11 +75,9 @@
 #include <cstring>
 
 #ifdef OS_WIN
-#define PATHSEPCHR '\\'
-#define PATHSEPSTR "\\"
+#define PATHSEP '\\'
 #else
-#define PATHSEPCHR '/'
-#define PATHSEPSTR "/"
+#define PATHSEP '/'
 #endif
 
 #define TRUE   1
@@ -122,7 +120,7 @@ static int DoMatch(const char *text, const char *p)
 
       case '?':
         /* Match anything except a /. */
-        if (*text == PATHSEPCHR)
+        if (*text == PATHSEP)
           return FALSE;
         continue;
 
@@ -139,7 +137,7 @@ static int DoMatch(const char *text, const char *p)
             {
               if ((matched = DoMatch(text++, p)) != FALSE)
                 return matched;
-              if ((text = strchr(text, PATHSEPCHR)) == NULL)
+              if ((text = strchr(text, PATHSEP)) == NULL)
                 break;
               ++text;
             }
@@ -148,13 +146,13 @@ static int DoMatch(const char *text, const char *p)
         }
         if (*p == '\0')
           /* Trailing star matches everything except a /. */
-          return strchr(text, PATHSEPCHR) == NULL;
+          return strchr(text, PATHSEP) == NULL;
         /* Match everything except a /. */
         while (*text)
         {
           if ((matched = DoMatch(text, p)) != FALSE)
             return matched;
-          if (*text++ == PATHSEPCHR)
+          if (*text++ == PATHSEP)
             break;
         }
         return ABORT;
@@ -182,8 +180,8 @@ static int DoMatch(const char *text, const char *p)
 */
 bool globmat(const char *pathname, const char *basename, const char *glob)
 {
-  /* if the pathname starts with ./ then remove it */
-  if (strncmp(pathname, "." PATHSEPSTR, 2) == 0)
+  /* if pathname starts with ./ then remove them iteratively */
+  while (pathname[0] == '.' && pathname[1] == PATHSEP)
     pathname += 2;
   /* match pathname if glob contains a /, basename otherwise */
   if (strchr(glob, '/') != NULL)
