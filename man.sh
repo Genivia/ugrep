@@ -19,7 +19,7 @@ cat >> man/ugrep.1 << 'END'
 .SH SYNOPSIS
 .B ugrep
 [\fIOPTIONS\fR] [-A NUM] [-B NUM] [-C[NUM]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
-      [\fB-f\fR \fIFILE\fR] [\fB--file-type\fR=\fITYPES\fR] [\fB--file-format\fR=\fIENCODING\fR]
+      [\fB-f\fR \fIFILE\fR] [\fB--file-type\fR=\fITYPES\fR] [\fB--encoding\fR=\fIENCODING\fR]
       [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]] [\fB--label\fR[=\fILABEL\fR]] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
@@ -34,7 +34,7 @@ specified ASCII/Unicode patterns.  When the input contains a UTF BOM indicating
 UTF-8, UTF-16, or UTF-32 input then \fBugrep\fR always normalizes the input to
 UTF-8.  When no UTF BOM is present, \fBugrep\fR assumes the input is ASCII,
 UTF-8, or raw binary.  To specify a different input file encoding, use option
-\fB--file-format\fR.
+\fB--encoding\fR.
 .PP
 The following options are available:
 END
@@ -88,7 +88,7 @@ or directory is matched.  For example, \fB*.h\fR matches \fIfoo.h\fR and
 not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
 \fIfoo.h\fR but not \fIbar/foo.h\fR.
 .PP
-Syntax:
+\fBGlob Syntax and Conventions\fR
 .IP \fB**/\fR
 Matches zero or more directories.
 .IP \fB/**\fR
@@ -108,7 +108,7 @@ Matches one character not in the selected range of characters.
 .IP \fB\\\\?\fR
 Matches a ? (or any character specified after the backslash).
 .PP
-Examples:
+\fBGlob Matching Examples\fR
 .IP \fB**/a\fR
 Matches a, x/a, x/y/a,       but not b, x/b.
 .IP \fBa/**/b\fR
