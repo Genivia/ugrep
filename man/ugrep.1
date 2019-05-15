@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 15, 2019" "ugrep 1.1.3" "User Commands"
+.TH UGREP "1" "May 15, 2019" "ugrep 1.1.4" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -251,6 +251,13 @@ not yet available.
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
 they are on the command line.
 .TP
+\fB\-Q\fR, \fB\-\-encoding\fR=\fIENCODING\fR
+The input file encoding.  The possible values of ENCODING can be:
+`binary', `ISO\-8859\-1', `ASCII', `EBCDIC', `UTF\-8', `UTF\-16',
+`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE', `UTF\-32LE', `CP437',
+`CP850', `CP858', `CP1250', `CP1251', `CP1252', `CP1253',
+`CP1254', `CP1255', `CP1256', `CP1257', `CP1258'
+.TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress normal output.  ugrep will only search a file
 until a match has been found, making searches potentially less
@@ -325,12 +332,11 @@ Spacing (blanks and tabs) in regular expressions are ignored.
 Only input lines selected against the entire pattern or \fB\-e\fR patterns
 are considered to be matching lines (as if surrounded by ^ and $).
 .TP
-\fB\-Y\fR ENCODING, \fB\-\-encoding\fR=\fIENCODING\fR
-The input file encoding.  The possible values of ENCODING can be:
-`binary', `ISO\-8859\-1', `ASCII', `EBCDIC', `UTF\-8', `UTF\-16',
-`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE', `UTF\-32LE', `CP437',
-`CP850', `CP1250', `CP1251', `CP1252', `CP1253', `CP1254',
-`CP1255', `CP1256', `CP1257', `CP1258'
+\fB\-Y\fR, \fB\-\-empty\fR
+Permits matching empty patterns, such as `^$'.  Matching empty
+patterns is disabled by default.  Note that empty\-matching patterns,
+such as `x?' and `x*', match everything in the input with this
+option, not only `x'.
 .TP
 \fB\-y\fR
 Equivalent to \fB\-i\fR.  Obsoleted.

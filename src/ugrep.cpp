@@ -114,9 +114,10 @@ Bugs FIXME:
     the search.  Either use std::stringstream or consider modifying RE/flex to
     add a feature to search a given block of memory, which is faster.
   - Empty-matching patterns such as '^$' works only with -q/-o/-c/-N/-L/-l,
-    'a*' produces the entire file, which may not be what we want.  In fact,
-    grepping with empty-matching patterns is weird and gives different results
-    with GNU grep and BSD grep.
+    Grepping with empty-matching patterns is weird and gives different results
+    with GNU grep and BSD grep.  That's why a new option -Y to permit empty
+    matches is useful, making non-empty pattern matching the default to avoid
+    "random" results.
   - Back-references are not supported.
 
 Wanted TODO:
@@ -166,10 +167,7 @@ Wanted TODO:
 #endif
 
 // ugrep version
-#define VERSION "1.1.3"
-
-// enable this macro for RE/flex 1.2.1 to support option -G
-// #define WITH_REFLEX2
+#define VERSION "1.1.4"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -232,6 +230,7 @@ bool flag_binary                   = false;
 bool flag_decompress               = false;
 bool flag_binary_without_matches   = false;
 bool flag_text                     = false;
+bool flag_empty                    = false;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
@@ -285,7 +284,7 @@ inline int fopen_s(FILE **fd, const char *filename, const char *mode)
 }
 #endif
 
-// table of RE/flex file encodings for ugrep option -Y, --encoding
+// table of RE/flex file encodings for ugrep option --encoding
 const struct { const char *format; reflex::Input::file_encoding_type encoding; } format_table[] = {
   { "binary",     reflex::Input::file_encoding::plain   },
   { "ISO-8859-1", reflex::Input::file_encoding::latin   },
@@ -300,9 +299,7 @@ const struct { const char *format; reflex::Input::file_encoding_type encoding; }
   { "UTF-32LE",   reflex::Input::file_encoding::utf32le },
   { "CP437",      reflex::Input::file_encoding::cp437   },
   { "CP850",      reflex::Input::file_encoding::cp850   },
-#if WITH_REFLEX2
   { "CP858",      reflex::Input::file_encoding::cp858   },
-#endif
   { "CP1250",     reflex::Input::file_encoding::cp1250  },
   { "CP1251",     reflex::Input::file_encoding::cp1251  },
   { "CP1252",     reflex::Input::file_encoding::cp1252  },
@@ -449,6 +446,8 @@ int main(int argc, char **argv)
               flag_devices = arg + 8;
             else if (strncmp(arg, "directories=", 12) == 0)
               flag_directories = arg + 12;
+            else if (strcmp(arg, "empty") == 0)
+              flag_empty = true;
             else if (strncmp(arg, "encoding=", 9) == 0)
               flag_encoding = arg + 9;
             else if (strncmp(arg, "exclude=", 8) == 0)
@@ -714,6 +713,17 @@ int main(int argc, char **argv)
             flag_no_dereference = true;
             break;
 
+          case 'Q':
+            ++arg;
+            if (*arg)
+              flag_encoding = &arg[*arg == '='];
+            else if (++i < argc)
+              flag_encoding = argv[i];
+            else
+              help("missing encoding for option -:");
+            is_grouped = false;
+            break;
+
           case 'q':
             flag_quiet = true;
             break;
@@ -785,14 +795,7 @@ int main(int argc, char **argv)
             break;
 
           case 'Y':
-            ++arg;
-            if (*arg)
-              flag_encoding = &arg[*arg == '='];
-            else if (++i < argc)
-              flag_encoding = argv[i];
-            else
-              help("missing encoding for option -:");
-            is_grouped = false;
+            flag_empty = true;
             break;
 
           case 'y':
@@ -848,10 +851,12 @@ int main(int argc, char **argv)
   // remove the ending '|' from the |-concatenated regexes in the regex string
   regex.pop_back();
 
-  if (regex.empty() && flag_file.empty())
+  if (regex.empty())
   {
-    // if the specified regex is empty then it matches every line
+    // if the specified regex is empty then it matches every line, including empty ones
     regex.assign(".*");
+
+    flag_empty = true;
   }
   else
   {
@@ -1060,7 +1065,7 @@ int main(int argc, char **argv)
 
   reflex::Input::file_encoding_type encoding = reflex::Input::file_encoding::plain;
 
-  // parse ugrep option -Y, --encoding
+  // parse ugrep option --encoding
   if (flag_encoding != NULL)
   {
     int i;
@@ -1234,11 +1239,9 @@ int main(int argc, char **argv)
     // set flags to convert regex to Unicode
     reflex::convert_flag_type convert_flags = flag_binary ? reflex::convert_flag::none : reflex::convert_flag::unicode;
 
-#if WITH_REFLEX2
     // to convert basic regex (BRE) to extended regex (ERE)
     if (flag_basic_regexp)
       convert_flags |= reflex::convert_flag::basic;
-#endif
 
     // set reflex::Pattern options to raise exceptions and to enable multiline mode
     std::string pattern_options("rm");
@@ -1262,7 +1265,11 @@ int main(int argc, char **argv)
     reflex::Matcher matcher(pattern);
     
     // reflex::Matcher options
-    std::string matcher_options("N");
+    std::string matcher_options;
+    
+    // if --empty then permit empty pattern matches
+    if (flag_empty)
+      matcher_options.append("N");
 
     // if --tabs=N then set reflex::Matcher option T to tab size
     if (flag_tabs)
@@ -1770,6 +1777,10 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
               color_mc << match.str() << color_off;
 
             last = match.last();
+
+            // skip empty pattern matches
+            if (last == 0)
+              break;
           }
           else
           {
@@ -1839,6 +1850,10 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
                   color_mc << match.str() << color_off;
 
                 last = match.last();
+
+                // skip empty pattern matches
+                if (last == 0)
+                  break;
               }
 
               if (last != UNDEFINED)
@@ -1956,6 +1971,10 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
           }
 
           last = match.last();
+
+          // skip empty pattern matches
+          if (last == 0)
+            break;
         }
 
         if (last != UNDEFINED)
@@ -1993,8 +2012,6 @@ exit_input:
   else
   {
     // -o or -N option: streaming input mode
-
-    // TODO: -o report "binary file matches" and do not output a match when the match contains NUL or invalid UTF-8
 
     size_t lineno = 0;
 
@@ -2224,7 +2241,7 @@ void help(const char *message, const char *arg)
   if (message && *message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   std::cout <<
-"Usage: ugrep [-bcDdEFGgHhIikLlmNnOoPpqRrSsTtVvWwXxYyZz] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN] [-f FILE] [--file-type=TYPES] [--encoding=ENCODING] [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]\n";
+"Usage: ugrep [-abcDdEFGgHhIikLlmNnOoPpQqRrSsTtVvWwXxYyZz] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN] [-f FILE] [--file-type=TYPES] [--encoding=ENCODING] [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]\n";
   if (!message)
   {
     std::cout << "\n\
@@ -2415,6 +2432,11 @@ void help(const char *message, const char *arg)
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
             they are on the command line.\n\
+    -Q, --encoding=ENCODING\n\
+            The input file encoding.  The possible values of ENCODING can be:";
+  for (int i = 0; format_table[i].format != NULL; ++i)
+    std::cout << (i == 0 ? "" : ",") << (i % 6 ? " " : "\n            ") << "`" << format_table[i].format << "'";
+  std::cout << "\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress normal output.  ugrep will only search a file\n\
             until a match has been found, making searches potentially less\n\
@@ -2466,11 +2488,11 @@ void help(const char *message, const char *arg)
     -x, --line-regexp\n\
             Only input lines selected against the entire pattern or -e patterns\n\
             are considered to be matching lines (as if surrounded by ^ and $).\n\
-    -Y ENCODING, --encoding=ENCODING\n\
-            The input file encoding.  The possible values of ENCODING can be:";
-  for (int i = 0; format_table[i].format != NULL; ++i)
-    std::cout << (i == 0 ? "" : ",") << (i % 6 ? " " : "\n            ") << "`" << format_table[i].format << "'";
-  std::cout << "\n\
+    -Y, --empty\n\
+            Permits matching empty patterns, such as `^$'.  Matching empty\n\
+            patterns is disabled by default.  Note that empty-matching patterns,\n\
+            such as `x?' and `x*', match everything in the input with this\n\
+            option, not only `x'.\n\
     -y\n\
             Equivalent to -i.  Obsoleted.\n\
     -Z, --null\n\

@@ -95,8 +95,9 @@ Installation
 
 Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
 
-To build ugrep, first install RE/flex from https://github.com/Genivia/RE-flex
-then download ugrep from https://github.com/Genivia/ugrep and execute:
+To build ugrep, first install RE/flex 1.2.1 or greater from
+https://github.com/Genivia/RE-flex then download ugrep from
+https://github.com/Genivia/ugrep and execute:
 
     $ ./configure; make
 
@@ -483,21 +484,29 @@ Man page
                   If -R or -r is specified, no symbolic links are  followed,  even
                   when they are on the command line.
 
+           -Q, --encoding=ENCODING
+                  The  input  file  encoding.  The possible values of ENCODING can
+                  be:  `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',   `UTF-8',
+                  `UTF-16',    `UTF-16BE',   `UTF-16LE',   `UTF-32',   `UTF-32BE',
+                  `UTF-32LE',  `CP437',  `CP850',  `CP858',  `CP1250',   `CP1251',
+                  `CP1252',  `CP1253',  `CP1254',  `CP1255',  `CP1256',  `CP1257',
+                  `CP1258'
+
            -q, --quiet, --silent
-                  Quiet  mode:  suppress  normal output.  ugrep will only search a
-                  file until a match has been found, making  searches  potentially
-                  less  expensive.  Allows a pattern match to span multiple lines.
+                  Quiet mode: suppress normal output.  ugrep will  only  search  a
+                  file  until  a match has been found, making searches potentially
+                  less expensive.  Allows a pattern match to span multiple  lines.
 
            -R, --dereference-recursive
-                  Recursively read all files under  each  directory.   Follow  all
+                  Recursively  read  all  files  under each directory.  Follow all
                   symbolic links, unlike -r.
 
            -r, --recursive
-                  Recursively  read all files under each directory, following sym-
+                  Recursively read all files under each directory, following  sym-
                   bolic links only if they are on the command line.
 
            -S, --dereference
-                  If -r is specified, all symbolic links are  followed,  like  -R.
+                  If  -r  is  specified, all symbolic links are followed, like -R.
                   The default is not to follow symbolic links.
 
            -s, --no-messages
@@ -505,24 +514,24 @@ Man page
                   their error messages are suppressed).
 
            -T, --initial-tab
-                  Add a tab space to separate the file name, line  number,  column
+                  Add  a  tab space to separate the file name, line number, column
                   number, and byte offset with the matched line.
 
            -t TYPES, --file-type=TYPES
-                  Search  only files associated with TYPES, a comma-separated list
+                  Search only files associated with TYPES, a comma-separated  list
                   of file types.  Each file type corresponds to a set of file name
-                  extensions  to search.  This option may be repeated.  The possi-
-                  ble values of type can be (use -t list  to  display  a  detailed
-                  list):  `actionscript', `ada', `asm', `asp', `aspx', `autoconf',
-                  `automake', `awk', `basic', `batch', `bison', `c', `c++',  `clo-
+                  extensions to search.  This option may be repeated.  The  possi-
+                  ble  values  of  type  can be (use -t list to display a detailed
+                  list): `actionscript', `ada', `asm', `asp', `aspx',  `autoconf',
+                  `automake',  `awk', `basic', `batch', `bison', `c', `c++', `clo-
                   jure',  `csharp',  `css',  `csv',  `dart',  `delphi',  `elixir',
-                  `erlang', `fortran', `go', `groovy', `haskell', `html',  `jade',
-                  `java',  `javascript', `json', `jsp', `julia', `kotlin', `less',
-                  `lex',  `lisp',  `lua',  `m4',  `make',  `markdown',   `matlab',
-                  `objc',  `objc++',  `ocaml',  `parrot', `pascal', `perl', `php',
-                  `prolog',  `python',  `R',  `rst',  `ruby',   `rust',   `scala',
-                  `scheme',  `shell',  `smalltalk',  `sql', `swift', `tcl', `tex',
-                  `text', `tt', `typescript',  `verilog',  `vhdl',  `vim',  `xml',
+                  `erlang',  `fortran', `go', `groovy', `haskell', `html', `jade',
+                  `java', `javascript', `json', `jsp', `julia', `kotlin',  `less',
+                  `lex',   `lisp',  `lua',  `m4',  `make',  `markdown',  `matlab',
+                  `objc', `objc++', `ocaml', `parrot',  `pascal',  `perl',  `php',
+                  `prolog',   `python',   `R',  `rst',  `ruby',  `rust',  `scala',
+                  `scheme', `shell', `smalltalk', `sql',  `swift',  `tcl',  `tex',
+                  `text',  `tt',  `typescript',  `verilog',  `vhdl', `vim', `xml',
                   `yacc', `yaml'
 
            --tabs=NUM
@@ -530,41 +539,40 @@ Man page
                   of NUM may be 1, 2, 4, or 8.
 
            -U, --binary
-                  Forces PATTERN to match  bytes,  not  Unicode  characters,  when
-                  searching  files.   For  example,  `\xa3'  matches byte A3 (hex)
-                  instead of the  UTF-8  sequence  C2  A3  for  Unicode  character
+                  Forces  PATTERN  to  match  bytes,  not Unicode characters, when
+                  searching files.  For example,  `\xa3'  matches  byte  A3  (hex)
+                  instead  of  the  UTF-8  sequence  C2  A3  for Unicode character
                   U+00A3.
 
            -V, --version
                   Display version information and exit.
 
            -v, --invert-match
-                  Selected  lines are those not matching any of the specified pat-
+                  Selected lines are those not matching any of the specified  pat-
                   terns.
 
            -W SEP, --separator=SEP
-                  Use SEP as field separator between file name, line number,  col-
+                  Use  SEP as field separator between file name, line number, col-
                   umn number, byte offset, and the matched line.  The default is a
                   colon (`:').
 
            -w, --word-regexp
-                  The pattern or -e patterns are searched for as  a  word  (as  if
+                  The  pattern  or  -e  patterns are searched for as a word (as if
                   surrounded by `\<' and `\>').
 
            -X, --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
 
            -x, --line-regexp
-                  Only  input lines selected against the entire pattern or -e pat-
+                  Only input lines selected against the entire pattern or -e  pat-
                   terns are considered to be matching lines (as if surrounded by ^
                   and $).
 
-           -Y ENCODING, --encoding=ENCODING
-                  The  input  file  encoding.  The possible values of ENCODING can
-                  be:  `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',   `UTF-8',
-                  `UTF-16',    `UTF-16BE',   `UTF-16LE',   `UTF-32',   `UTF-32BE',
-                  `UTF-32LE',  `CP437',  `CP850',  `CP1250',  `CP1251',  `CP1252',
-                  `CP1253', `CP1254', `CP1255', `CP1256', `CP1257', `CP1258'
+           -Y, --empty
+                  Permits matching empty patterns, such as `^$'.   Matching  empty
+                  patterns  is disabled by default.  Note that empty-matching pat-
+                  terns, such as `x?' and `x*', match everything in the input with
+                  this option, not only `x'.
 
            -y     Equivalent to -i.  Obsoleted.
 
@@ -766,7 +774,7 @@ Man page
 
 
 
-    ugrep 1.1.3                      May 15, 2019                         UGREP(1)
+    ugrep 1.1.4                      May 15, 2019                         UGREP(1)
 
 ugrep versus other "greps"
 --------------------------
@@ -774,7 +782,7 @@ ugrep versus other "greps"
 - **ugrep** supports *negative patterns* to skip parts of the input that should
   not be matched, such as skipping strings and comments when searching for
   identifiers in source code.
-- **ugrep** uses a streaming approach.  When one or more of the options `-q`
+- **ugrep** uses incremental matching.  When one or more of the options `-q`
   (quiet), `-o` (only matching), `-c` (count), `-N` (only line number), `-l`
   (file with match), or `-L` (files without match) is used, **ugrep** performs
   an even faster streaming-based search of the input file instead of reading
@@ -788,6 +796,14 @@ ugrep versus other "greps"
   displays a matched input line again for each additional pattern match.  This
   option is particularly useful with option `-c` to report the total number of
   pattern matches per file instead of the number of lines matched per file.
+- New option `-Y` to permit matching empty patterns.  Grepping with
+  empty-matching patterns is weird and gives different results with GNU grep
+  and BSD grep.  New option `-Y` to permit empty matches is useful to avoid
+  making mistakes giving "random" results.  For example, `a*` matches every
+  line in the input, and actually matches `xyz` three times (the empty
+  transitions before and between the `x`, `y`, and `z`).  Non-empty pattern
+  matching is the default.  Matching empty lines with the pattern `^$` requires
+  option `-Y`.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line as grep reports.  Reporting exact
@@ -1023,6 +1039,10 @@ To list all readable non-empty files:
 To list all readable empty files:
 
     ugrep -RL '' .
+
+To list files with empty lines:
+
+    ugrep -RlY '^[ ]*$' .
 
 To list all files that are ASCII:
 
