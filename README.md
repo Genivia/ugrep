@@ -1,14 +1,15 @@
 ugrep: universal grep
 =====================
 
-A grep tool that offers modern options to search Unicode, text, source code,
-and binary files in large directory trees.  GNU grep and BSD grep compatible.
+A modern grep tool that offers advanced options to search Unicode, text, source
+code, and binary files in large directory trees.  GNU grep and BSD grep
+compatible.
 
-**ugrep** makes it simple to search source code.  It is the only grep tool that
-allows you to define *negative patterns* to *zap* parts in files you want to
-skip.  This removes many false positives.  For example to find exact matches of
-`main` in C/C++ source code while skipping strings and comments that may have a
-match with `main` in them:
+**ugrep** makes it simple to search source code using pre-defined patterns.  It
+is the only grep tool that allows you to define *negative patterns* to *zap*
+parts in files you want to skip.  This removes many false positives.  For
+example to find exact matches of `main` in C/C++ source code while skipping
+strings and comments that may have a match with `main` in them:
 
     ugrep -R -o -tc,c++ -n -w 'main' -f c/zap_strings -f c/zap_comments myprojects
 
@@ -28,7 +29,7 @@ to read your pattern files.
 **ugrep** searches binary files and produces hex dumps for binary matches.
 For example to search for a binary pattern:
 
-    ugrep --color -X -U '.*\xed\xab\xee\xdb.*' some.rpm
+    ugrep --color -X -U '\xed\xab\xee\xdb' some.rpm
 
 where `-X` produces hexadecimal output, `-U` specifies a binary pattern to
 search (meaning non-Unicode), and `--color` shows the results in color.
