@@ -237,593 +237,593 @@ More examples can be found toward the end of this README.
 Man page
 --------
 
-UGREP(1)                         User Commands                        UGREP(1)
-
-
-
-NAME
-       ugrep -- universal file pattern searcher
-
-SYNOPSIS
-       ugrep [OPTIONS] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN]
-             [-f FILE] [--file-type=TYPES] [--encoding=ENCODING]
-             [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]
-
-DESCRIPTION
-       The  ugrep utility searches any given input files, selecting lines that
-       match one or more patterns.  By default, a  pattern  matches  an  input
-       line  if  the  regular expression (RE) in the pattern matches the input
-       line without its trailing newline.  An empty expression  matches  every
-       line.   Each  input  line  that matches at least one of the patterns is
-       written to the standard output.  To search for patterns that span  mul-
-       tiple lines, use option -o.
-
-       The  ugrep  utility  normalizes and decodes encoded input to search for
-       the specified ASCII/Unicode patterns.  When the input  contains  a  UTF
-       BOM indicating UTF-8, UTF-16, or UTF-32 input then ugrep always normal-
-       izes the input to UTF-8.  When no UTF BOM is present, ugrep assumes the
-       input  is  ASCII,  UTF-8,  or raw binary.  To specify a different input
-       file encoding, use option --encoding.
-
-       The following options are available:
-
-       -A NUM, --after-context=NUM
-              Print NUM  lines  of  trailing  context  after  matching  lines.
-              Places a --group-separator between contiguous groups of matches.
-              See also the -B and -C options.
-
-       -a, --text
-              Process a binary file as if it were text.  This is equivalent to
-              the --binary-files=text option.  This option might output binary
-              garbage to the terminal, which can have problematic consequences
-              if the terminal driver interprets some of it as commands.
-
-       -B NUM, --before-context=NUM
-              Print  NUM  lines  of  leading  context  before  matching lines.
-              Places a --group-separator between contiguous groups of matches.
-              See also the -A and -C options.
-
-       -b, --byte-offset
-              The  offset  in bytes of a matched line is displayed in front of
-              the respective matched line.  When used with option -g, displays
-              the  offset  in bytes of each pattern matched.  Byte offsets are
-              exact for binary, ASCII, and UTF-8 input.  Otherwise,  the  byte
-              offset in the UTF-8-converted input is displayed.
-
-       --binary-files=TYPE
-              Controls  searching  and  reporting  pattern  matches  in binary
-              files.  Options are `binary',  `without-match`,  `text`,  `hex`,
-              and  `with-hex'.  The default is `binary' to search binary files
-              and to report a match  without  displaying  the  match.   `with-
-              out-match'  ignores  binary  matches.   `text' treats all binary
-              files as text, which might output binary garbage to  the  termi-
-              nal,  which  can  have  problematic consequences if the terminal
-              driver interprets some of it as  commands.   `hex'  reports  all
-              matches  in hexadecimal.  `with-hex` only reports binary matches
-              in hexadecimal, leaving text matches alone.  A match is  consid-
-              ered  binary  if  a match contains a zero byte or an invalid UTF
-              encoding. See also options -a, -I, -U, -W, and -X
-
-       -C[NUM], --context[=NUM]
-              Print NUM lines of leading and trailing context surrounding each
-              match.  The default is 2 and is equivalent to -A 2 -B 2.  Places
-              a --group-separator between contiguous groups of matches.  Note:
-              no  whitespace may be given between the option and its argument.
-
-       -c, --count
-              Only a count of selected lines is written  to  standard  output.
-              When used with option -g, counts the number of patterns matched.
-              With option -v, counts the number of non-matching lines.
-
-       --colour[=WHEN], --color[=WHEN]
-              Mark up the matching text with  the  expression  stored  in  the
-              GREP_COLOR  or  GREP_COLORS  environment variable.  The possible
-              values of WHEN can be `never', `always' or `auto'.
-
-       -D ACTION, --devices=ACTION
-              If an input file is a device, FIFO  or  socket,  use  ACTION  to
-              process  it.   By  default,  ACTION  is `read', which means that
-              devices are read just as if they were ordinary files.  If ACTION
-              is `skip', devices are silently skipped.
-
-       -d ACTION, --directories=ACTION
-              If  an  input file is a directory, use ACTION to process it.  By
-              default, ACTION is `read', i.e., read  directories  just  as  if
-              they  were  ordinary  files.  If ACTION is `skip', silently skip
-              directories.  If ACTION is `recurse', read all files under  each
-              directory,  recursively,  following  symbolic links only if they
-              are on the command line.  This is equivalent to the  -r  option.
-              If  ACTION  is  `dereference-recurse', read all files under each
-              directory,  recursively,  following  symbolic  links.   This  is
-              equivalent to the -R option.
-
-       -E, --extended-regexp
-              Interpret  patterns as extended regular expressions (EREs). This
-              is the default.
-
-       -e PATTERN, --regexp=PATTERN
-              Specify a PATTERN used during the search of the input: an  input
-              line  is  selected  if it matches any of the specified patterns.
-              This option is most useful when multiple -e options are used  to
-              specify  multiple  patterns,  when  a pattern begins with a dash
-              (`-'), or to specify a pattern after option -f.
-
-       --exclude=GLOB
-              Skip files whose name matches GLOB (using wildcard matching).  A
-              glob  can  use  *,  ?,  and [...] as wildcards, and \ to quote a
-              wildcard or backslash character literally.  If GLOB contains  /,
-              full  pathnames  are  matched.  Otherwise basenames are matched.
-              Note that --exclude patterns take priority over  --include  pat-
-              terns.  This option may be repeated.
-
-       --exclude-dir=GLOB
-              Exclude  directories  whose  name  matches  GLOB  from recursive
-              searches.  If GLOB contains /, full pathnames are matched.  Oth-
-              erwise  basenames are matched.  Note that --exclude-dir patterns
-              take priority over --include-dir patterns.  This option  may  be
-              repeated.
-
-       --exclude-from=FILE
-              Read  the  globs  from FILE and skip files and directories whose
-              name matches one or more globs (as if specified by --exclude and
-              --exclude-dir).   Lines  starting  with a `#' and empty lines in
-              FILE ignored. This option may be repeated.
-
-       -F, --fixed-strings
-              Interpret pattern as a set of fixed strings, separated  by  new-
-              lines,  any  of  which  is  to be matched.  This forces ugrep to
-              behave as fgrep but less efficiently than fgrep.
-
-       -f FILE, --file=FILE
-              Read one or more newline-separated patterns  from  FILE.   Empty
-              pattern  lines  in  the file are not processed.  Options -F, -w,
-              and -x do not apply to FILE patterns.  If FILE does  not  exist,
-              the  GREP_PATH  environment variable is used as the path to read
-              FILE.  If that fails, looks for FILE in  /usr/local/share/ugrep.
-              This option may be repeated.
-
-       --free-space
-              Spacing (blanks and tabs) in regular expressions are ignored.
-
-       -G, --basic-regexp
-              Interpret  pattern  as  a  basic  regular expression (i.e. force
-              ugrep to behave as traditional grep).
-
-       -g, --no-group
-              Do not group multiple pattern matches on the same matched  line.
-              Output the matched line again for each additional pattern match,
-              using `+' as the field separator for each additional line.
-
-       --group-separator=SEP
-              Use SEP as a group separator for context options -A, -B, and -C.
-              By default SEP is a double hyphen (`--').
-
-       -H, --with-filename
-              Always  print  the  filename  with  output  lines.   This is the
-              default when there is more than one file to search.
-
-       -h, --no-filename
-              Never print filenames with output lines.
-
-       --help Print a help message.
-
-       -I     Ignore matches in binary files.  This option  is  equivalent  to
-              the --binary-files=without-match option.
-
-       -i, --ignore-case
-              Perform   case   insensitive   matching.   This  option  applies
-              case-insensitive matching of ASCII characters in the input.   By
-              default, ugrep is case sensitive.
-
-       --include=GLOB
-              Search only files whose name matches GLOB (using wildcard match-
-              ing).  A glob can use *, ?, and [...] as  wildcards,  and  \  to
-              quote a wildcard or backslash character literally.  If GLOB con-
-              tains /, file pathnames are matched.  Otherwise  file  basenames
-              are  matched.   Note  that --exclude patterns take priority over
-              --include patterns.  This option may be repeated.
-
-       --include-dir=GLOB
-              Only directories whose name matches GLOB are included in  recur-
-              sive  searches.  If GLOB contains /, full pathnames are matched.
-              Otherwise basenames are matched.  Note that  --exclude-dir  pat-
-              terns  take  priority  over --include-dir patterns.  This option
-              may be repeated.
-
-       --include-from=FILE
-              Read the globs from FILE and search only files  and  directories
-              whose  name  matches  one  or  more  globs  (as  if specified by
-              --include and --include-dir).  Lines starting  with  a  `#'  and
-              empty lines in FILE are ignored.  This option may be repeated.
-
-       -k, --column-number
-              The  column number of a matched pattern is displayed in front of
-              the respective matched line, starting at  column  1.   Tabs  are
-              expanded when columns are counted, see option --tabs.
-
-       -L, --files-without-match
-              Only  the names of files not containing selected lines are writ-
-              ten to standard output.  Pathnames  are  listed  once  per  file
-              searched.   If  the  standard  input  is  searched,  the  string
-              ``(standard input)'' is written.
-
-       -l, --files-with-matches
-              Only the names of files containing selected lines are written to
-              standard  output.   ugrep  will only search a file until a match
-              has been found,  making  searches  potentially  less  expensive.
-              Pathnames  are  listed  once per file searched.  If the standard
-              input is searched, the string ``(standard input)'' is written.
-
-       --label[=LABEL]
-              Displays the LABEL value when input is read from standard  input
-              where a file name would normally be printed in the output.  This
-              option applies to options -H, -L, and -l.
-
-       --line-buffered
-              Force output to be line buffered.  By default,  output  is  line
-              buffered  when  standard output is a terminal and block buffered
-              otherwise.
-
-       -m NUM, --max-count=NUM
-              Stop reading the input after NUM matches.
-
-       -N, --only-line-number
-              The line number of the match in the file is output without  dis-
-              playing  the  match.   The line number counter is reset for each
-              file processed.
-
-       -n, --line-number
-              Each output line is preceded by its relative line number in  the
-              file,  starting at line 1.  The line number counter is reset for
-              each file processed.
-
-       --no-group-separator
-              Removes the group separator line from  the  output  for  context
-              options -A, -B, and -C.
-
-       -O EXTENSIONS, --file-extensions=EXTENSIONS
-              Search only files whose file name extensions match the specified
-              comma-separated list of file name EXTENSIONS.   This  option  is
-              the same as specifying --include='*.ext' for each extension name
-              `ext' in the EXTENSIONS list.  This option may be repeated.
-
-       -o, --only-matching
-              Prints only the matching part of the lines.   Allows  a  pattern
-              match  to  span  multiple  lines.   Line  numbers for multi-line
-              matches are displayed with option -n, using  `|'  as  the  field
-              separator for each additional line matched by the pattern.  Con-
-              text options -A, -B, and -C are disabled.
-
-       -P, --perl-regexp
-              Interpret PATTERN as a Perl regular expression.  This feature is
-              not yet available.
-
-       -p, --no-dereference
-              If  -R  or -r is specified, no symbolic links are followed, even
-              when they are on the command line.
-
-       -Q, --encoding=ENCODING
-              The input file encoding.  The possible values  of  ENCODING  can
-              be:   `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',  `UTF-8',
-              `UTF-16',   `UTF-16BE',   `UTF-16LE',   `UTF-32',    `UTF-32BE',
-              `UTF-32LE',   `CP437',  `CP850',  `CP858',  `CP1250',  `CP1251',
-              `CP1252',  `CP1253',  `CP1254',  `CP1255',  `CP1256',  `CP1257',
-              `CP1258'
-
-       -q, --quiet, --silent
-              Quiet  mode:  suppress  normal output.  ugrep will only search a
-              file until a match has been found, making  searches  potentially
-              less  expensive.  Allows a pattern match to span multiple lines.
-
-       -R, --dereference-recursive
-              Recursively read all files under  each  directory.   Follow  all
-              symbolic links, unlike -r.
-
-       -r, --recursive
-              Recursively  read all files under each directory, following sym-
-              bolic links only if they are on the command line.
-
-       -S, --dereference
-              If -r is specified, all symbolic links are  followed,  like  -R.
-              The default is not to follow symbolic links.
-
-       -s, --no-messages
-              Silent mode.  Nonexistent and unreadable files are ignored (i.e.
-              their error messages are suppressed).
-
-       --separator=SEP
-              Use SEP as field separator between file name, line number,  col-
-              umn number, byte offset, and the matched line.  The default is a
-              colon (`:').
-
-       -T, --initial-tab
-              Add a tab space to separate the file name, line  number,  column
-              number, and byte offset with the matched line.
-
-       -t TYPES, --file-type=TYPES
-              Search  only files associated with TYPES, a comma-separated list
-              of file types.  Each file type corresponds to a set of file name
-              extensions  to search.  This option may be repeated.  The possi-
-              ble values of type can be (use -t list  to  display  a  detailed
-              list):  `actionscript', `ada', `asm', `asp', `aspx', `autoconf',
-              `automake', `awk', `basic', `batch', `bison', `c', `c++',  `clo-
-              jure',  `csharp',  `css',  `csv',  `dart',  `delphi',  `elixir',
-              `erlang', `fortran', `go', `groovy', `haskell', `html',  `jade',
-              `java',  `javascript', `json', `jsp', `julia', `kotlin', `less',
-              `lex',  `lisp',  `lua',  `m4',  `make',  `markdown',   `matlab',
-              `objc',  `objc++',  `ocaml',  `parrot', `pascal', `perl', `php',
-              `prolog',  `python',  `R',  `rst',  `ruby',   `rust',   `scala',
-              `scheme',  `shell',  `smalltalk',  `sql', `swift', `tcl', `tex',
-              `text', `tt', `typescript',  `verilog',  `vhdl',  `vim',  `xml',
-              `yacc', `yaml'
-
-       --tabs=NUM
-              Set the tab size to NUM to expand tabs for option -k.  The value
-              of NUM may be 1, 2, 4, or 8.
-
-       -U, --binary
-              Disables Unicode matching and forces PATTERN to match bytes, not
-              Unicode  characters.   For example, `\xa3' matches byte A3 (hex)
-              in a (binary) input file  instead  of  the  Unicode  code  point
-              U+00A3 matching the two-byte UTF-8 sequence C2 A3.
-
-       -V, --version
-              Display version information and exit.
-
-       -v, --invert-match
-              Selected  lines are those not matching any of the specified pat-
-              terns.
-
-       -W     Only output binary matches in hexadecimal, leaving text  matches
-              alone.  This option is equivalent to the --binary-files=with-hex
-              option.
-
-       -w, --word-regexp
-              The pattern or -e patterns are searched for as  a  word  (as  if
-              surrounded by `\<' and `\>').
-
-       -x, --line-regexp
-              Only  input lines selected against the entire pattern or -e pat-
-              terns are considered to be matching lines (as if surrounded by ^
-              and $).
-
-       -X     Output matches in hexadecimal.  This option is equivalent to the
-              --binary-files=hex option.
-
-       -Y, --empty
-              Permits matching empty patterns, such as `^$'.   Matching  empty
-              patterns  is disabled by default.  Note that empty-matching pat-
-              terns such as `x?' and `x*' match all input, not only lines with
-              `x'.
-
-       -y     Equivalent to -i.  Obsoleted.
-
-       -Z, --null
-              Prints a zero-byte after the file name.
-
-       -z, --decompress
-              Decompress  files to search.  This feature is not yet available.
-
-       The regular expression pattern syntax is an extended form of the  POSIX
-       ERE syntax.  For an overview of the syntax see README.md or visit:
-
-              https://github.com/Genivia/ugrep
-
-       Note  that  `.'  matches any non-newline character.  Matching a newline
-       character `\n' is not possible unless one or more of  the  options  -c,
-       -L,  -l,  -N,  -o, or -q are used (in any combination, but not combined
-       with option -v) to allow a pattern match to span multiple lines.
-
-       If no file arguments are specified, or if - is specified, the  standard
-       input is used.
-
-EXIT STATUS
-       The ugrep utility exits with one of the following values:
-
-       0      One or more lines were selected.
-
-       1      No lines were selected.
-
-       >1     An error occurred.
-
-GLOBBING
-       Globbing  is  used by options --include, --include-dir, --include-from,
-       --exclude, --exclude-dir, --exclude-from to match pathnames  and  base-
-       names.  Globbing supports gitignore syntax and the corresponding match-
-       ing rules.  When a glob contains a path separator `/', the pathname  is
-       matched.   Otherwise  the  basename  of a file or directory is matched.
-       For  example,  *.h  matches  foo.h  and  bar/foo.h.   bar/*.h   matches
-       bar/foo.h  but  not  foo.h and not bar/bar/foo.h.  Use a leading `/' to
-       force /*.h to match foo.h but not bar/foo.h.
+    UGREP(1)                         User Commands                        UGREP(1)
+
+
+
+    NAME
+           ugrep -- universal file pattern searcher
+
+    SYNOPSIS
+           ugrep [OPTIONS] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN]
+                 [-f FILE] [--file-type=TYPES] [--encoding=ENCODING]
+                 [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]
+
+    DESCRIPTION
+           The  ugrep utility searches any given input files, selecting lines that
+           match one or more patterns.  By default, a  pattern  matches  an  input
+           line  if  the  regular expression (RE) in the pattern matches the input
+           line without its trailing newline.  An empty expression  matches  every
+           line.   Each  input  line  that matches at least one of the patterns is
+           written to the standard output.  To search for patterns that span  mul-
+           tiple lines, use option -o.
+
+           The  ugrep  utility  normalizes and decodes encoded input to search for
+           the specified ASCII/Unicode patterns.  When the input  contains  a  UTF
+           BOM indicating UTF-8, UTF-16, or UTF-32 input then ugrep always normal-
+           izes the input to UTF-8.  When no UTF BOM is present, ugrep assumes the
+           input  is  ASCII,  UTF-8,  or raw binary.  To specify a different input
+           file encoding, use option --encoding.
+
+           The following options are available:
+
+           -A NUM, --after-context=NUM
+                  Print NUM  lines  of  trailing  context  after  matching  lines.
+                  Places a --group-separator between contiguous groups of matches.
+                  See also the -B and -C options.
+
+           -a, --text
+                  Process a binary file as if it were text.  This is equivalent to
+                  the --binary-files=text option.  This option might output binary
+                  garbage to the terminal, which can have problematic consequences
+                  if the terminal driver interprets some of it as commands.
+
+           -B NUM, --before-context=NUM
+                  Print  NUM  lines  of  leading  context  before  matching lines.
+                  Places a --group-separator between contiguous groups of matches.
+                  See also the -A and -C options.
+
+           -b, --byte-offset
+                  The  offset  in bytes of a matched line is displayed in front of
+                  the respective matched line.  When used with option -g, displays
+                  the  offset  in bytes of each pattern matched.  Byte offsets are
+                  exact for binary, ASCII, and UTF-8 input.  Otherwise,  the  byte
+                  offset in the UTF-8-converted input is displayed.
+
+           --binary-files=TYPE
+                  Controls  searching  and  reporting  pattern  matches  in binary
+                  files.  Options are `binary',  `without-match`,  `text`,  `hex`,
+                  and  `with-hex'.  The default is `binary' to search binary files
+                  and to report a match  without  displaying  the  match.   `with-
+                  out-match'  ignores  binary  matches.   `text' treats all binary
+                  files as text, which might output binary garbage to  the  termi-
+                  nal,  which  can  have  problematic consequences if the terminal
+                  driver interprets some of it as  commands.   `hex'  reports  all
+                  matches  in hexadecimal.  `with-hex` only reports binary matches
+                  in hexadecimal, leaving text matches alone.  A match is  consid-
+                  ered  binary  if  a match contains a zero byte or an invalid UTF
+                  encoding. See also options -a, -I, -U, -W, and -X
+
+           -C[NUM], --context[=NUM]
+                  Print NUM lines of leading and trailing context surrounding each
+                  match.  The default is 2 and is equivalent to -A 2 -B 2.  Places
+                  a --group-separator between contiguous groups of matches.  Note:
+                  no  whitespace may be given between the option and its argument.
+
+           -c, --count
+                  Only a count of selected lines is written  to  standard  output.
+                  When used with option -g, counts the number of patterns matched.
+                  With option -v, counts the number of non-matching lines.
+
+           --colour[=WHEN], --color[=WHEN]
+                  Mark up the matching text with  the  expression  stored  in  the
+                  GREP_COLOR  or  GREP_COLORS  environment variable.  The possible
+                  values of WHEN can be `never', `always' or `auto'.
+
+           -D ACTION, --devices=ACTION
+                  If an input file is a device, FIFO  or  socket,  use  ACTION  to
+                  process  it.   By  default,  ACTION  is `read', which means that
+                  devices are read just as if they were ordinary files.  If ACTION
+                  is `skip', devices are silently skipped.
+
+           -d ACTION, --directories=ACTION
+                  If  an  input file is a directory, use ACTION to process it.  By
+                  default, ACTION is `read', i.e., read  directories  just  as  if
+                  they  were  ordinary  files.  If ACTION is `skip', silently skip
+                  directories.  If ACTION is `recurse', read all files under  each
+                  directory,  recursively,  following  symbolic links only if they
+                  are on the command line.  This is equivalent to the  -r  option.
+                  If  ACTION  is  `dereference-recurse', read all files under each
+                  directory,  recursively,  following  symbolic  links.   This  is
+                  equivalent to the -R option.
+
+           -E, --extended-regexp
+                  Interpret  patterns as extended regular expressions (EREs). This
+                  is the default.
+
+           -e PATTERN, --regexp=PATTERN
+                  Specify a PATTERN used during the search of the input: an  input
+                  line  is  selected  if it matches any of the specified patterns.
+                  This option is most useful when multiple -e options are used  to
+                  specify  multiple  patterns,  when  a pattern begins with a dash
+                  (`-'), or to specify a pattern after option -f.
+
+           --exclude=GLOB
+                  Skip files whose name matches GLOB (using wildcard matching).  A
+                  glob  can  use  *,  ?,  and [...] as wildcards, and \ to quote a
+                  wildcard or backslash character literally.  If GLOB contains  /,
+                  full  pathnames  are  matched.  Otherwise basenames are matched.
+                  Note that --exclude patterns take priority over  --include  pat-
+                  terns.  This option may be repeated.
+
+           --exclude-dir=GLOB
+                  Exclude  directories  whose  name  matches  GLOB  from recursive
+                  searches.  If GLOB contains /, full pathnames are matched.  Oth-
+                  erwise  basenames are matched.  Note that --exclude-dir patterns
+                  take priority over --include-dir patterns.  This option  may  be
+                  repeated.
+
+           --exclude-from=FILE
+                  Read  the  globs  from FILE and skip files and directories whose
+                  name matches one or more globs (as if specified by --exclude and
+                  --exclude-dir).   Lines  starting  with a `#' and empty lines in
+                  FILE ignored. This option may be repeated.
+
+           -F, --fixed-strings
+                  Interpret pattern as a set of fixed strings, separated  by  new-
+                  lines,  any  of  which  is  to be matched.  This forces ugrep to
+                  behave as fgrep but less efficiently than fgrep.
+
+           -f FILE, --file=FILE
+                  Read one or more newline-separated patterns  from  FILE.   Empty
+                  pattern  lines  in  the file are not processed.  Options -F, -w,
+                  and -x do not apply to FILE patterns.  If FILE does  not  exist,
+                  the  GREP_PATH  environment variable is used as the path to read
+                  FILE.  If that fails, looks for FILE in  /usr/local/share/ugrep.
+                  This option may be repeated.
+
+           --free-space
+                  Spacing (blanks and tabs) in regular expressions are ignored.
+
+           -G, --basic-regexp
+                  Interpret  pattern  as  a  basic  regular expression (i.e. force
+                  ugrep to behave as traditional grep).
+
+           -g, --no-group
+                  Do not group multiple pattern matches on the same matched  line.
+                  Output the matched line again for each additional pattern match,
+                  using `+' as the field separator for each additional line.
+
+           --group-separator=SEP
+                  Use SEP as a group separator for context options -A, -B, and -C.
+                  By default SEP is a double hyphen (`--').
+
+           -H, --with-filename
+                  Always  print  the  filename  with  output  lines.   This is the
+                  default when there is more than one file to search.
+
+           -h, --no-filename
+                  Never print filenames with output lines.
+
+           --help Print a help message.
+
+           -I     Ignore matches in binary files.  This option  is  equivalent  to
+                  the --binary-files=without-match option.
+
+           -i, --ignore-case
+                  Perform   case   insensitive   matching.   This  option  applies
+                  case-insensitive matching of ASCII characters in the input.   By
+                  default, ugrep is case sensitive.
+
+           --include=GLOB
+                  Search only files whose name matches GLOB (using wildcard match-
+                  ing).  A glob can use *, ?, and [...] as  wildcards,  and  \  to
+                  quote a wildcard or backslash character literally.  If GLOB con-
+                  tains /, file pathnames are matched.  Otherwise  file  basenames
+                  are  matched.   Note  that --exclude patterns take priority over
+                  --include patterns.  This option may be repeated.
+
+           --include-dir=GLOB
+                  Only directories whose name matches GLOB are included in  recur-
+                  sive  searches.  If GLOB contains /, full pathnames are matched.
+                  Otherwise basenames are matched.  Note that  --exclude-dir  pat-
+                  terns  take  priority  over --include-dir patterns.  This option
+                  may be repeated.
+
+           --include-from=FILE
+                  Read the globs from FILE and search only files  and  directories
+                  whose  name  matches  one  or  more  globs  (as  if specified by
+                  --include and --include-dir).  Lines starting  with  a  `#'  and
+                  empty lines in FILE are ignored.  This option may be repeated.
+
+           -k, --column-number
+                  The  column number of a matched pattern is displayed in front of
+                  the respective matched line, starting at  column  1.   Tabs  are
+                  expanded when columns are counted, see option --tabs.
+
+           -L, --files-without-match
+                  Only  the names of files not containing selected lines are writ-
+                  ten to standard output.  Pathnames  are  listed  once  per  file
+                  searched.   If  the  standard  input  is  searched,  the  string
+                  ``(standard input)'' is written.
+
+           -l, --files-with-matches
+                  Only the names of files containing selected lines are written to
+                  standard  output.   ugrep  will only search a file until a match
+                  has been found,  making  searches  potentially  less  expensive.
+                  Pathnames  are  listed  once per file searched.  If the standard
+                  input is searched, the string ``(standard input)'' is written.
+
+           --label[=LABEL]
+                  Displays the LABEL value when input is read from standard  input
+                  where a file name would normally be printed in the output.  This
+                  option applies to options -H, -L, and -l.
+
+           --line-buffered
+                  Force output to be line buffered.  By default,  output  is  line
+                  buffered  when  standard output is a terminal and block buffered
+                  otherwise.
+
+           -m NUM, --max-count=NUM
+                  Stop reading the input after NUM matches.
+
+           -N, --only-line-number
+                  The line number of the match in the file is output without  dis-
+                  playing  the  match.   The line number counter is reset for each
+                  file processed.
+
+           -n, --line-number
+                  Each output line is preceded by its relative line number in  the
+                  file,  starting at line 1.  The line number counter is reset for
+                  each file processed.
+
+           --no-group-separator
+                  Removes the group separator line from  the  output  for  context
+                  options -A, -B, and -C.
+
+           -O EXTENSIONS, --file-extensions=EXTENSIONS
+                  Search only files whose file name extensions match the specified
+                  comma-separated list of file name EXTENSIONS.   This  option  is
+                  the same as specifying --include='*.ext' for each extension name
+                  `ext' in the EXTENSIONS list.  This option may be repeated.
+
+           -o, --only-matching
+                  Prints only the matching part of the lines.   Allows  a  pattern
+                  match  to  span  multiple  lines.   Line  numbers for multi-line
+                  matches are displayed with option -n, using  `|'  as  the  field
+                  separator for each additional line matched by the pattern.  Con-
+                  text options -A, -B, and -C are disabled.
+
+           -P, --perl-regexp
+                  Interpret PATTERN as a Perl regular expression.  This feature is
+                  not yet available.
+
+           -p, --no-dereference
+                  If  -R  or -r is specified, no symbolic links are followed, even
+                  when they are on the command line.
+
+           -Q, --encoding=ENCODING
+                  The input file encoding.  The possible values  of  ENCODING  can
+                  be:   `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',  `UTF-8',
+                  `UTF-16',   `UTF-16BE',   `UTF-16LE',   `UTF-32',    `UTF-32BE',
+                  `UTF-32LE',   `CP437',  `CP850',  `CP858',  `CP1250',  `CP1251',
+                  `CP1252',  `CP1253',  `CP1254',  `CP1255',  `CP1256',  `CP1257',
+                  `CP1258'
+
+           -q, --quiet, --silent
+                  Quiet  mode:  suppress  normal output.  ugrep will only search a
+                  file until a match has been found, making  searches  potentially
+                  less  expensive.  Allows a pattern match to span multiple lines.
+
+           -R, --dereference-recursive
+                  Recursively read all files under  each  directory.   Follow  all
+                  symbolic links, unlike -r.
+
+           -r, --recursive
+                  Recursively  read all files under each directory, following sym-
+                  bolic links only if they are on the command line.
+
+           -S, --dereference
+                  If -r is specified, all symbolic links are  followed,  like  -R.
+                  The default is not to follow symbolic links.
+
+           -s, --no-messages
+                  Silent mode.  Nonexistent and unreadable files are ignored (i.e.
+                  their error messages are suppressed).
+
+           --separator=SEP
+                  Use SEP as field separator between file name, line number,  col-
+                  umn number, byte offset, and the matched line.  The default is a
+                  colon (`:').
+
+           -T, --initial-tab
+                  Add a tab space to separate the file name, line  number,  column
+                  number, and byte offset with the matched line.
+
+           -t TYPES, --file-type=TYPES
+                  Search  only files associated with TYPES, a comma-separated list
+                  of file types.  Each file type corresponds to a set of file name
+                  extensions  to search.  This option may be repeated.  The possi-
+                  ble values of type can be (use -t list  to  display  a  detailed
+                  list):  `actionscript', `ada', `asm', `asp', `aspx', `autoconf',
+                  `automake', `awk', `basic', `batch', `bison', `c', `c++',  `clo-
+                  jure',  `csharp',  `css',  `csv',  `dart',  `delphi',  `elixir',
+                  `erlang', `fortran', `go', `groovy', `haskell', `html',  `jade',
+                  `java',  `javascript', `json', `jsp', `julia', `kotlin', `less',
+                  `lex',  `lisp',  `lua',  `m4',  `make',  `markdown',   `matlab',
+                  `objc',  `objc++',  `ocaml',  `parrot', `pascal', `perl', `php',
+                  `prolog',  `python',  `R',  `rst',  `ruby',   `rust',   `scala',
+                  `scheme',  `shell',  `smalltalk',  `sql', `swift', `tcl', `tex',
+                  `text', `tt', `typescript',  `verilog',  `vhdl',  `vim',  `xml',
+                  `yacc', `yaml'
+
+           --tabs=NUM
+                  Set the tab size to NUM to expand tabs for option -k.  The value
+                  of NUM may be 1, 2, 4, or 8.
+
+           -U, --binary
+                  Disables Unicode matching and forces PATTERN to match bytes, not
+                  Unicode  characters.   For example, `\xa3' matches byte A3 (hex)
+                  in a (binary) input file  instead  of  the  Unicode  code  point
+                  U+00A3 matching the two-byte UTF-8 sequence C2 A3.
+
+           -V, --version
+                  Display version information and exit.
+
+           -v, --invert-match
+                  Selected  lines are those not matching any of the specified pat-
+                  terns.
+
+           -W     Only output binary matches in hexadecimal, leaving text  matches
+                  alone.  This option is equivalent to the --binary-files=with-hex
+                  option.
+
+           -w, --word-regexp
+                  The pattern or -e patterns are searched for as  a  word  (as  if
+                  surrounded by `\<' and `\>').
+
+           -x, --line-regexp
+                  Only  input lines selected against the entire pattern or -e pat-
+                  terns are considered to be matching lines (as if surrounded by ^
+                  and $).
+
+           -X     Output matches in hexadecimal.  This option is equivalent to the
+                  --binary-files=hex option.
+
+           -Y, --empty
+                  Permits matching empty patterns, such as `^$'.   Matching  empty
+                  patterns  is disabled by default.  Note that empty-matching pat-
+                  terns such as `x?' and `x*' match all input, not only lines with
+                  `x'.
+
+           -y     Equivalent to -i.  Obsoleted.
+
+           -Z, --null
+                  Prints a zero-byte after the file name.
+
+           -z, --decompress
+                  Decompress  files to search.  This feature is not yet available.
+
+           The regular expression pattern syntax is an extended form of the  POSIX
+           ERE syntax.  For an overview of the syntax see README.md or visit:
+
+                  https://github.com/Genivia/ugrep
+
+           Note  that  `.'  matches any non-newline character.  Matching a newline
+           character `\n' is not possible unless one or more of  the  options  -c,
+           -L,  -l,  -N,  -o, or -q are used (in any combination, but not combined
+           with option -v) to allow a pattern match to span multiple lines.
+
+           If no file arguments are specified, or if - is specified, the  standard
+           input is used.
+
+    EXIT STATUS
+           The ugrep utility exits with one of the following values:
+
+           0      One or more lines were selected.
+
+           1      No lines were selected.
+
+           >1     An error occurred.
+
+    GLOBBING
+           Globbing  is  used by options --include, --include-dir, --include-from,
+           --exclude, --exclude-dir, --exclude-from to match pathnames  and  base-
+           names.  Globbing supports gitignore syntax and the corresponding match-
+           ing rules.  When a glob contains a path separator `/', the pathname  is
+           matched.   Otherwise  the  basename  of a file or directory is matched.
+           For  example,  *.h  matches  foo.h  and  bar/foo.h.   bar/*.h   matches
+           bar/foo.h  but  not  foo.h and not bar/bar/foo.h.  Use a leading `/' to
+           force /*.h to match foo.h but not bar/foo.h.
 
-       Glob Syntax and Conventions
+           Glob Syntax and Conventions
 
-       **/    Matches zero or more directories.
+           **/    Matches zero or more directories.
 
-       /**    When at the end of a glob, matches everything after the /.
+           /**    When at the end of a glob, matches everything after the /.
 
-       *      Matches anything except a /.
+           *      Matches anything except a /.
 
-       /      When used at the begin of a glob, matches if pathname has no  /.
+           /      When used at the begin of a glob, matches if pathname has no  /.
 
-       ?      Matches any character except a /.
+           ?      Matches any character except a /.
 
-       [a-z]  Matches one character in the selected range of characters.
+           [a-z]  Matches one character in the selected range of characters.
 
-       [^a-z] Matches one character not in the selected range of characters.
+           [^a-z] Matches one character not in the selected range of characters.
 
-       [!a-z] Matches one character not in the selected range of characters.
+           [!a-z] Matches one character not in the selected range of characters.
 
-       \?     Matches a ? (or any character specified after the backslash).
+           \?     Matches a ? (or any character specified after the backslash).
 
-       Glob Matching Examples
+           Glob Matching Examples
 
-       **/a   Matches a, x/a, x/y/a,       but not b, x/b.
+           **/a   Matches a, x/a, x/y/a,       but not b, x/b.
 
-       a/**/b Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
+           a/**/b Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
 
-       a/**   Matches a/x, a/y, a/x/y,     but not b/x
+           a/**   Matches a/x, a/y, a/x/y,     but not b/x
 
-       a/*/b  Matches a/x/b, a/y/b,        but not a/x/y/b
+           a/*/b  Matches a/x/b, a/y/b,        but not a/x/y/b
 
-       /a     Matches a,                   but not x/a
+           /a     Matches a,                   but not x/a
 
-       /*     Matches a, b,                but not x/a, x/b
+           /*     Matches a, b,                but not x/a, x/b
 
-       a?b    Matches axb, ayb,            but not a, b, ab
+           a?b    Matches axb, ayb,            but not a, b, ab
 
-       a[xy]b Matches axb, ayb             but not a, b, azb
+           a[xy]b Matches axb, ayb             but not a, b, azb
 
-       a[a-z]b
-              Matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
+           a[a-z]b
+                  Matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
 
-       a[^xy]b
-              Matches aab, abb, acb, azb,  but not a, b, axb, ayb
+           a[^xy]b
+                  Matches aab, abb, acb, azb,  but not a, b, axb, ayb
 
-       a[^a-z]b
-              Matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
+           a[^a-z]b
+                  Matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
 
-       Lines  in  the --exclude-from and --include-from files are ignored when
-       empty or start with a `#'.  The prefix `!' to a glob  in  such  a  file
-       negates  the  pattern  match,  i.e.  matching files are excluded except
-       files matching the globs prefixed with `!' in the --exclude-from  file.
+           Lines  in  the --exclude-from and --include-from files are ignored when
+           empty or start with a `#'.  The prefix `!' to a glob  in  such  a  file
+           negates  the  pattern  match,  i.e.  matching files are excluded except
+           files matching the globs prefixed with `!' in the --exclude-from  file.
 
-ENVIRONMENT
-       GREP_PATH
-              May  be  used to specify a file path to pattern files.  The file
-              path is used by option -f to open a pattern file, when the  file
-              cannot be opened.
+    ENVIRONMENT
+           GREP_PATH
+                  May  be  used to specify a file path to pattern files.  The file
+                  path is used by option -f to open a pattern file, when the  file
+                  cannot be opened.
 
-       GREP_COLOR
-              May  be used to specify ANSI SGR parameters to highlight matches
-              when option --color is used, e.g. 1;35;40 shows pattern  matches
-              in bold magenta text on a black background.
+           GREP_COLOR
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  when option --color is used, e.g. 1;35;40 shows pattern  matches
+                  in bold magenta text on a black background.
 
-       GREP_COLORS
-              May  be used to specify ANSI SGR parameters to highlight matches
-              and other attributes when option --color is used.  Its value  is
-              a  colon-separated  list of ANSI SGR parameters that defaults to
-              mt=1;31:sl=:cx=:fn=35:ln=32:cn=32:bn=32:se=36.   The  mt=,  ms=,
-              and   mc=   capabilities   of  GREP_COLORS  have  priority  over
-              GREP_COLOR.
+           GREP_COLORS
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  and other attributes when option --color is used.  Its value  is
+                  a  colon-separated  list of ANSI SGR parameters that defaults to
+                  mt=1;31:sl=:cx=:fn=35:ln=32:cn=32:bn=32:se=36.   The  mt=,  ms=,
+                  and   mc=   capabilities   of  GREP_COLORS  have  priority  over
+                  GREP_COLOR.
 
-GREP_COLORS
-       sl=    SGR substring for selected lines.
+    GREP_COLORS
+           sl=    SGR substring for selected lines.
 
-       cx=    SGR substring for context lines.
+           cx=    SGR substring for context lines.
 
-       rv     Swaps the sl= and cx= capabilities when -v is specified.
+           rv     Swaps the sl= and cx= capabilities when -v is specified.
 
-       mt=    SGR substring for matching text in any matching line.
+           mt=    SGR substring for matching text in any matching line.
 
-       ms=    SGR substring for matching text in a selected  line.   The  sub-
-              string mt= by default.
+           ms=    SGR substring for matching text in a selected  line.   The  sub-
+                  string mt= by default.
 
-       mc=    SGR  substring  for  matching  text in a context line.  The sub-
-              string mt= by default.
+           mc=    SGR  substring  for  matching  text in a context line.  The sub-
+                  string mt= by default.
 
-       fn=    SGR substring for file names.
+           fn=    SGR substring for file names.
 
-       ln=    SGR substring for line numbers.
+           ln=    SGR substring for line numbers.
 
-       cn=    SGR substring for column numbers.
+           cn=    SGR substring for column numbers.
 
-       bn=    SGR substring for byte offsets.
+           bn=    SGR substring for byte offsets.
 
-       se=    SGR substring for separators.
+           se=    SGR substring for separators.
 
-EXAMPLES
-       To find all occurrences of the word `patricia' in a file:
+    EXAMPLES
+           To find all occurrences of the word `patricia' in a file:
 
-              $ ugrep -w 'patricia' myfile
+                  $ ugrep -w 'patricia' myfile
 
-       To count the number of lines containing the word `patricia' or  `Patri-
-       cia` in a file:
+           To count the number of lines containing the word `patricia' or  `Patri-
+           cia` in a file:
 
-              $ ugrep -cw '[Pp]atricia' myfile
+                  $ ugrep -cw '[Pp]atricia' myfile
 
-       To  count  the  total number of times the word `patricia' or `Patricia`
-       occur in a file:
+           To  count  the  total number of times the word `patricia' or `Patricia`
+           occur in a file:
 
-              $ ugrep -cgw '[Pp]atricia' myfile
+                  $ ugrep -cgw '[Pp]atricia' myfile
 
-       To list all Unicode words in a file:
+           To list all Unicode words in a file:
 
-              $ ugrep -o '\w+' myfile
+                  $ ugrep -o '\w+' myfile
 
-       To list all ASCII words in a file:
+           To list all ASCII words in a file:
 
-              $ ugrep -o '[[:word:]]+' myfile
+                  $ ugrep -o '[[:word:]]+' myfile
 
-       To list all laughing  face  emojis  (Unicode  code  points  U+1F600  to
-       U+1F60F) in a file:
+           To list all laughing  face  emojis  (Unicode  code  points  U+1F600  to
+           U+1F60F) in a file:
 
-              $ ugrep -o '[\x{1F600}-\x{1F60F}]' myfile
+                  $ ugrep -o '[\x{1F600}-\x{1F60F}]' myfile
 
-       To check if a file contains any non-ASCII (i.e. Unicode) characters:
+           To check if a file contains any non-ASCII (i.e. Unicode) characters:
 
-              $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
+                  $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
-       To  display  the line and column number of all `FIXME' in all C++ files
-       using recursive search, with one line of context before and after  each
-       matched line:
+           To  display  the line and column number of all `FIXME' in all C++ files
+           using recursive search, with one line of context before and after  each
+           matched line:
 
-              $ ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
+                  $ ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
 
-       To  list  all C/C++ comments in a file displaying their line and column
-       numbers using options -n and -k, and option -o that allows for matching
-       patterns across multiple lines:
+           To  list  all C/C++ comments in a file displaying their line and column
+           numbers using options -n and -k, and option -o that allows for matching
+           patterns across multiple lines:
 
-              $ ugrep -nko -e '//.*' -e '/\*([^*]|(\*+[^*/]))*\*+\/' myfile
+                  $ ugrep -nko -e '//.*' -e '/\*([^*]|(\*+[^*/]))*\*+\/' myfile
 
-       The same search, but using pre-defined patterns:
+           The same search, but using pre-defined patterns:
 
-              $ ugrep -nko -f c/comments myfile
+                  $ ugrep -nko -f c/comments myfile
 
-       To  list  the  lines that need fixing in a C/C++ source file by looking
-       for the word FIXME while skipping any FIXME in quoted strings by  using
-       a negative pattern `(?^X)' to ignore quoted strings:
+           To  list  the  lines that need fixing in a C/C++ source file by looking
+           for the word FIXME while skipping any FIXME in quoted strings by  using
+           a negative pattern `(?^X)' to ignore quoted strings:
 
-              $ ugrep -no -e 'FIXME' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' myfile
+                  $ ugrep -no -e 'FIXME' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' myfile
 
-       To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
-       Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
-       Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
-       the results in hex with -X piped to `more -R':
+           To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
+           Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
+           Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
+           the results in hex with -X piped to `more -R':
 
-              $  ugrep --color=always -oUX '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]'
-              a.out | more -R
+                  $  ugrep --color=always -oUX '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]'
+                  a.out | more -R
 
-       To hex dump the entire file:
+           To hex dump the entire file:
 
-              $ ugrep -oX '.|\n' a.out | more
+                  $ ugrep -oX '.|\n' a.out | more
 
-       To list all files containing a RPM  signature,  located  in  the  `rpm`
-       directory and recursively below:
+           To list all files containing a RPM  signature,  located  in  the  `rpm`
+           directory and recursively below:
 
-              $ ugrep -RlU '\A\xed\xee\xdb' rpm
+                  $ ugrep -RlU '\A\xed\xee\xdb' rpm
 
-       To monitor the system log for bug reports:
+           To monitor the system log for bug reports:
 
-              tail -f /var/log/system.log | ugrep --color -i -w 'bug'
+                  tail -f /var/log/system.log | ugrep --color -i -w 'bug'
 
-BUGS
-       Report bugs at:
+    BUGS
+           Report bugs at:
 
-              https://github.com/Genivia/ugrep/issues
+                  https://github.com/Genivia/ugrep/issues
 
 
-LICENSE
-       ugrep  is  released under the BSD-3 license.  All parts of the software
-       have reasonable copyright terms permitting free  redistribution.   This
-       includes the ability to reuse all or parts of the ugrep source tree.
+    LICENSE
+           ugrep  is  released under the BSD-3 license.  All parts of the software
+           have reasonable copyright terms permitting free  redistribution.   This
+           includes the ability to reuse all or parts of the ugrep source tree.
 
-SEE ALSO
-       grep(1).
+    SEE ALSO
+           grep(1).
 
 
 
-ugrep 1.1.5                      May 28, 2019                         UGREP(1)
+    ugrep 1.1.5                      May 28, 2019                         UGREP(1)
 
 ugrep versus other "greps"
 --------------------------
