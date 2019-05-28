@@ -838,6 +838,17 @@ ugrep versus other "greps"
   the input line-by-line as other grep tools do.  This allows matching patterns
   that include newlines (`\n`), i.e. a match can span multiple lines.  This is
   not possible with other grep-like tools.
+- New options `-W` and `-X` to produce hexadecimal matches ("hexdumps") in
+  binary files.
+- New option `-Y` to permit matching empty patterns.  Grepping with
+  empty-matching patterns is weird and gives different results with GNU grep
+  and BSD grep.  New option `-Y` to permit empty matches avoids making mistakes
+  giving "random" results.  For example, `a*` matches every line in the input,
+  and actually matches `xyz` three times (the empty transitions before and
+  between the `x`, `y`, and `z`).  Non-empty pattern matching is the default.
+  Matching empty lines with the pattern `^$` requires option `-Y`.
+- New option `-U` to specify non-Unicode pattern matches, e.g. to search for
+  binary patterns.  **ugrep** matches Unicode by default.
 - New option `-k`, `--column-number` with **ugrep** to display the column
   number, taking tab spacing into account by expanding tabs, as specified by
   option `--tabs`.
@@ -845,14 +856,11 @@ ugrep versus other "greps"
   displays a matched input line again for each additional pattern match.  This
   option is particularly useful with option `-c` to report the total number of
   pattern matches per file instead of the number of lines matched per file.
-- New option `-Y` to permit matching empty patterns.  Grepping with
-  empty-matching patterns is weird and gives different results with GNU grep
-  and BSD grep.  New option `-Y` to permit empty matches is useful to avoid
-  making mistakes giving "random" results.  For example, `a*` matches every
-  line in the input, and actually matches `xyz` three times (the empty
-  transitions before and between the `x`, `y`, and `z`).  Non-empty pattern
-  matching is the default.  Matching empty lines with the pattern `^$` requires
-  option `-Y`.
+- New options `-O` and `-t` to specify file extensions and file types,
+  respectively, to search selectively in directory trees with recursive search
+  options `-R` and `-r`.
+- Extended option `-f` uses `GREP_PATH` environment variable and pre-defined
+  patterns intalled in `/usr/local/share/ugrep/patterns`.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line as grep reports.  Reporting exact
