@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 15, 2019" "ugrep 1.1.4" "User Commands"
+.TH UGREP "1" "May 28, 2019" "ugrep 1.1.5" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -48,12 +48,17 @@ the UTF\-8\-converted input is displayed.
 .TP
 \fB\-\-binary\-files\fR=\fITYPE\fR
 Controls searching and reporting pattern matches in binary files.
-Options are `binary', `without\-match`, and `text`.  The default is
-`binary' to search binary files and to report a match without
-displaying the match.  `without\-match' ignores binary files.
-`text' treats all binary files as text, which might output binary
-garbage to the terminal, which can have problematic consequences
-if the terminal driver interprets some of it as commands.
+Options are `binary', `without\-match`, `text`, `hex`, and
+`with\-hex'.  The default is `binary' to search binary files and to
+report a match without displaying the match.  `without\-match'
+ignores binary matches.  `text' treats all binary files as text,
+which might output binary garbage to the terminal, which can have
+problematic consequences if the terminal driver interprets some of
+it as commands.  `hex' reports all matches in hexadecimal.
+`with\-hex` only reports binary matches in hexadecimal, leaving text
+matches alone.  A match is considered binary if a match contains a
+zero byte or an invalid UTF encoding. See also options \fB\-a\fR, \fB\-I\fR, \fB\-U\fR,
+\-W, and \fB\-X\fR
 .TP
 \fB\-C\fR[NUM], \fB\-\-context\fR[=\fI\fR\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
@@ -128,9 +133,13 @@ fgrep but less efficiently than fgrep.
 \fB\-f\fR FILE, \fB\-\-file\fR=\fIFILE\fR
 Read one or more newline\-separated patterns from FILE.  Empty
 pattern lines in the file are not processed.  Options \fB\-F\fR, \fB\-w\fR, and
-\-x do not apply to FILE patterns.  If FILE does not exist, uses
-the GREP_PATH environment variable to attempt to open FILE. This
-option may be repeated.
+\-x do not apply to FILE patterns.  If FILE does not exist, the
+GREP_PATH environment variable is used as the path to read FILE.
+If that fails, looks for FILE in /usr/local/share/ugrep.
+This option may be repeated.
+.TP
+\fB\-\-free\-space\fR
+Spacing (blanks and tabs) in regular expressions are ignored.
 .TP
 \fB\-G\fR, \fB\-\-basic\-regexp\fR
 Interpret pattern as a basic regular expression (i.e. force ugrep
@@ -156,7 +165,7 @@ Never print filenames with output lines.
 Print a help message.
 .TP
 \fB\-I\fR
-Ignore binary files.  This option is equivalent to
+Ignore matches in binary files.  This option is equivalent to the
 \fB\-\-binary\-files\fR=\fIwithout\-match\fR option.
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
@@ -279,6 +288,11 @@ default is not to follow symbolic links.
 Silent mode.  Nonexistent and unreadable files are ignored (i.e.
 their error messages are suppressed).
 .TP
+\fB\-\-separator\fR=\fISEP\fR
+Use SEP as field separator between file name, line number, column
+number, byte offset, and the matched line.  The default is a colon
+(`:').
+.TP
 \fB\-T\fR, \fB\-\-initial\-tab\fR
 Add a tab space to separate the file name, line number, column
 number, and byte offset with the matched line.
@@ -305,9 +319,10 @@ Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
 NUM may be 1, 2, 4, or 8.
 .TP
 \fB\-U\fR, \fB\-\-binary\fR
-Forces PATTERN to match bytes, not Unicode characters, when
-searching files.  For example, `\\xa3' matches byte A3 (hex)
-instead of the UTF\-8 sequence C2 A3 for Unicode character U+00A3.
+Disables Unicode matching and forces PATTERN to match bytes, not
+Unicode characters.  For example, `\\xa3' matches byte A3 (hex) in
+a (binary) input file instead of the Unicode code point U+00A3
+matching the two\-byte UTF\-8 sequence C2 A3.
 .TP
 \fB\-V\fR, \fB\-\-version\fR
 Display version information and exit.
@@ -316,27 +331,27 @@ Display version information and exit.
 Selected lines are those not matching any of the specified
 patterns.
 .TP
-\fB\-W\fR SEP, \fB\-\-separator\fR=\fISEP\fR
-Use SEP as field separator between file name, line number, column
-number, byte offset, and the matched line.  The default is a colon
-(`:').
+\fB\-W\fR
+Only output binary matches in hexadecimal, leaving text matches
+alone.  This option is equivalent to the \fB\-\-binary\-files\fR=\fIwith\-hex\fR
+option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The pattern or \fB\-e\fR patterns are searched for as a word (as if
 surrounded by `\\<' and `\\>').
 .TP
-\fB\-X\fR, \fB\-\-free\-space\fR
-Spacing (blanks and tabs) in regular expressions are ignored.
-.TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire pattern or \fB\-e\fR patterns
 are considered to be matching lines (as if surrounded by ^ and $).
 .TP
+\fB\-X\fR
+Output matches in hexadecimal.  This option is equivalent to the
+\fB\-\-binary\-files\fR=\fIhex\fR option.
+.TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits matching empty patterns, such as `^$'.  Matching empty
-patterns is disabled by default.  Note that empty\-matching patterns,
-such as `x?' and `x*', match everything in the input with this
-option, not only `x'.
+patterns is disabled by default.  Note that empty\-matching patterns
+such as `x?' and `x*' match all input, not only lines with `x'.
 .TP
 \fB\-y\fR
 Equivalent to \fB\-i\fR.  Obsoleted.
@@ -353,11 +368,11 @@ syntax.  For an overview of the syntax see README.md or visit:
 https://github.com/Genivia/ugrep
 .PP
 Note that `.' matches any non-newline character.  Matching a newline character
-`\\n' is not possible unless one of the options \fB-c\fR, \fB-L\fR,
-\fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR is used (in any combination, but not
+`\\n' is not possible unless one or more of the options \fB-c\fR, \fB-L\fR,
+\fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR are used (in any combination, but not
 combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
 .PP
-If no file arguments are specified, or if `-' is specified, the standard input
+If no file arguments are specified, or if - is specified, the standard input
 is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
@@ -429,8 +444,7 @@ matching the globs prefixed with `!' in the \fB--exclude-from\fR file.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
-option -f to open a pattern file, when the file specified with option -f cannot
-be opened.
+option \fB-f\fR to open a pattern file, when the file cannot be opened.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
@@ -498,6 +512,11 @@ To check if a file contains any non-ASCII (i.e. Unicode) characters:
 .IP
 $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 .PP
+To display the line and column number of all `FIXME' in all C++ files using
+recursive search, with one line of context before and after each matched line:
+.IP
+$ ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
+.PP
 To list all C/C++ comments in a file displaying their line and column numbers
 using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
 matching patterns across multiple lines:
@@ -506,13 +525,33 @@ $ ugrep -nko -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile
 .PP
 The same search, but using pre-defined patterns:
 .IP
-$ ugrep -nko -f patterns/c_comments myfile
+$ ugrep -nko -f c/comments myfile
 .PP
 To list the lines that need fixing in a C/C++ source file by looking for the
 word FIXME while skipping any FIXME in quoted strings by using a negative
 pattern `(?^X)' to ignore quoted strings:
 .IP
 $ ugrep -no -e 'FIXME' -e '(?^"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*")' myfile
+.PP
+To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
+Unicode pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a
+Unicode character U+00A3 with UTF-8 byte sequence C2 A3) and display the
+results in hex with \fB-X\fR piped to `more -R':
+.IP
+$ ugrep --color=always -oUX '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out | more -R
+.PP
+To hex dump the entire file:
+.IP
+$ ugrep -oX '.|\\n' a.out | more
+.PP
+To list all files containing a RPM signature, located in the `rpm` directory and
+recursively below:
+.IP
+$ ugrep -RlU '\\A\\xed\xab\\xee\\xdb' rpm
+.PP
+To monitor the system log for bug reports:
+.IP
+tail -f /var/log/system.log | ugrep --color -i -w 'bug'
 .SH BUGS
 Report bugs at:
 .IP

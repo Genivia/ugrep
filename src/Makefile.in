@@ -195,6 +195,7 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 GREP = @GREP@
+GREP_PATH = @GREP_PATH@
 HAVE_CXX11 = @HAVE_CXX11@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -274,7 +275,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-ugrep_CPPFLAGS = -DPLATFORM=\"$(PLATFORM)\"
+ugrep_CPPFLAGS = -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\"
 ugrep_SOURCES = ugrep.cpp wildmat.cpp
 ugrep_LDADD = -lreflex
 all: all-am

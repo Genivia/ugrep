@@ -63,11 +63,11 @@ syntax.  For an overview of the syntax see README.md or visit:
 https://github.com/Genivia/ugrep
 .PP
 Note that `.' matches any non-newline character.  Matching a newline character
-`\\n' is not possible unless one of the options \fB-c\fR, \fB-L\fR,
-\fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR is used (in any combination, but not
+`\\n' is not possible unless one or more of the options \fB-c\fR, \fB-L\fR,
+\fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR are used (in any combination, but not
 combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
 .PP
-If no file arguments are specified, or if `-' is specified, the standard input
+If no file arguments are specified, or if - is specified, the standard input
 is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
@@ -139,8 +139,7 @@ matching the globs prefixed with `!' in the \fB--exclude-from\fR file.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
-option -f to open a pattern file, when the file specified with option -f cannot
-be opened.
+option \fB-f\fR to open a pattern file, when the file cannot be opened.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
@@ -208,6 +207,11 @@ To check if a file contains any non-ASCII (i.e. Unicode) characters:
 .IP
 $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 .PP
+To display the line and column number of all `FIXME' in all C++ files using
+recursive search, with one line of context before and after each matched line:
+.IP
+$ ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
+.PP
 To list all C/C++ comments in a file displaying their line and column numbers
 using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
 matching patterns across multiple lines:
@@ -216,13 +220,33 @@ $ ugrep -nko -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile
 .PP
 The same search, but using pre-defined patterns:
 .IP
-$ ugrep -nko -f patterns/c_comments myfile
+$ ugrep -nko -f c/comments myfile
 .PP
 To list the lines that need fixing in a C/C++ source file by looking for the
 word FIXME while skipping any FIXME in quoted strings by using a negative
 pattern `(?^X)' to ignore quoted strings:
 .IP
 $ ugrep -no -e 'FIXME' -e '(?^"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*")' myfile
+.PP
+To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
+Unicode pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a
+Unicode character U+00A3 with UTF-8 byte sequence C2 A3) and display the
+results in hex with \fB-X\fR piped to `more -R':
+.IP
+$ ugrep --color=always -oUX '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out | more -R
+.PP
+To hex dump the entire file:
+.IP
+$ ugrep -oX '.|\\n' a.out | more
+.PP
+To list all files containing a RPM signature, located in the `rpm` directory and
+recursively below:
+.IP
+$ ugrep -RlU '\\A\\xed\xab\\xee\\xdb' rpm
+.PP
+To monitor the system log for bug reports:
+.IP
+tail -f /var/log/system.log | ugrep --color -i -w 'bug'
 .SH BUGS
 Report bugs at:
 .IP

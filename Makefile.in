@@ -260,6 +260,7 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 GREP = @GREP@
+GREP_PATH = @GREP_PATH@
 HAVE_CXX11 = @HAVE_CXX11@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -867,6 +868,8 @@ uninstall-man: uninstall-man1
 
 
 install-data-hook:
+		(mkdir -p $(datadir)/ugrep; \
+		 cp -rf patterns $(datadir)/ugrep/)
 		@echo " ______________________________________________________ "; \
 		 echo "|                                                      |"; \
 		 echo "| You have successfully built and installed ugrep.     |"; \

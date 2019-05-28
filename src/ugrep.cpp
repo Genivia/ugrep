@@ -28,7 +28,7 @@
 
 /**
 @file      ugrep.cpp
-@brief     Universal grep - high-performance pattern search utility
+@brief     Universal grep - a pattern search utility
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -45,76 +45,13 @@ Requires:
 
   https://github.com/Genivia/RE-flex
 
-Examples:
-
-  # display the lines in places.txt that contain Unicode words
-  ugrep '\w+' places.txt
-
-  # display the lines in places.txt with Unicode words color-highlighted
-  ugrep --color=auto '\w+' places.txt
-
-  # list all Unicode words in places.txt
-  ugrep -o '\w+' places.txt
-
-  # list all ASCII words (using a POSIX character class) in places.txt
-  ugrep -o '[[:word:]]+' places.txt
-
-  # list lines containing the Greek letter α to ω (U+03B1 to U+03C9)
-  ugrep '[α-ω]' places.txt
-
-  # list all laughing face emojis (Unicode code points U+1F600 to U+1F60F) in birthday.txt 
-  ugrep -o '[😀-😏]' birthday.txt
-
-  # list all laughing face emojis (Unicode code points U+1F600 to U+1F60F) in birthday.txt 
-  ugrep -o '[\x{1F600}-\x{1F60F}]' birthday.txt
-
-  # display lines containing the names Gödel (or Goedel), Escher, or Bach in GEB.txt and wiki.txt
-  ugrep 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-  # display lines that do not contain the names Gödel (or Goedel), Escher, or Bach in GEB.txt and wiki.txt
-  ugrep -v 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-  # count the number of lines containing the names Gödel (or Goedel), Escher, or Bach in GEB.txt and wiki.txt
-  ugrep -c 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-  # count the number of occurrences of the names Gödel (or Goedel), Escher, or Bach in GEB.txt and wiki.txt
-  ugrep -c -g 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-  # check if some.txt file contains any non-ASCII (i.e. Unicode) characters
-  ugrep -q '[^[:ascii:]]' some.txt && echo "some.txt contains Unicode"
-
-  # display word-anchored 'lorem' in UTF-16 formatted file utf16lorem.txt that contains a UTF-16 BOM
-  ugrep -w -i 'lorem' utf16lorem.txt
-
-  # display word-anchored 'lorem' in UTF-16 formatted file utf16lorem.txt that does not contain a UTF-16 BOM
-  ugrep --encoding=UTF-16 -w -i 'lorem' utf16lorem.txt
-
-  # list the lines to fix in a C/C++ source file by looking for the word FIXME while skipping any FIXME in quoted strings by using a negative pattern `(?^X)' to ignore quoted strings:
-  ugrep -n -o -e 'FIXME' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' file.cpp
-
-  # check if 'main' is defined in a C/C++ source file, skipping the word 'main' in comments and strings:
-  ugrep -q -e '\<main\>' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|(\*+[^/\x2A]))*\*+\/)' file.cpp
-
-  # display function and method definitions in a C/C++ source file
-  ugrep '^([[:alpha:]:]+\h*)+\(.*' file.cpp
-
-  # display non-static function and method definitions in a C/C++ source file
-  ugrep -e '^([[:alpha:]:]+\h*)+\(.*' -e '(?^^static.*)' file.cpp
-
-  # display C/C++ comments and strings using patterns in file patterns/c/comments and patterns/c/strings
-  ugrep -o -f patterns/c/comments -f patterns/c/strings file.cpp
-
 Compile:
 
   c++ -std=c++11 -O2 -o ugrep ugrep.cpp wildmat.cpp -lreflex
 
 Bugs FIXME:
 
-  - Line-by-line matching should match \0 on a line, currently \0 terminates
-    the search.  Either use std::stringstream or consider modifying RE/flex to
-    add a feature to search a given block of memory, which is faster.
-  - Empty-matching patterns such as '^$' works only with -q/-o/-c/-N/-L/-l,
-    Grepping with empty-matching patterns is weird and gives different results
+  - Grepping with empty-matching patterns is weird and gives different results
     with GNU grep and BSD grep.  That's why a new option -Y to permit empty
     matches is useful, making non-empty pattern matching the default to avoid
     "random" results.
@@ -122,8 +59,6 @@ Bugs FIXME:
 
 Wanted TODO:
 
-  - Optimize output performance using fputs(), fwrite(), fflush() instead of
-    using std::cout
   - Expand compressed zip and gzip files
   - Should we open files in binary mode "rb" when --binary-files option is specified?
   - ... anything else?
@@ -137,6 +72,7 @@ Wanted TODO:
 #include <cctype>
 #include <cstring>
 #include <cerrno>
+#include <sstream>
 
 // check if we are on a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
@@ -167,7 +103,7 @@ Wanted TODO:
 #endif
 
 // ugrep version
-#define VERSION "1.1.4"
+#define VERSION "1.1.5"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -187,18 +123,27 @@ Wanted TODO:
 #define UNDEFINED static_cast<size_t>(-1)
 
 // ANSI SGR substrings extracted from GREP_COLORS
-#define SGR "\033["
-std::string color_sl;
-std::string color_cx;
-std::string color_mt;
-std::string color_ms;
-std::string color_mc;
-std::string color_fn;
-std::string color_ln;
-std::string color_cn;
-std::string color_bn;
-std::string color_se;
-std::string color_off;
+#define COLORLEN 16
+char color_sl[COLORLEN];
+char color_cx[COLORLEN];
+char color_mt[COLORLEN];
+char color_ms[COLORLEN];
+char color_mc[COLORLEN];
+char color_fn[COLORLEN];
+char color_ln[COLORLEN];
+char color_cn[COLORLEN];
+char color_bn[COLORLEN];
+char color_se[COLORLEN];
+const char *color_off = "";
+
+// Hex dump state data and colors
+#define HEX_MATCH         0
+#define HEX_LINE          1
+#define HEX_CONTEXT_MATCH 2
+#define HEX_CONTEXT_LINE  3
+short last_hex_line[0x10] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+size_t last_hex_offset = 0;
+const char *color_hex[4] = { color_ms, color_sl, color_mc, color_cx };
 
 // ugrep command-line options
 bool flag_with_filename            = false;
@@ -227,10 +172,13 @@ bool flag_line_regexp              = false;
 bool flag_dereference              = false;
 bool flag_no_dereference           = false;
 bool flag_binary                   = false;
-bool flag_decompress               = false;
 bool flag_binary_without_matches   = false;
+bool flag_binary_hex               = false;
 bool flag_text                     = false;
+bool flag_hex                      = false;
 bool flag_empty                    = false;
+bool flag_initial_tab              = false;
+bool flag_decompress               = false;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
@@ -240,7 +188,6 @@ const char *flag_encoding          = NULL;
 const char *flag_devices           = "read";
 const char *flag_directories       = "read";
 const char *flag_label             = "(standard input)";
-const char *flag_initial_tab       = "";
 const char *flag_separator         = ":";
 const char *flag_group_separator   = "--";
 const char *flag_binary_files      = "binary";
@@ -267,8 +214,11 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
 bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
 bool is_binary(const char *text, size_t size);
-void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep);
-void set_color(const char *grep_colors, const char *parameter, std::string& color);
+void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
+void hex_dump(short mode, const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *sep);
+void hex_done();
+void hex_line();
+void set_color(const char *grep_colors, const char *parameter, char color[COLORLEN]);
 bool getline(reflex::Input& input, std::string& line);
 void trim(std::string& line);
 void warning(const char *message, const char *arg);
@@ -283,6 +233,11 @@ inline int fopen_s(FILE **fd, const char *filename, const char *mode)
   return (*fd = fopen(filename, mode)) == NULL ? errno : 0;
 }
 #endif
+
+inline void copy_color(char to[COLORLEN], char from[COLORLEN])
+{
+  memcpy(to, from, COLORLEN);
+}
 
 // table of RE/flex file encodings for ugrep option --encoding
 const struct { const char *format; reflex::Input::file_encoding_type encoding; } format_table[] = {
@@ -485,7 +440,7 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "include-from=", 13) == 0)
               flag_include_from.emplace_back(arg + 13);
             else if (strcmp(arg, "initial-tab") == 0)
-              flag_initial_tab = "\t";
+              flag_initial_tab = true;
             else if (strcmp(arg, "invert-match") == 0)
               flag_invert_match = true;
             else if (strcmp(arg, "label") == 0)
@@ -745,7 +700,7 @@ int main(int argc, char **argv)
             break;
 
           case 'T':
-            flag_initial_tab = "\t";
+            flag_initial_tab = true;
             break;
 
           case 't':
@@ -772,14 +727,7 @@ int main(int argc, char **argv)
             break;
 
           case 'W':
-            ++arg;
-            if (*arg)
-              flag_separator = &arg[*arg == '='];
-            else if (++i < argc)
-              flag_separator = argv[i];
-            else
-              help("missing separator for option -z");
-            is_grouped = false;
+            flag_binary_files = "with-hex";
             break;
 
           case 'w':
@@ -787,7 +735,7 @@ int main(int argc, char **argv)
             break;
 
           case 'X':
-            flag_free_space = true;
+            flag_binary_files = "hex";
             break;
 
           case 'x':
@@ -896,13 +844,11 @@ int main(int argc, char **argv)
       FILE *file = NULL;
 
       if (fopen_s(&file, i.c_str(), "r") != 0)
+        file = NULL;
+
+#ifndef OS_WIN
+      if (file == NULL)
       {
-#ifdef OS_WIN
-
-        error("cannot read", i.c_str());
-
-#else
-
         // could not open, try GREP_PATH environment variable
         const char *grep_path = getenv("GREP_PATH");
 
@@ -912,15 +858,24 @@ int main(int argc, char **argv)
           path_file.append(PATHSEPSTR).append(i);
 
           if (fopen_s(&file, path_file.c_str(), "r") != 0)
-            error("cannot read", i.c_str());
+            file = NULL;
         }
-        else
-        {
-          error("cannot read", i.c_str());
-        }
-
-#endif
       }
+#endif
+
+#ifdef GREP_PATH
+      if (file == NULL)
+      {
+        std::string path_file(GREP_PATH);
+        path_file.append(PATHSEPSTR).append(i);
+
+        if (fopen_s(&file, path_file.c_str(), "r") != 0)
+          file = NULL;
+      }
+#endif
+
+      if (file == NULL)
+        error("cannot read", i.c_str());
 
       reflex::Input input(file);
       std::string line;
@@ -1011,7 +966,7 @@ int main(int argc, char **argv)
 #endif
 
       if (grep_color != NULL)
-        color_mt.assign(SGR).append(grep_color).push_back('m');
+        set_color(std::string("mt=").append(grep_color).c_str(), "mt", color_mt);
       else if (grep_colors == NULL)
         grep_colors = "mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36";
 
@@ -1030,16 +985,21 @@ int main(int argc, char **argv)
         set_color(grep_colors, "se", color_se); // separators
 
         if (flag_invert_match && strstr(grep_colors, "rv") != NULL)
-          color_sl.swap(color_cx);
+        {
+          char color_tmp[COLORLEN];
+          copy_color(color_tmp, color_sl);
+          copy_color(color_sl, color_cx);
+          copy_color(color_cx, color_tmp);
+        }
       }
 
       // if ms= or mc= are not specified, use the mt= value
-      if (color_ms.empty())
-        color_ms = color_mt;
-      if (color_mc.empty())
-        color_mc = color_mt;
+      if (*color_ms == '\0')
+        copy_color(color_ms, color_mt);
+      if (*color_mc == '\0')
+        copy_color(color_mc, color_mt);
 
-      color_off.assign(SGR "0m");
+      color_off = "\033[0m";
     }
   }
 
@@ -1055,11 +1015,15 @@ int main(int argc, char **argv)
       strcmp(flag_directories, "dereference-recurse") != 0)
     help("unknown --directories=ACTION value");
 
-  // check --binary-files option
+  // check --binary-files option and assign related flags
   if (strcmp(flag_binary_files, "without-matches") == 0)
     flag_binary_without_matches = true;
+  else if (strcmp(flag_binary_files, "with-hex") == 0)
+    flag_binary_hex = true;
   else if (strcmp(flag_binary_files, "text") == 0)
     flag_text = true;
+  else if (strcmp(flag_binary_files, "hex") == 0)
+    flag_hex = true;
   else if (strcmp(flag_binary_files, "binary") != 0)
     help("unknown --binary-files value");
 
@@ -1628,12 +1592,13 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
     if (!flag_quiet && ((matches && flag_files_with_match) || (!matches && flag_files_without_match)))
     {
-      std::cout << color_fn << pathname << color_off;
-
-      std::cout << (char)(flag_null ? '\0' : '\n');
+      fputs(color_fn, stdout);
+      fputs(pathname, stdout);
+      fputs(color_off, stdout);
+      fputc(flag_null ? '\0' : '\n', stdout);
 
       if (flag_line_buffered)
-        std::cout.flush();
+        fflush(stdout);
     }
   }
   else if (flag_count)
@@ -1696,42 +1661,51 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
     if (flag_with_filename)
     {
-      std::cout << color_fn << pathname << color_off;
+      fputs(color_fn, stdout);
+      fputs(pathname, stdout);
+      fputs(color_off, stdout);
 
       if (flag_null)
-        std::cout << (char)'\0' << matches << "\n";
+      {
+        fputc('\0', stdout);
+      }
       else
-        std::cout << color_se << flag_separator << color_off << matches << "\n";
-    }
-    else
-    {
-      std::cout << matches << "\n";
+      {
+        fputs(color_se, stdout);
+        fputs(flag_separator, stdout);
+        fputs(color_off, stdout);
+      }
+
     }
 
+    printf("%zu", matches);
+    fputc('\n', stdout);
+
     if (flag_line_buffered)
-      std::cout.flush();
+      fflush(stdout);
   }
   else if (!flag_only_matching && !flag_only_line_number)
   {
     // read input line-by-line and display lines that match the pattern
 
     // TODO: line-by-line reading is not yet optimized!!!
-    // TODO: line matching should match \0 on a line, currently \0 terminates the search on a line
-    // TODO: fputs(), fwrite(), fflush() is probably faster than std::cout
 
     size_t byte_offset = 0;
     size_t lineno = 1;
     size_t before = 0;
     size_t after = 0;
 
+    std::vector<bool> binary;
     std::vector<size_t> byte_offsets;
     std::vector<std::string> lines;
 
+    binary.reserve(flag_before_context + 1);
     byte_offsets.reserve(flag_before_context + 1);
     lines.reserve(flag_before_context + 1);
 
     for (size_t i = 0; i <= flag_before_context; ++i)
     {
+      binary[i] = flag_hex;
       byte_offsets.emplace_back(0);
       lines.emplace_back("");
     }
@@ -1746,10 +1720,28 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
       if (getline(input, lines[current]))
         break;
 
+      if (!flag_text && !flag_hex && is_binary(lines[current].c_str(), lines[current].size()))
+      {
+        if (flag_binary_without_matches)
+          return false;
+        binary[current] = true;
+      }
+
       bool before_context = flag_before_context > 0;
       bool after_context = flag_after_context > 0;
 
       size_t last = UNDEFINED;
+
+      if (binary[current])
+      {
+        // this may be slower, but matches all \0 on the line
+        std::stringstream stream(lines[current]);
+        matcher.input(stream);
+      }
+      else
+      {
+        matcher.input(lines[current]); // does not search after the first \0
+      }
 
       if (flag_invert_match)
       {
@@ -1757,8 +1749,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
         bool found = false;
 
-        matcher.input(lines[current]);
-        
         for (auto& match : matcher.find)
         {
           if (after > 0 && after + flag_after_context >= lineno)
@@ -1767,20 +1757,38 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             if (last == UNDEFINED)
             {
-              display(pathname, lineno, match.columno() + 1, byte_offset, "-");
+              display(pathname, lineno, match.columno() + 1, byte_offset, "-", binary[current]);
 
               last = 0;
             }
 
-            std::cout <<
-              color_cx << lines[current].substr(last, match.first() - last) << color_off <<
-              color_mc << match.str() << color_off;
+            if (binary[current])
+            {
+              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, NULL);
+            }
+            else
+            {
+              fputs(color_cx, stdout);
+              fwrite(lines[current].c_str() + last, 1, match.first() - last, stdout);
+              fputs(color_off, stdout);
+            }
 
             last = match.last();
 
             // skip empty pattern matches
             if (last == 0)
               break;
+
+            if (binary[current])
+            {
+              hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), NULL);
+            }
+            else
+            {
+              fputs(color_mc, stdout);
+              fwrite(match.begin(), 1, match.size(), stdout);
+              fputs(color_off, stdout);
+            }
           }
           else
           {
@@ -1792,14 +1800,23 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
         if (last != UNDEFINED)
         {
-          std::cout << color_cx << lines[current].substr(last) << color_off << "\n";
+          if (binary[current])
+          {
+            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, NULL);
+            hex_done();
+          }
+          else
+          {
+            fputs(color_cx, stdout);
+            fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, stdout);
+            fputs(color_off, stdout);
+            fputc('\n', stdout);
+          }
         }
         else if (!found)
         {
-          if (!flag_text && is_binary(lines[current].c_str(), lines[current].size()))
+          if (binary[current] && !flag_hex && !flag_binary_hex)
           {
-            if (flag_binary_without_matches)
-              return false;
             std::cout << "Binary file " << pathname << " matches" << std::endl;
             return true;
           }
@@ -1810,7 +1827,12 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             // indicate the end of the group of after lines of the previous matched line
             if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
-              std::cout << color_se << flag_group_separator << color_off << "\n";
+            {
+              fputs(color_se, stdout);
+              fputs(flag_group_separator, stdout);
+              fputs(color_off, stdout);
+              fputc('\n', stdout);
+            }
 
             // remember the matched line
             after = lineno;
@@ -1827,37 +1849,75 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             // indicate the begin of the group of before lines
             if (begin < lineno && matches > 0 && flag_group_separator != NULL)
-              std::cout << color_se << flag_group_separator << color_off << "\n";
+            {
+              fputs(color_se, stdout);
+              fputs(flag_group_separator, stdout);
+              fputs(color_off, stdout);
+              fputc('\n', stdout);
+            }
 
             // display lines before the matched line
             while (begin < lineno)
             {
+              size_t begin_context = begin % (flag_before_context + 1);
+
               last = UNDEFINED;
 
-              matcher.input(lines[begin % (flag_before_context + 1)]);
+              matcher.input(lines[begin_context]);
 
               for (auto& match : matcher.find)
               {
                 if (last == UNDEFINED)
                 {
-                  display(pathname, begin, match.columno() + 1, byte_offsets[begin % (flag_before_context + 1)], "-");
+                  display(pathname, begin, match.columno() + 1, byte_offsets[begin_context], "-", binary[begin_context]);
 
                   last = 0;
                 }
 
-                std::cout <<
-                  color_cx << lines[begin % (flag_before_context + 1)].substr(last, match.first() - last) << color_off <<
-                  color_mc << match.str() << color_off;
+                if (binary[begin_context])
+                {
+                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, match.first() - last, NULL);
+                }
+                else
+                {
+                  fputs(color_cx, stdout);
+                  fwrite(lines[begin_context].c_str() + last, 1, match.first() - last, stdout);
+                  fputs(color_off, stdout);
+                }
 
                 last = match.last();
 
                 // skip empty pattern matches
                 if (last == 0)
                   break;
+
+                if (binary[begin_context])
+                {
+                  hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[begin_context] + match.first(), match.begin(), match.size(), NULL);
+                }
+                else
+                {
+                  fputs(color_mc, stdout);
+                  fwrite(match.begin(), 1, match.size(), stdout);
+                  fputs(color_off, stdout);
+                }
               }
 
               if (last != UNDEFINED)
-                std::cout << color_cx << lines[begin % (flag_before_context + 1)].substr(last) << color_off << "\n";
+              {
+                if (binary[begin % (flag_before_context + 1)])
+                {
+                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, lines[begin_context].size() - last, NULL);
+                  hex_done();
+                }
+                else
+                {
+                  fputs(color_cx, stdout);
+                  fwrite(lines[begin_context].c_str() + last, 1, lines[begin_context].size() - last, stdout);
+                  fputs(color_off, stdout);
+                  fputc('\n', stdout);
+                }
+              }
 
               ++begin;
             }
@@ -1866,12 +1926,23 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
             before = lineno;
           }
 
-          display(pathname, lineno, 1, byte_offsets[current], flag_separator);
+          display(pathname, lineno, 1, byte_offsets[current], flag_separator, binary[current]);
 
-          std::cout << color_sl << lines[current] << color_off << "\n";
+          if (binary[current])
+          {
+            hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), NULL);
+            hex_done();
+          }
+          else
+          {
+            fputs(color_sl, stdout);
+            fwrite(lines[current].c_str(), 1, lines[current].size(), stdout);
+            fputs(color_off, stdout);
+            fputc('\n', stdout);
+          }
 
           if (flag_line_buffered)
-            std::cout.flush();
+            fflush(stdout);
 
           ++matches;
 
@@ -1884,14 +1955,10 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
       {
         // search the line for pattern matches
 
-        matcher.input(lines[current]);
-
         for (auto& match : matcher.find)
         {
-          if (last == UNDEFINED && !flag_text && is_binary(lines[current].c_str(), lines[current].size()))
+          if (last == UNDEFINED && binary[current] && !flag_hex && !flag_binary_hex)
           {
-            if (flag_binary_without_matches)
-              return false;
             std::cout << "Binary file " << pathname << " matches" << std::endl;
             return true;
           }
@@ -1902,7 +1969,12 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             // indicate the end of the group of after lines of the previous matched line
             if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
-              std::cout << color_se << flag_group_separator << color_off << "\n";
+            {
+              fputs(color_se, stdout);
+              fputs(flag_group_separator, stdout);
+              fputs(color_off, stdout);
+              fputc('\n', stdout);
+            }
 
             // remember the matched line and we're done with the after context
             after = lineno;
@@ -1920,14 +1992,32 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             // indicate the begin of the group of before lines
             if (begin < lineno && matches > 0 && flag_group_separator != NULL)
-              std::cout << color_se << flag_group_separator << color_off << "\n";
+            {
+              fputs(color_se, stdout);
+              fputs(flag_group_separator, stdout);
+              fputs(color_off, stdout);
+              fputc('\n', stdout);
+            }
 
             // display lines before the matched line
             while (begin < lineno)
             {
-              display(pathname, begin, 1, byte_offsets[begin % (flag_before_context + 1)], "-");
+              size_t begin_context = begin % (flag_before_context + 1);
 
-              std::cout << color_cx << lines[begin % (flag_before_context + 1)] << color_off << "\n";
+              display(pathname, begin, 1, byte_offsets[begin_context], "-", binary[begin_context]);
+
+              if (binary[begin_context])
+              {
+                hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context], lines[begin_context].c_str(), lines[begin_context].size(), NULL);
+                hex_done();
+              }
+              else
+              {
+                fputs(color_cx, stdout);
+                fwrite(lines[begin_context].c_str(), 1, lines[begin_context].size(), stdout);
+                fputs(color_off, stdout);
+                fputc('\n', stdout);
+              }
 
               ++begin;
             }
@@ -1939,14 +2029,30 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
           if (flag_no_group)
           {
-            // -g option: do not group matches on a single line but on multiple lines
+            // -g option: do not group matches on a single line but on multiple lines, counting each match separately
 
-            display(pathname, lineno, match.columno() + 1, byte_offset + match.first(), last == UNDEFINED ? flag_separator : "+");
+            display(pathname, lineno, match.columno() + 1, byte_offset + match.first(), last == UNDEFINED ? flag_separator : "+", binary[current]);
 
-            std::cout <<
-              color_sl << lines[current].substr(0, match.first()) << color_off <<
-              color_ms << match.str() << color_off <<
-              color_sl << lines[current].substr(match.last()) << color_off << "\n";
+            if (binary[current])
+            {
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), match.first(), NULL);
+              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), NULL);
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + match.last(), lines[current].c_str() + match.last(), match.last() - match.first(), NULL);
+              hex_done();
+            }
+            else
+            {
+              fputs(color_sl, stdout);
+              fwrite(lines[current].c_str(), 1, match.first(), stdout);
+              fputs(color_off, stdout);
+              fputs(color_ms, stdout);
+              fwrite(match.begin(), 1, match.size(), stdout);
+              fputs(color_off, stdout);
+              fputs(color_sl, stdout);
+              fwrite(lines[current].c_str() + match.last(), 1, match.last() - match.first(), stdout);
+              fputs(color_off, stdout);
+              fputc('\n', stdout);
+            }
 
             ++matches;
 
@@ -1958,16 +2064,27 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
           {
             if (last == UNDEFINED)
             {
-              display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator);
+              display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator, binary[current]);
 
               ++matches;
 
               last = 0;
             }
 
-            std::cout <<
-              color_sl << lines[current].substr(last, match.first() - last) << color_off <<
-              color_ms << match.str() << color_off;
+            if (binary[current])
+            {
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, NULL);
+              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), NULL);
+            }
+            else
+            {
+              fputs(color_sl, stdout);
+              fwrite(lines[current].c_str() + last, 1, match.first() - last, stdout);
+              fputs(color_off, stdout);
+              fputs(color_ms, stdout);
+              fwrite(match.begin(), 1, match.size(), stdout);
+              fputs(color_off, stdout);
+            }
           }
 
           last = match.last();
@@ -1980,19 +2097,43 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
         if (last != UNDEFINED)
         {
           if (!flag_no_group)
-            std::cout << color_sl << lines[current].substr(last) << color_off << "\n";
+          {
+            if (binary[current])
+            {
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, NULL);
+              hex_done();
+            }
+            else
+            {
+              fputs(color_sl, stdout);
+              fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, stdout);
+              fputs(color_off, stdout);
+              fputc('\n', stdout);
+            }
+          }
 
           if (flag_line_buffered)
-            std::cout.flush();
+            fflush(stdout);
         }
         else if (after > 0 && after + flag_after_context >= lineno)
         {
           // -A NUM option: show context after matched lines, simulates BSD grep -A
 
           // display line as part of the after context of the matched line
-          display(pathname, lineno, 1, byte_offsets[current], "-");
+          display(pathname, lineno, 1, byte_offsets[current], "-", binary[current]);
 
-          std::cout << color_cx << lines[current] << color_off << "\n";
+          if (binary[current])
+          {
+            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), NULL);
+            hex_done();
+          }
+          else
+          {
+            fputs(color_cx, stdout);
+            fwrite(lines[current].c_str(), 1, lines[current].size(), stdout);
+            fputs(color_off, stdout);
+            fputc('\n', stdout);
+          }
         }
 
         // max number of matches reached?
@@ -2011,7 +2152,9 @@ exit_input:
   }
   else
   {
-    // -o or -N option: streaming input mode
+    // -o or -N option
+
+    bool hex = false;
 
     size_t lineno = 0;
 
@@ -2019,32 +2162,57 @@ exit_input:
 
     for (auto& match : matcher.find)
     {
+      const char *separator = lineno != match.lineno() ? flag_separator : "+";
+
       if (flag_no_group || lineno != match.lineno())
       {
-        // -g option (or new line): do not group matches on a single line but on multiple lines
-
-        if (!flag_text && is_binary(match.text(), match.size()))
-        {
-          if (flag_binary_without_matches)
-            return false;
-          std::cout << "Binary file " << pathname << " matches" << std::endl;
-          return true;
-        }
-
-        const char *separator = lineno != match.lineno() ? flag_separator : "+";
+        // max number of matches reached?
+        if (flag_max_count > 0 && matches >= flag_max_count)
+          break;
 
         lineno = match.lineno();
-
-        display(pathname, lineno, match.columno() + 1, match.first(), separator);
-
-        if (flag_only_line_number)
-          std::cout << "\n";
 
         ++matches;
       }
 
-      if (!flag_only_line_number)
+      if (flag_only_line_number)
       {
+        display(pathname, lineno, match.columno() + 1, match.first(), separator, true);
+      }
+      else if (flag_hex)
+      {
+        hex_dump(HEX_MATCH, pathname, lineno, match.columno() + 1, match.first(), match.begin(), match.size(), separator);
+        hex = true;
+      }
+      else if (!flag_text && is_binary(match.begin(), match.size()))
+      {
+        if (flag_binary_hex)
+        {
+          if (hex)
+          {
+            hex_dump(HEX_MATCH, pathname, lineno, match.columno() + 1, match.first(), match.begin(), match.size(), separator);
+          }
+          else
+          {
+            display(pathname, lineno, match.columno() + 1, match.first(), separator, true);
+            hex_dump(HEX_MATCH, NULL, 0, 0, match.first(), match.begin(), match.size(), separator);
+            hex = true;
+          }
+        }
+        else if (!flag_binary_without_matches)
+        {
+          display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
+          printf("Binary file %s matches %zu bytes\n", pathname, match.size());
+        }
+      }
+      else
+      {
+        if (hex)
+          hex_done();
+        hex = false;
+
+        display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
+
         std::string string = match.str();
 
         if (flag_line_number)
@@ -2058,28 +2226,36 @@ exit_input:
           {
             ++lineno;
 
-            std::cout << color_ms << string.substr(from, to - from) << color_off << "\n";
+            fputs(color_ms, stdout);
+            fwrite(string.c_str() + from, 1, to - from, stdout);
+            fputs(color_off, stdout);
+            fputc('\n', stdout);
 
-            display(pathname, lineno, 1, match.first() + to + 1, "|");
+            display(pathname, lineno, 1, match.first() + to + 1, "|", false);
 
             from = to + 1;
           }
 
-          std::cout << color_ms << string.substr(from) << color_off << "\n";
+          fputs(color_ms, stdout);
+          fwrite(string.c_str() + from, 1, string.size() - from, stdout);
+          fputs(color_off, stdout);
+          fputc('\n', stdout);
         }
         else
         {
-          std::cout << color_ms << string << color_off << "\n";
+          fputs(color_ms, stdout);
+          fwrite(string.c_str(), 1, string.size(), stdout);
+          fputs(color_off, stdout);
+          fputc('\n', stdout);
         }
+
+        if (flag_line_buffered)
+          fflush(stdout);
       }
-
-      if (flag_line_buffered)
-        std::cout.flush();
-
-      // max number of matches reached?
-      if (flag_max_count > 0 && matches >= flag_max_count)
-        break;
     }
+
+    if (hex)
+      hex_done();
   }
 
   return matches > 0;
@@ -2088,19 +2264,10 @@ exit_input:
 // Return true if text[0..size=1] is displayable text
 bool is_binary(const char *text, size_t size)
 {
-  if (flag_binary)
-  {
-    // -U, --binary: check if text[0..size-1] contains a NUL
-    while (size > 0 && *text++)
-      --size;
-
-    return size > 0;
-  }
-
-  // not -U, --binary: check if text[0..size-1] contains a NUL or invalid UTF-8
+  // check if text[0..size-1] contains a NUL or invalid UTF-8
   while (size > 0 && *text)
   {
-    if (*text & 0x80)
+    if ((*text & 0x80))
     {
       const char *next;
 
@@ -2120,69 +2287,216 @@ bool is_binary(const char *text, size_t size)
   return size > 0;
 }
 
-// Display the header part of the match, which preceeds the matched line
-void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *separator)
+// Display the header part of the match, preceeding the matched line
+void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *separator, bool newline)
 {
-  bool sep = false;
-
-  if (flag_with_filename)
+  if (name != NULL)
   {
-    std::cout << color_fn << name << color_off;
+    bool sep = false;
 
-    if (flag_null)
-      std::cout << (char)'\0';
-    else
+    if (flag_with_filename)
+    {
+      fputs(color_fn, stdout);
+      fputs(name, stdout);
+      fputs(color_off, stdout);
+
+      if (flag_null)
+        fputc('\0', stdout);
+      else
+        sep = true;
+    }
+
+    if (flag_line_number || flag_only_line_number)
+    {
+      if (sep)
+      {
+        fputs(color_se, stdout);
+        fputs(separator, stdout);
+        fputs(color_off, stdout);
+      }
+
+      fputs(color_ln, stdout);
+      printf(flag_initial_tab ? "%6zu" : "%zu", lineno);
+      fputs(color_off, stdout);
+
       sep = true;
-  }
+    }
 
-  if (flag_line_number || flag_only_line_number)
-  {
+    if (flag_column_number)
+    {
+      if (sep)
+      {
+        fputs(color_se, stdout);
+        fputs(separator, stdout);
+        fputs(color_off, stdout);
+      }
+
+      fputs(color_ln, stdout);
+      printf(flag_initial_tab ? "%3zu" : "%zu", columno);
+      fputs(color_off, stdout);
+
+      sep = true;
+    }
+
+    if (flag_byte_offset)
+    {
+      if (sep)
+      {
+        fputs(color_se, stdout);
+        fputs(separator, stdout);
+        fputs(color_off, stdout);
+      }
+
+      fputs(color_ln, stdout);
+      printf(flag_hex ? flag_initial_tab ? "%7zx" : "%zx" : flag_initial_tab ? "%7zu" : "%zu", byte_offset);
+      fputs(color_off, stdout);
+
+      sep = true;
+    }
+
     if (sep)
-      std::cout << color_se << separator << color_off << flag_initial_tab;
+    {
+      fputs(color_se, stdout);
+      fputs(separator, stdout);
+      fputs(color_off, stdout);
 
-    std::cout << color_ln << lineno << color_off;
+      if (flag_initial_tab)
+        fputc('\t', stdout);
 
-    sep = true;
+      if (newline)
+        fputc('\n', stdout);
+    }
   }
+}
 
-  if (flag_column_number)
+// Dump data in hex
+void hex_dump(short mode, const char *pathname, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *sep)
+{
+  if (pathname == NULL)
+    last_hex_offset = byte_offset;
+
+  if (size > 0)
   {
-    if (sep)
-      std::cout << color_se << separator << color_off << flag_initial_tab;
+    if (last_hex_offset <= (byte_offset & ~(size_t)0x0f))
+    {
+      if ((last_hex_offset & 0x0f) != 0)
+        hex_line();
+      if (pathname)
+        display(pathname, lineno, columno, byte_offset, sep, true);
+    }
 
-    std::cout << color_cn << columno << color_off;
+    last_hex_offset = byte_offset;
 
-    sep = true;
+    while (last_hex_offset < byte_offset + size)
+    {
+      last_hex_line[last_hex_offset++ & 0x0f] = (mode << 8) | *(unsigned char*)data++;
+      if ((last_hex_offset & 0x0f) == 0)
+        hex_line();
+    }
   }
+}
 
-  if (flag_byte_offset)
+// Done dumping hex
+void hex_done()
+{
+  if ((last_hex_offset & 0x0f) != 0)
+    hex_line();
+}
+
+// Dump one line of hex data
+void hex_line()
+{
+  fputs(color_bn, stdout);
+  printf("%.8zx", (last_hex_offset - 1) & ~(size_t)0x0f);
+  fputs(color_off, stdout);
+  fputs(color_se, stdout);
+  fputs(flag_separator, stdout);
+  fputs(color_off, stdout);
+  fputc(' ', stdout);
+
+  for (size_t i = 0; i < 0x10; ++i)
   {
-    if (sep)
-      std::cout << color_se << separator << color_off << flag_initial_tab;
+    if (last_hex_line[i] < 0)
+    {
+      fputs(color_cx, stdout);
+      fputs(" --", stdout);
+      fputs(color_off, stdout);
+    }
+    else
+    {
+      short byte = last_hex_line[i];
 
-    std::cout << color_bn << byte_offset << color_off;
+      fputs(color_hex[byte >> 8], stdout);
+      printf(" %.2x", byte & 0xff);
 
-    sep = true;
+      fputs(color_off, stdout);
+    }
   }
 
-  if (sep)
-    std::cout << flag_initial_tab << color_se << separator << color_off;
+  fputs("  ", stdout);
+
+  for (size_t i = 0; i < 0x10; ++i)
+  {
+    if (last_hex_line[i] < 0)
+    {
+      fputs(color_cx, stdout);
+      fputc('-', stdout);
+      fputs(color_off, stdout);
+    }
+    else
+    {
+      short byte = last_hex_line[i];
+
+      fputs(color_hex[byte >> 8], stdout);
+
+      byte &= 0xff;
+
+      if (byte < 0x20 && flag_color)
+        printf("\033[7m%c", '@' + byte);
+      else if (byte == 0x7f && flag_color)
+        fputs("\033[7m~", stdout);
+      else if (byte < 0x20 || byte >= 0x7f)
+        fputc(' ', stdout);
+      else
+        printf("%c", byte);
+
+      fputs(color_off, stdout);
+    }
+  }
+
+  fputc('\n', stdout);
+
+  if (flag_line_buffered)
+    fflush(stdout);
+
+  for (size_t i = 0; i < 0x10; ++i)
+    last_hex_line[i] = -1;
 }
 
 // Convert GREP_COLORS and set the color substring to the ANSI SGR sequence
-void set_color(const char *grep_colors, const char *parameter, std::string& color)
+void set_color(const char *grep_colors, const char *parameter, char color[COLORLEN])
 {
-  const char *substring = strstr(grep_colors, parameter);
+  const char *substr = strstr(grep_colors, parameter);
 
   // check if substring parameter is present in GREP_COLORS
-  if (substring != NULL && substring[2] == '=')
+  if (substr != NULL && substr[2] == '=')
   {
-    substring += 3;
-    const char *colon = strchr(substring, ':');
-    if (colon == NULL)
-      colon = substring + strlen(substring);
-    if (colon > substring)
-      color.assign(SGR).append(substring, colon - substring).push_back('m');
+    substr += 3;
+    const char *colon = substr;
+    
+    while (*colon && (isdigit(*colon) || *colon == ';'))
+      ++colon;
+
+    size_t sublen = colon - substr;
+
+    if (sublen > 0 && sublen < COLORLEN - 4)
+    {
+      color[0] = '\033';
+      color[1] = '[';
+      memcpy(color + 2, substr, sublen);
+      color[sublen + 2] = 'm';
+      color[sublen + 3] = '\0';
+    }
   }
 }
 
@@ -2240,8 +2554,7 @@ void help(const char *message, const char *arg)
 {
   if (message && *message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
-  std::cout <<
-"Usage: ugrep [-abcDdEFGgHhIikLlmNnOoPpQqRrSsTtVvWwXxYyZz] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN] [-f FILE] [--file-type=TYPES] [--encoding=ENCODING] [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]\n";
+  std::cout << "Usage: ugrep [OPTIONS] [PATTERN] [-e PATTERN] [-f FILE] [FILE ...]\n";
   if (!message)
   {
     std::cout << "\n\
@@ -2266,12 +2579,17 @@ void help(const char *message, const char *arg)
             the UTF-8-converted input is displayed.\n\
     --binary-files=TYPE\n\
             Controls searching and reporting pattern matches in binary files.\n\
-            Options are `binary', `without-match`, and `text`.  The default is\n\
-            `binary' to search binary files and to report a match without\n\
-            displaying the match.  `without-match' ignores binary files.\n\
-            `text' treats all binary files as text, which might output binary\n\
-            garbage to the terminal, which can have problematic consequences\n\
-            if the terminal driver interprets some of it as commands.\n\
+            Options are `binary', `without-match`, `text`, `hex`, and\n\
+            `with-hex'.  The default is `binary' to search binary files and to\n\
+            report a match without displaying the match.  `without-match'\n\
+            ignores binary matches.  `text' treats all binary files as text,\n\
+            which might output binary garbage to the terminal, which can have\n\
+            problematic consequences if the terminal driver interprets some of\n\
+            it as commands.  `hex' reports all matches in hexadecimal.\n\
+            `with-hex` only reports binary matches in hexadecimal, leaving text\n\
+            matches alone.  A match is considered binary if a match contains a\n\
+            zero byte or an invalid UTF encoding. See also options -a, -I, -U,\n\
+            -W, and -X\n\
     -C[NUM], --context[=NUM]\n\
             Print NUM lines of leading and trailing context surrounding each\n\
             match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
@@ -2334,9 +2652,16 @@ void help(const char *message, const char *arg)
     -f FILE, --file=FILE\n\
             Read one or more newline-separated patterns from FILE.  Empty\n\
             pattern lines in the file are not processed.  Options -F, -w, and\n\
-            -x do not apply to FILE patterns.  If FILE does not exist, uses\n\
-            the GREP_PATH environment variable to attempt to open FILE. This\n\
-            option may be repeated.\n\
+            -x do not apply to FILE patterns.  If FILE does not exist, the\n\
+            GREP_PATH environment variable is used as the path to read FILE.\n"
+#ifdef GREP_PATH
+"\
+            If that fails, looks for FILE in " GREP_PATH ".\n"
+#endif
+"\
+            This option may be repeated.\n\
+    --free-space\n\
+            Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
             Interpret pattern as a basic regular expression (i.e. force ugrep\n\
             to behave as traditional grep).\n\
@@ -2355,7 +2680,7 @@ void help(const char *message, const char *arg)
     --help\n\
             Print a help message.\n\
     -I\n\
-            Ignore binary files.  This option is equivalent to\n\
+            Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\
     -i, --ignore-case\n\
             Perform case insensitive matching. This option applies\n\
@@ -2453,6 +2778,10 @@ void help(const char *message, const char *arg)
     -s, --no-messages\n\
             Silent mode.  Nonexistent and unreadable files are ignored (i.e.\n\
             their error messages are suppressed).\n\
+    --separator=SEP\n\
+            Use SEP as field separator between file name, line number, column\n\
+            number, byte offset, and the matched line.  The default is a colon\n\
+            (`:').\n\
     -T, --initial-tab\n\
             Add a tab space to separate the file name, line number, column\n\
             number, and byte offset with the matched line.\n\
@@ -2468,31 +2797,32 @@ void help(const char *message, const char *arg)
             Set the tab size to NUM to expand tabs for option -k.  The value of\n\
             NUM may be 1, 2, 4, or 8.\n\
     -U, --binary\n\
-            Forces PATTERN to match bytes, not Unicode characters, when\n\
-            searching files.  For example, `\\xa3' matches byte A3 (hex)\n\
-            instead of the UTF-8 sequence C2 A3 for Unicode character U+00A3.\n\
+            Disables Unicode matching and forces PATTERN to match bytes, not\n\
+            Unicode characters.  For example, `\\xa3' matches byte A3 (hex) in\n\
+            a (binary) input file instead of the Unicode code point U+00A3\n\
+            matching the two-byte UTF-8 sequence C2 A3.\n\
     -V, --version\n\
             Display version information and exit.\n\
     -v, --invert-match\n\
             Selected lines are those not matching any of the specified\n\
             patterns.\n\
-    -W SEP, --separator=SEP\n\
-            Use SEP as field separator between file name, line number, column\n\
-            number, byte offset, and the matched line.  The default is a colon\n\
-            (`:').\n\
+    -W\n\
+            Only output binary matches in hexadecimal, leaving text matches\n\
+            alone.  This option is equivalent to the --binary-files=with-hex\n\
+            option.\n\
     -w, --word-regexp\n\
             The pattern or -e patterns are searched for as a word (as if\n\
             surrounded by `\\<' and `\\>').\n\
-    -X, --free-space\n\
-            Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -x, --line-regexp\n\
             Only input lines selected against the entire pattern or -e patterns\n\
             are considered to be matching lines (as if surrounded by ^ and $).\n\
+    -X\n\
+            Output matches in hexadecimal.  This option is equivalent to the\n\
+            --binary-files=hex option.\n\
     -Y, --empty\n\
             Permits matching empty patterns, such as `^$'.  Matching empty\n\
-            patterns is disabled by default.  Note that empty-matching patterns,\n\
-            such as `x?' and `x*', match everything in the input with this\n\
-            option, not only `x'.\n\
+            patterns is disabled by default.  Note that empty-matching patterns\n\
+            such as `x?' and `x*' match all input, not only lines with `x'.\n\
     -y\n\
             Equivalent to -i.  Obsoleted.\n\
     -Z, --null\n\
