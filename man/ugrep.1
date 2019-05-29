@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 28, 2019" "ugrep 1.1.5" "User Commands"
+.TH UGREP "1" "May 29, 2019" "ugrep 1.1.6" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -344,7 +344,7 @@ surrounded by `\\<' and `\\>').
 Only input lines selected against the entire pattern or \fB\-e\fR patterns
 are considered to be matching lines (as if surrounded by ^ and $).
 .TP
-\fB\-X\fR
+\fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
 \fB\-\-binary\-files\fR=\fIhex\fR option.
 .TP
@@ -453,7 +453,7 @@ on a black background.
 May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
-\fBmt=1;31:sl=:cx=:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
+\fBcx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
 \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
 \fBGREP_COLOR\fR.
 .SH GREP_COLORS

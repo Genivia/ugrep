@@ -22,7 +22,7 @@ AC_CANONICAL_HOST
 PLATFORM=${host}
 AC_SUBST(PLATFORM)
 
-GREP_PATH=${datadir}/ugrep
+GREP_PATH=${datadir}/ugrep/patterns
 AC_SUBST(GREP_PATH)
 
 AC_LANG([C++])

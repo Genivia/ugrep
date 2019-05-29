@@ -103,7 +103,7 @@ Wanted TODO:
 #endif
 
 // ugrep version
-#define VERSION "1.1.5"
+#define VERSION "1.1.6"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -173,9 +173,9 @@ bool flag_dereference              = false;
 bool flag_no_dereference           = false;
 bool flag_binary                   = false;
 bool flag_binary_without_matches   = false;
-bool flag_binary_hex               = false;
 bool flag_text                     = false;
 bool flag_hex                      = false;
+bool flag_with_hex                 = false;
 bool flag_empty                    = false;
 bool flag_initial_tab              = false;
 bool flag_decompress               = false;
@@ -215,9 +215,9 @@ bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, 
 bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
 bool is_binary(const char *text, size_t size);
 void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
-void hex_dump(short mode, const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *sep);
-void hex_done();
-void hex_line();
+void hex_dump(short mode, const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *separator);
+void hex_done(const char *separator);
+void hex_line(const char *separator);
 void set_color(const char *grep_colors, const char *parameter, char color[COLORLEN]);
 bool getline(reflex::Input& input, std::string& line);
 void trim(std::string& line);
@@ -431,6 +431,8 @@ int main(int argc, char **argv)
               flag_group_separator = arg + 16;
             else if (strcmp(arg, "help") == 0)
               help();
+            else if (strcmp(arg, "hex") == 0)
+              flag_binary_files = "hex";
             else if (strcmp(arg, "ignore-case") == 0)
               flag_ignore_case = true;
             else if (strncmp(arg, "include=", 8) == 0)
@@ -968,7 +970,7 @@ int main(int argc, char **argv)
       if (grep_color != NULL)
         set_color(std::string("mt=").append(grep_color).c_str(), "mt", color_mt);
       else if (grep_colors == NULL)
-        grep_colors = "mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36";
+        grep_colors = "mt=1;31:cx=2:fn=35:ln=32:cn=32:bn=32:se=36";
 
       if (grep_colors != NULL)
       {
@@ -1018,12 +1020,12 @@ int main(int argc, char **argv)
   // check --binary-files option and assign related flags
   if (strcmp(flag_binary_files, "without-matches") == 0)
     flag_binary_without_matches = true;
-  else if (strcmp(flag_binary_files, "with-hex") == 0)
-    flag_binary_hex = true;
   else if (strcmp(flag_binary_files, "text") == 0)
     flag_text = true;
   else if (strcmp(flag_binary_files, "hex") == 0)
     flag_hex = true;
+  else if (strcmp(flag_binary_files, "with-hex") == 0)
+    flag_with_hex = true;
   else if (strcmp(flag_binary_files, "binary") != 0)
     help("unknown --binary-files value");
 
@@ -1764,7 +1766,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             if (binary[current])
             {
-              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, NULL);
+              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, "-");
             }
             else
             {
@@ -1781,7 +1783,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             if (binary[current])
             {
-              hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), NULL);
+              hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), "-");
             }
             else
             {
@@ -1802,8 +1804,8 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
         {
           if (binary[current])
           {
-            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, NULL);
-            hex_done();
+            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, "-");
+            hex_done("-");
           }
           else
           {
@@ -1815,7 +1817,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
         }
         else if (!found)
         {
-          if (binary[current] && !flag_hex && !flag_binary_hex)
+          if (binary[current] && !flag_hex && !flag_with_hex)
           {
             std::cout << "Binary file " << pathname << " matches" << std::endl;
             return true;
@@ -1876,7 +1878,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
                 if (binary[begin_context])
                 {
-                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, match.first() - last, NULL);
+                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, match.first() - last, "-");
                 }
                 else
                 {
@@ -1893,7 +1895,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
                 if (binary[begin_context])
                 {
-                  hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[begin_context] + match.first(), match.begin(), match.size(), NULL);
+                  hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[begin_context] + match.first(), match.begin(), match.size(), "-");
                 }
                 else
                 {
@@ -1907,8 +1909,8 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
               {
                 if (binary[begin % (flag_before_context + 1)])
                 {
-                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, lines[begin_context].size() - last, NULL);
-                  hex_done();
+                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, lines[begin_context].size() - last, "-");
+                  hex_done("-");
                 }
                 else
                 {
@@ -1930,8 +1932,8 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
           if (binary[current])
           {
-            hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), NULL);
-            hex_done();
+            hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), flag_separator);
+            hex_done(flag_separator);
           }
           else
           {
@@ -1957,7 +1959,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
         for (auto& match : matcher.find)
         {
-          if (last == UNDEFINED && binary[current] && !flag_hex && !flag_binary_hex)
+          if (last == UNDEFINED && binary[current] && !flag_hex && !flag_with_hex)
           {
             std::cout << "Binary file " << pathname << " matches" << std::endl;
             return true;
@@ -2008,8 +2010,8 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
               if (binary[begin_context])
               {
-                hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context], lines[begin_context].c_str(), lines[begin_context].size(), NULL);
-                hex_done();
+                hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context], lines[begin_context].c_str(), lines[begin_context].size(), "-");
+                hex_done("-");
               }
               else
               {
@@ -2035,10 +2037,10 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             if (binary[current])
             {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), match.first(), NULL);
-              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), NULL);
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + match.last(), lines[current].c_str() + match.last(), match.last() - match.first(), NULL);
-              hex_done();
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), match.first(), "+");
+              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), "+");
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + match.last(), lines[current].c_str() + match.last(), match.last() - match.first(), "+");
+              hex_done("+");
             }
             else
             {
@@ -2073,8 +2075,8 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
             if (binary[current])
             {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, NULL);
-              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), NULL);
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, flag_separator);
+              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), flag_separator);
             }
             else
             {
@@ -2100,8 +2102,8 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
           {
             if (binary[current])
             {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, NULL);
-              hex_done();
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, flag_separator);
+              hex_done(flag_separator);
             }
             else
             {
@@ -2124,8 +2126,8 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
           if (binary[current])
           {
-            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), NULL);
-            hex_done();
+            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), "-");
+            hex_done("-");
           }
           else
           {
@@ -2155,14 +2157,14 @@ exit_input:
     // -o or -N option
 
     bool hex = false;
-
     size_t lineno = 0;
+    const char *separator = flag_separator;
 
     matcher.input(input);
 
     for (auto& match : matcher.find)
     {
-      const char *separator = lineno != match.lineno() ? flag_separator : "+";
+      separator = lineno != match.lineno() ? flag_separator : "+";
 
       if (flag_no_group || lineno != match.lineno())
       {
@@ -2186,7 +2188,7 @@ exit_input:
       }
       else if (!flag_text && is_binary(match.begin(), match.size()))
       {
-        if (flag_binary_hex)
+        if (flag_with_hex)
         {
           if (hex)
           {
@@ -2208,7 +2210,7 @@ exit_input:
       else
       {
         if (hex)
-          hex_done();
+          hex_done(separator);
         hex = false;
 
         display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
@@ -2255,7 +2257,7 @@ exit_input:
     }
 
     if (hex)
-      hex_done();
+      hex_done(separator);
   }
 
   return matches > 0;
@@ -2370,7 +2372,7 @@ void display(const char *name, size_t lineno, size_t columno, size_t byte_offset
 }
 
 // Dump data in hex
-void hex_dump(short mode, const char *pathname, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *sep)
+void hex_dump(short mode, const char *pathname, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *separator)
 {
   if (pathname == NULL)
     last_hex_offset = byte_offset;
@@ -2380,9 +2382,9 @@ void hex_dump(short mode, const char *pathname, size_t lineno, size_t columno, s
     if (last_hex_offset <= (byte_offset & ~(size_t)0x0f))
     {
       if ((last_hex_offset & 0x0f) != 0)
-        hex_line();
+        hex_line(separator);
       if (pathname)
-        display(pathname, lineno, columno, byte_offset, sep, true);
+        display(pathname, lineno, columno, byte_offset, separator, true);
     }
 
     last_hex_offset = byte_offset;
@@ -2391,26 +2393,26 @@ void hex_dump(short mode, const char *pathname, size_t lineno, size_t columno, s
     {
       last_hex_line[last_hex_offset++ & 0x0f] = (mode << 8) | *(unsigned char*)data++;
       if ((last_hex_offset & 0x0f) == 0)
-        hex_line();
+        hex_line(separator);
     }
   }
 }
 
 // Done dumping hex
-void hex_done()
+void hex_done(const char *separator)
 {
   if ((last_hex_offset & 0x0f) != 0)
-    hex_line();
+    hex_line(separator);
 }
 
 // Dump one line of hex data
-void hex_line()
+void hex_line(const char *separator)
 {
   fputs(color_bn, stdout);
   printf("%.8zx", (last_hex_offset - 1) & ~(size_t)0x0f);
   fputs(color_off, stdout);
   fputs(color_se, stdout);
-  fputs(flag_separator, stdout);
+  fputs(separator, stdout);
   fputs(color_off, stdout);
   fputc(' ', stdout);
 
@@ -2816,7 +2818,7 @@ void help(const char *message, const char *arg)
     -x, --line-regexp\n\
             Only input lines selected against the entire pattern or -e patterns\n\
             are considered to be matching lines (as if surrounded by ^ and $).\n\
-    -X\n\
+    -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.\n\
     -Y, --empty\n\

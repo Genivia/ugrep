@@ -4940,7 +4940,7 @@ case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 PLATFORM=${host}
 
 
-GREP_PATH=${datadir}/ugrep
+GREP_PATH=${datadir}/ugrep/patterns
 
 
 ac_ext=cpp

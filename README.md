@@ -588,7 +588,8 @@ Man page
                   terns are considered to be matching lines (as if surrounded by ^
                   and $).
 
-           -X     Output matches in hexadecimal.  This option is equivalent to the
+           -X, --hex
+                  Output matches in hexadecimal.  This option is equivalent to the
                   --binary-files=hex option.
 
            -Y, --empty
@@ -704,9 +705,8 @@ Man page
                   May  be used to specify ANSI SGR parameters to highlight matches
                   and other attributes when option --color is used.  Its value  is
                   a  colon-separated  list of ANSI SGR parameters that defaults to
-                  mt=1;31:sl=:cx=:fn=35:ln=32:cn=32:bn=32:se=36.   The  mt=,  ms=,
-                  and   mc=   capabilities   of  GREP_COLORS  have  priority  over
-                  GREP_COLOR.
+                  cx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36.  The mt=,  ms=,  and
+                  mc= capabilities of GREP_COLORS have priority over GREP_COLOR.
 
     GREP_COLORS
            sl=    SGR substring for selected lines.
@@ -717,10 +717,10 @@ Man page
 
            mt=    SGR substring for matching text in any matching line.
 
-           ms=    SGR substring for matching text in a selected  line.   The  sub-
+           ms=    SGR  substring  for  matching text in a selected line.  The sub-
                   string mt= by default.
 
-           mc=    SGR  substring  for  matching  text in a context line.  The sub-
+           mc=    SGR substring for matching text in a  context  line.   The  sub-
                   string mt= by default.
 
            fn=    SGR substring for file names.
@@ -738,12 +738,12 @@ Man page
 
                   $ ugrep -w 'patricia' myfile
 
-           To count the number of lines containing the word `patricia' or  `Patri-
+           To  count the number of lines containing the word `patricia' or `Patri-
            cia` in a file:
 
                   $ ugrep -cw '[Pp]atricia' myfile
 
-           To  count  the  total number of times the word `patricia' or `Patricia`
+           To count the total number of times the word  `patricia'  or  `Patricia`
            occur in a file:
 
                   $ ugrep -cgw '[Pp]atricia' myfile
@@ -756,7 +756,7 @@ Man page
 
                   $ ugrep -o '[[:word:]]+' myfile
 
-           To list all laughing  face  emojis  (Unicode  code  points  U+1F600  to
+           To  list  all  laughing  face  emojis  (Unicode  code points U+1F600 to
            U+1F60F) in a file:
 
                   $ ugrep -o '[\x{1F600}-\x{1F60F}]' myfile
@@ -765,13 +765,13 @@ Man page
 
                   $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
-           To  display  the line and column number of all `FIXME' in all C++ files
-           using recursive search, with one line of context before and after  each
+           To display the line and column number of all `FIXME' in all  C++  files
+           using  recursive search, with one line of context before and after each
            matched line:
 
                   $ ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
 
-           To  list  all C/C++ comments in a file displaying their line and column
+           To list all C/C++ comments in a file displaying their line  and  column
            numbers using options -n and -k, and option -o that allows for matching
            patterns across multiple lines:
 
@@ -781,25 +781,25 @@ Man page
 
                   $ ugrep -nko -f c/comments myfile
 
-           To  list  the  lines that need fixing in a C/C++ source file by looking
-           for the word FIXME while skipping any FIXME in quoted strings by  using
+           To list the lines that need fixing in a C/C++ source  file  by  looking
+           for  the word FIXME while skipping any FIXME in quoted strings by using
            a negative pattern `(?^X)' to ignore quoted strings:
 
                   $ ugrep -no -e 'FIXME' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' myfile
 
            To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
-           Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
-           Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
+           Unicode pattern matching -U (which would otherwise match  `\xaf'  as  a
+           Unicode  character  U+00A3  with UTF-8 byte sequence C2 A3) and display
            the results in hex with -X piped to `more -R':
 
-                  $  ugrep --color=always -oUX '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]'
+                  $ ugrep --color=always -oUX  '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]'
                   a.out | more -R
 
            To hex dump the entire file:
 
                   $ ugrep -oX '.|\n' a.out | more
 
-           To list all files containing a RPM  signature,  located  in  the  `rpm`
+           To  list  all  files  containing  a RPM signature, located in the `rpm`
            directory and recursively below:
 
                   $ ugrep -RlU '\A\xed\xee\xdb' rpm
@@ -815,8 +815,8 @@ Man page
 
 
     LICENSE
-           ugrep  is  released under the BSD-3 license.  All parts of the software
-           have reasonable copyright terms permitting free  redistribution.   This
+           ugrep is released under the BSD-3 license.  All parts of  the  software
+           have  reasonable  copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
@@ -824,21 +824,31 @@ Man page
 
 
 
-    ugrep 1.1.5                      May 28, 2019                         UGREP(1)
+    ugrep 1.1.6                      May 29, 2019                         UGREP(1)
 
 ugrep versus other "greps"
 --------------------------
 
+The following identities hold for the behaviors of GNU/BSD grep and their
+common variants:
+
+    grep  = ugrep -U -G
+    egrep = ugrep -U -E
+    fgrep = ugrep -U -F
+
+New features:
+
+- **ugrep** matches Unicode by default, which is disabled with option `-U`.
 - **ugrep** supports *negative patterns* to skip parts of the input that should
   not be matched, such as skipping strings and comments when searching for
   identifiers in source code.
 - **ugrep** uses incremental matching.  When one or more of the options `-q`
   (quiet), `-o` (only matching), `-c` (count), `-N` (only line number), `-l`
   (file with match), or `-L` (files without match) is used, **ugrep** performs
-  an even faster streaming-based search of the input file instead of reading
-  the input line-by-line as other grep tools do.  This allows matching patterns
-  that include newlines (`\n`), i.e. a match can span multiple lines.  This is
-  not possible with other grep-like tools.
+  an even faster search of the input file instead of reading the input
+  line-by-line as other grep tools do.  This allows matching patterns that
+  include newlines (`\n`), i.e. a match can span multiple lines.  This is not
+  possible with other grep-like tools.
 - New options `-W` and `-X` to produce hexadecimal matches ("hexdumps") in
   binary files.
 - New option `-Y` to permit matching empty patterns.  Grepping with
@@ -873,6 +883,14 @@ ugrep versus other "greps"
   `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
 - BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
   e.g.  options `-r` versus `-R`, support for `GREP_COLORS`, and more.
+
+Useful aliases:
+
+    alias grep   ugrep --color -G     # basic regular expressions (BRE)
+    alias egrep  ugrep --color        # extended regular expressions (ERE)
+    alias fgrep  ugrep --color -F     # find string (fast)
+    alias xgrep  ugrep --color -X     # output hexdumps
+    alias uxgrep ugrep --color -UX    # search binary patterns, output hexdumps
 
 For future updates
 ------------------

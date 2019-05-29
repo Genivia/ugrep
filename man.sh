@@ -148,7 +148,7 @@ on a black background.
 May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
-\fBmt=1;31:sl=:cx=:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
+\fBcx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
 \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
 \fBGREP_COLOR\fR.
 .SH GREP_COLORS
