@@ -194,7 +194,7 @@ const char *flag_binary_files      = "binary";
 std::vector<std::string> flag_file;
 std::vector<std::string> flag_file_type;
 std::vector<std::string> flag_file_extensions;
-std::vector<std::string> flag_file_magic; // TODO not used yet
+std::vector<std::string> flag_file_magic;
 std::vector<std::string> flag_include;
 std::vector<std::string> flag_include_dir;
 std::vector<std::string> flag_include_from;
@@ -234,6 +234,7 @@ inline int fopen_s(FILE **fd, const char *filename, const char *mode)
 }
 #endif
 
+// Copy color buffers
 inline void copy_color(char to[COLORLEN], char from[COLORLEN])
 {
   memcpy(to, from, COLORLEN);
@@ -1609,8 +1610,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
     if (flag_invert_match)
     {
-      // TODO: line matching should match \0 on a line, currently \0 terminates the search on a line
-
       std::string line;
 
       // -c --count mode w/ -v: count the number of non-matching lines
@@ -1620,8 +1619,11 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
         if (getline(input, line))
           break;
 
+        // this may be slower, but matches all \0 on the line
+        std::stringstream stream(line);
+
         // count this line if not matched
-        if (matcher.input(line).find() == 0)
+        if (matcher.input(stream).find() == 0)
         {
           ++matches;
           if (flag_max_count > 0 && matches >= flag_max_count)

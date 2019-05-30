@@ -1,9 +1,10 @@
 ugrep: universal grep
 =====================
 
-A modern grep tool that offers advanced options to search Unicode, text, source
-code, and binary files in large directory trees.  GNU grep and BSD grep
-compatible.
+Search files for Unicode text patterns, find source code matches, and search
+and display binary files recursively in large directory trees.  Quickly grep
+through C/C++, Java, Python, Ruby, JSON, XML and more using pre-defined search
+patterns.
 
 **ugrep** makes it simple to search source code using pre-defined patterns.  It
 is the only grep tool that allows you to define *negative patterns* to *zap*
