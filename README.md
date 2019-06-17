@@ -6,10 +6,10 @@ and display binary files recursively in large directory trees.  Quickly grep
 through C/C++, Java, Python, Ruby, JSON, XML and more using pre-defined search
 patterns.
 
-**ugrep** simulates GNU grep and BSD grep, but offers many more useful
+- **ugrep** simulates GNU grep and BSD grep, but offers many more useful
 features.
 
-**ugrep** makes it simple to search source code using *pre-defined patterns*.
+- **ugrep** makes it simple to search source code using *pre-defined patterns*.
 For example to recursivley search Python files for import statements:
 
     ugrep -R -tpython -n -f python/imports myprojects
@@ -20,14 +20,14 @@ pre-defined patterns to search for Python `import` statements (matched by the
 two patterns `\<import\h+.*` and `\<from\h+.*import\h+.*` defined in
 `patterns/python/imports`).
 
-**ugrep** includes a growing database of
+- **ugrep** includes a growing database of
 [patterns](https://github.com/Genivia/ugrep/tree/master/patterns) with common
 search patterns to use with option `-f`.  So you don't need to memorize complex
 regex patterns for common search criteria.  Environment variable `GREP_PATH`
 can be set to point to your own directory with patterns that option `-f` uses
 to read your pattern files.
 
-**ugrep** is the only grep tool that allows you to define *negative patterns*
+- **ugrep** is the only grep tool that allows you to define *negative patterns*
 to *zap* parts in files you want to skip.  This removes many false positives.
 For example to find exact matches of `main` in C/C++ source code while skipping
 strings and comments that may have a match with `main` in them:
@@ -40,7 +40,7 @@ files only, `-n` shows line numbers in the output, `-w` matches exact words
 (for example, `mainly` won't be matched), and the `-f` options specify two
 pre-defined patterns to match and ignore strings and comments in the input.
 
-**ugrep** searches binary files and produces hex dumps for binary matches.
+- **ugrep** searches binary files and produces hex dumps for binary matches.
 For example to search for a binary pattern:
 
     ugrep --color -X -U '\xed\xab\xee\xdb' some.rpm
@@ -50,18 +50,18 @@ search (meaning non-Unicode), and `--color` shows the results in color.
 Other options that normally work with text matches work with `-X` too, such as
 the context options `-A`, `-B`, and `-C`.
 
-**ugrep** matches Unicode patterns by default (disabled with option `-U`).  The
+- **ugrep** matches Unicode patterns by default (disabled with option `-U`).  The
 regular expression syntax is POSIX ERE compliant, extended with Unicode
 character classes, lazy quantifiers, and negative patterns to skip unwanted
 pattern matches to produce more precise results.
 
-**ugrep** searches UTF-encoded input when UTF BOM
+- **ugrep** searches UTF-encoded input when UTF BOM
 ([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are present
 and ASCII and UTF-8 when no UTF BOM is present.  Option `--encoding` permits
 many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
 pages 437, 850, 858, 1250 to 1258.
 
-**ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
+- **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
 POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and RE2.
 RE/flex is an incremental, streaming regex matcher, meaning it does not read
@@ -70,22 +70,22 @@ Files are efficiently scanned with options such as `-o`.  As a bonus, this
 option also finds a match of a pattern spanning multiple lines such as comment
 blocks in source code.
 
-**ugrep** regex patterns are converted to
+- **ugrep** regex patterns are converted to
 [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
 matching.  Rare and pathelogical cases are known to exist that may increase the
 initial running time for DFA construction.  The resulting DFAs still yield
 significant speedups to search large files.
 
-**ugrep** is portable and compiles with MSVC++ to run on Windows.  Binaries are
+- **ugrep** is portable and compiles with MSVC++ to run on Windows.  Binaries are
 available for Linux, Mac and Windows.
 
-**ugrep** is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
+- **ugrep** is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
 code and does not include any GNU or BSD grep open source code or algorithms.
 **ugrep** is built entirely on the RE/flex open source library and a modified
 version of Rich Salz' free and open wildmat source code for
 gitignore-compatible glob matching with options `--include` and `--exclude`.
 
-**ugrep** is evolving and more features will be added.  You can help!  We love
+- **ugrep** is evolving and more features will be added.  You can help!  We love
 your feedback (issues) and contributions (pull requests) ❤️
 
 Speed
