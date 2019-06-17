@@ -6,10 +6,30 @@ and display binary files recursively in large directory trees.  Quickly grep
 through C/C++, Java, Python, Ruby, JSON, XML and more using pre-defined search
 patterns.
 
-**ugrep** makes it simple to search source code using pre-defined patterns.  It
-is the only grep tool that allows you to define *negative patterns* to *zap*
-parts in files you want to skip.  This removes many false positives.  For
-example to find exact matches of `main` in C/C++ source code while skipping
+**ugrep** simulates GNU grep and BSD grep, but offers many more useful
+features.
+
+**ugrep** makes it simple to search source code using *pre-defined patterns*.
+For example to recursivley search Python files for import statements:
+
+    ugrep -R -tpython -n -f python/imports myprojects
+
+where `-R` is recursive search, `-tpython` searches Python source code files
+only, `-n` shows line numbers in the output, and the `-f` option specifies
+pre-defined patterns to search for Python `import` statements (matched by the
+two patterns `\<import\h+.*` and `\<from\h+.*import\h+.*` defined in
+`patterns/python/imports`).
+
+**ugrep** includes a growing database of
+[patterns](https://github.com/Genivia/ugrep/tree/master/patterns) with common
+search patterns to use with option `-f`.  So you don't need to memorize complex
+regex patterns for common search criteria.  Environment variable `GREP_PATH`
+can be set to point to your own directory with patterns that option `-f` uses
+to read your pattern files.
+
+**ugrep** is the only grep tool that allows you to define *negative patterns*
+to *zap* parts in files you want to skip.  This removes many false positives.
+For example to find exact matches of `main` in C/C++ source code while skipping
 strings and comments that may have a match with `main` in them:
 
     ugrep -R -o -tc,c++ -n -w 'main' -f c/zap_strings -f c/zap_comments myprojects
@@ -19,13 +39,6 @@ comments may span multiple lines), `-tc,c++` searches C and C++ source code
 files only, `-n` shows line numbers in the output, `-w` matches exact words
 (for example, `mainly` won't be matched), and the `-f` options specify two
 pre-defined patterns to match and ignore strings and comments in the input.
-
-**ugrep** includes a growing database of
-[patterns](https://github.com/Genivia/ugrep/tree/master/patterns) with common
-search patterns to use with option `-f`.  So you don't need to memorize complex
-regex patterns for common search criteria.  Environment variable `GREP_PATH`
-can be set to point to your own directory with patterns that option `-f` uses
-to read your pattern files.
 
 **ugrep** searches binary files and produces hex dumps for binary matches.
 For example to search for a binary pattern:
@@ -37,6 +50,17 @@ search (meaning non-Unicode), and `--color` shows the results in color.
 Other options that normally work with text matches work with `-X` too, such as
 the context options `-A`, `-B`, and `-C`.
 
+**ugrep** matches Unicode patterns by default (disabled with option `-U`).  The
+regular expression syntax is POSIX ERE compliant, extended with Unicode
+character classes, lazy quantifiers, and negative patterns to skip unwanted
+pattern matches to produce more precise results.
+
+**ugrep** searches UTF-encoded input when UTF BOM
+([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are present
+and ASCII and UTF-8 when no UTF BOM is present.  Option `--encoding` permits
+many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
+pages 437, 850, 858, 1250 to 1258.
+
 **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
 high-performance regex matching, which is 100 times faster than the GNU C
 POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and RE2.
@@ -45,21 +69,6 @@ all the input at once nor does it require reading the input line-by-line.
 Files are efficiently scanned with options such as `-o`.  As a bonus, this
 option also finds a match of a pattern spanning multiple lines such as comment
 blocks in source code.
-
-**ugrep** offers options that are compatible with the
-[GNU grep](https://www.gnu.org/software/grep/manual/grep.html) and BSD grep
-utilities, meaning it can be used as a backward-compatible replacement.
-
-**ugrep** matches Unicode patterns by default.  The regular expression syntax
-is POSIX ERE compliant, extended with Unicode character classes, lazy
-quantifiers, and negative patterns to skip unwanted pattern matches to produce
-more precise results.
-
-**ugrep** searches UTF-encoded input when UTF BOM
-([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are present
-and ASCII and UTF-8 when no UTF BOM is present.  Option `--encoding` permits
-many other file formats to be searched, such as ISO-8859-1, EBCDIC, and code
-pages 437, 850, 858, 1250 to 1258.
 
 **ugrep** regex patterns are converted to
 [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
@@ -124,6 +133,69 @@ at `/usr/local/share/ugrep/patterns/`.  Option `-f` first checks the current
 directory for the presence of pattern files, if not found checks environment
 variable `GREP_PATH` to load the pattern files, and if not found reads the
 installed pattern files.
+
+ugrep versus other greps
+------------------------
+
+- **ugrep** matches Unicode by default, disabled with option `-U`.
+- **ugrep** supports *negative patterns* to skip parts of the input that should
+  not be matched, such as skipping strings and comments when searching for
+  identifiers in source code.
+- **ugrep** uses incremental matching.  When one or more of the options `-q`
+  (quiet), `-o` (only matching), `-c` (count), `-N` (only line number), `-l`
+  (file with match), or `-L` (files without match) is used, **ugrep** performs
+  an even faster search of the input file instead of reading the input
+  line-by-line as other grep tools do.  This allows matching patterns that
+  include newlines (`\n`), i.e. a match can span multiple lines.  This is not
+  possible with other grep-like tools.
+- New options `-W` and `-X` to produce hexadecimal matches ("hexdumps") in
+  binary files.
+- New option `-Y` to permit matching empty patterns.  Grepping with
+  empty-matching patterns is weird and gives different results with GNU grep
+  and BSD grep.  New option `-Y` to permit empty matches avoids making mistakes
+  giving "random" results.  For example, `a*` matches every line in the input,
+  and actually matches `xyz` three times (the empty transitions before and
+  between the `x`, `y`, and `z`).  Non-empty pattern matching is the default.
+  Matching empty lines with the pattern `^$` requires option `-Y`.
+- New option `-U` to specify non-Unicode pattern matches, e.g. to search for
+  binary patterns.  **ugrep** matches Unicode by default.
+- New option `-k`, `--column-number` with **ugrep** to display the column
+  number, taking tab spacing into account by expanding tabs, as specified by
+  option `--tabs`.
+- New option `-g`, `--no-group` to not group matches per line.  This option
+  displays a matched input line again for each additional pattern match.  This
+  option is particularly useful with option `-c` to report the total number of
+  pattern matches per file instead of the number of lines matched per file.
+- New options `-O` and `-t` to specify file extensions and file types,
+  respectively, to search selectively in directory trees with recursive search
+  options `-R` and `-r`.
+- Extended option `-f` uses `GREP_PATH` environment variable and pre-defined
+  patterns intalled in `/usr/local/share/ugrep/patterns`.
+- When option `-b` is used with option `-o` or with option `-g`, **ugrep**
+  displays the exact byte offset of the pattern match instead of the byte
+  offset of the start of the matched line as grep reports.  Reporting exact
+  byte offsets is now possible with **grep**.
+- **ugrep** regular expression patterns are more expressive than GNU grep and
+  BSD grep and support Unicode pattern matching, see further below.  Extended
+  regular expression syntax is the default (i.e.  option `-E`, as egrep).
+- **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
+  `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
+- BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
+  e.g.  options `-r` versus `-R`, support for `GREP_COLORS`, and more.
+
+GNU and BSD grep and their common variants are simulated as follows:
+
+    grep  = ugrep -U -G
+    egrep = ugrep -U
+    fgrep = ugrep -U -F
+
+Some useful aliases:
+
+    alias grep   ugrep --color -G     # basic regular expressions (BRE)
+    alias egrep  ugrep --color        # extended regular expressions (ERE)
+    alias fgrep  ugrep --color -F     # find string (fast)
+    alias xgrep  ugrep --color -X     # output hexdumps
+    alias uxgrep ugrep --color -UX    # search binary patterns, output hexdumps
 
 Examples
 --------
@@ -826,72 +898,6 @@ Man page
 
 
     ugrep 1.1.6                      May 29, 2019                         UGREP(1)
-
-ugrep versus other "greps"
---------------------------
-
-The following identities hold for the behaviors of GNU/BSD grep and their
-common variants:
-
-    grep  = ugrep -U -G
-    egrep = ugrep -U -E
-    fgrep = ugrep -U -F
-
-New features:
-
-- **ugrep** matches Unicode by default, which is disabled with option `-U`.
-- **ugrep** supports *negative patterns* to skip parts of the input that should
-  not be matched, such as skipping strings and comments when searching for
-  identifiers in source code.
-- **ugrep** uses incremental matching.  When one or more of the options `-q`
-  (quiet), `-o` (only matching), `-c` (count), `-N` (only line number), `-l`
-  (file with match), or `-L` (files without match) is used, **ugrep** performs
-  an even faster search of the input file instead of reading the input
-  line-by-line as other grep tools do.  This allows matching patterns that
-  include newlines (`\n`), i.e. a match can span multiple lines.  This is not
-  possible with other grep-like tools.
-- New options `-W` and `-X` to produce hexadecimal matches ("hexdumps") in
-  binary files.
-- New option `-Y` to permit matching empty patterns.  Grepping with
-  empty-matching patterns is weird and gives different results with GNU grep
-  and BSD grep.  New option `-Y` to permit empty matches avoids making mistakes
-  giving "random" results.  For example, `a*` matches every line in the input,
-  and actually matches `xyz` three times (the empty transitions before and
-  between the `x`, `y`, and `z`).  Non-empty pattern matching is the default.
-  Matching empty lines with the pattern `^$` requires option `-Y`.
-- New option `-U` to specify non-Unicode pattern matches, e.g. to search for
-  binary patterns.  **ugrep** matches Unicode by default.
-- New option `-k`, `--column-number` with **ugrep** to display the column
-  number, taking tab spacing into account by expanding tabs, as specified by
-  option `--tabs`.
-- New option `-g`, `--no-group` to not group matches per line.  This option
-  displays a matched input line again for each additional pattern match.  This
-  option is particularly useful with option `-c` to report the total number of
-  pattern matches per file instead of the number of lines matched per file.
-- New options `-O` and `-t` to specify file extensions and file types,
-  respectively, to search selectively in directory trees with recursive search
-  options `-R` and `-r`.
-- Extended option `-f` uses `GREP_PATH` environment variable and pre-defined
-  patterns intalled in `/usr/local/share/ugrep/patterns`.
-- When option `-b` is used with option `-o` or with option `-g`, **ugrep**
-  displays the exact byte offset of the pattern match instead of the byte
-  offset of the start of the matched line as grep reports.  Reporting exact
-  byte offsets is now possible with **grep**.
-- **ugrep** regular expression patterns are more expressive than GNU grep and
-  BSD grep and support Unicode pattern matching, see further below.  Extended
-  regular expression syntax is the default (i.e.  option `-E`, as egrep).
-- **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
-  `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
-- BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
-  e.g.  options `-r` versus `-R`, support for `GREP_COLORS`, and more.
-
-Useful aliases:
-
-    alias grep   ugrep --color -G     # basic regular expressions (BRE)
-    alias egrep  ugrep --color        # extended regular expressions (ERE)
-    alias fgrep  ugrep --color -F     # find string (fast)
-    alias xgrep  ugrep --color -X     # output hexdumps
-    alias uxgrep ugrep --color -UX    # search binary patterns, output hexdumps
 
 For future updates
 ------------------
