@@ -7,7 +7,8 @@ through C/C++, Java, Python, Ruby, JSON, XML and more using pre-defined search
 patterns.
 
 - **ugrep** simulates GNU grep and BSD grep, but offers many more useful
-  features.
+  features such as full Unicode pattern matching with Unicode character
+  categories, bracket list with Unicode classes, and more.
 
 - **ugrep** makes it simple to search source code using *pre-defined patterns*.
   For example to recursivley search Python files for import statements:
