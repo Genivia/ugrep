@@ -41,7 +41,7 @@ Download and installation:
 
   https://github.com/Genivia/ugrep
 
-Requires:
+Requires RE/flex 1.2.5 or greater:
 
   https://github.com/Genivia/RE-flex
 
@@ -72,7 +72,6 @@ Wanted TODO:
 #include <cctype>
 #include <cstring>
 #include <cerrno>
-#include <sstream>
 
 // check if we are on a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
@@ -103,7 +102,7 @@ Wanted TODO:
 #endif
 
 // ugrep version
-#define VERSION "1.1.6"
+#define VERSION "1.1.7"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -1619,11 +1618,8 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
         if (getline(input, line))
           break;
 
-        // this may be slower, but matches all \0 on the line
-        std::stringstream stream(line);
-
         // count this line if not matched
-        if (matcher.input(stream).find() == 0)
+        if (matcher.input(line).find() == 0)
         {
           ++matches;
           if (flag_max_count > 0 && matches >= flag_max_count)
@@ -1736,16 +1732,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
       size_t last = UNDEFINED;
 
-      if (binary[current])
-      {
-        // this may be slower, but matches all \0 on the line
-        std::stringstream stream(lines[current]);
-        matcher.input(stream);
-      }
-      else
-      {
-        matcher.input(lines[current]); // does not search after the first \0
-      }
+      matcher.input(lines[current]);
 
       if (flag_invert_match)
       {
@@ -2761,7 +2748,7 @@ void help(const char *message, const char *arg)
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
             they are on the command line.\n\
-    -Q, --encoding=ENCODING\n\
+    -Q ENCODING, --encoding=ENCODING\n\
             The input file encoding.  The possible values of ENCODING can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)
     std::cout << (i == 0 ? "" : ",") << (i % 6 ? " " : "\n            ") << "`" << format_table[i].format << "'";
@@ -2802,8 +2789,8 @@ void help(const char *message, const char *arg)
             NUM may be 1, 2, 4, or 8.\n\
     -U, --binary\n\
             Disables Unicode matching and forces PATTERN to match bytes, not\n\
-            Unicode characters.  For example, `\\xa3' matches byte A3 (hex) in\n\
-            a (binary) input file instead of the Unicode code point U+00A3\n\
+            Unicode characters.  For example, -U '\\xa3' matches byte A3 (hex)\n\
+            in a (binary) input file instead of the Unicode code point U+00A3\n\
             matching the two-byte UTF-8 sequence C2 A3.\n\
     -V, --version\n\
             Display version information and exit.\n\

@@ -1,17 +1,17 @@
 ugrep: universal grep
 =====================
 
-Search files for Unicode text patterns, find source code matches, and search
-and display binary files recursively in large directory trees.  Quickly grep
-through C/C++, Java, Python, Ruby, JSON, XML and more using pre-defined search
-patterns.
+Quickly grep through C/C++, Java, Python, Ruby, JSON, XML and more using
+pre-defined search patterns.  Search files for Unicode text patterns, find
+source code matches, and search and display text and binary files recursively
+in large directory trees.  
 
-- **ugrep** simulates GNU grep and BSD grep, but offers many more useful
-  features such as full Unicode pattern matching with Unicode character
-  categories, bracket list with Unicode classes, and more.
+- **ugrep** extends GNU grep and BSD grep by offering more useful features,
+  such as full Unicode pattern matching with Unicode character categories and
+  classes, pre-defined search patterns to search source code, and more.
 
 - **ugrep** makes it simple to search source code using *pre-defined patterns*.
-  For example to recursivley search Python files for import statements:
+  For example to recursively search Python files for import statements:
 
       ugrep -R -tpython -n -f python/imports myprojects
 
@@ -42,7 +42,7 @@ patterns.
   two pre-defined patterns to match and ignore strings and comments in the
   input.
 
-- **ugrep** searches binary files and produces hex dumps for binary matches.
+- **ugrep** searches binary files and produces hexdumps for binary matches.
   For example to search for a binary pattern:
 
       ugrep --color -X -U '\xed\xab\xee\xdb' some.rpm
@@ -112,7 +112,7 @@ Installation
 
 Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
 
-To build ugrep, first install RE/flex 1.2.1 or greater from
+To build ugrep, first install RE/flex 1.2.5 or greater from
 https://github.com/Genivia/RE-flex then download ugrep from
 https://github.com/Genivia/ugrep and execute:
 
@@ -158,7 +158,8 @@ ugrep versus other greps
   giving "random" results.  For example, `a*` matches every line in the input,
   and actually matches `xyz` three times (the empty transitions before and
   between the `x`, `y`, and `z`).  Non-empty pattern matching is the default.
-  Matching empty lines with the pattern `^$` requires option `-Y`.
+  As a tradeoff for this, matching empty lines with the pattern `^$` now
+  requires option `-Y`.
 - New option `-U` to specify non-Unicode pattern matches, e.g. to search for
   binary patterns.  **ugrep** matches Unicode by default.
 - New option `-k`, `--column-number` with **ugrep** to display the column
@@ -185,16 +186,16 @@ ugrep versus other greps
 - BSD grep (e.g. on Mac OS X) has bugs and limitations that **ugrep** fixes,
   e.g.  options `-r` versus `-R`, support for `GREP_COLORS`, and more.
 
-GNU and BSD grep and their common variants are simulated as follows:
+GNU and BSD grep and their common variants are equivalent to:
 
-    grep  = ugrep -U -G
-    egrep = ugrep -U
-    fgrep = ugrep -U -F
+    grep  = ugrep -G -U -Y
+    egrep = ugrep -E -U -Y
+    fgrep = ugrep -F -U -Y
 
 Some useful aliases:
 
     alias grep   ugrep --color -G     # basic regular expressions (BRE)
-    alias egrep  ugrep --color        # extended regular expressions (ERE)
+    alias egrep  ugrep --color -E     # extended regular expressions (ERE)
     alias fgrep  ugrep --color -F     # find string (fast)
     alias xgrep  ugrep --color -X     # output hexdumps
     alias uxgrep ugrep --color -UX    # search binary patterns, output hexdumps
@@ -229,16 +230,27 @@ and include symlinks to files and directories with `-R`:
 
     ugrep -R -o -tc,c++ -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
-As another example, we may want to search for word `FIXME` in C/C++ comment
+What if we are only looking for the identifier `main` but not as a function
+`main(`?  We can use a negative pattern for this to ignore unwanted `main\h*(`
+pattern matches:
+
+    ugrep -R -o -tc,c++ -nkw 'main' -e '(?^main\h*\()' -f c/zap_strings -f c/zap_comments myproject
+
+This uses the `-e` option to explicitly specify more patterns, which is
+essentially forming the pattern `main|(?^main\h*\()', where `\h` matches space
+and tab.  In general, negative patterns are useful to filter out pattern
+matches we are not interested in.
+
+As another example, we may want to search for the word `FIXME` in C/C++ comment
 blocks.  To do so we can first select the comment blocks with **ugrep**'s
 pre-defined `c/comments` pattern AND THEN select lines with `FIXME` using a
 pipe:
 
     ugrep -R -o -tc,c++ -nk -f c/comments myproject | ugrep -w 'FIXME'
 
-Filtering results this way with pipes is generally easier than using AND-OR
-logic that some search tools use.  This approach follows the Unix spirit to
-keep utilities simple and use them in combination for more complex tasks.
+Filtering results with pipes is generally easier than using AND-OR logic that
+some search tools use.  This approach follows the Unix spirit to keep utilities
+simple and use them in combination for more complex tasks.
 
 Say we want to produce a sorted list of all identifiers found in Java source
 code while skipping strings and comments:
@@ -305,8 +317,8 @@ globs that are considered both files and directories to add to `--include` and
 directory paths are not explicitly listed in this file then it will not be
 visited using `--include-from`.
 
-Looking for more?
------------------
+Looking for more examples?
+--------------------------
 
 More examples can be found toward the end of this README.
 
@@ -455,8 +467,8 @@ Man page
                   pattern  lines  in  the file are not processed.  Options -F, -w,
                   and -x do not apply to FILE patterns.  If FILE does  not  exist,
                   the  GREP_PATH  environment variable is used as the path to read
-                  FILE.  If that fails, looks for FILE in  /usr/local/share/ugrep.
-                  This option may be repeated.
+                  FILE.     If    that    fails,     looks     for     FILE     in
+                  /usr/local/share/ugrep/patterns.  This option may be repeated.
 
            --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
@@ -578,7 +590,7 @@ Man page
                   If  -R  or -r is specified, no symbolic links are followed, even
                   when they are on the command line.
 
-           -Q, --encoding=ENCODING
+           -Q ENCODING, --encoding=ENCODING
                   The input file encoding.  The possible values  of  ENCODING  can
                   be:   `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',  `UTF-8',
                   `UTF-16',   `UTF-16BE',   `UTF-16LE',   `UTF-32',    `UTF-32BE',
@@ -639,8 +651,8 @@ Man page
 
            -U, --binary
                   Disables Unicode matching and forces PATTERN to match bytes, not
-                  Unicode  characters.   For example, `\xa3' matches byte A3 (hex)
-                  in a (binary) input file  instead  of  the  Unicode  code  point
+                  Unicode  characters.   For  example,  -U  '\xa3' matches byte A3
+                  (hex) in a (binary) input file instead of the Unicode code point
                   U+00A3 matching the two-byte UTF-8 sequence C2 A3.
 
            -V, --version
@@ -899,20 +911,23 @@ Man page
 
 
 
-    ugrep 1.1.6                      May 29, 2019                         UGREP(1)
+    ugrep 1.1.7                      July 02, 2019                        UGREP(1)
 
 For future updates
 ------------------
 
+- Speed improvements when reading files, e.g. by using `mmap` and/or the
+  `reflex::Input` state instead of copying files line-by-line into a buffer as
+  is currently done.
 - Skip hidden files and directories, e.g. dot files and Windows hidden files.
   However, skipping dot files and directories can already be done with
   `--exclude='.*'` and `--exclude-dir='.*'`, respectively.  Windows hidden
   files are defined by their attributes returned by GetFileAttributesA.
-- Back-references are not supported.  This will likely not be supported soon
-  with the RE/flex library.  We could use Boost.Regex for this (using RE/flex
-  `BoostMatcher` class), which is faster than PCRE2 but slower than RE/flex
-  `Matcher` class.  With Boost.Regex we can also support Perl-like matching
-  as an option.
+- Back-references are not supported.  This will likely not be supported any
+  time soon in the RE/flex library.  We could use Boost.Regex for this (using
+  RE/flex `BoostMatcher` class), which is faster than PCRE2 but slower than
+  RE/flex `Matcher` class.  With Boost.Regex we can also support Perl-like
+  matching as an option.
 - There are reported cases where lazy quantifiers misbehave when used in
   negative patterns, so it is best to avoid them unless the patterns are
   simple.
@@ -1290,12 +1305,12 @@ in hex with `-X` piped to `more -R` to retain coloring:
 
     ugrep --color=always -o -X -U '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out | more -R
 
-To hex dump lines containing one or more \0 in a (binary) file using a
+To hexdump lines containing one or more \0 in a (binary) file using a
 non-Unicode pattern:
 
     ugrep --color -X -U '\x00' myfile
 
-To hex dump the entire file:
+To hexdump the entire file:
 
     ugrep -oX '.|\n' myfile
 

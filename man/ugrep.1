@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 29, 2019" "ugrep 1.1.6" "User Commands"
+.TH UGREP "1" "July 02, 2019" "ugrep 1.1.7" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -135,7 +135,7 @@ Read one or more newline\-separated patterns from FILE.  Empty
 pattern lines in the file are not processed.  Options \fB\-F\fR, \fB\-w\fR, and
 \-x do not apply to FILE patterns.  If FILE does not exist, the
 GREP_PATH environment variable is used as the path to read FILE.
-If that fails, looks for FILE in /usr/local/share/ugrep.
+If that fails, looks for FILE in /usr/local/share/ugrep/patterns.
 This option may be repeated.
 .TP
 \fB\-\-free\-space\fR
@@ -260,7 +260,7 @@ not yet available.
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
 they are on the command line.
 .TP
-\fB\-Q\fR, \fB\-\-encoding\fR=\fIENCODING\fR
+\fB\-Q\fR ENCODING, \fB\-\-encoding\fR=\fIENCODING\fR
 The input file encoding.  The possible values of ENCODING can be:
 `binary', `ISO\-8859\-1', `ASCII', `EBCDIC', `UTF\-8', `UTF\-16',
 `UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE', `UTF\-32LE', `CP437',
@@ -320,8 +320,8 @@ NUM may be 1, 2, 4, or 8.
 .TP
 \fB\-U\fR, \fB\-\-binary\fR
 Disables Unicode matching and forces PATTERN to match bytes, not
-Unicode characters.  For example, `\\xa3' matches byte A3 (hex) in
-a (binary) input file instead of the Unicode code point U+00A3
+Unicode characters.  For example, \fB\-U\fR '\\xa3' matches byte A3 (hex)
+in a (binary) input file instead of the Unicode code point U+00A3
 matching the two\-byte UTF\-8 sequence C2 A3.
 .TP
 \fB\-V\fR, \fB\-\-version\fR
