@@ -1,1 +1,1 @@
-\<def\h+\p{PythonIdentifierStart}\p{PythonIdentifierPart}*
+\<def\h+(?u:\p{PythonIdentifierStart}\p{PythonIdentifierPart}*)

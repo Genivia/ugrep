@@ -1,1 +1,1 @@
-\p{UnicodeIdentifierStart}\p{UnicodeIdentifierPart}*
+(?u:\p{UnicodeIdentifierStart}\p{UnicodeIdentifierPart}*)

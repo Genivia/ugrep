@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 02, 2019" "ugrep 1.1.7" "User Commands"
+.TH UGREP "1" "July 11, 2019" "ugrep 1.1.8" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -57,7 +57,7 @@ problematic consequences if the terminal driver interprets some of
 it as commands.  `hex' reports all matches in hexadecimal.
 `with\-hex` only reports binary matches in hexadecimal, leaving text
 matches alone.  A match is considered binary if a match contains a
-zero byte or an invalid UTF encoding. See also options \fB\-a\fR, \fB\-I\fR, \fB\-U\fR,
+zero byte or an invalid UTF encoding.  See also options \fB\-a\fR, \fB\-I\fR, \fB\-U\fR,
 \-W, and \fB\-X\fR
 .TP
 \fB\-C\fR[NUM], \fB\-\-context\fR[=\fI\fR\fINUM\fR]
@@ -148,7 +148,7 @@ to behave as traditional grep).
 \fB\-g\fR, \fB\-\-no\-group\fR
 Do not group multiple pattern matches on the same matched line.
 Output the matched line again for each additional pattern match,
-using `+' as the field separator for each additional line.
+using `+' as the field separator for each additional match.
 .TP
 \fB\-\-group\-separator\fR=\fISEP\fR
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR. By
@@ -222,11 +222,19 @@ Force output to be line buffered.  By default, output is line
 buffered when standard output is a terminal and block buffered
 otherwise.
 .TP
+\fB\-M\fR MAGIC, \fB\-\-file\-magic\fR=\fIMAGIC\fR
+Only files matching the signature pattern `MAGIC' are searched.
+The signature magic bytes at the start of a file are compared to
+the `MAGIC' regex pattern and, when matching, the search commences
+immediately after the magic bytes.  This option may be repeated and
+may be combined with options \fB\-O\fR and \fB\-t\fR to expand the search.  This
+option is relatively slow as every file on the search path is read.
+.TP
 \fB\-m\fR NUM, \fB\-\-max\-count\fR=\fINUM\fR
 Stop reading the input after NUM matches.
 .TP
 \fB\-N\fR, \fB\-\-only\-line\-number\fR
-The line number of the match in the file is output without
+The line number of the matching line in the file is output without
 displaying the match.  The line number counter is reset for each
 file processed.
 .TP
@@ -243,7 +251,8 @@ options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 Search only files whose file name extensions match the specified
 comma\-separated list of file name EXTENSIONS.  This option is the
 same as specifying \fB\-\-include\fR=\fI\fR'*.ext' for each extension name `ext'
-in the EXTENSIONS list.  This option may be repeated.
+in the EXTENSIONS list.  This option may be repeated and may be
+combined with options \fB\-M\fR and \fB\-t\fR to expand the search.
 .TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
 Prints only the matching part of the lines.  Allows a pattern
@@ -300,29 +309,35 @@ number, and byte offset with the matched line.
 \fB\-t\fR TYPES, \fB\-\-file\-type\fR=\fITYPES\fR
 Search only files associated with TYPES, a comma\-separated list of
 file types.  Each file type corresponds to a set of file name
-extensions to search.  This option may be repeated.  The possible
-values of type can be (use \fB\-t\fR list to display a detailed list):
+extensions passed to option \fB\-O\fR.  For capitalized file types, the
+file signature is passed to option \fB\-M\fR to expand the search by
+including files found on the search path with matching magic bytes.
+This option may be repeated.  The possible values of TYPES can be
+(use option \fB\-t\fRlist to display a detailed list):
 `actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
-`awk', `basic', `batch', `bison', `c', `c++', `clojure',
-`csharp', `css', `csv', `dart', `delphi', `elixir', `erlang',
-`fortran', `go', `groovy', `haskell', `html', `jade', `java',
-`javascript', `json', `jsp', `julia', `kotlin', `less', `lex',
-`lisp', `lua', `m4', `make', `markdown', `matlab', `objc',
-`objc++', `ocaml', `parrot', `pascal', `perl', `php', `prolog',
-`python', `R', `rst', `ruby', `rust', `scala', `scheme',
-`shell', `smalltalk', `sql', `swift', `tcl', `tex', `text',
-`tt', `typescript', `verilog', `vhdl', `vim', `xml', `yacc',
-`yaml'
+`awk', `Awk', `basic', `batch', `bison', `c', `c++',
+`clojure', `csharp', `css', `csv', `dart', `Dart', `delphi',
+`elixir', `erlang', `fortran', `gif', `Gif', `go', `groovy',
+`haskell', `html', `jade', `java', `javascript', `jpeg', `Jpeg',
+`json', `jsp', `julia', `kotlin', `less', `lex', `lisp',
+`lua', `m4', `make', `markdown', `matlab', `node', `Node',
+`objc', `objc++', `ocaml', `parrot', `pascal', `pdf', `Pdf',
+`perl', `Perl', `php', `Php', `png', `Png', `prolog',
+`python', `Python', `R', `rpm', `Rpm', `rst', `rtf',
+`Rtf', `ruby', `Ruby', `rust', `scala', `scheme', `shell',
+`Shell', `smalltalk', `sql', `swift', `tcl', `tex', `text',
+`tiff', `Tiff', `tt', `typescript', `verilog', `vhdl', `vim',
+`xml', `Xml', `yacc', `yaml'
 .TP
 \fB\-\-tabs\fR=\fINUM\fR
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
 NUM may be 1, 2, 4, or 8.
 .TP
 \fB\-U\fR, \fB\-\-binary\fR
-Disables Unicode matching and forces PATTERN to match bytes, not
-Unicode characters.  For example, \fB\-U\fR '\\xa3' matches byte A3 (hex)
-in a (binary) input file instead of the Unicode code point U+00A3
-matching the two\-byte UTF\-8 sequence C2 A3.
+Disables Unicode matching for binary file matching, forcing PATTERN
+to match bytes, not Unicode characters.  For example, \fB\-U\fR '\\xa3'
+matches byte A3 (hex) instead of the Unicode code point U+00A3
+represented by the two\-byte UTF\-8 sequence C2 A3.
 .TP
 \fB\-V\fR, \fB\-\-version\fR
 Display version information and exit.
@@ -331,14 +346,14 @@ Display version information and exit.
 Selected lines are those not matching any of the specified
 patterns.
 .TP
-\fB\-W\fR
+\fB\-W\fR, \fB\-\-with\-hex\fR
 Only output binary matches in hexadecimal, leaving text matches
 alone.  This option is equivalent to the \fB\-\-binary\-files\fR=\fIwith\-hex\fR
 option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The pattern or \fB\-e\fR patterns are searched for as a word (as if
-surrounded by `\\<' and `\\>').
+surrounded by \\< and \\>).
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire pattern or \fB\-e\fR patterns
@@ -515,7 +530,7 @@ $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 To display the line and column number of all `FIXME' in all C++ files using
 recursive search, with one line of context before and after each matched line:
 .IP
-$ ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
+$ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*' .
 .PP
 To list all C/C++ comments in a file displaying their line and column numbers
 using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
@@ -540,9 +555,9 @@ results in hex with \fB-X\fR piped to `more -R':
 .IP
 $ ugrep --color=always -oUX '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out | more -R
 .PP
-To hex dump the entire file:
+To hex dump an entire file in color:
 .IP
-$ ugrep -oX '.|\\n' a.out | more
+$ ugrep --color=always -oUX '.|\\n' a.out | less -R
 .PP
 To list all files containing a RPM signature, located in the `rpm` directory and
 recursively below:

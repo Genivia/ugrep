@@ -210,7 +210,7 @@ $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 To display the line and column number of all `FIXME' in all C++ files using
 recursive search, with one line of context before and after each matched line:
 .IP
-$ ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
+$ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*' .
 .PP
 To list all C/C++ comments in a file displaying their line and column numbers
 using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
@@ -235,9 +235,9 @@ results in hex with \fB-X\fR piped to `more -R':
 .IP
 $ ugrep --color=always -oUX '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out | more -R
 .PP
-To hex dump the entire file:
+To hex dump an entire file in color:
 .IP
-$ ugrep -oX '.|\\n' a.out | more
+$ ugrep --color=always -oUX '.|\\n' a.out | less -R
 .PP
 To list all files containing a RPM signature, located in the `rpm` directory and
 recursively below:

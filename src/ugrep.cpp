@@ -49,12 +49,8 @@ Compile:
 
   c++ -std=c++11 -O2 -o ugrep ugrep.cpp wildmat.cpp -lreflex
 
-Bugs FIXME:
+limitations:
 
-  - Grepping with empty-matching patterns is weird and gives different results
-    with GNU grep and BSD grep.  That's why a new option -Y to permit empty
-    matches is useful, making non-empty pattern matching the default to avoid
-    "random" results.
   - Back-references are not supported.
 
 Wanted TODO:
@@ -102,7 +98,7 @@ Wanted TODO:
 #endif
 
 // ugrep version
-#define VERSION "1.1.7"
+#define VERSION "1.1.8"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -119,7 +115,7 @@ Wanted TODO:
 #define EXIT_ERROR 2 // An error occurred
 
 // undefined size_t value
-#define UNDEFINED static_cast<size_t>(-1)
+#define UNDEFINED (size_t)(-1)
 
 // ANSI SGR substrings extracted from GREP_COLORS
 #define COLORLEN 16
@@ -209,9 +205,9 @@ std::vector<std::string> flag_exclude_override_dir;
 extern bool globmat(const char *pathname, const char *basename, const char *glob);
 
 // function protos
-bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname);
-bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
-bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
+bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname);
+bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
+bool recurse(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
 bool is_binary(const char *text, size_t size);
 void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
 void hex_dump(short mode, const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *separator);
@@ -267,7 +263,7 @@ const struct { const char *format; reflex::Input::file_encoding_type encoding; }
   { NULL, 0 }
 };
 
-// table file types for ugrep option -t, --file-type
+// table of file types for ugrep option -t, --file-type
 const struct { const char *type; const char *extensions; const char *magic; } type_table[] = {
   { "actionscript", "as,mxml",                                                  NULL },
   { "ada",          "ada,adb,ads",                                              NULL },
@@ -277,6 +273,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "autoconf",     "ac,in",                                                    NULL },
   { "automake",     "am,in",                                                    NULL },
   { "awk",          "awk",                                                      NULL },
+  { "Awk",          "awk",                                                      "#!/.*\\Wg?awk(\\W.*)?\\n" },
   { "basic",        "bas,BAS,cls,frm,ctl,vb,resx",                              NULL },
   { "batch",        "bat,BAT,cmd,CMD",                                          NULL },
   { "bison",        "y,yy,yxx",                                                 NULL },
@@ -287,10 +284,13 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "css",          "css",                                                      NULL },
   { "csv",          "csv",                                                      NULL },
   { "dart",         "dart",                                                     NULL },
+  { "Dart",         "dart",                                                     "#!/.*\\Wdart(\\W.*)?\\n" },
   { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL },
-  { "elixir",       "ex,exs",                                                  NULL },
+  { "elixir",       "ex,exs",                                                   NULL },
   { "erlang",       "erl,hrl",                                                  NULL },
   { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95,f03,F03",          NULL },
+  { "gif",          "gif",                                                      NULL },
+  { "Gif",          "gif",                                                      "GIF87a|GIF89a" },
   { "go",           "go",                                                       NULL },
   { "groovy",       "groovy,gtmpl,gpp,grunit,gradle",                           NULL },
   { "haskell",      "hs,lhs",                                                   NULL },
@@ -298,6 +298,8 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "jade",         "jade",                                                     NULL },
   { "java",         "java,properties",                                          NULL },
   { "javascript",   "js",                                                       NULL },
+  { "jpeg",         "jpg,jpeg",                                                 NULL },
+  { "Jpeg",         "jpg,jpeg",                                                 "\\xff\\xd8\\xff[\\xdb\\xe0\\xe1\\xee]" },
   { "json",         "json",                                                     NULL },
   { "jsp",          "jsp,jspx,jthm,jhtml",                                      NULL },
   { "julia",        "jl",                                                       NULL },
@@ -310,34 +312,52 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "make",         "mk,mak,makefile,Makefile,Makefile.Debug,Makefile.Release", NULL },
   { "markdown",     "md",                                                       NULL },
   { "matlab",       "m",                                                        NULL },
+  { "node",         "js",                                                       NULL },
+  { "Node",         "js",                                                       "#!/.*\\Wnode(\\W.*)?\\n" },
   { "objc",         "m,h",                                                      NULL },
   { "objc++",       "mm,h",                                                     NULL },
   { "ocaml",        "ml,mli",                                                   NULL },
   { "parrot",       "pir,pasm,pmc,ops,pod,pg,tg",                               NULL },
   { "pascal",       "pas,pp",                                                   NULL },
-  { "perl",         "pl,PL,pm,pod,t,psgi",                                      "#!/*bin*perl" },
+  { "pdf",          "pdf",                                                      NULL },
+  { "Pdf",          "pdf",                                                      "\\x25\\x50\\x44\\x46\\x2d" },
+  { "perl",         "pl,PL,pm,pod,t,psgi",                                      NULL },
+  { "Perl",         "pl,PL,pm,pod,t,psgi",                                      "#!/.*\\Wperl(\\W.*)?\\n" },
   { "php",          "php,php3,php4,phtml",                                      NULL },
+  { "Php",          "php,php3,php4,phtml",                                      "#!/.*\\Wphp(\\W.*)?\\n" },
+  { "png",          "png",                                                      NULL },
+  { "Png",          "png",                                                      "\\x89png\\x0d\\x0a\\x1a\\x0a" },
   { "prolog",       "pl,pro",                                                   NULL },
-  { "python",       "py",                                                       "#!/*bin*python" },
+  { "python",       "py",                                                       NULL },
+  { "Python",       "py",                                                       "#!/.*\\Wpython(\\W.*)?\\n" },
   { "R",            "R",                                                        NULL },
+  { "rpm",          "rpm",                                                      NULL },
+  { "Rpm",          "rpm",                                                      "\\xed\\xab\\xee\\xdb" },
   { "rst",          "rst",                                                      NULL },
-  { "ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec,Rakefile",                 "#!/*bin*ruby" },
+  { "rtf",          "rtf",                                                      NULL },
+  { "Rtf",          "rtf",                                                      "\\{\\rtf1" },
+  { "ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec,Rakefile",                 NULL },
+  { "Ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec,Rakefile",                 "#!/.*\\Wruby(\\W.*)?\\n" },
   { "rust",         "rs",                                                       NULL },
   { "scala",        "scala",                                                    NULL },
   { "scheme",       "scm,ss",                                                   NULL },
-  { "shell",        "sh,bash,csh,tcsh,ksh,zsh,fish",                            "#!/*bin*sh" },
+  { "shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish",                       NULL },
+  { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish",                       "#!/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
   { "smalltalk",    "st",                                                       NULL },
   { "sql",          "sql,ctl",                                                  NULL },
   { "swift",        "swift",                                                    NULL },
   { "tcl",          "tcl,itcl,itk",                                             NULL },
   { "tex",          "tex,cls,sty,bib",                                          NULL },
   { "text",         "txt,TXT,md",                                               NULL },
+  { "tiff",         "tif,tiff",                                                 NULL },
+  { "Tiff",         "tif,tiff",                                                 "\\x49\\x49\\x2a\\x00|\\x4d\\x4d\\x00\\x2a" },
   { "tt",           "tt,tt2,ttml",                                              NULL },
   { "typescript",   "ts,tsx",                                                   NULL },
   { "verilog",      "v,vh,sv",                                                  NULL },
   { "vhdl",         "vhd,vhdl",                                                 NULL },
   { "vim",          "vim",                                                      NULL },
   { "xml",          "xml,xsd,xsl,xslt,wsdl,rss,svg,ent,plist",                  NULL },
+  { "Xml",          "xml,xsd,xsl,xslt,wsdl,rss,svg,ent,plist",                  "<\\?xml " },
   { "yacc",         "y",                                                        NULL },
   { "yaml",         "yaml,yml",                                                 NULL },
   { NULL,           NULL,                                                       NULL }
@@ -417,6 +437,8 @@ int main(int argc, char **argv)
               flag_file.emplace_back(arg + 5);
             else if (strncmp(arg, "file-extensions=", 16) == 0)
               flag_file_extensions.emplace_back(arg + 16);
+            else if (strncmp(arg, "file-magic=", 11) == 0)
+              flag_file_magic.emplace_back(arg + 11);
             else if (strncmp(arg, "file-type=", 10) == 0)
               flag_file_type.emplace_back(arg + 10);
             else if (strcmp(arg, "files-with-match") == 0)
@@ -491,6 +513,8 @@ int main(int argc, char **argv)
               version();
             else if (strcmp(arg, "with-filename") == 0)
               flag_with_filename = true;
+            else if (strcmp(arg, "with-hex") == 0)
+              flag_binary_files = "with-hex";
             else if (strcmp(arg, "word-regexp") == 0)
               flag_word_regexp = true;
             else
@@ -505,7 +529,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_after_context = (size_t)strtoull(argv[i], NULL, 10);
             else
-              help("missing number for option -A");
+              help("missing NUM for option -A");
             is_grouped = false;
             break;
 
@@ -520,7 +544,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_before_context = (size_t)strtoull(argv[i], NULL, 10);
             else
-              help("missing number for option -B");
+              help("missing NUM for option -B");
             is_grouped = false;
             break;
 
@@ -548,7 +572,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_devices = argv[i];
             else
-              help("missing action for option -D");
+              help("missing ACTION for option -D");
             is_grouped = false;
             break;
 
@@ -559,7 +583,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_directories = argv[i];
             else
-              help("missing action for option -d");
+              help("missing ACTION for option -d");
             is_grouped = false;
             break;
 
@@ -573,7 +597,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               regex.append(argv[i]).push_back('|');
             else
-              help("missing pattern for option -e");
+              help("missing PATTERN for option -e");
             is_grouped = false;
             break;
 
@@ -588,7 +612,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_file.emplace_back(argv[i]);
             else
-              help("missing file for option -f");
+              help("missing FILE for option -f");
             is_grouped = false;
             break;
 
@@ -635,7 +659,18 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_max_count = (size_t)strtoull(argv[i], NULL, 10);
             else
-              help("missing number for option -m");
+              help("missing NUM for option -m");
+            is_grouped = false;
+            break;
+
+          case 'M':
+            ++arg;
+            if (*arg)
+              flag_file_magic.emplace_back(&arg[*arg == '=']);
+            else if (++i < argc)
+              flag_file_magic.emplace_back(argv[i]);
+            else
+              help("missing MAGIC for option -M");
             is_grouped = false;
             break;
 
@@ -654,7 +689,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_file_extensions.emplace_back(argv[i]);
             else
-              help("missing extensions for option -O");
+              help("missing EXTENSIONS for option -O");
             is_grouped = false;
             break;
 
@@ -677,7 +712,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_encoding = argv[i];
             else
-              help("missing encoding for option -:");
+              help("missing ENCODING for option -:");
             is_grouped = false;
             break;
 
@@ -712,7 +747,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_file_type.emplace_back(argv[i]);
             else
-              help("missing type for option -t");
+              help("missing TYPES for option -t");
             is_grouped = false;
             break;
 
@@ -786,10 +821,14 @@ int main(int argc, char **argv)
   {
     int i;
 
-    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME EXTENSIONS" << std::endl;
+    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME EXTENSIONS (-O) AND FILE SIGNATURE 'MAGIC' BYTES (-M)" << std::endl;
 
     for (i = 0; type_table[i].type != NULL; ++i)
-      std::cerr << std::setw(12) << type_table[i].type << " = " << type_table[i].extensions << std::endl;
+    {
+      std::cerr << std::setw(12) << type_table[i].type << " = -O " << type_table[i].extensions << std::endl;
+      if (type_table[i].magic)
+        std::cerr << std::setw(19) << "-M '" << type_table[i].magic << "'" << std::endl;
+    }
 
     exit(EXIT_ERROR);
   }
@@ -804,8 +843,13 @@ int main(int argc, char **argv)
   if (regex.empty())
   {
     // if the specified regex is empty then it matches every line, including empty ones
-    regex.assign(".*");
+    regex.assign(".*\\n?");
 
+    flag_empty = true;
+  }
+  else if (regex == "^$")
+  {
+    // we're matching empty lines, so enable -Y
     flag_empty = true;
   }
   else
@@ -1083,6 +1127,16 @@ int main(int argc, char **argv)
     flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)));
   }
 
+  std::string signature;
+
+  // create a signature regex from the --file-magic patterns
+  for (auto magic : flag_file_magic)
+  {
+    if (!signature.empty())
+      signature.push_back('|');
+    signature.append(magic);
+  }
+
   // add the --exclude-from as globs to the --exclude and --exclude-dir lists
   for (auto i : flag_exclude_from)
   {
@@ -1202,6 +1256,9 @@ int main(int argc, char **argv)
 
   try
   {
+    // create a magic pattern for -M MAGIC to match file signatures with matcher.scan()
+    reflex::Pattern magic(signature, "r");
+
     // set flags to convert regex to Unicode
     reflex::convert_flag_type convert_flags = flag_binary ? reflex::convert_flag::none : reflex::convert_flag::unicode;
 
@@ -1254,7 +1311,8 @@ int main(int argc, char **argv)
       if (strcmp(infile, "-") == 0)
       {
         // search standard input
-        found |= ugrep(matcher, stdin, encoding, flag_label);
+        reflex::Input input(stdin, encoding);
+        found |= ugrep(matcher, input, flag_label);
       }
       else
       {
@@ -1266,7 +1324,7 @@ int main(int argc, char **argv)
         else
           basename = infile;
 
-        found |= find(matcher, encoding, infile, basename, true);
+        found |= find(magic, matcher, encoding, infile, basename, true);
       }
     }
   }
@@ -1282,7 +1340,7 @@ int main(int argc, char **argv)
 }
 
 // Search file or directory for pattern matches
-bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
+bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
 {
   bool found = false;
 
@@ -1337,7 +1395,7 @@ bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, 
         }
       }
 
-      return recurse(matcher, encoding, pathname);
+      return recurse(magic, matcher, encoding, pathname);
     }
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || strcmp(flag_devices, "read") == 0)
@@ -1354,6 +1412,41 @@ bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, 
       for (auto& glob : flag_exclude)
         if (globmat(pathname, basename, glob.c_str()))
           return false;
+    }
+
+    // check magic pattern against the file signature, when --file-magic=MAGIC is specified
+    if (!magic[0].empty())
+    {
+      FILE *file;
+     
+      if (fopen_s(&file, pathname, "r") == 0)
+      {
+        // to swap the search pattern with the magic pattern
+        const reflex::Pattern& search_pattern = matcher.pattern();
+        matcher.pattern(magic);
+
+        // read the file
+        reflex::Input input(file, encoding);
+        matcher.input(input);
+
+        // has the magic bytes we're looking for?
+        bool has_magic = matcher.scan() != 0;
+
+        // swap the search pattern back
+        matcher.pattern(search_pattern);
+
+        // file has the magic bytes we're looing for: search the file
+        if (has_magic)
+          found = ugrep(matcher, input, pathname);
+
+        fclose(file);
+
+        if (found)
+          return true;
+
+        if (flag_include.empty())
+          return false;
+      }
     }
 
     if (!flag_include.empty())
@@ -1382,7 +1475,8 @@ bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, 
       return false;
     }
 
-    found = ugrep(matcher, file, encoding, pathname);
+    reflex::Input input(file, encoding);
+    found = ugrep(matcher, input, pathname);
 
     fclose(file);
   }
@@ -1447,7 +1541,7 @@ bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, 
               }
             }
 
-            return recurse(matcher, encoding, pathname);
+            return recurse(magic, matcher, encoding, pathname);
           }
         }
         else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
@@ -1464,6 +1558,41 @@ bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, 
             for (auto& glob : flag_exclude)
               if (globmat(pathname, basename, glob.c_str()))
                 return false;
+          }
+
+          // check magic pattern against the file signature, when --file-magic=MAGIC is specified
+          if (!magic[0].empty())
+          {
+            FILE *file = fopen(pathname, "r");
+
+            if (file != NULL)
+            {
+              // to swap the search pattern with the magic pattern
+              const reflex::Pattern& search_pattern = matcher.pattern();
+              matcher.pattern(magic);
+
+              // read the file
+              reflex::Input input(file, encoding);
+              matcher.input(input);
+
+              // has the magic bytes we're looking for?
+              bool has_magic = matcher.scan();
+
+              // swap the search pattern back
+              matcher.pattern(search_pattern);
+
+              // file has the magic bytes we're looing for: search the file
+              if (has_magic)
+                found = ugrep(matcher, input, pathname);
+
+              fclose(file);
+              
+              if (found)
+                return true;
+
+              if (flag_include.empty())
+                return false;
+            }
           }
 
           if (!flag_include.empty())
@@ -1492,7 +1621,8 @@ bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, 
             return false;
           }
 
-          found = ugrep(matcher, file, encoding, pathname);
+          reflex::Input input(file, encoding);
+          found = ugrep(matcher, input, pathname);
 
           fclose(file);
         }
@@ -1510,7 +1640,7 @@ bool find(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, 
 }
 
 // Recurse over directory, searching for pattern matches in files and sub-directories
-bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname)
+bool recurse(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname)
 {
   bool found = false;
 
@@ -1534,7 +1664,7 @@ bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encodin
   {
     dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
 
-    found |= find(matcher, encoding, dirpathname.c_str(), ffd.cFileName);
+    found |= find(magic, matcher, encoding, dirpathname.c_str(), ffd.cFileName);
   }
   while (FindNextFileA(hFind, &ffd) != 0);
 
@@ -1562,7 +1692,7 @@ bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encodin
     {
       dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
 
-      found |= find(matcher, encoding, dirpathname.c_str(), dirent->d_name);
+      found |= find(magic, matcher, encoding, dirpathname.c_str(), dirent->d_name);
     }
   }
 
@@ -1573,13 +1703,10 @@ bool recurse(reflex::Matcher& matcher, reflex::Input::file_encoding_type encodin
   return found;
 }
 
-// Search file, display pattern matches, return true when pattern matched anywhere
-bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_type encoding, const char *pathname)
+// Search input, display pattern matches, return true when pattern matched anywhere
+bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 {
   size_t matches = 0;
-
-  // create an input object to read the file (or stdin) using the given file encoding
-  reflex::Input input(file, encoding);
 
   if (flag_quiet || flag_files_with_match || flag_files_without_match)
   {
@@ -1590,7 +1717,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
     if (flag_invert_match)
       matches = !matches;
 
-    // -l or -L but not -q
+    // -l or -L without -q
 
     if (!flag_quiet && ((matches && flag_files_with_match) || (!matches && flag_files_without_match)))
     {
@@ -1605,13 +1732,13 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
   }
   else if (flag_count)
   {
-    // -c --count mode: count the number of lines/patterns matched
+    // -c (count): count the number of lines/patterns matched
 
     if (flag_invert_match)
     {
       std::string line;
 
-      // -c --count mode w/ -v: count the number of non-matching lines
+      // -c with -v: count the number of non-matching lines
       while (input)
       {
         // read the next line
@@ -1629,7 +1756,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
     }
     else if (flag_no_group)
     {
-      // -c --count mode w/ -g: count the number of patterns matched in the file
+      // -c with -g: count the number of patterns matched in the file
 
       matcher.input(input);
       while (matcher.find() != 0)
@@ -1641,7 +1768,7 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
     }
     else
     {
-      // -c --count mode w/o -g: count the number of matching lines
+      // -c without -g: count the number of matching lines
 
       size_t lineno = 0;
 
@@ -1678,13 +1805,122 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
 
     }
 
-    printf("%zu", matches);
-    fputc('\n', stdout);
+    printf("%zu\n", matches);
 
     if (flag_line_buffered)
       fflush(stdout);
   }
-  else if (!flag_only_matching && !flag_only_line_number)
+  else if (flag_only_matching || flag_only_line_number)
+  {
+    // -o (only matching) or -N (only line number)
+
+    bool hex = false;
+    size_t lineno = 0;
+    const char *separator = flag_separator;
+
+    matcher.input(input);
+
+    for (auto& match : matcher.find)
+    {
+      separator = lineno != match.lineno() ? flag_separator : "+";
+
+      if (flag_no_group || lineno != match.lineno())
+      {
+        // max number of matches reached?
+        if (flag_max_count > 0 && matches >= flag_max_count)
+          break;
+
+        lineno = match.lineno();
+
+        ++matches;
+
+        if (flag_only_line_number)
+          display(pathname, lineno, match.columno() + 1, match.first(), separator, true);
+      }
+
+      if (!flag_only_line_number)
+      {
+        if (flag_hex)
+        {
+          hex_dump(HEX_MATCH, pathname, lineno, match.columno() + 1, match.first(), match.begin(), match.size(), separator);
+          hex = true;
+        }
+        else if (!flag_text && is_binary(match.begin(), match.size()))
+        {
+          if (flag_with_hex)
+          {
+            if (hex)
+            {
+              hex_dump(HEX_MATCH, pathname, lineno, match.columno() + 1, match.first(), match.begin(), match.size(), separator);
+            }
+            else
+            {
+              display(pathname, lineno, match.columno() + 1, match.first(), separator, true);
+              hex_dump(HEX_MATCH, NULL, 0, 0, match.first(), match.begin(), match.size(), separator);
+              hex = true;
+            }
+          }
+          else if (!flag_binary_without_matches)
+          {
+            display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
+            printf("Binary file %s matches %zu bytes\n", pathname, match.size());
+          }
+        }
+        else
+        {
+          if (hex)
+            hex_done(separator);
+          hex = false;
+
+          display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
+
+          std::string string = match.str();
+
+          if (flag_line_number)
+          {
+            // -o with -n: echo multi-line matches line-by-line
+
+            size_t from = 0;
+            size_t to;
+
+            while ((to = string.find('\n', from)) != std::string::npos)
+            {
+              fputs(color_ms, stdout);
+              fwrite(string.c_str() + from, 1, to - from, stdout);
+              fputs(color_off, stdout);
+              fputc('\n', stdout);
+
+              if (to + 1 < string.size())
+                display(pathname, ++lineno, 1, match.first() + to + 1, "|", false);
+
+              from = to + 1;
+            }
+
+            fputs(color_ms, stdout);
+            fwrite(string.c_str() + from, 1, string.size() - from, stdout);
+            fputs(color_off, stdout);
+            if (string.size() == 0 || string.back() != '\n')
+              fputc('\n', stdout);
+          }
+          else
+          {
+            fputs(color_ms, stdout);
+            fwrite(string.c_str(), 1, string.size(), stdout);
+            fputs(color_off, stdout);
+            if (string.size() == 0 || string.back() != '\n')
+              fputc('\n', stdout);
+          }
+
+          if (flag_line_buffered)
+            fflush(stdout);
+        }
+      }
+    }
+
+    if (hex)
+      hex_done(separator);
+  }
+  else
   {
     // read input line-by-line and display lines that match the pattern
 
@@ -1801,7 +2037,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
             fputs(color_cx, stdout);
             fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, stdout);
             fputs(color_off, stdout);
-            fputc('\n', stdout);
           }
         }
         else if (!found)
@@ -1906,7 +2141,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
                   fputs(color_cx, stdout);
                   fwrite(lines[begin_context].c_str() + last, 1, lines[begin_context].size() - last, stdout);
                   fputs(color_off, stdout);
-                  fputc('\n', stdout);
                 }
               }
 
@@ -1929,7 +2163,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
             fputs(color_sl, stdout);
             fwrite(lines[current].c_str(), 1, lines[current].size(), stdout);
             fputs(color_off, stdout);
-            fputc('\n', stdout);
           }
 
           if (flag_line_buffered)
@@ -2007,7 +2240,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
                 fputs(color_cx, stdout);
                 fwrite(lines[begin_context].c_str(), 1, lines[begin_context].size(), stdout);
                 fputs(color_off, stdout);
-                fputc('\n', stdout);
               }
 
               ++begin;
@@ -2042,7 +2274,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
               fputs(color_sl, stdout);
               fwrite(lines[current].c_str() + match.last(), 1, match.last() - match.first(), stdout);
               fputs(color_off, stdout);
-              fputc('\n', stdout);
             }
 
             ++matches;
@@ -2099,7 +2330,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
               fputs(color_sl, stdout);
               fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, stdout);
               fputs(color_off, stdout);
-              fputc('\n', stdout);
             }
           }
 
@@ -2123,7 +2353,6 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
             fputs(color_cx, stdout);
             fwrite(lines[current].c_str(), 1, lines[current].size(), stdout);
             fputs(color_off, stdout);
-            fputc('\n', stdout);
           }
         }
 
@@ -2133,120 +2362,12 @@ bool ugrep(reflex::Matcher& matcher, FILE *file, reflex::Input::file_encoding_ty
       }
 
       // update byte offset and line number
-      byte_offset += lines[current].size() + 1;
+      byte_offset += lines[current].size();
       ++lineno;
     }
 
 exit_input:
     ;
-
-  }
-  else
-  {
-    // -o or -N option
-
-    bool hex = false;
-    size_t lineno = 0;
-    const char *separator = flag_separator;
-
-    matcher.input(input);
-
-    for (auto& match : matcher.find)
-    {
-      separator = lineno != match.lineno() ? flag_separator : "+";
-
-      if (flag_no_group || lineno != match.lineno())
-      {
-        // max number of matches reached?
-        if (flag_max_count > 0 && matches >= flag_max_count)
-          break;
-
-        lineno = match.lineno();
-
-        ++matches;
-      }
-
-      if (flag_only_line_number)
-      {
-        display(pathname, lineno, match.columno() + 1, match.first(), separator, true);
-      }
-      else if (flag_hex)
-      {
-        hex_dump(HEX_MATCH, pathname, lineno, match.columno() + 1, match.first(), match.begin(), match.size(), separator);
-        hex = true;
-      }
-      else if (!flag_text && is_binary(match.begin(), match.size()))
-      {
-        if (flag_with_hex)
-        {
-          if (hex)
-          {
-            hex_dump(HEX_MATCH, pathname, lineno, match.columno() + 1, match.first(), match.begin(), match.size(), separator);
-          }
-          else
-          {
-            display(pathname, lineno, match.columno() + 1, match.first(), separator, true);
-            hex_dump(HEX_MATCH, NULL, 0, 0, match.first(), match.begin(), match.size(), separator);
-            hex = true;
-          }
-        }
-        else if (!flag_binary_without_matches)
-        {
-          display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
-          printf("Binary file %s matches %zu bytes\n", pathname, match.size());
-        }
-      }
-      else
-      {
-        if (hex)
-          hex_done(separator);
-        hex = false;
-
-        display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
-
-        std::string string = match.str();
-
-        if (flag_line_number)
-        {
-          // -n -o options: echo multi-line matches line-by-line
-
-          size_t from = 0;
-          size_t to;
-
-          while ((to = string.find('\n', from)) != std::string::npos)
-          {
-            ++lineno;
-
-            fputs(color_ms, stdout);
-            fwrite(string.c_str() + from, 1, to - from, stdout);
-            fputs(color_off, stdout);
-            fputc('\n', stdout);
-
-            display(pathname, lineno, 1, match.first() + to + 1, "|", false);
-
-            from = to + 1;
-          }
-
-          fputs(color_ms, stdout);
-          fwrite(string.c_str() + from, 1, string.size() - from, stdout);
-          fputs(color_off, stdout);
-          fputc('\n', stdout);
-        }
-        else
-        {
-          fputs(color_ms, stdout);
-          fwrite(string.c_str(), 1, string.size(), stdout);
-          fputs(color_off, stdout);
-          fputc('\n', stdout);
-        }
-
-        if (flag_line_buffered)
-          fflush(stdout);
-      }
-    }
-
-    if (hex)
-      hex_done(separator);
   }
 
   return matches > 0;
@@ -2368,11 +2489,11 @@ void hex_dump(short mode, const char *pathname, size_t lineno, size_t columno, s
 
   if (size > 0)
   {
-    if (last_hex_offset <= (byte_offset & ~(size_t)0x0f))
+    if (last_hex_offset == 0 || last_hex_offset < byte_offset)
     {
-      if ((last_hex_offset & 0x0f) != 0)
+      if ((last_hex_offset & (size_t)0x0f) > 0)
         hex_line(separator);
-      if (pathname)
+      if (pathname != NULL)
         display(pathname, lineno, columno, byte_offset, separator, true);
     }
 
@@ -2497,8 +2618,12 @@ bool getline(reflex::Input& input, std::string& line)
   int ch;
 
   line.erase();
-  while ((ch = input.get()) != EOF && ch != '\n')
+  while ((ch = input.get()) != EOF)
+  {
     line.push_back(ch);
+    if (ch == '\n')
+      break;
+  }
   return ch == EOF && line.empty();
 }
 
@@ -2508,7 +2633,7 @@ void trim(std::string& line)
   size_t len = line.length();
   size_t pos;
 
-  for (pos = 0; pos < len && isspace(line.at(pos)); ++ pos)
+  for (pos = 0; pos < len && isspace(line.at(pos)); ++pos)
     continue;
 
   if (pos > 0)
@@ -2579,7 +2704,7 @@ void help(const char *message, const char *arg)
             it as commands.  `hex' reports all matches in hexadecimal.\n\
             `with-hex` only reports binary matches in hexadecimal, leaving text\n\
             matches alone.  A match is considered binary if a match contains a\n\
-            zero byte or an invalid UTF encoding. See also options -a, -I, -U,\n\
+            zero byte or an invalid UTF encoding.  See also options -a, -I, -U,\n\
             -W, and -X\n\
     -C[NUM], --context[=NUM]\n\
             Print NUM lines of leading and trailing context surrounding each\n\
@@ -2659,7 +2784,7 @@ void help(const char *message, const char *arg)
     -g, --no-group\n\
             Do not group multiple pattern matches on the same matched line.\n\
             Output the matched line again for each additional pattern match,\n\
-            using `+' as the field separator for each additional line.\n\
+            using `+' as the field separator for each additional match.\n\
     --group-separator=SEP\n\
             Use SEP as a group separator for context options -A, -B, and -C. By\n\
             default SEP is a double hyphen (`--').\n\
@@ -2718,10 +2843,17 @@ void help(const char *message, const char *arg)
             Force output to be line buffered.  By default, output is line\n\
             buffered when standard output is a terminal and block buffered\n\
             otherwise.\n\
+    -M MAGIC, --file-magic=MAGIC\n\
+            Only files matching the signature pattern `MAGIC' are searched.\n\
+            The signature magic bytes at the start of a file are compared to\n\
+            the `MAGIC' regex pattern and, when matching, the search commences\n\
+            immediately after the magic bytes.  This option may be repeated and\n\
+            may be combined with options -O and -t to expand the search.  This\n\
+            option is relatively slow as every file on the search path is read.\n\
     -m NUM, --max-count=NUM\n\
             Stop reading the input after NUM matches.\n\
     -N, --only-line-number\n\
-            The line number of the match in the file is output without\n\
+            The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
             file processed.\n\
     -n, --line-number\n\
@@ -2735,7 +2867,8 @@ void help(const char *message, const char *arg)
             Search only files whose file name extensions match the specified\n\
             comma-separated list of file name EXTENSIONS.  This option is the\n\
             same as specifying --include='*.ext' for each extension name `ext'\n\
-            in the EXTENSIONS list.  This option may be repeated.\n\
+            in the EXTENSIONS list.  This option may be repeated and may be\n\
+            combined with options -M and -t to expand the search.\n\
     -o, --only-matching\n\
             Prints only the matching part of the lines.  Allows a pattern\n\
             match to span multiple lines.  Line numbers for multi-line matches\n\
@@ -2779,8 +2912,11 @@ void help(const char *message, const char *arg)
     -t TYPES, --file-type=TYPES\n\
             Search only files associated with TYPES, a comma-separated list of\n\
             file types.  Each file type corresponds to a set of file name\n\
-            extensions to search.  This option may be repeated.  The possible\n\
-            values of type can be (use -t list to display a detailed list):";
+            extensions passed to option -O.  For capitalized file types, the\n\
+            file signature is passed to option -M to expand the search by\n\
+            including files found on the search path with matching magic bytes.\n\
+            This option may be repeated.  The possible values of TYPES can be\n\
+            (use option -tlist to display a detailed list):";
   for (int i = 0; type_table[i].type != NULL; ++i)
     std::cout << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";
   std::cout << "\n\
@@ -2788,22 +2924,22 @@ void help(const char *message, const char *arg)
             Set the tab size to NUM to expand tabs for option -k.  The value of\n\
             NUM may be 1, 2, 4, or 8.\n\
     -U, --binary\n\
-            Disables Unicode matching and forces PATTERN to match bytes, not\n\
-            Unicode characters.  For example, -U '\\xa3' matches byte A3 (hex)\n\
-            in a (binary) input file instead of the Unicode code point U+00A3\n\
-            matching the two-byte UTF-8 sequence C2 A3.\n\
+            Disables Unicode matching for binary file matching, forcing PATTERN\n\
+            to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\
+            matches byte A3 (hex) instead of the Unicode code point U+00A3\n\
+            represented by the two-byte UTF-8 sequence C2 A3.\n\
     -V, --version\n\
             Display version information and exit.\n\
     -v, --invert-match\n\
             Selected lines are those not matching any of the specified\n\
             patterns.\n\
-    -W\n\
+    -W, --with-hex\n\
             Only output binary matches in hexadecimal, leaving text matches\n\
             alone.  This option is equivalent to the --binary-files=with-hex\n\
             option.\n\
     -w, --word-regexp\n\
             The pattern or -e patterns are searched for as a word (as if\n\
-            surrounded by `\\<' and `\\>').\n\
+            surrounded by \\< and \\>).\n\
     -x, --line-regexp\n\
             Only input lines selected against the entire pattern or -e patterns\n\
             are considered to be matching lines (as if surrounded by ^ and $).\n\
