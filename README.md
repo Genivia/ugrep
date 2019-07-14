@@ -13,7 +13,7 @@ in large directory trees.
 - **ugrep** makes it simple to search source code using *pre-defined patterns*.
   For example to recursively search Python files for import statements:
 
-      ugrep -R -tpython -n -f python/imports myprojects
+      ugrep -R -t python -n -f python/imports myprojects
 
   where `-R` is recursive search, `-tpython` searches Python source code files
   only, `-n` shows line numbers in the output, and the `-f` option specifies
@@ -33,7 +33,7 @@ in large directory trees.
   For example to find exact matches of `main` in C/C++ source code while
   skipping strings and comments that may have a match with `main` in them:
 
-      ugrep -R -o -tc,c++ -n -w 'main' -f c/zap_strings -f c/zap_comments myprojects
+      ugrep -R -o -t c,c++ -n -w 'main' -f c/zap_strings -f c/zap_comments myprojects
 
   where `-R` is recursive search, `-o` for multi-line matches (since strings
   and comments may span multiple lines), `-tc,c++` searches C and C++ source
@@ -42,8 +42,8 @@ in large directory trees.
   two pre-defined patterns to match and ignore strings and comments in the
   input.
 
-- **ugrep** searches binary files and produces hexdumps for binary matches.
-  For example to search for a binary pattern:
+- **ugrep** searches text files and binary files and produces hexdumps for
+  binary matches.  For example to search for a binary pattern, for example:
 
       ugrep --color -X -U '\xed\xab\xee\xdb' some.rpm
 
@@ -83,9 +83,7 @@ in large directory trees.
 
 - **ugrep** is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
   code and does not include any GNU or BSD grep open source code or algorithms.
-  **ugrep** is built entirely on the RE/flex open source library and a modified
-  version of Rich Salz' free and open wildmat source code for
-  gitignore-compatible glob matching with options `--include` and `--exclude`.
+  **ugrep** is built on the RE/flex open source library.
 
 - **ugrep** is evolving and more features will be added.  You can help!  We love
   your feedback (issues) and contributions (pull requests) ❤️  For example, what
@@ -113,7 +111,7 @@ Installation
 
 Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
 
-To build ugrep, first install RE/flex 1.2.6 or greater from
+To build ugrep, first install RE/flex 1.2.10 or greater from
 https://github.com/Genivia/RE-flex then download ugrep from
 https://github.com/Genivia/ugrep and execute:
 
@@ -170,9 +168,10 @@ ugrep versus other greps
   displays a matched input line again for each additional pattern match.  This
   option is particularly useful with option `-c` to report the total number of
   pattern matches per file instead of the number of lines matched per file.
-- New options `-O` and `-t` to specify file extensions and pre-defined file
-  types, respectively.  This allows searching for certain types of files in
-  directory trees with recursive search options `-R` and `-r`.
+- New options `-O`, `-M`, and `-t` to specify file extensions, file signature
+  magic byte pattern, and pre-defined file types, respectively.  This allows
+  searching for certain types of files in directory trees with recursive search
+  options `-R` and `-r`.
 - Extended option `-f` uses `GREP_PATH` environment variable and pre-defined
   patterns intalled in `/usr/local/share/ugrep/patterns`.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
@@ -848,12 +847,12 @@ Man page
            To count the number of lines containing the word `patricia' or  `Patri-
            cia` in a file:
 
-                  $ ugrep -cw '[Pp]atricia' myfile
+                  $ ugrep -c -w '[Pp]atricia' myfile
 
            To  count  the  total number of times the word `patricia' or `Patricia`
            occur in a file:
 
-                  $ ugrep -cgw '[Pp]atricia' myfile
+                  $ ugrep -c -g -w '[Pp]atricia' myfile
 
            To list all Unicode words in a file:
 
@@ -904,12 +903,12 @@ Man page
 
            To hex dump an entire file in color:
 
-                  $ ugrep --color=always -oUX '.|\n' a.out | less -R
+                  $ ugrep --color=always -o -U -X '.|\n' a.out | less -R
 
            To list all files containing a RPM  signature,  located  in  the  `rpm`
            directory and recursively below:
 
-                  $ ugrep -RlU '\A\xed\xee\xdb' rpm
+                  $ ugrep -R -l -U '\A\xed\xee\xdb' rpm
 
            To monitor the system log for bug reports:
 
@@ -989,9 +988,9 @@ patterns `φ` and `ψ`:
   `(?:φ)`   | matches `φ` as a group without capture
   `(?=φ)`   | matches `φ` without consuming it, i.e. lookahead (top-level `φ`, not for sub-patterns `φ`)
   `(?^φ)`   | matches `φ` and ignore it to continue matching (top-level `φ`, not for sub-patterns `φ`)
-  `^φ`      | matches `φ` at the start of input or start of a line (top-level `φ`, not for sub-patterns `φ`)
+  `^φ`      | matches `φ` at the begin of input or begin of a line (top-level `φ`, not for sub-patterns `φ`)
   `φ$`      | matches `φ` at the end of input or end of a line (top-level `φ`, not for sub-patterns `φ`)
-  `\Aφ`     | matches `φ` at the start of input (requires one or more of `-c`, `-L`, `-l`, `-N`, `-o`, `-q`) (top-level `φ`, not for sub-patterns `φ`)
+  `\Aφ`     | matches `φ` at the begin of input (requires one or more of `-c`, `-L`, `-l`, `-N`, `-o`, `-q`) (top-level `φ`, not for sub-patterns `φ`)
   `φ\z`     | matches `φ` at the end of input (requires one or more of `-c`, `-L`, `-l`, `-N`, `-o`, `-q`) (top-level `φ`, not for sub-patterns `φ`)
   `\bφ`     | matches `φ` starting at a word boundary (top-level `φ`, not for sub-patterns `φ`)
   `φ\b`     | matches `φ` ending at a word boundary (top-level `φ`, not for sub-patterns `φ`)
@@ -1140,100 +1139,244 @@ unassigned characters.
 More ugrep examples
 -------------------
 
+### Help
+
+The ugrep man page (assuming ugrep is installed):
+
+    man ugrep
+
 To show a help page:
 
     ugrep --help
 
-To list all readable non-empty files:
+To show a list of `-t TYPES` option values:
 
-    ugrep -Rl '' .
+    ugrep -t list
 
-To list all readable empty files:
+### Recursively list matching files with options -R/-r and -L/-l
 
-    ugrep -RL '' .
+To recursively list all readable non-empty files:
 
-To list files with empty lines:
+    ugrep -R -l '' .
 
-    ugrep -RlY '^\h*$' .
+To recursively list all readable empty files:
 
-To list all files that are ASCII:
+    ugrep -R -L '' .
 
-    ugrep -Rl '[[:ascii:]]' .
+To recursively list files with empty and blank lines, i.e. lines with white space only:
 
-To list all files that are non-ASCII
+    ugrep -R -l -Y '^\h*$' .
 
-    ugrep -Rl '[^[:ascii:]]' .
+To recursively list all files that have extension .sh
+
+    ugrep -R -l -O sh '' .
+
+To recursively search all shell scripts based on extensions and shebangs:
+
+    ugrep -R -l -t Shell '' .
+
+To recursively search all shell scripts based on extensions only:
+
+    ugrep -R -l -t shell '' .
+
+### Searching ASCII or Unicode files
+
+To recursively list files that are ASCII:
+
+    ugrep -R -l '[[:ascii:]]' .
+
+To recursively list files that are non-ASCII:
+
+    ugrep -R -l '[^[:ascii:]]' .
+
+To recursively list files with invalid UTF content (i.e. invalid UTF-8 byte
+sequences or that contain any UTF-8/16/32 code points that are outside the
+valid Unicode range):
+
+    ugrep -R -l '.|(?^\p{Unicode})' .
+
+To display lines containing laughing face emojis:
+
+    ugrep '[😀-😏]' emojis.txt
+
+The same results are obtained using `\x{hhhh}` to select a Unicode character
+range:
+
+    ugrep '[\x{1F600}-\x{1F60F}]' emojis.txt
+
+To display lines containing the names Gödel (or Goedel), Escher, or Bach:
+
+    ugrep 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
+
+To search for `lorem` in lower or upper case in a UTF-16 file that is marked
+with a UTF-16 BOM:
+
+    ugrep --color -i -w 'lorem' utf16lorem.txt
+
+To search utf16lorem.txt when this file has no UTF-16 BOM:
+
+    ugrep --encoding=UTF-16 -i -w 'lorem' utf16lorem.txt
 
 To check that a file contains Unicode:
 
     ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
-To list files with invalid UTF content (i.e. invalid UTF-8 byte sequences or
-contain any UTF-8/16/32 code points that are outside the valid Unicode range):
+### Matching multiple lines of text with -o
 
-    ugrep -Rl '.|(?^\p{Unicode})' .
+To match C/C++ /*...*/ comments:
+
+    ugrep -o '/\*([^*]|(\*+[^*/]))*\*+\/' myfile.cpp
+
+To match C/C++ comments using the pre-defined `c/comments` patterns:
+
+    ugrep -o -f c/comments myfile.cpp
+
+### Searching source code using -f, -o, and -t
+
+To recursively display function definitions in C/C++ files:
+
+    ugrep -R -o -f c++/function_defs -tc,c++ .
+
+To search for FIXME in C/C++ comments, excluding FIXME in multi-line strings:
+
+    ugrep -o 'FIXME' -f c++/zap_strings myfile.cpp
+
+To display XML element and attribute tags in an XML file, exluding tags that
+are placed in (multi-line) comments:
+
+    ugrep -o -f xml/tags -f xml/zap_comments myfile.xml
+
+### Searching binary files with -U, -W, and -X
+
+To search a file for ASCII words, displaying text lines as usual while binary
+content is shown in hex:
+
+    ugrep --color -U -W '\w+' myfile
+
+To hexdump an entire file:
+
+    ugrep --color -X -o '' myfile
+
+To hexdump an entire file line-by-line, displaying line numbers and line
+breaks:
+
+    ugrep --color -X -n '' myfile
+
+To hexdump lines containing one or more \0 in a (binary) file using a
+non-Unicode pattern:
+
+    ugrep --color -U -X '\x00+' myfile
+
+To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
+Unicode pattern matching (which would otherwise match `\xaf` as a Unicode
+character U+00A3 with UTF-8 byte sequence C2 A3) and display the results
+in hex with `-X` piped to `more -R` to retain coloring:
+
+    ugrep --color=always -o -X -U '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out | more -R
+
+To list all files containing a RPM signature, located in the `rpm` directory and
+recursively below (see for example
+[list of file signatures](https://en.wikipedia.org/wiki/List_of_file_signatures)):
+
+    ugrep -R -l -U '\A\xed\xab\xee\xdb' rpm
+
+### Displaying context with -A, -B, and -C
+
+To display 2 lines of context before and after a matching line (note that `-C2`
+should not be specified as `-C 2` as per GNU/BSD grep exception that ugrep
+obeys, because `-C` specifies 3 lines of context by default):
+
+    ugrep --color -C2 'FIXME' myfile.cpp
+
+To show three lines of context after a matched line:
+
+    ugrep --color -A3 'FIXME.*' myfile.cpp:
+
+To display one line of context before each matching line with a C function
+definition (C names are non-Unicode):
+
+    ugrep --color -B1 -f c/function_defs myfile.c
+
+To display one line of context before each matching line with a C++ function
+definition (C++ names may be Unicode):
+
+    ugrep --color -B1 -f c++/function_defs myfile.cpp
+
+To display a hexdump of a matching line with one line of hexdump context:
+
+    ugrep --color -C1 -U -X '\xaa\xbb\xcc' a.out
+
+### Using gitignore-style globs to select directories and files to search
 
 To list files with names starting with `foo` in the current directory, that
-contain a `\r` (carriage return):
+contain `xyz`:
 
-    ugrep -sl '\r' foo*
+    ugrep -s -l 'xyz' foo*
 
-The same list is obtained using recursion with a directory inclusion contraint:
+The same is obtained using recursion with a directory inclusion contraint:
 
-    ugrep -Rl '\r' --include-dir='/foo*' .
+    ugrep -R -l 'xyz' --include-dir='/foo*' .
 
-To list files in the current directory, `docs`, and `docs/latest`, but not
-below, that contain `\r`:
+To recursively list files in the current directory, `docs`, and `docs/latest`,
+   but not below, that contain `xyz`:
 
-    ugrep -sl '\r' * docs/* docs/latest/*
+    ugrep -s -l 'xyz' * docs/* docs/latest/*
 
-To list files in directory `docs/latest` and below, that contain `\r`:
+To recursively list files in directory `docs/latest` and below, that contain
+`xyz`:
 
-    ugrep -Rl '\r' docs/latest
+    ugrep -R -l 'xyz' docs/latest
 
 To only list files in the current directory and sub-directory `docs` but not
-below, that contain a `\r`:
+below, that contain `xyz`:
 
-    ugrep -Rl '\r' --include-dir='docs' .
+    ugrep -R -l 'xyz' --include-dir='docs' .
 
 To only list files in the current directory and in the sub-directories `docs`
-and `docs/latest` but not below, that contain a `\r`:
+and `docs/latest` but not below, that contain `xyz`:
 
-    ugrep -Rl '\r' --include-dir='docs' --include-dir='docs/latest' .
+    ugrep -R -l xyzr' --include-dir='docs' --include-dir='docs/latest' .
 
 To only list files that are on a sub-directory path that includes sub-directory
-`docs` anywhere, that contain a `\r':
+`docs` anywhere, that contain `xyz':
 
-    ugrep -Rl '\r' --include='**/docs/**' .
+    ugrep -R -l 'xyz' --include='**/docs/**' .
 
-To list .cpp files in the current directory and any sub-directory at any depth,
-that contain a `\r`:
+To recursively list .cpp files in the current directory and any sub-directory
+at any depth, that contain `xyz`:
 
-    ugrep -Rl '\r' --include='*.cpp' .
+    ugrep -R -l 'xyz' --include='*.cpp' .
 
 The same using a .gitignore-style glob that matches pathnames (globs with `/`)
 instead of matching basenames (globs without `/`) in the recursive search:
 
-    ugrep -Rl '\r' --include='**/*.cpp' .
+    ugrep -R -l 'xyz' --include='**/*.cpp' .
 
-The same but using the short option `-O` to match file name extensions:
+The same but using option `-O` to match file name extensions:
 
-    ugrep -Rl '\r' -Ocpp .
+    ugrep -R -l 'xyz' -O cpp .
 
-To list all files in the current directory and below that are not ignored by
-.gitignore:
+To recursively list all files in the current directory and below that are not
+ignored by .gitignore:
 
-    ugrep -Rl '' --exclude-from=.gitignore .
+    ugrep -R -l '' --exclude-from=.gitignore .
 
-To list all files that start with `#!` hashbangs (`-o` is required to match
-`\A`):
+### File signatures and magic bytes with -M and -t
 
-    ugrep -Rlo '\A#\!.*' .
+To list all files that start with `#!` hashbangs:
 
-To list all text files (.txt and .md) that do not properly end with a `\n`
-(`-o` is required to match `\n` or `\z`):
+    ugrep -R -l '\A#!.*' .
 
-    ugrep -RLo -Otext '\n\z' .
+The same but more efficient using option `-M`:
+
+    ugrep -R -l -M '#!.*' '' .
+
+Searching Python files, that have extension `.py` or a shebang, for all import
+statements:
+
+    ugrep -R -l -t Python -f python/imports .
+
+### Counting matching lines with -c and -g
 
 To count the number of lines in a file:
 
@@ -1251,52 +1394,18 @@ To count the number of Unicode characters in a file:
 
     ugrep -cg '\p{Unicode}' myfile.txt
 
-To list all markdown sections in text files (.txt and .md):
+### Displaying file, line, column, and byte offset info with -H, -n, -k, and -b
 
-    ugrep -Ro -ttext -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*' .
+To recursively search for C++ files with `main`, showing the line and column
+numbers of matches:
 
-To display multi-line backtick and indented code blocks in markdown files with
-their line numbers:
+    ugrep -R -n -k -tc++ 'main' .
 
-    ugrep -Ro -n -ttext -e '^```([^`]|`[^`]|``[^`])+\n```' -e '^(\t|[ ]{4}).*' .
+To display the byte offset of matches:
 
-To find mismatched code (a backtick without matching backtick on the same line)
-in markdown:
+    ugrep -R -b -tc++ 'main' .
 
-    ugrep -Ro -n -ttext -e '(?^`[^`\n]*`)' -e '`[^`]+`' .
-
-To display all lines containing laughing face emojis:
-
-    ugrep '[😀-😏]' emojis.txt
-
-The same results are obtained using `\x{hhhh}` to select a Unicode character
-range:
-
-    ugrep '[\x{1F600}-\x{1F60F}]' emojis.txt
-
-To display lines containing the names Gödel (or Goedel), Escher, or Bach:
-
-    ugrep 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
-
-To search for `lorem` in lower or upper case in a UTF-16 file with UTF-16 BOM:
-
-    ugrep --color -i -w 'lorem' utf16lorem.txt
-
-To search utf16lorem.txt when this file has no UTF-16 BOM:
-
-    ugrep --encoding=UTF-16 -i -w 'lorem' utf16lorem.txt
-
-To find the line and column numbers of matches of `FIXME...` in C++ files:
-
-    ugrep -R -n -k -tc++ 'FIXME.*' .
-
-To show one line of context before and after a matched line:
-
-    ugrep -C1 -R -n -k -tc++ 'FIXME.*' .
-
-To show three lines of context after a matched line:
-
-    ugrep -A3 -R -n -k -tc++ 'FIXME.*' .
+### Using colors with --color
 
 To produce color-highlighted results:
 
@@ -1316,29 +1425,7 @@ To list all `#define FOO...` macros in C++ files, color-highlighted:
 
 Same, but restricted to `.cpp` files only:
 
-    ugrep --color=always -R -n -Ocpp -f c++/defines . | ugrep 'FOO.*'
-
-To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
-Unicode pattern matching (which would otherwise match `\xaf` as a Unicode
-character U+00A3 with UTF-8 byte sequence C2 A3) and display the results
-in hex with `-X` piped to `more -R` to retain coloring:
-
-    ugrep --color=always -o -X -U '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out | more -R
-
-To hexdump lines containing one or more \0 in a (binary) file using a
-non-Unicode pattern:
-
-    ugrep --color -UX '\x00+' myfile
-
-To hexdump the entire file:
-
-    ugrep --color -Xo '' myfile
-
-To list all files containing a RPM signature, located in the `rpm` directory and
-recursively below (see for example
-[list of file signatures](https://en.wikipedia.org/wiki/List_of_file_signatures)):
-
-    ugrep -RlU '\A\xed\xab\xee\xdb' rpm
+    ugrep --color=always -R -n -O cpp -f c++/defines . | ugrep 'FOO.*'
 
 To monitor the system log for bug reports:
 
@@ -1348,15 +1435,23 @@ To search tarballs for archived PDF files (assuming bash is our shell):
 
     for tb in *.tar *.tar.gz; do echo "$tb"; tar tfz "$tb" | ugrep '.*\.pdf$'; done
 
-To recursively search all shell scripts based on extensions and shebangs:
+### More examples
 
-    ugrep -Rl -tShell '' .
+To list all text files (.txt and .md) that do not properly end with a `\n`
+(`-o` is required to match `\n` or `\z`):
 
-To recursively search all shell scripts based on extensions only:
+    ugrep -R -L -o -O text '\n\z' .
 
-    ugrep -Rl -tshell '' .
+To list all markdown sections in text files (.txt and .md):
 
-To list all file types and corresponding file extensions and signatures for
-option `-t`:
+    ugrep -R -o -t text -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*' .
 
-    ugrep -tlist
+To display multi-line backtick and indented code blocks in markdown files with
+their line numbers:
+
+    ugrep -R -o -n -ttext -e '^```([^`]|`[^`]|``[^`])+\n```' -e '^(\t|[ ]{4}).*' .
+
+To find mismatched code (a backtick without matching backtick on the same line)
+in markdown:
+
+    ugrep -R -o -n -ttext -e '(?^`[^`\n]*`)' -e '`[^`]+`' .

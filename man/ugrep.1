@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 11, 2019" "ugrep 1.1.8" "User Commands"
+.TH UGREP "1" "July 14, 2019" "ugrep 1.2.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -364,8 +364,8 @@ Output matches in hexadecimal.  This option is equivalent to the
 \fB\-\-binary\-files\fR=\fIhex\fR option.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
-Permits matching empty patterns, such as `^$'.  Matching empty
-patterns is disabled by default.  Note that empty\-matching patterns
+Permits empty matches, such as `^\\h*$' to match blank lines.  Empty
+matches are disabled by default.  Note that empty\-matching patterns
 such as `x?' and `x*' match all input, not only lines with `x'.
 .TP
 \fB\-y\fR

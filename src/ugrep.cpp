@@ -98,7 +98,7 @@ Wanted TODO:
 #endif
 
 // ugrep version
-#define VERSION "1.1.8"
+#define VERSION "1.2.0"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -1968,6 +1968,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
       size_t last = UNDEFINED;
 
+      // the current input line to match
       matcher.input(lines[current]);
 
       if (flag_invert_match)
@@ -2947,8 +2948,8 @@ void help(const char *message, const char *arg)
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.\n\
     -Y, --empty\n\
-            Permits matching empty patterns, such as `^$'.  Matching empty\n\
-            patterns is disabled by default.  Note that empty-matching patterns\n\
+            Permits empty matches, such as `^\\h*$' to match blank lines.  Empty\n\
+            matches are disabled by default.  Note that empty-matching patterns\n\
             such as `x?' and `x*' match all input, not only lines with `x'.\n\
     -y\n\
             Equivalent to -i.  Obsoleted.\n\
