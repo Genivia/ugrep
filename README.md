@@ -15,7 +15,7 @@ in large directory trees.
 
       ugrep -R -t python -n -f python/imports myprojects
 
-  where `-R` is recursive search, `-tpython` searches Python source code files
+  where `-R` is recursive search, `-t python` searches Python source code files
   only, `-n` shows line numbers in the output, and the `-f` option specifies
   pre-defined patterns to search for Python `import` statements (matched by the
   two patterns `\<import\h+.*` and `\<from\h+.*import\h+.*` defined in
@@ -43,7 +43,7 @@ in large directory trees.
   input.
 
 - **ugrep** searches text files and binary files and produces hexdumps for
-  binary matches.  For example to search for a binary pattern, for example:
+  binary matches.  For example, to search for a binary pattern:
 
       ugrep --color -X -U '\xed\xab\xee\xdb' some.rpm
 
@@ -74,9 +74,9 @@ in large directory trees.
 
 - **ugrep** regex patterns are converted to
   [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
-  matching.  Rare and pathelogical cases are known to exist that may increase
-  the initial running time for DFA construction.  The resulting DFAs still
-  yield significant speedups to search large files.
+  matching.  DFAs yield significant speedups when searching multiple files and
+  large files.  Rare and pathelogical cases are known to exist that may
+  increase the initial running time of **ugrep** for complex DFA construction.
 
 - **ugrep** is portable and compiles with MSVC++ to run on Windows.  Binaries are
   available for Linux, Mac and Windows.
@@ -111,7 +111,7 @@ Installation
 
 Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
 
-To build ugrep, first install RE/flex 1.2.10 or greater from
+To build ugrep, first install RE/flex 1.2.5 or greater from
 https://github.com/Genivia/RE-flex then download ugrep from
 https://github.com/Genivia/ugrep and execute:
 
@@ -133,7 +133,7 @@ This also installs the pattern files with pre-defined patterns for option `-f`
 at `/usr/local/share/ugrep/patterns/`.  Option `-f` first checks the current
 directory for the presence of pattern files, if not found checks environment
 variable `GREP_PATH` to load the pattern files, and if not found reads the
-installed pattern files.
+installed pre-defined pattern files.
 
 ugrep versus other greps
 ------------------------
@@ -148,18 +148,16 @@ ugrep versus other greps
   (file with match), or `-L` (files without match) is used, **ugrep** performs
   an even faster search of the input file instead of reading the input
   line-by-line as other grep tools do.  This allows matching patterns that
-  include newlines (`\n`), i.e. a match can span multiple lines.  This is not
-  possible with other grep-like tools.
+  span multiple lines.  This is not possible with other grep-like tools.
 - New options to produce hexdumps, `-W` (output binary matches in hex while
   text matches are output as usual) and `-X` (output all matches in hex).
 - New option `-Y` to permit matching empty patterns.  Grepping with
   empty-matching patterns is weird and gives different results with GNU grep
-  versus BSD grep.  Empty matches are not output by **ugerp** by default, which
-  avoids making mistakes that produce "random" results.  For example, with
+  versus BSD grep.  Empty matches are not output by **ugrep** by default, which
+  avoids making mistakes that may produce "random" results.  For example, with
   BSD/GNU grep, pattern `a*` matches every line in the input, and actually
   matches `xyz` three times (the empty transitions before and between the `x`,
-  `y`, and `z`).  Allowing empty matches requires **ugrep** option `-Y`.  For
-  example to matchgq empty lines with the pattern `^$` requires option `-Y`.
+  `y`, and `z`).  Allowing empty matches requires **ugrep** option `-Y`.
 - New option `-U` to specify non-Unicode pattern matches, e.g. to search for
   binary patterns.  Note that **ugrep** matches Unicode by default.
 - New option `-k`, `--column-number` to display the column number, taking tab
@@ -176,7 +174,7 @@ ugrep versus other greps
   patterns intalled in `/usr/local/share/ugrep/patterns`.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
-  offset of the start of the matched line as BSD/GNU grep report.  Reporting
+  offset of the start of the matched line reported by BSD/GNU grep.  Reporting
   exact byte offsets is now possible with **grep**.
 - **ugrep** regular expression patterns are more expressive than GNU grep and
   BSD grep and support Unicode pattern matching, see further below.  Extended
@@ -308,7 +306,7 @@ To list all files in a GitHub project directory that are not ignored by
 
 Where `-l` (files with matches) lists the files specified in `.gitignore`
 matched by the empty pattern `''`, which is typically used to match any
-non-empty file (as per POSIX.1 grep compliance).
+non-empty file (as per POSIX.1 grep standard).
 
 Note that the complement of `--exclude` is not `--include`, so we cannot
 reliably list the files that are ignored with `--include-from='.gitignore'`.
@@ -699,10 +697,10 @@ Man page
                   --binary-files=hex option.
 
            -Y, --empty
-                  Permits  matching  empty patterns, such as `^$'.  Matching empty
-                  patterns is disabled by default.  Note that empty-matching  pat-
-                  terns such as `x?' and `x*' match all input, not only lines with
-                  `x'.
+                  Permits  empty  matches,  such  as `^\h*$' to match blank lines.
+                  Empty matches are disabled by default.  Note that empty-matching
+                  patterns  such  as `x?' and `x*' match all input, not only lines
+                  with `x'.
 
            -y     Equivalent to -i.  Obsoleted.
 
@@ -847,12 +845,12 @@ Man page
            To count the number of lines containing the word `patricia' or  `Patri-
            cia` in a file:
 
-                  $ ugrep -c -w '[Pp]atricia' myfile
+                  $ ugrep -cw '[Pp]atricia' myfile
 
            To  count  the  total number of times the word `patricia' or `Patricia`
            occur in a file:
 
-                  $ ugrep -c -g -w '[Pp]atricia' myfile
+                  $ ugrep -cgw '[Pp]atricia' myfile
 
            To list all Unicode words in a file:
 
@@ -903,12 +901,12 @@ Man page
 
            To hex dump an entire file in color:
 
-                  $ ugrep --color=always -o -U -X '.|\n' a.out | less -R
+                  $ ugrep --color=always -oUX '.|\n' a.out | less -R
 
            To list all files containing a RPM  signature,  located  in  the  `rpm`
            directory and recursively below:
 
-                  $ ugrep -R -l -U '\A\xed\xee\xdb' rpm
+                  $ ugrep -RlU '\A\xed\xee\xdb' rpm
 
            To monitor the system log for bug reports:
 
@@ -930,7 +928,7 @@ Man page
 
 
 
-    ugrep 1.1.8                      July 11, 2019                        UGREP(1)
+    ugrep 1.2.0                      July 14, 2019                        UGREP(1)
 
 For future updates
 ------------------
