@@ -91,7 +91,8 @@ host_triplet = @host@
 bin_PROGRAMS = ugrep$(EXEEXT)
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_zlib.m4 \
+	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx_11.m4 \
 	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -105,7 +106,7 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_ugrep_OBJECTS = ugrep-ugrep.$(OBJEXT) ugrep-glob.$(OBJEXT)
 ugrep_OBJECTS = $(am_ugrep_OBJECTS)
-ugrep_DEPENDENCIES =
+ugrep_LDADD = $(LDADD)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -277,7 +278,6 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ugrep_CPPFLAGS = -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\"
 ugrep_SOURCES = ugrep.cpp glob.cpp
-ugrep_LDADD = -lreflex
 all: all-am
 
 .SUFFIXES:

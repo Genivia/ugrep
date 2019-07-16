@@ -27,20 +27,20 @@
 \******************************************************************************/
 
 /**
-@file      ugrep.cpp
+@file      glob.cpp
 @brief     Universal grep - a pattern search utility
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-//  1. support gitignore-style glob matching
-//  2. matching / in a glob against the windows \ path separator
-//  3. replaced recursion by iteration, reducing complexity to linear time in
-//     the length of the text for usual cases and worst-case quadratic time;
-//     two levels of iteration are needed to match a/bc/bc against a**/b*c,
-//     one for the last shallow * and one for the last deep **
-//  4. fixed logic error in the original algorithm
+//  - supports gitignore-style glob matching, see syntax below
+//  - matches / in globs against the windows \ path separator
+//  - replaced recursion by iteration (two levels of iteration are needed to
+//    match a/bc/bc against a**/b*c, one for the last shallow * wildcard and
+//    one for the last deep ** wildcard)
+//  - linear time complexity in the length of the text for usual cases, with
+//    worst-case quadratic time
 //
 //  Glob syntax:
 //
@@ -72,7 +72,7 @@
 #include <stdio.h>
 #endif
 
-// check if we are on a windows OS
+/* check if we are on a windows OS */
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
 # define OS_WIN
 #endif
@@ -88,18 +88,16 @@
 #define TRUE   1
 #define FALSE  0
 
-/*
-**  Match text against glob, return TRUE or FALSE
-*/
+/* match text against glob, return TRUE or FALSE */
 static int match(const char *text, const char *glob)
 {
-  /* To iteratively backtrack on * */
+  /* to iteratively backtrack on * */
   const char *back1 = NULL;
   const char *star1 = NULL;
-  /* To iteratively backtrack on ** */
+  /* to iteratively backtrack on ** */
   const char *back2 = NULL;
   const char *star2 = NULL;
-  /* To match [ ] character ranges in */
+  /* to match [ ] character ranges in */
   int last;
   int matched;
   int reverse;
@@ -109,7 +107,7 @@ static int match(const char *text, const char *glob)
     switch (*glob)
     {
       case '\0':
-        /* End of the glob and end of the text? */
+        /* end of the glob and end of the text? */
         if (*text == '\0')
           return TRUE;
         break;
@@ -123,7 +121,7 @@ static int match(const char *text, const char *glob)
 #endif
 
       case '?':
-        /* Match anything except a / */
+        /* match anything except a / */
         if (*text != PATHSEP)
           continue;
         break;
@@ -132,12 +130,12 @@ static int match(const char *text, const char *glob)
         if (*++glob == '*')
         {
           if (*++glob == '\0')
-            /* Two trailing stars match everything after / */
+            /* two trailing stars match everything after / */
             return TRUE;
 
           if (*glob++ == '/')
           {
-            /* Two consecutive stars followed by a / match zero or more directories */
+            /* two consecutive stars followed by a / match zero or more directories */
             back1 = NULL;
             star1 = NULL;
             back2 = text;
@@ -151,10 +149,10 @@ static int match(const char *text, const char *glob)
         }
 
         if (*glob == '\0')
-          /* Trailing star matches everything except a / */
+          /* trailing star matches everything except a / */
           return strchr(text, PATHSEP) == NULL ? TRUE : FALSE;
 
-        /* Continue matching everything except a / */
+        /* continue matching everything except a / */
         back1 = text--;
         star1 = glob--;
         continue;
@@ -162,9 +160,9 @@ static int match(const char *text, const char *glob)
       case '[':
         reverse = glob[1] == '^' || glob[1] == '!' ? TRUE : FALSE;
         if (reverse)
-          /* Inverted character class */
+          /* inverted character class */
           glob++;
-        for (last = 0400, matched = FALSE; *++glob && *glob != ']'; last = *glob)
+        for (last = 256, matched = FALSE; *++glob && *glob != ']'; last = *glob)
           if (*glob == '-' && glob[1] ? *text <= *++glob && *text >= last : *text == *glob)
             matched = TRUE;
         if (matched != reverse)
@@ -172,7 +170,7 @@ static int match(const char *text, const char *glob)
         break;
 
       case '\\':
-        /* Literal match with \-escaped character */
+        /* literal match with \-escaped character */
         glob++;
         /* FALLTHROUGH */
 
@@ -184,7 +182,7 @@ static int match(const char *text, const char *glob)
 
     if (back1 != NULL)
     {
-      /* Backtrack on the last *, do not jump over / */
+      /* backtrack on the last *, do not jump over / */
       if (*back1 != PATHSEP)
       {
         text = back1++;
@@ -195,7 +193,7 @@ static int match(const char *text, const char *glob)
 
     if (back2 != NULL)
     {
-      /* Backtrack on the last ** */
+      /* backtrack on the last ** */
       text = back2++;
       glob = star2 - 1;
       back1 = NULL;
@@ -209,19 +207,17 @@ static int match(const char *text, const char *glob)
   return FALSE;
 }
 
-/*
-**  Pathname or basename matching, returns TRUE or FALSE
-*/
+/* pathname or basename matching, returns TRUE or FALSE */
 bool globmat(const char *pathname, const char *basename, const char *glob)
 {
-  /* If pathname starts with ./ then remove these pairs */
+  /* if pathname starts with ./ then remove these pairs */
   while (pathname[0] == '.' && pathname[1] == PATHSEP)
     pathname += 2;
 
-  /* Match pathname if glob contains a /, basename otherwise */
+  /* match pathname if glob contains a /, match the basename otherwise */
   if (strchr(glob, '/') != NULL)
   {
-    /* A leading / means globbing the pathname after removing the / */
+    /* a leading / in the glob means globbing the pathname after removing the / */
     if (glob[0] == '/')
       ++glob;
     return match(pathname, glob) == TRUE;
@@ -232,6 +228,7 @@ bool globmat(const char *pathname, const char *basename, const char *glob)
 
 #ifdef TEST
 
+/* test and demo */
 int main(int argc, char **argv)
 {
   if (argc >= 4)

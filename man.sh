@@ -231,18 +231,18 @@ $ ugrep -no -e 'FIXME' -e '(?^"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*")' myfile
 To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
 Unicode pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a
 Unicode character U+00A3 with UTF-8 byte sequence C2 A3) and display the
-results in hex with \fB-X\fR piped to `more -R':
+results in hex with \fB-X\fR using `less -R' as a pager:
 .IP
-$ ugrep --color=always -oUX '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out | more -R
+$ ugrep --pager -UXo '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out
 .PP
 To hex dump an entire file in color:
 .IP
-$ ugrep --color=always -oUX '.|\\n' a.out | less -R
+$ ugrep --color --pager -Xo '' a.out
 .PP
 To list all files containing a RPM signature, located in the `rpm` directory and
 recursively below:
 .IP
-$ ugrep -RlU '\\A\\xed\xab\\xee\\xdb' rpm
+$ ugrep -R -l -tRpm '' rpm/
 .PP
 To monitor the system log for bug reports:
 .IP
