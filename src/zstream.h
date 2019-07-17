@@ -28,7 +28,7 @@
 
 /**
 @file      zstream.h
-@brief     Universal grep - a pattern search utility
+@brief     file decompression
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt

@@ -246,7 +246,7 @@ $ ugrep -R -l -tRpm '' rpm/
 .PP
 To monitor the system log for bug reports:
 .IP
-tail -f /var/log/system.log | ugrep --color -i -w 'bug'
+$ tail -f /var/log/system.log | ugrep --color -i -w 'bug'
 .SH BUGS
 Report bugs at:
 .IP

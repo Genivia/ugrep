@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 16, 2019" "ugrep 1.2.1" "User Commands"
+.TH UGREP "1" "July 17, 2019" "ugrep 1.2.2" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -26,7 +26,7 @@ The following options are available:
 \fB\-A\fR NUM, \fB\-\-after\-context\fR=\fINUM\fR
 Print NUM lines of trailing context after matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
-the \fB\-B\fR and \fB\-C\fR options.
+the \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR options.
 .TP
 \fB\-a\fR, \fB\-\-text\fR
 Process a binary file as if it were text.  This is equivalent to
@@ -37,7 +37,7 @@ the terminal driver interprets some of it as commands.
 \fB\-B\fR NUM, \fB\-\-before\-context\fR=\fINUM\fR
 Print NUM lines of leading context before matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
-the \fB\-A\fR and \fB\-C\fR options.
+the \fB\-A\fR, \fB\-C\fR, and \fB\-y\fR options.
 .TP
 \fB\-b\fR, \fB\-\-byte\-offset\fR
 The offset in bytes of a matched line is displayed in front of the
@@ -57,14 +57,14 @@ problematic consequences if the terminal driver interprets some of
 it as commands.  `hex' reports all matches in hexadecimal.
 `with\-hex` only reports binary matches in hexadecimal, leaving text
 matches alone.  A match is considered binary if a match contains a
-zero byte or an invalid UTF encoding.  See also options \fB\-a\fR, \fB\-I\fR, \fB\-U\fR,
-\-W, and \fB\-X\fR
+zero byte or an invalid UTF encoding.  See also the \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\fR,
+and \fB\-X\fR options.
 .TP
 \fB\-C\fR[NUM], \fB\-\-context\fR[=\fI\fR\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
 match.  The default is 2 and is equivalent to \fB\-A\fR 2 \fB\-B\fR 2.  Places
-a \fB\-\-group\-separator\fR between contiguous groups of matches.  Note:
-no whitespace may be given between the option and its argument.
+a \fB\-\-group\-separator\fR between contiguous groups of matches.
+No whitespace may be given between \fB\-C\fR and its argument NUM.
 .TP
 \fB\-c\fR, \fB\-\-count\fR
 Only a count of selected lines is written to standard output.
@@ -92,6 +92,11 @@ on the command line.  This is equivalent to the \fB\-r\fR option.  If
 ACTION is `dereference\-recurse', read all files under each
 directory, recursively, following symbolic links.  This is
 equivalent to the \fB\-R\fR option.
+.TP
+\fB\-\-max\-depth\fR=\fINUM\fR
+Restrict recursive search to NUM (NUM > 0) directories deep, where
+\fB\-\-max\-depth\fR=\fI1\fR searches the specified path without visiting
+sub\-directories.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is
@@ -169,9 +174,8 @@ Ignore matches in binary files.  This option is equivalent to the
 \fB\-\-binary\-files\fR=\fIwithout\-match\fR option.
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
-Perform case insensitive matching. This option applies
-case\-insensitive matching of ASCII characters in the input.
-By default, ugrep is case sensitive.
+Perform case insensitive matching.  By default, ugrep is case
+sensitive.  This option is applied to ASCII letters only.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Search only files whose name matches GLOB (using wildcard
@@ -193,6 +197,16 @@ Read the globs from FILE and search only files and directories
 whose name matches one or more globs (as if specified by \fB\-\-include\fR
 and \fB\-\-include\-dir\fR).  Lines starting with a `#' and empty lines in
 FILE are ignored.  This option may be repeated.
+.TP
+\fB\-J\fR[NUM], \fB\-\-jobs\fR[=\fI\fR\fINUM\fR]
+Specifies the number of jobs to run simultaneously to search files.
+Without argument NUM, the number of jobs spawned is optimized.
+No whitespace may be given between \fB\-J\fR and its argument NUM.
+This feature is not available in this version of ugrep.
+.TP
+\fB\-j\fR, \fB\-\-smart\-case\fR
+Perform case insensitive matching unless PATTERN contains a capital
+letter.  Case insensitive matching applies to ASCII letters only.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of the
@@ -256,14 +270,14 @@ combined with options \fB\-M\fR and \fB\-t\fR to expand the search.
 .TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
 Prints only the matching part of lines and allows pattern matches
-to span multiple lines.  Line numbers for multi\-line matches are
-displayed with option \fB\-n\fR, using `|' as the field separator for each
-additional line matched by the pattern.  Context options \fB\-A\fR, \fB\-B\fR,
-and \fB\-C\fR are disabled.
+across newlines to span multiple lines.  Line numbers for
+multi\-line matches are displayed with option \fB\-n\fR, using `|' as the
+field separator for each additional line matched by the pattern.
+Context options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR are disabled.
 .TP
 \fB\-P\fR, \fB\-\-perl\-regexp\fR
-Interpret PATTERN as a Perl regular expression.  This feature is
-not yet available.
+Interpret PATTERN as a Perl regular expression.
+This feature is not available in this version of ugrep.
 .TP
 \fB\-p\fR, \fB\-\-no\-dereference\fR
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
@@ -271,7 +285,7 @@ they are on the command line.
 .TP
 \fB\-\-pager\fR[=\fI\fR\fICOMMAND\fR]
 When output is sent to the terminal, uses `COMMAND' to page through
-results.  The default COMMAND is `less \fB\-R\fR'.  This option makes
+the output.  The default COMMAND is `less \fB\-R\fR'.  This option makes
 \fB\-\-color\fR=\fIauto\fR behave as \fB\-\-color\fR=\fIalways\fR.
 .TP
 \fB\-Q\fR ENCODING, \fB\-\-encoding\fR=\fIENCODING\fR
@@ -360,27 +374,29 @@ option.
 The pattern or \fB\-e\fR patterns are searched for as a word (as if
 surrounded by \\< and \\>).
 .TP
-\fB\-x\fR, \fB\-\-line\-regexp\fR
-Only input lines selected against the entire pattern or \fB\-e\fR patterns
-are considered to be matching lines (as if surrounded by ^ and $).
-.TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
 \fB\-\-binary\-files\fR=\fIhex\fR option.
+.TP
+\fB\-x\fR, \fB\-\-line\-regexp\fR
+Only input lines selected against the entire pattern or \fB\-e\fR patterns
+are considered to be matching lines (as if surrounded by ^ and $).
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches, such as `^\\h*$' to match blank lines.  Empty
 matches are disabled by default.  Note that empty\-matching patterns
 such as `x?' and `x*' match all input, not only lines with `x'.
 .TP
-\fB\-y\fR
-Equivalent to \fB\-i\fR.  Obsoleted.
+\fB\-y\fR, \fB\-\-any\-line\fR
+Any matching or non\-matching line is output.  Non\-matching lines
+are output as context for matching lines, with the `\fB\-'\fR separator.
+See also the \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR options.
 .TP
 \fB\-Z\fR, \fB\-\-null\fR
 Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
-Search zlib\-compressed (.gz) files.  This option disables \fB\-Q\fR.
+Search zlib\-compressed (.gz) files.  Option \fB\-Q\fR is disabled.
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
@@ -571,7 +587,7 @@ $ ugrep -R -l -tRpm '' rpm/
 .PP
 To monitor the system log for bug reports:
 .IP
-tail -f /var/log/system.log | ugrep --color -i -w 'bug'
+$ tail -f /var/log/system.log | ugrep --color -i -w 'bug'
 .SH BUGS
 Report bugs at:
 .IP

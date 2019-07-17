@@ -1,4 +1,4 @@
-AC_INIT(ugrep,1.2.1)
+AC_INIT(ugrep,1.2.2)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
 AC_COPYRIGHT([Copyright (C) 2019-2019 Robert van Engelen, Genivia Inc.])

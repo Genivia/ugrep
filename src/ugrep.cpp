@@ -51,13 +51,7 @@ Compile:
 
 limitations:
 
-  - Backreferences and lookbehinds are not supported.
-
-Wanted TODO:
-
-  - Expand compressed zip and gzip files with option -z
-  - Should we open files in binary mode "rb" when --binary-files option is specified?
-  - ... anything else?
+  - Backreferences and lookbehinds are not yet supported.
 
 */
 
@@ -82,10 +76,6 @@ Wanted TODO:
 #include <stdio.h>
 #include <strsafe.h>
 
-#include "config.h"
-
-#undef HAVE_LIBZ
-
 #define isatty(fildes) ((fildes) == 1)
 #define PATHSEPCHR '\\'
 #define PATHSEPSTR "\\"
@@ -107,6 +97,9 @@ Wanted TODO:
 
 #endif
 
+// ugrep version info
+#define UGREP_VERSION "1.2.2"
+
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
 # if defined(OS_WIN)
@@ -123,6 +116,9 @@ Wanted TODO:
 
 // undefined size_t value
 #define UNDEFINED (size_t)(-1)
+
+// max --jobs
+#define MAX_JOBS 1000
 
 // ANSI SGR substrings extracted from GREP_COLORS
 #define COLORLEN 16
@@ -155,10 +151,12 @@ bool flag_with_filename            = false;
 bool flag_no_filename              = false;
 bool flag_no_group                 = false;
 bool flag_no_messages              = false;
+bool flag_no_hidden                = false;
 bool flag_count                    = false;
 bool flag_fixed_strings            = false;
 bool flag_free_space               = false;
 bool flag_ignore_case              = false;
+bool flag_smart_case               = false;
 bool flag_invert_match             = false;
 bool flag_only_line_number         = false;
 bool flag_line_number              = false;
@@ -184,9 +182,12 @@ bool flag_with_hex                 = false;
 bool flag_empty                    = false;
 bool flag_initial_tab              = false;
 bool flag_decompress               = false;
+bool flag_any_line                 = false;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
+size_t flag_max_depth              = 0;
+size_t flag_jobs                   = 0;
 size_t flag_tabs                   = 8;
 const char *flag_pager             = NULL;
 const char *flag_color             = NULL;
@@ -217,8 +218,8 @@ extern bool globmat(const char *pathname, const char *basename, const char *glob
 
 // function protos
 bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname);
-bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
-bool recurse(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
+bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
+bool recurse(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
 bool is_binary(const char *text, size_t size);
 void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
 void hex_dump(short mode, const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *separator);
@@ -399,6 +400,8 @@ int main(int argc, char **argv)
             ++arg;
             if (strncmp(arg, "after-context=", 14) == 0)
               flag_after_context = (size_t)strtoull(arg + 14, NULL, 10);
+            else if (strcmp(arg, "any-line") == 0)
+              flag_any_line = true;
             else if (strcmp(arg, "basic-regexp") == 0)
               flag_basic_regexp = true;
             else if (strncmp(arg, "before-context=", 15) == 0)
@@ -479,6 +482,10 @@ int main(int argc, char **argv)
               flag_initial_tab = true;
             else if (strcmp(arg, "invert-match") == 0)
               flag_invert_match = true;
+            else if (strcmp(arg, "jobs") == 0)
+              flag_jobs = MAX_JOBS;
+            else if (strncmp(arg, "jobs=", 5) == 0)
+              flag_jobs = (size_t)strtoull(arg + 5, NULL, 10);
             else if (strcmp(arg, "label") == 0)
               flag_label = "";
             else if (strncmp(arg, "label=", 6) == 0)
@@ -491,6 +498,8 @@ int main(int argc, char **argv)
               flag_line_regexp = true;
             else if (strncmp(arg, "max-count=", 10) == 0)
               flag_max_count = (size_t)strtoull(arg + 10, NULL, 10);
+            else if (strncmp(arg, "max-depth=", 10) == 0)
+              flag_max_depth = (size_t)strtoull(arg + 6, NULL, 10);
             else if (strcmp(arg, "no-dereference") == 0)
               flag_no_dereference = true;
             else if (strcmp(arg, "no-filename") == 0)
@@ -499,6 +508,8 @@ int main(int argc, char **argv)
               flag_no_group = true;
             else if (strcmp(arg, "no-group-separator") == 0)
               flag_group_separator = NULL;
+            else if (strcmp(arg, "no-hidden") == 0)
+              flag_no_hidden = true;
             else if (strcmp(arg, "no-messages") == 0)
               flag_no_messages = true;
             else if (strcmp(arg, "null") == 0)
@@ -521,6 +532,8 @@ int main(int argc, char **argv)
               regex.append(arg + 7).push_back('|');
             else if (strncmp(arg, "separator=", 10) == 0)
               flag_separator = arg + 10;
+            else if (strcmp(arg, "smart-case") == 0)
+              flag_smart_case = true;
             else if (strncmp(arg, "tabs=", 5) == 0)
               flag_tabs = (size_t)strtoull(arg + 5, NULL, 10);
             else if (strcmp(arg, "text") == 0)
@@ -570,7 +583,7 @@ int main(int argc, char **argv)
 
           case 'C':
             ++arg;
-            if (*arg)
+            if (*arg == '=' || isdigit(*arg))
               flag_after_context = flag_before_context = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
             else
               flag_after_context = flag_before_context = 2;
@@ -654,6 +667,19 @@ int main(int argc, char **argv)
 
           case 'i':
             flag_ignore_case = true;
+            break;
+
+          case 'J':
+            ++arg;
+            if (*arg == '=' || isdigit(*arg))
+              flag_jobs = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+            else
+              flag_jobs = MAX_JOBS;
+            is_grouped = false;
+            break;
+
+          case 'j':
+            flag_smart_case = true;
             break;
 
           case 'k':
@@ -800,7 +826,7 @@ int main(int argc, char **argv)
             break;
 
           case 'y':
-            flag_ignore_case = true;
+            flag_any_line = true;
             break;
 
           case 'Z':
@@ -833,9 +859,14 @@ int main(int argc, char **argv)
   }
 
 #ifndef HAVE_LIBZ
+  // -z but we don't have libz
   if (flag_decompress)
     help("option -z is disabled");
 #endif
+
+  // -y disables -A, -B, and -C
+  if (flag_any_line)
+    flag_after_context = flag_before_context = 0;
 
   // -t, --file-type=list
   if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
@@ -875,6 +906,21 @@ int main(int argc, char **argv)
   }
   else
   {
+    // -j, --smart-case: case insensitive search if regex does not contain a capital letter
+    if (flag_smart_case)
+    {
+      flag_ignore_case = true;
+
+      for (std::string::const_iterator i = regex.begin(); i != regex.end(); ++i)
+      {
+        if (*i >= 'A' && *i <= 'Z')
+        {
+          flag_ignore_case = false;
+          break;
+        }
+      }
+    }
+
     // -F, --fixed-strings: make newline-separated lines in regex literal with \Q and \E
     if (flag_fixed_strings)
     {
@@ -1332,10 +1378,7 @@ int main(int argc, char **argv)
     {
       out = popen(flag_pager, "w");
       if (out == NULL)
-      {
         error("cannot open pipe to pager", flag_pager);
-        exit(EXIT_ERROR);
-      }
     }
 #endif
 
@@ -1358,7 +1401,7 @@ int main(int argc, char **argv)
         else
           basename = infile;
 
-        found |= find(magic, matcher, encoding, infile, basename, true);
+        found |= find(1, magic, matcher, encoding, infile, basename, true);
       }
     }
   }
@@ -1379,13 +1422,19 @@ int main(int argc, char **argv)
 }
 
 // search file or directory for pattern matches
-bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
+bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
 {
+  if (flag_no_hidden && *basename == '.')
+    return false;
+
   bool found = false;
 
 #ifdef OS_WIN
 
   DWORD attr = GetFileAttributesA(pathname);
+
+  if (flag_no_hidden && (attr & FILE_ATTRIBUTE_HIDDEN))
+    return false;
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
   {
@@ -1434,7 +1483,7 @@ bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_
         }
       }
 
-      return recurse(magic, matcher, encoding, pathname);
+      return recurse(level, magic, matcher, encoding, pathname);
     }
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || strcmp(flag_devices, "read") == 0)
@@ -1489,7 +1538,7 @@ bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_
         if (found)
           return true;
 
-        if (has_magic || flag_include.empty())
+        if (flag_include.empty())
           return false;
       }
     }
@@ -1589,7 +1638,7 @@ bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_
               }
             }
 
-            return recurse(magic, matcher, encoding, pathname);
+            return recurse(level, magic, matcher, encoding, pathname);
           }
         }
         else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
@@ -1626,25 +1675,46 @@ bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_
               matcher.pattern(magic);
 
               // read the file
-              reflex::Input input(file, encoding);
-              matcher.input(input);
+#ifdef HAVE_LIBZ
+              if (flag_decompress)
+              {
+                zstreambuf streambuf(file);
+                std::istream stream(&streambuf);
+                reflex::Input input(&stream);
 
-              // has the magic bytes we're looking for?
-              bool has_magic = matcher.scan();
+                // has the magic bytes we're looking for?
+                bool has_magic = matcher.scan();
 
-              // swap the search pattern back
-              matcher.pattern(search_pattern);
+                // swap the search pattern back
+                matcher.pattern(search_pattern);
 
-              // file has the magic bytes we're looking for: search the file
-              if (has_magic)
-                found = ugrep(matcher, input, pathname);
+                // file has the magic bytes we're looking for: search the file
+                if (has_magic)
+                  found = ugrep(matcher, input, pathname);
+              }
+              else
+#endif
+              {
+                reflex::Input input(file, encoding);
+                matcher.input(input);
+
+                // has the magic bytes we're looking for?
+                bool has_magic = matcher.scan();
+
+                // swap the search pattern back
+                matcher.pattern(search_pattern);
+
+                // file has the magic bytes we're looking for: search the file
+                if (has_magic)
+                  found = ugrep(matcher, input, pathname);
+              }
 
               fclose(file);
               
               if (found)
                 return true;
 
-              if (has_magic || flag_include.empty())
+              if (flag_include.empty())
                 return false;
             }
           }
@@ -1709,8 +1779,11 @@ bool find(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_
 }
 
 // recurse over directory, searching for pattern matches in files and sub-directories
-bool recurse(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname)
+bool recurse(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname)
 {
+  if (flag_max_depth > 0 && level > flag_max_depth)
+    return false;
+
   bool found = false;
 
 #ifdef OS_WIN
@@ -1733,7 +1806,7 @@ bool recurse(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::fi
   {
     dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
 
-    found |= find(magic, matcher, encoding, dirpathname.c_str(), ffd.cFileName);
+    found |= find(level + 1, magic, matcher, encoding, dirpathname.c_str(), ffd.cFileName);
   }
   while (FindNextFileA(hFind, &ffd) != 0);
 
@@ -1761,7 +1834,7 @@ bool recurse(reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::fi
     {
       dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
 
-      found |= find(magic, matcher, encoding, dirpathname.c_str(), dirent->d_name);
+      found |= find(level + 1, magic, matcher, encoding, dirpathname.c_str(), dirent->d_name);
     }
   }
 
@@ -1992,8 +2065,6 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
   else
   {
     // read input line-by-line and display lines that match the pattern
-
-    // TODO: line-by-line reading is not yet optimized!!!
 
     size_t byte_offset = 0;
     size_t lineno = 1;
@@ -2342,7 +2413,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
               fwrite(match.begin(), 1, match.size(), out);
               fputs(color_off, out);
               fputs(color_sl, out);
-              fwrite(lines[current].c_str() + match.last(), 1, match.last() - match.first(), out);
+              fwrite(lines[current].c_str() + match.last(), 1, lines[current].size() - match.last(), out);
               fputs(color_off, out);
             }
 
@@ -2406,7 +2477,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
           if (flag_line_buffered)
             fflush(out);
         }
-        else if (after > 0 && after + flag_after_context >= lineno)
+        else if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
         {
           // -A NUM option: show context after matched lines, simulates BSD grep -A
 
@@ -2762,7 +2833,7 @@ void help(const char *message, const char *arg)
     -A NUM, --after-context=NUM\n\
             Print NUM lines of trailing context after matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
-            the -B and -C options.\n\
+            the -B, -C, and -y options.\n\
     -a, --text\n\
             Process a binary file as if it were text.  This is equivalent to\n\
             the --binary-files=text option.  This option might output binary\n\
@@ -2771,7 +2842,7 @@ void help(const char *message, const char *arg)
     -B NUM, --before-context=NUM\n\
             Print NUM lines of leading context before matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
-            the -A and -C options.\n\
+            the -A, -C, and -y options.\n\
     -b, --byte-offset\n\
             The offset in bytes of a matched line is displayed in front of the\n\
             respective matched line.  When used with option -g, displays the\n\
@@ -2789,13 +2860,13 @@ void help(const char *message, const char *arg)
             it as commands.  `hex' reports all matches in hexadecimal.\n\
             `with-hex` only reports binary matches in hexadecimal, leaving text\n\
             matches alone.  A match is considered binary if a match contains a\n\
-            zero byte or an invalid UTF encoding.  See also options -a, -I, -U,\n\
-            -W, and -X\n\
+            zero byte or an invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
+            and -X options.\n\
     -C[NUM], --context[=NUM]\n\
             Print NUM lines of leading and trailing context surrounding each\n\
             match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
-            a --group-separator between contiguous groups of matches.  Note:\n\
-            no whitespace may be given between the option and its argument.\n\
+            a --group-separator between contiguous groups of matches.\n\
+            No whitespace may be given between -C and its argument NUM.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
             When used with option -g, counts the number of patterns matched.\n\
@@ -2819,6 +2890,10 @@ void help(const char *message, const char *arg)
             ACTION is `dereference-recurse', read all files under each\n\
             directory, recursively, following symbolic links.  This is\n\
             equivalent to the -R option.\n\
+    --max-depth=NUM\n\
+            Restrict recursive search to NUM (NUM > 0) directories deep, where\n\
+            --max-depth=1 searches the specified path without visiting\n\
+            sub-directories.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
@@ -2884,9 +2959,8 @@ void help(const char *message, const char *arg)
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\
     -i, --ignore-case\n\
-            Perform case insensitive matching. This option applies\n\
-            case-insensitive matching of ASCII characters in the input.\n\
-            By default, ugrep is case sensitive.\n\
+            Perform case insensitive matching.  By default, ugrep is case\n\
+            sensitive.  This option is applied to ASCII letters only.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB (using wildcard\n\
             matching).  A glob can use *, ?, and [...] as wildcards, and \\ to\n\
@@ -2905,6 +2979,14 @@ void help(const char *message, const char *arg)
             whose name matches one or more globs (as if specified by --include\n\
             and --include-dir).  Lines starting with a `#' and empty lines in\n\
             FILE are ignored.  This option may be repeated.\n\
+    -J[NUM], --jobs[=NUM]\n\
+            Specifies the number of jobs to run simultaneously to search files.\n\
+            Without argument NUM, the number of jobs spawned is optimized.\n\
+            No whitespace may be given between -J and its argument NUM.\n\
+            This feature is not available in this version of ugrep.\n\
+    -j, --smart-case\n\
+            Perform case insensitive matching unless PATTERN contains a capital\n\
+            letter.  Case insensitive matching applies to ASCII letters only.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -2956,19 +3038,19 @@ void help(const char *message, const char *arg)
             combined with options -M and -t to expand the search.\n\
     -o, --only-matching\n\
             Prints only the matching part of lines and allows pattern matches\n\
-            to span multiple lines.  Line numbers for multi-line matches are\n\
-            displayed with option -n, using `|' as the field separator for each\n\
-            additional line matched by the pattern.  Context options -A, -B,\n\
-            and -C are disabled.\n\
+            across newlines to span multiple lines.  Line numbers for\n\
+            multi-line matches are displayed with option -n, using `|' as the\n\
+            field separator for each additional line matched by the pattern.\n\
+            Context options -A, -B, -C, and -y are disabled.\n\
     -P, --perl-regexp\n\
-            Interpret PATTERN as a Perl regular expression.  This feature is\n\
-            not yet available.\n\
+            Interpret PATTERN as a Perl regular expression.\n\
+            This feature is not available in this version of ugrep.\n\
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
             they are on the command line.\n\
     --pager[=COMMAND]\n\
             When output is sent to the terminal, uses `COMMAND' to page through\n\
-            results.  The default COMMAND is `less -R'.  This option makes\n\
+            the output.  The default COMMAND is `less -R'.  This option makes\n\
             --color=auto behave as --color=always.\n\
     -Q ENCODING, --encoding=ENCODING\n\
             The input file encoding.  The possible values of ENCODING can be:";
@@ -3029,24 +3111,26 @@ void help(const char *message, const char *arg)
     -w, --word-regexp\n\
             The pattern or -e patterns are searched for as a word (as if\n\
             surrounded by \\< and \\>).\n\
-    -x, --line-regexp\n\
-            Only input lines selected against the entire pattern or -e patterns\n\
-            are considered to be matching lines (as if surrounded by ^ and $).\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.\n\
+    -x, --line-regexp\n\
+            Only input lines selected against the entire pattern or -e patterns\n\
+            are considered to be matching lines (as if surrounded by ^ and $).\n\
     -Y, --empty\n\
             Permits empty matches, such as `^\\h*$' to match blank lines.  Empty\n\
             matches are disabled by default.  Note that empty-matching patterns\n\
             such as `x?' and `x*' match all input, not only lines with `x'.\n\
-    -y\n\
-            Equivalent to -i.  Obsoleted.\n\
+    -y, --any-line\n\
+            Any matching or non-matching line is output.  Non-matching lines\n\
+            are output as context for matching lines, with the `-' separator.\n\
+            See also the -A, -B, and -C options.\n\
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n";
 #ifdef HAVE_LIBZ
   std::cout << "\
-            Search zlib-compressed (.gz) files.  This option disables -Q.\n";
+            Search zlib-compressed (.gz) files.  Option -Q is disabled.\n";
 #else
   std::cout << "\
             File decompression is disabled.\n";
@@ -3066,6 +3150,6 @@ void help(const char *message, const char *arg)
 // display version info
 void version()
 {
-  std::cout << "ugrep " VERSION " " PLATFORM << std::endl;
+  std::cout << "ugrep " UGREP_VERSION " " PLATFORM << std::endl;
   exit(EXIT_OK);
 }

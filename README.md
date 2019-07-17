@@ -1,10 +1,10 @@
-ugrep: universal grep
-=====================
+Universal grep or "uber grep"
+=============================
 
-Quickly grep through C/C++, Java, Python, Ruby, JSON, XML and more using
-pre-defined search patterns.  Search files for Unicode text patterns, find
-source code matches, and search and display text and binary files recursively
-in large directory trees.
+Quickly grep through C/C++, Java, Python, JSON, XML and more using pre-defined
+search patterns.  Search files for Unicode text patterns, find source code
+matches, and search and display text and binary files recursively in large
+directory trees.
 
 See the [examples](#examples) that to show the power of **ugrep**.
 

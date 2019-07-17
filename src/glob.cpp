@@ -28,7 +28,7 @@
 
 /**
 @file      glob.cpp
-@brief     Universal grep - a pattern search utility
+@brief     gitignore-style globbing
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
