@@ -264,7 +264,8 @@ Some useful aliases (add or remove `--color` and/or `--pager` as desired):
     alias uxgrep ugrep --color --pager -UX    # search binary patterns, output hex
     alias uxdump ugrep --color --pager -Xo '' # hexdump entire file
 
-Examples  {#examples}
+<a name="examples"/>
+Examples
 --------
 
 To search for the identifier `main` as a word (`-w`) recursively (`-r`) in
@@ -1376,7 +1377,8 @@ For future updates
   RE/flex `Matcher` class.  With Boost.Regex we can also support Perl-like
   matching as an option.
 
-Regex pattern syntax  {#patterns}
+<a name="patterns"/>
+Regex pattern syntax
 --------------------
 
 An empty pattern is a special case that matches everything except empty files,
