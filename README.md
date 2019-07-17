@@ -265,6 +265,7 @@ Some useful aliases (add or remove `--color` and/or `--pager` as desired):
     alias uxdump ugrep --color --pager -Xo '' # hexdump entire file
 
 <a name="examples"/>
+
 Examples
 --------
 
@@ -1378,6 +1379,7 @@ For future updates
   matching as an option.
 
 <a name="patterns"/>
+
 Regex pattern syntax
 --------------------
 
