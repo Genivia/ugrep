@@ -2,9 +2,9 @@ Universal grep or "uber grep"
 =============================
 
 Quickly grep through C/C++, Java, Python, JSON, XML and more using pre-defined
-search patterns.  Search files for Unicode text patterns, find source code
-matches, and search and display text and binary files recursively in large
-directory trees.
+and installed search patterns.  Search files for Unicode text patterns, find
+source code matches, and search and display text and binary files recursively
+in large directory trees.
 
 See the [examples](#examples) that to show the power of **ugrep**.
 
@@ -12,11 +12,12 @@ See the [examples](#examples) that to show the power of **ugrep**.
   utilities by offering additional features, such as full Unicode pattern
   matching, "negative patterns" to ignore unwanted pattern matches, recursive
   search through directories while selecting files by file name extension and
-  file signature "magic" bytes or shebangs, pre-defined search patterns to
-  search source code, hexdumps for binary matches, and more.
+  file signature "magic" bytes or shebangs, pre-defined (installed) search
+  patterns to search source code, hexdumps for binary matches, and more.
 
-- **ugrep** makes it simple to search source code using *pre-defined patterns*.
-  For example to recursively search Python files for import statements:
+- **ugrep** makes it simple to search source code using *pre-defined patterns*
+  that are installed for you.  For example to recursively search Python files
+  for import statements:
 
       ugrep -R -tpython -n -f python/imports myprojects
 
@@ -44,8 +45,8 @@ See the [examples](#examples) that to show the power of **ugrep**.
   and comments may span multiple lines), `-tc,c++` searches C and C++ source
   code files only, `-n` shows line numbers in the output, `-w` matches exact
   words (for example, `mainly` won't be matched), and the `-f` options specify
-  two pre-defined patterns to match and ignore strings and comments in the
-  input.
+  two pre-defined installed patterns to match and ignore strings and comments
+  in the input.
 
 - **ugrep** searches text files and binary files and produces hexdumps for
   binary matches.  For example, to search for a binary pattern:
@@ -58,9 +59,10 @@ See the [examples](#examples) that to show the power of **ugrep**.
   as the context options `-A`, `-B`, `-C`, and `-y`.
 
 - **ugrep** matches Unicode patterns by default (disabled with option `-U`).  The
-  [regular expression pattern syntax](#pattern) is POSIX ERE compliant,
-  extended with Unicode character classes, lazy quantifiers, and negative
-  patterns to skip unwanted pattern matches to produce more precise results.
+  [regular expression pattern syntax](#pattern) is POSIX ERE compliant extended
+  with PCRE-like syntax.  Patterns may include Unicode character classes, lazy
+  quantifiers, and negative patterns to skip unwanted pattern matches to
+  produce more precise results.
 
 - **ugrep** searches UTF-encoded input when UTF BOM
   ([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are
@@ -126,13 +128,13 @@ This builds `ugrep` in the `src` directory.  You can tell which version it is
 with:
 
     $ src/ugrep -V
-    ugrep 1.1.8 x86_64-apple-darwin16.7.0
+    ugrep 1.2.2 x86_64-apple-darwin16.7.0
 
 Optionally, install the ugrep utility and the ugrep manual page:
 
     $ sudo make install
     $ ugrep -V
-    ugrep 1.1.8 x86_64-apple-darwin16.7.0
+    ugrep 1.2.2 x86_64-apple-darwin16.7.0
 
 This also installs the pattern files with pre-defined patterns for option `-f`
 at `/usr/local/share/ugrep/patterns/`.  Option `-f` first checks the current
@@ -175,16 +177,17 @@ To close the quickfix window:
     :cclose
 
 Note that multiple matches on the same line are listed in the quickfix window
-separately.  If this is not desired then remove `\ -g` from `grepprg`.
-With this change, only the first match on a line is shown, like GNU/BSD grep.
+separately.  If this is not desired then remove `\ -g` from `grepprg` in
+`.vimrc`.  With this change, only the first match on a line is shown.
 
 You can use **ugrep** options with the Vim `:grep` command, for example to
 select single- and multi-line comments in `main.cpp`:
 
     :grep -o -f c++/comments main.cpp
 
-Only the first line of each multi-line comment is shown as a match in quickfix,
-to save space.
+The first line of a multi-line comment is shown in quickfix, to save space.  To
+show all lines of a multi-line match, remove `%-G` from `grepformat` in
+`.vimrc`.
 
 ugrep versus other greps
 ------------------------
