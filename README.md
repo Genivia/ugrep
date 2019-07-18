@@ -12,8 +12,9 @@ See the [examples](#examples) that to show the power of **ugrep**.
   utilities by offering additional features, such as full Unicode pattern
   matching, "negative patterns" to ignore unwanted pattern matches, recursive
   search through directories while selecting files by file name extension and
-  file signature "magic" bytes or shebangs, pre-defined (installed) search
-  patterns to search source code, hexdumps for binary matches, and more.
+  file signature "magic" bytes and shebangs, pre-defined (installed) search
+  patterns to search source code, hexdumps for binary matches, improved
+  quickfix Vim `:grep` integration, and more.
 
 - **ugrep makes it simple to search source code** using *pre-defined patterns*
   that are installed for you.  For example to recursively search Python files
@@ -70,14 +71,18 @@ See the [examples](#examples) that to show the power of **ugrep**.
   permits many other file formats to be searched, such as ISO-8859-1, EBCDIC,
   and code pages 437, 850, 858, 1250 to 1258.
 
-- **ugrep uses [RE/flex](https://github.com/Genivia/RE-flex)** for
-  high-performance regex matching, which is 100 times faster than the GNU C
+- **ugrep uses [RE/flex](https://github.com/Genivia/RE-flex) for
+  high-performance regex matching**, which is 100 times faster than the GNU C
   POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and
   RE2.  RE/flex is an incremental, streaming regex matcher, meaning it does not
-  read all the input at once nor does it require reading the input
-  line-by-line.  Files are efficiently scanned with options such as `-o`.  As a
-  bonus, this option also finds a match of a pattern spanning multiple lines
-  such as comment blocks in source code.
+  read all the input at once, nor does it require reading the input
+  line-by-line with certain options (see the next point below).
+
+- **ugrep can match patterns across multiple lines**, such as comment blocks in
+  source code.  Multi-line matching is performed with any one of the options
+  (only matching), options `-q` (quiet), `-o` (only matching), `-c` (count),
+  `-N` (only line number), `-l` (file with match), or `-L` (files without
+  match).
 
 - **ugrep regex patterns are converted to
   [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton)** for fast
@@ -194,8 +199,45 @@ Tip: use `%` as `PATH` to search the current file in Vim.
 ugrep versus other greps
 ------------------------
 
-- **ugrep** accepts GNU/BSD grep command options and produces GNU/BSD grep
-  compatible results, making **ugrep** a true drop-in replacement.
+### GNU/BSD grep equivalence
+
+**ugrep** accepts GNU/BSD grep command options and produces GNU/BSD grep
+compatible results, making **ugrep** a true drop-in replacement.
+
+GNU and BSD grep and their common variants are equivalent to **ugrep** when the
+following options are used (note that `-U` disables Unicode as GNU/BSD grep do
+not support Unicode!):
+
+    grep   = ugrep -G -U -Y
+    egrep  = ugrep -E -U -Y
+    fgrep  = ugrep -F -U -Y
+
+    zgrep  = ugrep -G -U -Y -z
+    zegrep = ugrep -E -U -Y -z
+    zfgrep = ugrep -F -U -Y -z
+
+Option `-Y` enables empty matches, see further below.
+
+### Some useful aliases
+
+Add or remove `--color` and/or `--pager` if desired:
+
+    alias ug     ugrep --color --pager        # short & quick text pattern search
+    alias ux     ugrep --color --pager -UX    # short & quick binary pattern search
+
+    alias grep   ugrep --color --pager -G     # search with basic regular expressions (BRE)
+    alias egrep  ugrep --color --pager -E     # search with extended regular expressions (ERE)
+    alias fgrep  ugrep --color --pager -F     # find string
+
+    alias xgrep  ugrep --color --pager -W     # search and output text or hex binary
+    alias uxgrep ugrep --color --pager -UX    # search binary patterns, output hex
+    alias uxdump ugrep --color --pager -Xo '' # hexdump entire file
+
+### Why use ugrep?
+
+Notable improvements over GNU/BSD grep and other grep-like tools, to name a
+few:
+
 - **ugrep** matches Unicode by default, disabled with option `-U`.
 - **ugrep** regular expression patterns are more expressive than GNU grep and
   BSD grep POSIX ERE and support Unicode pattern matching and most of the PCRE
@@ -206,7 +248,7 @@ ugrep versus other greps
   (file with match), or `-L` (files without match) is used, **ugrep** performs
   an even faster search of the input file instead of reading the input
   line-by-line as other grep tools do.  This allows matching patterns that
-  span multiple lines.  This is not possible with other grep-like tools.
+  span multiple lines.
 - **ugrep** supports *negative patterns* of the form `(?^X)` to skip input
   that matches `X`.  Negative patterns can be used to skip strings and comments
   when searching for identifiers in source code and find matches that aren't in
@@ -232,7 +274,7 @@ ugrep versus other greps
   byte patterns, and pre-defined file types, respectively.  This allows
   searching for certain types of files in directory trees with recursive search
   options `-R` and `-r`.
-- Extended option `-f` uses `GREP_PATH` environment variable or the pre-defined
+- Improved option `-f` uses `GREP_PATH` environment variable or the pre-defined
   patterns intalled in `/usr/local/share/ugrep/patterns`.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
@@ -242,32 +284,10 @@ ugrep versus other greps
   `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
 - BSD grep (e.g. on Mac OS X) has limitations and some bugs that **ugrep**
   fixes (options `-r` versus `-R`), support for `GREP_COLORS`, and more.
-- **ugrep** does not (yet) support backreferences and lookbehinds.
 
-GNU and BSD grep and their common variants are equivalent to **ugrep** when the
-following options are used (note that `-U` disables Unicode as GNU/BSD grep do
-not support Unicode!):
+### When not to use ugrep
 
-    grep   = ugrep -G -U -Y
-    egrep  = ugrep -E -U -Y
-    fgrep  = ugrep -F -U -Y
-
-    zgrep  = ugrep -G -U -Y -z
-    zegrep = ugrep -E -U -Y -z
-    zfgrep = ugrep -F -U -Y -z
-
-Some useful aliases (add or remove `--color` and/or `--pager` as desired):
-
-    alias ug     ugrep --color --pager        # short & quick text pattern search
-    alias ux     ugrep --color --pager -UX    # short & quick binary pattern search
-
-    alias grep   ugrep --color --pager -G     # search with basic regular expressions (BRE)
-    alias egrep  ugrep --color --pager -E     # search with extended regular expressions (ERE)
-    alias fgrep  ugrep --color --pager -F     # find string
-
-    alias xgrep  ugrep --color --pager -W     # search and output text or hex binary
-    alias uxgrep ugrep --color --pager -UX    # search binary patterns, output hex
-    alias uxdump ugrep --color --pager -Xo '' # hexdump entire file
+- Patterns with backreferences and lookbehinds are not supported yet.
 
 <a name="examples"/>
 
@@ -499,19 +519,19 @@ To match C/C++ comments using the pre-defined `c/comments` patterns:
 
 To recursively display function definitions in C/C++ files:
 
-    ugrep -R -o -f c++/function_defs -tc,c++ .
+    ugrep -R -o -n -tc,c++ -f c++/function_defs .
 
-To search for `FIXME` in C/C++ comments, excluding `FIXME` in multi-line
-strings:
+To search for patterns starting with `FIXME` in C/C++ comments, excluding
+`FIXME` in multi-line strings:
 
-    ugrep -o 'FIXME' -f c++/zap_strings myfile.cpp
+    ugrep -o -n 'FIXME.*' -f c++/zap_strings myfile.cpp
 
-To read patterns `TODO` and `FIXME` from standard input to match with,
-while excluding matches in C++ strings:
+To read patterns starting with `TODO` and `FIXME` from standard input to match
+with, while excluding matches in C++ strings:
 
-    ugrep -o -f - -f c++/zap_strings myfile.cpp <<END
-    TODO
-    FIXME
+    ugrep -o -n -f - -f c++/zap_strings myfile.cpp <<END
+    TODO.*
+    FIXME.*
     END
 
 To display XML element and attribute tags in an XML file, exluding tags that
@@ -736,7 +756,7 @@ To list all text files (.txt and .md) that do not properly end with a `\n`
 
     ugrep -R -L -o -Otext '\n\z' .
 
-To list all markdown sections in text files (.txt and .md):
+To list all markdown sections in text files (.text, .txt, .TXT, and .md):
 
     ugrep -R -o -ttext -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*' .
 
@@ -1509,8 +1529,8 @@ list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
   `[:punct:]`  | `\p{Punct}`       | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
   `[:upper:]`  |                   | matches an upper case letter `[A-Z]`
   `[:word:]`   |                   | matches a word character `[0-9A-Za-z_]`
-  `[:^blank:]` | `\H`              | matches a non-blank character `[^ \t]`
-  `[:^digit:]` | `\D`              | matches a non-digit `[^0-9]`
+  `[:^blank:]` | `\P{Blank}`, `\H` | matches a non-blank character `[^ \t]`
+  `[:^digit:]` | `\P{Digit}`, `\D` | matches a non-digit `[^0-9]`
 
 The POSIX form can only be used in bracket lists, for example
 `[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  
