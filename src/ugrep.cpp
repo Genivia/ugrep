@@ -98,7 +98,7 @@ limitations:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.2.2"
+#define UGREP_VERSION "1.2.3"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -183,6 +183,7 @@ bool flag_empty                    = false;
 bool flag_initial_tab              = false;
 bool flag_decompress               = false;
 bool flag_any_line                 = false;
+bool flag_break                    = false;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
@@ -290,7 +291,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "basic",        "bas,BAS,cls,frm,ctl,vb,resx",                              NULL },
   { "batch",        "bat,BAT,cmd,CMD",                                          NULL },
   { "bison",        "y,yy,yxx",                                                 NULL },
-  { "c",            "c,h,H,hdl",                                                NULL },
+  { "c",            "c,h,H,hdl,xs",                                             NULL },
   { "c++",          "cpp,CPP,cc,cxx,CXX,h,hh,H,hpp,hxx,Hxx,HXX",                NULL },
   { "clojure",      "clj",                                                      NULL },
   { "csharp",       "cs",                                                       NULL },
@@ -299,6 +300,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "dart",         "dart",                                                     NULL },
   { "Dart",         "dart",                                                     "#!/.*\\Wdart(\\W.*)?\\n" },
   { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL },
+  { "elisp",        "el",                                                       NULL },
   { "elixir",       "ex,exs",                                                   NULL },
   { "erlang",       "erl,hrl",                                                  NULL },
   { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95,f03,F03",          NULL },
@@ -306,13 +308,14 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "Gif",          "gif",                                                      "GIF87a|GIF89a" },
   { "go",           "go",                                                       NULL },
   { "groovy",       "groovy,gtmpl,gpp,grunit,gradle",                           NULL },
+  { "gsp",          "gsp",                                                      NULL },
   { "haskell",      "hs,lhs",                                                   NULL },
   { "html",         "htm,html,xhtml",                                           NULL },
   { "jade",         "jade",                                                     NULL },
   { "java",         "java,properties",                                          NULL },
-  { "javascript",   "js",                                                       NULL },
   { "jpeg",         "jpg,jpeg",                                                 NULL },
   { "Jpeg",         "jpg,jpeg",                                                 "\\xff\\xd8\\xff[\\xdb\\xe0\\xe1\\xee]" },
+  { "js",           "js",                                                       NULL },
   { "json",         "json",                                                     NULL },
   { "jsp",          "jsp,jspx,jthm,jhtml",                                      NULL },
   { "julia",        "jl",                                                       NULL },
@@ -329,7 +332,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "Node",         "js",                                                       "#!/.*\\Wnode(\\W.*)?\\n" },
   { "objc",         "m,h",                                                      NULL },
   { "objc++",       "mm,h",                                                     NULL },
-  { "ocaml",        "ml,mli",                                                   NULL },
+  { "ocaml",        "ml,mli,mll,mly",                                           NULL },
   { "parrot",       "pir,pasm,pmc,ops,pod,pg,tg",                               NULL },
   { "pascal",       "pas,pp",                                                   NULL },
   { "pdf",          "pdf",                                                      NULL },
@@ -343,7 +346,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "prolog",       "pl,pro",                                                   NULL },
   { "python",       "py",                                                       NULL },
   { "Python",       "py",                                                       "#!/.*\\Wpython(\\W.*)?\\n" },
-  { "R",            "R",                                                        NULL },
+  { "r",            "R",                                                        NULL },
   { "rpm",          "rpm",                                                      NULL },
   { "Rpm",          "rpm",                                                      "\\xed\\xab\\xee\\xdb" },
   { "rst",          "rst",                                                      NULL },
@@ -358,10 +361,11 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish",                       "#!/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
   { "smalltalk",    "st",                                                       NULL },
   { "sql",          "sql,ctl",                                                  NULL },
+  { "svg",          "svg",                                                      NULL },
   { "swift",        "swift",                                                    NULL },
   { "tcl",          "tcl,itcl,itk",                                             NULL },
   { "tex",          "tex,cls,sty,bib",                                          NULL },
-  { "text",         "txt,TXT,md",                                               NULL },
+  { "text",         "text,txt,TXT,md",                                          NULL },
   { "tiff",         "tif,tiff",                                                 NULL },
   { "Tiff",         "tif,tiff",                                                 "\\x49\\x49\\x2a\\x00|\\x4d\\x4d\\x00\\x2a" },
   { "tt",           "tt,tt2,ttml",                                              NULL },
@@ -410,6 +414,8 @@ int main(int argc, char **argv)
               flag_binary = true;
             else if (strncmp(arg, "binary-files=", 13) == 0)
               flag_binary_files = arg + 13;
+            else if (strcmp(arg, "break") == 0)
+              flag_break = true;
             else if (strcmp(arg, "byte-offset") == 0)
               flag_byte_offset = true;
             else if (strcmp(arg, "color") == 0 || strcmp(arg, "colour") == 0)
@@ -859,16 +865,16 @@ int main(int argc, char **argv)
   }
 
 #ifndef HAVE_LIBZ
-  // -z but we don't have libz
+  // -z: but we don't have libz
   if (flag_decompress)
     help("option -z is disabled");
 #endif
 
-  // -y disables -A, -B, and -C
+  // -y: disable -A, -B, and -C
   if (flag_any_line)
     flag_after_context = flag_before_context = 0;
 
-  // -t, --file-type=list
+  // -t list: list table of types
   if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
   {
     int i;
@@ -906,7 +912,7 @@ int main(int argc, char **argv)
   }
   else
   {
-    // -j, --smart-case: case insensitive search if regex does not contain a capital letter
+    // -j: case insensitive search if regex does not contain a capital letter
     if (flag_smart_case)
     {
       flag_ignore_case = true;
@@ -921,7 +927,7 @@ int main(int argc, char **argv)
       }
     }
 
-    // -F, --fixed-strings: make newline-separated lines in regex literal with \Q and \E
+    // -F: make newline-separated lines in regex literal with \Q and \E
     if (flag_fixed_strings)
     {
       std::string strings;
@@ -938,7 +944,7 @@ int main(int argc, char **argv)
       regex = strings.append("\\Q").append(regex.substr(from)).append("\\E");
     }
 
-    // if -w or -x: make the regex word- or line-anchored, respectively
+    // -w or -x: make the regex word- or line-anchored, respectively
     if (flag_word_regexp)
       regex.insert(0, "\\<(").append(")\\>");
     else if (flag_line_regexp)
@@ -951,12 +957,14 @@ int main(int argc, char **argv)
     if (!regex.empty())
       regex.push_back('|');
 
-    // -f --file: read patterns from the specified file or files
+    // -f: read patterns from the specified file or files
     for (auto i : flag_file)
     {
       FILE *file = NULL;
 
-      if (fopen_s(&file, i.c_str(), "r") != 0)
+      if (i == "-")
+        file = stdin;
+      else if (fopen_s(&file, i.c_str(), "r") != 0)
         file = NULL;
 
 #ifndef OS_WIN
@@ -1006,7 +1014,8 @@ int main(int argc, char **argv)
           regex.append(line).push_back('|');
       }
 
-      fclose(file);
+      if (file != stdin)
+        fclose(file);
     }
 
     // remove the ending '|' from the |-concatenated regexes in the regex string
@@ -1017,25 +1026,25 @@ int main(int argc, char **argv)
   if (infiles.empty())
     infiles.emplace_back("-");
 
-  // if -v --invert-match: options -g --no-group and -o --only-matching options cannot be used
+  // -v: disable -g and -o
   if (flag_invert_match)
   {
     flag_no_group = false;
     flag_only_matching = false;
   }
 
-  // normalize -R --dereference-recurse option
+  // normalize -R (--dereference-recurse) option
   if (strcmp(flag_directories, "dereference-recurse") == 0)
   {
     flag_directories = "recurse";
     flag_dereference = true;
   }
 
-  // normalize -p (no-dereference) and -S (dereference) options, -p taking priority over -S
+  // normalize -p (--no-dereference) and -S (--dereference) options, -p taking priority over -S
   if (flag_no_dereference)
     flag_dereference = false;
 
-  // display file name if more than one input file is specified or options -R -r, and option -h --no-filename is not specified
+  // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
   if (!flag_no_filename && (infiles.size() > 1 || strcmp(flag_directories, "recurse") == 0))
     flag_with_filename = true;
 
@@ -1116,19 +1125,19 @@ int main(int argc, char **argv)
     }
   }
 
-  // check -D option
+  // -D: check ACTION value
   if (strcmp(flag_devices, "read") != 0 &&
       strcmp(flag_devices, "skip") != 0)
     help("unknown --devices=ACTION value");
 
-  // check -d option
+  // -d: check ACTION value
   if (strcmp(flag_directories, "read") != 0 &&
       strcmp(flag_directories, "skip") != 0 &&
       strcmp(flag_directories, "recurse") != 0 &&
       strcmp(flag_directories, "dereference-recurse") != 0)
     help("unknown --directories=ACTION value");
 
-  // check --binary-files option and assign related flags
+  // --binary-files: normalize by assigning flags
   if (strcmp(flag_binary_files, "without-matches") == 0)
     flag_binary_without_matches = true;
   else if (strcmp(flag_binary_files, "text") == 0)
@@ -1140,9 +1149,10 @@ int main(int argc, char **argv)
   else if (strcmp(flag_binary_files, "binary") != 0)
     help("unknown --binary-files value");
 
+  // default file encoding is plain (no conversion)
   reflex::Input::file_encoding_type encoding = reflex::Input::file_encoding::plain;
 
-  // parse ugrep option --encoding
+  // -Q: parse ENCODING value
   if (flag_encoding != NULL)
   {
     int i;
@@ -1159,7 +1169,7 @@ int main(int argc, char **argv)
     encoding = format_table[i].encoding;
   }
 
-  // parse ugrep option --file-type to add --file-extensions and --file-magic
+  // -t: parse TYPES and access type table to add -O (--file-extensions) and -M (--file-magic) values
   for (auto type : flag_file_type)
   {
     int i;
@@ -1178,7 +1188,7 @@ int main(int argc, char **argv)
       flag_file_magic.emplace_back(type_table[i].magic);
   }
 
-  // add the --file-extensions as globs to the --include list
+  // -O: add extensions as globs to the --include list
   for (auto extensions : flag_file_extensions)
   {
     size_t from = 0;
@@ -1194,9 +1204,10 @@ int main(int argc, char **argv)
     flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)));
   }
 
+  // -M: file signature magic bytes
   std::string signature;
 
-  // create a signature regex from the --file-magic patterns
+  // -M: combine to create a signature regex from MAGIC
   for (auto magic : flag_file_magic)
   {
     if (!signature.empty())
@@ -1204,132 +1215,144 @@ int main(int argc, char **argv)
     signature.append(magic);
   }
 
-  // add the --exclude-from as globs to the --exclude and --exclude-dir lists
+  // --exclude-from: add globs to the --exclude and --exclude-dir lists
   for (auto i : flag_exclude_from)
   {
-    FILE *file = NULL;
-
-    if (fopen_s(&file, i.c_str(), "r") != 0)
-      error("cannot read", i.c_str());
-
-    // read globs from the specified file or files
-
-    reflex::Input input(file);
-    std::string line;
-
-    while (input)
+    if (!i.empty())
     {
-      // read the next line
-      if (getline(input, line))
-        break;
+      FILE *file = NULL;
 
-      trim(line);
+      if (i == "-")
+        file = stdin;
+      else if (fopen_s(&file, i.c_str(), "r") != 0)
+        error("cannot read", i.c_str());
 
-      // add glob to --exclude and --exclude-dir using gitignore rules
-      if (!line.empty() && line.front() != '#')
+      // read globs from the specified file or files
+
+      reflex::Input input(file);
+      std::string line;
+
+      while (input)
       {
-        // gitignore-style ! negate pattern (overrides --exclude and --exclude-dir)
-        if (line.front() == '!' && !line.empty())
-        {
-          line.erase(0, 1);
+        // read the next line
+        if (getline(input, line))
+          break;
 
-          // globs ending in / should only match directories
-          if (line.back() == '/')
-            line.pop_back();
-          else
-            flag_exclude_override.emplace_back(line);
+        trim(line);
 
-          flag_exclude_override_dir.emplace_back(line);
-        }
-        else
+        // add glob to --exclude and --exclude-dir using gitignore rules
+        if (!line.empty() && line.front() != '#')
         {
-          // remove leading \ if present
-          if (line.front() == '\\' && !line.empty())
+          // gitignore-style ! negate pattern (overrides --exclude and --exclude-dir)
+          if (line.front() == '!' && !line.empty())
+          {
             line.erase(0, 1);
 
-          // globs ending in / should only match directories
-          if (line.back() == '/')
-            line.pop_back();
-          else
-            flag_exclude.emplace_back(line);
+            // globs ending in / should only match directories
+            if (line.back() == '/')
+              line.pop_back();
+            else
+              flag_exclude_override.emplace_back(line);
 
-          flag_exclude_dir.emplace_back(line);
+            flag_exclude_override_dir.emplace_back(line);
+          }
+          else
+          {
+            // remove leading \ if present
+            if (line.front() == '\\' && !line.empty())
+              line.erase(0, 1);
+
+            // globs ending in / should only match directories
+            if (line.back() == '/')
+              line.pop_back();
+            else
+              flag_exclude.emplace_back(line);
+
+            flag_exclude_dir.emplace_back(line);
+          }
         }
       }
-    }
 
-    fclose(file);
+      if (file != stdin)
+        fclose(file);
+    }
   }
 
-  // add the --include-from as globs to the --include and --include-dir lists
+  // --include-from: add globs to the --include and --include-dir lists
   for (auto i : flag_include_from)
   {
-    FILE *file = NULL;
-
-    if (fopen_s(&file, i.c_str(), "r") != 0)
-      error("cannot read", i.c_str());
-
-    // read globs from the specified file or files
-
-    reflex::Input input(file);
-    std::string line;
-
-    while (input)
+    if (!i.empty())
     {
-      // read the next line
-      if (getline(input, line))
-        break;
+      FILE *file = NULL;
 
-      trim(line);
+      if (i == "-")
+        file = stdin;
+      else if (fopen_s(&file, i.c_str(), "r") != 0)
+        error("cannot read", i.c_str());
 
-      // add glob to --include and --include-dir using gitignore rules
-      if (!line.empty() && line.front() != '#')
+      // read globs from the specified file or files
+
+      reflex::Input input(file);
+      std::string line;
+
+      while (input)
       {
-        // gitignore-style ! negate pattern (overrides --include and --include-dir)
-        if (line.front() == '!' && !line.empty())
-        {
-          line.erase(0, 1);
+        // read the next line
+        if (getline(input, line))
+          break;
 
-          // globs ending in / should only match directories
-          if (line.back() == '/')
-            line.pop_back();
-          else
-            flag_include_override.emplace_back(line);
+        trim(line);
 
-          flag_include_override_dir.emplace_back(line);
-        }
-        else
+        // add glob to --include and --include-dir using gitignore rules
+        if (!line.empty() && line.front() != '#')
         {
-          // remove leading \ if present
-          if (line.front() == '\\' && !line.empty())
+          // gitignore-style ! negate pattern (overrides --include and --include-dir)
+          if (line.front() == '!' && !line.empty())
+          {
             line.erase(0, 1);
 
-          // globs ending in / should only match directories
-          if (line.back() == '/')
-            line.pop_back();
-          else
-            flag_include.emplace_back(line);
+            // globs ending in / should only match directories
+            if (line.back() == '/')
+              line.pop_back();
+            else
+              flag_include_override.emplace_back(line);
 
-          flag_include_dir.emplace_back(line);
+            flag_include_override_dir.emplace_back(line);
+          }
+          else
+          {
+            // remove leading \ if present
+            if (line.front() == '\\' && !line.empty())
+              line.erase(0, 1);
+
+            // globs ending in / should only match directories
+            if (line.back() == '/')
+              line.pop_back();
+            else
+              flag_include.emplace_back(line);
+
+            flag_include_dir.emplace_back(line);
+          }
         }
       }
-    }
 
-    fclose(file);
+      if (file != stdin)
+        fclose(file);
+    }
   }
 
-  // if any match was found in any of the input files then we set found==true
+  // if any match was found in any of the input files later, then found = true
   bool found = false;
 
   try
   {
-    // create a magic pattern for -M MAGIC to match file signatures with matcher.scan()
+    // -M: create a magic pattern for MAGIC to match file signatures with matcher.scan()
     reflex::Pattern magic(signature, "r");
 
-    // set flags to convert regex to Unicode
+    // -U: set flags to convert regex to Unicode
     reflex::convert_flag_type convert_flags = flag_binary ? reflex::convert_flag::none : reflex::convert_flag::unicode;
 
-    // to convert basic regex (BRE) to extended regex (ERE)
+    // -G: convert basic regex (BRE) to extended regex (ERE)
     if (flag_basic_regexp)
       convert_flags |= reflex::convert_flag::basic;
 
@@ -1338,13 +1361,13 @@ int main(int argc, char **argv)
 
     if (flag_ignore_case)
     {
-      // case-insensitive reflex::Pattern option, applies to ASCII only
+      // -i: case-insensitive reflex::Pattern option, applies to ASCII only
       pattern_options.append("i");
     }
 
     if (flag_free_space)
     {
-      // this is needed to check free-space conformance by the converter
+      // --free-space: this is needed to check free-space conformance by the converter
       convert_flags |= reflex::convert_flag::freespace;
       // free-space reflex::Pattern option
       pattern_options.append("x");
@@ -1357,11 +1380,11 @@ int main(int argc, char **argv)
     // reflex::Matcher options
     std::string matcher_options;
     
-    // if --empty then permit empty pattern matches
+    // -Y: permit empty pattern matches
     if (flag_empty)
       matcher_options.append("N");
 
-    // if --tabs=N then set reflex::Matcher option T to tab size
+    // --tabs: set reflex::Matcher option T to NUM tab size
     if (flag_tabs)
     {
       if (flag_tabs == 1 || flag_tabs == 2 || flag_tabs == 4 || flag_tabs == 8)
@@ -1370,15 +1393,19 @@ int main(int argc, char **argv)
         help("invalid --tabs=NUM value");
     }
 
+    // set matcher options
     matcher.reset(matcher_options.c_str());
 
 #ifndef OS_WIN
-    // if output is to a TTY and --pager is set then page through the results
+    // --pager: if output is to a TTY then page through the results
     if (isatty(1) && flag_pager != NULL)
     {
       out = popen(flag_pager, "w");
       if (out == NULL)
         error("cannot open pipe to pager", flag_pager);
+
+      // enable --break
+      flag_break = true;
     }
 #endif
 
@@ -1440,7 +1467,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
   {
     if (strcmp(flag_directories, "read") == 0)
     {
-      // directories cannot be read actually, so grep produces a warning message (errno is not set)
+      // directories cannot be read, so grep produces a warning message (errno is not set)
       if (!flag_no_messages)
         fprintf(stderr, "ugrep: cannot read directory %s\n", pathname);
 
@@ -1781,6 +1808,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
 // recurse over directory, searching for pattern matches in files and sub-directories
 bool recurse(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname)
 {
+  // --max-depth: recursion level exceeds max depth?
   if (flag_max_depth > 0 && level > flag_max_depth)
     return false;
 
@@ -1874,7 +1902,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
   }
   else if (flag_count)
   {
-    // -c (count): count the number of lines/patterns matched
+    // -c: count the number of lines/patterns matched
 
     if (flag_invert_match)
     {
@@ -1891,6 +1919,8 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
         if (matcher.input(line).find() == 0)
         {
           ++matches;
+
+          // -m: max number of matches reached?
           if (flag_max_count > 0 && matches >= flag_max_count)
             break;
         }
@@ -1904,6 +1934,8 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
       while (matcher.find() != 0)
       {
         ++matches;
+
+        // -m: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
       }
@@ -1921,7 +1953,10 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
         if (lineno != match.lineno())
         {
           lineno = match.lineno();
+
           ++matches;
+
+          // -m: max number of matches reached?
           if (flag_max_count > 0 && matches >= flag_max_count)
             break;
         }
@@ -1954,7 +1989,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
   }
   else if (flag_only_matching || flag_only_line_number)
   {
-    // -o (only matching) or -N (only line number)
+    // -o or -N
 
     bool hex = false;
     size_t lineno = 0;
@@ -1968,7 +2003,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
       if (flag_no_group || lineno != match.lineno())
       {
-        // max number of matches reached?
+        // -m: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
 
@@ -2113,15 +2148,15 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
       if (flag_invert_match)
       {
-        // -v --invert-match: select non-matching line
+        // -v: select non-matching line
 
         bool found = false;
 
         for (auto& match : matcher.find)
         {
-          if (after > 0 && after + flag_after_context >= lineno)
+          if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
           {
-            // -A NUM option: show context after matched lines, simulates BSD grep -A
+            // -A NUM: show context after matched lines, simulates BSD grep -A
 
             if (last == UNDEFINED)
             {
@@ -2143,7 +2178,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
             last = match.last();
 
-            // skip empty pattern matches
+            // skip any further empty pattern matches
             if (last == 0)
               break;
 
@@ -2190,7 +2225,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
           if (after_context)
           {
-            // -A NUM option: show context after matched lines, simulates BSD grep -A
+            // -A NUM: show context after matched lines, simulates BSD grep -A
 
             // indicate the end of the group of after lines of the previous matched line
             if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
@@ -2207,7 +2242,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
           if (before_context)
           {
-            // -B NUM option: show context before matched lines, simulates BSD grep -B
+            // -B NUM: show context before matched lines, simulates BSD grep -B
 
             size_t begin = before + 1;
 
@@ -2254,7 +2289,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
                 last = match.last();
 
-                // skip empty pattern matches
+                // skip any further empty pattern matches
                 if (last == 0)
                   break;
 
@@ -2311,7 +2346,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
           ++matches;
 
-          // max number of matches reached?
+          // -m: max number of matches reached?
           if (flag_max_count > 0 && matches >= flag_max_count)
             break;
         }
@@ -2330,7 +2365,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
           if (after_context)
           {
-            // -A NUM option: show context after matched lines, simulates BSD grep -A
+            // -A NUM: show context after matched lines, simulates BSD grep -A
 
             // indicate the end of the group of after lines of the previous matched line
             if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
@@ -2348,7 +2383,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
           if (before_context)
           {
-            // -B NUM option: show context before matched lines, simulates BSD grep -B
+            // -B NUM: show context before matched lines, simulates BSD grep -B
 
             size_t begin = before + 1;
 
@@ -2393,7 +2428,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
           if (flag_no_group)
           {
-            // -g option: do not group matches on a single line but on multiple lines, counting each match separately
+            // -g: do not group matches on a single line but on multiple lines, counting each match separately
 
             display(pathname, lineno, match.columno() + 1, byte_offset + match.first(), last == UNDEFINED ? flag_separator : "+", binary[current]);
 
@@ -2419,7 +2454,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
             ++matches;
 
-            // max number of matches reached?
+            // -m: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
               goto exit_input;
           }
@@ -2452,7 +2487,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 
           last = match.last();
 
-          // skip empty pattern matches
+          // skip any further empty pattern matches
           if (last == 0)
             break;
         }
@@ -2479,7 +2514,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
         }
         else if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
         {
-          // -A NUM option: show context after matched lines, simulates BSD grep -A
+          // -A NUM: show context after matched lines, simulates BSD grep -A
 
           // display line as part of the after context of the matched line
           display(pathname, lineno, 1, byte_offsets[current], "-", binary[current]);
@@ -2497,7 +2532,7 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
           }
         }
 
-        // max number of matches reached?
+        // -m: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
       }
@@ -2510,6 +2545,10 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
 exit_input:
     ;
   }
+
+  // --break: add a line break
+  if ((matches > 0 || flag_any_line) && flag_break)
+    fputc('\n', out);
 
   return matches > 0;
 }
@@ -2862,6 +2901,8 @@ void help(const char *message, const char *arg)
             matches alone.  A match is considered binary if a match contains a\n\
             zero byte or an invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
             and -X options.\n\
+    --break\n\
+            Adds a line break between results from different files.\n\
     -C[NUM], --context[=NUM]\n\
             Print NUM lines of leading and trailing context surrounding each\n\
             match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
@@ -2871,10 +2912,10 @@ void help(const char *message, const char *arg)
             Only a count of selected lines is written to standard output.\n\
             When used with option -g, counts the number of patterns matched.\n\
             With option -v, counts the number of non-matching lines.\n\
-    --colour[=WHEN], --color[=WHEN]\n\
+    --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the expression stored in the\n\
             GREP_COLOR or GREP_COLORS environment variable.  The possible\n\
-            values of WHEN can be `never', `always' or `auto'.\n\
+            values of WHEN can be `never', `always', or `auto'.\n\
     -D ACTION, --devices=ACTION\n\
             If an input file is a device, FIFO or socket, use ACTION to process\n\
             it.  By default, ACTION is `read', which means that devices are\n\
@@ -2920,7 +2961,8 @@ void help(const char *message, const char *arg)
             Read the globs from FILE and skip files and directories whose name\n\
             matches one or more globs (as if specified by --exclude and\n\
             --exclude-dir).  Lines starting with a `#' and empty lines in FILE\n\
-            ignored. This option may be repeated.\n\
+            ignored.  When FILE is a a `-', standard input is read.  This\n\
+            option may be repeated.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This forces ugrep to behave as\n\
@@ -2935,7 +2977,8 @@ void help(const char *message, const char *arg)
             If that fails, looks for FILE in " GREP_PATH ".\n"
 #endif
 "\
-            This option may be repeated.\n\
+            When FILE is a `-', standard input is read.  This option may be\n\
+            repeated.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -2978,7 +3021,8 @@ void help(const char *message, const char *arg)
             Read the globs from FILE and search only files and directories\n\
             whose name matches one or more globs (as if specified by --include\n\
             and --include-dir).  Lines starting with a `#' and empty lines in\n\
-            FILE are ignored.  This option may be repeated.\n\
+            FILE are ignored.  When FILE is a `-', standard input is read.\n\
+            This option may be repeated.\n\
     -J[NUM], --jobs[=NUM]\n\
             Specifies the number of jobs to run simultaneously to search files.\n\
             Without argument NUM, the number of jobs spawned is optimized.\n\
@@ -3051,7 +3095,7 @@ void help(const char *message, const char *arg)
     --pager[=COMMAND]\n\
             When output is sent to the terminal, uses `COMMAND' to page through\n\
             the output.  The default COMMAND is `less -R'.  This option makes\n\
-            --color=auto behave as --color=always.\n\
+            --color=auto behave as --color=always and enables --break.\n\
     -Q ENCODING, --encoding=ENCODING\n\
             The input file encoding.  The possible values of ENCODING can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)
@@ -3084,9 +3128,9 @@ void help(const char *message, const char *arg)
             Search only files associated with TYPES, a comma-separated list of\n\
             file types.  Each file type corresponds to a set of file name\n\
             extensions passed to option -O.  For capitalized file types, the\n\
-            file signature is passed to option -M to expand the search by\n\
-            including files found on the search path with matching magic bytes.\n\
-            This option may be repeated.  The possible values of TYPES can be\n\
+            search is expanded to include files found on the search path with\n\
+            matching file signature magic bytes passed to option -M.  This\n\
+            option may be repeated.  The possible values of TYPES can be\n\
             (use option -tlist to display a detailed list):";
   for (int i = 0; type_table[i].type != NULL; ++i)
     std::cout << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";

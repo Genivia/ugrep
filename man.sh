@@ -67,8 +67,8 @@ Note that `.' matches any non-newline character.  Matching a newline character
 \fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR are used (in any combination, but not
 combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
 .PP
-If no file arguments are specified, or if - is specified, the standard input
-is used.
+If no file arguments are specified, or if a `-' is specified, the standard
+input is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0

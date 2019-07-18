@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 17, 2019" "ugrep 1.2.2" "User Commands"
+.TH UGREP "1" "July 18, 2019" "ugrep 1.2.3" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -60,6 +60,9 @@ matches alone.  A match is considered binary if a match contains a
 zero byte or an invalid UTF encoding.  See also the \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\fR,
 and \fB\-X\fR options.
 .TP
+\fB\-\-break\fR
+Adds a line break between results from different files.
+.TP
 \fB\-C\fR[NUM], \fB\-\-context\fR[=\fI\fR\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
 match.  The default is 2 and is equivalent to \fB\-A\fR 2 \fB\-B\fR 2.  Places
@@ -71,10 +74,10 @@ Only a count of selected lines is written to standard output.
 When used with option \fB\-g\fR, counts the number of patterns matched.
 With option \fB\-v\fR, counts the number of non\-matching lines.
 .TP
-\fB\-\-colour\fR[=\fI\fR\fIWHEN\fR], \fB\-\-color\fR[=\fI\fR\fIWHEN\fR]
+\fB\-\-color\fR[=\fI\fR\fIWHEN\fR], \fB\-\-colour\fR[=\fI\fR\fIWHEN\fR]
 Mark up the matching text with the expression stored in the
 GREP_COLOR or GREP_COLORS environment variable.  The possible
-values of WHEN can be `never', `always' or `auto'.
+values of WHEN can be `never', `always', or `auto'.
 .TP
 \fB\-D\fR ACTION, \fB\-\-devices\fR=\fIACTION\fR
 If an input file is a device, FIFO or socket, use ACTION to process
@@ -128,7 +131,8 @@ repeated.
 Read the globs from FILE and skip files and directories whose name
 matches one or more globs (as if specified by \fB\-\-exclude\fR and
 \fB\-\-exclude\-dir\fR).  Lines starting with a `#' and empty lines in FILE
-ignored. This option may be repeated.
+ignored.  When FILE is a a `\fB\-'\fR, standard input is read.  This
+option may be repeated.
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
@@ -141,7 +145,8 @@ pattern lines in the file are not processed.  Options \fB\-F\fR, \fB\-w\fR, and
 \-x do not apply to FILE patterns.  If FILE does not exist, the
 GREP_PATH environment variable is used as the path to read FILE.
 If that fails, looks for FILE in /usr/local/share/ugrep/patterns.
-This option may be repeated.
+When FILE is a `\fB\-'\fR, standard input is read.  This option may be
+repeated.
 .TP
 \fB\-\-free\-space\fR
 Spacing (blanks and tabs) in regular expressions are ignored.
@@ -196,7 +201,8 @@ repeated.
 Read the globs from FILE and search only files and directories
 whose name matches one or more globs (as if specified by \fB\-\-include\fR
 and \fB\-\-include\-dir\fR).  Lines starting with a `#' and empty lines in
-FILE are ignored.  This option may be repeated.
+FILE are ignored.  When FILE is a `\fB\-'\fR, standard input is read.
+This option may be repeated.
 .TP
 \fB\-J\fR[NUM], \fB\-\-jobs\fR[=\fI\fR\fINUM\fR]
 Specifies the number of jobs to run simultaneously to search files.
@@ -286,7 +292,7 @@ they are on the command line.
 \fB\-\-pager\fR[=\fI\fR\fICOMMAND\fR]
 When output is sent to the terminal, uses `COMMAND' to page through
 the output.  The default COMMAND is `less \fB\-R\fR'.  This option makes
-\fB\-\-color\fR=\fIauto\fR behave as \fB\-\-color\fR=\fIalways\fR.
+\fB\-\-color\fR=\fIauto\fR behave as \fB\-\-color\fR=\fIalways\fR and enables \fB\-\-break\fR.
 .TP
 \fB\-Q\fR ENCODING, \fB\-\-encoding\fR=\fIENCODING\fR
 The input file encoding.  The possible values of ENCODING can be:
@@ -329,24 +335,24 @@ number, and byte offset with the matched line.
 Search only files associated with TYPES, a comma\-separated list of
 file types.  Each file type corresponds to a set of file name
 extensions passed to option \fB\-O\fR.  For capitalized file types, the
-file signature is passed to option \fB\-M\fR to expand the search by
-including files found on the search path with matching magic bytes.
-This option may be repeated.  The possible values of TYPES can be
+search is expanded to include files found on the search path with
+matching file signature magic bytes passed to option \fB\-M\fR.  This
+option may be repeated.  The possible values of TYPES can be
 (use option \fB\-t\fRlist to display a detailed list):
 `actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
 `awk', `Awk', `basic', `batch', `bison', `c', `c++',
 `clojure', `csharp', `css', `csv', `dart', `Dart', `delphi',
-`elixir', `erlang', `fortran', `gif', `Gif', `go', `groovy',
-`haskell', `html', `jade', `java', `javascript', `jpeg', `Jpeg',
-`json', `jsp', `julia', `kotlin', `less', `lex', `lisp',
-`lua', `m4', `make', `markdown', `matlab', `node', `Node',
-`objc', `objc++', `ocaml', `parrot', `pascal', `pdf', `Pdf',
-`perl', `Perl', `php', `Php', `png', `Png', `prolog',
-`python', `Python', `R', `rpm', `Rpm', `rst', `rtf',
-`Rtf', `ruby', `Ruby', `rust', `scala', `scheme', `shell',
-`Shell', `smalltalk', `sql', `swift', `tcl', `tex', `text',
-`tiff', `Tiff', `tt', `typescript', `verilog', `vhdl', `vim',
-`xml', `Xml', `yacc', `yaml'
+`elisp', `elixir', `erlang', `fortran', `gif', `Gif', `go',
+`groovy', `gsp', `haskell', `html', `jade', `java', `jpeg',
+`Jpeg', `js', `json', `jsp', `julia', `kotlin', `less',
+`lex', `lisp', `lua', `m4', `make', `markdown', `matlab',
+`node', `Node', `objc', `objc++', `ocaml', `parrot', `pascal',
+`pdf', `Pdf', `perl', `Perl', `php', `Php', `png',
+`Png', `prolog', `python', `Python', `r', `rpm', `Rpm',
+`rst', `rtf', `Rtf', `ruby', `Ruby', `rust', `scala',
+`scheme', `shell', `Shell', `smalltalk', `sql', `svg', `swift',
+`tcl', `tex', `text', `tiff', `Tiff', `tt', `typescript',
+`verilog', `vhdl', `vim', `xml', `Xml', `yacc', `yaml'
 .TP
 \fB\-\-tabs\fR=\fINUM\fR
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
@@ -408,8 +414,8 @@ Note that `.' matches any non-newline character.  Matching a newline character
 \fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR are used (in any combination, but not
 combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
 .PP
-If no file arguments are specified, or if - is specified, the standard input
-is used.
+If no file arguments are specified, or if a `-' is specified, the standard
+input is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0

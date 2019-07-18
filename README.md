@@ -1,5 +1,5 @@
-Universal grep or "uber grep"
-=============================
+Universal grep ("uber grep")
+============================
 
 Quickly grep through C/C++, Java, Python, JSON, XML and more using pre-defined
 and installed search patterns.  Search files for Unicode text patterns, find
@@ -8,14 +8,14 @@ in large directory trees.
 
 See the [examples](#examples) that to show the power of **ugrep**.
 
-- **ugrep** is backward compatible with GNU grep and BSD grep, extending these
+- **ugrep is backward compatible with GNU grep and BSD grep**, extending these
   utilities by offering additional features, such as full Unicode pattern
   matching, "negative patterns" to ignore unwanted pattern matches, recursive
   search through directories while selecting files by file name extension and
   file signature "magic" bytes or shebangs, pre-defined (installed) search
   patterns to search source code, hexdumps for binary matches, and more.
 
-- **ugrep** makes it simple to search source code using *pre-defined patterns*
+- **ugrep makes it simple to search source code** using *pre-defined patterns*
   that are installed for you.  For example to recursively search Python files
   for import statements:
 
@@ -27,14 +27,14 @@ See the [examples](#examples) that to show the power of **ugrep**.
   two patterns `\<import\h+.*` and `\<from\h+.*import\h+.*` defined in
   `patterns/python/imports`).
 
-- **ugrep** includes a growing database of
-  [patterns](https://github.com/Genivia/ugrep/tree/master/patterns) with common
-  search patterns to use with option `-f`.  So you don't need to memorize
-  complex regex patterns for common search criteria.  Environment variable
-  `GREP_PATH` can be set to point to your own directory with patterns that
-  option `-f` uses to read your pattern files.
+- **ugrep includes a growing database of
+  [patterns](https://github.com/Genivia/ugrep/tree/master/patterns)** with
+  common search patterns to use with option `-f`.  So you don't need to
+  memorize complex regex patterns for common search criteria.  Environment
+  variable `GREP_PATH` can be set to point to your own directory with patterns
+  that option `-f` uses to read your pattern files.
 
-- **ugrep** is the only grep tool that allows you to define *negative patterns*
+- **ugrep is the only grep tool that allows you to define negative patterns**
   to *zap* parts in files you want to skip.  This removes many false positives.
   For example to find exact matches of `main` in C/C++ source code while
   skipping strings and comments that may have a match with `main` in them:
@@ -48,8 +48,8 @@ See the [examples](#examples) that to show the power of **ugrep**.
   two pre-defined installed patterns to match and ignore strings and comments
   in the input.
 
-- **ugrep** searches text files and binary files and produces hexdumps for
-  binary matches.  For example, to search for a binary pattern:
+- **ugrep produces hexdumps for binary matches**.  For example, to search for a
+  binary pattern:
 
       ugrep --color -X -U '\xed\xab\xee\xdb' some.rpm
 
@@ -58,19 +58,19 @@ See the [examples](#examples) that to show the power of **ugrep**.
   Other options that normally work with text matches work with `-X` too, such
   as the context options `-A`, `-B`, `-C`, and `-y`.
 
-- **ugrep** matches Unicode patterns by default (disabled with option `-U`).  The
+- **ugrep matches Unicode patterns** by default (disabled with option `-U`).  The
   [regular expression pattern syntax](#pattern) is POSIX ERE compliant extended
   with PCRE-like syntax.  Patterns may include Unicode character classes, lazy
   quantifiers, and negative patterns to skip unwanted pattern matches to
   produce more precise results.
 
-- **ugrep** searches UTF-encoded input when UTF BOM
+- **ugrep searches UTF-encoded input** when UTF BOM
   ([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are
   present and ASCII and UTF-8 when no UTF BOM is present.  Option `--encoding`
   permits many other file formats to be searched, such as ISO-8859-1, EBCDIC,
   and code pages 437, 850, 858, 1250 to 1258.
 
-- **ugrep** uses [RE/flex](https://github.com/Genivia/RE-flex) for
+- **ugrep uses [RE/flex](https://github.com/Genivia/RE-flex)** for
   high-performance regex matching, which is 100 times faster than the GNU C
   POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and
   RE2.  RE/flex is an incremental, streaming regex matcher, meaning it does not
@@ -79,20 +79,20 @@ See the [examples](#examples) that to show the power of **ugrep**.
   bonus, this option also finds a match of a pattern spanning multiple lines
   such as comment blocks in source code.
 
-- **ugrep** regex patterns are converted to
-  [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) for fast
+- **ugrep regex patterns are converted to
+  [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton)** for fast
   matching.  DFAs yield significant speedups when searching multiple files and
   large files.  Rare and pathelogical cases are known to exist that may
   increase the initial running time of **ugrep** for complex DFA construction.
 
-- **ugrep** is portable and compiles with MSVC++ to run on Windows.  Binaries are
-  available for Linux, Mac and Windows.
+- **ugrep is portable** and compiles with MSVC++ to run on Windows.  Binaries are
+  included for Linux, Mac, and Windows.
 
-- **ugrep** is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
-  code and does not include any GNU or BSD grep open source code or algorithms.
+- **ugrep is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
+  code** and does not include any GNU or BSD grep open source code or algorithms.
   **ugrep** is built on the RE/flex open source library.
 
-- **ugrep** is evolving and more features will be added.  You can help!  We love
+- **ugrep is evolving** and more features will be added.  You can help!  We love
   your feedback (issues) and contributions (pull requests) ❤️  For example, what
   patterns do you use to search source code?  Please contribute and share!
 
@@ -128,13 +128,13 @@ This builds `ugrep` in the `src` directory.  You can tell which version it is
 with:
 
     $ src/ugrep -V
-    ugrep 1.2.2 x86_64-apple-darwin16.7.0
+    ugrep 1.2.3 x86_64-apple-darwin16.7.0
 
 Optionally, install the ugrep utility and the ugrep manual page:
 
     $ sudo make install
     $ ugrep -V
-    ugrep 1.2.2 x86_64-apple-darwin16.7.0
+    ugrep 1.2.3 x86_64-apple-darwin16.7.0
 
 This also installs the pattern files with pre-defined patterns for option `-f`
 at `/usr/local/share/ugrep/patterns/`.  Option `-f` first checks the current
@@ -148,12 +148,12 @@ Using ugrep within Vim
 Add to `.vimrc`:
 
     if executable('ugrep')
-        set grepprg=ugrep\ -Rnk\ -g\ --tabs=1
+        set grepprg=ugrep\ -Rnk\ -g\ --tabs=1\ </dev/null
         set grepformat=%f:%l:%c:%m,%f+%l+%c+%m,%-G%f\\\|%l\\\|%c\\\|%m
     endif
 
-Within Vim you can now use **ugrep** with `:grep` to search one or more files
-on `PATH` for `PATTERN` matches:
+Within Vim you can now use **ugrep** with the Vim `:grep` command to search one
+or more files on `PATH` for `PATTERN` matches:
 
     :grep PATTERN PATH
 
@@ -165,10 +165,10 @@ To open a quickfix window with the latest list of matches:
 
     :copen
 
-Click on a line in this window (or select a line and press ENTER) to jump to
-the file and location in the file of the match.  To add search results to the
-window, grep them.  For example, to recursively search C++ source code marked
-`FIXME` in the current directory:
+Double-click on a line in this window (or select a line and press ENTER) to
+jump to the file and location in the file of the match.  To add search results
+to the window, grep them.  For example, to recursively search C++ source code
+marked `FIXME` in the current directory:
 
     :grep -tc++ FIXME .
 
@@ -181,13 +181,15 @@ separately.  If this is not desired then remove `\ -g` from `grepprg` in
 `.vimrc`.  With this change, only the first match on a line is shown.
 
 You can use **ugrep** options with the Vim `:grep` command, for example to
-select single- and multi-line comments in `main.cpp`:
+select single- and multi-line comments in `myfile.cpp`:
 
-    :grep -o -f c++/comments main.cpp
+    :grep -o -f c++/comments myfile.cpp
 
-The first line of a multi-line comment is shown in quickfix, to save space.  To
-show all lines of a multi-line match, remove `%-G` from `grepformat` in
-`.vimrc`.
+Only the first line of a multi-line comment is shown in quickfix, to save
+space.  To show all lines of a multi-line match produced with option `-o`,
+remove `%-G` from `grepformat` in `.vimrc`.
+
+Tip: use `%` as `PATH` to search the current file in Vim.
 
 ugrep versus other greps
 ------------------------
@@ -196,9 +198,9 @@ ugrep versus other greps
   compatible results, making **ugrep** a true drop-in replacement.
 - **ugrep** matches Unicode by default, disabled with option `-U`.
 - **ugrep** regular expression patterns are more expressive than GNU grep and
-  BSD grep and support Unicode pattern matching and most of the PCRE syntax
-  with some restrictions, see further below.  Extended regular expression
-  syntax is the default (i.e.  option `-E`, as egrep).
+  BSD grep POSIX ERE and support Unicode pattern matching and most of the PCRE
+  syntax with some limitations, see further below.  Extended regular
+  expression (ERE) syntax is the default (i.e.  option `-E`, as egrep).
 - **ugrep** uses incremental matching.  When one or more of the options `-q`
   (quiet), `-o` (only matching), `-c` (count), `-N` (only line number), `-l`
   (file with match), or `-L` (files without match) is used, **ugrep** performs
@@ -209,25 +211,25 @@ ugrep versus other greps
   that matches `X`.  Negative patterns can be used to skip strings and comments
   when searching for identifiers in source code and find matches that aren't in
   strings and comments.
-- New options to produce hexdumps, `-W` (output binary matches in hex with
-  text matches output as usual) and `-X` (output all matches in hex).
-- New option `-Y` to permit matching empty patterns.  Grepping with
-  empty-matching patterns is weird and gives different results with GNU grep
-  versus BSD grep.  Empty matches are not output by **ugrep** by default, which
-  avoids making mistakes that may produce "random" results.  For example, with
-  BSD/GNU grep, pattern `a*` matches every line in the input, and actually
-  matches `xyz` three times (the empty transitions before and between the `x`,
-  `y`, and `z`).  Allowing empty matches requires **ugrep** option `-Y`.
+- **ugrep** produces hexdumps with `-W` (output binary matches in hex with text
+  matches output as usual) and `-X` (output all matches in hex).
+- Option `-Y` to permit matching empty patterns.  Grepping with empty-matching
+  patterns is weird and gives different results with GNU grep versus BSD grep.
+  Empty matches are not output by **ugrep** by default, which avoids making
+  mistakes that may produce "random" results.  For example, with BSD/GNU grep,
+  pattern `a*` matches every line in the input, and actually matches `xyz`
+  three times (the empty transitions before and between the `x`, `y`, and `z`).
+  Allowing empty matches requires **ugrep** option `-Y`.
 - New option `-U` to specify non-Unicode pattern matches, e.g. to search for
   binary patterns.
-- New option `-k`, `--column-number` to display the column number, taking tab
+- Option `-k`, `--column-number` to display the column number, taking tab
   spacing into account by expanding tabs, as specified by option `--tabs`.
-- New option `-g`, `--no-group` to not group matches per line.  This option
+- Option `-g`, `--no-group` to not group matches per line.  This option
   displays a matched input line again for each additional pattern match.  This
   option is particularly useful with option `-c` to report the total number of
   pattern matches per file instead of the number of lines matched per file.
-- New options `-O`, `-M`, and `-t` to specify file extensions, file signature
-  magic byte patterns, and pre-defined file types, respectively.  This allows
+- Options `-O`, `-M`, and `-t` to specify file extensions, file signature magic
+  byte patterns, and pre-defined file types, respectively.  This allows
   searching for certain types of files in directory trees with recursive search
   options `-R` and `-r`.
 - Extended option `-f` uses `GREP_PATH` environment variable or the pre-defined
@@ -288,7 +290,7 @@ and comment blocks may span multiple lines, we should use `-o`:
 This is a lot of work to type in correctly!  If you are like me, I'm lazy and
 don't want to spend time fiddling with regex patterns when I am working on
 something more important.  There is an easier way by using **ugrep**'s
-pre-defined patterns (`-f`):
+pre-defined patterns (`-f`) that are installed with the tool:
 
     ugrep -r -o -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
@@ -338,8 +340,8 @@ something like this:
 
 Fortunately, with **ugrep** we can simply select all function definitions in
 files with extension `.c` or `.cpp` by using option `-Oc,cpp` and by using a
-pre-defined pattern `function_defs` to produce all function definitions.  Then
-we select the one we want:
+pre-defined pattern `function_defs` that is installed with the tool to produce
+all function definitions.  Then we select the one we want:
 
     ugrep -R -o -Oc,cpp -nk -f c/function_defs myproject | ugrep 'qsort'
 
@@ -503,6 +505,14 @@ To search for `FIXME` in C/C++ comments, excluding `FIXME` in multi-line
 strings:
 
     ugrep -o 'FIXME' -f c++/zap_strings myfile.cpp
+
+To read patterns `TODO` and `FIXME` from standard input to match with,
+while excluding matches in C++ strings:
+
+    ugrep -o -f - -f c++/zap_strings myfile.cpp <<END
+    TODO
+    FIXME
+    END
 
 To display XML element and attribute tags in an XML file, exluding tags that
 are placed in (multi-line) comments:
@@ -672,10 +682,10 @@ To display the byte offset of matches:
 
     ugrep -R -b -tc++ 'main' .
 
-To display the file name, line and column numbers of matches in `main.cpp`,
+To display the file name, line and column numbers of matches in `myfile.cpp`,
 with spaces and tabs to space the columns apart:
 
-    ugrep -THnk 'main' main.cpp
+    ugrep -THnk 'main' myfile.cpp
 
 ### Using colors with --color
 
@@ -810,6 +820,9 @@ Man page
                   ered  binary  if  a match contains a zero byte or an invalid UTF
                   encoding.  See also the -a, -I, -U, -W, and -X options.
 
+           --break
+                  Adds a line break between results from different files.
+
            -C[NUM], --context[=NUM]
                   Print NUM lines of leading and trailing context surrounding each
                   match.  The default is 2 and is equivalent to -A 2 -B 2.  Places
@@ -821,10 +834,10 @@ Man page
                   When used with option -g, counts the number of patterns matched.
                   With option -v, counts the number of non-matching lines.
 
-           --colour[=WHEN], --color[=WHEN]
+           --color[=WHEN], --colour[=WHEN]
                   Mark  up  the  matching  text  with the expression stored in the
                   GREP_COLOR or GREP_COLORS environment  variable.   The  possible
-                  values of WHEN can be `never', `always' or `auto'.
+                  values of WHEN can be `never', `always', or `auto'.
 
            -D ACTION, --devices=ACTION
                   If  an  input  file  is  a device, FIFO or socket, use ACTION to
@@ -878,20 +891,22 @@ Man page
                   Read the globs from FILE and skip files  and  directories  whose
                   name matches one or more globs (as if specified by --exclude and
                   --exclude-dir).  Lines starting with a `#' and  empty  lines  in
-                  FILE ignored. This option may be repeated.
+                  FILE  ignored.   When  FILE  is a a `-', standard input is read.
+                  This option may be repeated.
 
            -F, --fixed-strings
-                  Interpret  pattern  as a set of fixed strings, separated by new-
-                  lines, any of which is to be  matched.   This  forces  ugrep  to
+                  Interpret pattern as a set of fixed strings, separated  by  new-
+                  lines,  any  of  which  is  to be matched.  This forces ugrep to
                   behave as fgrep but less efficiently than fgrep.
 
            -f FILE, --file=FILE
-                  Read  one  or  more newline-separated patterns from FILE.  Empty
-                  pattern lines in the file are not processed.   Options  -F,  -w,
-                  and  -x  do not apply to FILE patterns.  If FILE does not exist,
-                  the GREP_PATH environment variable is used as the path  to  read
-                  FILE.      If     that     fails,     looks    for    FILE    in
-                  /usr/local/share/ugrep/patterns.  This option may be repeated.
+                  Read one or more newline-separated patterns  from  FILE.   Empty
+                  pattern  lines  in  the file are not processed.  Options -F, -w,
+                  and -x do not apply to FILE patterns.  If FILE does  not  exist,
+                  the  GREP_PATH  environment variable is used as the path to read
+                  FILE.     If    that    fails,     looks     for     FILE     in
+                  /usr/local/share/ugrep/patterns.   When  FILE is a `-', standard
+                  input is read.  This option may be repeated.
 
            --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
@@ -944,13 +959,14 @@ Man page
                   Read the globs from FILE and search only files  and  directories
                   whose  name  matches  one  or  more  globs  (as  if specified by
                   --include and --include-dir).  Lines starting  with  a  `#'  and
-                  empty lines in FILE are ignored.  This option may be repeated.
+                  empty  lines  in FILE are ignored.  When FILE is a `-', standard
+                  input is read.  This option may be repeated.
 
            -J[NUM], --jobs[=NUM]
-                  Specifies  the  number  of  jobs to run simultaneously to search
-                  files.  Without argument NUM, the  number  of  jobs  spawned  is
-                  optimized.   No whitespace may be given between -J and its argu-
-                  ment NUM.  This feature is not  available  in  this  version  of
+                  Specifies the number of jobs to  run  simultaneously  to  search
+                  files.   Without  argument  NUM,  the  number of jobs spawned is
+                  optimized.  No whitespace may be given between -J and its  argu-
+                  ment  NUM.   This  feature  is  not available in this version of
                   ugrep.
 
            -j, --smart-case
@@ -959,39 +975,39 @@ Man page
                   only.
 
            -k, --column-number
-                  The  column number of a matched pattern is displayed in front of
-                  the respective matched line, starting at  column  1.   Tabs  are
+                  The column number of a matched pattern is displayed in front  of
+                  the  respective  matched  line,  starting at column 1.  Tabs are
                   expanded when columns are counted, see option --tabs.
 
            -L, --files-without-match
-                  Only  the names of files not containing selected lines are writ-
-                  ten to standard output.  Pathnames  are  listed  once  per  file
+                  Only the names of files not containing selected lines are  writ-
+                  ten  to  standard  output.   Pathnames  are listed once per file
                   searched.   If  the  standard  input  is  searched,  the  string
                   ``(standard input)'' is written.
 
            -l, --files-with-matches
                   Only the names of files containing selected lines are written to
-                  standard  output.   ugrep  will only search a file until a match
-                  has been found,  making  searches  potentially  less  expensive.
-                  Pathnames  are  listed  once per file searched.  If the standard
+                  standard output.  ugrep will only search a file  until  a  match
+                  has  been  found,  making  searches  potentially less expensive.
+                  Pathnames are listed once per file searched.   If  the  standard
                   input is searched, the string ``(standard input)'' is written.
 
            --label[=LABEL]
-                  Displays the LABEL value when input is read from standard  input
+                  Displays  the LABEL value when input is read from standard input
                   where a file name would normally be printed in the output.  This
                   option applies to options -H, -L, and -l.
 
            --line-buffered
-                  Force output to be line buffered.  By default,  output  is  line
-                  buffered  when  standard output is a terminal and block buffered
+                  Force  output  to  be line buffered.  By default, output is line
+                  buffered when standard output is a terminal and  block  buffered
                   otherwise.
 
            -M MAGIC, --file-magic=MAGIC
-                  Only files matching the signature pattern `MAGIC' are  searched.
+                  Only  files matching the signature pattern `MAGIC' are searched.
                   The signature magic bytes at the start of a file are compared to
-                  the `MAGIC' regex pattern and, when matching,  the  search  com-
-                  mences  immediately  after  the magic bytes.  This option may be
-                  repeated and may be combined with options -O and  -t  to  expand
+                  the  `MAGIC'  regex  pattern and, when matching, the search com-
+                  mences immediately after the magic bytes.  This  option  may  be
+                  repeated  and  may  be combined with options -O and -t to expand
                   the search.  This option is relatively slow as every file on the
                   search path is read.
 
@@ -1000,30 +1016,30 @@ Man page
 
            -N, --only-line-number
                   The line number of the matching line in the file is output with-
-                  out  displaying the match.  The line number counter is reset for
+                  out displaying the match.  The line number counter is reset  for
                   each file processed.
 
            -n, --line-number
-                  Each output line is preceded by its relative line number in  the
-                  file,  starting at line 1.  The line number counter is reset for
+                  Each  output line is preceded by its relative line number in the
+                  file, starting at line 1.  The line number counter is reset  for
                   each file processed.
 
            --no-group-separator
-                  Removes the group separator line from  the  output  for  context
+                  Removes  the  group  separator  line from the output for context
                   options -A, -B, and -C.
 
            -O EXTENSIONS, --file-extensions=EXTENSIONS
                   Search only files whose file name extensions match the specified
-                  comma-separated list of file name EXTENSIONS.   This  option  is
+                  comma-separated  list  of  file name EXTENSIONS.  This option is
                   the same as specifying --include='*.ext' for each extension name
-                  `ext' in the EXTENSIONS list.  This option may be  repeated  and
+                  `ext'  in  the EXTENSIONS list.  This option may be repeated and
                   may be combined with options -M and -t to expand the search.
 
            -o, --only-matching
-                  Prints  only  the  matching  part  of  lines  and allows pattern
-                  matches across newlines to span multiple  lines.   Line  numbers
-                  for  multi-line  matches are displayed with option -n, using `|'
-                  as the field separator for each additional line matched  by  the
+                  Prints only the  matching  part  of  lines  and  allows  pattern
+                  matches  across  newlines  to span multiple lines.  Line numbers
+                  for multi-line matches are displayed with option -n,  using  `|'
+                  as  the  field separator for each additional line matched by the
                   pattern.  Context options -A, -B, -C, and -y are disabled.
 
            -P, --perl-regexp
@@ -1031,13 +1047,14 @@ Man page
                   not available in this version of ugrep.
 
            -p, --no-dereference
-                  If -R or -r is specified, no symbolic links are  followed,  even
+                  If  -R  or -r is specified, no symbolic links are followed, even
                   when they are on the command line.
 
            --pager[=COMMAND]
-                  When  output  is  sent  to  the terminal, uses `COMMAND' to page
-                  through the output.  The default COMMAND  is  `less  -R'.   This
-                  option makes --color=auto behave as --color=always.
+                  When output is sent to the  terminal,  uses  `COMMAND'  to  page
+                  through  the  output.   The  default COMMAND is `less -R'.  This
+                  option makes --color=auto behave as --color=always  and  enables
+                  --break.
 
            -Q ENCODING, --encoding=ENCODING
                   The  input  file  encoding.  The possible values of ENCODING can
@@ -1081,24 +1098,24 @@ Man page
                   Search only files associated with TYPES, a comma-separated  list
                   of file types.  Each file type corresponds to a set of file name
                   extensions passed to option -O.  For capitalized file types, the
-                  file  signature  is  passed to option -M to expand the search by
-                  including files found on the search  path  with  matching  magic
-                  bytes.   This  option  may  be repeated.  The possible values of
-                  TYPES can be (use option -tlist to  display  a  detailed  list):
-                  `actionscript',   `ada',   `asm',   `asp',  `aspx',  `autoconf',
-                  `automake', `awk', `Awk', `basic', `batch', `bison', `c', `c++',
-                  `clojure',  `csharp',  `css',  `csv',  `dart', `Dart', `delphi',
+                  search  is  expanded  to  include files found on the search path
+                  with matching file signature magic bytes passed  to  option  -M.
+                  This  option  may be repeated.  The possible values of TYPES can
+                  be (use option -tlist to  display  a  detailed  list):  `action-
+                  script',  `ada',  `asm',  `asp', `aspx', `autoconf', `automake',
+                  `awk', `Awk', `basic', `batch', `bison', `c', `c++',  `clojure',
+                  `csharp',  `css',  `csv',  `dart',  `Dart',  `delphi',  `elisp',
                   `elixir', `erlang', `fortran',  `gif',  `Gif',  `go',  `groovy',
-                  `haskell', `html', `jade', `java', `javascript', `jpeg', `Jpeg',
+                  `gsp',  `haskell', `html', `jade', `java', `jpeg', `Jpeg', `js',
                   `json', `jsp', `julia', `kotlin', `less', `lex', `lisp',  `lua',
                   `m4',  `make',  `markdown',  `matlab',  `node',  `Node', `objc',
                   `objc++', `ocaml', `parrot',  `pascal',  `pdf',  `Pdf',  `perl',
                   `Perl',   `php',   `Php',   `png',  `Png',  `prolog',  `python',
-                  `Python',  `R',  `rpm',  `Rpm',  `rst',  `rtf',  `Rtf',  `ruby',
+                  `Python',  `r',  `rpm',  `Rpm',  `rst',  `rtf',  `Rtf',  `ruby',
                   `Ruby',    `rust',    `scala',   `scheme',   `shell',   `Shell',
-                  `smalltalk',  `sql',  `swift',  `tcl',  `tex',  `text',  `tiff',
-                  `Tiff',  `tt',  `typescript',  `verilog',  `vhdl', `vim', `xml',
-                  `Xml', `yacc', `yaml'
+                  `smalltalk',  `sql',  `svg',  `swift',  `tcl',  `tex',   `text',
+                  `tiff',  `Tiff',  `tt',  `typescript', `verilog', `vhdl', `vim',
+                  `xml', `Xml', `yacc', `yaml'
 
            --tabs=NUM
                   Set the tab size to NUM to expand tabs for option -k.  The value
@@ -1162,8 +1179,8 @@ Man page
            -L,  -l,  -N,  -o, or -q are used (in any combination, but not combined
            with option -v) to allow a pattern match to span multiple lines.
 
-           If no file arguments are specified, or if - is specified, the  standard
-           input is used.
+           If no file arguments are specified, or if a `-' is specified, the stan-
+           dard input is used.
 
     EXIT STATUS
            The ugrep utility exits with one of the following values:
@@ -1369,7 +1386,7 @@ Man page
 
 
 
-    ugrep 1.2.2                      July 17, 2019                        UGREP(1)
+    ugrep 1.2.3                      July 18, 2019                        UGREP(1)
 
 For future updates
 ------------------
