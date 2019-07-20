@@ -6,7 +6,8 @@ and installed search patterns.  Search files for Unicode text patterns, find
 source code matches, and search and display text and binary files recursively
 in large directory trees.
 
-See the [examples](#examples) that to show the power of **ugrep**.
+See the extensive list of [examples](#examples) further below, illustrating the
+power of **ugrep**.
 
 - **ugrep is backward compatible with GNU grep and BSD grep**, extending these
   utilities by offering additional features, such as full Unicode pattern
@@ -14,7 +15,7 @@ See the [examples](#examples) that to show the power of **ugrep**.
   search through directories while selecting files by file name extension and
   file signature "magic" bytes and shebangs, pre-defined (installed) search
   patterns to search source code, hexdumps for binary matches, improved
-  quickfix Vim `:grep` integration, and more.
+  quickfix Vim integration, and more.
 
 - **ugrep makes it simple to search source code** using *pre-defined patterns*
   that are installed for you.  For example to recursively search Python files
@@ -65,9 +66,7 @@ See the [examples](#examples) that to show the power of **ugrep**.
   quantifiers, and negative patterns to skip unwanted pattern matches to
   produce more precise results.
 
-- **ugrep searches UTF-encoded input** when UTF BOM
-  ([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are
-  present and ASCII and UTF-8 when no UTF BOM is present.  Option `--encoding`
+- **ugrep searches UTF-8/16/32 input and other formats**.  Option `--encoding`
   permits many other file formats to be searched, such as ISO-8859-1, EBCDIC,
   and code pages 437, 850, 858, 1250 to 1258.
 
@@ -84,11 +83,11 @@ See the [examples](#examples) that to show the power of **ugrep**.
   `-N` (only line number), `-l` (file with match), or `-L` (files without
   match).
 
-- **ugrep regex patterns are converted to
-  [DFAs](https://en.wikipedia.org/wiki/Deterministic_finite_automaton)** for fast
-  matching.  DFAs yield significant speedups when searching multiple files and
-  large files.  Rare and pathelogical cases are known to exist that may
-  increase the initial running time of **ugrep** for complex DFA construction.
+- **ugrep regex patterns are converted to efficient DFAs** for faster matching
+  without backgracking.  DFAs yield significant speedups when searching
+  multiple files and large files.  Rare and pathelogical cases are known to
+  exist that may increase the initial running time of **ugrep** for complex DFA
+  construction.
 
 - **ugrep is portable** and compiles with MSVC++ to run on Windows.  Binaries are
   included for Linux, Mac, and Windows.
@@ -258,7 +257,7 @@ few:
 - Option `-Y` to permit matching empty patterns.  Grepping with empty-matching
   patterns is weird and gives different results with GNU grep versus BSD grep.
   Empty matches are not output by **ugrep** by default, which avoids making
-  mistakes that may produce "random" results.  For example, with BSD/GNU grep,
+  mistakes that may produce "random" results.  For example, with GNU/BSD grep,
   pattern `a*` matches every line in the input, and actually matches `xyz`
   three times (the empty transitions before and between the `x`, `y`, and `z`).
   Allowing empty matches requires **ugrep** option `-Y`.
@@ -278,7 +277,7 @@ few:
   patterns intalled in `/usr/local/share/ugrep/patterns`.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
-  offset of the start of the matched line reported by BSD/GNU grep.  Reporting
+  offset of the start of the matched line reported by GNU/BSD grep.  Reporting
   exact byte offsets is now possible with **grep**.
 - **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
   `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
