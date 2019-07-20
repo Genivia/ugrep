@@ -1,7 +1,7 @@
 Universal grep ("uber grep")
 ============================
 
-Quickly grep through C/C++, Java, Python, JSON, XML and more using pre-defined
+Quickly grep through C/C++, Java, Python, JSON, XML and more using predefined
 and installed search patterns.  Search files for Unicode text patterns, find
 source code matches, and search and display text and binary files recursively
 in large directory trees.
@@ -13,11 +13,11 @@ power of **ugrep**.
   utilities by offering additional features, such as full Unicode pattern
   matching, "negative patterns" to ignore unwanted pattern matches, recursive
   search through directories while selecting files by file name extension and
-  file signature "magic" bytes and shebangs, pre-defined (installed) search
+  file signature "magic" bytes and shebangs, predefined (installed) search
   patterns to search source code, hexdumps for binary matches, improved
   quickfix Vim integration, and more.
 
-- **ugrep makes it simple to search source code** using *pre-defined patterns*
+- **ugrep makes it simple to search source code** using *predefined patterns*
   that are installed for you.  For example to recursively search Python files
   for import statements:
 
@@ -25,7 +25,7 @@ power of **ugrep**.
 
   where `-R` is recursive search, `-tpython` searches Python source code files
   only, `-n` shows line numbers in the output, and the `-f` option specifies
-  pre-defined patterns to search for Python `import` statements (matched by the
+  predefined patterns to search for Python `import` statements (matched by the
   two patterns `\<import\h+.*` and `\<from\h+.*import\h+.*` defined in
   `patterns/python/imports`).
 
@@ -47,7 +47,7 @@ power of **ugrep**.
   and comments may span multiple lines), `-tc,c++` searches C and C++ source
   code files only, `-n` shows line numbers in the output, `-w` matches exact
   words (for example, `mainly` won't be matched), and the `-f` options specify
-  two pre-defined installed patterns to match and ignore strings and comments
+  two predefined installed patterns to match and ignore strings and comments
   in the input.
 
 - **ugrep produces hexdumps for binary matches**.  For example, to search for a
@@ -84,8 +84,8 @@ power of **ugrep**.
   match).
 
 - **ugrep regex patterns are converted to efficient DFAs** for faster matching
-  without backgracking.  DFAs yield significant speedups when searching
-  multiple files and large files.  Rare and pathelogical cases are known to
+  without backtracking.  DFAs yield significant speedups when searching
+  multiple files and large files.  Rare and pathological cases are known to
   exist that may increase the initial running time of **ugrep** for complex DFA
   construction.
 
@@ -140,11 +140,11 @@ Optionally, install the ugrep utility and the ugrep manual page:
     $ ugrep -V
     ugrep 1.2.3 x86_64-apple-darwin16.7.0
 
-This also installs the pattern files with pre-defined patterns for option `-f`
+This also installs the pattern files with predefined patterns for option `-f`
 at `/usr/local/share/ugrep/patterns/`.  Option `-f` first checks the current
 directory for the presence of pattern files, if not found checks environment
 variable `GREP_PATH` to load the pattern files, and if not found reads the
-installed pre-defined pattern files.
+installed predefined pattern files.
 
 Using ugrep within Vim
 ----------------------
@@ -270,10 +270,10 @@ few:
   option is particularly useful with option `-c` to report the total number of
   pattern matches per file instead of the number of lines matched per file.
 - Options `-O`, `-M`, and `-t` to specify file extensions, file signature magic
-  byte patterns, and pre-defined file types, respectively.  This allows
+  byte patterns, and predefined file types, respectively.  This allows
   searching for certain types of files in directory trees with recursive search
   options `-R` and `-r`.
-- Improved option `-f` uses `GREP_PATH` environment variable or the pre-defined
+- Improved option `-f` uses `GREP_PATH` environment variable or the predefined
   patterns intalled in `/usr/local/share/ugrep/patterns`.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
@@ -309,7 +309,7 @@ and comment blocks may span multiple lines, we should use `-o`:
 This is a lot of work to type in correctly!  If you are like me, I'm lazy and
 don't want to spend time fiddling with regex patterns when I am working on
 something more important.  There is an easier way by using **ugrep**'s
-pre-defined patterns (`-f`) that are installed with the tool:
+predefined patterns (`-f`) that are installed with the tool:
 
     ugrep -r -o -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
@@ -333,7 +333,7 @@ matches we are not interested in.
 
 As another example, we may want to search for the word `FIXME` in C/C++ comment
 blocks.  To do so we can first select the comment blocks with **ugrep**'s
-pre-defined `c/comments` pattern AND THEN select lines with `FIXME` using a
+predefined `c/comments` pattern AND THEN select lines with `FIXME` using a
 pipe:
 
     ugrep -R -o -tc,c++ -nk -f c/comments myproject | ugrep -w 'FIXME'
@@ -359,7 +359,7 @@ something like this:
 
 Fortunately, with **ugrep** we can simply select all function definitions in
 files with extension `.c` or `.cpp` by using option `-Oc,cpp` and by using a
-pre-defined pattern `function_defs` that is installed with the tool to produce
+predefined pattern `function_defs` that is installed with the tool to produce
 all function definitions.  Then we select the one we want:
 
     ugrep -R -o -Oc,cpp -nk -f c/function_defs myproject | ugrep 'qsort'
@@ -510,7 +510,7 @@ To match C/C++ /*...*/ multi-line comments:
 
     ugrep -o '/\*([^*]|(\*+[^*/]))*\*+\/' myfile.cpp
 
-To match C/C++ comments using the pre-defined `c/comments` patterns:
+To match C/C++ comments using the predefined `c/comments` patterns:
 
     ugrep -o -f c/comments myfile.cpp
 
@@ -716,7 +716,7 @@ To page through the color-highlighted results with pager `less -R`:
 
     ugrep --color --pager -R -n -k -tc++ 'FIXME.*' .
 
-To use pre-defined patterns to list all `#include` and `#define` in C++ files:
+To use predefined patterns to list all `#include` and `#define` in C++ files:
 
     ugrep --color -R -n -tc++ -f c++/includes -f c++/defines .
 
@@ -1359,7 +1359,7 @@ Man page
 
                   $ ugrep -nko -e '//.*' -e '/\*([^*]|(\*+[^*/]))*\*+\/' myfile
 
-           The same search, but using pre-defined patterns:
+           The same search, but using predefined patterns:
 
                   $ ugrep -nko -f c/comments myfile
 
