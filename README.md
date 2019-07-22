@@ -9,6 +9,8 @@ in large directory trees.
 <div align="center">
 <img src="https://www.genivia.com/images/function_defs.png" width="40%" height="40%" alt="ugrep C++ function search results">
 <img src="https://www.genivia.com/images/hexdump.png" width="40%" height="40%" alt="ugrep hexdump results">
+<br>
+Searching source code and binary files with ugrep
 </div>
 
 See the extensive list of [examples](#examples) further below, illustrating the
