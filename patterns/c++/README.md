@@ -9,7 +9,7 @@ C++ with Unicode identifiers.
 - `directives` matches #-directives, auto-enables ugrep option -o to match multi-line directives
 - `doc_comments` matches Doxygen comments, auto-enables ugrep option -o
 - `enums` matches enumerations, auto-enables ugrep option -o
-- `functions` matches function definitions, auto-enables ugrep option -o
+- `functions` matches function definitions, recommend ugrep option -o
 - `includes` matches `#include` lines
 - `names` matches identifiers (and keywords)
 - `strings` matches strings, auto-enables ugrep option -o to match multi-line strings
