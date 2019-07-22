@@ -253,7 +253,7 @@ Add or remove `--color` and/or `--pager` if desired:
     alias uxdump = 'ugrep --color --pager -Xo ""' # hexdump entire file
 
 
-### Why use ugrep?
+### When to use ugrep
 
 Notable improvements over GNU/BSD grep and other grep-like tools, to name a
 few:
@@ -307,7 +307,9 @@ few:
 
 ### When not to use ugrep
 
-- Patterns with backreferences and lookbehinds are not supported yet.
+- Patterns with backreferences and lookbehinds are not supported yet, which
+  will be for option `-P` in future releases using Boost.Regex with RE/flex.
+  [Boost.Regex is faster than PCRE](https://github.com/Genivia/RE-flex).
 
 <a name="examples"/>
 
@@ -797,6 +799,7 @@ in markdown:
 Man page
 --------
 
+
     UGREP(1)                         User Commands                        UGREP(1)
 
 
@@ -823,7 +826,9 @@ Man page
            BOM indicating UTF-8, UTF-16, or UTF-32 input then ugrep always normal-
            izes the input to UTF-8.  When no UTF BOM is present, ugrep assumes the
            input  is  ASCII,  UTF-8,  or raw binary.  To specify a different input
-           file encoding, use option -Q.PP The following options are available:
+           file encoding, use option -Q, --encoding.
+
+           The following options are available:
 
            -A NUM, --after-context=NUM
                   Print NUM  lines  of  trailing  context  after  matching  lines.
