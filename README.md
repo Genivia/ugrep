@@ -242,7 +242,7 @@ Add or remove `--color` and/or `--pager` if desired:
 
     alias ug     = 'ugrep --color --pager'        # short & quick text pattern search
     alias ux     = 'ugrep --color --pager -UX'    # short & quick binary pattern search
-    alias ugi    = 'ugrep -R --color --pager --exclude-from=.gitignore'
+    alias ugi    = 'ugrep -R --color --pager --no-hidden --exclude-from=.gitignore'
 
     alias grep   = 'ugrep --color --pager -G'     # search with basic regular expressions (BRE)
     alias egrep  = 'ugrep --color --pager -E'     # search with extended regular expressions (ERE)
@@ -396,32 +396,32 @@ We can also skip files and directories from being searched that are defined in
 `.gitignore`.  To do so we use `--exclude-from` to specify a file containing
 glob patterns to match files and directories we want to ignore:
 
-    ugrep -R -tc++ --color --exclude-from='.gitignore' -f c++/defines .
+    ugrep -R -tc++ --color --no-hidden --exclude-from='.gitignore' -f c++/defines .
 
 This searches C++ files (`-tc++`) in the current directory (`.`) for `#define`
 lines (`-f c++/defines`), while skipping files and directories
-declared in `.gitignore` such as `config.h`.  If you find this too long to
-type then define an alias, such as:
+declared in `.gitignore` such as `config.h` and skipping hidden files.  If you
+find this too long to type then define an alias to search GitHub directories:
 
-    alias ugi = '-R --color --exclude-from=.gitignore'
+    alias ugi = '-R --color --no-hidden --exclude-from=.gitignore'
     ugi -tc++ -f c++/defines .
 
-To highlight matches when pushed through a chain of pipes we should use
-`--color=always`:
-
-    ugrep -R -tc++ --color=always --exclude-from='.gitignore' -f c++/defines . | ugrep -w 'FOO.*'
-
-This returns a color-highlighted list of all `#define FOO...` macros in our C++
-project in the current directory, skipping files defined in `.gitignore`.
-
 To list all files in a GitHub project directory that are not ignored by
-the `.gitignore` file located in the current directory:
+the `.gitignore` file and are not hidden:
 
-    ugrep -R -l '' --exclude-from='.gitignore' .
+    ugi -l '' .
 
 Where `-l` (files with matches) lists the files specified in `.gitignore`
 matched by the empty pattern `''`, which is typically used to match any
 non-empty file (non-zero-length file, as per POSIX.1 grep standard).
+
+To highlight matches when pushed through a chain of pipes we should use
+`--color=always`:
+
+    ugi --color=always -tc++ -f c++/defines . | ugrep -w 'FOO.*'
+
+This returns a color-highlighted list of all `#define FOO...` macros in our C++
+project in the current directory, skipping files defined in `.gitignore`.
 
 Note that the complement of `--exclude` is not `--include`, so we cannot
 reliably list the files that are ignored with `--include-from='.gitignore'`.
@@ -806,8 +806,8 @@ Man page
 
     SYNOPSIS
            ugrep [OPTIONS] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN]
-                 [-f FILE] [--file-type=TYPES] [--encoding=ENCODING]
-                 [--colour[=WHEN]|--color[=WHEN]] [--label[=LABEL]] [FILE ...]
+                 [--colour[=WHEN]|--color[=WHEN]] [--pager[=COMMAND]]
+                 [-f FILE] [-t TYPES] [-Q ENCODING] [FILE ...]
 
     DESCRIPTION
            The  ugrep utility searches any given input files, selecting lines that
@@ -823,9 +823,7 @@ Man page
            BOM indicating UTF-8, UTF-16, or UTF-32 input then ugrep always normal-
            izes the input to UTF-8.  When no UTF BOM is present, ugrep assumes the
            input  is  ASCII,  UTF-8,  or raw binary.  To specify a different input
-           file encoding, use option --encoding.
-
-           The following options are available:
+           file encoding, use option -Q.PP The following options are available:
 
            -A NUM, --after-context=NUM
                   Print NUM  lines  of  trailing  context  after  matching  lines.
@@ -1071,6 +1069,9 @@ Man page
            --no-group-separator
                   Removes  the  group  separator  line from the output for context
                   options -A, -B, and -C.
+
+           --no-hidden
+                  Do not search hidden files and hidden directories.
 
            -O EXTENSIONS, --file-extensions=EXTENSIONS
                   Search only files whose file name extensions match the specified
