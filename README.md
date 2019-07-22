@@ -9,6 +9,11 @@ in large directory trees.
 See the extensive list of [examples](#examples) further below, illustrating the
 power of **ugrep**.
 
+<div>
+<img src="https://www.genivia.com/images/hexdump.png" width="50%" height="50%" alt="ugrep hexdump results">
+<img src="https://www.genivia.com/images/function_defs.png.png" width="50%" height="50%" alt="ugrep C++ function search results">
+</div>
+
 - **ugrep is backward compatible with GNU grep and BSD grep**, extending these
   utilities by offering additional features, such as full Unicode pattern
   matching, "negative patterns" to ignore unwanted pattern matches, recursive
@@ -48,7 +53,10 @@ power of **ugrep**.
   code files only, `-n` shows line numbers in the output, `-w` matches exact
   words (for example, `mainly` won't be matched), and the `-f` options specify
   two predefined installed patterns to match and ignore strings and comments
-  in the input.
+  in the input.  As another example, it is now easy to search a PHP file while
+  zapping past any HTML between PHP code segments:
+
+      ugrep -o '.*IsInjected.*' -f php/zap_html myfile.php
 
 - **ugrep produces hexdumps for binary matches**.  For example, to search for a
   binary pattern:
@@ -69,6 +77,9 @@ power of **ugrep**.
 - **ugrep searches UTF-8/16/32 input and other formats**.  Option `--encoding`
   permits many other file formats to be searched, such as ISO-8859-1, EBCDIC,
   and code pages 437, 850, 858, 1250 to 1258.
+
+- **ugrep understands gitignore-style globs** and ignores files specified
+  in a `.gitignore` file (or any other file) with `--exclude-from=.gitignore`.
 
 - **ugrep uses [RE/flex](https://github.com/Genivia/RE-flex) for
   high-performance regex matching**, which is 100 times faster than the GNU C
@@ -187,7 +198,7 @@ separately.  If this is not desired then remove `\ -g` from `grepprg` in
 You can use **ugrep** options with the Vim `:grep` command, for example to
 select single- and multi-line comments in `myfile.cpp`:
 
-    :grep -o -f c++/comments myfile.cpp
+    :grep -f c++/comments myfile.cpp
 
 Only the first line of a multi-line comment is shown in quickfix, to save
 space.  To show all lines of a multi-line match produced with option `-o`,
@@ -221,16 +232,18 @@ Option `-Y` enables empty matches, see further below.
 
 Add or remove `--color` and/or `--pager` if desired:
 
-    alias ug     ugrep --color --pager        # short & quick text pattern search
-    alias ux     ugrep --color --pager -UX    # short & quick binary pattern search
+    alias ug     = 'ugrep --color --pager'        # short & quick text pattern search
+    alias ux     = 'ugrep --color --pager -UX'    # short & quick binary pattern search
+    alias ugi    = 'ugrep -R --color --pager --exclude-from=.gitignore'
 
-    alias grep   ugrep --color --pager -G     # search with basic regular expressions (BRE)
-    alias egrep  ugrep --color --pager -E     # search with extended regular expressions (ERE)
-    alias fgrep  ugrep --color --pager -F     # find string
+    alias grep   = 'ugrep --color --pager -G'     # search with basic regular expressions (BRE)
+    alias egrep  = 'ugrep --color --pager -E'     # search with extended regular expressions (ERE)
+    alias fgrep  = 'ugrep --color --pager -F'     # find string
 
-    alias xgrep  ugrep --color --pager -W     # search and output text or hex binary
-    alias uxgrep ugrep --color --pager -UX    # search binary patterns, output hex
-    alias uxdump ugrep --color --pager -Xo '' # hexdump entire file
+    alias xgrep  = 'ugrep --color --pager -W'     # search and output text or hex binary
+    alias uxgrep = 'ugrep --color --pager -UX'    # search binary patterns, output hex
+    alias uxdump = 'ugrep --color --pager -Xo ""' # hexdump entire file
+
 
 ### Why use ugrep?
 
@@ -359,10 +372,10 @@ something like this:
 
 Fortunately, with **ugrep** we can simply select all function definitions in
 files with extension `.c` or `.cpp` by using option `-Oc,cpp` and by using a
-predefined pattern `function_defs` that is installed with the tool to produce
+predefined pattern `functions` that is installed with the tool to produce
 all function definitions.  Then we select the one we want:
 
-    ugrep -R -o -Oc,cpp -nk -f c/function_defs myproject | ugrep 'qsort'
+    ugrep -R -o -Oc,cpp -nk -f c/functions myproject | ugrep 'qsort'
 
 Note that we could have used `-tc,c++` to select C/C++ files, but this also
 includes header files when we want to only search `.c` and `.cpp` files.  To
@@ -379,7 +392,11 @@ glob patterns to match files and directories we want to ignore:
 
 This searches C++ files (`-tc++`) in the current directory (`.`) for `#define`
 lines (`-f c++/defines`), while skipping files and directories
-declared in `.gitignore` such as `config.h`.
+declared in `.gitignore` such as `config.h`.  If you find this too long to
+type then define an alias, such as:
+
+    alias ugi = '-R --color --exclude-from=.gitignore'
+    ugi -tc++ -f c++/defines .
 
 To highlight matches when pushed through a chain of pipes we should use
 `--color=always`:
@@ -518,7 +535,7 @@ To match C/C++ comments using the predefined `c/comments` patterns:
 
 To recursively display function definitions in C/C++ files:
 
-    ugrep -R -o -n -tc,c++ -f c++/function_defs .
+    ugrep -R -o -n -tc,c++ -f c++/functions .
 
 To search for patterns starting with `FIXME` in C/C++ comments, excluding
 `FIXME` in multi-line strings:
@@ -587,16 +604,16 @@ To show three lines of context after a matched line:
 To display one line of context before each matching line with a C function
 definition (C names are non-Unicode):
 
-    ugrep --color -B1 -f c/function_defs myfile.c
+    ugrep --color -B1 -f c/functions myfile.c
 
 To display one line of context before each matching line with a C++ function
 definition (C++ names may be Unicode):
 
-    ugrep --color -B1 -f c++/function_defs myfile.cpp
+    ugrep --color -B1 -f c++/functions myfile.cpp
 
 To display any non-matching lines as context for matching lines:
 
-    ugrep --color -y -f c++/function_defs myfile.cpp
+    ugrep --color -y -f c++/functions myfile.cpp
 
 To display a hexdump of a matching line with one line of hexdump context:
 
@@ -1179,8 +1196,8 @@ Man page
 
            -y, --any-line
                   Any matching or non-matching line is output.  Non-matching lines
-                  are  output  as context for matching lines, with the `-' separa-
-                  tor.  See also the -A, -B, and -C options.
+                  are  output  with  the  `-' separator as context of the matching
+                  lines.  See also the -A, -B, and -C options.
 
            -Z, --null
                   Prints a zero-byte after the file name.
@@ -1405,7 +1422,7 @@ Man page
 
 
 
-    ugrep 1.2.3                      July 18, 2019                        UGREP(1)
+    ugrep 1.2.4                      July 22, 2019                        UGREP(1)
 
 For future updates
 ------------------

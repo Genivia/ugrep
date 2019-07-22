@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 18, 2019" "ugrep 1.2.3" "User Commands"
+.TH UGREP "1" "July 22, 2019" "ugrep 1.2.4" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -395,7 +395,7 @@ such as `x?' and `x*' match all input, not only lines with `x'.
 .TP
 \fB\-y\fR, \fB\-\-any\-line\fR
 Any matching or non\-matching line is output.  Non\-matching lines
-are output as context for matching lines, with the `\fB\-'\fR separator.
+are output with the `\fB\-'\fR separator as context of the matching lines.
 See also the \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR options.
 .TP
 \fB\-Z\fR, \fB\-\-null\fR
@@ -565,7 +565,7 @@ matching patterns across multiple lines:
 .IP
 $ ugrep -nko -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile
 .PP
-The same search, but using pre-defined patterns:
+The same search, but using predefined patterns:
 .IP
 $ ugrep -nko -f c/comments myfile
 .PP

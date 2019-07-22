@@ -34,7 +34,7 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 Universal grep: a high-performance universal file search utility matches
-Unicode patterns.  Offers powerful pre-defined search patterns and quick
+Unicode patterns.  Offers powerful predefined search patterns and quick
 options to selectively search source code files in large directory trees.
 
 Download and installation:
@@ -98,7 +98,7 @@ limitations:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.2.3"
+#define UGREP_VERSION "1.2.4"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -1000,6 +1000,7 @@ int main(int argc, char **argv)
 
       reflex::Input input(file);
       std::string line;
+      size_t lineno = 0;
 
       while (input)
       {
@@ -1007,11 +1008,19 @@ int main(int argc, char **argv)
         if (getline(input, line))
           break;
 
+        ++lineno;
+
         trim(line);
 
         // add line to the regex if not empty
         if (!line.empty())
-          regex.append(line).push_back('|');
+        {
+          // enable -o when the first line is ###-o
+          if (lineno == 1 && line == "###-o")
+            flag_only_matching = true;
+          else
+            regex.append(line).push_back('|');
+        }
       }
 
       if (file != stdin)
@@ -3167,7 +3176,7 @@ void help(const char *message, const char *arg)
             such as `x?' and `x*' match all input, not only lines with `x'.\n\
     -y, --any-line\n\
             Any matching or non-matching line is output.  Non-matching lines\n\
-            are output as context for matching lines, with the `-' separator.\n\
+            are output with the `-' separator as context of the matching lines.\n\
             See also the -A, -B, and -C options.\n\
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\

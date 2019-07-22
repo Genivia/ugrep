@@ -1,0 +1,8 @@
+(document\h*)?\.\h*getElementById\h*\(.*
+(document\h*)?\.\h*getElementsByTagName\h*\(.*
+(document\h*)?\.\h*getElementsByClassName\h*\(.*
+(document\h*)?\.\h*createElement\h*\(.*
+(document\h*)?\.\h*removeChild\h*\(.*
+(document\h*)?\.\h*appendChild\h*\(.*
+(document\h*)?\.\h*replaceChild\h*\(.*
+document\h*\.\h*write\h*\(.*

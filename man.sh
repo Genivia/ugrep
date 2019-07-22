@@ -218,7 +218,7 @@ matching patterns across multiple lines:
 .IP
 $ ugrep -nko -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile
 .PP
-The same search, but using pre-defined patterns:
+The same search, but using predefined patterns:
 .IP
 $ ugrep -nko -f c/comments myfile
 .PP
