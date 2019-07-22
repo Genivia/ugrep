@@ -7,8 +7,8 @@ source code matches, and search and display text and binary files recursively
 in large directory trees.
 
 <div align="center">
-<img src="https://www.genivia.com/images/function_defs.png" width="40%" height="40%" alt="ugrep C++ function search results">
-<img src="https://www.genivia.com/images/hexdump.png" width="40%" height="40%" alt="ugrep hexdump results">
+<img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
+<img src="https://www.genivia.com/images/hexdump.png" width="45%" height="45%" alt="ugrep hexdump results">
 <br>
 Searching source code and binary files with ugrep
 <br>
@@ -16,8 +16,8 @@ Searching source code and binary files with ugrep
 <br>
 </div>
 
-See the extensive list of [examples](#examples) further below, illustrating the
-power of **ugrep**.
+See the [tutorial](#tutorial) with an extensive list of examples further below,
+illustrating the power of **ugrep**.
 
 Why use ugrep?
 --------------
@@ -311,10 +311,10 @@ few:
   will be for option `-P` in future releases using Boost.Regex with RE/flex.
   [Boost.Regex is faster than PCRE](https://github.com/Genivia/RE-flex).
 
-<a name="examples"/>
+<a name="tutorial"/>
 
-Examples
---------
+Tutorial with examples
+----------------------
 
 To search for the identifier `main` as a word (`-w`) recursively (`-r`) in
 directory `myproject`, showing the matching line (`-n`) and column (`-k`)
