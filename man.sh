@@ -18,9 +18,9 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [-A NUM] [-B NUM] [-C[NUM]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
-      [\fB-f\fR \fIFILE\fR] [\fB--file-type\fR=\fITYPES\fR] [\fB--encoding\fR=\fIENCODING\fR]
-      [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]] [\fB--label\fR[=\fILABEL\fR]] [\fIFILE\fR \fI...\fR]
+[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
+      [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]]
+      [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -34,7 +34,7 @@ specified ASCII/Unicode patterns.  When the input contains a UTF BOM indicating
 UTF-8, UTF-16, or UTF-32 input then \fBugrep\fR always normalizes the input to
 UTF-8.  When no UTF BOM is present, \fBugrep\fR assumes the input is ASCII,
 UTF-8, or raw binary.  To specify a different input file encoding, use option
-\fB--encoding\fR.
+\fB-Q\R, \fB--encoding\fR.
 .PP
 The following options are available:
 END
@@ -51,9 +51,10 @@ src/ugrep --help \
   -e 's/^            //' \
   -e $'s/^    \(.*\)$/.TP\\\n\\1/' \
   -e 's/\(--[-+0-9A-Za-z_]*\)/\\fB\1\\fR/g' \
+  -e 's/\([^-0-9A-Za-z_]\)\(-.\) \([A-Z][A-Z]*\)/\1\\fB\2\\fR \\fI\3\\fR/g' \
   -e 's/\([^-0-9A-Za-z_]\)\(-.\)/\1\\fB\2\\fR/g' \
-  -e 's/\[=\([-0-9A-Za-z_]*\)\]/[=\\fI\1\\fR]/g' \
-  -e 's/=\([-0-9A-Za-z_]*\)/=\\fI\1\\fR/g' \
+  -e 's/\[=\([-A-Z]*\)\]/[=\\fI\1\\fR]/g' \
+  -e 's/=\([-A-Z]*\)/=\\fI\1\\fR/g' \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
 cat >> man/ugrep.1 << 'END'
 .PP

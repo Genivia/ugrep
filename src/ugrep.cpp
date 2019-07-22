@@ -870,10 +870,6 @@ int main(int argc, char **argv)
     help("option -z is disabled");
 #endif
 
-  // -y: disable -A, -B, and -C
-  if (flag_any_line)
-    flag_after_context = flag_before_context = 0;
-
   // -t list: list table of types
   if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
   {
@@ -1031,9 +1027,13 @@ int main(int argc, char **argv)
     regex.pop_back();
   }
 
-  // if no files were specified then read standard input
-  if (infiles.empty())
-    infiles.emplace_back("-");
+  // -y: disable -A, -B, and -C
+  if (flag_any_line)
+    flag_after_context = flag_before_context = 0;
+
+  // -y, -A, -B, or -C: disable -o
+  if (flag_any_line || flag_after_context > 0 || flag_before_context > 0)
+    flag_only_matching = false;
 
   // -v: disable -g and -o
   if (flag_invert_match)
@@ -1349,6 +1349,10 @@ int main(int argc, char **argv)
         fclose(file);
     }
   }
+
+  // if no files were specified then read standard input
+  if (infiles.empty())
+    infiles.emplace_back("-");
 
   // if any match was found in any of the input files later, then found = true
   bool found = false;

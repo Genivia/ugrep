@@ -3,9 +3,9 @@
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [-A NUM] [-B NUM] [-C[NUM]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
-      [\fB-f\fR \fIFILE\fR] [\fB--file-type\fR=\fITYPES\fR] [\fB--encoding\fR=\fIENCODING\fR]
-      [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]] [\fB--label\fR[=\fILABEL\fR]] [\fIFILE\fR \fI...\fR]
+[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
+      [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]]
+      [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -19,22 +19,22 @@ specified ASCII/Unicode patterns.  When the input contains a UTF BOM indicating
 UTF-8, UTF-16, or UTF-32 input then \fBugrep\fR always normalizes the input to
 UTF-8.  When no UTF BOM is present, \fBugrep\fR assumes the input is ASCII,
 UTF-8, or raw binary.  To specify a different input file encoding, use option
-\fB--encoding\fR.
+\fB-Q\R, \fB--encoding\fR.
 .PP
 The following options are available:
 .TP
-\fB\-A\fR NUM, \fB\-\-after\-context\fR=\fINUM\fR
+\fB\-A\fR \fINUM\fR, \fB\-\-after\-context\fR=\fINUM\fR
 Print NUM lines of trailing context after matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
 the \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR options.
 .TP
 \fB\-a\fR, \fB\-\-text\fR
 Process a binary file as if it were text.  This is equivalent to
-the \fB\-\-binary\-files\fR=\fItext\fR option.  This option might output binary
+the \fB\-\-binary\-files\fR=\fI\fRtext option.  This option might output binary
 garbage to the terminal, which can have problematic consequences if
 the terminal driver interprets some of it as commands.
 .TP
-\fB\-B\fR NUM, \fB\-\-before\-context\fR=\fINUM\fR
+\fB\-B\fR \fINUM\fR, \fB\-\-before\-context\fR=\fINUM\fR
 Print NUM lines of leading context before matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
 the \fB\-A\fR, \fB\-C\fR, and \fB\-y\fR options.
@@ -79,13 +79,13 @@ Mark up the matching text with the expression stored in the
 GREP_COLOR or GREP_COLORS environment variable.  The possible
 values of WHEN can be `never', `always', or `auto'.
 .TP
-\fB\-D\fR ACTION, \fB\-\-devices\fR=\fIACTION\fR
+\fB\-D\fR \fIACTION\fR, \fB\-\-devices\fR=\fIACTION\fR
 If an input file is a device, FIFO or socket, use ACTION to process
 it.  By default, ACTION is `read', which means that devices are
 read just as if they were ordinary files.  If ACTION is `skip',
 devices are silently skipped.
 .TP
-\fB\-d\fR ACTION, \fB\-\-directories\fR=\fIACTION\fR
+\fB\-d\fR \fIACTION\fR, \fB\-\-directories\fR=\fIACTION\fR
 If an input file is a directory, use ACTION to process it.  By
 default, ACTION is `read', i.e., read directories just as if they
 were ordinary files.  If ACTION is `skip', silently skip
@@ -98,14 +98,14 @@ equivalent to the \fB\-R\fR option.
 .TP
 \fB\-\-max\-depth\fR=\fINUM\fR
 Restrict recursive search to NUM (NUM > 0) directories deep, where
-\fB\-\-max\-depth\fR=\fI1\fR searches the specified path without visiting
+\fB\-\-max\-depth\fR=\fI\fR1 searches the specified path without visiting
 sub\-directories.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is
 the default.
 .TP
-\fB\-e\fR PATTERN, \fB\-\-regexp\fR=\fIPATTERN\fR
+\fB\-e\fR \fIPATTERN\fR, \fB\-\-regexp\fR=\fIPATTERN\fR
 Specify a PATTERN used during the search of the input: an input
 line is selected if it matches any of the specified patterns.
 This option is most useful when multiple \fB\-e\fR options are used to
@@ -139,7 +139,7 @@ Interpret pattern as a set of fixed strings, separated by newlines,
 any of which is to be matched.  This forces ugrep to behave as
 fgrep but less efficiently than fgrep.
 .TP
-\fB\-f\fR FILE, \fB\-\-file\fR=\fIFILE\fR
+\fB\-f\fR \fIFILE\fR, \fB\-\-file\fR=\fIFILE\fR
 Read one or more newline\-separated patterns from FILE.  Empty
 pattern lines in the file are not processed.  Options \fB\-F\fR, \fB\-w\fR, and
 \-x do not apply to FILE patterns.  If FILE does not exist, the
@@ -176,7 +176,7 @@ Print a help message.
 .TP
 \fB\-I\fR
 Ignore matches in binary files.  This option is equivalent to the
-\fB\-\-binary\-files\fR=\fIwithout\-match\fR option.
+\fB\-\-binary\-files\fR=\fI\fRwithout\-match option.
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
 Perform case insensitive matching.  By default, ugrep is case
@@ -242,7 +242,7 @@ Force output to be line buffered.  By default, output is line
 buffered when standard output is a terminal and block buffered
 otherwise.
 .TP
-\fB\-M\fR MAGIC, \fB\-\-file\-magic\fR=\fIMAGIC\fR
+\fB\-M\fR \fIMAGIC\fR, \fB\-\-file\-magic\fR=\fIMAGIC\fR
 Only files matching the signature pattern `MAGIC' are searched.
 The signature magic bytes at the start of a file are compared to
 the `MAGIC' regex pattern and, when matching, the search commences
@@ -250,7 +250,7 @@ immediately after the magic bytes.  This option may be repeated and
 may be combined with options \fB\-O\fR and \fB\-t\fR to expand the search.  This
 option is relatively slow as every file on the search path is read.
 .TP
-\fB\-m\fR NUM, \fB\-\-max\-count\fR=\fINUM\fR
+\fB\-m\fR \fINUM\fR, \fB\-\-max\-count\fR=\fINUM\fR
 Stop reading the input after NUM matches.
 .TP
 \fB\-N\fR, \fB\-\-only\-line\-number\fR
@@ -267,7 +267,7 @@ each file processed.
 Removes the group separator line from the output for context
 options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
-\fB\-O\fR EXTENSIONS, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
+\fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
 Search only files whose file name extensions match the specified
 comma\-separated list of file name EXTENSIONS.  This option is the
 same as specifying \fB\-\-include\fR=\fI\fR'*.ext' for each extension name `ext'
@@ -292,9 +292,9 @@ they are on the command line.
 \fB\-\-pager\fR[=\fI\fR\fICOMMAND\fR]
 When output is sent to the terminal, uses `COMMAND' to page through
 the output.  The default COMMAND is `less \fB\-R\fR'.  This option makes
-\fB\-\-color\fR=\fIauto\fR behave as \fB\-\-color\fR=\fIalways\fR and enables \fB\-\-break\fR.
+\fB\-\-color\fR=\fI\fRauto behave as \fB\-\-color\fR=\fI\fRalways and enables \fB\-\-break\fR.
 .TP
-\fB\-Q\fR ENCODING, \fB\-\-encoding\fR=\fIENCODING\fR
+\fB\-Q\fR \fIENCODING\fR, \fB\-\-encoding\fR=\fIENCODING\fR
 The input file encoding.  The possible values of ENCODING can be:
 `binary', `ISO\-8859\-1', `ASCII', `EBCDIC', `UTF\-8', `UTF\-16',
 `UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE', `UTF\-32LE', `CP437',
@@ -331,7 +331,7 @@ number, byte offset, and the matched line.  The default is a colon
 Add a tab space to separate the file name, line number, column
 number, and byte offset with the matched line.
 .TP
-\fB\-t\fR TYPES, \fB\-\-file\-type\fR=\fITYPES\fR
+\fB\-t\fR \fITYPES\fR, \fB\-\-file\-type\fR=\fITYPES\fR
 Search only files associated with TYPES, a comma\-separated list of
 file types.  Each file type corresponds to a set of file name
 extensions passed to option \fB\-O\fR.  For capitalized file types, the
@@ -373,7 +373,7 @@ patterns.
 .TP
 \fB\-W\fR, \fB\-\-with\-hex\fR
 Only output binary matches in hexadecimal, leaving text matches
-alone.  This option is equivalent to the \fB\-\-binary\-files\fR=\fIwith\-hex\fR
+alone.  This option is equivalent to the \fB\-\-binary\-files\fR=\fI\fRwith\-hex
 option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
@@ -382,7 +382,7 @@ surrounded by \\< and \\>).
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
-\fB\-\-binary\-files\fR=\fIhex\fR option.
+\fB\-\-binary\-files\fR=\fI\fRhex option.
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire pattern or \fB\-e\fR patterns

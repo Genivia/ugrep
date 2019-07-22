@@ -5,8 +5,8 @@ C++ with Unicode identifiers.
 
 - `classes` matches class definitions, auto-enables ugrep option -o
 - `comments` matches comments, auto-enables ugrep option -o
-- `defines` matches `#define` lines, auto-enables ugrep option -o to match multi-line `#define`
-- `directives` matches #-directives, auto-enables ugrep option -o to match multi-line directives
+- `defines` matches `#define` lines, use ugrep option -o to match multi-line `#define`
+- `directives` matches #-directives, use ugrep option -o to match multi-line directives
 - `doc_comments` matches Doxygen comments, auto-enables ugrep option -o
 - `enums` matches enumerations, auto-enables ugrep option -o
 - `functions` matches function definitions, recommend ugrep option -o
