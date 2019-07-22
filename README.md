@@ -11,6 +11,9 @@ in large directory trees.
 <img src="https://www.genivia.com/images/hexdump.png" width="40%" height="40%" alt="ugrep hexdump results">
 <br>
 Searching source code and binary files with ugrep
+<br>
+<br>
+<br>
 </div>
 
 See the extensive list of [examples](#examples) further below, illustrating the
