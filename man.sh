@@ -19,7 +19,7 @@ cat >> man/ugrep.1 << 'END'
 .SH SYNOPSIS
 .B ugrep
 [\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
-      [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]]
+      [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]]
       [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
@@ -34,7 +34,7 @@ specified ASCII/Unicode patterns.  When the input contains a UTF BOM indicating
 UTF-8, UTF-16, or UTF-32 input then \fBugrep\fR always normalizes the input to
 UTF-8.  When no UTF BOM is present, \fBugrep\fR assumes the input is ASCII,
 UTF-8, or raw binary.  To specify a different input file encoding, use option
-\fB-Q\R, \fB--encoding\fR.
+\fB-Q\fR, \fB--encoding\fR.
 .PP
 The following options are available:
 END

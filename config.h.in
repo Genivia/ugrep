@@ -1,5 +1,8 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* define if the Boost::Regex library is available */
+#undef HAVE_BOOST_REGEX
+
 /* define if the compiler supports basic C++11 syntax */
 #undef HAVE_CXX11
 

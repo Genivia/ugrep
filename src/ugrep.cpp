@@ -41,17 +41,18 @@ Download and installation:
 
   https://github.com/Genivia/ugrep
 
-Requires RE/flex 1.2.5 or greater:
+Requires RE/flex 1.3.1 or greater:
 
   https://github.com/Genivia/RE-flex
 
+Optional libraries:
+
+  zlib
+  Boost.Regex
+
 Compile:
 
-  c++ -std=c++11 -O2 -o ugrep ugrep.cpp wildmat.cpp -lreflex
-
-limitations:
-
-  - Backreferences and lookbehinds are not yet supported.
+  c++ -std=c++11 -O2 -o ugrep ugrep.cpp glob.cpp zstream.cpp -lreflex -lz -lboost_regex
 
 */
 
@@ -88,6 +89,10 @@ limitations:
 
 #include "config.h"
 
+#ifdef HAVE_BOOST_REGEX
+#include <reflex/boostmatcher.h>
+#endif
+
 #ifdef HAVE_LIBZ
 #include "zstream.h"
 #endif
@@ -98,7 +103,7 @@ limitations:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.2.4"
+#define UGREP_VERSION "1.3.1"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -119,6 +124,14 @@ limitations:
 
 // max --jobs
 #define MAX_JOBS 1000
+
+// statistics
+struct Stats {
+  Stats() : files(), dirs(), fileno() { }
+  size_t files;
+  size_t dirs;
+  size_t fileno;
+};
 
 // ANSI SGR substrings extracted from GREP_COLORS
 #define COLORLEN 16
@@ -184,10 +197,12 @@ bool flag_initial_tab              = false;
 bool flag_decompress               = false;
 bool flag_any_line                 = false;
 bool flag_break                    = false;
+bool flag_stats                    = false;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
 size_t flag_max_depth              = 0;
+size_t flag_max_files              = 0;
 size_t flag_jobs                   = 0;
 size_t flag_tabs                   = 8;
 const char *flag_pager             = NULL;
@@ -218,9 +233,10 @@ std::vector<std::string> flag_exclude_override_dir;
 extern bool globmat(const char *pathname, const char *basename, const char *glob);
 
 // function protos
-bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname);
-bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
-bool recurse(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
+bool findinfiles(reflex::Matcher& magic, reflex::AbstractMatcher& matcher, std::vector<const char*>& infiles, reflex::Input::file_encoding_type encoding);
+void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMatcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
+void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMatcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
+bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname);
 bool is_binary(const char *text, size_t size);
 void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
 void hex_dump(short mode, const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *separator);
@@ -505,7 +521,9 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "max-count=", 10) == 0)
               flag_max_count = (size_t)strtoull(arg + 10, NULL, 10);
             else if (strncmp(arg, "max-depth=", 10) == 0)
-              flag_max_depth = (size_t)strtoull(arg + 6, NULL, 10);
+              flag_max_depth = (size_t)strtoull(arg + 10, NULL, 10);
+            else if (strncmp(arg, "max-files=", 10) == 0)
+              flag_max_files = (size_t)strtoull(arg + 10, NULL, 10);
             else if (strcmp(arg, "no-dereference") == 0)
               flag_no_dereference = true;
             else if (strcmp(arg, "no-filename") == 0)
@@ -540,6 +558,8 @@ int main(int argc, char **argv)
               flag_separator = arg + 10;
             else if (strcmp(arg, "smart-case") == 0)
               flag_smart_case = true;
+            else if (strcmp(arg, "stats") == 0)
+              flag_stats = true;
             else if (strncmp(arg, "tabs=", 5) == 0)
               flag_tabs = (size_t)strtoull(arg + 5, NULL, 10);
             else if (strcmp(arg, "text") == 0)
@@ -913,9 +933,9 @@ int main(int argc, char **argv)
     {
       flag_ignore_case = true;
 
-      for (std::string::const_iterator i = regex.begin(); i != regex.end(); ++i)
+      for (auto i : regex)
       {
-        if (*i >= 'A' && *i <= 'Z')
+        if (i >= 'A' && i <= 'Z')
         {
           flag_ignore_case = false;
           break;
@@ -933,11 +953,15 @@ int main(int argc, char **argv)
       // split regex at newlines, add \Q \E to each string, separate by |
       while ((to = regex.find('\n', from)) != std::string::npos)
       {
-        strings.append("\\Q").append(regex.substr(from, to - from)).append("\\E|");
+        if (from < to)
+          strings.append("\\Q").append(regex.substr(from, to - from)).append("\\E|");
         from = to + 1;
       }
 
-      regex = strings.append("\\Q").append(regex.substr(from)).append("\\E");
+      if (from < regex.size())
+        regex = strings.append("\\Q").append(regex.substr(from)).append("\\E");
+      else if (!regex.empty())
+        regex.pop_back();
     }
 
     // -w or -x: make the regex word- or line-anchored, respectively
@@ -1213,7 +1237,7 @@ int main(int argc, char **argv)
     flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)));
   }
 
-  // -M: file signature magic bytes
+  // -M: file signature magic bytes MAGIC regex
   std::string signature;
 
   // -M: combine to create a signature regex from MAGIC
@@ -1350,6 +1374,23 @@ int main(int argc, char **argv)
     }
   }
 
+  // -q: we only need to find one matching file and we're done
+  if (flag_quiet)
+    flag_max_files = 1;
+
+#ifndef OS_WIN
+  // --pager: if output is to a TTY then page through the results
+  if (isatty(1) && flag_pager != NULL)
+  {
+    out = popen(flag_pager, "w");
+    if (out == NULL)
+      error("cannot open pipe to pager", flag_pager);
+
+    // enable --break
+    flag_break = true;
+  }
+#endif
+
   // if no files were specified then read standard input
   if (infiles.empty())
     infiles.emplace_back("-");
@@ -1357,11 +1398,26 @@ int main(int argc, char **argv)
   // if any match was found in any of the input files later, then found = true
   bool found = false;
 
+  // -M: create a magic matcher for the MAGIC regex signature to match file signatures with magic.scan()
+  reflex::Pattern magic_pattern;
+  reflex::Matcher magic;
+
   try
   {
-    // -M: create a magic pattern for MAGIC to match file signatures with matcher.scan()
-    reflex::Pattern magic(signature, "r");
+    magic_pattern.assign(signature, "r");
+    magic.pattern(magic_pattern);
+  }
 
+  catch (reflex::regex_error& error)
+  {
+    if (!flag_no_messages)
+      std::cerr << "option -M MAGIC:\n" << error.what();
+
+    exit(EXIT_ERROR);
+  }
+
+  try
+  {
     // -U: set flags to convert regex to Unicode
     reflex::convert_flag_type convert_flags = flag_binary ? reflex::convert_flag::none : reflex::convert_flag::unicode;
 
@@ -1370,7 +1426,7 @@ int main(int argc, char **argv)
       convert_flags |= reflex::convert_flag::basic;
 
     // set reflex::Pattern options to raise exceptions and to enable multiline mode
-    std::string pattern_options("rm");
+    std::string pattern_options("(?m");
 
     if (flag_ignore_case)
     {
@@ -1386,13 +1442,13 @@ int main(int argc, char **argv)
       pattern_options.append("x");
     }
 
-    // construct the DFA pattern matcher
-    reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), pattern_options);
-    reflex::Matcher matcher(pattern);
-    
+    // prepend the pattern options (?m...) to the regex
+    pattern_options.append(")");
+    regex = pattern_options + regex;
+
     // reflex::Matcher options
     std::string matcher_options;
-    
+
     // -Y: permit empty pattern matches
     if (flag_empty)
       matcher_options.append("N");
@@ -1406,45 +1462,24 @@ int main(int argc, char **argv)
         help("invalid --tabs=NUM value");
     }
 
-    // set matcher options
-    matcher.reset(matcher_options.c_str());
-
-#ifndef OS_WIN
-    // --pager: if output is to a TTY then page through the results
-    if (isatty(1) && flag_pager != NULL)
+#ifdef HAVE_BOOST_REGEX
+    if (flag_perl_regexp)
     {
-      out = popen(flag_pager, "w");
-      if (out == NULL)
-        error("cannot open pipe to pager", flag_pager);
-
-      // enable --break
-      flag_break = true;
+      // construct the NFA pattern matcher
+      std::string pattern(reflex::BoostPerlMatcher::convert(regex, convert_flags));
+      reflex::BoostPerlMatcher matcher(pattern, matcher_options.c_str());
+      found = findinfiles(magic, matcher, infiles, encoding);
     }
+    else
 #endif
-
-    // read each input file to find pattern matches
-    for (auto infile : infiles)
     {
-      if (strcmp(infile, "-") == 0)
-      {
-        // search standard input
-        reflex::Input input(stdin, encoding);
-        found |= ugrep(matcher, input, flag_label);
-      }
-      else
-      {
-        // search file or directory, get the base name from the infile argument first
-        const char *basename = strrchr(infile, PATHSEPCHR);
-
-        if (basename != NULL)
-          ++basename;
-        else
-          basename = infile;
-
-        found |= find(1, magic, matcher, encoding, infile, basename, true);
-      }
+      // construct the DFA pattern matcher
+      reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), "r");
+      reflex::Matcher matcher(pattern, matcher_options.c_str());
+      found = findinfiles(magic, matcher, infiles, encoding);
     }
   }
+
   catch (reflex::regex_error& error)
   {
     if (!flag_no_messages)
@@ -1452,6 +1487,62 @@ int main(int argc, char **argv)
 
     exit(EXIT_ERROR);
   }
+
+#ifdef HAVE_BOOST_REGEX
+  catch (boost::regex_error& error)
+  {
+    if (!flag_no_messages)
+    {
+      std::cerr << "Boost regex error at position " << error.position() << " in " << regex << std::endl;
+      switch (error.code())
+      {
+        case boost::regex_constants::error_collate:
+          std::cerr << "an invalid collating element was specified in a [[.name.]] block" << std::endl;
+          break;
+        case boost::regex_constants::error_ctype:
+          std::cerr << "an invalid character class name was specified in a [[:name:]] block" << std::endl;
+          break;
+        case boost::regex_constants::error_escape:
+          std::cerr << "an invalid or trailing escape was encountered" << std::endl;
+          break;
+        case boost::regex_constants::error_backref:
+          std::cerr << "a back-reference to a non-existant marked sub-expression was encountered" << std::endl;
+          break;
+        case boost::regex_constants::error_brack:
+          std::cerr << "an invalid character set [...] was encountered" << std::endl;
+          break;
+        case boost::regex_constants::error_paren:
+          std::cerr << "mismatched ( and )" << std::endl;
+          break;
+        case boost::regex_constants::error_brace:
+          std::cerr << "mismatched { and }" << std::endl;
+          break;
+        case boost::regex_constants::error_badbrace:
+          std::cerr << "invalid contents of a {...} block" << std::endl;
+          break;
+        case boost::regex_constants::error_range:
+          std::cerr << "a character range was invalid, for example [d-a]" << std::endl;
+          break;
+        case boost::regex_constants::error_space:
+          std::cerr << "out of memory" << std::endl;
+          break;
+        case boost::regex_constants::error_badrepeat:
+          std::cerr << "an attempt to repeat something that can not be repeated - for example a*+" << std::endl;
+          break;
+        case boost::regex_constants::error_complexity:
+          std::cerr << "the expression became too complex to handle" << std::endl;
+          break;
+        case boost::regex_constants::error_stack:
+          std::cerr << "out of program stack space" << std::endl;
+          break;
+        default:
+          std::cerr << "bad pattern" << std::endl;
+      }
+    }
+
+    exit(EXIT_ERROR);
+  }
+#endif
 
 #ifndef OS_WIN
   if (out != stdout)
@@ -1461,20 +1552,68 @@ int main(int argc, char **argv)
   exit(found ? EXIT_OK : EXIT_FAIL);
 }
 
+// search infiles for pattern matches
+bool findinfiles(reflex::Matcher& magic, reflex::AbstractMatcher& matcher, std::vector<const char*>& infiles, reflex::Input::file_encoding_type encoding)
+{
+  Stats stats;
+
+  // read each input file to find pattern matches
+  for (auto infile : infiles)
+  {
+    if (strcmp(infile, "-") == 0)
+    {
+      // search standard input, does not count towards fileno
+      reflex::Input input(stdin, encoding);
+
+      ++stats.files;
+
+      if (ugrep(matcher, input, flag_label))
+        ++stats.fileno;
+    }
+    else
+    {
+      // search file or directory, get the base name from the infile argument first
+      const char *basename = strrchr(infile, PATHSEPCHR);
+
+      if (basename != NULL)
+        ++basename;
+      else
+        basename = infile;
+
+      find(stats, 1, magic, matcher, encoding, infile, basename, true);
+    }
+
+    // stop after finding max-files matching files
+    if (flag_max_files > 0 && stats.fileno >= flag_max_files)
+      break;
+  }
+
+  if (flag_stats)
+  {
+    fprintf(out, "Searched %zu file%s", stats.files, stats.files == 1 ? "" : "s");
+    if (stats.dirs > 0)
+      fprintf(out, " in %zu director%s", stats.dirs, stats.dirs == 1 ? "y" : "ies");
+    if (stats.fileno > 0)
+      fprintf(out, ": found %zu file%s with matches\n", stats.fileno, stats.fileno == 1 ? "" : "s");
+    else
+      fprintf(out, ": found no matches\n");
+  }
+
+  return stats.fileno > 0;
+}
+
 // search file or directory for pattern matches
-bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
+void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMatcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument)
 {
   if (flag_no_hidden && *basename == '.')
-    return false;
-
-  bool found = false;
+    return;
 
 #ifdef OS_WIN
 
   DWORD attr = GetFileAttributesA(pathname);
 
   if (flag_no_hidden && (attr & FILE_ATTRIBUTE_HIDDEN))
-    return false;
+    return;
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
   {
@@ -1484,7 +1623,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
       if (!flag_no_messages)
         fprintf(stderr, "ugrep: cannot read directory %s\n", pathname);
 
-      return false;
+      return;
     }
 
     if (strcmp(flag_directories, "recurse") == 0)
@@ -1503,7 +1642,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
           // exclude directories whose base name matches any one of the --exclude-dir globs
           for (auto& glob : flag_exclude_dir)
             if (globmat(pathname, basename, glob.c_str()))
-              return false;
+              return;
         }
 
         if (!flag_include_dir.empty())
@@ -1511,7 +1650,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
           // do not include directories that are overridden by ! negation
           for (auto& glob : flag_include_override_dir)
             if (globmat(pathname, basename, glob.c_str()))
-              return false;
+              return;
 
           // include directories whose base name matches any one of the --include-dir globs
           bool ok = false;
@@ -1519,11 +1658,11 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
             if ((ok = globmat(pathname, basename, glob.c_str())))
               break;
           if (!ok)
-            return false;
+            return;
         }
       }
 
-      return recurse(level, magic, matcher, encoding, pathname);
+      recurse(stats, level, magic, matcher, encoding, pathname);
     }
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || strcmp(flag_devices, "read") == 0)
@@ -1539,47 +1678,44 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
       // exclude files whose base name matches any one of the --exclude globs
       for (auto& glob : flag_exclude)
         if (globmat(pathname, basename, glob.c_str()))
-          return false;
+          return;
     }
 
     // check magic pattern against the file signature, when --file-magic=MAGIC is specified
-    if (!magic[0].empty())
+    if (!flag_file_magic.empty())
     {
       FILE *file;
-     
+
       if (fopen_s(&file, pathname, "r") == 0)
       {
         if (same_file(out, file))
         {
           fclose(file);
-          return false;
+          return;
         }
 
-        // to swap the search pattern with the magic pattern
-        const reflex::Pattern& search_pattern = matcher.pattern();
-        matcher.pattern(magic);
-
-        // read the file
+        // read the file to check its file signature
         reflex::Input input(file, encoding);
-        matcher.input(input);
-
-        // has the magic bytes we're looking for?
-        bool has_magic = matcher.scan() != 0;
-
-        // swap the search pattern back
-        matcher.pattern(search_pattern);
 
         // file has the magic bytes we're looking for: search the file
-        if (has_magic)
-          found = ugrep(matcher, input, pathname);
+        if (magic.input(input).scan() != 0)
+        {
+          ++stats.files;
+
+          rewind(file);
+
+          if (ugrep(matcher, input, pathname))
+            ++stats.fileno;
+
+          fclose(file);
+
+          return;
+        }
 
         fclose(file);
 
-        if (found)
-          return true;
-
         if (flag_include.empty())
-          return false;
+          return;
       }
     }
 
@@ -1588,7 +1724,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
       // do not include files that are overridden by ! negation
       for (auto& glob : flag_include_override)
         if (globmat(pathname, basename, glob.c_str()))
-          return false;
+          return;
 
       // include files whose base name matches any one of the --include globs
       bool ok = false;
@@ -1596,7 +1732,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
         if ((ok = globmat(pathname, basename, glob.c_str())))
           break;
       if (!ok)
-        return false;
+        return;
     }
 
     FILE *file;
@@ -1606,13 +1742,17 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
       if (!flag_no_messages)
         warning("cannot read", pathname);
 
-      return false;
+      return;
     }
 
     if (!same_file(out, file))
     {
       reflex::Input input(file, encoding);
-      found = ugrep(matcher, input, pathname);
+
+      ++stats.files;
+
+      if (ugrep(matcher, input, pathname))
+        ++stats.fileno;
     }
 
     fclose(file);
@@ -1639,7 +1779,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
             if (!flag_no_messages)
               fprintf(stderr, "ugrep: cannot read directory %s\n", pathname);
 
-            return false;
+            return;
           }
 
           if (strcmp(flag_directories, "recurse") == 0)
@@ -1658,7 +1798,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
                 // exclude directories whose pathname matches any one of the --exclude-dir globs
                 for (auto& glob : flag_exclude_dir)
                   if (globmat(pathname, basename, glob.c_str()))
-                    return false;
+                    return;
               }
 
               if (!flag_include_dir.empty())
@@ -1666,7 +1806,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
                 // do not include directories that are overridden by ! negation
                 for (auto& glob : flag_include_override_dir)
                   if (globmat(pathname, basename, glob.c_str()))
-                    return false;
+                    return;
 
                 // include directories whose pathname matches any one of the --include-dir globs
                 bool ok = false;
@@ -1674,11 +1814,11 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
                   if ((ok = globmat(pathname, basename, glob.c_str())))
                     break;
                 if (!ok)
-                  return false;
+                  return;
               }
             }
 
-            return recurse(level, magic, matcher, encoding, pathname);
+            recurse(stats, level, magic, matcher, encoding, pathname);
           }
         }
         else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
@@ -1694,11 +1834,11 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
             // exclude files whose pathname matches any one of the --exclude globs
             for (auto& glob : flag_exclude)
               if (globmat(pathname, basename, glob.c_str()))
-                return false;
+                return;
           }
 
           // check magic pattern against the file signature, when --file-magic=MAGIC is specified
-          if (!magic[0].empty())
+          if (!flag_file_magic.empty())
           {
             FILE *file;
 
@@ -1707,14 +1847,9 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
               if (same_file(out, file))
               {
                 fclose(file);
-                return false;
+                return;
               }
 
-              // to swap the search pattern with the magic pattern
-              const reflex::Pattern& search_pattern = matcher.pattern();
-              matcher.pattern(magic);
-
-              // read the file
 #ifdef HAVE_LIBZ
               if (flag_decompress)
               {
@@ -1722,40 +1857,50 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
                 std::istream stream(&streambuf);
                 reflex::Input input(&stream);
 
-                // has the magic bytes we're looking for?
-                bool has_magic = matcher.scan();
-
-                // swap the search pattern back
-                matcher.pattern(search_pattern);
-
                 // file has the magic bytes we're looking for: search the file
-                if (has_magic)
-                  found = ugrep(matcher, input, pathname);
+                if (magic.input(input).scan() != 0)
+                {
+                  ++stats.files;
+
+                  rewind(file);
+
+                  if (ugrep(matcher, input, pathname))
+                  {
+                    ++stats.fileno;
+
+                    fclose(file);
+
+                    return;
+                  }
+                }
               }
               else
 #endif
               {
                 reflex::Input input(file, encoding);
-                matcher.input(input);
-
-                // has the magic bytes we're looking for?
-                bool has_magic = matcher.scan();
-
-                // swap the search pattern back
-                matcher.pattern(search_pattern);
 
                 // file has the magic bytes we're looking for: search the file
-                if (has_magic)
-                  found = ugrep(matcher, input, pathname);
+                if (magic.input(input).scan() != 0)
+                {
+                  ++stats.files;
+
+                  rewind(file);
+
+                  if (ugrep(matcher, input, pathname))
+                  {
+                    ++stats.fileno;
+
+                    fclose(file);
+
+                    return;
+                  }
+                }
               }
 
               fclose(file);
-              
-              if (found)
-                return true;
 
               if (flag_include.empty())
-                return false;
+                return;
             }
           }
 
@@ -1764,7 +1909,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
             // do not include files that are overridden by ! negation
             for (auto& glob : flag_include_override)
               if (globmat(pathname, basename, glob.c_str()))
-                return false;
+                return;
 
             // include files whose pathname matches any one of the --include globs
             bool ok = false;
@@ -1772,7 +1917,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
               if ((ok = globmat(pathname, basename, glob.c_str())))
                 break;
             if (!ok)
-              return false;
+              return;
           }
 
           FILE *file;
@@ -1782,7 +1927,7 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
             if (!flag_no_messages)
               warning("cannot read", pathname);
 
-            return false;
+            return;
           }
 
           if (!same_file(out, file))
@@ -1793,13 +1938,21 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
               zstreambuf streambuf(file);
               std::istream stream(&streambuf);
               reflex::Input input(&stream);
-              found = ugrep(matcher, input, pathname);
+
+              ++stats.files;
+
+              if (ugrep(matcher, input, pathname))
+                ++stats.fileno;
             }
             else
 #endif
             {
               reflex::Input input(file, encoding);
-              found = ugrep(matcher, input, pathname);
+
+              ++stats.files;
+
+              if (ugrep(matcher, input, pathname))
+                ++stats.fileno;
             }
           }
 
@@ -1814,18 +1967,16 @@ bool find(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex
   }
 
 #endif
-
-  return found;
 }
 
 // recurse over directory, searching for pattern matches in files and sub-directories
-bool recurse(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname)
+void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMatcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname)
 {
   // --max-depth: recursion level exceeds max depth?
   if (flag_max_depth > 0 && level > flag_max_depth)
-    return false;
+    return;
 
-  bool found = false;
+  ++stats.dirs;
 
 #ifdef OS_WIN
 
@@ -1838,16 +1989,20 @@ bool recurse(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, ref
     if (!flag_no_messages)
       warning("cannot open directory", pathname);
 
-    return false;
+    return;
   } 
-   
+
   std::string dirpathname;
 
   do
   {
+    // stop after finding max-files matching files
+    if (flag_max_files > 0 && stats.fileno >= flag_max_files)
+      break;
+
     dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
 
-    found |= find(level + 1, magic, matcher, encoding, dirpathname.c_str(), ffd.cFileName);
+    find(stats, level + 1, magic, matcher, encoding, dirpathname.c_str(), ffd.cFileName);
   }
   while (FindNextFileA(hFind, &ffd) != 0);
 
@@ -1862,7 +2017,7 @@ bool recurse(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, ref
     if (!flag_no_messages)
       warning("cannot open directory", pathname);
 
-    return false;
+    return;
   }
 
   struct dirent *dirent;
@@ -1873,21 +2028,23 @@ bool recurse(size_t level, reflex::Pattern& magic, reflex::Matcher& matcher, ref
     // search directory entries that aren't . or ..
     if (strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0)
     {
+      // stop after finding max-files matching files
+      if (flag_max_files > 0 && stats.fileno >= flag_max_files)
+        break;
+
       dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
 
-      found |= find(level + 1, magic, matcher, encoding, dirpathname.c_str(), dirent->d_name);
+      find(stats, level + 1, magic, matcher, encoding, dirpathname.c_str(), dirent->d_name);
     }
   }
 
   closedir(dir);
 
 #endif
-
-  return found;
 }
 
 // search input, display pattern matches, return true when pattern matched anywhere
-bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
+bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname)
 {
   size_t matches = 0;
 
@@ -1895,7 +2052,15 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
   {
     // -q, -l, or -L: report if a single pattern match was found in the input
 
-    matches = matcher.input(input).find() != 0;
+    matcher.input(input);
+
+#ifdef HAVE_BOOST_REGEX
+    // buffer all input to work around Boost.Regex bug
+    if (flag_perl_regexp)
+      matcher.buffer(0);
+#endif
+
+    matches = matcher.find() != 0;
 
     if (flag_invert_match)
       matches = !matches;
@@ -1944,6 +2109,13 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
       // -c with -g: count the number of patterns matched in the file
 
       matcher.input(input);
+
+#ifdef HAVE_BOOST_REGEX
+      // buffer all input to work around Boost.Regex bug
+      if (flag_perl_regexp)
+        matcher.buffer(0);
+#endif
+
       while (matcher.find() != 0)
       {
         ++matches;
@@ -1960,6 +2132,12 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
       size_t lineno = 0;
 
       matcher.input(input);
+
+#ifdef HAVE_BOOST_REGEX
+      // buffer all input to work around Boost.Regex bug
+      if (flag_perl_regexp)
+        matcher.buffer(0);
+#endif
 
       for (auto& match : matcher.find)
       {
@@ -2009,6 +2187,12 @@ bool ugrep(reflex::Matcher& matcher, reflex::Input& input, const char *pathname)
     const char *separator = flag_separator;
 
     matcher.input(input);
+
+#ifdef HAVE_BOOST_REGEX
+    // buffer all input to work around Boost.Regex bug
+    if (flag_perl_regexp)
+      matcher.buffer(0);
+#endif
 
     for (auto& match : matcher.find)
     {
@@ -2788,7 +2972,7 @@ void set_color(const char *grep_colors, const char *parameter, char color[COLORL
   {
     substr += 3;
     const char *colon = substr;
-    
+
     while (*colon && (isdigit(*colon) || *colon == ';'))
       ++colon;
 
@@ -2912,7 +3096,7 @@ void help(const char *message, const char *arg)
             it as commands.  `hex' reports all matches in hexadecimal.\n\
             `with-hex` only reports binary matches in hexadecimal, leaving text\n\
             matches alone.  A match is considered binary if a match contains a\n\
-            zero byte or an invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
+            zero byte or invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
             and -X options.\n\
     --break\n\
             Adds a line break between results from different files.\n\
@@ -2928,7 +3112,8 @@ void help(const char *message, const char *arg)
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the expression stored in the\n\
             GREP_COLOR or GREP_COLORS environment variable.  The possible\n\
-            values of WHEN can be `never', `always', or `auto'.\n\
+            values of WHEN can be `never', `always', or `auto', where `auto'\n\
+            marks up matches only when output on a terminal.\n\
     -D ACTION, --devices=ACTION\n\
             If an input file is a device, FIFO or socket, use ACTION to process\n\
             it.  By default, ACTION is `read', which means that devices are\n\
@@ -2944,10 +3129,6 @@ void help(const char *message, const char *arg)
             ACTION is `dereference-recurse', read all files under each\n\
             directory, recursively, following symbolic links.  This is\n\
             equivalent to the -R option.\n\
-    --max-depth=NUM\n\
-            Restrict recursive search to NUM (NUM > 0) directories deep, where\n\
-            --max-depth=1 searches the specified path without visiting\n\
-            sub-directories.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
@@ -2978,8 +3159,9 @@ void help(const char *message, const char *arg)
             option may be repeated.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
-            any of which is to be matched.  This forces ugrep to behave as\n\
-            fgrep but less efficiently than fgrep.\n\
+            any of which is to be matched.  This makes ugrep behave as fgrep.\n\
+            This option does not apply to -f FILE patterns.  To apply -F to\n\
+            patterns in FILE use -Fe `cat FILE`.\n\
     -f FILE, --file=FILE\n\
             Read one or more newline-separated patterns from FILE.  Empty\n\
             pattern lines in the file are not processed.  Options -F, -w, and\n\
@@ -2995,8 +3177,8 @@ void help(const char *message, const char *arg)
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
-            Interpret pattern as a basic regular expression (i.e. force ugrep\n\
-            to behave as traditional grep).\n\
+            Interpret pattern as a basic regular expression, i.e. make ugrep\n\
+            behave as traditional grep.\n\
     -g, --no-group\n\
             Do not group multiple pattern matches on the same matched line.\n\
             Output the matched line again for each additional pattern match,\n\
@@ -3016,7 +3198,7 @@ void help(const char *message, const char *arg)
             --binary-files=without-match option.\n\
     -i, --ignore-case\n\
             Perform case insensitive matching.  By default, ugrep is case\n\
-            sensitive.  This option is applied to ASCII letters only.\n\
+            sensitive.  This option applies to ASCII letters only.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB (using wildcard\n\
             matching).  A glob can use *, ?, and [...] as wildcards, and \\ to\n\
@@ -3070,12 +3252,18 @@ void help(const char *message, const char *arg)
     -M MAGIC, --file-magic=MAGIC\n\
             Only files matching the signature pattern `MAGIC' are searched.\n\
             The signature magic bytes at the start of a file are compared to\n\
-            the `MAGIC' regex pattern and, when matching, the search commences\n\
-            immediately after the magic bytes.  This option may be repeated and\n\
-            may be combined with options -O and -t to expand the search.  This\n\
-            option is relatively slow as every file on the search path is read.\n\
+            the `MAGIC' regex pattern.  When matching, the file will be\n\
+            searched.  This option may be repeated and may be combined with\n\
+            options -O and -t to expand the search.  This option is relatively\n\
+            slow as every file on the search path is read.\n\
     -m NUM, --max-count=NUM\n\
-            Stop reading the input after NUM matches.\n\
+            Stop reading the input after NUM matches for each file processed.\n\
+    --max-depth=NUM\n\
+            Restrict recursive search to NUM (NUM > 0) directories deep, where\n\
+            --max-depth=1 searches the specified path without visiting\n\
+            sub-directories, the same as -dskip.\n\
+    --max-files=NUM\n\
+            Restrict the number of files matched to NUM (NUM > 0).\n\
     -N, --only-line-number\n\
             The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
@@ -3087,6 +3275,8 @@ void help(const char *message, const char *arg)
     --no-group-separator\n\
             Removes the group separator line from the output for context\n\
             options -A, -B, and -C.\n\
+    --no-hidden\n\
+            Do not search hidden files and hidden directories.\n\
     -O EXTENSIONS, --file-extensions=EXTENSIONS\n\
             Search only files whose file name extensions match the specified\n\
             comma-separated list of file name EXTENSIONS.  This option is the\n\
@@ -3100,15 +3290,19 @@ void help(const char *message, const char *arg)
             field separator for each additional line matched by the pattern.\n\
             Context options -A, -B, -C, and -y are disabled.\n\
     -P, --perl-regexp\n\
-            Interpret PATTERN as a Perl regular expression.\n\
-            This feature is not available in this version of ugrep.\n\
+            Interpret PATTERN as a Perl regular expression.\n";
+#ifndef HAVE_BOOST_REGEX
+  std::cout << "\
+            This feature is not available in this version of ugrep.\n";
+#endif
+  std::cout << "\
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
             they are on the command line.\n\
     --pager[=COMMAND]\n\
             When output is sent to the terminal, uses `COMMAND' to page through\n\
             the output.  The default COMMAND is `less -R'.  This option makes\n\
-            --color=auto behave as --color=always and enables --break.\n\
+            --color=auto behave as --color=always.  Enables --break.\n\
     -Q ENCODING, --encoding=ENCODING\n\
             The input file encoding.  The possible values of ENCODING can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)
@@ -3134,6 +3328,8 @@ void help(const char *message, const char *arg)
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset, and the matched line.  The default is a colon\n\
             (`:').\n\
+    --stats\n\
+            Display statistics on the number of files and directories searched.\n\
     -T, --initial-tab\n\
             Add a tab space to separate the file name, line number, column\n\
             number, and byte offset with the matched line.\n\
@@ -3167,13 +3363,16 @@ void help(const char *message, const char *arg)
             option.\n\
     -w, --word-regexp\n\
             The pattern or -e patterns are searched for as a word (as if\n\
-            surrounded by \\< and \\>).\n\
+            surrounded by \\< and \\>).  This option does not apply to -f FILE\n\
+            patterns.  To apply -w to patterns in FILE use -we `cat FILE`.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.\n\
     -x, --line-regexp\n\
             Only input lines selected against the entire pattern or -e patterns\n\
             are considered to be matching lines (as if surrounded by ^ and $).\n\
+            This option does not apply to -f FILE patterns.  To apply -x to\n\
+            patterns in FILE use -xe `cat FILE`.\n\
     -Y, --empty\n\
             Permits empty matches, such as `^\\h*$' to match blank lines.  Empty\n\
             matches are disabled by default.  Note that empty-matching patterns\n\
@@ -3184,13 +3383,11 @@ void help(const char *message, const char *arg)
             See also the -A, -B, and -C options.\n\
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
-    -z, --decompress\n";
-#ifdef HAVE_LIBZ
-  std::cout << "\
+    -z, --decompress\n\
             Search zlib-compressed (.gz) files.  Option -Q is disabled.\n";
-#else
+#ifndef HAVE_LIBZ
   std::cout << "\
-            File decompression is disabled.\n";
+            This feature is not available in this version of ugrep.\n";
 #endif
   std::cout << "\
 \n\

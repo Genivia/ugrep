@@ -1,10 +1,10 @@
-.TH UGREP "1" "July 22, 2019" "ugrep 1.2.4" "User Commands"
+.TH UGREP "1" "July 24, 2019" "ugrep 1.3.1" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
 [\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
-      [\fB--colour\fR[=\fIWHEN\fR]|\fB--color\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]]
+      [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]]
       [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
@@ -19,7 +19,7 @@ specified ASCII/Unicode patterns.  When the input contains a UTF BOM indicating
 UTF-8, UTF-16, or UTF-32 input then \fBugrep\fR always normalizes the input to
 UTF-8.  When no UTF BOM is present, \fBugrep\fR assumes the input is ASCII,
 UTF-8, or raw binary.  To specify a different input file encoding, use option
-\fB-Q\R, \fB--encoding\fR.
+\fB-Q\fR, \fB--encoding\fR.
 .PP
 The following options are available:
 .TP
@@ -57,7 +57,7 @@ problematic consequences if the terminal driver interprets some of
 it as commands.  `hex' reports all matches in hexadecimal.
 `with\-hex` only reports binary matches in hexadecimal, leaving text
 matches alone.  A match is considered binary if a match contains a
-zero byte or an invalid UTF encoding.  See also the \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\fR,
+zero byte or invalid UTF encoding.  See also the \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\fR,
 and \fB\-X\fR options.
 .TP
 \fB\-\-break\fR
@@ -77,7 +77,8 @@ With option \fB\-v\fR, counts the number of non\-matching lines.
 \fB\-\-color\fR[=\fI\fR\fIWHEN\fR], \fB\-\-colour\fR[=\fI\fR\fIWHEN\fR]
 Mark up the matching text with the expression stored in the
 GREP_COLOR or GREP_COLORS environment variable.  The possible
-values of WHEN can be `never', `always', or `auto'.
+values of WHEN can be `never', `always', or `auto', where `auto'
+marks up matches only when output on a terminal.
 .TP
 \fB\-D\fR \fIACTION\fR, \fB\-\-devices\fR=\fIACTION\fR
 If an input file is a device, FIFO or socket, use ACTION to process
@@ -95,11 +96,6 @@ on the command line.  This is equivalent to the \fB\-r\fR option.  If
 ACTION is `dereference\-recurse', read all files under each
 directory, recursively, following symbolic links.  This is
 equivalent to the \fB\-R\fR option.
-.TP
-\fB\-\-max\-depth\fR=\fINUM\fR
-Restrict recursive search to NUM (NUM > 0) directories deep, where
-\fB\-\-max\-depth\fR=\fI\fR1 searches the specified path without visiting
-sub\-directories.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is
@@ -136,8 +132,9 @@ option may be repeated.
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
-any of which is to be matched.  This forces ugrep to behave as
-fgrep but less efficiently than fgrep.
+any of which is to be matched.  This makes ugrep behave as fgrep.
+This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  To apply \fB\-F\fR to
+patterns in FILE use \fB\-F\fRe `cat FILE`.
 .TP
 \fB\-f\fR \fIFILE\fR, \fB\-\-file\fR=\fIFILE\fR
 Read one or more newline\-separated patterns from FILE.  Empty
@@ -152,8 +149,8 @@ repeated.
 Spacing (blanks and tabs) in regular expressions are ignored.
 .TP
 \fB\-G\fR, \fB\-\-basic\-regexp\fR
-Interpret pattern as a basic regular expression (i.e. force ugrep
-to behave as traditional grep).
+Interpret pattern as a basic regular expression, i.e. make ugrep
+behave as traditional grep.
 .TP
 \fB\-g\fR, \fB\-\-no\-group\fR
 Do not group multiple pattern matches on the same matched line.
@@ -180,7 +177,7 @@ Ignore matches in binary files.  This option is equivalent to the
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
 Perform case insensitive matching.  By default, ugrep is case
-sensitive.  This option is applied to ASCII letters only.
+sensitive.  This option applies to ASCII letters only.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Search only files whose name matches GLOB (using wildcard
@@ -245,13 +242,21 @@ otherwise.
 \fB\-M\fR \fIMAGIC\fR, \fB\-\-file\-magic\fR=\fIMAGIC\fR
 Only files matching the signature pattern `MAGIC' are searched.
 The signature magic bytes at the start of a file are compared to
-the `MAGIC' regex pattern and, when matching, the search commences
-immediately after the magic bytes.  This option may be repeated and
-may be combined with options \fB\-O\fR and \fB\-t\fR to expand the search.  This
-option is relatively slow as every file on the search path is read.
+the `MAGIC' regex pattern.  When matching, the file will be
+searched.  This option may be repeated and may be combined with
+options \fB\-O\fR and \fB\-t\fR to expand the search.  This option is relatively
+slow as every file on the search path is read.
 .TP
 \fB\-m\fR \fINUM\fR, \fB\-\-max\-count\fR=\fINUM\fR
-Stop reading the input after NUM matches.
+Stop reading the input after NUM matches for each file processed.
+.TP
+\fB\-\-max\-depth\fR=\fINUM\fR
+Restrict recursive search to NUM (NUM > 0) directories deep, where
+\fB\-\-max\-depth\fR=\fI\fR1 searches the specified path without visiting
+sub\-directories, the same as \fB\-d\fRskip.
+.TP
+\fB\-\-max\-files\fR=\fINUM\fR
+Restrict the number of files matched to NUM (NUM > 0).
 .TP
 \fB\-N\fR, \fB\-\-only\-line\-number\fR
 The line number of the matching line in the file is output without
@@ -266,6 +271,9 @@ each file processed.
 \fB\-\-no\-group\-separator\fR
 Removes the group separator line from the output for context
 options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
+.TP
+\fB\-\-no\-hidden\fR
+Do not search hidden files and hidden directories.
 .TP
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
 Search only files whose file name extensions match the specified
@@ -283,7 +291,6 @@ Context options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR are disabled.
 .TP
 \fB\-P\fR, \fB\-\-perl\-regexp\fR
 Interpret PATTERN as a Perl regular expression.
-This feature is not available in this version of ugrep.
 .TP
 \fB\-p\fR, \fB\-\-no\-dereference\fR
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
@@ -292,7 +299,7 @@ they are on the command line.
 \fB\-\-pager\fR[=\fI\fR\fICOMMAND\fR]
 When output is sent to the terminal, uses `COMMAND' to page through
 the output.  The default COMMAND is `less \fB\-R\fR'.  This option makes
-\fB\-\-color\fR=\fI\fRauto behave as \fB\-\-color\fR=\fI\fRalways and enables \fB\-\-break\fR.
+\fB\-\-color\fR=\fI\fRauto behave as \fB\-\-color\fR=\fI\fRalways.  Enables \fB\-\-break\fR.
 .TP
 \fB\-Q\fR \fIENCODING\fR, \fB\-\-encoding\fR=\fIENCODING\fR
 The input file encoding.  The possible values of ENCODING can be:
@@ -326,6 +333,9 @@ their error messages are suppressed).
 Use SEP as field separator between file name, line number, column
 number, byte offset, and the matched line.  The default is a colon
 (`:').
+.TP
+\fB\-\-stats\fR
+Display statistics on the number of files and directories searched.
 .TP
 \fB\-T\fR, \fB\-\-initial\-tab\fR
 Add a tab space to separate the file name, line number, column
@@ -378,7 +388,8 @@ option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The pattern or \fB\-e\fR patterns are searched for as a word (as if
-surrounded by \\< and \\>).
+surrounded by \\< and \\>).  This option does not apply to \fB\-f\fR \fIFILE\fR
+patterns.  To apply \fB\-w\fR to patterns in FILE use \fB\-w\fRe `cat FILE`.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
@@ -387,6 +398,8 @@ Output matches in hexadecimal.  This option is equivalent to the
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire pattern or \fB\-e\fR patterns
 are considered to be matching lines (as if surrounded by ^ and $).
+This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  To apply \fB\-x\fR to
+patterns in FILE use \fB\-x\fRe `cat FILE`.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches, such as `^\\h*$' to match blank lines.  Empty

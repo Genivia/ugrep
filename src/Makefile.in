@@ -91,7 +91,8 @@ host_triplet = @host@
 bin_PROGRAMS = ugrep$(EXEEXT)
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_zlib.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_regex.m4 \
+	$(top_srcdir)/m4/ax_check_zlib.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx_11.m4 \
 	$(top_srcdir)/configure.ac

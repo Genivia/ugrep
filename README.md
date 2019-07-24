@@ -102,11 +102,15 @@ Why use ugrep?
   `-N` (only line number), `-l` (file with match), or `-L` (files without
   match).
 
-- **ugrep regex patterns are converted to efficient DFAs** for faster matching
-  without backtracking.  DFAs yield significant speedups when searching
-  multiple files and large files.  Rare and pathological cases are known to
-  exist that may increase the initial running time of **ugrep** for complex DFA
-  construction.
+- **ugrep supports Perl regular expressions** with option `-P`.  This option
+  offers PCRE-like syntax, including backreferences and lookbehinds.  POSIX
+  regular expressions are the default.
+
+- **ugrep POSIX regex patterns are converted to efficient DFAs** for faster
+  matching without backtracking.  DFAs yield significant speedups when
+  searching multiple files and large files.  Rare and pathological cases are
+  known to exist that may increase the initial running time of **ugrep** for
+  complex DFA construction.
 
 - **ugrep is portable** and compiles with MSVC++ to run on Windows.  Binaries are
   included for Linux, Mac, and Windows.
@@ -136,12 +140,19 @@ Unoptimized (single threaded), **ugrep** is already much faster than BSD grep
 (**ugrep** was compiled with clang 9.0.0 -O2, and this test was run on a 2.9
 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 machine).
 
+For future updates
+------------------
+
+Further speed improvements, e.g. `mmap`, `memchr`, Boyer-Moore, and threads.
+
 Installation
 ------------
 
 Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
+However, these versions disable options `-P` (Perl regular expressions) and
+`-z` (decompress).
 
-To build ugrep, first install RE/flex 1.2.5 or greater from
+To build ugrep, first install RE/flex 1.3.1 or greater from
 https://github.com/Genivia/RE-flex then download ugrep from
 https://github.com/Genivia/ugrep and execute:
 
@@ -151,19 +162,26 @@ This builds `ugrep` in the `src` directory.  You can tell which version it is
 with:
 
     $ src/ugrep -V
-    ugrep 1.2.3 x86_64-apple-darwin16.7.0
+    ugrep 1.3.1 x86_64-apple-darwin16.7.0
 
 Optionally, install the ugrep utility and the ugrep manual page:
 
     $ sudo make install
     $ ugrep -V
-    ugrep 1.2.3 x86_64-apple-darwin16.7.0
+    ugrep 1.3.1 x86_64-apple-darwin16.7.0
 
 This also installs the pattern files with predefined patterns for option `-f`
 at `/usr/local/share/ugrep/patterns/`.  Option `-f` first checks the current
 directory for the presence of pattern files, if not found checks environment
 variable `GREP_PATH` to load the pattern files, and if not found reads the
 installed predefined pattern files.
+
+**ugrep** has two optional dependencies:
+
+- Option `-P` (Perl regular expressions) requires the
+  [Boost.Regex](https://www.boost.org) library installed.
+- Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
+  library installed.
 
 Using ugrep within Vim
 ----------------------
@@ -295,7 +313,12 @@ few:
   searching for certain types of files in directory trees with recursive search
   options `-R` and `-r`.
 - Improved option `-f` uses `GREP_PATH` environment variable or the predefined
-  patterns intalled in `/usr/local/share/ugrep/patterns`.
+  patterns installed in `/usr/local/share/ugrep/patterns`.  Options `-w`, `-x`,
+  and `-F` do not apply to predefined patterns.
+- Patterns with backreferences and lookbehinds require option `-P` (Perl
+  regular expressions), which uses the Boost.Regex library since
+  [Boost.Regex is faster than PCRE](https://github.com/Genivia/RE-flex),
+  while providing PCRE-like regex syntax.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line reported by GNU/BSD grep.  Reporting
@@ -304,12 +327,6 @@ few:
   `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
 - BSD grep (e.g. on Mac OS X) has limitations and some bugs that **ugrep**
   fixes (options `-r` versus `-R`), support for `GREP_COLORS`, and more.
-
-### When not to use ugrep
-
-- Patterns with backreferences and lookbehinds are not supported yet, which
-  will be for option `-P` in future releases using Boost.Regex with RE/flex.
-  [Boost.Regex is faster than PCRE](https://github.com/Genivia/RE-flex).
 
 <a name="tutorial"/>
 
@@ -450,9 +467,15 @@ To show a list of `-t TYPES` option values:
 
 ### Recursively list matching files with options -R/-r and -L/-l
 
-To recursively list all readable non-empty files on the path specified:
+To recursively list all readable non-empty files on the path specified,
+following symbolic links:
 
     ugrep -R -l '' mydir
+
+To recursively list all readable non-empty files on the path specified,
+not following any symbolic links (except when on the command line):
+
+    ugrep -r -l '' mydir
 
 To recursively list all readable empty files on the path specified:
 
@@ -686,18 +709,18 @@ ignored by .gitignore:
 
 ### Find files by file signatures and magic bytes with -M and -t
 
-To list all files that start with `#!` hashbangs:
-
-    ugrep -R -l '\A#!.*' .
-
-The same but more efficient using option `-M`:
+To recursively list all files that start with `#!` hashbangs:
 
     ugrep -R -l -M '#!.*' '' .
 
-Searching Python files, that have extension `.py` or a shebang, for all import
-statements:
+To recursively list all Python files (extension `.py` or a shebang):
 
-    ugrep -R -l -tPython -f python/imports .
+    ugrep -R -l -tPython '' .
+
+To list Python files (extension `.py` or a shebang) that have import
+statements, excluding hidden files:
+
+    ugrep -R -l --no-hidden -tPython -f python/imports .
 
 ### Counting matching lines with -c and -g
 
@@ -763,17 +786,21 @@ To search tarballs for archived PDF files (assuming bash is our shell):
 
     for tb in *.tar *.tar.gz; do echo "$tb"; tar tfz "$tb" | ugrep '.*\.pdf$'; done
 
-### Limiting the number of matches with -m and --max-depth
+### Limiting the number of matches with -m, --max-depth, and --max-files
 
 To show only the first 10 matches of `FIXME` in C++ files in the current
 directory and all sub-directories below:
 
     ugrep -R -m10 -tc++ FIXME .
 
-The same, but recursively search up to two directory levels, meaning that `./`
-and `./sub/` are visited but not deeper:
+The same, but recursively search up to two directory levels deep, meaning that
+`./` and `./sub/` are visited but not deeper:
 
     ugrep -R -m10 --max-depth=2 -tc++ FIXME .
+
+To show only the first file found that has one or more matches of `FIXME`:
+
+    ugrep -R --max-files=1 -tc++ FIXME .
 
 ### More examples
 
@@ -799,7 +826,6 @@ in markdown:
 Man page
 --------
 
-
     UGREP(1)                         User Commands                        UGREP(1)
 
 
@@ -809,7 +835,7 @@ Man page
 
     SYNOPSIS
            ugrep [OPTIONS] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN]
-                 [--colour[=WHEN]|--color[=WHEN]] [--pager[=COMMAND]]
+                 [--color[=WHEN]|--colour[=WHEN]] [--pager[=COMMAND]]
                  [-f FILE] [-t TYPES] [-Q ENCODING] [FILE ...]
 
     DESCRIPTION
@@ -864,7 +890,7 @@ Man page
                   driver interprets some of it as  commands.   `hex'  reports  all
                   matches  in hexadecimal.  `with-hex` only reports binary matches
                   in hexadecimal, leaving text matches alone.  A match is  consid-
-                  ered  binary  if  a match contains a zero byte or an invalid UTF
+                  ered  binary  if  a  match  contains  a zero byte or invalid UTF
                   encoding.  See also the -a, -I, -U, -W, and -X options.
 
            --break
@@ -884,67 +910,64 @@ Man page
            --color[=WHEN], --colour[=WHEN]
                   Mark  up  the  matching  text  with the expression stored in the
                   GREP_COLOR or GREP_COLORS environment  variable.   The  possible
-                  values of WHEN can be `never', `always', or `auto'.
+                  values of WHEN can be `never', `always', or `auto', where `auto'
+                  marks up matches only when output on a terminal.
 
            -D ACTION, --devices=ACTION
-                  If  an  input  file  is  a device, FIFO or socket, use ACTION to
-                  process it.  By default, ACTION  is  `read',  which  means  that
+                  If an input file is a device, FIFO  or  socket,  use  ACTION  to
+                  process  it.   By  default,  ACTION  is `read', which means that
                   devices are read just as if they were ordinary files.  If ACTION
                   is `skip', devices are silently skipped.
 
            -d ACTION, --directories=ACTION
-                  If an input file is a directory, use ACTION to process  it.   By
-                  default,  ACTION  is  `read',  i.e., read directories just as if
-                  they were ordinary files.  If ACTION is  `skip',  silently  skip
-                  directories.   If ACTION is `recurse', read all files under each
-                  directory, recursively, following symbolic links  only  if  they
-                  are  on  the command line.  This is equivalent to the -r option.
-                  If ACTION is `dereference-recurse', read all  files  under  each
+                  If  an  input file is a directory, use ACTION to process it.  By
+                  default, ACTION is `read', i.e., read  directories  just  as  if
+                  they  were  ordinary  files.  If ACTION is `skip', silently skip
+                  directories.  If ACTION is `recurse', read all files under  each
+                  directory,  recursively,  following  symbolic links only if they
+                  are on the command line.  This is equivalent to the  -r  option.
+                  If  ACTION  is  `dereference-recurse', read all files under each
                   directory,  recursively,  following  symbolic  links.   This  is
                   equivalent to the -R option.
 
-           --max-depth=NUM
-                  Restrict recursive search to NUM (NUM  >  0)  directories  deep,
-                  where --max-depth=1 searches the specified path without visiting
-                  sub-directories.
-
            -E, --extended-regexp
-                  Interpret patterns as extended regular expressions (EREs).  This
+                  Interpret  patterns as extended regular expressions (EREs). This
                   is the default.
 
            -e PATTERN, --regexp=PATTERN
-                  Specify  a PATTERN used during the search of the input: an input
-                  line is selected if it matches any of  the  specified  patterns.
-                  This  option is most useful when multiple -e options are used to
-                  specify multiple patterns, when a pattern  begins  with  a  dash
+                  Specify a PATTERN used during the search of the input: an  input
+                  line  is  selected  if it matches any of the specified patterns.
+                  This option is most useful when multiple -e options are used  to
+                  specify  multiple  patterns,  when  a pattern begins with a dash
                   (`-'), or to specify a pattern after option -f.
 
            --exclude=GLOB
                   Skip files whose name matches GLOB (using wildcard matching).  A
-                  glob can use *, ?, and [...] as wildcards,  and  \  to  quote  a
-                  wildcard  or backslash character literally.  If GLOB contains /,
-                  full pathnames are matched.  Otherwise  basenames  are  matched.
-                  Note  that  --exclude patterns take priority over --include pat-
+                  glob  can  use  *,  ?,  and [...] as wildcards, and \ to quote a
+                  wildcard or backslash character literally.  If GLOB contains  /,
+                  full  pathnames  are  matched.  Otherwise basenames are matched.
+                  Note that --exclude patterns take priority over  --include  pat-
                   terns.  This option may be repeated.
 
            --exclude-dir=GLOB
-                  Exclude directories  whose  name  matches  GLOB  from  recursive
+                  Exclude  directories  whose  name  matches  GLOB  from recursive
                   searches.  If GLOB contains /, full pathnames are matched.  Oth-
-                  erwise basenames are matched.  Note that --exclude-dir  patterns
-                  take  priority  over --include-dir patterns.  This option may be
+                  erwise  basenames are matched.  Note that --exclude-dir patterns
+                  take priority over --include-dir patterns.  This option  may  be
                   repeated.
 
            --exclude-from=FILE
-                  Read the globs from FILE and skip files  and  directories  whose
+                  Read  the  globs  from FILE and skip files and directories whose
                   name matches one or more globs (as if specified by --exclude and
-                  --exclude-dir).  Lines starting with a `#' and  empty  lines  in
-                  FILE  ignored.   When  FILE  is a a `-', standard input is read.
+                  --exclude-dir).   Lines  starting  with a `#' and empty lines in
+                  FILE ignored.  When FILE is a a `-',  standard  input  is  read.
                   This option may be repeated.
 
            -F, --fixed-strings
-                  Interpret pattern as a set of fixed strings, separated  by  new-
-                  lines,  any  of  which  is  to be matched.  This forces ugrep to
-                  behave as fgrep but less efficiently than fgrep.
+                  Interpret  pattern  as a set of fixed strings, separated by new-
+                  lines, any of which is to be matched.  This makes  ugrep  behave
+                  as  fgrep.   This option does not apply to -f FILE patterns.  To
+                  apply -F to patterns in FILE use -Fe `cat FILE`.
 
            -f FILE, --file=FILE
                   Read one or more newline-separated patterns  from  FILE.   Empty
@@ -959,8 +982,8 @@ Man page
                   Spacing (blanks and tabs) in regular expressions are ignored.
 
            -G, --basic-regexp
-                  Interpret pattern as a  basic  regular  expression  (i.e.  force
-                  ugrep to behave as traditional grep).
+                  Interpret pattern as a basic regular expression, i.e. make ugrep
+                  behave as traditional grep.
 
            -g, --no-group
                   Do  not group multiple pattern matches on the same matched line.
@@ -985,7 +1008,7 @@ Man page
 
            -i, --ignore-case
                   Perform case insensitive matching.  By default,  ugrep  is  case
-                  sensitive.  This option is applied to ASCII letters only.
+                  sensitive.  This option applies to ASCII letters only.
 
            --include=GLOB
                   Search only files whose name matches GLOB (using wildcard match-
@@ -1052,14 +1075,22 @@ Man page
            -M MAGIC, --file-magic=MAGIC
                   Only  files matching the signature pattern `MAGIC' are searched.
                   The signature magic bytes at the start of a file are compared to
-                  the  `MAGIC'  regex  pattern and, when matching, the search com-
-                  mences immediately after the magic bytes.  This  option  may  be
-                  repeated  and  may  be combined with options -O and -t to expand
-                  the search.  This option is relatively slow as every file on the
-                  search path is read.
+                  the  `MAGIC'  regex  pattern.   When  matching, the file will be
+                  searched.  This option may be repeated and may be combined  with
+                  options  -O  and  -t to expand the search.  This option is rela-
+                  tively slow as every file on the search path is read.
 
            -m NUM, --max-count=NUM
-                  Stop reading the input after NUM matches.
+                  Stop reading the input after NUM  matches  for  each  file  pro-
+                  cessed.
+
+           --max-depth=NUM
+                  Restrict  recursive  search  to  NUM (NUM > 0) directories deep,
+                  where --max-depth=1 searches the specified path without visiting
+                  sub-directories, the same as -dskip.
+
+           --max-files=NUM
+                  Restrict the number of files matched to NUM (NUM > 0).
 
            -N, --only-line-number
                   The line number of the matching line in the file is output with-
@@ -1093,42 +1124,41 @@ Man page
                   pattern.  Context options -A, -B, -C, and -y are disabled.
 
            -P, --perl-regexp
-                  Interpret PATTERN as a Perl regular expression.  This feature is
-                  not available in this version of ugrep.
+                  Interpret PATTERN as a Perl regular expression.
 
            -p, --no-dereference
-                  If  -R  or -r is specified, no symbolic links are followed, even
+                  If -R or -r is specified, no symbolic links are  followed,  even
                   when they are on the command line.
 
            --pager[=COMMAND]
-                  When output is sent to the  terminal,  uses  `COMMAND'  to  page
-                  through  the  output.   The  default COMMAND is `less -R'.  This
-                  option makes --color=auto behave as --color=always  and  enables
+                  When  output  is  sent  to  the terminal, uses `COMMAND' to page
+                  through the output.  The default COMMAND  is  `less  -R'.   This
+                  option  makes  --color=auto  behave  as --color=always.  Enables
                   --break.
 
            -Q ENCODING, --encoding=ENCODING
-                  The  input  file  encoding.  The possible values of ENCODING can
-                  be:  `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',   `UTF-8',
-                  `UTF-16',    `UTF-16BE',   `UTF-16LE',   `UTF-32',   `UTF-32BE',
-                  `UTF-32LE',  `CP437',  `CP850',  `CP858',  `CP1250',   `CP1251',
+                  The input file encoding.  The possible values  of  ENCODING  can
+                  be:   `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',  `UTF-8',
+                  `UTF-16',   `UTF-16BE',   `UTF-16LE',   `UTF-32',    `UTF-32BE',
+                  `UTF-32LE',   `CP437',  `CP850',  `CP858',  `CP1250',  `CP1251',
                   `CP1252',  `CP1253',  `CP1254',  `CP1255',  `CP1256',  `CP1257',
                   `CP1258'
 
            -q, --quiet, --silent
-                  Quiet mode: suppress normal output.  ugrep will  only  search  a
-                  file  until  a match has been found, making searches potentially
-                  less expensive.  Allows a pattern match to span multiple  lines.
+                  Quiet  mode:  suppress  normal output.  ugrep will only search a
+                  file until a match has been found, making  searches  potentially
+                  less  expensive.  Allows a pattern match to span multiple lines.
 
            -R, --dereference-recursive
-                  Recursively  read  all  files  under each directory.  Follow all
+                  Recursively read all files under  each  directory.   Follow  all
                   symbolic links, unlike -r.
 
            -r, --recursive
-                  Recursively read all files under each directory, following  sym-
+                  Recursively  read all files under each directory, following sym-
                   bolic links only if they are on the command line.
 
            -S, --dereference
-                  If  -r  is  specified, all symbolic links are followed, like -R.
+                  If -r is specified, all symbolic links are  followed,  like  -R.
                   The default is not to follow symbolic links.
 
            -s, --no-messages
@@ -1136,9 +1166,13 @@ Man page
                   their error messages are suppressed).
 
            --separator=SEP
-                  Use  SEP as field separator between file name, line number, col-
+                  Use SEP as field separator between file name, line number,  col-
                   umn number, byte offset, and the matched line.  The default is a
                   colon (`:').
+
+           --stats
+                  Display statistics  on  the  number  of  files  and  directories
+                  searched.
 
            -T, --initial-tab
                   Add  a  tab space to separate the file name, line number, column
@@ -1191,16 +1225,18 @@ Man page
 
            -w, --word-regexp
                   The  pattern  or  -e  patterns are searched for as a word (as if
-                  surrounded by \< and \>).
+                  surrounded by \< and \>).  This option does not apply to -f FILE
+                  patterns.  To apply -w to patterns in FILE use -we `cat FILE`.
 
            -X, --hex
                   Output matches in hexadecimal.  This option is equivalent to the
                   --binary-files=hex option.
 
            -x, --line-regexp
-                  Only  input lines selected against the entire pattern or -e pat-
+                  Only input lines selected against the entire pattern or -e  pat-
                   terns are considered to be matching lines (as if surrounded by ^
-                  and $).
+                  and $).  This option does not apply to  -f  FILE  patterns.   To
+                  apply -x to patterns in FILE use -xe `cat FILE`.
 
            -Y, --empty
                   Permits  empty  matches,  such  as `^\h*$' to match blank lines.
@@ -1436,22 +1472,14 @@ Man page
 
 
 
-    ugrep 1.2.4                      July 22, 2019                        UGREP(1)
-
-For future updates
-------------------
-
-- Further speed improvements when reading files, e.g. with `mmap`, `memchr`.
-- Backreferences are not supported.  This will likely not be supported any
-  time soon in the RE/flex library.  We could use Boost.Regex for this (using
-  RE/flex `BoostMatcher` class), which is faster than PCRE2 but slower than
-  RE/flex `Matcher` class.  With Boost.Regex we can also support Perl-like
-  matching as an option.
+    ugrep 1.3.1                      July 24, 2019                        UGREP(1)
 
 <a name="patterns"/>
 
-Regex pattern syntax
---------------------
+POSIX regular expression syntax
+-------------------------------
+
+For **ugrep** option `-P`, see [Perl regular expression syntax](https://www.boost.org/doc/libs/1_70_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html).
 
 An empty pattern is a special case that matches everything except empty files,
 i.e. does not match zero-length files, as per POSIX.1 grep standard.
