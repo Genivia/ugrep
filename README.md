@@ -126,6 +126,11 @@ Why use ugrep?
 Speed
 -----
 
+Most grep tools and regex matchers are optimized to match regex patterns that
+start with one character (or a limited choice of characters), by simply
+searching for the character(s) quickly in memory with `memchr`.  This hack is
+not yet implemented, unless option `-P` is used.
+
 Initial performance results look promising.  For example, searching for all
 matches of syntactically-valid variants of `#include "..."` in the directory
 tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files only:
@@ -136,7 +141,7 @@ tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files only:
     time ugrep -R -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp . >& /dev/null
     1.412u 0.270s 0:01.68 100.0%    0+0k 0+0io 0pf+0w
 
-Unoptimized (single threaded), **ugrep** is already much faster than BSD grep
+Unoptimized (single threaded), **ugrep** is already faster than BSD grep
 (**ugrep** was compiled with clang 9.0.0 -O2, and this test was run on a 2.9
 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 machine).
 
