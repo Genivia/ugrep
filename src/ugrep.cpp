@@ -103,7 +103,7 @@ Compile:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.3.1"
+#define UGREP_VERSION "1.3.2"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -401,13 +401,18 @@ int main(int argc, char **argv)
 {
   std::string regex;
   std::vector<const char*> infiles;
+  bool options = true;
 
   // parse ugrep command-line options and arguments
   for (int i = 1; i < argc; ++i)
   {
     const char *arg = argv[i];
 
-    if (*arg == '-' && arg[1])
+    if ((*arg == '-'
+#ifdef OS_WIN
+         || *arg == '/'
+#endif
+        ) && arg[1] && options)
     {
       bool is_grouped = true;
 
@@ -418,7 +423,9 @@ int main(int argc, char **argv)
         {
           case '-':
             ++arg;
-            if (strncmp(arg, "after-context=", 14) == 0)
+            if (!*arg)
+              options = false;
+            else if (strncmp(arg, "after-context=", 14) == 0)
               flag_after_context = (size_t)strtoull(arg + 14, NULL, 10);
             else if (strcmp(arg, "any-line") == 0)
               flag_any_line = true;
@@ -549,7 +556,7 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "perl-regexp") == 0)
               flag_perl_regexp = true;
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
-              flag_quiet = true;
+              flag_quiet = flag_no_messages = true;
             else if (strcmp(arg, "recursive") == 0)
               flag_directories = "recurse";
             else if (strncmp(arg, "regexp=", 7) == 0)
@@ -573,7 +580,7 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "word-regexp") == 0)
               flag_word_regexp = true;
             else
-              help("unknown option --", arg);
+              help("unrecognized option --", arg);
             is_grouped = false;
             break;
 
@@ -864,7 +871,7 @@ int main(int argc, char **argv)
             break;
 
           default:
-            help("unknown option -", arg);
+            help("unrecognized option -", arg);
         }
       }
     }
@@ -1106,7 +1113,7 @@ int main(int argc, char **argv)
     }
     else if (strcmp(flag_color, "always") != 0)
     {
-      help("unknown --color=WHEN value");
+      help("invalid --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
     }
 
     if (flag_color)
@@ -1161,14 +1168,13 @@ int main(int argc, char **argv)
   // -D: check ACTION value
   if (strcmp(flag_devices, "read") != 0 &&
       strcmp(flag_devices, "skip") != 0)
-    help("unknown --devices=ACTION value");
+    help("invalid --devices=ACTION, valid arguments are 'read' and 'skip'");
 
   // -d: check ACTION value
   if (strcmp(flag_directories, "read") != 0 &&
-      strcmp(flag_directories, "skip") != 0 &&
       strcmp(flag_directories, "recurse") != 0 &&
-      strcmp(flag_directories, "dereference-recurse") != 0)
-    help("unknown --directories=ACTION value");
+      strcmp(flag_directories, "skip") != 0)
+    help("invalid --directories=ACTION, valid arguments are 'read', 'recurse', 'dereference-recurse', and 'skip'");
 
   // --binary-files: normalize by assigning flags
   if (strcmp(flag_binary_files, "without-matches") == 0)
@@ -1180,7 +1186,7 @@ int main(int argc, char **argv)
   else if (strcmp(flag_binary_files, "with-hex") == 0)
     flag_with_hex = true;
   else if (strcmp(flag_binary_files, "binary") != 0)
-    help("unknown --binary-files value");
+    help("invalid --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex', and 'with-hex'");
 
   // default file encoding is plain (no conversion)
   reflex::Input::file_encoding_type encoding = reflex::Input::file_encoding::plain;
@@ -1196,7 +1202,7 @@ int main(int argc, char **argv)
         break;
 
     if (format_table[i].format == NULL)
-      help("unknown --encoding=ENCODING value");
+      help("invalid --encoding=ENCODING");
 
     // encoding is the file encoding used by all input files, if no BOM is present
     encoding = format_table[i].encoding;
@@ -1213,7 +1219,7 @@ int main(int argc, char **argv)
         break;
 
     if (type_table[i].type == NULL)
-      help("unknown --file-type=TYPE value");
+      help("invalid --file-type=TYPE, to list the valid values use -tlist");
 
     flag_file_extensions.emplace_back(type_table[i].extensions);
 
@@ -1391,8 +1397,8 @@ int main(int argc, char **argv)
   }
 #endif
 
-  // if no files were specified then read standard input
-  if (infiles.empty())
+  // if no files were specified then read standard input, unless recursive searches are specified
+  if (infiles.empty() && strcmp(flag_directories, "recurse") != 0)
     infiles.emplace_back("-");
 
   // if any match was found in any of the input files later, then found = true
@@ -1557,35 +1563,42 @@ bool findinfiles(reflex::Matcher& magic, reflex::AbstractMatcher& matcher, std::
 {
   Stats stats;
 
-  // read each input file to find pattern matches
-  for (auto infile : infiles)
+  if (infiles.empty())
   {
-    if (strcmp(infile, "-") == 0)
+    recurse(stats, 1, magic, matcher, encoding, NULL);
+  }
+  else
+  {
+    // read each input file to find pattern matches
+    for (auto infile : infiles)
     {
-      // search standard input, does not count towards fileno
-      reflex::Input input(stdin, encoding);
+      if (strcmp(infile, "-") == 0)
+      {
+        // search standard input, does not count towards fileno
+        reflex::Input input(stdin, encoding);
 
-      ++stats.files;
+        ++stats.files;
 
-      if (ugrep(matcher, input, flag_label))
-        ++stats.fileno;
-    }
-    else
-    {
-      // search file or directory, get the base name from the infile argument first
-      const char *basename = strrchr(infile, PATHSEPCHR);
-
-      if (basename != NULL)
-        ++basename;
+        if (ugrep(matcher, input, flag_label))
+          ++stats.fileno;
+      }
       else
-        basename = infile;
+      {
+        // search file or directory, get the base name from the infile argument first
+        const char *basename = strrchr(infile, PATHSEPCHR);
 
-      find(stats, 1, magic, matcher, encoding, infile, basename, true);
+        if (basename != NULL)
+          ++basename;
+        else
+          basename = infile;
+
+        find(stats, 1, magic, matcher, encoding, infile, basename, true);
+      }
+
+      // stop after finding max-files matching files
+      if (flag_max_files > 0 && stats.fileno >= flag_max_files)
+        break;
     }
-
-    // stop after finding max-files matching files
-    if (flag_max_files > 0 && stats.fileno >= flag_max_files)
-      break;
   }
 
   if (flag_stats)
@@ -1619,9 +1632,9 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
   {
     if (strcmp(flag_directories, "read") == 0)
     {
-      // directories cannot be read, so grep produces a warning message (errno is not set)
+      // directories cannot be read actually, so grep produces a warning message (errno is not set)
       if (!flag_no_messages)
-        fprintf(stderr, "ugrep: cannot read directory %s\n", pathname);
+        fprintf(stderr, "ugrep: %s is a directory\n", pathname);
 
       return;
     }
@@ -1777,7 +1790,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
           {
             // directories cannot be read actually, so grep produces a warning message (errno is not set)
             if (!flag_no_messages)
-              fprintf(stderr, "ugrep: cannot read directory %s\n", pathname);
+              fprintf(stderr, "ugrep: %s is a directory\n", pathname);
 
             return;
           }
@@ -1982,7 +1995,14 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
 
   WIN32_FIND_DATAA ffd;
 
-  HANDLE hFind = FindFirstFileA(pathname, &ffd);
+  std::string glob;
+
+  if (pathname && strcmp(pathname, ".") != 0)
+    glob.assign(pathname).append(PATHSEPSTR).append("*");
+  else
+    glob.assign("*");
+
+  HANDLE hFind = FindFirstFileA(glob.c_str(), &ffd);
 
   if (hFind == INVALID_HANDLE_VALUE) 
   {
@@ -1996,13 +2016,20 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
 
   do
   {
-    // stop after finding max-files matching files
-    if (flag_max_files > 0 && stats.fileno >= flag_max_files)
-      break;
+    if (strcmp(ffd.cFileName, ".") != 0 && strcmp(ffd.cFileName, "..") != 0)
+    {
+      // pathname is NULL when searching the working directory recursively
+      if (pathname)
+        dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
+      else
+        dirpathname.assign(ffd.cFileName);
 
-    dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
+      find(stats, level + 1, magic, matcher, encoding, dirpathname.c_str(), ffd.cFileName);
 
-    find(stats, level + 1, magic, matcher, encoding, dirpathname.c_str(), ffd.cFileName);
+      // stop after finding max-files matching files
+      if (flag_max_files > 0 && stats.fileno >= flag_max_files)
+        break;
+    }
   }
   while (FindNextFileA(hFind, &ffd) != 0);
 
@@ -2010,7 +2037,7 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
 
 #else
 
-  DIR *dir = opendir(pathname);
+  DIR *dir = opendir(pathname ? pathname : ".");
 
   if (dir == NULL)
   {
@@ -2028,13 +2055,17 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
     // search directory entries that aren't . or ..
     if (strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0)
     {
+      // pathname is NULL when searching the working directory recursively
+      if (pathname)
+        dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
+      else
+        dirpathname.assign(dirent->d_name);
+
+      find(stats, level + 1, magic, matcher, encoding, dirpathname.c_str(), dirent->d_name);
+
       // stop after finding max-files matching files
       if (flag_max_files > 0 && stats.fileno >= flag_max_files)
         break;
-
-      dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
-
-      find(stats, level + 1, magic, matcher, encoding, dirpathname.c_str(), dirent->d_name);
     }
   }
 
@@ -3261,7 +3292,8 @@ void help(const char *message, const char *arg)
     --max-depth=NUM\n\
             Restrict recursive search to NUM (NUM > 0) directories deep, where\n\
             --max-depth=1 searches the specified path without visiting\n\
-            sub-directories, the same as -dskip.\n\
+            sub-directories.  By comparison, -dskip skips all directories even\n\
+            when they are on the command line.\n\
     --max-files=NUM\n\
             Restrict the number of files matched to NUM (NUM > 0).\n\
     -N, --only-line-number\n\
@@ -3288,7 +3320,7 @@ void help(const char *message, const char *arg)
             across newlines to span multiple lines.  Line numbers for\n\
             multi-line matches are displayed with option -n, using `|' as the\n\
             field separator for each additional line matched by the pattern.\n\
-            Context options -A, -B, -C, and -y are disabled.\n\
+            This option cannot be combined with options -A, -B, -C, -v, and -y.\n\
     -P, --perl-regexp\n\
             Interpret PATTERN as a Perl regular expression.\n";
 #ifndef HAVE_BOOST_REGEX
@@ -3396,6 +3428,9 @@ void help(const char *message, const char *arg)
     0       One or more lines were selected.\n\
     1       No lines were selected.\n\
     >1      An error occurred.\n\
+\n\
+    If -q or --quiet or --silent is used and a line is selected, the exit\n\
+    status is 0 even if an error occurred.\n\
 " << std::endl;
   }
   exit(EXIT_ERROR);

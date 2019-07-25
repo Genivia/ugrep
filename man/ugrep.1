@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 24, 2019" "ugrep 1.3.1" "User Commands"
+.TH UGREP "1" "July 25, 2019" "ugrep 1.3.2" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -253,7 +253,8 @@ Stop reading the input after NUM matches for each file processed.
 \fB\-\-max\-depth\fR=\fINUM\fR
 Restrict recursive search to NUM (NUM > 0) directories deep, where
 \fB\-\-max\-depth\fR=\fI\fR1 searches the specified path without visiting
-sub\-directories, the same as \fB\-d\fRskip.
+sub\-directories.  By comparison, \fB\-d\fRskip skips all directories even
+when they are on the command line.
 .TP
 \fB\-\-max\-files\fR=\fINUM\fR
 Restrict the number of files matched to NUM (NUM > 0).
@@ -287,7 +288,7 @@ Prints only the matching part of lines and allows pattern matches
 across newlines to span multiple lines.  Line numbers for
 multi\-line matches are displayed with option \fB\-n\fR, using `|' as the
 field separator for each additional line matched by the pattern.
-Context options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR are disabled.
+This option cannot be combined with options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR, \fB\-v\fR, and \fB\-y\fR.
 .TP
 \fB\-P\fR, \fB\-\-perl\-regexp\fR
 Interpret PATTERN as a Perl regular expression.
@@ -416,6 +417,15 @@ Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Search zlib\-compressed (.gz) files.  Option \fB\-Q\fR is disabled.
+.TP
+If \fB\-q\fR or \fB\-\-quiet\fR or \fB\-\-silent\fR is used and a line is selected, the exit
+.TP
+status is 0 even if an error occurred.
+.PP
+If no FILE arguments are specified, or if a `-' is specified, the standard
+input is used, unless recursive searches are specified which examine the
+working directory.  Use `--' before the FILE arguments to allow file and
+directory names to start with a `-'.
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
@@ -426,9 +436,6 @@ Note that `.' matches any non-newline character.  Matching a newline character
 `\\n' is not possible unless one or more of the options \fB-c\fR, \fB-L\fR,
 \fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR are used (in any combination, but not
 combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
-.PP
-If no file arguments are specified, or if a `-' is specified, the standard
-input is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -437,6 +444,9 @@ One or more lines were selected.
 No lines were selected.
 .IP >1
 An error occurred.
+.PP
+If -q or --quiet or --silent is used and a line is selected, the exit status is
+0 even if an error occurred.
 .SH GLOBBING
 Globbing is used by options \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,

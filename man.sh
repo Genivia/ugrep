@@ -58,6 +58,11 @@ src/ugrep --help \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
 cat >> man/ugrep.1 << 'END'
 .PP
+If no FILE arguments are specified, or if a `-' is specified, the standard
+input is used, unless recursive searches are specified which examine the
+working directory.  Use `--' before the FILE arguments to allow file and
+directory names to start with a `-'.
+.PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
 .IP
@@ -67,9 +72,6 @@ Note that `.' matches any non-newline character.  Matching a newline character
 `\\n' is not possible unless one or more of the options \fB-c\fR, \fB-L\fR,
 \fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR are used (in any combination, but not
 combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
-.PP
-If no file arguments are specified, or if a `-' is specified, the standard
-input is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -78,6 +80,9 @@ One or more lines were selected.
 No lines were selected.
 .IP >1
 An error occurred.
+.PP
+If -q or --quiet or --silent is used and a line is selected, the exit status is
+0 even if an error occurred.
 .SH GLOBBING
 Globbing is used by options \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
