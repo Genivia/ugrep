@@ -98,9 +98,8 @@ Why use ugrep?
 
 - **ugrep can match patterns across multiple lines**, such as comment blocks in
   source code.  Multi-line matching is performed with any one of the options
-  (only matching), options `-q` (quiet), `-o` (only matching), `-c` (count),
-  `-N` (only line number), `-l` (file with match), or `-L` (files without
-  match).
+  `-o` (only matching), `-c` (count), `-N` (only line number), `-l` (files with
+  match), `-L` (files without match), or `-q` (quiet), 
 
 - **ugrep supports Perl regular expressions** with option `-P`.  This option
   offers PCRE-like syntax, including backreferences and lookbehinds.  POSIX
@@ -116,8 +115,8 @@ Why use ugrep?
   included for Linux, Mac, and Windows.
 
 - **ugrep is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
-  code** and does not include any GNU or BSD grep open source code or algorithms.
-  **ugrep** is built on the RE/flex open source library.
+  code** and does not include any GNU or BSD grep open source code.  **ugrep**
+  uses the RE/flex open source library.
 
 - **ugrep is evolving** and more features will be added.  You can help!  We love
   your feedback (issues) and contributions (pull requests) ❤️  For example, what
@@ -140,7 +139,7 @@ Unoptimized (single threaded), **ugrep** is already faster than BSD grep
 (**ugrep** was compiled with clang 9.0.0 -O2, and this test was run on a 2.9
 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 machine).
 
-Future optimization stragegies:
+Future optimization strategies:
 
 - Most grep tools and regex matchers are optimized to match regex patterns that
   start with a limited choice of characters, by simply searching for the
@@ -148,8 +147,8 @@ Future optimization stragegies:
   is not yet implemented, unless option `-P` is used.  For example, searching
   `TODO` and `.ODO` take about the same time with **ugrep**, while GNU/BSD grep
   is faster for the first but slower for the second.
-- Option `-F` fast string matching with Boyer-Moore.  Furthermore, adding
-- Multi-threading will add a (relatively cheap) performance boost.
+- Option `-F` fast string matching with Boyer-Moore.
+- Multi-threading will add a (relatively cheap to get) performance boost.
 
 Installation
 ------------
@@ -333,7 +332,7 @@ few:
   offset of the start of the matched line reported by GNU/BSD grep.  Reporting
   exact byte offsets is now possible with **grep**.
 - **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
-  `LANG=en_US.UTF-8`, wheras grep is locale-sensitive.
+  `LANG=en_US.UTF-8`, whereas grep is locale-sensitive.
 - BSD grep (e.g. on Mac OS X) has limitations and some bugs that **ugrep**
   fixes (options `-r` versus `-R`), support for `GREP_COLORS`, and more.
 
@@ -592,7 +591,7 @@ with, while excluding matches in C++ strings:
     FIXME.*
     END
 
-To display XML element and attribute tags in an XML file, exluding tags that
+To display XML element and attribute tags in an XML file, excluding tags that
 are placed in (multi-line) comments:
 
     ugrep -o -f xml/tags -f xml/zap_comments myfile.xml
@@ -668,7 +667,7 @@ contain `xyz`:
 
     ugrep -s -l 'xyz' foo*
 
-The same is obtained using recursion with a directory inclusion contraint:
+The same is obtained using recursion with a directory inclusion constraint:
 
     ugrep -R -l 'xyz' --include-dir='/foo*' .
 
