@@ -1491,7 +1491,7 @@ Man page
 
 
 
-    ugrep 1.3.2                      July 25, 2019                        UGREP(1)
+    ugrep 1.3.3                      July 26, 2019                        UGREP(1)
 
 <a name="patterns"/>
 

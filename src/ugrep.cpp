@@ -103,7 +103,7 @@ Compile:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.3.2"
+#define UGREP_VERSION "1.3.3"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -476,7 +476,7 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "exclude-from=", 13) == 0)
               flag_exclude_from.emplace_back(arg + 13);
             else if (strcmp(arg, "extended-regexp") == 0)
-              ;
+              flag_basic_regexp = false;
             else if (strncmp(arg, "file=", 5) == 0)
               flag_file.emplace_back(arg + 5);
             else if (strncmp(arg, "file-extensions=", 16) == 0)
@@ -554,7 +554,7 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "pager=", 6) == 0)
               flag_pager = arg + 6;
             else if (strcmp(arg, "perl-regexp") == 0)
-              flag_perl_regexp = true;
+              flag_basic_regexp = !(flag_perl_regexp = true);
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
               flag_quiet = flag_no_messages = true;
             else if (strcmp(arg, "recursive") == 0)
@@ -650,6 +650,7 @@ int main(int argc, char **argv)
             break;
 
           case 'E':
+            flag_basic_regexp = false;
             break;
 
           case 'e':
@@ -774,6 +775,7 @@ int main(int argc, char **argv)
 
           case 'P':
             flag_perl_regexp = true;
+            flag_basic_regexp = false;
             break;
 
           case 'p':
@@ -894,7 +896,7 @@ int main(int argc, char **argv)
 #ifndef HAVE_LIBZ
   // -z: but we don't have libz
   if (flag_decompress)
-    help("option -z is disabled");
+    help("option -z is not available in this version of ugrep");
 #endif
 
   // -t list: list table of types
@@ -1394,6 +1396,9 @@ int main(int argc, char **argv)
 
     // enable --break
     flag_break = true;
+
+    // enable --line-buffered to flush output to the pager immediately
+    flag_line_buffered = true;
   }
 #endif
 
@@ -1468,16 +1473,18 @@ int main(int argc, char **argv)
         help("invalid --tabs=NUM value");
     }
 
-#ifdef HAVE_BOOST_REGEX
     if (flag_perl_regexp)
     {
+#ifdef HAVE_BOOST_REGEX
       // construct the NFA pattern matcher
       std::string pattern(reflex::BoostPerlMatcher::convert(regex, convert_flags));
       reflex::BoostPerlMatcher matcher(pattern, matcher_options.c_str());
       found = findinfiles(magic, matcher, infiles, encoding);
+#else
+      help("Option -P is not available in this version of ugrep");
+#endif
     }
     else
-#endif
     {
       // construct the DFA pattern matcher
       reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), "r");
@@ -1499,7 +1506,7 @@ int main(int argc, char **argv)
   {
     if (!flag_no_messages)
     {
-      std::cerr << "Boost regex error at position " << error.position() << " in " << regex << std::endl;
+      std::cerr << "Boost regex error in " << regex << std::endl;
       switch (error.code())
       {
         case boost::regex_constants::error_collate:
@@ -2774,9 +2781,12 @@ exit_input:
     ;
   }
 
-  // --break: add a line break
+  // --break: add a line break and flush
   if ((matches > 0 || flag_any_line) && flag_break)
+  {
     fputc('\n', out);
+    fflush(out);
+  }
 
   return matches > 0;
 }
