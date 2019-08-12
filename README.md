@@ -136,16 +136,22 @@ Initial performance results look promising.  For example, searching for all
 matches of syntactically-valid variants of `#include "..."` in the directory
 tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files only:
 
-    time grep -R -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . >& /dev/null
+    time grep -R -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' >& /dev/null
     3.630u 0.274s 0:03.90 100.0%    0+0k 0+0io 0pf+0w
 
-    time ugrep -R -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp . >& /dev/null
+    time ugrep -R -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp >& /dev/null
     1.320u 0.281s 0:01.60 100.0%    0+0k 0+0io 0pf+0w
 
+    time ugrep -R -P -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp > & /dev/null
+    0.380u 0.282s 0:00.66 100.0%    0+0k 0+0io 0pf+0w
+
 Unoptimized (single threaded, no mmap, no memchr, no Boyer-Moore, no
-Aho-Corasick), **ugrep** is already more than twice as fast than BSD grep
-(**ugrep** was compiled with clang 9.0.0 -O2, and this test was run on a 2.9
-GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 machine).
+Aho-Corasick), **ugrep** is already much faster than BSD grep.  Option `-P`
+uses Boost.Regex, which is optimized for searching and faster than the RE/flex
+POSIX matcher because RE/flex is optimized for lexical analysis (i.e. scanning)
+without the aforementioned search optimizations.  **ugrep** was compiled with
+clang 9.0.0 -O2, and this test was run on a 2.9 GHz Intel Core i7, 16 GB 2133
+MHz LPDDR3 machine.
 
 Future optimization strategies:
 
