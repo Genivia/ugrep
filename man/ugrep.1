@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 26, 2019" "ugrep 1.3.3" "User Commands"
+.TH UGREP "1" "August 16, 2019" "ugrep 1.3.7" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -106,7 +106,7 @@ Specify a PATTERN used during the search of the input: an input
 line is selected if it matches any of the specified patterns.
 This option is most useful when multiple \fB\-e\fR options are used to
 specify multiple patterns, when a pattern begins with a dash (`\fB\-'\fR),
-or to specify a pattern after option \fB\-f\fR.
+to specify a pattern after option \fB\-f\fR or after the FILE arguments.
 .TP
 \fB\-\-exclude\fR=\fIGLOB\fR
 Skip files whose name matches GLOB (using wildcard matching).  A
@@ -310,9 +310,9 @@ The input file encoding.  The possible values of ENCODING can be:
 `CP1254', `CP1255', `CP1256', `CP1257', `CP1258'
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
-Quiet mode: suppress normal output.  ugrep will only search a file
-until a match has been found, making searches potentially less
-expensive.  Allows a pattern match to span multiple lines.
+Quiet mode: suppress normal output.  ugrep will only search until a
+match has been found, making searches potentially less expensive.
+Allows a pattern match to span multiple lines.
 .TP
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
 Recursively read all files under each directory.  Follow all
@@ -388,7 +388,7 @@ alone.  This option is equivalent to the \fB\-\-binary\-files\fR=\fI\fRwith\-hex
 option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
-The pattern or \fB\-e\fR patterns are searched for as a word (as if
+The PATTERN or \fB\-e\fR \fIPATTERN\fR are searched for as a word (as if
 surrounded by \\< and \\>).  This option does not apply to \fB\-f\fR \fIFILE\fR
 patterns.  To apply \fB\-w\fR to patterns in FILE use \fB\-w\fRe `cat FILE`.
 .TP
@@ -397,7 +397,7 @@ Output matches in hexadecimal.  This option is equivalent to the
 \fB\-\-binary\-files\fR=\fI\fRhex option.
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
-Only input lines selected against the entire pattern or \fB\-e\fR patterns
+Only input lines selected against the entire PATTERN or \fB\-e\fR \fIPATTERN\fR
 are considered to be matching lines (as if surrounded by ^ and $).
 This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  To apply \fB\-x\fR to
 patterns in FILE use \fB\-x\fRe `cat FILE`.
@@ -417,10 +417,6 @@ Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Search zlib\-compressed (.gz) files.  Option \fB\-Q\fR is disabled.
-.TP
-If \fB\-q\fR or \fB\-\-quiet\fR or \fB\-\-silent\fR is used and a line is selected, the exit
-.TP
-status is 0 even if an error occurred.
 .PP
 If no FILE arguments are specified, or if a `-' is specified, the standard
 input is used, unless recursive searches are specified which examine the
@@ -459,40 +455,36 @@ not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
 \fIfoo.h\fR but not \fIbar/foo.h\fR.
 .PP
 \fBGlob Syntax and Conventions\fR
-.IP \fB**/\fR
-Matches zero or more directories.
-.IP \fB/**\fR
-When at the end of a glob, matches everything after the /.
 .IP \fB*\fR
 Matches anything except a /.
-.IP \fB/\fR
-When used at the begin of a glob, matches if pathname has no /.
 .IP \fB?\fR
-Matches any character except a /.
+Matches any one character except a /.
 .IP \fB[a-z]\fR
 Matches one character in the selected range of characters.
 .IP \fB[^a-z]\fR
 Matches one character not in the selected range of characters.
 .IP \fB[!a-z]\fR
 Matches one character not in the selected range of characters.
+.IP \fB/\fR
+When used at the begin of a glob, matches if pathname has no /.
+.IP \fB**/\fR
+Matches zero or more directories.
+.IP \fB/**\fR
+When at the end of a glob, matches everything after the /.
 .IP \fB\\\\?\fR
 Matches a ? (or any character specified after the backslash).
 .PP
 \fBGlob Matching Examples\fR
-.IP \fB**/a\fR
-Matches a, x/a, x/y/a,       but not b, x/b.
-.IP \fBa/**/b\fR
-Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
-.IP \fBa/**\fR
-Matches a/x, a/y, a/x/y,     but not b/x
-.IP \fBa/*/b\fR
-Matches a/x/b, a/y/b,        but not a/x/y/b
-.IP \fB/a\fR
-Matches a,                   but not x/a
+.IP \fB*\fR
+Matches a, b, x/a, x/y/b
+.IP \fBa\fR
+Matches a, x/a, x/y/a,       but not b, x/b, a/a/b
 .IP \fB/*\fR
-Matches a, b,                but not x/a, x/b
+Matches a, b,                but not x/a, x/b, x/y/a
+.IP \fB/a\fR
+Matches a,                   but not x/a, x/y/a
 .IP \fBa?b\fR
-Matches axb, ayb,            but not a, b, ab
+Matches axb, ayb,            but not a, b, ab, a/b
 .IP \fBa[xy]b\fR
 Matches axb, ayb             but not a, b, azb
 .IP \fBa[a-z]b\fR
@@ -501,6 +493,16 @@ Matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
 Matches aab, abb, acb, azb,  but not a, b, axb, ayb
 .IP \fBa[^a-z]b\fR
 Matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
+.IP \fBa/*/b\fR
+Matches a/x/b, a/y/b,        but not a/b, a/x/y/b
+.IP \fB**/a\fR
+Matches a, x/a, x/y/a,       but not b, x/b.
+.IP \fBa/**/b\fR
+Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
+.IP \fBa/**\fR
+Matches a/x, a/y, a/x/y,     but not a, b/x
+.IP \fBa\\\\?b\fR
+Matches a?b,                 but not a, b, ab, axb, a/b
 .PP
 Lines in the \fB--exclude-from\fR and \fB--include-from\fR files are ignored
 when empty or start with a `#'.  The prefix `!' to a glob in such a file
@@ -580,7 +582,7 @@ $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 To display the line and column number of all `FIXME' in all C++ files using
 recursive search, with one line of context before and after each matched line:
 .IP
-$ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*' .
+$ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*'
 .PP
 To list all C/C++ comments in a file displaying their line and column numbers
 using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for

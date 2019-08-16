@@ -44,39 +44,39 @@
 //
 //  Glob syntax:
 //
-//  **/    matches zero or more directories
-//  /**    when at the end of the glob matches everything after the /
 //  *      matches anything except a /
-//  /      when at the start of the glob matches if the pathname has no /
-//  ?      matches any character except a /
+//  ?      matches any one character except a /
 //  [a-z]  matches one character in the selected range of characters
 //  [^a-z] matches one character not in the selected range of characters
 //  [!a-z] same as [^a-z]
+//  /      when at the begin of the glob matches if the pathname has no /
+//  **/    matches zero or more directories
+//  /**    when at the end of the glob matches everything after the /
 //  \?     matches a ? (or any character specified after the backslash)
 //
 //  Examples:
 //
-//  **/a     matches a, x/a, x/y/a,       but not b, x/b
-//  a/**/b   matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
-//  a/**     matches a/x, a/y, a/x/y,     but not b/x
-//  a/*/b    matches a/x/b, a/y/b,        but not a/x/y/b
-//  /a       matches a,                   but not x/a
-//  /*       matches a, b,                but not x/a
-//  a?b      matches axb, ayb,            but not a, b, ab
-//  a[xy]b   matches axb, ayb             but not a, b, azb
-//  a[a-z]b  matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
-//  a[^xy]b  matches aab, abb, acb, azb,  but not a, b, axb, ayb
-//  a[^a-z]b matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
+//  *         matches a, b, x/a, x/y/b
+//  a         matches a, x/a, x/y/a,       but not b, x/b, a/a/b
+//  /*        matches a, b,                but not x/a, x/b, x/y/a
+//  /a        matches a,                   but not x/a, x/y/a
+//  /a?b      matches axb, ayb,            but not a, b, ab, a/b
+//  /a[xy]b   matches axb, ayb             but not a, b, azb
+//  /a[a-z]b  matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
+//  /a[^xy]b  matches aab, abb, acb, azb,  but not a, b, axb, ayb
+//  /a[^a-z]b matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
+//  a/*/b     matches a/x/b, a/y/b,        but not a/b, a/x/y/b
+//  **/a      matches a, x/a, x/y/a,       but not b, x/b
+//  a/**/b    matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
+//  a/**      matches a/x, a/y, a/x/y,     but not a, b/x
+//  a\?b      matches a?b,                 but not a, b, ab, axb, a/b
 
-#ifdef TEST
-#include <stdio.h>
-#endif
-
-/* check if we are on a windows OS */
+// check if we are on a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
 # define OS_WIN
 #endif
 
+#include <cstdio>
 #include <cstring>
 
 #ifdef OS_WIN
@@ -85,156 +85,164 @@
 #define PATHSEP '/'
 #endif
 
-#define TRUE   1
-#define FALSE  0
-
-/* match text against glob, return TRUE or FALSE */
-static int match(const char *text, const char *glob)
+// match text against glob, return true or false
+static bool match(const char *text, const char *glob)
 {
-  /* to iteratively backtrack on * */
-  const char *back1 = NULL;
-  const char *star1 = NULL;
-  /* to iteratively backtrack on ** */
-  const char *back2 = NULL;
-  const char *star2 = NULL;
-  /* to match [ ] character ranges in */
-  int last;
-  int matched;
-  int reverse;
+  // to iteratively backtrack on *
+  const char *text1_backup = NULL;
+  const char *glob1_backup = NULL;
 
-  for ( ; *text != '\0' || *glob == '\0' || *glob == '*'; text++, glob++)
+  // to iteratively backtrack on **
+  const char *text2_backup = NULL;
+  const char *glob2_backup = NULL;
+
+  // match until end of text
+  while (*text != '\0')
   {
     switch (*glob)
     {
-      case '\0':
-        /* end of the glob and end of the text? */
-        if (*text == '\0')
-          return TRUE;
-        break;
-
-#ifdef OS_WIN
-      case '/':
-        /* / matches \ on Windows */
-        if (*text == PATHSEP)
-          continue;
-        break;
-#endif
-
-      case '?':
-        /* match anything except a / */
-        if (*text != PATHSEP)
-          continue;
-        break;
-
       case '*':
         if (*++glob == '*')
         {
+          // trailing ** match everything after /
           if (*++glob == '\0')
-            /* two trailing stars match everything after / */
-            return TRUE;
+            return true;
 
-          if (*glob++ == '/')
-          {
-            /* two consecutive stars followed by a / match zero or more directories */
-            back1 = NULL;
-            star1 = NULL;
-            back2 = text;
-            star2 = glob;
-            text--;
-            glob--;
-            continue;
-          }
+          // ** followed by a / match zero or more directories
+          if (*glob != '/')
+            return false;
 
-          return FALSE;
+          // iteratively backtrack on **
+          text1_backup = NULL;
+          glob1_backup = NULL;
+          text2_backup = text;
+          glob2_backup = ++glob;
+          continue;
         }
 
-        if (*glob == '\0')
-          /* trailing star matches everything except a / */
-          return strchr(text, PATHSEP) == NULL ? TRUE : FALSE;
+        // iteratively backtrack on *
+        text1_backup = text;
+        glob1_backup = glob;
+        continue;
 
-        /* continue matching everything except a / */
-        back1 = text--;
-        star1 = glob--;
+      case '?':
+        // match anything except /
+        if (*text == PATHSEP)
+          break;
+
+        text++;
+        glob++;
         continue;
 
       case '[':
-        reverse = glob[1] == '^' || glob[1] == '!' ? TRUE : FALSE;
-        if (reverse)
-          /* inverted character class */
-          glob++;
-        for (last = 256, matched = FALSE; *++glob && *glob != ']'; last = *glob)
-          if (*glob == '-' && glob[1] ? *text <= *++glob && *text >= last : *text == *glob)
-            matched = TRUE;
-        if (matched != reverse)
-          continue;
-        break;
-
-      case '\\':
-        /* literal match with \-escaped character */
-        glob++;
-        /* FALLTHROUGH */
-
-      default:
-        if (*text == *glob)
-          continue;
-        break;
-    }
-
-    if (back1 != NULL)
-    {
-      /* backtrack on the last *, do not jump over / */
-      if (*back1 != PATHSEP)
       {
-        text = back1++;
-        glob = star1 - 1;
+        bool matched = false;
+        bool reverse = glob[1] == '^' || glob[1] == '!';
+
+        // inverted character class
+        if (reverse)
+          glob++;
+
+        // match character class
+        for (int last = 256; *++glob && *glob != ']'; last = *glob)
+          if (*glob == '-' && glob[1] ? *text <= *++glob && *text >= last : *text == *glob)
+            matched = true;
+
+        if (matched == reverse)
+          break;
+
+        text++;
+        if (*glob)
+          glob++;
         continue;
       }
+
+      case '\\':
+        // literal match \-escaped character
+        glob++;
+        // FALLTHROUGH
+
+      default:
+#ifdef OS_WIN
+        if (*glob != *text && !(*glob == '/' && *text == '\\'))
+#else
+        if (*glob != *text)
+#endif
+          break;
+
+        text++;
+        glob++;
+        continue;
     }
 
-    if (back2 != NULL)
+    if (glob1_backup != NULL && *text1_backup != PATHSEP)
     {
-      /* backtrack on the last ** */
-      text = back2++;
-      glob = star2 - 1;
-      back1 = NULL;
-      star1 = NULL;
+      // backtrack on the last *, do not jump over /
+      text = ++text1_backup;
+      glob = glob1_backup;
       continue;
     }
 
-    return FALSE;
+    if (glob2_backup != NULL)
+    {
+      // backtrack on the last **
+      text = ++text2_backup;
+      glob = glob2_backup;
+      continue;
+    }
+
+    return false;
   }
 
-  return FALSE;
+  while (*glob == '*')
+    glob++;
+  return *glob == '\0';
 }
-
-/* pathname or basename matching, returns TRUE or FALSE */
+ 
+// pathname or basename matching, returns true or false
 bool globmat(const char *pathname, const char *basename, const char *glob)
 {
-  /* if pathname starts with ./ then remove these pairs */
+  // if pathname starts with ./ then remove these pairs
   while (pathname[0] == '.' && pathname[1] == PATHSEP)
     pathname += 2;
 
-  /* match pathname if glob contains a /, match the basename otherwise */
+  // match pathname if glob contains a /, match the basename otherwise
   if (strchr(glob, '/') != NULL)
   {
-    /* a leading / in the glob means globbing the pathname after removing the / */
+    // a leading / in the glob means globbing the pathname after removing the /
     if (glob[0] == '/')
       ++glob;
-    return match(pathname, glob) == TRUE;
+    return match(pathname, glob);
   }
 
-  return match(basename, glob) == TRUE;
+  return match(basename, glob);
 }
 
 #ifdef TEST
 
-/* test and demo */
 int main(int argc, char **argv)
 {
-  if (argc >= 4)
+  if (argc > 2)
   {
-    printf("pathname=%s basename=%s glob=%s\n", argv[1], argv[2], argv[3]);
-    if (globmat(argv[1], argv[2], argv[3]))
+    const char *pathname = argv[1];
+    const char *basename;
+    const char *glob;
+    if (argc > 3)
+    {
+      basename = argv[2];
+      glob = argv[3];
+    }
+    else
+    {
+      basename = strchr(argv[1], '/');
+      if (basename)
+        ++basename;
+      else
+        basename = pathname;
+      glob = argv[2];
+    }
+    printf("pathname=%s basename=%s glob=%s\n", pathname, basename, glob);
+    if (globmat(pathname, basename, glob))
       printf("Match\n");
     else
       printf("No match\n");

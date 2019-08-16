@@ -47,6 +47,8 @@ src/ugrep --help \
   -e '/^    0       / d' \
   -e '/^    1       / d' \
   -e '/^    >1      / d' \
+  -e '/^    If -q or --quiet or --silent/ d' \
+  -e '/^    status is 0 even/ d' \
   -e 's/^                //' \
   -e 's/^            //' \
   -e $'s/^    \(.*\)$/.TP\\\n\\1/' \
@@ -95,40 +97,36 @@ not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
 \fIfoo.h\fR but not \fIbar/foo.h\fR.
 .PP
 \fBGlob Syntax and Conventions\fR
-.IP \fB**/\fR
-Matches zero or more directories.
-.IP \fB/**\fR
-When at the end of a glob, matches everything after the /.
 .IP \fB*\fR
 Matches anything except a /.
-.IP \fB/\fR
-When used at the begin of a glob, matches if pathname has no /.
 .IP \fB?\fR
-Matches any character except a /.
+Matches any one character except a /.
 .IP \fB[a-z]\fR
 Matches one character in the selected range of characters.
 .IP \fB[^a-z]\fR
 Matches one character not in the selected range of characters.
 .IP \fB[!a-z]\fR
 Matches one character not in the selected range of characters.
+.IP \fB/\fR
+When used at the begin of a glob, matches if pathname has no /.
+.IP \fB**/\fR
+Matches zero or more directories.
+.IP \fB/**\fR
+When at the end of a glob, matches everything after the /.
 .IP \fB\\\\?\fR
 Matches a ? (or any character specified after the backslash).
 .PP
 \fBGlob Matching Examples\fR
-.IP \fB**/a\fR
-Matches a, x/a, x/y/a,       but not b, x/b.
-.IP \fBa/**/b\fR
-Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
-.IP \fBa/**\fR
-Matches a/x, a/y, a/x/y,     but not b/x
-.IP \fBa/*/b\fR
-Matches a/x/b, a/y/b,        but not a/x/y/b
-.IP \fB/a\fR
-Matches a,                   but not x/a
+.IP \fB*\fR
+Matches a, b, x/a, x/y/b
+.IP \fBa\fR
+Matches a, x/a, x/y/a,       but not b, x/b, a/a/b
 .IP \fB/*\fR
-Matches a, b,                but not x/a, x/b
+Matches a, b,                but not x/a, x/b, x/y/a
+.IP \fB/a\fR
+Matches a,                   but not x/a, x/y/a
 .IP \fBa?b\fR
-Matches axb, ayb,            but not a, b, ab
+Matches axb, ayb,            but not a, b, ab, a/b
 .IP \fBa[xy]b\fR
 Matches axb, ayb             but not a, b, azb
 .IP \fBa[a-z]b\fR
@@ -137,6 +135,16 @@ Matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
 Matches aab, abb, acb, azb,  but not a, b, axb, ayb
 .IP \fBa[^a-z]b\fR
 Matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
+.IP \fBa/*/b\fR
+Matches a/x/b, a/y/b,        but not a/b, a/x/y/b
+.IP \fB**/a\fR
+Matches a, x/a, x/y/a,       but not b, x/b.
+.IP \fBa/**/b\fR
+Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
+.IP \fBa/**\fR
+Matches a/x, a/y, a/x/y,     but not a, b/x
+.IP \fBa\\\\?b\fR
+Matches a?b,                 but not a, b, ab, axb, a/b
 .PP
 Lines in the \fB--exclude-from\fR and \fB--include-from\fR files are ignored
 when empty or start with a `#'.  The prefix `!' to a glob in such a file
@@ -216,7 +224,7 @@ $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 To display the line and column number of all `FIXME' in all C++ files using
 recursive search, with one line of context before and after each matched line:
 .IP
-$ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*' .
+$ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*'
 .PP
 To list all C/C++ comments in a file displaying their line and column numbers
 using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
