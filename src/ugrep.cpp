@@ -41,7 +41,7 @@ Download and installation:
 
   https://github.com/Genivia/ugrep
 
-Requires RE/flex 1.3.7 or greater:
+Requires RE/flex 1.3.8 or greater:
 
   https://github.com/Genivia/RE-flex
 
@@ -104,7 +104,7 @@ Compile:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.3.7"
+#define UGREP_VERSION "1.3.8"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -126,8 +126,15 @@ Compile:
 // max --jobs
 #define MAX_JOBS 1000
 
-// max mmap() file size to allocate, must be less or equal to 4294967295LL, 0 disables mmap()
+// min and max mmap() file size to allocate, must be less or equal to 4294967295LL, max 0 disables mmap()
+#define MIN_MMAP_SIZE 16384
 #define MAX_MMAP_SIZE 4294967295LL
+
+// mmap base and size, for mmap reuse
+#if !defined(OS_WIN) && MAX_MMAP_SIZE > 0
+static void *mmap_base = NULL;
+static size_t mmap_size = 0;
+#endif
 
 // statistics
 struct Stats {
@@ -252,13 +259,13 @@ bool same_file(FILE *file1, FILE *file2);
 bool is_file(const reflex::Input& input);
 void read_file(reflex::AbstractMatcher& matcher, reflex::Input& input, const char*& base, size_t& size);
 bool mmap_file(reflex::Input& input, const char*& base, size_t& size);
-void munmap_file(const char *base, size_t size);
+void mmap_free();
 void warning(const char *message, const char *arg);
 void error(const char *message, const char *arg);
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
 
-// read a line from buffered input
+// read a line from buffered input, returns true when eof
 inline bool getline(reflex::BufferedInput& input, std::string& line)
 {
   int ch;
@@ -273,7 +280,23 @@ inline bool getline(reflex::BufferedInput& input, std::string& line)
   return ch == EOF && line.empty();
 }
 
-// read a line from mmap memory or from buffered input or from unbuffered input
+// read a line from mmap memory, returns true when eof
+inline bool getline(const char*& here, size_t& left)
+{
+  // read line from mmap memory
+  if (left == 0)
+    return true;
+  const char *s = here;
+  const char *e = here + left;
+  while (s < e)
+    if (*s++ == '\n')
+      break;
+  left -= s - here;
+  here = s;
+  return false;
+}
+
+// read a line from mmap memory or from buffered input or from unbuffered input, returns true when eof
 inline bool getline(const char*& here, size_t& left, reflex::BufferedInput& buffered_input, reflex::Input& input, std::string& line)
 {
   if (here != NULL)
@@ -349,6 +372,13 @@ inline int fopen_s(FILE **file, const char *filename, const char *mode)
   return (*file = fopen(filename, mode)) == NULL ? errno : 0;
 }
 #endif
+
+// specify a line of input for the matcher to read, matcher must not use text() or rest() to keep the line contents unmodified
+inline void read_line(reflex::AbstractMatcher& matcher, const char *line, size_t size)
+{
+  // safe cast: buffer() is read-only if no matcher.text() and matcher.rest() are used, size + 1 to include final \0
+  matcher.buffer(const_cast<char*>(line), size + 1);
+}
 
 // specify a line of input for the matcher to read, matcher must not use text() or rest() to keep the line contents unmodified
 inline void read_line(reflex::AbstractMatcher& matcher, const std::string& line)
@@ -1681,6 +1711,9 @@ int main(int argc, char **argv)
     pclose(out);
 #endif
 
+  // if mmap was used, then release
+  mmap_free();
+
   exit(found ? EXIT_OK : EXIT_FAIL);
 }
 
@@ -2294,9 +2327,11 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
       for (auto& match : matcher.find)
       {
-        if (lineno != match.lineno())
+        size_t current_lineno = match.lineno();
+
+        if (lineno != current_lineno)
         {
-          lineno = match.lineno();
+          lineno = current_lineno;
 
           ++matches;
 
@@ -2343,15 +2378,17 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
     for (auto& match : matcher.find)
     {
-      separator = lineno != match.lineno() ? flag_separator : "+";
+      size_t current_lineno = match.lineno();
 
-      if (flag_no_group || lineno != match.lineno())
+      separator = lineno != current_lineno ? flag_separator : "+";
+
+      if (lineno != current_lineno || flag_no_group)
       {
         // -m: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
 
-        lineno = match.lineno();
+        lineno = current_lineno;
 
         ++matches;
 
@@ -2390,8 +2427,10 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
         else
         {
           if (hex)
+          {
             hex_done(separator);
-          hex = false;
+            hex = false;
+          }
 
           display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
 
@@ -2441,208 +2480,82 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
     if (hex)
       hex_done(separator);
   }
-  else if (flag_before_context == 0 && flag_after_context == 0)
+  else
   {
     // read input line-by-line and display lines that match the pattern
-    // this branch is the same as the next branch but optimized, with before and after context logic removed
-    // TODO: further optimize to use a regular char* line pointing to mmap memory, when mmap is used
 
-    reflex::BufferedInput buffered_input;
+    bool is_mmap = mmap_file(input, base, size);
 
-    if (!mmap_file(input, base, size) && is_file(input))
-      buffered_input = input;
-
-    const char *here = base;
-    size_t left = size;
-
-    size_t byte_offset = 0;
-    size_t lineno = 1;
-
-    std::string line;
-
-    while (true)
+    if (is_mmap && flag_before_context == 0 && flag_after_context == 0 && !flag_any_line && !flag_invert_match && !flag_no_group)
     {
-      // read the next line from mmap, buffered input, or unbuffered input
-      if (getline(here, left, buffered_input, input, line))
-        break;
+      // this branch is the same as the next branch but optimized for mmap() when options -A, -B, -C, -g, -v, -y are not used
 
-      bool binary = flag_hex;
+      const char *here = base;
+      size_t left = size;
 
-      if (!flag_text && !flag_hex && is_binary(line.c_str(), line.size()))
+      size_t byte_offset = 0;
+      size_t lineno = 1;
+
+      while (true)
       {
-        if (flag_binary_without_matches)
-        {
-          matches = 0;
+        const char *line = here;
+
+        // read the next line from mmap
+        if (getline(here, left))
           break;
-        }
-        binary = true;
-      }
 
-      size_t last = UNDEFINED;
+        bool binary = flag_hex;
 
-      // the current input line to match
-      read_line(matcher, line);
+        size_t last = UNDEFINED;
 
-      if (flag_invert_match)
-      {
-        // -v: select non-matching line
+        // the current input line to match
+        read_line(matcher, line, here - line);
 
-        bool found = false;
-
-        for (auto& match : matcher.find)
-        {
-          if (flag_any_line)
-          {
-            if (last == UNDEFINED)
-            {
-              display(pathname, lineno, match.columno() + 1, byte_offset, "-", binary);
-
-              last = 0;
-            }
-
-            if (binary)
-            {
-              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offset + last, line.c_str() + last, match.first() - last, "-");
-            }
-            else
-            {
-              fputs(color_cx, out);
-              fwrite(line.c_str() + last, 1, match.first() - last, out);
-              fputs(color_off, out);
-            }
-
-            last = match.last();
-
-            // skip any further empty pattern matches
-            if (last == 0)
-              break;
-
-            if (binary)
-            {
-              hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offset + match.first(), match.begin(), match.size(), "-");
-            }
-            else
-            {
-              fputs(color_mc, out);
-              fwrite(match.begin(), 1, match.size(), out);
-              fputs(color_off, out);
-            }
-          }
-          else
-          {
-            found = true;
-
-            break;
-          }
-        }
-
-        if (last != UNDEFINED)
-        {
-          if (binary)
-          {
-            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offset + last, line.c_str() + last, line.size() - last, "-");
-            hex_done("-");
-          }
-          else
-          {
-            fputs(color_cx, out);
-            fwrite(line.c_str() + last, 1, line.size() - last, out);
-            fputs(color_off, out);
-          }
-        }
-        else if (!found)
-        {
-          if (binary && !flag_hex && !flag_with_hex)
-          {
-            fprintf(out, "Binary file %s matches\n", pathname);
-            matches = 1;
-            break;
-          }
-
-          fputs(color_sl, out);
-          fwrite(line.c_str(), 1, line.size(), out);
-          fputs(color_off, out);
-
-          if (flag_line_buffered)
-            fflush(out);
-
-          ++matches;
-
-          // -m: max number of matches reached?
-          if (flag_max_count > 0 && matches >= flag_max_count)
-            break;
-        }
-      }
-      else
-      {
         // search the line for pattern matches
-
         for (auto& match : matcher.find)
         {
-          if (last == UNDEFINED && binary && !flag_hex && !flag_with_hex)
+          if (last == UNDEFINED)
           {
-            fprintf(out, "Binary file %s matches\n", pathname);
-            matches = 1;
-            goto exit_ugrep;
-          }
-
-          if (flag_no_group)
-          {
-            // -g: do not group matches on a single line but on multiple lines, counting each match separately
-
-            display(pathname, lineno, match.columno() + 1, byte_offset + match.first(), last == UNDEFINED ? flag_separator : "+", binary);
-
-            if (binary)
+            if (!flag_text && !flag_hex)
             {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offset, line.c_str(), match.first(), "+");
-              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offset + match.first(), match.begin(), match.size(), "+");
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + match.last(), line.c_str() + match.last(), match.last() - match.first(), "+");
-              hex_done("+");
+              if (is_binary(line, here - line))
+              {
+                if (flag_binary_without_matches)
+                {
+                  matches = 0;
+                  break;
+                }
+                binary = true;
+              }
+
+              if (binary && !flag_with_hex)
+              {
+                fprintf(out, "Binary file %s matches\n", pathname);
+                matches = 1;
+                goto exit_ugrep;
+              }
             }
-            else
-            {
-              fputs(color_sl, out);
-              fwrite(line.c_str(), 1, match.first(), out);
-              fputs(color_off, out);
-              fputs(color_ms, out);
-              fwrite(match.begin(), 1, match.size(), out);
-              fputs(color_off, out);
-              fputs(color_sl, out);
-              fwrite(line.c_str() + match.last(), 1, line.size() - match.last(), out);
-              fputs(color_off, out);
-            }
+
+            display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator, binary);
 
             ++matches;
 
-            // -m: max number of matches reached?
-            if (flag_max_count > 0 && matches >= flag_max_count)
-              goto exit_ugrep;
+            last = 0;
+          }
+
+          if (binary)
+          {
+            hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + last, line + last, match.first() - last, flag_separator);
+            hex_dump(HEX_MATCH, NULL, 0, 0, byte_offset + match.first(), match.begin(), match.size(), flag_separator);
           }
           else
           {
-            if (last == UNDEFINED)
-            {
-              display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator, binary);
-
-              ++matches;
-
-              last = 0;
-            }
-
-            if (binary)
-            {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + last, line.c_str() + last, match.first() - last, flag_separator);
-              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offset + match.first(), match.begin(), match.size(), flag_separator);
-            }
-            else
-            {
-              fputs(color_sl, out);
-              fwrite(line.c_str() + last, 1, match.first() - last, out);
-              fputs(color_off, out);
-              fputs(color_ms, out);
-              fwrite(match.begin(), 1, match.size(), out);
-              fputs(color_off, out);
-            }
+            fputs(color_sl, out);
+            fwrite(line + last, 1, match.first() - last, out);
+            fputs(color_off, out);
+            fputs(color_ms, out);
+            fwrite(match.begin(), 1, match.size(), out);
+            fputs(color_off, out);
           }
 
           last = match.last();
@@ -2654,515 +2567,493 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
         if (last != UNDEFINED)
         {
-          if (!flag_no_group)
-          {
-            if (binary)
-            {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + last, line.c_str() + last, line.size() - last, flag_separator);
-              hex_done(flag_separator);
-            }
-            else
-            {
-              fputs(color_sl, out);
-              fwrite(line.c_str() + last, 1, line.size() - last, out);
-              fputs(color_off, out);
-            }
-          }
-
-          if (flag_line_buffered)
-            fflush(out);
-        }
-        else if (flag_any_line)
-        {
-          display(pathname, lineno, 1, byte_offset, "-", binary);
-
           if (binary)
           {
-            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offset, line.c_str(), line.size(), "-");
-            hex_done("-");
-          }
-          else
-          {
-            fputs(color_cx, out);
-            fwrite(line.c_str(), 1, line.size(), out);
-            fputs(color_off, out);
-          }
-        }
-
-        // -m: max number of matches reached?
-        if (flag_max_count > 0 && matches >= flag_max_count)
-          break;
-      }
-
-      // update byte offset and line number
-      byte_offset += line.size();
-      ++lineno;
-    }
-  }
-  else
-  {
-    // read input line-by-line and display lines that match the pattern with context lines
-
-    reflex::BufferedInput buffered_input;
-
-    if (!mmap_file(input, base, size) && is_file(input))
-      buffered_input = input;
-
-    const char *here = base;
-    size_t left = size;
-
-    size_t byte_offset = 0;
-    size_t lineno = 1;
-    size_t before = 0;
-    size_t after = 0;
-
-    std::vector<bool> binary;
-    std::vector<size_t> byte_offsets;
-    std::vector<std::string> lines;
-
-    binary.reserve(flag_before_context + 1);
-    byte_offsets.reserve(flag_before_context + 1);
-    lines.reserve(flag_before_context + 1);
-
-    for (size_t i = 0; i <= flag_before_context; ++i)
-    {
-      binary[i] = false;
-      byte_offsets.emplace_back(0);
-      lines.emplace_back("");
-    }
-
-    while (true)
-    {
-      size_t current = lineno % (flag_before_context + 1);
-
-      binary[current] = flag_hex;
-      byte_offsets[current] = byte_offset;
-
-      // read the next line from mmap, buffered input, or unbuffered input
-      if (getline(here, left, buffered_input, input, lines[current]))
-        break;
-
-      if (!flag_text && !flag_hex && is_binary(lines[current].c_str(), lines[current].size()))
-      {
-        if (flag_binary_without_matches)
-        {
-          matches = 0;
-          break;
-        }
-        binary[current] = true;
-      }
-
-      bool before_context = flag_before_context > 0;
-      bool after_context = flag_after_context > 0;
-
-      size_t last = UNDEFINED;
-
-      // the current input line to match
-      read_line(matcher, lines[current]);
-
-      if (flag_invert_match)
-      {
-        // -v: select non-matching line
-
-        bool found = false;
-
-        for (auto& match : matcher.find)
-        {
-          if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
-          {
-            // -A NUM: show context after matched lines, simulates BSD grep -A
-
-            if (last == UNDEFINED)
-            {
-              display(pathname, lineno, match.columno() + 1, byte_offset, "-", binary[current]);
-
-              last = 0;
-            }
-
-            if (binary[current])
-            {
-              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, "-");
-            }
-            else
-            {
-              fputs(color_cx, out);
-              fwrite(lines[current].c_str() + last, 1, match.first() - last, out);
-              fputs(color_off, out);
-            }
-
-            last = match.last();
-
-            // skip any further empty pattern matches
-            if (last == 0)
-              break;
-
-            if (binary[current])
-            {
-              hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), "-");
-            }
-            else
-            {
-              fputs(color_mc, out);
-              fwrite(match.begin(), 1, match.size(), out);
-              fputs(color_off, out);
-            }
-          }
-          else
-          {
-            found = true;
-
-            break;
-          }
-        }
-
-        if (last != UNDEFINED)
-        {
-          if (binary[current])
-          {
-            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, "-");
-            hex_done("-");
-          }
-          else
-          {
-            fputs(color_cx, out);
-            fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, out);
-            fputs(color_off, out);
-          }
-        }
-        else if (!found)
-        {
-          if (binary[current] && !flag_hex && !flag_with_hex)
-          {
-            fprintf(out, "Binary file %s matches\n", pathname);
-            matches = 1;
-            break;
-          }
-
-          if (after_context)
-          {
-            // -A NUM: show context after matched lines, simulates BSD grep -A
-
-            // indicate the end of the group of after lines of the previous matched line
-            if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
-            {
-              fputs(color_se, out);
-              fputs(flag_group_separator, out);
-              fputs(color_off, out);
-              fputc('\n', out);
-            }
-
-            // remember the matched line
-            after = lineno;
-          }
-
-          if (before_context)
-          {
-            // -B NUM: show context before matched lines, simulates BSD grep -B
-
-            size_t begin = before + 1;
-
-            if (lineno > flag_before_context && begin < lineno - flag_before_context)
-              begin = lineno - flag_before_context;
-
-            // indicate the begin of the group of before lines
-            if (begin < lineno && matches > 0 && flag_group_separator != NULL)
-            {
-              fputs(color_se, out);
-              fputs(flag_group_separator, out);
-              fputs(color_off, out);
-              fputc('\n', out);
-            }
-
-            // display lines before the matched line
-            while (begin < lineno)
-            {
-              size_t begin_context = begin % (flag_before_context + 1);
-
-              last = UNDEFINED;
-
-              read_line(matcher, lines[begin_context]);
-
-              for (auto& match : matcher.find)
-              {
-                if (last == UNDEFINED)
-                {
-                  display(pathname, begin, match.columno() + 1, byte_offsets[begin_context], "-", binary[begin_context]);
-
-                  last = 0;
-                }
-
-                if (binary[begin_context])
-                {
-                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, match.first() - last, "-");
-                }
-                else
-                {
-                  fputs(color_cx, out);
-                  fwrite(lines[begin_context].c_str() + last, 1, match.first() - last, out);
-                  fputs(color_off, out);
-                }
-
-                last = match.last();
-
-                // skip any further empty pattern matches
-                if (last == 0)
-                  break;
-
-                if (binary[begin_context])
-                {
-                  hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[begin_context] + match.first(), match.begin(), match.size(), "-");
-                }
-                else
-                {
-                  fputs(color_mc, out);
-                  fwrite(match.begin(), 1, match.size(), out);
-                  fputs(color_off, out);
-                }
-              }
-
-              if (last != UNDEFINED)
-              {
-                if (binary[begin % (flag_before_context + 1)])
-                {
-                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, lines[begin_context].size() - last, "-");
-                  hex_done("-");
-                }
-                else
-                {
-                  fputs(color_cx, out);
-                  fwrite(lines[begin_context].c_str() + last, 1, lines[begin_context].size() - last, out);
-                  fputs(color_off, out);
-                }
-              }
-
-              ++begin;
-            }
-
-            // remember the matched line
-            before = lineno;
-          }
-
-          display(pathname, lineno, 1, byte_offsets[current], flag_separator, binary[current]);
-
-          if (binary[current])
-          {
-            hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), flag_separator);
+            hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + last, line + last, here - line - last, flag_separator);
             hex_done(flag_separator);
           }
           else
           {
             fputs(color_sl, out);
-            fwrite(lines[current].c_str(), 1, lines[current].size(), out);
+            fwrite(line + last, 1, here - line - last, out);
             fputs(color_off, out);
           }
 
           if (flag_line_buffered)
             fflush(out);
-
-          ++matches;
-
-          // -m: max number of matches reached?
-          if (flag_max_count > 0 && matches >= flag_max_count)
-            break;
-        }
-      }
-      else
-      {
-        // search the line for pattern matches
-
-        for (auto& match : matcher.find)
-        {
-          if (last == UNDEFINED && binary[current] && !flag_hex && !flag_with_hex)
-          {
-            fprintf(out, "Binary file %s matches\n", pathname);
-            matches = 1;
-            goto exit_ugrep;
-          }
-
-          if (after_context)
-          {
-            // -A NUM: show context after matched lines, simulates BSD grep -A
-
-            // indicate the end of the group of after lines of the previous matched line
-            if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
-            {
-              fputs(color_se, out);
-              fputs(flag_group_separator, out);
-              fputs(color_off, out);
-              fputc('\n', out);
-            }
-
-            // remember the matched line and we're done with the after context
-            after = lineno;
-            after_context = false;
-          }
-
-          if (before_context)
-          {
-            // -B NUM: show context before matched lines, simulates BSD grep -B
-
-            size_t begin = before + 1;
-
-            if (lineno > flag_before_context && begin < lineno - flag_before_context)
-              begin = lineno - flag_before_context;
-
-            // indicate the begin of the group of before lines
-            if (begin < lineno && matches > 0 && flag_group_separator != NULL)
-            {
-              fputs(color_se, out);
-              fputs(flag_group_separator, out);
-              fputs(color_off, out);
-              fputc('\n', out);
-            }
-
-            // display lines before the matched line
-            while (begin < lineno)
-            {
-              size_t begin_context = begin % (flag_before_context + 1);
-
-              display(pathname, begin, 1, byte_offsets[begin_context], "-", binary[begin_context]);
-
-              if (binary[begin_context])
-              {
-                hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context], lines[begin_context].c_str(), lines[begin_context].size(), "-");
-                hex_done("-");
-              }
-              else
-              {
-                fputs(color_cx, out);
-                fwrite(lines[begin_context].c_str(), 1, lines[begin_context].size(), out);
-                fputs(color_off, out);
-              }
-
-              ++begin;
-            }
-
-            // remember the matched line and we're done with the before context
-            before = lineno;
-            before_context = false;
-          }
-
-          if (flag_no_group)
-          {
-            // -g: do not group matches on a single line but on multiple lines, counting each match separately
-
-            display(pathname, lineno, match.columno() + 1, byte_offset + match.first(), last == UNDEFINED ? flag_separator : "+", binary[current]);
-
-            if (binary[current])
-            {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), match.first(), "+");
-              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), "+");
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + match.last(), lines[current].c_str() + match.last(), match.last() - match.first(), "+");
-              hex_done("+");
-            }
-            else
-            {
-              fputs(color_sl, out);
-              fwrite(lines[current].c_str(), 1, match.first(), out);
-              fputs(color_off, out);
-              fputs(color_ms, out);
-              fwrite(match.begin(), 1, match.size(), out);
-              fputs(color_off, out);
-              fputs(color_sl, out);
-              fwrite(lines[current].c_str() + match.last(), 1, lines[current].size() - match.last(), out);
-              fputs(color_off, out);
-            }
-
-            ++matches;
-
-            // -m: max number of matches reached?
-            if (flag_max_count > 0 && matches >= flag_max_count)
-              goto exit_ugrep;
-          }
-          else
-          {
-            if (last == UNDEFINED)
-            {
-              display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator, binary[current]);
-
-              ++matches;
-
-              last = 0;
-            }
-
-            if (binary[current])
-            {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, flag_separator);
-              hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), flag_separator);
-            }
-            else
-            {
-              fputs(color_sl, out);
-              fwrite(lines[current].c_str() + last, 1, match.first() - last, out);
-              fputs(color_off, out);
-              fputs(color_ms, out);
-              fwrite(match.begin(), 1, match.size(), out);
-              fputs(color_off, out);
-            }
-          }
-
-          last = match.last();
-
-          // skip any further empty pattern matches
-          if (last == 0)
-            break;
-        }
-
-        if (last != UNDEFINED)
-        {
-          if (!flag_no_group)
-          {
-            if (binary[current])
-            {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, flag_separator);
-              hex_done(flag_separator);
-            }
-            else
-            {
-              fputs(color_sl, out);
-              fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, out);
-              fputs(color_off, out);
-            }
-          }
-
-          if (flag_line_buffered)
-            fflush(out);
-        }
-        else if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
-        {
-          // -A NUM: show context after matched lines, simulates BSD grep -A
-
-          // display line as part of the after context of the matched line
-          display(pathname, lineno, 1, byte_offsets[current], "-", binary[current]);
-
-          if (binary[current])
-          {
-            hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), "-");
-            hex_done("-");
-          }
-          else
-          {
-            fputs(color_cx, out);
-            fwrite(lines[current].c_str(), 1, lines[current].size(), out);
-            fputs(color_off, out);
-          }
         }
 
         // -m: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
+
+        // update byte offset and line number
+        byte_offset += here - line;
+        ++lineno;
+      }
+    }
+    else
+    {
+      // read input line-by-line and display lines that match the pattern with context lines
+
+      reflex::BufferedInput buffered_input;
+
+      if (!is_mmap && is_file(input))
+        buffered_input = input;
+
+      const char *here = base;
+      size_t left = size;
+
+      size_t byte_offset = 0;
+      size_t lineno = 1;
+      size_t before = 0;
+      size_t after = 0;
+
+      std::vector<bool> binary;
+      std::vector<size_t> byte_offsets;
+      std::vector<std::string> lines;
+
+      binary.reserve(flag_before_context + 1);
+      byte_offsets.reserve(flag_before_context + 1);
+      lines.reserve(flag_before_context + 1);
+
+      for (size_t i = 0; i <= flag_before_context; ++i)
+      {
+        binary[i] = false;
+        byte_offsets.emplace_back(0);
+        lines.emplace_back("");
       }
 
-      // update byte offset and line number
-      byte_offset += lines[current].size();
-      ++lineno;
+      while (true)
+      {
+        size_t current = lineno % (flag_before_context + 1);
+
+        binary[current] = flag_hex;
+        byte_offsets[current] = byte_offset;
+
+        // read the next line from mmap, buffered input, or unbuffered input
+        if (getline(here, left, buffered_input, input, lines[current]))
+          break;
+
+        bool before_context = flag_before_context > 0;
+        bool after_context = flag_after_context > 0;
+
+        size_t last = UNDEFINED;
+
+        // the current input line to match
+        read_line(matcher, lines[current]);
+
+        if (!flag_text && !flag_hex && is_binary(lines[current].c_str(), lines[current].size()))
+        {
+          if (flag_binary_without_matches)
+          {
+            matches = 0;
+            break;
+          }
+          binary[current] = true;
+        }
+
+        if (flag_invert_match)
+        {
+          // -v: select non-matching line
+
+          bool found = false;
+
+          for (auto& match : matcher.find)
+          {
+            if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
+            {
+              // -A NUM: show context after matched lines, simulates BSD grep -A
+
+              if (last == UNDEFINED)
+              {
+                display(pathname, lineno, match.columno() + 1, byte_offset, "-", binary[current]);
+
+                last = 0;
+              }
+
+              if (binary[current])
+              {
+                hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, "-");
+              }
+              else
+              {
+                fputs(color_cx, out);
+                fwrite(lines[current].c_str() + last, 1, match.first() - last, out);
+                fputs(color_off, out);
+              }
+
+              last = match.last();
+
+              // skip any further empty pattern matches
+              if (last == 0)
+                break;
+
+              if (binary[current])
+              {
+                hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), "-");
+              }
+              else
+              {
+                fputs(color_mc, out);
+                fwrite(match.begin(), 1, match.size(), out);
+                fputs(color_off, out);
+              }
+            }
+            else
+            {
+              found = true;
+
+              break;
+            }
+          }
+
+          if (last != UNDEFINED)
+          {
+            if (binary[current])
+            {
+              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, "-");
+              hex_done("-");
+            }
+            else
+            {
+              fputs(color_cx, out);
+              fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, out);
+              fputs(color_off, out);
+            }
+          }
+          else if (!found)
+          {
+            if (binary[current] && !flag_hex && !flag_with_hex)
+            {
+              fprintf(out, "Binary file %s matches\n", pathname);
+              matches = 1;
+              break;
+            }
+
+            if (after_context)
+            {
+              // -A NUM: show context after matched lines, simulates BSD grep -A
+
+              // indicate the end of the group of after lines of the previous matched line
+              if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
+              {
+                fputs(color_se, out);
+                fputs(flag_group_separator, out);
+                fputs(color_off, out);
+                fputc('\n', out);
+              }
+
+              // remember the matched line
+              after = lineno;
+            }
+
+            if (before_context)
+            {
+              // -B NUM: show context before matched lines, simulates BSD grep -B
+
+              size_t begin = before + 1;
+
+              if (lineno > flag_before_context && begin < lineno - flag_before_context)
+                begin = lineno - flag_before_context;
+
+              // indicate the begin of the group of before lines
+              if (begin < lineno && matches > 0 && flag_group_separator != NULL)
+              {
+                fputs(color_se, out);
+                fputs(flag_group_separator, out);
+                fputs(color_off, out);
+                fputc('\n', out);
+              }
+
+              // display lines before the matched line
+              while (begin < lineno)
+              {
+                size_t begin_context = begin % (flag_before_context + 1);
+
+                last = UNDEFINED;
+
+                read_line(matcher, lines[begin_context]);
+
+                for (auto& match : matcher.find)
+                {
+                  if (last == UNDEFINED)
+                  {
+                    display(pathname, begin, match.columno() + 1, byte_offsets[begin_context], "-", binary[begin_context]);
+
+                    last = 0;
+                  }
+
+                  if (binary[begin_context])
+                  {
+                    hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, match.first() - last, "-");
+                  }
+                  else
+                  {
+                    fputs(color_cx, out);
+                    fwrite(lines[begin_context].c_str() + last, 1, match.first() - last, out);
+                    fputs(color_off, out);
+                  }
+
+                  last = match.last();
+
+                  // skip any further empty pattern matches
+                  if (last == 0)
+                    break;
+
+                  if (binary[begin_context])
+                  {
+                    hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[begin_context] + match.first(), match.begin(), match.size(), "-");
+                  }
+                  else
+                  {
+                    fputs(color_mc, out);
+                    fwrite(match.begin(), 1, match.size(), out);
+                    fputs(color_off, out);
+                  }
+                }
+
+                if (last != UNDEFINED)
+                {
+                  if (binary[begin % (flag_before_context + 1)])
+                  {
+                    hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, lines[begin_context].size() - last, "-");
+                    hex_done("-");
+                  }
+                  else
+                  {
+                    fputs(color_cx, out);
+                    fwrite(lines[begin_context].c_str() + last, 1, lines[begin_context].size() - last, out);
+                    fputs(color_off, out);
+                  }
+                }
+
+                ++begin;
+              }
+
+              // remember the matched line
+              before = lineno;
+            }
+
+            display(pathname, lineno, 1, byte_offsets[current], flag_separator, binary[current]);
+
+            if (binary[current])
+            {
+              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), flag_separator);
+              hex_done(flag_separator);
+            }
+            else
+            {
+              fputs(color_sl, out);
+              fwrite(lines[current].c_str(), 1, lines[current].size(), out);
+              fputs(color_off, out);
+            }
+
+            if (flag_line_buffered)
+              fflush(out);
+
+            ++matches;
+
+            // -m: max number of matches reached?
+            if (flag_max_count > 0 && matches >= flag_max_count)
+              break;
+          }
+        }
+        else
+        {
+          // search the line for pattern matches
+
+          for (auto& match : matcher.find)
+          {
+            if (last == UNDEFINED && !flag_hex && !flag_hex && !flag_with_hex && binary[current])
+            {
+              fprintf(out, "Binary file %s matches\n", pathname);
+              matches = 1;
+              goto exit_ugrep;
+            }
+
+            if (after_context)
+            {
+              // -A NUM: show context after matched lines, simulates BSD grep -A
+
+              // indicate the end of the group of after lines of the previous matched line
+              if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
+              {
+                fputs(color_se, out);
+                fputs(flag_group_separator, out);
+                fputs(color_off, out);
+                fputc('\n', out);
+              }
+
+              // remember the matched line and we're done with the after context
+              after = lineno;
+              after_context = false;
+            }
+
+            if (before_context)
+            {
+              // -B NUM: show context before matched lines, simulates BSD grep -B
+
+              size_t begin = before + 1;
+
+              if (lineno > flag_before_context && begin < lineno - flag_before_context)
+                begin = lineno - flag_before_context;
+
+              // indicate the begin of the group of before lines
+              if (begin < lineno && matches > 0 && flag_group_separator != NULL)
+              {
+                fputs(color_se, out);
+                fputs(flag_group_separator, out);
+                fputs(color_off, out);
+                fputc('\n', out);
+              }
+
+              // display lines before the matched line
+              while (begin < lineno)
+              {
+                size_t begin_context = begin % (flag_before_context + 1);
+
+                display(pathname, begin, 1, byte_offsets[begin_context], "-", binary[begin_context]);
+
+                if (binary[begin_context])
+                {
+                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context], lines[begin_context].c_str(), lines[begin_context].size(), "-");
+                  hex_done("-");
+                }
+                else
+                {
+                  fputs(color_cx, out);
+                  fwrite(lines[begin_context].c_str(), 1, lines[begin_context].size(), out);
+                  fputs(color_off, out);
+                }
+
+                ++begin;
+              }
+
+              // remember the matched line and we're done with the before context
+              before = lineno;
+              before_context = false;
+            }
+
+            if (flag_no_group)
+            {
+              // -g: do not group matches on a single line but on multiple lines, counting each match separately
+
+              display(pathname, lineno, match.columno() + 1, byte_offset + match.first(), last == UNDEFINED ? flag_separator : "+", binary[current]);
+
+              if (binary[current])
+              {
+                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), match.first(), "+");
+                hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), "+");
+                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + match.last(), lines[current].c_str() + match.last(), match.last() - match.first(), "+");
+                hex_done("+");
+              }
+              else
+              {
+                fputs(color_sl, out);
+                fwrite(lines[current].c_str(), 1, match.first(), out);
+                fputs(color_off, out);
+                fputs(color_ms, out);
+                fwrite(match.begin(), 1, match.size(), out);
+                fputs(color_off, out);
+                fputs(color_sl, out);
+                fwrite(lines[current].c_str() + match.last(), 1, lines[current].size() - match.last(), out);
+                fputs(color_off, out);
+              }
+
+              ++matches;
+
+              // -m: max number of matches reached?
+              if (flag_max_count > 0 && matches >= flag_max_count)
+                goto exit_ugrep;
+            }
+            else
+            {
+              if (last == UNDEFINED)
+              {
+                display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator, binary[current]);
+
+                ++matches;
+
+                last = 0;
+              }
+
+              if (binary[current])
+              {
+                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, flag_separator);
+                hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), flag_separator);
+              }
+              else
+              {
+                fputs(color_sl, out);
+                fwrite(lines[current].c_str() + last, 1, match.first() - last, out);
+                fputs(color_off, out);
+                fputs(color_ms, out);
+                fwrite(match.begin(), 1, match.size(), out);
+                fputs(color_off, out);
+              }
+            }
+
+            last = match.last();
+
+            // skip any further empty pattern matches
+            if (last == 0)
+              break;
+          }
+
+          if (last != UNDEFINED)
+          {
+            if (!flag_no_group)
+            {
+              if (binary[current])
+              {
+                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, flag_separator);
+                hex_done(flag_separator);
+              }
+              else
+              {
+                fputs(color_sl, out);
+                fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, out);
+                fputs(color_off, out);
+              }
+            }
+
+            if (flag_line_buffered)
+              fflush(out);
+          }
+          else if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
+          {
+            // -A NUM: show context after matched lines, simulates BSD grep -A
+
+            // display line as part of the after context of the matched line
+            display(pathname, lineno, 1, byte_offsets[current], "-", binary[current]);
+
+            if (binary[current])
+            {
+              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), "-");
+              hex_done("-");
+            }
+            else
+            {
+              fputs(color_cx, out);
+              fwrite(lines[current].c_str(), 1, lines[current].size(), out);
+              fputs(color_off, out);
+            }
+          }
+
+          // -m: max number of matches reached?
+          if (flag_max_count > 0 && matches >= flag_max_count)
+            break;
+        }
+
+        // update byte offset and line number
+        byte_offset += lines[current].size();
+        ++lineno;
+      }
     }
   }
 
 exit_ugrep:
-
-  // if mmap was used, then deallocate
-  munmap_file(base, size);
 
   // --break: add a line break and flush
   if ((matches > 0 || flag_any_line) && flag_break)
@@ -3466,27 +3357,31 @@ bool mmap_file(reflex::Input& input, const char*& base, size_t& size)
     return false;
   int fd = ::fileno(file);
   struct stat st;
-  if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size > MAX_MMAP_SIZE)
+  if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < MIN_MMAP_SIZE || st.st_size > MAX_MMAP_SIZE)
     return false;
   size = static_cast<size_t>(st.st_size);
-  base = static_cast<const char*>(::mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0));
-  if (base != MAP_FAILED)
+  if (mmap_base != NULL && mmap_size >= size)
+    base = static_cast<const char*>(mmap_base = ::mmap(mmap_base, mmap_size, PROT_READ, MAP_PRIVATE, fd, 0));
+  else
+    base = static_cast<const char*>(mmap_base = ::mmap(mmap_base, (mmap_size = size), PROT_READ, MAP_PRIVATE, fd, 0));
+  if (mmap_base != MAP_FAILED)
     return true;
+  mmap_base = NULL;
+  mmap_size = 0;
   base = NULL;
+  size = 0;
 #else
   (void)input;
 #endif
   return false;
 }
 
-// munmap the file at mmap base
-void munmap_file(const char *base, size_t size)
+// release mmap memory, if allocated
+void mmap_free()
 {
-#if MAX_MMAP_SIZE > 0 && !defined(OS_WIN)
-  if (base != NULL)
-    ::munmap(const_cast<void*>(static_cast<const void*>(base)), size);
-#else
-  (void)base, (void)size;
+#if !defined(OS_WIN) && MAX_MMAP_SIZE > 0
+  if (mmap_base != NULL)
+    ::munmap(mmap_base, mmap_size);
 #endif
 }
 

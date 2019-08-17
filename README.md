@@ -137,33 +137,60 @@ Initial performance results look promising.  For example, searching for all
 matches of syntactically-valid variants of `#include "..."` in the directory
 tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files only:
 
-    time grep -R -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . >& /dev/null
-    3.630u 0.274s 0:03.90 100.0%    0+0k 0+0io 0pf+0w
+    time ugrep -r -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp >& /dev/null
+    0.506u 0.181s 0:00.69 98.5%     0+0k 0+0io 0pf+0w
 
-    time ugrep -R -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp >& /dev/null
-    1.053u 0.342s 0:01.40 99.2%     0+0k 0+0io 0pf+0w
+    time ugrep -r -P -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp >& /dev/null
+    0.180u 0.182s 0:00.36 100.0%    0+0k 0+0io 0pf+0w
 
-    time ugrep -R -P -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp > & /dev/null
-    0.380u 0.282s 0:00.66 100.0%    0+0k 0+0io 0pf+0w
+Option `-P` uses Boost.Regex, which is optimized for search and is faster than
+the RE/flex POSIX matcher because RE/flex is optimized for lexical analysis
+(i.e. scanning) without the aforementioned search optimizations.
 
-Unoptimized (single threaded, no memchr, no Boyer-Moore, no Aho-Corasick),
-**ugrep** is already much faster than BSD grep.  Option `-P` uses Boost.Regex,
-which is optimized for search and is faster than the RE/flex POSIX matcher
-because RE/flex is optimized for lexical analysis (i.e. scanning) without the
-aforementioned search optimizations.  For this test **ugrep** was compiled with
-clang 9.0.0 -O2, and this test was run on a 2.9 GHz Intel Core i7, 16 GB 2133
-MHz LPDDR3 machine.
+For this test **ugrep** was compiled with clang 9.0.0 -O2, and this test was
+run on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 machine.  The best times
+for many runs is shown under minimal machine load.
 
-Future optimization strategies:
+The same search with BSD grep:
+
+    time grep -r -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . >& /dev/null
+    3.106u 0.229s 0:03.34 99.4%     0+0k 0+0io 0pf+0w
+
+As we can see, **ugrep** is much faster than BSD grep while **ugrep** has
+yet to be optimized for search (memchr, Boyer-Moore, Aho-Corasick, etc.)
+
+GNU grep is highly optimized for this type of search and is faster than
+`ugrep -r -P -o`:
+
+    time ggrep -r -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' >& /dev/null
+    0.122u 0.122s 0:00.24 100.0%    0+0k 0+0io 0pf+0w
+
+Ripgrep uses threads, thereby inflating its speed by over 600% for this run:
+
+    time ripgrep '#[[:space:]]*include[[:space:]]+"[^"]+"' --glob='*.h' --glob='*.hpp' --glob='*.cpp' > /dev/null
+    0.353u 0.347s 0:00.11 627.2%    0+0k 0+0io 0pf+0w
+
+However, with one thread, ripgrep takes a lot more time, more than `ggrep -r
+-o` and more than `ugrep -r -P -o`:
+
+    time ripgrep -j1 '#[[:space:]]*include[[:space:]]+"[^"]+"' --glob='*.h' --glob='*.hpp' --glob='*.cpp' > /dev/null
+    0.210u 0.166s 0:00.38 97.3%     0+0k 0+0io 2pf+0w
+
+This means that there is a decent possibility to make **ugrep** faster than
+ripgrep, while offering BSD/GNU grep compatible options, richer regex syntax,
+and more features.
+
+Future **ugrep** optimization strategies:
 
 - Most grep tools and regex matchers are optimized to match regex patterns that
   start with a limited choice of characters, by simply searching for the
   characters quickly in memory (e.g.  with `memchr`).  This optimization hack
-  is not yet implemented, unless option `-P` is used.  For example, searching
-  `TODO` and `.ODO` take about the same time with **ugrep**, while GNU/BSD grep
-  is faster for the first but slower for the second.
+  is not yet implemented in **ugrep**.  For example, searching `TODO` and
+  `.ODO` take about the same time with **ugrep**, while GNU/BSD grep is faster
+  for the first but slower for the second.
 - Option `-F` fast string matching with Boyer-Moore etc.
-- Multi-threading will add a (relatively cheap to get) performance boost.
+- Multi-threading will add a (relatively cheap to get) performance boost that
+  may match ripgrep.
 
 Installation
 ------------
@@ -172,7 +199,7 @@ Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
 However, these versions disable options `-P` (Perl regular expressions) and
 `-z` (decompress).
 
-To build ugrep, first install RE/flex 1.3.7 or greater from
+To build ugrep, first install RE/flex 1.3.8 or greater from
 https://github.com/Genivia/RE-flex then download ugrep from
 https://github.com/Genivia/ugrep and execute:
 
@@ -1522,7 +1549,7 @@ Man page
 
 
 
-    ugrep 1.3.7                     August 16, 2019                       UGREP(1)
+    ugrep 1.3.8                     August 17, 2019                       UGREP(1)
 
 <a name="patterns"/>
 
