@@ -181,7 +181,7 @@ Ripgrep takes 0.19 seconds:
     96241
     0.19 real         0.17 user         0.01 sys
 
-**ugrep** takes the first place fastest at 0.15 seconds:
+**ugrep** takes the first place fastest at 0.14 seconds:
 
     time src/ugrep -cw 'char|int|long|size_t|void' big.cpp
     96241
@@ -243,7 +243,7 @@ BSD grep takes 0.83 seconds:
     time grep -onE 'serialize_[a-zA-Z0-9_]+Type' big.cpp | ./null
     0.83 real         0.82 user         0.01 sys
 
-GNU grep takes 0.17 seconds:
+GNU grep takes 0.16 seconds:
 
     time ggrep -onE 'serialize_[a-zA-Z0-9_]+Type' big.cpp | ./null
     0.16 real         0.16 user         0.00 sys
@@ -276,7 +276,7 @@ only 0.26 seconds:
     time ggrep -r -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' | ./null
     0.26 real         0.13 user         0.11 sys
 
-**ugrep** takes the second place fastest at 0.29 seconds:
+**ugrep** takes the second place fastest at 0.28 seconds:
 
     time ugrep -r -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp | ./null
     0.28 real         0.10 user         0.17 sys
