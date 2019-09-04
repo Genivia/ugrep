@@ -10,7 +10,7 @@ in large directory trees.
 <img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
 <img src="https://www.genivia.com/images/hexdump.png" width="45%" height="45%" alt="ugrep hexdump results">
 <br>
-Search source code and binary files with ugrep
+Search source code and binary files fast with ugrep
 <br>
 <br>
 <br>
@@ -22,34 +22,62 @@ illustrating the power of **ugrep**.
 Why use ugrep?
 --------------
 
-- No compromises: **ugrep is backward compatible with GNU grep and BSD grep**,
-  extending these utilities by offering additional useful features, such as
-  full Unicode pattern matching, "negative patterns" to ignore unwanted pattern
-  matches, recursive search through directories while selecting files by file
-  name extension and file signature "magic" bytes and shebangs, predefined
-  (installed) search patterns to search source code, hexdumps for binary
-  matches, improved quickfix Vim integration, and more.
+- **ugrep supersedes GNU/BSD grep and is backward compatible** with these
+  grep utilities, offering many more useful features, such as full Unicode
+  pattern matching, "negative patterns" to ignore unwanted matches, recursive
+  search through directories while selecting files by file name extension and
+  file signature "magic bytes" and shebangs, predefined (installed) search
+  patterns to search source code, hexdumps for binary matches, seamless
+  quickfix Vim integration, and more.
 
-- **ugrep makes it simple to search source code** using *predefined patterns*
-  that are installed for you.  For example to recursively search Python files
-  in the working directory for import statements:
+- **ugrep is fast** and uses [RE/flex](https://github.com/Genivia/RE-flex) for
+  high-performance regex matching, which is 100 times faster than the GNU C
+  POSIX.2 regex library and 10 times faster than PCRE2 and RE2.  RE/flex is an
+  incremental streaming matcher, meaning it does not read all the input at
+  once, nor does it require reading the input line-by-line with certain
+  options.
+
+- **ugrep makes it simple to search source code** using new options to select
+  files by filename extension and file signature "magic bytes" or shebangs.
+  For example, to list all shell scripts in or below the working directory:
+
+      ugrep -rltShell ''
+
+  where `-r` is recursive search, `-l` lists matching files, `-tShell` selects
+  shell files by file extensions and shebangs, and the empty pattern `''`
+  matches the entire file (by convention).  Also new options `-O` and `-M` may
+  be used to select files by extension and by file signature "magic bytes",
+  respectively.
+
+- **ugrep can match patterns across multiple lines**, such as comment blocks in
+  source code.  This feature supports matching that could otherwise only be
+  done with utilities like `sed`, for example:
+
+      ugrep -o '.*begin(.|\n)*?end.*' myfile.txt
+
+  matches all lines between a line containing `begin` and the first line after
+  that containing `end` by using lazy repetition `*?`.  Multi-line matching is
+  performed with any one of the options `-o` (only matching), `-c` (count),
+  `-N` (only line number), `-l` (files with match), `-L` (files without match),
+  or `-q` (quiet), 
+
+- **ugrep includes a growing [database of source code search
+  patterns](https://github.com/Genivia/ugrep/tree/master/patterns)**.  So you
+  don't need to memorize complex regex patterns for common search criteria.
+  Environment variable `GREP_PATH` can be set to point to your own directory
+  with patterns that option `-f` uses to read your pattern files.  For example
+  to recursively search Python files in the working directory for import
+  statements:
 
       ugrep -RtPython -f python/imports
 
-  where `-R` is recursive search while following symlinks, `-tPython` searches
-  Python source code files only (i.e. by file name extension and by Python
-  shebangs), and the `-f` option specifies predefined patterns to search for
-  Python `import` statements (matched by the two patterns `\<import\h+.*` and
+  where `-R` is recursive search while following symlinks, `-tPython` selects
+  Python files only (i.e. by file name extension `.py` and by Python shebangs),
+  and the `-f` option specifies predefined patterns to search for Python
+  `import` statements (matched by the two patterns `\<import\h+.*` and
   `\<from\h+.*import\h+.*` defined in `patterns/python/imports`).
 
-- **ugrep includes a growing database of
-  [patterns](https://github.com/Genivia/ugrep/tree/master/patterns)** with
-  common search patterns to use with option `-f`.  So you don't need to
-  memorize complex regex patterns for common search criteria.  Environment
-  variable `GREP_PATH` can be set to point to your own directory with patterns
-  that option `-f` uses to read your pattern files.
-
-- **ugrep is the only grep tool that allows you to define negative patterns**
+- **ugrep is the only grep tool that allows you to use negative patterns**
   to *zap* parts in files you want to skip.  This removes many false positives.
   For example to find exact matches of `main` in C/C++ source code while
   skipping strings and comments that may have a match with `main` in them:
@@ -79,8 +107,8 @@ Why use ugrep?
 - **ugrep matches Unicode patterns** by default (disabled with option `-U`).  The
   [regular expression pattern syntax](#pattern) is POSIX ERE compliant extended
   with PCRE-like syntax.  Patterns may include Unicode character classes, lazy
-  quantifiers, and negative patterns to skip unwanted pattern matches to
-  produce more precise results.
+  quantifiers, and negative patterns to skip unwanted matches to produce more
+  precise results.
 
 - **ugrep searches UTF-8/16/32 input and other formats**.  Option `--encoding`
   permits many other file formats to be searched, such as ISO-8859-1, EBCDIC,
@@ -88,25 +116,6 @@ Why use ugrep?
 
 - **ugrep understands gitignore-style globs** and ignores files specified
   in a `.gitignore` file (or any other file) with `--exclude-from=.gitignore`.
-
-- **ugrep uses [RE/flex](https://github.com/Genivia/RE-flex) for
-  high-performance regex matching**, which is 100 times faster than the GNU C
-  POSIX.2 regex library used by GNU grep and 10 times faster than PCRE2 and
-  RE2.  RE/flex is an incremental, streaming regex matcher, meaning it does not
-  read all the input at once, nor does it require reading the input
-  line-by-line with certain options (see the next point below).
-
-- **ugrep can match patterns across multiple lines**, such as comment blocks in
-  source code.  This feature supports matching that could otherwise only be
-  done with utilities like `sed`, for example:
-
-      ugrep -o '.*begin(.|\n)*?end.*' myfile.txt
-
-  matches all lines between a line containing `begin` and the first line after
-  that containing `end` by using lazy repetition `*?`.  Multi-line matching is
-  performed with any one of the options `-o` (only matching), `-c` (count),
-  `-N` (only line number), `-l` (files with match), `-L` (files without match),
-  or `-q` (quiet), 
 
 - **ugrep supports Perl regular expressions** with option `-P`.  This option
   offers PCRE-like syntax, including backreferences and lookbehinds.  POSIX
@@ -118,79 +127,189 @@ Why use ugrep?
   known to exist that may increase the initial running time of **ugrep** for
   complex DFA construction.
 
-- **ugrep is portable** and compiles with MSVC++ to run on Windows.  Binaries are
-  included for Linux, Mac, and Windows.
+- **ugrep is portable** to Unix/Linux/Mac and compiles with MSVC++ to run on
+  Windows.  Binaries are included for Linux, Mac, and Windows.
 
 - **ugrep is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
   code** and does not include any GNU or BSD grep open source code.  **ugrep**
-  uses the RE/flex open source library.
+  uses the RE/flex open source library and Boost.Regex.
 
 - **ugrep is evolving!**  We added lots of useful features and made significant
-  speed improvements.  This effort continuous.  You can help!  We love your
-  feedback (issues) and contributions (pull requests) ❤️ For example, what
-  patterns do you use to search source code?  Please contribute and share!
+  improvements.  This effort continues.  You can help!  We love your feedback
+  (issues) and contributions (pull requests) ❤️ For example, what patterns do
+  you use to search source code?  Please contribute and share!
 
 Speed
 -----
 
-Initial performance results look promising.  For example, searching for all
-matches of syntactically-valid variants of `#include "..."` in the directory
-tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files only:
+Performance tests were conducted with clang 9.0.0 -O2 on on a 2.9 GHz Intel
+Core i7, 16 GB 2133 MHz LPDDR3 machine.  The best times for many runs is shown
+under minimal machine load.
 
-    time ugrep -r -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp >& /dev/null
-    0.506u 0.181s 0:00.69 98.5%     0+0k 0+0io 0pf+0w
+These tests are not comprehensive and we won't claim that **ugrep** is always
+faster than other grep utilities (at least not yet), but the following results
+that span a range of different tests are promosing for our initial work on
+**ugrep**.
 
-    time ugrep -r -P -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp >& /dev/null
-    0.180u 0.182s 0:00.36 100.0%    0+0k 0+0io 0pf+0w
+For performance considerations, it is important to note that **ugrep** matches
+Unicode by default.  This means that regex meta symbol `.` and the escapes
+`\w`, `\l`, and others match Unicode.  As a result, these may take more time to
+match.  To disable Unicode matching, use **ugrep** with option `-U`.  For
+example, `ugrep -on -U 'serialize_\w+Type'` is fast and slower without `-U`.
 
-Option `-P` uses Boost.Regex, which is optimized for search and is faster than
-the RE/flex POSIX matcher because RE/flex is optimized for lexical analysis
-(i.e. scanning) without the aforementioned search optimizations.
+### Test 1: first place
 
-For this test **ugrep** was compiled with clang 9.0.0 -O2, and this test was
-run on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 machine.  The best times
-for many runs is shown under minimal machine load.
+For the first performance comparison, we search a large 34MB C++ source code
+file to count the number of exact matches (i.e. word matches) of `char`, `int`,
+`long`, `size_t` and `void`:
 
-The same search with BSD grep:
+BSD grep takes 1.85 seconds:
 
-    time grep -r -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . >& /dev/null
-    3.106u 0.229s 0:03.34 99.4%     0+0k 0+0io 0pf+0w
+    time grep -cwE 'char|int|long|size_t|void' big.cpp
+    96241
+    1.85 real         1.84 user         0.01 sys
 
-As we can see, **ugrep** is much faster than BSD grep while **ugrep** has
-yet to be optimized for search (memchr, Boyer-Moore, Aho-Corasick, etc.)
+GNU grep takes 0.18 seconds:
 
-GNU grep is highly optimized for this type of search and is faster than
-`ugrep -r -P -o`:
+    time ggrep -cwE 'char|int|long|size_t|void' big.cpp
+    96241
+    0.18 real         0.17 user         0.00 sys
 
-    time ggrep -r -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' >& /dev/null
-    0.122u 0.122s 0:00.24 100.0%    0+0k 0+0io 0pf+0w
+Ripgrep takes 0.19 seconds:
 
-Ripgrep uses threads, thereby inflating its speed by over 600% for this run:
+    time ripgrep -cw 'char|int|long|size_t|void' big.cpp
+    96241
+    0.19 real         0.17 user         0.01 sys
 
-    time ripgrep '#[[:space:]]*include[[:space:]]+"[^"]+"' --glob='*.h' --glob='*.hpp' --glob='*.cpp' > /dev/null
-    0.353u 0.347s 0:00.11 627.2%    0+0k 0+0io 0pf+0w
+**ugrep** takes the first place fastest at 0.15 seconds:
 
-However, with one thread, ripgrep takes a lot more time, more than `ggrep -r
--o` and more than `ugrep -r -P -o`:
+    time src/ugrep -cw 'char|int|long|size_t|void' big.cpp
+    96241
+    0.14 real         0.13 user         0.01 sys
 
-    time ripgrep -j1 '#[[:space:]]*include[[:space:]]+"[^"]+"' --glob='*.h' --glob='*.hpp' --glob='*.cpp' > /dev/null
-    0.210u 0.166s 0:00.38 97.3%     0+0k 0+0io 2pf+0w
+### Test 2: first place
 
-This means that there is a decent possibility to make **ugrep** faster than
-ripgrep, while offering BSD/GNU grep compatible options, richer regex syntax,
-and more features.
+For the second test, we scaled up the size of the input file to 100MB of
+Wikipedia content and search and output the matches and line numbers 1000
+different words of length 9 and longer:
 
-Future **ugrep** optimization strategies:
+BSD grep takes 1186.09 seconds (19 minutes!):
 
-- Most grep tools and regex matchers are optimized to match regex patterns that
-  start with a limited choice of characters, by simply searching for the
-  characters quickly in memory (e.g.  with `memchr`).  This optimization hack
-  is not yet implemented in **ugrep**.  For example, searching `TODO` and
-  `.ODO` take about the same time with **ugrep**, while GNU/BSD grep is faster
-  for the first but slower for the second.
-- Option `-F` fast string matching with Boyer-Moore etc.
-- Multi-threading will add a (relatively cheap to get) performance boost that
-  may match ripgrep.
+    time grep -onF -f words9+1000 enwik8 | ./null
+    1186.09 real      1181.45 user      2.45 sys
+
+GNU grep takes 2.21 seconds:
+
+    time ggrep -onF -f words9+1000 enwik8 | ./null
+    2.21 real         2.19 user         0.02 sys
+
+Ripgrep takes 2.17 seconds:
+
+    time ripgrep -on -f words9+1000 enwik8 | ./null
+    2.17 real         2.10 user         0.06 sys
+
+**ugrep** takes the first place fastest at 1.79 seconds:
+
+    time ugrep -on -f words9+1000 enwik8 | ./null
+    1.79 real         1.75 user         0.03 sys
+
+Looking at the GNU grep source code, it appears GNU grep "cheats" when output
+is redirected to `/dev/null` by essentially omitting all output and stopping
+the search after the first match in a file.  This is essentially the same as
+using option `-q`.  Therefore, to conduct our tests fairly, we pipe the output
+to a simple `null` utility that eats the input and discards it (see the source
+code below).  Because GNU grep implements this convenient cheat, **ugrep** does
+too!
+
+The `null` utility source code:
+
+    #include <sys/types.h>
+    #include <sys/uio.h>
+    #include <unistd.h>
+    int main()
+    {
+      char buf[65536];
+      while (read(0, buf, 65536) > 0)
+        continue;
+    }
+
+### Test 3: second place
+
+As a third test, we search and display matches of a serialization function
+in the source code, showing the match with the line number:
+
+BSD grep takes 0.83 seconds:
+
+    time grep -onE 'serialize_[a-zA-Z0-9_]+Type' big.cpp | ./null
+    0.83 real         0.82 user         0.01 sys
+
+GNU grep takes 0.17 seconds:
+
+    time ggrep -onE 'serialize_[a-zA-Z0-9_]+Type' big.cpp | ./null
+    0.16 real         0.16 user         0.00 sys
+
+Ripgrep takes 0.06 seconds:
+
+    time ripgrep -on 'serialize_[a-zA-Z0-9_]+Type' big.cpp | ./null
+    0.06 real         0.04 user         0.01 sys
+
+**ugrep** takes the second place fastest at 0.08 seconds:
+
+    time ugrep -onE 'serialize_[a-zA-Z0-9_]+Type' big.cpp | ./null
+    0.08 real         0.07 user         0.01 sys
+
+### Test 4: second place
+
+As a fourth test we recursively search and display `#include` directives in
+C/C++ files.  More specifically, we search for all matches of
+syntactically-valid variants of `#include "..."` in the directory tree from the
+Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files:
+
+The best time for this search for BSD grep takes 3.35 seconds:
+
+    time grep -r -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' . | ./null
+    3.35 real         3.11 user         0.23 sys
+
+GNU grep is highly optimized for this type of search and is mush faster, taking
+only 0.26 seconds:
+
+    time ggrep -r -o -E '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h' --include='*.hpp' --include='*.cpp' | ./null
+    0.26 real         0.13 user         0.11 sys
+
+**ugrep** takes the second place fastest at 0.29 seconds:
+
+    time ugrep -r -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp | ./null
+    0.28 real         0.10 user         0.17 sys
+
+**ugrep** with option `-P` uses Boost.Regex instead of the DFA-based RE/flex
+regex library, which is slightly slower with 0.36 seconds:
+
+    time ugrep -r -P -o '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp | ./null
+    0.36 real         0.17 user         0.17 sys
+
+Ripgrep uses threads for recursive search, thereby inflating its speed by over
+600%, with a CPU utilization of 627.2% for the same search:
+
+    time ripgrep '#[[:space:]]*include[[:space:]]+"[^"]+"' --glob='*.h' --glob='*.hpp' --glob='*.cpp' | ./null
+    0.11 real         0.34 user         0.34 sys
+
+However, with one thread, which is a fair comparison to the single-threaded
+grep results reported above, ripgrep takes a lot more time and is slower than
+GNU grep and slower than **ugrep**:
+
+    time ripgrep -j1 '#[[:space:]]*include[[:space:]]+"[^"]+"' --glob='*.h' --glob='*.hpp' --glob='*.cpp' | ./null
+    0.36 real         0.20 user         0.15 sys
+
+After we add threads to **ugrep** (new option `-J, --jobs` we believe that
+**ugrep** will be faster than ripgrep while offering BSD/GNU grep compatible
+options, rich PCRE-like regex syntax, and a lot of useful extra features.
+
+### Future improvements
+
+- Multi-threading to speed up recursive search.
+- Single word search without anchors does not require a regex match.
+- Turning certain features off internally when not used to speed up search,
+  e.g. **ugrep** always counts line and column numbers even when not displayed.
 
 Installation
 ------------
@@ -199,7 +318,7 @@ Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
 However, these versions disable options `-P` (Perl regular expressions) and
 `-z` (decompress).
 
-To build ugrep, first install RE/flex 1.3.8 or greater from
+To build ugrep, first install RE/flex 1.4.0 or greater from
 https://github.com/Genivia/RE-flex then download ugrep from
 https://github.com/Genivia/ugrep and execute:
 
@@ -209,13 +328,11 @@ This builds `ugrep` in the `src` directory.  You can tell which version it is
 with:
 
     $ src/ugrep -V
-    ugrep 1.3.6 x86_64-apple-darwin16.7.0
+    ugrep 1.3.9 x86_64-apple-darwin16.7.0
 
-Optionally, install the ugrep utility and the ugrep manual page:
+Optionally, install the ugrep utility and the ugrep manual page as follows:
 
     $ sudo make install
-    $ ugrep -V
-    ugrep 1.3.6 x86_64-apple-darwin16.7.0
 
 This also installs the pattern files with predefined patterns for option `-f`
 at `/usr/local/share/ugrep/patterns/`.  Option `-f` first checks the current
@@ -306,20 +423,18 @@ Option `-Y` enables empty matches, see further below.
 
 ### Some useful aliases
 
-Add or remove `--color` and/or `--pager` if desired:
+    alias ug    = 'ugrep --color'                # short & quick text pattern search
+    alias ux    = 'ugrep --color -UX'            # short & quick binary pattern search
+    alias ugp   = 'ugrep --color --pager'        # short & quick text pattern search
+    alias uxp   = 'ugrep --color --pager -UX'    # short & quick binary pattern search
+    alias ugi   = 'ugrep -R --color --pager --no-hidden --exclude-from=.gitignore'
 
-    alias ug     = 'ugrep --color --pager'        # short & quick text pattern search
-    alias ux     = 'ugrep --color --pager -UX'    # short & quick binary pattern search
-    alias ugi    = 'ugrep -R --color --pager --no-hidden --exclude-from=.gitignore'
+    alias grep  = 'ugrep --color -G'             # search with basic regular expressions (BRE)
+    alias egrep = 'ugrep --color -E'             # search with extended regular expressions (ERE)
+    alias fgrep = 'ugrep --color -F'             # find string(s)
+    alias xgrep = 'ugrep --color -W'             # search with ERE and output text or hex binary
 
-    alias grep   = 'ugrep --color --pager -G'     # search with basic regular expressions (BRE)
-    alias egrep  = 'ugrep --color --pager -E'     # search with extended regular expressions (ERE)
-    alias fgrep  = 'ugrep --color --pager -F'     # find string
-
-    alias xgrep  = 'ugrep --color --pager -W'     # search and output text or hex binary
-    alias uxgrep = 'ugrep --color --pager -UX'    # search binary patterns, output hex
-    alias uxdump = 'ugrep --color --pager -Xo ""' # hexdump entire file
-
+    alias xdump = 'ugrep --color --pager -Xo ""' # view hexdump of file(s)
 
 ### When to use ugrep
 
@@ -373,6 +488,10 @@ few:
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line reported by GNU/BSD grep.  Reporting
   exact byte offsets is now possible with **grep**.
+- **ugrep** option `-D, --devices=ACTION` is `skip` by default, instead of
+  `read`.  This prevents unexpectedly hanging on named pipes in directories
+  that are recursively searched, as may happen with GNU/BSD grep that `read`
+  devices by default.
 - **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
   `LANG=en_US.UTF-8`, whereas grep is locale-sensitive.
 - BSD grep (e.g. on Mac OS X) has limitations and some bugs that **ugrep**
@@ -897,9 +1016,9 @@ Man page
            ugrep -- universal file pattern searcher
 
     SYNOPSIS
-           ugrep [OPTIONS] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-e PATTERN]
-                 [--color[=WHEN]|--colour[=WHEN]] [--pager[=COMMAND]]
-                 [-f FILE] [-t TYPES] [-Q ENCODING] [FILE ...]
+           ugrep [OPTIONS] [-A NUM] [-B NUM] [-C[NUM]] [PATTERN] [-f FILE]
+                 [-e PATTERN] [-t TYPES] [-Q ENCODING] [-J[JOBS]]
+                 [--color[=WHEN]|--colour[=WHEN]] [--pager[=COMMAND]] [FILE ...]
 
     DESCRIPTION
            The  ugrep utility searches any given input files, selecting lines that
@@ -978,9 +1097,9 @@ Man page
 
            -D ACTION, --devices=ACTION
                   If an input file is a device, FIFO  or  socket,  use  ACTION  to
-                  process  it.   By  default,  ACTION  is `read', which means that
-                  devices are read just as if they were ordinary files.  If ACTION
-                  is `skip', devices are silently skipped.
+                  process  it.   By  default,  ACTION  is `skip', which means that
+                  devices are silently skipped.  If ACTION is `read', devices read
+                  just as if they were ordinary files.
 
            -d ACTION, --directories=ACTION
                   If  an  input file is a directory, use ACTION to process it.  By
@@ -1138,20 +1257,21 @@ Man page
 
            -M MAGIC, --file-magic=MAGIC
                   Only files matching the signature pattern `MAGIC' are  searched.
-                  The signature magic bytes at the start of a file are compared to
-                  the `MAGIC' regex pattern.  When  matching,  the  file  will  be
+                  The  signature "magic bytes" at the start of a file are compared
+                  to the `MAGIC' regex pattern.  When matching, the file  will  be
                   searched.   This option may be repeated and may be combined with
                   options -O and -t to expand the search.  This  option  is  rela-
-                  tively slow as every file on the search path is read.
+                  tively  slow as every file on the search path is read to compare
+                  `MAGIC'.
 
            -m NUM, --max-count=NUM
-                  Stop  reading  the  input  after  NUM matches for each file pro-
+                  Stop reading the input after NUM  matches  for  each  file  pro-
                   cessed.
 
            --max-depth=NUM
-                  Restrict recursive search to NUM (NUM  >  0)  directories  deep,
+                  Restrict  recursive  search  to  NUM (NUM > 0) directories deep,
                   where --max-depth=1 searches the specified path without visiting
-                  sub-directories.  By comparison, -dskip  skips  all  directories
+                  sub-directories.   By  comparison,  -dskip skips all directories
                   even when they are on the command line.
 
            --max-files=NUM
@@ -1159,16 +1279,16 @@ Man page
 
            -N, --only-line-number
                   The line number of the matching line in the file is output with-
-                  out displaying the match.  The line number counter is reset  for
+                  out  displaying the match.  The line number counter is reset for
                   each file processed.
 
            -n, --line-number
-                  Each  output line is preceded by its relative line number in the
-                  file, starting at line 1.  The line number counter is reset  for
+                  Each output line is preceded by its relative line number in  the
+                  file,  starting at line 1.  The line number counter is reset for
                   each file processed.
 
            --no-group-separator
-                  Removes  the  group  separator  line from the output for context
+                  Removes the group separator line from  the  output  for  context
                   options -A, -B, and -C.
 
            --no-hidden
@@ -1176,55 +1296,55 @@ Man page
 
            -O EXTENSIONS, --file-extensions=EXTENSIONS
                   Search only files whose file name extensions match the specified
-                  comma-separated  list  of  file name EXTENSIONS.  This option is
+                  comma-separated list of file name EXTENSIONS.   This  option  is
                   the same as specifying --include='*.ext' for each extension name
-                  `ext'  in  the EXTENSIONS list.  This option may be repeated and
+                  `ext' in the EXTENSIONS list.  This option may be  repeated  and
                   may be combined with options -M and -t to expand the search.
 
            -o, --only-matching
-                  Prints only the  matching  part  of  lines  and  allows  pattern
-                  matches  across  newlines  to span multiple lines.  Line numbers
-                  for multi-line matches are displayed with option -n,  using  `|'
-                  as  the  field separator for each additional line matched by the
-                  pattern.  This option cannot be combined with  options  -A,  -B,
+                  Prints  only  the  matching  part  of  lines  and allows pattern
+                  matches across newlines to span multiple  lines.   Line  numbers
+                  for  multi-line  matches are displayed with option -n, using `|'
+                  as the field separator for each additional line matched  by  the
+                  pattern.   This  option  cannot be combined with options -A, -B,
                   -C, -v, and -y.
 
            -P, --perl-regexp
                   Interpret PATTERN as a Perl regular expression.
 
            -p, --no-dereference
-                  If  -R  or -r is specified, no symbolic links are followed, even
+                  If -R or -r is specified, no symbolic links are  followed,  even
                   when they are on the command line.
 
            --pager[=COMMAND]
-                  When output is sent to the  terminal,  uses  `COMMAND'  to  page
-                  through  the  output.   The  default COMMAND is `less -R'.  This
-                  option makes --color=auto  behave  as  --color=always.   Enables
+                  When  output  is  sent  to  the terminal, uses `COMMAND' to page
+                  through the output.  The default COMMAND  is  `less  -R'.   This
+                  option  makes  --color=auto  behave  as --color=always.  Enables
                   --break.
 
            -Q ENCODING, --encoding=ENCODING
-                  The  input  file  encoding.  The possible values of ENCODING can
-                  be:  `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',   `UTF-8',
-                  `UTF-16',    `UTF-16BE',   `UTF-16LE',   `UTF-32',   `UTF-32BE',
-                  `UTF-32LE',  `CP437',  `CP850',  `CP858',  `CP1250',   `CP1251',
+                  The input file encoding.  The possible values  of  ENCODING  can
+                  be:   `binary',   `ISO-8859-1',   `ASCII',   `EBCDIC',  `UTF-8',
+                  `UTF-16',   `UTF-16BE',   `UTF-16LE',   `UTF-32',    `UTF-32BE',
+                  `UTF-32LE',   `CP437',  `CP850',  `CP858',  `CP1250',  `CP1251',
                   `CP1252',  `CP1253',  `CP1254',  `CP1255',  `CP1256',  `CP1257',
                   `CP1258'
 
            -q, --quiet, --silent
-                  Quiet mode: suppress normal  output.   ugrep  will  only  search
-                  until  a  match has been found, making searches potentially less
+                  Quiet  mode:  suppress  normal  output.   ugrep will only search
+                  until a match has been found, making searches  potentially  less
                   expensive.  Allows a pattern match to span multiple lines.
 
            -R, --dereference-recursive
-                  Recursively read all files under  each  directory.   Follow  all
+                  Recursively  read  all  files  under each directory.  Follow all
                   symbolic links, unlike -r.
 
            -r, --recursive
-                  Recursively  read all files under each directory, following sym-
+                  Recursively read all files under each directory, following  sym-
                   bolic links only if they are on the command line.
 
            -S, --dereference
-                  If -r is specified, all symbolic links are  followed,  like  -R.
+                  If  -r  is  specified, all symbolic links are followed, like -R.
                   The default is not to follow symbolic links.
 
            -s, --no-messages
@@ -1232,39 +1352,39 @@ Man page
                   their error messages are suppressed).
 
            --separator=SEP
-                  Use SEP as field separator between file name, line number,  col-
+                  Use  SEP as field separator between file name, line number, col-
                   umn number, byte offset, and the matched line.  The default is a
                   colon (`:').
 
            --stats
-                  Display statistics  on  the  number  of  files  and  directories
+                  Display  statistics  on  the  number  of  files  and directories
                   searched.
 
            -T, --initial-tab
-                  Add  a  tab space to separate the file name, line number, column
+                  Add a tab space to separate the file name, line  number,  column
                   number, and byte offset with the matched line.
 
            -t TYPES, --file-type=TYPES
-                  Search only files associated with TYPES, a comma-separated  list
+                  Search  only files associated with TYPES, a comma-separated list
                   of file types.  Each file type corresponds to a set of file name
                   extensions passed to option -O.  For capitalized file types, the
-                  search  is  expanded  to  include files found on the search path
-                  with matching file signature magic bytes passed  to  option  -M.
-                  This  option  may be repeated.  The possible values of TYPES can
-                  be (use option -tlist to  display  a  detailed  list):  `action-
-                  script',  `ada',  `asm',  `asp', `aspx', `autoconf', `automake',
-                  `awk', `Awk', `basic', `batch', `bison', `c', `c++',  `clojure',
+                  search is expanded to include files found  on  the  search  path
+                  with  matching  file  signature magic bytes passed to option -M.
+                  This option may be repeated.  The possible values of  TYPES  can
+                  be  (use  option  -tlist  to  display a detailed list): `action-
+                  script', `ada', `asm', `asp',  `aspx',  `autoconf',  `automake',
+                  `awk',  `Awk', `basic', `batch', `bison', `c', `c++', `clojure',
                   `csharp',  `css',  `csv',  `dart',  `Dart',  `delphi',  `elisp',
-                  `elixir', `erlang', `fortran',  `gif',  `Gif',  `go',  `groovy',
-                  `gsp',  `haskell', `html', `jade', `java', `jpeg', `Jpeg', `js',
-                  `json', `jsp', `julia', `kotlin', `less', `lex', `lisp',  `lua',
-                  `m4',  `make',  `markdown',  `matlab',  `node',  `Node', `objc',
-                  `objc++', `ocaml', `parrot',  `pascal',  `pdf',  `Pdf',  `perl',
-                  `Perl',   `php',   `Php',   `png',  `Png',  `prolog',  `python',
+                  `elixir',  `erlang',  `fortran',  `gif',  `Gif', `go', `groovy',
+                  `gsp', `haskell', `html', `jade', `java', `jpeg', `Jpeg',  `js',
+                  `json',  `jsp', `julia', `kotlin', `less', `lex', `lisp', `lua',
+                  `m4', `make',  `markdown',  `matlab',  `node',  `Node',  `objc',
+                  `objc++',  `ocaml',  `parrot',  `pascal',  `pdf', `Pdf', `perl',
+                  `Perl',  `php',  `Php',  `png',   `Png',   `prolog',   `python',
                   `Python',  `r',  `rpm',  `Rpm',  `rst',  `rtf',  `Rtf',  `ruby',
-                  `Ruby',    `rust',    `scala',   `scheme',   `shell',   `Shell',
-                  `smalltalk',  `sql',  `svg',  `swift',  `tcl',  `tex',   `text',
-                  `tiff',  `Tiff',  `tt',  `typescript', `verilog', `vhdl', `vim',
+                  `Ruby',   `rust',   `scala',   `scheme',    `shell',    `Shell',
+                  `smalltalk',   `sql',  `svg',  `swift',  `tcl',  `tex',  `text',
+                  `tiff', `Tiff', `tt', `typescript',  `verilog',  `vhdl',  `vim',
                   `xml', `Xml', `yacc', `yaml'
 
            --tabs=NUM
@@ -1273,25 +1393,25 @@ Man page
 
            -U, --binary
                   Disables Unicode matching for binary file matching, forcing PAT-
-                  TERN to match bytes, not Unicode characters.   For  example,  -U
-                  '\xa3'  matches  byte A3 (hex) instead of the Unicode code point
+                  TERN  to  match  bytes, not Unicode characters.  For example, -U
+                  '\xa3' matches byte A3 (hex) instead of the Unicode  code  point
                   U+00A3 represented by the two-byte UTF-8 sequence C2 A3.
 
            -V, --version
                   Display version information and exit.
 
            -v, --invert-match
-                  Selected lines are those not matching any of the specified  pat-
+                  Selected  lines are those not matching any of the specified pat-
                   terns.
 
            -W, --with-hex
-                  Only  output binary matches in hexadecimal, leaving text matches
+                  Only output binary matches in hexadecimal, leaving text  matches
                   alone.  This option is equivalent to the --binary-files=with-hex
                   option.
 
            -w, --word-regexp
                   The PATTERN or -e PATTERN are searched for as a word (as if sur-
-                  rounded by \< and \>).  This option does not apply  to  -f  FILE
+                  rounded  by  \<  and \>).  This option does not apply to -f FILE
                   patterns.  To apply -w to patterns in FILE use -we `cat FILE`.
 
            -X, --hex
@@ -1299,20 +1419,20 @@ Man page
                   --binary-files=hex option.
 
            -x, --line-regexp
-                  Only input lines selected against the entire PATTERN or -e  PAT-
-                  TERN  are considered to be matching lines (as if surrounded by ^
-                  and $).  This option does not apply to  -f  FILE  patterns.   To
+                  Only  input lines selected against the entire PATTERN or -e PAT-
+                  TERN are considered to be matching lines (as if surrounded by  ^
+                  and  $).   This  option  does not apply to -f FILE patterns.  To
                   apply -x to patterns in FILE use -xe `cat FILE`.
 
            -Y, --empty
-                  Permits  empty  matches,  such  as `^\h*$' to match blank lines.
+                  Permits empty matches, such as `^\h*$'  to  match  blank  lines.
                   Empty matches are disabled by default.  Note that empty-matching
-                  patterns  such  as `x?' and `x*' match all input, not only lines
+                  patterns such as `x?' and `x*' match all input, not  only  lines
                   with `x'.
 
            -y, --any-line
                   Any matching or non-matching line is output.  Non-matching lines
-                  are  output  with  the  `-' separator as context of the matching
+                  are output with the `-' separator as  context  of  the  matching
                   lines.  See also the -A, -B, and -C options.
 
            -Z, --null
@@ -1326,14 +1446,14 @@ Man page
            ine the working directory.  Use `--' before the FILE arguments to allow
            file and directory names to start with a `-'.
 
-           The  regular expression pattern syntax is an extended form of the POSIX
+           The regular expression pattern syntax is an extended form of the  POSIX
            ERE syntax.  For an overview of the syntax see README.md or visit:
 
                   https://github.com/Genivia/ugrep
 
-           Note that `.' matches any non-newline character.   Matching  a  newline
-           character  `\n'  is  not possible unless one or more of the options -c,
-           -L, -l, -N, -o, or -q are used (in any combination,  but  not  combined
+           Note  that  `.'  matches any non-newline character.  Matching a newline
+           character `\n' is not possible unless one or more of  the  options  -c,
+           -L,  -l,  -N,  -o, or -q are used (in any combination, but not combined
            with option -v) to allow a pattern match to span multiple lines.
 
     EXIT STATUS
@@ -1345,18 +1465,19 @@ Man page
 
            >1     An error occurred.
 
-           If  -q  or --quiet or --silent is used and a line is selected, the exit
+           If -q or --quiet or --silent is used and a line is selected,  the  exit
            status is 0 even if an error occurred.
 
     GLOBBING
-           Globbing is used by options --include,  --include-dir,  --include-from,
-           --exclude,  --exclude-dir,  --exclude-from to match pathnames and base-
+           Globbing  is  used by options --include, --include-dir, --include-from,
+           --exclude, --exclude-dir, --exclude-from to match pathnames  and  base-
            names.  Globbing supports gitignore syntax and the corresponding match-
-           ing  rules.  When a glob contains a path separator `/', the pathname is
-           matched.  Otherwise the basename of a file  or  directory  is  matched.
-           For   example,  *.h  matches  foo.h  and  bar/foo.h.   bar/*.h  matches
-           bar/foo.h but not foo.h and not bar/bar/foo.h.  Use a  leading  `/'  to
-           force /*.h to match foo.h but not bar/foo.h.
+           ing rules.  When a glob contains a path separator `/', the pathname  is
+           matched.   Otherwise  the  basename  of a file or directory is matched.
+           For  example,  *.h  matches  foo.h  and  bar/foo.h.   bar/*.h   matches
+           bar/foo.h  but  not  foo.h and not bar/bar/foo.h.  Use a leading `/' to
+           force /*.h to match foo.h but not bar/foo.h.  A glob  starting  with  a
+           `!' is negated, i.e. does not match.
 
            Glob Syntax and Conventions
 
@@ -1549,7 +1670,7 @@ Man page
 
 
 
-    ugrep 1.3.8                     August 17, 2019                       UGREP(1)
+    ugrep 1.4.0                   September 04, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

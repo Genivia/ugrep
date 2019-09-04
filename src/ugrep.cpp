@@ -41,7 +41,7 @@ Download and installation:
 
   https://github.com/Genivia/ugrep
 
-Requires RE/flex 1.3.8 or greater:
+Requires RE/flex 1.4.0 or greater:
 
   https://github.com/Genivia/RE-flex
 
@@ -52,7 +52,7 @@ Optional libraries:
 
 Compile:
 
-  c++ -std=c++11 -O2 -o ugrep ugrep.cpp glob.cpp zstream.cpp -lreflex -lz -lboost_regex
+  c++ -std=c++11 -O2 -o ugrep -DHAVE_LIBZ -DHAVE_BOOST_REGEX ugrep.cpp glob.cpp zstream.cpp -lreflex -lz -lboost_regex
 
 */
 
@@ -63,7 +63,7 @@ Compile:
 #include <cstring>
 #include <cerrno>
 
-// check if we are on a windows OS
+// check if we are compiling for a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
 # define OS_WIN
 #endif
@@ -76,7 +76,11 @@ Compile:
 #include <stdio.h>
 #include <strsafe.h>
 
-#define isatty(fildes) ((fildes) == 1)
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+
+#define isatty(fildes) ((fildes) == 1 || (fildes) == 2)
 #define PATHSEPCHR '\\'
 #define PATHSEPSTR "\\"
 
@@ -88,7 +92,9 @@ Compile:
 #include <sys/mman.h>
 #include <unistd.h>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #ifdef HAVE_BOOST_REGEX
 #include <reflex/boostmatcher.h>
@@ -104,7 +110,7 @@ Compile:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.3.8"
+#define UGREP_VERSION "1.4.0"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -143,6 +149,12 @@ struct Stats {
   size_t dirs;
   size_t fileno;
 };
+
+// color term detected
+bool color_term = false;
+
+// TTY detected
+bool tty_term = false;
 
 // ANSI SGR substrings extracted from GREP_COLORS
 #define COLORLEN 16
@@ -219,7 +231,7 @@ size_t flag_tabs                   = 8;
 const char *flag_pager             = NULL;
 const char *flag_color             = NULL;
 const char *flag_encoding          = NULL;
-const char *flag_devices           = "read";
+const char *flag_devices           = "skip";
 const char *flag_directories       = "read";
 const char *flag_label             = "(standard input)";
 const char *flag_separator         = ":";
@@ -262,6 +274,7 @@ bool mmap_file(reflex::Input& input, const char*& base, size_t& size);
 void mmap_free();
 void warning(const char *message, const char *arg);
 void error(const char *message, const char *arg);
+void abort(const char *message, const std::string& what);
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
 
@@ -341,27 +354,35 @@ inline bool getline(const char*& here, size_t& left, reflex::BufferedInput& buff
   return ch == EOF && line.empty();
 }
 
-// return true if text[0..size=1] is displayable text
-inline bool is_binary(const char *text, size_t size)
+// return true if s[0..n-1] is displayable binary (non-displayable)
+inline bool is_binary(const char *s, size_t n)
 {
-  // check if text[0..size-1] contains a NUL or invalid UTF-8
-  const char *end = text + size;
-  while (text < end)
+  // check if s[0..n-1] contains a NUL or invalid UTF-8
+  if (memchr(s, '\0', n) != NULL)
+    return true;
+
+  const char *e = s + n;
+
+  while (s < e)
   {
-    if (*text == '\0' || (*text & 0xc0) == 0x80)
-      return true;
-    if ((*text & 0xc0) == 0xc0)
+    do
     {
-      if (++text >= end || (*text & 0xc0) != 0x80)
+      if ((*s & 0x0c) == 0x80)
         return true;
-      while (text < end && (*text & 0xc0) == 0x80)
-        ++text;
-    }
-    else
-    {
-      ++text;
-    }
+    } while ((*s & 0x0c) != 0xc0 && ++s < e);
+
+    if (s >= e)
+      return false;
+
+    if (++s >= e || (*s & 0xc0) != 0x80)
+      return true;
+
+    if (++s < e && (*s & 0xc0) == 0x80)
+      if (++s < e && (*s & 0xc0) == 0x80)
+        if (++s < e && (*s & 0xc0) == 0x80)
+          ++s;
   }
+
   return false;
 }
 
@@ -391,6 +412,31 @@ inline void read_line(reflex::AbstractMatcher& matcher, const std::string& line)
 inline void copy_color(char to[COLORLEN], char from[COLORLEN])
 {
   memcpy(to, from, COLORLEN);
+}
+
+// display char c
+inline void put(int c)
+{
+  fputc(c, out);
+}
+
+// display string s
+inline void put(const char *s)
+{
+  fputs(s, out);
+}
+
+// display string s up to size n
+inline void put(const char *s, size_t n)
+{
+  fwrite(s, 1, n, out);
+}
+
+// display ANSI SGI escape sequence s, which is empty when colors are off
+inline void sgi(const char *s)
+{
+  if (*s != '\0')
+    fputs(s, out);
 }
 
 // table of RE/flex file encodings for ugrep option --encoding
@@ -1070,7 +1116,7 @@ int main(int argc, char **argv)
   const char *E = flag_fixed_strings ? "\\E|" : "|";
 
   // combine all -e PATTERN into a single regex string for matching
-  for (auto pattern : flag_regexp)
+  for (auto& pattern : flag_regexp)
   {
     // empty PATTERN matches everything
     if (pattern.empty())
@@ -1079,8 +1125,7 @@ int main(int argc, char **argv)
     }
     else
     {
-      // -F: make newline-separated lines in regex literal with \Q and \E
-
+      // split newline-separated regex up into alternations
       size_t from = 0;
       size_t to;
 
@@ -1136,7 +1181,7 @@ int main(int argc, char **argv)
       regex.push_back('|');
 
     // -f: read patterns from the specified file or files
-    for (auto filename : flag_file)
+    for (auto& filename : flag_file)
     {
       FILE *file = NULL;
 
@@ -1239,80 +1284,104 @@ int main(int argc, char **argv)
   if (!flag_no_filename && (infiles.size() > 1 || strcmp(flag_directories, "recurse") == 0))
     flag_with_filename = true;
 
-  // (re)set flag_color depending on color_term and isatty()
-  if (flag_color)
+  // is output sent to a TTY or to /dev/null?
+  if (!flag_quiet)
   {
-    if (strcmp(flag_color, "never") == 0)
-    {
-      flag_color = NULL;
-    }
-    else if (strcmp(flag_color, "auto") == 0)
-    {
-      bool color_term = false;
-
 #ifndef OS_WIN
-      // check whether we have a color terminal
-      const char *term = getenv("TERM");
-      color_term = term &&
-        (strstr(term, "ansi") != NULL ||
-          strstr(term, "xterm") != NULL ||
-          strstr(term, "color") != NULL);
+    // if output is sent to /dev/null, then enable -q (similar cheat as GNU grep!)
+    struct stat std_out;
+    struct stat dev_null;
+    if (fstat(STDOUT_FILENO, &std_out) == 0 &&
+        S_ISCHR(std_out.st_mode) &&
+        stat("/dev/null", &dev_null) == 0 &&
+        std_out.st_dev == dev_null.st_dev &&
+        std_out.st_ino == dev_null.st_ino)
+      flag_quiet = true;
+    else
 #endif
+      if (isatty(STDOUT_FILENO))
+        tty_term = isatty(STDOUT_FILENO);
 
-      if (!color_term || !isatty(1))
-        flag_color = NULL;
-    }
-    else if (strcmp(flag_color, "always") != 0)
+    // (re)set flag_color depending on color_term and TTY output
+    if (flag_color != NULL)
     {
-      help("invalid --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
-    }
-
-    if (flag_color)
-    {
-      const char *grep_color = NULL;
-      const char *grep_colors = NULL;
-
-#ifndef OS_WIN
-      // get GREP_COLOR and GREP_COLORS environment variables
-      grep_color = getenv("GREP_COLOR");
-      grep_colors = getenv("GREP_COLORS");
-#endif
-
-      if (grep_color != NULL)
-        set_color(std::string("mt=").append(grep_color).c_str(), "mt", color_mt);
-      else if (grep_colors == NULL)
-        grep_colors = "mt=1;31:cx=2:fn=35:ln=32:cn=32:bn=32:se=36";
-
-      if (grep_colors != NULL)
+      if (strcmp(flag_color, "never") == 0)
       {
-        // parse GREP_COLORS
-        set_color(grep_colors, "sl", color_sl); // selected line
-        set_color(grep_colors, "cx", color_cx); // context line
-        set_color(grep_colors, "mt", color_mt); // matching text in any line
-        set_color(grep_colors, "ms", color_ms); // matching text in selected line
-        set_color(grep_colors, "mc", color_mc); // matching text in a context line
-        set_color(grep_colors, "fn", color_fn); // file name
-        set_color(grep_colors, "ln", color_ln); // line number
-        set_color(grep_colors, "cn", color_cn); // column number
-        set_color(grep_colors, "bn", color_bn); // byte offset
-        set_color(grep_colors, "se", color_se); // separators
-
-        if (flag_invert_match && strstr(grep_colors, "rv") != NULL)
+        flag_color = NULL;
+      }
+      else
+      {
+#ifndef OS_WIN
+        // check whether we have a color terminal
+        if (tty_term)
         {
-          char color_tmp[COLORLEN];
-          copy_color(color_tmp, color_sl);
-          copy_color(color_sl, color_cx);
-          copy_color(color_cx, color_tmp);
+          const char *term = getenv("TERM");
+          if (term &&
+              (strstr(term, "ansi") != NULL ||
+               strstr(term, "xterm") != NULL ||
+               strstr(term, "color") != NULL))
+            color_term = true;
+        }
+#endif
+
+        if (strcmp(flag_color, "auto") == 0)
+        {
+          if (!color_term)
+            flag_color = NULL;
+        }
+        else if (strcmp(flag_color, "always") != 0)
+        {
+          help("invalid --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
+        }
+
+        if (flag_color != NULL)
+        {
+          const char *grep_color = NULL;
+          const char *grep_colors = NULL;
+
+#ifndef OS_WIN
+          // get GREP_COLOR and GREP_COLORS environment variables
+          grep_color = getenv("GREP_COLOR");
+          grep_colors = getenv("GREP_COLORS");
+#endif
+
+          if (grep_color != NULL)
+            set_color(std::string("mt=").append(grep_color).c_str(), "mt", color_mt);
+          else if (grep_colors == NULL)
+            grep_colors = "mt=1;31:cx=2:fn=35:ln=32:cn=32:bn=32:se=36";
+
+          if (grep_colors != NULL)
+          {
+            // parse GREP_COLORS
+            set_color(grep_colors, "sl", color_sl); // selected line
+            set_color(grep_colors, "cx", color_cx); // context line
+            set_color(grep_colors, "mt", color_mt); // matching text in any line
+            set_color(grep_colors, "ms", color_ms); // matching text in selected line
+            set_color(grep_colors, "mc", color_mc); // matching text in a context line
+            set_color(grep_colors, "fn", color_fn); // file name
+            set_color(grep_colors, "ln", color_ln); // line number
+            set_color(grep_colors, "cn", color_cn); // column number
+            set_color(grep_colors, "bn", color_bn); // byte offset
+            set_color(grep_colors, "se", color_se); // separators
+
+            if (flag_invert_match && strstr(grep_colors, "rv") != NULL)
+            {
+              char color_tmp[COLORLEN];
+              copy_color(color_tmp, color_sl);
+              copy_color(color_sl, color_cx);
+              copy_color(color_cx, color_tmp);
+            }
+
+            // if ms= or mc= are not specified, use the mt= value
+            if (*color_ms == '\0')
+              copy_color(color_ms, color_mt);
+            if (*color_mc == '\0')
+              copy_color(color_mc, color_mt);
+
+            color_off = "\033[0m";
+          }
         }
       }
-
-      // if ms= or mc= are not specified, use the mt= value
-      if (*color_ms == '\0')
-        copy_color(color_ms, color_mt);
-      if (*color_mc == '\0')
-        copy_color(color_mc, color_mt);
-
-      color_off = "\033[0m";
     }
   }
 
@@ -1360,7 +1429,7 @@ int main(int argc, char **argv)
   }
 
   // -t: parse TYPES and access type table to add -O (--file-extensions) and -M (--file-magic) values
-  for (auto type : flag_file_type)
+  for (auto& type : flag_file_type)
   {
     int i;
 
@@ -1379,7 +1448,7 @@ int main(int argc, char **argv)
   }
 
   // -O: add extensions as globs to the --include list
-  for (auto extensions : flag_file_extensions)
+  for (auto& extensions : flag_file_extensions)
   {
     size_t from = 0;
     size_t to;
@@ -1394,11 +1463,11 @@ int main(int argc, char **argv)
     flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)));
   }
 
-  // -M: file signature magic bytes MAGIC regex
+  // -M: file signature "magic bytes" MAGIC regex
   std::string signature;
 
   // -M: combine to create a signature regex from MAGIC
-  for (auto magic : flag_file_magic)
+  for (auto& magic : flag_file_magic)
   {
     if (!signature.empty())
       signature.push_back('|');
@@ -1406,7 +1475,7 @@ int main(int argc, char **argv)
   }
 
   // --exclude-from: add globs to the --exclude and --exclude-dir lists
-  for (auto i : flag_exclude_from)
+  for (auto& i : flag_exclude_from)
   {
     if (!i.empty())
     {
@@ -1469,7 +1538,7 @@ int main(int argc, char **argv)
   }
 
   // --include-from: add globs to the --include and --include-dir lists
-  for (auto i : flag_include_from)
+  for (auto& i : flag_include_from)
   {
     if (!i.empty())
     {
@@ -1533,11 +1602,17 @@ int main(int argc, char **argv)
 
   // -q: we only need to find one matching file and we're done
   if (flag_quiet)
+  {
     flag_max_files = 1;
+
+    // -q overrides -l and -L
+    flag_files_with_match = false;
+    flag_files_without_match = false;
+  }
 
 #ifndef OS_WIN
   // --pager: if output is to a TTY then page through the results
-  if (isatty(1) && flag_pager != NULL)
+  if (flag_pager != NULL && tty_term)
   {
     out = popen(flag_pager, "w");
     if (out == NULL)
@@ -1571,7 +1646,7 @@ int main(int argc, char **argv)
   catch (reflex::regex_error& error)
   {
     if (!flag_no_messages)
-      std::cerr << "option -M MAGIC:\n" << error.what();
+      std::cerr << "option -M MAGIC error:\n" << error.what();
 
     exit(EXIT_ERROR);
   }
@@ -1635,7 +1710,7 @@ int main(int argc, char **argv)
     }
     else
     {
-      // construct the DFA pattern matcher
+      // construct the DFA pattern matcher and start matching files
       reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), "r");
       reflex::Matcher matcher(pattern, matcher_options.c_str());
       found = findinfiles(magic, matcher, infiles, encoding);
@@ -1644,10 +1719,7 @@ int main(int argc, char **argv)
 
   catch (reflex::regex_error& error)
   {
-    if (!flag_no_messages)
-      std::cerr << error.what();
-
-    exit(EXIT_ERROR);
+    abort("error: ", error.what());
   }
 
 #ifdef HAVE_BOOST_REGEX
@@ -1655,56 +1727,84 @@ int main(int argc, char **argv)
   {
     if (!flag_no_messages)
     {
-      std::cerr << "Boost regex error in " << regex << std::endl;
+      const char *message;
+      reflex::regex_error_type code;
+
       switch (error.code())
       {
         case boost::regex_constants::error_collate:
-          std::cerr << "an invalid collating element was specified in a [[.name.]] block" << std::endl;
+          message = "Boost.Regex error: invalid collating element in a [[.name.]] block\n";
+          code = reflex::regex_error::invalid_collating;
           break;
         case boost::regex_constants::error_ctype:
-          std::cerr << "an invalid character class name was specified in a [[:name:]] block" << std::endl;
+          message = "Boost.Regex error: invalid character class name in a [[:name:]] block\n";
+          code = reflex::regex_error::invalid_class;
           break;
         case boost::regex_constants::error_escape:
-          std::cerr << "an invalid or trailing escape was encountered" << std::endl;
+          message = "Boost.Regex error: invalid or trailing escape\n";
+          code = reflex::regex_error::invalid_escape;
           break;
         case boost::regex_constants::error_backref:
-          std::cerr << "a back-reference to a non-existant marked sub-expression was encountered" << std::endl;
+          message = "Boost.Regex error: back-reference to a non-existent marked sub-expression\n";
+          code = reflex::regex_error::invalid_backreference;
           break;
         case boost::regex_constants::error_brack:
-          std::cerr << "an invalid character set [...] was encountered" << std::endl;
+          message = "Boost.Regex error: invalid character set [...]\n";
+          code = reflex::regex_error::invalid_class;
           break;
         case boost::regex_constants::error_paren:
-          std::cerr << "mismatched ( and )" << std::endl;
+          message = "Boost.Regex error: mismatched ( and )\n";
+          code = reflex::regex_error::mismatched_parens;
           break;
         case boost::regex_constants::error_brace:
-          std::cerr << "mismatched { and }" << std::endl;
+          message = "Boost.Regex error: mismatched { and }\n";
+          code = reflex::regex_error::mismatched_braces;
           break;
         case boost::regex_constants::error_badbrace:
-          std::cerr << "invalid contents of a {...} block" << std::endl;
+          message = "Boost.Regex error: invalid contents of a {...} block\n";
+          code = reflex::regex_error::invalid_repeat;
           break;
         case boost::regex_constants::error_range:
-          std::cerr << "a character range was invalid, for example [d-a]" << std::endl;
+          message = "Boost.Regex error: character range is invalid, for example [d-a]\n";
+          code = reflex::regex_error::invalid_class_range;
           break;
         case boost::regex_constants::error_space:
-          std::cerr << "out of memory" << std::endl;
+          message = "Boost.Regex error: out of memory\n";
+          code = reflex::regex_error::exceeds_limits;
           break;
         case boost::regex_constants::error_badrepeat:
-          std::cerr << "an attempt to repeat something that can not be repeated - for example a*+" << std::endl;
+          message = "Boost.Regex error: attempt to repeat something that cannot be repeated\n";
+          code = reflex::regex_error::invalid_repeat;
           break;
         case boost::regex_constants::error_complexity:
-          std::cerr << "the expression became too complex to handle" << std::endl;
+          message = "Boost.Regex error: the expression became too complex to handle\n";
+          code = reflex::regex_error::exceeds_limits;
           break;
         case boost::regex_constants::error_stack:
-          std::cerr << "out of program stack space" << std::endl;
+          message = "Boost.Regex error: out of program stack space\n";
+          code = reflex::regex_error::exceeds_limits;
           break;
         default:
-          std::cerr << "bad pattern" << std::endl;
+          message = "Boost.Regex error: bad pattern\n";
+          code = reflex::regex_error::invalid_syntax;
       }
+
+      abort(message, reflex::regex_error(code, regex, error.position() + 1).what());
     }
 
     exit(EXIT_ERROR);
   }
+
+  catch (boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<std::runtime_error> > error)
+  {
+    abort("Boost.Regex error: ", error.what());
+  }
 #endif
+
+  catch (std::runtime_error& error)
+  {
+    abort("Exception: ", error.what());
+  }
 
 #ifndef OS_WIN
   if (out != stdout)
@@ -1909,10 +2009,9 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
     FILE *file;
 
-    if (fopen_s(&file, pathname, "r") != 0)
+    if (fopen_s(&file, pathname, flag_binary ? "rb" : "r") != 0)
     {
-      if (!flag_no_messages)
-        warning("cannot read", pathname);
+      warning("cannot read", pathname);
 
       return;
     }
@@ -2096,8 +2195,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
           if (fopen_s(&file, pathname, "r") != 0)
           {
-            if (!flag_no_messages)
-              warning("cannot read", pathname);
+            warning("cannot read", pathname);
 
             return;
           }
@@ -2133,7 +2231,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
       }
     }
   }
-  else if (!flag_no_messages)
+  else
   {
     warning("cannot stat", pathname);
   }
@@ -2165,8 +2263,7 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
 
   if (hFind == INVALID_HANDLE_VALUE) 
   {
-    if (!flag_no_messages)
-      warning("cannot open directory", pathname);
+    warning("cannot open directory", pathname);
 
     return;
   } 
@@ -2189,8 +2286,7 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
       if (flag_max_files > 0 && stats.fileno >= flag_max_files)
         break;
     }
-  }
-  while (FindNextFileA(hFind, &ffd) != 0);
+  } while (FindNextFileA(hFind, &ffd) != 0);
 
   FindClose(hFind);
 
@@ -2200,8 +2296,7 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
 
   if (dir == NULL)
   {
-    if (!flag_no_messages)
-      warning("cannot open directory", pathname);
+    warning("cannot open directory", pathname);
 
     return;
   }
@@ -2253,14 +2348,14 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
     if (flag_invert_match)
       matches = !matches;
 
-    // -l or -L without -q
+    // -l or -L
 
-    if (!flag_quiet && ((matches && flag_files_with_match) || (!matches && flag_files_without_match)))
+    if ((matches && flag_files_with_match) || (!matches && flag_files_without_match))
     {
-      fputs(color_fn, out);
-      fputs(pathname, out);
-      fputs(color_off, out);
-      fputc(flag_null ? '\0' : '\n', out);
+      sgi(color_fn);
+      put(pathname);
+      sgi(color_off);
+      put(flag_null ? '\0' : '\n');
 
       if (flag_line_buffered)
         fflush(out);
@@ -2270,39 +2365,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
   {
     // -c: count the number of lines/patterns matched
 
-    if (flag_invert_match)
-    {
-      reflex::BufferedInput buffered_input;
-
-      if (!mmap_file(input, base, size))
-        buffered_input = input;
-
-      const char *here = base;
-      size_t left = size;
-
-      std::string line;
-
-      // -c with -v: count the number of non-matching lines
-      while (true)
-      {
-        // read the next line from mmap, buffered input, or unbuffered input
-        if (getline(here, left, buffered_input, input, line))
-          break;
-
-        read_line(matcher, line);
-
-        // count this line if not matched
-        if (matcher.find() == 0)
-        {
-          ++matches;
-
-          // -m: max number of matches reached?
-          if (flag_max_count > 0 && matches >= flag_max_count)
-            break;
-        }
-      }
-    }
-    else if (flag_no_group)
+    if (flag_no_group && !flag_invert_match)
     {
       // -c with -g: count the number of patterns matched in the file
 
@@ -2325,9 +2388,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
       read_file(matcher, input, base, size);
 
-      for (auto& match : matcher.find)
+      while (matcher.find())
       {
-        size_t current_lineno = match.lineno();
+        size_t current_lineno = matcher.lineno();
 
         if (lineno != current_lineno)
         {
@@ -2340,23 +2403,26 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             break;
         }
       }
+
+      if (flag_invert_match)
+        matches = matcher.lineno() - matches - 1;
     }
 
     if (flag_with_filename)
     {
-      fputs(color_fn, out);
-      fputs(pathname, out);
-      fputs(color_off, out);
+      sgi(color_fn);
+      put(pathname);
+      sgi(color_off);
 
       if (flag_null)
       {
-        fputc('\0', out);
+        put('\0');
       }
       else
       {
-        fputs(color_se, out);
-        fputs(flag_separator, out);
-        fputs(color_off, out);
+        sgi(color_se);
+        put(flag_separator);
+        sgi(color_off);
       }
 
     }
@@ -2376,9 +2442,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
     read_file(matcher, input, base, size);
 
-    for (auto& match : matcher.find)
+    while (matcher.find())
     {
-      size_t current_lineno = match.lineno();
+      size_t current_lineno = matcher.lineno();
 
       separator = lineno != current_lineno ? flag_separator : "+";
 
@@ -2393,35 +2459,35 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
         ++matches;
 
         if (flag_only_line_number)
-          display(pathname, lineno, match.columno() + 1, match.first(), separator, true);
+          display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, true);
       }
 
       if (!flag_only_line_number)
       {
         if (flag_hex)
         {
-          hex_dump(HEX_MATCH, pathname, lineno, match.columno() + 1, match.first(), match.begin(), match.size(), separator);
+          hex_dump(HEX_MATCH, pathname, lineno, matcher.columno() + 1, matcher.first(), matcher.begin(), matcher.size(), separator);
           hex = true;
         }
-        else if (!flag_text && is_binary(match.begin(), match.size()))
+        else if (!flag_text && is_binary(matcher.begin(), matcher.size()))
         {
           if (flag_with_hex)
           {
             if (hex)
             {
-              hex_dump(HEX_MATCH, pathname, lineno, match.columno() + 1, match.first(), match.begin(), match.size(), separator);
+              hex_dump(HEX_MATCH, pathname, lineno, matcher.columno() + 1, matcher.first(), matcher.begin(), matcher.size(), separator);
             }
             else
             {
-              display(pathname, lineno, match.columno() + 1, match.first(), separator, true);
-              hex_dump(HEX_MATCH, NULL, 0, 0, match.first(), match.begin(), match.size(), separator);
+              display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, true);
+              hex_dump(HEX_MATCH, NULL, 0, 0, matcher.first(), matcher.begin(), matcher.size(), separator);
               hex = true;
             }
           }
           else if (!flag_binary_without_matches)
           {
-            display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
-            fprintf(out, "Binary file %s matches %zu bytes\n", pathname, match.size());
+            display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, false);
+            fprintf(out, "Binary file %s matches %zu bytes\n", pathname, matcher.size());
           }
         }
         else
@@ -2432,10 +2498,10 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             hex = false;
           }
 
-          display(pathname, lineno, match.columno() + 1, match.first(), separator, false);
+          display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, false);
 
-          const char *begin = match.begin();
-          size_t size = match.size();
+          const char *begin = matcher.begin();
+          size_t size = matcher.size();
 
           if (flag_line_number)
           {
@@ -2446,29 +2512,29 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
             while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
             {
-              fputs(color_ms, out);
-              fwrite(from, 1, to - from + 1, out);
-              fputs(color_off, out);
+              sgi(color_ms);
+              put(from, to - from + 1);
+              sgi(color_off);
 
               if (to + 1 < begin + size)
-                display(pathname, ++lineno, 1, match.first() + (to - begin) + 1, "|", false);
+                display(pathname, ++lineno, 1, matcher.first() + (to - begin) + 1, "|", false);
 
               from = to + 1;
             }
 
-            fputs(color_ms, out);
-            fwrite(from, 1, size - (from - begin), out);
-            fputs(color_off, out);
+            sgi(color_ms);
+            put(from, size - (from - begin));
+            sgi(color_off);
             if (size == 0 || begin[size - 1] != '\n')
-              fputc('\n', out);
+              put('\n');
           }
           else
           {
-            fputs(color_ms, out);
-            fwrite(begin, 1, size, out);
-            fputs(color_off, out);
+            sgi(color_ms);
+            put(begin, size);
+            sgi(color_off);
             if (size == 0 || begin[size - 1] != '\n')
-              fputc('\n', out);
+              put('\n');
           }
 
           if (flag_line_buffered)
@@ -2512,7 +2578,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
         read_line(matcher, line, here - line);
 
         // search the line for pattern matches
-        for (auto& match : matcher.find)
+        while (matcher.find())
         {
           if (last == UNDEFINED)
           {
@@ -2536,29 +2602,33 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               }
             }
 
-            display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator, binary);
+            display(pathname, lineno, matcher.columno() + 1, byte_offset, flag_separator, binary);
 
             ++matches;
 
             last = 0;
+
+            // if no color highlighting, then display the matched line at once
+            if (flag_color == NULL)
+              break;
           }
 
           if (binary)
           {
-            hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + last, line + last, match.first() - last, flag_separator);
-            hex_dump(HEX_MATCH, NULL, 0, 0, byte_offset + match.first(), match.begin(), match.size(), flag_separator);
+            hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + last, line + last, matcher.first() - last, flag_separator);
+            hex_dump(HEX_MATCH, NULL, 0, 0, byte_offset + matcher.first(), matcher.begin(), matcher.size(), flag_separator);
           }
           else
           {
-            fputs(color_sl, out);
-            fwrite(line + last, 1, match.first() - last, out);
-            fputs(color_off, out);
-            fputs(color_ms, out);
-            fwrite(match.begin(), 1, match.size(), out);
-            fputs(color_off, out);
+            sgi(color_sl);
+            put(line + last, matcher.first() - last);
+            sgi(color_off);
+            sgi(color_ms);
+            put(matcher.begin(), matcher.size());
+            sgi(color_off);
           }
 
-          last = match.last();
+          last = matcher.last();
 
           // skip any further empty pattern matches
           if (last == 0)
@@ -2574,9 +2644,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
           }
           else
           {
-            fputs(color_sl, out);
-            fwrite(line + last, 1, here - line - last, out);
-            fputs(color_off, out);
+            sgi(color_sl);
+            put(line + last, here - line - last);
+            sgi(color_off);
           }
 
           if (flag_line_buffered)
@@ -2659,7 +2729,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
           bool found = false;
 
-          for (auto& match : matcher.find)
+          while (matcher.find())
           {
             if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
             {
@@ -2667,23 +2737,23 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
               if (last == UNDEFINED)
               {
-                display(pathname, lineno, match.columno() + 1, byte_offset, "-", binary[current]);
+                display(pathname, lineno, matcher.columno() + 1, byte_offset, "-", binary[current]);
 
                 last = 0;
               }
 
               if (binary[current])
               {
-                hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, "-");
+                hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, matcher.first() - last, "-");
               }
               else
               {
-                fputs(color_cx, out);
-                fwrite(lines[current].c_str() + last, 1, match.first() - last, out);
-                fputs(color_off, out);
+                sgi(color_cx);
+                put(lines[current].c_str() + last, matcher.first() - last);
+                sgi(color_off);
               }
 
-              last = match.last();
+              last = matcher.last();
 
               // skip any further empty pattern matches
               if (last == 0)
@@ -2691,13 +2761,13 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
               if (binary[current])
               {
-                hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), "-");
+                hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), "-");
               }
               else
               {
-                fputs(color_mc, out);
-                fwrite(match.begin(), 1, match.size(), out);
-                fputs(color_off, out);
+                sgi(color_mc);
+                put(matcher.begin(), matcher.size());
+                sgi(color_off);
               }
             }
             else
@@ -2717,9 +2787,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             }
             else
             {
-              fputs(color_cx, out);
-              fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, out);
-              fputs(color_off, out);
+              sgi(color_cx);
+              put(lines[current].c_str() + last, lines[current].size() - last);
+              sgi(color_off);
             }
           }
           else if (!found)
@@ -2738,10 +2808,10 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               // indicate the end of the group of after lines of the previous matched line
               if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
               {
-                fputs(color_se, out);
-                fputs(flag_group_separator, out);
-                fputs(color_off, out);
-                fputc('\n', out);
+                sgi(color_se);
+                put(flag_group_separator);
+                sgi(color_off);
+                put('\n');
               }
 
               // remember the matched line
@@ -2760,10 +2830,10 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               // indicate the begin of the group of before lines
               if (begin < lineno && matches > 0 && flag_group_separator != NULL)
               {
-                fputs(color_se, out);
-                fputs(flag_group_separator, out);
-                fputs(color_off, out);
-                fputc('\n', out);
+                sgi(color_se);
+                put(flag_group_separator);
+                sgi(color_off);
+                put('\n');
               }
 
               // display lines before the matched line
@@ -2775,27 +2845,27 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
                 read_line(matcher, lines[begin_context]);
 
-                for (auto& match : matcher.find)
+                while (matcher.find())
                 {
                   if (last == UNDEFINED)
                   {
-                    display(pathname, begin, match.columno() + 1, byte_offsets[begin_context], "-", binary[begin_context]);
+                    display(pathname, begin, matcher.columno() + 1, byte_offsets[begin_context], "-", binary[begin_context]);
 
                     last = 0;
                   }
 
                   if (binary[begin_context])
                   {
-                    hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, match.first() - last, "-");
+                    hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, matcher.first() - last, "-");
                   }
                   else
                   {
-                    fputs(color_cx, out);
-                    fwrite(lines[begin_context].c_str() + last, 1, match.first() - last, out);
-                    fputs(color_off, out);
+                    sgi(color_cx);
+                    put(lines[begin_context].c_str() + last, matcher.first() - last);
+                    sgi(color_off);
                   }
 
-                  last = match.last();
+                  last = matcher.last();
 
                   // skip any further empty pattern matches
                   if (last == 0)
@@ -2803,13 +2873,13 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
                   if (binary[begin_context])
                   {
-                    hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[begin_context] + match.first(), match.begin(), match.size(), "-");
+                    hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[begin_context] + matcher.first(), matcher.begin(), matcher.size(), "-");
                   }
                   else
                   {
-                    fputs(color_mc, out);
-                    fwrite(match.begin(), 1, match.size(), out);
-                    fputs(color_off, out);
+                    sgi(color_mc);
+                    put(matcher.begin(), matcher.size());
+                    sgi(color_off);
                   }
                 }
 
@@ -2822,9 +2892,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
                   }
                   else
                   {
-                    fputs(color_cx, out);
-                    fwrite(lines[begin_context].c_str() + last, 1, lines[begin_context].size() - last, out);
-                    fputs(color_off, out);
+                    sgi(color_cx);
+                    put(lines[begin_context].c_str() + last, lines[begin_context].size() - last);
+                    sgi(color_off);
                   }
                 }
 
@@ -2844,9 +2914,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             }
             else
             {
-              fputs(color_sl, out);
-              fwrite(lines[current].c_str(), 1, lines[current].size(), out);
-              fputs(color_off, out);
+              sgi(color_sl);
+              put(lines[current].c_str(), lines[current].size());
+              sgi(color_off);
             }
 
             if (flag_line_buffered)
@@ -2863,7 +2933,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
         {
           // search the line for pattern matches
 
-          for (auto& match : matcher.find)
+          while (matcher.find())
           {
             if (last == UNDEFINED && !flag_hex && !flag_hex && !flag_with_hex && binary[current])
             {
@@ -2879,10 +2949,10 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               // indicate the end of the group of after lines of the previous matched line
               if (after + flag_after_context < lineno && matches > 0 && flag_group_separator != NULL)
               {
-                fputs(color_se, out);
-                fputs(flag_group_separator, out);
-                fputs(color_off, out);
-                fputc('\n', out);
+                sgi(color_se);
+                put(flag_group_separator);
+                sgi(color_off);
+                put('\n');
               }
 
               // remember the matched line and we're done with the after context
@@ -2902,10 +2972,10 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               // indicate the begin of the group of before lines
               if (begin < lineno && matches > 0 && flag_group_separator != NULL)
               {
-                fputs(color_se, out);
-                fputs(flag_group_separator, out);
-                fputs(color_off, out);
-                fputc('\n', out);
+                sgi(color_se);
+                put(flag_group_separator);
+                sgi(color_off);
+                put('\n');
               }
 
               // display lines before the matched line
@@ -2922,9 +2992,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
                 }
                 else
                 {
-                  fputs(color_cx, out);
-                  fwrite(lines[begin_context].c_str(), 1, lines[begin_context].size(), out);
-                  fputs(color_off, out);
+                  sgi(color_cx);
+                  put(lines[begin_context].c_str(), lines[begin_context].size());
+                  sgi(color_off);
                 }
 
                 ++begin;
@@ -2939,26 +3009,28 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             {
               // -g: do not group matches on a single line but on multiple lines, counting each match separately
 
-              display(pathname, lineno, match.columno() + 1, byte_offset + match.first(), last == UNDEFINED ? flag_separator : "+", binary[current]);
+              const char *separator = (last == UNDEFINED ? flag_separator : "+");
+
+              display(pathname, lineno, matcher.columno() + 1, byte_offset + matcher.first(), separator, binary[current]);
 
               if (binary[current])
               {
-                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), match.first(), "+");
-                hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), "+");
-                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + match.last(), lines[current].c_str() + match.last(), match.last() - match.first(), "+");
+                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), matcher.first(), separator);
+                hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), separator);
+                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + matcher.last(), lines[current].c_str() + matcher.last(), matcher.last() - matcher.first(), separator);
                 hex_done("+");
               }
               else
               {
-                fputs(color_sl, out);
-                fwrite(lines[current].c_str(), 1, match.first(), out);
-                fputs(color_off, out);
-                fputs(color_ms, out);
-                fwrite(match.begin(), 1, match.size(), out);
-                fputs(color_off, out);
-                fputs(color_sl, out);
-                fwrite(lines[current].c_str() + match.last(), 1, lines[current].size() - match.last(), out);
-                fputs(color_off, out);
+                sgi(color_sl);
+                put(lines[current].c_str(), matcher.first());
+                sgi(color_off);
+                sgi(color_ms);
+                put(matcher.begin(), matcher.size());
+                sgi(color_off);
+                sgi(color_sl);
+                put(lines[current].c_str() + matcher.last(), lines[current].size() - matcher.last());
+                sgi(color_off);
               }
 
               ++matches;
@@ -2971,7 +3043,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             {
               if (last == UNDEFINED)
               {
-                display(pathname, lineno, match.columno() + 1, byte_offset, flag_separator, binary[current]);
+                display(pathname, lineno, matcher.columno() + 1, byte_offset, flag_separator, binary[current]);
 
                 ++matches;
 
@@ -2980,21 +3052,21 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
               if (binary[current])
               {
-                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, match.first() - last, flag_separator);
-                hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + match.first(), match.begin(), match.size(), flag_separator);
+                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, matcher.first() - last, flag_separator);
+                hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), flag_separator);
               }
               else
               {
-                fputs(color_sl, out);
-                fwrite(lines[current].c_str() + last, 1, match.first() - last, out);
-                fputs(color_off, out);
-                fputs(color_ms, out);
-                fwrite(match.begin(), 1, match.size(), out);
-                fputs(color_off, out);
+                sgi(color_sl);
+                put(lines[current].c_str() + last, matcher.first() - last);
+                sgi(color_off);
+                sgi(color_ms);
+                put(matcher.begin(), matcher.size());
+                sgi(color_off);
               }
             }
 
-            last = match.last();
+            last = matcher.last();
 
             // skip any further empty pattern matches
             if (last == 0)
@@ -3012,9 +3084,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               }
               else
               {
-                fputs(color_sl, out);
-                fwrite(lines[current].c_str() + last, 1, lines[current].size() - last, out);
-                fputs(color_off, out);
+                sgi(color_sl);
+                put(lines[current].c_str() + last, lines[current].size() - last);
+                sgi(color_off);
               }
             }
 
@@ -3035,9 +3107,9 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             }
             else
             {
-              fputs(color_cx, out);
-              fwrite(lines[current].c_str(), 1, lines[current].size(), out);
-              fputs(color_off, out);
+              sgi(color_cx);
+              put(lines[current].c_str(), lines[current].size());
+              sgi(color_off);
             }
           }
 
@@ -3058,7 +3130,7 @@ exit_ugrep:
   // --break: add a line break and flush
   if ((matches > 0 || flag_any_line) && flag_break)
   {
-    fputc('\n', out);
+    put('\n');
     fflush(out);
   }
 
@@ -3074,12 +3146,12 @@ void display(const char *name, size_t lineno, size_t columno, size_t byte_offset
 
     if (flag_with_filename)
     {
-      fputs(color_fn, out);
-      fputs(name, out);
-      fputs(color_off, out);
+      sgi(color_fn);
+      put(name);
+      sgi(color_off);
 
       if (flag_null)
-        fputc('\0', out);
+        put('\0');
       else
         sep = true;
     }
@@ -3088,14 +3160,14 @@ void display(const char *name, size_t lineno, size_t columno, size_t byte_offset
     {
       if (sep)
       {
-        fputs(color_se, out);
-        fputs(separator, out);
-        fputs(color_off, out);
+        sgi(color_se);
+        put(separator);
+        sgi(color_off);
       }
 
-      fputs(color_ln, out);
+      sgi(color_ln);
       fprintf(out, flag_initial_tab ? "%6zu" : "%zu", lineno);
-      fputs(color_off, out);
+      sgi(color_off);
 
       sep = true;
     }
@@ -3104,14 +3176,14 @@ void display(const char *name, size_t lineno, size_t columno, size_t byte_offset
     {
       if (sep)
       {
-        fputs(color_se, out);
-        fputs(separator, out);
-        fputs(color_off, out);
+        sgi(color_se);
+        put(separator);
+        sgi(color_off);
       }
 
-      fputs(color_ln, out);
+      sgi(color_ln);
       fprintf(out, flag_initial_tab ? "%3zu" : "%zu", columno);
-      fputs(color_off, out);
+      sgi(color_off);
 
       sep = true;
     }
@@ -3120,29 +3192,29 @@ void display(const char *name, size_t lineno, size_t columno, size_t byte_offset
     {
       if (sep)
       {
-        fputs(color_se, out);
-        fputs(separator, out);
-        fputs(color_off, out);
+        sgi(color_se);
+        put(separator);
+        sgi(color_off);
       }
 
-      fputs(color_ln, out);
+      sgi(color_ln);
       fprintf(out, flag_hex ? flag_initial_tab ? "%7zx" : "%zx" : flag_initial_tab ? "%7zu" : "%zu", byte_offset);
-      fputs(color_off, out);
+      sgi(color_off);
 
       sep = true;
     }
 
     if (sep)
     {
-      fputs(color_se, out);
-      fputs(separator, out);
-      fputs(color_off, out);
+      sgi(color_se);
+      put(separator);
+      sgi(color_off);
 
       if (flag_initial_tab)
-        fputc('\t', out);
+        put('\t');
 
       if (newline)
-        fputc('\n', out);
+        put('\n');
     }
   }
 }
@@ -3184,65 +3256,65 @@ void hex_done(const char *separator)
 // dump one line of hex data
 void hex_line(const char *separator)
 {
-  fputs(color_bn, out);
+  sgi(color_bn);
   fprintf(out, "%.8zx", (last_hex_offset - 1) & ~(size_t)0x0f);
-  fputs(color_off, out);
-  fputs(color_se, out);
-  fputs(separator, out);
-  fputs(color_off, out);
-  fputc(' ', out);
+  sgi(color_off);
+  sgi(color_se);
+  put(separator);
+  sgi(color_off);
+  put(' ');
 
   for (size_t i = 0; i < 0x10; ++i)
   {
     if (last_hex_line[i] < 0)
     {
-      fputs(color_cx, out);
-      fputs(" --", out);
-      fputs(color_off, out);
+      sgi(color_cx);
+      put(" --");
+      sgi(color_off);
     }
     else
     {
       short byte = last_hex_line[i];
 
-      fputs(color_hex[byte >> 8], out);
+      sgi(color_hex[byte >> 8]);
       fprintf(out, " %.2x", byte & 0xff);
 
-      fputs(color_off, out);
+      sgi(color_off);
     }
   }
 
-  fputs("  ", out);
+  put("  ");
 
   for (size_t i = 0; i < 0x10; ++i)
   {
     if (last_hex_line[i] < 0)
     {
-      fputs(color_cx, out);
-      fputc('-', out);
-      fputs(color_off, out);
+      sgi(color_cx);
+      put('-');
+      sgi(color_off);
     }
     else
     {
       short byte = last_hex_line[i];
 
-      fputs(color_hex[byte >> 8], out);
+      sgi(color_hex[byte >> 8]);
 
       byte &= 0xff;
 
-      if (byte < 0x20 && flag_color)
+      if (byte < 0x20 && flag_color != NULL)
         fprintf(out, "\033[7m%c", '@' + byte);
-      else if (byte == 0x7f && flag_color)
-        fputs("\033[7m~", out);
+      else if (byte == 0x7f && flag_color != NULL)
+        put("\033[7m~");
       else if (byte < 0x20 || byte >= 0x7f)
-        fputc(' ', out);
+        put(' ');
       else
         fprintf(out, "%c", byte);
 
-      fputs(color_off, out);
+      sgi(color_off);
     }
   }
 
-  fputc('\n', out);
+  put('\n');
 
   if (flag_line_buffered)
     fflush(out);
@@ -3263,10 +3335,12 @@ void trim(std::string& line)
   if (pos > 0)
     line.erase(0, pos);
 
-  for (pos = len - pos; pos > 0 && isspace(line.at(pos - 1)); --pos)
+  len -= pos;
+
+  for (pos = len; pos > 0 && isspace(line.at(pos - 1)); --pos)
     continue;
 
-  line.erase(pos);
+  line.erase(pos, len - pos);
 }
 
 // convert GREP_COLORS and set the color substring to the ANSI SGR sequence
@@ -3360,10 +3434,15 @@ bool mmap_file(reflex::Input& input, const char*& base, size_t& size)
   if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < MIN_MMAP_SIZE || st.st_size > MAX_MMAP_SIZE)
     return false;
   size = static_cast<size_t>(st.st_size);
-  if (mmap_base != NULL && mmap_size >= size)
+  if (mmap_base == NULL || mmap_size < size)
+  {
+    mmap_size = (size + 0xFFF) & ~0xFFFUL; // round up to 4K page size
     base = static_cast<const char*>(mmap_base = ::mmap(mmap_base, mmap_size, PROT_READ, MAP_PRIVATE, fd, 0));
+  }
   else
-    base = static_cast<const char*>(mmap_base = ::mmap(mmap_base, (mmap_size = size), PROT_READ, MAP_PRIVATE, fd, 0));
+  {
+    base = static_cast<const char*>(mmap_base = ::mmap(mmap_base, mmap_size, PROT_READ, MAP_FIXED | MAP_PRIVATE, fd, 0));
+  }
   if (mmap_base != MAP_FAILED)
     return true;
   mmap_base = NULL;
@@ -3385,8 +3464,27 @@ void mmap_free()
 #endif
 }
 
-// display warning message assuming errno is set, like perror()
+// display warning message if -q is not specified, assumes errno is set, like perror()
 void warning(const char *message, const char *arg)
+{
+  if (!flag_no_messages)
+  {
+    // use safe strerror_s() instead of strerror() when available
+#if defined(__STDC_LIB_EXT1__) || defined(OS_WIN)
+    char errmsg[256]; 
+    strerror_s(errmsg, sizeof(errmsg), errno);
+#else
+    const char *errmsg = strerror(errno);
+#endif
+    if (isatty(STDERR_FILENO) && color_term)
+      fprintf(stderr, "\033[0mugrep: \033[35mwarning:\033[0m %s %s: %s\n", message, arg, errmsg);
+    else
+      fprintf(stderr, "ugrep: warning: %s %s: %s\n", message, arg, errmsg);
+  }
+}
+
+// display error message, assumes errno is set, like perror(), then exit
+void error(const char *message, const char *arg)
 {
   // use safe strerror_s() instead of strerror() when available
 #if defined(__STDC_LIB_EXT1__) || defined(OS_WIN)
@@ -3395,13 +3493,20 @@ void warning(const char *message, const char *arg)
 #else
   const char *errmsg = strerror(errno);
 #endif
-  fprintf(stderr, "ugrep: %s %s: %s\n", message, arg, errmsg);
+  if (isatty(STDERR_FILENO) && color_term)
+    fprintf(stderr, "\033[0mugrep: \033[31merror:\033[0m %s %s: %s\n\n", message, arg, errmsg);
+  else
+    fprintf(stderr, "ugrep: error: %s %s: %s\n\n", message, arg, errmsg);
+  exit(EXIT_ERROR);
 }
 
-// display error message assuming errno is set, like perror(), then exit
-void error(const char *message, const char *arg)
+// display abort message with exception details, then abort
+void abort(const char *message, const std::string& what)
 {
-  warning(message, arg);
+  if (isatty(STDERR_FILENO) && color_term)
+    fprintf(stderr, "\033[0mugrep: \033[1;31m%s\033[0m\033[1m%s\033[0m\n", message, what.c_str());
+  else
+    fprintf(stderr, "ugrep: %s%s\n", message, what.c_str());
   exit(EXIT_ERROR);
 }
 
@@ -3410,7 +3515,9 @@ void help(const char *message, const char *arg)
 {
   if (message && *message)
     std::cout << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
-  std::cout << "Usage: ugrep [OPTIONS] [PATTERN] [-e PATTERN] [-f FILE] [FILE ...]\n";
+
+  std::cout << "Usage: ugrep [OPTIONS] [PATTERN] [-f FILE] [-e PATTERN] [FILE ...]\n";
+
   if (!message)
   {
     std::cout << "\n\
@@ -3464,9 +3571,9 @@ void help(const char *message, const char *arg)
             marks up matches only when output on a terminal.\n\
     -D ACTION, --devices=ACTION\n\
             If an input file is a device, FIFO or socket, use ACTION to process\n\
-            it.  By default, ACTION is `read', which means that devices are\n\
-            read just as if they were ordinary files.  If ACTION is `skip',\n\
-            devices are silently skipped.\n\
+            it.  By default, ACTION is `skip', which means that devices are\n\
+            silently skipped.  If ACTION is `read', devices read just as if\n\
+            they were ordinary files.\n\
     -d ACTION, --directories=ACTION\n\
             If an input file is a directory, use ACTION to process it.  By\n\
             default, ACTION is `read', i.e., read directories just as if they\n\
@@ -3599,11 +3706,11 @@ void help(const char *message, const char *arg)
             otherwise.\n\
     -M MAGIC, --file-magic=MAGIC\n\
             Only files matching the signature pattern `MAGIC' are searched.\n\
-            The signature magic bytes at the start of a file are compared to\n\
+            The signature \"magic bytes\" at the start of a file are compared to\n\
             the `MAGIC' regex pattern.  When matching, the file will be\n\
             searched.  This option may be repeated and may be combined with\n\
             options -O and -t to expand the search.  This option is relatively\n\
-            slow as every file on the search path is read.\n\
+            slow as every file on the search path is read to compare `MAGIC'.\n\
     -m NUM, --max-count=NUM\n\
             Stop reading the input after NUM matches for each file processed.\n\
     --max-depth=NUM\n\
@@ -3750,12 +3857,16 @@ void help(const char *message, const char *arg)
     status is 0 even if an error occurred.\n\
 " << std::endl;
   }
+
   exit(EXIT_ERROR);
 }
 
 // display version info
 void version()
 {
-  std::cout << "ugrep " UGREP_VERSION " " PLATFORM << std::endl;
+  std::cout << "ugrep " UGREP_VERSION " " PLATFORM << "\n"
+    "Copyright (c) Genivia Inc.\n"
+    "License BSD-3-Clause: <https://opensource.org/licenses/BSD-3-Clause>\n"
+    "Written by Robert van Engelen: <https://github.com/Genivia/ugrep>" << std::endl;
   exit(EXIT_OK);
 }

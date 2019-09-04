@@ -18,9 +18,9 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
-      [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]]
-      [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fIFILE\fR \fI...\fR]
+[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
+      [\fB-e\fR \fIPATTERN\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fB-J\fR[\fIJOBS\fR]]
+      [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -94,7 +94,8 @@ path separator `/', the pathname is matched.  Otherwise the basename of a file
 or directory is matched.  For example, \fB*.h\fR matches \fIfoo.h\fR and
 \fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not \fIfoo.h\fR and
 not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
-\fIfoo.h\fR but not \fIbar/foo.h\fR.
+\fIfoo.h\fR but not \fIbar/foo.h\fR.  A glob starting with a `!' is negated,
+i.e. does not match.
 .PP
 \fBGlob Syntax and Conventions\fR
 .IP \fB*\fR
