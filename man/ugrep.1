@@ -1,4 +1,4 @@
-.TH UGREP "1" "September 04, 2019" "ugrep 1.4.0" "User Commands"
+.TH UGREP "1" "September 10, 2019" "ugrep 1.4.1" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -61,7 +61,8 @@ zero byte or invalid UTF encoding.  See also the \fB\-a\fR, \fB\-I\fR, \fB\-U\fR
 and \fB\-X\fR options.
 .TP
 \fB\-\-break\fR
-Adds a line break between results from different files.
+Groups matches per file and adds a line break between results from
+different files.
 .TP
 \fB\-C\fR[NUM], \fB\-\-context\fR[=\fI\fR\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
@@ -166,7 +167,8 @@ Always print the filename with output lines.  This is the default
 when there is more than one file to search.
 .TP
 \fB\-h\fR, \fB\-\-no\-filename\fR
-Never print filenames with output lines.
+Never print filenames with output lines.  This is the default
+when there is only one file (or only standard input) to search.
 .TP
 \fB\-\-help\fR
 Print a help message.
@@ -275,6 +277,10 @@ options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
 \fB\-\-no\-hidden\fR
 Do not search hidden files and hidden directories.
+.TP
+\fB\-\-no\-mmap\fR
+Do not use memory maps to search files.  By default, memory maps
+are used under certain conditions to improve performance.
 .TP
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
 Search only files whose file name extensions match the specified

@@ -41,7 +41,7 @@ Download and installation:
 
   https://github.com/Genivia/ugrep
 
-Requires RE/flex 1.4.0 or greater:
+Requires RE/flex 1.4.1 or greater:
 
   https://github.com/Genivia/RE-flex
 
@@ -110,7 +110,7 @@ Compile:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.4.0"
+#define UGREP_VERSION "1.4.1"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -132,11 +132,11 @@ Compile:
 // max --jobs
 #define MAX_JOBS 1000
 
-// min and max mmap() file size to allocate, must be less or equal to 4294967295LL, max 0 disables mmap()
+// min and max mmap() file size to allocate, not greater than 4294967295LL, max 0 disables mmap()
 #define MIN_MMAP_SIZE 16384
-#define MAX_MMAP_SIZE 4294967295LL
+#define MAX_MMAP_SIZE 2147483647LL
 
-// mmap base and size, for mmap reuse
+// mmap base and size, for mmap reuse, should be thread local
 #if !defined(OS_WIN) && MAX_MMAP_SIZE > 0
 static void *mmap_base = NULL;
 static size_t mmap_size = 0;
@@ -170,7 +170,7 @@ char color_bn[COLORLEN];
 char color_se[COLORLEN];
 const char *color_off = "";
 
-// hex dump state data and colors
+// hex dump mode for color highlighting
 #define HEX_MATCH         0
 #define HEX_LINE          1
 #define HEX_CONTEXT_MATCH 2
@@ -182,9 +182,15 @@ const char *color_hex[4] = { color_ms, color_sl, color_mc, color_cx };
 // output destination is standard output by default or a pipe to --pager
 FILE *out = stdout;
 
+#ifndef OS_WIN
+// detect directory cycles when symlinks are traversed with --dereference
+std::set<ino_t> visited;
+#endif
+
 // ugrep command-line options
 bool flag_with_filename            = false;
 bool flag_no_filename              = false;
+bool flag_no_labels                = false;
 bool flag_no_group                 = false;
 bool flag_no_messages              = false;
 bool flag_no_hidden                = false;
@@ -228,6 +234,8 @@ size_t flag_max_depth              = 0;
 size_t flag_max_files              = 0;
 size_t flag_jobs                   = 0;
 size_t flag_tabs                   = 8;
+size_t flag_min_mmap               = MIN_MMAP_SIZE;
+size_t flag_max_mmap               = MAX_MMAP_SIZE;
 const char *flag_pager             = NULL;
 const char *flag_color             = NULL;
 const char *flag_encoding          = NULL;
@@ -261,9 +269,10 @@ bool findinfiles(reflex::Matcher& magic, reflex::AbstractMatcher& matcher, std::
 void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMatcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
 void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMatcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
 bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname);
-void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
-void hex_dump(short mode, const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *separator);
+void display(const char *& pathname, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
+void hex_dump(short mode, size_t byte_offset, const char *data, size_t size, const char *separator);
 void hex_done(const char *separator);
+void hex_next(size_t byte_offset, const char *separator);
 void hex_line(const char *separator);
 void set_color(const char *grep_colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
@@ -272,6 +281,7 @@ bool is_file(const reflex::Input& input);
 void read_file(reflex::AbstractMatcher& matcher, reflex::Input& input, const char*& base, size_t& size);
 bool mmap_file(reflex::Input& input, const char*& base, size_t& size);
 void mmap_free();
+size_t strtosize(const char *s, const char *msg);
 void warning(const char *message, const char *arg);
 void error(const char *message, const char *arg);
 void abort(const char *message, const std::string& what);
@@ -601,13 +611,13 @@ int main(int argc, char **argv)
             if (!*arg)
               options = false;
             else if (strncmp(arg, "after-context=", 14) == 0)
-              flag_after_context = (size_t)strtoull(arg + 14, NULL, 10);
+              flag_after_context = strtosize(arg + 14, "invalid argument --after-context=");
             else if (strcmp(arg, "any-line") == 0)
               flag_any_line = true;
             else if (strcmp(arg, "basic-regexp") == 0)
               flag_basic_regexp = true;
             else if (strncmp(arg, "before-context=", 15) == 0)
-              flag_before_context = (size_t)strtoull(arg + 15, NULL, 10);
+              flag_before_context = strtosize(arg + 15, "invalid argument --before-context=");
             else if (strcmp(arg, "binary") == 0)
               flag_binary = true;
             else if (strncmp(arg, "binary-files=", 13) == 0)
@@ -627,7 +637,7 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "context") == 0)
               flag_after_context = flag_before_context = 2;
             else if (strncmp(arg, "context=", 8) == 0)
-              flag_after_context = flag_before_context = (size_t)strtoull(arg + 8, NULL, 10);
+              flag_after_context = flag_before_context = strtosize(arg + 8, "invalid argument --context=");
             else if (strcmp(arg, "count") == 0)
               flag_count = true;
             else if (strcmp(arg, "decompress") == 0)
@@ -689,7 +699,7 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "jobs") == 0)
               flag_jobs = MAX_JOBS;
             else if (strncmp(arg, "jobs=", 5) == 0)
-              flag_jobs = (size_t)strtoull(arg + 5, NULL, 10);
+              flag_jobs = strtosize(arg + 5, "invalid argument --jobs=");
             else if (strcmp(arg, "label") == 0)
               flag_label = "";
             else if (strncmp(arg, "label=", 6) == 0)
@@ -701,11 +711,15 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "line-regexp") == 0)
               flag_line_regexp = true;
             else if (strncmp(arg, "max-count=", 10) == 0)
-              flag_max_count = (size_t)strtoull(arg + 10, NULL, 10);
+              flag_max_count = strtosize(arg + 10, "invalid argument --max-count=");
             else if (strncmp(arg, "max-depth=", 10) == 0)
-              flag_max_depth = (size_t)strtoull(arg + 10, NULL, 10);
+              flag_max_depth = strtosize(arg + 10, "invalid argument --max-depth=");
             else if (strncmp(arg, "max-files=", 10) == 0)
-              flag_max_files = (size_t)strtoull(arg + 10, NULL, 10);
+              flag_max_files = strtosize(arg + 10, "invalid argument --max-files=");
+            else if (strncmp(arg, "max-mmap=", 9) == 0)
+              flag_max_mmap = strtosize(arg + 9, "invalid argument --max-mmap=");
+            else if (strncmp(arg, "min-mmap=", 9) == 0)
+              flag_min_mmap = strtosize(arg + 9, "invalid argument --min-mmap=");
             else if (strcmp(arg, "no-dereference") == 0)
               flag_no_dereference = true;
             else if (strcmp(arg, "no-filename") == 0)
@@ -718,6 +732,8 @@ int main(int argc, char **argv)
               flag_no_hidden = true;
             else if (strcmp(arg, "no-messages") == 0)
               flag_no_messages = true;
+            else if (strcmp(arg, "no-mmap") == 0)
+              flag_max_mmap = 0;
             else if (strcmp(arg, "null") == 0)
               flag_null = true;
             else if (strcmp(arg, "only-line-number") == 0)
@@ -743,7 +759,7 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "stats") == 0)
               flag_stats = true;
             else if (strncmp(arg, "tabs=", 5) == 0)
-              flag_tabs = (size_t)strtoull(arg + 5, NULL, 10);
+              flag_tabs = strtosize(arg + 5, "invalid argument --tabs=");
             else if (strcmp(arg, "text") == 0)
               flag_binary_files = "text";
             else if (strcmp(arg, "version") == 0)
@@ -755,18 +771,18 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "word-regexp") == 0)
               flag_word_regexp = true;
             else
-              help("unrecognized option --", arg);
+              help("invalid option --", arg);
             is_grouped = false;
             break;
 
           case 'A':
             ++arg;
             if (*arg)
-              flag_after_context = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+              flag_after_context = strtosize(&arg[*arg == '='], "invalid argument -A=");
             else if (++i < argc)
-              flag_after_context = (size_t)strtoull(argv[i], NULL, 10);
+              flag_after_context = strtosize(argv[i], "invalid argument -A=");
             else
-              help("missing NUM for option -A");
+              help("missing NUM argument for option -A");
             is_grouped = false;
             break;
 
@@ -777,11 +793,11 @@ int main(int argc, char **argv)
           case 'B':
             ++arg;
             if (*arg)
-              flag_before_context = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+              flag_before_context = strtosize(&arg[*arg == '='], "invalid argument -B=");
             else if (++i < argc)
-              flag_before_context = (size_t)strtoull(argv[i], NULL, 10);
+              flag_before_context = strtosize(argv[i], "invalid argument -B=");
             else
-              help("missing NUM for option -B");
+              help("missing NUM argument for option -B");
             is_grouped = false;
             break;
 
@@ -793,7 +809,7 @@ int main(int argc, char **argv)
             ++arg;
             if (*arg == '=' || isdigit(*arg))
             {
-              flag_after_context = flag_before_context = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+              flag_after_context = flag_before_context = strtosize(&arg[*arg == '='], "invalid argument -C=");
               is_grouped = false;
             }
             else
@@ -814,7 +830,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_devices = argv[i];
             else
-              help("missing ACTION for option -D");
+              help("missing ACTION argument for option -D");
             is_grouped = false;
             break;
 
@@ -825,7 +841,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_directories = argv[i];
             else
-              help("missing ACTION for option -d");
+              help("missing ACTION argument for option -d");
             is_grouped = false;
             break;
 
@@ -840,7 +856,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_regexp.emplace_back(argv[i]);
             else
-              help("missing PATTERN for option -e");
+              help("missing PATTERN argument for option -e");
             is_grouped = false;
             break;
 
@@ -855,7 +871,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_file.emplace_back(argv[i]);
             else
-              help("missing FILE for option -f");
+              help("missing FILE argument for option -f");
             is_grouped = false;
             break;
 
@@ -887,7 +903,7 @@ int main(int argc, char **argv)
             ++arg;
             if (*arg == '=' || isdigit(*arg))
             {
-              flag_jobs = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+              flag_jobs = strtosize(&arg[*arg == '='], "invalid argument -J=");
               is_grouped = false;
             }
             else
@@ -916,11 +932,11 @@ int main(int argc, char **argv)
           case 'm':
             ++arg;
             if (*arg)
-              flag_max_count = (size_t)strtoull(&arg[*arg == '='], NULL, 10);
+              flag_max_count = strtosize(&arg[*arg == '='], "invalid argument -m=");
             else if (++i < argc)
-              flag_max_count = (size_t)strtoull(argv[i], NULL, 10);
+              flag_max_count = strtosize(argv[i], "invalid argument -m=");
             else
-              help("missing NUM for option -m");
+              help("missing NUM argument for option -m");
             is_grouped = false;
             break;
 
@@ -931,7 +947,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_file_magic.emplace_back(argv[i]);
             else
-              help("missing MAGIC for option -M");
+              help("missing MAGIC argument for option -M");
             is_grouped = false;
             break;
 
@@ -950,7 +966,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_file_extensions.emplace_back(argv[i]);
             else
-              help("missing EXTENSIONS for option -O");
+              help("missing EXTENSIONS argument for option -O");
             is_grouped = false;
             break;
 
@@ -974,7 +990,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_encoding = argv[i];
             else
-              help("missing ENCODING for option -:");
+              help("missing ENCODING argument for option -:");
             is_grouped = false;
             break;
 
@@ -1009,7 +1025,7 @@ int main(int argc, char **argv)
             else if (++i < argc)
               flag_file_type.emplace_back(argv[i]);
             else
-              help("missing TYPES for option -t");
+              help("missing TYPES argument for option -t");
             is_grouped = false;
             break;
 
@@ -1058,7 +1074,7 @@ int main(int argc, char **argv)
             break;
 
           default:
-            help("unrecognized option -", arg);
+            help("invalid option -", arg);
         }
       }
     }
@@ -1284,6 +1300,15 @@ int main(int argc, char **argv)
   if (!flag_no_filename && (infiles.size() > 1 || strcmp(flag_directories, "recurse") == 0))
     flag_with_filename = true;
 
+  // if no display options -H, -n, -N, -k, -b are set, enable --no-labels to suppress labels for speed
+  if (!flag_with_filename && !flag_line_number && !flag_only_line_number && !flag_column_number && !flag_byte_offset)
+    flag_no_labels = true;
+
+  // TODO evaluate cases when mmap actually improves or degrades performance, turning it on/off selectively
+  // if not recursing into directories, then disable mmap since we only touch a few files
+  // if (strcmp(flag_directories, "recurse") != 0)
+    // flag_max_mmap = 0;
+
   // is output sent to a TTY or to /dev/null?
   if (!flag_quiet)
   {
@@ -1331,7 +1356,7 @@ int main(int argc, char **argv)
         }
         else if (strcmp(flag_color, "always") != 0)
         {
-          help("invalid --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
+          help("invalid argument --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
         }
 
         if (flag_color != NULL)
@@ -1388,13 +1413,13 @@ int main(int argc, char **argv)
   // -D: check ACTION value
   if (strcmp(flag_devices, "read") != 0 &&
       strcmp(flag_devices, "skip") != 0)
-    help("invalid --devices=ACTION, valid arguments are 'read' and 'skip'");
+    help("invalid argument --devices=ACTION, valid arguments are 'read' and 'skip'");
 
   // -d: check ACTION value
   if (strcmp(flag_directories, "read") != 0 &&
       strcmp(flag_directories, "recurse") != 0 &&
       strcmp(flag_directories, "skip") != 0)
-    help("invalid --directories=ACTION, valid arguments are 'read', 'recurse', 'dereference-recurse', and 'skip'");
+    help("invalid argument --directories=ACTION, valid arguments are 'read', 'recurse', 'dereference-recurse', and 'skip'");
 
   // --binary-files: normalize by assigning flags
   if (strcmp(flag_binary_files, "without-matches") == 0)
@@ -1406,7 +1431,7 @@ int main(int argc, char **argv)
   else if (strcmp(flag_binary_files, "with-hex") == 0)
     flag_with_hex = true;
   else if (strcmp(flag_binary_files, "binary") != 0)
-    help("invalid --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex', and 'with-hex'");
+    help("invalid argument --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex', and 'with-hex'");
 
   // default file encoding is plain (no conversion)
   reflex::Input::file_encoding_type encoding = reflex::Input::file_encoding::plain;
@@ -1422,7 +1447,7 @@ int main(int argc, char **argv)
         break;
 
     if (format_table[i].format == NULL)
-      help("invalid --encoding=ENCODING");
+      help("invalid argument --encoding=ENCODING");
 
     // encoding is the file encoding used by all input files, if no BOM is present
     encoding = format_table[i].encoding;
@@ -1439,7 +1464,7 @@ int main(int argc, char **argv)
         break;
 
     if (type_table[i].type == NULL)
-      help("invalid --file-type=TYPE, to list the valid values use -tlist");
+      help("invalid argument --file-type=TYPE, to list the valid values use -tlist");
 
     flag_file_extensions.emplace_back(type_table[i].extensions);
 
@@ -1646,7 +1671,7 @@ int main(int argc, char **argv)
   catch (reflex::regex_error& error)
   {
     if (!flag_no_messages)
-      std::cerr << "option -M MAGIC error:\n" << error.what();
+      std::cerr << "option -M:\n" << error.what();
 
     exit(EXIT_ERROR);
   }
@@ -1692,9 +1717,9 @@ int main(int argc, char **argv)
     if (flag_tabs)
     {
       if (flag_tabs == 1 || flag_tabs == 2 || flag_tabs == 4 || flag_tabs == 8)
-        matcher_options.append("T=").push_back((char)flag_tabs + '0');
+        matcher_options.append("T=").push_back(static_cast<char>(flag_tabs) + '0');
       else
-        help("invalid --tabs=NUM value");
+        help("invalid argument -T=NUM, --tabs=NUM, valid arguments are 1, 2, 4, or 8");
     }
 
     if (flag_perl_regexp)
@@ -1705,7 +1730,7 @@ int main(int argc, char **argv)
       reflex::BoostPerlMatcher matcher(pattern, matcher_options.c_str());
       found = findinfiles(magic, matcher, infiles, encoding);
 #else
-      help("Option -P is not available in this version of ugrep");
+      help("option -P is not available in this version of ugrep");
 #endif
     }
     else
@@ -2055,6 +2080,18 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
           if (strcmp(flag_directories, "recurse") == 0)
           {
+            std::pair<std::set<ino_t>::iterator,bool> ino;
+
+            // this directory was visited before?
+            if (flag_dereference)
+            {
+              ino = visited.insert(buf.st_ino);
+
+              // if visited before, then do not recurse on this directory again
+              if (!ino.second)
+                return;
+            }
+
             // check for --exclude-dir and --include-dir constraints if pathname != "."
             if (strcmp(pathname, ".") != 0)
             {
@@ -2090,6 +2127,9 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
             }
 
             recurse(stats, level, magic, matcher, encoding, pathname);
+
+            if (flag_dereference)
+              visited.erase(ino.first);
           }
         }
         else if (S_ISREG(buf.st_mode) || strcmp(flag_devices, "read") == 0)
@@ -2458,15 +2498,30 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
         ++matches;
 
-        if (flag_only_line_number)
-          display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, true);
+        if (!flag_no_labels)
+        {
+          if (hex)
+          {
+            if (last_hex_offset < matcher.first())
+            {
+              hex_done(flag_separator);
+              display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, true);
+            }
+          }
+          else
+          {
+            display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, false);
+          }
+        }
       }
 
       if (!flag_only_line_number)
       {
         if (flag_hex)
         {
-          hex_dump(HEX_MATCH, pathname, lineno, matcher.columno() + 1, matcher.first(), matcher.begin(), matcher.size(), separator);
+          if (hex)
+            hex_next(matcher.first(), flag_separator);
+          hex_dump(HEX_MATCH, matcher.first(), matcher.begin(), matcher.size(), flag_separator);
           hex = true;
         }
         else if (!flag_text && is_binary(matcher.begin(), matcher.size()))
@@ -2474,32 +2529,17 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
           if (flag_with_hex)
           {
             if (hex)
-            {
-              hex_dump(HEX_MATCH, pathname, lineno, matcher.columno() + 1, matcher.first(), matcher.begin(), matcher.size(), separator);
-            }
-            else
-            {
-              display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, true);
-              hex_dump(HEX_MATCH, NULL, 0, 0, matcher.first(), matcher.begin(), matcher.size(), separator);
-              hex = true;
-            }
+              hex_next(matcher.first(), flag_separator);
+            hex_dump(HEX_MATCH, matcher.first(), matcher.begin(), matcher.size(), flag_separator);
+            hex = true;
           }
           else if (!flag_binary_without_matches)
           {
-            display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, false);
             fprintf(out, "Binary file %s matches %zu bytes\n", pathname, matcher.size());
           }
         }
         else
         {
-          if (hex)
-          {
-            hex_done(separator);
-            hex = false;
-          }
-
-          display(pathname, lineno, matcher.columno() + 1, matcher.first(), separator, false);
-
           const char *begin = matcher.begin();
           size_t size = matcher.size();
 
@@ -2536,10 +2576,10 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             if (size == 0 || begin[size - 1] != '\n')
               put('\n');
           }
-
-          if (flag_line_buffered)
-            fflush(out);
         }
+
+        if (flag_line_buffered)
+          fflush(out);
       }
     }
 
@@ -2602,7 +2642,8 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               }
             }
 
-            display(pathname, lineno, matcher.columno() + 1, byte_offset, flag_separator, binary);
+            if (!flag_no_labels)
+              display(pathname, lineno, matcher.columno() + 1, byte_offset, flag_separator, binary);
 
             ++matches;
 
@@ -2615,8 +2656,8 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
           if (binary)
           {
-            hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + last, line + last, matcher.first() - last, flag_separator);
-            hex_dump(HEX_MATCH, NULL, 0, 0, byte_offset + matcher.first(), matcher.begin(), matcher.size(), flag_separator);
+            hex_dump(HEX_LINE, byte_offset + last, line + last, matcher.first() - last, flag_separator);
+            hex_dump(HEX_MATCH, byte_offset + matcher.first(), matcher.begin(), matcher.size(), flag_separator);
           }
           else
           {
@@ -2639,7 +2680,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
         {
           if (binary)
           {
-            hex_dump(HEX_LINE, NULL, 0, 0, byte_offset + last, line + last, here - line - last, flag_separator);
+            hex_dump(HEX_LINE, byte_offset + last, line + last, here - line - last, flag_separator);
             hex_done(flag_separator);
           }
           else
@@ -2737,14 +2778,15 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
               if (last == UNDEFINED)
               {
-                display(pathname, lineno, matcher.columno() + 1, byte_offset, "-", binary[current]);
+                if (!flag_no_labels)
+                  display(pathname, lineno, matcher.columno() + 1, byte_offset, "-", binary[current]);
 
                 last = 0;
               }
 
               if (binary[current])
               {
-                hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, matcher.first() - last, "-");
+                hex_dump(HEX_CONTEXT_LINE, byte_offsets[current] + last, lines[current].c_str() + last, matcher.first() - last, "-");
               }
               else
               {
@@ -2761,7 +2803,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
               if (binary[current])
               {
-                hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), "-");
+                hex_dump(HEX_CONTEXT_MATCH, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), "-");
               }
               else
               {
@@ -2782,7 +2824,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
           {
             if (binary[current])
             {
-              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, "-");
+              hex_dump(HEX_CONTEXT_LINE, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, "-");
               hex_done("-");
             }
             else
@@ -2849,14 +2891,15 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
                 {
                   if (last == UNDEFINED)
                   {
-                    display(pathname, begin, matcher.columno() + 1, byte_offsets[begin_context], "-", binary[begin_context]);
+                    if (!flag_no_labels)
+                      display(pathname, begin, matcher.columno() + 1, byte_offsets[begin_context], "-", binary[begin_context]);
 
                     last = 0;
                   }
 
                   if (binary[begin_context])
                   {
-                    hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, matcher.first() - last, "-");
+                    hex_dump(HEX_CONTEXT_LINE, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, matcher.first() - last, "-");
                   }
                   else
                   {
@@ -2873,7 +2916,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
                   if (binary[begin_context])
                   {
-                    hex_dump(HEX_CONTEXT_MATCH, NULL, 0, 0, byte_offsets[begin_context] + matcher.first(), matcher.begin(), matcher.size(), "-");
+                    hex_dump(HEX_CONTEXT_MATCH, byte_offsets[begin_context] + matcher.first(), matcher.begin(), matcher.size(), "-");
                   }
                   else
                   {
@@ -2887,7 +2930,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
                 {
                   if (binary[begin % (flag_before_context + 1)])
                   {
-                    hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, lines[begin_context].size() - last, "-");
+                    hex_dump(HEX_CONTEXT_LINE, byte_offsets[begin_context] + last, lines[begin_context].c_str() + last, lines[begin_context].size() - last, "-");
                     hex_done("-");
                   }
                   else
@@ -2905,11 +2948,12 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               before = lineno;
             }
 
-            display(pathname, lineno, 1, byte_offsets[current], flag_separator, binary[current]);
+            if (!flag_no_labels)
+              display(pathname, lineno, 1, byte_offsets[current], flag_separator, binary[current]);
 
             if (binary[current])
             {
-              hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), flag_separator);
+              hex_dump(HEX_LINE, byte_offsets[current], lines[current].c_str(), lines[current].size(), flag_separator);
               hex_done(flag_separator);
             }
             else
@@ -2983,11 +3027,12 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
               {
                 size_t begin_context = begin % (flag_before_context + 1);
 
-                display(pathname, begin, 1, byte_offsets[begin_context], "-", binary[begin_context]);
+                if (!flag_no_labels)
+                  display(pathname, begin, 1, byte_offsets[begin_context], "-", binary[begin_context]);
 
                 if (binary[begin_context])
                 {
-                  hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[begin_context], lines[begin_context].c_str(), lines[begin_context].size(), "-");
+                  hex_dump(HEX_CONTEXT_LINE, byte_offsets[begin_context], lines[begin_context].c_str(), lines[begin_context].size(), "-");
                   hex_done("-");
                 }
                 else
@@ -3011,13 +3056,14 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
               const char *separator = (last == UNDEFINED ? flag_separator : "+");
 
-              display(pathname, lineno, matcher.columno() + 1, byte_offset + matcher.first(), separator, binary[current]);
+              if (!flag_no_labels)
+                display(pathname, lineno, matcher.columno() + 1, byte_offset + matcher.first(), separator, binary[current]);
 
               if (binary[current])
               {
-                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), matcher.first(), separator);
-                hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), separator);
-                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + matcher.last(), lines[current].c_str() + matcher.last(), matcher.last() - matcher.first(), separator);
+                hex_dump(HEX_LINE, byte_offsets[current], lines[current].c_str(), matcher.first(), separator);
+                hex_dump(HEX_MATCH, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), separator);
+                hex_dump(HEX_LINE, byte_offsets[current] + matcher.last(), lines[current].c_str() + matcher.last(), matcher.last() - matcher.first(), separator);
                 hex_done("+");
               }
               else
@@ -3043,7 +3089,8 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             {
               if (last == UNDEFINED)
               {
-                display(pathname, lineno, matcher.columno() + 1, byte_offset, flag_separator, binary[current]);
+                if (!flag_no_labels)
+                  display(pathname, lineno, matcher.columno() + 1, byte_offset, flag_separator, binary[current]);
 
                 ++matches;
 
@@ -3052,8 +3099,8 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
 
               if (binary[current])
               {
-                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, matcher.first() - last, flag_separator);
-                hex_dump(HEX_MATCH, NULL, 0, 0, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), flag_separator);
+                hex_dump(HEX_LINE, byte_offsets[current] + last, lines[current].c_str() + last, matcher.first() - last, flag_separator);
+                hex_dump(HEX_MATCH, byte_offsets[current] + matcher.first(), matcher.begin(), matcher.size(), flag_separator);
               }
               else
               {
@@ -3079,7 +3126,7 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             {
               if (binary[current])
               {
-                hex_dump(HEX_LINE, NULL, 0, 0, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, flag_separator);
+                hex_dump(HEX_LINE, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, flag_separator);
                 hex_done(flag_separator);
               }
               else
@@ -3098,11 +3145,12 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
             // -A NUM: show context after matched lines, simulates BSD grep -A
 
             // display line as part of the after context of the matched line
-            display(pathname, lineno, 1, byte_offsets[current], "-", binary[current]);
+            if (!flag_no_labels)
+              display(pathname, lineno, 1, byte_offsets[current], "-", binary[current]);
 
             if (binary[current])
             {
-              hex_dump(HEX_CONTEXT_LINE, NULL, 0, 0, byte_offsets[current], lines[current].c_str(), lines[current].size(), "-");
+              hex_dump(HEX_CONTEXT_LINE, byte_offsets[current], lines[current].c_str(), lines[current].size(), "-");
               hex_done("-");
             }
             else
@@ -3138,111 +3186,103 @@ exit_ugrep:
 }
 
 // display the header part of the match, preceeding the matched line
-void display(const char *name, size_t lineno, size_t columno, size_t byte_offset, const char *separator, bool newline)
+void display(const char *& pathname, size_t lineno, size_t columno, size_t byte_offset, const char *separator, bool newline)
 {
-  if (name != NULL)
+  bool sep = false;
+
+  if (pathname != NULL && flag_with_filename)
   {
-    bool sep = false;
+    sgi(color_fn);
+    put(pathname);
+    sgi(color_off);
 
-    if (flag_with_filename)
+    if (flag_break)
     {
-      sgi(color_fn);
-      put(name);
-      sgi(color_off);
-
-      if (flag_null)
-        put('\0');
-      else
-        sep = true;
+      put('\n');
+      pathname = NULL;
     }
-
-    if (flag_line_number || flag_only_line_number)
+    else if (flag_null)
     {
-      if (sep)
-      {
-        sgi(color_se);
-        put(separator);
-        sgi(color_off);
-      }
-
-      sgi(color_ln);
-      fprintf(out, flag_initial_tab ? "%6zu" : "%zu", lineno);
-      sgi(color_off);
-
+      put('\0');
+    }
+    else
+    {
       sep = true;
     }
+  }
 
-    if (flag_column_number)
-    {
-      if (sep)
-      {
-        sgi(color_se);
-        put(separator);
-        sgi(color_off);
-      }
-
-      sgi(color_ln);
-      fprintf(out, flag_initial_tab ? "%3zu" : "%zu", columno);
-      sgi(color_off);
-
-      sep = true;
-    }
-
-    if (flag_byte_offset)
-    {
-      if (sep)
-      {
-        sgi(color_se);
-        put(separator);
-        sgi(color_off);
-      }
-
-      sgi(color_ln);
-      fprintf(out, flag_hex ? flag_initial_tab ? "%7zx" : "%zx" : flag_initial_tab ? "%7zu" : "%zu", byte_offset);
-      sgi(color_off);
-
-      sep = true;
-    }
-
+  if (flag_line_number || flag_only_line_number)
+  {
     if (sep)
     {
       sgi(color_se);
       put(separator);
       sgi(color_off);
-
-      if (flag_initial_tab)
-        put('\t');
-
-      if (newline)
-        put('\n');
     }
+
+    sgi(color_ln);
+    fprintf(out, (sep && flag_initial_tab ? "%6zu" : "%zu"), lineno);
+    sgi(color_off);
+
+    sep = true;
+  }
+
+  if (flag_column_number)
+  {
+    if (sep)
+    {
+      sgi(color_se);
+      put(separator);
+      sgi(color_off);
+    }
+
+    sgi(color_ln);
+    fprintf(out, (flag_initial_tab ? "%3zu" : "%zu"), columno);
+    sgi(color_off);
+
+    sep = true;
+  }
+
+  if (flag_byte_offset)
+  {
+    if (sep)
+    {
+      sgi(color_se);
+      put(separator);
+      sgi(color_off);
+    }
+
+    sgi(color_ln);
+    fprintf(out, (flag_hex ? (flag_initial_tab ? "%7zx" : "%zx") : (flag_initial_tab ? "%7zu" : "%zu")), byte_offset);
+    sgi(color_off);
+
+    sep = true;
+  }
+
+  if (sep)
+  {
+    sgi(color_se);
+    put(separator);
+    sgi(color_off);
+
+    if (flag_initial_tab)
+      put('\t');
+
+    if (newline)
+      put('\n');
   }
 }
 
 // dump data in hex
-void hex_dump(short mode, const char *pathname, size_t lineno, size_t columno, size_t byte_offset, const char *data, size_t size, const char *separator)
+void hex_dump(short mode, size_t byte_offset, const char *data, size_t size, const char *separator)
 {
-  if (pathname == NULL)
-    last_hex_offset = byte_offset;
-
-  if (size > 0)
+  last_hex_offset = byte_offset;
+  while (size > 0)
   {
-    if (last_hex_offset == 0 || last_hex_offset < byte_offset)
-    {
-      if ((last_hex_offset & (size_t)0x0f) > 0)
-        hex_line(separator);
-      if (pathname != NULL)
-        display(pathname, lineno, columno, byte_offset, separator, true);
-    }
-
-    last_hex_offset = byte_offset;
-
-    while (last_hex_offset < byte_offset + size)
-    {
-      last_hex_line[last_hex_offset++ & 0x0f] = (mode << 8) | *(unsigned char*)data++;
-      if ((last_hex_offset & 0x0f) == 0)
-        hex_line(separator);
-    }
+    last_hex_line[last_hex_offset++ & 0x0f] = (mode << 8) | *reinterpret_cast<const unsigned char*>(data++);
+    if ((last_hex_offset & 0x0f) == 0)
+      hex_line(separator);
+    --size;
   }
 }
 
@@ -3250,14 +3290,24 @@ void hex_dump(short mode, const char *pathname, size_t lineno, size_t columno, s
 void hex_done(const char *separator)
 {
   if ((last_hex_offset & 0x0f) != 0)
+  {
     hex_line(separator);
+    last_hex_offset = (last_hex_offset + 0x0f) & ~static_cast<size_t>(0x0f);
+  }
+}
+
+// next hex dump location
+void hex_next(size_t byte_offset, const char *separator)
+{
+  if ((last_hex_offset & ~static_cast<size_t>(0x0f)) != (byte_offset & ~static_cast<size_t>(0x0f)))
+    hex_done(separator);
 }
 
 // dump one line of hex data
 void hex_line(const char *separator)
 {
   sgi(color_bn);
-  fprintf(out, "%.8zx", (last_hex_offset - 1) & ~(size_t)0x0f);
+  fprintf(out, "%.8zx", (last_hex_offset - 1) & ~static_cast<size_t>(0x0f));
   sgi(color_off);
   sgi(color_se);
   put(separator);
@@ -3434,6 +3484,8 @@ bool mmap_file(reflex::Input& input, const char*& base, size_t& size)
   if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < MIN_MMAP_SIZE || st.st_size > MAX_MMAP_SIZE)
     return false;
   size = static_cast<size_t>(st.st_size);
+  if (size < flag_min_mmap || size > flag_max_mmap)
+    return false;
   if (mmap_base == NULL || mmap_size < size)
   {
     mmap_size = (size + 0xFFF) & ~0xFFFUL; // round up to 4K page size
@@ -3461,7 +3513,18 @@ void mmap_free()
 #if !defined(OS_WIN) && MAX_MMAP_SIZE > 0
   if (mmap_base != NULL)
     ::munmap(mmap_base, mmap_size);
+  mmap_base = NULL;
 #endif
+}
+
+// convert unsigned decimal to size_t, produce error when conversion fails or when the value is zero
+size_t strtosize(const char *str, const char *msg)
+{
+  char *r = NULL;
+  size_t size = static_cast<size_t>(strtoull(str, &r, 10));
+  if (r == NULL || *r != '\0' || size == 0)
+    help(msg, str);
+  return size;
 }
 
 // display warning message if -q is not specified, assumes errno is set, like perror()
@@ -3554,7 +3617,8 @@ void help(const char *message, const char *arg)
             zero byte or invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
             and -X options.\n\
     --break\n\
-            Adds a line break between results from different files.\n\
+            Groups matches per file and adds a line break between results from\n\
+            different files.\n\
     -C[NUM], --context[=NUM]\n\
             Print NUM lines of leading and trailing context surrounding each\n\
             match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
@@ -3645,7 +3709,8 @@ void help(const char *message, const char *arg)
             Always print the filename with output lines.  This is the default\n\
             when there is more than one file to search.\n\
     -h, --no-filename\n\
-            Never print filenames with output lines.\n\
+            Never print filenames with output lines.  This is the default\n\
+            when there is only one file (or only standard input) to search.\n\
     --help\n\
             Print a help message.\n\
     -I\n\
@@ -3733,6 +3798,9 @@ void help(const char *message, const char *arg)
             options -A, -B, and -C.\n\
     --no-hidden\n\
             Do not search hidden files and hidden directories.\n\
+    --no-mmap\n\
+            Do not use memory maps to search files.  By default, memory maps\n\
+            are used under certain conditions to improve performance.\n\
     -O EXTENSIONS, --file-extensions=EXTENSIONS\n\
             Search only files whose file name extensions match the specified\n\
             comma-separated list of file name EXTENSIONS.  This option is the\n\
