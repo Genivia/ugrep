@@ -157,7 +157,7 @@ with many features, while offering competitive performance.
 
 Test | Command                                                          | Description
 ---- | ---------------------------------------------------------------- | -----------------------------------------------------
-T-1  | `GREP -cwE 'char|int|long|size_t|void' big.cpp`                  | count 5 short words in a 35MB C++ source code file
+T-1  | `GREP -cw -e char -e int -e long -e size_t -e void big.cpp`      | count 5 short words in a 35MB C++ source code file
 T-2  | `GREP -onE 'serialize_[a-zA-Z0-9_]+Type' big.cpp`                | search and display C++ serialization functions in a 35MB source code file
 T-3  | `GREP -onF -f words1+1000 enwik8`                                | search 1000 words in a 100MB Wikipedia file
 T-4  | `GREP -onF -f words2+1000 enwik8`                                | search 1000 words of length 2 or longer in a 100MB Wikipedia file
@@ -165,14 +165,12 @@ T-5  | `GREP -onF -f words3+1000 enwik8`                                | search
 T-6  | `GREP -onF -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
 T-7  | `GREP -onF -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
 T-8  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
-T-9  | same as T-8 but single-threaded ripgrep with `-j1`               |
+T-9  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T-8 but single-threaded ripgrep with `-j1`
 
-Note: T-8 and T-9 use **ugrep** option `-O` to restrict the search to files
-with extensions `.h`, `.hpp`, and `.cpp`, which is formulated with GNU/BSD grep
-as `-roE '#[[:space:]]*include[[:space:]]+"[^"]+"' --include='*.h'
---include='*.hpp' --include='*.cpp'` and with ripgrep as
-`'#[[:space:]]*include[[:space:]]+"[^"]+"' --glob='*.h' --glob='*.hpp'
---glob='*.cpp'`.
+Note: T-8 and T-9 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
+files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
+GNU/BSD grep as `--include='*.h' --include='*.hpp' --include='*.cpp'` and with
+ripgrep as `--glob='*.h' --glob='*.hpp' --glob='*.cpp'`.
 
 ### Results
 
