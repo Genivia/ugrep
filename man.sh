@@ -195,7 +195,7 @@ SGR substring for separators.
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches
 with the following fields:
 .IP \fB%H\fR
-if option \fB-H\fR is used, the file pathname and separator.
+if option \fB-H\fR is used, the quoted pathname and separator.
 .IP \fB%N\fR
 if option \fB-n\fR is used, the line number and separator.
 .IP \fB%K\fR
@@ -203,7 +203,7 @@ if option \fB-k\fR is used, the column number and separator.
 .IP \fB%B\fR
 if option \fB-b\fR is used, the byte offset and separator.
 .IP \fB%h\fR
-the file pathname.
+the quoted pathname.
 .IP \fB%n\fR
 the line number of the match.
 .IP \fB%k\fR
@@ -240,6 +240,9 @@ if not the first match, a colon.
 if not the first match, a semicolon.
 .IP \fB%|\fR
 if not the first match, a verical bar.
+.IP \fB%1\fR
+the first regex group capture of the match, and so on up to group \fB%9\fR,
+requires option \fB-P\fR Perl matching.
 .PP
 Matches are formatted without context.  To output the line of a match, use
 pattern '.*\fIPATTERN\fR.*' to capture the entire line, not just a match of
@@ -256,8 +259,8 @@ output \fIFORMAT\fR when closing a file and a match was found.
 output \fIFORMAT\fR when ending the search.
 .PP
 The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
-\fB--break\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR have no effect on
-formatted output.
+\fB-v\fR, \fB--break\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR are disabled
+and have no effect on the formatted output.
 .SH EXAMPLES
 To find all occurrences of the word `patricia' in a file:
 .IP

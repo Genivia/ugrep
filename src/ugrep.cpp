@@ -285,7 +285,8 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
 bool ugrep(size_t fileno, reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname);
 void format(const char *format, const char *pathname, size_t matches, reflex::AbstractMatcher& matcher);
 void format(const char *format, size_t fileno);
-void format_c(const char *data, size_t size);
+void format_quoted(const char *pathname);
+void format_cpp(const char *data, size_t size);
 void format_json(const char *data, size_t size);
 void format_csv(const char *data, size_t size);
 void format_xml(const char *data, size_t size);
@@ -1364,7 +1365,7 @@ int main(int argc, char **argv)
   {
     flag_format_begin = "const struct grep {\n  const char *file;\n  size_t line;\n  size_t column;\n  size_t offset;\n  const char *match;\n} matches[] = {\n";
     flag_format_open  = NULL;
-    flag_format       = "  { \"%h\", %n, %k, %b, %c },\n";
+    flag_format       = "  { %h, %n, %k, %b, %c },\n";
     flag_format_close = NULL;
     flag_format_end   = "};\n";
   }
@@ -1380,7 +1381,7 @@ int main(int argc, char **argv)
   else if (flag_json)
   {
     flag_format_begin = "[";
-    flag_format_open  = "%,\n  {\n    \"file\": \"%h\",\n    [";
+    flag_format_open  = "%,\n  {\n    \"file\": %h,\n    [";
     flag_format       = "%,\n      { \"line\": %n, \"column\": %k, \"offset\": %b, \"match\": %j }";
     flag_format_close = "\n    ]\n  }";
     flag_format_end   = "\n]\n";
@@ -1388,7 +1389,7 @@ int main(int argc, char **argv)
   else if (flag_xml)
   {
     flag_format_begin = "<grep>\n";
-    flag_format_open  = "  <file name=\"%h\">\n";
+    flag_format_open  = "  <file name=%h>\n";
     flag_format       = "    <match line=\"%n\" column=\"%k\" offset=\"%b\">%x</match>\n";
     flag_format_close = "  </file>\n";
     flag_format_end   = "</grep>\n";
@@ -2538,6 +2539,8 @@ bool ugrep(size_t fileno, reflex::AbstractMatcher& matcher, reflex::Input& input
           // -m: max number of matches reached?
           if (flag_max_count > 0 && matches >= flag_max_count)
             break;
+
+          // TODO: skip input till the end of the current line
         }
       }
 
@@ -3398,7 +3401,7 @@ void display(const char *& pathname, size_t lineno, size_t columno, size_t byte_
   }
 }
 
-// display formatted match with option --format
+// display format with option --format-begin and --format-end
 void format(const char *format, size_t fileno)
 {
   const char *s = format;
@@ -3438,7 +3441,7 @@ void format(const char *format, size_t fileno)
   }
 }
 
-// display formatted match with option --format
+// display formatted match with options --format, --format-open, --format-close
 void format(const char *format, const char *pathname, size_t matches, reflex::AbstractMatcher& matcher)
 {
   const char *s = format;
@@ -3456,7 +3459,7 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
       case 'H':
         if (flag_with_filename)
         {
-          put(pathname);
+          format_quoted(pathname);
           put(flag_separator);
         }
         break;
@@ -3486,7 +3489,7 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
         break;
 
       case 'h':
-        put(pathname);
+        format_quoted(pathname);
         break;
 
       case 'n':
@@ -3518,7 +3521,7 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
         break;
 
       case 'c':
-        format_c(matcher.begin(), matcher.size());
+        format_cpp(matcher.begin(), matcher.size());
         break;
 
       case 'v':
@@ -3549,13 +3552,48 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
 
       default:
         put(*s);
+        break;
+
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        std::pair<const char*,size_t> capture = matcher[c - '0'];
+        put(capture.first, capture.second);
+        break;
     }
     ++s;
   }
 }
 
-// format in C
-void format_c(const char *data, size_t size)
+// format a file pathname as a quoted string with escapes for \ and "
+void format_quoted(const char *pathname)
+{
+  const char *s = pathname;
+  put('"');
+  const char *t = s;
+  while (*s != '\0')
+  {
+    if (*s == '\\' || *s == '"')
+    {
+      put(t, s - t);
+      put('\\');
+      t = s;
+    }
+    ++s;
+  }
+  put(t, s - t);
+  put('"');
+}
+
+// format in C/C++
+void format_cpp(const char *data, size_t size)
 {
   const char *s = data;
   const char *e = data + size;
@@ -4202,7 +4240,8 @@ void help(const char *message, const char *arg)
             When FILE is a `-', standard input is read.  This option may be\n\
             repeated.\n\
     --format=FORMAT\n\
-            Output file matches formatted with FORMAT.  See man ugrep.\n\
+            Output file matches formatted with FORMAT.  Options -A, -B, -C, -y,\n\
+            and -v are disabled.  See `man ugrep' for the formatting fields.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\

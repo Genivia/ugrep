@@ -22,12 +22,12 @@ illustrating the power of **ugrep**.
 Why use ugrep?
 --------------
 
-- **ugrep supersedes GNU/BSD grep and is backward compatible** with these
-  grep utilities, offering many more useful features, such as full Unicode
-  pattern matching, "negative patterns" to ignore unwanted matches, recursive
-  search through directories while selecting files by file name extension and
-  file signature "magic bytes" and shebangs, predefined (installed) search
-  patterns to search source code, hexdumps for binary matches, seamless
+- **ugrep supersedes GNU/BSD grep and is backward compatible**, offering many
+  more useful features, such as full Unicode pattern matching, "negative
+  patterns" to skip unwanted matches, recursive search through directories
+  while selecting files by file name extension and file signature "magic bytes"
+  and shebangs, predefined (installed) search patterns to search source code,
+  hexdumps for binary matches, customized output, match replacement, seamless
   quickfix Vim integration, and more.
 
 - **ugrep is fast** and uses [RE/flex](https://github.com/Genivia/RE-flex) for
@@ -77,7 +77,7 @@ Why use ugrep?
   `import` statements (matched by the two patterns `\<import\h+.*` and
   `\<from\h+.*import\h+.*` defined in `patterns/python/imports`).
 
-- **ugrep is the only grep tool that allows you to use negative patterns**
+- **ugrep is the only grep tool that allows you to specify negative patterns**
   to *zap* parts in files you want to skip.  This removes many false positives.
   For example to find exact matches of `main` in C/C++ source code while
   skipping strings and comments that may have a match with `main` in them:
@@ -88,7 +88,7 @@ Why use ugrep?
   matches (since strings and comments may span multiple lines), `-tc++`
   searches C/C++ source code files, `-n` shows line numbers in the output, `-w`
   matches exact words (for example, `mainly` won't be matched), and the `-f`
-  options specify two predefined installed patterns to match and ignore strings
+  options specify two predefined installed patterns to match and skip strings
   and comments in the input.  As another example, it is now easy to search a
   PHP file while zapping past any HTML between PHP code segments:
 
@@ -117,8 +117,8 @@ Why use ugrep?
   and code pages 437, 850, 858, 1250 to 1258.
 
 - **ugrep customizes the output format** with options `--csv`, `--json`, and
-  `--xml` to output CSV, JSON, or XML.  Options such as `--format` are available
-  to take custom formatting to the extreme.
+  `--xml` to output CSV, JSON, or XML.  Option `--format` may be used to
+  replace matches and to take custom formatting to the extreme.
 
 - **ugrep understands gitignore-style globs** and ignores files specified
   in a `.gitignore` file (or any other file) with `--exclude-from=.gitignore`.
@@ -206,7 +206,7 @@ that **ugrep** will be faster than ripgrep.
 
 In some cases we decided in favor of features and safety over performance.  For
 example, **ugrep** considers files binary when containing invalid UTF encodings
-or a NUL (`\0`).  GNU/BSD grep only checks for NUL, which is faster but can
+or a NUL (`\0`).  GNU/BSD grep only checks for NUL, which is faster but may
 lead to match display issues.
 
 Search results are piped to a `null` utility to eliminate terminal display
@@ -232,7 +232,7 @@ For performance considerations, it is important to note that **ugrep** matches
 Unicode by default.  This means that regex meta symbol `.` and the escapes
 `\w`, `\l`, and others match Unicode.  As a result, these may take (much) more
 time to match.  To disable Unicode matching, use **ugrep** with option `-U`,
-e.g. `ugrep -on -U 'serialize_\w+Type'` is fast and slower without `-U`.
+e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 
 ### Future improvements
 
@@ -262,7 +262,7 @@ This builds `ugrep` in the `src` directory.  You can tell which version it is
 with:
 
     $ src/ugrep -V
-    ugrep 1.3.9 x86_64-apple-darwin16.7.0
+    ugrep 1.4.1 x86_64-apple-darwin16.7.0
 
 Optionally, install the ugrep utility and the ugrep manual page as follows:
 
@@ -442,7 +442,7 @@ numbers next to the lines matched:
     ugrep -r -n -k -w 'main' myproject
 
 This search query also finds `main` in strings and comment blocks.  With
-**ugrep** we can use *negative patterns* of the form `(?^...)` to ignore
+**ugrep** we can use *negative patterns* of the form `(?^...)` to skip
 unwanted matches in C/C++ quoted strings and comment blocks.  Because strings
 and comment blocks may span multiple lines, we should use `-o`:
 
@@ -463,7 +463,7 @@ and include symlinks to files and directories with `-R`:
     ugrep -R -o -tc,c++ -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
 What if we are only looking for the identifier `main` but not as a function
-`main(`?  We can use a negative pattern for this to ignore unwanted `main\h*(`
+`main(`?  We can use a negative pattern for this to skip unwanted `main\h*(`
 pattern matches:
 
     ugrep -R -o -tc,c++ -nkw -e 'main' -e '(?^main\h*\()' -f c/zap_strings -f c/zap_comments myproject
@@ -888,7 +888,7 @@ To display the byte offset of matches with `-b`:
 
     ugrep -r -b -tc++ 'main'
 
-### Customizing the output
+### Customizing the output by replacing matches and using group captures
 
 To recursively search for lines with `TODO` and display C++ file matches in
 JSON:
@@ -904,6 +904,16 @@ To recursively search for lines with `TODO` and display C++ file matches in CSV
 format with file pathname, line number, and column number fields:
 
     ugrep -rtc++ --csv -Hnk '.*TODO.*'
+
+To extract a table from an HTML file and put it in C/C++ source code:
+
+    ugrep --cpp '<tr>.*</tr>' index.html > table.cpp
+
+To extract table cells from an HTML file using Perl matching (`-P`) to support
+group capture with lazy quantifier `(.*?)`, and translate the matches to a
+comma-separated list with format `%,%1` (conditional comma and group capture):
+
+    ugrep -P '<td>(.*?)</td>' --format='%,%1' index.html
 
 ### Displaying colors with --color
 
@@ -1135,7 +1145,9 @@ Man page
                   may be repeated.
 
            --format=FORMAT
-                  Output file matches formatted with FORMAT.  See man ugrep.
+                  Output  file matches formatted with FORMAT.  Options -A, -B, -C,
+                  -y, and -v are disabled.  See `man  ugrep'  for  the  formatting
+                  fields.
 
            --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
@@ -1569,7 +1581,7 @@ Man page
            Option --format=FORMAT specifies an output format for file matches with
            the following fields:
 
-           %H     if option -H is used, the file pathname and separator.
+           %H     if option -H is used, the quoted pathname and separator.
 
            %N     if option -n is used, the line number and separator.
 
@@ -1577,7 +1589,7 @@ Man page
 
            %B     if option -b is used, the byte offset and separator.
 
-           %h     the file pathname.
+           %h     the quoted pathname.
 
            %n     the line number of the match.
 
@@ -1615,8 +1627,11 @@ Man page
 
            %|     if not the first match, a verical bar.
 
-           Matches  are formatted without context.  To output the line of a match,
-           use pattern '.*PATTERN.*' to capture the entire line, not just a  match
+           %1     the  first  regex  group  capture  of the match, and so on up to
+                  group %9, requires option -P Perl matching.
+
+           Matches are formatted without context.  To output the line of a  match,
+           use  pattern '.*PATTERN.*' to capture the entire line, not just a match
            of PATTERN.
 
            Additional formatting options:
@@ -1633,8 +1648,8 @@ Man page
            --format-end=FORMAT
                   output FORMAT when ending the search.
 
-           The  context  options -A, -B, -C, -y, and options --break, --color, -T,
-           and --null have no effect on formatted output.
+           The context options -A, -B, -C, -y, and options -v,  --break,  --color,
+           -T, and --null are disabled and have no effect on the formatted output.
 
     EXAMPLES
            To find all occurrences of the word `patricia' in a file:
@@ -1726,7 +1741,7 @@ Man page
 
 
 
-    ugrep 1.4.2                   September 11, 2019                      UGREP(1)
+    ugrep 1.4.3                   September 12, 2019                      UGREP(1)
 
 <a name="patterns"/>
 
