@@ -52,7 +52,7 @@ Optional libraries:
 
 Compile:
 
-  c++ -std=c++11 -O2 -o ugrep -DHAVE_LIBZ -DHAVE_BOOST_REGEX ugrep.cpp glob.cpp zstream.cpp -lreflex -lz -lboost_regex
+  c++ -std=c++11 -O2 -o ugrep -DHAVE_LIBZ -DHAVE_BOOST_REGEX ugrep.cpp glob.cpp -lreflex -lz -lboost_regex
 
 */
 
@@ -62,6 +62,7 @@ Compile:
 #include <cctype>
 #include <cstring>
 #include <cerrno>
+#include <set>
 
 // check if we are compiling for a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
@@ -110,7 +111,7 @@ Compile:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.4.1"
+#define UGREP_VERSION "1.4.2"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -138,8 +139,8 @@ Compile:
 
 // mmap base and size, for mmap reuse, should be thread local
 #if !defined(OS_WIN) && MAX_MMAP_SIZE > 0
-static void *mmap_base = NULL;
-static size_t mmap_size = 0;
+void *mmap_base = NULL;
+size_t mmap_size = 0;
 #endif
 
 // statistics
@@ -175,15 +176,19 @@ const char *color_off = "";
 #define HEX_LINE          1
 #define HEX_CONTEXT_MATCH 2
 #define HEX_CONTEXT_LINE  3
-short last_hex_line[0x10] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-size_t last_hex_offset = 0;
+
+// hex color highlights for HEX_MATCH, HEX_LINE, HEX_CONTEXT_MATCH, HEX_CONTEXT_LINE
 const char *color_hex[4] = { color_ms, color_sl, color_mc, color_cx };
+
+// 16 hex codes per line, should be thread local
+short last_hex_line[16] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+size_t last_hex_offset = 0;
 
 // output destination is standard output by default or a pipe to --pager
 FILE *out = stdout;
 
 #ifndef OS_WIN
-// detect directory cycles when symlinks are traversed with --dereference
+// container of inodes to detect directory cycles when symlinks are traversed with --dereference
 std::set<ino_t> visited;
 #endif
 
@@ -227,6 +232,10 @@ bool flag_decompress               = false;
 bool flag_any_line                 = false;
 bool flag_break                    = false;
 bool flag_stats                    = false;
+bool flag_cpp                      = false;
+bool flag_csv                      = false;
+bool flag_json                     = false;
+bool flag_xml                      = false;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
@@ -239,6 +248,11 @@ size_t flag_max_mmap               = MAX_MMAP_SIZE;
 const char *flag_pager             = NULL;
 const char *flag_color             = NULL;
 const char *flag_encoding          = NULL;
+const char *flag_format            = NULL;
+const char *flag_format_begin      = NULL;
+const char *flag_format_end        = NULL;
+const char *flag_format_open       = NULL;
+const char *flag_format_close      = NULL;
 const char *flag_devices           = "skip";
 const char *flag_directories       = "read";
 const char *flag_label             = "(standard input)";
@@ -268,7 +282,13 @@ extern bool globmat(const char *pathname, const char *basename, const char *glob
 bool findinfiles(reflex::Matcher& magic, reflex::AbstractMatcher& matcher, std::vector<const char*>& infiles, reflex::Input::file_encoding_type encoding);
 void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMatcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname, const char *basename, bool is_argument = false);
 void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMatcher& matcher, reflex::Input::file_encoding_type encoding, const char *pathname);
-bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname);
+bool ugrep(size_t fileno, reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname);
+void format(const char *format, const char *pathname, size_t matches, reflex::AbstractMatcher& matcher);
+void format(const char *format, size_t fileno);
+void format_c(const char *data, size_t size);
+void format_json(const char *data, size_t size);
+void format_csv(const char *data, size_t size);
+void format_xml(const char *data, size_t size);
 void display(const char *& pathname, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
 void hex_dump(short mode, size_t byte_offset, const char *data, size_t size, const char *separator);
 void hex_done(const char *separator);
@@ -309,11 +329,19 @@ inline bool getline(const char*& here, size_t& left)
   // read line from mmap memory
   if (left == 0)
     return true;
+#if 1 // assume memchr() is fast
+  const char *s = static_cast<const char*>(memchr(here, '\n', left));
+  if (s == NULL)
+    s = here + left;
+  else
+    ++s;
+#else
   const char *s = here;
   const char *e = here + left;
   while (s < e)
     if (*s++ == '\n')
       break;
+#endif
   left -= s - here;
   here = s;
   return false;
@@ -327,11 +355,19 @@ inline bool getline(const char*& here, size_t& left, reflex::BufferedInput& buff
     // read line from mmap memory
     if (left == 0)
       return true;
+#if 1 // assume memchr() is fast
+    const char *s = static_cast<const char*>(memchr(here, '\n', left));
+    if (s == NULL)
+      s = here + left;
+    else
+      ++s;
+#else
     const char *s = here;
     const char *e = here + left;
     while (s < e)
       if (*s++ == '\n')
         break;
+#endif
     line.assign(here, s - here);
     left -= s - here;
     here = s;
@@ -364,7 +400,7 @@ inline bool getline(const char*& here, size_t& left, reflex::BufferedInput& buff
   return ch == EOF && line.empty();
 }
 
-// return true if s[0..n-1] is displayable binary (non-displayable)
+// return true if s[0..n-1] is non-displayable binary
 inline bool is_binary(const char *s, size_t n)
 {
   // check if s[0..n-1] contains a NUL or invalid UTF-8
@@ -640,6 +676,10 @@ int main(int argc, char **argv)
               flag_after_context = flag_before_context = strtosize(arg + 8, "invalid argument --context=");
             else if (strcmp(arg, "count") == 0)
               flag_count = true;
+            else if (strcmp(arg, "cpp") == 0)
+              flag_cpp = true;
+            else if (strcmp(arg, "csv") == 0)
+              flag_csv = true;
             else if (strcmp(arg, "decompress") == 0)
               flag_decompress = true;
             else if (strcmp(arg, "dereference") == 0)
@@ -676,6 +716,16 @@ int main(int argc, char **argv)
               flag_files_without_match = true;
             else if (strcmp(arg, "fixed-strings") == 0)
               flag_fixed_strings = true;
+            else if (strncmp(arg, "format=", 7) == 0)
+              flag_format = arg + 7;
+            else if (strncmp(arg, "format-begin=", 13) == 0)
+              flag_format_begin = arg + 13;
+            else if (strncmp(arg, "format-close=", 13) == 0)
+              flag_format_close = arg + 13;
+            else if (strncmp(arg, "format-end=", 11) == 0)
+              flag_format_end = arg + 11;
+            else if (strncmp(arg, "format-open=", 12) == 0)
+              flag_format_open = arg + 12;
             else if (strcmp(arg, "free-space") == 0)
               flag_free_space = true;
             else if (strncmp(arg, "group-separator=", 16) == 0)
@@ -700,6 +750,8 @@ int main(int argc, char **argv)
               flag_jobs = MAX_JOBS;
             else if (strncmp(arg, "jobs=", 5) == 0)
               flag_jobs = strtosize(arg + 5, "invalid argument --jobs=");
+            else if (strcmp(arg, "json") == 0)
+              flag_json = true;
             else if (strcmp(arg, "label") == 0)
               flag_label = "";
             else if (strncmp(arg, "label=", 6) == 0)
@@ -770,6 +822,8 @@ int main(int argc, char **argv)
               flag_binary_files = "with-hex";
             else if (strcmp(arg, "word-regexp") == 0)
               flag_word_regexp = true;
+            else if (strcmp(arg, "xml") == 0)
+              flag_xml = true;
             else
               help("invalid option --", arg);
             is_grouped = false;
@@ -1190,6 +1244,7 @@ int main(int argc, char **argv)
     }
   }
 
+  // -f: get patterns from file
   if (!flag_file.empty())
   {
     // add an ending '|' to the regex to concatenate sub-expressions
@@ -1303,6 +1358,41 @@ int main(int argc, char **argv)
   // if no display options -H, -n, -N, -k, -b are set, enable --no-labels to suppress labels for speed
   if (!flag_with_filename && !flag_line_number && !flag_only_line_number && !flag_column_number && !flag_byte_offset)
     flag_no_labels = true;
+
+  // normalize --cpp, --json, --xml
+  if (flag_cpp)
+  {
+    flag_format_begin = "const struct grep {\n  const char *file;\n  size_t line;\n  size_t column;\n  size_t offset;\n  const char *match;\n} matches[] = {\n";
+    flag_format_open  = NULL;
+    flag_format       = "  { \"%h\", %n, %k, %b, %c },\n";
+    flag_format_close = NULL;
+    flag_format_end   = "};\n";
+  }
+  else if (flag_csv)
+  {
+    flag_format_begin = NULL;
+    flag_format_open  = NULL;
+    flag_format       = "%H%N%K%B%v\n";
+    flag_format_close = NULL;
+    flag_format_end   = NULL;
+    flag_separator    = ",";
+  }
+  else if (flag_json)
+  {
+    flag_format_begin = "[";
+    flag_format_open  = "%,\n  {\n    \"file\": \"%h\",\n    [";
+    flag_format       = "%,\n      { \"line\": %n, \"column\": %k, \"offset\": %b, \"match\": %j }";
+    flag_format_close = "\n    ]\n  }";
+    flag_format_end   = "\n]\n";
+  }
+  else if (flag_xml)
+  {
+    flag_format_begin = "<grep>\n";
+    flag_format_open  = "  <file name=\"%h\">\n";
+    flag_format       = "    <match line=\"%n\" column=\"%k\" offset=\"%b\">%x</match>\n";
+    flag_format_close = "  </file>\n";
+    flag_format_end   = "</grep>\n";
+  }
 
   // TODO evaluate cases when mmap actually improves or degrades performance, turning it on/off selectively
   // if not recursing into directories, then disable mmap since we only touch a few files
@@ -1433,7 +1523,7 @@ int main(int argc, char **argv)
   else if (strcmp(flag_binary_files, "binary") != 0)
     help("invalid argument --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex', and 'with-hex'");
 
-  // default file encoding is plain (no conversion)
+  // default file encoding is plain (no conversion), but detect UTF-8/16/32 automatically
   reflex::Input::file_encoding_type encoding = reflex::Input::file_encoding::plain;
 
   // -Q: parse ENCODING value
@@ -1688,17 +1778,14 @@ int main(int argc, char **argv)
     // set reflex::Pattern options to raise exceptions and to enable multiline mode
     std::string pattern_options("(?m");
 
+    // -i: case-insensitive reflex::Pattern option, applies to ASCII only
     if (flag_ignore_case)
-    {
-      // -i: case-insensitive reflex::Pattern option, applies to ASCII only
       pattern_options.append("i");
-    }
 
+    // --free-space: this is needed to check free-space conformance by the converter
     if (flag_free_space)
     {
-      // --free-space: this is needed to check free-space conformance by the converter
       convert_flags |= reflex::convert_flag::freespace;
-      // free-space reflex::Pattern option
       pattern_options.append("x");
     }
 
@@ -1722,10 +1809,11 @@ int main(int argc, char **argv)
         help("invalid argument -T=NUM, --tabs=NUM, valid arguments are 1, 2, 4, or 8");
     }
 
+    // -P: Perl matching with Boost.Regex
     if (flag_perl_regexp)
     {
 #ifdef HAVE_BOOST_REGEX
-      // construct the NFA pattern matcher
+      // construct the Boost.Regex NFA-based Perl pattern matcher
       std::string pattern(reflex::BoostPerlMatcher::convert(regex, convert_flags));
       reflex::BoostPerlMatcher matcher(pattern, matcher_options.c_str());
       found = findinfiles(magic, matcher, infiles, encoding);
@@ -1735,7 +1823,7 @@ int main(int argc, char **argv)
     }
     else
     {
-      // construct the DFA pattern matcher and start matching files
+      // construct the RE/flex DFA pattern matcher and start matching files
       reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), "r");
       reflex::Matcher matcher(pattern, matcher_options.c_str());
       found = findinfiles(magic, matcher, infiles, encoding);
@@ -1847,6 +1935,10 @@ bool findinfiles(reflex::Matcher& magic, reflex::AbstractMatcher& matcher, std::
 {
   Stats stats;
 
+  // --format-begin
+  if (flag_format_begin != NULL)
+    format(flag_format_begin, 0);
+
   if (infiles.empty())
   {
     recurse(stats, 1, magic, matcher, encoding, NULL);
@@ -1863,7 +1955,7 @@ bool findinfiles(reflex::Matcher& magic, reflex::AbstractMatcher& matcher, std::
 
         ++stats.files;
 
-        if (ugrep(matcher, input, flag_label))
+        if (ugrep(stats.fileno, matcher, input, flag_label))
           ++stats.fileno;
       }
       else
@@ -1885,6 +1977,11 @@ bool findinfiles(reflex::Matcher& magic, reflex::AbstractMatcher& matcher, std::
     }
   }
 
+  // --format-end
+  if (flag_format_end != NULL)
+    format(flag_format_end, stats.files);
+
+  // --stats: display stats when we're done
   if (flag_stats)
   {
     fprintf(out, "Searched %zu file%s", stats.files, stats.files == 1 ? "" : "s");
@@ -2001,7 +2098,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
           rewind(file);
 
-          if (ugrep(matcher, input, pathname))
+          if (ugrep(stats.fileno, matcher, input, pathname))
             ++stats.fileno;
 
           fclose(file);
@@ -2047,7 +2144,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
       ++stats.files;
 
-      if (ugrep(matcher, input, pathname))
+      if (ugrep(stats.fileno, matcher, input, pathname))
         ++stats.fileno;
     }
 
@@ -2175,7 +2272,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
                   rewind(file);
 
-                  if (ugrep(matcher, input, pathname))
+                  if (ugrep(stats.fileno, matcher, input, pathname))
                   {
                     ++stats.fileno;
 
@@ -2197,7 +2294,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
                   rewind(file);
 
-                  if (ugrep(matcher, input, pathname))
+                  if (ugrep(stats.fileno, matcher, input, pathname))
                   {
                     ++stats.fileno;
 
@@ -2251,7 +2348,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
               ++stats.files;
 
-              if (ugrep(matcher, input, pathname))
+              if (ugrep(stats.fileno, matcher, input, pathname))
                 ++stats.fileno;
             }
             else
@@ -2261,7 +2358,7 @@ void find(Stats& stats, size_t level, reflex::Matcher& magic, reflex::AbstractMa
 
               ++stats.files;
 
-              if (ugrep(matcher, input, pathname))
+              if (ugrep(stats.fileno, matcher, input, pathname))
                 ++stats.fileno;
             }
           }
@@ -2369,7 +2466,7 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
 }
 
 // search input, display pattern matches, return true when pattern matched anywhere
-bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname)
+bool ugrep(size_t fileno, reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname)
 {
   // mmap base and size, set with read_file() and mmap_file()
   const char *base = NULL;
@@ -2468,6 +2565,34 @@ bool ugrep(reflex::AbstractMatcher& matcher, reflex::Input& input, const char *p
     }
 
     fprintf(out, "%zu\n", matches);
+
+    if (flag_line_buffered)
+      fflush(out);
+  }
+  else if (flag_format != NULL)
+  {
+    // --format
+
+    read_file(matcher, input, base, size);
+
+    while (matcher.find())
+    {
+      // --format-open
+      if (matches == 0 && flag_format_open != NULL)
+        format(flag_format_open, pathname, fileno, matcher);
+
+      format(flag_format, pathname, matches, matcher);
+
+      ++matches;
+
+      // -m: max number of matches reached?
+      if (flag_max_count > 0 && matches >= flag_max_count)
+        break;
+    }
+
+    // --format-close
+    if (matches > 0 && flag_format_close != NULL)
+      format(flag_format_close, pathname, fileno, matcher);
 
     if (flag_line_buffered)
       fflush(out);
@@ -3273,7 +3398,385 @@ void display(const char *& pathname, size_t lineno, size_t columno, size_t byte_
   }
 }
 
-// dump data in hex
+// display formatted match with option --format
+void format(const char *format, size_t fileno)
+{
+  const char *s = format;
+  while (*s != '\0')
+  {
+    const char *t = s;
+    while (*s != '\0' && *s != '%')
+      ++s;
+    put(t, s - t);
+    if (*s == '\0' || *(s + 1) == '\0')
+      break;
+    int c = *++s;
+    switch (c)
+    {
+      case 'm':
+        fprintf(out, "%zu", fileno + 1);
+        break;
+
+      case 't':
+        c = '\t';
+      case ',':
+      case ':':
+      case ';':
+      case '|':
+        if (fileno > 0)
+          put(c);
+        break;
+
+      case '~':
+        put('\n');
+        break;
+
+      default:
+        put(*s);
+    }
+    ++s;
+  }
+}
+
+// display formatted match with option --format
+void format(const char *format, const char *pathname, size_t matches, reflex::AbstractMatcher& matcher)
+{
+  const char *s = format;
+  while (*s != '\0')
+  {
+    const char *t = s;
+    while (*s != '\0' && *s != '%')
+      ++s;
+    put(t, s - t);
+    if (*s == '\0' || *(s + 1) == '\0')
+      break;
+    int c = *++s;
+    switch (c)
+    {
+      case 'H':
+        if (flag_with_filename)
+        {
+          put(pathname);
+          put(flag_separator);
+        }
+        break;
+
+      case 'N':
+        if (flag_line_number && !flag_only_line_number)
+        {
+          fprintf(out, "%zu", matcher.lineno());
+          put(flag_separator);
+        }
+        break;
+
+      case 'K':
+        if (flag_column_number)
+        {
+          fprintf(out, "%zu", matcher.columno() + 1);
+          put(flag_separator);
+        }
+        break;
+
+      case 'B':
+        if (flag_byte_offset)
+        {
+          fprintf(out, "%zu", matcher.first());
+          put(flag_separator);
+        }
+        break;
+
+      case 'h':
+        put(pathname);
+        break;
+
+      case 'n':
+        fprintf(out, "%zu", matcher.lineno());
+        break;
+
+      case 'k':
+        fprintf(out, "%zu", matcher.columno() + 1);
+        break;
+
+      case 'b':
+        fprintf(out, "%zu", matcher.first());
+        break;
+
+      case 'w':
+        fprintf(out, "%zu", matcher.wsize());
+        break;
+
+      case 'd':
+        fprintf(out, "%zu", matcher.size());
+        break;
+
+      case 'm':
+        fprintf(out, "%zu", matches + 1);
+        break;
+
+      case 's':
+        put(matcher.begin(), matcher.size());
+        break;
+
+      case 'c':
+        format_c(matcher.begin(), matcher.size());
+        break;
+
+      case 'v':
+        format_csv(matcher.begin(), matcher.size());
+        break;
+
+      case 'j':
+        format_json(matcher.begin(), matcher.size());
+        break;
+
+      case 'x':
+        format_xml(matcher.begin(), matcher.size());
+        break;
+
+      case 't':
+        c = '\t';
+      case ',':
+      case ':':
+      case ';':
+      case '|':
+        if (matches > 0)
+          put(c);
+        break;
+
+      case '~':
+        put('\n');
+        break;
+
+      default:
+        put(*s);
+    }
+    ++s;
+  }
+}
+
+// format in C
+void format_c(const char *data, size_t size)
+{
+  const char *s = data;
+  const char *e = data + size;
+  const char *t = s;
+  put('"');
+  while (s < e)
+  {
+    int c = *s;
+    if ((c & 0x80) == 0)
+    {
+      if (c < 0x20 || c == '"' || c == '\\')
+      {
+        switch (c)
+        {
+          case '\b':
+            c = 'b';
+            break;
+          case '\f':
+            c = 'f';
+            break;
+          case '\n':
+            c = 'n';
+            break;
+          case '\r':
+            c = 'r';
+            break;
+          case '\t':
+            c = 't';
+            break;
+        }
+        put(t, s - t);
+        if (c > 0x20)
+        {
+          put('\\');
+          put(c);
+        }
+        else
+        {
+          fprintf(out, "\\x%.2x", c);
+        }
+        t = s + 1;
+      }
+    }
+    ++s;
+  }
+  put(t, s - t);
+  put('"');
+}
+
+// format in JSON
+void format_json(const char *data, size_t size)
+{
+  const char *s = data;
+  const char *e = data + size;
+  const char *t = s;
+  put('"');
+  while (s < e)
+  {
+    int c = *s;
+    if ((c & 0x80) == 0)
+    {
+      if (c < 0x20 || c == '"' || c == '\\')
+      {
+        switch (c)
+        {
+          case '\b':
+            c = 'b';
+            break;
+          case '\f':
+            c = 'f';
+            break;
+          case '\n':
+            c = 'n';
+            break;
+          case '\r':
+            c = 'r';
+            break;
+          case '\t':
+            c = 't';
+            break;
+        }
+        put(t, s - t);
+        if (c > 0x20)
+        {
+          put('\\');
+          put(c);
+        }
+        else
+        {
+          fprintf(out, "\\u%.4x", c);
+        }
+        t = s + 1;
+      }
+    }
+    ++s;
+  }
+  put(t, s - t);
+  put('"');
+}
+
+// format in CSV
+void format_csv(const char *data, size_t size)
+{
+  const char *s = data;
+  const char *e = data + size;
+  const char *t = s;
+  put('"');
+  while (s < e)
+  {
+    int c = *s;
+    if ((c & 0x80) == 0)
+    {
+      if (c == '"')
+      {
+        put(t, s - t);
+        put("\"\"");
+        t = s + 1;
+      }
+      else if ((c < 0x20 && c != '\t') || c == '\\')
+      {
+        switch (c)
+        {
+          case '\b':
+            c = 'b';
+            break;
+          case '\f':
+            c = 'f';
+            break;
+          case '\n':
+            c = 'n';
+            break;
+          case '\r':
+            c = 'r';
+            break;
+          case '\t':
+            c = 't';
+            break;
+        }
+        put(t, s - t);
+        if (c > 0x20)
+        {
+          put('\\');
+          put(c);
+        }
+        else
+        {
+          fprintf(out, "\\x%.2x", c);
+        }
+        t = s + 1;
+      }
+    }
+    ++s;
+  }
+  put(t, s - t);
+  put('"');
+}
+
+// format in XML
+void format_xml(const char *data, size_t size)
+{
+  const char *s = data;
+  const char *e = data + size;
+  const char *t = s;
+  while (s < e)
+  {
+    int c = *s;
+    if ((c & 0x80) == 0)
+    {
+      switch (c)
+      {
+        case 9:
+          put(t, s - t);
+          put("&#x9;");
+          t = s + 1;
+          break;
+
+        case '&':
+          put(t, s - t);
+          put("&amp;");
+          t = s + 1;
+          break;
+
+        case '<':
+          put(t, s - t);
+          put("&lt;");
+          t = s + 1;
+          break;
+
+        case '>':
+          put(t, s - t);
+          put("&gt;");
+          t = s + 1;
+          break;
+
+        case '"':
+          put(t, s - t);
+          put("&quot;");
+          t = s + 1;
+          break;
+
+        case 0x7f:
+          put(t, s - t);
+          put("&#x7f;");
+          t = s + 1;
+          break;
+
+        default:
+          if (c < 0x20)
+          {
+            put(t, s - t);
+            fprintf(out, "&#x%x;", c);
+            t = s + 1;
+          }
+      }
+    }
+    ++s;
+  }
+  put(t, s - t);
+}
+
+// dump matched data in hex
 void hex_dump(short mode, size_t byte_offset, const char *data, size_t size, const char *separator)
 {
   last_hex_offset = byte_offset;
@@ -3633,6 +4136,11 @@ void help(const char *message, const char *arg)
             GREP_COLOR or GREP_COLORS environment variable.  The possible\n\
             values of WHEN can be `never', `always', or `auto', where `auto'\n\
             marks up matches only when output on a terminal.\n\
+    --cpp\n\
+            Output file matches in C++.  See also option --format.\n\
+    --csv\n\
+            Output file matches in CSV.  Use options -H, -n, -k, and -b to\n\
+            specify additional field values.  See also option --format.\n\
     -D ACTION, --devices=ACTION\n\
             If an input file is a device, FIFO or socket, use ACTION to process\n\
             it.  By default, ACTION is `skip', which means that devices are\n\
@@ -3674,18 +4182,18 @@ void help(const char *message, const char *arg)
             Read the globs from FILE and skip files and directories whose name\n\
             matches one or more globs (as if specified by --exclude and\n\
             --exclude-dir).  Lines starting with a `#' and empty lines in FILE\n\
-            ignored.  When FILE is a a `-', standard input is read.  This\n\
-            option may be repeated.\n\
+            ignored.  When FILE is a `-', standard input is read.  This option\n\
+            may be repeated.\n\
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This makes ugrep behave as fgrep.\n\
             This option does not apply to -f FILE patterns.  To apply -F to\n\
-            patterns in FILE use -Fe `cat FILE`.\n\
+            patterns in FILE use -F -e `cat FILE`.\n\
     -f FILE, --file=FILE\n\
             Read one or more newline-separated patterns from FILE.  Empty\n\
-            pattern lines in the file are not processed.  Options -F, -w, and\n\
-            -x do not apply to FILE patterns.  If FILE does not exist, the\n\
-            GREP_PATH environment variable is used as the path to read FILE.\n"
+            pattern lines in FILE are not processed.  Options -F, -w, and -x do\n\
+            not apply to FILE patterns.  If FILE does not exist, the GREP_PATH\n\
+            environment variable is used as the path to read FILE.\n"
 #ifdef GREP_PATH
 "\
             If that fails, looks for FILE in " GREP_PATH ".\n"
@@ -3693,6 +4201,8 @@ void help(const char *message, const char *arg)
 "\
             When FILE is a `-', standard input is read.  This option may be\n\
             repeated.\n\
+    --format=FORMAT\n\
+            Output file matches formatted with FORMAT.  See man ugrep.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -3746,6 +4256,8 @@ void help(const char *message, const char *arg)
     -j, --smart-case\n\
             Perform case insensitive matching unless PATTERN contains a capital\n\
             letter.  Case insensitive matching applies to ASCII letters only.\n\
+    --json\n\
+            Output file matches in JSON.  See also option --format.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -3888,7 +4400,7 @@ void help(const char *message, const char *arg)
     -w, --word-regexp\n\
             The PATTERN or -e PATTERN are searched for as a word (as if\n\
             surrounded by \\< and \\>).  This option does not apply to -f FILE\n\
-            patterns.  To apply -w to patterns in FILE use -we `cat FILE`.\n\
+            patterns.  To apply -w to patterns in FILE use -w -e `cat FILE`.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.\n\
@@ -3896,7 +4408,9 @@ void help(const char *message, const char *arg)
             Only input lines selected against the entire PATTERN or -e PATTERN\n\
             are considered to be matching lines (as if surrounded by ^ and $).\n\
             This option does not apply to -f FILE patterns.  To apply -x to\n\
-            patterns in FILE use -xe `cat FILE`.\n\
+            patterns in FILE use -x -e `cat FILE`.\n\
+    --xml\n\
+            Output file matches in XML.  See also option --format.\n\
     -Y, --empty\n\
             Permits empty matches, such as `^\\h*$' to match blank lines.  Empty\n\
             matches are disabled by default.  Note that empty-matching patterns\n\

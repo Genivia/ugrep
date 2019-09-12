@@ -1,4 +1,4 @@
-.TH UGREP "1" "September 10, 2019" "ugrep 1.4.1" "User Commands"
+.TH UGREP "1" "September 11, 2019" "ugrep 1.4.2" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -81,6 +81,13 @@ GREP_COLOR or GREP_COLORS environment variable.  The possible
 values of WHEN can be `never', `always', or `auto', where `auto'
 marks up matches only when output on a terminal.
 .TP
+\fB\-\-cpp\fR
+Output file matches in C++.  See also option \fB\-\-format\fR.
+.TP
+\fB\-\-csv\fR
+Output file matches in CSV.  Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
+specify additional field values.  See also option \fB\-\-format\fR.
+.TP
 \fB\-D\fR \fIACTION\fR, \fB\-\-devices\fR=\fIACTION\fR
 If an input file is a device, FIFO or socket, use ACTION to process
 it.  By default, ACTION is `skip', which means that devices are
@@ -128,23 +135,26 @@ repeated.
 Read the globs from FILE and skip files and directories whose name
 matches one or more globs (as if specified by \fB\-\-exclude\fR and
 \fB\-\-exclude\-dir\fR).  Lines starting with a `#' and empty lines in FILE
-ignored.  When FILE is a a `\fB\-'\fR, standard input is read.  This
-option may be repeated.
+ignored.  When FILE is a `\fB\-'\fR, standard input is read.  This option
+may be repeated.
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
 any of which is to be matched.  This makes ugrep behave as fgrep.
 This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  To apply \fB\-F\fR to
-patterns in FILE use \fB\-F\fRe `cat FILE`.
+patterns in FILE use \fB\-F\fR \fB\-e\fR `cat FILE`.
 .TP
 \fB\-f\fR \fIFILE\fR, \fB\-\-file\fR=\fIFILE\fR
 Read one or more newline\-separated patterns from FILE.  Empty
-pattern lines in the file are not processed.  Options \fB\-F\fR, \fB\-w\fR, and
-\-x do not apply to FILE patterns.  If FILE does not exist, the
-GREP_PATH environment variable is used as the path to read FILE.
+pattern lines in FILE are not processed.  Options \fB\-F\fR, \fB\-w\fR, and \fB\-x\fR do
+not apply to FILE patterns.  If FILE does not exist, the GREP_PATH
+environment variable is used as the path to read FILE.
 If that fails, looks for FILE in /usr/local/share/ugrep/patterns.
 When FILE is a `\fB\-'\fR, standard input is read.  This option may be
 repeated.
+.TP
+\fB\-\-format\fR=\fIFORMAT\fR
+Output file matches formatted with FORMAT.  See man ugrep.
 .TP
 \fB\-\-free\-space\fR
 Spacing (blanks and tabs) in regular expressions are ignored.
@@ -212,6 +222,9 @@ This feature is not available in this version of ugrep.
 \fB\-j\fR, \fB\-\-smart\-case\fR
 Perform case insensitive matching unless PATTERN contains a capital
 letter.  Case insensitive matching applies to ASCII letters only.
+.TP
+\fB\-\-json\fR
+Output file matches in JSON.  See also option \fB\-\-format\fR.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of the
@@ -396,7 +409,7 @@ option.
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The PATTERN or \fB\-e\fR \fIPATTERN\fR are searched for as a word (as if
 surrounded by \\< and \\>).  This option does not apply to \fB\-f\fR \fIFILE\fR
-patterns.  To apply \fB\-w\fR to patterns in FILE use \fB\-w\fRe `cat FILE`.
+patterns.  To apply \fB\-w\fR to patterns in FILE use \fB\-w\fR \fB\-e\fR `cat FILE`.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
@@ -406,7 +419,10 @@ Output matches in hexadecimal.  This option is equivalent to the
 Only input lines selected against the entire PATTERN or \fB\-e\fR \fIPATTERN\fR
 are considered to be matching lines (as if surrounded by ^ and $).
 This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  To apply \fB\-x\fR to
-patterns in FILE use \fB\-x\fRe `cat FILE`.
+patterns in FILE use \fB\-x\fR \fB\-e\fR `cat FILE`.
+.TP
+\fB\-\-xml\fR
+Output file matches in XML.  See also option \fB\-\-format\fR.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches, such as `^\\h*$' to match blank lines.  Empty
@@ -555,6 +571,73 @@ SGR substring for column numbers.
 SGR substring for byte offsets.
 .IP \fBse=\fR
 SGR substring for separators.
+.SH FORMAT
+Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches
+with the following fields:
+.IP \fB%H\fR
+if option \fB-H\fR is used, the file pathname and separator.
+.IP \fB%N\fR
+if option \fB-n\fR is used, the line number and separator.
+.IP \fB%K\fR
+if option \fB-k\fR is used, the column number and separator.
+.IP \fB%B\fR
+if option \fB-b\fR is used, the byte offset and separator.
+.IP \fB%h\fR
+the file pathname.
+.IP \fB%n\fR
+the line number of the match.
+.IP \fB%k\fR
+the column number of the match.
+.IP \fB%b\fR
+the byte offset of the match.
+.IP \fB%w\fR
+the width of the match in the number of (wide) characters.
+.IP \fB%d\fR
+the size of the match in the number of bytes matched.
+.IP \fB%m\fR
+the number of matches or matched files.
+.IP \fB%s\fR
+the match as a raw string of bytes.
+.IP \fB%c\fR
+the match formatted as a quoted C/C++ string.
+.IP \fB%j\fR
+the match formatted as a quoted JSON string.
+.IP \fB%v\fR
+the match formatted as a quoted CSV string.
+.IP \fB%x\fR
+the match formatted as XML character data.
+.IP \fB%~\fR
+the newline character.
+.IP \fB%%\fR
+the percentage sign.
+.IP \fB%t\fR
+if not the first match, a tab.
+.IP \fB%,\fR
+if not the first match, a comma.
+.IP \fB%:\fR
+if not the first match, a colon.
+.IP \fB%;\fR
+if not the first match, a semicolon.
+.IP \fB%|\fR
+if not the first match, a verical bar.
+.PP
+Matches are formatted without context.  To output the line of a match, use
+pattern '.*\fIPATTERN\fR.*' to capture the entire line, not just a match of
+\fIPATTERN\fR.
+.PP
+Additional formatting options:
+.IP \fB--format-begin\fR=\fIFORMAT\fR
+output \fIFORMAT\fR when beginning the search.
+.IP \fB--format-open\fR=\fIFORMAT\fR
+output \fIFORMAT\fR when opening a file and a match was found.
+.IP \fB--format-close\fR=\fIFORMAT\fR
+output \fIFORMAT\fR when closing a file and a match was found.
+.IP \fB--format-end\fR=\fIFORMAT\fR
+output \fIFORMAT\fR when ending the search.
+.PP
+The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
+\fB--break\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR have no effect on
+formatted output.
 .SH EXAMPLES
 To find all occurrences of the word `patricia' in a file:
 .IP

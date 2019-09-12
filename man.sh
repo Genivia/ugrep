@@ -191,6 +191,73 @@ SGR substring for column numbers.
 SGR substring for byte offsets.
 .IP \fBse=\fR
 SGR substring for separators.
+.SH FORMAT
+Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches
+with the following fields:
+.IP \fB%H\fR
+if option \fB-H\fR is used, the file pathname and separator.
+.IP \fB%N\fR
+if option \fB-n\fR is used, the line number and separator.
+.IP \fB%K\fR
+if option \fB-k\fR is used, the column number and separator.
+.IP \fB%B\fR
+if option \fB-b\fR is used, the byte offset and separator.
+.IP \fB%h\fR
+the file pathname.
+.IP \fB%n\fR
+the line number of the match.
+.IP \fB%k\fR
+the column number of the match.
+.IP \fB%b\fR
+the byte offset of the match.
+.IP \fB%w\fR
+the width of the match in the number of (wide) characters.
+.IP \fB%d\fR
+the size of the match in the number of bytes matched.
+.IP \fB%m\fR
+the number of matches or matched files.
+.IP \fB%s\fR
+the match as a raw string of bytes.
+.IP \fB%c\fR
+the match formatted as a quoted C/C++ string.
+.IP \fB%j\fR
+the match formatted as a quoted JSON string.
+.IP \fB%v\fR
+the match formatted as a quoted CSV string.
+.IP \fB%x\fR
+the match formatted as XML character data.
+.IP \fB%~\fR
+the newline character.
+.IP \fB%%\fR
+the percentage sign.
+.IP \fB%t\fR
+if not the first match, a tab.
+.IP \fB%,\fR
+if not the first match, a comma.
+.IP \fB%:\fR
+if not the first match, a colon.
+.IP \fB%;\fR
+if not the first match, a semicolon.
+.IP \fB%|\fR
+if not the first match, a verical bar.
+.PP
+Matches are formatted without context.  To output the line of a match, use
+pattern '.*\fIPATTERN\fR.*' to capture the entire line, not just a match of
+\fIPATTERN\fR.
+.PP
+Additional formatting options:
+.IP \fB--format-begin\fR=\fIFORMAT\fR
+output \fIFORMAT\fR when beginning the search.
+.IP \fB--format-open\fR=\fIFORMAT\fR
+output \fIFORMAT\fR when opening a file and a match was found.
+.IP \fB--format-close\fR=\fIFORMAT\fR
+output \fIFORMAT\fR when closing a file and a match was found.
+.IP \fB--format-end\fR=\fIFORMAT\fR
+output \fIFORMAT\fR when ending the search.
+.PP
+The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
+\fB--break\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR have no effect on
+formatted output.
 .SH EXAMPLES
 To find all occurrences of the word `patricia' in a file:
 .IP
