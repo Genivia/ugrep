@@ -720,7 +720,7 @@ content is shown in hex with `-U` and `-W`:
 
 To hexdump an entire file with `-X` and `-o`:
 
-    ugrep --color -X -o '' myfile
+    ugrep --color -Xo '' myfile
 
 To hexdump an entire file line-by-line with `-X`, displaying line numbers with
 `-n` and line breaks:
@@ -774,6 +774,19 @@ To display any non-matching lines as context for matching lines:
 To display a hexdump of a matching line with one line of hexdump context:
 
     ugrep --color -C1 -UX '\xaa\xbb\xcc' a.out
+
+Context within a line is displayed by simply adjusting the pattern and using
+option `-o`, for example to show the word (when present) before and after a
+match of `pattern` (`\w+` matches a word and `\h+` matches spacing), where `-U`
+matches ASCII words instead of Unicode:
+
+    ugrep -o -U '(\w+\h+)?pattern(\h+\w+)?' myfile.cpp
+
+The same, but with line numbers (`-n`), column numbers (`-k`), tab spacing
+(`-T`) for all matches separately (`-g`), color highlighting, and showing up to
+8 characters of context instead of a single word:
+
+    ugrep -onkTg -U '.{0,8}pattern.{0,8}' myfile.cpp | ugrep --color 'pattern'
 
 ### Using gitignore-style globs to select directories and files to search
 
@@ -830,9 +843,9 @@ ignored by .gitignore:
 
     ugrep -Rl '' --exclude-from=.gitignore
 
-### Find files by file signatures and magic bytes with -M and -t
+### Find files by file signature and shebang "magic bytes" with -M and -t
 
-To recursively list all files that start with `#!` hashbangs with `-M'#!.*'`:
+To recursively list all files that start with `#!` shebangs with `-M'#!.*'`:
 
     ugrep -Rl -M'#!.*' ''
 
