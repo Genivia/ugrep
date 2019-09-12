@@ -116,9 +116,9 @@ Why use ugrep?
   permits many other file formats to be searched, such as ISO-8859-1, EBCDIC,
   and code pages 437, 850, 858, 1250 to 1258.
 
-- **ugrep** customizes the output format for you with options `--csv`,
-  `--json`, and `--xml` to outpu CSV, JSON, or XML.  Options such as `--format`
-  are available to take custom formatting to the extreme.
+- **ugrep customizes the output format** with options `--csv`, `--json`, and
+  `--xml` to output CSV, JSON, or XML.  Options such as `--format` are available
+  to take custom formatting to the extreme.
 
 - **ugrep understands gitignore-style globs** and ignores files specified
   in a `.gitignore` file (or any other file) with `--exclude-from=.gitignore`.
