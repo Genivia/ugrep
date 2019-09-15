@@ -111,7 +111,7 @@ Compile:
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.4.2"
+#define UGREP_VERSION "1.4.4"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -285,7 +285,7 @@ void recurse(Stats& stats, size_t level, reflex::Matcher& magic, reflex::Abstrac
 bool ugrep(size_t fileno, reflex::AbstractMatcher& matcher, reflex::Input& input, const char *pathname);
 void format(const char *format, const char *pathname, size_t matches, reflex::AbstractMatcher& matcher);
 void format(const char *format, size_t fileno);
-void format_quoted(const char *pathname);
+void format_quoted(const char *data, size_t size);
 void format_cpp(const char *data, size_t size);
 void format_json(const char *data, size_t size);
 void format_csv(const char *data, size_t size);
@@ -1360,7 +1360,7 @@ int main(int argc, char **argv)
   if (!flag_with_filename && !flag_line_number && !flag_only_line_number && !flag_column_number && !flag_byte_offset)
     flag_no_labels = true;
 
-  // normalize --cpp, --json, --xml
+  // normalize --cpp, --csv, --json, --xml
   if (flag_cpp)
   {
     flag_format_begin = "const struct grep {\n  const char *file;\n  size_t line;\n  size_t column;\n  size_t offset;\n  const char *match;\n} matches[] = {\n";
@@ -1371,26 +1371,21 @@ int main(int argc, char **argv)
   }
   else if (flag_csv)
   {
-    flag_format_begin = NULL;
-    flag_format_open  = NULL;
-    flag_format       = "%H%N%K%B%v\n";
-    flag_format_close = NULL;
-    flag_format_end   = NULL;
-    flag_separator    = ",";
+    flag_format       = "%[,]$%H%N%K%B%v\n";
   }
   else if (flag_json)
   {
     flag_format_begin = "[";
-    flag_format_open  = "%,\n  {\n    \"file\": %h,\n    [";
-    flag_format       = "%,\n      { \"line\": %n, \"column\": %k, \"offset\": %b, \"match\": %j }";
+    flag_format_open  = "%,\n  {\n    %[,\n    ]$%[\"file\": ]H\"matches\": [";
+    flag_format       = "%,\n      { %[, ]$%[\"line\": ]N%[\"column\": ]K%[\"offset\": ]B\"match\": %j }";
     flag_format_close = "\n    ]\n  }";
     flag_format_end   = "\n]\n";
   }
   else if (flag_xml)
   {
     flag_format_begin = "<grep>\n";
-    flag_format_open  = "  <file name=%h>\n";
-    flag_format       = "    <match line=\"%n\" column=\"%k\" offset=\"%b\">%x</match>\n";
+    flag_format_open  = "  <file%[]$%[ name=]H>\n";
+    flag_format       = "    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%x</match>\n";
     flag_format_close = "  </file>\n";
     flag_format_end   = "</grep>\n";
   }
@@ -3444,52 +3439,128 @@ void format(const char *format, size_t fileno)
 // display formatted match with options --format, --format-open, --format-close
 void format(const char *format, const char *pathname, size_t matches, reflex::AbstractMatcher& matcher)
 {
+  const char *sep = NULL;
+  size_t len = 0;
   const char *s = format;
   while (*s != '\0')
   {
+    const char *a = NULL;
     const char *t = s;
     while (*s != '\0' && *s != '%')
       ++s;
     put(t, s - t);
     if (*s == '\0' || *(s + 1) == '\0')
       break;
-    int c = *++s;
+    ++s;
+    if (*s == '[')
+    {
+      a = ++s;
+      while (*s != '\0' && *s != ']')
+        ++s;
+      if (*s == '\0' || *(s + 1) == '\0')
+        break;
+      ++s;
+    }
+    int c = *s;
     switch (c)
     {
+      case 'F':
+        if (flag_with_filename)
+        {
+          if (a)
+            put(a, s - a - 1);
+          put(pathname);
+          if (sep != NULL)
+            put(sep, len);
+          else
+            put(flag_separator);
+        }
+        break;
+
       case 'H':
         if (flag_with_filename)
         {
-          format_quoted(pathname);
-          put(flag_separator);
+          if (a)
+            put(a, s - a - 1);
+          format_quoted(pathname, strlen(pathname));
+          if (sep != NULL)
+            put(sep, len);
+          else
+            put(flag_separator);
         }
         break;
 
       case 'N':
         if (flag_line_number && !flag_only_line_number)
         {
+          if (a)
+            put(a, s - a - 1);
           fprintf(out, "%zu", matcher.lineno());
-          put(flag_separator);
+          if (sep != NULL)
+            put(sep, len);
+          else
+            put(flag_separator);
         }
         break;
 
       case 'K':
         if (flag_column_number)
         {
+          if (a)
+            put(a, s - a - 1);
           fprintf(out, "%zu", matcher.columno() + 1);
-          put(flag_separator);
+          if (sep != NULL)
+            put(sep, len);
+          else
+            put(flag_separator);
         }
         break;
 
       case 'B':
         if (flag_byte_offset)
         {
+          if (a)
+            put(a, s - a - 1);
           fprintf(out, "%zu", matcher.first());
-          put(flag_separator);
+          if (sep != NULL)
+            put(sep, len);
+          else
+            put(flag_separator);
         }
         break;
 
+      case 'T':
+        if (flag_initial_tab)
+        {
+          if (a)
+            put(a, s - a - 1);
+          put('\t');
+        }
+        break;
+
+      case 'S':
+        if (matches > 0)
+        {
+          if (a)
+            put(a, s - a - 1);
+          if (sep != NULL)
+            put(sep, len);
+          else
+            put(flag_separator);
+        }
+        break;
+
+      case '$':
+        sep = a;
+        len = s - a - 1;
+        break;
+
+      case 'f':
+        put(pathname);
+        break;
+
       case 'h':
-        format_quoted(pathname);
+        format_quoted(pathname, strlen(pathname));
         break;
 
       case 'n':
@@ -3504,6 +3575,21 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
         fprintf(out, "%zu", matcher.first());
         break;
 
+      case 't':
+        put('\t');
+        break;
+
+      case 's':
+        if (sep != NULL)
+          put(sep, len);
+        else
+          put(flag_separator);
+        break;
+
+      case '~':
+        put('\n');
+        break;
+
       case 'w':
         fprintf(out, "%zu", matcher.wsize());
         break;
@@ -3516,8 +3602,12 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
         fprintf(out, "%zu", matches + 1);
         break;
 
-      case 's':
+      case 'o':
         put(matcher.begin(), matcher.size());
+        break;
+
+      case 'q':
+        format_quoted(matcher.begin(), matcher.size());
         break;
 
       case 'c':
@@ -3536,8 +3626,16 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
         format_xml(matcher.begin(), matcher.size());
         break;
 
-      case 't':
-        c = '\t';
+      case '<':
+        if (matches == 0 && a)
+          put(a, s - a - 1);
+        break;
+
+      case '>':
+        if (matches > 0 && a)
+          put(a, s - a - 1);
+        break;
+
       case ',':
       case ':':
       case ';':
@@ -3546,12 +3644,8 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
           put(c);
         break;
 
-      case '~':
-        put('\n');
-        break;
-
       default:
-        put(*s);
+        put(c);
         break;
 
       case '0':
@@ -3572,13 +3666,14 @@ void format(const char *format, const char *pathname, size_t matches, reflex::Ab
   }
 }
 
-// format a file pathname as a quoted string with escapes for \ and "
-void format_quoted(const char *pathname)
+// format as a quoted string with escapes for \ and "
+void format_quoted(const char *data, size_t size)
 {
-  const char *s = pathname;
-  put('"');
+  const char *s = data;
+  const char *e = data + size;
   const char *t = s;
-  while (*s != '\0')
+  put('"');
+  while (s < e)
   {
     if (*s == '\\' || *s == '"')
     {
@@ -4178,7 +4273,7 @@ void help(const char *message, const char *arg)
             Output file matches in C++.  See also option --format.\n\
     --csv\n\
             Output file matches in CSV.  Use options -H, -n, -k, and -b to\n\
-            specify additional field values.  See also option --format.\n\
+            specify additional fields.  See also option --format.\n\
     -D ACTION, --devices=ACTION\n\
             If an input file is a device, FIFO or socket, use ACTION to process\n\
             it.  By default, ACTION is `skip', which means that devices are\n\
@@ -4240,8 +4335,8 @@ void help(const char *message, const char *arg)
             When FILE is a `-', standard input is read.  This option may be\n\
             repeated.\n\
     --format=FORMAT\n\
-            Output file matches formatted with FORMAT.  Options -A, -B, -C, -y,\n\
-            and -v are disabled.  See `man ugrep' for the formatting fields.\n\
+            Output FORMAT-formatted matches.  See `man ugrep' section FORMAT\n\
+            for the `%' fields.  Options -A, -B, -C, -y, and -v are disabled.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -4296,7 +4391,8 @@ void help(const char *message, const char *arg)
             Perform case insensitive matching unless PATTERN contains a capital\n\
             letter.  Case insensitive matching applies to ASCII letters only.\n\
     --json\n\
-            Output file matches in JSON.  See also option --format.\n\
+            Output file matches in JSON.    Use options -H, -n, -k, and -b to\n\
+            specify additional properties.  See also option --format.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -4449,7 +4545,8 @@ void help(const char *message, const char *arg)
             This option does not apply to -f FILE patterns.  To apply -x to\n\
             patterns in FILE use -x -e `cat FILE`.\n\
     --xml\n\
-            Output file matches in XML.  See also option --format.\n\
+            Output file matches in XML.  Use options -H, -n, -k, and -b to\n\
+            specify additional attributes.  See also option --format.\n\
     -Y, --empty\n\
             Permits empty matches, such as `^\\h*$' to match blank lines.  Empty\n\
             matches are disabled by default.  Note that empty-matching patterns\n\

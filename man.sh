@@ -192,32 +192,50 @@ SGR substring for byte offsets.
 .IP \fBse=\fR
 SGR substring for separators.
 .SH FORMAT
-Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches
-with the following fields:
-.IP \fB%H\fR
-if option \fB-H\fR is used, the quoted pathname and separator.
-.IP \fB%N\fR
-if option \fB-n\fR is used, the line number and separator.
-.IP \fB%K\fR
-if option \fB-k\fR is used, the column number and separator.
-.IP \fB%B\fR
-if option \fB-b\fR is used, the byte offset and separator.
+Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
+The following fields may be used in \fIFORMAT\fR:
+.IP \fB%[\fR\fIARG\fR\fB]F\fR
+if option \fB-H\fR is used: \fIARG\fR, the file pathname, and separator.
+.IP \fB%[\fR\fIARG\fR\fB]H\fR
+if option \fB-H\fR is used: \fIARG\fR, the quoted pathname, and separator.
+.IP \fB%[\fR\fIARG\fR\fB]N\fR
+if option \fB-n\fR is used: \fIARG\fR, the line number and separator.
+.IP \fB%[\fR\fIARG\fR\fB]K\fR
+if option \fB-k\fR is used: \fIARG\fR, the column number and separator.
+.IP \fB%[\fR\fIARG\fR\fB]B\fR
+if option \fB-b\fR is used: \fIARG\fR, the byte offset and separator.
+.IP \fB%[\fR\fIARG\fR\fB]T\fR
+if option \fB-T\fR is used: \fIARG\fR and a tab character.
+.IP \fB%[\fR\fIARG\fR\fB]S\fR
+if not the first match: \fIARG\fR and separator, see also \fB%$\fR.
+.IP \fB%[\fR\fIARG\fR\fB]<\fR
+if the first match: \fIARG\fR.
+.IP \fB%[\fR\fIARG\fR\fB]>\fR
+if not the first match: \fIARG\fR.
+.IP \fB%[\fR\fISEP\fR\fB]$\fR
+set field separator to \fISEP\fR for the rest of the format.
+.IP \fB%f\fR
+the file pathname.
 .IP \fB%h\fR
-the quoted pathname.
+the quoted file pathname.
 .IP \fB%n\fR
 the line number of the match.
 .IP \fB%k\fR
 the column number of the match.
 .IP \fB%b\fR
 the byte offset of the match.
-.IP \fB%w\fR
-the width of the match in the number of (wide) characters.
-.IP \fB%d\fR
-the size of the match in the number of bytes matched.
+.IP \fB%t\fR
+a tab character.
+.IP \fB%s\fR
+the separator, see also \fB%S\fR and \fB%$\fR.
+.IP \fB%~\fR
+a newline character.
 .IP \fB%m\fR
 the number of matches or matched files.
-.IP \fB%s\fR
+.IP \fB%o\fR
 the match as a raw string of bytes.
+.IP \fB%q\fR
+the match as a quoted string replacing " and \\ by \\" and \\\\.
 .IP \fB%c\fR
 the match formatted as a quoted C/C++ string.
 .IP \fB%j\fR
@@ -226,23 +244,31 @@ the match formatted as a quoted JSON string.
 the match formatted as a quoted CSV string.
 .IP \fB%x\fR
 the match formatted as XML character data.
-.IP \fB%~\fR
-the newline character.
+.IP \fB%w\fR
+the width of the match, counting (wide) characters.
+.IP \fB%d\fR
+the size of the match, counting bytes.
+.IP \fB%,\fR
+if not the first match: a comma, same as \fB%[,]>\fR.
+.IP \fB%:\fR
+if not the first match: a colon, same as \fB%[:]>\fR.
+.IP \fB%;\fR
+if not the first match: a semicolon, same as \fB%[;]>\fR.
+.IP \fB%|\fR
+if not the first match: a verical bar, same as \fB%[|]>\fR.
 .IP \fB%%\fR
 the percentage sign.
-.IP \fB%t\fR
-if not the first match, a tab.
-.IP \fB%,\fR
-if not the first match, a comma.
-.IP \fB%:\fR
-if not the first match, a colon.
-.IP \fB%;\fR
-if not the first match, a semicolon.
-.IP \fB%|\fR
-if not the first match, a verical bar.
 .IP \fB%1\fR
 the first regex group capture of the match, and so on up to group \fB%9\fR,
 requires option \fB-P\fR Perl matching.
+.PP
+The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
+.PP
+The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
+\fB%S\fR may be changed by preceeding the field with a
+\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided,
+reverses the separator to the default separator or the separator specified by
+\fB--separator\fR.
 .PP
 Matches are formatted without context.  To output the line of a match, use
 pattern '.*\fIPATTERN\fR.*' to capture the entire line, not just a match of
