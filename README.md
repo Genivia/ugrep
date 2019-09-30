@@ -768,7 +768,7 @@ To check that a file contains Unicode:
 
     ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
-<a name="unicode"/>
+<a name="only"/>
 
 ### Matching multiple lines of text with -o
 
