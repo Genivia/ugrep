@@ -1,4 +1,4 @@
-AC_INIT(ugrep,1.3)
+AC_INIT(ugrep,1.5)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
 AC_COPYRIGHT([Copyright (C) 2019-2019 Robert van Engelen, Genivia Inc.])
@@ -7,12 +7,20 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_CHECK_LIB(reflex, REFLEX_DBGOUT_,
     [],
-    [echo 'ugrep requires RE/flex 1.3.1 or greater: https://github.com/Genivia/RE-flex'],
+    [echo 'ugrep requires RE/flex 1.4.3 or greater: https://github.com/Genivia/RE-flex'
+     exit 1
+    ],
     [])
 
 AX_BOOST_REGEX
 
-AX_CHECK_ZLIB([], [echo 'zlib not found: option -z, --decompress not available'])
+AX_CHECK_ZLIB(
+    [],
+    [echo 'zlib not found: option -z, --decompress disabled'
+    ])
+
+AC_STRUCT_DIRENT_D_INO
+AC_STRUCT_DIRENT_D_TYPE
 
 AC_TYPE_SIZE_T
 

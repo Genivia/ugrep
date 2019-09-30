@@ -107,7 +107,7 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_ugrep_OBJECTS = ugrep-ugrep.$(OBJEXT) ugrep-glob.$(OBJEXT)
 ugrep_OBJECTS = $(am_ugrep_OBJECTS)
-ugrep_LDADD = $(LDADD)
+ugrep_DEPENDENCIES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -277,8 +277,9 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-ugrep_CPPFLAGS = -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\"
+ugrep_CPPFLAGS = $(PTHREAD_CFLAGS) -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\"
 ugrep_SOURCES = ugrep.cpp glob.cpp
+ugrep_LDADD = $(PTHREAD_LIBS)
 all: all-am
 
 .SUFFIXES:

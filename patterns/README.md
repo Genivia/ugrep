@@ -17,7 +17,7 @@ skipping all matches of identifiers in comments and strings:
     ugrep -r -n -o -f java/names -f java/zap_comments -f java/zap_strings
 
 Some patterns automatically enable ugrep option `-o` to match multiple lines.
-These pattern files start with `###-o` to enbale option `-o` that is required
+These pattern files start with `###-o` to enable option `-o` that is required
 to match the pattern across multiple lines.  For example, strings and comments
 may span multiple lines, such as Python docstrings, requiring option `-o`.
 

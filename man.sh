@@ -19,7 +19,7 @@ cat >> man/ugrep.1 << 'END'
 .SH SYNOPSIS
 .B ugrep
 [\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
-      [\fB-e\fR \fIPATTERN\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fB-J\fR[\fIJOBS\fR]]
+      [\fB-e\fR \fIPATTERN\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fB-J\fR [\fINUM\fR]]
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
@@ -193,7 +193,7 @@ SGR substring for byte offsets.
 SGR substring for separators.
 .SH FORMAT
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
-The following fields may be used in \fIFORMAT\fR:
+Fields may be used in \fIFORMAT\fR which expand into the following values:
 .IP \fB%[\fR\fIARG\fR\fB]F\fR
 if option \fB-H\fR is used: \fIARG\fR, the file pathname, and separator.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
@@ -213,7 +213,7 @@ if the first match: \fIARG\fR.
 .IP \fB%[\fR\fIARG\fR\fB]>\fR
 if not the first match: \fIARG\fR.
 .IP \fB%[\fR\fISEP\fR\fB]$\fR
-set field separator to \fISEP\fR for the rest of the format.
+set field separator to \fISEP\fR for the rest of the format fields.
 .IP \fB%f\fR
 the file pathname.
 .IP \fB%h\fR
@@ -235,7 +235,7 @@ the number of matches or matched files.
 .IP \fB%o\fR
 the match as a raw string of bytes.
 .IP \fB%q\fR
-the match as a quoted string replacing " and \\ by \\" and \\\\.
+the match as a quoted string, replacing " and \\ by \\" and \\\\.
 .IP \fB%c\fR
 the match formatted as a quoted C/C++ string.
 .IP \fB%j\fR
@@ -260,29 +260,30 @@ if not the first match: a verical bar, same as \fB%[|]>\fR.
 the percentage sign.
 .IP \fB%1\fR
 the first regex group capture of the match, and so on up to group \fB%9\fR,
-requires option \fB-P\fR Perl matching.
+same as \fB%[1]#\fR, requires option \fB-P\fR Perl matching.
+.IP \fB%[\fINUM\fR\fB]#\fR
+the regex group capture \fINUM\fR, requires option \fB-P\fR Perl matching.
 .PP
 The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
 .PP
 The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
 \fB%S\fR may be changed by preceeding the field with a
-\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided,
-reverses the separator to the default separator or the separator specified by
-\fB--separator\fR.
+\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided as in
+\fB%$\fR, reverses the separator to the default separator or the separator
+specified by \fB--separator\fR.
 .PP
-Matches are formatted without context.  To output the line of a match, use
-pattern '.*\fIPATTERN\fR.*' to capture the entire line, not just a match of
-\fIPATTERN\fR.
+Matches are formatted without context.  To output the entire line with the match,
+use pattern '.*\fIPATTERN\fR.*' to match the line before and after the match.
 .PP
 Additional formatting options:
 .IP \fB--format-begin\fR=\fIFORMAT\fR
-output \fIFORMAT\fR when beginning the search.
+the \fIFORMAT\fR when beginning the search.
 .IP \fB--format-open\fR=\fIFORMAT\fR
-output \fIFORMAT\fR when opening a file and a match was found.
+the \fIFORMAT\fR when opening a file and a match was found.
 .IP \fB--format-close\fR=\fIFORMAT\fR
-output \fIFORMAT\fR when closing a file and a match was found.
+the \fIFORMAT\fR when closing a file and a match was found.
 .IP \fB--format-end\fR=\fIFORMAT\fR
-output \fIFORMAT\fR when ending the search.
+the \fIFORMAT\fR when ending the search.
 .PP
 The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
 \fB-v\fR, \fB--break\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR are disabled

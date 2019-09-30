@@ -200,7 +200,7 @@ static bool match(const char *text, const char *glob)
 }
  
 // pathname or basename matching, returns true or false
-bool globmat(const char *pathname, const char *basename, const char *glob)
+bool glob_match(const char *pathname, const char *basename, const char *glob)
 {
   // if pathname starts with ./ then remove these pairs
   while (pathname[0] == '.' && pathname[1] == PATHSEP)
@@ -217,36 +217,3 @@ bool globmat(const char *pathname, const char *basename, const char *glob)
 
   return match(basename, glob);
 }
-
-#ifdef TEST
-
-int main(int argc, char **argv)
-{
-  if (argc > 2)
-  {
-    const char *pathname = argv[1];
-    const char *basename;
-    const char *glob;
-    if (argc > 3)
-    {
-      basename = argv[2];
-      glob = argv[3];
-    }
-    else
-    {
-      basename = strchr(argv[1], '/');
-      if (basename)
-        ++basename;
-      else
-        basename = pathname;
-      glob = argv[2];
-    }
-    printf("pathname=%s basename=%s glob=%s\n", pathname, basename, glob);
-    if (globmat(pathname, basename, glob))
-      printf("Match\n");
-    else
-      printf("No match\n");
-  }
-}
-
-#endif

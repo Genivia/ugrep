@@ -50,15 +50,15 @@ class zstreambuf : public std::streambuf {
   zstreambuf(FILE *file)
   {
     gzfile_ = gzdopen(fileno(file), "rb");
-    if (gzfile_ != NULL)
+    if (gzfile_ != Z_NULL)
       gzbuffer(gzfile_, Z_BUF_LEN);
     cur_ = 0;
     len_ = 0;
     get();
   }
-  ~zstreambuf()
+  virtual ~zstreambuf()
   {
-    if (gzfile_ != NULL)
+    if (gzfile_ != Z_NULL)
       gzclose(gzfile_);
   }
  private:
@@ -86,14 +86,14 @@ class zstreambuf : public std::streambuf {
     {
       ch_ = buf_[cur_++];
     }
-    else if (gzfile_ != NULL)
+    else if (gzfile_ != Z_NULL)
     {
       cur_ = 0;
       len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
       if (len_ <= 0)
       {
         gzclose(gzfile_);
-        gzfile_ = NULL;
+        gzfile_ = Z_NULL;
         ch_ = EOF;
       }
       else
