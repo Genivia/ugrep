@@ -313,6 +313,12 @@ Installation
 To build **ugrep**, you will need to download RE/flex 1.4.3 or greater from
 https://github.com/Genivia/RE-flex.
 
+There are two ways to build **ugrep**:  The first is to download RE/flex
+without installing it (i.e. no `sudo` required).  The second requires
+installing RE/flex.
+
+#### Without installing RE/flex
+
 If you don't want to install RE/flex with `sudo` then download the RE/flex
 source code and build the RE/flex `libreflex.a` static library with:
 
@@ -338,6 +344,8 @@ If these libraries are available, compile **ugrep** as follows:
     $ c++ -std=c++11 -I. -I reflex_path/include -O2 -o ugrep -DHAVE_STRUCT_DIRENT_D_TYPE \
       -DHAVE_STRUCT_DIRENT_D_INO -DHAVE_BOOST_REGEX -DHAVE_LIBZ ugrep.cpp glob.cpp \
       reflex_path/lib/libreflex.a -lboost_regex -lz -lpthread
+
+#### With RE/flex installed
 
 If you have RE/flex installed (with `sudo`) then execute:
 
