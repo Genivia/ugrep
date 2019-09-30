@@ -80,7 +80,7 @@ Introduction: why use ugrep?
   POSIX.2 regex library and 10 times faster than PCRE2 and RE2.  **ugrep** uses
   multi-threading with lock-free job queue stealing to search files
   simultaneously and efficiently.  Performance will continue to increase as we
-  improve and tune its algorithms.  See the speed comparisons.
+  improve and tune its algorithms.  See the [speed comparisons](#speed).
 
 - **ugrep makes it simple to search source code** using options to select files
   by filename extension and file signature "magic bytes" or shebangs.  For
@@ -228,6 +228,9 @@ Note: T-8 and T-9 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
 files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
 GNU/BSD grep as `--include='*.h' --include='*.hpp' --include='*.cpp'` and with
 ripgrep as `--glob='*.h' --glob='*.hpp' --glob='*.cpp'`.
+
+The corpora used in the tests are available for
+[download](https://www.genivia.com/files/corpora.zip).
 
 <a name="results"/>
 
