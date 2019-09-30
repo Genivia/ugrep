@@ -28,7 +28,6 @@ Table of contents
   - [Results](#results)
   - [Future improvements and TODO](#todo)
 - [Installation](#installation)
-  - [Dependencies](#dependencies)
   - [Download and installation](#download)
   - [Binaries](#binaries)
   - [Using ugrep within Vim](#vim)
@@ -307,12 +306,25 @@ e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 Installation
 ------------
 
-<a name="dependencies"/>
+<a name="download"/>
 
-### Dependencies
+### Download and build steps
 
-To build **ugrep**, first install RE/flex 1.4.3 or greater from
+To build **ugrep**, you will need to download RE/flex 1.4.3 or greater from
 https://github.com/Genivia/RE-flex.
+
+If you don't want to install RE/flex with `sudo` then download the RE/flex
+source code and build the RE/flex `libreflex.a` static library with:
+
+    $ cd reflex
+    $ ./build.sh
+
+Compile **ugrep** as follows (replace `reflex_path` with the path to the
+`reflex` directory):
+
+    $ cd ugrep/src
+    $ c++ -std=c++11 -I. -I reflex_path/include -O2 -o ugrep -DHAVE_STRUCT_DIRENT_D_TYPE \
+      -DHAVE_STRUCT_DIRENT_D_INO ugrep.cpp glob.cpp reflex_path/lib/libreflex.a -lpthread
 
 **ugrep** has two optional dependencies to enable the following options:
 
@@ -321,12 +333,15 @@ https://github.com/Genivia/RE-flex.
 - Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
   library installed.
 
-<a name="download"/>
+If these libraries are available, compile **ugrep** as follows:
 
-### Download and installation
+    $ c++ -std=c++11 -I. -I reflex_path/include -O2 -o ugrep -DHAVE_STRUCT_DIRENT_D_TYPE \
+      -DHAVE_STRUCT_DIRENT_D_INO -DHAVE_BOOST_REGEX -DHAVE_LIBZ ugrep.cpp glob.cpp \
+      reflex_path/lib/libreflex.a -lboost_regex -lz -lpthread
 
-Download ugrep from https://github.com/Genivia/ugrep and execute:
+If you have RE/flex installed (with `sudo`) then execute:
 
+    $ cd ugrep
     $ ./configure; make
 
 This builds `ugrep` in the `src` directory.  You can tell which version it is
