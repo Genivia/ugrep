@@ -3,7 +3,8 @@ Universal grep ("uber grep")
 
 High-performance file search utility.  Supersedes GNU and BSD grep with full
 Unicode support.  Offers easy options and predefined regex patterns to quickly
-search source code, text, and binary files in large directory trees.
+search source code, text, and binary files in large directory trees.  Faster
+than GNU grep and faster than ripgrep in many practical use cases.
 
 <div align="center">
 <img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
@@ -18,8 +19,52 @@ Search source code, text, and binary files fast with ugrep
 See the [tutorial](#tutorial) with an extensive list of examples, illustrating
 the power of **ugrep**.
 
-Why use ugrep?
---------------
+Table of contents
+-----------------
+
+- [Introduction: why use ugrep?](#introduction)
+- [Speed](#speed)
+  - [Tests](#tests)
+  - [Results](#results)
+  - [Future improvements and TODO](#todo)
+- [Installation](#installation)
+  - [Dependencies](#dependencies)
+  - [Download and installation](#download)
+  - [Binaries](#binaries)
+  - [Using ugrep within Vim](#vim)
+- [Ugrep versus other greps](#comparison)
+  - [GNU grep and BSD grep equivalence](#equivalence)
+  - [Useful aliases](#aliases)
+  - [Improvements over other greps](#improvements)
+- [Tutorial](#tutorial)
+  - [Examples](#examples)
+  - [Displaying helpful info](#help)
+  - [Recursively list matching files with options -R or -r and -L or -l](#recursion)
+  - [Matching empty patterns with -Y](#empty)
+  - [Searching ASCII and Unicode files](#unicode)
+  - [Matching multiple lines of text with -o](#only)
+  - [Searching source code using -f, -o, -O, and -t](#source)
+  - [Find files by file signature and shebang "magic bytes" with -M and -t](#magic)
+  - [Searching binary files with -U, -W, and -X](#binary)
+  - [Displaying context with -A, -B, -C, and -y](#context)
+  - [Using gitignore-style globs to select directories and files to search](#gitignore)
+  - [Counting matching lines with -c and -g](#count)
+  - [Displaying file, line, column, and byte offset info with -H, -n, -k, -b, and -T](#fields)
+  - [Customizing the output in JSON, XML, CSV, C++, and replacing matches using group captures](#format)
+  - [Displaying colors with --color](#color)
+  - [Limiting the number of matches with -m, --max-depth, and --max-files](#max)
+  - [More examples](#more)
+- [Man page](#man)
+- [Patterns](#patterns)
+  - [POSIX regular expression syntax](#posix-syntax)
+  - [POSIX and Unicode character classes](#posix-classes)
+  - [POSIX and Unicode character categories](#posix-categories)
+  - [Perl regular expression syntax](#perl-syntax)
+
+<a name="introduction"/>
+
+Introduction: why use ugrep? 
+----------------------------
 
 - **ugrep supersedes GNU/BSD grep and is backward compatible**, offering many
   more useful features, such as full Unicode pattern matching, "negative
@@ -145,6 +190,8 @@ Why use ugrep?
   (issues) and contributions (pull requests) ❤️ For example, what patterns do
   you use to search source code?  Please contribute and share!
 
+<a name="speed"/>
+
 Speed
 -----
 
@@ -160,6 +207,8 @@ file system latencies.
 
 Our focus is on clean easy-to-understand source code with many features, while
 offering high performance that is competitive or beats the fastest grep tools.
+
+<a name="tests"/>
 
 ### Tests
 
@@ -179,6 +228,8 @@ Note: T-8 and T-9 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
 files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
 GNU/BSD grep as `--include='*.h' --include='*.hpp' --include='*.cpp'` and with
 ripgrep as `--glob='*.h' --glob='*.hpp' --glob='*.cpp'`.
+
+<a name="results"/>
 
 ### Results
 
@@ -200,11 +251,11 @@ appear slightly faster than **ugrep** for T-2.  There is room for improvement
 for **ugrep** to search a single short word by optimizing `memchr`.
 
 With respect to T-8: **ugrep** and ripgrep use threads to search files
-simultaneously.  Ripgrep has a CPU utilization of 627.2% for the concurrent
-search T-8.  By contrast, **ugrep** is much more efficient with a CPU
-utilization of 276% for the same concurrent search.  In fact, just spawning two
-threads (as specified by `-J2`) yields about the same **ugrep** high
-performance on this machine!
+simultaneously.  Ripgrep has a CPU utilization of 627.2% for this concurrent
+search.  By contrast, **ugrep** is much more efficient with a CPU utilization
+of 276% for the same concurrent search.  In fact, just spawning two threads (as
+specified by `-J2`) yields about the same **ugrep** performance on this
+machine!
 
 In some cases we decided in favor of features and safety over performance.  For
 example, **ugrep** considers files binary when containing invalid UTF encodings
@@ -236,9 +287,11 @@ Unicode by default.  This means that regex meta symbol `.` and the escapes
 time to match.  To disable Unicode matching, use **ugrep** with option `-U`,
 e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 
-### Future improvements and TODOs
+<a name="todo"/>
 
-- Improve `memchr` performance for single short word searches.
+### Future improvements and TODO
+
+- Improve `memchr` performance for single short word searches, use SIMD/AVX.
 - Evaluate when `mmap` improves performance and when it does not.  Right now,
   `mmap` does not appear to improve performance in certain cases, perhaps
   because RE/flex buffering is blazingly fast and has better spacial locality.
@@ -246,19 +299,30 @@ e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 - Turning certain features off internally when not used speeds up search:
   **ugrep** always counts line and column numbers even when not displayed.
 
+<a name="installation"/>
+
 Installation
 ------------
 
-Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
-These binary versions disable options `-P` (Perl regular expressions) and `-z`
-(decompress).
+<a name="dependencies"/>
 
-When using `ugrep.exe` from the Windows command line, use `"` instead of `'` to
-specify patterns, since `'` becomes part of the command-line argument!
+### Dependencies
 
-To build ugrep, first install RE/flex 1.4.3 or greater from
-https://github.com/Genivia/RE-flex then download ugrep from
-https://github.com/Genivia/ugrep and execute:
+To build **ugrep**, first install RE/flex 1.4.3 or greater from
+https://github.com/Genivia/RE-flex.
+
+**ugrep** has two optional dependencies to enable the following options:
+
+- Option `-P` (Perl regular expressions) requires the
+  [Boost.Regex](https://www.boost.org) library installed.
+- Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
+  library installed.
+
+<a name="download"/>
+
+### Download and installation
+
+Download ugrep from https://github.com/Genivia/ugrep and execute:
 
     $ ./configure; make
 
@@ -278,15 +342,20 @@ directory for the presence of pattern files, if not found checks environment
 variable `GREP_PATH` to load the pattern files, and if not found reads the
 installed predefined pattern files.
 
-**ugrep** has two optional dependencies to enable the following options:
+<a name="binaries"/>
 
-- Option `-P` (Perl regular expressions) requires the
-  [Boost.Regex](https://www.boost.org) library installed.
-- Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
-  library installed.
+### Binaries
 
-Using ugrep within Vim
-----------------------
+Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
+These binary versions disable options `-P` (Perl regular expressions) and `-z`
+(decompress).
+
+When using `ugrep.exe` from the Windows command line, use `"` instead of `'` to
+specify patterns, since `'` becomes part of the command-line argument!
+
+<a name="vim"/>
+
+### Using ugrep within Vim
 
 Add to `.vimrc`:
 
@@ -338,10 +407,14 @@ Only the first line of a multi-line comment is shown in quickfix, to save
 space.  To show all lines of a multi-line match produced with option `-o`,
 remove `%-G` from `grepformat` in `.vimrc`.
 
+<a name="comparison"/>
+
 ugrep versus other greps
 ------------------------
 
-### GNU/BSD grep equivalence
+<a name="equivalence"/>
+
+### GNU grep and BSD grep equivalence
 
 **ugrep** accepts GNU/BSD grep command options and produces GNU/BSD grep
 compatible results, making **ugrep** a true drop-in replacement.
@@ -362,7 +435,9 @@ Option `-J1` specifies one thread of execution to produce the exact same output
 ordering as GNU/BSD grep and `-Y` enables empty matches for 100% compatibility,
 see details further below.
 
-### Some useful aliases
+<a name="aliases"/>
+
+### Useful aliases
 
     alias ug    = 'ugrep --color --pager'        # short & quick text pattern search
     alias ux    = 'ugrep --color --pager -UX'    # short & quick binary pattern search
@@ -375,7 +450,9 @@ see details further below.
 
     alias xdump = 'ugrep --color --pager -Xo ""' # view hexdump of file(s)
 
-### When to use ugrep
+<a name="improvements"/>
+
+### Improvements over other greps
 
 Notable improvements over GNU/BSD grep and other grep-like tools, to name a
 few:
@@ -441,8 +518,12 @@ few:
 
 <a name="tutorial"/>
 
-Tutorial with examples
-----------------------
+Tutorial
+--------
+
+<a name="examples"/>
+
+### Examples
 
 To search for the identifier `main` as a word (`-w`) recursively (`-r`) in
 directory `myproject`, showing the matching line (`-n`) and column (`-k`)
@@ -562,6 +643,8 @@ globs that are considered both files and directories to add to `--include` and
 directory paths are not explicitly listed in this file then it will not be
 visited using `--include-from`.
 
+<a name="help"/>
+
 ### Displaying helpful info
 
 The ugrep man page:
@@ -575,6 +658,8 @@ To show a help page:
 To show a list of `-t TYPES` option values:
 
     ugrep -tlist
+
+<a name="recursion"/>
 
 ### Recursively list matching files with options -R or -r and -L or -l
 
@@ -623,7 +708,9 @@ not ignored by .gitignore:
 
     ugrep -Rl -tShell '' --exclude-from=.gitignore
 
-### Matching empty patterns
+<a name="empty"/>
+
+### Matching empty patterns with -Y
 
 Option `-Y` permits empty pattern matches, which is useful with certain anchors
 such as `^` and `$` (the option is automatically enabled for pattern `^$` that
@@ -636,6 +723,8 @@ To recursively list files in the working directory with empty and blank lines,
 i.e. lines with white space only and empty lines with `-Y`:
 
     ugrep -RlY '^\h*$'
+
+<a name="unicode"/>
 
 ### Searching ASCII and Unicode files
 
@@ -679,9 +768,11 @@ To check that a file contains Unicode:
 
     ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
+<a name="unicode"/>
+
 ### Matching multiple lines of text with -o
 
-To match C/C++ /*...*/ multi-line comments:
+To match C/C++ `/*...*/` multi-line comments:
 
     ugrep -o '/\*([^*]|(\*+[^*/]))*\*+\/' myfile.cpp
 
@@ -690,10 +781,12 @@ To match C/C++ comments using the predefined `c/comments` patterns with
 
     ugrep -of c/comments myfile.cpp
 
-Same as `sed -n '/begin/,/end/p': to match all lines between a line containing
+Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
 `begin` and the first line after that containing `end`, using lazy repetition:
 
     ugrep -o '.*begin(.|\n)*?end.*' myfile.txt
+
+<a name="source"/>
 
 ### Searching source code using -f, -o, -O, and -t
 
@@ -725,6 +818,8 @@ are placed in (multi-line) comments:
 
     ugrep -o -f xml/tags -f xml/zap_comments myfile.xml
 
+<a name="magic"/>
+
 ### Find files by file signature and shebang "magic bytes" with -M and -t
 
 To recursively list all files that start with `#!` shebangs with `-M'#!.*'`:
@@ -740,6 +835,8 @@ To list Python files (extension `.py` or a shebang) that have import
 statements, excluding hidden files:
 
     ugrep -Rl --no-hidden -tPython -f python/imports
+ 
+<a name="binary"/>
 
 ### Searching binary files with -U, -W, and -X
 
@@ -774,6 +871,8 @@ recursively below (see for example
 [list of file signatures](https://en.wikipedia.org/wiki/List_of_file_signatures)):
 
     ugrep -RlU '\A\xed\xab\xee\xdb' rpm
+
+<a name="context"/>
 
 ### Displaying context with -A, -B, -C, and -y
 
@@ -822,6 +921,8 @@ The same, but with line numbers (`-n`), column numbers (`-k`), tab spacing
 
     ugrep -onkTg -U '.{0,8}pattern.{0,8}' myfile.cpp | ugrep --color 'pattern'
 
+<a name="gitignore"/>
+
 ### Using gitignore-style globs to select directories and files to search
 
 To list readable files with names starting with `foo` in the current directory,
@@ -854,7 +955,7 @@ and `docs/latest` but not below, that contain `xyz`:
     ugrep -Rl 'xyz' --include-dir='docs' --include-dir='docs/latest'
 
 To only list files that are on a sub-directory path that includes sub-directory
-`docs` anywhere, that contain `xyz':
+`docs` anywhere, that contain `xyz`:
 
     ugrep -Rl 'xyz' --include='**/docs/**'
 
@@ -877,6 +978,8 @@ ignored by .gitignore:
 
     ugrep -Rl '' --exclude-from=.gitignore
 
+<a name="count"/>
+
 ### Counting matching lines with -c and -g
 
 To count the number of lines in a file:
@@ -894,6 +997,8 @@ To count the number of ASCII and Unicode words in a file:
 To count the number of Unicode characters in a file:
 
     ugrep -cg '\p{Unicode}' myfile.txt
+
+<a name="fields"/>
 
 ### Displaying file, line, column, and byte offset info with -H, -n, -k, -b, and -T
 
@@ -919,7 +1024,13 @@ To display the byte offset of matches with `-b`:
 
     ugrep -r -b -tc++ 'main'
 
-### Customizing the output, replacing matches, and group captures
+To display the line and column numbers of matches in XML with `--xml`:
+
+    ugrep -r -nk --xml -tc++ 'main'
+
+<a name="format"/>
+
+### Customizing the output in JSON, XML, CSV, C++, and replacing matches using group captures
 
 To recursively search for lines with `TODO` and display C++ file matches in
 JSON with line number properties:
@@ -945,6 +1056,8 @@ group capture with lazy quantifier `(.*?)`, and translate the matches to a
 comma-separated list with format `%,%1` (conditional comma and group capture):
 
     ugrep -P '<td>(.*?)</td>' --format='%,%1' index.html
+
+<a name="color"/>
 
 ### Displaying colors with --color
 
@@ -976,6 +1089,8 @@ To search tarballs for archived PDF files (assuming bash is our shell):
 
     for tb in *.tar *.tar.gz; do echo "$tb"; tar tfz "$tb" | ugrep '.*\.pdf$'; done
 
+<a name="max"/>
+
 ### Limiting the number of matches with -m, --max-depth, and --max-files
 
 To show only the first 10 matches of `FIXME` in C++ files in the current
@@ -991,6 +1106,8 @@ The same, but recursively search up to two directory levels deep, meaning that
 To show only the first file found that has one or more matches of `FIXME`:
 
     ugrep -R --max-files=1 -tc++ FIXME
+
+<a name="more"/>
 
 ### More examples
 
@@ -1012,6 +1129,8 @@ To find mismatched code (a backtick without matching backtick on the same line)
 in markdown:
 
     ugrep -R -o -n -ttext -e '(?^`[^`\n]*`)' -e '`[^`]+`'
+
+<a name="man"/>
 
 Man page
 --------
@@ -1815,10 +1934,12 @@ Man page
 
 <a name="patterns"/>
 
-POSIX regular expression syntax
--------------------------------
+Patterns
+--------
 
-For **ugrep** option `-P`, see [Perl regular expression syntax](https://www.boost.org/doc/libs/1_70_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html).
+<a name="posix-syntax"/>
+
+### POSIX regular expression syntax
 
 An empty pattern is a special case that matches everything except empty files,
 i.e. does not match zero-length files, as per POSIX.1 grep standard.
@@ -1890,6 +2011,8 @@ follows, from high to low precedence:
   6. Alternation `φ|ψ`
   7. Global modifiers `(?imsux)φ`
 
+<a name="posix-classes"/>
+
 ### POSIX and Unicode character classes
 
 Character classes in bracket lists represent sets of characters.  Sets can be
@@ -1907,6 +2030,8 @@ Bracket lists cannot be empty, so `[]` and `[^]` are invalid.  In fact, the
 first character after the bracket is always part of the list.  So `[][]` is a
 list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
 `]` and `[`, and `[-^]` is a list that matches a `-` and a `^`.
+
+<a name="posix-categories"/>
 
 ### POSIX and Unicode character categories
 
@@ -2007,3 +2132,12 @@ have a similar name.  For example, the `\p{Greek}` class represents Greek and
 Coptic letters and differs from the Unicode block `\p{IsGreek}` that spans a
 specific Unicode block of Greek and Coptic characters only, which also includes
 unassigned characters.
+
+<a name="perl-syntax"/>
+
+### Perl regular expression syntax
+
+For the pattern syntax of **ugrep** option `-P` (Perl regular expressions), see
+the Boost.Regex documentation
+[Perl regular expression syntax](https://www.boost.org/doc/libs/1_70_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html).
+
