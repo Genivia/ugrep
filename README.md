@@ -3,8 +3,9 @@ Universal grep ("uber grep")
 
 High-performance file search utility.  Supersedes GNU and BSD grep with full
 Unicode support.  Offers easy options and predefined regex patterns to quickly
-search source code, text, and binary files in large directory trees.  Faster
-than GNU grep and faster than ripgrep in many practical use cases.
+search source code, text, and binary files in large directory trees.
+Compatible with GNU/BSD grep, but with many more options and much faster
+searches.
 
 <div align="center">
 <img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
@@ -73,13 +74,13 @@ Introduction: why use ugrep?
   output hexdumps for binary matches, customized output formatting with match
   replacement, seamless quickfix Vim integration, and more.
 
-- **ugrep is fast**, faster than GNU grep and faster than ripgrep in many
-  practical cases.  Uses [RE/flex](https://github.com/Genivia/RE-flex) for
+- **ugrep is fast**, faster than GNU grep and faster than other grep tools.
+  Uses [RE/flex](https://github.com/Genivia/RE-flex) for
   high-performance regex matching, which is 100 times faster than the GNU C
   POSIX.2 regex library and 10 times faster than PCRE2 and RE2.  **ugrep** uses
-  multi-threading with lock-free job queue stealing to search files
-  simultaneously and efficiently.  Performance will continue to increase as we
-  improve and tune its algorithms.  See the [speed comparisons](#speed).
+  multi-threading with lock-free work stealing to search files simultaneously
+  and efficiently.  Performance will continue to increase as we improve and
+  tune its algorithms.  See the [speed comparisons](#speed).
 
 - **ugrep makes it simple to search source code** using options to select files
   by filename extension and file signature "magic bytes" or shebangs.  For
@@ -247,17 +248,17 @@ ugrep    1.5.0  | **0.11** | 0.07     | **1.15** | **1.08** | **0.99** | **0.97*
 
 With respect to T-2: single character and word search in **ugrep** uses a
 combination of `memchr` and Boyer-Moore, similar to GNU grep.  However,
-`memchr` appears sub-optimal on some platforms where the fast GNU `memchr`
-intrinsic is not available.  We believe this explains why GNU grep and ripgrep
-appear slightly faster than **ugrep** for T-2.  There is room for improvement
-for **ugrep** to search a single short word by optimizing `memchr`.
+`memchr` appears sub-optimal on some platforms as we are not yet using
+SIMD/AVX.  We believe this explains why GNU grep and ripgrep appear slightly
+faster than **ugrep** for T-2.  There is room for improvement for **ugrep** to
+search a single short word with SIMD/AVX optimizations.
 
 With respect to T-8: **ugrep** and ripgrep use threads to search files
 simultaneously.  Ripgrep has a CPU utilization of 627.2% for this concurrent
-search.  By contrast, **ugrep** is much more efficient with a CPU utilization
-of 276% for the same concurrent search.  In fact, just spawning two threads (as
-specified by `-J2`) yields about the same **ugrep** performance on this
-machine!
+search.  By contrast, **ugrep** appears more efficient with a CPU utilization
+of 276% for the same concurrent search.  This means that spawning just two
+or three threads (as specified by `-J2`) yields about the same **ugrep** high
+performance on this machine.
 
 In some cases we decided in favor of features and safety over performance.  For
 example, **ugrep** considers files binary when containing invalid UTF encodings
@@ -270,8 +271,7 @@ that GNU grep "cheats" when output is redirected to `/dev/null` by essentially
 omitting all output and stopping the search after the first match in a file.
 This is essentially the same as using option `-q`.  Therefore, to conduct our
 tests fairly, we pipe the output to a simple `null` utility that eats the input
-and discards it (see the source code below).  Because GNU grep implements this
-convenient cheat, **ugrep** does too!
+and discards it, see the source code below:
 
     #include <sys/types.h>
     #include <sys/uio.h>
@@ -313,13 +313,13 @@ Installation
 To build **ugrep**, you will need to download RE/flex 1.4.3 or greater from
 https://github.com/Genivia/RE-flex.
 
-There are two ways to build **ugrep**:  The first is to download RE/flex
+There are two ways to build **ugrep**.  The first is to download RE/flex
 without installing it (i.e. no `sudo` required).  The second requires
-installing RE/flex.
+installing RE/flex (with `sudo`).
 
 #### Without installing RE/flex
 
-If you don't want to install RE/flex with `sudo` then download the RE/flex
+If you don't want to install RE/flex with `sudo`, then download the RE/flex
 source code and build the RE/flex `libreflex.a` static library with:
 
     $ cd reflex
@@ -339,7 +339,8 @@ Compile **ugrep** as follows (replace `reflex_path` with the path to the
 - Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
   library installed.
 
-If these libraries are available, compile **ugrep** as follows:
+If these libraries are available, then compile **ugrep** as follows to enable
+the **ugrep** `-P` and `-z` options:
 
     $ c++ -std=c++11 -I. -I reflex_path/include -O2 -o ugrep -DHAVE_STRUCT_DIRENT_D_TYPE \
       -DHAVE_STRUCT_DIRENT_D_INO -DHAVE_BOOST_REGEX -DHAVE_LIBZ ugrep.cpp glob.cpp \
@@ -925,10 +926,6 @@ definition (C++ names may be Unicode):
 To display any non-matching lines as context for matching lines:
 
     ugrep --color -y -f c++/functions myfile.cpp
-
-To decompress and display a gz-compressed file with `-z` and `-y`:
-
-    ugrep -zy '' myfile.txt.gz
 
 To display a hexdump of a matching line with one line of hexdump context:
 
