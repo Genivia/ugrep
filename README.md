@@ -74,8 +74,8 @@ Introduction: why use ugrep?
   output hexdumps for binary matches, customized output formatting with match
   replacement, seamless quickfix Vim integration, and more.
 
-- **ugrep is fast**, faster than GNU grep and faster than other grep tools.
-  Uses [RE/flex](https://github.com/Genivia/RE-flex) for
+- **ugrep is fast**, faster than GNU grep and one of the fastest grep tools
+  available for free.  Uses [RE/flex](https://github.com/Genivia/RE-flex) for
   high-performance regex matching, which is 100 times faster than the GNU C
   POSIX.2 regex library and 10 times faster than PCRE2 and RE2.  **ugrep** uses
   multi-threading with lock-free work stealing to search files simultaneously
