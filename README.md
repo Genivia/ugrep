@@ -257,8 +257,8 @@ With respect to T-8: **ugrep** and ripgrep use threads to search files
 simultaneously.  Ripgrep has a CPU utilization of 627.2% for this concurrent
 search.  By contrast, **ugrep** appears more efficient with a CPU utilization
 of 276% for the same concurrent search.  This means that spawning just two
-or three threads (as specified by `-J2`) yields about the same **ugrep** high
-performance on this machine.
+or three threads (as specified by `-J2` or `-J3`) yields about the same fast
+execution times for **ugrep** on this machine.
 
 In some cases we decided in favor of features and safety over performance.  For
 example, **ugrep** considers files binary when containing invalid UTF encodings
