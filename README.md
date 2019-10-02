@@ -216,7 +216,7 @@ Test | Command                                                          | Descri
 ---- | ---------------------------------------------------------------- | -----------------------------------------------------
 T-1  | `GREP -cw -e char -e int -e long -e size_t -e void big.cpp`      | count 5 short words in a 35MB C++ source code file
 T-2  | `GREP -onE 'serialize_[a-zA-Z0-9_]+Type' big.cpp`                | search and display C++ serialization functions in a 35MB source code file
-T-3  | `GREP -onF -f words1+1000 enwik8`                                | search 1000 words in a 100MB Wikipedia file
+T-3  | `GREP -onF -f words1+1000 enwik8`                                | search 1000 characters in a 100MB Wikipedia file
 T-4  | `GREP -onF -f words2+1000 enwik8`                                | search 1000 words of length 2 or longer in a 100MB Wikipedia file
 T-5  | `GREP -onF -f words3+1000 enwik8`                                | search 1000 words of length 3 or longer in a 100MB Wikipedia file
 T-6  | `GREP -onF -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
@@ -296,8 +296,8 @@ e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 - Improve `memchr` performance for single short word searches, use SIMD/AVX.
 - Evaluate when `mmap` improves performance and when it does not.  Right now,
   `mmap` does not appear to improve performance in certain cases, perhaps
-  because RE/flex buffering is blazingly fast and has better spacial locality.
-  Memory maps are turned off with `--no-mmap`.
+  because RE/flex buffering appears blazingly fast and has better spatial
+  locality.  Memory maps are turned off with `--no-mmap`.
 - Turning certain features off internally when not used speeds up search:
   **ugrep** always counts line and column numbers even when not displayed.
 
