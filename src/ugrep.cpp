@@ -33,9 +33,11 @@
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
-Universal grep: a high-performance universal file search utility matches
-Unicode patterns.  Offers powerful predefined search patterns and quick
-options to selectively search source code files in large directory trees.
+Universal grep: high-performance file search utility.  Supersedes GNU and BSD
+grep with full Unicode support.  Offers easy options and predefined regex
+patterns to quickly search source code, text, and binary files in large
+directory trees.  Compatible with GNU/BSD grep.  Offers a faster drop-in
+replacement.
 
 For download and installation instructions:
 
@@ -50,21 +52,22 @@ Optional libraries to support options -P and -z:
   Boost.Regex
   zlib
 
-Compile without configure and make:
+Compile ugrep as follows:
 
-  With RE/flex installed:
+  1. With RE/flex installed (with sudo):
 
-    c++ -std=c++11 -O2 -o ugrep -DHAVE_LIBZ -DHAVE_BOOST_REGEX ugrep.cpp glob.cpp -lreflex -lz -lboost_regex -lpthread
+    ./configure
+    make
 
-  Or when RE/flex is locally built in directory $REFLEX:
+  2. When RE/flex is locally built with './build.sh' in directory path/reflex:
 
-    c++ -std=c++11 -I. -I $REFLEX/include -O2 -o ugrep -DHAVE_LIBZ -DHAVE_BOOST_REGEX ugrep.cpp glob.cpp $REFLEX/lib/libreflex.a -lz -lboost_regex -lpthread
+    ./configure --with-reflex=path/reflex
+    make
 
-  When dirent has members d_type and d_ino then a faster version is compiled by
-  adding -DHAVE_STRUCT_DIRENT_D_TYPE and -DHAVE_STRUCT_DIRENT_D_INO as options:
+  The compiled ugrep executable is located in ugrep/src.
 
-    c++ -std=c++11 -O2 -o ugrep -DHAVE_STRUCT_DIRENT_D_TYPE -DHAVE_STRUCT_DIRENT_D_INO -DHAVE_LIBZ -DHAVE_BOOST_REGEX ugrep.cpp glob.cpp -lreflex -lz -lboost_regex -lpthread
-
+  Prebuilt executables are located in ugrep/bin.
+  
 */
 
 #include <reflex/input.h>
@@ -139,7 +142,7 @@ void sigpipe_handle(int) { }
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.0"
+#define UGREP_VERSION "1.5.1"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -155,10 +158,10 @@ void sigpipe_handle(int) { }
 #define EXIT_FAIL  1 // No lines were selected
 #define EXIT_ERROR 2 // An error occurred
 
-// limit the total number of threads spawn (i.e. limit overhead), because grepping is practically IO bound
+// limit the total number of threads spawn (i.e. limit spawn overhead), because grepping is practically IO bound
 #define MAX_JOBS 8U
 
-// --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from
+// --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, not less than 3
 #define MIN_STEAL 3U
 
 // --min-mmap and --max-mmap file size to allocate with mmap(), not greater than 4294967295LL, max 0 disables mmap()

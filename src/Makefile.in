@@ -107,7 +107,8 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_ugrep_OBJECTS = ugrep-ugrep.$(OBJEXT) ugrep-glob.$(OBJEXT)
 ugrep_OBJECTS = $(am_ugrep_OBJECTS)
-ugrep_DEPENDENCIES =
+am__DEPENDENCIES_1 =
+ugrep_DEPENDENCIES = $(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -221,6 +222,8 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PLATFORM = @PLATFORM@
 RANLIB = @RANLIB@
+REFLEX_CFLAGS = @REFLEX_CFLAGS@
+REFLEX_LIBS = @REFLEX_LIBS@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
@@ -277,9 +280,9 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-ugrep_CPPFLAGS = $(PTHREAD_CFLAGS) -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\"
+ugrep_CPPFLAGS = $(REFLEX_CFLAGS) $(PTHREAD_CFLAGS) -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\"
 ugrep_SOURCES = ugrep.cpp glob.cpp
-ugrep_LDADD = $(PTHREAD_LIBS)
+ugrep_LDADD = $(REFLEX_LIBS) $(PTHREAD_LIBS)
 all: all-am
 
 .SUFFIXES:

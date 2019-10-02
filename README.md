@@ -4,8 +4,7 @@ Universal grep ("uber grep")
 High-performance file search utility.  Supersedes GNU and BSD grep with full
 Unicode support.  Offers easy options and predefined regex patterns to quickly
 search source code, text, and binary files in large directory trees.
-Compatible with GNU/BSD grep, but with many more options and much faster
-searches.
+Compatible with GNU/BSD grep.  Offers a faster drop-in replacement.
 
 <div align="center">
 <img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
@@ -29,8 +28,8 @@ Table of contents
   - [Results](#results)
   - [Future improvements and TODO](#todo)
 - [Installation](#installation)
-  - [Download and installation](#download)
-  - [Binaries](#binaries)
+  - [Download and and build steps](#download)
+  - [Download the binaries](#binaries)
   - [Using ugrep within Vim](#vim)
 - [Ugrep versus other greps](#comparison)
   - [GNU grep and BSD grep equivalence](#equivalence)
@@ -55,7 +54,7 @@ Table of contents
   - [Limiting the number of matches with -m, --max-depth, and --max-files](#max)
   - [More examples](#more)
 - [Man page](#man)
-- [Patterns](#patterns)
+- [Regex patterns](#patterns)
   - [POSIX regular expression syntax](#posix-syntax)
   - [POSIX and Unicode character classes](#posix-classes)
   - [POSIX and Unicode character categories](#posix-categories)
@@ -216,7 +215,7 @@ Test | Command                                                          | Descri
 ---- | ---------------------------------------------------------------- | -----------------------------------------------------
 T-1  | `GREP -cw -e char -e int -e long -e size_t -e void big.cpp`      | count 5 short words in a 35MB C++ source code file
 T-2  | `GREP -onE 'serialize_[a-zA-Z0-9_]+Type' big.cpp`                | search and display C++ serialization functions in a 35MB source code file
-T-3  | `GREP -onF -f words1+1000 enwik8`                                | search 1000 words of length 1 or longer in a 100MB Wikipedia file
+T-3  | `GREP -onF -f words1+1000 enwik8`                                | search 1000 words of length 1 or longe rin a 100MB Wikipedia file
 T-4  | `GREP -onF -f words2+1000 enwik8`                                | search 1000 words of length 2 or longer in a 100MB Wikipedia file
 T-5  | `GREP -onF -f words3+1000 enwik8`                                | search 1000 words of length 3 or longer in a 100MB Wikipedia file
 T-6  | `GREP -onF -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
@@ -293,11 +292,11 @@ e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 
 ### Future improvements and TODO
 
-- Improve `memchr` performance for single short word searches, use SIMD/AVX.
+- Improve performance for single short word searches, e.g. use SIMD/AVX.
 - Evaluate when `mmap` improves performance and when it does not.  Right now,
   `mmap` does not appear to improve performance in certain cases, perhaps
-  because RE/flex buffering appears blazingly fast and has better spatial
-  locality.  Memory maps are turned off with `--no-mmap`.
+  because RE/flex buffering is blazingly fast and has better spatial locality.
+  Memory maps are turned off with `--no-mmap`.
 - Turning certain features off internally when not used speeds up search:
   **ugrep** always counts line and column numbers even when not displayed.
 
@@ -310,56 +309,60 @@ Installation
 
 ### Download and build steps
 
-To build **ugrep**, you will need to download RE/flex 1.4.3 or greater from
+To build **ugrep**, also download RE/flex 1.4.3 or greater from
 https://github.com/Genivia/RE-flex.
 
-There are two ways to build **ugrep**.  The first is to download RE/flex
-without installing it (i.e. no `sudo` required).  The second requires
-installing RE/flex (with `sudo`).
+There are two easy ways to build **ugrep**.  The first is to download RE/flex
+without installing it, i.e. no `sudo` required.  The second method requires
+installing RE/flex first with `sudo`.
 
-#### Without installing RE/flex
-
-If you don't want to install RE/flex with `sudo`, then download the RE/flex
-source code and build the RE/flex `libreflex.a` static library with:
-
-    $ cd reflex
-    $ ./build.sh
-
-Compile **ugrep** as follows (replace `reflex_path` with the path to the
-`reflex` directory):
-
-    $ cd ugrep/src
-    $ c++ -std=c++11 -I. -I reflex_path/include -O2 -o ugrep -DHAVE_STRUCT_DIRENT_D_TYPE \
-      -DHAVE_STRUCT_DIRENT_D_INO ugrep.cpp glob.cpp reflex_path/lib/libreflex.a -lpthread
-
-**ugrep** has two optional dependencies to enable the following options:
+There are two optional dependencies for two **ugrep** command-line options:
 
 - Option `-P` (Perl regular expressions) requires the
   [Boost.Regex](https://www.boost.org) library installed.
 - Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
   library installed.
 
-If these libraries are available, then compile **ugrep** as follows to enable
-the **ugrep** `-P` and `-z` options:
+#### Without installing RE/flex
 
-    $ c++ -std=c++11 -I. -I reflex_path/include -O2 -o ugrep -DHAVE_STRUCT_DIRENT_D_TYPE \
-      -DHAVE_STRUCT_DIRENT_D_INO -DHAVE_BOOST_REGEX -DHAVE_LIBZ ugrep.cpp glob.cpp \
-      reflex_path/lib/libreflex.a -lboost_regex -lz -lpthread
+If you don't want to install RE/flex with `sudo`, then download the RE/flex
+source code and build the RE/flex `libreflex.a` static library as follows:
 
-#### With RE/flex installed
+    $ cd reflex
+    $ ./build.sh
 
-If you have RE/flex installed (with `sudo`) then execute:
+Then compile **ugrep** as follows by replacing `path/reflex` with the directory
+path from the root to the `reflex` directory:
 
     $ cd ugrep
-    $ ./configure; make
+    $ ./configure --with-reflex=path/reflex
+    $ make
 
-This builds `ugrep` in the `src` directory.  You can tell which version it is
-with:
+This builds `ugrep` in the `ugrep/src` directory.  You can tell which version
+it is with:
 
     $ src/ugrep -V
     ugrep 1.5.0 x86_64-apple-darwin16.7.0
 
-Optionally, install the ugrep utility and the ugrep manual page as follows:
+Just copy `src/ugrep` to a convenient location, for example in your `bin`
+directory.
+
+#### With RE/flex installed
+
+If you have RE/flex installed with `sudo` by following the RE/flex installation
+instructions, then compile **ugrep** as follows:
+
+    $ cd ugrep
+    $ ./configure
+    $ make
+
+This builds `ugrep` in the `ugrep/src` directory.  You can tell which version
+it is with:
+
+    $ src/ugrep -V
+    ugrep 1.5.0 x86_64-apple-darwin16.7.0
+
+You can now install the ugrep utility and the ugrep manual page as follows:
 
     $ sudo make install
 
@@ -369,16 +372,21 @@ directory for the presence of pattern files, if not found checks environment
 variable `GREP_PATH` to load the pattern files, and if not found reads the
 installed predefined pattern files.
 
+If you don't want to install **ugrep** then just copy `src/ugrep` to a
+convenient location, for example in your `bin` directory.
+
 <a name="binaries"/>
 
-### Binaries
+### Download the binaries
 
-Binaries for Linux, Mac OS X, and Windows are included in the `bin` directory.
-These binary versions disable options `-P` (Perl regular expressions) and `-z`
-(decompress).
+Prebuilt binaries for Linux, Mac OS X, and Windows are included in the `bin`
+directory.  These binary versions do not support options `-P` (Perl regular
+expressions) and `-z` (decompress).
 
 When using `ugrep.exe` from the Windows command line, use `"` instead of `'` to
 specify patterns, since `'` becomes part of the command-line argument!
+
+The Linux binary was built on CentOS 7.6.
 
 <a name="vim"/>
 
@@ -527,9 +535,8 @@ few:
   and `-F` do not apply to predefined patterns to avoid confusion when `-f` is
   used with a given search pattern.
 - Patterns with backreferences and lookbehinds require option `-P` (Perl
-  regular expressions), which uses the Boost.Regex library since
-  [Boost.Regex is faster than PCRE](https://github.com/Genivia/RE-flex),
-  while providing PCRE-like regex syntax.
+  regular expressions), which uses the Boost.Regex library for fast Perl regex
+  matching with a PCRE-like syntax.
 - When option `-b` is used with option `-o` or with option `-g`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line reported by GNU/BSD grep.  Reporting
@@ -1953,12 +1960,12 @@ Man page
 
 
 
-    ugrep 1.5.0                   September 30, 2019                      UGREP(1)
+    ugrep 1.5.1                    October 02, 2019                       UGREP(1)
 
 <a name="patterns"/>
 
-Patterns
---------
+Regex patterns
+--------------
 
 <a name="posix-syntax"/>
 

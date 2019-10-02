@@ -664,6 +664,8 @@ CPPFLAGS
 LDFLAGS
 CFLAGS
 CC
+REFLEX_LIBS
+REFLEX_CFLAGS
 AM_BACKSLASH
 AM_DEFAULT_VERBOSITY
 AM_DEFAULT_V
@@ -734,6 +736,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_silent_rules
+with_reflex
 enable_dependency_tracking
 with_boost_regex
 with_zlib
@@ -1378,6 +1381,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-reflex=DIR       reflex installation directory prefix
   --with-boost-regex[=special-lib]
                           use the Regex library from boost - it is possible to
                           specify a certain library for the linker e.g.
@@ -2875,6 +2879,36 @@ ac_config_headers="$ac_config_headers config.h"
 
 
 
+
+# Check whether --with-reflex was given.
+if test "${with_reflex+set}" = set; then :
+  withval=$with_reflex; REFLEX=$withval
+fi
+
+
+if test -n "$REFLEX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for RE/flex directory $REFLEX" >&5
+$as_echo_n "checking for RE/flex directory $REFLEX... " >&6; }
+  if test -d "$REFLEX"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+    REFLEX_CFLAGS="-I${REFLEX}/include"
+    REFLEX_LIBS="${REFLEX}/lib/libreflex.a"
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    REFLEX=""
+    REFLEX_CFLAGS=""
+    REFLEX_LIBS=""
+  fi
+else
+  REFLEX_CFLAGS=""
+  REFLEX_LIBS=""
+fi
+
+
+
+
 DEPDIR="${am__leading_dot}deps"
 
 ac_config_commands="$ac_config_commands depfiles"
@@ -3959,8 +3993,13 @@ _ACEOF
   LIBS="-lreflex $LIBS"
 
 else
-  echo 'ugrep requires RE/flex 1.4.3 or greater: https://github.com/Genivia/RE-flex'
-     exit 1
+
+     if test -z "$REFLEX"; then
+       echo 'ugrep requires RE/flex 1.4.3 or greater: https://github.com/Genivia/RE-flex'
+       echo 'alternatively, download RE/flex, build it, and run the following command:'
+       echo '$ ./configure --with-reflex=path/reflex'
+       echo 'where path/reflex is the path from the root where reflex is located and built'
+     fi
 
 fi
 
