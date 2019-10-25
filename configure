@@ -6234,7 +6234,7 @@ $as_echo "#define HAVE_CXX11 1" >>confdefs.h
   fi
 
 
-AM_CXXFLAGS="-Wall -Wunused -Wextra"
+AM_CXXFLAGS="-Wall -pthread -Wunused -Wextra"
 
 
 PTHREAD_CFLAGS=""
