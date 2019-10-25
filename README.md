@@ -40,7 +40,7 @@ Table of contents
   - [Examples](#examples)
   - [Displaying helpful info](#help)
   - [Recursively list matching files with options -R or -r and -L or -l](#recursion)
-  - [Match this but not that](#not)
+  - [Search and match this but not that with -v, -f, -L, and (?^pattern)](#not)
   - [Matching empty patterns with -Y](#empty)
   - [Searching ASCII and Unicode files](#unicode)
   - [Matching multiple lines of text with -o](#only)
@@ -54,7 +54,7 @@ Table of contents
   - [Customizing the output in JSON, XML, CSV, C++, and replacing matches using group captures](#format)
   - [Displaying colors with --color](#color)
   - [Limiting the number of matches with -m, --max-depth, and --max-files](#max)
-  - [Searching compressed files](#gz)
+  - [Searching compressed files with -z](#gz)
   - [More examples](#more)
 - [Man page](#man)
 - [Regex patterns](#patterns)
@@ -225,7 +225,7 @@ T-6  | `GREP -Fon -f words4+1000 enwik8`                                | search
 T-7  | `GREP -Fon -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
 T-8  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
 T-9  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T-8 but single-threaded ugrep (option `-J1`) and ripgrep (option `-j1`)
-T-10 | `GREP -z -Fc word word*.gz                                       | search for `word` in 6 compressed files of 1MB to 3MB each
+T-10 | `GREP -z -Fc word word*.gz`                                      | search for `word` in 6 compressed files of 1MB to 3MB each
 
 Note: T-8 and T-9 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
 files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
@@ -723,7 +723,7 @@ To recursively list all files that match the globs in .gitignore:
 
 <a name="not"/>
 
-### Match this but not that with -v, -f, -L, and (?^pattern)
+### Search and match this but not that with -v, -f, -L, and (?^pattern)
 
 To match all lines in file `myfile.sh` except lines matching `^[ \t]*#`:
 
