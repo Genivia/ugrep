@@ -1,4 +1,4 @@
-.TH UGREP "1" "October 02, 2019" "ugrep 1.5.1" "User Commands"
+.TH UGREP "1" "October 25, 2019" "ugrep 1.5.2" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -15,10 +15,10 @@ that matches at least one of the patterns is written to the standard output.
 To search for patterns that span multiple lines, use option \fB-o\fR.
 .PP
 The \fBugrep\fR utility normalizes and decodes encoded input to search for the
-specified ASCII/Unicode patterns.  When the input contains a UTF BOM indicating
-UTF-8, UTF-16, or UTF-32 input then \fBugrep\fR always normalizes the input to
-UTF-8.  When no UTF BOM is present, \fBugrep\fR assumes the input is ASCII,
-UTF-8, or raw binary.  To specify a different input file encoding, use option
+specified ASCII/Unicode patterns.  If the input contains a UTF BOM indicating
+UTF-8, UTF-16, or UTF-32 input, then \fBugrep\fR normalizes the input to UTF-8.
+If no UTF BOM is present, then \fBugrep\fR assumes the input is ASCII, UTF-8,
+or raw binary.  To explicitly specify an input encoding to decode, use option
 \fB-Q\fR, \fB--encoding\fR.
 .PP
 The following options are available:
@@ -72,8 +72,8 @@ No whitespace may be given between \fB\-C\fR and its argument NUM.
 .TP
 \fB\-c\fR, \fB\-\-count\fR
 Only a count of selected lines is written to standard output.
-When used with option \fB\-g\fR, counts the number of patterns matched.
-With option \fB\-v\fR, counts the number of non\-matching lines.
+If \fB\-g\fR or \fB\-o\fR is specified, counts the number of patterns matched.
+If \fB\-v\fR is specified, counts the number of non\-matching lines.
 .TP
 \fB\-\-color\fR[=\fI\fR\fIWHEN\fR], \fB\-\-colour\fR[=\fI\fR\fIWHEN\fR]
 Mark up the matching text with the expression stored in the
@@ -141,14 +141,13 @@ may be repeated.
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
 any of which is to be matched.  This makes ugrep behave as fgrep.
-This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  To apply \fB\-F\fR to
-patterns in FILE use \fB\-F\fR \fB\-e\fR `cat FILE`.
+If PATTERN or \fB\-e\fR \fIPATTERN\fR is also specified, then this option does
+not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-f\fR \fIFILE\fR, \fB\-\-file\fR=\fIFILE\fR
 Read one or more newline\-separated patterns from FILE.  Empty
-pattern lines in FILE are not processed.  Options \fB\-F\fR, \fB\-w\fR, and \fB\-x\fR do
-not apply to FILE patterns.  If FILE does not exist, the GREP_PATH
-environment variable is used as the path to read FILE.
+pattern lines in FILE are not processed.  If FILE does not exist,
+the GREP_PATH environment variable is used as the path to FILE.
 If that fails, looks for FILE in /usr/local/share/ugrep/patterns.
 When FILE is a `\fB\-'\fR, standard input is read.  This option may be
 repeated.
@@ -217,8 +216,8 @@ This option may be repeated.
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
 Specifies the number of threads spawned to search files.  By
 default, an optimum number of threads is spawned to search files
-simultaneously.  \fB\-J\fR1 disables threading: matching files are output
-in the same order as the specified files.
+simultaneously.  \fB\-J\fR1 disables threading: files are matched in the
+same order as the files are specified.
 .TP
 \fB\-j\fR, \fB\-\-smart\-case\fR
 Perform case insensitive matching unless PATTERN contains a capital
@@ -258,8 +257,8 @@ otherwise.
 .TP
 \fB\-M\fR \fIMAGIC\fR, \fB\-\-file\-magic\fR=\fIMAGIC\fR
 Only files matching the signature pattern `MAGIC' are searched.
-The signature "magic bytes" at the start of a file are compared to
-the `MAGIC' regex pattern.  When matching, the file will be
+The signature "magic bytes" at the start of a file are compared
+to the `MAGIC' regex pattern.  When matching, the file will be
 searched.  This option may be repeated and may be combined with
 options \fB\-O\fR and \fB\-t\fR to expand the search.  This option is relatively
 slow as every file on the search path is read to compare `MAGIC'.
@@ -274,7 +273,9 @@ sub\-directories.  By comparison, \fB\-d\fRskip skips all directories even
 when they are on the command line.
 .TP
 \fB\-\-max\-files\fR=\fINUM\fR
-Restrict the number of files matched to NUM (NUM > 0).
+If \fB\-R\fR or \fB\-r\fR is specified, restrict the number of files matched to
+NUM.  If \fB\-J\fR1 is specified, files are matched in the same order as
+the files are specified.
 .TP
 \fB\-N\fR, \fB\-\-only\-line\-number\fR
 The line number of the matching line in the file is output without
@@ -337,11 +338,13 @@ Allows a pattern match to span multiple lines.
 .TP
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
 Recursively read all files under each directory.  Follow all
-symbolic links, unlike \fB\-r\fR.
+symbolic links, unlike \fB\-r\fR.  If \fB\-J\fR1 is specified, files are matched
+in the same order as the files are specified.
 .TP
 \fB\-r\fR, \fB\-\-recursive\fR
 Recursively read all files under each directory, following symbolic
-links only if they are on the command line.
+links only if they are on the command line.  If \fB\-J\fR1 is specified,
+files are matched in the same order as the files are specified.
 .TP
 \fB\-S\fR, \fB\-\-dereference\fR
 If \fB\-r\fR is specified, all symbolic links are followed, like \fB\-R\fR.  The
@@ -410,8 +413,8 @@ option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The PATTERN or \fB\-e\fR \fIPATTERN\fR are searched for as a word (as if
-surrounded by \\< and \\>).  This option does not apply to \fB\-f\fR \fIFILE\fR
-patterns.  To apply \fB\-w\fR to patterns in FILE use \fB\-w\fR \fB\-e\fR `cat FILE`.
+surrounded by \\< and \\>).  If PATTERN or \fB\-e\fR \fIPATTERN\fR is also
+specified, then this option does not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
@@ -420,8 +423,8 @@ Output matches in hexadecimal.  This option is equivalent to the
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire PATTERN or \fB\-e\fR \fIPATTERN\fR
 are considered to be matching lines (as if surrounded by ^ and $).
-This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  To apply \fB\-x\fR to
-patterns in FILE use \fB\-x\fR \fB\-e\fR `cat FILE`.
+If PATTERN or \fB\-e\fR \fIPATTERN\fR is also specified, then this option does
+not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-\-xml\fR
 Output file matches in XML.  Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to

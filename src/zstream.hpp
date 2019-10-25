@@ -42,7 +42,7 @@
 #include <zlib.h>
 
 #ifndef Z_BUF_LEN
-#define Z_BUF_LEN (32768)
+#define Z_BUF_LEN (65536)
 #endif
 
 class zstreambuf : public std::streambuf {
@@ -52,66 +52,83 @@ class zstreambuf : public std::streambuf {
     gzfile_ = gzdopen(fileno(file), "rb");
     if (gzfile_ != Z_NULL)
       gzbuffer(gzfile_, Z_BUF_LEN);
-    cur_ = 0;
-    len_ = 0;
-    get();
   }
   virtual ~zstreambuf()
   {
     if (gzfile_ != Z_NULL)
       gzclose(gzfile_);
   }
- private:
-  virtual int_type underflow()
-  {
-    if (ch_ == EOF)
-      return traits_type::eof();
-    return traits_type::to_int_type(ch_);
-  }
-  virtual int_type uflow()
-  {
-    if (ch_ == EOF)
-      return traits_type::eof();
-    int c = ch_;
-    get();
-    return traits_type::to_int_type(c);
-  }
-  virtual std::streamsize showmanyc()
-  {
-    return (std::streamsize)(len_ - cur_);
-  }
-  inline void get()
-  {
-    if (cur_ < len_)
-    {
-      ch_ = buf_[cur_++];
-    }
-    else if (gzfile_ != Z_NULL)
-    {
-      cur_ = 0;
-      len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
-      if (len_ <= 0)
-      {
-        gzclose(gzfile_);
-        gzfile_ = Z_NULL;
-        ch_ = EOF;
-      }
-      else
-      {
-        ch_ = buf_[cur_++];
-      }
-    }
-    else
-    {
-      ch_ = EOF;
-    }
-  }
  protected:
+  int_type underflow()
+  {
+    return cur_ < len_ ? buf_[cur_] : peek();
+  }
+  int_type uflow()
+  {
+    return cur_ < len_ ? buf_[cur_++] : read();
+  }
+  std::streamsize showmanyc()
+  {
+    return gzfile_ == Z_NULL ? -1 : 0;
+  }
+  std::streamsize xsgetn(char *s, std::streamsize n)
+  {
+    if (gzfile_ == Z_NULL)
+      return 0;
+    std::streamsize k = n;
+    while (k > 0)
+    {
+      if (cur_ >= len_)
+      {
+        peek();
+        if (len_ == 0)
+          return n - k;
+      }
+      if (k <= len_ - cur_)
+      {
+        memcpy(s, buf_ + cur_, k);
+        cur_ += k;
+        return n;
+      }
+      memcpy(s, buf_ + cur_, len_ - cur_);
+      s += len_ - cur_;
+      k -= len_ - cur_;
+      cur_ = len_;
+    }
+    return n;
+  }
+  int_type peek()
+  {
+    if (gzfile_ == Z_NULL)
+      return traits_type::eof();
+    cur_ = 0;
+    len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
+    if (len_ <= 0)
+    {
+      gzclose(gzfile_);
+      gzfile_ = Z_NULL;
+      return traits_type::eof();
+    }
+    return traits_type::to_int_type(buf_[cur_]);
+  }
+  int_type read()
+  {
+    if (gzfile_ == Z_NULL)
+      return traits_type::eof();
+    cur_ = 0;
+    len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
+    if (len_ <= 0)
+    {
+      gzclose(gzfile_);
+      gzfile_ = Z_NULL;
+      return traits_type::eof();
+    }
+    return traits_type::to_int_type(buf_[cur_++]);
+  }
   gzFile gzfile_;
   unsigned char buf_[Z_BUF_LEN];
-  int cur_;
-  int len_;
-  int ch_;
+  std::streamsize cur_;
+  std::streamsize len_;
 };
 
 #endif

@@ -30,10 +30,10 @@ that matches at least one of the patterns is written to the standard output.
 To search for patterns that span multiple lines, use option \fB-o\fR.
 .PP
 The \fBugrep\fR utility normalizes and decodes encoded input to search for the
-specified ASCII/Unicode patterns.  When the input contains a UTF BOM indicating
-UTF-8, UTF-16, or UTF-32 input then \fBugrep\fR always normalizes the input to
-UTF-8.  When no UTF BOM is present, \fBugrep\fR assumes the input is ASCII,
-UTF-8, or raw binary.  To specify a different input file encoding, use option
+specified ASCII/Unicode patterns.  If the input contains a UTF BOM indicating
+UTF-8, UTF-16, or UTF-32 input, then \fBugrep\fR normalizes the input to UTF-8.
+If no UTF BOM is present, then \fBugrep\fR assumes the input is ASCII, UTF-8,
+or raw binary.  To explicitly specify an input encoding to decode, use option
 \fB-Q\fR, \fB--encoding\fR.
 .PP
 The following options are available:

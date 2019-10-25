@@ -285,9 +285,9 @@ PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PLATFORM = @PLATFORM@
+PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
+PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
-REFLEX_CFLAGS = @REFLEX_CFLAGS@
-REFLEX_LIBS = @REFLEX_LIBS@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
@@ -344,7 +344,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = src
+SUBDIRS = lib src
 man1_MANS = man/ugrep.1
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 all: config.h
@@ -740,7 +740,7 @@ distcleancheck: distclean
 	       exit 1; } >&2
 check-am: all-am
 check: check-recursive
-all-am: Makefile $(MANS) config.h
+all-am: Makefile $(MANS) config.h all-local
 installdirs: installdirs-recursive
 installdirs-am:
 	for dir in "$(DESTDIR)$(man1dir)"; do \
@@ -851,7 +851,7 @@ uninstall-man: uninstall-man1
 .MAKE: $(am__recursive_targets) all install-am install-data-am \
 	install-strip
 
-.PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am \
+.PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am all-local \
 	am--refresh check check-am clean clean-cscope clean-generic \
 	cscope cscopelist-am ctags ctags-am dist dist-all dist-bzip2 \
 	dist-gzip dist-lzip dist-shar dist-tarZ dist-xz dist-zip \
@@ -870,6 +870,18 @@ uninstall-man: uninstall-man1
 
 .PRECIOUS: Makefile
 
+
+all-local:	cp2bin
+
+.PHONY:		cp2bin
+
+# to copy the ugrep binary to ugrep/bin (joins ugrep.exe that's already there)
+cp2bin:		$(abs_top_builddir)/src/ugrep
+		-mkdir -p $(top_builddir)/bin
+		-cp -f $< $(top_builddir)/bin
+		@echo
+		@echo "OK"
+		@echo
 
 install-data-hook:
 		(mkdir -p $(datadir)/ugrep; \

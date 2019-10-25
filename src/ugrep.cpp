@@ -36,14 +36,14 @@
 Universal grep: high-performance file search utility.  Supersedes GNU and BSD
 grep with full Unicode support.  Offers easy options and predefined regex
 patterns to quickly search source code, text, and binary files in large
-directory trees.  Compatible with GNU/BSD grep.  Offers a faster drop-in
+directory trees.  Compatible with GNU/BSD grep, offering a faster drop-in
 replacement.
 
 For download and installation instructions:
 
   https://github.com/Genivia/ugrep
 
-Requires RE/flex 1.4.3 or greater:
+This program uses RE/flex:
 
   https://github.com/Genivia/RE-flex
 
@@ -52,22 +52,19 @@ Optional libraries to support options -P and -z:
   Boost.Regex
   zlib
 
-Compile ugrep as follows:
+Compile as follows:
 
-  1. With RE/flex installed (with sudo):
+  ./configure
+  make
 
-    ./configure
-    make
+Install as follows:
 
-  2. When RE/flex is locally built with './build.sh' in directory path/reflex:
+  ./configure
+  make
+  sudo make install
 
-    ./configure --with-reflex=path/reflex
-    make
+Prebuilt executables are located in ugrep/bin.
 
-  The compiled ugrep executable is located in ugrep/src.
-
-  Prebuilt executables are located in ugrep/bin.
-  
 */
 
 #include <reflex/input.h>
@@ -142,7 +139,7 @@ void sigpipe_handle(int) { }
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.1"
+#define UGREP_VERSION "1.5.2"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -159,9 +156,9 @@ void sigpipe_handle(int) { }
 #define EXIT_ERROR 2 // An error occurred
 
 // limit the total number of threads spawn (i.e. limit spawn overhead), because grepping is practically IO bound
-#define MAX_JOBS 8U
+#define MAX_JOBS 16U
 
-// --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, not less than 3
+// --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, smaller values result in higher job stealing rates, not less than 3
 #define MIN_STEAL 3U
 
 // --min-mmap and --max-mmap file size to allocate with mmap(), not greater than 4294967295LL, max 0 disables mmap()
@@ -195,16 +192,16 @@ bool color_term = false;
 
 // ANSI SGR substrings extracted from GREP_COLORS
 #define COLORLEN 16
-char color_sl[COLORLEN];
-char color_cx[COLORLEN];
-char color_mt[COLORLEN];
-char color_ms[COLORLEN];
-char color_mc[COLORLEN];
-char color_fn[COLORLEN];
-char color_ln[COLORLEN];
-char color_cn[COLORLEN];
-char color_bn[COLORLEN];
-char color_se[COLORLEN];
+char color_sl[COLORLEN]; // selected line
+char color_cx[COLORLEN]; // context line
+char color_mt[COLORLEN]; // matched text in any matched line
+char color_ms[COLORLEN]; // matched text in a selected line
+char color_mc[COLORLEN]; // matched text in a context line
+char color_fn[COLORLEN]; // file name
+char color_ln[COLORLEN]; // line number
+char color_cn[COLORLEN]; // column number
+char color_bn[COLORLEN]; // byte offset
+char color_se[COLORLEN]; // separator
 const char *color_off = "";
 
 // default file encoding is plain (no conversion), but detect UTF-8/16/32 automatically
@@ -888,8 +885,12 @@ struct Grep {
   }
 
   // defined by GrepWorker to acquire sync mutex for output
-  virtual void acquire_output()
-  { }
+  virtual bool acquire_output()
+  {
+    stats.found();
+
+    return true;
+  }
 
   // defined by GrepWorker to release sync mutex for output
   virtual void release_output()
@@ -1055,13 +1056,24 @@ struct GrepWorker : public Grep {
     submit_job(Job::NONE);
   }
 
-  // acquire the sync lock to output search results without interference
-  virtual void acquire_output()
+  // acquire the sync lock to output search results without interference, update files found count
+  virtual bool acquire_output()
   {
     sync.lock();
+
+    // stop after finding max-files matching files
+    if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
+    {
+      sync.unlock();
+      return false;
+    }
+
+    stats.found();
+
+    return true;
   }
 
-  // release the sync lock
+  // release the sync lock if acquired
   virtual void release_output()
   {
     if (sync.owns_lock())
@@ -1840,7 +1852,7 @@ int main(int argc, char **argv)
     help("option -z is not available in this version of ugrep");
 #endif
 
-  // -t list: list table of types
+  // -t list: list table of types and exit
   if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
   {
     int i;
@@ -1905,15 +1917,25 @@ int main(int argc, char **argv)
     }
   }
 
-  // remove the ending '|' from the |-concatenated regexes in the regex string
   if (!regex.empty())
+  {
+    // remove the ending '|' from the |-concatenated regexes in the regex string
     regex.pop_back();
 
-  // -x or -w
-  if (flag_line_regexp)
-    regex.insert(0, "^(").append(")$"); // make the regex line-anchored
-  else if (flag_word_regexp)
-    regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+    // -x or -w
+    if (flag_line_regexp)
+      regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+    else if (flag_word_regexp)
+      regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+
+    // -x and -w do not apply to patterns in -f FILE when PATTERN specified
+    flag_line_regexp = false;
+    flag_word_regexp = false;
+
+    // -F does not apply to patterns in -f FILE when PATTERN specified
+    Q = "";
+    E = "|";
+  }
 
   // -j: case insensitive search if regex does not contain a capital letter
   if (flag_smart_case)
@@ -2003,7 +2025,7 @@ int main(int argc, char **argv)
           if (lineno == 1 && line == "###-o")
             flag_only_matching = true;
           else
-            regex.append(line).push_back('|');
+            regex.append(Q).append(line).append(E);
         }
       }
 
@@ -2013,6 +2035,12 @@ int main(int argc, char **argv)
 
     // remove the ending '|' from the |-concatenated regexes in the regex string
     regex.pop_back();
+
+    // -x or -w
+    if (flag_line_regexp)
+      regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+    else if (flag_word_regexp)
+      regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
   }
 
   // -y: disable -A, -B, and -C
@@ -2025,10 +2053,11 @@ int main(int argc, char **argv)
 
   // -v: disable -g and -o
   if (flag_invert_match)
-  {
-    flag_no_group = false;
-    flag_only_matching = false;
-  }
+    flag_no_group = flag_only_matching = false;
+
+  // -c with -o is the same as -c with -g
+  if (flag_count && flag_only_matching)
+    flag_no_group = true;
 
   // normalize -R (--dereference-recurse) option
   if (strcmp(flag_directories, "dereference-recurse") == 0)
@@ -2195,15 +2224,16 @@ int main(int argc, char **argv)
             // parse GREP_COLORS
             set_color(grep_colors, "sl", color_sl); // selected line
             set_color(grep_colors, "cx", color_cx); // context line
-            set_color(grep_colors, "mt", color_mt); // matching text in any line
-            set_color(grep_colors, "ms", color_ms); // matching text in selected line
-            set_color(grep_colors, "mc", color_mc); // matching text in a context line
+            set_color(grep_colors, "mt", color_mt); // matched text in any line
+            set_color(grep_colors, "ms", color_ms); // matched text in selected line
+            set_color(grep_colors, "mc", color_mc); // matched text in a context line
             set_color(grep_colors, "fn", color_fn); // file name
             set_color(grep_colors, "ln", color_ln); // line number
             set_color(grep_colors, "cn", color_cn); // column number
             set_color(grep_colors, "bn", color_bn); // byte offset
-            set_color(grep_colors, "se", color_se); // separators
+            set_color(grep_colors, "se", color_se); // separator
 
+            // -v: if rv in GREP_COLORS then swap the sl and cx colors
             if (flag_invert_match && strstr(grep_colors, "rv") != NULL)
             {
               char color_tmp[COLORLEN];
@@ -2212,9 +2242,11 @@ int main(int argc, char **argv)
               copy_color(color_cx, color_tmp);
             }
 
-            // if ms= or mc= are not specified, use the mt= value
+            // if ms= is not specified, use the mt= value
             if (*color_ms == '\0')
               copy_color(color_ms, color_mt);
+
+            // if mc= is not specified, use the mt= value
             if (*color_mc == '\0')
               copy_color(color_mc, color_mt);
 
@@ -2447,11 +2479,11 @@ int main(int argc, char **argv)
   if (flag_jobs == 0)
   {
     unsigned int cores = std::thread::hardware_concurrency();
-    unsigned int concurrency = cores > 4 ? cores/2 : cores > 2 ? cores : 2;
+    unsigned int concurrency = cores > 2 ? cores : 2;
     flag_jobs = std::min(concurrency, MAX_JOBS);
   }
 
-  // set the number of threads to the number of files or when recursing to the value of --jobs
+  // set the number of threads to the number of files or when recursing to the value of -J, --jobs
   if (flag_directories_action == RECURSE)
     threads = flag_jobs;
   else
@@ -3129,11 +3161,13 @@ void Grep::search(const char *pathname)
     if (flag_invert_match)
       matches = !matches;
 
-    // -l or -L
-    if (matches && flag_files_with_match)
-    {
-      acquire_output();
+    if (matches > 0)
+      if (!acquire_output())
+        return;
 
+    // -l or -L
+    if (matches > 0 && flag_files_with_match)
+    {
       sgi(out, color_fn);
       put(out, pathname);
       sgi(out, color_off);
@@ -3144,9 +3178,9 @@ void Grep::search(const char *pathname)
   {
     // -c: count the number of lines/patterns matched
 
-    if (flag_no_group && !flag_invert_match)
+    if (flag_no_group)
     {
-      // -c with -g: count the number of patterns matched in the file
+      // -c with -g or -o: count the number of patterns matched in the file
 
       read_file();
 
@@ -3161,7 +3195,7 @@ void Grep::search(const char *pathname)
     }
     else
     {
-      // -c without -g: count the number of matching lines
+      // -c without -g/-o: count the number of matching lines
 
       size_t lineno = 0;
 
@@ -3180,8 +3214,6 @@ void Grep::search(const char *pathname)
           // -m: max number of matches reached?
           if (flag_max_count > 0 && matches >= flag_max_count)
             break;
-
-          // TODO: skip input till the end of the current line to increase speed
         }
       }
 
@@ -3189,7 +3221,8 @@ void Grep::search(const char *pathname)
         matches = matcher->lineno() - matches - 1;
     }
 
-    acquire_output();
+    if (!acquire_output())
+      return;
 
     if (flag_with_filename)
     {
@@ -3211,9 +3244,6 @@ void Grep::search(const char *pathname)
     }
 
     fprintf(out, "%zu\n", matches);
-
-    if (matches == 0)
-      release_output();
   }
   else if (flag_format != NULL)
   {
@@ -3226,7 +3256,8 @@ void Grep::search(const char *pathname)
       // --format-open
       if (matches == 0)
       {
-        acquire_output();
+        if (!acquire_output())
+          return;
 
         if (flag_format_open != NULL)
           format(out, flag_format_open, pathname, stats.found_files(), matcher);
@@ -3271,7 +3302,8 @@ void Grep::search(const char *pathname)
         lineno = current_lineno;
 
         if (matches == 0)
-          acquire_output();
+          if (!acquire_output())
+            return;
 
         ++matches;
 
@@ -3398,7 +3430,8 @@ void Grep::search(const char *pathname)
           if (last == UNDEFINED)
           {
             if (matches == 0)
-              acquire_output();
+              if (!acquire_output())
+                return;
 
             if (!flag_text && !flag_hex)
             {
@@ -3557,7 +3590,8 @@ void Grep::search(const char *pathname)
               if (last == UNDEFINED)
               {
                 if (matches == 0)
-                  acquire_output();
+                  if (!acquire_output())
+                    return;
 
                 if (!flag_no_labels)
                   display(out, pathname, lineno, matcher->columno() + 1, byte_offset, "-", binary[current]);
@@ -3618,7 +3652,8 @@ void Grep::search(const char *pathname)
           else if (!found)
           {
             if (matches == 0)
-              acquire_output();
+              if (!acquire_output())
+                return;
 
             if (binary[current] && !flag_hex && !flag_with_hex)
             {
@@ -3764,7 +3799,8 @@ void Grep::search(const char *pathname)
           while (matcher->find())
           {
             if (matches == 0)
-              acquire_output();
+              if (!acquire_output())
+                return;
 
             if (last == UNDEFINED && !flag_hex && !flag_hex && !flag_with_hex && binary[current])
             {
@@ -3957,13 +3993,8 @@ exit_find:
     fflush(out);
   }
 
-  if (matches > 0)
-  {
-    // only if something was matched the sync lock may be acquired and should be released
-    release_output();
-
-    stats.found();
-  }
+  // the sync lock may have been acquired and should be released
+  release_output();
 
   close_file();
 }
@@ -4761,8 +4792,8 @@ void help(const char *message, const char *arg)
             No whitespace may be given between -C and its argument NUM.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
-            When used with option -g, counts the number of patterns matched.\n\
-            With option -v, counts the number of non-matching lines.\n\
+            If -g or -o is specified, counts the number of patterns matched.\n\
+            If -v is specified, counts the number of non-matching lines.\n\
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the expression stored in the\n\
             GREP_COLOR or GREP_COLORS environment variable.  The possible\n\
@@ -4819,13 +4850,12 @@ void help(const char *message, const char *arg)
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This makes ugrep behave as fgrep.\n\
-            This option does not apply to -f FILE patterns.  To apply -F to\n\
-            patterns in FILE use -F -e `cat FILE`.\n\
+            If PATTERN or -e PATTERN is also specified, then this option does\n\
+            not apply to -f FILE patterns.\n\
     -f FILE, --file=FILE\n\
             Read one or more newline-separated patterns from FILE.  Empty\n\
-            pattern lines in FILE are not processed.  Options -F, -w, and -x do\n\
-            not apply to FILE patterns.  If FILE does not exist, the GREP_PATH\n\
-            environment variable is used as the path to read FILE.\n"
+            pattern lines in FILE are not processed.  If FILE does not exist,\n\
+            the GREP_PATH environment variable is used as the path to FILE.\n"
 #ifdef GREP_PATH
 "\
             If that fails, looks for FILE in " GREP_PATH ".\n"
@@ -4884,8 +4914,8 @@ void help(const char *message, const char *arg)
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
             default, an optimum number of threads is spawned to search files\n\
-            simultaneously.  -J1 disables threading: matching files are output\n\
-            in the same order as the specified files.\n\
+            simultaneously.  -J1 disables threading: files are matched in the\n\
+            same order as the files are specified.\n\
     -j, --smart-case\n\
             Perform case insensitive matching unless PATTERN contains a capital\n\
             letter.  Case insensitive matching applies to ASCII letters only.\n\
@@ -4917,8 +4947,8 @@ void help(const char *message, const char *arg)
             otherwise.\n\
     -M MAGIC, --file-magic=MAGIC\n\
             Only files matching the signature pattern `MAGIC' are searched.\n\
-            The signature \"magic bytes\" at the start of a file are compared to\n\
-            the `MAGIC' regex pattern.  When matching, the file will be\n\
+            The signature \"magic bytes\" at the start of a file are compared\n\
+            to the `MAGIC' regex pattern.  When matching, the file will be\n\
             searched.  This option may be repeated and may be combined with\n\
             options -O and -t to expand the search.  This option is relatively\n\
             slow as every file on the search path is read to compare `MAGIC'.\n\
@@ -4930,7 +4960,9 @@ void help(const char *message, const char *arg)
             sub-directories.  By comparison, -dskip skips all directories even\n\
             when they are on the command line.\n\
     --max-files=NUM\n\
-            Restrict the number of files matched to NUM (NUM > 0).\n\
+            If -R or -r is specified, restrict the number of files matched to\n\
+            NUM.  If -J1 is specified, files are matched in the same order as\n\
+            the files are specified.\n\
     -N, --only-line-number\n\
             The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
@@ -4984,10 +5016,12 @@ void help(const char *message, const char *arg)
             Allows a pattern match to span multiple lines.\n\
     -R, --dereference-recursive\n\
             Recursively read all files under each directory.  Follow all\n\
-            symbolic links, unlike -r.\n\
+            symbolic links, unlike -r.  If -J1 is specified, files are matched\n\
+            in the same order as the files are specified.\n\
     -r, --recursive\n\
             Recursively read all files under each directory, following symbolic\n\
-            links only if they are on the command line.\n\
+            links only if they are on the command line.  If -J1 is specified,\n\
+            files are matched in the same order as the files are specified.\n\
     -S, --dereference\n\
             If -r is specified, all symbolic links are followed, like -R.  The\n\
             default is not to follow symbolic links.\n\
@@ -5033,16 +5067,16 @@ void help(const char *message, const char *arg)
             option.\n\
     -w, --word-regexp\n\
             The PATTERN or -e PATTERN are searched for as a word (as if\n\
-            surrounded by \\< and \\>).  This option does not apply to -f FILE\n\
-            patterns.  To apply -w to patterns in FILE use -w -e `cat FILE`.\n\
+            surrounded by \\< and \\>).  If PATTERN or -e PATTERN is also\n\
+            specified, then this option does not apply to -f FILE patterns.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.\n\
     -x, --line-regexp\n\
             Only input lines selected against the entire PATTERN or -e PATTERN\n\
             are considered to be matching lines (as if surrounded by ^ and $).\n\
-            This option does not apply to -f FILE patterns.  To apply -x to\n\
-            patterns in FILE use -x -e `cat FILE`.\n\
+            If PATTERN or -e PATTERN is also specified, then this option does\n\
+            not apply to -f FILE patterns.\n\
     --xml\n\
             Output file matches in XML.  Use options -H, -n, -k, and -b to\n\
             specify additional attributes.  See also option --format.\n\

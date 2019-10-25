@@ -42,6 +42,8 @@
 //  - linear time complexity in the length of the text for usual cases, with
 //    worst-case quadratic time
 //
+//  Pathnames are normalized by removing any leading ./ and / from the pathname
+//
 //  Glob syntax:
 //
 //  *      matches anything except a /
@@ -57,19 +59,19 @@
 //  Examples:
 //
 //  *         matches a, b, x/a, x/y/b
-//  a         matches a, x/a, x/y/a,       but not b, x/b, a/a/b
-//  /*        matches a, b,                but not x/a, x/b, x/y/a
-//  /a        matches a,                   but not x/a, x/y/a
-//  /a?b      matches axb, ayb,            but not a, b, ab, a/b
+//  a         matches a, x/a, x/y/a        but not b, x/b, a/a/b
+//  /*        matches a, b                 but not x/a, x/b, x/y/a
+//  /a        matches a                    but not x/a, x/y/a
+//  /a?b      matches axb, ayb             but not a, b, ab, a/b
 //  /a[xy]b   matches axb, ayb             but not a, b, azb
-//  /a[a-z]b  matches aab, abb, acb, azb,  but not a, b, a3b, aAb, aZb
-//  /a[^xy]b  matches aab, abb, acb, azb,  but not a, b, axb, ayb
+//  /a[a-z]b  matches aab, abb, acb, azb   but not a, b, a3b, aAb, aZb
+//  /a[^xy]b  matches aab, abb, acb, azb   but not a, b, axb, ayb
 //  /a[^a-z]b matches a3b, aAb, aZb        but not a, b, aab, abb, acb, azb
-//  a/*/b     matches a/x/b, a/y/b,        but not a/b, a/x/y/b
-//  **/a      matches a, x/a, x/y/a,       but not b, x/b
-//  a/**/b    matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
-//  a/**      matches a/x, a/y, a/x/y,     but not a, b/x
-//  a\?b      matches a?b,                 but not a, b, ab, axb, a/b
+//  a/*/b     matches a/x/b, a/y/b         but not a/b, a/x/y/b
+//  **/a      matches a, x/a, x/y/a        but not b, x/b
+//  a/**/b    matches a/b, a/x/b, a/x/y/b  but not x/a/b, a/b/x
+//  a/**      matches a/x, a/y, a/x/y      but not a, b/x
+//  a\?b      matches a?b                  but not a, b, ab, axb, a/b
 
 // check if we are on a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
@@ -205,8 +207,11 @@ bool glob_match(const char *pathname, const char *basename, const char *glob)
   // if pathname starts with ./ then remove these pairs
   while (pathname[0] == '.' && pathname[1] == PATHSEP)
     pathname += 2;
+  // if pathname starts with / then remove it
+  if (pathname[0] == PATHSEP)
+    ++pathname;
 
-  // match pathname if glob contains a /, match the basename otherwise
+  // match pathname if glob contains a / or match the basename otherwise
   if (strchr(glob, '/') != NULL)
   {
     // a leading / in the glob means globbing the pathname after removing the /
