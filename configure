@@ -6321,7 +6321,7 @@ $as_echo "#define HAVE_CXX11 1" >>confdefs.h
   fi
 
 
-AM_CXXFLAGS="-Wall -Wunused -Wextra"
+AM_CXXFLAGS="-Wall -pthread -Wunused -Wextra"
 
 
 ac_config_files="$ac_config_files Makefile src/Makefile"
