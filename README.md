@@ -16,8 +16,9 @@ Search source code, text, and binary files fast with ugrep
 <br>
 </div>
 
-See the [tutorial](#tutorial) with an extensive list of examples, illustrating
-the power of **ugrep**.
+This is a spin-off project of [RE/flex](https://github.com/Genivia/RE-flex).
+See the [ugrep tutorial](#tutorial) with a comprehensive list of examples
+illustrating the power of **ugrep**.
 
 Table of contents
 -----------------
@@ -53,6 +54,7 @@ Table of contents
   - [Customizing the output in JSON, XML, CSV, C++, and replacing matches using group captures](#format)
   - [Displaying colors with --color](#color)
   - [Limiting the number of matches with -m, --max-depth, and --max-files](#max)
+  - [Searching compressed files](#gz)
   - [More examples](#more)
 - [Man page](#man)
 - [Regex patterns](#patterns)
@@ -223,7 +225,7 @@ T-6  | `GREP -Fon -f words4+1000 enwik8`                                | search
 T-7  | `GREP -Fon -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
 T-8  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
 T-9  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T-8 but single-threaded ugrep (option `-J1`) and ripgrep (option `-j1`)
-t-10 | `GREP -z -Fc word word*.gz                                       | search for `word` in 6 compressed files of 1MB to 3MB each
+T-10 | `GREP -z -Fc word word*.gz                                       | search for `word` in 6 compressed files of 1MB to 3MB each
 
 Note: T-8 and T-9 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
 files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
@@ -246,10 +248,11 @@ GREP            | T-1      | T-2      | T-3      | T-4      | T-5      | T-6    
 BSD grep 2.5.1  | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 GNU grep 3.3    | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
 ripgep   0.10.0 | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.04     |
-ugrep    1.5.0  | **0.11** | 0.07     | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.03** |
+ugrep    1.5.2  | **0.11** | 0.07     | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.03** |
 
 Note: most of the ugrep tests produce better performance results without `mmap`
-(option `--no-mmap`), which may be counter-intuitive.  See our TODO below.
+(option `--no-mmap`), which may be counter-intuitive.  See our [TODO](#todo)
+below.
 
 With respect to T-8: **ugrep** and ripgrep use threads to search files
 simultaneously.  Ripgrep has a CPU utilization of 627.2% for this concurrent
@@ -1059,7 +1062,7 @@ To display the line and column numbers of matches in XML with `--xml`:
 
 <a name="format"/>
 
-### Customizing the output in JSON, XML, CSV, C++, and replacing matches using group captures
+### Customizing the output in JSON, XML, CSV, C++, and replacing matches with group captures using --format
 
 To recursively search for lines with `TODO` and display C++ file matches in
 JSON with line number properties:
@@ -1081,10 +1084,14 @@ To extract a table from an HTML file and put it in C/C++ source code:
     ugrep --cpp '<tr>.*</tr>' index.html > table.cpp
 
 To extract table cells from an HTML file using Perl matching (`-P`) to support
-group capture with lazy quantifier `(.*?)`, and translate the matches to a
+group captures with lazy quantifier `(.*?)`, and translate the matches to a
 comma-separated list with format `%,%1` (conditional comma and group capture):
 
     ugrep -P '<td>(.*?)</td>' --format='%,%1' index.html
+
+The same as above, but displaying the replaced matches line-by-line:
+
+    ugrep -P '<td>(.*?)</td>' --format='%1\n' index.html
 
 <a name="color"/>
 
@@ -1135,6 +1142,17 @@ The same, but recursively search up to two directory levels deep, meaning that
 To show only the first file found that has one or more matches of `FIXME`:
 
     ugrep -R --max-files=1 -tc++ FIXME
+
+<a name="gz"/>
+
+### Searching compressed files with -z
+
+To recursively search and list all files including compressed files for the
+word `FIXME`:
+
+    ugrep -z -rlw FIXME
+
+Zlib-compressed files with extension `.gz` are decompressed and searched.
 
 <a name="more"/>
 
