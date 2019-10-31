@@ -1,4 +1,4 @@
-.TH UGREP "1" "October 25, 2019" "ugrep 1.5.2" "User Commands"
+.TH UGREP "1" "October 31, 2019" "ugrep 1.5.3" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -217,7 +217,7 @@ This option may be repeated.
 Specifies the number of threads spawned to search files.  By
 default, an optimum number of threads is spawned to search files
 simultaneously.  \fB\-J\fR1 disables threading: files are matched in the
-same order as the files are specified.
+same order as the files specified.
 .TP
 \fB\-j\fR, \fB\-\-smart\-case\fR
 Perform case insensitive matching unless PATTERN contains a capital
@@ -275,7 +275,7 @@ when they are on the command line.
 \fB\-\-max\-files\fR=\fINUM\fR
 If \fB\-R\fR or \fB\-r\fR is specified, restrict the number of files matched to
 NUM.  If \fB\-J\fR1 is specified, files are matched in the same order as
-the files are specified.
+the files specified.
 .TP
 \fB\-N\fR, \fB\-\-only\-line\-number\fR
 The line number of the matching line in the file is output without
@@ -339,12 +339,12 @@ Allows a pattern match to span multiple lines.
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
 Recursively read all files under each directory.  Follow all
 symbolic links, unlike \fB\-r\fR.  If \fB\-J\fR1 is specified, files are matched
-in the same order as the files are specified.
+in the same order as the files specified.
 .TP
 \fB\-r\fR, \fB\-\-recursive\fR
 Recursively read all files under each directory, following symbolic
 links only if they are on the command line.  If \fB\-J\fR1 is specified,
-files are matched in the same order as the files are specified.
+files are matched in the same order as the files specified.
 .TP
 \fB\-S\fR, \fB\-\-dereference\fR
 If \fB\-r\fR is specified, all symbolic links are followed, like \fB\-R\fR.  The
@@ -444,7 +444,7 @@ See also the \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR options.
 Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
-Search zlib\-compressed (.gz) files.  Option \fB\-Q\fR is disabled.
+Search zlib\-compressed (.gz) files.
 .PP
 If no FILE arguments are specified, or if a `-' is specified, the standard
 input is used, unless recursive searches are specified which examine the

@@ -9,7 +9,7 @@ all-local:	cp2bin
 .PHONY:		cp2bin
 
 # to copy the ugrep binary to ugrep/bin (joins ugrep.exe that's already there)
-cp2bin:		$(abs_top_builddir)/src/ugrep
+cp2bin:		$(top_builddir)/src/ugrep
 		-mkdir -p $(top_builddir)/bin
 		-cp -f $< $(top_builddir)/bin
 		@echo

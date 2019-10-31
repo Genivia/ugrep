@@ -40,7 +40,7 @@ Table of contents
   - [Examples](#examples)
   - [Displaying helpful info](#help)
   - [Recursively list matching files with options -R or -r and -L or -l](#recursion)
-  - [Search and match this but not that with -v, -f, -L, and (?^pattern)](#not)
+  - [Search this but not that with -v, -f, -L, and (?^pattern)](#not)
   - [Matching empty patterns with -Y](#empty)
   - [Searching ASCII and Unicode files](#unicode)
   - [Matching multiple lines of text with -o](#only)
@@ -225,7 +225,7 @@ T-6  | `GREP -Fon -f words4+1000 enwik8`                                | search
 T-7  | `GREP -Fon -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
 T-8  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
 T-9  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T-8 but single-threaded ugrep (option `-J1`) and ripgrep (option `-j1`)
-T-10 | `GREP -z -Fc word word*.gz`                                      | search for `word` in 6 compressed files of 1MB to 3MB each
+T-10 | `GREP -z -Fc word word*.gz`                                      | count `word` in 6 compressed files of 1MB to 3MB each
 
 Note: T-8 and T-9 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
 files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
@@ -247,8 +247,8 @@ GREP            | T-1      | T-2      | T-3      | T-4      | T-5      | T-6    
 --------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
 BSD grep 2.5.1  | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 GNU grep 3.3    | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
-ripgep   0.10.0 | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.04     |
-ugrep    1.5.2  | **0.11** | 0.07     | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.03** |
+ripgep   0.10.0 | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | **0.03** |
+ugrep    1.5.3  | **0.11** | 0.07     | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.03** |
 
 Note: most of the ugrep tests produce better performance results without `mmap`
 (option `--no-mmap`), which may be counter-intuitive.  See our [TODO](#todo)
@@ -294,6 +294,9 @@ e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 
 ### Future improvements and TODO
 
+- The line-by-line matching used by options `-z`, `--no-mmap`, and when reading
+  standard input can be slow, while `-o` (and `-c`, `-l`, `-q`, `-N`) is always
+  fast.  Line-by-line reading should be replaced by block reading.
 - Further optimize searching one word or a few words.
 - Improve the speed of matching multiple words, which is currently faster than
   GNU grep (ugrep uses Bitap and hashing), but Hyperscan is faster using
@@ -334,7 +337,7 @@ This builds `ugrep` in the `ugrep/src` directory and copies it to `ugrep/bin`.
 You can tell which version it is with:
 
     $ bin/ugrep -V
-    ugrep 1.5.2 x86_64-apple-darwin16.7.0
+    ugrep 1.5.3 x86_64-apple-darwin16.7.0
 
 Copy `bin/ugrep` to a convenient location, for example in your `bin` directory.
 
@@ -723,19 +726,22 @@ To recursively list all files that match the globs in .gitignore:
 
 <a name="not"/>
 
-### Search and match this but not that with -v, -f, -L, and (?^pattern)
+### Search this but not that with -v, -e, -f, -L, and (?^pattern)
 
 To match all lines in file `myfile.sh` except lines matching `^[ \t]*#`:
 
     ugrep -v '^[ \t]*#' myfile.sh
 
 To search for words starting with `disp` without matching `display` in file
-`myfile.py`:
+`myfile.py` by using a "negative pattern" `-e '(?^/<display\>)'` where `-e`
+specifies an additional pattern and `(?^X)` specified a negative pattern to
+skip in matches:
 
     ugrep '\<disp' -e '(?^/<display\>)' myfile.py
 
 To search for lines with the word `display` in file `myfile.py` skipping this
-word in strings and comments:
+word in strings and comments, where `-f` specifies patterns in files which are
+predefined patterns in this case:
 
     ugrep -on -w 'display' -f python/zap_strings -f python/zap_comments myfile.py
 
@@ -753,10 +759,10 @@ such as `^` and `$` (the option is automatically enabled for pattern `^$` that
 matches empty lines).  This option is introduced by **ugrep** to prevent
 accidental matching with empty patterns: empty-matching patterns such as `x?`
 and `x*` match all input, not only lines with `x`.  By default, without `-Y`,
-patterns match lines with `x` as intended.
+patterns match lines with at least one `x` as intended.
 
 To recursively list files in the working directory with empty and blank lines,
-i.e. lines with white space only and empty lines with `-Y`:
+i.e. lines with white space only and empty lines, with `-Y`:
 
     ugrep -RlY '^\h*$'
 
@@ -1065,7 +1071,8 @@ To display the line and column numbers of matches in XML with `--xml`:
 ### Customizing the output in JSON, XML, CSV, C++, and replacing matches with group captures using --format
 
 To recursively search for lines with `TODO` and display C++ file matches in
-JSON with line number properties:
+JSON with line number properties (note that we use pattern `.*TODO.*` to
+include the whole line containing `TODO` in the results):
 
     ugrep -rtc++ -n --json '.*TODO.*'
 
@@ -1404,7 +1411,7 @@ DESCRIPTION
               Specifies the number of threads spawned  to  search  files.   By
               default, an optimum number of threads is spawned to search files
               simultaneously.  -J1 disables threading: files  are  matched  in
-              the same order as the files are specified.
+              the same order as the files specified.
 
        -j, --smart-case
               Perform case insensitive matching unless PATTERN contains a cap-
@@ -1464,7 +1471,7 @@ DESCRIPTION
        --max-files=NUM
               If  -R  or -r is specified, restrict the number of files matched
               to NUM.  If -J1 is specified, files  are  matched  in  the  same
-              order as the files are specified.
+              order as the files specified.
 
        -N, --only-line-number
               The line number of the matching line in the file is output with-
@@ -1531,12 +1538,12 @@ DESCRIPTION
        -R, --dereference-recursive
               Recursively  read  all  files  under each directory.  Follow all
               symbolic links, unlike -r.   If  -J1  is  specified,  files  are
-              matched in the same order as the files are specified.
+              matched in the same order as the files specified.
 
        -r, --recursive
               Recursively  read all files under each directory, following sym-
               bolic links only if they are on the command  line.   If  -J1  is
-              specified,  files are matched in the same order as the files are
+              specified,  files  are  matched  in  the same order as the files
               specified.
 
        -S, --dereference
@@ -1638,7 +1645,7 @@ DESCRIPTION
               Prints a zero-byte after the file name.
 
        -z, --decompress
-              Search zlib-compressed (.gz) files.  Option -Q is disabled.
+              Search zlib-compressed (.gz) files.
 
        If no FILE arguments are specified, or if a `-' is specified, the stan-
        dard input is used, unless recursive searches are specified which exam-
@@ -1981,7 +1988,7 @@ SEE ALSO
 
 
 
-ugrep 1.5.2                    October 25, 2019                       UGREP(1)
+ugrep 1.5.3                    October 31, 2019                       UGREP(1)
 
 <a name="patterns"/>
 
