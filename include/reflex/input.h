@@ -816,7 +816,7 @@ class Input::dos_streambuf : public std::streambuf {
     if (n <= 0 || ch1_ == EOF)
       return 0;
     std::streamsize k = n;
-    char c;
+    int c;
     while (k > 0 && (c = get()) != EOF)
     {
       *s++ = c;
@@ -863,7 +863,7 @@ class Input::dos_streambuf : public std::streambuf {
 class BufferedInput : public Input {
  public:
   /// Buffer size.
-  static const size_t SIZE = 8192;
+  static const size_t SIZE = 16384;
   /// Buffered stream buffer for reflex::Input, derived from std::streambuf.
   class streambuf;
   /// Buffered stream buffer for reflex::Input to read DOS files, replaces CRLF by LF, derived from std::streambuf.
@@ -1066,7 +1066,7 @@ class BufferedInput::dos_streambuf : public std::streambuf {
     if (n <= 0 || ch1_ == EOF)
       return 0;
     std::streamsize k = n;
-    char c;
+    int c;
     while (k > 0 && (c = get()) != EOF)
     {
       *s++ = c;

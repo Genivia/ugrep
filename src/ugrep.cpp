@@ -142,7 +142,7 @@ void sigpipe_handle(int) { }
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.3"
+#define UGREP_VERSION "1.5.4"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -316,7 +316,6 @@ std::vector<std::string> flag_exclude_override_dir;
 void set_color(const char *grep_colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
 bool is_output(ino_t inode);
-bool is_file(const reflex::Input& input);
 size_t strtopos(const char *s, const char *msg);
 
 void format(const char *format, size_t matches);
@@ -635,7 +634,7 @@ bool MMap::file(reflex::Input& input, const char*& base, size_t& size)
 // output buffering and synchronization
 struct Output {
 
-  static const size_t SIZE = 65536; // size of each buffer in the buffers container
+  static const size_t SIZE = 16384; // size of each buffer in the buffers container
 
   struct Buffer { char data[SIZE]; }; // a buffer in the buffers container
 
@@ -769,9 +768,11 @@ struct Output {
   // flush the buffers
   void flush()
   {
+    // if multi-threaded and lock is not owned already, then lock on master's mutex
     if (lock != NULL && !lock->owns_lock())
       lock->lock();
 
+    // flush the buffers container to the designated output file, pipe, or stream
     for (Buffers::iterator i = buffers.begin(); i != buf; ++i)
       fwrite(i->data, 1, SIZE, file);
     fwrite(buf->data, 1, cur - buf->data, file);
@@ -781,15 +782,23 @@ struct Output {
     cur = buf->data;
   }
 
-  // next buffer, allocate one if needed
+  // next buffer, allocate one if needed (when multi-threaded and lock is owned by another thread)
   void next()
   {
-    if (++buf == buffers.end())
-      grow();
-    cur = buf->data;
+    if (lock == NULL || lock->owns_lock() || lock->try_lock())
+    {
+      flush();
+    }
+    else
+    {
+      // allocate a new buffer if no next buffer was allocated before
+      if (++buf == buffers.end())
+        grow();
+      cur = buf->data;
+    }
   }
 
-  // allocate a buffer to grow the buffers container
+  // allocate a new buffer to grow the buffers container
   void grow()
   {
     buf = buffers.emplace(buffers.end());
@@ -802,11 +811,12 @@ struct Output {
     lock = new std::unique_lock<std::mutex>(mutex, std::defer_lock);
   }
 
-  // flush and release synchronization on the mutex, if one was given with sync()
+  // flush and release synchronization on the master's mutex, if one was assigned before with sync()
   void release()
   {
     flush();
 
+    // if multi-threaded and lock is owned, then release it
     if (lock != NULL && lock->owns_lock())
       lock->unlock();
   }
@@ -1799,7 +1809,7 @@ struct GrepWorker : public Grep {
       master(master),
       todo()
   {
-    // all workers synchronize their output with a mutex lock
+    // all workers synchronize their output on the master's mutex lock
     out.sync(master->mutex);
 
     // run worker thread executing jobs assigned in its queue
@@ -4314,9 +4324,11 @@ void Grep::search(const char *pathname)
     {
       // read input line-by-line and display lines that match the pattern with context lines
 
+      // TODO: replace line-by-line reading with block reading to improve speed
+
       reflex::BufferedInput buffered_input;
 
-      if (!is_mmap && is_file(input))
+      if (!is_mmap)
         buffered_input = input;
 
       const char *here = base;
@@ -4939,20 +4951,6 @@ void set_color(const char *grep_colors, const char *parameter, char color[COLORL
       color[sublen + 3] = '\0';
     }
   }
-}
-
-// return true if input is a regular file that can be mmap'ed
-bool is_file(const reflex::Input& input)
-{
-#ifdef OS_WIN
-  return false;
-#else
-  if (input.file() == NULL)
-    return false;
-  int fd = fileno(input.file());
-  struct stat buf;
-  return fstat(fd, &buf) == 0 && S_ISREG(buf.st_mode);
-#endif
 }
 
 // convert unsigned decimal to positive size_t, produce error when conversion fails or when the value is zero

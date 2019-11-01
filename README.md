@@ -88,7 +88,7 @@ Introduction: why use ugrep?
   by filename extension and file signature "magic bytes" or shebangs.  For
   example, to list all shell scripts in or below the working directory:
 
-      ugrep -rltShell ''
+      ugrep -rl -tShell ''
 
   where `-r` is recursive search, `-l` lists matching files, `-tShell` selects
   shell files by file extensions and shebangs, and the empty pattern `''`
@@ -116,7 +116,7 @@ Introduction: why use ugrep?
   to recursively search Python files in the working directory for import
   statements:
 
-      ugrep -RtPython -f python/imports
+      ugrep -R -tPython -f python/imports
 
   where `-R` is recursive search while following symlinks, `-tPython` selects
   Python files only (i.e. by file name extension `.py` and by Python shebangs),
@@ -129,7 +129,7 @@ Introduction: why use ugrep?
   example to find exact matches of `main` in C/C++ source code while skipping
   strings and comments that may have a match with `main` in them:
 
-      ugrep -Rotc++ -nw 'main' -f c/zap_strings -f c/zap_comments
+      ugrep -Ro -tc++ -nw 'main' -f c/zap_strings -f c/zap_comments
 
   where `-R` is recursive search while following symlinks, `-o` for multi-line
   matches (since strings and comments may span multiple lines), `-tc++`
@@ -295,8 +295,8 @@ e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 ### Future improvements and TODO
 
 - The line-by-line matching used by options `-z`, `--no-mmap`, and when reading
-  standard input can be slow, while `-o` (and `-c`, `-l`, `-q`, `-N`) is always
-  fast.  Line-by-line reading should be replaced by block reading.
+  standard input (e.g. a pipe to ugrep) can be slower, while `-o` (and `-c`,
+  `-l`, `-q`, `-N`) is always fast.  Replace line-by-line with block reading.
 - Further optimize searching one word or a few words.
 - Improve the speed of matching multiple words, which is currently faster than
   GNU grep (ugrep uses Bitap and hashing), but Hyperscan is faster using
@@ -1988,7 +1988,7 @@ SEE ALSO
 
 
 
-ugrep 1.5.3                    October 31, 2019                       UGREP(1)
+ugrep 1.5.4                    November 01, 2019                      UGREP(1)
 
 <a name="patterns"/>
 
