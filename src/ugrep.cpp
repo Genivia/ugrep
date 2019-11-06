@@ -85,11 +85,11 @@ Prebuilt executables are located in ugrep/bin.
 #include "glob.hpp"
 
 // option: use a thread to decompress the stream into a pipe to search, for greater speed
-// TODO option disabled for now because gzread() in zstream.hpp:105 blocks randomly when calling xsgetn(), peek()
+// TODO option disabled for now because of an issue (with pipe()) that may result in missing search results
 // #define WITH_LIBZ_THREAD
 
 // check if we are compiling for a windows OS
-#if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # define OS_WIN
 #endif
 
@@ -140,7 +140,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.5"
+#define UGREP_VERSION "1.5.6"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -1663,6 +1663,8 @@ struct Grep {
 
 #ifdef HAVE_LIBZ
 #ifdef WITH_LIBZ_THREAD
+
+  // decompression thread
   void decompress()
   {
     char buf[Z_BUF_LEN]; // matches zstream buffer size
@@ -1688,12 +1690,14 @@ struct Grep {
     close(pipe_fd[1]);
     pipe_fd[1] = -1;
   }
+
 #endif
 #endif
   
   // close the file and clear input
   void close_file()
   {
+
 #ifdef HAVE_LIBZ
 
 #ifdef WITH_LIBZ_THREAD
@@ -1712,13 +1716,10 @@ struct Grep {
     }
 #endif
 
-    input.clear();
-
-    // close the file
-    if (file != NULL)
+    if (streambuf != NULL)
     {
-      fclose(file);
-      file = NULL;
+      delete streambuf;
+      streambuf = NULL;
     }
 
     if (stream != NULL)
@@ -1727,12 +1728,16 @@ struct Grep {
       stream = NULL;
     }
 
-    if (streambuf != NULL)
-    {
-      delete streambuf;
-      streambuf = NULL;
-    }
 #endif
+
+    // close the file
+    if (file != NULL)
+    {
+      fclose(file);
+      file = NULL;
+    }
+
+    input.clear();
   }
 
   // specify input to read for matcher, when input is a regular file then try mmap for zero copy overhead
@@ -2345,7 +2350,7 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "pager", 5) == 0)
               flag_pager = "less -R";
             else if (strcmp(arg, "perl-regexp") == 0)
-              flag_perl_regexp = true, flag_basic_regexp = false;
+              flag_perl_regexp = true;
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
               flag_quiet = flag_no_messages = true;
             else if (strcmp(arg, "recursive") == 0)
@@ -2528,17 +2533,6 @@ int main(int argc, char **argv)
             flag_files_with_match = true;
             break;
 
-          case 'm':
-            ++arg;
-            if (*arg)
-              flag_max_count = strtopos(&arg[*arg == '='], "invalid argument -m=");
-            else if (++i < argc)
-              flag_max_count = strtopos(argv[i], "invalid argument -m=");
-            else
-              help("missing NUM argument for option -m");
-            is_grouped = false;
-            break;
-
           case 'M':
             ++arg;
             if (*arg)
@@ -2547,6 +2541,17 @@ int main(int argc, char **argv)
               flag_file_magic.emplace_back(argv[i]);
             else
               help("missing MAGIC argument for option -M");
+            is_grouped = false;
+            break;
+
+          case 'm':
+            ++arg;
+            if (*arg)
+              flag_max_count = strtopos(&arg[*arg == '='], "invalid argument -m=");
+            else if (++i < argc)
+              flag_max_count = strtopos(argv[i], "invalid argument -m=");
+            else
+              help("missing NUM argument for option -m");
             is_grouped = false;
             break;
 
@@ -2575,7 +2580,6 @@ int main(int argc, char **argv)
 
           case 'P':
             flag_perl_regexp = true;
-            flag_basic_regexp = false;
             break;
 
           case 'p':
@@ -2765,6 +2769,7 @@ int main(int argc, char **argv)
     }
   }
 
+  // -x or -w, disable -x, -w, -F for patterns in -f FILE when PATTERN or -e PATTERN is specified
   if (!regex.empty())
   {
     // remove the ending '|' from the |-concatenated regexes in the regex string
@@ -2776,14 +2781,18 @@ int main(int argc, char **argv)
     else if (flag_word_regexp)
       regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
 
-    // -x and -w do not apply to patterns in -f FILE when PATTERN specified
+    // -x and -w do not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
     flag_line_regexp = false;
     flag_word_regexp = false;
 
-    // -F does not apply to patterns in -f FILE when PATTERN specified
+    // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
     Q = "";
     E = "|";
   }
+
+  // -P disables -G
+  if (flag_perl_regexp)
+    flag_basic_regexp = false;
 
   // -j: case insensitive search if regex does not contain a capital letter
   if (flag_smart_case)

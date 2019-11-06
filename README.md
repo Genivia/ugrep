@@ -68,13 +68,13 @@ Table of contents
 Introduction: why use ugrep? 
 ----------------------------
 
-- **ugrep supersedes GNU/BSD grep and is backward compatible**, offering many
-  more useful features, such as full Unicode pattern matching, "negative
-  patterns" to skip unwanted matches, recursive search through directories
-  by selecting files by file name extension and file signature "magic bytes"
-  and shebangs, predefined (installed) search patterns to search source code,
-  output hexdumps for binary matches, customized output formatting with match
-  replacement, seamless quickfix Vim integration, and more.
+- **ugrep supersedes GNU/BSD grep and is perfectly backward compatible**,
+  offering many more useful features, such as full Unicode pattern matching,
+  "negative patterns" to skip unwanted matches, recursive search through
+  directories by selecting files by file name extension and file signature
+  "magic bytes" and shebangs, predefined (installed) search patterns to search
+  source code, output hexdumps for binary matches, customized output formatting
+  with match replacement, seamless quickfix Vim integration, and more.
 
 - **ugrep is fast**, faster than GNU grep and one of the fastest grep tools
   available for free.  Uses [RE/flex](https://github.com/Genivia/RE-flex) for
@@ -1992,7 +1992,7 @@ Man page
 
 
 
-    ugrep 1.5.5                    November 05, 2019                      UGREP(1)
+    ugrep 1.5.6                    November 06, 2019                      UGREP(1)
 
 <a name="patterns"/>
 
@@ -2203,3 +2203,9 @@ For the pattern syntax of **ugrep** option `-P` (Perl regular expressions), see
 the Boost.Regex documentation
 [Perl regular expression syntax](https://www.boost.org/doc/libs/1_70_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html).
 
+[travis-image]: https://travis-ci.org/Genivia/ugrep.svg?branch=master
+[travis-url]: https://travis-ci.org/Genivia/ugrep
+[lgtm-image]: https://img.shields.io/lgtm/grade/cpp/g/Genivia/ugrep.svg?logo=lgtm&logoWidth=18
+[lgtm-url]: https://lgtm.com/projects/g/Genivia/ugrep/context:cpp
+[bsd-3-image]: https://img.shields.io/badge/license-BSD%203--Clause-blue.svg
+[bsd-3-url]: https://opensource.org/licenses/BSD-3-Clause
