@@ -52,9 +52,12 @@ class zstreambuf : public std::streambuf {
       cur_(),
       len_()
   {
-    gzfile_ = gzdopen(fileno(file), "r");
+    int fd = dup(fileno(file));
+    gzfile_ = gzdopen(fd, "r");
     if (gzfile_ != Z_NULL)
       gzbuffer(gzfile_, Z_BUF_LEN);
+    else
+      perror("ugrep: zlib open error ");
   }
   virtual ~zstreambuf()
   {
@@ -130,7 +133,7 @@ class zstreambuf : public std::streambuf {
       int err;
       gzerror(gzfile_, &err);
       if (err == Z_ERRNO)
-        perror("ugrep: zlib error: ");
+        perror("ugrep: zlib read error");
       else
         fprintf(stderr, "ugrep: zlib decompression error\n");
     }
