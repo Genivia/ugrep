@@ -85,7 +85,7 @@ Prebuilt executables are located in ugrep/bin.
 #include "glob.hpp"
 
 // option: use a thread to decompress the stream into a pipe to search, for greater speed
-// FIXME: option disabled for now because gzread() in zstream.hpp:105 blocks randomly when calling xsgetn(), peek()
+// TODO option disabled for now because gzread() in zstream.hpp:105 blocks randomly when calling xsgetn(), peek()
 // #define WITH_LIBZ_THREAD
 
 // check if we are compiling for a windows OS
@@ -2345,7 +2345,7 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "pager", 5) == 0)
               flag_pager = "less -R";
             else if (strcmp(arg, "perl-regexp") == 0)
-              flag_basic_regexp = !(flag_perl_regexp = true);
+              flag_perl_regexp = true, flag_basic_regexp = false;
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
               flag_quiet = flag_no_messages = true;
             else if (strcmp(arg, "recursive") == 0)
@@ -3519,7 +3519,7 @@ int main(int argc, char **argv)
     exit(EXIT_ERROR);
   }
 
-  catch (boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<std::runtime_error> > error)
+  catch (boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<std::runtime_error> >& error)
   {
     abort("Boost.Regex error: ", error.what());
   }
