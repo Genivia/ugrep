@@ -105,9 +105,7 @@ class zstreambuf : public std::streambuf {
     len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
     if (len_ <= 0)
     {
-      len_ = 0;
-      gzclose_r(gzfile_);
-      gzfile_ = Z_NULL;
+      close();
       return traits_type::eof();
     }
     return traits_type::to_int_type(buf_[cur_]);
@@ -120,12 +118,25 @@ class zstreambuf : public std::streambuf {
     len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
     if (len_ <= 0)
     {
-      len_ = 0;
-      gzclose_r(gzfile_);
-      gzfile_ = Z_NULL;
+      close();
       return traits_type::eof();
     }
     return traits_type::to_int_type(buf_[cur_++]);
+  }
+  void close()
+  {
+    if (!gzeof(gzfile_))
+    {
+      int err;
+      gzerror(gzfile_, &err);
+      if (err == Z_ERRNO)
+        perror("ugrep: zlib error: ");
+      else
+        fprintf(stderr, "ugrep: zlib decompression error\n");
+    }
+    gzclose_r(gzfile_);
+    gzfile_ = Z_NULL;
+    len_ = 0;
   }
   gzFile gzfile_;
   unsigned char buf_[Z_BUF_LEN];
