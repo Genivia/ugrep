@@ -38,3 +38,8 @@ install-data-hook:
 		 echo "|                                                      |"; \
 		 echo "|             https://github.com/Genivia/ugrep         |"; \
 		 echo "|______________________________________________________|";
+
+.PHONY:		test
+
+test:		$(top_builddir)/src/ugrep
+		$(top_builddir)/src/ugrep -rltc++ copyright $(top_builddir)/src
