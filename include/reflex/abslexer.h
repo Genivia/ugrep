@@ -38,6 +38,7 @@
 #define REFLEX_ABSLEXER_H
 
 #include <reflex/input.h>
+#include <reflex/absmatcher.h>
 #include <sstream>
 #include <stack>
 
@@ -74,7 +75,7 @@ class AbstractLexer {
    protected:
     /// Returns true if matcher should wrap input after EOF (lexer wrap() should return 0 to wrap input after EOF).
     virtual bool wrap()
-      /// @returns true if reflex::AbstractLexer::wrap() == 0 indicating that input is wrapped after EOF.
+      /// @returns true if reflex::AbstractLexer::wrap() == 0 indicating that input is wrapped after EOF
     {
       return lexer_->wrap() == 0;
     }
@@ -110,7 +111,7 @@ class AbstractLexer {
   }
   /// Get debug flag value.
   virtual int debug() const
-    /// @returns debug flag value.
+    /// @returns debug flag value
   {
     return debug_;
   }
@@ -119,14 +120,14 @@ class AbstractLexer {
   { }
   /// The default wrap operation at EOF: do not wrap input.
   virtual int wrap()
-    /// @returns 1 (override to return 0 to indicate that new input is available after this invocation so that wrap after EOF is OK).
+    /// @returns 1 (override to return 0 to indicate that new input is available after this invocation so that wrap after EOF is OK)
   {
     return 1;
   }
   /// Reset the matcher and start scanning from the given input character sequence I.
   template<typename I>
   inline AbstractLexer& in(const I& input) ///< a character sequence to scan, e.g. reflex::Input, char*, wchar_t*, std::string, std::wstring, FILE*, std::istream
-    /// @returns reference to *this.
+    /// @returns reference to *this
   {
     in_ = input;
     if (has_matcher())
@@ -137,13 +138,13 @@ class AbstractLexer {
   inline AbstractLexer& in(
       const char *b, ///< the byte sequence to scan
       size_t      n) ///< length of the byte sequence to scan
-    /// @returns reference to *this.
+    /// @returns reference to *this
   {
     return in(Input(b, n));
   }
   /// Returns the current input character sequence that is being scanned.
   inline Input& in()
-    /// @returns reference to the current reflex::Input object.
+    /// @returns reference to the current reflex::Input object
   {
     if (has_matcher())
       return matcher().in;
@@ -151,7 +152,7 @@ class AbstractLexer {
   }
   /// Returns the current input character sequence that is being scanned, if none assign stdin.
   inline Input& stdinit()
-    /// @returns reference to the current reflex::Input object with input assigned.
+    /// @returns reference to the current reflex::Input object with input assigned
   {
     if (!in_.assigned() && base_ == NULL)
       in_ = stdin;
@@ -159,7 +160,7 @@ class AbstractLexer {
   }
   /// Returns the current input character sequence that is being scanned, if none assign std::cin.
   inline Input& nostdinit()
-    /// @returns reference to the current reflex::Input object with input assigned.
+    /// @returns reference to the current reflex::Input object with input assigned
   {
     if (!in_.assigned() && base_ == NULL)
       in_ = std::cin;
@@ -169,7 +170,7 @@ class AbstractLexer {
   inline AbstractLexer& buffer(
       char  *base, ///< base of the buffer containing 0-terminated character data
       size_t size) ///< nonzero size of the buffer
-    /// @returns reference to *this.
+    /// @returns reference to *this
   {
     if (has_matcher())
     {
@@ -184,32 +185,32 @@ class AbstractLexer {
   }
   /// Set the current output to the given output stream to echo text matches to.
   inline AbstractLexer& out(std::ostream& os) ///< output stream to echo text matches to
-    /// @returns reference to *this.
+    /// @returns reference to *this
   {
     os_ = &os;
     return *this;
   }
   /// Returns the current output stream used to echo text matches to.
   inline std::ostream& out() const
-    /// @returns reference to the current std::ostream object.
+    /// @returns reference to the current std::ostream object
   {
     return os_ ? *os_ : std::cout;
   }
   /// Returns pointer to the current output stream used to echo text matches to.
   inline std::ostream*& os()
-    /// @returns pointer to the current std::ostream object.
+    /// @returns pointer to the current std::ostream object
   {
     return os_;
   }
   /// Returns true if a matcher was assigned to this lexer for scanning.
   inline bool has_matcher() const
-    /// @returns true if a matcher was assigned.
+    /// @returns true if a matcher was assigned
   {
     return matcher_ != NULL;
   }
   /// Set the matcher (and its current state) for scanning.
   inline AbstractLexer& matcher(Matcher *matcher) ///< points to a matcher object
-    /// @returns reference to *this.
+    /// @returns reference to *this
   {
     matcher_ = matcher;
     if (matcher_ != NULL && base_ != NULL)
@@ -222,14 +223,14 @@ class AbstractLexer {
   }
   /// Returns a reference to the current matcher.
   inline Matcher& matcher() const
-    /// @returns reference to the current matcher.
+    /// @returns reference to the current matcher
   {
     ASSERT(has_matcher());
     return *matcher_;
   }
   /// Returns a pointer to the current matcher, NULL if none was set.
   inline Matcher *ptr_matcher() const
-    /// @returns pointer to the current matcher or NULL if no matcher was set.
+    /// @returns pointer to the current matcher or NULL if no matcher was set
   {
     return matcher_;
   }
@@ -237,7 +238,7 @@ class AbstractLexer {
   virtual Matcher *new_matcher(
       const Input& input = Input(), ///< reflex::Input character sequence to match
       const char *opt    = NULL)    ///< options, if any
-    /// @returns pointer to new reflex::AbstractLexer::Matcher.
+    /// @returns pointer to new reflex::AbstractLexer::Matcher
   {
     char tabs[4] = "T=n";
     return new Matcher(matcher().pattern(), input, this, opt ? opt : (tabs[2] = matcher().tabs() + '0', tabs));
@@ -277,80 +278,88 @@ class AbstractLexer {
   }
   /// Returns string with the text matched.
   inline const char *text() const
-    /// @returns matched text.
+    /// @returns matched text
   {
     return matcher().text();
   }
   /// Returns string with a copy of the text matched.
   inline std::string str() const
-    /// @returns matched text.
+    /// @returns matched text
   {
     return matcher().str();
   }
   /// Returns wide string with a copy of the text matched.
   inline std::wstring wstr() const
-    /// @returns matched text.
+    /// @returns matched text
   {
     return matcher().wstr();
   }
   /// Returns the first 8-bit character of the text matched.
   inline int chr() const
-    /// @returns 8-bit char.
+    /// @returns 8-bit char
   {
     return matcher().chr();
   }
   /// Returns the first wide character of the text matched.
   inline int wchr() const
-    /// @returns wide char (UTF-8 converted to Unicode).
+    /// @returns wide char (UTF-8 converted to Unicode)
   {
     return matcher().wchr();
   }
   /// Returns the matched text size in number of bytes.
   inline size_t size() const
-    /// @returns size of the matched text.
+    /// @returns size of the matched text
   {
     return matcher().size();
   }
   /// Returns the matched text size in number of (wide) characters.
   inline size_t wsize() const
-    /// @returns number of (wide) characters matched.
+    /// @returns number of (wide) characters matched
   {
     return matcher().wsize();
   }
   /// Returns the line number of matched text.
   inline size_t lineno() const
-    /// @returns line number.
+    /// @returns line number
   {
     return matcher().lineno();
   }
   /// Returns the number of lines that the match spans.
   inline size_t lines() const
-    /// @returns number of lines.
+    /// @returns number of lines
   {
     return matcher().lines();
   }
-  /// Returns the starting column number of matched text, taking tab spacing into account and counting wide characters as one character each (unless compiled with WITH_BYTE_COLUMNO).
+  /// Returns the starting column number of matched text, taking tab spacing into account and counting wide characters as one character each.
   inline size_t columno() const
-    /// @returns column number.
+    /// @returns column number
   {
     return matcher().columno();
   }
-  /// Returns the number of columns of the last line (or the single line of matched text) in the matched text, taking tab spacing into account and counting wide characters as one character each (unless compiled with WITH_BYTE_COLUMNO).
+#if defined(WITH_SPAN)
+  /// Returns the number of bytes from the begin of line of the match.
+  inline size_t border() const
+    /// @returns border offset
+  {
+    return matcher().border();
+  }
+#endif
+  /// Returns the number of columns of the last line (or the single line of matched text) in the matched text, taking tab spacing into account and counting wide characters as one character each.
   inline size_t columns() const
-    /// @returns number of columns.
+    /// @returns number of columns
   {
     return matcher().columns();
   }
   /// Transition to the given start condition state.
   inline AbstractLexer& start(int state) ///< start condition state to transition to
-    /// @returns reference to *this.
+    /// @returns reference to *this
   {
     start_ = state;
     return *this;
   }
   /// Returns the current start condition state.
   inline int start() const
-    /// @returns start condition (integer).
+    /// @returns start condition (integer)
   {
     return start_;
   }
@@ -371,7 +380,7 @@ class AbstractLexer {
   }
   /// Returns the stack top start condition state or 0 (INITIAL) if the stack is empty.
   inline int top_state() const
-    /// @returns start condition (integer).
+    /// @returns start condition (integer)
   {
     if (!state_.empty())
       return state_.top();
@@ -379,7 +388,7 @@ class AbstractLexer {
   }
   /// Returns true if the condition state stack is empty.
   inline bool states_empty() const
-    /// @returns true if the stack is empty, false otherwise.
+    /// @returns true if the stack is empty, false otherwise
   {
     return state_.empty();
   }

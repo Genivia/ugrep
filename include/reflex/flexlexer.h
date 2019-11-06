@@ -234,15 +234,15 @@ int yywrap(void);
 
 /// Flex-compatible macro: scan a string
 #if defined(REFLEX_OPTION_reentrant)
-#define yy_scan_string(i,s)     (static_cast<FlexLexer*>(s)->has_matcher() ? (static_cast<FlexLexer*>(s)->matcher(static_cast<FlexLexer*>(s)->new_matcher(i)), static_cast<FlexLexer*>(s)->ptr_matcher()) : (static_cast<FlexLexer*>(s)->in(i), static_cast<YY_BUFFER_STATE>(NULL)))
+#define yy_scan_string(i,s)     (static_cast<FlexLexer*>(s)->in(i), static_cast<YY_BUFFER_STATE>(NULL))
 #define yy_scan_wstring(i,s)    yy_scan_string((i), (s))
 #define yy_scan_bytes(b,n,s)    yy_scan_string(reflex::Input((b), static_cast<size_t>(n)), (s))
-#define yy_scan_buffer(b,n,s)   (static_cast<FlexLexer*>(s)->has_matcher() ? (static_cast<FlexLexer*>(s)->matcher(static_cast<FlexLexer*>(s)->new_matcher()).buffer((b), (n)-1), static_cast<FlexLexer*>(s)->ptr_matcher()) : (static_cast<FlexLexer*>(s)->buffer((b), (n)-1), static_cast<YY_BUFFER_STATE>(NULL)))
+#define yy_scan_buffer(b,n,s)   (static_cast<FlexLexer*>(s)->buffer((b), (n)-1), static_cast<YY_BUFFER_STATE>(NULL))
 #else
-#define yy_scan_string(i)       (YY_SCANNER_DOT_ has_matcher() ? (YY_SCANNER_DOT_ matcher(YY_SCANNER_DOT_ new_matcher(i)), YY_CURRENT_BUFFER) : (YY_SCANNER_DOT_ in(i), static_cast<YY_BUFFER_STATE>(NULL)))
+#define yy_scan_string(i)       (YY_SCANNER_DOT_ in(i), static_cast<YY_BUFFER_STATE>(NULL))
 #define yy_scan_wstring(i)      yy_scan_string(i)
 #define yy_scan_bytes(b,n)      yy_scan_string(reflex::Input((b), static_cast<size_t>(n)))
-#define yy_scan_buffer(b,n)     (YY_SCANNER_DOT_ has_matcher() ? (YY_SCANNER_DOT_ matcher(YY_SCANNER_DOT_ new_matcher()->buffer((b), (n)-1)), YY_CURRENT_BUFFER) : (YY_SCANNER_DOT_ buffer((b), (n)-1), static_cast<YY_BUFFER_STATE>(NULL)))
+#define yy_scan_buffer(b,n)     (YY_SCANNER_DOT_ buffer((b), (n)-1), static_cast<YY_BUFFER_STATE>(NULL))
 #endif
 
 /// Flex-compatible macro: the terminating action.

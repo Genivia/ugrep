@@ -402,7 +402,7 @@ class Input {
   {
     init();
   }
-  /// Construct input character sequence from an open FILE* file descriptor, supports UTF-8 conversion from UTF-16 and UTF-32, use stdin if file == NULL.
+  /// Construct input character sequence from an open FILE* file descriptor, supports UTF-8 conversion from UTF-16 and UTF-32.
   Input(FILE *file) ///< input file
     :
       cstring_(NULL),
@@ -413,7 +413,7 @@ class Input {
   {
     init();
   }
-  /// Construct input character sequence from an open FILE* file descriptor, supports UTF-8 conversion from UTF-16 and UTF-32, use stdin if file == NULL.
+  /// Construct input character sequence from an open FILE* file descriptor, supports UTF-8 conversion from UTF-16 and UTF-32.
   Input(
       FILE                 *file,        ///< input file
       file_encoding_type    enc,         ///< file_encoding (when UTF BOM is not present)
@@ -440,7 +440,7 @@ class Input {
   {
     init();
   }
-  /// Construct input character sequence from a pointer to a std::istream, use stdin if istream == NULL.
+  /// Construct input character sequence from a pointer to a std::istream.
   Input(std::istream *istream) ///< input stream
     :
       cstring_(NULL),
@@ -451,7 +451,7 @@ class Input {
   {
     init();
   }
-  /// Copy assignment operator
+  /// Copy assignment operator.
   Input& operator=(const Input& input)
   {
     cstring_ = input.cstring_;
@@ -467,61 +467,61 @@ class Input {
   }
   /// Cast this Input object to a string, returns NULL when this Input is not a string.
   operator const char *() const
-    /// @returns remaining unbuffered part of a NUL-terminated string or NULL.
+    /// @returns remaining unbuffered part of a NUL-terminated string or NULL
   {
     return cstring_;
   }
   /// Cast this Input object to a wide character string, returns NULL when this Input is not a wide string.
   operator const wchar_t *() const
-    /// @returns remaining unbuffered part of the NUL-terminated wide character string or NULL.
+    /// @returns remaining unbuffered part of the NUL-terminated wide character string or NULL
   {
     return wstring_;
   }
   /// Cast this Input object to a file descriptor FILE*, returns NULL when this Input is not a FILE*.
   operator FILE *() const
-    /// @returns pointer to current file descriptor or NULL.
+    /// @returns pointer to current file descriptor or NULL
   {
     return file_;
   }
   /// Cast this Input object to a std::istream*, returns NULL when this Input is not a std::istream.
   operator std::istream *() const
-    /// @returns pointer to current std::istream or NULL.
+    /// @returns pointer to current std::istream or NULL
   {
     return istream_;
   }
   // Cast this Input object to bool, same as checking good().
   operator bool() const
-    /// @returns true if a non-empty sequence of characters is available to get.
+    /// @returns true if a non-empty sequence of characters is available to get
   {
     return good();
   }
   /// Get the remaining string of this Input object, returns NULL when this Input is not a string.
   const char *cstring() const
-    /// @returns remaining unbuffered part of the NUL-terminated string or NULL.
+    /// @returns remaining unbuffered part of the NUL-terminated string or NULL
   {
     return cstring_;
   }
   /// Get the remaining wide character string of this Input object, returns NULL when this Input is not a wide string.
   const wchar_t *wstring() const
-    /// @returns remaining unbuffered part of the NUL-terminated wide character string or NULL.
+    /// @returns remaining unbuffered part of the NUL-terminated wide character string or NULL
   {
     return wstring_;
   }
   /// Get the FILE* of this Input object, returns NULL when this Input is not a FILE*.
   FILE *file() const
-    /// @returns pointer to current file descriptor or NULL.
+    /// @returns pointer to current file descriptor or NULL
   {
     return file_;
   }
   /// Get the std::istream of this Input object, returns NULL when this Input is not a std::istream.
   std::istream *istream() const
-    /// @returns pointer to current std::istream or NULL.
+    /// @returns pointer to current std::istream or NULL
   {
     return istream_;
   }
   /// Get the size of the input character sequence in number of ASCII/UTF-8 bytes (zero if size is not determinable from a `FILE*` or `std::istream` source).
   size_t size()
-    /// @returns the nonzero number of ASCII/UTF-8 bytes available to read, or zero when source is empty or if size is not determinable e.g. when reading from standard input.
+    /// @returns the nonzero number of ASCII/UTF-8 bytes available to read, or zero when source is empty or if size is not determinable e.g. when reading from standard input
   {
     if (cstring_)
       return size_;
@@ -544,7 +544,7 @@ class Input {
   }
   /// Check if this Input object was assigned a character sequence.
   bool assigned() const
-    /// @returns true if this Input object was assigned (not default constructed or cleared).
+    /// @returns true if this Input object was assigned (not default constructed or cleared)
   {
     return cstring_ || wstring_ || file_ || istream_;
   }
@@ -559,7 +559,7 @@ class Input {
   }
   /// Check if input is available.
   bool good() const
-    /// @returns true if a non-empty sequence of characters is available to get.
+    /// @returns true if a non-empty sequence of characters is available to get
   {
     if (cstring_)
       return size_ > 0;
@@ -573,7 +573,7 @@ class Input {
   }
   /// Check if input reached EOF.
   bool eof() const
-    /// @returns true if input is at EOF and no characters are available.
+    /// @returns true if input is at EOF and no characters are available
   {
     if (cstring_)
       return size_ == 0;
@@ -597,7 +597,7 @@ class Input {
   size_t get(
       char  *s, ///< points to the string buffer to fill with input
       size_t n) ///< size of buffer pointed to by s
-    /// @returns the nonzero number of (less or equal to n) 8-bit characters added to buffer s from the current input, or zero when EOF.
+    /// @returns the nonzero number of (less or equal to n) 8-bit characters added to buffer s from the current input, or zero when EOF
   {
     if (cstring_)
     {
@@ -709,7 +709,7 @@ class Input {
     uidx_ = sizeof(utf8_);
     utfx_ = 0;
     page_ = NULL;
-    if (file_)
+    if (file_ != NULL)
       file_init();
   }
   /// Called by init() for a FILE*.
@@ -876,7 +876,7 @@ class BufferedInput : public Input {
       len_(0),
       pos_(0)
   { }
-  /// Construct buffered input.
+  /// Copy constructor.
   BufferedInput(const BufferedInput& input)
     :
       Input(input),
@@ -885,7 +885,7 @@ class BufferedInput : public Input {
   {
     std::memcpy(buf_, input.buf_, len_);
   }
-  /// Construct buffered input.
+  /// Construct buffered input from unbuffered input.
   BufferedInput(const Input& input)
     :
       Input(input)
@@ -893,7 +893,7 @@ class BufferedInput : public Input {
     len_ = Input::get(buf_, SIZE);
     pos_ = 0;
   }
-  /// Copy assignment operator
+  /// Assignment operator from unbuffered input.
   BufferedInput& operator=(const Input& input)
   {
     Input::operator=(input);
@@ -901,7 +901,7 @@ class BufferedInput : public Input {
     pos_ = 0;
     return *this;
   }
-  /// Copy assignment operator
+  /// Copy assignment operator.
   BufferedInput& operator=(const BufferedInput& input)
   {
     Input::operator=(input);
@@ -912,25 +912,25 @@ class BufferedInput : public Input {
   }
   // Cast this Input object to bool, same as checking good().
   operator bool()
-    /// @returns true if a non-empty sequence of characters is available to get.
+    /// @returns true if a non-empty sequence of characters is available to get
   {
     return good();
   }
   /// Get the size of the input character sequence in number of ASCII/UTF-8 bytes (zero if size is not determinable from a `FILE*` or `std::istream` source).
   size_t size()
-    /// @returns the nonzero number of ASCII/UTF-8 bytes available to read, or zero when source is empty or if size is not determinable e.g. when reading from standard input.
+    /// @returns the nonzero number of ASCII/UTF-8 bytes available to read, or zero when source is empty or if size is not determinable e.g. when reading from standard input
   {
     return len_ - pos_ + Input::size();
   }
   /// Check if input is available.
   bool good()
-    /// @returns true if a non-empty sequence of characters is available to get.
+    /// @returns true if a non-empty sequence of characters is available to get
   {
     return pos_ < len_ || Input::good();
   }
   /// Check if input reached EOF.
   bool eof()
-    /// @returns true if input is at EOF and no characters are available.
+    /// @returns true if input is at EOF and no characters are available
   {
     return pos_ >= len_ && Input::eof();
   }

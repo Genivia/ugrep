@@ -31,7 +31,7 @@ GREP_PATH=${datadir}/ugrep/patterns
 AC_SUBST(GREP_PATH)
 
 AC_LANG([C++])
-AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])
 AC_SUBST([AM_CXXFLAGS], ["-Wall -Wunused -Wextra"])
 
 AC_SUBST([PTHREAD_CFLAGS], [""])

@@ -172,7 +172,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   }
   /// Returns reference to vector of current indent stop positions.
   std::vector<size_t>& stops()
-    /// @returns vector of size_t.
+    /// @returns vector of size_t
   {
     return tab_;
   }
@@ -354,7 +354,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   };
   /// Returns true if input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
   virtual size_t match(Method method) ///< Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
-    /// @returns nonzero if input matched the pattern.
+    /// @returns nonzero if input matched the pattern
     ;
   /// Returns true if able to advance to next possible match
   bool advance()
@@ -370,14 +370,14 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   }
   /// Returns true if looking at indent.
   inline bool indent()
-    /// @returns true if indent.
+    /// @returns true if indent
   {
     newline();
     return col_ > 0 && (tab_.empty() || tab_.back() < col_);
   }
   /// Returns true if looking at dedent.
   inline bool dedent()
-    /// @returns true if dedent.
+    /// @returns true if dedent
   {
     newline();
     return !tab_.empty() && tab_.back() > col_;

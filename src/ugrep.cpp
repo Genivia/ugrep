@@ -85,7 +85,8 @@ Prebuilt executables are located in ugrep/bin.
 #include "glob.hpp"
 
 // option: use a thread to decompress the stream into a pipe to search, for greater speed
-#define WITH_LIBZ_THREAD
+// FIXME: option disabled for now because gzread() in zstream.hpp:105 blocks randomly when calling xsgetn(), peek()
+// #define WITH_LIBZ_THREAD
 
 // check if we are compiling for a windows OS
 #if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
@@ -136,13 +137,10 @@ Prebuilt executables are located in ugrep/bin.
 #define PATHSEPCHR '/'
 #define PATHSEPSTR "/"
 
-// handle SIGPIPE
-void sigpipe_handle(int) { }
-
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.4"
+#define UGREP_VERSION "1.5.5"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -430,9 +428,9 @@ inline bool is_binary(const char *s, size_t n)
   {
     do
     {
-      if ((*s & 0x0c) == 0x80)
+      if ((*s & 0xc0) == 0x80)
         return true;
-    } while ((*s & 0x0c) != 0xc0 && ++s < e);
+    } while ((*s & 0xc0) != 0xc0 && ++s < e);
 
     if (s >= e)
       return false;
@@ -534,7 +532,7 @@ struct Stats {
   // report the statistics
   void report()
   {
-    size_t n = found();
+    size_t n = found_files();
     fprintf(output, "Searched %zu file%s", files, (files == 1 ? "" : "s"));
     if (threads > 1)
       fprintf(output, " with %zu threads", threads);
@@ -1612,27 +1610,48 @@ struct Grep {
     }
 
 #ifdef HAVE_LIBZ
+
     if (flag_decompress)
     {
       streambuf = new zstreambuf(file);
       stream = new std::istream(streambuf);
 
 #ifdef WITH_LIBZ_THREAD
+
       pipe_fd[0] = -1;
       pipe_fd[1] = -1;
-      if (pipe(pipe_fd) == 0)
+
+      FILE *pip = NULL;
+
+      // open pipe between worker and decompression thread
+      if (pipe(pipe_fd) == 0 && (pip = fdopen(pipe_fd[0], "r")) != NULL)
       {
         thread = std::thread(&Grep::decompress, this);
-        input = fdopen(pipe_fd[0], "r");
+
+        input = reflex::Input(pip, flag_encoding_type);
       }
       else
-#endif
-
       {
+        if (pipe_fd[0] != -1)
+        {
+          close(pipe_fd[0]);
+          close(pipe_fd[1]);
+          pipe_fd[0] = -1;
+          pipe_fd[1] = -1;
+        }
+
         input = stream;
       }
+
+#else
+
+      input = stream;
+
+#endif
+
     }
     else
+
 #endif
 
     {
@@ -1648,17 +1667,26 @@ struct Grep {
   {
     char buf[Z_BUF_LEN]; // matches zstream buffer size
 
-    while (*stream)
+    while (true)
     {
-      std::streamsize len = stream->read(buf, sizeof(buf)).gcount();
+      std::streamsize len = stream->read(buf, Z_BUF_LEN).gcount();
 
+      // no data, EOF, or error?
       if (len <= 0)
         break;
 
-      write(pipe_fd[1], buf, static_cast<size_t>(len));
+      // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
+      if (write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
+        break;
+
+      // if last read returned less than buf[] size, then EOF is reached
+      if (len < Z_BUF_LEN)
+        break;
     }
 
+    // close our end of the pipe
     close(pipe_fd[1]);
+    pipe_fd[1] = -1;
   }
 #endif
 #endif
@@ -1666,20 +1694,32 @@ struct Grep {
   // close the file and clear input
   void close_file()
   {
+#ifdef HAVE_LIBZ
+
+#ifdef WITH_LIBZ_THREAD
+    if (pipe_fd[0] != -1)
+    {
+      // close the pipe, forcing decompression thread to terminate if not terminated already
+      close(pipe_fd[0]);
+      pipe_fd[0] = -1;
+
+      // close the FILE* pipe created with fdopen()
+      if (input.file() != NULL)
+        fclose(input.file());
+
+      // join the decompression thread
+      thread.join();
+    }
+#endif
+
     input.clear();
 
+    // close the file
     if (file != NULL)
     {
       fclose(file);
       file = NULL;
     }
-
-#ifdef HAVE_LIBZ
-
-#ifdef WITH_LIBZ_THREAD
-    if (thread.joinable())
-      thread.join();
-#endif
 
     if (stream != NULL)
     {
@@ -1741,11 +1781,13 @@ struct Job {
   static const char *NONE;
 
   Job()
-    : pathname()
+    :
+      pathname()
   { }
 
   Job(const char *pathname)
-    : pathname(pathname)
+    :
+      pathname(pathname)
   { }
 
   bool none()
@@ -1765,7 +1807,8 @@ struct GrepWorker;
 struct GrepMaster : public Grep {
 
   GrepMaster(FILE *file, reflex::AbstractMatcher *matcher)
-    : Grep(file, matcher)
+    :
+      Grep(file, matcher)
   {
     start_workers();
     iworker = workers.begin();
@@ -2936,8 +2979,8 @@ int main(int argc, char **argv)
   {
 #ifndef OS_WIN
 
-    // handle SIGPIPE
-    signal(SIGPIPE, sigpipe_handle);
+    // ignore SIGPIPE
+    signal(SIGPIPE, SIG_IGN);
 
     // check if standard output is a TTY
     tty_term = isatty(STDOUT_FILENO);

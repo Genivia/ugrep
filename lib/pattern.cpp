@@ -73,25 +73,25 @@
 namespace reflex {
 
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-inline int fopen_s(FILE **fd, const char *name, const char *mode) { return ::fopen_s(fd, name, mode); }
+inline int fopen_s(FILE **file, const char *name, const char *mode) { return ::fopen_s(file, name, mode); }
 #else
-inline int fopen_s(FILE **fd, const char *name, const char *mode) { return (*fd = ::fopen(name, mode)) ? 0 : errno; }
+inline int fopen_s(FILE **file, const char *name, const char *mode) { return (*file = ::fopen(name, mode)) ? 0 : errno; }
 #endif
 
-static void print_char(FILE *fd, int c, bool h = false)
+static void print_char(FILE *file, int c, bool h = false)
 {
   if (c >= '\a' && c <= '\r')
-    ::fprintf(fd, "'\\%c'", "abtnvfr"[c - '\a']);
+    ::fprintf(file, "'\\%c'", "abtnvfr"[c - '\a']);
   else if (c == '\\')
-    ::fprintf(fd, "'\\\\'");
+    ::fprintf(file, "'\\\\'");
   else if (c == '\'')
-    ::fprintf(fd, "'\\''");
+    ::fprintf(file, "'\\''");
   else if (std::isprint(c))
-    ::fprintf(fd, "'%c'", c);
+    ::fprintf(file, "'%c'", c);
   else if (h)
-    ::fprintf(fd, "%02X", c);
+    ::fprintf(file, "%02X", c);
   else
-    ::fprintf(fd, "%u", c);
+    ::fprintf(file, "%u", c);
 }
 
 static const char *posix_class[] = {
@@ -1990,17 +1990,17 @@ void Pattern::gencode_dfa(const State& start) const
      || (len > 4 && filename.compare(len - 4, 4, ".cpp") == 0)
      || (len > 3 && filename.compare(len - 3, 3, ".cc" ) == 0))
     {
-      FILE *fd = NULL;
+      FILE *file = NULL;
       int err = 0;
       if (filename.compare(0, 7, "stdout.") == 0)
-        fd = stdout;
+        file = stdout;
       else if (filename.at(0) == '+')
-        err = reflex::fopen_s(&fd, filename.c_str() + 1, "a");
+        err = reflex::fopen_s(&file, filename.c_str() + 1, "a");
       else
-        err = reflex::fopen_s(&fd, filename.c_str(), "w");
-      if (!err && fd)
+        err = reflex::fopen_s(&file, filename.c_str(), "w");
+      if (!err && file)
       {
-        ::fprintf(fd,
+        ::fprintf(file,
             "#include <reflex/matcher.h>\n\n"
             "#if defined(OS_WIN)\n"
             "#pragma warning(disable:4102)\n"
@@ -2009,27 +2009,27 @@ void Pattern::gencode_dfa(const State& start) const
             "#elif defined(__clang__)\n"
             "#pragma clang diagnostic ignored \"-Wunused-label\"\n"
             "#endif\n\n");
-        write_namespace_open(fd);
-        ::fprintf(fd,
+        write_namespace_open(file);
+        ::fprintf(file,
             "void reflex_code_%s(reflex::Matcher& m)\n"
             "{\n"
             "  int c0 = 0, c1 = 0;\n"
             "  m.FSM_INIT(c1);\n", opt_.n.empty() ? "FSM" : opt_.n.c_str());
         for (const State *state = &start; state; state = state->next)
         {
-          ::fprintf(fd, "\nS%u:\n", state->index);
+          ::fprintf(file, "\nS%u:\n", state->index);
           if (state == &start)
-            ::fprintf(fd, "  m.FSM_FIND();\n");
+            ::fprintf(file, "  m.FSM_FIND();\n");
           if (state->redo)
-            ::fprintf(fd, "  m.FSM_REDO();\n");
+            ::fprintf(file, "  m.FSM_REDO();\n");
           else if (state->accept > 0)
-            ::fprintf(fd, "  m.FSM_TAKE(%u);\n", state->accept);
+            ::fprintf(file, "  m.FSM_TAKE(%u);\n", state->accept);
           for (Set::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
-            ::fprintf(fd, "  m.FSM_TAIL(%zu);\n", *i);
+            ::fprintf(file, "  m.FSM_TAIL(%zu);\n", *i);
           for (Set::const_iterator i = state->heads.begin(); i != state->heads.end(); ++i)
-            ::fprintf(fd, "  m.FSM_HEAD(%zu);\n", *i);
+            ::fprintf(file, "  m.FSM_HEAD(%zu);\n", *i);
           if (state->edges.rbegin() != state->edges.rend() && state->edges.rbegin()->first == META_DED)
-            ::fprintf(fd, "  if (m.FSM_DENT()) goto S%u;\n", state->edges.rbegin()->second.second->index);
+            ::fprintf(file, "  if (m.FSM_DENT()) goto S%u;\n", state->edges.rbegin()->second.second->index);
           bool read = false;
           bool elif = false;
 #if WITH_COMPACT_DFA == -1
@@ -2042,7 +2042,7 @@ void Pattern::gencode_dfa(const State& start) const
               target_index = i->second.second->index;
             if (!read)
             {
-              ::fprintf(fd, "  c0 = c1, c1 = m.FSM_CHAR();\n");
+              ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
               read = true;
             }
             if (!is_meta(lo))
@@ -2052,28 +2052,28 @@ void Pattern::gencode_dfa(const State& start) const
                 break;
               if (lo == hi)
               {
-                ::fprintf(fd, "  if (c1 == ");
-                print_char(fd, lo);
-                ::fprintf(fd, ")");
+                ::fprintf(file, "  if (c1 == ");
+                print_char(file, lo);
+                ::fprintf(file, ")");
               }
               else if (hi == 0xFF)
               {
-                ::fprintf(fd, "  if (");
-                print_char(fd, lo);
-                ::fprintf(fd, " <= c1)");
+                ::fprintf(file, "  if (");
+                print_char(file, lo);
+                ::fprintf(file, " <= c1)");
               }
               else
               {
-                ::fprintf(fd, "  if (");
-                print_char(fd, lo);
-                ::fprintf(fd, " <= c1 && c1 <= ");
-                print_char(fd, hi);
-                ::fprintf(fd, ")");
+                ::fprintf(file, "  if (");
+                print_char(file, lo);
+                ::fprintf(file, " <= c1 && c1 <= ");
+                print_char(file, hi);
+                ::fprintf(file, ")");
               }
               if (target_index == Const::IMAX)
-                ::fprintf(fd, " return m.FSM_HALT(c1);\n");
+                ::fprintf(file, " return m.FSM_HALT(c1);\n");
               else
-                ::fprintf(fd, " goto S%u;\n", target_index);
+                ::fprintf(file, " goto S%u;\n", target_index);
             }
             else
             {
@@ -2083,32 +2083,32 @@ void Pattern::gencode_dfa(const State& start) const
                 {
                   case META_EOB:
                   case META_EOL:
-                    ::fprintf(fd, "  ");
+                    ::fprintf(file, "  ");
                     if (elif)
-                      ::fprintf(fd, "else ");
-                    ::fprintf(fd, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(fd, i->second.second, 2);
-                    ::fprintf(fd, "  }\n");
+                      ::fprintf(file, "else ");
+                    ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
+                    gencode_dfa_closure(file, i->second.second, 2);
+                    ::fprintf(file, "  }\n");
                     elif = true;
                     break;
                   case META_EWE:
                   case META_BWE:
                   case META_NWE:
-                    ::fprintf(fd, "  ");
+                    ::fprintf(file, "  ");
                     if (elif)
-                      ::fprintf(fd, "else ");
-                    ::fprintf(fd, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(fd, i->second.second, 2);
-                    ::fprintf(fd, "  }\n");
+                      ::fprintf(file, "else ");
+                    ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
+                    gencode_dfa_closure(file, i->second.second, 2);
+                    ::fprintf(file, "  }\n");
                     elif = true;
                     break;
                   default:
-                    ::fprintf(fd, "  ");
+                    ::fprintf(file, "  ");
                     if (elif)
-                      ::fprintf(fd, "else ");
-                    ::fprintf(fd, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(fd, i->second.second, 2);
-                    ::fprintf(fd, "  }\n");
+                      ::fprintf(file, "else ");
+                    ::fprintf(file, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
+                    gencode_dfa_closure(file, i->second.second, 2);
+                    ::fprintf(file, "  }\n");
                     elif = true;
                 }
               } while (++lo <= hi);
@@ -2123,7 +2123,7 @@ void Pattern::gencode_dfa(const State& start) const
             {
               if (!read)
               {
-                ::fprintf(fd, "  c0 = c1, c1 = m.FSM_CHAR();\n");
+                ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
                 read = true;
               }
               do
@@ -2132,32 +2132,32 @@ void Pattern::gencode_dfa(const State& start) const
                 {
                   case META_EOB:
                   case META_EOL:
-                    ::fprintf(fd, "  ");
+                    ::fprintf(file, "  ");
                     if (elif)
-                      ::fprintf(fd, "else ");
-                    ::fprintf(fd, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(fd, i->second.second, 2);
-                    ::fprintf(fd, "  }\n");
+                      ::fprintf(file, "else ");
+                    ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
+                    gencode_dfa_closure(file, i->second.second, 2);
+                    ::fprintf(file, "  }\n");
                     elif = true;
                     break;
                   case META_EWE:
                   case META_BWE:
                   case META_NWE:
-                    ::fprintf(fd, "  ");
+                    ::fprintf(file, "  ");
                     if (elif)
-                      ::fprintf(fd, "else ");
-                    ::fprintf(fd, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(fd, i->second.second, 2);
-                    ::fprintf(fd, "  }\n");
+                      ::fprintf(file, "else ");
+                    ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
+                    gencode_dfa_closure(file, i->second.second, 2);
+                    ::fprintf(file, "  }\n");
                     elif = true;
                     break;
                   default:
-                    ::fprintf(fd, "  ");
+                    ::fprintf(file, "  ");
                     if (elif)
-                      ::fprintf(fd, "else ");
-                    ::fprintf(fd, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(fd, i->second.second, 2);
-                    ::fprintf(fd, "  }\n");
+                      ::fprintf(file, "else ");
+                    ::fprintf(file, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
+                    gencode_dfa_closure(file, i->second.second, 2);
+                    ::fprintf(file, "  }\n");
                     elif = true;
                 }
               } while (++lo <= hi);
@@ -2172,7 +2172,7 @@ void Pattern::gencode_dfa(const State& start) const
               target_index = i->second.second->index;
             if (!read)
             {
-              ::fprintf(fd, "  c0 = c1, c1 = m.FSM_CHAR();\n");
+              ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
               read = true;
             }
             if (!is_meta(lo))
@@ -2182,53 +2182,53 @@ void Pattern::gencode_dfa(const State& start) const
                 break;
               if (lo == hi)
               {
-                ::fprintf(fd, "  if (c1 == ");
-                print_char(fd, lo);
-                ::fprintf(fd, ")");
+                ::fprintf(file, "  if (c1 == ");
+                print_char(file, lo);
+                ::fprintf(file, ")");
               }
               else if (hi == 0xFF)
               {
-                ::fprintf(fd, "  if (");
-                print_char(fd, lo);
-                ::fprintf(fd, " <= c1)");
+                ::fprintf(file, "  if (");
+                print_char(file, lo);
+                ::fprintf(file, " <= c1)");
               }
               else
               {
-                ::fprintf(fd, "  if (");
-                print_char(fd, lo);
-                ::fprintf(fd, " <= c1 && c1 <= ");
-                print_char(fd, hi);
-                ::fprintf(fd, ")");
+                ::fprintf(file, "  if (");
+                print_char(file, lo);
+                ::fprintf(file, " <= c1 && c1 <= ");
+                print_char(file, hi);
+                ::fprintf(file, ")");
               }
               if (target_index == Const::IMAX)
-                ::fprintf(fd, " return m.FSM_HALT(c1);\n");
+                ::fprintf(file, " return m.FSM_HALT(c1);\n");
               else
-                ::fprintf(fd, " goto S%u;\n", target_index);
+                ::fprintf(file, " goto S%u;\n", target_index);
             }
           }
 #endif
-          ::fprintf(fd, "  return m.FSM_HALT(c1);\n");
+          ::fprintf(file, "  return m.FSM_HALT(c1);\n");
         }
-        ::fprintf(fd, "}\n\n");
+        ::fprintf(file, "}\n\n");
         if (opt_.p)
-          write_predictor(fd);
-        write_namespace_close(fd);
-        if (fd != stdout)
-          ::fclose(fd);
+          write_predictor(file);
+        write_namespace_close(file);
+        if (file != stdout)
+          ::fclose(file);
       }
     }
   }
 }
 
-void Pattern::gencode_dfa_closure(FILE *fd, const State *state, int nest) const
+void Pattern::gencode_dfa_closure(FILE *file, const State *state, int nest) const
 {
   bool elif = false;
   if (state->redo)
-    ::fprintf(fd, "%*sm.FSM_REDO(c1);\n", 2*nest, "");
+    ::fprintf(file, "%*sm.FSM_REDO(c1);\n", 2*nest, "");
   else if (state->accept > 0)
-    ::fprintf(fd, "%*sm.FSM_TAKE(%u, c1);\n", 2*nest, "", state->accept);
+    ::fprintf(file, "%*sm.FSM_TAKE(%u, c1);\n", 2*nest, "", state->accept);
   for (Set::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
-    ::fprintf(fd, "%*sm.FSM_TAIL(%zu);\n", 2*nest, "", *i);
+    ::fprintf(file, "%*sm.FSM_TAIL(%zu);\n", 2*nest, "", *i);
   if (nest > 5)
     return;
   for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
@@ -2248,32 +2248,32 @@ void Pattern::gencode_dfa_closure(FILE *fd, const State *state, int nest) const
         {
           case META_EOB:
           case META_EOL:
-            ::fprintf(fd, "%*s", 2*nest, "");
+            ::fprintf(file, "%*s", 2*nest, "");
             if (elif)
-              ::fprintf(fd, "else ");
-            ::fprintf(fd, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
-            gencode_dfa_closure(fd, i->second.second, nest + 1);
-            ::fprintf(fd, "%*s}\n", 2*nest, "");
+              ::fprintf(file, "else ");
+            ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
+            gencode_dfa_closure(file, i->second.second, nest + 1);
+            ::fprintf(file, "%*s}\n", 2*nest, "");
             elif = true;
             break;
           case META_EWE:
           case META_BWE:
           case META_NWE:
-            ::fprintf(fd, "%*s", 2*nest, "");
+            ::fprintf(file, "%*s", 2*nest, "");
             if (elif)
-              ::fprintf(fd, "else ");
-            ::fprintf(fd, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
-            gencode_dfa_closure(fd, i->second.second, nest + 1);
-            ::fprintf(fd, "%*s}\n", 2*nest, "");
+              ::fprintf(file, "else ");
+            ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
+            gencode_dfa_closure(file, i->second.second, nest + 1);
+            ::fprintf(file, "%*s}\n", 2*nest, "");
             elif = true;
             break;
           default:
-            ::fprintf(fd, "%*s", 2*nest, "");
+            ::fprintf(file, "%*s", 2*nest, "");
             if (elif)
-              ::fprintf(fd, "else ");
-            ::fprintf(fd, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
-            gencode_dfa_closure(fd, i->second.second, nest + 1);
-            ::fprintf(fd, "%*s}\n", 2*nest, "");
+              ::fprintf(file, "else ");
+            ::fprintf(file, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
+            gencode_dfa_closure(file, i->second.second, nest + 1);
+            ::fprintf(file, "%*s}\n", 2*nest, "");
             elif = true;
         }
       } while (++lo <= hi);
@@ -2301,79 +2301,79 @@ void Pattern::export_dfa(const State& start) const
     size_t len = filename.length();
     if (len > 3 && filename.compare(len - 3, 3, ".gv") == 0)
     {
-      FILE *fd = NULL;
+      FILE *file = NULL;
       int err = 0;
       if (filename.compare(0, 7, "stdout.") == 0)
-        fd = stdout;
+        file = stdout;
       else if (filename.at(0) == '+')
-        err = reflex::fopen_s(&fd, filename.c_str() + 1, "a");
+        err = reflex::fopen_s(&file, filename.c_str() + 1, "a");
       else
-        err = reflex::fopen_s(&fd, filename.c_str(), "w");
-      if (!err && fd)
+        err = reflex::fopen_s(&file, filename.c_str(), "w");
+      if (!err && file)
       {
-        ::fprintf(fd, "digraph %s {\n\t\trankdir=LR;\n\t\tconcentrate=true;\n\t\tnode [fontname=\"ArialNarrow\"];\n\t\tedge [fontname=\"Courier\"];\n\n\t\tinit [root=true,peripheries=0,label=\"%s\",fontname=\"Courier\"];\n\t\tinit -> N%p;\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), opt_.n.c_str(), (void*)&start);
+        ::fprintf(file, "digraph %s {\n\t\trankdir=LR;\n\t\tconcentrate=true;\n\t\tnode [fontname=\"ArialNarrow\"];\n\t\tedge [fontname=\"Courier\"];\n\n\t\tinit [root=true,peripheries=0,label=\"%s\",fontname=\"Courier\"];\n\t\tinit -> N%p;\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), opt_.n.c_str(), (void*)&start);
         for (const State *state = &start; state; state = state->next)
         {
           if (state == &start)
-            ::fprintf(fd, "\n/*START*/\t");
+            ::fprintf(file, "\n/*START*/\t");
           if (state->redo) // state->accept == Const::IMAX)
-            ::fprintf(fd, "\n/*REDO*/\t");
+            ::fprintf(file, "\n/*REDO*/\t");
           else if (state->accept)
-            ::fprintf(fd, "\n/*ACCEPT %hu*/\t", state->accept);
+            ::fprintf(file, "\n/*ACCEPT %hu*/\t", state->accept);
           for (Set::const_iterator i = state->heads.begin(); i != state->heads.end(); ++i)
-            ::fprintf(fd, "\n/*HEAD %zu*/\t", *i);
+            ::fprintf(file, "\n/*HEAD %zu*/\t", *i);
           for (Set::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
-            ::fprintf(fd, "\n/*TAIL %zu*/\t", *i);
+            ::fprintf(file, "\n/*TAIL %zu*/\t", *i);
           if (state != &start && !state->accept && state->heads.empty() && state->tails.empty())
-            ::fprintf(fd, "\n/*STATE*/\t");
-          ::fprintf(fd, "N%p [label=\"", (void*)state);
+            ::fprintf(file, "\n/*STATE*/\t");
+          ::fprintf(file, "N%p [label=\"", (void*)state);
 #ifdef DEBUG
           size_t k = 1;
           size_t n = std::sqrt(state->size()) + 0.5;
           const char *sep = "";
           for (Positions::const_iterator i = state->begin(); i != state->end(); ++i)
           {
-            ::fprintf(fd, "%s", sep);
+            ::fprintf(file, "%s", sep);
             if (i->accept())
             {
-              ::fprintf(fd, "(%hu)", i->accepts());
+              ::fprintf(file, "(%hu)", i->accepts());
             }
             else
             {
               if (i->iter())
-                ::fprintf(fd, "%hu.", i->iter());
-              ::fprintf(fd, "%zu", i->loc());
+                ::fprintf(file, "%hu.", i->iter());
+              ::fprintf(file, "%zu", i->loc());
             }
             if (i->lazy())
-              ::fprintf(fd, "?%zu", i->lazy());
+              ::fprintf(file, "?%zu", i->lazy());
             if (i->anchor())
-              ::fprintf(fd, "^");
+              ::fprintf(file, "^");
             if (i->greedy())
-              ::fprintf(fd, "!");
+              ::fprintf(file, "!");
             if (i->ticked())
-              ::fprintf(fd, "'");
+              ::fprintf(file, "'");
             if (k++ % n)
               sep = " ";
             else
               sep = "\\n";
           }
           if ((state->accept && !state->redo) || !state->heads.empty() || !state->tails.empty())
-            ::fprintf(fd, "\\n");
+            ::fprintf(file, "\\n");
 #endif
           if (state->accept && !state->redo) // state->accept != Const::IMAX)
-            ::fprintf(fd, "[%hu]", state->accept);
+            ::fprintf(file, "[%hu]", state->accept);
           for (Set::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
-            ::fprintf(fd, "%zu>", *i);
+            ::fprintf(file, "%zu>", *i);
           for (Set::const_iterator i = state->heads.begin(); i != state->heads.end(); ++i)
-            ::fprintf(fd, "<%zu", *i);
+            ::fprintf(file, "<%zu", *i);
           if (state->redo) // state->accept != Const::IMAX)
-            ::fprintf(fd, "\",style=dashed,peripheries=1];\n");
+            ::fprintf(file, "\",style=dashed,peripheries=1];\n");
           else if (state->accept) // state->accept != Const::IMAX)
-            ::fprintf(fd, "\",peripheries=2];\n");
+            ::fprintf(file, "\",peripheries=2];\n");
           else if (!state->heads.empty())
-            ::fprintf(fd, "\",style=dashed,peripheries=2];\n");
+            ::fprintf(file, "\",style=dashed,peripheries=2];\n");
           else
-            ::fprintf(fd, "\"];\n");
+            ::fprintf(file, "\"];\n");
           for (State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
           {
 #if WITH_COMPACT_DFA == -1
@@ -2385,51 +2385,51 @@ void Pattern::export_dfa(const State& start) const
 #endif
             if (!is_meta(lo))
             {
-              ::fprintf(fd, "\t\tN%p -> N%p [label=\"", (void*)state, (void*)i->second.second);
+              ::fprintf(file, "\t\tN%p -> N%p [label=\"", (void*)state, (void*)i->second.second);
               if (lo >= '\a' && lo <= '\r')
-                ::fprintf(fd, "\\\\%c", "abtnvfr"[lo - '\a']);
+                ::fprintf(file, "\\\\%c", "abtnvfr"[lo - '\a']);
               else if (lo == '"')
-                ::fprintf(fd, "\\\"");
+                ::fprintf(file, "\\\"");
               else if (lo == '\\')
-                ::fprintf(fd, "\\\\");
+                ::fprintf(file, "\\\\");
               else if (std::isgraph(lo))
-                ::fprintf(fd, "%c", lo);
+                ::fprintf(file, "%c", lo);
               else if (lo < 8)
-                ::fprintf(fd, "\\\\%u", lo);
+                ::fprintf(file, "\\\\%u", lo);
               else
-                ::fprintf(fd, "\\\\x%2.2x", lo);
+                ::fprintf(file, "\\\\x%2.2x", lo);
               if (lo != hi)
               {
-                ::fprintf(fd, "-");
+                ::fprintf(file, "-");
                 if (hi >= '\a' && hi <= '\r')
-                  ::fprintf(fd, "\\\\%c", "abtnvfr"[hi - '\a']);
+                  ::fprintf(file, "\\\\%c", "abtnvfr"[hi - '\a']);
                 else if (hi == '"')
-                  ::fprintf(fd, "\\\"");
+                  ::fprintf(file, "\\\"");
                 else if (hi == '\\')
-                  ::fprintf(fd, "\\\\");
+                  ::fprintf(file, "\\\\");
                 else if (std::isgraph(hi))
-                  ::fprintf(fd, "%c", hi);
+                  ::fprintf(file, "%c", hi);
                 else if (hi < 8)
-                  ::fprintf(fd, "\\\\%u", hi);
+                  ::fprintf(file, "\\\\%u", hi);
                 else
-                  ::fprintf(fd, "\\\\x%2.2x", hi);
+                  ::fprintf(file, "\\\\x%2.2x", hi);
               }
-              ::fprintf(fd, "\"];\n");
+              ::fprintf(file, "\"];\n");
             }
             else
             {
               do
               {
-                ::fprintf(fd, "\t\tN%p -> N%p [label=\"%s\",style=\"dashed\"];\n", (void*)state, (void*)i->second.second, meta_label[lo - META_MIN]);
+                ::fprintf(file, "\t\tN%p -> N%p [label=\"%s\",style=\"dashed\"];\n", (void*)state, (void*)i->second.second, meta_label[lo - META_MIN]);
               } while (++lo <= hi);
             }
           }
           if (state->redo) // state->accept == Const::IMAX)
-            ::fprintf(fd, "\t\tN%p -> R%p;\n\t\tR%p [peripheries=0,label=\"redo\"];\n", (void*)state, (void*)state, (void*)state);
+            ::fprintf(file, "\t\tN%p -> R%p;\n\t\tR%p [peripheries=0,label=\"redo\"];\n", (void*)state, (void*)state, (void*)state);
         }
-        ::fprintf(fd, "}\n");
-        if (fd != stdout)
-          ::fclose(fd);
+        ::fprintf(file, "}\n");
+        if (file != stdout)
+          ::fclose(file);
       }
     }
   }
@@ -2450,74 +2450,74 @@ void Pattern::export_code() const
      || (len > 4 && filename.compare(len - 4, 4, ".cpp") == 0)
      || (len > 3 && filename.compare(len - 3, 3, ".cc" ) == 0))
     {
-      FILE *fd = NULL;
+      FILE *file = NULL;
       int err = 0;
       if (filename.compare(0, 7, "stdout.") == 0)
-        fd = stdout;
+        file = stdout;
       else if (filename.at(0) == '+')
-        err = reflex::fopen_s(&fd, filename.c_str() + 1, "a");
+        err = reflex::fopen_s(&file, filename.c_str() + 1, "a");
       else
-        err = reflex::fopen_s(&fd, filename.c_str(), "w");
-      if (!err && fd)
+        err = reflex::fopen_s(&file, filename.c_str(), "w");
+      if (!err && file)
       {
-        ::fprintf(fd, "#ifndef REFLEX_CODE_DECL\n#include <reflex/pattern.h>\n#define REFLEX_CODE_DECL const reflex::Pattern::Opcode\n#endif\n\n");
-        write_namespace_open(fd);
-        ::fprintf(fd, "extern REFLEX_CODE_DECL reflex_code_%s[%hu] =\n{\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), nop_);
+        ::fprintf(file, "#ifndef REFLEX_CODE_DECL\n#include <reflex/pattern.h>\n#define REFLEX_CODE_DECL const reflex::Pattern::Opcode\n#endif\n\n");
+        write_namespace_open(file);
+        ::fprintf(file, "extern REFLEX_CODE_DECL reflex_code_%s[%hu] =\n{\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), nop_);
         for (Index i = 0; i < nop_; ++i)
         {
           Opcode opcode = opc_[i];
-          ::fprintf(fd, "  0x%08X, // %hu: ", opcode, i);
+          ::fprintf(file, "  0x%08X, // %hu: ", opcode, i);
           Index index = index_of(opcode);
           if (is_opcode_redo(opcode))
           {
-            ::fprintf(fd, "REDO\n");
+            ::fprintf(file, "REDO\n");
           }
           else if (is_opcode_take(opcode))
           {
-            ::fprintf(fd, "TAKE %u\n", index);
+            ::fprintf(file, "TAKE %u\n", index);
           }
           else if (is_opcode_tail(opcode))
           {
-            ::fprintf(fd, "TAIL %u\n", index);
+            ::fprintf(file, "TAIL %u\n", index);
           }
           else if (is_opcode_head(opcode))
           {
-            ::fprintf(fd, "HEAD %u\n", index);
+            ::fprintf(file, "HEAD %u\n", index);
           }
           else if (is_opcode_halt(opcode))
           {
-            ::fprintf(fd, "HALT\n");
+            ::fprintf(file, "HALT\n");
           }
           else
           {
             if (index == Const::IMAX)
-              ::fprintf(fd, "HALT ON ");
+              ::fprintf(file, "HALT ON ");
             else
-              ::fprintf(fd, "GOTO %u ON ", index);
+              ::fprintf(file, "GOTO %u ON ", index);
             Char lo = lo_of(opcode);
             if (!is_meta(lo))
             {
-              print_char(fd, lo, true);
+              print_char(file, lo, true);
               Char hi = hi_of(opcode);
               if (lo != hi)
               {
-                ::fprintf(fd, "-");
-                print_char(fd, hi, true);
+                ::fprintf(file, "-");
+                print_char(file, hi, true);
               }
             }
             else
             {
-              ::fprintf(fd, "%s", meta_label[lo - META_MIN]);
+              ::fprintf(file, "%s", meta_label[lo - META_MIN]);
             }
-            ::fprintf(fd, "\n");
+            ::fprintf(file, "\n");
           }
         }
-        ::fprintf(fd, "};\n\n");
+        ::fprintf(file, "};\n\n");
         if (opt_.p)
-          write_predictor(fd);
-        write_namespace_close(fd);
-        if (fd != stdout)
-          ::fclose(fd);
+          write_predictor(file);
+        write_namespace_close(file);
+        if (file != stdout)
+          ::fclose(file);
       }
     }
   }
@@ -2705,34 +2705,34 @@ void Pattern::gen_predict_match_transitions(Index level, State *state, ORanges<C
   }
 }
 
-void Pattern::write_predictor(FILE *fd) const
+void Pattern::write_predictor(FILE *file) const
 {
-  ::fprintf(fd, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + pre_.size() + (min_ > 1 && pre_.empty()) * 256 + (min_ > 0) * Const::HASH);
-  ::fprintf(fd, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(pre_.size()), static_cast<uint8_t>(min_));
+  ::fprintf(file, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + pre_.size() + (min_ > 1 && pre_.empty()) * 256 + (min_ > 0) * Const::HASH);
+  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(pre_.size()), static_cast<uint8_t>(min_));
   for (Index i = 0; i < pre_.size(); ++i)
-    ::fprintf(fd, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(pre_[i]));
+    ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(pre_[i]));
   if (min_ > 0)
   {
     if (min_ > 1 && pre_.empty())
     {
       for (Index i = 0; i < 256; ++i)
-        ::fprintf(fd, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~bit_[i]));
+        ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~bit_[i]));
     }
     if (min_ >= 4)
     {
       for (Index i = 0; i < Const::HASH; ++i)
-        ::fprintf(fd, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pmh_[i]));
+        ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pmh_[i]));
     }
     else
     {
       for (Index i = 0; i < Const::HASH; ++i)
-        ::fprintf(fd, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i]));
+        ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i]));
     }
   }
-  ::fprintf(fd, "\n};\n\n");
+  ::fprintf(file, "\n};\n\n");
 }
 
-void Pattern::write_namespace_open(FILE* fd) const
+void Pattern::write_namespace_open(FILE *file) const
 {
   if (opt_.z.empty())
     return;
@@ -2741,13 +2741,13 @@ void Pattern::write_namespace_open(FILE* fd) const
   size_t i = 0, j;
   while ((j = s.find("::", i)) != std::string::npos)
   {
-    ::fprintf(fd, "namespace %s {\n", s.substr(i, j - i).c_str());
+    ::fprintf(file, "namespace %s {\n", s.substr(i, j - i).c_str());
     i = j + 2;
   }
-  ::fprintf(fd, "namespace %s {\n\n", s.substr(i).c_str());
+  ::fprintf(file, "namespace %s {\n\n", s.substr(i).c_str());
 }
 
-void Pattern::write_namespace_close(FILE* fd) const
+void Pattern::write_namespace_close(FILE *file) const
 {
   if (opt_.z.empty())
     return;
@@ -2756,10 +2756,10 @@ void Pattern::write_namespace_close(FILE* fd) const
   size_t i = 0, j;
   while ((j = s.find("::", i)) != std::string::npos)
   {
-    ::fprintf(fd, "} // namespace %s\n\n", s.substr(i, j - i).c_str());
+    ::fprintf(file, "} // namespace %s\n\n", s.substr(i, j - i).c_str());
     i = j + 2;
   }
-  ::fprintf(fd, "} // namespace %s\n\n", s.substr(i).c_str());
+  ::fprintf(file, "} // namespace %s\n\n", s.substr(i).c_str());
 }
 
 

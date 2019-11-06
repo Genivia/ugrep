@@ -58,7 +58,7 @@ std::string latin1(
     int  b,               ///< upper bound of UCS range
     int  esc = 'x',       ///< escape char 'x' for hex \xXX, or '0' or '\0' for octal \0nnn and \nnn
     bool brackets = true) ///< place in [ brackets ]
-  /// @returns regex string to match the UCS range encoded in UTF-8.
+  /// @returns regex string to match the UCS range encoded in UTF-8
   ;
 
 /// Convert a UCS-4 range [a,b] to a UTF-8 regex pattern.
@@ -68,14 +68,14 @@ std::string utf8(
     int  esc = 'x',        ///< escape char 'x' for hex \xXX, or '0' or '\0' for octal \0nnn and \nnn
     const char *par = "(", ///< capturing or non-capturing parenthesis "(?:"
     bool strict = true)    ///< returned regex is strict UTF-8 (true) or permissive and lean UTF-8 (false)
-  /// @returns regex string to match the UCS range encoded in UTF-8.
+  /// @returns regex string to match the UCS range encoded in UTF-8
   ;
 
 /// Convert UCS-4 to UTF-8, fills with REFLEX_NONCHAR_UTF8 when out of range, or unrestricted UTF-8 with WITH_UTF8_UNRESTRICTED.
 inline size_t utf8(
     int   c, ///< UCS-4 character U+0000 to U+10ffff (unless WITH_UTF8_UNRESTRICTED)
     char *s) ///< points to the buffer to populate with UTF-8 (1 to 6 bytes) not NUL-terminated
-  /// @returns length (in bytes) of UTF-8 character sequence stored in s.
+  /// @returns length (in bytes) of UTF-8 character sequence stored in s
 {
   if (c < 0x80)
   {
@@ -137,7 +137,7 @@ inline size_t utf8(
 inline int utf8(
     const char *s,         ///< points to the buffer with UTF-8 (1 to 6 bytes)
     const char **r = NULL) ///< points to pointer to set to the new position in s after the UTF-8 sequence, optional
-  /// @returns UCS character.
+  /// @returns UCS character
 {
   int c;
   c = static_cast<unsigned char>(*s++);
@@ -215,6 +215,53 @@ inline int utf8(
   if (r != NULL)
     *r = s;
   return c;
+}
+
+/// Convert UTF-8 string to wide string.
+inline std::wstring wcs(
+    const char *s, ///< string with UTF-8 to convert
+    size_t      n) ///< length of the string to convert
+  /// @returns wide string
+{
+  std::wstring ws;
+  const char *e = s + n;
+  if (sizeof(wchar_t) == 2)
+  {
+    // sizeof(wchar_t) == 2 bytes: store wide string in std::wstring encoded in UTF-16
+    while (s < e)
+    {
+      int wc = utf8(s, &s);
+      if (wc > 0xFFFF)
+      {
+        if (wc <= 0x10FFFF)
+        {
+          ws.push_back(0xD800 | (wc - 0x010000) >> 10); // first half of UTF-16 surrogate pair
+          ws.push_back(0xDC00 | (wc & 0x03FF));         // second half of UTF-16 surrogate pair
+        }
+        else
+        {
+          ws.push_back(0xFFFD);
+        }
+      }
+      else
+      {
+        ws.push_back(wc);
+      }
+    }
+  }
+  else
+  {
+    while (s < e)
+      ws.push_back(utf8(s, &s));
+  }
+  return ws;
+}
+
+/// Convert UTF-8 string to wide string.
+inline std::wstring wcs(const std::string& s) ///< string with UTF-8 to convert
+  /// @returns wide string
+{
+  return wcs(s.c_str(), s.size());
 }
 
 } // namespace reflex
