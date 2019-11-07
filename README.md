@@ -1,3 +1,5 @@
+[![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
+
 Universal grep ("uber grep")
 ============================
 
@@ -113,8 +115,8 @@ Introduction: why use ugrep?
   don't need to memorize complex regex patterns for common search criteria.
   Environment variable `GREP_PATH` can be set to point to your own directory
   with patterns that option `-f` uses to read your pattern files.  For example
-  to recursively search Python files in the working directory for import
-  statements:
+  to recursively search Python files in the working directory for lines with
+  `import` statements:
 
       ugrep -R -tPython -f python/imports
 
@@ -122,7 +124,7 @@ Introduction: why use ugrep?
   Python files only (i.e. by file name extension `.py` and by Python shebangs),
   and the `-f` option specifies predefined patterns to search for Python
   `import` statements (matched by the two patterns `\<import\h+.*` and
-  `\<from\h+.*import\h+.*` defined in `patterns/python/imports`).
+  `\<from\h+.*import\h+.*` predefined in `patterns/python/imports`).
 
 - **ugrep is the only grep tool that allows you to specify negative patterns**
   to *zap* parts in files you want to skip.  This removes false positives.  For
@@ -141,8 +143,8 @@ Introduction: why use ugrep?
 
       ugrep -o '.*IsInjected.*' -f php/zap_html myfile.php
 
-- **ugrep produces hexdumps for binary matches**.  For example, to search for a
-  binary pattern of bytes:
+- **ugrep produces hexdumps for binary matches** to search for binary patterns
+  of bytes, for example:
 
       ugrep --color -XU '\xed\xab\xee\xdb' some.rpm
 
@@ -151,7 +153,7 @@ Introduction: why use ugrep?
   Other options that normally work with text matches work with `-X` too, such
   as the context options `-A`, `-B`, `-C`, and `-y`.  A match is considered
   binary if it contains a NUL (`\0`) or an invalid UTF multi byte sequence that
-  cannot be properly displayed as text.
+  cannot be properly displayed on the terminal as text.
 
 - **ugrep matches Unicode patterns** by default (disabled with option `-U`).  The
   [regular expression pattern syntax](#pattern) is POSIX ERE compliant extended
@@ -297,7 +299,6 @@ e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 - Improve the speed of matching multiple words, which is currently faster than
   GNU grep (ugrep uses Bitap and hashing), but Hyperscan for example may be
   faster as it uses SIMD/AVX so it makes sense to look into that.
-- Turn certain features off internally when not used, to increase speed.
 - Evaluate when `mmap` improves performance and when it does not.  Right now,
   `mmap` does not appear to improve performance on machines with fast file
   read performance, e.g. SSD, where `mmap` even slows down.  RE/flex buffering
@@ -1842,15 +1843,27 @@ Man page
 
            %m     the number of matches or matched files.
 
-           %o     the match as a raw string of bytes.
+           %O     the matching line is output as is (a raw string of bytes).
 
-           %q     the match as a quoted string, replacing " and \ by \" and \\.
+           %o     the match is output as is (a raw string of bytes).
+
+           %Q     the matching line as a quoted string, \" and \\ replace " and \.
+
+           %q     the match as a quoted string, \" and \\ replace " and \.
+
+           %C     the matching line formatted as a quoted C/C++ string.
 
            %c     the match formatted as a quoted C/C++ string.
 
+           %J     the matching line formatted as a quoted JSON string.
+
            %j     the match formatted as a quoted JSON string.
 
+           %V     the matching line formatted as a quoted CSV string.
+
            %v     the match formatted as a quoted CSV string.
+
+           %X     the matching line formatted as XML character data.
 
            %x     the match formatted as XML character data.
 
@@ -1868,7 +1881,7 @@ Man page
 
            %%     the percentage sign.
 
-           %1     the  first  regex  group  capture  of the match, and so on up to
+           %1     the first regex group capture of the match,  and  so  on  up  to
                   group %9, same as %[1]#, requires option -P Perl matching.
 
            %[NUM]#
@@ -1881,7 +1894,7 @@ Man page
            reverses the separator to the default separator or the separator speci-
            fied by --separator.
 
-           Matches  are formatted without context.  To output the entire line with
+           Matches are formatted without context.  To output the entire line  with
            the match, use pattern '.*PATTERN.*' to match the line before and after
            the match.
 
@@ -1899,7 +1912,7 @@ Man page
            --format-end=FORMAT
                   the FORMAT when ending the search.
 
-           The  context  options -A, -B, -C, -y, and options -v, --break, --color,
+           The context options -A, -B, -C, -y, and options -v,  --break,  --color,
            -T, and --null are disabled and have no effect on the formatted output.
 
     EXAMPLES
@@ -1907,12 +1920,12 @@ Man page
 
                   $ ugrep -w 'patricia' myfile
 
-           To  count the number of lines containing the word `patricia' or `Patri-
+           To count the number of lines containing the word `patricia' or  `Patri-
            cia` in a file:
 
                   $ ugrep -cw '[Pp]atricia' myfile
 
-           To count the total number of times the word  `patricia'  or  `Patricia`
+           To  count  the  total number of times the word `patricia' or `Patricia`
            occur in a file:
 
                   $ ugrep -cgw '[Pp]atricia' myfile
@@ -1925,7 +1938,7 @@ Man page
 
                   $ ugrep -o '[[:word:]]+' myfile
 
-           To  list  all  laughing  face  emojis  (Unicode  code points U+1F600 to
+           To list all laughing  face  emojis  (Unicode  code  points  U+1F600  to
            U+1F60F) in a file:
 
                   $ ugrep -o '[\x{1F600}-\x{1F60F}]' myfile
@@ -1934,13 +1947,13 @@ Man page
 
                   $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
-           To display the line and column number of all `FIXME' in all  C++  files
-           using  recursive search, with one line of context before and after each
+           To  display  the line and column number of all `FIXME' in all C++ files
+           using recursive search, with one line of context before and after  each
            matched line:
 
                   $ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*'
 
-           To list all C/C++ comments in a file displaying their line  and  column
+           To  list  all C/C++ comments in a file displaying their line and column
            numbers using options -n and -k, and option -o that allows for matching
            patterns across multiple lines:
 
@@ -1950,15 +1963,15 @@ Man page
 
                   $ ugrep -nko -f c/comments myfile
 
-           To list the lines that need fixing in a C/C++ source  file  by  looking
-           for  the word FIXME while skipping any FIXME in quoted strings by using
+           To  list  the  lines that need fixing in a C/C++ source file by looking
+           for the word FIXME while skipping any FIXME in quoted strings by  using
            a negative pattern `(?^X)' to ignore quoted strings:
 
                   $ ugrep -no -e 'FIXME' -e '(?^"(\\.|\\\r?\n|[^\\\n"])*")' myfile
 
            To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
-           Unicode pattern matching -U (which would otherwise match  `\xaf'  as  a
-           Unicode  character  U+00A3  with UTF-8 byte sequence C2 A3) and display
+           Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
+           Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
            the results in hex with -X using `less -R' as a pager:
 
                   $ ugrep --pager -UXo '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
@@ -1967,7 +1980,7 @@ Man page
 
                   $ ugrep --color --pager -Xo '' a.out
 
-           To list all files containing a RPM  signature,  located  in  the  `rpm`
+           To  list  all  files  containing  a RPM signature, located in the `rpm`
            directory and recursively below:
 
                   $ ugrep -R -l -tRpm '' rpm/
@@ -1983,8 +1996,8 @@ Man page
 
 
     LICENSE
-           ugrep  is  released under the BSD-3 license.  All parts of the software
-           have reasonable copyright terms permitting free  redistribution.   This
+           ugrep is released under the BSD-3 license.  All parts of  the  software
+           have  reasonable  copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
@@ -1992,7 +2005,7 @@ Man page
 
 
 
-    ugrep 1.5.6                    November 06, 2019                      UGREP(1)
+    ugrep 1.5.7                    November 07, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

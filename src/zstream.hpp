@@ -27,7 +27,7 @@
 \******************************************************************************/
 
 /**
-@file      zstream.h
+@file      zstream.hpp
 @brief     file decompression
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
@@ -35,6 +35,7 @@
 */
 
 #ifndef ZSTREAM_H
+#define ZSTREAM_H
 
 #include <cstdio>
 #include <streambuf>

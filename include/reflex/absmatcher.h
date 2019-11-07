@@ -824,7 +824,7 @@ class AbstractMatcher {
     if (chr_ == '\n')
       return txt_;
     reset_text();
-    while (!eof_)
+    while (true)
     {
       char *s = static_cast<char*>(std::memchr(buf_ + pos_, '\n', end_ - pos_));
       if (s != NULL)
@@ -837,7 +837,10 @@ class AbstractMatcher {
       pos_ = end_;
       end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
       if (pos_ >= end_ && !wrap())
+      {
         eof_ = true;
+        break;
+      }
     }
     set_current(end_);
     len_ = end_ - (txt_ - buf_);
@@ -854,7 +857,7 @@ class AbstractMatcher {
     std::string ln(bol_, txt_ - bol_ + len_);
     ln.push_back(chr_ == '\0' ? txt_[len_] : chr_);
     size_t loc = pos_ + 1;
-    while (!eof_)
+    while (true)
     {
       if (loc < end_)
       {
@@ -866,7 +869,10 @@ class AbstractMatcher {
       loc = end_;
       end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
       if (loc >= end_ && !wrap())
+      {
         eof_ = true;
+        break;
+      }
     }
     if (pos_ < end_)
       ln.append(buf_ + pos_ + 1, end_ - pos_ - 1);
@@ -884,7 +890,7 @@ class AbstractMatcher {
   {
     DBGLOG("AbstractMatcher::skip()");
     reset_text();
-    while (!eof_)
+    while (true)
     {
       txt_ = static_cast<char*>(std::memchr(buf_ + pos_, c, end_ - pos_));
       if (txt_ != NULL)
@@ -898,7 +904,10 @@ class AbstractMatcher {
       (void)grow();
       end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
       if (pos_ >= end_ && !wrap())
+      {
         eof_ = true;
+        break;
+      }
     }
     len_ = 0;
     set_current(end_);

@@ -232,16 +232,28 @@ the separator, see also \fB%S\fR and \fB%$\fR.
 a newline character.
 .IP \fB%m\fR
 the number of matches or matched files.
+.IP \fB%O\fR
+the matching line is output as is (a raw string of bytes).
 .IP \fB%o\fR
-the match as a raw string of bytes.
+the match is output as is (a raw string of bytes).
+.IP \fB%Q\fR
+the matching line as a quoted string, \\" and \\\\ replace " and \\.
 .IP \fB%q\fR
-the match as a quoted string, replacing " and \\ by \\" and \\\\.
+the match as a quoted string, \\" and \\\\ replace " and \\.
+.IP \fB%C\fR
+the matching line formatted as a quoted C/C++ string.
 .IP \fB%c\fR
 the match formatted as a quoted C/C++ string.
+.IP \fB%J\fR
+the matching line formatted as a quoted JSON string.
 .IP \fB%j\fR
 the match formatted as a quoted JSON string.
+.IP \fB%V\fR
+the matching line formatted as a quoted CSV string.
 .IP \fB%v\fR
 the match formatted as a quoted CSV string.
+.IP \fB%X\fR
+the matching line formatted as XML character data.
 .IP \fB%x\fR
 the match formatted as XML character data.
 .IP \fB%w\fR

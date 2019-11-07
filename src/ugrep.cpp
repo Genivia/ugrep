@@ -57,6 +57,12 @@ Build ugrep as follows:
   ./configure
   make
 
+Github does not preserve time stamps so ./configure may fail, in that case do:
+
+  ./autoreconf -fi
+  ./configure
+  make
+
 Install as follows:
 
   ./configure
@@ -85,7 +91,7 @@ Prebuilt executables are located in ugrep/bin.
 #include "glob.hpp"
 
 // option: use a thread to decompress the stream into a pipe to search, for greater speed
-// TODO option disabled for now because of an issue (with pipe()) that may result in missing search results
+// TODO option disabled for now because of an issue (with pipe()?) that may result in truncated search results
 // #define WITH_LIBZ_THREAD
 
 // check if we are compiling for a windows OS
@@ -140,7 +146,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.6"
+#define UGREP_VERSION "1.5.7"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -297,7 +303,7 @@ const char *flag_group_separator   = "--";
 const char *flag_binary_files      = "binary";
 std::vector<std::string> flag_regexp;;
 std::vector<std::string> flag_file;
-std::vector<std::string> flag_file_type;
+std::vector<std::string> flag_file_types;
 std::vector<std::string> flag_file_extensions;
 std::vector<std::string> flag_file_magic;
 std::vector<std::string> flag_include;
@@ -701,6 +707,12 @@ struct Output {
   }
 
   // output a string s
+  void str(const std::string& s)
+  {
+    str(s.c_str(), s.size());
+  }
+
+  // output a string s
   void str(const char *s)
   {
     while (*s != '\0')
@@ -820,7 +832,7 @@ struct Output {
   }
 
   // output the header part of the match, preceeding the matched line
-  void header(const char *& pathname, size_t lineno, size_t columno, size_t byte_offset, const char *sep, bool newline);
+  void header(const char *& pathname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *sep, bool newline);
 
   // output "Binary file ... matches"
   void binary_file_matches(const char *pathname);
@@ -831,17 +843,47 @@ struct Output {
   // output a quoted string with escapes for \ and "
   void quote(const char *data, size_t size);
 
+  // output a quoted string with escapes for \ and "
+  void quote(const std::string& s)
+  {
+    quote(s.c_str(), s.size());
+  }
+
   // output string in C/C++
   void cpp(const char *data, size_t size);
+
+  // output string in C/C++
+  void cpp(const std::string& s)
+  {
+    cpp(s.c_str(), s.size());
+  }
 
   // output string in JSON
   void json(const char *data, size_t size);
 
+  // output string in JSON
+  void json(const std::string& s)
+  {
+    json(s.c_str(), s.size());
+  }
+
   // output quoted string in CSV
   void csv(const char *data, size_t size);
 
+  // output quoted string in CSV
+  void csv(const std::string& s)
+  {
+    csv(s.c_str(), s.size());
+  }
+
   // output string in XML
   void xml(const char *data, size_t size);
+
+  // output string in XML
+  void xml(const std::string& s)
+  {
+    xml(s.c_str(), s.size());
+  }
 
   std::unique_lock<std::mutex> *lock;    // synchronization lock
   FILE                         *file;    // output stream
@@ -960,7 +1002,7 @@ void Output::Dump::line(const char *separator)
 }
 
 // output the header part of the match, preceeding the matched line
-void Output::header(const char *& pathname, size_t lineno, size_t columno, size_t byte_offset, const char *separator, bool newline)
+void Output::header(const char *& pathname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *separator, bool newline)
 {
   bool sep = false;
 
@@ -1011,7 +1053,7 @@ void Output::header(const char *& pathname, size_t lineno, size_t columno, size_
     }
 
     str(color_cn);
-    num(columno, flag_initial_tab ? 3 : 1);
+    num((matcher != NULL ? matcher->columno() + 1 : 1), (flag_initial_tab ? 3 : 1));
     str(color_off);
 
     sep = true;
@@ -1110,6 +1152,10 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         }
         break;
 
+      case 'f':
+        str(pathname);
+        break;
+
       case 'H':
         if (flag_with_filename)
         {
@@ -1121,6 +1167,10 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
           else
             str(flag_separator);
         }
+        break;
+
+      case 'h':
+        quote(pathname, strlen(pathname));
         break;
 
       case 'N':
@@ -1136,6 +1186,10 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         }
         break;
 
+      case 'n':
+        num(matcher->lineno());
+        break;
+
       case 'K':
         if (flag_column_number)
         {
@@ -1147,6 +1201,10 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
           else
             str(flag_separator);
         }
+        break;
+
+      case 'k':
+        num(matcher->columno() + 1);
         break;
 
       case 'B':
@@ -1162,6 +1220,10 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         }
         break;
 
+      case 'b':
+        num(matcher->first());
+        break;
+
       case 'T':
         if (flag_initial_tab)
         {
@@ -1169,6 +1231,10 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
             str(a, s - a - 1);
           chr('\t');
         }
+        break;
+
+      case 't':
+        chr('\t');
         break;
 
       case 'S':
@@ -1183,44 +1249,11 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         }
         break;
 
-      case '$':
-        sep = a;
-        len = s - a - 1;
-        break;
-
-      case 'f':
-        str(pathname);
-        break;
-
-      case 'h':
-        quote(pathname, strlen(pathname));
-        break;
-
-      case 'n':
-        num(matcher->lineno());
-        break;
-
-      case 'k':
-        num(matcher->columno() + 1);
-        break;
-
-      case 'b':
-        num(matcher->first());
-        break;
-
-      case 't':
-        chr('\t');
-        break;
-
       case 's':
         if (sep != NULL)
           str(sep, len);
         else
           str(flag_separator);
-        break;
-
-      case '~':
-        chr('\n');
         break;
 
       case 'w':
@@ -1232,40 +1265,91 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         break;
 
       case 'm':
-        num( matches + 1);
+        num(matches);
+        break;
+
+      case 'O':
+        if (flag_only_matching)
+          str(matcher->begin(), matcher->size());
+        else
+          str(matcher->line());
         break;
 
       case 'o':
         str(matcher->begin(), matcher->size());
         break;
 
+      case 'Q':
+        if (flag_only_matching)
+          quote(matcher->begin(), matcher->size());
+        else
+          quote(matcher->line());
+        break;
+
       case 'q':
         quote(matcher->begin(), matcher->size());
+        break;
+
+      case 'C':
+        if (flag_only_matching)
+          cpp(matcher->begin(), matcher->size());
+        else
+          cpp(matcher->line());
         break;
 
       case 'c':
         cpp(matcher->begin(), matcher->size());
         break;
 
+      case 'V':
+        if (flag_only_matching)
+          csv(matcher->begin(), matcher->size());
+        else
+          csv(matcher->line());
+        break;
+
       case 'v':
         csv(matcher->begin(), matcher->size());
+        break;
+
+      case 'J':
+        if (flag_only_matching)
+          json(matcher->begin(), matcher->size());
+        else
+          json(matcher->line());
         break;
 
       case 'j':
         json(matcher->begin(), matcher->size());
         break;
 
+      case 'X':
+        if (flag_only_matching)
+          xml(matcher->begin(), matcher->size());
+        else
+          xml(matcher->line());
+        break;
+
       case 'x':
         xml(matcher->begin(), matcher->size());
         break;
 
+      case '$':
+        sep = a;
+        len = s - a - 1;
+        break;
+
+      case '~':
+        chr('\n');
+        break;
+
       case '<':
-        if (matches == 0 && a)
+        if (matches <= 1 && a)
           str(a, s - a - 1);
         break;
 
       case '>':
-        if (matches > 0 && a)
+        if (matches > 1 && a)
           str(a, s - a - 1);
         break;
 
@@ -1273,7 +1357,7 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
       case ':':
       case ';':
       case '|':
-        if (matches > 0)
+        if (matches > 1)
           chr(c);
         break;
 
@@ -1292,7 +1376,7 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
       case '8':
       case '9':
       case '#':
-        std::pair<const char*,size_t> capture = (*matcher)[c == '#' ? strtoul(a != NULL ? a : "0", NULL, 10) : c - '0'];
+        std::pair<const char*,size_t> capture = (*matcher)[c == '#' ? strtoul((a != NULL ? a : "0"), NULL, 10) : c - '0'];
         str(capture.first, capture.second);
         break;
     }
@@ -1531,12 +1615,6 @@ void Output::xml(const char *data, size_t size)
     {
       switch (c)
       {
-        case 9:
-          str(t, s - t);
-          t = s + 1;
-          str("&#x9;");
-          break;
-
         case '&':
           str(t, s - t);
           t = s + 1;
@@ -1572,8 +1650,8 @@ void Output::xml(const char *data, size_t size)
           {
             str(t, s - t);
             t = s + 1;
-            str("&#x");
-            hex(c);
+            str("&#");
+            num(c);
             chr(';');
           }
       }
@@ -2262,7 +2340,7 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "file-magic=", 11) == 0)
               flag_file_magic.emplace_back(arg + 11);
             else if (strncmp(arg, "file-type=", 10) == 0)
-              flag_file_type.emplace_back(arg + 10);
+              flag_file_types.emplace_back(arg + 10);
             else if (strcmp(arg, "files-with-match") == 0)
               flag_files_with_match = true;
             else if (strcmp(arg, "files-without-match") == 0)
@@ -2624,9 +2702,9 @@ int main(int argc, char **argv)
           case 't':
             ++arg;
             if (*arg)
-              flag_file_type.emplace_back(&arg[*arg == '=']);
+              flag_file_types.emplace_back(&arg[*arg == '=']);
             else if (++i < argc)
-              flag_file_type.emplace_back(argv[i]);
+              flag_file_types.emplace_back(argv[i]);
             else
               help("missing TYPES argument for option -t");
             is_grouped = false;
@@ -2705,7 +2783,7 @@ int main(int argc, char **argv)
 #endif
 
   // -t list: list table of types and exit
-  if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
+  if (flag_file_types.size() == 1 && flag_file_types[0] == "list")
   {
     int i;
 
@@ -2958,19 +3036,19 @@ int main(int argc, char **argv)
   {
     flag_format_begin = "const struct grep {\n  const char *file;\n  size_t line;\n  size_t column;\n  size_t offset;\n  const char *match;\n} matches[] = {\n";
     flag_format_open  = "  // %f\n";
-    flag_format       = "  { %h, %n, %k, %b, %c },\n";
+    flag_format       = "  { %h, %n, %k, %b, %C },\n";
     flag_format_close = "\n";
     flag_format_end   = "  { NULL, 0, 0, 0, NULL }\n};\n";
   }
   else if (flag_csv)
   {
-    flag_format       = "%[,]$%H%N%K%B%v\n";
+    flag_format       = "%[,]$%H%N%K%B%V\n";
   }
   else if (flag_json)
   {
     flag_format_begin = "[";
     flag_format_open  = "%,\n  {\n    %[,\n    ]$%[\"file\": ]H\"matches\": [";
-    flag_format       = "%,\n      { %[, ]$%[\"line\": ]N%[\"column\": ]K%[\"offset\": ]B\"match\": %j }";
+    flag_format       = "%,\n      { %[, ]$%[\"line\": ]N%[\"column\": ]K%[\"offset\": ]B\"match\": %J }";
     flag_format_close = "\n    ]\n  }";
     flag_format_end   = "\n]\n";
   }
@@ -2978,7 +3056,7 @@ int main(int argc, char **argv)
   {
     flag_format_begin = "<grep>\n";
     flag_format_open  = "  <file%[]$%[ name=]H>\n";
-    flag_format       = "    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%x</match>\n";
+    flag_format       = "    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%X</match>\n";
     flag_format_close = "  </file>\n";
     flag_format_end   = "</grep>\n";
   }
@@ -3144,22 +3222,36 @@ int main(int argc, char **argv)
   }
 
   // -t: parse TYPES and access type table to add -O (--file-extensions) and -M (--file-magic) values
-  for (auto& type : flag_file_type)
+  for (auto& types : flag_file_types)
   {
-    int i;
+    size_t from = 0;
 
-    // scan the type_table[] for a matching type
-    for (i = 0; type_table[i].type != NULL; ++i)
-      if (type == type_table[i].type)
+    while (true)
+    {
+      size_t to = types.find(',', from);
+      size_t size = (to == std::string::npos ? types.size() : to) - from;
+      std::string type(types.substr(from, size));
+
+      size_t i;
+
+      // scan the type_table[] for a matching type
+      for (i = 0; type_table[i].type != NULL; ++i)
+        if (type == type_table[i].type)
+          break;
+
+      if (type_table[i].type == NULL)
+        help("invalid argument --file-type=TYPE, to list the valid values use -tlist");
+
+      flag_file_extensions.emplace_back(type_table[i].extensions);
+
+      if (type_table[i].magic != NULL)
+        flag_file_magic.emplace_back(type_table[i].magic);
+
+      if (to == std::string::npos)
         break;
 
-    if (type_table[i].type == NULL)
-      help("invalid argument --file-type=TYPE, to list the valid values use -tlist");
-
-    flag_file_extensions.emplace_back(type_table[i].extensions);
-
-    if (type_table[i].magic != NULL)
-      flag_file_magic.emplace_back(type_table[i].magic);
+      from = to + 1;
+    }
   }
 
   // -O: add extensions as globs to the --include list
@@ -3331,6 +3423,10 @@ int main(int argc, char **argv)
     flag_files_with_match = true;
     flag_invert_match = !flag_invert_match;
   }
+
+  // -l or -L: enable -H
+  if (flag_files_with_match)
+    flag_with_filename = true;
 
   // -J: when not set the default is the number of cores (or hardware threads), limited to MAX_JOBS
   if (flag_jobs == 0)
@@ -4025,10 +4121,21 @@ void Grep::search(const char *pathname)
     // -l or -L
     if (matches > 0 && flag_files_with_match)
     {
-      out.str(color_fn);
-      out.str(pathname);
-      out.str(color_off);
-      out.chr(flag_null ? '\0' : '\n');
+      if (flag_format)
+      {
+        if (flag_format_open != NULL)
+          out.format(flag_format_open, pathname, stats.found_files(), matcher);
+        out.format(flag_format, pathname, 1, matcher);
+        if (flag_format_close != NULL)
+          out.format(flag_format_close, pathname, stats.found_files(), matcher);
+      }
+      else
+      {
+        out.str(color_fn);
+        out.str(pathname);
+        out.str(color_off);
+        out.chr(flag_null ? '\0' : '\n');
+      }
     }
   }
   else if (flag_count)
@@ -4081,27 +4188,36 @@ void Grep::search(const char *pathname)
     if (!stats.found())
       goto exit_search;
 
-    if (flag_with_filename)
+    if (flag_format)
     {
-      out.str(color_fn);
-      out.str(pathname);
-      out.str(color_off);
-
-      if (flag_null)
-      {
-        out.chr('\0');
-      }
-      else
-      {
-        out.str(color_se);
-        out.str(flag_separator);
-        out.str(color_off);
-      }
-
+      if (flag_format_open != NULL)
+        out.format(flag_format_open, pathname, stats.found_files(), matcher);
+      out.format(flag_format, pathname, matches, matcher);
+      if (flag_format_close != NULL)
+        out.format(flag_format_close, pathname, stats.found_files(), matcher);
     }
+    else
+    {
+      if (flag_with_filename)
+      {
+        out.str(color_fn);
+        out.str(pathname);
+        out.str(color_off);
 
-    out.num(matches);
-    out.chr('\n');
+        if (flag_null)
+        {
+          out.chr('\0');
+        }
+        else
+        {
+          out.str(color_se);
+          out.str(flag_separator);
+          out.str(color_off);
+        }
+      }
+      out.num(matches);
+      out.chr('\n');
+    }
   }
   else if (flag_format != NULL)
   {
@@ -4121,9 +4237,9 @@ void Grep::search(const char *pathname)
           out.format(flag_format_open, pathname, stats.found_files(), matcher);
       }
 
-      out.format(flag_format, pathname, matches, matcher);
-
       ++matches;
+
+      out.format(flag_format, pathname, matches, matcher);
 
       // -m: max number of matches reached?
       if (flag_max_count > 0 && matches >= flag_max_count)
@@ -4172,7 +4288,7 @@ void Grep::search(const char *pathname)
 
           binary = flag_hex || (!flag_text && is_binary(matcher->begin(), matcher->size()));
 
-          out.header(pathname, lineno, matcher->columno() + 1, matcher->first(), separator, binary);
+          out.header(pathname, lineno, matcher, matcher->first(), separator, binary);
         }
       }
 
@@ -4218,7 +4334,7 @@ void Grep::search(const char *pathname)
               out.str(color_off);
 
               if (to + 1 < begin + size)
-                out.header(pathname, ++lineno, 1, matcher->first() + (to - begin) + 1, "|", binary);
+                out.header(pathname, ++lineno, NULL, matcher->first() + (to - begin) + 1, "|", binary);
 
               from = to + 1;
             }
@@ -4312,7 +4428,7 @@ void Grep::search(const char *pathname)
             }
 
             if (!flag_no_labels)
-              out.header(pathname, lineno, matcher->columno() + 1, byte_offset, flag_separator, binary);
+              out.header(pathname, lineno, matcher, byte_offset, flag_separator, binary);
 
             ++matches;
 
@@ -4454,7 +4570,7 @@ void Grep::search(const char *pathname)
                     goto exit_search;
 
                 if (!flag_no_labels)
-                  out.header(pathname, lineno, matcher->columno() + 1, byte_offset, "-", binary[current]);
+                  out.header(pathname, lineno, matcher, byte_offset, "-", binary[current]);
 
                 last = 0;
               }
@@ -4571,7 +4687,7 @@ void Grep::search(const char *pathname)
                   if (last == UNDEFINED)
                   {
                     if (!flag_no_labels)
-                      out.header(pathname, begin, matcher->columno() + 1, byte_offsets[begin_context], "-", binary[begin_context]);
+                      out.header(pathname, begin, matcher, byte_offsets[begin_context], "-", binary[begin_context]);
 
                     last = 0;
                   }
@@ -4628,7 +4744,7 @@ void Grep::search(const char *pathname)
             }
 
             if (!flag_no_labels)
-              out.header(pathname, lineno, 1, byte_offsets[current], flag_separator, binary[current]);
+              out.header(pathname, lineno, NULL, byte_offsets[current], flag_separator, binary[current]);
 
             if (binary[current])
             {
@@ -4711,7 +4827,7 @@ void Grep::search(const char *pathname)
                 size_t begin_context = begin % (flag_before_context + 1);
 
                 if (!flag_no_labels)
-                  out.header(pathname, begin, 1, byte_offsets[begin_context], "-", binary[begin_context]);
+                  out.header(pathname, begin, NULL, byte_offsets[begin_context], "-", binary[begin_context]);
 
                 if (binary[begin_context])
                 {
@@ -4740,7 +4856,7 @@ void Grep::search(const char *pathname)
               const char *separator = (last == UNDEFINED ? flag_separator : "+");
 
               if (!flag_no_labels)
-                out.header(pathname, lineno, matcher->columno() + 1, byte_offset + matcher->first(), separator, binary[current]);
+                out.header(pathname, lineno, matcher, byte_offset + matcher->first(), separator, binary[current]);
 
               out.str(color_sl);
               out.str(lines[current].c_str(), matcher->first());
@@ -4763,7 +4879,7 @@ void Grep::search(const char *pathname)
               if (last == UNDEFINED)
               {
                 if (!flag_no_labels)
-                  out.header(pathname, lineno, matcher->columno() + 1, byte_offset, flag_separator, binary[current]);
+                  out.header(pathname, lineno, matcher, byte_offset, flag_separator, binary[current]);
 
                 ++matches;
 
@@ -4816,7 +4932,7 @@ void Grep::search(const char *pathname)
 
             // display line as part of the after context of the matched line
             if (!flag_no_labels)
-              out.header(pathname, lineno, 1, byte_offsets[current], "-", binary[current]);
+              out.header(pathname, lineno, NULL, byte_offsets[current], "-", binary[current]);
 
             if (binary[current])
             {
@@ -4898,7 +5014,7 @@ void format(const char *format, size_t matches)
         break;
 
       case 'S':
-        if (matches > 0)
+        if (matches > 1)
         {
           if (a)
             fwrite(a, 1, s - a - 1, output);
@@ -4930,16 +5046,16 @@ void format(const char *format, size_t matches)
         break;
 
       case 'm':
-        fprintf(output, "%zu", matches + 1);
+        fprintf(output, "%zu", matches);
         break;
 
       case '<':
-        if (matches == 0 && a)
+        if (matches <= 1 && a)
           fwrite(a, 1, s - a - 1, output);
         break;
 
       case '>':
-        if (matches > 0 && a)
+        if (matches > 1 && a)
           fwrite(a, 1, s - a - 1, output);
         break;
 
@@ -4947,7 +5063,7 @@ void format(const char *format, size_t matches)
       case ':':
       case ';':
       case '|':
-        if (matches > 0)
+        if (matches > 1)
           fputc(c, output);
         break;
 
