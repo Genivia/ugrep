@@ -27,7 +27,6 @@ match one or more patterns.  By default, a pattern matches an input line if the
 regular expression (RE) in the pattern matches the input line without its
 trailing newline.  An empty expression matches every line.  Each input line
 that matches at least one of the patterns is written to the standard output.
-To search for patterns that span multiple lines, use option \fB-o\fR.
 .PP
 The \fBugrep\fR utility normalizes and decodes encoded input to search for the
 specified ASCII/Unicode patterns.  If the input contains a UTF BOM indicating
@@ -70,10 +69,9 @@ syntax.  For an overview of the syntax see README.md or visit:
 .IP
 https://github.com/Genivia/ugrep
 .PP
-Note that `.' matches any non-newline character.  Matching a newline character
-`\\n' is not possible unless one or more of the options \fB-c\fR, \fB-L\fR,
-\fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR are used (in any combination, but not
-combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
+Note that `.' matches any non-newline character.  Pattern `\\n' matches a
+newline and multiple lines may be matched, unless one or more of the context
+options \fB-A\fR, \fB-B\fR, \fB-C\fR or \fB-y\fR is used, or option \fB-v\fR.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -284,9 +282,6 @@ The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
 \fB%$\fR, reverses the separator to the default separator or the separator
 specified by \fB--separator\fR.
 .PP
-Matches are formatted without context.  To output the entire line with the match,
-use pattern '.*\fIPATTERN\fR.*' to match the line before and after the match.
-.PP
 Additional formatting options:
 .IP \fB--format-begin\fR=\fIFORMAT\fR
 the \fIFORMAT\fR when beginning the search.
@@ -334,11 +329,11 @@ $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 To display the line and column number of all `FIXME' in all C++ files using
 recursive search, with one line of context before and after each matched line:
 .IP
-$ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*'
+$ ugrep --color -C1 -R -n -k -tc++ 'FIXME'
 .PP
 To list all C/C++ comments in a file displaying their line and column numbers
-using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
-matching patterns across multiple lines:
+using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR to restrict the match
+to the pattern only:
 .IP
 $ ugrep -nko -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile
 .PP

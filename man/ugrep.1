@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 07, 2019" "ugrep 1.5.7" "User Commands"
+.TH UGREP "1" "November 10, 2019" "ugrep 1.5.8" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -12,7 +12,6 @@ match one or more patterns.  By default, a pattern matches an input line if the
 regular expression (RE) in the pattern matches the input line without its
 trailing newline.  An empty expression matches every line.  Each input line
 that matches at least one of the patterns is written to the standard output.
-To search for patterns that span multiple lines, use option \fB-o\fR.
 .PP
 The \fBugrep\fR utility normalizes and decodes encoded input to search for the
 specified ASCII/Unicode patterns.  If the input contains a UTF BOM indicating
@@ -166,7 +165,7 @@ behave as traditional grep.
 \fB\-g\fR, \fB\-\-no\-group\fR
 Do not group multiple pattern matches on the same matched line.
 Output the matched line again for each additional pattern match,
-using `+' as the field separator for each additional match.
+using `+' as the field separator.
 .TP
 \fB\-\-group\-separator\fR=\fISEP\fR
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR. By
@@ -216,8 +215,8 @@ This option may be repeated.
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
 Specifies the number of threads spawned to search files.  By
 default, an optimum number of threads is spawned to search files
-simultaneously.  \fB\-J\fR1 disables threading: files are matched in the
-same order as the files specified.
+simultaneously.  \fB\-J\fR1 disables threading: files are searched in the
+same order as specified.
 .TP
 \fB\-j\fR, \fB\-\-smart\-case\fR
 Perform case insensitive matching unless PATTERN contains a capital
@@ -274,8 +273,8 @@ when they are on the command line.
 .TP
 \fB\-\-max\-files\fR=\fINUM\fR
 If \fB\-R\fR or \fB\-r\fR is specified, restrict the number of files matched to
-NUM.  If \fB\-J\fR1 is specified, files are matched in the same order as
-the files specified.
+NUM.  Specify \fB\-J\fR1 to produce replicable results by ensuring that
+files are searched in the same order as specified.
 .TP
 \fB\-N\fR, \fB\-\-only\-line\-number\fR
 The line number of the matching line in the file is output without
@@ -306,9 +305,8 @@ in the EXTENSIONS list.  This option may be repeated and may be
 combined with options \fB\-M\fR and \fB\-t\fR to expand the search.
 .TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
-Prints only the matching part of lines and allows pattern matches
-across newlines to span multiple lines.  Line numbers for
-multi\-line matches are displayed with option \fB\-n\fR, using `|' as the
+Prints only the matching part of lines.  When multiple lines match,
+the line numbers with option \fB\-n\fR are displayed using `|' as the
 field separator for each additional line matched by the pattern.
 This option cannot be combined with options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR, \fB\-v\fR, and \fB\-y\fR.
 .TP
@@ -334,17 +332,16 @@ The input file encoding.  The possible values of ENCODING can be:
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress normal output.  ugrep will only search until a
 match has been found, making searches potentially less expensive.
-Allows a pattern match to span multiple lines.
 .TP
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
 Recursively read all files under each directory.  Follow all
-symbolic links, unlike \fB\-r\fR.  If \fB\-J\fR1 is specified, files are matched
-in the same order as the files specified.
+symbolic links, unlike \fB\-r\fR.  If \fB\-J\fR1 is specified, files are searched
+in the same order as specified.
 .TP
 \fB\-r\fR, \fB\-\-recursive\fR
 Recursively read all files under each directory, following symbolic
 links only if they are on the command line.  If \fB\-J\fR1 is specified,
-files are matched in the same order as the files specified.
+files are searched in the same order as specified.
 .TP
 \fB\-S\fR, \fB\-\-dereference\fR
 If \fB\-r\fR is specified, all symbolic links are followed, like \fB\-R\fR.  The
@@ -456,10 +453,9 @@ syntax.  For an overview of the syntax see README.md or visit:
 .IP
 https://github.com/Genivia/ugrep
 .PP
-Note that `.' matches any non-newline character.  Matching a newline character
-`\\n' is not possible unless one or more of the options \fB-c\fR, \fB-L\fR,
-\fB-l\fR, \fB-N\fR, \fB-o\fR, or \fB-q\fR are used (in any combination, but not
-combined with option \fB-v\fR) to allow a pattern match to span multiple lines.
+Note that `.' matches any non-newline character.  Pattern `\\n' matches a
+newline and multiple lines may be matched, unless one or more of the context
+options \fB-A\fR, \fB-B\fR, \fB-C\fR or \fB-y\fR is used, or option \fB-v\fR.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -670,9 +666,6 @@ The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
 \fB%$\fR, reverses the separator to the default separator or the separator
 specified by \fB--separator\fR.
 .PP
-Matches are formatted without context.  To output the entire line with the match,
-use pattern '.*\fIPATTERN\fR.*' to match the line before and after the match.
-.PP
 Additional formatting options:
 .IP \fB--format-begin\fR=\fIFORMAT\fR
 the \fIFORMAT\fR when beginning the search.
@@ -720,11 +713,11 @@ $ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 To display the line and column number of all `FIXME' in all C++ files using
 recursive search, with one line of context before and after each matched line:
 .IP
-$ ugrep --color -C1 -R -n -k -tc++ 'FIXME.*'
+$ ugrep --color -C1 -R -n -k -tc++ 'FIXME'
 .PP
 To list all C/C++ comments in a file displaying their line and column numbers
-using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR that allows for
-matching patterns across multiple lines:
+using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR to restrict the match
+to the pattern only:
 .IP
 $ ugrep -nko -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile
 .PP

@@ -421,15 +421,15 @@ unrolled:
     pos_ = cur_;
     if (at_end())
     {
-      set_current(cur_);
       DBGLOG("Reject empty match at EOF");
       if (!opt_.N || !at_bob()) // allow FIND and SCAN with "N" to match empty input, with ^$ etc.
         cap_ = 0;
+      set_current(cur_);
     }
     else if (method == Const::FIND)
     {
-      set_current(++cur_); // skip one char to keep searching
       DBGLOG("Reject empty match and continue?");
+      set_current(++cur_); // skip one char to keep searching
       if (cap_ == 0 || !opt_.N || (!bol && c1 == '\n')) // allow FIND with "N" to match an empty line, with ^$ etc.
         goto scan;
       DBGLOG("Accept empty match");

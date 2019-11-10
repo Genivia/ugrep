@@ -146,7 +146,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.7"
+#define UGREP_VERSION "1.5.8"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -235,7 +235,7 @@ std::set<ino_t> visited;
 // ugrep command-line options
 bool flag_with_filename            = false;
 bool flag_no_filename              = false;
-bool flag_no_labels                = false;
+bool flag_no_header                = false;
 bool flag_no_group                 = false;
 bool flag_no_messages              = false;
 bool flag_no_hidden                = false;
@@ -726,6 +726,96 @@ struct Output {
       chr(*s++);
   }
 
+  // output a match
+  void mat(reflex::AbstractMatcher *matcher)
+  {
+    if (flag_only_matching)
+    {
+      str(matcher->begin(), matcher->size());
+    }
+    else
+    {
+      const char *e = matcher->eol(); // warning: must call eol() before bol()
+      const char *b = matcher->bol();
+      str(b, e - b);
+    }
+  }
+
+  // output a quoted match with escapes for \ and "
+  void quote(reflex::AbstractMatcher *matcher)
+  {
+    if (flag_only_matching)
+    {
+      quote(matcher->begin(), matcher->size());
+    }
+    else
+    {
+      const char *e = matcher->eol(); // warning: must call eol() before bol()
+      const char *b = matcher->bol();
+      quote(b, e - b);
+    }
+  }
+
+  // output a match as a string in C/C++
+  void cpp(reflex::AbstractMatcher *matcher)
+  {
+    if (flag_only_matching)
+    {
+      cpp(matcher->begin(), matcher->size());
+    }
+    else
+    {
+      const char *e = matcher->eol(); // warning: must call eol() before bol()
+      const char *b = matcher->bol();
+      cpp(b, e - b);
+    }
+  }
+
+  // output a match as a quoted string in CSV
+  void csv(reflex::AbstractMatcher *matcher)
+  {
+    if (flag_only_matching)
+    {
+      csv(matcher->begin(), matcher->size());
+    }
+    else
+    {
+      const char *e = matcher->eol(); // warning: must call eol() before bol()
+      const char *b = matcher->bol();
+      csv(b, e - b);
+    }
+  }
+
+  // output a match as a quoted string in JSON
+  void json(reflex::AbstractMatcher *matcher)
+  {
+    if (flag_only_matching)
+    {
+      json(matcher->begin(), matcher->size());
+    }
+    else
+    {
+      const char *e = matcher->eol(); // warning: must call eol() before bol()
+      const char *b = matcher->bol();
+      json(b, e - b);
+    }
+  }
+
+  // output a match in XML
+  void xml(reflex::AbstractMatcher *matcher)
+  {
+    if (flag_only_matching)
+    {
+      xml(matcher->begin(), matcher->size());
+    }
+    else
+    {
+      const char *e = matcher->eol(); // warning: must call eol() before bol()
+      const char *b = matcher->bol();
+      xml(b, e - b);
+    }
+  }
+
   // output a number with field width w (padded with spaces)
   void num(size_t i, size_t w = 1)
   {
@@ -775,12 +865,19 @@ struct Output {
       flush();
   }
 
-  // flush the buffers
-  void flush()
+  // acquire synchronization lock on the master's mutex, if not owned already
+  void acquire()
   {
     // if multi-threaded and lock is not owned already, then lock on master's mutex
     if (lock != NULL && !lock->owns_lock())
       lock->lock();
+  }
+
+  // flush the buffers and acquire lock
+  void flush()
+  {
+    // if multi-threaded and lock is not owned already, then lock on master's mutex
+    acquire();
 
     // flush the buffers container to the designated output file, pipe, or stream
     for (Buffers::iterator i = buffers.begin(); i != buf; ++i)
@@ -821,7 +918,7 @@ struct Output {
     lock = new std::unique_lock<std::mutex>(mutex, std::defer_lock);
   }
 
-  // flush and release synchronization on the master's mutex, if one was assigned before with sync()
+  // flush and release synchronization lock on the master's mutex, if one was assigned before with sync()
   void release()
   {
     flush();
@@ -843,47 +940,17 @@ struct Output {
   // output a quoted string with escapes for \ and "
   void quote(const char *data, size_t size);
 
-  // output a quoted string with escapes for \ and "
-  void quote(const std::string& s)
-  {
-    quote(s.c_str(), s.size());
-  }
-
-  // output string in C/C++
+  // output quoted string in C/C++
   void cpp(const char *data, size_t size);
-
-  // output string in C/C++
-  void cpp(const std::string& s)
-  {
-    cpp(s.c_str(), s.size());
-  }
-
-  // output string in JSON
-  void json(const char *data, size_t size);
-
-  // output string in JSON
-  void json(const std::string& s)
-  {
-    json(s.c_str(), s.size());
-  }
 
   // output quoted string in CSV
   void csv(const char *data, size_t size);
 
-  // output quoted string in CSV
-  void csv(const std::string& s)
-  {
-    csv(s.c_str(), s.size());
-  }
+  // output quoted string in JSON
+  void json(const char *data, size_t size);
 
-  // output string in XML
+  // output in XML
   void xml(const char *data, size_t size);
-
-  // output string in XML
-  void xml(const std::string& s)
-  {
-    xml(s.c_str(), s.size());
-  }
 
   std::unique_lock<std::mutex> *lock;    // synchronization lock
   FILE                         *file;    // output stream
@@ -1269,10 +1336,7 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         break;
 
       case 'O':
-        if (flag_only_matching)
-          str(matcher->begin(), matcher->size());
-        else
-          str(matcher->line());
+        mat(matcher);
         break;
 
       case 'o':
@@ -1280,10 +1344,7 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         break;
 
       case 'Q':
-        if (flag_only_matching)
-          quote(matcher->begin(), matcher->size());
-        else
-          quote(matcher->line());
+        quote(matcher);
         break;
 
       case 'q':
@@ -1291,47 +1352,59 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         break;
 
       case 'C':
-        if (flag_only_matching)
-          cpp(matcher->begin(), matcher->size());
+        if (flag_count)
+          chr('"'), num(matches), chr('"');
         else
-          cpp(matcher->line());
+          cpp(matcher);
         break;
 
       case 'c':
-        cpp(matcher->begin(), matcher->size());
+        if (flag_count)
+          chr('"'), num(matches), chr('"');
+        else
+          cpp(matcher->begin(), matcher->size());
         break;
 
       case 'V':
-        if (flag_only_matching)
-          csv(matcher->begin(), matcher->size());
+        if (flag_count)
+          num(matches);
         else
-          csv(matcher->line());
+          csv(matcher);
         break;
 
       case 'v':
-        csv(matcher->begin(), matcher->size());
+        if (flag_count)
+          num(matches);
+        else
+          csv(matcher->begin(), matcher->size());
         break;
 
       case 'J':
-        if (flag_only_matching)
-          json(matcher->begin(), matcher->size());
+        if (flag_count)
+          num(matches);
         else
-          json(matcher->line());
+          json(matcher);
         break;
 
       case 'j':
-        json(matcher->begin(), matcher->size());
+        if (flag_count)
+          num(matches);
+        else
+          json(matcher->begin(), matcher->size());
         break;
 
       case 'X':
-        if (flag_only_matching)
-          xml(matcher->begin(), matcher->size());
+        if (flag_count)
+          num(matches);
         else
-          xml(matcher->line());
+          xml(matcher);
         break;
 
       case 'x':
-        xml(matcher->begin(), matcher->size());
+        if (flag_count)
+          num(matches);
+        else
+          xml(matcher->begin(), matcher->size());
         break;
 
       case '$':
@@ -1470,68 +1543,6 @@ void Output::cpp(const char *data, size_t size)
   chr('"');
 }
 
-// output string in JSON
-void Output::json(const char *data, size_t size)
-{
-  const char *s = data;
-  const char *e = data + size;
-  const char *t = s;
-
-  chr('"');
-
-  while (s < e)
-  {
-    int c = *s;
-
-    if ((c & 0x80) == 0)
-    {
-      if (c < 0x20 || c == '"' || c == '\\')
-      {
-        str(t, s - t);
-        t = s + 1;
-
-        switch (c)
-        {
-          case '\b':
-            c = 'b';
-            break;
-
-          case '\f':
-            c = 'f';
-            break;
-
-          case '\n':
-            c = 'n';
-            break;
-
-          case '\r':
-            c = 'r';
-            break;
-
-          case '\t':
-            c = 't';
-            break;
-        }
-
-        if (c > 0x20)
-        {
-          chr('\\');
-          chr(c);
-        }
-        else
-        {
-          str("\\u");
-          hex(c, 4);
-        }
-      }
-    }
-    ++s;
-  }
-  str(t, s - t);
-
-  chr('"');
-}
-
 // output quoted string in CSV
 void Output::csv(const char *data, size_t size)
 {
@@ -1600,7 +1611,69 @@ void Output::csv(const char *data, size_t size)
   chr('"');
 }
 
-// output string in XML
+// output quoted string in JSON
+void Output::json(const char *data, size_t size)
+{
+  const char *s = data;
+  const char *e = data + size;
+  const char *t = s;
+
+  chr('"');
+
+  while (s < e)
+  {
+    int c = *s;
+
+    if ((c & 0x80) == 0)
+    {
+      if (c < 0x20 || c == '"' || c == '\\')
+      {
+        str(t, s - t);
+        t = s + 1;
+
+        switch (c)
+        {
+          case '\b':
+            c = 'b';
+            break;
+
+          case '\f':
+            c = 'f';
+            break;
+
+          case '\n':
+            c = 'n';
+            break;
+
+          case '\r':
+            c = 'r';
+            break;
+
+          case '\t':
+            c = 't';
+            break;
+        }
+
+        if (c > 0x20)
+        {
+          chr('\\');
+          chr(c);
+        }
+        else
+        {
+          str("\\u");
+          hex(c, 4);
+        }
+      }
+    }
+    ++s;
+  }
+  str(t, s - t);
+
+  chr('"');
+}
+
+// output in XML
 void Output::xml(const char *data, size_t size)
 {
   const char *s = data;
@@ -2764,7 +2837,7 @@ int main(int argc, char **argv)
       // read standard input
       flag_stdin = true;
     }
-    else if (options && pattern == NULL && flag_file.empty())
+    else if (pattern == NULL && flag_file.empty())
     {
       // no regex pattern specified yet, so assume it is PATTERN
       pattern = arg;
@@ -2823,7 +2896,12 @@ int main(int argc, char **argv)
     // empty PATTERN matches everything
     if (pattern.empty())
     {
-      regex.append(".*\\n?|");
+      if (flag_line_regexp)
+        regex.append("^$|");
+      else
+        regex.append(".*\\n?|");
+
+      flag_empty = true; // we're matching empty lines, so enable -Y
     }
     else
     {
@@ -2853,11 +2931,14 @@ int main(int argc, char **argv)
     // remove the ending '|' from the |-concatenated regexes in the regex string
     regex.pop_back();
 
-    // -x or -w
-    if (flag_line_regexp)
-      regex.insert(0, "^(").append(")$"); // make the regex line-anchored
-    else if (flag_word_regexp)
-      regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+    if (regex != "^$")
+    {
+      // -x or -w
+      if (flag_line_regexp)
+        regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+      else if (flag_word_regexp)
+        regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+    }
 
     // -x and -w do not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
     flag_line_regexp = false;
@@ -2990,10 +3071,6 @@ int main(int argc, char **argv)
   if (flag_invert_match)
     flag_no_group = flag_only_matching = false;
 
-  // -c with -o is the same as -c with -g
-  if (flag_count && flag_only_matching)
-    flag_no_group = true;
-
   // normalize -R (--dereference-recurse) option
   if (strcmp(flag_directories, "dereference-recurse") == 0)
   {
@@ -3029,7 +3106,7 @@ int main(int argc, char **argv)
 
   // if no display options -H, -n, -N, -k, -b are set, enable --no-labels to suppress labels for speed
   if (!flag_with_filename && !flag_line_number && !flag_only_line_number && !flag_column_number && !flag_byte_offset)
-    flag_no_labels = true;
+    flag_no_header = true;
 
   // normalize --cpp, --csv, --json, --xml
   if (flag_cpp)
@@ -3037,7 +3114,7 @@ int main(int argc, char **argv)
     flag_format_begin = "const struct grep {\n  const char *file;\n  size_t line;\n  size_t column;\n  size_t offset;\n  const char *match;\n} matches[] = {\n";
     flag_format_open  = "  // %f\n";
     flag_format       = "  { %h, %n, %k, %b, %C },\n";
-    flag_format_close = "\n";
+    flag_format_close = "  \n";
     flag_format_end   = "  { NULL, 0, 0, 0, NULL }\n};\n";
   }
   else if (flag_csv)
@@ -3464,6 +3541,10 @@ int main(int argc, char **argv)
     exit(EXIT_ERROR);
   }
 
+  // --format-begin
+  if (!flag_quiet && flag_format_begin != NULL)
+    format(flag_format_begin, 0);
+
   try
   {
     // -U: set flags to convert regex to Unicode
@@ -3513,7 +3594,8 @@ int main(int argc, char **argv)
 #ifdef HAVE_BOOST_REGEX
       // construct the Boost.Regex NFA-based Perl pattern matcher
       std::string pattern(reflex::BoostPerlMatcher::convert(regex, convert_flags));
-      reflex::BoostPerlMatcher matcher(pattern, matcher_options.c_str());
+      reflex::BoostPerlMatcher matcher(pattern, reflex::Input(), matcher_options.c_str());
+
       if (threads > 1)
       {
         GrepMaster grep(output, &matcher);
@@ -3532,7 +3614,8 @@ int main(int argc, char **argv)
     {
       // construct the RE/flex DFA pattern matcher and start matching files
       reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), "r");
-      reflex::Matcher matcher(pattern, matcher_options.c_str());
+      reflex::Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
+
       if (threads > 1)
       {
         GrepMaster grep(output, &matcher);
@@ -3635,6 +3718,10 @@ int main(int argc, char **argv)
     abort("Exception: ", error.what());
   }
 
+  // --format-end
+  if (!flag_quiet && flag_format_end != NULL)
+    format(flag_format_end, stats.found_files());
+
   // --stats: display stats when we're done
   if (flag_stats)
     stats.report();
@@ -3650,10 +3737,6 @@ int main(int argc, char **argv)
 // search the specified files or standard input for pattern matches
 void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
 {
-  // --format-begin
-  if (flag_format_begin != NULL)
-    format(flag_format_begin, 0);
-
   if (!flag_stdin && files.empty())
   {
     recurse(1, magic, grep, ".");
@@ -3686,10 +3769,6 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
       find(1, magic, grep, file, basename, DIRENT_TYPE_UNKNOWN, 0, !flag_no_dereference);
     }
   }
-
-  // --format-end
-  if (flag_format_end != NULL)
-    format(flag_format_end, stats.found_files());
 }
 
 // search file or directory for pattern matches
@@ -4115,26 +4194,32 @@ void Grep::search(const char *pathname)
       matches = !matches;
 
     if (matches > 0)
+    {
+      // --format-open or format-close: acquire lock early before stats.found()
+      if (flag_files_with_match && (flag_format_open != NULL || flag_format_close != NULL))
+        out.acquire();
+
       if (!stats.found())
         goto exit_search;
 
-    // -l or -L
-    if (matches > 0 && flag_files_with_match)
-    {
-      if (flag_format)
+      // -l or -L
+      if (flag_files_with_match)
       {
-        if (flag_format_open != NULL)
-          out.format(flag_format_open, pathname, stats.found_files(), matcher);
-        out.format(flag_format, pathname, 1, matcher);
-        if (flag_format_close != NULL)
-          out.format(flag_format_close, pathname, stats.found_files(), matcher);
-      }
-      else
-      {
-        out.str(color_fn);
-        out.str(pathname);
-        out.str(color_off);
-        out.chr(flag_null ? '\0' : '\n');
+        if (flag_format)
+        {
+          if (flag_format_open != NULL)
+            out.format(flag_format_open, pathname, stats.found_files(), matcher);
+          out.format(flag_format, pathname, 1, matcher);
+          if (flag_format_close != NULL)
+            out.format(flag_format_close, pathname, stats.found_files(), matcher);
+        }
+        else
+        {
+          out.str(color_fn);
+          out.str(pathname);
+          out.str(color_off);
+          out.chr(flag_null ? '\0' : '\n');
+        }
       }
     }
   }
@@ -4142,7 +4227,7 @@ void Grep::search(const char *pathname)
   {
     // -c: count the number of lines/patterns matched
 
-    if (flag_no_group)
+    if (flag_no_group || flag_only_matching)
     {
       // -c with -g or -o: count the number of patterns matched in the file
 
@@ -4184,6 +4269,10 @@ void Grep::search(const char *pathname)
       if (flag_invert_match)
         matches = matcher->lineno() - matches - 1;
     }
+
+    // --format: acquire lock early before stats.found()
+    if ((flag_format_open != NULL || flag_format_close != NULL))
+      out.acquire();
 
     if (!stats.found())
       goto exit_search;
@@ -4227,9 +4316,13 @@ void Grep::search(const char *pathname)
 
     while (matcher->find())
     {
-      // --format-open
+      // output --format-open
       if (matches == 0)
       {
+        // --format-open or --format-close: acquire lock early before stats.found()
+        if (flag_format_open != NULL || flag_format_close != NULL)
+          out.acquire();
+
         if (!stats.found())
           goto exit_search;
 
@@ -4239,23 +4332,25 @@ void Grep::search(const char *pathname)
 
       ++matches;
 
+      // output --format
       out.format(flag_format, pathname, matches, matcher);
 
       // -m: max number of matches reached?
       if (flag_max_count > 0 && matches >= flag_max_count)
         break;
+
+      if (flag_line_buffered)
+        out.flush();
     }
 
-    // --format-close
+    // output --format-close
     if (matches > 0 && flag_format_close != NULL)
       out.format(flag_format_close, pathname, stats.found_files(), matcher);
   }
-  else if (flag_only_matching || flag_only_line_number)
+  else if (flag_only_line_number)
   {
-    // -o or -N
+    // -N
 
-    bool hex = false;
-    bool binary = flag_hex;
     size_t lineno = 0;
     const char *separator = flag_separator;
 
@@ -4269,234 +4364,376 @@ void Grep::search(const char *pathname)
 
       if (lineno != current_lineno || flag_no_group)
       {
-        // -m: max number of matches reached?
-        if (flag_max_count > 0 && matches >= flag_max_count)
-          break;
-
-        lineno = current_lineno;
-
         if (matches == 0)
           if (!stats.found())
             goto exit_search;
 
         ++matches;
 
-        if (!flag_no_labels)
-        {
-          if (hex && out.dump.offset < matcher->first())
-            out.dump.done(flag_separator);
-
-          binary = flag_hex || (!flag_text && is_binary(matcher->begin(), matcher->size()));
-
-          out.header(pathname, lineno, matcher, matcher->first(), separator, binary);
-        }
-      }
-
-      if (!flag_only_line_number)
-      {
-        if (flag_hex)
-        {
-          if (hex)
-            out.dump.next(matcher->first(), flag_separator);
-          out.dump.hex(Output::Dump::HEX_MATCH, matcher->first(), matcher->begin(), matcher->size(), flag_separator);
-          hex = true;
-        }
-        else if (binary)
-        {
-          if (flag_with_hex)
-          {
-            if (hex)
-              out.dump.next(matcher->first(), flag_separator);
-            out.dump.hex(Output::Dump::HEX_MATCH, matcher->first(), matcher->begin(), matcher->size(), flag_separator);
-            hex = true;
-          }
-          else if (!flag_binary_without_matches)
-          {
-            out.binary_file_matches(pathname);
-          }
-        }
-        else
-        {
-          const char *begin = matcher->begin();
-          size_t size = matcher->size();
-
-          if (flag_line_number)
-          {
-            // -o with -n: echo multi-line matches line-by-line
-
-            const char *from = begin;
-            const char *to;
-
-            while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
-            {
-              out.str(color_ms);
-              out.str(from, to - from + 1);
-              out.str(color_off);
-
-              if (to + 1 < begin + size)
-                out.header(pathname, ++lineno, NULL, matcher->first() + (to - begin) + 1, "|", binary);
-
-              from = to + 1;
-            }
-
-            out.str(color_ms);
-            out.str(from, size - (from - begin));
-            out.str(color_off);
-            if (size == 0 || begin[size - 1] != '\n')
-              out.chr('\n');
-          }
-          else
-          {
-            out.str(color_ms);
-            out.str(begin, size);
-            out.str(color_off);
-            if (size == 0 || begin[size - 1] != '\n')
-              out.chr('\n');
-          }
-
-          if (flag_line_buffered)
-            out.flush();
-        }
-      }
-    }
-
-    if (hex)
-      out.dump.done(separator);
-  }
-  else
-  {
-    // read input line-by-line and display lines that match the pattern
-
-    // mmap base and size, set with read_file() and mmap.file()
-    const char *base = NULL;
-    size_t size = 0;
-
-    bool is_mmap = mmap.file(input, base, size);
-
-    if (is_mmap && flag_before_context == 0 && flag_after_context == 0 && !flag_any_line && !flag_invert_match && !flag_no_group)
-    {
-      // this branch is the same as the next branch but optimized for mmap() when options -A, -B, -C, -g, -v, -y are not used
-
-      const char *here = base;
-      size_t left = size;
-
-      size_t byte_offset = 0;
-      size_t lineno = 1;
-
-      while (true)
-      {
-        const char *line = here;
-
-        // read the next line from mmap
-        if (getline(here, left))
-          break;
-
-        bool binary = flag_hex;
-
-        size_t last = UNDEFINED;
-
-        // the current input line to match
-        read_line(matcher, line, here - line);
-
-        // search the line for pattern matches
-        while (matcher->find())
-        {
-          if (last == UNDEFINED)
-          {
-            if (matches == 0)
-              if (!stats.found())
-                goto exit_search;
-
-            if (!flag_text && !flag_hex)
-            {
-              if (is_binary(line, here - line))
-              {
-                if (flag_binary_without_matches)
-                {
-                  matches = 0;
-                  break;
-                }
-                binary = true;
-              }
-
-              if (binary && !flag_with_hex)
-              {
-                out.binary_file_matches(pathname);
-                matches = 1;
-                goto done_search;
-              }
-            }
-
-            if (!flag_no_labels)
-              out.header(pathname, lineno, matcher, byte_offset, flag_separator, binary);
-
-            ++matches;
-
-            last = 0;
-
-            // if no color highlighting, then display the matched line at once
-            if (flag_color == NULL)
-              break;
-          }
-
-          if (binary)
-          {
-            out.dump.hex(Output::Dump::HEX_LINE, byte_offset + last, line + last, matcher->first() - last, flag_separator);
-            out.dump.hex(Output::Dump::HEX_MATCH, byte_offset + matcher->first(), matcher->begin(), matcher->size(), flag_separator);
-          }
-          else
-          {
-            out.str(color_sl);
-            out.str(line + last, matcher->first() - last);
-            out.str(color_off);
-            out.str(color_ms);
-            out.str(matcher->begin(), matcher->size());
-            out.str(color_off);
-          }
-
-          last = matcher->last();
-
-          // skip any further empty pattern matches
-          if (last == 0)
-            break;
-        }
-
-        if (last != UNDEFINED)
-        {
-          if (binary)
-          {
-            out.dump.hex(Output::Dump::HEX_LINE, byte_offset + last, line + last, here - line - last, flag_separator);
-            out.dump.done(flag_separator);
-          }
-          else
-          {
-            out.str(color_sl);
-            out.str(line + last, here - line - last);
-            out.str(color_off);
-          }
-
-          if (flag_line_buffered)
-            out.flush();
-        }
-
+        out.header(pathname, lineno, matcher, matcher->first(), separator, false);
+        
         // -m: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
 
-        // update byte offset and line number
-        byte_offset += here - line;
-        ++lineno;
+        if (flag_line_buffered)
+          out.flush();
+
+        lineno = current_lineno;
       }
+    }
+  }
+  else if (flag_only_matching)
+  {
+    // -o
+
+    bool hex = false;
+    size_t lineno = 0;
+
+    read_file();
+
+    while (matcher->find())
+    {
+      const char *begin = matcher->begin();
+      size_t size = matcher->size();
+
+      bool binary = flag_hex || (!flag_text && is_binary(begin, size));
+
+      size_t current_lineno = matcher->lineno();
+
+      if (lineno != current_lineno || flag_no_group)
+      {
+        if (matches == 0)
+          if (!stats.found())
+            goto exit_search;
+
+        ++matches;
+
+        if (!flag_no_header)
+        {
+          if (hex && out.dump.offset < matcher->first())
+            out.dump.done(flag_separator);
+          hex = false;
+
+          const char *separator = lineno != current_lineno ? flag_separator : "+";
+
+          out.header(pathname, current_lineno, matcher, matcher->first(), separator, binary);
+        }
+
+        lineno = current_lineno;
+      }
+
+      if (binary)
+      {
+        if (flag_hex || flag_with_hex)
+        {
+          if (hex)
+            out.dump.next(matcher->first(), flag_separator);
+
+          out.dump.hex(Output::Dump::HEX_MATCH, matcher->first(), begin, size, flag_separator);
+          hex = true;
+        }
+        else if (!flag_binary_without_matches)
+        {
+          out.binary_file_matches(pathname);
+          matches = 1;
+          goto done_search;
+        }
+      }
+      else
+      {
+        if (hex && out.dump.offset < matcher->first())
+          out.dump.done(flag_separator);
+        hex = false;
+
+        if (!flag_no_header)
+        {
+          // -o with -n: echo multi-line matches line-by-line
+
+          const char *from = begin;
+          const char *to;
+
+          while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+          {
+            out.str(color_ms);
+            out.str(from, to - from + 1);
+            out.str(color_off);
+
+            if (to + 1 <= begin + size)
+              out.header(pathname, ++lineno, NULL, matcher->first() + (to - begin) + 1, "|", false);
+
+            from = to + 1;
+          }
+
+          size -= from - begin;
+          begin = from;
+        }
+
+        out.str(color_ms);
+        out.str(begin, size);
+        out.str(color_off);
+
+        if (size == 0 || begin[size - 1] != '\n')
+          out.chr('\n');
+      }
+
+      // -m: max number of matches reached?
+      if (flag_max_count > 0 && matches >= flag_max_count)
+        break;
+
+      if (flag_line_buffered)
+        out.flush();
+    }
+
+    if (hex)
+      out.dump.done(flag_separator);
+  }
+  else
+  {
+    if (flag_before_context == 0 && flag_after_context == 0 && !flag_any_line && !flag_invert_match)
+    {
+      // options -A, -B, -C, -v, -y are not used
+
+      bool binary = false;
+      std::string rest_line;
+      const char *rest_line_data = NULL;
+      size_t rest_line_size = 0;
+      size_t rest_line_last = 0;
+      size_t lineno = 0;
+
+      read_file();
+
+      while (matcher->find())
+      {
+        if (matches == 0)
+          if (!stats.found())
+            goto exit_search;
+
+        size_t current_lineno = matcher->lineno();
+
+        if (lineno != current_lineno || flag_no_group)
+        {
+          if (rest_line_data != NULL)
+          {
+            if (binary)
+            {
+              out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, rest_line_size, flag_separator);
+              out.dump.done(flag_separator);
+            }
+            else
+            {
+              out.str(rest_line_data, rest_line_size);
+            }
+
+            if (flag_line_buffered)
+              out.flush();
+          }
+
+          // -m: max number of matches reached?
+          if (flag_max_count > 0 && matches >= flag_max_count)
+            break;
+
+          const char *eol = matcher->eol(); // warning: call eol() before bol()
+          const char *bol = matcher->bol();
+
+          ++matches;
+
+          binary = flag_hex || (!flag_text && is_binary(bol, eol - bol));
+
+          if (!flag_no_header)
+          {
+            const char *separator = lineno != current_lineno ? flag_separator : "+";
+
+            out.header(pathname, current_lineno, matcher, matcher->first(), separator, binary);
+          }
+
+          lineno = current_lineno;
+
+          size_t border = matcher->border();
+          size_t first = matcher->first();
+          const char *begin = matcher->begin();
+          const char *end = matcher->end();
+          size_t size = matcher->size();
+
+          if (binary)
+          {
+            if (flag_hex || flag_with_hex)
+            {
+              out.dump.hex(Output::Dump::HEX_LINE, first - border, bol, border, flag_separator);
+              out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size, flag_separator);
+
+              rest_line.assign(end, eol - end).push_back('\n'); // but there may not be a \n at EOF
+              rest_line_data = rest_line.c_str();
+              rest_line_size = rest_line.size();
+              rest_line_last = matcher->last();
+
+              lineno += matcher->lines() - 1;
+            }
+            else if (!flag_binary_without_matches)
+            {
+              out.binary_file_matches(pathname);
+              matches = 1;
+              goto done_search;
+            }
+          }
+          else
+          {
+            out.str(color_sl);
+            out.str(bol, border);
+            out.str(color_off);
+
+            if (!flag_no_header)
+            {
+              // -n: echo multi-line matches line-by-line
+
+              const char *from = begin;
+              const char *to;
+              size_t num = 1;
+
+              while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+              {
+                out.str(color_ms);
+                out.str(from, to - from + 1);
+                out.str(color_off);
+
+                if (to + 1 <= begin + size)
+                  out.header(pathname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+
+                from = to + 1;
+                ++num;
+              }
+
+              size -= from - begin;
+              begin = from;
+            }
+
+            out.str(color_ms);
+            out.str(begin, size);
+            out.str(color_off);
+
+            rest_line.assign(end, eol - end).push_back('\n'); // but there may not be a \n at EOF
+            rest_line_data = rest_line.c_str();
+            rest_line_size = rest_line.size();
+            rest_line_last = matcher->last();
+
+            lineno += matcher->lines() - 1;
+          }
+        }
+        else
+        {
+          size_t size = matcher->size();
+
+          if (size > 0)
+          {
+            size_t lines = matcher->lines();
+
+            if (lines > 1 || flag_color)
+            {
+              size_t first = matcher->first();
+              size_t last = matcher->last();
+              const char *begin = matcher->begin();
+
+              if (binary)
+              {
+                out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, first - rest_line_last, flag_separator);
+                out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size, flag_separator);
+              }
+              else
+              {
+                out.str(color_sl);
+                out.str(rest_line_data, first - rest_line_last);
+                out.str(color_off);
+
+                if (lines > 1 && !flag_no_header)
+                {
+                  // -n: echo multi-line matches line-by-line
+
+                  const char *from = begin;
+                  const char *to;
+                  size_t num = 1;
+
+                  while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                  {
+                    out.str(color_ms);
+                    out.str(from, to - from + 1);
+                    out.str(color_off);
+
+                    if (to + 1 <= begin + size)
+                      out.header(pathname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+
+                    from = to + 1;
+                    ++num;
+                  }
+
+                  size -= from - begin;
+                  begin = from;
+                }
+
+                out.str(color_ms);
+                out.str(begin, size);
+                out.str(color_off);
+              }
+
+              if (lines == 1)
+              {
+                rest_line_data += last - rest_line_last;
+                rest_line_size -= last - rest_line_last;
+                rest_line_last = last;
+              }
+              else
+              {
+                const char *eol = matcher->eol(); // warning: call eol() before end()
+                const char *end = matcher->end();
+
+                bool rest_binary = flag_hex || (!flag_text && is_binary(end, eol - end));
+
+                if (binary && !rest_binary)
+                {
+                  out.dump.done(flag_separator);
+                  out.header(pathname, lineno + lines - 1, matcher, last, flag_separator, false);
+                }
+                else if (!binary && rest_binary)
+                {
+                  out.nl();
+                  out.header(pathname, lineno + lines - 1, matcher, last, flag_separator, true);
+                }
+
+                binary = rest_binary;
+
+                rest_line.assign(end, eol - end).push_back('\n'); // but there may not be a \n at EOF
+                rest_line_data = rest_line.c_str();
+                rest_line_size = rest_line.size();
+                rest_line_last = last;
+
+                lineno += lines - 1;
+              }
+            }
+          }
+        }
+      }
+
+      if (rest_line_data != NULL)
+      {
+        if (binary)
+          out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, rest_line_size, flag_separator);
+        else
+          out.str(rest_line_data, rest_line_size);
+      }
+
+      if (binary)
+        out.dump.done(flag_separator);
     }
     else
     {
       // read input line-by-line and display lines that match the pattern with context lines
 
-      // TODO: replace line-by-line reading with block reading to improve speed
+      // mmap base and size, set with mmap.file()
+      const char *base = NULL;
+      size_t size = 0;
 
       reflex::BufferedInput buffered_input;
 
-      if (!is_mmap)
+      if (!mmap.file(input, base, size))
         buffered_input = input;
 
       const char *here = base;
@@ -4569,7 +4806,7 @@ void Grep::search(const char *pathname)
                   if (!stats.found())
                     goto exit_search;
 
-                if (!flag_no_labels)
+                if (!flag_no_header)
                   out.header(pathname, lineno, matcher, byte_offset, "-", binary[current]);
 
                 last = 0;
@@ -4635,7 +4872,7 @@ void Grep::search(const char *pathname)
             {
               out.binary_file_matches(pathname);
               matches = 1;
-              break;
+              goto done_search;
             }
 
             if (after_context)
@@ -4686,7 +4923,7 @@ void Grep::search(const char *pathname)
                 {
                   if (last == UNDEFINED)
                   {
-                    if (!flag_no_labels)
+                    if (!flag_no_header)
                       out.header(pathname, begin, matcher, byte_offsets[begin_context], "-", binary[begin_context]);
 
                     last = 0;
@@ -4743,7 +4980,7 @@ void Grep::search(const char *pathname)
               before = lineno;
             }
 
-            if (!flag_no_labels)
+            if (!flag_no_header)
               out.header(pathname, lineno, NULL, byte_offsets[current], flag_separator, binary[current]);
 
             if (binary[current])
@@ -4826,7 +5063,7 @@ void Grep::search(const char *pathname)
               {
                 size_t begin_context = begin % (flag_before_context + 1);
 
-                if (!flag_no_labels)
+                if (!flag_no_header)
                   out.header(pathname, begin, NULL, byte_offsets[begin_context], "-", binary[begin_context]);
 
                 if (binary[begin_context])
@@ -4853,9 +5090,9 @@ void Grep::search(const char *pathname)
             {
               // -g: do not group matches on a single line but on multiple lines, counting each match separately
 
-              const char *separator = (last == UNDEFINED ? flag_separator : "+");
+              const char *separator = last == UNDEFINED ? flag_separator : "+";
 
-              if (!flag_no_labels)
+              if (!flag_no_header)
                 out.header(pathname, lineno, matcher, byte_offset + matcher->first(), separator, binary[current]);
 
               out.str(color_sl);
@@ -4878,7 +5115,7 @@ void Grep::search(const char *pathname)
             {
               if (last == UNDEFINED)
               {
-                if (!flag_no_labels)
+                if (!flag_no_header)
                   out.header(pathname, lineno, matcher, byte_offset, flag_separator, binary[current]);
 
                 ++matches;
@@ -4931,7 +5168,7 @@ void Grep::search(const char *pathname)
             // -A NUM: show context after matched lines, simulates BSD grep -A
 
             // display line as part of the after context of the matched line
-            if (!flag_no_labels)
+            if (!flag_no_header)
               out.header(pathname, lineno, NULL, byte_offsets[current], "-", binary[current]);
 
             if (binary[current])
@@ -4968,10 +5205,10 @@ done_search:
       out.chr('\n');
   }
 
+exit_search:
+
   // flush and release output to allow other workers to output results
   out.release();
-
-exit_search:
 
   close_file();
 }
@@ -5266,7 +5503,7 @@ void help(const char *message, const char *arg)
     -g, --no-group\n\
             Do not group multiple pattern matches on the same matched line.\n\
             Output the matched line again for each additional pattern match,\n\
-            using `+' as the field separator for each additional match.\n\
+            using `+' as the field separator.\n\
     --group-separator=SEP\n\
             Use SEP as a group separator for context options -A, -B, and -C. By\n\
             default SEP is a double hyphen (`--').\n\
@@ -5306,8 +5543,8 @@ void help(const char *message, const char *arg)
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
             default, an optimum number of threads is spawned to search files\n\
-            simultaneously.  -J1 disables threading: files are matched in the\n\
-            same order as the files specified.\n\
+            simultaneously.  -J1 disables threading: files are searched in the\n\
+            same order as specified.\n\
     -j, --smart-case\n\
             Perform case insensitive matching unless PATTERN contains a capital\n\
             letter.  Case insensitive matching applies to ASCII letters only.\n\
@@ -5353,8 +5590,8 @@ void help(const char *message, const char *arg)
             when they are on the command line.\n\
     --max-files=NUM\n\
             If -R or -r is specified, restrict the number of files matched to\n\
-            NUM.  If -J1 is specified, files are matched in the same order as\n\
-            the files specified.\n\
+            NUM.  Specify -J1 to produce replicable results by ensuring that\n\
+            files are searched in the same order as specified.\n\
     -N, --only-line-number\n\
             The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
@@ -5378,9 +5615,8 @@ void help(const char *message, const char *arg)
             in the EXTENSIONS list.  This option may be repeated and may be\n\
             combined with options -M and -t to expand the search.\n\
     -o, --only-matching\n\
-            Prints only the matching part of lines and allows pattern matches\n\
-            across newlines to span multiple lines.  Line numbers for\n\
-            multi-line matches are displayed with option -n, using `|' as the\n\
+            Prints only the matching part of lines.  When multiple lines match,\n\
+            the line numbers with option -n are displayed using `|' as the\n\
             field separator for each additional line matched by the pattern.\n\
             This option cannot be combined with options -A, -B, -C, -v, and -y.\n\
     -P, --perl-regexp\n\
@@ -5405,15 +5641,14 @@ void help(const char *message, const char *arg)
     -q, --quiet, --silent\n\
             Quiet mode: suppress normal output.  ugrep will only search until a\n\
             match has been found, making searches potentially less expensive.\n\
-            Allows a pattern match to span multiple lines.\n\
     -R, --dereference-recursive\n\
             Recursively read all files under each directory.  Follow all\n\
-            symbolic links, unlike -r.  If -J1 is specified, files are matched\n\
-            in the same order as the files specified.\n\
+            symbolic links, unlike -r.  If -J1 is specified, files are searched\n\
+            in the same order as specified.\n\
     -r, --recursive\n\
             Recursively read all files under each directory, following symbolic\n\
             links only if they are on the command line.  If -J1 is specified,\n\
-            files are matched in the same order as the files specified.\n\
+            files are searched in the same order as specified.\n\
     -S, --dereference\n\
             If -r is specified, all symbolic links are followed, like -R.  The\n\
             default is not to follow symbolic links.\n\
