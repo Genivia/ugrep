@@ -2070,7 +2070,7 @@ Man page
 
 
 
-    ugrep 1.5.9                    November 12, 2019                      UGREP(1)
+    ugrep 1.5.10                   November 12, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

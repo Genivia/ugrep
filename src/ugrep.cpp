@@ -147,7 +147,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.9"
+#define UGREP_VERSION "1.5.10"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -573,7 +573,7 @@ struct MMap {
 
   ~MMap()
   {
-#if !defined(OS_WIN) && MAX_MMAP_SIZE > 0
+#if !defined(OS_WIN) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__) && MAX_MMAP_SIZE > 0
     if (mmap_base != NULL)
       munmap(mmap_base, mmap_size);
 #endif
@@ -593,7 +593,7 @@ bool MMap::file(reflex::Input& input, const char*& base, size_t& size)
   base = NULL;
   size = 0;
 
-#if !defined(OS_WIN) && MAX_MMAP_SIZE > 0
+#if !defined(OS_WIN) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__) && MAX_MMAP_SIZE > 0
 
   // get current input file and check if its encoding is plain
   FILE *file = input.file();
@@ -2182,10 +2182,6 @@ void GrepWorker::execute()
 
   while (true)
   {
-    // if almost nothing to do, try stealing a job from a co-worker
-    if (todo <= 1)
-      master->steal(this);
-
     // wait for next job
     next_job(job);
 
@@ -2195,6 +2191,10 @@ void GrepWorker::execute()
 
     // search the file for this job
     search(job.pathname.c_str());
+
+    // if almost nothing to do and we need a next job, then try stealing a job from a co-worker
+    if (todo <= 1)
+      master->steal(this);
   }
 }
 
@@ -2356,7 +2356,7 @@ int main(int argc, char **argv)
       bool is_grouped = true;
 
       // parse a ugrep command-line option
-      while (is_grouped && *++arg)
+      while (is_grouped && *++arg != '\0')
       {
         switch (*arg)
         {
@@ -3762,7 +3762,7 @@ int main(int argc, char **argv)
     pclose(output);
 #endif
 
-  exit(stats.found_any_file() ? EXIT_OK : EXIT_FAIL);
+  return stats.found_any_file() ? EXIT_OK : EXIT_FAIL;
 }
 
 // search the specified files or standard input for pattern matches
