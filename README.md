@@ -3,10 +3,11 @@
 Universal grep ("uber grep")
 ============================
 
-High-performance file search utility.  Supersedes GNU and BSD grep with full
-Unicode support.  Offers easy options and predefined regex patterns to quickly
-search source code, text, and binary files in large directory trees.
-Compatible with GNU/BSD grep.  Offers a faster drop-in replacement.
+A high-performance file search utility.
+
+This is a spin-off project of [RE/flex](https://github.com/Genivia/RE-flex).
+See the [ugrep tutorial](#tutorial) further below with a comprehensive list of
+examples illustrating the power of **ugrep**.
 
 <div align="center">
 <img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
@@ -17,10 +18,6 @@ Search source code, text, and binary files fast with ugrep
 <br>
 <br>
 </div>
-
-This is a spin-off project of [RE/flex](https://github.com/Genivia/RE-flex).
-See the [ugrep tutorial](#tutorial) with a comprehensive list of examples
-illustrating the power of **ugrep**.
 
 Table of contents
 -----------------
@@ -59,6 +56,7 @@ Table of contents
   - [Replacing matches with --format group captures](#replace)
   - [Limiting the number of matches with -m, --max-depth, and --max-files](#max)
   - [Searching compressed files with -z](#gz)
+  - [Tips for advanced users](#tips)
   - [More examples](#more)
 - [Man page](#man)
 - [Regex patterns](#patterns)
@@ -171,8 +169,7 @@ Introduction: why use ugrep?
   in a `.gitignore` file (or any other file) with `--exclude-from=.gitignore`.
 
 - **ugrep supports Perl regular expressions** with option `-P`.  This option
-  offers PCRE-like syntax, including backreferences and lookbehinds.  POSIX
-  regular expressions are the default.
+  offers PCRE-like syntax, including backreferences and lookbehinds.
 
 - **ugrep POSIX regex patterns are converted to efficient DFAs** for faster
   matching without backtracking.  DFAs yield significant speedups when
@@ -1187,9 +1184,10 @@ The same, but recursively search up to two directory levels deep, meaning that
 
     ugrep -R -m10 --max-depth=2 -tc++ FIXME
 
-To show only the first file found that has one or more matches of `FIXME`:
+To show only the first file that has one or more matches of `FIXME`, we disable
+parallel search with `-J1` and use `--max-files=1`:
 
-    ugrep -R --max-files=1 -tc++ FIXME
+    ugrep -J1 -R --max-files=1 -tc++ FIXME
 
 <a name="gz"/>
 
@@ -1198,9 +1196,36 @@ To show only the first file found that has one or more matches of `FIXME`:
 To recursively search and list all files including compressed files for the
 word `FIXME`:
 
-    ugrep -z -rlw FIXME
+    ugrep -z -rl -w FIXME
 
 Zlib-compressed files with extension `.gz` are decompressed and searched.
+
+<a name="tips"/>
+
+### Tips for advanced users
+
+When searching non-binary files only, the binary content check is disabled with
+option `-a` to speed up displaying matches.  For example, searching for line
+with `int` in C++ source code:
+
+    ugrep -r -a -Ocpp -w 'int'
+
+If a file has potentially many pattern matches, but each match is only one a
+single line, then option `-g` can be used to speed up displaying matches:
+
+    ugrep -r -a -g -Opython -w `def`
+
+Even greater speeds can be achieved with `--format` when searching files with
+many matches, for example when almost every line of the file has a match, use
+`--format='%O%~'` to output matching lines for every match, or
+`--format='%o%~'` to output the only matching part.  The `--format` option does
+not check for binary matches and may output a line repeatedly with field `%O`,
+like option `-g`.  For example, to match all words recursively in the current
+working directory with line and column numbers, where `%n` is the line number,
+`%k` is the column number, `%o` is the match (only matching), and `%~` is a
+newline:
+
+    ugrep -r --format='%n,%k:%o%~' '\w+'
 
 <a name="more"/>
 
@@ -1288,8 +1313,8 @@ Man page
                   The offset in bytes of a matched line is displayed in  front  of
                   the respective matched line.  When used with option -g, displays
                   the offset in bytes of each pattern matched.  Byte  offsets  are
-                  exact  for  binary, ASCII, and UTF-8 input.  Otherwise, the byte
-                  offset in the UTF-8-converted input is displayed.
+                  exact  for  ASCII,  UTF-8, and raw binary input.  Otherwise, the
+                  byte offset in the UTF-8 converted input is displayed.
 
            --binary-files=TYPE
                   Controls searching  and  reporting  pattern  matches  in  binary
@@ -1300,7 +1325,7 @@ Man page
                   files  as  text, which might output binary garbage to the termi-
                   nal, which can have problematic  consequences  if  the  terminal
                   driver  interprets  some  of  it as commands.  `hex' reports all
-                  matches in hexadecimal.  `with-hex` only reports binary  matches
+                  matches in hexadecimal.  `with-hex' only reports binary  matches
                   in  hexadecimal, leaving text matches alone.  A match is consid-
                   ered binary if a match contains  a  zero  byte  or  invalid  UTF
                   encoding.  See also the -a, -I, -U, -W, and -X options.
@@ -1470,6 +1495,9 @@ Man page
            --json Output file matches in JSON.    Use options -H, -n, -k,  and  -b
                   to specify additional properties.  See also option --format.
 
+           -K NUM, --skip=NUM
+                  Skip NUM lines of input to start searching at line NUM+1.
+
            -k, --column-number
                   The  column number of a matched pattern is displayed in front of
                   the respective matched line, starting at  column  1.   Tabs  are
@@ -1499,13 +1527,13 @@ Man page
                   otherwise.
 
            -M MAGIC, --file-magic=MAGIC
-                  Only files matching the signature pattern `MAGIC' are  searched.
+                  Only files matching the signature pattern  MAGIC  are  searched.
                   The  signature "magic bytes" at the start of a file are compared
                   to the `MAGIC' regex pattern.  When matching, the file  will  be
                   searched.   This option may be repeated and may be combined with
                   options -O and -t to expand the search.  This  option  is  rela-
                   tively  slow as every file on the search path is read to compare
-                  `MAGIC'.
+                  MAGIC.
 
            -m NUM, --max-count=NUM
                   Stop reading the input after NUM  matches  for  each  file  pro-
@@ -1565,7 +1593,7 @@ Man page
                   when they are on the command line.
 
            --pager[=COMMAND]
-                  When  output  is  sent  to  the terminal, uses `COMMAND' to page
+                  When  output  is  sent  to  the  terminal,  uses COMMAND to page
                   through the output.  The default COMMAND  is  `less  -R'.   This
                   option  makes  --color=auto  behave  as --color=always.  Enables
                   --break.
@@ -2042,7 +2070,7 @@ Man page
 
 
 
-    ugrep 1.5.8                    November 10, 2019                      UGREP(1)
+    ugrep 1.5.9                    November 12, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

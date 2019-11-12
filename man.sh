@@ -52,17 +52,17 @@ src/ugrep --help \
   -e 's/^            //' \
   -e $'s/^    \(.*\)$/.TP\\\n\\1/' \
   -e 's/\(--[-+0-9A-Za-z_]*\)/\\fB\1\\fR/g' \
-  -e 's/\([^-0-9A-Za-z_]\)\(-.\) \([A-Z][A-Z]*\)/\1\\fB\2\\fR \\fI\3\\fR/g' \
+  -e 's/\([^-0-9A-Za-z_]\)\(-.\) \([A-Z]\{1,\}\)/\1\\fB\2\\fR \\fI\3\\fR/g' \
   -e 's/\([^-0-9A-Za-z_]\)\(-.\)/\1\\fB\2\\fR/g' \
-  -e 's/\[=\([-A-Z]*\)\]/[=\\fI\1\\fR]/g' \
-  -e 's/=\([-A-Z]*\)/=\\fI\1\\fR/g' \
+  -e 's/\[=\([-A-Z]\{1,\}\)\]/[=\\fI\1\\fR]/g' \
+  -e 's/=\([-A-Z]\{1,\}\)/=\\fI\1\\fR/g' \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
 cat >> man/ugrep.1 << 'END'
 .PP
-If no FILE arguments are specified, or if a `-' is specified, the standard
-input is used, unless recursive searches are specified which examine the
-working directory.  Use `--' before the FILE arguments to allow file and
-directory names to start with a `-'.
+If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
+standard input is used, unless recursive searches are specified which examine
+the working directory.  Use `--' before the \fIFILE\fR arguments to allow file
+and directory names to start with a `-'.
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
@@ -81,8 +81,8 @@ No lines were selected.
 .IP >1
 An error occurred.
 .PP
-If -q or --quiet or --silent is used and a line is selected, the exit status is
-0 even if an error occurred.
+If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
+the exit status is 0 even if an error occurred.
 .SH GLOBBING
 Globbing is used by options \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,

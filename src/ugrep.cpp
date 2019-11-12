@@ -91,7 +91,8 @@ Prebuilt executables are located in ugrep/bin.
 #include "glob.hpp"
 
 // option: use a thread to decompress the stream into a pipe to search, for greater speed
-// TODO option disabled for now because of an issue (with pipe()?) that may result in truncated search results
+// TODO option disabled for now because of an issue (with pipe()?) that may result in gzread() blocking randomly
+// TODO this option may get suboptimal when the cost of the extra threads added exceeds hardware parallelism
 // #define WITH_LIBZ_THREAD
 
 // check if we are compiling for a windows OS
@@ -146,7 +147,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.8"
+#define UGREP_VERSION "1.5.9"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -165,7 +166,11 @@ Prebuilt executables are located in ugrep/bin.
 // limit the total number of threads spawn (i.e. limit spawn overhead), because grepping is practically IO bound
 #define MAX_JOBS 16U
 
-// --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, smaller values result in higher job stealing rates, not less than 3
+// a hard limit on the recursive search depth
+// TODO use iteration and a stack for virtually unlimited depth
+#define MAX_DEPTH 100
+
+// --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, smaller values result in higher job stealing rates, should not be less than 3
 #define MIN_STEAL 3U
 
 // --min-mmap and --max-mmap file size to allocate with mmap(), not greater than 4294967295LL, max 0 disables mmap()
@@ -282,6 +287,7 @@ size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
 size_t flag_max_depth              = 0;
 size_t flag_max_files              = 0;
+size_t flag_skip                   = 0;
 size_t flag_jobs                   = 0;
 size_t flag_tabs                   = 8;
 size_t flag_min_mmap               = MIN_MMAP_SIZE;
@@ -1913,6 +1919,14 @@ struct Grep {
         matcher->buffer();
 #endif
     }
+
+    // -K=NUM: skip NUM lines
+    if (flag_skip > 0)
+    {
+      for (size_t i = flag_skip; i > 0; --i)
+        if (!matcher->skip('\n'))
+          break;
+    }
   }
 
   Output                   out;        // buffered and synchronized output
@@ -2510,6 +2524,8 @@ int main(int argc, char **argv)
               flag_regexp.emplace_back(arg + 7);
             else if (strncmp(arg, "separator=", 10) == 0)
               flag_separator = arg + 10;
+            else if (strncmp(arg, "skip=", 5) == 0)
+              flag_skip = strtopos(arg + 5, "invalid argument --skip=");
             else if (strcmp(arg, "smart-case") == 0)
               flag_smart_case = true;
             else if (strcmp(arg, "stats") == 0)
@@ -2670,6 +2686,17 @@ int main(int argc, char **argv)
 
           case 'j':
             flag_smart_case = true;
+            break;
+
+          case 'K':
+            ++arg;
+            if (*arg)
+              flag_skip = strtopos(&arg[*arg == '='], "invalid argument -K=");
+            else if (++i < argc)
+              flag_skip = strtopos(argv[i], "invalid argument -K=");
+            else
+              help("missing NUM argument for option -K");
+            is_grouped = false;
             break;
 
           case 'k':
@@ -2899,7 +2926,7 @@ int main(int argc, char **argv)
       if (flag_line_regexp)
         regex.append("^$|");
       else
-        regex.append(".*\\n?|");
+        regex.append(".*|");
 
       flag_empty = true; // we're matching empty lines, so enable -Y
     }
@@ -2913,7 +2940,11 @@ int main(int argc, char **argv)
       while ((to = pattern.find('\n', from)) != std::string::npos)
       {
         if (from < to)
-          regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
+        {
+          size_t len = to - from - (pattern[to - 1] == '\r');
+          if (len > 0)
+            regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
+        }
         from = to + 1;
       }
 
@@ -4080,6 +4111,20 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
   if (flag_max_depth > 0 && level > flag_max_depth)
     return;
 
+  // TODO replace recursion with iteration and stack to potentially allow unlimited depth
+  if (level > MAX_DEPTH)
+  {
+    if (!flag_no_messages)
+    {
+      if (flag_color)
+        fprintf(stderr, "\033[0mugrep: \033[1m%s\033[0m max recursion depth exceeded\n", pathname);
+      else
+        fprintf(stderr, "ugrep: %s max recursion depth exceeded\n", pathname);
+    }
+
+    return;
+  }
+
 #ifdef OS_WIN
 
   WIN32_FIND_DATAA ffd;
@@ -4274,8 +4319,9 @@ void Grep::search(const char *pathname)
     if ((flag_format_open != NULL || flag_format_close != NULL))
       out.acquire();
 
-    if (!stats.found())
-      goto exit_search;
+    if (matches > 0)
+      if (!stats.found())
+        goto exit_search;
 
     if (flag_format)
     {
@@ -4492,7 +4538,7 @@ void Grep::search(const char *pathname)
   {
     if (flag_before_context == 0 && flag_after_context == 0 && !flag_any_line && !flag_invert_match)
     {
-      // options -A, -B, -C, -v, -y are not used
+      // options -A, -B, -C, -y, -v are not enabled
 
       bool binary = false;
       std::string rest_line;
@@ -4523,10 +4569,10 @@ void Grep::search(const char *pathname)
             else
             {
               out.str(rest_line_data, rest_line_size);
-            }
 
-            if (flag_line_buffered)
-              out.flush();
+              if (flag_line_buffered)
+                out.flush();
+            }
           }
 
           // -m: max number of matches reached?
@@ -4535,6 +4581,9 @@ void Grep::search(const char *pathname)
 
           const char *eol = matcher->eol(); // warning: call eol() before bol()
           const char *bol = matcher->bol();
+
+          if (!matcher->hit_end())
+            ++eol;
 
           ++matches;
 
@@ -4562,10 +4611,18 @@ void Grep::search(const char *pathname)
               out.dump.hex(Output::Dump::HEX_LINE, first - border, bol, border, flag_separator);
               out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size, flag_separator);
 
-              rest_line.assign(end, eol - end).push_back('\n'); // but there may not be a \n at EOF
-              rest_line_data = rest_line.c_str();
-              rest_line_size = rest_line.size();
-              rest_line_last = matcher->last();
+              if (flag_no_group)
+              {
+                out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end, flag_separator);
+                out.dump.done(flag_separator);
+              }
+              else
+              {
+                rest_line.assign(end, eol - end);
+                rest_line_data = rest_line.c_str();
+                rest_line_size = rest_line.size();
+                rest_line_last = matcher->last();
+              }
 
               lineno += matcher->lines() - 1;
             }
@@ -4611,10 +4668,21 @@ void Grep::search(const char *pathname)
             out.str(begin, size);
             out.str(color_off);
 
-            rest_line.assign(end, eol - end).push_back('\n'); // but there may not be a \n at EOF
-            rest_line_data = rest_line.c_str();
-            rest_line_size = rest_line.size();
-            rest_line_last = matcher->last();
+            if (flag_no_group)
+            {
+              out.str(end, eol - end);
+              if (matcher->hit_end())
+                out.nl();
+              else if (flag_line_buffered)
+                out.flush();
+            }
+            else
+            {
+              rest_line.assign(end, eol - end);
+              rest_line_data = rest_line.c_str();
+              rest_line_size = rest_line.size();
+              rest_line_last = matcher->last();
+            }
 
             lineno += matcher->lines() - 1;
           }
@@ -4687,6 +4755,9 @@ void Grep::search(const char *pathname)
 
                 bool rest_binary = flag_hex || (!flag_text && is_binary(end, eol - end));
 
+                if (!matcher->hit_end())
+                  ++eol;
+
                 if (binary && !rest_binary)
                 {
                   out.dump.done(flag_separator);
@@ -4700,10 +4771,29 @@ void Grep::search(const char *pathname)
 
                 binary = rest_binary;
 
-                rest_line.assign(end, eol - end).push_back('\n'); // but there may not be a \n at EOF
-                rest_line_data = rest_line.c_str();
-                rest_line_size = rest_line.size();
-                rest_line_last = last;
+                if (flag_no_group)
+                {
+                  if (binary)
+                  {
+                    out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end, flag_separator);
+                    out.dump.done(flag_separator);
+                  }
+                  else
+                  {
+                    out.str(end, eol - end);
+                    if (matcher->hit_end())
+                      out.nl();
+                    else if (flag_line_buffered)
+                      out.flush();
+                  }
+                }
+                else
+                {
+                  rest_line.assign(end, eol - end);
+                  rest_line_data = rest_line.c_str();
+                  rest_line_size = rest_line.size();
+                  rest_line_last = last;
+                }
 
                 lineno += lines - 1;
               }
@@ -4738,6 +4828,19 @@ void Grep::search(const char *pathname)
 
       const char *here = base;
       size_t left = size;
+
+      // -K=NUM: skip NUM lines
+      if (flag_skip > 0)
+      {
+        std::string line;
+
+        for (size_t i = flag_skip; i > 0; --i)
+        {
+          // read the next line from mmap, buffered input, or unbuffered input
+          if (getline(here, left, buffered_input, input, line))
+            goto exit_search;
+        }
+      }
 
       size_t byte_offset = 0;
       size_t lineno = 1;
@@ -5199,11 +5302,8 @@ void Grep::search(const char *pathname)
 done_search:
 
   // --break: add a line break and flush
-  if (matches > 0 || flag_any_line)
-  {
-    if (flag_break)
-      out.chr('\n');
-  }
+  if (flag_break && (matches > 0 || flag_any_line))
+    out.chr('\n');
 
 exit_search:
 
@@ -5396,8 +5496,8 @@ void help(const char *message, const char *arg)
             The offset in bytes of a matched line is displayed in front of the\n\
             respective matched line.  When used with option -g, displays the\n\
             offset in bytes of each pattern matched.  Byte offsets are exact\n\
-            for binary, ASCII, and UTF-8 input.  Otherwise, the byte offset in\n\
-            the UTF-8-converted input is displayed.\n\
+            for ASCII, UTF-8, and raw binary input.  Otherwise, the byte offset\n\
+            in the UTF-8 converted input is displayed.\n\
     --binary-files=TYPE\n\
             Controls searching and reporting pattern matches in binary files.\n\
             Options are `binary', `without-match`, `text`, `hex`, and\n\
@@ -5407,7 +5507,7 @@ void help(const char *message, const char *arg)
             which might output binary garbage to the terminal, which can have\n\
             problematic consequences if the terminal driver interprets some of\n\
             it as commands.  `hex' reports all matches in hexadecimal.\n\
-            `with-hex` only reports binary matches in hexadecimal, leaving text\n\
+            `with-hex' only reports binary matches in hexadecimal, leaving text\n\
             matches alone.  A match is considered binary if a match contains a\n\
             zero byte or invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
             and -X options.\n\
@@ -5551,6 +5651,8 @@ void help(const char *message, const char *arg)
     --json\n\
             Output file matches in JSON.    Use options -H, -n, -k, and -b to\n\
             specify additional properties.  See also option --format.\n\
+    -K NUM, --skip=NUM\n\
+            Skip NUM lines of input to start searching at line NUM+1.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -5575,12 +5677,12 @@ void help(const char *message, const char *arg)
             buffered when standard output is a terminal and block buffered\n\
             otherwise.\n\
     -M MAGIC, --file-magic=MAGIC\n\
-            Only files matching the signature pattern `MAGIC' are searched.\n\
-            The signature \"magic bytes\" at the start of a file are compared\n\
-            to the `MAGIC' regex pattern.  When matching, the file will be\n\
+            Only files matching the signature pattern MAGIC are searched.  The\n\
+            signature \"magic bytes\" at the start of a file are compared to\n\
+            the `MAGIC' regex pattern.  When matching, the file will be\n\
             searched.  This option may be repeated and may be combined with\n\
             options -O and -t to expand the search.  This option is relatively\n\
-            slow as every file on the search path is read to compare `MAGIC'.\n\
+            slow as every file on the search path is read to compare MAGIC.\n\
     -m NUM, --max-count=NUM\n\
             Stop reading the input after NUM matches for each file processed.\n\
     --max-depth=NUM\n\
@@ -5630,7 +5732,7 @@ void help(const char *message, const char *arg)
             If -R or -r is specified, no symbolic links are followed, even when\n\
             they are on the command line.\n\
     --pager[=COMMAND]\n\
-            When output is sent to the terminal, uses `COMMAND' to page through\n\
+            When output is sent to the terminal, uses COMMAND to page through\n\
             the output.  The default COMMAND is `less -R'.  This option makes\n\
             --color=auto behave as --color=always.  Enables --break.\n\
     -Q ENCODING, --encoding=ENCODING\n\

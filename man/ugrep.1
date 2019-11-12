@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 10, 2019" "ugrep 1.5.8" "User Commands"
+.TH UGREP "1" "November 12, 2019" "ugrep 1.5.9" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -29,7 +29,7 @@ the \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR options.
 .TP
 \fB\-a\fR, \fB\-\-text\fR
 Process a binary file as if it were text.  This is equivalent to
-the \fB\-\-binary\-files\fR=\fI\fRtext option.  This option might output binary
+the \fB\-\-binary\-files\fR=text option.  This option might output binary
 garbage to the terminal, which can have problematic consequences if
 the terminal driver interprets some of it as commands.
 .TP
@@ -42,8 +42,8 @@ the \fB\-A\fR, \fB\-C\fR, and \fB\-y\fR options.
 The offset in bytes of a matched line is displayed in front of the
 respective matched line.  When used with option \fB\-g\fR, displays the
 offset in bytes of each pattern matched.  Byte offsets are exact
-for binary, ASCII, and UTF\-8 input.  Otherwise, the byte offset in
-the UTF\-8\-converted input is displayed.
+for ASCII, UTF\-8, and raw binary input.  Otherwise, the byte offset
+in the UTF\-8 converted input is displayed.
 .TP
 \fB\-\-binary\-files\fR=\fITYPE\fR
 Controls searching and reporting pattern matches in binary files.
@@ -54,7 +54,7 @@ ignores binary matches.  `text' treats all binary files as text,
 which might output binary garbage to the terminal, which can have
 problematic consequences if the terminal driver interprets some of
 it as commands.  `hex' reports all matches in hexadecimal.
-`with\-hex` only reports binary matches in hexadecimal, leaving text
+`with\-hex' only reports binary matches in hexadecimal, leaving text
 matches alone.  A match is considered binary if a match contains a
 zero byte or invalid UTF encoding.  See also the \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\fR,
 and \fB\-X\fR options.
@@ -63,7 +63,7 @@ and \fB\-X\fR options.
 Groups matches per file and adds a line break between results from
 different files.
 .TP
-\fB\-C\fR[NUM], \fB\-\-context\fR[=\fI\fR\fINUM\fR]
+\fB\-C\fR[NUM], \fB\-\-context\fR[=\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
 match.  The default is 2 and is equivalent to \fB\-A\fR 2 \fB\-B\fR 2.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.
@@ -74,7 +74,7 @@ Only a count of selected lines is written to standard output.
 If \fB\-g\fR or \fB\-o\fR is specified, counts the number of patterns matched.
 If \fB\-v\fR is specified, counts the number of non\-matching lines.
 .TP
-\fB\-\-color\fR[=\fI\fR\fIWHEN\fR], \fB\-\-colour\fR[=\fI\fR\fIWHEN\fR]
+\fB\-\-color\fR[=\fIWHEN\fR], \fB\-\-colour\fR[=\fIWHEN\fR]
 Mark up the matching text with the expression stored in the
 GREP_COLOR or GREP_COLORS environment variable.  The possible
 values of WHEN can be `never', `always', or `auto', where `auto'
@@ -184,7 +184,7 @@ Print a help message.
 .TP
 \fB\-I\fR
 Ignore matches in binary files.  This option is equivalent to the
-\fB\-\-binary\-files\fR=\fI\fRwithout\-match option.
+\fB\-\-binary\-files\fR=without\-match option.
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
 Perform case insensitive matching.  By default, ugrep is case
@@ -226,6 +226,9 @@ letter.  Case insensitive matching applies to ASCII letters only.
 Output file matches in JSON.    Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
 specify additional properties.  See also option \fB\-\-format\fR.
 .TP
+\fB\-K\fR \fINUM\fR, \fB\-\-skip\fR=\fINUM\fR
+Skip NUM lines of input to start searching at line NUM+1.
+.TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of the
 respective matched line, starting at column 1.  Tabs are expanded
@@ -244,7 +247,7 @@ been found, making searches potentially less expensive.  Pathnames
 are listed once per file searched.  If the standard input is
 searched, the string ``(standard input)'' is written.
 .TP
-\fB\-\-label\fR[=\fI\fR\fILABEL\fR]
+\fB\-\-label\fR[=\fILABEL\fR]
 Displays the LABEL value when input is read from standard input
 where a file name would normally be printed in the output.  This
 option applies to options \fB\-H\fR, \fB\-L\fR, and \fB\-l\fR.
@@ -255,19 +258,19 @@ buffered when standard output is a terminal and block buffered
 otherwise.
 .TP
 \fB\-M\fR \fIMAGIC\fR, \fB\-\-file\-magic\fR=\fIMAGIC\fR
-Only files matching the signature pattern `MAGIC' are searched.
-The signature "magic bytes" at the start of a file are compared
-to the `MAGIC' regex pattern.  When matching, the file will be
+Only files matching the signature pattern MAGIC are searched.  The
+signature "magic bytes" at the start of a file are compared to
+the `MAGIC' regex pattern.  When matching, the file will be
 searched.  This option may be repeated and may be combined with
 options \fB\-O\fR and \fB\-t\fR to expand the search.  This option is relatively
-slow as every file on the search path is read to compare `MAGIC'.
+slow as every file on the search path is read to compare MAGIC.
 .TP
 \fB\-m\fR \fINUM\fR, \fB\-\-max\-count\fR=\fINUM\fR
 Stop reading the input after NUM matches for each file processed.
 .TP
 \fB\-\-max\-depth\fR=\fINUM\fR
 Restrict recursive search to NUM (NUM > 0) directories deep, where
-\fB\-\-max\-depth\fR=\fI\fR1 searches the specified path without visiting
+\fB\-\-max\-depth\fR=1 searches the specified path without visiting
 sub\-directories.  By comparison, \fB\-d\fRskip skips all directories even
 when they are on the command line.
 .TP
@@ -300,7 +303,7 @@ are used under certain conditions to improve performance.
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
 Search only files whose file name extensions match the specified
 comma\-separated list of file name EXTENSIONS.  This option is the
-same as specifying \fB\-\-include\fR=\fI\fR'*.ext' for each extension name `ext'
+same as specifying \fB\-\-include\fR='*.ext' for each extension name `ext'
 in the EXTENSIONS list.  This option may be repeated and may be
 combined with options \fB\-M\fR and \fB\-t\fR to expand the search.
 .TP
@@ -317,10 +320,10 @@ Interpret PATTERN as a Perl regular expression.
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
 they are on the command line.
 .TP
-\fB\-\-pager\fR[=\fI\fR\fICOMMAND\fR]
-When output is sent to the terminal, uses `COMMAND' to page through
+\fB\-\-pager\fR[=\fICOMMAND\fR]
+When output is sent to the terminal, uses COMMAND to page through
 the output.  The default COMMAND is `less \fB\-R\fR'.  This option makes
-\fB\-\-color\fR=\fI\fRauto behave as \fB\-\-color\fR=\fI\fRalways.  Enables \fB\-\-break\fR.
+\fB\-\-color\fR=auto behave as \fB\-\-color\fR=always.  Enables \fB\-\-break\fR.
 .TP
 \fB\-Q\fR \fIENCODING\fR, \fB\-\-encoding\fR=\fIENCODING\fR
 The input file encoding.  The possible values of ENCODING can be:
@@ -405,7 +408,7 @@ patterns.
 .TP
 \fB\-W\fR, \fB\-\-with\-hex\fR
 Only output binary matches in hexadecimal, leaving text matches
-alone.  This option is equivalent to the \fB\-\-binary\-files\fR=\fI\fRwith\-hex
+alone.  This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex
 option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
@@ -415,7 +418,7 @@ specified, then this option does not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
-\fB\-\-binary\-files\fR=\fI\fRhex option.
+\fB\-\-binary\-files\fR=hex option.
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire PATTERN or \fB\-e\fR \fIPATTERN\fR
@@ -443,10 +446,10 @@ Prints a zero\-byte after the file name.
 \fB\-z\fR, \fB\-\-decompress\fR
 Search zlib\-compressed (.gz) files.
 .PP
-If no FILE arguments are specified, or if a `-' is specified, the standard
-input is used, unless recursive searches are specified which examine the
-working directory.  Use `--' before the FILE arguments to allow file and
-directory names to start with a `-'.
+If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
+standard input is used, unless recursive searches are specified which examine
+the working directory.  Use `--' before the \fIFILE\fR arguments to allow file
+and directory names to start with a `-'.
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
@@ -465,8 +468,8 @@ No lines were selected.
 .IP >1
 An error occurred.
 .PP
-If -q or --quiet or --silent is used and a line is selected, the exit status is
-0 even if an error occurred.
+If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
+the exit status is 0 even if an error occurred.
 .SH GLOBBING
 Globbing is used by options \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,

@@ -819,16 +819,25 @@ class AbstractMatcher {
   {
     if (chr_ == '\n' || txt_[len_] == '\n')
       return txt_ + len_;
-    while (pos_ < end_ || wrap())
+    while (true)
     {
-      char *s = static_cast<char*>(std::memchr(buf_ + pos_, '\n', end_ - pos_));
-      if (s != NULL)
-        return s;
+      if (pos_ < end_)
+      {
+        char *s = static_cast<char*>(std::memchr(buf_ + pos_, '\n', end_ - pos_));
+        if (s != NULL)
+          return s;
+      }
+      if (eof_)
+        break;
       (void)grow();
       pos_ = end_;
       end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
+      if (pos_ >= end_ && !wrap())
+      {
+        eof_ = true;
+        break;
+      }
     }
-    eof_ = true;
     return buf_ + end_;
   }
   /// Returns the byte offset of the match from the start of the line.
@@ -873,7 +882,7 @@ class AbstractMatcher {
   }
 #endif
   /// Skip input until the specified character is consumed or EOF is reached.
-  void skip(int c)
+  bool skip(int c)
   {
     DBGLOG("AbstractMatcher::skip()");
     reset_text();
@@ -884,7 +893,7 @@ class AbstractMatcher {
       {
         len_ = 1;
         set_current(txt_ - buf_ + 1);
-        return;
+        return true;
       }
       pos_ = cur_ = end_;
       txt_ = buf_ + end_;
@@ -898,6 +907,7 @@ class AbstractMatcher {
     }
     len_ = 0;
     set_current(end_);
+    return false;
   }
   /// Fetch the rest of the input as text, useful for searching/splitting up to n times after which the rest is needed.
   const char *rest()
@@ -1070,6 +1080,12 @@ class AbstractMatcher {
       return false;
 #if defined(WITH_SPAN)
     update();
+    if (bol_ + Const::BLOCK < txt_)
+    {
+      // this line is very long, likely a binary file, so shift to the match instead of bol
+      DBGLOG("Line in buffer to long to shift, moving bol position to text match position minus %zu", Const::BLOCK);
+      bol_ = txt_ - Const::BLOCK;
+    }
     size_t gap = bol_ - buf_;
     cur_ -= gap;
     ind_ -= gap;
@@ -1098,6 +1114,7 @@ class AbstractMatcher {
       std::memcpy(newbuf, bol_, end_);
       delete[] buf_;
 #endif
+      txt_ = newbuf + (txt_ - buf_);
       lpb_ = newbuf + (lpb_ - buf_);
       buf_ = newbuf;
     }
