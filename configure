@@ -739,6 +739,8 @@ enable_silent_rules
 with_boost_regex
 enable_dependency_tracking
 with_zlib
+with_bzlib
+with_lzma
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1387,6 +1389,12 @@ Optional Packages:
   --with-zlib=DIR         root directory path of zlib installation [defaults to
                           /usr/local or /usr if not found in /usr/local]
   --without-zlib          to disable zlib usage completely
+  --with-bzlib=DIR        root directory path of bzlib installation [defaults to
+                          /usr/local or /usr if not found in /usr/local]
+  --without-bzlib         to disable bzlib usage completely
+  --with-lzma=DIR         root directory path of lzma installation [defaults to
+                          /usr/local or /usr if not found in /usr/local]
+  --without-lzma          to disable lzma usage completely
 
 Some influential environment variables:
   CC          C compiler command
@@ -4903,8 +4911,273 @@ $as_echo "#define HAVE_LIBZ 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo 'zlib not found: option -z, --decompress disabled'
+    echo "libz not found: option -z, --decompress disabled"
+  fi
+fi
 
+
+#
+# Handle user hints
+#
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if bzlib is wanted" >&5
+$as_echo_n "checking if bzlib is wanted... " >&6; }
+bzlib_places="/usr/local /usr /opt/local /sw"
+
+# Check whether --with-bzlib was given.
+if test "${with_bzlib+set}" = set; then :
+  withval=$with_bzlib; if test "$withval" != no ; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  if test -d "$withval"
+  then
+    bzlib_places="$withval $bzlib_places"
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
+$as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
+  fi
+else
+  bzlib_places=
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+fi
+
+
+#
+# Locate bzlib, if wanted
+#
+if test -n "${bzlib_places}"
+then
+	# check the user supplied or any other more or less 'standard' place:
+	#   Most UNIX systems      : /usr/local and /usr
+	#   MacPorts / Fink on OSX : /opt/local respectively /sw
+	for BZLIB_HOME in ${bzlib_places} ; do
+	  if test -f "${BZLIB_HOME}/include/bzlib.h"; then break; fi
+	  BZLIB_HOME=""
+	done
+
+  BZLIB_OLD_LDFLAGS=$LDFLAGS
+  BZLIB_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${BZLIB_HOME}"; then
+        LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
+        CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
+  fi
+  ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BZ2_bzRead in -lbz2" >&5
+$as_echo_n "checking for BZ2_bzRead in -lbz2... " >&6; }
+if ${ac_cv_lib_bz2_BZ2_bzRead+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbz2  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char BZ2_bzRead ();
+int
+main ()
+{
+return BZ2_bzRead ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_bz2_BZ2_bzRead=yes
+else
+  ac_cv_lib_bz2_BZ2_bzRead=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bz2_BZ2_bzRead" >&5
+$as_echo "$ac_cv_lib_bz2_BZ2_bzRead" >&6; }
+if test "x$ac_cv_lib_bz2_BZ2_bzRead" = xyes; then :
+  bzlib_cv_libbz2=yes
+else
+  bzlib_cv_libbz2=no
+fi
+
+  ac_fn_c_check_header_mongrel "$LINENO" "bzlib.h" "ac_cv_header_bzlib_h" "$ac_includes_default"
+if test "x$ac_cv_header_bzlib_h" = xyes; then :
+  bzlib_cv_bzlib_h=yes
+else
+  bzlib_cv_bzlib_h=no
+fi
+
+
+  ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  if test "$bzlib_cv_libbz2" = "yes" && test "$bzlib_cv_bzlib_h" = "yes"
+  then
+    #
+    # If both library and header were found, action-if-found
+    #
+
+                CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
+                LIBS="-lbz2 $LIBS"
+
+$as_echo "#define HAVE_LIBBZ2 1" >>confdefs.h
+
+
+  else
+    #
+    # If either header or library was not found, action-if-not-found
+    #
+    echo "libbz2 not found: option -z, --decompress won't decompress .bz and .bz2 files"
+  fi
+fi
+
+
+#
+# Handle user hints
+#
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if lzma is wanted" >&5
+$as_echo_n "checking if lzma is wanted... " >&6; }
+lzma_places="/usr/local /usr /opt/local /sw"
+
+# Check whether --with-lzma was given.
+if test "${with_lzma+set}" = set; then :
+  withval=$with_lzma; if test "$withval" != no ; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  if test -d "$withval"
+  then
+    lzma_places="$withval $lzma_places"
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
+$as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
+  fi
+else
+  lzma_places=
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+fi
+
+
+#
+# Locate lzma, if wanted
+#
+if test -n "${lzma_places}"
+then
+	# check the user supplied or any other more or less 'standard' place:
+	#   Most UNIX systems      : /usr/local and /usr
+	#   MacPorts / Fink on OSX : /opt/local respectively /sw
+	for LZMA_HOME in ${lzma_places} ; do
+	  if test -f "${LZMA_HOME}/include/lzma.h"; then break; fi
+	  LZMA_HOME=""
+	done
+
+  LZMA_OLD_LDFLAGS=$LDFLAGS
+  LZMA_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${LZMA_HOME}"; then
+        LDFLAGS="$LDFLAGS -L${LZMA_HOME}/lib"
+        CPPFLAGS="$CPPFLAGS -I${LZMA_HOME}/include"
+  fi
+  ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for lzma_code in -llzma" >&5
+$as_echo_n "checking for lzma_code in -llzma... " >&6; }
+if ${ac_cv_lib_lzma_lzma_code+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-llzma  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char lzma_code ();
+int
+main ()
+{
+return lzma_code ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_lzma_lzma_code=yes
+else
+  ac_cv_lib_lzma_lzma_code=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lzma_lzma_code" >&5
+$as_echo "$ac_cv_lib_lzma_lzma_code" >&6; }
+if test "x$ac_cv_lib_lzma_lzma_code" = xyes; then :
+  lzma_cv_liblzma=yes
+else
+  lzma_cv_liblzma=no
+fi
+
+  ac_fn_c_check_header_mongrel "$LINENO" "lzma.h" "ac_cv_header_lzma_h" "$ac_includes_default"
+if test "x$ac_cv_header_lzma_h" = xyes; then :
+  lzma_cv_lzma_h=yes
+else
+  lzma_cv_lzma_h=no
+fi
+
+
+  ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  if test "$lzma_cv_liblzma" = "yes" && test "$lzma_cv_lzma_h" = "yes"
+  then
+    #
+    # If both library and header were found, action-if-found
+    #
+
+                CPPFLAGS="$CPPFLAGS -I${LZMA_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${LZMA_HOME}/lib"
+                LIBS="-llzma $LIBS"
+
+$as_echo "#define HAVE_LIBLZMA 1" >>confdefs.h
+
+
+  else
+    #
+    # If either header or library was not found, action-if-not-found
+    #
+    echo "liblzma not found: option -z, --decompress won't decompress .lzma and .xz files"
   fi
 fi
 

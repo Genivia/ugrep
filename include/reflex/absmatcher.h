@@ -878,6 +878,8 @@ class AbstractMatcher {
     DBGLOG("AbstractMatcher::wline()");
     const char *e = eol(); // warning: must call eol() before bol()
     const char *b = bol();
+    while (b < e && (*b & 0xC0) == 0x80) // make sure we advance forward to valid UTF-8
+      ++b;
     return wcs(b, e - b);
   }
 #endif

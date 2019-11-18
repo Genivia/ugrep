@@ -28,7 +28,7 @@
 
 /**
 @file      zstream.hpp
-@brief     file decompression
+@brief     file decompression streams
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -38,55 +38,337 @@
 #define ZSTREAM_H
 
 #include <cstdio>
-#include <streambuf>
 #include <cstring>
+#include <inttypes.h>
+#include <streambuf>
 #include <zlib.h>
+
+#ifdef HAVE_LIBBZ2
+#include <bzlib.h>
+#endif
+
+#ifdef HAVE_LIBLZMA
+#include <lzma.h>
+#endif
 
 #ifndef Z_BUF_LEN
 #define Z_BUF_LEN (65536)
 #endif
 
+extern void cannot_decompress(const char *pathname, const char *message);
+extern void warning(const char *message, const char *arg);
+
 class zstreambuf : public std::streambuf {
+
  public:
-  zstreambuf(FILE *file)
+
+  // bzlib file handle
+  typedef void *bzFile;
+
+#ifdef HAVE_LIBBZ2
+
+  // return true if pathname has a bzlib file extension
+  static bool is_bz(const char *pathname)
+  {
+    return has_ext(pathname, ".bz.bz2.bzip2.tbz.tbz2");
+  }
+
+#endif
+
+#ifdef HAVE_LIBLZMA
+
+  // lzma file handle
+  typedef struct XZ {
+    XZ(FILE *file)
+      :
+        file(file),
+        strm(LZMA_STREAM_INIT),
+        zlen(),
+        finished()
+    { }
+    ~XZ()
+    {
+      lzma_end(&strm);
+    }
+    FILE         *file;
+    lzma_stream   strm;
+    unsigned char zbuf[Z_BUF_LEN];
+    size_t        zlen;
+    bool          finished;
+  } *xzFile;
+
+  // return true if pathname has a lzma file extension
+  static bool is_xz(const char *pathname)
+  {
+    return has_ext(pathname, ".lzma.xz.tlz.txz");
+  }
+
+#else
+
+  typedef void *xzFile;
+
+#endif
+
+  // check if pathname file extension matches on of the given file extensions
+  static bool has_ext(const char *pathname, const char *extensions)
+  {
+    const char *dot = strrchr(pathname, '.');
+    if (dot == NULL)
+      return false;
+    const char *match = strstr(extensions, dot);
+    if (match == NULL)
+      return false;
+    size_t end = strlen(dot);
+    if (match + end > extensions + strlen(extensions))
+      return false;
+    return match[end] == '.' || match[end] == '\0';
+  }
+
+  // constructor
+  zstreambuf(const char *pathname, FILE *file)
     :
+      pathname_(pathname),
+      gzfile_(Z_NULL),
+      bzfile_(NULL),
+      xzfile_(NULL),
       cur_(),
       len_()
   {
-    int fd = dup(fileno(file));
-    gzfile_ = gzdopen(fd, "r");
-    if (gzfile_ != Z_NULL)
-      gzbuffer(gzfile_, Z_BUF_LEN);
+#ifdef HAVE_LIBBZ2
+    if (is_bz(pathname))
+    {
+      // open bzlib compressed file
+      int err = 0;
+      if ((bzfile_ = BZ2_bzReadOpen(&err, file, 0, 0, NULL, 0)) == NULL || err != BZ_OK)
+      {
+        warning("BZ2_bzReadOpen error", pathname);
+
+        bzfile_ = NULL;
+      }
+    }
     else
-      perror("ugrep: zlib open error ");
+#endif
+#ifdef HAVE_LIBLZMA
+    if (is_xz(pathname))
+    {
+      // open lzma compressed file
+      xzfile_ = new XZ(file);
+      lzma_ret ret = lzma_stream_decoder(&xzfile_->strm, UINT64_MAX, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
+      if (ret != LZMA_OK)
+      {
+        warning("lzma_stream_decoder error", pathname);
+
+        delete xzfile_;
+        xzfile_ = NULL;
+      }
+    }
+    else
+#endif
+    {
+      // open zlib compressed file
+      int fd = dup(fileno(file));
+      if (fd >= 0 && (gzfile_ = gzdopen(fd, "r")) != Z_NULL)
+      {
+        gzbuffer(gzfile_, Z_BUF_LEN);
+      }
+      else
+      {
+        warning("gzdopen error", pathname);
+
+        if (fd >= 0)
+          close(fd);
+      }
+    }
   }
+
+  // destructor
   virtual ~zstreambuf()
   {
-    if (gzfile_ != Z_NULL)
-      gzclose_r(gzfile_);
+#ifdef HAVE_LIBBZ2
+    if (bzfile_ != NULL)
+    {
+      // close bzlib compressed file
+      int err = 0;
+      BZ2_bzReadClose(&err, bzfile_);
+    }
+    else
+#endif
+#ifdef HAVE_LIBLZMA
+    if (xzfile_ != NULL)
+    {
+      // close lzma compressed file
+      delete xzfile_;
+    }
+    else
+#endif
+    {
+      // close zlib compressed file
+      if (gzfile_ != Z_NULL)
+        gzclose_r(gzfile_);
+    }
   }
+
  protected:
-  int_type underflow()
+
+  // read() PEEK constant argument
+  static const bool PEEK = true;
+
+  // read a decompressed block into buf_[], returns next character or EOF, PEEK argument to peek at next character instead of reading it
+  int_type read(bool peek = false)
   {
-    return cur_ < len_ ? buf_[cur_] : peek();
+#ifdef HAVE_LIBBZ2
+    if (bzfile_ != NULL)
+    {
+      cur_ = 0;
+
+      // decompress a bzlib compressed block into buf_[]
+      int err = 0;
+      len_ = BZ2_bzRead(&err, bzfile_, buf_, Z_BUF_LEN);
+
+      // an error occurred?
+      if (err != BZ_OK && err != BZ_STREAM_END)
+      {
+        const char *message = "an unspecified bz2 error occurred";
+
+        if (err == BZ_DATA_ERROR || err == BZ_DATA_ERROR_MAGIC)
+          message = "an error was detected in the compressed data";
+        else if (err == BZ_UNEXPECTED_EOF)
+          message = "compressed data ends unexpectedly";
+        cannot_decompress(pathname_, message);
+
+        len_ = 0;
+      }
+
+      // decompressed the last block?
+      if (len_ <= 0 || err == BZ_STREAM_END)
+      {
+        BZ2_bzReadClose(&err, bzfile_);
+
+        bzfile_ = NULL;
+      }
+    }
+    else
+#endif
+#ifdef HAVE_LIBLZMA
+    if (xzfile_ != NULL)
+    {
+      cur_ = 0;
+      len_ = 0;
+
+      lzma_ret ret = LZMA_OK;
+
+      // decompress non-empty xzfile_->zbuf[] into buf_[]
+      if (xzfile_->strm.avail_in > 0 && xzfile_->strm.avail_out == 0)
+      {
+        xzfile_->strm.next_out = buf_;
+        xzfile_->strm.avail_out = Z_BUF_LEN;
+
+        ret = lzma_code(&xzfile_->strm, xzfile_->finished ? LZMA_FINISH : LZMA_RUN);
+
+        if (ret != LZMA_OK && ret != LZMA_STREAM_END)
+          cannot_decompress(pathname_, "an error was detected in the compressed data");
+        else
+          len_ = Z_BUF_LEN - xzfile_->strm.avail_out;
+      }
+
+      // read compressed data into xzfile_->zbuf[] and decompress xzfile_->buf[] into buf_[]
+      if (len_ == 0 && (ret == LZMA_OK || ret == LZMA_STREAM_END) && !xzfile_->finished)
+      {
+        xzfile_->zlen = fread(xzfile_->zbuf, 1, Z_BUF_LEN, xzfile_->file);
+
+        if (ferror(xzfile_->file))
+        {
+          warning("cannot read", pathname_);
+        }
+        else
+        {
+          if (feof(xzfile_->file))
+            xzfile_->finished = true;
+
+          xzfile_->strm.next_in = xzfile_->zbuf;
+          xzfile_->strm.avail_in = xzfile_->zlen;
+
+          xzfile_->strm.next_out = buf_;
+          xzfile_->strm.avail_out = Z_BUF_LEN;
+
+          ret = lzma_code(&xzfile_->strm, xzfile_->finished ? LZMA_FINISH : LZMA_RUN);
+
+          if (ret != LZMA_OK && ret != LZMA_STREAM_END)
+            cannot_decompress(pathname_, "an error was detected in the compressed data");
+          else
+            len_ = Z_BUF_LEN - xzfile_->strm.avail_out;
+        }
+      }
+
+      // decompressed the last block or there was an error?
+      if (len_ <= 0 || ret == LZMA_STREAM_END)
+      {
+        delete xzfile_;
+        xzfile_ = NULL;
+      }
+    }
+    else
+#endif
+    {
+      if (gzfile_ == Z_NULL)
+        return traits_type::eof();
+
+      cur_ = 0;
+
+      // decompress a zlib compressed block into buf_[]
+      len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
+
+      // an error occurred?
+      if (len_ < 0)
+      {
+        int err;
+        const char *message = gzerror(gzfile_, &err);
+
+        if (err == Z_ERRNO)
+          warning("cannot read", pathname_);
+        else
+          cannot_decompress(pathname_, message);
+
+        len_ = 0;
+      }
+
+      // decompressed the last block?
+      if (len_ < Z_BUF_LEN)
+      {
+        gzclose_r(gzfile_);
+        gzfile_ = Z_NULL;
+      }
+    }
+
+    return len_ > 0 ? traits_type::to_int_type(buf_[peek ? cur_ : cur_++]) : traits_type::eof();
   }
-  int_type uflow()
+
+  // std::streambuf::underflow()
+  int_type underflow() override
+  {
+    return cur_ < len_ ? buf_[cur_] : read(PEEK);
+  }
+
+  // std::streambuf::uflow()
+  int_type uflow() override
   {
     return cur_ < len_ ? buf_[cur_++] : read();
   }
-  std::streamsize showmanyc()
+
+  // std::streambuf::showmanyc()
+  std::streamsize showmanyc() override
   {
-    return gzfile_ == Z_NULL ? -1 : 0;
+    return gzfile_ == Z_NULL && bzfile_ == NULL && cur_ >= len_ ? -1 : 0;
   }
-  std::streamsize xsgetn(char *s, std::streamsize n)
+
+  // std::streambuf::xsgetn(s, n)
+  std::streamsize xsgetn(char *s, std::streamsize n) override
   {
-    if (gzfile_ == Z_NULL)
-      return 0;
     std::streamsize k = n;
     while (k > 0)
     {
       if (cur_ >= len_)
-        if (peek() == traits_type::eof())
+        if (read(PEEK) == traits_type::eof())
           return n - k;
       if (k <= len_ - cur_)
       {
@@ -101,49 +383,12 @@ class zstreambuf : public std::streambuf {
     }
     return n;
   }
-  int_type peek()
-  {
-    if (gzfile_ == Z_NULL)
-      return traits_type::eof();
-    cur_ = 0;
-    len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
-    if (len_ <= 0)
-    {
-      close();
-      return traits_type::eof();
-    }
-    return traits_type::to_int_type(buf_[cur_]);
-  }
-  int_type read()
-  {
-    if (gzfile_ == Z_NULL)
-      return traits_type::eof();
-    cur_ = 0;
-    len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
-    if (len_ <= 0)
-    {
-      close();
-      return traits_type::eof();
-    }
-    return traits_type::to_int_type(buf_[cur_++]);
-  }
-  void close()
-  {
-    if (!gzeof(gzfile_))
-    {
-      int err;
-      gzerror(gzfile_, &err);
-      if (err == Z_ERRNO)
-        perror("ugrep: zlib read error");
-      else
-        fprintf(stderr, "ugrep: zlib decompression error\n");
-    }
-    gzclose_r(gzfile_);
-    gzfile_ = Z_NULL;
-    len_ = 0;
-  }
-  gzFile gzfile_;
-  unsigned char buf_[Z_BUF_LEN];
+
+  const char     *pathname_;
+  gzFile          gzfile_;
+  bzFile          bzfile_;
+  xzFile          xzfile_;
+  unsigned char   buf_[Z_BUF_LEN];
   std::streamsize cur_;
   std::streamsize len_;
 };

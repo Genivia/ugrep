@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 12, 2019" "ugrep 1.5.10" "User Commands"
+.TH UGREP "1" "November 18, 2019" "ugrep 1.5.11" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -412,7 +412,7 @@ alone.  This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex
 option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
-The PATTERN or \fB\-e\fR \fIPATTERN\fR are searched for as a word (as if
+The PATTERN or \fB\-e\fR \fIPATTERN\fR is searched for as a word (as if
 surrounded by \\< and \\>).  If PATTERN or \fB\-e\fR \fIPATTERN\fR is also
 specified, then this option does not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
@@ -422,7 +422,7 @@ Output matches in hexadecimal.  This option is equivalent to the
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire PATTERN or \fB\-e\fR \fIPATTERN\fR
-are considered to be matching lines (as if surrounded by ^ and $).
+is considered to be matching lines (as if surrounded by ^ and $).
 If PATTERN or \fB\-e\fR \fIPATTERN\fR is also specified, then this option does
 not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
@@ -444,7 +444,9 @@ See also the \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR options.
 Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
-Search zlib\-compressed (.gz) files.
+Decompress files to search, when compressed.  If \fB\-O\fR or \fB\-t\fR is
+specified, also searches compressed files with matching extensions.
+Supports compression formats .gz, .bz, .bz2, .bzip2, .lzma, .xz.
 .PP
 If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
 standard input is used, unless recursive searches are specified which examine

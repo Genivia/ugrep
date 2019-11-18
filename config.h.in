@@ -13,6 +13,12 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have `bz2' library (-lbz2) */
+#undef HAVE_LIBBZ2
+
+/* Define to 1 if you have `lzma' library (-llzma) */
+#undef HAVE_LIBLZMA
+
 /* Define to 1 if you have `z' library (-lz) */
 #undef HAVE_LIBZ
 

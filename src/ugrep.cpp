@@ -90,10 +90,12 @@ Prebuilt executables are located in ugrep/bin.
 
 #include "glob.hpp"
 
-// option: use a thread to decompress the stream into a pipe to search, for greater speed
-// TODO option disabled for now because of an issue (with pipe()?) that may result in gzread() blocking randomly
-// TODO this option may get suboptimal when the cost of the extra threads added exceeds hardware parallelism
-// #define WITH_LIBZ_THREAD
+// use a task-parallel thread to decompress the stream into a pipe to search, increases speed on most systems
+#define WITH_DECOMPRESSION_THREAD
+
+// optional: specify an optimal decompression block size, reverts to default 65536 when not specified
+// #define Z_BUF_LEN 16384
+// #define Z_BUF_LEN 32768
 
 // check if we are compiling for a windows OS
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
@@ -147,7 +149,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.10"
+#define UGREP_VERSION "1.5.11"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -167,7 +169,7 @@ Prebuilt executables are located in ugrep/bin.
 #define MAX_JOBS 16U
 
 // a hard limit on the recursive search depth
-// TODO use iteration and a stack for virtually unlimited depth
+// TODO use iteration and a stack for virtually unlimited depth, but isn't 100 levels deep not sufficient?
 #define MAX_DEPTH 100
 
 // --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, smaller values result in higher job stealing rates, should not be less than 3
@@ -326,12 +328,13 @@ std::vector<std::string> flag_exclude_override_dir;
 void set_color(const char *grep_colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
 bool is_output(ino_t inode);
-size_t strtopos(const char *s, const char *msg);
+size_t strtopos(const char *string, const char *message);
 
 void format(const char *format, size_t matches);
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
-void warning_is_directory(const char *pathname);
+void is_directory(const char *pathname);
+void cannot_decompress(const char *pathname, const char *message);
 void warning(const char *message, const char *arg);
 void error(const char *message, const char *arg);
 void abort(const char *message, const std::string& what);
@@ -442,7 +445,8 @@ inline bool is_binary(const char *s, size_t n)
     {
       if ((*s & 0xc0) == 0x80)
         return true;
-    } while ((*s & 0xc0) != 0xc0 && ++s < e);
+    }
+    while ((*s & 0xc0) != 0xc0 && ++s < e);
 
     if (s >= e)
       return false;
@@ -1740,7 +1744,7 @@ void Output::xml(const char *data, size_t size)
   str(t, s - t);
 }
 
-// grep manages output, matcher, and input
+// grep manages output, matcher, input, and decompression
 struct Grep {
 
   Grep(FILE *file, reflex::AbstractMatcher *matcher)
@@ -1763,29 +1767,26 @@ struct Grep {
     if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
     {
       warning("cannot read", pathname);
+
       return false;
     }
 
 #ifdef HAVE_LIBZ
-
     if (flag_decompress)
     {
-      streambuf = new zstreambuf(file);
-      stream = new std::istream(streambuf);
-
-#ifdef WITH_LIBZ_THREAD
+#ifdef WITH_DECOMPRESSION_THREAD
 
       pipe_fd[0] = -1;
       pipe_fd[1] = -1;
 
-      FILE *pip = NULL;
+      FILE *pipe_in = NULL;
 
-      // open pipe between worker and decompression thread
-      if (pipe(pipe_fd) == 0 && (pip = fdopen(pipe_fd[0], "r")) != NULL)
+      // open pipe between worker and decompression thread, then start decompression thread
+      if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "r")) != NULL)
       {
-        thread = std::thread(&Grep::decompress, this);
+        thread = std::thread(&Grep::decompress, pathname, file, pipe_fd[1]);
 
-        input = reflex::Input(pip, flag_encoding_type);
+        input = reflex::Input(pipe_in, flag_encoding_type);
       }
       else
       {
@@ -1797,20 +1798,21 @@ struct Grep {
           pipe_fd[1] = -1;
         }
 
+        streambuf = new zstreambuf(pathname, file);
+        stream = new std::istream(streambuf);
         input = stream;
       }
 
 #else
 
+      streambuf = new zstreambuf(pathname, file);
+      stream = new std::istream(streambuf);
       input = stream;
 
 #endif
-
     }
     else
-
 #endif
-
     {
       input = reflex::Input(file, flag_encoding_type);
     }
@@ -1819,33 +1821,175 @@ struct Grep {
   }
 
 #ifdef HAVE_LIBZ
-#ifdef WITH_LIBZ_THREAD
+#ifdef WITH_DECOMPRESSION_THREAD
 
   // decompression thread
-  void decompress()
+  static void decompress(const char *pathname, FILE *file, int pipe_out)
   {
-    char buf[Z_BUF_LEN]; // matches zstream buffer size
+    unsigned char buf[Z_BUF_LEN];
 
-    while (true)
+#ifdef HAVE_LIBBZ2
+    if (zstreambuf::is_bz(pathname))
     {
-      std::streamsize len = stream->read(buf, Z_BUF_LEN).gcount();
+      void *bzfile = NULL;
+      int err = 0;
 
-      // no data, EOF, or error?
-      if (len <= 0)
-        break;
+      if ((bzfile = BZ2_bzReadOpen(&err, file, 0, 0, NULL, 0)) != NULL && err == BZ_OK)
+      {
+        while (true)
+        {
+          int len = BZ2_bzRead(&err, bzfile, buf, Z_BUF_LEN);
 
-      // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-      if (write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
-        break;
+          // an error occurred?
+          if (err != BZ_OK && err != BZ_STREAM_END)
+          {
+            const char *message = "an unspecified bz2 error occurred";
 
-      // if last read returned less than buf[] size, then EOF is reached
-      if (len < Z_BUF_LEN)
-        break;
+            if (err == BZ_DATA_ERROR || err == BZ_DATA_ERROR_MAGIC)
+              message = "an error was detected in the compressed data";
+            else if (err == BZ_UNEXPECTED_EOF)
+              message = "compressed data ends unexpectedly";
+            cannot_decompress(pathname, message);
+
+            break;
+          }
+
+          // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
+          if (write(pipe_out, buf, static_cast<size_t>(len)) < 0)
+            break;
+
+          // no more data?
+          if (err == BZ_STREAM_END)
+            break;
+        }
+
+        BZ2_bzReadClose(&err, bzfile);
+      }
+      else
+      {
+        warning("BZ2_bzReadOpen error", pathname);
+      }
+    }
+    else
+#endif
+#ifdef HAVE_LIBLZMA
+    if (zstreambuf::is_xz(pathname))
+    {
+      lzma_stream  strm = LZMA_STREAM_INIT;
+      lzma_ret ret = lzma_stream_decoder(&strm, UINT64_MAX, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
+      if (ret == LZMA_OK)
+      {
+        unsigned char zbuf[Z_BUF_LEN];
+        bool finished = false;
+
+        do
+        {
+          size_t zlen = fread(zbuf, 1, Z_BUF_LEN, file);
+
+          if (ferror(file))
+          {
+            warning("cannot read", pathname);
+
+            break;
+          }
+
+          if (feof(file))
+            finished = true;
+
+          strm.next_in = zbuf;
+          strm.avail_in = zlen;
+
+          do
+          {
+            strm.next_out = buf;
+            strm.avail_out = Z_BUF_LEN;
+
+            ret = lzma_code(&strm, finished ? LZMA_FINISH : LZMA_RUN);
+
+            if (ret != LZMA_OK && ret != LZMA_STREAM_END)
+            {
+              cannot_decompress(pathname, "an error was detected in the compressed data");
+
+              finished = true;
+
+              break;
+            }
+
+            // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
+            if (write(pipe_out, buf, Z_BUF_LEN - strm.avail_out) < 0)
+            {
+              finished = true;
+
+              break;
+            }
+
+          }
+          while (strm.avail_out == 0);
+
+        }
+        while (!finished);
+
+        lzma_end(&strm);
+      }
+      else
+      {
+        warning("lzma_stream_decoder error", pathname);
+      }
+    }
+    else
+#endif
+    {
+      gzFile gzfile = Z_NULL;
+      int fd = dup(fileno(file));
+
+      if (fd >= 0 && (gzfile = gzdopen(fd, "r")) != Z_NULL)
+      {
+        gzbuffer(gzfile, Z_BUF_LEN);
+
+        while (true)
+        {
+          int len = gzread(gzfile, buf, Z_BUF_LEN);
+
+          // EOF or error?
+          if (len <= 0)
+          {
+            // error?
+            if (len < 0)
+            {
+              int err;
+              const char *message = gzerror(gzfile, &err);
+
+              if (err == Z_ERRNO)
+                warning("cannot read", pathname);
+              else
+                cannot_decompress(pathname, message);
+            }
+
+            break;
+          }
+
+          // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
+          if (write(pipe_out, buf, static_cast<size_t>(len)) < 0)
+            break;
+
+          // no more data?
+          if (len < Z_BUF_LEN)
+            break;
+        }
+
+        gzclose_r(gzfile);
+      }
+      else
+      {
+        warning("gzdopen error", pathname);
+
+        if (fd >= 0)
+          close(fd);
+      }
     }
 
     // close our end of the pipe
-    close(pipe_fd[1]);
-    pipe_fd[1] = -1;
+    close(pipe_out);
   }
 
 #endif
@@ -1857,20 +2001,22 @@ struct Grep {
 
 #ifdef HAVE_LIBZ
 
-#ifdef WITH_LIBZ_THREAD
-    if (pipe_fd[0] != -1)
-    {
-      // close the pipe, forcing decompression thread to terminate if not terminated already
-      close(pipe_fd[0]);
-      pipe_fd[0] = -1;
+#ifdef WITH_DECOMPRESSION_THREAD
 
+    if (flag_decompress && pipe_fd[0] != -1)
+    {
       // close the FILE* pipe created with fdopen()
       if (input.file() != NULL)
         fclose(input.file());
 
+      // pipe is no longer in use and closed on both sides
+      pipe_fd[0] = -1;
+      pipe_fd[1] = -1;
+
       // join the decompression thread
       thread.join();
     }
+
 #endif
 
     if (streambuf != NULL)
@@ -1937,7 +2083,7 @@ struct Grep {
 #ifdef HAVE_LIBZ
   std::istream            *stream;     // the current input stream ...
   zstreambuf              *streambuf;  // of the compressed file
-#ifdef WITH_LIBZ_THREAD
+#ifdef WITH_DECOMPRESSION_THREAD
   std::thread              thread;     // decompression thread
   int                      pipe_fd[2]; // decompressed stream pipe
 #endif
@@ -1990,7 +2136,7 @@ struct GrepMaster : public Grep {
   }
 
   // search a file by submitting it as a job to a worker
-  virtual void search(const char *pathname)
+  void search(const char *pathname) override
   {
     submit(pathname);
   }
@@ -3376,6 +3522,18 @@ int main(int argc, char **argv)
     }
 
     flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)));
+
+#ifdef HAVE_LIBZ
+    // -z: add globs to match compressed file extensions
+    if (flag_decompress)
+    {
+      static const char *zextensions[6] = { ".gz", ".bz", ".bz2", ".bzip2", ".lzma", ".xz" };
+
+      for (size_t i = 0; i < 6; ++i)
+        flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)).append(zextensions[i]));
+    }
+#endif
+
   }
 
   // -M: file signature "magic bytes" MAGIC regex
@@ -3820,7 +3978,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
     if (flag_directories_action == READ)
     {
       // directories cannot be read actually, so grep produces a warning message (errno is not set)
-      warning_is_directory(pathname);
+      is_directory(pathname);
       return;
     }
 
@@ -3884,7 +4042,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
     {
       FILE *file;
 
-      if (fopen_s(&file, pathname, flag_binary ? "rb" : "r") != 0)
+      if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
       {
         warning("cannot read", pathname);
         return;
@@ -3948,7 +4106,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
           if (flag_directories_action == READ)
           {
             // directories cannot be read actually, so grep produces a warning message (errno is not set)
-            warning_is_directory(pathname);
+            is_directory(pathname);
             return;
           }
 
@@ -4027,7 +4185,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
           {
             FILE *file;
 
-            if (fopen_s(&file, pathname, flag_binary ? "rb" : "r") != 0)
+            if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
             {
               warning("cannot read", pathname);
               return;
@@ -4036,7 +4194,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
 #ifdef HAVE_LIBZ
             if (flag_decompress)
             {
-              zstreambuf streambuf(file);
+              zstreambuf streambuf(pathname, file);
               std::istream stream(&streambuf);
 
               // file has the magic bytes we're looking for: search the file
@@ -4107,11 +4265,11 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
 // recurse over directory, searching for pattern matches in files and sub-directories
 void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname)
 {
-  // --max-depth: recursion level exceeds max depth?
+  // --max-depth: soft recursion level exceeds max depth?
   if (flag_max_depth > 0 && level > flag_max_depth)
     return;
 
-  // TODO replace recursion with iteration and stack to potentially allow unlimited depth
+  // hard maximum recursion depth?
   if (level > MAX_DEPTH)
   {
     if (!flag_no_messages)
@@ -4165,7 +4323,8 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
     }
-  } while (FindNextFileA(hFind, &ffd) != 0);
+  }
+  while (FindNextFileA(hFind, &ffd) != 0);
 
   FindClose(hFind);
 
@@ -5459,12 +5618,12 @@ void set_color(const char *grep_colors, const char *parameter, char color[COLORL
 }
 
 // convert unsigned decimal to positive size_t, produce error when conversion fails or when the value is zero
-size_t strtopos(const char *str, const char *msg)
+size_t strtopos(const char *string, const char *message)
 {
-  char *r = NULL;
-  size_t size = static_cast<size_t>(strtoull(str, &r, 10));
-  if (r == NULL || *r != '\0' || size == 0)
-    help(msg, str);
+  char *rest = NULL;
+  size_t size = static_cast<size_t>(strtoull(string, &rest, 10));
+  if (rest == NULL || *rest != '\0' || size == 0)
+    help(message, string);
   return size;
 }
 
@@ -5795,7 +5954,7 @@ void help(const char *message, const char *arg)
             alone.  This option is equivalent to the --binary-files=with-hex\n\
             option.\n\
     -w, --word-regexp\n\
-            The PATTERN or -e PATTERN are searched for as a word (as if\n\
+            The PATTERN or -e PATTERN is searched for as a word (as if\n\
             surrounded by \\< and \\>).  If PATTERN or -e PATTERN is also\n\
             specified, then this option does not apply to -f FILE patterns.\n\
     -X, --hex\n\
@@ -5803,7 +5962,7 @@ void help(const char *message, const char *arg)
             --binary-files=hex option.\n\
     -x, --line-regexp\n\
             Only input lines selected against the entire PATTERN or -e PATTERN\n\
-            are considered to be matching lines (as if surrounded by ^ and $).\n\
+            is considered to be matching lines (as if surrounded by ^ and $).\n\
             If PATTERN or -e PATTERN is also specified, then this option does\n\
             not apply to -f FILE patterns.\n\
     --xml\n\
@@ -5820,10 +5979,28 @@ void help(const char *message, const char *arg)
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n\
-            Search zlib-compressed (.gz) files.\n";
+            Decompress files to search, when compressed.  If -O or -t is\n\
+            specified, also searches compressed files with matching extensions.\n";
 #ifndef HAVE_LIBZ
   std::cout << "\
             This feature is not available in this version of ugrep.\n";
+#else
+  std::cout << "\
+            Supports compression ";
+#ifdef HAVE_LIBBZ2
+  std::cout << "formats .gz, .bz, .bz2, .bzip2";
+#ifdef HAVE_LIBLZMA
+  std::cout << ", .lzma, .xz.\n";
+#else
+  std::cout << ".\n";
+#endif
+#else
+#ifdef HAVE_LIBLZMA
+  std::cout << "formats .gz, .lzma, .xz.\n";
+#else
+  std::cout << "format .gz.\n";
+#endif
+#endif
 #endif
   std::cout << "\
 \n\
@@ -5852,7 +6029,7 @@ void version()
 }
 
 // print to standard error: ... is a directory if -q is not specified
-void warning_is_directory(const char *pathname)
+void is_directory(const char *pathname)
 {
   if (!flag_no_messages)
   {
@@ -5862,6 +6039,21 @@ void warning_is_directory(const char *pathname)
       fprintf(stderr, "ugrep: %s is a directory\n", pathname);
   }
 }
+
+#ifdef HAVE_LIBZ
+// print to standard error: cannot decompress message if -q is not specified
+void cannot_decompress(const char *pathname, const char *message)
+{
+  if (!flag_no_messages)
+  {
+    // use safe strerror_s() instead of strerror() when available
+    if (color_term && isatty(STDERR_FILENO))
+      fprintf(stderr, "\033[0mugrep: \033[1;35mwarning:\033[0m \033[1mcannot decompress %s:\033[0m \033[1;36m%s\033[0m\n", pathname, message);
+    else
+      fprintf(stderr, "ugrep: warning: cannot decompress %s: %s\n", pathname, message);
+  }
+}
+#endif
 
 // print to standard error: warning message if -q is not specified, assumes errno is set, like perror()
 void warning(const char *message, const char *arg)
@@ -5876,7 +6068,7 @@ void warning(const char *message, const char *arg)
     const char *errmsg = strerror(errno);
 #endif
     if (color_term && isatty(STDERR_FILENO))
-      fprintf(stderr, "\033[0mugrep: \033[1;35mwarning:\033[0m \033[1m%s %s:\033[0m\033[1;36m %s\033[0m\n", message, arg, errmsg);
+      fprintf(stderr, "\033[0mugrep: \033[1;35mwarning:\033[0m \033[1m%s %s:\033[0m \033[1;36m%s\033[0m\n", message, arg, errmsg);
     else
       fprintf(stderr, "ugrep: warning: %s %s: %s\n", message, arg, errmsg);
   }
@@ -5893,7 +6085,7 @@ void error(const char *message, const char *arg)
   const char *errmsg = strerror(errno);
 #endif
   if (color_term && isatty(STDERR_FILENO))
-    fprintf(stderr, "\033[0mugrep: \033[1;31merror:\033[0m \033[1m%s %s:\033[0m\033[1;36m %s\033[0m\n\n", message, arg, errmsg);
+    fprintf(stderr, "\033[0mugrep: \033[1;31merror:\033[0m \033[1m%s %s:\033[0m \033[1;36m%s\033[0m\n\n", message, arg, errmsg);
   else
     fprintf(stderr, "ugrep: error: %s %s: %s\n\n", message, arg, errmsg);
   exit(EXIT_ERROR);
