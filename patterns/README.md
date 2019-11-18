@@ -18,14 +18,9 @@ skipping all matches of identifiers in comments and strings:
 
 Empty lines and lines starting with a `#` are ignored.
 
-Lines starting with `###` followed by `-o` auto-enables option `-o` for all
-patterns matched.
+A starting line with `###-o` auto-enables option `-o` for all patterns matched.
 
 Patterns `X` requiring Unicode matching should be placed in Unicode mode with
-`(?u:X)`, just in case to prevent ugrep option -U from disabling them.
+`(?u:X)`, just in case to prevent ugrep option `-U` from disabling them.
 
-We love your contributions to this effort! ❤️
-
-**If you encounter a problem with a pattern or you discover a bug in a pattern,
-please open an issue at GitHub https://github.com/Genivia/ugrep/issues**
-
+We love to receive your contributions to this effort! ❤️

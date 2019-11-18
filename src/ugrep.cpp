@@ -1083,7 +1083,7 @@ void Output::header(const char *& pathname, size_t lineno, reflex::AbstractMatch
 {
   bool sep = false;
 
-  if (pathname != NULL && flag_with_filename)
+  if (flag_with_filename && pathname != NULL)
   {
     str(color_fn);
     str(pathname);
@@ -1172,13 +1172,15 @@ void Output::binary_file_matches(const char *pathname)
   if (flag_color)
   {
     str("\033[0mBinary file \033[1m");
-    str(pathname);
+    if (pathname != NULL)
+      str(pathname);
     str("\033[0m matches");
   }
   else
   {
     str("Binary file ");
-    str(pathname);
+    if (pathname != NULL)
+      str(pathname);
     str(" matches");
   }
   nl();
@@ -1217,7 +1219,7 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
     switch (c)
     {
       case 'F':
-        if (flag_with_filename)
+        if (flag_with_filename && pathname != NULL)
         {
           if (a)
             str(a, s - a - 1);
@@ -1230,7 +1232,8 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         break;
 
       case 'f':
-        str(pathname);
+        if (pathname != NULL)
+          str(pathname);
         break;
 
       case 'H':

@@ -1209,11 +1209,12 @@ Compressed files with extensions `.gz`, `.bz`, `.bz2`, `.bzip2`, `.lzma`, and
 compressed.  Uncompressed files are searched also.  Option `-z` uses task
 parallelism to speed up searching and may produce results for uncompressed
 files even faster than without this option (depending on the OS and machine).
-When option `-z` is used with option `-t TYPES`, both compressed and
-uncompressed files are searched as specified by `TYPES`.
+When option `-z` is used with option `-O` or `-t`, both compressed and
+uncompressed files with matching extensions are searched.  For example,
+`ugrep -r -z -tc++` searches `main.cpp`, `main.cpp.gz`, `main.cpp.xz`.
 
-To recursively search C++ files including compressed files (e.g.
-`main.cpp.gz`) for the word `my_function`, while skipping C and C++ comments:
+To recursively search C++ files including compressed files for the word
+`my_function`, while skipping C and C++ comments:
 
     ugrep -z -r -tc++ -Fw my_function -f cpp/zap_comments
 
