@@ -248,12 +248,12 @@ ripgep   0.10.0 | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01   
 ugrep    1.5.4  | **0.11** | 0.07     | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
 
 Most of the ugrep tests produce better performance results without `mmap`
-(option `--no-mmap`), which may be counter-intuitive.  See our [TODO](#todo)
-below.
+(option `--no-mmap`) on faster machines, which may be counter-intuitive.  See
+our [TODO](#todo) below.
 
 Option `-z` uses task parallelism to further optimize file reading and
 decompression of compressed files, which may speed up searching a single file
-(or a few files), even beating the performance of `mmap`.
+(and a few files), even beating the performance of `mmap`.
 
 In some cases we decided in favor of features and safety over performance.  For
 example, **ugrep** considers files binary when containing invalid UTF encodings
@@ -333,7 +333,7 @@ This builds `ugrep` in the `ugrep/src` directory and copies it to `ugrep/bin`.
 You can tell which version it is with:
 
     $ bin/ugrep -V
-    ugrep 1.5.11 x86_64-apple-darwin16.7.0
+    ugrep 1.5.12 x86_64-apple-darwin16.7.0
 
 Copy `bin/ugrep` to a convenient location, for example in your `bin` directory.
 
@@ -676,24 +676,18 @@ To show a list of `-t TYPES` option values:
 
 ### Recursively list matching files with options -R or -r and -L or -l
 
-To recursively list all readable non-empty files in the working directory,
-following symbolic links:
+To recursively list all readable files in the working directory, following
+symbolic links:
 
     ugrep -Rl ''
 
-To recursively list all readable empty files in the working directory,
-following symbolic links:
-
-    ugrep -RL ''
-
-To recursively list all readable non-empty files in directory `mydir`, not
-following any symbolic links (except when on the command line such as `mydir`):
+To recursively list all readable files in directory `mydir`, not following any
+symbolic links (except when on the command line such as `mydir`):
 
     ugrep -rl '' mydir
 
-To recursively list all readable non-empty files on the path specified, while
-visiting sub-directories only, i.e. directories `mydir/` and `mydir/sub/` are
-visited:
+To recursively list all readable files on the path specified, while visiting
+sub-directories only, i.e. directories `mydir/` and `mydir/sub/` are visited:
 
     ugrep -Rl --max-depth=2 '' mydir
 
@@ -2091,7 +2085,7 @@ Man page
 
 
 
-    ugrep 1.5.11                   November 18, 2019                      UGREP(1)
+    ugrep 1.5.12                   November 19, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

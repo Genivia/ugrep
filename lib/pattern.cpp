@@ -2709,7 +2709,7 @@ void Pattern::write_predictor(FILE *file) const
 {
   ::fprintf(file, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + pre_.size() + (min_ > 1 && pre_.empty()) * 256 + (min_ > 0) * Const::HASH);
   ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(pre_.size()), static_cast<uint8_t>(min_));
-  for (Index i = 0; i < pre_.size(); ++i)
+  for (size_t i = 0; i < pre_.size(); ++i)
     ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(pre_[i]));
   if (min_ > 0)
   {

@@ -30,7 +30,7 @@
 @file      input.cpp
 @brief     RE/flex input character sequence class
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2017, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2015-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -390,7 +390,8 @@ size_t Input::file_get(char *s, size_t n)
   if (uidx_ < sizeof(utf8_))
   {
     unsigned short k = 0;
-    while (k < n && utf8_[uidx_ + k] != '\0')
+    unsigned short m = static_cast<unsigned short>(n < sizeof(utf8_) - uidx_ ? n : sizeof(utf8_) - uidx_);
+    while (k < m && utf8_[uidx_ + k] != '\0')
       *t++ = utf8_[uidx_ + k++];
     n -= k;
     if (n == 0)

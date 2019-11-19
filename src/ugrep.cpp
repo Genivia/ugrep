@@ -149,7 +149,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.11"
+#define UGREP_VERSION "1.5.12"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -169,7 +169,7 @@ Prebuilt executables are located in ugrep/bin.
 #define MAX_JOBS 16U
 
 // a hard limit on the recursive search depth
-// TODO use iteration and a stack for virtually unlimited depth, but isn't 100 levels deep not sufficient?
+// TODO perhaps use iteration and a stack for virtually unlimited recursion depth, but it is important to have a hard limit
 #define MAX_DEPTH 100
 
 // --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, smaller values result in higher job stealing rates, should not be less than 3
@@ -1169,18 +1169,20 @@ void Output::header(const char *& pathname, size_t lineno, reflex::AbstractMatch
 // output "Binary file ... matches"
 void Output::binary_file_matches(const char *pathname)
 {
-  if (flag_color)
+  if (pathname == NULL)
+  {
+    str("Binary file matches");
+  }
+  else if (flag_color)
   {
     str("\033[0mBinary file \033[1m");
-    if (pathname != NULL)
-      str(pathname);
+    str(pathname);
     str("\033[0m matches");
   }
   else
   {
     str("Binary file ");
-    if (pathname != NULL)
-      str(pathname);
+    str(pathname);
     str(" matches");
   }
   nl();
@@ -1254,7 +1256,7 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         break;
 
       case 'N':
-        if (flag_line_number && !flag_only_line_number)
+        if (flag_line_number || flag_only_line_number)
         {
           if (a)
             str(a, s - a - 1);
@@ -3693,9 +3695,12 @@ int main(int argc, char **argv)
     flag_invert_match = !flag_invert_match;
   }
 
-  // -l or -L: enable -H
+  // -l or -L: enable -H, disable -c
   if (flag_files_with_match)
+  {
     flag_with_filename = true;
+    flag_count = false;
+  }
 
   // -J: when not set the default is the number of cores (or hardware threads), limited to MAX_JOBS
   if (flag_jobs == 0)
@@ -4278,9 +4283,9 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
     if (!flag_no_messages)
     {
       if (flag_color)
-        fprintf(stderr, "\033[0mugrep: \033[1m%s\033[0m max recursion depth exceeded\n", pathname);
+        fprintf(stderr, "\033[0mugrep: \033[1m%s\033[0m recursion depth hard limit %d exceeded\n", pathname, MAX_DEPTH);
       else
-        fprintf(stderr, "ugrep: %s max recursion depth exceeded\n", pathname);
+        fprintf(stderr, "ugrep: %s recursion depth hard limit %d exceeded\n", pathname, MAX_DEPTH);
     }
 
     return;
@@ -4412,7 +4417,7 @@ void Grep::search(const char *pathname)
       // -l or -L
       if (flag_files_with_match)
       {
-        if (flag_format)
+        if (flag_format != NULL)
         {
           if (flag_format_open != NULL)
             out.format(flag_format_open, pathname, stats.found_files(), matcher);
@@ -4478,14 +4483,14 @@ void Grep::search(const char *pathname)
     }
 
     // --format: acquire lock early before stats.found()
-    if ((flag_format_open != NULL || flag_format_close != NULL))
+    if (flag_format_open != NULL || flag_format_close != NULL)
       out.acquire();
 
-    if (matches > 0)
+    if (matches > 0 || flag_format_open != NULL || flag_format_close != NULL)
       if (!stats.found())
         goto exit_search;
 
-    if (flag_format)
+    if (flag_format != NULL)
     {
       if (flag_format_open != NULL)
         out.format(flag_format_open, pathname, stats.found_files(), matcher);
@@ -4578,14 +4583,11 @@ void Grep::search(const char *pathname)
 
         ++matches;
 
-        out.header(pathname, lineno, matcher, matcher->first(), separator, false);
-        
+        out.header(pathname, lineno, matcher, matcher->first(), separator, true);
+
         // -m: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
-
-        if (flag_line_buffered)
-          out.flush();
 
         lineno = current_lineno;
       }
@@ -4616,6 +4618,13 @@ void Grep::search(const char *pathname)
             goto exit_search;
 
         ++matches;
+
+        if (binary && !flag_hex && !flag_with_hex && !flag_binary_without_matches)
+        {
+          out.binary_file_matches(pathname);
+          matches = 1;
+          goto done_search;
+        }
 
         if (!flag_no_header)
         {
@@ -4751,6 +4760,13 @@ void Grep::search(const char *pathname)
 
           binary = flag_hex || (!flag_text && is_binary(bol, eol - bol));
 
+          if (binary && !flag_hex && !flag_with_hex && !flag_binary_without_matches)
+          {
+            out.binary_file_matches(pathname);
+            matches = 1;
+            goto done_search;
+          }
+
           if (!flag_no_header)
           {
             const char *separator = lineno != current_lineno ? flag_separator : "+";
@@ -4787,12 +4803,6 @@ void Grep::search(const char *pathname)
               }
 
               lineno += matcher->lines() - 1;
-            }
-            else if (!flag_binary_without_matches)
-            {
-              out.binary_file_matches(pathname);
-              matches = 1;
-              goto done_search;
             }
           }
           else
@@ -5463,8 +5473,8 @@ void Grep::search(const char *pathname)
 
 done_search:
 
-  // --break: add a line break and flush
-  if (flag_break && (matches > 0 || flag_any_line))
+  // --break: add a line break when applicable
+  if (flag_break && flag_format == NULL && (matches > 0 || flag_count || flag_any_line))
     out.chr('\n');
 
 exit_search:
