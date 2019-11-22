@@ -13,12 +13,6 @@ Grep super fast through source code, text files, binary files, and compressed fi
 <br>
 </div>
 
-A high-performance file search utility.
-
-This is a spin-off project of [RE/flex](https://github.com/Genivia/RE-flex).
-See the [ugrep tutorial](#tutorial) further below with a comprehensive list of
-examples illustrating the power of **ugrep**.
-
 Table of contents
 -----------------
 
@@ -26,15 +20,15 @@ Table of contents
 - [Speed](#speed)
   - [Tests](#tests)
   - [Results](#results)
-  - [Future improvements and TODO](#todo)
 - [Installation](#installation)
   - [Download and and build steps](#download)
   - [Download the binaries](#binaries)
   - [Using ugrep within Vim](#vim)
 - [Ugrep versus other greps](#comparison)
-  - [GNU grep and BSD grep equivalence](#equivalence)
+  - [Equivalence to GNU grep and BSD grep](#equivalence)
   - [Useful aliases](#aliases)
-  - [Improvements over other greps](#improvements)
+  - [Notable improvements over other greps](#improvements)
+- [Features wishlist](#todo)
 - [Tutorial](#tutorial)
   - [Examples](#examples)
   - [Displaying helpful info](#help)
@@ -284,22 +278,6 @@ Unicode by default.  This means that regex meta symbol `.` and the escapes
 time to match.  To disable Unicode matching, use **ugrep** with option `-U`,
 e.g. `ugrep -on -U 'serialize_\w+Type'` is fast but slower without `-U`.
 
-<a name="todo"/>
-
-### Future improvements and TODO
-
-- Search tar files and tarballs by implementing "filters" to extract files from
-  archives.  An extensible mechanism with format-specific "filters" allows
-  special file formats such as archives and Office documents to be searched.
-- Evaluate when `mmap` improves performance and when it does not.  Right now,
-  `mmap` does not appear to improve performance on machines with fast file
-  read performance, e.g. SSD, where `mmap` even slows down.  RE/flex buffering
-  is very efficient and has better spatial locality.  Memory maps are turned
-  off with `--no-mmap`.
-- Improve the speed of matching multiple words, which is currently faster than
-  GNU grep (ugrep uses Bitap and hashing), but Hyperscan for example may be
-  faster as it uses SIMD/AVX so it makes sense to look into that.
-
 <a name="installation"/>
 
 Installation
@@ -426,12 +404,12 @@ in `.vimrc`.
 
 <a name="comparison"/>
 
-ugrep versus other greps
+Ugrep versus other greps
 ------------------------
 
 <a name="equivalence"/>
 
-### GNU grep and BSD grep equivalence
+### Equivalence to GNU grep and BSD grep
 
 **ugrep** accepts GNU/BSD grep command options and produces GNU/BSD grep
 compatible results, making **ugrep** a true drop-in replacement.
@@ -469,26 +447,42 @@ empty matches for 100% compatibility, see details further below.
 
 <a name="improvements"/>
 
-### Improvements over other greps
+### Notable improvements over other greps
 
-Notable improvements over GNU/BSD grep and other grep-like tools, to name a
-few:
-
-- **ugrep** spawns threads to search files concurrently for speed, which may
-  reorder the matching files.  Disabled with option `-J1`.
-- **ugrep** matches Unicode by default.  Disabled with option `-U`.
+- **ugrep** matches Unicode by default (disabled with option `-U`).
 - **ugrep** regular expression patterns are more expressive than GNU grep and
   BSD grep POSIX ERE and support Unicode pattern matching and most of the PCRE
   syntax with some limitations, see further below.  Extended regular
   expression (ERE) syntax is the default (i.e.  option `-E`, as egrep).
-- **ugrep** uses incremental matching.  This allows matching patterns that span
-  multiple lines.
+- **ugrep** uses fast incremental matching and supports matching patterns
+  spanning multiple lines of input.
+- **ugrep** spawns threads to search files concurrently to improve search
+  speed (which may reorder the matching files, disabled with option `-J1`).
 - **ugrep** supports *negative patterns* of the form `(?^X)` to skip input
   that matches `X`.  Negative patterns can be used to skip strings and comments
   when searching for identifiers in source code and find matches that aren't in
   strings and comments.
 - **ugrep** produces hexdumps with `-W` (output binary matches in hex with text
   matches output as usual) and `-X` (output all matches in hex).
+- Options `-O`, `-M`, and `-t` to specify file extensions, file signature magic
+  byte patterns, and predefined file types, respectively.  This allows
+  searching for certain types of files in directory trees with recursive search
+  options `-R` and `-r`.
+- Option `-k`, `--column-number` to display the column number, taking tab
+  spacing into account by expanding tabs, as specified by option `--tabs`.
+- Option `-f` uses `GREP_PATH` environment variable or the predefined patterns
+  installed in `/usr/local/share/ugrep/patterns`.  If `-f` is specified and
+  also one or more `-e` patterns are specified, then options `-F`, `-x`, and
+  `-w` do not apply to `-f` patterns.  This is to avoid confusion when `-f` is
+  used with predefined patterns that may no longer work properly with these
+  options.
+- Option `-P` (Perl regular expressions) supports backreferences (with
+  `--format`) and lookbehinds, which uses the Boost.Regex library for fast Perl
+  regex matching with a PCRE-like syntax.
+- When option `-b` is used with option `-o` or with option `-g`, **ugrep**
+  displays the exact byte offset of the pattern match instead of the byte
+  offset of the start of the matched line reported by GNU/BSD grep.  Reporting
+  exact byte offsets is now possible with **grep**.
 - Option `-Y` to permit matching empty patterns.  Grepping with empty-matching
   patterns is weird and gives different results with GNU grep versus BSD grep.
   Empty matches are not output by **ugrep** by default, which avoids making
@@ -496,31 +490,10 @@ few:
   pattern `a*` matches every line in the input, and actually matches `xyz`
   three times (the empty transitions before and between the `x`, `y`, and `z`).
   Allowing empty matches requires **ugrep** option `-Y`.
-- New option `-U` to specify non-Unicode pattern matches, e.g. to search for
-  binary patterns.
-- Option `-k`, `--column-number` to display the column number, taking tab
-  spacing into account by expanding tabs, as specified by option `--tabs`.
 - Option `-g`, `--no-group` to not group matches per line.  This option
   displays a matched input line again for each additional pattern match.  This
   option is particularly useful with option `-c` to report the total number of
   pattern matches per file instead of the number of lines matched per file.
-- Options `-O`, `-M`, and `-t` to specify file extensions, file signature magic
-  byte patterns, and predefined file types, respectively.  This allows
-  searching for certain types of files in directory trees with recursive search
-  options `-R` and `-r`.
-- Improved option `-f` uses `GREP_PATH` environment variable or the predefined
-  patterns installed in `/usr/local/share/ugrep/patterns`.  If `-f` is
-  specified and also one or more `-e` patterns are specified, then options
-  `-F`, `-x`, and `-w` do not apply to `-f` patterns.  This is to avoid
-  confusion when `-f` is used with predefined patterns that may no longer work
-  properly with these options.
-- Patterns with backreferences and lookbehinds require option `-P` (Perl
-  regular expressions), which uses the Boost.Regex library for fast Perl regex
-  matching with a PCRE-like syntax.
-- When option `-b` is used with option `-o` or with option `-g`, **ugrep**
-  displays the exact byte offset of the pattern match instead of the byte
-  offset of the start of the matched line reported by GNU/BSD grep.  Reporting
-  exact byte offsets is now possible with **grep**.
 - **ugrep** option `-D, --devices=ACTION` is `skip` by default, instead of
   `read`.  This prevents unexpectedly hanging on named pipes in directories
   that are recursively searched, as may happen with GNU/BSD grep that `read`
@@ -529,6 +502,25 @@ few:
   `LANG=en_US.UTF-8`, whereas grep is locale-sensitive.
 - BSD grep (e.g. on Mac OS X) has limitations and some bugs that **ugrep**
   fixes (options `-r` versus `-R`), support for `GREP_COLORS`, and more.
+
+<a name="todo"/>
+
+Features wishlist
+-----------------
+
+- Search tar files and tarballs by implementing "filters" to extract files from
+  archives.  An extensible mechanism with format-specific "filters" allows
+  special file formats such as archives and Office documents to be searched.
+- Further improve the speed of matching multiple words, which is currently
+  faster than GNU grep (ugrep uses Bitap and hashing), but Hyperscan for
+  example may be slightly faster as it uses SIMD/AVX so it makes sense to look
+  into that.
+- Evaluate when `mmap` improves performance and when it does not.  Right now,
+  `mmap` does not appear to improve performance on machines with fast file
+  read performance, e.g. SSD, where `mmap` even slows down.  RE/flex buffering
+  is very efficient and has better spatial locality.  Memory maps are turned
+  off with `--no-mmap`.
+- Other new features may be considered as ugrep evolves.
 
 <a name="tutorial"/>
 
