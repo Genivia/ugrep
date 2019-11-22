@@ -4911,7 +4911,7 @@ $as_echo "#define HAVE_LIBZ 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "libz not found: option -z, --decompress disabled"
+    echo "libz not found: option -z disabled"
   fi
 fi
 
@@ -5044,7 +5044,7 @@ $as_echo "#define HAVE_LIBBZ2 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "libbz2 not found: option -z, --decompress won't decompress .bz and .bz2 files"
+    echo "libbz2 not found: option -z won't decompress .bz and .bz2 files"
   fi
 fi
 
@@ -5177,7 +5177,7 @@ $as_echo "#define HAVE_LIBLZMA 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "liblzma not found: option -z, --decompress won't decompress .lzma and .xz files"
+    echo "liblzma not found: option -z won't decompress .lzma and .xz files"
   fi
 fi
 

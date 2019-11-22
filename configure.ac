@@ -7,11 +7,11 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AX_BOOST_REGEX
 
-AX_CHECK_ZLIB([], [echo "libz not found: option -z, --decompress disabled"])
+AX_CHECK_ZLIB([], [echo "libz not found: option -z disabled"])
 
-AX_CHECK_BZLIB([], [echo "libbz2 not found: option -z, --decompress won't decompress .bz and .bz2 files"])
+AX_CHECK_BZLIB([], [echo "libbz2 not found: option -z won't decompress .bz and .bz2 files"])
 
-AX_CHECK_LZMALIB([], [echo "liblzma not found: option -z, --decompress won't decompress .lzma and .xz files"])
+AX_CHECK_LZMALIB([], [echo "liblzma not found: option -z won't decompress .lzma and .xz files"])
 
 AC_STRUCT_DIRENT_D_INO
 AC_STRUCT_DIRENT_D_TYPE

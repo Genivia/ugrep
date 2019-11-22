@@ -330,6 +330,12 @@ class AbstractLexer {
   {
     return matcher().lines();
   }
+  /// Returns the ending line number of matched text.
+  inline size_t lineno_end() const
+    /// @returns line number
+  {
+    return matcher().lineno_end();
+  }
   /// Returns the starting column number of matched text, taking tab spacing into account and counting wide characters as one character each.
   inline size_t columno() const
     /// @returns column number
@@ -349,6 +355,12 @@ class AbstractLexer {
     /// @returns number of columns
   {
     return matcher().columns();
+  }
+  /// Returns the ending column number of matched text, taking tab spacing into account and counting wide characters as one character each.
+  inline size_t columno_end() const
+    /// @returns column number
+  {
+    return matcher().columno_end();
   }
   /// Transition to the given start condition state.
   inline AbstractLexer& start(int state) ///< start condition state to transition to

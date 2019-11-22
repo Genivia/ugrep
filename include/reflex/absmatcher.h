@@ -461,9 +461,9 @@ class AbstractMatcher {
   {
     return txt_;
   }
-  /// Returns pointer to the end of the matched text, a constant-time operation.
+  /// Returns pointer to the exclusive end of the matched text, a constant-time operation.
   const char *end() const
-    /// @returns const char* pointer to the end of the matched text in the buffer
+    /// @returns const char* pointer to the exclusive end of the matched text in the buffer
   {
     return txt_ + len_;
   }
@@ -575,7 +575,13 @@ class AbstractMatcher {
       n += (*s == '\n');
     return n;
   }
-  /// Updates and returns the starting column number of matched text, taking tab spacing into account and counting wide characters as one character each
+  /// Returns the inclusive ending line number of the match in the input character sequence.
+  size_t lineno_end()
+    /// @returns line number
+  {
+    return lineno() + lines() - 1;
+  }
+  /// Updates and returns the starting column number of the matched text, taking tab spacing into account and counting wide characters as one character each
   size_t columno()
     /// @returns column number
   {
@@ -597,16 +603,27 @@ class AbstractMatcher {
     return cno_;
 #endif
   }
-  /// Returns the number of columns of the last line (or the single line of matched text) in the matched text, taking tab spacing into account and counting wide characters as one character each.
+  /// Returns the number of columns of the matched text, taking tab spacing into account and counting wide characters as one character each.
   size_t columns()
     /// @returns number of columns
   {
     // count columns in tabs and UTF-8 chars
 #if defined(WITH_SPAN)
+    const char *s = txt_;
+    const char *e = txt_ + len_;
     size_t n = columno();
+    size_t k = n;
+    while (s < e)
+    {
+      if (*s == '\t')
+        k += 1 + (~k & (opt_.T - 1)); // count tab spacing
+      else if (*s != '\r' && *s != '\n')
+        k += ((*s & 0xC0) != 0x80); // count column offset in UTF-8 chars
+      ++s;
+    }
+    return k - n;
 #else
     size_t n = cno_;
-#endif
     size_t m = 0;
     const char *s;
     const char *t = buf_;
@@ -630,7 +647,33 @@ class AbstractMatcher {
         n += (*s & 0xC0) != 0x80;
     }
     return n - m;
+#endif
   }
+#if defined(WITH_SPAN)
+  /// Returns the inclusive ending column number of the matched text on the ending matching line, taking tab spacing into account and counting wide characters as one character each
+  size_t columno_end()
+    /// @returns column number
+  {
+    if (len_ == 0)
+      return columno();
+    (void)lineno();
+    const char *e = txt_ + len_;
+    const char *s = e;
+    const char *b = bol_;
+    while (--s >= b)
+      if (*s == '\n')
+        break;
+    size_t k = 0;
+    while (++s < e)
+    {
+      if (*s == '\t')
+        k += 1 + (~k & (opt_.T - 1));
+      else
+        k += (*s & 0xC0) != 0x80;
+    }
+    return k > 0 ? k - 1 : 0;
+  }
+#endif
   /// Returns std::pair<size_t,std::string>(accept(), str()), useful for tokenizing input into containers of pairs.
   std::pair<size_t,std::string> pair() const
     /// @returns std::pair<size_t,std::string>(accept(), str())
@@ -649,7 +692,7 @@ class AbstractMatcher {
   {
     return num_ + txt_ - buf_;
   }
-  /// Returns the position of the last character + 1 of the match in the input character sequence, a constant-time operation.
+  /// Returns the exclusive position of the last character of the match in the input character sequence, a constant-time operation.
   size_t last() const
     /// @returns position in the input character sequence
   {
@@ -814,18 +857,22 @@ class AbstractMatcher {
     return bol_;
   }
   /// Returns pointer to the end of line in the buffer after the matched text, DANGER: invalidates previous bol() and text() pointers, only use eol() before bol() and text().
-  inline const char *eol()
+  inline const char *eol(bool inclusive = false) ///< true if eol should be inclusive, i.e. after \n
     /// @returns pointer to the end of line
   {
     if (chr_ == '\n' || txt_[len_] == '\n')
       return txt_ + len_;
+    size_t tmp = pos_;
     while (true)
     {
       if (pos_ < end_)
       {
         char *s = static_cast<char*>(std::memchr(buf_ + pos_, '\n', end_ - pos_));
         if (s != NULL)
-          return s;
+        {
+          pos_ = tmp;
+          return s + inclusive;
+        }
       }
       if (eof_)
         break;
@@ -838,6 +885,7 @@ class AbstractMatcher {
         break;
       }
     }
+    pos_ = tmp;
     return buf_ + end_;
   }
   /// Returns the byte offset of the match from the start of the line.
@@ -883,18 +931,20 @@ class AbstractMatcher {
     return wcs(b, e - b);
   }
 #endif
-  /// Skip input until the specified character is consumed or EOF is reached.
-  bool skip(int c)
+  /// Skip input until the specified character is consumed and return true, or EOF is reached and return false.
+  bool skip(int c) ///< character to skip to
+    /// @returns true if skipped to c, false if EOf is reached
   {
     DBGLOG("AbstractMatcher::skip()");
     reset_text();
+    len_ = 0;
     while (true)
     {
       txt_ = static_cast<char*>(std::memchr(buf_ + pos_, c, end_ - pos_));
       if (txt_ != NULL)
       {
-        len_ = 1;
-        set_current(txt_ - buf_ + 1);
+        ++txt_;
+        set_current(txt_ - buf_);
         return true;
       }
       pos_ = cur_ = end_;
@@ -907,7 +957,6 @@ class AbstractMatcher {
         break;
       }
     }
-    len_ = 0;
     set_current(end_);
     return false;
   }

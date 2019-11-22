@@ -149,7 +149,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.5.12"
+#define UGREP_VERSION "1.5.13"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -445,8 +445,7 @@ inline bool is_binary(const char *s, size_t n)
     {
       if ((*s & 0xc0) == 0x80)
         return true;
-    }
-    while ((*s & 0xc0) != 0xc0 && ++s < e);
+    } while ((*s & 0xc0) != 0xc0 && ++s < e);
 
     if (s >= e)
       return false;
@@ -697,7 +696,8 @@ struct Output {
     :
       lock(),
       file(file),
-      dump(*this)
+      dump(*this),
+      eof(false)
   {
     grow();
   }
@@ -836,8 +836,7 @@ struct Output {
     {
       tmp[n++] = i % 10 + '0';
       i /= 10;
-    }
-    while (i > 0);
+    } while (i > 0);
 
     while (w-- > n)
       chr(' ');
@@ -856,8 +855,7 @@ struct Output {
     {
       tmp[n++] = "0123456789abcdef"[i % 16];
       i /= 16;
-    }
-    while (i > 0);
+    } while (i > 0);
 
     while (w-- > n)
       chr('0');
@@ -889,11 +887,25 @@ struct Output {
     // if multi-threaded and lock is not owned already, then lock on master's mutex
     acquire();
 
-    // flush the buffers container to the designated output file, pipe, or stream
-    for (Buffers::iterator i = buffers.begin(); i != buf; ++i)
-      fwrite(i->data, 1, SIZE, file);
-    fwrite(buf->data, 1, cur - buf->data, file);
-    fflush(file);
+    if (!eof)
+    {
+      // flush the buffers container to the designated output file, pipe, or stream
+      for (Buffers::iterator i = buffers.begin(); i != buf; ++i)
+      {
+        if (feof(file) || ferror(file))
+          break;
+        fwrite(i->data, 1, SIZE, file);
+      }
+      if (!feof(file) && !ferror(file))
+      {
+        fwrite(buf->data, 1, cur - buf->data, file);
+        fflush(file);
+      }
+      else
+      {
+        eof = true;
+      }
+    }
 
     buf = buffers.begin();
     cur = buf->data;
@@ -968,6 +980,7 @@ struct Output {
   Buffers                       buffers; // buffers container
   Buffers::iterator             buf;     // current buffer in the container
   char                         *cur;     // current position in the current buffer
+  bool                          eof;     // the other end closed or has an error
 
 };
 
@@ -1860,7 +1873,7 @@ struct Grep {
           }
 
           // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-          if (write(pipe_out, buf, static_cast<size_t>(len)) < 0)
+          if (write(pipe_out, buf, static_cast<size_t>(len)) < len)
             break;
 
           // no more data?
@@ -1920,19 +1933,19 @@ struct Grep {
               break;
             }
 
+            int len = static_cast<int>(Z_BUF_LEN - strm.avail_out);
+
             // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-            if (write(pipe_out, buf, Z_BUF_LEN - strm.avail_out) < 0)
+            if (write(pipe_out, buf, static_cast<size_t>(len)) < len)
             {
               finished = true;
 
               break;
             }
 
-          }
-          while (strm.avail_out == 0);
+          } while (strm.avail_out == 0);
 
-        }
-        while (!finished);
+        } while (!finished);
 
         lzma_end(&strm);
       }
@@ -1974,7 +1987,7 @@ struct Grep {
           }
 
           // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-          if (write(pipe_out, buf, static_cast<size_t>(len)) < 0)
+          if (write(pipe_out, buf, static_cast<size_t>(len)) < len)
             break;
 
           // no more data?
@@ -2093,6 +2106,7 @@ struct Grep {
   int                      pipe_fd[2]; // decompressed stream pipe
 #endif
 #endif
+
 };
 
 // a job in the job queue
@@ -3077,9 +3091,7 @@ int main(int argc, char **argv)
       if (flag_line_regexp)
         regex.append("^$|");
       else
-        regex.append(".*|");
-
-      flag_empty = true; // we're matching empty lines, so enable -Y
+        regex.append(".*\n?|");
     }
     else
     {
@@ -3955,6 +3967,10 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
 
+      // stop when output is blocked
+      if (grep.out.eof)
+        break;
+
       // search file or directory, get the basename from the file argument first
       const char *basename = strrchr(file, PATHSEPCHR);
 
@@ -4330,9 +4346,12 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
       // stop after finding max-files matching files
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
+
+      // stop when output is blocked
+      if (grep.out.eof)
+        break;
     }
-  }
-  while (FindNextFileA(hFind, &ffd) != 0);
+  } while (FindNextFileA(hFind, &ffd) != 0);
 
   FindClose(hFind);
 
@@ -4371,6 +4390,10 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
       // stop after finding max-files matching files
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
+
+      // stop when output is blocked
+      if (grep.out.eof)
+        break;
     }
   }
 
@@ -4382,6 +4405,11 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
 // search input, display pattern matches, return true when pattern matched anywhere
 void Grep::search(const char *pathname)
 {
+  // stop when output is blocked
+  if (out.eof)
+    return;
+
+  // pathname is NULL when stdin is searched, otherwise open the file to search
   if (pathname == NULL)
   {
     pathname = flag_label;
@@ -4750,15 +4778,12 @@ void Grep::search(const char *pathname)
           if (flag_max_count > 0 && matches >= flag_max_count)
             break;
 
-          const char *eol = matcher->eol(); // warning: call eol() before bol()
+          const char *eol = matcher->eol(true); // warning: call eol() before bol()
           const char *bol = matcher->bol();
 
-          if (!matcher->hit_end())
-            ++eol;
+          binary = flag_hex || (!flag_text && is_binary(bol, eol - bol));
 
           ++matches;
-
-          binary = flag_hex || (!flag_text && is_binary(bol, eol - bol));
 
           if (binary && !flag_hex && !flag_with_hex && !flag_binary_without_matches)
           {
@@ -4922,13 +4947,10 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                const char *eol = matcher->eol(); // warning: call eol() before end()
+                const char *eol = matcher->eol(true); // warning: call eol() before bol()
                 const char *end = matcher->end();
 
                 bool rest_binary = flag_hex || (!flag_text && is_binary(end, eol - end));
-
-                if (!matcher->hit_end())
-                  ++eol;
 
                 if (binary && !rest_binary)
                 {

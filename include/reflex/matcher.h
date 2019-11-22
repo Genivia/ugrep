@@ -210,7 +210,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     return get();
   }
   /// FSM code HALT.
-  inline void FSM_HALT(int c1)
+  inline void FSM_HALT(int c1 = AbstractMatcher::Const::UNK)
   {
     fsm_.c1 = c1;
   }

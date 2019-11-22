@@ -52,7 +52,7 @@ Table of contents
   - [Displaying file, line, column, and byte offset info with -H, -n, -k, -b, and -T](#fields)
   - [Displaying colors with --color](#color)
   - [Output matches in JSON, XML, CSV, C++](#json)
-  - [Customizing the output with --format](#format)
+  - [Customized output with --format](#format)
   - [Replacing matches with --format group captures](#replace)
   - [Limiting the number of matches with -m, --max-depth, and --max-files](#max)
   - [Searching compressed files with -z](#gz)
@@ -456,16 +456,16 @@ empty matches for 100% compatibility, see details further below.
 
 ### Useful aliases
 
-    alias ug    = 'ugrep --color --pager'        # short & quick text pattern search
-    alias ux    = 'ugrep --color --pager -UX'    # short & quick binary pattern search
+    alias ug    = 'ugrep --color --pager'       # short & quick text pattern search
+    alias ux    = 'ugrep --color --pager -UX'   # short & quick binary pattern search
     alias ugi   = 'ugrep -R --color --pager --no-hidden --exclude-from=.gitignore'
 
-    alias grep  = 'ugrep --color --pager -G'     # search with basic regular expressions (BRE)
-    alias egrep = 'ugrep --color --pager -E'     # search with extended regular expressions (ERE)
-    alias fgrep = 'ugrep --color --pager -F'     # find string(s)
-    alias xgrep = 'ugrep --color --pager -W'     # search with ERE and output text or hex binary
+    alias grep  = 'ugrep --color --pager -G'    # search with basic regular expressions (BRE)
+    alias egrep = 'ugrep --color --pager -E'    # search with extended regular expressions (ERE)
+    alias fgrep = 'ugrep --color --pager -F'    # find string(s)
+    alias xgrep = 'ugrep --color --pager -W'    # search with ERE and output text or hex binary
 
-    alias xdump = 'ugrep --color --pager -Xo ""' # view hexdump of file(s)
+    alias xdump = 'ugrep --color --pager -X ""' # view hexdump of file(s)
 
 <a name="improvements"/>
 
@@ -676,22 +676,22 @@ To show a list of `-t TYPES` option values:
 
 ### Recursively list matching files with options -R or -r and -L or -l
 
-To recursively list all readable files in the working directory, following
+To recursively list all non-empty files in the working directory, following
 symbolic links:
 
     ugrep -Rl ''
 
-To recursively list all readable files in directory `mydir`, not following any
+To recursively list all non-empty files in directory `mydir`, not following any
 symbolic links (except when on the command line such as `mydir`):
 
     ugrep -rl '' mydir
 
-To recursively list all readable files on the path specified, while visiting
+To recursively list all non-empty files on the path specified, while visiting
 sub-directories only, i.e. directories `mydir/` and `mydir/sub/` are visited:
 
     ugrep -Rl --max-depth=2 '' mydir
 
-To recursively list all files that have extension .sh with `-Osh`:
+To recursively list all non-empty files with extension .sh, with `-Osh`:
 
     ugrep -Rl -Osh ''
 
@@ -886,14 +886,14 @@ content is shown in hex with `-U` and `-W`:
 
     ugrep --color -UW '\w+' myfile
 
-To hexdump an entire file with `-X` and `-o`:
+To hexdump an entire file as a match with `-X`:
 
-    ugrep --color -Xo '' myfile
+    ugrep --color -X '' myfile
 
-To hexdump an entire file line-by-line with `-X`, displaying line numbers with
-`-n` and line breaks:
+To hexdump an entire file with `-X`, displaying line numbers and byte offsets
+with `-nb`, which requires `-o` or `-y` to split up the file in "lines":
 
-    ugrep --color -Xn '' myfile
+    ugrep --color -Xynb '' myfile
 
 To hexdump lines containing one or more \0 in a (binary) file using a
 non-Unicode pattern with `-U` and `-X`:
@@ -937,7 +937,7 @@ definition (C++ names may be Unicode):
 
     ugrep --color -B1 -f c++/functions myfile.cpp
 
-To display any non-matching lines as context for matching lines:
+To display any non-matching lines as context for matching lines with `-y`:
 
     ugrep --color -y -f c++/functions myfile.cpp
 
@@ -1124,7 +1124,7 @@ To extract a table from an HTML file and put it in C/C++ source code using
 
 <a name="format"/>
 
-### Customizing the output with --format
+### Customized output with --format
 
 To output matching lines faster by omitting the header output and binary match
 checks, using `--format` with field `%O` (output matching line as is) and field
@@ -1151,8 +1151,14 @@ separated by commas with field `%,`:
 
     ugrep --format='%,%v' "href=[\"'][^\"'\n][\"']" index.html
 
+To output matches in CSV (comma-separated values), the same as option `--csv`
+(works with options `-H`, `-n`, `-k`, `-b` to populated additional fields):
+
+    ugrep --format='"%[,]$%H%N%K%B%V%~"' 'href=' index.html
+
 To output matches in JSON, using formatting options that produce the same
-output as `--json`:
+output as `--json` (works with options `-H`, `-n`, `-k`, `-b` to populated
+additional fields):
 
     ugrep --format-begin='[' \
            --format-open='%,%~  {%~    %[,%~    ]$%["file": ]H"matches": [' \
@@ -2085,7 +2091,7 @@ Man page
 
 
 
-    ugrep 1.5.12                   November 19, 2019                      UGREP(1)
+    ugrep 1.5.13                   November 22, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

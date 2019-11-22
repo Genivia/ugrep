@@ -524,10 +524,16 @@ class Pattern {
   void compact_dfa(State& start);
   void encode_dfa(State& start);
   void gencode_dfa(const State& start) const;
+  void check_dfa_closure(
+      const State *state,
+      int nest,
+      bool& peek,
+      bool& prev) const;
   void gencode_dfa_closure(
       FILE *fd,
       const State *start,
-      int nest) const;
+      int nest,
+      bool peek) const;
   void delete_dfa(State& start);
   void export_dfa(const State& start) const;
   void export_code() const;
