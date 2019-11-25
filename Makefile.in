@@ -895,13 +895,16 @@ install-data-hook:
 		 echo "| You can use the ugrep command to search files.       |"; \
 		 echo "|                                                      |"; \
 		 echo "| Some useful aliases to consider:                     |"; \
-		 echo "|   alias ug    = 'ugrep --color --pager'              |"; \
-		 echo "|   alias ux    = 'ugrep --color --pager -UX'          |"; \
-		 echo "|   alias grep  = 'ugrep --color --pager -G'           |"; \
-		 echo "|   alias egrep = 'ugrep --color --pager -E'           |"; \
-		 echo "|   alias fgrep = 'ugrep --color --pager -F'           |"; \
-		 echo "|   alias xgrep = 'ugrep --color --pager -W'           |"; \
-		 echo "|   alias xdump = 'ugrep --color --pager -X \"\"'        |"; \
+		 echo "|   alias ug     = 'ugrep --color --pager'             |"; \
+		 echo "|   alias ux     = 'ugrep --color --pager -UX'         |"; \
+		 echo "|   alias grep   = 'ugrep --color --pager -G'          |"; \
+		 echo "|   alias egrep  = 'ugrep --color --pager -E'          |"; \
+		 echo "|   alias fgrep  = 'ugrep --color --pager -F'          |"; \
+		 echo "|   alias xgrep  = 'ugrep --color --pager -W'          |"; \
+		 echo "|   alias zgrep  = 'ugrep --color --pager -zG'         |"; \
+		 echo "|   alias zegrep = 'ugrep --color --pager -zE'         |"; \
+		 echo "|   alias zfgrep = 'ugrep --color --pager -zF'         |"; \
+		 echo "|   alias xdump  = 'ugrep --color --pager -X \"\"'       |"; \
 		 echo "|                                                      |"; \
 		 echo "| Thanks for using ugrep.                              |"; \
 		 echo "|                                                      |"; \

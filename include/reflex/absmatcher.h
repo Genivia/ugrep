@@ -861,7 +861,7 @@ class AbstractMatcher {
     /// @returns pointer to the end of line
   {
     if (chr_ == '\n' || txt_[len_] == '\n')
-      return txt_ + len_;
+      return txt_ + len_ + inclusive;
     size_t tmp = pos_;
     while (true)
     {

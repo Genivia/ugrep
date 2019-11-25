@@ -7,7 +7,7 @@ Universal grep ("uber grep")
 <img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
 <img src="https://www.genivia.com/images/hexdump.png" width="45%" height="45%" alt="ugrep hexdump results">
 <br>
-Grep super fast through source code, text files, binary files, and compressed files.
+Grep super fast through source code, text, binary, tarballs, and compressed files.
 <br>
 <br>
 <br>
@@ -28,7 +28,7 @@ Table of contents
   - [Equivalence to GNU grep and BSD grep](#equivalence)
   - [Useful aliases](#aliases)
   - [Notable improvements over other greps](#improvements)
-- [Features wishlist](#todo)
+  - [Feature wishlist](#todo)
 - [Tutorial](#tutorial)
   - [Examples](#examples)
   - [Displaying helpful info](#help)
@@ -49,7 +49,7 @@ Table of contents
   - [Customized output with --format](#format)
   - [Replacing matches with --format group captures](#replace)
   - [Limiting the number of matches with -m, --max-depth, and --max-files](#max)
-  - [Searching compressed files with -z](#gz)
+  - [Searching compressed files and tarballs with -z](#gz)
   - [Tips for advanced users](#tips)
   - [More examples](#more)
 - [Man page](#man)
@@ -91,6 +91,17 @@ Introduction: why use ugrep?
   matches the entire file (a common grep feature).  Also new options `-O` and
   `-M` may be used to select files by extension and by file signature "magic
   bytes", respectively.
+
+- **ugrep searches compressed files and tarballs** with option `-z`.  The
+  matching file names in tar files are output in braces.  For example
+  `myprojects.tgz{main.cpp}` indicates that file `main.cpp` in compressed tar
+  file `myprojects.tgz` has a match.  File types, extensions, and signature
+  "magic bytes" can be selected to filter files in tar files with options `-t`,
+  `-O`, and `-M`, respectively.  For example:
+
+      ugrep -z -tc++ -w 'main' myprojects.tgz
+
+  looks for `main` in C++ files in the compressed tar file `myprojects.tgz`.
 
 - **ugrep can match patterns across multiple lines**, such as comment blocks in
   source code.  This feature supports matching that could otherwise only be
@@ -428,7 +439,7 @@ not support Unicode!):
 
 Option `-J1` specifies one thread of execution to produce the exact same output
 ordering as GNU/BSD grep at the cost of lower performance and `-Y` enables
-empty matches for 100% compatibility, see details further below.
+empty matches for GNU/BSD compatibility, see details further below.
 
 <a name="aliases"/>
 
@@ -505,12 +516,17 @@ empty matches for 100% compatibility, see details further below.
 
 <a name="todo"/>
 
-Features wishlist
------------------
+### Feature wishlist
 
-- Search tar files and tarballs by implementing "filters" to extract files from
-  archives.  An extensible mechanism with format-specific "filters" allows
-  special file formats such as archives and Office documents to be searched.
+- Offer more options to search tar files and tarballs.  Currently tar v7,
+  ustar, and old gnu tar are supported as well as pax extended headers blocks
+  for long file names is supported, which covers pretty much all common uses.
+  Uncompressed .tar and gzip-compressed tar.gz files are searched.  Options
+  `-O`, `-M`, and `-t` are applicable to narrow the search.  Not yet applicable
+  are `--max-depth` and tar.bz2 and tar.xz are not yet searchable.  Add full
+  support for searching .pax files.
+- Create a "filter" mechanism to add filters, e.g. to search Office documents
+  using a filter.
 - Further improve the speed of matching multiple words, which is currently
   faster than GNU grep (ugrep uses Bitap and hashing), but Hyperscan for
   example may be slightly faster as it uses SIMD/AVX so it makes sense to look
@@ -1194,21 +1210,30 @@ parallel search with `-J1` and use `--max-files=1`:
 
 <a name="gz"/>
 
-### Searching compressed files with -z
+### Searching compressed files and tarballs with -z
 
 Compressed files with extensions `.gz`, `.bz`, `.bz2`, `.bzip2`, `.lzma`, and
 `.xz` are searched with option `-z`.  This option does not require files to be
-compressed.  Uncompressed files are searched also.  Option `-z` uses task
-parallelism to speed up searching and may produce results for uncompressed
-files even faster than without this option (depending on the OS and machine).
-When option `-z` is used with option `-O` or `-t`, both compressed and
-uncompressed files with matching extensions are searched.  For example,
-`ugrep -r -z -tc++` searches `main.cpp`, `main.cpp.gz`, `main.cpp.xz`.
+compressed.  Uncompressed files are searched also.  Tape archives (tarballs)
+are searched and matches are reported as files enclosed in braces `{` and `}`.
+Option `-z` uses task parallelism to speed up searching and may produce results
+for uncompressed files even faster than without this option (depending on the
+OS and machine).  When option `-z` is used with option `-O` or `-t`, both
+compressed and uncompressed files with matching extensions are searched.  For
+example, `ugrep -r -z -tc++` searches `main.cpp`, `main.cpp.gz`, `main.cpp.xz`.
 
 To recursively search C++ files including compressed files for the word
 `my_function`, while skipping C and C++ comments:
 
     ugrep -z -r -tc++ -Fw my_function -f cpp/zap_comments
+
+To search tarball `project.tar.gz` for C++ files with `TODO` and `FIXME` lines:
+
+    ugrep -z -tc++ -w -e 'TODO' -e 'FIXME' project.tar.gz
+
+To display and page through all C++ files in tarball `project.tgz`:
+
+    ugrep --color --pager -z -tc++ '' project.tgz
 
 <a name="tips"/>
 
@@ -1730,10 +1755,12 @@ Man page
                   Prints a zero-byte after the file name.
 
            -z, --decompress
-                  Decompress files to search, when compressed.  If  -O  or  -t  is
-                  specified,  also  searches compressed files with matching exten-
-                  sions.  Supports compression formats  .gz,  .bz,  .bz2,  .bzip2,
-                  .lzma, .xz.
+                  Decompress files to  search,  when  compressed.   Tape  archives
+                  (.tar  and  compressed  .tar.gz,  .taz,  .tgz,  .tpz  files) are
+                  searched for matching files.  If -O, -M,  or  -t  is  specified,
+                  searches compressed and archived files with the specified exten-
+                  sions and magic bytes.  This version  of  ugrep  supports  .tar,
+                  .tar.gz, .taz, .tgz, .tpz, .gz,
 
            If no FILE arguments are specified, or if a `-' is specified, the stan-
            dard input is used, unless recursive searches are specified which exam-
@@ -2083,7 +2110,7 @@ Man page
 
 
 
-    ugrep 1.5.13                   November 22, 2019                      UGREP(1)
+    ugrep 1.6.0                    November 24, 2019                      UGREP(1)
 
 <a name="patterns"/>
 
