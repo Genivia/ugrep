@@ -70,7 +70,7 @@ class zstreambuf : public std::streambuf {
   // return true if pathname has a bzlib file extension
   static bool is_bz(const char *pathname)
   {
-    return has_ext(pathname, ".bz.bz2.bzip2.tbz.tbz2");
+    return has_ext(pathname, ".bz.bz2.bzip2.tb2.tbz.tbz2.tz2");
   }
 
 #endif
@@ -105,6 +105,7 @@ class zstreambuf : public std::streambuf {
 
 #else
 
+  // unused lzma file handle
   typedef void *xzFile;
 
 #endif
@@ -208,39 +209,36 @@ class zstreambuf : public std::streambuf {
     }
   }
 
- protected:
-
-  // read() PEEK constant argument
-  static const bool PEEK = true;
-
-  // read a decompressed block into buf_[], returns next character or EOF, PEEK argument to peek at next character instead of reading it
-  int_type read(bool peek = false)
+  // decompress a block of data into buf[0..len-1], return number of bytes inflated or zero on error or EOF
+  std::streamsize inflate(unsigned char *buf, size_t len)
   {
+    std::streamsize size = 0;
+
 #ifdef HAVE_LIBBZ2
     if (bzfile_ != NULL)
     {
-      cur_ = 0;
-
-      // decompress a bzlib compressed block into buf_[]
+      // decompress a bzlib compressed block into buf[]
       int err = 0;
-      len_ = BZ2_bzRead(&err, bzfile_, buf_, Z_BUF_LEN);
+      size = BZ2_bzRead(&err, bzfile_, buf, len);
 
       // an error occurred?
       if (err != BZ_OK && err != BZ_STREAM_END)
       {
-        const char *message = "an unspecified bz2 error occurred";
+        const char *message;
 
         if (err == BZ_DATA_ERROR || err == BZ_DATA_ERROR_MAGIC)
           message = "an error was detected in the compressed data";
         else if (err == BZ_UNEXPECTED_EOF)
           message = "compressed data ends unexpectedly";
+        else
+          message = "an unspecified bz2 decompression error occurred";
         cannot_decompress(pathname_, message);
 
-        len_ = 0;
+        size = -1;
       }
 
       // decompressed the last block?
-      if (len_ <= 0 || err == BZ_STREAM_END)
+      if (size <= 0 || err == BZ_STREAM_END)
       {
         BZ2_bzReadClose(&err, bzfile_);
 
@@ -252,33 +250,36 @@ class zstreambuf : public std::streambuf {
 #ifdef HAVE_LIBLZMA
     if (xzfile_ != NULL)
     {
-      cur_ = 0;
-      len_ = 0;
-
       lzma_ret ret = LZMA_OK;
 
-      // decompress non-empty xzfile_->zbuf[] into buf_[]
+      // decompress non-empty xzfile_->zbuf[] into buf[]
       if (xzfile_->strm.avail_in > 0 && xzfile_->strm.avail_out == 0)
       {
-        xzfile_->strm.next_out = buf_;
-        xzfile_->strm.avail_out = Z_BUF_LEN;
+        xzfile_->strm.next_out = buf;
+        xzfile_->strm.avail_out = len;
 
         ret = lzma_code(&xzfile_->strm, xzfile_->finished ? LZMA_FINISH : LZMA_RUN);
 
         if (ret != LZMA_OK && ret != LZMA_STREAM_END)
+        {
           cannot_decompress(pathname_, "an error was detected in the compressed data");
+          size = -1;
+        }
         else
-          len_ = Z_BUF_LEN - xzfile_->strm.avail_out;
+        {
+          size = len - xzfile_->strm.avail_out;
+        }
       }
 
-      // read compressed data into xzfile_->zbuf[] and decompress xzfile_->buf[] into buf_[]
-      if (len_ == 0 && (ret == LZMA_OK || ret == LZMA_STREAM_END) && !xzfile_->finished)
+      // read compressed data into xzfile_->zbuf[] and decompress xzfile_->zbuf[] into buf[]
+      if (ret == LZMA_OK && size < static_cast<std::streamsize>(len) && !xzfile_->finished)
       {
         xzfile_->zlen = fread(xzfile_->zbuf, 1, Z_BUF_LEN, xzfile_->file);
 
         if (ferror(xzfile_->file))
         {
           warning("cannot read", pathname_);
+          xzfile_->finished = true;
         }
         else
         {
@@ -288,20 +289,28 @@ class zstreambuf : public std::streambuf {
           xzfile_->strm.next_in = xzfile_->zbuf;
           xzfile_->strm.avail_in = xzfile_->zlen;
 
-          xzfile_->strm.next_out = buf_;
-          xzfile_->strm.avail_out = Z_BUF_LEN;
+          if (size == 0)
+          {
+            xzfile_->strm.next_out = buf;
+            xzfile_->strm.avail_out = len;
+          }
 
           ret = lzma_code(&xzfile_->strm, xzfile_->finished ? LZMA_FINISH : LZMA_RUN);
 
           if (ret != LZMA_OK && ret != LZMA_STREAM_END)
+          {
             cannot_decompress(pathname_, "an error was detected in the compressed data");
+            size = -1;
+          }
           else
-            len_ = Z_BUF_LEN - xzfile_->strm.avail_out;
+          {
+            size = len - xzfile_->strm.avail_out;
+          }
         }
       }
 
       // decompressed the last block or there was an error?
-      if (len_ <= 0 || ret == LZMA_STREAM_END)
+      if (size <= 0 || ret == LZMA_STREAM_END)
       {
         delete xzfile_;
         xzfile_ = NULL;
@@ -309,17 +318,13 @@ class zstreambuf : public std::streambuf {
     }
     else
 #endif
+    if (gzfile_ != Z_NULL)
     {
-      if (gzfile_ == Z_NULL)
-        return traits_type::eof();
-
-      cur_ = 0;
-
-      // decompress a zlib compressed block into buf_[]
-      len_ = gzread(gzfile_, buf_, Z_BUF_LEN);
+      // decompress a zlib compressed block into buf[]
+      size = gzread(gzfile_, buf, len);
 
       // an error occurred?
-      if (len_ < 0)
+      if (size < 0)
       {
         int err;
         const char *message = gzerror(gzfile_, &err);
@@ -328,25 +333,49 @@ class zstreambuf : public std::streambuf {
           warning("cannot read", pathname_);
         else
           cannot_decompress(pathname_, message);
-
-        len_ = 0;
       }
 
       // decompressed the last block?
-      if (len_ < Z_BUF_LEN)
+      if (size < static_cast<std::streamsize>(len))
       {
         gzclose_r(gzfile_);
         gzfile_ = Z_NULL;
       }
     }
 
-    return len_ > 0 ? traits_type::to_int_type(buf_[peek ? cur_ : cur_++]) : traits_type::eof();
+    return size;
+  }
+
+  // get pointer to the internal buffer and its max size
+  void get_buffer(unsigned char *& buffer, size_t& maxlen)
+  {
+    buffer = buf_;
+    maxlen = Z_BUF_LEN;
+  }
+
+ protected:
+
+  // read a decompressed block into buf_[], returns pending next character or EOF
+  int_type peek()
+  {
+    cur_ = 0;
+    len_ = inflate(buf_, Z_BUF_LEN);
+    return len_ > 0 ? traits_type::to_int_type(*buf_) : traits_type::eof();
+  }
+
+  // read a decompressed block into buf_[], reads and returns next character or EOF
+  int_type read()
+  {
+    int_type c = peek();
+    if (c != traits_type::eof())
+      ++cur_;
+    return c;
   }
 
   // std::streambuf::underflow()
   int_type underflow() override
   {
-    return cur_ < len_ ? buf_[cur_] : read(PEEK);
+    return cur_ < len_ ? buf_[cur_] : peek();
   }
 
   // std::streambuf::uflow()
@@ -368,7 +397,7 @@ class zstreambuf : public std::streambuf {
     while (k > 0)
     {
       if (cur_ >= len_)
-        if (read(PEEK) == traits_type::eof())
+        if (peek() == traits_type::eof())
           return n - k;
       if (k <= len_ - cur_)
       {

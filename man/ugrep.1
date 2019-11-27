@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 24, 2019" "ugrep 1.6.0" "User Commands"
+.TH UGREP "1" "November 27, 2019" "ugrep 1.6.1" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -361,6 +361,7 @@ number, byte offset, and the matched line.  The default is a colon
 .TP
 \fB\-\-stats\fR
 Display statistics on the number of files and directories searched.
+Display MAGIC and GLOB selections applied to recursive searches.
 .TP
 \fB\-T\fR, \fB\-\-initial\-tab\fR
 Add a tab space to separate the file name, line number, column
@@ -407,9 +408,8 @@ Selected lines are those not matching any of the specified
 patterns.
 .TP
 \fB\-W\fR, \fB\-\-with\-hex\fR
-Only output binary matches in hexadecimal, leaving text matches
-alone.  This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex
-option.
+Output binary matches in hexadecimal, leaving text matches alone.
+This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The PATTERN or \fB\-e\fR \fIPATTERN\fR is searched for as a word (as if
@@ -432,8 +432,8 @@ specify additional attributes.  See also option \fB\-\-format\fR.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches, such as `^\\h*$' to match blank lines.  Empty
-matches are disabled by default.  Note that empty\-matching patterns
-such as `x?' and `x*' match all input, not only lines with `x'.
+matches are disabled by default.  Note that empty\-matching patterns,
+such as x? and x*, match all input with \fB\-Y\fR, not only lines with `x'.
 .TP
 \fB\-y\fR, \fB\-\-any\-line\fR
 Any matching or non\-matching line is output.  Non\-matching lines
@@ -444,12 +444,12 @@ See also the \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR options.
 Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
-Decompress files to search, when compressed.  Tape archives (.tar
-and compressed .tar.gz, .taz, .tgz, .tpz files) are searched for
-matching files.  If \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches compressed
-and archived files with the specified extensions and magic bytes.
-This version of ugrep supports .tar, .tar.gz, .taz, .tgz, .tpz, .gz,
-.bz, .bz2, .bzip2, .lzma, .xz.
+Decompress files to search, when compressed.  Archives (.pax, .tar)
+and compressed archives (.taz, .tgz, .tpz, .tbz, .tbz2, .tb2, .tz2,
+.tlz, .txz) are searched and matches are output with file pathnames
+in braces.  If \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches compressed and
+archived files with the specified extensions and magic bytes.
+Supports gzip (.gz), bzip2 (.bz, .bz2, .bzip2), xz (.lzma, .xz).
 .PP
 If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
 standard input is used, unless recursive searches are specified which examine
@@ -608,6 +608,8 @@ set field separator to \fISEP\fR for the rest of the format fields.
 the file pathname.
 .IP \fB%h\fR
 the quoted file pathname.
+.IP \fB%z\fR
+the pathname in a (compressed) tar file.
 .IP \fB%n\fR
 the line number of the match.
 .IP \fB%k\fR

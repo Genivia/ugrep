@@ -93,7 +93,7 @@ Prebuilt executables are located in ugrep/bin.
 // use a task-parallel thread to decompress the stream into a pipe to search, increases speed on most systems
 #define WITH_DECOMPRESSION_THREAD
 
-// optional: specify an optimal decompression block size, reverts to default 65536 when not specified
+// optional: specify an optimal decompression block size, default is 65536, must be larger than 1024 for tar extraction
 // #define Z_BUF_LEN 16384
 // #define Z_BUF_LEN 32768
 
@@ -149,7 +149,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.6.0"
+#define UGREP_VERSION "1.6.1"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -249,6 +249,7 @@ bool flag_no_header                = false;
 bool flag_no_group                 = false;
 bool flag_no_messages              = false;
 bool flag_no_hidden                = false;
+bool flag_match_all                = false;
 bool flag_count                    = false;
 bool flag_fixed_strings            = false;
 bool flag_free_space               = false;
@@ -556,10 +557,37 @@ struct Stats {
       fprintf(output, " with %zu threads", threads);
     if (dirs > 0)
       fprintf(output, " in %zu director%s", dirs, (dirs == 1 ? "y" : "ies"));
-    if (n > 0)
-      fprintf(output, ": found %zu matching file%s\n", n, (n == 1 ? "" : "s"));
-    else
-      fprintf(output, ": found no matches\n");
+    fprintf(output, ": %zu matching\n", n);
+    if (!flag_file_magic.empty() ||
+        !flag_include.empty() ||
+        !flag_include_dir.empty() ||
+        !flag_include_override.empty() ||
+        !flag_include_override_dir.empty() ||
+        !flag_exclude.empty() ||
+        !flag_exclude_dir.empty() ||
+        !flag_exclude_override.empty() ||
+        !flag_exclude_override_dir.empty())
+    {
+      fprintf(output, "The following pathname selections were applied:\n");
+      for (auto& i : flag_file_magic)
+        fprintf(output, "--file-magic='%s'\n", i.c_str());
+      for (auto& i : flag_include)
+        fprintf(output, "--include='%s'\n", i.c_str());
+      for (auto& i : flag_include_override)
+        fprintf(output, "--include='%s' (exclude !glob override)\n", i.c_str());
+      for (auto& i : flag_include_dir)
+        fprintf(output, "--include-dir='%s'\n", i.c_str());
+      for (auto& i : flag_include_override_dir)
+        fprintf(output, "--include-dir='%s' (exclude-dir !glob override)\n", i.c_str());
+      for (auto& i : flag_exclude)
+        fprintf(output, "--exclude='%s'\n", i.c_str());
+      for (auto& i : flag_exclude_override)
+        fprintf(output, "--exclude='%s' (include !glob override)\n", i.c_str());
+      for (auto& i : flag_exclude_dir)
+        fprintf(output, "--exclude-dir='%s'\n", i.c_str());
+      for (auto& i : flag_exclude_override_dir)
+        fprintf(output, "--exclude-dir='%s' (include-dir !glob override)\n", i.c_str());
+    }
   }
 
   size_t             files;  // number of files searched
@@ -960,7 +988,7 @@ struct Output {
   void binary_file_matches(const char *pathname, const std::string& partname);
 
   // output formatted match with options --format, --format-open, --format-close
-  void format(const char *format, const char *pathname, size_t matches, reflex::AbstractMatcher *matcher);
+  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher);
 
   // output a quoted string with escapes for \ and "
   void quote(const char *data, size_t size);
@@ -1111,14 +1139,14 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     str(pathname);
     str(color_off);
 
-    if (flag_break)
+    if (flag_null)
+    {
+      chr('\0');
+    }
+    else if (flag_break)
     {
       chr('\n');
       pathname = NULL;
-    }
-    else if (flag_null)
-    {
-      chr('\0');
     }
     else
     {
@@ -1228,7 +1256,7 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
 }
 
 // output formatted match with options --format, --format-open, --format-close
-void Output::format(const char *format, const char *pathname, size_t matches, reflex::AbstractMatcher *matcher)
+void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher)
 {
   size_t len = 0;
   const char *sep = NULL;
@@ -1265,6 +1293,12 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
           if (a)
             str(a, s - a - 1);
           str(pathname);
+          if (!partname.empty())
+          {
+            chr('{');
+            str(partname);
+            chr('}');
+          }
           if (sep != NULL)
             str(sep, len);
           else
@@ -1274,7 +1308,15 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
 
       case 'f':
         if (pathname != NULL)
+        {
           str(pathname);
+          if (!partname.empty())
+          {
+            chr('{');
+            str(partname);
+            chr('}');
+          }
+        }
         break;
 
       case 'H':
@@ -1282,7 +1324,16 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         {
           if (a)
             str(a, s - a - 1);
-          quote(pathname, strlen(pathname));
+          if (!partname.empty())
+          {
+            std::string name(pathname);
+            name.append("{").append(partname).append("}");
+            quote(name.c_str(), name.size());
+          }
+          else
+          {
+            quote(pathname, strlen(pathname));
+          }
           if (sep != NULL)
             str(sep, len);
           else
@@ -1291,7 +1342,16 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
         break;
 
       case 'h':
-        quote(pathname, strlen(pathname));
+        if (!partname.empty())
+        {
+          std::string name(pathname);
+          name.append("{").append(partname).append("}");
+          quote(name.c_str(), name.size());
+        }
+        else
+        {
+          quote(pathname, strlen(pathname));
+        }
         break;
 
       case 'N':
@@ -1459,6 +1519,10 @@ void Output::format(const char *format, const char *pathname, size_t matches, re
           num(matches);
         else
           xml(matcher->begin(), matcher->size());
+        break;
+
+      case 'z':
+        str(partname);
         break;
 
       case '$':
@@ -1843,6 +1907,7 @@ struct Grep {
           pipe_fd[1] = -1;
         }
 
+        // if creating a pipe fails, then we fall back on using a decompression stream as input
         streambuf = new zstreambuf(pathname, file);
         stream = new std::istream(streambuf);
         input = stream;
@@ -1850,6 +1915,7 @@ struct Grep {
 
 #else
 
+      // create a decompression stream to read as input
       streambuf = new zstreambuf(pathname, file);
       stream = new std::istream(streambuf);
       input = stream;
@@ -1871,172 +1937,29 @@ struct Grep {
   // decompression thread
   void decompress(const char *pathname)
   {
-    unsigned char buf[Z_BUF_LEN];
+    // create a decompression stream buffer
+    zstreambuf zstrm(pathname, file);
 
-#ifdef HAVE_LIBBZ2
-    if (zstreambuf::is_bz(pathname))
+    // let's use the internal zstreambuf buffer to hold decompressed data
+    unsigned char *buf;
+    size_t maxlen;
+    zstrm.get_buffer(buf, maxlen);
+
+    // decompress a block of data into the buffer
+    std::streamsize len = zstrm.inflate(buf, maxlen);
+
+    // if this is a tar file, then extract its parts to push into pipes and terminate this thread when done
+    if (filter_tar(zstrm, buf, maxlen, len))
+      return;
+
+    while (len > 0)
     {
-      void *bzfile = NULL;
-      int err = 0;
+      // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
+      if (write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
+        break;
 
-      if ((bzfile = BZ2_bzReadOpen(&err, file, 0, 0, NULL, 0)) != NULL && err == BZ_OK)
-      {
-        while (true)
-        {
-          int len = BZ2_bzRead(&err, bzfile, buf, Z_BUF_LEN);
-
-          // an error occurred?
-          if (err != BZ_OK && err != BZ_STREAM_END)
-          {
-            const char *message = "an unspecified bz2 error occurred";
-
-            if (err == BZ_DATA_ERROR || err == BZ_DATA_ERROR_MAGIC)
-              message = "an error was detected in the compressed data";
-            else if (err == BZ_UNEXPECTED_EOF)
-              message = "compressed data ends unexpectedly";
-            cannot_decompress(pathname, message);
-
-            break;
-          }
-
-          // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-          if (write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
-            break;
-
-          // no more data?
-          if (err == BZ_STREAM_END)
-            break;
-        }
-
-        BZ2_bzReadClose(&err, bzfile);
-      }
-      else
-      {
-        warning("BZ2_bzReadOpen error", pathname);
-      }
-    }
-    else
-#endif
-#ifdef HAVE_LIBLZMA
-    if (zstreambuf::is_xz(pathname))
-    {
-      lzma_stream strm = LZMA_STREAM_INIT;
-
-      if (lzma_stream_decoder(&strm, UINT64_MAX, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED) == LZMA_OK)
-      {
-        unsigned char zbuf[Z_BUF_LEN];
-        bool finished = false;
-
-        do
-        {
-          size_t zlen = fread(zbuf, 1, Z_BUF_LEN, file);
-
-          if (ferror(file))
-          {
-            warning("cannot read", pathname);
-
-            break;
-          }
-
-          if (feof(file))
-            finished = true;
-
-          strm.next_in = zbuf;
-          strm.avail_in = zlen;
-
-          do
-          {
-            strm.next_out = buf;
-            strm.avail_out = Z_BUF_LEN;
-
-            lzma_ret ret = lzma_code(&strm, finished ? LZMA_FINISH : LZMA_RUN);
-
-            if (ret != LZMA_OK && ret != LZMA_STREAM_END)
-            {
-              cannot_decompress(pathname, "an error was detected in the compressed data");
-
-              finished = true;
-
-              break;
-            }
-
-            int len = static_cast<int>(Z_BUF_LEN - strm.avail_out);
-
-            // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-            if (write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
-            {
-              finished = true;
-
-              break;
-            }
-
-          } while (strm.avail_out == 0);
-
-        } while (!finished);
-
-        lzma_end(&strm);
-      }
-      else
-      {
-        warning("lzma_stream_decoder error", pathname);
-      }
-    }
-    else
-#endif
-    {
-      gzFile gzfile = Z_NULL;
-      int fd = dup(fileno(file));
-
-      if (fd >= 0 && (gzfile = gzdopen(fd, "r")) != Z_NULL)
-      {
-        gzbuffer(gzfile, Z_BUF_LEN);
-
-        int len = gzread(gzfile, buf, Z_BUF_LEN);
-
-        // if tar file then extract parts
-        if (filter_tar(gzfile, pathname, buf, len))
-          return;
-
-        while (true)
-        {
-          // EOF or error?
-          if (len <= 0)
-          {
-            // error?
-            if (len < 0)
-            {
-              int err;
-              const char *message = gzerror(gzfile, &err);
-
-              if (err == Z_ERRNO)
-                warning("cannot read", pathname);
-              else
-                cannot_decompress(pathname, message);
-            }
-
-            break;
-          }
-
-          // write to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-          if (write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
-            break;
-
-          // no more data?
-          if (len < Z_BUF_LEN)
-            break;
-
-          len = gzread(gzfile, buf, Z_BUF_LEN);
-        }
-
-        gzclose_r(gzfile);
-      }
-      else
-      {
-        warning("gzdopen error", pathname);
-
-        if (fd >= 0)
-          close(fd);
-      }
+      // decompress the next block of data into the buffer
+      len = zstrm.inflate(buf, maxlen);
     }
 
     // close our end of the pipe
@@ -2044,8 +1967,8 @@ struct Grep {
     pipe_fd[1] = -1;
   }
 
-  // if tar file, extract contents and send to the pipe, return true when done
-  bool filter_tar(gzFile gzfile, const char *pathname, unsigned char *buf, int len)
+  // if tar file, extract regular file contents and push them into pipes one by one, return true when done
+  bool filter_tar(zstreambuf& zstrm, unsigned char *buf, size_t maxlen, std::streamsize len)
   {
     const int BLOCKSIZE = 512;
 
@@ -2063,63 +1986,72 @@ struct Grep {
       // is this a tar archive?
       if (*buf != '\0' && (memcmp(buf + 257, ustar_magic, 8) == 0 || memcmp(buf + 257, gnutar_magic, 8) == 0))
       {
-        // we expect to produce headers
+        // we should produce headers with tar file pathnames for each archived part (Grep::partname)
         flag_no_header = false;
 
         // inform the main grep thread we are extracing an archive
         extracting = true;
 
-        std::string pax_path;
+        // to hold the path (prefix + name) extracted from the header
+        std::string path;
+
+        // to hold long path extracted from the previous header block that is marked with typeflag 'x' or 'L'
+        std::string long_path;
+
+        // need a new pipe, close current pipe first to create a new pipe
+        bool need_pipe = false;
 
         while (true)
         {
-          // extract header fields (name and prefix strings are not \0-terminated!)
+          // extract tar header fields (name and prefix strings are not \0-terminated!!)
           const char *name = reinterpret_cast<const char*>(buf);
           const char *prefix = reinterpret_cast<const char*>(buf + 345);
-          int size = strtol(reinterpret_cast<const char*>(buf + 124), NULL, 8);
+          size_t size = strtoul(reinterpret_cast<const char*>(buf + 124), NULL, 8);
           int padding = (BLOCKSIZE - size % BLOCKSIZE) % BLOCKSIZE;
           unsigned char typeflag = buf[156];
 
+          // header types
           bool is_regular = typeflag == '0' || typeflag == '\0';
           bool is_xhd = typeflag == 'x';
-          // TODO this could be relevant to use: bool is_extended = typeflag == 'K';
+          bool is_extended = typeflag == 'L';
 
-          bool ok = true;
+          // selected by default when regular file
+          bool is_selected = is_regular;
 
-          // assign the (long) tar name to use by the grep main thread
-          partname.clear();
-          if (pax_path.empty())
+          // assign the (long) tar pathname
+          path.clear();
+          if (long_path.empty())
           {
             if (*prefix != '\0')
             {
               if (prefix[154] == '\0')
-                partname.assign(prefix);
+                path.assign(prefix);
               else
-                partname.assign(prefix, 155);
-              partname.push_back('/');
+                path.assign(prefix, 155);
+              path.push_back('/');
             }
             if (name[99] == '\0')
-              partname.append(name);
+              path.append(name);
             else
-              partname.append(name, 100);
+              path.append(name, 100);
           }
           else
           {
-            partname.swap(pax_path);
+            path.swap(long_path);
           }
 
-          // -O, --include: check file name extensions
+          // -O, -t, and --include: check if pathname or basename matches globs, is_selected = false if not
           if (is_regular && !flag_include.empty())
           {
-            const char *basename = strrchr(partname.c_str(), '/');
+            const char *basename = strrchr(path.c_str(), '/');
             if (basename == NULL)
-              basename = name;
+              basename = path.c_str();
             else
               ++basename;
 
             // include files whose basename matches any one of the --include globs
             for (auto& glob : flag_include)
-              if ((ok = glob_match(partname.c_str(), basename, glob.c_str())))
+              if ((is_selected = glob_match(path.c_str(), basename, glob.c_str())))
                 break;
           }
 
@@ -2127,18 +2059,21 @@ struct Grep {
           len -= BLOCKSIZE;
           memmove(buf, buf + BLOCKSIZE, len);
 
-          // -M: check magic bytes
-          if (is_regular && (flag_include.empty() || !ok) && !flag_file_magic.empty())
+          // -M: check magic bytes, requires sufficiently large len of buf[], which is Z_BUF_LEN - BLOCKSIZE or the whole file
+          if (is_regular && (flag_include.empty() || !is_selected) && !flag_file_magic.empty())
           {
+            size_t n = std::min(static_cast<size_t>(len), size);
+            char *b = reinterpret_cast<char*>(buf);
             reflex::Matcher magic(magic_pattern);
-            magic.buffer(reinterpret_cast<char*>(buf), static_cast<size_t>(len + 1));
-            ok = magic.scan() != 0;
+            magic.buffer(b, n + 1);
+            is_selected = magic.scan() != 0;
           }
 
-          // check for pax header in the body and extract path if present
+          // if extended headers are present
           if (is_xhd)
           {
-            int n = std::min(len, size);
+            // typeflag 'x': extract the long path from the pax extended header block in the body
+            size_t n = std::min(static_cast<size_t>(len), size);
             const char *b = reinterpret_cast<const char*>(buf);
             const char *e = b + n;
             const char *t = "path=";
@@ -2147,90 +2082,20 @@ struct Grep {
             {
               e = static_cast<const char*>(memchr(s, '\n', e - s));
               if (e != NULL)
-                pax_path.assign(s + 5, e - s - 5);
+                long_path.assign(s + 5, e - s - 5);
             }
           }
-
-          while (true)
+          else if (is_extended)
           {
-            // EOF or error?
-            if (len <= 0)
-            {
-              // error?
-              if (len < 0)
-              {
-                int err;
-                const char *message = gzerror(gzfile, &err);
-
-                if (err == Z_ERRNO)
-                  warning("cannot read", pathname);
-                else
-                  cannot_decompress(pathname, message);
-              }
-
-              break;
-            }
-
-            int len_out = std::min(len, size);
-
-            if (ok && is_regular)
-            {
-              // write to the pipe, if the pipe is broken then stop pushing more data into this pipe
-              if (write(pipe_fd[1], buf, static_cast<size_t>(len_out)) < len_out)
-                ok = false;
-            }
-
-            size -= len_out;
-            if (size == 0)
-            {
-              len -= len_out;
-              memmove(buf, buf + len_out, len);
-
-              break;
-            }
-
-            len = gzread(gzfile, buf, Z_BUF_LEN);
+            // typeflag 'L': get long name from the body
+            size_t n = std::min(static_cast<size_t>(len), size);
+            const char *b = reinterpret_cast<const char*>(buf);
+            long_path.assign(b, n);
           }
 
-          // error?
-          if (len < 0)
-            break;
-
-          int len_in = gzread(gzfile, buf + len, Z_BUF_LEN - len);
-
-          // error?
-          if (len_in < 0)
+          // close the pipe and get a new pipe to search the next part in the archive
+          if (is_selected && need_pipe)
           {
-            int err;
-            const char *message = gzerror(gzfile, &err);
-
-            if (err == Z_ERRNO)
-              warning("cannot read", pathname);
-            else
-              cannot_decompress(pathname, message);
-
-            break;
-          }
-
-          len += len_in;
-
-          if (len > padding)
-          {
-            len -= padding;
-            memmove(buf, buf + padding, len);
-          }
-
-          // no more parts to extract?
-          if (*buf == '\0' || (memcmp(buf + 257, ustar_magic, 8) != 0 && memcmp(buf + 257, gnutar_magic, 8) != 0))
-            break;
-
-          // search the next part in the archive, if the previous part was a regular file
-          if (is_regular)
-          {
-            // close our end of the pipe
-            close(pipe_fd[1]);
-            pipe_fd[1] = -1;
-
             // signal close and wait until the main grep thread created a new pipe in close_file()
             std::unique_lock<std::mutex> lock(pipe_mutex);
             pipe_close.notify_one();
@@ -2242,6 +2107,76 @@ struct Grep {
             // failed to create a pipe in close_file()
             if (pipe_fd[1] == -1)
               break;
+          }
+
+          // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
+          if (is_selected)
+            partname.swap(path);
+
+          // it is ok to push the body into the pipe for the main thread to search
+          bool ok = is_selected;
+
+          while (len > 0)
+          {
+            size_t len_out = std::min(static_cast<size_t>(len), size);
+
+            if (ok)
+            {
+              // write decompressed data to the pipe, if the pipe is broken then stop pushing more data into this pipe
+              if (write(pipe_fd[1], buf, len_out) < static_cast<ssize_t>(len_out))
+                ok = false;
+            }
+
+            size -= len_out;
+
+            // reached the end of the tar body?
+            if (size == 0)
+            {
+              len -= len_out;
+              memmove(buf, buf + len_out, len);
+
+              break;
+            }
+
+            // decompress the next block of data into the buffer
+            len = zstrm.inflate(buf, maxlen);
+          }
+
+          // error?
+          if (len < 0)
+            break;
+
+          if (static_cast<size_t>(len) < maxlen)
+          {
+            // fill the rest of the buffer with decompressed data
+            std::streamsize len_in = zstrm.inflate(buf + len, maxlen - len);
+
+            // error?
+            if (len_in < 0)
+              break;
+
+            len += len_in;
+          }
+
+          // skip padding
+          if (len > padding)
+          {
+            len -= padding;
+            memmove(buf, buf + padding, len);
+          }
+
+          // no more parts to extract?
+          if (*buf == '\0' || (memcmp(buf + 257, ustar_magic, 8) != 0 && memcmp(buf + 257, gnutar_magic, 8) != 0))
+            break;
+
+          // get a new pipe to search the next part in the archive, if the previous part was a regular file
+          if (is_selected)
+          {
+            // close our end of the pipe
+            close(pipe_fd[1]);
+            pipe_fd[1] = -1;
+
+            need_pipe = true;
           }
         }
 
@@ -2257,9 +2192,6 @@ struct Grep {
         pipe_close.notify_one();
         lock.unlock();
 
-        // close the decompression stream
-        gzclose_r(gzfile);
-
         // done extracting the tar file
         return true;
       }
@@ -2273,7 +2205,7 @@ struct Grep {
 #endif
   
   // close the file and clear input, return true if next file is extracted from an archive to search
-  bool close_file()
+  bool close_file(const char *pathname)
   {
 
 #ifdef HAVE_LIBZ
@@ -2318,6 +2250,8 @@ struct Grep {
           // failed to create a new pipe
           if (pipe_fd[0] != -1)
           {
+            warning("cannot open pipe while reading", pathname);
+
             close(pipe_fd[0]);
             close(pipe_fd[1]);
           }
@@ -3411,11 +3345,20 @@ int main(int argc, char **argv)
       // pattern ".*\n?|" can be used throughout, without flag_empty = true
       // but this garbles output with options -o, -H, -n, etc.
       if (flag_line_regexp)
+      {
         regex.append("^$|");
+      }
       else if (flag_hex)
+      {
         regex.append(".*\n?|");
+        flag_match_all = true;
+      }
       else
+      {
         regex.append(".*|");
+        flag_match_all = true;
+      }
+
       flag_empty = true;
     }
     else
@@ -3773,13 +3716,22 @@ int main(int argc, char **argv)
               copy_color(color_cx, color_tmp);
             }
 
-            // if ms= is not specified, use the mt= value
-            if (*color_ms == '\0')
-              copy_color(color_ms, color_mt);
+            // if pattern is empty to match all, matches are shown as selected lines
+            if (flag_match_all)
+            {
+              copy_color(color_ms, color_sl);
+              copy_color(color_mc, color_cx);
+            }
+            else
+            {
+              // if ms= is not specified, use the mt= value
+              if (*color_ms == '\0')
+                copy_color(color_ms, color_mt);
 
-            // if mc= is not specified, use the mt= value
-            if (*color_mc == '\0')
-              copy_color(color_mc, color_mt);
+              // if mc= is not specified, use the mt= value
+              if (*color_mc == '\0')
+                copy_color(color_mc, color_mt);
+            }
 
             color_off = "\033[0m";
           }
@@ -3842,49 +3794,68 @@ int main(int argc, char **argv)
   for (auto& extensions : flag_file_extensions)
   {
     size_t from = 0;
-    size_t to;
     std::string glob;
 
-    while ((to = extensions.find(',', from)) != std::string::npos)
+    while (true)
     {
-      flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, to - from)));
-      from = to + 1;
-    }
+      size_t to = extensions.find(',', from);
+      size_t size = (to == std::string::npos ? extensions.size() : to) - from;
 
-    flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)));
+      flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, size)));
 
 #ifdef HAVE_LIBZ
-    // -z: add globs to search compressed files and tarballs
-    if (flag_decompress)
-    {
-      const char *zextensions[6] = { ".gz", ".bz", ".bz2", ".bzip2", ".lzma", ".xz" };
+      // -z: add globs to search compressed files and tarballs
+      if (flag_decompress)
+      {
+        const char *zextensions[6] = { ".gz", ".bz", ".bz2", ".bzip2", ".lzma", ".xz" };
 
-      for (size_t i = 0; i < 6; ++i)
-        flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from)).append(zextensions[i]));
-
-#ifdef WITH_DECOMPRESSION_THREAD
-      flag_include.emplace_back("*.tar");
-      flag_include.emplace_back("*.tar.gz");
-      flag_include.emplace_back("*.taz");
-      flag_include.emplace_back("*.tgz");
-      flag_include.emplace_back("*.tpz");
+        for (size_t i = 0; i < 6; ++i)
+          flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, size)).append(zextensions[i]));
+      }
 #endif
 
+      if (to == std::string::npos)
+        break;
+
+      from = to + 1;
     }
-#endif
-
   }
 
 #ifdef HAVE_LIBZ
 #ifdef WITH_DECOMPRESSION_THREAD
-  // -M with -z and without --include: add globs to search tarballs
-  if (!flag_file_magic.empty() && flag_include.empty() && flag_decompress)
+  // -z with -M or -O/--include: add globs to search tarballs
+  if (flag_decompress && (!flag_file_magic.empty() || !flag_include.empty()))
   {
+    flag_include.emplace_back("*.pax");
     flag_include.emplace_back("*.tar");
+
+    flag_include.emplace_back("*.pax.gz");
     flag_include.emplace_back("*.tar.gz");
     flag_include.emplace_back("*.taz");
     flag_include.emplace_back("*.tgz");
     flag_include.emplace_back("*.tpz");
+
+#ifdef HAVE_LIBBZ2
+    flag_include.emplace_back("*.pax.bz");
+    flag_include.emplace_back("*.tar.bz");
+    flag_include.emplace_back("*.pax.bz2");
+    flag_include.emplace_back("*.tar.bz2");
+    flag_include.emplace_back("*.pax.bzip2");
+    flag_include.emplace_back("*.tar.bzip2");
+    flag_include.emplace_back("*.tb2");
+    flag_include.emplace_back("*.tbz");
+    flag_include.emplace_back("*.tbz2");
+    flag_include.emplace_back("*.tz2");
+#endif
+
+#ifdef HAVE_LIBLZMA
+    flag_include.emplace_back("*.pax.lzma");
+    flag_include.emplace_back("*.tar.lzma");
+    flag_include.emplace_back("*.pax.xz");
+    flag_include.emplace_back("*.tar.xz");
+    flag_include.emplace_back("*.tlz");
+    flag_include.emplace_back("*.txz");
+#endif
   }
 #endif
 #endif
@@ -4786,10 +4757,10 @@ void Grep::search(const char *pathname)
           if (flag_format != NULL)
           {
             if (flag_format_open != NULL)
-              out.format(flag_format_open, pathname, stats.found_files(), matcher);
-            out.format(flag_format, pathname, 1, matcher);
+              out.format(flag_format_open, pathname, partname, stats.found_files(), matcher);
+            out.format(flag_format, pathname, partname, 1, matcher);
             if (flag_format_close != NULL)
-              out.format(flag_format_close, pathname, stats.found_files(), matcher);
+              out.format(flag_format_close, pathname, partname, stats.found_files(), matcher);
           }
           else
           {
@@ -4865,10 +4836,10 @@ void Grep::search(const char *pathname)
       if (flag_format != NULL)
       {
         if (flag_format_open != NULL)
-          out.format(flag_format_open, pathname, stats.found_files(), matcher);
-        out.format(flag_format, pathname, matches, matcher);
+          out.format(flag_format_open, pathname, partname, stats.found_files(), matcher);
+        out.format(flag_format, pathname, partname, matches, matcher);
         if (flag_format_close != NULL)
-          out.format(flag_format_close, pathname, stats.found_files(), matcher);
+          out.format(flag_format_close, pathname, partname, stats.found_files(), matcher);
       }
       else
       {
@@ -4918,13 +4889,13 @@ void Grep::search(const char *pathname)
             goto exit_search;
 
           if (flag_format_open != NULL)
-            out.format(flag_format_open, pathname, stats.found_files(), matcher);
+            out.format(flag_format_open, pathname, partname, stats.found_files(), matcher);
         }
 
         ++matches;
 
         // output --format
-        out.format(flag_format, pathname, matches, matcher);
+        out.format(flag_format, pathname, partname, matches, matcher);
 
         // -m: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
@@ -4936,7 +4907,7 @@ void Grep::search(const char *pathname)
 
       // output --format-close
       if (matches > 0 && flag_format_close != NULL)
-        out.format(flag_format_close, pathname, stats.found_files(), matcher);
+        out.format(flag_format_close, pathname, partname, stats.found_files(), matcher);
     }
     else if (flag_only_line_number)
     {
@@ -5145,10 +5116,16 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                out.str(rest_line_data, rest_line_size);
-
-                if (flag_line_buffered)
-                  out.flush();
+                if (rest_line_size > 0)
+                {
+                  out.str(color_sl);
+                  if (rest_line_data[rest_line_size - 1] == '\n')
+                    out.str(rest_line_data, rest_line_size - 1);
+                  else
+                    out.str(rest_line_data, rest_line_size);
+                  out.str(color_off);
+                  out.nl();
+                }
               }
 
               rest_line_data = NULL;
@@ -5255,11 +5232,24 @@ void Grep::search(const char *pathname)
 
               if (flag_no_group)
               {
-                out.str(end, eol - end);
-                if (matcher->hit_end())
+                if (eol > end)
+                {
+                  out.str(color_sl);
+                  if (end[eol - end - 1] == '\n')
+                    out.str(end, eol - end - 1);
+                  else
+                    out.str(end, eol - end);
+                  out.str(color_off);
                   out.nl();
+                }
+                else if (matcher->hit_end())
+                {
+                  out.nl();
+                }
                 else if (flag_line_buffered)
+                {
                   out.flush();
+                }
               }
               else
               {
@@ -5362,11 +5352,24 @@ void Grep::search(const char *pathname)
                     }
                     else
                     {
-                      out.str(end, eol - end);
-                      if (matcher->hit_end())
+                      if (eol > end)
+                      {
+                        out.str(color_sl);
+                        if (end[eol - end - 1] == '\n')
+                          out.str(end, eol - end - 1);
+                        else
+                          out.str(end, eol - end);
+                        out.str(color_off);
                         out.nl();
+                      }
+                      else if (matcher->hit_end())
+                      {
+                        out.nl();
+                      }
                       else if (flag_line_buffered)
+                      {
                         out.flush();
+                      }
                     }
                   }
                   else
@@ -5392,9 +5395,16 @@ void Grep::search(const char *pathname)
           }
           else
           {
-            out.str(rest_line_data, rest_line_size);
-            if ((rest_line_size == 0 || rest_line_data[rest_line_size - 1] != '\n'))
-              out.chr('\n');
+            if (rest_line_size > 0)
+            {
+              out.str(color_sl);
+              if (rest_line_data[rest_line_size - 1] == '\n')
+                out.str(rest_line_data, rest_line_size - 1);
+              else
+                out.str(rest_line_data, rest_line_size);
+              out.str(color_off);
+            }
+            out.chr('\n');
           }
         }
 
@@ -5550,9 +5560,17 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                out.str(color_cx);
-                out.str(lines[current].c_str() + last, lines[current].size() - last);
-                out.str(color_off);
+                size_t size = lines[current].size();
+
+                if (size > last)
+                {
+                  if (lines[current][size - 1] == '\n')
+                    --size;
+                  out.str(color_cx);
+                  out.str(lines[current].c_str() + last, size - last);
+                  out.str(color_off);
+                  out.nl();
+                }
               }
             }
             else if (!found)
@@ -5661,9 +5679,17 @@ void Grep::search(const char *pathname)
                     }
                     else
                     {
-                      out.str(color_cx);
-                      out.str(lines[begin_context].c_str() + last, lines[begin_context].size() - last);
-                      out.str(color_off);
+                      size_t size = lines[begin_context].size();
+
+                      if (size > last)
+                      {
+                        if (lines[begin_context][size - 1] == '\n')
+                          --size;
+                        out.str(color_cx);
+                        out.str(lines[begin_context].c_str() + last, size - last);
+                        out.str(color_off);
+                        out.nl();
+                      }
                     }
                   }
 
@@ -5684,13 +5710,18 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                out.str(color_sl);
-                out.str(lines[current].c_str(), lines[current].size());
-                out.str(color_off);
-              }
+                size_t size = lines[current].size();
 
-              if (flag_line_buffered)
-                out.flush();
+                if (size > 0)
+                {
+                  if (lines[current][size - 1] == '\n')
+                    --size;
+                  out.str(color_sl);
+                  out.str(lines[current].c_str(), size);
+                  out.str(color_off);
+                  out.nl();
+                }
+              }
 
               ++matches;
 
@@ -5772,9 +5803,17 @@ void Grep::search(const char *pathname)
                   }
                   else
                   {
-                    out.str(color_cx);
-                    out.str(lines[begin_context].c_str(), lines[begin_context].size());
-                    out.str(color_off);
+                    size_t size = lines[begin_context].size();
+
+                    if (size > 0)
+                    {
+                      if (lines[begin_context][size - 1] == '\n')
+                        --size;
+                      out.str(color_cx);
+                      out.str(lines[begin_context].c_str(), size);
+                      out.str(color_off);
+                      out.nl();
+                    }
                   }
 
                   ++begin;
@@ -5858,13 +5897,18 @@ void Grep::search(const char *pathname)
               }
               else if (!flag_no_group)
               {
-                out.str(color_sl);
-                out.str(lines[current].c_str() + last, lines[current].size() - last);
-                out.str(color_off);
-              }
+                size_t size = lines[current].size();
 
-              if (flag_line_buffered)
-                out.flush();
+                if (size > last)
+                {
+                  if (lines[current][size - 1] == '\n')
+                    --size;
+                  out.str(color_sl);
+                  out.str(lines[current].c_str() + last, size - last);
+                  out.str(color_off);
+                  out.nl();
+                }
+              }
             }
             else if (flag_any_line || (after > 0 && after + flag_after_context >= lineno))
             {
@@ -5881,9 +5925,17 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                out.str(color_cx);
-                out.str(lines[current].c_str(), lines[current].size());
-                out.str(color_off);
+                size_t size = lines[current].size();
+
+                if (size > 0)
+                {
+                  if (lines[current][size - 1] == '\n')
+                    --size;
+                  out.str(color_cx);
+                  out.str(lines[current].c_str(), size);
+                  out.str(color_off);
+                  out.nl();
+                }
               }
             }
 
@@ -5916,7 +5968,7 @@ exit_search:
 
     // close file or -z: loop over next extracted archive parts, when applicable
   }
-  while (close_file());
+  while (close_file(pathname));
 }
 
 // display format with option --format-begin and --format-end
@@ -6369,6 +6421,7 @@ void help(const char *message, const char *arg)
             (`:').\n\
     --stats\n\
             Display statistics on the number of files and directories searched.\n\
+            Display MAGIC and GLOB selections applied to recursive searches.\n\
     -T, --initial-tab\n\
             Add a tab space to separate the file name, line number, column\n\
             number, and byte offset with the matched line.\n\
@@ -6397,9 +6450,8 @@ void help(const char *message, const char *arg)
             Selected lines are those not matching any of the specified\n\
             patterns.\n\
     -W, --with-hex\n\
-            Only output binary matches in hexadecimal, leaving text matches\n\
-            alone.  This option is equivalent to the --binary-files=with-hex\n\
-            option.\n\
+            Output binary matches in hexadecimal, leaving text matches alone.\n\
+            This option is equivalent to the --binary-files=with-hex option.\n\
     -w, --word-regexp\n\
             The PATTERN or -e PATTERN is searched for as a word (as if\n\
             surrounded by \\< and \\>).  If PATTERN or -e PATTERN is also\n\
@@ -6417,8 +6469,8 @@ void help(const char *message, const char *arg)
             specify additional attributes.  See also option --format.\n\
     -Y, --empty\n\
             Permits empty matches, such as `^\\h*$' to match blank lines.  Empty\n\
-            matches are disabled by default.  Note that empty-matching patterns\n\
-            such as `x?' and `x*' match all input, not only lines with `x'.\n\
+            matches are disabled by default.  Note that empty-matching patterns,\n\
+            such as x? and x*, match all input with -Y, not only lines with `x'.\n\
     -y, --any-line\n\
             Any matching or non-matching line is output.  Non-matching lines\n\
             are output with the `-' separator as context of the matching lines.\n\
@@ -6426,26 +6478,27 @@ void help(const char *message, const char *arg)
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n\
-            Decompress files to search, when compressed.  Tape archives (.tar\n\
-            and compressed .tar.gz, .taz, .tgz, .tpz files) are searched for\n\
-            matching files.  If -O, -M, or -t is specified, searches compressed\n\
-            and archived files with the specified extensions and magic bytes.\n";
+            Decompress files to search, when compressed.  Archives (.pax, .tar)\n\
+            and compressed archives (.taz, .tgz, .tpz, .tbz, .tbz2, .tb2, .tz2,\n\
+            .tlz, .txz) are searched and matches are output with file pathnames\n\
+            in braces.  If -O, -M, or -t is specified, searches compressed and\n\
+            archived files with the specified extensions and magic bytes.\n";
 #ifndef HAVE_LIBZ
   std::cout << "\
             This feature is not available in this version of ugrep.\n";
 #else
   std::cout << "\
-            This version of ugrep supports .tar, .tar.gz, .taz, .tgz, .tpz, .gz";
+            Supports gzip (.gz)";
 #ifdef HAVE_LIBBZ2
-  std::cout << ",\n            .bz, .bz2, .bzip2";
+  std::cout << ", bzip2 (.bz, .bz2, .bzip2)";
 #ifdef HAVE_LIBLZMA
-  std::cout << ", .lzma, .xz.\n";
+  std::cout << ", xz (.lzma, .xz).\n";
 #else
   std::cout << ".\n";
 #endif
 #else
 #ifdef HAVE_LIBLZMA
-  std::cout << ",\n            .lzma, .xz.\n";
+  std::cout << ", xz (.lzma, .xz).\n";
 #else
   std::cout << ".\n";
 #endif

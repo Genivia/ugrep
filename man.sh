@@ -216,6 +216,8 @@ set field separator to \fISEP\fR for the rest of the format fields.
 the file pathname.
 .IP \fB%h\fR
 the quoted file pathname.
+.IP \fB%z\fR
+the pathname in a (compressed) tar file.
 .IP \fB%n\fR
 the line number of the match.
 .IP \fB%k\fR
