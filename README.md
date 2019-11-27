@@ -1091,6 +1091,7 @@ To change the color palette, set the `GREP_COLORS` environment variable.  Its
 value is a colon-separated list of ANSI SGR parameters that defaults to
 `cx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36`:
 
+param | result
 ----- | ------------------------------------------------------------------------
 `sl=` | SGR substring for selected lines.
 `cx=` | SGR substring for context lines.
@@ -1224,7 +1225,7 @@ field     | output
 `%;`      | if not the first match: a semicolon, same as `%[;]>`.
 `%|`      | if not the first match: a verical bar, same as `%[|]>`.
 `%%`      | the percentage sign.
-`%1`      | the first regex group capture of the match, and so on up to group `%9`, same as `%[1]#`, requires option `-P` Perl matching.
+`%1`      | the first regex group capture of the match, and so on up to group `%9`
 `%[NUM]#` | the regex group capture `NUM`, requires option `-P` Perl matching.
 
 Note:
