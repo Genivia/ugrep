@@ -1095,7 +1095,7 @@ param | result
 ----- | ------------------------------------------------------------------------
 `sl=` | SGR substring for selected lines.
 `cx=` | SGR substring for context lines.
-`rv`  | Swaps the sl= and cx= capabilities when -v is specified.
+`rv`  | Swaps the `sl=` and `cx=` capabilities when `-v` is specified.
 `mt=` | SGR substring for matching text in any matching line.
 `ms=` | SGR substring for matching text in a selected line.  The substring mt= by default.
 `mc=` | SGR substring for matching text in a context line.  The substring mt= by default.
@@ -1223,7 +1223,7 @@ field     | output
 `%,`      | if not the first match: a comma, same as `%[,]>`.
 `%:`      | if not the first match: a colon, same as `%[:]>`.
 `%;`      | if not the first match: a semicolon, same as `%[;]>`.
-`%|`      | if not the first match: a verical bar, same as `%[|]>`.
+`%│`      | if not the first match: a verical bar, same as `%[│]>`.
 `%%`      | the percentage sign.
 `%1`      | the first regex group capture of the match, and so on up to group `%9`
 `%[NUM]#` | the regex group capture `NUM`, requires option `-P` Perl matching.
