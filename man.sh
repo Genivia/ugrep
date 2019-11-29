@@ -84,7 +84,7 @@ An error occurred.
 If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
 the exit status is 0 even if an error occurred.
 .SH GLOBBING
-Globbing is used by options \fB--include\fR, \fB--include-dir\fR,
+Globbing is used by options \fB--glob\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
 \fB--exclude-from\fR to match pathnames and basenames.  Globbing supports
 gitignore syntax and the corresponding matching rules.  When a glob contains a

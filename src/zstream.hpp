@@ -43,6 +43,8 @@
 #include <streambuf>
 #include <zlib.h>
 
+#include "zopen.h"
+
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
@@ -110,6 +112,12 @@ class zstreambuf : public std::streambuf {
 
 #endif
 
+  // return true if pathname has a compress (Z) file extension
+  static bool is_Z(const char *pathname)
+  {
+    return has_ext(pathname, ".Z");
+  }
+
   // check if pathname file extension matches on of the given file extensions
   static bool has_ext(const char *pathname, const char *extensions)
   {
@@ -129,6 +137,7 @@ class zstreambuf : public std::streambuf {
   zstreambuf(const char *pathname, FILE *file)
     :
       pathname_(pathname),
+      zfile_(NULL),
       gzfile_(Z_NULL),
       bzfile_(NULL),
       xzfile_(NULL),
@@ -138,7 +147,7 @@ class zstreambuf : public std::streambuf {
 #ifdef HAVE_LIBBZ2
     if (is_bz(pathname))
     {
-      // open bzlib compressed file
+      // open bzip2 compressed file
       int err = 0;
       if ((bzfile_ = BZ2_bzReadOpen(&err, file, 0, 0, NULL, 0)) == NULL || err != BZ_OK)
       {
@@ -152,9 +161,9 @@ class zstreambuf : public std::streambuf {
 #ifdef HAVE_LIBLZMA
     if (is_xz(pathname))
     {
-      // open lzma compressed file
+      // open xz/lzma compressed file
       xzfile_ = new XZ(file);
-      lzma_ret ret = lzma_stream_decoder(&xzfile_->strm, UINT64_MAX, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
+      lzma_ret ret = lzma_auto_decoder(&xzfile_->strm, UINT64_MAX, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
       if (ret != LZMA_OK)
       {
         warning("lzma_stream_decoder error", pathname);
@@ -165,8 +174,23 @@ class zstreambuf : public std::streambuf {
     }
     else
 #endif
+#ifdef HAVE_FUNOPEN
+    if (is_Z(pathname))
     {
-      // open zlib compressed file
+      // open compress (Z) compressed file
+      int fd = dup(fileno(file));
+      if (fd < 0 || (zfile_ = zdopen(fd, "r", 0)) == NULL)
+      {
+        warning("zdopen error", pathname);
+
+        if (fd >= 0)
+          close(fd);
+      }
+    }
+    else
+#endif
+    {
+      // open gzip compressed file
       int fd = dup(fileno(file));
       if (fd >= 0 && (gzfile_ = gzdopen(fd, "r")) != Z_NULL)
       {
@@ -202,15 +226,22 @@ class zstreambuf : public std::streambuf {
     }
     else
 #endif
+#ifdef HAVE_FUNOPEN
+    if (zfile_ != NULL)
+    {
+      fclose(zfile_);
+    }
+    else
+#endif
+    if (gzfile_ != Z_NULL)
     {
       // close zlib compressed file
-      if (gzfile_ != Z_NULL)
-        gzclose_r(gzfile_);
+      gzclose_r(gzfile_);
     }
   }
 
   // decompress a block of data into buf[0..len-1], return number of bytes inflated or zero on error or EOF
-  std::streamsize inflate(unsigned char *buf, size_t len)
+  std::streamsize decompress(unsigned char *buf, size_t len)
   {
     std::streamsize size = 0;
 
@@ -227,11 +258,11 @@ class zstreambuf : public std::streambuf {
         const char *message;
 
         if (err == BZ_DATA_ERROR || err == BZ_DATA_ERROR_MAGIC)
-          message = "an error was detected in the compressed data";
+          message = "an error was detected in the bzip2 compressed data";
         else if (err == BZ_UNEXPECTED_EOF)
-          message = "compressed data ends unexpectedly";
+          message = "bzip2 compressed data ends unexpectedly";
         else
-          message = "an unspecified bz2 decompression error occurred";
+          message = "an unspecified bzip2 decompression error occurred";
         cannot_decompress(pathname_, message);
 
         size = -1;
@@ -262,7 +293,7 @@ class zstreambuf : public std::streambuf {
 
         if (ret != LZMA_OK && ret != LZMA_STREAM_END)
         {
-          cannot_decompress(pathname_, "an error was detected in the compressed data");
+          cannot_decompress(pathname_, "an error was detected in the lzma compressed data");
           size = -1;
         }
         else
@@ -299,7 +330,7 @@ class zstreambuf : public std::streambuf {
 
           if (ret != LZMA_OK && ret != LZMA_STREAM_END)
           {
-            cannot_decompress(pathname_, "an error was detected in the compressed data");
+            cannot_decompress(pathname_, "an error was detected in the lzma compressed data");
             size = -1;
           }
           else
@@ -314,6 +345,27 @@ class zstreambuf : public std::streambuf {
       {
         delete xzfile_;
         xzfile_ = NULL;
+      }
+    }
+    else
+#endif
+#ifdef HAVE_FUNOPEN
+    if (zfile_ != NULL)
+    {
+      len = fread(buf, 1, len, zfile_); 
+
+      if (ferror(zfile_))
+      {
+        cannot_decompress(pathname_, "an error was detected in the compressed data");
+
+        fclose(zfile_);
+        zfile_ = NULL;
+
+        size = -1;
+      }
+      else
+      {
+        size = static_cast<int>(len);
       }
     }
     else
@@ -359,7 +411,7 @@ class zstreambuf : public std::streambuf {
   int_type peek()
   {
     cur_ = 0;
-    len_ = inflate(buf_, Z_BUF_LEN);
+    len_ = decompress(buf_, Z_BUF_LEN);
     return len_ > 0 ? traits_type::to_int_type(*buf_) : traits_type::eof();
   }
 
@@ -414,6 +466,7 @@ class zstreambuf : public std::streambuf {
   }
 
   const char     *pathname_;
+  FILE           *zfile_;
   gzFile          gzfile_;
   bzFile          bzfile_;
   xzFile          xzfile_;

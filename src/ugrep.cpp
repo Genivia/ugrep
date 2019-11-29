@@ -149,7 +149,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.6.1"
+#define UGREP_VERSION "1.6.2"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -246,7 +246,6 @@ std::set<ino_t> visited;
 bool flag_with_filename            = false;
 bool flag_no_filename              = false;
 bool flag_no_header                = false;
-bool flag_no_group                 = false;
 bool flag_no_messages              = false;
 bool flag_no_hidden                = false;
 bool flag_match_all                = false;
@@ -262,6 +261,7 @@ bool flag_column_number            = false;
 bool flag_byte_offset              = false;
 bool flag_line_buffered            = false;
 bool flag_only_matching            = false;
+bool flag_ungroup                  = false;
 bool flag_quiet                    = false;
 bool flag_files_with_match         = false;
 bool flag_files_without_match      = false;
@@ -318,6 +318,7 @@ std::vector<std::string> flag_file;
 std::vector<std::string> flag_file_types;
 std::vector<std::string> flag_file_extensions;
 std::vector<std::string> flag_file_magic;
+std::vector<std::string> flag_glob;
 std::vector<std::string> flag_include;
 std::vector<std::string> flag_include_dir;
 std::vector<std::string> flag_include_from;
@@ -1154,7 +1155,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     }
   }
 
-  if (!partname.empty())
+  if (!flag_no_filename && !partname.empty())
   {
     str(color_fn);
     chr('{');
@@ -1946,7 +1947,7 @@ struct Grep {
     zstrm.get_buffer(buf, maxlen);
 
     // decompress a block of data into the buffer
-    std::streamsize len = zstrm.inflate(buf, maxlen);
+    std::streamsize len = zstrm.decompress(buf, maxlen);
 
     // if this is a tar file, then extract its parts to push into pipes and terminate this thread when done
     if (filter_tar(zstrm, buf, maxlen, len))
@@ -1959,7 +1960,7 @@ struct Grep {
         break;
 
       // decompress the next block of data into the buffer
-      len = zstrm.inflate(buf, maxlen);
+      len = zstrm.decompress(buf, maxlen);
     }
 
     // close our end of the pipe
@@ -2040,8 +2041,26 @@ struct Grep {
             path.swap(long_path);
           }
 
+          // if the file is a hidden file that should be skipped with --no-hidden
+          bool is_hidden = false;
+
+          if (is_regular && flag_no_hidden)
+          {
+            const char *basename = strrchr(path.c_str(), '/');
+            if (basename == NULL)
+              basename = path.c_str();
+            else
+              ++basename;
+
+            if (*basename == '.')
+            {
+              is_hidden = true;
+              is_selected = false;
+            }
+          }
+
           // -O, -t, and --include: check if pathname or basename matches globs, is_selected = false if not
-          if (is_regular && !flag_include.empty())
+          if (is_regular && !is_hidden && !flag_include.empty())
           {
             const char *basename = strrchr(path.c_str(), '/');
             if (basename == NULL)
@@ -2060,7 +2079,7 @@ struct Grep {
           memmove(buf, buf + BLOCKSIZE, len);
 
           // -M: check magic bytes, requires sufficiently large len of buf[], which is Z_BUF_LEN - BLOCKSIZE or the whole file
-          if (is_regular && (flag_include.empty() || !is_selected) && !flag_file_magic.empty())
+          if (is_regular && !is_hidden && (flag_include.empty() || !is_selected) && !flag_file_magic.empty())
           {
             size_t n = std::min(static_cast<size_t>(len), size);
             char *b = reinterpret_cast<char*>(buf);
@@ -2139,7 +2158,7 @@ struct Grep {
             }
 
             // decompress the next block of data into the buffer
-            len = zstrm.inflate(buf, maxlen);
+            len = zstrm.decompress(buf, maxlen);
           }
 
           // error?
@@ -2149,7 +2168,7 @@ struct Grep {
           if (static_cast<size_t>(len) < maxlen)
           {
             // fill the rest of the buffer with decompressed data
-            std::streamsize len_in = zstrm.inflate(buf + len, maxlen - len);
+            std::streamsize len_in = zstrm.decompress(buf + len, maxlen - len);
 
             // error?
             if (len_in < 0)
@@ -2852,6 +2871,8 @@ int main(int argc, char **argv)
               flag_format_open = arg + 12;
             else if (strcmp(arg, "free-space") == 0)
               flag_free_space = true;
+            else if (strncmp(arg, "glob=", 5) == 0)
+              flag_glob.emplace_back(arg + 5);
             else if (strncmp(arg, "group-separator=", 16) == 0)
               flag_group_separator = arg + 16;
             else if (strcmp(arg, "help") == 0)
@@ -2900,8 +2921,6 @@ int main(int argc, char **argv)
               flag_no_dereference = true;
             else if (strcmp(arg, "no-filename") == 0)
               flag_no_filename = true;
-            else if (strcmp(arg, "no-group") == 0)
-              flag_no_group = true;
             else if (strcmp(arg, "no-group-separator") == 0)
               flag_group_separator = NULL;
             else if (strcmp(arg, "no-hidden") == 0)
@@ -2940,6 +2959,8 @@ int main(int argc, char **argv)
               flag_tabs = strtopos(arg + 5, "invalid argument --tabs=");
             else if (strcmp(arg, "text") == 0)
               flag_binary_files = "text";
+            else if (strcmp(arg, "ungroup") == 0)
+              flag_ungroup = true;
             else if (strcmp(arg, "version") == 0)
               version();
             else if (strcmp(arg, "with-filename") == 0)
@@ -3060,7 +3081,14 @@ int main(int argc, char **argv)
             break;
 
           case 'g':
-            flag_no_group = true;
+            ++arg;
+            if (*arg)
+              flag_glob.emplace_back(&arg[*arg == '=']);
+            else if (++i < argc)
+              flag_glob.emplace_back(argv[i]);
+            else
+              help("missing GLOB argument for option -g");
+            is_grouped = false;
             break;
 
           case 'H':
@@ -3218,6 +3246,10 @@ int main(int argc, char **argv)
 
           case 'U':
             flag_binary = true;
+            break;
+
+          case 'u':
+            flag_ungroup = true;
             break;
 
           case 'V':
@@ -3531,7 +3563,7 @@ int main(int argc, char **argv)
 
   // -v: disable -g and -o
   if (flag_invert_match)
-    flag_no_group = flag_only_matching = false;
+    flag_ungroup = flag_only_matching = false;
 
   // normalize -R (--dereference-recurse) option
   if (strcmp(flag_directories, "dereference-recurse") == 0)
@@ -3790,6 +3822,19 @@ int main(int argc, char **argv)
     }
   }
 
+  // --glob: add globs to the --include and --exclude lists
+  for (auto& i : flag_glob)
+  {
+    if (!i.empty() && i.at(0) == '!')
+    {
+      flag_exclude.emplace_back(i.substr(1));
+    }
+    else
+    {
+      flag_include.emplace_back(i);
+    }
+  }
+
   // -O: add extensions as globs to the --include list
   for (auto& extensions : flag_file_extensions)
   {
@@ -3807,9 +3852,21 @@ int main(int argc, char **argv)
       // -z: add globs to search compressed files and tarballs
       if (flag_decompress)
       {
-        const char *zextensions[6] = { ".gz", ".bz", ".bz2", ".bzip2", ".lzma", ".xz" };
+        const char *zextensions[] = {
+          ".gz",
+#ifdef HAVE_FUNOPEN
+          ".Z",
+#endif
+#ifdef HAVE_LIBBZ2
+          ".bz", ".bz2", ".bzip2",
+#endif
+#ifdef HAVE_LIBLZMA
+          ".lzma", ".xz",
+#endif
+          NULL
+        };
 
-        for (size_t i = 0; i < 6; ++i)
+        for (size_t i = 0; zextensions[i] != NULL; ++i)
           flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, size)).append(zextensions[i]));
       }
 #endif
@@ -3834,6 +3891,11 @@ int main(int argc, char **argv)
     flag_include.emplace_back("*.taz");
     flag_include.emplace_back("*.tgz");
     flag_include.emplace_back("*.tpz");
+
+#ifdef HAVE_FUNOPEN
+    flag_include.emplace_back("*.pax.Z");
+    flag_include.emplace_back("*.tar.Z");
+#endif
 
 #ifdef HAVE_LIBBZ2
     flag_include.emplace_back("*.pax.bz");
@@ -4782,7 +4844,7 @@ void Grep::search(const char *pathname)
     {
       // -c: count the number of lines/patterns matched
 
-      if (flag_no_group || flag_only_matching)
+      if (flag_ungroup || flag_only_matching)
       {
         // -c with -g or -o: count the number of patterns matched in the file
 
@@ -4924,7 +4986,7 @@ void Grep::search(const char *pathname)
 
         separator = lineno != current_lineno ? flag_separator : "+";
 
-        if (lineno != current_lineno || flag_no_group)
+        if (lineno != current_lineno || flag_ungroup)
         {
           if (matches == 0)
             if (!stats.found())
@@ -4964,7 +5026,7 @@ void Grep::search(const char *pathname)
 
         size_t current_lineno = matcher->lineno();
 
-        if (lineno != current_lineno || flag_no_group)
+        if (lineno != current_lineno || flag_ungroup)
         {
           if (matches == 0)
             if (!stats.found())
@@ -5105,7 +5167,7 @@ void Grep::search(const char *pathname)
 
           size_t current_lineno = matcher->lineno();
 
-          if (lineno != current_lineno || flag_no_group)
+          if (lineno != current_lineno || flag_ungroup)
           {
             if (rest_line_data != NULL)
             {
@@ -5179,7 +5241,7 @@ void Grep::search(const char *pathname)
                 out.dump.hex(Output::Dump::HEX_LINE, first - border, bol, border, flag_separator);
                 out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size, flag_separator);
 
-                if (flag_no_group)
+                if (flag_ungroup)
                 {
                   out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end, flag_separator);
                   out.dump.done(flag_separator);
@@ -5230,7 +5292,7 @@ void Grep::search(const char *pathname)
               out.str(begin, size);
               out.str(color_off);
 
-              if (flag_no_group)
+              if (flag_ungroup)
               {
                 if (eol > end)
                 {
@@ -5343,7 +5405,7 @@ void Grep::search(const char *pathname)
 
                   binary = rest_binary;
 
-                  if (flag_no_group)
+                  if (flag_ungroup)
                   {
                     if (binary)
                     {
@@ -5824,7 +5886,7 @@ void Grep::search(const char *pathname)
                 before_context = false;
               }
 
-              if (flag_no_group && !binary[current])
+              if (flag_ungroup && !binary[current])
               {
                 // -g: do not group matches on a single line but on multiple lines, counting each match separately
 
@@ -5895,7 +5957,7 @@ void Grep::search(const char *pathname)
                 out.dump.hex(Output::Dump::HEX_LINE, byte_offsets[current] + last, lines[current].c_str() + last, lines[current].size() - last, flag_separator);
                 out.dump.done(flag_separator);
               }
-              else if (!flag_no_group)
+              else if (!flag_ungroup)
               {
                 size_t size = lines[current].size();
 
@@ -6152,7 +6214,7 @@ void help(const char *message, const char *arg)
             the -A, -C, and -y options.\n\
     -b, --byte-offset\n\
             The offset in bytes of a matched line is displayed in front of the\n\
-            respective matched line.  When used with option -g, displays the\n\
+            respective matched line.  When used with option -u, displays the\n\
             offset in bytes of each pattern matched.  Byte offsets are exact\n\
             for ASCII, UTF-8, and raw binary input.  Otherwise, the byte offset\n\
             in the UTF-8 converted input is displayed.\n\
@@ -6179,7 +6241,7 @@ void help(const char *message, const char *arg)
             No whitespace may be given between -C and its argument NUM.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
-            If -g or -o is specified, counts the number of patterns matched.\n\
+            If -o or -u is specified, counts the number of patterns matched.\n\
             If -v is specified, counts the number of non-matching lines.\n\
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the expression stored in the\n\
@@ -6258,10 +6320,10 @@ void help(const char *message, const char *arg)
     -G, --basic-regexp\n\
             Interpret pattern as a basic regular expression, i.e. make ugrep\n\
             behave as traditional grep.\n\
-    -g, --no-group\n\
-            Do not group multiple pattern matches on the same matched line.\n\
-            Output the matched line again for each additional pattern match,\n\
-            using `+' as the field separator.\n\
+    -g GLOB, --glob=GLOB\n\
+            Search only files whose name matches GLOB, same as --include=GLOB.\n\
+            If GLOB is preceded by a `!', files are skipped whose name matches\n\
+            GLOB, same as --exclude=GLOB.  This option may be repeated.\n\
     --group-separator=SEP\n\
             Use SEP as a group separator for context options -A, -B, and -C. By\n\
             default SEP is a double hyphen (`--').\n\
@@ -6444,6 +6506,10 @@ void help(const char *message, const char *arg)
             to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\
             matches byte A3 (hex) instead of the Unicode code point U+00A3\n\
             represented by the two-byte UTF-8 sequence C2 A3.\n\
+    -u, --ungroup\n\
+            Do not group multiple pattern matches on the same matched line.\n\
+            Output the matched line again for each additional pattern match,\n\
+            using `+' as the field separator.\n\
     -V, --version\n\
             Display version information and exit.\n\
     -v, --invert-match\n\
@@ -6481,27 +6547,30 @@ void help(const char *message, const char *arg)
             Decompress files to search, when compressed.  Archives (.pax, .tar)\n\
             and compressed archives (.taz, .tgz, .tpz, .tbz, .tbz2, .tb2, .tz2,\n\
             .tlz, .txz) are searched and matches are output with file pathnames\n\
-            in braces.  If -O, -M, or -t is specified, searches compressed and\n\
-            archived files with the specified extensions and magic bytes.\n";
+            in braces.  If -O, -M, or -t is specified, searches files with the\n\
+            specified extensions and magic bytes, including compressed files\n\
+            with compression format extensions and archived files in archives.\n";
 #ifndef HAVE_LIBZ
   std::cout << "\
             This feature is not available in this version of ugrep.\n";
 #else
   std::cout << "\
             Supports gzip (.gz)";
+#ifdef HAVE_FUNOPEN
+  std::cout << ", compress (.Z)";
+#endif
 #ifdef HAVE_LIBBZ2
   std::cout << ", bzip2 (.bz, .bz2, .bzip2)";
 #ifdef HAVE_LIBLZMA
-  std::cout << ", xz (.lzma, .xz).\n";
-#else
-  std::cout << ".\n";
+  std::cout << ",\n\
+            lzma (.lzma), xz (.xz)";
 #endif
+  std::cout << ".\n";
 #else
 #ifdef HAVE_LIBLZMA
-  std::cout << ", xz (.lzma, .xz).\n";
-#else
-  std::cout << ".\n";
+  std::cout << ", lzma (.lzma), xz (.xz)";
 #endif
+  std::cout << ".\n";
 #endif
 #endif
   std::cout << "\

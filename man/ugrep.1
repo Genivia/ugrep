@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 27, 2019" "ugrep 1.6.1" "User Commands"
+.TH UGREP "1" "November 29, 2019" "ugrep 1.6.2" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -40,7 +40,7 @@ the \fB\-A\fR, \fB\-C\fR, and \fB\-y\fR options.
 .TP
 \fB\-b\fR, \fB\-\-byte\-offset\fR
 The offset in bytes of a matched line is displayed in front of the
-respective matched line.  When used with option \fB\-g\fR, displays the
+respective matched line.  When used with option \fB\-u\fR, displays the
 offset in bytes of each pattern matched.  Byte offsets are exact
 for ASCII, UTF\-8, and raw binary input.  Otherwise, the byte offset
 in the UTF\-8 converted input is displayed.
@@ -71,7 +71,7 @@ No whitespace may be given between \fB\-C\fR and its argument NUM.
 .TP
 \fB\-c\fR, \fB\-\-count\fR
 Only a count of selected lines is written to standard output.
-If \fB\-g\fR or \fB\-o\fR is specified, counts the number of patterns matched.
+If \fB\-o\fR or \fB\-u\fR is specified, counts the number of patterns matched.
 If \fB\-v\fR is specified, counts the number of non\-matching lines.
 .TP
 \fB\-\-color\fR[=\fIWHEN\fR], \fB\-\-colour\fR[=\fIWHEN\fR]
@@ -162,10 +162,10 @@ Spacing (blanks and tabs) in regular expressions are ignored.
 Interpret pattern as a basic regular expression, i.e. make ugrep
 behave as traditional grep.
 .TP
-\fB\-g\fR, \fB\-\-no\-group\fR
-Do not group multiple pattern matches on the same matched line.
-Output the matched line again for each additional pattern match,
-using `+' as the field separator.
+\fB\-g\fR \fIGLOB\fR, \fB\-\-glob\fR=\fIGLOB\fR
+Search only files whose name matches GLOB, same as \fB\-\-include\fR=\fIGLOB\fR.
+If GLOB is preceded by a `!', files are skipped whose name matches
+GLOB, same as \fB\-\-exclude\fR=\fIGLOB\fR.  This option may be repeated.
 .TP
 \fB\-\-group\-separator\fR=\fISEP\fR
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR. By
@@ -400,6 +400,11 @@ to match bytes, not Unicode characters.  For example, \fB\-U\fR '\\xa3'
 matches byte A3 (hex) instead of the Unicode code point U+00A3
 represented by the two\-byte UTF\-8 sequence C2 A3.
 .TP
+\fB\-u\fR, \fB\-\-ungroup\fR
+Do not group multiple pattern matches on the same matched line.
+Output the matched line again for each additional pattern match,
+using `+' as the field separator.
+.TP
 \fB\-V\fR, \fB\-\-version\fR
 Display version information and exit.
 .TP
@@ -447,9 +452,11 @@ Prints a zero\-byte after the file name.
 Decompress files to search, when compressed.  Archives (.pax, .tar)
 and compressed archives (.taz, .tgz, .tpz, .tbz, .tbz2, .tb2, .tz2,
 .tlz, .txz) are searched and matches are output with file pathnames
-in braces.  If \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches compressed and
-archived files with the specified extensions and magic bytes.
-Supports gzip (.gz), bzip2 (.bz, .bz2, .bzip2), xz (.lzma, .xz).
+in braces.  If \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches files with the
+specified extensions and magic bytes, including compressed files
+with compression format extensions and archived files in archives.
+Supports gzip (.gz), compress (.Z), bzip2 (.bz, .bz2, .bzip2),
+lzma (.lzma), xz (.xz).
 .PP
 If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
 standard input is used, unless recursive searches are specified which examine
@@ -476,7 +483,7 @@ An error occurred.
 If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
 the exit status is 0 even if an error occurred.
 .SH GLOBBING
-Globbing is used by options \fB--include\fR, \fB--include-dir\fR,
+Globbing is used by options \fB--glob\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
 \fB--exclude-from\fR to match pathnames and basenames.  Globbing supports
 gitignore syntax and the corresponding matching rules.  When a glob contains a
