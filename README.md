@@ -1361,7 +1361,7 @@ filename suffix, `.Z` for compress, `.bz`, `.bz2`, or `.bzip2` for bzip2,
 `.tpz` for gzip, `.tbz`, `.tbz2`, `.tb2`, and `.tz2` for bzip, `.tlz` for lzma,
 and `.txz` for xz are recognized.
 
-         | filename suffix         | tar/pax short suffix            | suffix required? | to ugrep stdin    | lib install |
+format   | filename suffix         | tar/pax short suffix            | suffix required? | to ugrep stdin    | lib install |
 -------- | ----------------------- | ------------------------------- | ---------------- | ----------------- | ----------- |
 gzip     | `.gz`                   | `.taz`, `.tgz`, `.tpz`          | no               |                   | libz        |
 compress | `.Z`                    |                                 | yes              | `--label='.Z'`    | (built-in)  |
