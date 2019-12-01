@@ -754,12 +754,14 @@ allowing the word to occur in strings and comments:
 
 ASCII, UTF-8, UTF-16, and UTF-32 files do not require conversion, assuming that
 UTF-16 and UTF-32 files include a UTF BOM as usual.  Other file encodings
-require option `-Q` with a parameter:
+require option `-Q` (`--encoding=`) with a parameter:
 
 encoding          | `-Q` parameter
 ----------------- | --------------
 ASCII             | *n/a*
 UTF-8             | *n/a*
+UTF-16 with BOM   | *n/a*
+UTF-32 with BOM   | *n/a*
 ISO-8859-1        | `ISO-8859-1`
 Latin-1           | `ISO-8859-1`
 EBCDIC            | `EBCDIC`
@@ -780,7 +782,8 @@ code page 1256    | `CP1256`
 code page 1257    | `CP1257`
 code page 1258    | `CP1258`
 
-To search binary files with binary patterns, see
+Note that regex patterns are always specified in UTF-8 (includes ASCII).  To
+search binary files with binary patterns, see
 [searching and displaying binary files with -U, -W, and -X](#binary).
 
 To recursively list all files and symlinks that are ASCII:
