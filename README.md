@@ -21,7 +21,7 @@ Table of contents
   - [Tests](#tests)
   - [Results](#results)
 - [Installation](#installation)
-  - [Download and and build steps](#download)
+  - [Download and build steps](#download)
   - [Download the binaries](#binaries)
   - [Using ugrep within Vim](#vim)
 - [Ugrep versus other greps](#comparison)
@@ -34,11 +34,10 @@ Table of contents
   - [Displaying helpful info](#help)
   - [Recursively list matching files with options -R or -r and -L or -l](#recursion)
   - [Search this but not that with -v, -f, -L, and (?^pattern)](#not)
-  - [Matching empty patterns with -Y](#empty)
-  - [Searching ASCII and Unicode files](#unicode)
+  - [Searching ASCII, Unicode, and other encodings with -Q](#unicode)
   - [Matching multiple lines of text](#multiline)
-  - [Searching source code using -f, -O, and -t](#source)
   - [Displaying context with -A, -B, -C, and -y](#context)
+  - [Searching source code using -f, -O, and -t](#source)
   - [Find files by file signature and shebang "magic bytes" with -M and -t](#magic)
   - [Searching and displaying binary files with -U, -W, and -X](#binary)
   - [Ignoring hidden files and binary files with --no-hidden and -I](#ignore)
@@ -51,6 +50,7 @@ Table of contents
   - [Replacing matches with --format backreferences to group captures](#replace)
   - [Limiting the number of matches with -m, --max-depth, and --max-files](#max)
   - [Searching compressed files and tarballs with -z](#gz)
+  - [Matching empty patterns with -Y](#empty)
   - [Tips for advanced users](#tips)
   - [More examples](#more)
 - [Man page](#man)
@@ -258,7 +258,7 @@ ugrep    1.6.0  | **0.11** | 0.07     | **1.15** | **1.08** | **0.99** | **0.97*
 
 Most of the ugrep tests produce better performance results without `mmap`
 (option `--no-mmap`) on faster machines, which may be counter-intuitive.  See
-our [TODO](#todo) below.
+[TODO](#todo) below.
 
 Option `-z` uses task parallelism to further optimize file reading and
 decompression of compressed files, which may speed up searching a single file
@@ -465,25 +465,26 @@ empty matches for GNU/BSD compatibility, see details further below.
 ### Notable improvements over other greps
 
 - **ugrep** matches Unicode by default (disabled with option `-U`).
-- **ugrep** regular expression patterns are more expressive than GNU grep and
-  BSD grep POSIX ERE and support Unicode pattern matching and most of the PCRE
-  syntax with some limitations, see further below.  Extended regular
-  expression (ERE) syntax is the default (i.e.  option `-E`, as egrep).
-- **ugrep** uses fast incremental matching and supports matching patterns
-  spanning multiple lines of input.
+- **ugrep** matches patterns across multiple lines.
 - **ugrep** spawns threads to search files concurrently to improve search
   speed (disabled with option `-J1`).
-- **ugrep** supports *negative patterns* of the form `(?^X)` to skip input
+- **ugrep** offers *negative patterns* of the form `(?^X)` to skip input
   that matches `X`.  Negative patterns can be used to skip strings and comments
   when searching for identifiers in source code and find matches that aren't in
   strings and comments.  Predefined `zap` patterns use nagative patterns, for
   example, use `-f cpp/zap_comments` to ignore pattern matches in C++ comments.
 - **ugrep** produces hexdumps with `-W` (output binary matches in hex with text
   matches output as usual) and `-X` (output all matches in hex).
+- **ugreo** searches compressed files with option `-z`.
+- **ugreo** searches cpio, tar, and pax archives with option `-z`.
+- **ugrep** regular expression patterns are more expressive than GNU grep and
+  BSD grep POSIX ERE and support Unicode pattern matching and most of the PCRE
+  syntax.  Extended regular expression (ERE) syntax is the default (i.e.
+  option `-E`, as egrep).
 - Options `-O`, `-M`, and `-t` specify file extensions, file signature magic
   byte patterns, and predefined file types, respectively.  This allows
-  searching for certain types of files in directory trees with recursive search
-  options `-R` and `-r`.
+  searching for certain types of files in directory trees, for example with
+  recursive search options `-R` and `-r` and in cpio, tar, and pax archives.
 - Option `-k`, `--column-number` to display the column number, taking tab
   spacing into account by expanding tabs, as specified by option `--tabs`.
 - Option `-f` uses `GREP_PATH` environment variable or the predefined patterns
@@ -498,7 +499,7 @@ empty matches for GNU/BSD compatibility, see details further below.
 - When option `-b` is used with option `-o` or with option `-u`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line reported by GNU/BSD grep.
-- Option `-Y` to permit matching empty patterns.  Grepping with empty-matching
+- Option `-Y` enables matching empty patterns.  Grepping with empty-matching
   patterns is weird and gives different results with GNU grep versus BSD grep.
   Empty matches are not output by **ugrep** by default, which avoids making
   mistakes that may produce "random" results.  For example, with GNU/BSD grep,
@@ -509,9 +510,9 @@ empty matches for GNU/BSD compatibility, see details further below.
   displays a matched input line again for each additional pattern match.  This
   option is particularly useful with option `-c` to report the total number of
   pattern matches per file instead of the number of lines matched per file.
-- **ugrep** option `-D, --devices=ACTION` is `skip` by default, instead of
-  `read`.  This prevents unexpectedly hanging on named pipes in directories
-  that are recursively searched, as may happen with GNU/BSD grep that `read`
+- Option `-D, --devices=ACTION` is `skip` by default, instead of `read`.  This
+  prevents unexpectedly hanging on named pipes in directories that are
+  recursively searched, as may happen with GNU/BSD grep that `read`
   devices by default.
 - **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
   `LANG=en_US.UTF-8`, whereas grep is locale-sensitive.
@@ -522,9 +523,8 @@ empty matches for GNU/BSD compatibility, see details further below.
 
 ### Feature wishlist
 
-- Support cpio files.
-- Add a "filter" mechanism to add filters, e.g. to search Office documents
-  using a filter.
+- Extend the "filter" mechanism to add more filters, e.g. to search Office
+  documents.
 - Further improve the speed of matching multiple words, which is currently
   faster than GNU grep (ugrep uses Bitap and hashing), but Hyperscan for
   example may be slightly faster as it uses SIMD/AVX so it makes sense to look
@@ -534,7 +534,6 @@ empty matches for GNU/BSD compatibility, see details further below.
   read performance, e.g. SSD, where `mmap` even slows down.  RE/flex buffering
   is very efficient and has better spatial locality.  Memory maps are turned
   off with `--no-mmap`.
-- Other new features may be considered as ugrep evolves.
 
 <a name="tutorial"/>
 
@@ -749,37 +748,52 @@ allowing the word to occur in strings and comments:
 
     ugrep -RL -tPython -w 'display' -f python/zap_strings -f python/zap_comments
 
-<a name="empty"/>
-
-### Matching empty patterns with -Y
-
-Option `-Y` permits empty pattern matches, which is useful with certain anchors
-such as `^` and `$` (the option is automatically enabled for pattern `^$` that
-matches empty lines).  This option is introduced by **ugrep** to prevent
-accidental matching with empty patterns: empty-matching patterns such as `x?`
-and `x*` match all input, not only lines with `x`.  By default, without `-Y`,
-patterns match lines with at least one `x` as intended.
-
-To recursively list files in the working directory with empty and blank lines,
-i.e. lines with white space only and empty lines, with `-Y`:
-
-    ugrep -RlY '^\h*$'
-
 <a name="unicode"/>
 
-### Searching ASCII and Unicode files
+### Searching ASCII, Unicode, and other encodings with -Q
 
-To recursively list files that are ASCII:
+ASCII, UTF-8, UTF-16, and UTF-32 files do not require conversion, assuming that
+UTF-16 and UTF-32 files include a UTF BOM as usual.  Other file encodings
+require option `-Q` with a parameter:
 
-    ugrep -Rl '[[:ascii:]]'
+encoding          | `-Q` parameter
+----------------- | --------------
+ASCII             | *n/a*
+UTF-8             | *n/a*
+ISO-8859-1        | `ISO-8859-1`
+Latin-1           | `ISO-8859-1`
+EBCDIC            | `EBCDIC`
+UTF-16 BE w/o BOM | `UTF-16` or `UTF-16BE`
+UTF-16 LE w/o BOM | `UTF-16LE`
+UTF-32 w/o BOM    | `UTF-32` or `UTF-32BE`
+UTF-32 w/o BOM    | `UTF-32LE`
+code page 437     | `CP437`
+code page 850     | `CP850`
+code page 858     | `CP858`
+code page 1250    | `CP1250`
+code page 1251    | `CP1251`
+code page 1252    | `CP1252`
+code page 1253    | `CP1253`
+code page 1254    | `CP1254`
+code page 1255    | `CP1255`
+code page 1256    | `CP1256`
+code page 1257    | `CP1257`
+code page 1258    | `CP1258`
 
-To recursively list files that are non-ASCII:
+To search binary files with binary patterns, see
+[searching and displaying binary files with -U, -W, and -X](#binary).
+
+To recursively list all files and symlinks that are ASCII:
+
+    ugrep -RL '[\p{Non_ASCII_Unicode}]'
+
+To recursively list all files and symlinks that are non-ASCII:
 
     ugrep -Rl '[^[:ascii:]]'
 
 To recursively list files with invalid UTF content (i.e. invalid UTF-8 byte
 sequences or that contain any UTF-8/16/32 code points that are outside the
-valid Unicode range):
+valid Unicode range) by using a negative pattern:
 
     ugrep -Rl '.|(?^\p{Unicode})'
 
@@ -799,15 +813,19 @@ To display lines containing the names Gödel (or Goedel), Escher, or Bach:
 To search for `lorem` in lower or upper case in a UTF-16 file that is marked
 with a UTF-16 BOM:
 
-    ugrep --color -iw 'lorem' utf16lorem.txt
+    ugrep -iw 'lorem' utf16lorem.txt
 
 To search utf16lorem.txt when this file has no UTF-16 BOM:
 
-    ugrep --encoding=UTF-16 -iw 'lorem' utf16lorem.txt
+    ugrep -Q=UTF-16 -iw 'lorem' utf16lorem.txt
 
 To check that a file contains Unicode:
 
     ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
+
+To search file `spanish-iso.txt` encoded in ISO-8859-1:
+
+    ugrep -Q=ISO-8859-1 -w 'año' spanish-iso.txt
 
 <a name="multiline"/>
 
@@ -831,39 +849,6 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
 `begin` and the first line after that containing `end`, using lazy repetition:
 
     ugrep -o '.*begin(.|\n)*?end.*' myfile.txt
-
-<a name="source"/>
-
-### Searching source code using -f, -O, and -t
-
-To recursively display function definitions in C/C++ files (`.h`, `.hpp`, `.c`,
-`.cpp` etc.) with line numbers with `-tc++`, `-o`, `-n`, and `-f c++/functions`:
-
-    ugrep -R -on -tc++ -f c++/functions
-
-To recursively display function definitions in `.c` and `.cpp` files with line
-numbers with `-Oc,cpp`, `-o`, `-n`, and `-f c++/functions`:
-
-    ugrep -R -on -Oc,cpp -f c++/functions
-
-To search for lines with `FIXME` in C/C++ comments, excluding `FIXME` in
-multi-line strings:
-
-    ugrep -n 'FIXME' -f c++/zap_strings myfile.cpp
-
-To read patterns `TODO` and `FIXME` from standard input to match lines in the
-input, while excluding matches in C++ strings:
-
-    ugrep -on -f - -f c++/zap_strings myfile.cpp <<END
-    TODO
-    FIXME
-    END
-
-To display XML element and attribute tags in an XML file, restricted to the
-matching part with `-o`, excluding tags that are placed in (multi-line)
-comments:
-
-    ugrep -o -f xml/tags -f xml/zap_comments myfile.xml
 
 <a name="context"/>
 
@@ -909,6 +894,39 @@ The same, but with line numbers (`-n`), column numbers (`-k`), tab spacing
 8 characters of context instead of a single word:
 
     ugrep -onkTg -U '.{0,8}pattern.{0,8}' myfile.cpp | ugrep --color 'pattern'
+
+<a name="source"/>
+
+### Searching source code using -f, -O, and -t
+
+To recursively display function definitions in C/C++ files (`.h`, `.hpp`, `.c`,
+`.cpp` etc.) with line numbers with `-tc++`, `-o`, `-n`, and `-f c++/functions`:
+
+    ugrep -R -on -tc++ -f c++/functions
+
+To recursively display function definitions in `.c` and `.cpp` files with line
+numbers with `-Oc,cpp`, `-o`, `-n`, and `-f c++/functions`:
+
+    ugrep -R -on -Oc,cpp -f c++/functions
+
+To search for lines with `FIXME` in C/C++ comments, excluding `FIXME` in
+multi-line strings:
+
+    ugrep -n 'FIXME' -f c++/zap_strings myfile.cpp
+
+To read patterns `TODO` and `FIXME` from standard input to match lines in the
+input, while excluding matches in C++ strings:
+
+    ugrep -on -f - -f c++/zap_strings myfile.cpp <<END
+    TODO
+    FIXME
+    END
+
+To display XML element and attribute tags in an XML file, restricted to the
+matching part with `-o`, excluding tags that are placed in (multi-line)
+comments:
+
+    ugrep -o -f xml/tags -f xml/zap_comments myfile.xml
 
 <a name="magic"/>
 
@@ -1352,14 +1370,16 @@ use option `--label='stdin.Z'` for compress, `--label='stdin.bz2'` for bzip2,
 `--label='stdin.lzma'` for lzma, and `--label='stdin.xz'` for xz.  The name
 `stdin` is arbitrary and may be omitted (the suffix with a dot is required).
 
-Archives (tarballs, cpio, tar, and pax files) are searched with option `-z`.
-Regular files in the archive that match are output with the archive pathnames
-enclosed in `{` and `}` braces.  Archive formats are automatically detected,
-including compressed with gzip.  Other compression formats require a
-filename suffix, `.Z` for compress, `.bz`, `.bz2`, or `.bzip2` for bzip2,
-`.lzma` for lzma, and `.xz` for xz.  Also the shorthands `.taz`, `.tgz`, and
-`.tpz` for gzip, `.tbz`, `.tbz2`, `.tb2`, and `.tz2` for bzip, `.tlz` for lzma,
-and `.txz` for xz are recognized.
+Archives (cpio, tar, and pax) are searched with option `-z`.  Regular files in
+an archive that match are output with the archive pathnames enclosed in `{` and
+`}` braces.  Supported tar formats are v7, ustar, gnu, oldgnu, and pax.
+Supported cpio formats are odc and newc.  Not supported is the non-portable old
+binary cpio format.  Archive formats are automatically detected, including
+compressed with gzip.  Other compression formats require a filename suffix,
+`.Z` for compress, `.bz`, `.bz2`, or `.bzip2` for bzip2, `.lzma` for lzma, and
+`.xz` for xz.  Also the shorthands `.taz`, `.tgz`, and `.tpz` for gzip, `.tbz`,
+`.tbz2`, `.tb2`, and `.tz2` for bzip, `.tlz` for lzma, and `.txz` for xz are
+recognized.
 
 format   | filename suffix         | tar/pax short suffix            | suffix required? | to ugrep stdin    | lib install |
 -------- | ----------------------- | ------------------------------- | ---------------- | ----------------- | ----------- |
@@ -1414,6 +1434,22 @@ To perform a depth-first search with `find`, then using `cpio` and `ugrep` to
 search the files:
 
     find . -depth -print | cpio -o | ugrep --color -z 'xyz'
+
+<a name="empty"/>
+
+### Matching empty patterns with -Y
+
+Option `-Y` permits empty pattern matches, which is useful with certain anchors
+such as `^` and `$` (the option is automatically enabled for pattern `^$` that
+matches empty lines).  This option is introduced by **ugrep** to prevent
+accidental matching with empty patterns: empty-matching patterns such as `x?`
+and `x*` match all input, not only lines with `x`.  By default, without `-Y`,
+patterns match lines with at least one `x` as intended.
+
+To recursively list files in the working directory with empty and blank lines,
+i.e. lines with white space only and empty lines, with `-Y`:
+
+    ugrep -RlY '^\h*$'
 
 <a name="tips"/>
 
