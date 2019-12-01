@@ -64,18 +64,11 @@ class zstreambuf : public std::streambuf {
 
  public:
 
+  // compress (Z) file handle
+  typedef void *zzFile;
+
   // bzlib file handle
   typedef void *bzFile;
-
-#ifdef HAVE_LIBBZ2
-
-  // return true if pathname has a bzlib file extension
-  static bool is_bz(const char *pathname)
-  {
-    return has_ext(pathname, ".bz.bz2.bzip2.tb2.tbz.tbz2.tz2");
-  }
-
-#endif
 
 #ifdef HAVE_LIBLZMA
 
@@ -99,12 +92,6 @@ class zstreambuf : public std::streambuf {
     bool          finished;
   } *xzFile;
 
-  // return true if pathname has a lzma file extension
-  static bool is_xz(const char *pathname)
-  {
-    return has_ext(pathname, ".lzma.xz.tlz.txz");
-  }
-
 #else
 
   // unused lzma file handle
@@ -116,6 +103,18 @@ class zstreambuf : public std::streambuf {
   static bool is_Z(const char *pathname)
   {
     return has_ext(pathname, ".Z");
+  }
+
+  // return true if pathname has a bzlib file extension
+  static bool is_bz(const char *pathname)
+  {
+    return has_ext(pathname, ".bz.bz2.bzip2.tb2.tbz.tbz2.tz2");
+  }
+
+  // return true if pathname has a lzma file extension
+  static bool is_xz(const char *pathname)
+  {
+    return has_ext(pathname, ".lzma.xz.tlz.txz");
   }
 
   // check if pathname file extension matches on of the given file extensions
@@ -137,16 +136,16 @@ class zstreambuf : public std::streambuf {
   zstreambuf(const char *pathname, FILE *file)
     :
       pathname_(pathname),
-      zfile_(NULL),
+      zzfile_(NULL),
       gzfile_(Z_NULL),
       bzfile_(NULL),
       xzfile_(NULL),
       cur_(),
       len_()
   {
-#ifdef HAVE_LIBBZ2
     if (is_bz(pathname))
     {
+#ifdef HAVE_LIBBZ2
       // open bzip2 compressed file
       int err = 0;
       if ((bzfile_ = BZ2_bzReadOpen(&err, file, 0, 0, NULL, 0)) == NULL || err != BZ_OK)
@@ -155,12 +154,13 @@ class zstreambuf : public std::streambuf {
 
         bzfile_ = NULL;
       }
-    }
-    else
+#else
+      cannot_decompress("unsupported compression format", pathname);
 #endif
-#ifdef HAVE_LIBLZMA
-    if (is_xz(pathname))
+    }
+    else if (is_xz(pathname))
     {
+#ifdef HAVE_LIBLZMA
       // open xz/lzma compressed file
       xzfile_ = new XZ(file);
       lzma_ret ret = lzma_auto_decoder(&xzfile_->strm, UINT64_MAX, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
@@ -171,24 +171,17 @@ class zstreambuf : public std::streambuf {
         delete xzfile_;
         xzfile_ = NULL;
       }
-    }
-    else
+#else
+      cannot_decompress("unsupported compression format", pathname);
 #endif
-#ifdef HAVE_FUNOPEN
-    if (is_Z(pathname))
+    }
+    else if (is_Z(pathname))
     {
       // open compress (Z) compressed file
-      int fd = dup(fileno(file));
-      if (fd < 0 || (zfile_ = zdopen(fd, "r", 0)) == NULL)
-      {
-        warning("zdopen error", pathname);
-
-        if (fd >= 0)
-          close(fd);
-      }
+      if ((zzfile_ = z_open(file, "r", 0)) == NULL)
+        warning("zopen error", pathname);
     }
     else
-#endif
     {
       // open gzip compressed file
       int fd = dup(fileno(file));
@@ -226,14 +219,12 @@ class zstreambuf : public std::streambuf {
     }
     else
 #endif
-#ifdef HAVE_FUNOPEN
-    if (zfile_ != NULL)
+    if (zzfile_ != NULL)
     {
-      fclose(zfile_);
+      // close compress (Z) compressed file
+      z_close(zzfile_);
     }
-    else
-#endif
-    if (gzfile_ != Z_NULL)
+    else if (gzfile_ != Z_NULL)
     {
       // close zlib compressed file
       gzclose_r(gzfile_);
@@ -349,28 +340,19 @@ class zstreambuf : public std::streambuf {
     }
     else
 #endif
-#ifdef HAVE_FUNOPEN
-    if (zfile_ != NULL)
+    if (zzfile_ != NULL)
     {
-      len = fread(buf, 1, len, zfile_); 
+      size = z_read(zzfile_, buf, static_cast<int>(len)); 
 
-      if (ferror(zfile_))
+      if (size < 0)
       {
         cannot_decompress(pathname_, "an error was detected in the compressed data");
 
-        fclose(zfile_);
-        zfile_ = NULL;
-
-        size = -1;
-      }
-      else
-      {
-        size = static_cast<int>(len);
+        z_close(zzfile_);
+        zzfile_ = NULL;
       }
     }
-    else
-#endif
-    if (gzfile_ != Z_NULL)
+    else if (gzfile_ != Z_NULL)
     {
       // decompress a zlib compressed block into buf[]
       size = gzread(gzfile_, buf, len);
@@ -466,7 +448,7 @@ class zstreambuf : public std::streambuf {
   }
 
   const char     *pathname_;
-  FILE           *zfile_;
+  zzFile          zzfile_;
   gzFile          gzfile_;
   bzFile          bzfile_;
   xzFile          xzfile_;

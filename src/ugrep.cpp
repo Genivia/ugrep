@@ -149,7 +149,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.6.2"
+#define UGREP_VERSION "1.6.3"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -1873,7 +1873,12 @@ struct Grep {
   // open a file for (binary) reading and assign input, decompress the file when --z, --decompress specified
   bool open_file(const char *pathname)
   {
-    if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+    if (pathname == NULL)
+    {
+      pathname = flag_label;
+      file = stdin;
+    }
+    else if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
     {
       warning("cannot read", pathname);
 
@@ -1951,6 +1956,10 @@ struct Grep {
 
     // if this is a tar file, then extract its parts to push into pipes and terminate this thread when done
     if (filter_tar(zstrm, buf, maxlen, len))
+      return;
+
+    // if this is a cpio file, then extract its parts to push into pipes and terminate this thread when done
+    if (filter_cpio(zstrm, buf, maxlen, len))
       return;
 
     while (len > 0)
@@ -2165,9 +2174,9 @@ struct Grep {
           if (len < 0)
             break;
 
+          // fill the rest of the buffer with decompressed data
           if (static_cast<size_t>(len) < maxlen)
           {
-            // fill the rest of the buffer with decompressed data
             std::streamsize len_in = zstrm.decompress(buf + len, maxlen - len);
 
             // error?
@@ -2183,6 +2192,10 @@ struct Grep {
             len -= padding;
             memmove(buf, buf + padding, len);
           }
+
+          // rest of the file is too short, something is wrong
+          if (len <= BLOCKSIZE)
+            break;
 
           // no more parts to extract?
           if (*buf == '\0' || (memcmp(buf + 257, ustar_magic, 8) != 0 && memcmp(buf + 257, gnutar_magic, 8) != 0))
@@ -2203,8 +2216,11 @@ struct Grep {
         extracting = false;
 
         // close our end of the pipe
-        close(pipe_fd[1]);
-        pipe_fd[1] = -1;
+        if (pipe_fd[1] >= 0)
+        {
+          close(pipe_fd[1]);
+          pipe_fd[1] = -1;
+        }
 
         // signal close
         std::unique_lock<std::mutex> lock(pipe_mutex);
@@ -2220,6 +2236,360 @@ struct Grep {
     return false;
   }
 
+  // if cpio file, extract regular file contents and push them into pipes one by one, return true when done
+  bool filter_cpio(zstreambuf& zstrm, unsigned char *buf, size_t maxlen, std::streamsize len)
+  {
+    const int HEADERSIZE = 110;
+
+    // by default, we are not extracting parts of an archive
+    extracting = false;
+
+    if (len > HEADERSIZE)
+    {
+      // odc format
+      const char odc_magic[6] = { '0', '7', '0', '7', '0', '7' };
+
+      // newc format
+      const char newc_magic[6] = { '0', '7', '0', '7', '0', '1' };
+
+      // newc+crc format
+      const char newc_crc_magic[6] = { '0', '7', '0', '7', '0', '2' };
+
+      // is this a cpio archive?
+      if (memcmp(buf, odc_magic, 6) == 0 || memcmp(buf, newc_magic, 6) == 0 || memcmp(buf, newc_crc_magic, 6) == 0)
+      {
+        // we should produce headers with cpio file pathnames for each archived part (Grep::partname)
+        flag_no_header = false;
+
+        // inform the main grep thread we are extracing an archive
+        extracting = true;
+
+        // to hold the path (prefix + name) extracted from the header
+        std::string path;
+
+        // need a new pipe, close current pipe first to create a new pipe
+        bool need_pipe = false;
+
+        while (true)
+        {
+          // true if odc, false if newc
+          bool is_odc = buf[5] == '7';
+
+          int header_len = is_odc ? 76 : 110;
+
+          char tmp[16];
+          char *rest;
+
+          // get the namesize
+          size_t namesize;
+          if (is_odc)
+          {
+            memcpy(tmp, buf + 59, 6);
+            tmp[6] = '\0';
+            namesize = strtoul(tmp, &rest, 8);
+          }
+          else
+          {
+            memcpy(tmp, buf + 94, 8);
+            tmp[8] = '\0';
+            namesize = strtoul(tmp, &rest, 16);
+          }
+
+          // if not a valid mode value, then something is wrong
+          if (rest == NULL || *rest != '\0')
+          {
+            // data was read, stop reading more
+            if (need_pipe)
+              break;
+
+            // assume this is not a cpio file and return false
+            return false;
+          }
+
+          // pathnames with trailing \0 cannot be empty or too large
+          if (namesize <= 1 || namesize >= 65536)
+            break;
+          
+          // get the filesize
+          size_t filesize;
+          if (is_odc)
+          {
+            memcpy(tmp, buf + 65, 11);
+            tmp[11] = '\0';
+            filesize = strtoul(tmp, &rest, 8);
+          }
+          else
+          {
+            memcpy(tmp, buf + 54, 8);
+            tmp[8] = '\0';
+            filesize = strtoul(tmp, &rest, 16);
+          }
+
+          // if not a valid mode value, then something is wrong
+          if (rest == NULL || *rest != '\0')
+          {
+            // data was read, stop reading more
+            if (need_pipe)
+              break;
+
+            // assume this is not a cpio file and return false
+            return false;
+          }
+
+          // true if this is a regular file when (mode & 0170000) == 0100000
+          bool is_regular;
+          if (is_odc)
+          {
+            memcpy(tmp, buf + 18, 6);
+            tmp[6] = '\0';
+            is_regular = (strtoul(tmp, &rest, 8) & 0170000) == 0100000;
+          }
+          else
+          {
+            memcpy(tmp, buf + 14, 8);
+            tmp[8] = '\0';
+            is_regular = (strtoul(tmp, &rest, 16) & 0170000) == 0100000;
+          }
+
+          // if not a valid mode value, then something is wrong
+          if (rest == NULL || *rest != '\0')
+          {
+            // data was read, stop reading more
+            if (need_pipe)
+              break;
+
+            // assume this is not a cpio file and return false
+            return false;
+          }
+
+          // selected by default when regular file
+          bool is_selected = is_regular;
+
+          // remove header to advance to the body
+          len -= header_len;
+          memmove(buf, buf + header_len, len);
+
+          // assign the cpio pathname
+          path.clear();
+
+          size_t size = namesize;
+
+          while (len > 0)
+          {
+            size_t n = std::min(static_cast<size_t>(len), size);
+            char *b = reinterpret_cast<char*>(buf);
+
+            path.append(b, n);
+            size -= n;
+
+            if (size == 0)
+            {
+              // remove pathname to advance to the body
+              len -= n;
+              memmove(buf, buf + n, len);
+
+              break;
+            }
+
+            // decompress the next block of data into the buffer
+            len = zstrm.decompress(buf, maxlen);
+          }
+
+          // error?
+          if (len < 0)
+            break;
+
+          // if the pathname does not have a trailing \0 then something is wrong
+          if (path.at(path.size() - 1) != '\0')
+            break;
+
+          // remove the trailing \0 from the pathname
+          path.pop_back();
+
+          // reached the end of the cpio archive?
+          if (path == "TRAILER!!!")
+            break;
+
+          // fill the rest of the buffer with decompressed data
+          if (static_cast<size_t>(len) < maxlen)
+          {
+            std::streamsize len_in = zstrm.decompress(buf + len, maxlen - len);
+
+            // error?
+            if (len_in < 0)
+              break;
+
+            len += len_in;
+          }
+
+          // skip newc format \0 padding after the pathname
+          if (!is_odc && len > 3)
+          {
+            size_t n = 4 - (110 + namesize) % 4;
+            len -= n;
+            memmove(buf, buf + n, len);
+          }
+
+          // if the file is a hidden file that should be skipped with --no-hidden
+          bool is_hidden = false;
+
+          if (is_regular && flag_no_hidden)
+          {
+            const char *basename = strrchr(path.c_str(), '/');
+            if (basename == NULL)
+              basename = path.c_str();
+            else
+              ++basename;
+
+            if (*basename == '.')
+            {
+              is_hidden = true;
+              is_selected = false;
+            }
+          }
+
+          // -O, -t, and --include: check if pathname or basename matches globs, is_selected = false if not
+          if (is_regular && !is_hidden && !flag_include.empty())
+          {
+            const char *basename = strrchr(path.c_str(), '/');
+            if (basename == NULL)
+              basename = path.c_str();
+            else
+              ++basename;
+
+            // include files whose basename matches any one of the --include globs
+            for (auto& glob : flag_include)
+              if ((is_selected = glob_match(path.c_str(), basename, glob.c_str())))
+                break;
+          }
+
+          // -M: check magic bytes, requires sufficiently large len of buf[], which is Z_BUF_LEN - header_len or the whole file
+          if (is_regular && !is_hidden && (flag_include.empty() || !is_selected) && !flag_file_magic.empty())
+          {
+            size_t n = std::min(static_cast<size_t>(len), filesize);
+            char *b = reinterpret_cast<char*>(buf);
+            reflex::Matcher magic(magic_pattern);
+            magic.buffer(b, n + 1);
+            is_selected = magic.scan() != 0;
+          }
+
+          // close the pipe and get a new pipe to search the next part in the archive
+          if (is_selected && need_pipe)
+          {
+            // signal close and wait until the main grep thread created a new pipe in close_file()
+            std::unique_lock<std::mutex> lock(pipe_mutex);
+            pipe_close.notify_one();
+            waiting = true;
+            pipe_ready.wait(lock);
+            waiting = false;
+            lock.unlock();
+
+            // failed to create a pipe in close_file()
+            if (pipe_fd[1] == -1)
+              break;
+          }
+
+          // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
+          if (is_selected)
+            partname.swap(path);
+
+          // it is ok to push the body into the pipe for the main thread to search
+          bool ok = is_selected;
+
+          size = filesize;
+
+          while (len > 0)
+          {
+            size_t len_out = std::min(static_cast<size_t>(len), size);
+
+            if (ok)
+            {
+              // write decompressed data to the pipe, if the pipe is broken then stop pushing more data into this pipe
+              if (write(pipe_fd[1], buf, len_out) < static_cast<ssize_t>(len_out))
+                ok = false;
+            }
+
+            size -= len_out;
+
+            // reached the end of the cpio body?
+            if (size == 0)
+            {
+              len -= len_out;
+              memmove(buf, buf + len_out, len);
+
+              break;
+            }
+
+            // decompress the next block of data into the buffer
+            len = zstrm.decompress(buf, maxlen);
+          }
+
+          // error?
+          if (len < 0)
+            break;
+
+          if (static_cast<size_t>(len) < maxlen)
+          {
+            // fill the rest of the buffer with decompressed data
+            std::streamsize len_in = zstrm.decompress(buf + len, maxlen - len);
+
+            // error?
+            if (len_in < 0)
+              break;
+
+            len += len_in;
+          }
+
+          // skip newc format \0 padding
+          if (!is_odc && len > 2)
+          {
+            size_t n = (4 - filesize % 4) % 4;
+            len -= n;
+            memmove(buf, buf + n, len);
+          }
+
+          // rest of the file is too short, something is wrong
+          if (len <= HEADERSIZE)
+            break;
+
+          // quit if this is not valid cpio header magic
+          if (memcmp(buf, odc_magic, 6) != 0 && memcmp(buf, newc_magic, 6) != 0 && memcmp(buf, newc_crc_magic, 6) != 0)
+            break;
+
+          // get a new pipe to search the next part in the archive, if the previous part was a regular file
+          if (is_selected)
+          {
+            // close our end of the pipe
+            close(pipe_fd[1]);
+            pipe_fd[1] = -1;
+
+            need_pipe = true;
+          }
+        }
+
+        // inform the main grep thread we are done extracting
+        extracting = false;
+
+        // close our end of the pipe
+        if (pipe_fd[1] >= 0)
+        {
+          close(pipe_fd[1]);
+          pipe_fd[1] = -1;
+        }
+
+        // signal close
+        std::unique_lock<std::mutex> lock(pipe_mutex);
+        pipe_close.notify_one();
+        lock.unlock();
+
+        // done extracting the cpio file
+        return true;
+      }
+    }
+
+    // not a cpio file
+    return false;
+  }
 #endif
 #endif
   
@@ -2304,7 +2674,7 @@ struct Grep {
 #endif
 
     // close the file
-    if (file != NULL)
+    if (file != NULL && file != stdin)
     {
       fclose(file);
       file = NULL;
@@ -3853,10 +4223,7 @@ int main(int argc, char **argv)
       if (flag_decompress)
       {
         const char *zextensions[] = {
-          ".gz",
-#ifdef HAVE_FUNOPEN
-          ".Z",
-#endif
+          ".gz", ".Z",
 #ifdef HAVE_LIBBZ2
           ".bz", ".bz2", ".bzip2",
 #endif
@@ -3883,25 +4250,29 @@ int main(int argc, char **argv)
   // -z with -M or -O/--include: add globs to search tarballs
   if (flag_decompress && (!flag_file_magic.empty() || !flag_include.empty()))
   {
+    flag_include.emplace_back("*.cpio");
     flag_include.emplace_back("*.pax");
     flag_include.emplace_back("*.tar");
 
+    flag_include.emplace_back("*.cpio.gz");
     flag_include.emplace_back("*.pax.gz");
     flag_include.emplace_back("*.tar.gz");
     flag_include.emplace_back("*.taz");
     flag_include.emplace_back("*.tgz");
     flag_include.emplace_back("*.tpz");
 
-#ifdef HAVE_FUNOPEN
+    flag_include.emplace_back("*.cpio.Z");
     flag_include.emplace_back("*.pax.Z");
     flag_include.emplace_back("*.tar.Z");
-#endif
 
 #ifdef HAVE_LIBBZ2
+    flag_include.emplace_back("*.cpio.bz");
     flag_include.emplace_back("*.pax.bz");
     flag_include.emplace_back("*.tar.bz");
+    flag_include.emplace_back("*.cpio.bz2");
     flag_include.emplace_back("*.pax.bz2");
     flag_include.emplace_back("*.tar.bz2");
+    flag_include.emplace_back("*.cpio.bzip2");
     flag_include.emplace_back("*.pax.bzip2");
     flag_include.emplace_back("*.tar.bzip2");
     flag_include.emplace_back("*.tb2");
@@ -3911,8 +4282,10 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef HAVE_LIBLZMA
+    flag_include.emplace_back("*.cpio.lzma");
     flag_include.emplace_back("*.pax.lzma");
     flag_include.emplace_back("*.tar.lzma");
+    flag_include.emplace_back("*.cpio.xz");
     flag_include.emplace_back("*.pax.xz");
     flag_include.emplace_back("*.tar.xz");
     flag_include.emplace_back("*.tlz");
@@ -4777,16 +5150,13 @@ void Grep::search(const char *pathname)
   if (out.eof)
     return;
 
-  // pathname is NULL when stdin is searched, otherwise open the file to search
-  if (pathname == NULL)
-  {
-    pathname = flag_label;
-    input = stdin;
-  }
-  else if (!open_file(pathname))
-  {
+  // open file (pathname is NULL to read stdin)
+  if (!open_file(pathname))
     return;
-  }
+
+  // pathname is NULL when stdin is searched
+  if (pathname == NULL)
+    pathname = flag_label;
 
   // -z: loop over extracted archive parts, when applicable
   do
@@ -6544,34 +6914,28 @@ void help(const char *message, const char *arg)
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n\
-            Decompress files to search, when compressed.  Archives (.pax, .tar)\n\
-            and compressed archives (.taz, .tgz, .tpz, .tbz, .tbz2, .tb2, .tz2,\n\
-            .tlz, .txz) are searched and matches are output with file pathnames\n\
-            in braces.  If -O, -M, or -t is specified, searches files with the\n\
-            specified extensions and magic bytes, including compressed files\n\
-            with compression format extensions and archived files in archives.\n";
+            Decompress files to search, when compressed.  Archives (.cpio,\n\
+            .pax, and .tar) and compressed archives (.taz, .tgz, .tpz, .tbz,\n\
+            .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and matching\n\
+            archive pathnames are output in braces.  If -O, -M, or -t is\n\
+            specified, searches files with matching extensions and magic bytes,\n\
+            searches compressed files with compression format extensions, and\n\
+            searches files with matching file pathnames in archives.\n";
 #ifndef HAVE_LIBZ
   std::cout << "\
             This feature is not available in this version of ugrep.\n";
 #else
   std::cout << "\
-            Supports gzip (.gz)";
-#ifdef HAVE_FUNOPEN
-  std::cout << ", compress (.Z)";
-#endif
-#ifdef HAVE_LIBBZ2
-  std::cout << ", bzip2 (.bz, .bz2, .bzip2)";
+            Supports gzip (optional suffix .gz), compress (requires suffix .Z)";
 #ifdef HAVE_LIBLZMA
   std::cout << ",\n\
-            lzma (.lzma), xz (.xz)";
+            lzma (requires suffix .lzma), xz (requires suffix .xz)";
+#endif
+#ifdef HAVE_LIBBZ2
+  std::cout << ",\n\
+            bzip2 (requires suffix .bz, .bz2, or .bzip2)";
 #endif
   std::cout << ".\n";
-#else
-#ifdef HAVE_LIBLZMA
-  std::cout << ", lzma (.lzma), xz (.xz)";
-#endif
-  std::cout << ".\n";
-#endif
 #endif
   std::cout << "\
 \n\

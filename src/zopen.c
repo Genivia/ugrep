@@ -33,12 +33,41 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)zopen.c	8.1 (Berkeley) 6/27/93";
-#endif /* LIBC_SCCS and not lint */
+/******************************************************************************\
+* Copyright (c) 2019, Robert van Engelen, Genivia Inc. All rights reserved.    *
+*                                                                              *
+* Redistribution and use in source and binary forms, with or without           *
+* modification, are permitted provided that the following conditions are met:  *
+*                                                                              *
+*   (1) Redistributions of source code must retain the above copyright notice, *
+*       this list of conditions and the following disclaimer.                  *
+*                                                                              *
+*   (2) Redistributions in binary form must reproduce the above copyright      *
+*       notice, this list of conditions and the following disclaimer in the    *
+*       documentation and/or other materials provided with the distribution.   *
+*                                                                              *
+*   (3) The name of the author may not be used to endorse or promote products  *
+*       derived from this software without specific prior written permission.  *
+*                                                                              *
+* THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED *
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF         *
+* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO   *
+* EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,       *
+* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, *
+* PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;  *
+* OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,     *
+* WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR      *
+* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF       *
+* ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                                   *
+\******************************************************************************/
 
-#include <sys/cdefs.h>
-/* __FBSDID("$FreeBSD$"); */
+/**
+@file      zopen.c
+@brief     compression and decompression (.Z format)
+@author    Robert van Engelen - engelen@genivia.com
+@copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) BSD-3 License - see LICENSE.txt
+*/
 
 /*-
  * fcompress.c - File compression ala IEEE Computer, June 1984.
@@ -54,19 +83,29 @@ static char sccsid[] = "@(#)zopen.c	8.1 (Berkeley) 6/27/93";
  * Cleaned up and converted to library returning I/O streams by
  * Diomidis Spinellis <dds@doc.ic.ac.uk>.
  *
- * zopen(filename, mode, bits)
- *	Returns a FILE * that can be used for read or write.  The modes
- *	supported are only "r" and "w".  Seeking is not allowed.  On
- *	reading the file is decompressed, on writing it is compressed.
- *	The output is compatible with compress(1) with 16 bit tables.
- *	Any file produced by compress(1) can be read.
+ * Modified by Robert van Engelen <engelen@genivia.com> to adapt this library
+ * to the following four functions, without requiring BSD funopen() and to
+ * avoid a clash with BSD zopen():
  *
- * Added zdopen() by Robert van Engelen <engelen@genivia.com>
+ * z_open(FILE *file, const char *mode, int bits)
+ *      Returns a new void* handle to read (decompress) or write (compress)
+ *      from/to the specified FILE* with mode "r" or "w" using bits (only used
+ *      for writing, use 0 for default 16 bits), returns NULL when unable to
+ *      allocate.
  *
- * zdopen(int fd, const char *mode, int bits)
- *      Returns a FILE * that can be used for read or write from/to a file
- *      descriptor.  Otherwise the same as zopen().  Note that fclose() also
- *      closes the file descriptor.  Use dup() to retain the file descriptor.
+ * z_read(void *, unsigned char *buf, int len)
+ *      Read and decompress up to len bytes into buf, returns the number of
+ *      bytes read or a negative value on error.
+ *
+ * z_write(void *, const unsigned char *buf, int len)
+ *      Write and compress up to len bytes from buf to the file, returns the
+ *      number of bytes written or a negative value on error.
+ *
+ * z_close(void *)
+ *      Closes the handle and returns 0 on success or -1 on error (close errors
+ *      do not occur when reading).
+ *
+ * Replaced non-portable EFTYPE values assigned to errno by EINVAL.
  */
 
 #include <sys/param.h>
@@ -81,8 +120,6 @@ static char sccsid[] = "@(#)zopen.c	8.1 (Berkeley) 6/27/93";
 #include <unistd.h>
 
 #include "zopen.h"
-
-#ifdef HAVE_FUNOPEN
 
 #define	BITS		16		/* Default bits. */
 #define	HSIZE		69001		/* 95% occupancy */
@@ -209,19 +246,10 @@ struct s_zstate {
 #define	FIRST	257		/* First free entry. */
 #define	CLEAR	256		/* Table clear output code. */
 
-#ifdef __CYGWIN__
-#define Z_READ_WRITE_SIZE size_t
-#else
-#define Z_READ_WRITE_SIZE int
-#endif
-
 static int	cl_block(struct s_zstate *);
 static void	cl_hash(struct s_zstate *, count_int);
 static code_int	getcode(struct s_zstate *);
 static int	output(struct s_zstate *, code_int);
-static int	zclose(void *);
-static int	zread(void *, char *, Z_READ_WRITE_SIZE);
-static int	zwrite(void *, const char *, Z_READ_WRITE_SIZE);
 
 /*-
  * Algorithm from "A Technique for High Performance Data Compression",
@@ -249,12 +277,12 @@ static int	zwrite(void *, const char *, Z_READ_WRITE_SIZE);
  * file size for noticeable speed improvement on small files.  Please direct
  * questions about this implementation to ames!jaw.
  */
-static int
-zwrite(void *cookie, const char *wbp, Z_READ_WRITE_SIZE num)
+int
+z_write(void *handle, const unsigned char *wbp, int num)
 {
+	struct s_zstate *zs = handle;
 	code_int i;
 	int c, disp;
-	struct s_zstate *zs;
 	const u_char *bp;
 	u_char tmp;
 	int count;
@@ -262,7 +290,6 @@ zwrite(void *cookie, const char *wbp, Z_READ_WRITE_SIZE num)
 	if (num == 0)
 		return (0);
 
-	zs = cookie;
 	count = num;
 	bp = (const u_char *)wbp;
 	if (state == S_MIDDLE)
@@ -337,29 +364,25 @@ nomatch:	if (output(zs, (code_int) ent) == -1)
 	return (num);
 }
 
-static int
-zclose(void *cookie)
+int
+z_close(void *handle)
 {
-	struct s_zstate *zs;
+	struct s_zstate *zs = handle;
 	int rval;
 
-	zs = cookie;
 	if (zmode == 'w') {		/* Put out the final code. */
 		if (output(zs, (code_int) ent) == -1) {
-			(void)fclose(fp);
 			free(zs);
 			return (-1);
 		}
 		out_count++;
 		if (output(zs, (code_int) - 1) == -1) {
-			(void)fclose(fp);
 			free(zs);
 			return (-1);
 		}
 	}
-	rval = fclose(fp) == EOF ? -1 : 0;
 	free(zs);
-	return (rval);
+	return (0);
 }
 
 /*-
@@ -470,17 +493,16 @@ output(struct s_zstate *zs, code_int ocode)
  * compressed file.  The tables used herein are shared with those of the
  * compress() routine.  See the definitions above.
  */
-static int
-zread(void *cookie, char *rbp, Z_READ_WRITE_SIZE num)
+int
+z_read(void *handle, unsigned char *rbp, int num)
 {
+	struct s_zstate *zs = handle;
 	u_int count;
-	struct s_zstate *zs;
 	u_char *bp, header[3];
 
 	if (num == 0)
 		return (0);
 
-	zs = cookie;
 	count = num;
 	bp = (u_char *)rbp;
 	switch (state) {
@@ -497,7 +519,7 @@ zread(void *cookie, char *rbp, Z_READ_WRITE_SIZE num)
 	if (fread(header,
 	    sizeof(char), sizeof(header), fp) != sizeof(header) ||
 	    memcmp(header, magic_header, sizeof(magic_header)) != 0) {
-		errno = EFTYPE;
+		errno = EINVAL;
 		return (-1);
 	}
 	maxbits = header[2];	/* Set -b from file. */
@@ -505,7 +527,7 @@ zread(void *cookie, char *rbp, Z_READ_WRITE_SIZE num)
 	maxbits &= BIT_MASK;
 	maxmaxcode = 1L << maxbits;
 	if (maxbits > BITS || maxbits < 12) {
-		errno = EFTYPE;
+		errno = EINVAL;
 		return (-1);
 	}
 	/* As above, initialize the first 256 entries in the table. */
@@ -707,8 +729,8 @@ cl_hash(struct s_zstate *zs, count_int cl_hsize)	/* Reset code table. */
 		*--htab_p = m1;
 }
 
-static struct s_zstate *
-zalloc(const char *mode, int bits)
+void *
+z_open(FILE *file, const char *mode, int bits)
 {
 	struct s_zstate *zs;
 
@@ -721,6 +743,7 @@ zalloc(const char *mode, int bits)
 	if ((zs = calloc(1, sizeof(struct s_zstate))) == NULL)
 		return (NULL);
 
+        fp = file;
 	maxbits = bits ? bits : BITS;	/* User settable max # bits/code. */
 	maxmaxcode = 1L << maxbits;	/* Should NEVER generate this code. */
 	hsize = HSIZE;			/* For dynamic table sizing. */
@@ -737,55 +760,3 @@ zalloc(const char *mode, int bits)
 
         return (zs);
 }
-
-FILE *
-zopen(const char *fname, const char *mode, int bits)
-{
-	struct s_zstate *zs = zalloc(mode, bits);
-
-	/*
-	 * Layering compress on top of stdio in order to provide buffering,
-	 * and ensure that reads and write work with the data specified.
-	 */
-	if ((fp = fopen(fname, mode)) == NULL) {
-		free(zs);
-		return (NULL);
-	}
-	switch (*mode) {
-	case 'r':
-		zmode = 'r';
-		return (funopen(zs, zread, NULL, NULL, zclose));
-	case 'w':
-		zmode = 'w';
-		return (funopen(zs, NULL, zwrite, NULL, zclose));
-	}
-	/* NOTREACHED */
-	return (NULL);
-}
-
-FILE *
-zdopen(int fd, const char *mode, int bits)
-{
-	struct s_zstate *zs = zalloc(mode, bits);
-
-	/*
-	 * Layering compress on top of stdio in order to provide buffering,
-	 * and ensure that reads and write work with the data specified.
-	 */
-	if ((fp = fdopen(fd, mode)) == NULL) {
-		free(zs);
-		return (NULL);
-	}
-	switch (*mode) {
-	case 'r':
-		zmode = 'r';
-		return (funopen(zs, zread, NULL, NULL, zclose));
-	case 'w':
-		zmode = 'w';
-		return (funopen(zs, NULL, zwrite, NULL, zclose));
-	}
-	/* NOTREACHED */
-	return (NULL);
-}
-
-#endif

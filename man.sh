@@ -310,7 +310,7 @@ $ ugrep -cw '[Pp]atricia' myfile
 To count the total number of times the word `patricia' or `Patricia` occur in a
 file:
 .IP
-$ ugrep -cgw '[Pp]atricia' myfile
+$ ugrep -cuw '[Pp]atricia' myfile
 .PP
 To list all Unicode words in a file:
 .IP

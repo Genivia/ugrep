@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 29, 2019" "ugrep 1.6.2" "User Commands"
+.TH UGREP "1" "December 01, 2019" "ugrep 1.6.3" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -449,14 +449,16 @@ See also the \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR options.
 Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
-Decompress files to search, when compressed.  Archives (.pax, .tar)
-and compressed archives (.taz, .tgz, .tpz, .tbz, .tbz2, .tb2, .tz2,
-.tlz, .txz) are searched and matches are output with file pathnames
-in braces.  If \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches files with the
-specified extensions and magic bytes, including compressed files
-with compression format extensions and archived files in archives.
-Supports gzip (.gz), compress (.Z), bzip2 (.bz, .bz2, .bzip2),
-lzma (.lzma), xz (.xz).
+Decompress files to search, when compressed.  Archives (.cpio,
+.pax, and .tar) and compressed archives (.taz, .tgz, .tpz, .tbz,
+.tbz2, .tb2, .tz2, .tlz, and .txz) are searched and matching
+archive pathnames are output in braces.  If \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is
+specified, searches files with matching extensions and magic bytes,
+searches compressed files with compression format extensions, and
+searches files with matching file pathnames in archives.
+Supports gzip (optional suffix .gz), compress (requires suffix .Z),
+lzma (requires suffix .lzma), xz (requires suffix .xz),
+bzip2 (requires suffix .bz, .bz2, or .bzip2).
 .PP
 If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
 standard input is used, unless recursive searches are specified which examine
@@ -709,7 +711,7 @@ $ ugrep -cw '[Pp]atricia' myfile
 To count the total number of times the word `patricia' or `Patricia` occur in a
 file:
 .IP
-$ ugrep -cgw '[Pp]atricia' myfile
+$ ugrep -cuw '[Pp]atricia' myfile
 .PP
 To list all Unicode words in a file:
 .IP
