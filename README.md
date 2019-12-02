@@ -370,7 +370,7 @@ The Linux binary was built on CentOS 7.6.
 Add to `.vimrc`:
 
     if executable('ugrep')
-        set grepprg=ugrep\ -Rnk\ -u\ --tabs=1
+        set grepprg=ugrep\ -RHnk\ -u\ --tabs=1
         set grepformat=%f:%l:%c:%m,%f+%l+%c+%m,%-G%f\\\|%l\\\|%c\\\|%m
     endif
 
@@ -1337,6 +1337,16 @@ comma-separated list with format `%,%1` (conditional comma and group capture):
 The same as above, but displaying the replaced matches line-by-line:
 
     ugrep -P '<td>(.*?)</td>' --format='%1\n' index.html
+
+To collect all `<link>` `href` URLs from all HTML files down the current
+working directory, then sort them:
+
+    ugrep -R -thtml -P '<link.*href\h*=\h*.([^\x27"\n]+).' --format='%1%~' | sort -u
+
+Likewise, but select `<script>` `src` URLs when referencing `http` and `https`
+sites:
+
+    ugrep -R -thtml -P '<script.*src\h*=\h*.(https?:[^\x27"\n]+).' --format='%1%~' | sort -u
 
 <a name="max"/>
 
