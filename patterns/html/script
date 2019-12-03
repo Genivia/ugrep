@@ -1,0 +1,2 @@
+<script(\h[^<>\n]*)?/>
+<script(\h[^<>\n]*)?>(.|\n)*?</script>

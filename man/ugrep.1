@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 01, 2019" "ugrep 1.6.3" "User Commands"
+.TH UGREP "1" "December 03, 2019" "ugrep 1.6.4" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -267,6 +267,9 @@ slow as every file on the search path is read to compare MAGIC.
 .TP
 \fB\-m\fR \fINUM\fR, \fB\-\-max\-count\fR=\fINUM\fR
 Stop reading the input after NUM matches for each file processed.
+.TP
+\fB\-\-match\fR
+Match input.  Same as specifying an empty pattern to search.
 .TP
 \fB\-\-max\-depth\fR=\fINUM\fR
 Restrict recursive search to NUM (NUM > 0) directories deep, where

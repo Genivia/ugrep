@@ -104,7 +104,8 @@ Introduction: why use ugrep?
 
   looks for `main` in C++ files in the compressed tar file `myprojects.tgz`.
   Supported tar formats are v7, ustar, gnu, oldgnu, and pax.  Supported cpio
-  formats are odc and newc (not the non-portable old binary cpio format).
+  formats are odc, newc, and crc (not the obsolete non-portable old binary cpio
+  format).
 
 - **ugrep can match patterns across multiple lines**, such as comment blocks in
   source code.  This feature supports matching that could otherwise only be
@@ -196,16 +197,16 @@ Introduction: why use ugrep?
 - **ugrep is evolving!**  We added lots of useful features and made significant
   improvements.  This effort continues.  You can help!  We love your feedback
   (issues) and contributions (pull requests) ❤️ For example, what patterns do
-  you use to search source code?  Please contribute and share!
+  you use to search source code?  Please tell us or contribute and share!
 
 <a name="speed"/>
 
 Speed
 -----
 
-Performance tests were conducted with clang 9.0.0 -O2 on on a 2.9 GHz Intel
-Core i7, 16 GB 2133 MHz LPDDR3 Mac OS 10.12.6 machine.  The best times for many
-runs is shown under minimal machine load.
+Performance tests were conducted with clang 9.0.0 -O2 on a 2.9 GHz Intel Core
+i7, 16 GB 2133 MHz LPDDR3 Mac OS 10.12.6 machine.  The best times for many runs
+is shown under minimal machine load.
 
 The following results span a range of different tests and are promosing for our
 initial efforts on **ugrep**.  These tests are not comprehensive (yet), but
@@ -358,8 +359,19 @@ Prebuilt binaries for Linux, Mac OS X, and Windows are included in the `bin`
 directory.  These binary versions do not support options `-P` (Perl regular
 expressions) and `-z` (decompress).
 
+All versions of ugrep are designed to run from the command line interface
+(CLI).
+
+There are two Windows versions: `ugrep\bin\win32\ugrep.exe` and
+`ugrep\bin\win64\ugrep.exe`.  Depending on your system, add the 32 or 64 bit
+version to your execution path:  go to *Settings* and search for "Path" in
+*Find a Setting*.  Select *environment variables* -> *Path* -> *New* and add
+the directory `C:\<fill this part in>\ugrep\bin\win32`.
+
 When using `ugrep.exe` from the Windows command line, use `"` instead of `'` to
-specify patterns, since `'` becomes part of the command-line argument!
+specify patterns, since `'` becomes part of the command-line argument!  Also,
+an empty argument `""` is ignored by some Windows command interpreters such as
+Powershell.  Use option `--match` instead.
 
 The Linux binary was built on CentOS 7.6.
 
@@ -370,7 +382,7 @@ The Linux binary was built on CentOS 7.6.
 Add to `.vimrc`:
 
     if executable('ugrep')
-        set grepprg=ugrep\ -RHnk\ -u\ --tabs=1
+        set grepprg=ugrep\ -Rnk\ -u\ --tabs=1
         set grepformat=%f:%l:%c:%m,%f+%l+%c+%m,%-G%f\\\|%l\\\|%c\\\|%m
     endif
 
@@ -786,17 +798,22 @@ Note that regex patterns are always specified in UTF-8 (includes ASCII).  To
 search binary files with binary patterns, see
 [searching and displaying binary files with -U, -W, and -X](#binary).
 
-To recursively list all files and symlinks that are ASCII:
+To recursively list all files and symlinks that are ASCII (i.e. 7-bit):
 
-    ugrep -RL '[\p{Non_ASCII_Unicode}]'
+    ugrep -RL '[^[:ascii:]]'
 
-To recursively list all files and symlinks that are non-ASCII:
+To recursively list all files and symlinks that are non-ASCII, i.e. UTF-8,
+UTF-16, and UTF-32 files with non-ASCII Unicode characters (U+0080 and up):
 
     ugrep -Rl '[^[:ascii:]]'
 
+To check that a file contains Unicode ((U+0080 and up):
+
+    ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
+
 To recursively list files with invalid UTF content (i.e. invalid UTF-8 byte
-sequences or that contain any UTF-8/16/32 code points that are outside the
-valid Unicode range) by using a negative pattern:
+sequences or files that contain any UTF-8/16/32 code points that are outside
+the valid Unicode range) by using a negative pattern:
 
     ugrep -Rl '.|(?^\p{Unicode})'
 
@@ -818,13 +835,9 @@ with a UTF-16 BOM:
 
     ugrep -iw 'lorem' utf16lorem.txt
 
-To search utf16lorem.txt when this file has no UTF-16 BOM:
+To search utf16lorem.txt when this file has no UTF-16 BOM, using `-Q`:
 
     ugrep -Q=UTF-16 -iw 'lorem' utf16lorem.txt
-
-To check that a file contains Unicode:
-
-    ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
 To search file `spanish-iso.txt` encoded in ISO-8859-1:
 
@@ -1136,7 +1149,7 @@ To display the line and column numbers of matches in XML with `--xml`:
 
 To change the color palette, set the `GREP_COLORS` environment variable.  Its
 value is a colon-separated list of ANSI SGR parameters that defaults to
-`cx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36`:
+`cx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36` when not assigned:
 
 param | result
 ----- | ------------------------------------------------------------------------
@@ -1159,7 +1172,12 @@ lines with a dark gray background, thereby aiding in visualizing white space:
 
     export GREP_COLORS='sl=1;100:cx=44:ms=1;4;32;100:mc=1;4;32;44:fn=35:ln=32:cn=32:bn=32:se=36'
 
-Color intensities may differ per platform and terminal used though, which
+For Windows command interpreters that support ANSI escape codes, use
+`SET GREP_COLORS=<params>`.  For example:
+
+    SET GREP_COLORS=cx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36
+
+Color intensities may differ per platform and per terminal program used, which
 affects readability.
 
 To produce color-highlighted results:
@@ -1338,15 +1356,19 @@ The same as above, but displaying the replaced matches line-by-line:
 
     ugrep -P '<td>(.*?)</td>' --format='%1\n' index.html
 
-To collect all `<link>` `href` URLs from all HTML files down the current
-working directory, then sort them:
+To collect all `href` URLs from all HTML and PHP files down the current working
+directory, then sort them:
 
-    ugrep -R -thtml -P '<link.*href\h*=\h*.([^\x27"\n]+).' --format='%1%~' | sort -u
+    ugrep -R -thtml,php -P '<[^<>\n]+href\h*=\h*.([^\x27"\n]+).' --format='%1%~' | sort -u
 
-Likewise, but select `<script>` `src` URLs when referencing `http` and `https`
-sites:
+The same, but much easier by using the predefined `html/href` pattern:
 
-    ugrep -R -thtml -P '<script.*src\h*=\h*.(https?:[^\x27"\n]+).' --format='%1%~' | sort -u
+    ugrep -R -thtml,php -P -f html/href --format='%1%~' | sort -u
+
+Likewise, but in this case select `<script>` `src` URLs when referencing `http`
+and `https` sites:
+
+    ugrep -R -thtml,php -P '<script.*src\h*=\h*.(https?:[^\x27"\n]+).' --format='%1%~' | sort -u
 
 <a name="max"/>
 
@@ -1386,13 +1408,13 @@ use option `--label='stdin.Z'` for compress, `--label='stdin.bz2'` for bzip2,
 Archives (cpio, tar, and pax) are searched with option `-z`.  Regular files in
 an archive that match are output with the archive pathnames enclosed in `{` and
 `}` braces.  Supported tar formats are v7, ustar, gnu, oldgnu, and pax.
-Supported cpio formats are odc and newc.  Not supported is the non-portable old
-binary cpio format.  Archive formats are automatically detected, including
-compressed with gzip.  Other compression formats require a filename suffix,
-`.Z` for compress, `.bz`, `.bz2`, or `.bzip2` for bzip2, `.lzma` for lzma, and
-`.xz` for xz.  Also the shorthands `.taz`, `.tgz`, and `.tpz` for gzip, `.tbz`,
-`.tbz2`, `.tb2`, and `.tz2` for bzip, `.tlz` for lzma, and `.txz` for xz are
-recognized.
+Supported cpio formats are odc, newc, and crc.  Not supported is the obsolete
+non-portable old binary cpio format.  Archive formats are automatically
+detected, including compressed with gzip.  Other compression formats require a
+filename suffix: `.Z` for compress, `.bz`, `.bz2`, or `.bzip2` for bzip2,
+`.lzma` for lzma, and `.xz` for xz.  Also the shorthands `.taz`, `.tgz`, and
+`.tpz` for gzip, `.tbz`, `.tbz2`, `.tb2`, and `.tz2` for bzip, `.tlz` for lzma,
+and `.txz` for xz are recognized.
 
 format   | filename suffix         | tar/pax short suffix            | suffix required? | to ugrep stdin    | lib install |
 -------- | ----------------------- | ------------------------------- | ---------------- | ----------------- | ----------- |
@@ -1803,6 +1825,9 @@ Man page
            -m NUM, --max-count=NUM
                   Stop  reading  the  input  after  NUM matches for each file pro-
                   cessed.
+
+           --match
+                  Match input.  Same as specifying an empty pattern to search.
 
            --max-depth=NUM
                   Restrict recursive search to NUM (NUM  >  0)  directories  deep,
@@ -2350,7 +2375,7 @@ Man page
 
 
 
-    ugrep 1.6.3                    December 01, 2019                      UGREP(1)
+    ugrep 1.6.4                    December 03, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

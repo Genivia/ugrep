@@ -110,14 +110,14 @@ Prebuilt executables are located in ugrep/bin.
 #include <windows.h>
 #include <tchar.h> 
 #include <stdio.h>
+#include <io.h>
 #include <strsafe.h>
 
 #define STDIN_FILENO  0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-// windows has no isatty()
-#define isatty(fildes) ((fildes) == 1 || (fildes) == 2)
+#define isatty(fildes) _isatty(fildes)
 
 #define PATHSEPCHR '\\'
 #define PATHSEPSTR "\\"
@@ -149,7 +149,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.6.3"
+#define UGREP_VERSION "1.6.4"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -248,7 +248,7 @@ bool flag_no_filename              = false;
 bool flag_no_header                = false;
 bool flag_no_messages              = false;
 bool flag_no_hidden                = false;
-bool flag_match_all                = false;
+bool flag_match                    = false;
 bool flag_count                    = false;
 bool flag_fixed_strings            = false;
 bool flag_free_space               = false;
@@ -1066,6 +1066,8 @@ void Output::Dump::line(const char *separator)
     {
       out.str(color_cx);
       out.str(" --");
+      if ((i & 7) == 7)
+        out.chr(' ');
       out.str(color_off);
     }
     else
@@ -1074,11 +1076,10 @@ void Output::Dump::line(const char *separator)
       out.str(color_hex[byte >> 8]);
       out.chr(' ');
       out.hex(byte & 0xff, 2);
+      if ((i & 7) == 7)
+        out.chr(' ');
       out.str(color_off);
     }
-
-    if ((i & 7) == 7)
-      out.chr(' ');
   }
 
   out.chr(' ');
@@ -3275,6 +3276,8 @@ int main(int argc, char **argv)
               flag_line_number = true;
             else if (strcmp(arg, "line-regexp") == 0)
               flag_line_regexp = true;
+            else if (strcmp(arg, "match") == 0)
+              flag_match = true;
             else if (strncmp(arg, "max-count=", 10) == 0)
               flag_max_count = strtopos(arg + 10, "invalid argument --max-count=");
             else if (strncmp(arg, "max-depth=", 10) == 0)
@@ -3684,10 +3687,15 @@ int main(int argc, char **argv)
     }
   }
 
+#ifndef OS_WIN
+  // ignore SIGPIPE
+  signal(SIGPIPE, SIG_IGN);
+#endif
+
 #ifndef HAVE_LIBZ
   // -z: but we don't have libz
   if (flag_decompress)
-    help("option -z is not available in this version of ugrep");
+    help("option -z is not available in this build configuration of ugrep");
 #endif
 
   // --binary-files: normalize by assigning flags
@@ -3719,12 +3727,16 @@ int main(int argc, char **argv)
     exit(EXIT_ERROR);
   }
 
+  // --match-all is the same as specifying an '' empty pattern argument
+  if (flag_match)
+    flag_regexp.emplace_back("");
+
   // regex PATTERN specified
   if (pattern != NULL)
   {
-    // if one or more -e PATTERN given, add pattern to the front else add to the front of FILE args
+    // if not --match-all, then add pattern to the front else add to the front of FILE args
     if (flag_regexp.empty())
-      flag_regexp.insert(flag_regexp.begin(), pattern);
+      flag_regexp.emplace_back(pattern);
     else
       files.insert(files.begin(), pattern);
   }
@@ -3753,12 +3765,12 @@ int main(int argc, char **argv)
       else if (flag_hex)
       {
         regex.append(".*\n?|");
-        flag_match_all = true;
+        flag_match = true;
       }
       else
       {
         regex.append(".*|");
-        flag_match_all = true;
+        flag_match = true;
       }
 
       flag_empty = true;
@@ -3853,11 +3865,17 @@ int main(int argc, char **argv)
       else if (fopen_s(&file, filename.c_str(), "r") != 0)
         file = NULL;
 
-#ifndef OS_WIN
       if (file == NULL)
       {
+#ifdef OS_WIN
+        // could not open, try GREP_PATH environment variable
+        char *grep_path;
+        size_t len;
+        _dupenv_s(&grep_path, &len, "GREP_PATH");
+#else
         // could not open, try GREP_PATH environment variable
         const char *grep_path = getenv("GREP_PATH");
+#endif
 
         if (grep_path != NULL)
         {
@@ -3866,9 +3884,12 @@ int main(int argc, char **argv)
 
           if (fopen_s(&file, path_file.c_str(), "r") != 0)
             file = NULL;
+
+#ifdef OS_WIN
+          free(grep_path);
+#endif
         }
       }
-#endif
 
 #ifdef GREP_PATH
       if (file == NULL)
@@ -4005,13 +4026,10 @@ int main(int argc, char **argv)
   // is output sent to a TTY or to /dev/null?
   if (!flag_quiet)
   {
-#ifndef OS_WIN
-
-    // ignore SIGPIPE
-    signal(SIGPIPE, SIG_IGN);
-
     // check if standard output is a TTY
-    tty_term = isatty(STDOUT_FILENO);
+    tty_term = isatty(STDOUT_FILENO) != 0;
+
+#ifndef OS_WIN
 
     // --pager: if output is to a TTY then page through the results
     if (flag_pager != NULL && tty_term)
@@ -4054,7 +4072,12 @@ int main(int argc, char **argv)
       }
       else
       {
-#ifndef OS_WIN
+#ifdef OS_WIN
+
+        // blindly assume that we have a color terminal on Windows if isatty() is true
+        color_term = tty_term;
+
+#else
 
         // check whether we have a color terminal
         if (tty_term)
@@ -4081,11 +4104,19 @@ int main(int argc, char **argv)
 
         if (flag_color != NULL)
         {
+#ifdef OS_WIN
+          // get GREP_COLOR and GREP_COLORS
+          char *grep_color = NULL;
+          char *grep_colors = NULL;
+
+          size_t len;
+          _dupenv_s(&grep_color, &len, "GREP_COLOR");
+          _dupenv_s(&grep_colors, &len, "GREP_COLORS");
+#else
+          // get GREP_COLOR and GREP_COLORS environment variables
           const char *grep_color = NULL;
           const char *grep_colors = NULL;
 
-#ifndef OS_WIN
-          // get GREP_COLOR and GREP_COLORS environment variables
           grep_color = getenv("GREP_COLOR");
           grep_colors = getenv("GREP_COLORS");
 #endif
@@ -4119,7 +4150,7 @@ int main(int argc, char **argv)
             }
 
             // if pattern is empty to match all, matches are shown as selected lines
-            if (flag_match_all)
+            if (flag_match)
             {
               copy_color(color_ms, color_sl);
               copy_color(color_mc, color_cx);
@@ -4137,6 +4168,13 @@ int main(int argc, char **argv)
 
             color_off = "\033[0m";
           }
+
+#ifdef OS_WIN
+          if (grep_color != NULL)
+            free(grep_color);
+          if (grep_colors != NULL)
+            free(grep_colors);
+#endif
         }
       }
     }
@@ -4557,7 +4595,7 @@ int main(int argc, char **argv)
         ugrep(magic, grep, files);
       }
 #else
-      help("option -P is not available in this version of ugrep");
+      help("option -P is not available in this build configuration of ugrep");
 #endif
     }
     else
@@ -4735,7 +4773,14 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
 
   DWORD attr = GetFileAttributesA(pathname);
 
-  if (flag_no_hidden && (attr & FILE_ATTRIBUTE_HIDDEN))
+  if (attr == INVALID_FILE_ATTRIBUTES)
+  {
+    errno = ENOENT;
+    warning("cannot read", pathname);
+    return;
+  }
+
+  if (flag_no_hidden && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
     return;
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
@@ -5623,8 +5668,6 @@ void Grep::search(const char *pathname)
                   rest_line_size = rest_line.size();
                   rest_line_last = matcher->last();
                 }
-
-                lineno += matcher->lines() - 1;
               }
             }
             else
@@ -5690,9 +5733,9 @@ void Grep::search(const char *pathname)
                 rest_line_size = rest_line.size();
                 rest_line_last = matcher->last();
               }
-
-              lineno += matcher->lines() - 1;
             }
+
+            lineno += matcher->lines() - 1;
           }
           else
           {
@@ -6775,6 +6818,8 @@ void help(const char *message, const char *arg)
             slow as every file on the search path is read to compare MAGIC.\n\
     -m NUM, --max-count=NUM\n\
             Stop reading the input after NUM matches for each file processed.\n\
+    --match\n\
+            Match input.  Same as specifying an empty pattern to search.\n\
     --max-depth=NUM\n\
             Restrict recursive search to NUM (NUM > 0) directories deep, where\n\
             --max-depth=1 searches the specified path without visiting\n\
@@ -6815,7 +6860,7 @@ void help(const char *message, const char *arg)
             Interpret PATTERN as a Perl regular expression.\n";
 #ifndef HAVE_BOOST_REGEX
   std::cout << "\
-            This feature is not available in this version of ugrep.\n";
+            This feature is not available in this build configuration of ugrep.\n";
 #endif
   std::cout << "\
     -p, --no-dereference\n\
@@ -6923,7 +6968,7 @@ void help(const char *message, const char *arg)
             searches files with matching file pathnames in archives.\n";
 #ifndef HAVE_LIBZ
   std::cout << "\
-            This feature is not available in this version of ugrep.\n";
+            This feature is not available in this build configuration of ugrep.\n";
 #else
   std::cout << "\
             Supports gzip (optional suffix .gz), compress (requires suffix .Z)";
