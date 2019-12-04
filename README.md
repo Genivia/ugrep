@@ -73,17 +73,18 @@ Introduction: why use ugrep?
   source code, output hexdumps for binary matches, customized output formatting
   with match replacement, seamless quickfix Vim integration, and more.
 
-- **ugrep is fast**, faster than GNU grep and one of the fastest grep tools
-  available for free.  Uses [RE/flex](https://github.com/Genivia/RE-flex) for
+- **ugrep is really fast**, faster than GNU grep and other grep tools available
+  for free.  We use [RE/flex](https://github.com/Genivia/RE-flex) for
   high-performance regex matching, which is 100 times faster than the GNU C
   POSIX.2 regex library and 10 times faster than PCRE2 and RE2.  **ugrep** uses
   multi-threading with lock-free work stealing to search files simultaneously
   and efficiently.  Performance will continue to increase as we improve and
   tune its algorithms.  See the [speed comparisons](#speed).
 
-- **ugrep makes it simple to search source code** using options to select files
-  by filename extension and file signature "magic bytes" or shebangs.  For
-  example, to list all shell scripts in or below the working directory:
+- **ugrep makes it simple to search source code and data** using options to
+  select files by filename extension and file signature "magic bytes" or
+  shebangs.  For example, to list all shell scripts in or below the working
+  directory:
 
       ugrep -rl -tShell ''
 
@@ -93,9 +94,9 @@ Introduction: why use ugrep?
   `-M` may be used to select files by extension and by file signature "magic
   bytes", respectively.
 
-- **ugrep searches compressed files and tarballs (cpio, tar, and pax files)**
-  with option `-z`.  The matching file names in tar files are output in braces.
-  For example `myprojects.tgz{main.cpp}` indicates that file `main.cpp` in
+- **ugrep searches compressed files and tarballs (cpio, tar, and pax)** with
+  option `-z`.  The matching file names in tar files are output in braces.  For
+  example `myprojects.tgz{main.cpp}` indicates that file `main.cpp` in
   compressed tar file `myprojects.tgz` has a match.  File types, extensions,
   and signature "magic bytes" can be selected to filter files in tar files with
   options `-t`, `-O`, and `-M`, respectively.  For example:
@@ -107,7 +108,7 @@ Introduction: why use ugrep?
   formats are odc, newc, and crc (not the obsolete non-portable old binary cpio
   format).
 
-- **ugrep can match patterns across multiple lines**, such as comment blocks in
+- **ugrep matches patterns across multiple lines**, such as comment blocks in
   source code.  This feature supports matching that could otherwise only be
   done with utilities like `sed`, for example:
 
@@ -2375,7 +2376,7 @@ Man page
 
 
 
-    ugrep 1.6.4                    December 03, 2019                      UGREP(1)
+    ugrep 1.6.5                    December 03, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

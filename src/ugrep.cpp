@@ -149,7 +149,7 @@ Prebuilt executables are located in ugrep/bin.
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.6.4"
+#define UGREP_VERSION "1.6.5"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -4063,7 +4063,7 @@ int main(int argc, char **argv)
 
 #endif
 
-    // (re)set flag_color depending on color_term and TTY output
+    // --color: (re)set flag_color depending on color_term and TTY output
     if (flag_color != NULL)
     {
       if (strcmp(flag_color, "never") == 0)
@@ -4074,8 +4074,20 @@ int main(int argc, char **argv)
       {
 #ifdef OS_WIN
 
-        // blindly assume that we have a color terminal on Windows if isatty() is true
-        color_term = tty_term;
+        if (tty_term)
+        {
+          // blindly assume that we have a color terminal on Windows if isatty() is true
+          color_term = true;
+
+#ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+          HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+          DWORD dwMode;
+          GetConsoleMode(hOutput, &dwMode);
+          dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+          SetConsoleMode(hOutput, dwMode);
+#endif
+
+        }
 
 #else
 
@@ -4104,19 +4116,22 @@ int main(int argc, char **argv)
 
         if (flag_color != NULL)
         {
-#ifdef OS_WIN
-          // get GREP_COLOR and GREP_COLORS
-          char *grep_color = NULL;
-          char *grep_colors = NULL;
-
-          size_t len;
-          _dupenv_s(&grep_color, &len, "GREP_COLOR");
-          _dupenv_s(&grep_colors, &len, "GREP_COLORS");
-#else
           // get GREP_COLOR and GREP_COLORS environment variables
           const char *grep_color = NULL;
           const char *grep_colors = NULL;
 
+#ifdef OS_WIN
+          // get GREP_COLOR and GREP_COLORS
+          char *env_grep_color = NULL;
+          char *env_grep_colors = NULL;
+
+          size_t len;
+          _dupenv_s(&env_grep_color, &len, "GREP_COLOR");
+          _dupenv_s(&env_grep_colors, &len, "GREP_COLORS");
+
+          grep_color = env_grep_color;
+          grep_colors = env_grep_colors;
+#else
           grep_color = getenv("GREP_COLOR");
           grep_colors = getenv("GREP_COLORS");
 #endif
@@ -4170,10 +4185,10 @@ int main(int argc, char **argv)
           }
 
 #ifdef OS_WIN
-          if (grep_color != NULL)
-            free(grep_color);
-          if (grep_colors != NULL)
-            free(grep_colors);
+          if (env_grep_color != NULL)
+            free(env_grep_color);
+          if (env_grep_colors != NULL)
+            free(env_grep_colors);
 #endif
         }
       }
