@@ -28,7 +28,7 @@
 
 /**
 @file      zstream.hpp
-@brief     C++11 file decompression streams
+@brief     file decompression streams written in C++11
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -47,6 +47,11 @@
 #include "zopen.h"
 
 // check if we are compiling for a windows OS
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+
+inline int fileno(FILE *f) { return _fileno(f); }
+inline int dup(int fd)     { return _dup(fd); }
+inline int close(int fd)   { return _close(fd); }
 
 // work around missing functions in old zlib 1.2.3
 #define gzbuffer(z, n)
@@ -54,10 +59,6 @@
 #define gzclose_w(z) gzclose(z)
 
 #else
-
-inline int _fileno(FILE *f) { return fileno(f); }
-inline int _dup(int fd)     { return dup(fd); }
-inline int _close(int fd)   { return close(fd); }
 
 #endif
 
@@ -916,7 +917,7 @@ class zstreambuf : public std::streambuf {
     else
     {
       // open gzip compressed file
-      int fd = _dup(_fileno(file));
+      int fd = dup(fileno(file));
       if (fd >= 0 && (gzfile_ = gzdopen(fd, "r")) != Z_NULL)
       {
         gzbuffer(gzfile_, Z_BUF_LEN);
@@ -926,7 +927,7 @@ class zstreambuf : public std::streambuf {
         warning("gzdopen error", pathname);
 
         if (fd >= 0)
-          _close(fd);
+          close(fd);
       }
     }
   }
