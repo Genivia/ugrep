@@ -421,10 +421,9 @@ unrolled:
     pos_ = cur_;
     if (at_end())
     {
-      DBGLOG("Reject empty match at EOF");
-      if (!opt_.N || !at_bob()) // allow FIND and SCAN with "N" to match empty input, with ^$ etc.
-        cap_ = 0;
       set_current(cur_);
+      DBGLOG("Reject empty match at EOF");
+      cap_ = 0;
     }
     else if (method == Const::FIND)
     {

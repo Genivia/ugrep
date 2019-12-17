@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 03, 2019" "ugrep 1.6.5" "User Commands"
+.TH UGREP "1" "December 17, 2019" "ugrep 1.6.6" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -85,7 +85,7 @@ Output file matches in C++.  See also option \fB\-\-format\fR.
 .TP
 \fB\-\-csv\fR
 Output file matches in CSV.  Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
-specify additional fields.  See also option \fB\-\-format\fR.
+specify CSV values to output.  See also option \fB\-\-format\fR.
 .TP
 \fB\-D\fR \fIACTION\fR, \fB\-\-devices\fR=\fIACTION\fR
 If an input file is a device, FIFO or socket, use ACTION to process
@@ -116,12 +116,12 @@ specify multiple patterns, when a pattern begins with a dash (`\fB\-'\fR),
 to specify a pattern after option \fB\-f\fR or after the FILE arguments.
 .TP
 \fB\-\-exclude\fR=\fIGLOB\fR
-Skip files whose name matches GLOB (using wildcard matching).  A
-glob can use *, ?, and [...] as wildcards, and \\ to quote a
-wildcard or backslash character literally.  If GLOB contains /,
-full pathnames are matched.  Otherwise basenames are matched.  Note
-that \fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR patterns.
-This option may be repeated.
+Skip files whose name matches GLOB using wildcard matching, same as
+\-g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
+quote a wildcard or backslash character literally.  If GLOB
+contains /, full pathnames are matched.  Otherwise basenames are
+matched.  Note that \fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR
+patterns.  This option may be repeated.
 .TP
 \fB\-\-exclude\-dir\fR=\fIGLOB\fR
 Exclude directories whose name matches GLOB from recursive
@@ -134,8 +134,8 @@ repeated.
 Read the globs from FILE and skip files and directories whose name
 matches one or more globs (as if specified by \fB\-\-exclude\fR and
 \fB\-\-exclude\-dir\fR).  Lines starting with a `#' and empty lines in FILE
-ignored.  When FILE is a `\fB\-'\fR, standard input is read.  This option
-may be repeated.
+are ignored.  When FILE is a `\fB\-'\fR, standard input is read.  This
+option may be repeated.
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
@@ -164,8 +164,8 @@ behave as traditional grep.
 .TP
 \fB\-g\fR \fIGLOB\fR, \fB\-\-glob\fR=\fIGLOB\fR
 Search only files whose name matches GLOB, same as \fB\-\-include\fR=\fIGLOB\fR.
-If GLOB is preceded by a `!', files are skipped whose name matches
-GLOB, same as \fB\-\-exclude\fR=\fIGLOB\fR.  This option may be repeated.
+If GLOB is preceded by a `!', skip files whose name matches GLOB,
+same as \fB\-\-exclude\fR=\fIGLOB\fR.  This option may be repeated.
 .TP
 \fB\-\-group\-separator\fR=\fISEP\fR
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR. By
@@ -191,12 +191,12 @@ Perform case insensitive matching.  By default, ugrep is case
 sensitive.  This option applies to ASCII letters only.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
-Search only files whose name matches GLOB (using wildcard
-matching).  A glob can use *, ?, and [...] as wildcards, and \\ to
-quote a wildcard or backslash character literally.  If GLOB
-contains /, file pathnames are matched.  Otherwise file basenames
-are matched.  Note that \fB\-\-exclude\fR patterns take priority over
-\fB\-\-include\fR patterns.  This option may be repeated.
+Search only files whose name matches GLOB using wildcard matching,
+same as \fB\-g\fR \fIGLOB\fR.  GLOB can use **, *, ?, and [...] as wildcards,
+and \\ to quote a wildcard or backslash character literally.  If
+GLOB contains /, file pathnames are matched.  Otherwise file
+basenames are matched.  Note that \fB\-\-exclude\fR patterns take priority
+over \fB\-\-include\fR patterns.  This option may be repeated.
 .TP
 \fB\-\-include\-dir\fR=\fIGLOB\fR
 Only directories whose name matches GLOB are included in recursive
@@ -223,11 +223,11 @@ Perform case insensitive matching unless PATTERN contains a capital
 letter.  Case insensitive matching applies to ASCII letters only.
 .TP
 \fB\-\-json\fR
-Output file matches in JSON.    Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
-specify additional properties.  See also option \fB\-\-format\fR.
+Output file matches in JSON.  Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
+specify JSON properties to output.  See also option \fB\-\-format\fR.
 .TP
-\fB\-K\fR \fINUM\fR, \fB\-\-skip\fR=\fINUM\fR
-Skip NUM lines of input to start searching at line NUM+1.
+\fB\-K\fR \fINUM\fR1[,NUM2], \fB\-\-range\fR=\fINUM\fR1[,NUM2]
+Start searching at line NUM1 and end at line NUM2 when specified.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of the
@@ -297,7 +297,7 @@ Removes the group separator line from the output for context
 options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
 \fB\-\-no\-hidden\fR
-Do not search hidden files and hidden directories.
+Do not search hidden files and directories.
 .TP
 \fB\-\-no\-mmap\fR
 Do not use memory maps to search files.  By default, memory maps
@@ -354,8 +354,8 @@ If \fB\-r\fR is specified, all symbolic links are followed, like \fB\-R\fR.  The
 default is not to follow symbolic links.
 .TP
 \fB\-s\fR, \fB\-\-no\-messages\fR
-Silent mode.  Nonexistent and unreadable files are ignored (i.e.
-their error messages are suppressed).
+Silent mode: nonexistent and unreadable files are ignored, i.e.
+their error messages are suppressed.
 .TP
 \fB\-\-separator\fR=\fISEP\fR
 Use SEP as field separator between file name, line number, column
@@ -436,7 +436,7 @@ not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-\-xml\fR
 Output file matches in XML.  Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
-specify additional attributes.  See also option \fB\-\-format\fR.
+specify XML attributes to output.  See also option \fB\-\-format\fR.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches, such as `^\\h*$' to match blank lines.  Empty
@@ -453,13 +453,14 @@ Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,
-.pax, and .tar) and compressed archives (.taz, .tgz, .tpz, .tbz,
-.tbz2, .tb2, .tz2, .tlz, and .txz) are searched and matching
-archive pathnames are output in braces.  If \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is
-specified, searches files with matching extensions and magic bytes,
-searches compressed files with compression format extensions, and
-searches files with matching file pathnames in archives.
-Supports gzip (optional suffix .gz), compress (requires suffix .Z),
+.pax, .tar, .zip) and compressed archives (e.g. .taz, .tgz, .tpz,
+.tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and matching
+pathnames of files in archives are output in braces.  If \fB\-g\fR, \fB\-O\fR,
+\-M, or \fB\-t\fR is specified, searches files within archives whose name
+matches globs, matches file name extensions, matches file
+signature magic bytes, or matches file types, respectively.
+Supported compression formats: gzip (default, optional suffix .gz),
+compress (requires suffix .Z), zip (requires suffix .zip or .ZIP),
 lzma (requires suffix .lzma), xz (requires suffix .xz),
 bzip2 (requires suffix .bz, .bz2, or .bzip2).
 .PP

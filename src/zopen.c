@@ -106,23 +106,25 @@
  *      do not occur when reading).
  *
  * Replaced non-portable EFTYPE values assigned to errno by EINVAL.
+ * Removed non-portable sys/param.h, added typedefs for u_char, u_short, u_int
  */
 
-#include <sys/param.h>
 #include <sys/stat.h>
-
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "zopen.h"
 
 #define	BITS		16		/* Default bits. */
 #define	HSIZE		69001		/* 95% occupancy */
+
+typedef unsigned char u_char;
+typedef unsigned short u_short;
+typedef unsigned int u_int;
 
 /* A code_int must be able to hold 2**BITS values of type int, and also -1. */
 typedef long code_int;
@@ -368,7 +370,6 @@ int
 z_close(void *handle)
 {
 	struct s_zstate *zs = handle;
-	int rval;
 
 	if (zmode == 'w') {		/* Put out the final code. */
 		if (output(zs, (code_int) ent) == -1) {
