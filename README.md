@@ -10,13 +10,15 @@ Universal grep ("uber grep")
 Grep super fast through source code, Unicode text, binary files, cpio/tar/pax/zip archives, and compressed files.
 <br>
 <br>
-<br>
 </div>
 
 - Built for extreme speed
-- Fully supports Unicode, searches UTF-encoded files with Unicode patterns
+- Written in clean and efficient C++11 code
+- Multi-threaded with high-performance lock-free job queue stealing
+- Fast decompression and archive search with task-parallel threads
+- Faster than GNU/BSD grep and mostly faster than ag and ripgrep
 - Compatible with the standard GNU and BSD grep command-line options
-- Runs on Linux, Unix, Mac OS X, and Windows
+- Full Unicode support, searches UTF-encoded files with Unicode patterns
 - Searches files by file types
 - Searches files by filename extensions and magic bytes
 - Searches source code with predefined patterns (included)
@@ -27,6 +29,7 @@ Grep super fast through source code, Unicode text, binary files, cpio/tar/pax/zi
 - Searches compressed files (.gz, .Z, .zip, .bz, .bz2, .lzma, .xz)
 - Searches archives (cpio, tar, pax, zip)
 - Searches files to produce CSV, JSON, XML, or custom formats
+- Runs on Linux, Unix, Mac OS X, and Windows
 
 Table of contents
 -----------------
@@ -87,9 +90,9 @@ Introduction: why use ugrep?
   [RE/flex](https://github.com/Genivia/RE-flex) for high-performance regex
   matching, which is 100 times faster than the GNU C POSIX.2 regex library and
   10 times faster than PCRE2 and RE2.  **ugrep** is multi-threaded and uses
-  lock-free work stealing to search files concurrently.  In addition, option
-  `-z` enables task parallelism to optimize searching compressed files (and
-  large files).  See [speed comparisons](#speed).
+  lock-free job queue stealing to search files concurrently.  In addition,
+  option `-z` enables task parallelism to optimize searching compressed files
+  (and large files).  See [speed comparisons](#speed).
 
 - **ugrep makes it simple to search source code** with options to select files
   by file type, filename extension, file signature "magic bytes" or shebangs.
@@ -233,7 +236,7 @@ Test | Command                                                          | Descri
 ---- | ---------------------------------------------------------------- | -----------------------------------------------------
 T1   | `GREP -cw -e char -e int -e long -e size_t -e void big.cpp`      | count 5 short words in a 35MB C++ source code file
 T2   | `GREP -Eon 'serialize_[a-zA-Z0-9_]+Type' big.cpp`                | search and display C++ serialization functions in a 35MB source code file
-T3   | `GREP -Fon -f words1+1000 enwik8`                                | search 1000 words of length 1 or longe rin a 100MB Wikipedia file
+T3   | `GREP -Fon -f words1+1000 enwik8`                                | search 1000 words of length 1 or longer in a 100MB Wikipedia file
 T4   | `GREP -Fon -f words2+1000 enwik8`                                | search 1000 words of length 2 or longer in a 100MB Wikipedia file
 T5   | `GREP -Fon -f words3+1000 enwik8`                                | search 1000 words of length 3 or longer in a 100MB Wikipedia file
 T6   | `GREP -Fon -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
@@ -258,12 +261,12 @@ Results are shown in real time (wall clock time) seconds elapsed.  Best times
 are shown in boldface, *n/a* means that the running time exceeded 1 minute or
 option `-z` (decompress) is not supported.
 
-GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      |
---------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-BSD grep 2.5.1  | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
-GNU grep 3.3    | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
-ripgep   0.10.0 | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
-ugrep    1.6.6  | **0.11** | **0.06** | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
+GREP     | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      |
+-------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
+BSD grep | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
+GNU grep | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
+ripgep   | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
+ugrep    | **0.11** | **0.06** | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
 
 Most of the ugrep tests produce better performance results without `mmap`
 (option `--no-mmap`) on faster machines, which may be counter-intuitive.  See
@@ -562,7 +565,6 @@ empty matches for GNU/BSD compatibility, see details further below.
 
 ### Work in progress
 
-- Build and link `ugrep.exe` with zlib to decompress gzip and zip files.
 - Extend the "filter" mechanism to add more filters, e.g. to search Office
   documents.
 - Further improve the speed of matching multiple words, which is currently
