@@ -16,7 +16,7 @@ Grep super fast through source code, Unicode text, binary files, cpio/tar/pax/zi
 - Written in clean and efficient C++11 code
 - Multi-threaded with high-performance lock-free job queue stealing
 - Fast decompression and archive search with task-parallel threads
-- Faster than GNU/BSD grep and mostly faster than ag and ripgrep
+- Faster than GNU/BSD grep, ripgrep, and silver searcher
 - Compatible with the standard GNU and BSD grep command-line options
 - Full Unicode support, searches UTF-encoded files with Unicode patterns
 - Searches files by file types
@@ -247,8 +247,9 @@ T10  | `GREP -z -Fc word word*.gz`                                      | count 
 
 Note: T8 and T9 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
 files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
-GNU/BSD grep as `--include='*.h' --include='*.hpp' --include='*.cpp'` and with
-ripgrep as `--glob='*.h' --glob='*.hpp' --glob='*.cpp'`.
+GNU/BSD grep as `--include='*.h' --include='*.hpp' --include='*.cpp'`, with
+silver searcher as `-G '.*\.(h|hpp|cpp)'` and with ripgrep as `--glob='*.h'
+--glob='*.hpp' --glob='*.cpp'`.
 
 The corpora used in the tests are available for
 [download](https://www.genivia.com/files/corpora.zip).
@@ -261,14 +262,15 @@ Results are shown in real time (wall clock time) seconds elapsed.  Best times
 are shown in boldface, *n/a* means that the running time exceeded 1 minute or
 option `-z` (decompress) is not supported.
 
-GREP     | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      |
--------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-BSD grep | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
-GNU grep | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
-ripgep   | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
-ugrep    | **0.11** | **0.06** | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
+GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      |
+--------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
+BSD grep        | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
+GNU grep        | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
+silver searcher | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.46     | 0.46     | *n/a*    |
+ripgep          | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
+ugrep           | **0.11** | **0.06** | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
 
-Most of the ugrep tests produce better performance results without `mmap`
+Most of the ugrep tests produce even better performance results without `mmap`
 (option `--no-mmap`) on faster machines, which may be counter-intuitive.  See
 [TODO](#todo) below.
 
