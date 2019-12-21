@@ -21,6 +21,7 @@ Global
 		{545CF86F-46AD-42AD-A745-9CFF05393539}.Release|x64.Build.0 = Release|x64
 		{545CF86F-46AD-42AD-A745-9CFF05393539}.Release|x86.ActiveCfg = Release|Win32
 		{545CF86F-46AD-42AD-A745-9CFF05393539}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
