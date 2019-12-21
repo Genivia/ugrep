@@ -313,20 +313,7 @@ Installation
 
 Download **ugrep** from https://github.com/Genivia/ugrep
 
-There are two optional dependencies to enable **ugrep** command-line options:
-
-- Option `-P` (Perl regular expressions) requires the
-  [Boost.Regex](https://www.boost.org) library installed
-- Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
-  library installed, e.g. with `sudo apt-get install -y libz-dev`
-- Option `-z` (decompress) searches `.bz` and `.bz2` files when the
-  [bzip2](https://www.sourceware.org/bzip2) library is installed, e.g. with
-  `sudo apt-get install -y libbz2-dev`
-- Option `-z` (decompress) searches `.lzma` and `.xz` files when the
-  [lzma](https://tukaani.org/xz/) library is installed, e.g. with
-  `sudo apt-get install -y liblzma-dev`
-
-Build **ugrep** with:
+Build **ugrep** on Unix-like systems with:
 
     $ cd ugrep
     $ ./configure && make
@@ -337,8 +324,6 @@ You can tell which version it is with:
     $ bin/ugrep -V
     ugrep 1.6.1 x86_64-apple-darwin16.7.0
 
-Copy `bin/ugrep` to a convenient location, for example in your `bin` directory.
-
 If you prefer to enable colorized output by default without requiring option
 `--color` then execute:
 
@@ -348,15 +333,9 @@ To see all options available to you, execute:
 
     $ ./configure --help
 
-Unfortunately, cloning from Git does not preserve timestamps which means that
-you may run into "WARNING: 'aclocal-1.15' is missing on your system."
+Copy `bin/ugrep` to a convenient location, for example in your `bin` directory.
 
-To work around this problem, run:
-
-    $ autoreconf -fi
-    $ ./configure && make
-
-You can install the **ugrep** utility and manual page with:
+Or you can install the **ugrep** utility and manual page with:
 
     $ sudo make install
 
@@ -365,6 +344,29 @@ at `/usr/local/share/ugrep/patterns/`.  Option `-f` first checks the current
 directory for the presence of pattern files, if not found checks environment
 variable `GREP_PATH` to load the pattern files, and if not found reads the
 installed predefined pattern files.
+
+#### Optional dependencies
+
+There are two optional dependencies:
+
+- Option `-P` (Perl regular expressions) requires the
+  [Boost.Regex](https://www.boost.org) library installed.
+- Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
+  library installed, e.g. with `sudo apt-get install -y libz-dev`.  To search
+  `.bz` and `.bz2` files, install the [bzip2](https://www.sourceware.org/bzip2)
+  library, e.g. with `sudo apt-get install -y libbz2-dev`.  To search `.lzma`
+  and `.xz` files, install the [lzma](https://tukaani.org/xz/) library, e.g.
+  with `sudo apt-get install -y liblzma-dev`.
+
+#### Troubleshooting
+
+Unfortunately, cloning from Git does not preserve timestamps which means that
+you may run into "WARNING: 'aclocal-1.15' is missing on your system."
+
+To work around this problem, run:
+
+    $ autoreconf -fi
+    $ ./configure && make
 
 <a name="binaries"/>
 
