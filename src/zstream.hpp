@@ -46,22 +46,6 @@
 
 #include "zopen.h"
 
-// check if we are compiling for a windows OS
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-
-inline int fileno(FILE *f) { return _fileno(f); }
-inline int dup(int fd)     { return _dup(fd); }
-inline int close(int fd)   { return _close(fd); }
-
-// work around missing functions in old zlib 1.2.3
-#define gzbuffer(z, n)
-#define gzclose_r(z) gzclose(z)
-#define gzclose_w(z) gzclose(z)
-
-#else
-
-#endif
-
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #else
@@ -75,7 +59,7 @@ struct lzma_stream;
 #endif
 
 // TODO this feature is disabled as it is too slow, we should optimize crc32() with a table
-// use zip crc integrity check at the cost of a significant slow down? Note that zlib, bzip2, and lzma already use crc checks
+// use zip crc integrity check at the cost of a significant slow down?
 // #define WITH_CRC32
 
 // buffer size to hold compressed data, e.g. from compressed files
@@ -262,15 +246,15 @@ class zstreambuf : public std::streambuf {
             return false;
           }
 
-          z_strm_->zalloc = NULL;
-          z_strm_->zfree  = NULL;
-          z_strm_->opaque = NULL;
+          z_strm_->zalloc = Z_NULL;
+          z_strm_->zfree  = Z_NULL;
+          z_strm_->opaque = Z_NULL;
         }
 
         // prepare to inflate the remainder of the buffered data
         z_strm_->next_in   = zbuf_ + zcur_;
         z_strm_->avail_in  = zlen_ - zcur_;
-        z_strm_->next_out  = NULL;
+        z_strm_->next_out  = Z_NULL;
         z_strm_->avail_out = 0;
 
         // initialize zlib inflate
@@ -700,9 +684,8 @@ class zstreambuf : public std::streambuf {
         zlen_ -= zcur_;
         memmove(zbuf_, zbuf_ + zcur_, zlen_);
         zcur_ = 0;
-        int ret = fread(zbuf_ + zlen_, 1, ZIPBLOCK - zlen_, file_);
-        if (ret >= 0)
-          zlen_ += ret;
+        size_t ret = fread(zbuf_ + zlen_, 1, ZIPBLOCK - zlen_, file_);
+        zlen_ += ret;
         if (z_strm_ != NULL)
         {
           z_strm_->next_in  = zbuf_;
@@ -743,8 +726,8 @@ class zstreambuf : public std::streambuf {
       zlen_ -= zcur_;
       memmove(zbuf_, zbuf_ + zcur_, zlen_);
       zcur_ = 0;
-      int ret = fread(zbuf_ + zlen_, 1, ZIPBLOCK - zlen_, file_);
-      if (ret >= 0)
+      size_t ret = fread(zbuf_ + zlen_, 1, ZIPBLOCK - zlen_, file_);
+      if (ret > 0)
       {
         zlen_ += ret;
         if (zlen_ >= num)
@@ -761,14 +744,9 @@ class zstreambuf : public std::streambuf {
     // read zip data into buffer zbuf_[], should be called when zcur_ >= zlen_
     bool read()
     {
-      zcur_ = zlen_ = 0;
-
-      int ret = fread(zbuf_, 1, ZIPBLOCK, file_);
-      if (ret <= 0)
-        return false;
-
-      zlen_ = static_cast<size_t>(ret);
-      return true;
+      zcur_ = 0;
+      zlen_ = fread(zbuf_, 1, ZIPBLOCK, file_);
+      return zlen_ > 0;
     }
 
 #ifdef WITH_CRC32

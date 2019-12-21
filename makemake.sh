@@ -14,4 +14,4 @@ autoheader
 automake --add-missing --foreign
 autoconf
 automake
-./configure
+./configure --enable-color

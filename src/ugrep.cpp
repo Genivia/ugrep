@@ -94,6 +94,9 @@ Prebuilt executables are located in ugrep/bin.
 // use a task-parallel thread to decompress the stream into a pipe to search, increases speed on most systems
 #define WITH_DECOMPRESSION_THREAD
 
+// the default pager when --pager is used
+#define DEFAULT_PAGER "less -R"
+
 // optional: specify an optimal decompression block size, default is 65536, must be larger than 1024 for tar extraction
 // #define Z_BUF_LEN 16384
 // #define Z_BUF_LEN 32768
@@ -105,14 +108,14 @@ Prebuilt executables are located in ugrep/bin.
 
 #ifdef OS_WIN
 
-// optionally enable Boost.Regex TODO this is not functional yet
+// optionally enable Boost.Regex
 // #define HAVE_BOOST_REGEX
 
-// optionally enable zlib TODO this is not functional yet
+// optionally enable zlib (requires zlib static library or zlib source code files)
 // #define HAVE_LIBZ
 
-// disable decompression thread and unix pipe when zlib is enabled
-#undef WITH_DECOMPRESSION_THREAD
+// optionally enable --color=auto by default
+// #define WITH_COLOR
 
 // disable min/max macros to use std::min and std::max
 #define NOMINMAX
@@ -127,10 +130,25 @@ Prebuilt executables are located in ugrep/bin.
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-#define isatty(fildes) _isatty(fildes)
-
 #define PATHSEPCHR '\\'
 #define PATHSEPSTR "\\"
+
+// POSIX read() and write() return type is ssize_t
+typedef int ssize_t;
+
+// POSIX pipe() emulation
+int pipe(int fd[2])
+{
+  HANDLE pipe_r = NULL;
+  HANDLE pipe_w = NULL;
+  if (CreatePipe(&pipe_r, &pipe_w, NULL, 0))
+  {
+    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), 0);
+    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), 0);
+    return 0;
+  }
+  return 1;
+}
 
 #else
 
@@ -158,8 +176,20 @@ Prebuilt executables are located in ugrep/bin.
 #include "zstream.hpp"
 #endif
 
+#ifdef WITH_COLOR
+#define FLAG_COLOR "auto"
+#else
+#define FLAG_COLOR NULL
+#endif
+
+#ifdef WITH_PAGER
+#define FLAG_PAGER DEFAULT_PAGER
+#else
+#define FLAG_PAGER NULL
+#endif
+
 // ugrep version info
-#define UGREP_VERSION "1.6.6"
+#define UGREP_VERSION "1.6.7"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -316,8 +346,8 @@ size_t flag_tabs                   = 8;
 size_t flag_min_mmap               = MIN_MMAP_SIZE;
 size_t flag_max_mmap               = MAX_MMAP_SIZE;
 size_t flag_min_steal              = MIN_STEAL;
-const char *flag_pager             = NULL;
-const char *flag_color             = NULL;
+const char *flag_pager             = FLAG_PAGER;
+const char *flag_color             = FLAG_COLOR;
 const char *flag_encoding          = NULL;
 const char *flag_format            = NULL;
 const char *flag_format_begin      = NULL;
@@ -3367,7 +3397,7 @@ int main(int argc, char **argv)
             else if (strncmp(arg, "pager=", 6) == 0)
               flag_pager = arg + 6;
             else if (strncmp(arg, "pager", 5) == 0)
-              flag_pager = "less -R";
+              flag_pager = DEFAULT_PAGER;
             else if (strcmp(arg, "perl-regexp") == 0)
               flag_perl_regexp = true;
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
@@ -3754,6 +3784,21 @@ int main(int argc, char **argv)
     help("option -z is not available in this build configuration of ugrep");
 #endif
 
+  // -t list: list table of types and exit
+  if (flag_file_types.size() == 1 && flag_file_types[0] == "list")
+  {
+    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME EXTENSIONS (-O) AND FILE SIGNATURE 'MAGIC' BYTES (-M)" << std::endl;
+
+    for (int i = 0; type_table[i].type != NULL; ++i)
+    {
+      std::cerr << std::setw(12) << type_table[i].type << " = -O " << type_table[i].extensions << std::endl;
+      if (type_table[i].magic)
+        std::cerr << std::setw(19) << "-M '" << type_table[i].magic << "'" << std::endl;
+    }
+
+    exit(EXIT_ERROR);
+  }
+
   // --binary-files: normalize by assigning flags
   if (strcmp(flag_binary_files, "without-matches") == 0)
     flag_binary_without_matches = true;
@@ -3765,23 +3810,6 @@ int main(int argc, char **argv)
     flag_with_hex = true;
   else if (strcmp(flag_binary_files, "binary") != 0)
     help("invalid argument --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex', and 'with-hex'");
-
-  // -t list: list table of types and exit
-  if (flag_file_types.size() == 1 && flag_file_types[0] == "list")
-  {
-    int i;
-
-    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME EXTENSIONS (-O) AND FILE SIGNATURE 'MAGIC' BYTES (-M)" << std::endl;
-
-    for (i = 0; type_table[i].type != NULL; ++i)
-    {
-      std::cerr << std::setw(12) << type_table[i].type << " = -O " << type_table[i].extensions << std::endl;
-      if (type_table[i].magic)
-        std::cerr << std::setw(19) << "-M '" << type_table[i].magic << "'" << std::endl;
-    }
-
-    exit(EXIT_ERROR);
-  }
 
   // --match-all is the same as specifying an '' empty pattern argument
   if (flag_match)
@@ -4035,14 +4063,6 @@ int main(int argc, char **argv)
   // normalize -p (--no-dereference) and -S (--dereference) options, -p taking priority over -S
   if (flag_no_dereference)
     flag_dereference = false;
-
-  // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
-  if (!flag_no_filename && (flag_directories_action == RECURSE || files.size() > 1 || (flag_stdin && !files.empty())))
-    flag_with_filename = true;
-
-  // if no display options -H, -n, -N, -k, -b are set, enable --no-labels to suppress labels for speed
-  if (!flag_with_filename && !flag_line_number && !flag_only_line_number && !flag_column_number && !flag_byte_offset)
-    flag_no_header = true;
 
   // normalize --cpp, --csv, --json, --xml
   if (flag_cpp)
@@ -4531,6 +4551,18 @@ int main(int argc, char **argv)
         fclose(file);
     }
   }
+
+  // if no FILE given with -g, -t, -O, -M, --include, --include-dir, --exclude, --exclude dir: enable -dRECURSE
+  if (files.empty() && (!flag_include.empty() || !flag_include_dir.empty() || !flag_exclude.empty() || !flag_exclude_dir.empty() || !flag_file_magic.empty()))
+    flag_directories_action = RECURSE;
+
+  // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
+  if (!flag_no_filename && (flag_directories_action == RECURSE || files.size() > 1 || (flag_stdin && !files.empty())))
+    flag_with_filename = true;
+
+  // if no display options -H, -n, -N, -k, -b are set, enable --no-labels to suppress labels for speed
+  if (!flag_with_filename && !flag_line_number && !flag_only_line_number && !flag_column_number && !flag_byte_offset)
+    flag_no_header = true;
 
   // -q: we only need to find one matching file and we're done
   if (flag_quiet)
@@ -7061,10 +7093,14 @@ void help(const char *message, const char *arg)
 #ifdef OS_WIN
   std::cout << "Windows system and ";
 #endif
-  std::cout << "hidden files and directories.\n\
+  std::cout << "hidden files and directories.\n";
+#ifndef OS_WIN
+  std::cout << "\
     --no-mmap\n\
             Do not use memory maps to search files.  By default, memory maps\n\
-            are used under certain conditions to improve performance.\n\
+            are used under certain conditions to improve performance.\n";
+#endif
+  std::cout << "\
     -O EXTENSIONS, --file-extensions=EXTENSIONS\n\
             Search only files whose file name extensions match the specified\n\
             comma-separated list of file name EXTENSIONS.  This option is the\n\
@@ -7085,11 +7121,15 @@ void help(const char *message, const char *arg)
   std::cout << "\
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
-            they are on the command line.\n\
+            they are on the command line.\n";
+#ifndef OS_WIN
+  std::cout << "\
     --pager[=COMMAND]\n\
             When output is sent to the terminal, uses COMMAND to page through\n\
             the output.  The default COMMAND is `less -R'.  This option makes\n\
-            --color=auto behave as --color=always.  Enables --break.\n\
+            --color=auto behave as --color=always.  Enables --break.\n";
+#endif
+  std::cout << "\
     -Q ENCODING, --encoding=ENCODING\n\
             The input file encoding.  The possible values of ENCODING can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)

@@ -641,6 +641,7 @@ build
 RANLIB
 ac_ct_AR
 AR
+EXTRA_CFLAGS
 EGREP
 GREP
 CPP
@@ -741,6 +742,8 @@ enable_dependency_tracking
 with_zlib
 with_bzlib
 with_lzma
+enable_color
+enable_pager
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1378,6 +1381,10 @@ Optional Features:
                           do not reject slow dependency extractors
   --disable-dependency-tracking
                           speeds up one-time build
+  --enable-color          enable colorized output by default without requiring
+                          ugrep flag --color=auto
+  --enable-pager          enable pager by default without requiring ugrep flag
+                          --pager
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -5180,6 +5187,44 @@ $as_echo "#define HAVE_LIBLZMA 1" >>confdefs.h
     echo "liblzma not found: option -z won't decompress .lzma and .xz files"
   fi
 fi
+
+
+# Check whether --enable-color was given.
+if test "${enable_color+set}" = set; then :
+  enableval=$enable_color; with_color="$enable_color"
+else
+  with_color="no"
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for enable color by default" >&5
+$as_echo_n "checking for enable color by default... " >&6; }
+if test "x$with_color" = "xyes"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  EXTRA_CFLAGS="-DWITH_COLOR ${EXTRA_CFLAGS}"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+# Check whether --enable-pager was given.
+if test "${enable_pager+set}" = set; then :
+  enableval=$enable_pager; with_pager="$enable_pager"
+else
+  with_pager="no"
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for enable pager by default" >&5
+$as_echo_n "checking for enable pager by default... " >&6; }
+if test "x$with_pager" = "xyes"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  EXTRA_CFLAGS="-DWITH_PAGER ${EXTRA_CFLAGS}"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
 
 
 ac_header_dirent=no

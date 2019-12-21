@@ -931,9 +931,9 @@ class AbstractMatcher {
     return wcs(b, e - b);
   }
 #endif
-  /// Skip input until the specified character is consumed and return true, or EOF is reached and return false.
-  bool skip(int c) ///< character to skip to
-    /// @returns true if skipped to c, false if EOf is reached
+  /// Skip input until the specified ASCII character is consumed and return true, or EOF is reached and return false.
+  bool skip(char c) ///< ASCII character to skip to
+    /// @returns true if skipped to c, false if EOF is reached
   {
     DBGLOG("AbstractMatcher::skip()");
     reset_text();
@@ -958,6 +958,44 @@ class AbstractMatcher {
       }
     }
     set_current(end_);
+    return false;
+  }
+  /// Skip input until the specified Unicode character is consumed and return true, or EOF is reached and return false.
+  bool skip(wchar_t c) ///< Unicode character to skip to
+    /// @returns true if skipped to c, false if EOF is reached
+  {
+    char s[8];
+    size_t n = utf8(c, s);
+    s[n] = '\0';
+    return skip(s);
+  }
+  /// Skip input until the specified literal UTF-8 string is consumed and return true, or EOF is reached and return false.
+  bool skip(const char *s) ///< literal UTF-8 string to skip to
+    /// @returns true if skipped to c, false if EOF is reached
+  {
+    if (s == NULL || s[0] == '\0')
+      return true;
+    if (s[1] == '\0')
+      return skip(s[0]);
+    while (skip(s[0]))
+    {
+      const char *t = s + 1;
+      while (true)
+      {
+        if (*t == '\0')
+        {
+          set_current(pos_);
+          return true;
+        }
+        int c = get();
+        if (c == EOF)
+          return false;
+        if (c != static_cast<unsigned char>(*t))
+          break;
+        ++t;
+      }
+      pos_ = txt_ - buf_;
+    }
     return false;
   }
   /// Fetch the rest of the input as text, useful for searching/splitting up to n times after which the rest is needed.

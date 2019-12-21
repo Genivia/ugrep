@@ -13,6 +13,34 @@ AX_CHECK_BZLIB([], [echo "libbz2 not found: option -z won't decompress .bz and .
 
 AX_CHECK_LZMALIB([], [echo "liblzma not found: option -z won't decompress .lzma and .xz files"])
 
+AC_ARG_ENABLE(color,
+  [AC_HELP_STRING([--enable-color],
+                  [enable colorized output by default without requiring ugrep flag --color=auto])],
+  [with_color="$enable_color"],
+  [with_color="no"])
+AC_MSG_CHECKING(for enable color by default)
+if test "x$with_color" = "xyes"; then
+  AC_MSG_RESULT(yes)
+  EXTRA_CFLAGS="-DWITH_COLOR ${EXTRA_CFLAGS}"
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_ARG_ENABLE(pager,
+  [AC_HELP_STRING([--enable-pager],
+                  [enable pager by default without requiring ugrep flag --pager])],
+  [with_pager="$enable_pager"],
+  [with_pager="no"])
+AC_MSG_CHECKING(for enable pager by default)
+if test "x$with_pager" = "xyes"; then
+  AC_MSG_RESULT(yes)
+  EXTRA_CFLAGS="-DWITH_PAGER ${EXTRA_CFLAGS}"
+else
+  AC_MSG_RESULT(no)
+fi
+
+AC_SUBST(EXTRA_CFLAGS)
+
 AC_STRUCT_DIRENT_D_INO
 AC_STRUCT_DIRENT_D_TYPE
 

@@ -7,13 +7,16 @@ Universal grep ("uber grep")
 <img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
 <img src="https://www.genivia.com/images/hexdump.png" width="45%" height="45%" alt="ugrep hexdump results">
 <br>
-Grep super fast through source code, Unicode text, binary, cpio/tar/pax/zip archives, and compressed files.
+Grep super fast through source code, Unicode text, binary files, cpio/tar/pax/zip archives, and compressed files.
+<br>
+<br>
 <br>
 </div>
 
 - Built for extreme speed
-- Fully supports Unicode (Unicode search patterns and UTF-encoded files)
+- Fully supports Unicode, searches UTF-encoded files with Unicode patterns
 - Compatible with the standard GNU and BSD grep command-line options
+- Runs on Linux, Unix, Mac OS X, and Windows
 - Searches files by file types
 - Searches files by filename extensions and magic bytes
 - Searches source code with predefined patterns (included)
@@ -111,9 +114,6 @@ Introduction: why use ugrep?
       ugrep -z -tc++ -w 'main' myprojects.tgz
 
   looks for `main` in C++ files in the compressed tar file `myprojects.tgz`.
-  Supported tar formats are v7, ustar, gnu, oldgnu, and pax.  Supported cpio
-  formats are odc, newc, and crc.  Supported compression methods are
-  gzip/deflate (zlib), bzip2, lzma and xz.
 
 - **ugrep matches patterns across multiple lines**, such as comment blocks in
   source code.  This feature supports matching that could otherwise only be
@@ -263,15 +263,15 @@ GREP            | T1       | T2       | T3       | T4       | T5       | T6     
 BSD grep 2.5.1  | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 GNU grep 3.3    | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
 ripgep   0.10.0 | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
-ugrep    1.6.0  | **0.11** | 0.07     | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
+ugrep    1.6.6  | **0.11** | **0.06** | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
 
 Most of the ugrep tests produce better performance results without `mmap`
 (option `--no-mmap`) on faster machines, which may be counter-intuitive.  See
 [TODO](#todo) below.
 
 Option `-z` uses task parallelism to further optimize file reading and
-decompression of compressed files, which may speed up searching a single file
-(and a few files), even beating the performance of `mmap`.
+decompression of compressed files, which may speed up searching a single large
+file, even beating the performance of `mmap`.
 
 In some cases we decided in favor of features and safety over performance.  For
 example, **ugrep** considers files binary when containing invalid UTF encodings
@@ -339,6 +339,15 @@ You can tell which version it is with:
 
 Copy `bin/ugrep` to a convenient location, for example in your `bin` directory.
 
+If you prefer to enable colorized output by default without requiring option
+`--color` then execute:
+
+    $ ./configure --enable-color && make
+
+To see all options available to you, execute:
+
+    $ ./configure --help
+
 Unfortunately, cloning from Git does not preserve timestamps which means that
 you may run into "WARNING: 'aclocal-1.15' is missing on your system."
 
@@ -364,11 +373,8 @@ installed predefined pattern files.
 Download **ugrep** from https://github.com/Genivia/ugrep
 
 Prebuilt binaries for Linux, Mac OS X, and Windows are included in the `bin`
-directory.  These binary versions do not support options `-P` (Perl regular
-expressions) and `-z` (decompress).
-
-All versions of ugrep are designed to run from the command line interface
-(CLI).
+directory.  All versions of ugrep are designed to run from the command line
+interface (CLI).
 
 There are two Windows versions: `ugrep\bin\win32\ugrep.exe` and
 `ugrep\bin\win64\ugrep.exe`.  Depending on your system, add the 32 or 64 bit
@@ -376,10 +382,15 @@ version to your execution path:  go to *Settings* and search for "Path" in
 *Find a Setting*.  Select *environment variables* -> *Path* -> *New* and add
 the directory `C:\<fill this part in>\ugrep\bin\win32`.
 
-When using `ugrep.exe` from the Windows command line, use `"` instead of `'` to
-specify patterns, since `'` becomes part of the command-line argument!  Also,
-an empty argument `""` is ignored by some Windows command interpreters such as
-Powershell.  Use option `--match` instead.
+Notes on using `ugrep.exe` from the Windows command line:
+- ugrep.exe expands globs such as `*.txt` and `*\dir\*`
+- colorized output is enabled by default
+- when specifying quited patterns and arguments on the command line, do not
+  enclose arguments in single `'` quotes, use `"` instead (single `'` quotes
+  become part of a command-line argument)
+- when specifying an empty pattern `""` to match all input, this may be ignored
+  by some Windows command interpreters such as Powershell, in that case use
+  option `--match` instead
 
 The Linux binary was built on CentOS 7.6.
 
@@ -1470,14 +1481,14 @@ bzip2     | `.bz`, `.bz2`, `.bzip2` | `.tb2`, `.tbz`, `.tbz2`, `.tz2` | yes     
 lzma      | `.lzma`                 | `.tlz`                          | yes              | `--label=.lzma`  | liblzma     |
 xz        | `.xz`                   | `.txz`                          | yes              | `--label=.xz`    | liblzma     |
 
-Supported zip compression methods are deflate (zlib), bzip2 if libbz2 is
-available, and lzma and xz (if liblzma is available).  Archives compressed
-within zip archives are searched:  all cpio, tar, and pax files in zip archives
-are automatically recognized and searched.  Compressed files in archives are
-not recognized and searched however, such as any compressed files stored in
-cpio, tar, pax, and zip archives, which are considered binary files.  Searching
-encrypted zip archives is not supported (perhaps in future releases, depending
-on requests).
+Supported zip compression methods are stored (0), deflate (8), bzip2 (12) if
+libbz2 is available, lzma (14) and xz (95) if liblzma is available.  Archives
+compressed within zip archives are searched:  all cpio, tar, and pax files in
+zip archives are automatically recognized and searched.  Compressed files in
+archives are not recognized and searched however, such as any compressed files
+stored in cpio, tar, pax, and zip archives, which are considered binary files.
+Searching encrypted zip archives is not supported (perhaps in future releases,
+depending on requests).
 
 When option `-z` is used with options `-g`, `-O`, `-M`, or `-t`, archives and
 compressed and uncompressed files that match the filename selection criteria
@@ -1612,6 +1623,8 @@ in markdown:
     ugrep -R -o -n -ttext -e '(?^`[^`\n]*`)' -e '`[^`]+`'
 
 <a name="man"/>
+
+### Man page
 
     UGREP(1)                         User Commands                        UGREP(1)
 
@@ -2093,8 +2106,14 @@ in markdown:
 
            If no FILE arguments are specified, or if a `-' is specified, the stan-
            dard input is used, unless recursive searches are specified which exam-
-           ine the working directory.  Use `--' before the FILE arguments to allow
-           file and directory names to start with a `-'.
+           ine the working directory.
+
+           If no FILE arguments are specified and one of the options -g,  -t,  -O,
+           -M, --include, --include-dir, --exclude, or --exclude-dir is specified,
+           recursive searches are enabled, same as -r.
+
+           Use `--' before the FILE arguments to allow file and directory names to
+           start with a `-'.
 
            The  regular expression pattern syntax is an extended form of the POSIX
            ERE syntax.  For an overview of the syntax see README.md or visit:
@@ -2118,15 +2137,15 @@ in markdown:
            status is 0 even if an error occurred.
 
     GLOBBING
-           Globbing   is   used   by  options  --glob,  --include,  --include-dir,
-           --include-from, --exclude, --exclude-dir, --exclude-from to match path-
-           names and basenames.  Globbing supports gitignore syntax and the corre-
-           sponding matching rules.  When a glob contains a  path  separator  `/',
-           the pathname is matched.  Otherwise the basename of a file or directory
-           is matched.  For example, *.h matches  foo.h  and  bar/foo.h.   bar/*.h
-           matches  bar/foo.h  but not foo.h and not bar/bar/foo.h.  Use a leading
-           `/' to force /*.h to match foo.h but not bar/foo.h.   A  glob  starting
-           with a `!' is negated, i.e. does not match.
+           Globbing  is  used  by options -g, --include, --include-dir, --include-
+           from, --exclude, --exclude-dir, --exclude-from to match  pathnames  and
+           basenames  in  recursive  searches.  Globbing supports gitignore syntax
+           and the corresponding matching rules.  When a glob contains a path sep-
+           arator  `/', the pathname is matched.  Otherwise the basename of a file
+           or directory is matched.  For example, *.h matches foo.h and bar/foo.h.
+           bar/*.h  matches  bar/foo.h but not foo.h and not bar/bar/foo.h.  Use a
+           leading `/' to force /*.h to match foo.h but  not  bar/foo.h.   A  glob
+           starting with a `!' is negated, i.e. does not match.
 
            Glob Syntax and Conventions
 
@@ -2441,7 +2460,7 @@ in markdown:
 
 
 
-    ugrep 1.6.6                    December 17, 2019                      UGREP(1)
+    ugrep 1.6.7                    December 21, 2019                      UGREP(1)
 
 <a name="patterns"/>
 

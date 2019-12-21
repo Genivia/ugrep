@@ -61,8 +61,15 @@ cat >> man/ugrep.1 << 'END'
 .PP
 If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
 standard input is used, unless recursive searches are specified which examine
-the working directory.  Use `--' before the \fIFILE\fR arguments to allow file
-and directory names to start with a `-'.
+the working directory.
+.PP
+If no \fIFILE\fR arguments are specified and one of the options \fB-g\fR,
+\fB-t\fR, \fB-O\fR, \fB-M\fR, \fB--include\fR, \fB--include-dir\fR,
+\fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches
+are enabled, same as \fB-r\fR.
+.PP
+Use `--' before the \fIFILE\fR arguments to allow file and directory names to
+start with a `-'.
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
@@ -84,16 +91,16 @@ An error occurred.
 If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
 the exit status is 0 even if an error occurred.
 .SH GLOBBING
-Globbing is used by options \fB--glob\fR, \fB--include\fR, \fB--include-dir\fR,
+Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
-\fB--exclude-from\fR to match pathnames and basenames.  Globbing supports
-gitignore syntax and the corresponding matching rules.  When a glob contains a
-path separator `/', the pathname is matched.  Otherwise the basename of a file
-or directory is matched.  For example, \fB*.h\fR matches \fIfoo.h\fR and
-\fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not \fIfoo.h\fR and
-not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
-\fIfoo.h\fR but not \fIbar/foo.h\fR.  A glob starting with a `!' is negated,
-i.e. does not match.
+\fB--exclude-from\fR to match pathnames and basenames in recursive searches.
+Globbing supports gitignore syntax and the corresponding matching rules.  When
+a glob contains a path separator `/', the pathname is matched.  Otherwise the
+basename of a file or directory is matched.  For example, \fB*.h\fR matches
+\fIfoo.h\fR and \fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not
+\fIfoo.h\fR and not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR
+to match \fIfoo.h\fR but not \fIbar/foo.h\fR.  A glob starting with a `!' is
+negated, i.e. does not match.
 .PP
 \fBGlob Syntax and Conventions\fR
 .IP \fB*\fR
