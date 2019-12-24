@@ -1,7 +1,7 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-Universal grep ("uber grep")
-============================
+Universal grep pro ("uber grep")
+================================
 
 <div align="center">
 <img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
@@ -12,6 +12,7 @@ Grep super fast through source code, Unicode text, binary files, cpio/tar/pax/zi
 <br>
 </div>
 
+- Unlimited pro version
 - Built for extreme speed
 - Written in clean and efficient C++11 code
 - Multi-threaded search with high-performance lock-free job queue stealing
