@@ -493,7 +493,7 @@ empty matches for GNU/BSD compatibility, see details further below.
 
     alias ug     = 'ugrep --color --pager'       # short & quick text pattern search
     alias ux     = 'ugrep --color --pager -UX'   # short & quick binary pattern search
-    alias ugi    = 'ugrep -R --ignore-files      # like git-grep (but options differ)
+    alias ugit   = 'ugrep -R --ignore-files      # like git-grep (but options differ)
 
     alias grep   = 'ugrep --color --pager -G'    # search with basic regular expressions (BRE)
     alias egrep  = 'ugrep --color --pager -E'    # search with extended regular expressions (ERE)
@@ -683,13 +683,13 @@ lines (`-f c++/defines`), while skipping files and directories declared in
 `.gitignore` and skipping hidden files.  If you find this too long to type then
 define an alias to search GitHub directories:
 
-    alias ugi = '-R --color --no-hidden --ignore-files
-    ugi -tc++ -f c++/defines
+    alias ugit='ugrep -R --color --no-hidden --ignore-files'
+    ugit -tc++ -f c++/defines
 
 To list all files in a GitHub project directory that are not ignored by
 `.gitignore` file(s) and are not hidden:
 
-    ugi -l ''
+    ugit -l ''
 
 Where `-l` (files with matches) lists the files specified in `.gitignore`
 matched by the empty pattern `''`, which is typically used to match any
@@ -698,7 +698,7 @@ non-empty file (non-zero-length file, as per POSIX.1 grep standard).
 To highlight matches when pushed through a chain of pipes we should use
 `--color=always`:
 
-    ugi --color=always -tc++ -f c++/defines | ugrep -w 'FOO.*'
+    ugit --color=always -tc++ -f c++/defines | ugrep -w 'FOO.*'
 
 This returns a color-highlighted list of all `#define FOO...` macros in C/C++
 source code files, skipping files defined in `.gitignore`.
