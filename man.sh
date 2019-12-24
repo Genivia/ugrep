@@ -54,6 +54,8 @@ src/ugrep --help \
   -e 's/\(--[-+0-9A-Za-z_]*\)/\\fB\1\\fR/g' \
   -e 's/\([^-0-9A-Za-z_]\)\(-.\) \([A-Z]\{1,\}\)/\1\\fB\2\\fR \\fI\3\\fR/g' \
   -e 's/\([^-0-9A-Za-z_]\)\(-.\)/\1\\fB\2\\fR/g' \
+  -e 's/^\(-.\) \([!A-Z]\{1,\}\)/\\fB\1\\fR \\fI\2\\fR/g' \
+  -e 's/^\(-.\)/\\fB\1\\fR/g' \
   -e 's/\[=\([-A-Z]\{1,\}\)\]/[=\\fI\1\\fR]/g' \
   -e 's/=\([-A-Z]\{1,\}\)/=\\fI\1\\fR/g' \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
@@ -64,7 +66,7 @@ standard input is used, unless recursive searches are specified which examine
 the working directory.
 .PP
 If no \fIFILE\fR arguments are specified and one of the options \fB-g\fR,
-\fB-t\fR, \fB-O\fR, \fB-M\fR, \fB--include\fR, \fB--include-dir\fR,
+\fB-O\fR, \fB-M\fR, \fB-t\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches
 are enabled, same as \fB-r\fR.
 .PP
@@ -224,7 +226,7 @@ the file pathname.
 .IP \fB%h\fR
 the quoted file pathname.
 .IP \fB%z\fR
-the pathname in a (compressed) tar file.
+the file pathname in a (compressed) archive.
 .IP \fB%n\fR
 the line number of the match.
 .IP \fB%k\fR
@@ -264,9 +266,11 @@ the matching line formatted as XML character data.
 .IP \fB%x\fR
 the match formatted as XML character data.
 .IP \fB%w\fR
-the width of the match, counting (wide) characters.
+the width of the match, counting wide characters.
 .IP \fB%d\fR
 the size of the match, counting bytes.
+.IP \fB%e\fR
+the ending byte offset of the match.
 .IP \fB%,\fR
 if not the first match: a comma, same as \fB%[,]>\fR.
 .IP \fB%:\fR
@@ -352,9 +356,9 @@ $ ugrep -nko -f c/comments myfile
 .PP
 To list the lines that need fixing in a C/C++ source file by looking for the
 word FIXME while skipping any FIXME in quoted strings by using a negative
-pattern `(?^X)' to ignore quoted strings:
+pattern to ignore any pattern matches inside quoted strings:
 .IP
-$ ugrep -no -e 'FIXME' -e '(?^"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*")' myfile
+$ ugrep -no -e 'FIXME' -N '"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*"' myfile
 .PP
 To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
 Unicode pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a

@@ -86,6 +86,7 @@ Prebuilt executables are located in ugrep/bin.
 #include <set>
 #include <atomic>
 #include <thread>
+#include <memory>
 #include <mutex>
 #include <condition_variable>
 
@@ -96,6 +97,9 @@ Prebuilt executables are located in ugrep/bin.
 
 // the default pager when --pager is used
 #define DEFAULT_PAGER "less -R"
+
+// the default ignore file
+#define DEFAULT_IGNORE_FILE ".gitignore"
 
 // optional: specify an optimal decompression block size, default is 65536, must be larger than 1024 for tar extraction
 // #define Z_BUF_LEN 16384
@@ -189,7 +193,7 @@ int pipe(int fd[2])
 #endif
 
 // ugrep version info
-#define UGREP_VERSION "1.6.7"
+#define UGREP_VERSION "1.6.8"
 
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
@@ -301,8 +305,8 @@ bool flag_free_space               = false;
 bool flag_ignore_case              = false;
 bool flag_smart_case               = false;
 bool flag_invert_match             = false;
-bool flag_only_line_number         = false;
 bool flag_line_number              = false;
+bool flag_only_line_number         = false;
 bool flag_column_number            = false;
 bool flag_byte_offset              = false;
 bool flag_line_buffered            = false;
@@ -361,21 +365,23 @@ const char *flag_separator         = ":";
 const char *flag_group_separator   = "--";
 const char *flag_binary_files      = "binary";
 std::vector<std::string> flag_regexp;;
+std::vector<std::string> flag_not_regexp;;
 std::vector<std::string> flag_file;
 std::vector<std::string> flag_file_types;
 std::vector<std::string> flag_file_extensions;
 std::vector<std::string> flag_file_magic;
 std::vector<std::string> flag_glob;
+std::vector<std::string> flag_ignore_files;
 std::vector<std::string> flag_include;
 std::vector<std::string> flag_include_dir;
 std::vector<std::string> flag_include_from;
-std::vector<std::string> flag_include_reverse;
-std::vector<std::string> flag_include_reverse_dir;
+std::vector<std::string> flag_not_include;
+std::vector<std::string> flag_not_include_dir;
 std::vector<std::string> flag_exclude;
 std::vector<std::string> flag_exclude_dir;
 std::vector<std::string> flag_exclude_from;
-std::vector<std::string> flag_exclude_reverse;
-std::vector<std::string> flag_exclude_reverse_dir;
+std::vector<std::string> flag_not_exclude;
+std::vector<std::string> flag_not_exclude_dir;
 
 void set_color(const char *grep_colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
@@ -383,6 +389,7 @@ bool is_output(ino_t inode);
 size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message);
 
+void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, std::vector<std::string>& not_files, std::vector<std::string>& not_dirs);
 void format(const char *format, size_t matches);
 void help(const char *message = NULL, const char *arg = NULL);
 void version();
@@ -413,19 +420,11 @@ inline bool getline(const char*& here, size_t& left)
   // read line from mmap memory
   if (left == 0)
     return true;
-#if 1 // assume memchr() is fast
   const char *s = static_cast<const char*>(memchr(here, '\n', left));
   if (s == NULL)
     s = here + left;
   else
     ++s;
-#else
-  const char *s = here;
-  const char *e = here + left;
-  while (s < e)
-    if (*s++ == '\n')
-      break;
-#endif
   left -= s - here;
   here = s;
   return false;
@@ -439,19 +438,11 @@ inline bool getline(const char*& here, size_t& left, reflex::BufferedInput& buff
     // read line from mmap memory
     if (left == 0)
       return true;
-#if 1 // assume memchr() is fast
     const char *s = static_cast<const char*>(memchr(here, '\n', left));
     if (s == NULL)
       s = here + left;
     else
       ++s;
-#else
-    const char *s = here;
-    const char *e = here + left;
-    while (s < e)
-      if (*s++ == '\n')
-        break;
-#endif
     line.assign(here, s - here);
     left -= s - here;
     here = s;
@@ -620,6 +611,12 @@ struct Stats {
     return fileno > 0;
   }
 
+  // a .gitignore or similar file was encountered
+  void ignore_file(const std::string& filename)
+  {
+    ignore.emplace_back(filename);
+  }
+
   // report the statistics
   void report()
   {
@@ -633,38 +630,45 @@ struct Stats {
     if (!flag_file_magic.empty() ||
         !flag_include.empty() ||
         !flag_include_dir.empty() ||
-        !flag_include_reverse.empty() ||
-        !flag_include_reverse_dir.empty() ||
+        !flag_not_include.empty() ||
+        !flag_not_include_dir.empty() ||
         !flag_exclude.empty() ||
         !flag_exclude_dir.empty() ||
-        !flag_exclude_reverse.empty() ||
-        !flag_exclude_reverse_dir.empty())
+        !flag_not_exclude.empty() ||
+        !flag_not_exclude_dir.empty())
     {
-      fprintf(output, "The following pathname selections were applied:\n");
+      fprintf(output, "The following pathname selections and restrictions were applied:\n");
+      if (flag_no_hidden)
+        fprintf(output, "--no-hidden\n");
+      for (auto& i : flag_ignore_files)
+        fprintf(output, "--ignore-files='%s'\n", i.c_str());
+      for (auto& i : ignore)
+        fprintf(output, "  %s exclusions were applied to %s\n", i.c_str(), i.substr(0, i.find_last_of(PATHSEPCHR)).c_str());
       for (auto& i : flag_file_magic)
         fprintf(output, "--file-magic='%s'\n", i.c_str());
       for (auto& i : flag_include)
         fprintf(output, "--include='%s'\n", i.c_str());
-      for (auto& i : flag_include_reverse)
-        fprintf(output, "--include='!%s' (exclude)\n", i.c_str());
+      for (auto& i : flag_not_include)
+        fprintf(output, "--include='!%s' (negation override)\n", i.c_str());
       for (auto& i : flag_include_dir)
         fprintf(output, "--include-dir='%s'\n", i.c_str());
-      for (auto& i : flag_include_reverse_dir)
-        fprintf(output, "--include-dir='!%s' (exclude)\n", i.c_str());
+      for (auto& i : flag_not_include_dir)
+        fprintf(output, "--include-dir='!%s' (negation override)\n", i.c_str());
       for (auto& i : flag_exclude)
         fprintf(output, "--exclude='%s'\n", i.c_str());
-      for (auto& i : flag_exclude_reverse)
-        fprintf(output, "--exclude='!%s' (include)\n", i.c_str());
+      for (auto& i : flag_not_exclude)
+        fprintf(output, "--exclude='!%s' (negation override)\n", i.c_str());
       for (auto& i : flag_exclude_dir)
         fprintf(output, "--exclude-dir='%s'\n", i.c_str());
-      for (auto& i : flag_exclude_reverse_dir)
-        fprintf(output, "--exclude-dir='!%s' (include)\n", i.c_str());
+      for (auto& i : flag_not_exclude_dir)
+        fprintf(output, "--exclude-dir='!%s' (negation override)\n", i.c_str());
     }
   }
 
-  size_t             files;  // number of files searched
-  size_t             dirs;   // number of directories searched
-  std::atomic_size_t fileno; // number of matching files, atomic for GrepWorker::search() update
+  size_t                   files;  // number of files searched
+  size_t                   dirs;   // number of directories searched
+  std::atomic_size_t       fileno; // number of matching files, atomic for GrepWorker::search() update
+  std::vector<std::string> ignore; // the .gitignore files encountered in the recursive search with --ignore-files
 
 } stats;
 
@@ -1246,7 +1250,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     sep = true;
   }
 
-  if (flag_line_number || flag_only_line_number)
+  if (flag_line_number)
   {
     if (sep)
     {
@@ -1432,7 +1436,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'N':
-        if (flag_line_number || flag_only_line_number)
+        if (flag_line_number)
         {
           if (a)
             str(a, s - a - 1);
@@ -1520,6 +1524,10 @@ void Output::format(const char *format, const char *pathname, const std::string&
 
       case 'd':
         num(matcher->size());
+        break;
+
+      case 'e':
+        num(matcher->last());
         break;
 
       case 'm':
@@ -3219,7 +3227,6 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
 // ugrep main()
 int main(int argc, char **argv)
 {
-  std::string regex;
   const char *pattern = NULL;
   std::vector<const char*> files;
   bool options = true;
@@ -3338,6 +3345,10 @@ int main(int argc, char **argv)
               flag_binary_files = "hex";
             else if (strcmp(arg, "ignore-case") == 0)
               flag_ignore_case = true;
+            else if (strncmp(arg, "ignore-files=", 13) == 0)
+              flag_ignore_files.emplace_back(arg + 13);
+            else if (strcmp(arg, "ignore-files") == 0)
+              flag_ignore_files.emplace_back(DEFAULT_IGNORE_FILE);
             else if (strncmp(arg, "include=", 8) == 0)
               flag_include.emplace_back(arg + 8);
             else if (strncmp(arg, "include-dir=", 12) == 0)
@@ -3388,6 +3399,8 @@ int main(int argc, char **argv)
               flag_no_messages = true;
             else if (strcmp(arg, "no-mmap") == 0)
               flag_max_mmap = 0;
+            else if (strncmp(arg, "not-regexp=", 11) == 0)
+              flag_not_regexp.emplace_back(arg + 11);
             else if (strcmp(arg, "null") == 0)
               flag_null = true;
             else if (strcmp(arg, "only-line-number") == 0)
@@ -3627,7 +3640,14 @@ int main(int argc, char **argv)
             break;
 
           case 'N':
-            flag_only_line_number = true;
+            ++arg;
+            if (*arg)
+              flag_not_regexp.emplace_back(&arg[*arg == '=']);
+            else if (++i < argc)
+              flag_not_regexp.emplace_back(argv[i]);
+            else
+              help("missing PATTERN argument for option -N");
+            is_grouped = false;
             break;
 
           case 'n':
@@ -3815,6 +3835,9 @@ int main(int argc, char **argv)
   if (flag_match)
     flag_regexp.emplace_back("");
 
+  // the regex compiled from PATTERN
+  std::string regex;
+
   // regex PATTERN specified
   if (pattern != NULL)
   {
@@ -3824,7 +3847,7 @@ int main(int argc, char **argv)
     else
       files.insert(files.begin(), pattern);
   }
-
+  
   // if no regex pattern is specified and no -f file then exit with usage message
   if (flag_regexp.empty() && flag_file.empty())
     help("");
@@ -3888,7 +3911,52 @@ int main(int argc, char **argv)
     }
   }
 
-  // -x or -w, disable -x, -w, -F for patterns in -f FILE when PATTERN or -e PATTERN is specified
+  // the regex compiled from -N PATTERN
+  std::string not_regex;
+
+  // append -N PATTERN to regex as negative patterns
+  for (auto& pattern : flag_not_regexp)
+  {
+    if (!pattern.empty())
+    {
+      // split newline-separated regex up into alternations
+      size_t from = 0;
+      size_t to;
+
+      // split regex at newlines, for -F add \Q \E to each string, separate by |
+      while ((to = pattern.find('\n', from)) != std::string::npos)
+      {
+        if (from < to)
+        {
+          size_t len = to - from - (pattern[to - 1] == '\r');
+          if (len > 0)
+            not_regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
+        }
+        from = to + 1;
+      }
+
+      if (from < pattern.size())
+        not_regex.append(Q).append(pattern.substr(from)).append(E);
+    }
+  }
+
+  // -x or -w: apply to -N PATTERN
+  if (!not_regex.empty())
+  {
+    // remove the ending '|' from the |-concatenated regexes in the regex string
+    not_regex.pop_back();
+
+    // -x or -w
+    if (flag_line_regexp)
+      not_regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+    else if (flag_word_regexp)
+      not_regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+
+    // construct negative (?^PATTERN)
+    not_regex.insert(0, "(?^").push_back(')');
+  }
+
+  // -x or -w: apply to PATTERN then disable -x, -w, -F for patterns in -f FILE when PATTERN or -e PATTERN is specified
   if (!regex.empty())
   {
     // remove the ending '|' from the |-concatenated regexes in the regex string
@@ -3911,6 +3979,12 @@ int main(int argc, char **argv)
     Q = "";
     E = "|";
   }
+
+  // combine regexes
+  if (regex.empty())
+    regex.swap(not_regex);
+  else if (!not_regex.empty())
+    regex.append("|").append(not_regex);
 
   // -P disables -G
   if (flag_perl_regexp)
@@ -4094,7 +4168,7 @@ int main(int argc, char **argv)
     flag_format_end   = "</grep>\n";
   }
 
-  // is output sent to a TTY or to /dev/null?
+  // is output sent to a color TTY, to a pager, or to /dev/null?
   if (!flag_quiet)
   {
     // check if standard output is a TTY
@@ -4103,7 +4177,7 @@ int main(int argc, char **argv)
 #ifndef OS_WIN
 
     // --pager: if output is to a TTY then page through the results
-    if (flag_pager != NULL && tty_term)
+    if (tty_term && flag_pager != NULL)
     {
       output = popen(flag_pager, "w");
       if (output == NULL)
@@ -4310,13 +4384,11 @@ int main(int argc, char **argv)
     }
   }
 
-  // -g, --glob: add globs to the --include and --exclude lists
+  // -g, --glob: add globs to --include and --exclude
   for (auto& i : flag_glob)
   {
-    if (!i.empty() && i.at(0) == '!')
-      flag_exclude.emplace_back(i.substr(1));
-    else
-      flag_include.emplace_back(i);
+    bool negate = !i.empty() && i.front() == '!';
+    (negate ? flag_exclude : flag_include).emplace_back(i.substr(1));
   }
 
   // -O: add extensions as globs to the --include list
@@ -4438,51 +4510,7 @@ int main(int argc, char **argv)
       else if (fopen_s(&file, i.c_str(), "r") != 0)
         error("cannot read", i.c_str());
 
-      // read globs from the specified file or files
-
-      reflex::BufferedInput input(file);
-      std::string line;
-
-      while (true)
-      {
-        // read the next line
-        if (getline(input, line))
-          break;
-
-        trim(line);
-
-        // add glob to --exclude and --exclude-dir using gitignore rules
-        if (!line.empty() && line.front() != '#')
-        {
-          // gitignore-style ! negate pattern (overrides --exclude and --exclude-dir)
-          if (line.front() == '!' && !line.empty())
-          {
-            line.erase(0, 1);
-
-            // globs ending in / should only match directories
-            if (line.back() == '/')
-              line.pop_back();
-            else
-              flag_exclude_reverse.emplace_back(line);
-
-            flag_exclude_reverse_dir.emplace_back(line);
-          }
-          else
-          {
-            // remove leading \ if present
-            if (line.front() == '\\' && !line.empty())
-              line.erase(0, 1);
-
-            // globs ending in / should only match directories
-            if (line.back() == '/')
-              line.pop_back();
-            else
-              flag_exclude.emplace_back(line);
-
-            flag_exclude_dir.emplace_back(line);
-          }
-        }
-      }
+      extend(file, flag_exclude, flag_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
 
       if (file != stdin)
         fclose(file);
@@ -4501,67 +4529,27 @@ int main(int argc, char **argv)
       else if (fopen_s(&file, i.c_str(), "r") != 0)
         error("cannot read", i.c_str());
 
-      // read globs from the specified file or files
-
-      reflex::BufferedInput input(file);
-      std::string line;
-
-      while (true)
-      {
-        // read the next line
-        if (getline(input, line))
-          break;
-
-        trim(line);
-
-        // add glob to --include and --include-dir using gitignore rules
-        if (!line.empty() && line.front() != '#')
-        {
-          // gitignore-style ! negate pattern (overrides --include and --include-dir)
-          if (line.front() == '!' && !line.empty())
-          {
-            line.erase(0, 1);
-
-            // globs ending in / should only match directories
-            if (line.back() == '/')
-              line.pop_back();
-            else
-              flag_include_reverse.emplace_back(line);
-
-            flag_include_reverse_dir.emplace_back(line);
-          }
-          else
-          {
-            // remove leading \ if present
-            if (line.front() == '\\' && !line.empty())
-              line.erase(0, 1);
-
-            // globs ending in / should only match directories
-            if (line.back() == '/')
-              line.pop_back();
-            else
-              flag_include.emplace_back(line);
-
-            flag_include_dir.emplace_back(line);
-          }
-        }
-      }
+      extend(file, flag_include, flag_include_dir, flag_not_include, flag_not_include_dir);
 
       if (file != stdin)
         fclose(file);
     }
   }
 
-  // if no FILE given with -g, -t, -O, -M, --include, --include-dir, --exclude, --exclude dir: enable -dRECURSE
-  if (files.empty() && (!flag_include.empty() || !flag_include_dir.empty() || !flag_exclude.empty() || !flag_exclude_dir.empty() || !flag_file_magic.empty()))
+  // if no FILE specified and reading standard input from a TTY but one or more of -g, -O, -m, -t, --include, --include-dir, --exclude, --exclude dir: enable -dRECURSE
+  if (!flag_stdin && files.empty() && (!flag_include.empty() || !flag_include_dir.empty() || !flag_exclude.empty() || !flag_exclude_dir.empty() || !flag_file_magic.empty()) && isatty(STDIN_FILENO))
     flag_directories_action = RECURSE;
 
   // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
   if (!flag_no_filename && (flag_directories_action == RECURSE || files.size() > 1 || (flag_stdin && !files.empty())))
     flag_with_filename = true;
 
-  // if no display options -H, -n, -N, -k, -b are set, enable --no-labels to suppress labels for speed
-  if (!flag_with_filename && !flag_line_number && !flag_only_line_number && !flag_column_number && !flag_byte_offset)
+  // --only-line-number implies -n
+  if (flag_only_line_number)
+    flag_line_number = true;
+
+  // if no display options -H, -n, -k, -b are set, enable --no-labels to suppress labels for speed
+  if (!flag_with_filename && !flag_line_number && !flag_column_number && !flag_byte_offset)
     flag_no_header = true;
 
   // -q: we only need to find one matching file and we're done
@@ -4602,7 +4590,7 @@ int main(int argc, char **argv)
   else
     threads = std::min(files.size() + flag_stdin, flag_jobs);
 
-  // if no files were specified then read standard input, unless recursive searches are specified
+  // if no FILE specified then read standard input, unless recursive searches are specified
   if (files.empty() && flag_directories_action != RECURSE)
     flag_stdin = true;
 
@@ -4893,7 +4881,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
       {
         // do not exclude directories that are reversed by ! negation
         bool negate = false;
-        for (auto& glob : flag_exclude_reverse_dir)
+        for (auto& glob : flag_not_exclude_dir)
           if ((negate = glob_match(pathname, basename, glob.c_str())))
             break;
 
@@ -4908,7 +4896,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
         if (!flag_include_dir.empty())
         {
           // do not include directories that are reversed by ! negation
-          for (auto& glob : flag_include_reverse_dir)
+          for (auto& glob : flag_not_include_dir)
             if (glob_match(pathname, basename, glob.c_str()))
               return;
 
@@ -4929,7 +4917,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
   {
     // do not exclude files that are reversed by ! negation
     bool negate = false;
-    for (auto& glob : flag_exclude_reverse)
+    for (auto& glob : flag_not_exclude)
       if ((negate = glob_match(pathname, basename, glob.c_str())))
         break;
 
@@ -4993,7 +4981,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
     if (!flag_include.empty())
     {
       // do not include files that are reversed by ! negation
-      for (auto& glob : flag_include_reverse)
+      for (auto& glob : flag_not_include)
         if (glob_match(pathname, basename, glob.c_str()))
           return;
 
@@ -5053,7 +5041,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
             {
               // do not exclude directories that are reversed by ! negation
               bool negate = false;
-              for (auto& glob : flag_exclude_reverse_dir)
+              for (auto& glob : flag_not_exclude_dir)
                 if ((negate = glob_match(pathname, basename, glob.c_str())))
                   break;
 
@@ -5068,7 +5056,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
               if (!flag_include_dir.empty())
               {
                 // do not include directories that are reversed by ! negation
-                for (auto& glob : flag_include_reverse_dir)
+                for (auto& glob : flag_not_include_dir)
                   if (glob_match(pathname, basename, glob.c_str()))
                     return;
 
@@ -5092,7 +5080,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
         {
           // do not exclude files that are reversed by ! negation
           bool negate = false;
-          for (auto& glob : flag_exclude_reverse)
+          for (auto& glob : flag_not_exclude)
             if ((negate = glob_match(pathname, basename, glob.c_str())))
               break;
 
@@ -5158,7 +5146,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
           if (!flag_include.empty())
           {
             // do not include files that are reversed by ! negation
-            for (auto& glob : flag_include_reverse)
+            for (auto& glob : flag_not_include)
               if (glob_match(pathname, basename, glob.c_str()))
                 return;
 
@@ -5193,12 +5181,11 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
   if (flag_max_depth > 0 && level > flag_max_depth)
     return;
 
-  // hard maximum recursion depth?
+  // hard maximum recursion depth reached?
   if (level > MAX_DEPTH)
   {
     if (!flag_no_messages)
-      fprintf(stderr, "%sugrep: %s%s%s recursion depth hard limit %d exceeded\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
-
+      fprintf(stderr, "%sugrep: %s%s%s recursion depth exceeds hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
     return;
   }
 
@@ -5219,13 +5206,63 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
   {
     if (GetLastError() != ERROR_FILE_NOT_FOUND)
       warning("cannot open directory", pathname);
-
     return;
   } 
+
+#else
+
+  DIR *dir = opendir(pathname);
+
+  if (dir == NULL)
+  {
+    warning("cannot open directory", pathname);
+    return;
+  }
+
+#endif
+
+  // --ignore-files: check if one or more a present to read and extend the file and dir exclusions
+  // std::vector<std::string> *save_exclude = NULL, *save_exclude_dir = NULL, *save_not_exclude = NULL, *save_not_exclude_dir = NULL;
+  std::unique_ptr< std::vector<std::string> > save_exclude, save_exclude_dir, save_not_exclude, save_not_exclude_dir;
+  bool saved = false;
+
+  if (!flag_ignore_files.empty())
+  {
+    std::string filename;
+
+    for (auto& i : flag_ignore_files)
+    {
+      filename.assign(pathname).append(PATHSEPSTR).append(i);
+
+      FILE *file = NULL;
+      if (fopen_s(&file, filename.c_str(), "r") == 0)
+      {
+        if (!saved)
+        {
+          save_exclude = std::unique_ptr< std::vector<std::string> >(new std::vector<std::string>);
+          save_exclude->swap(flag_exclude);
+          save_exclude_dir = std::unique_ptr< std::vector<std::string> >(new std::vector<std::string>);
+          save_exclude_dir->swap(flag_exclude_dir);
+          save_not_exclude = std::unique_ptr< std::vector<std::string> >(new std::vector<std::string>);
+          save_not_exclude->swap(flag_not_exclude);
+          save_not_exclude_dir = std::unique_ptr< std::vector<std::string> >(new std::vector<std::string>);
+          save_not_exclude_dir->swap(flag_not_exclude_dir);
+
+          saved = true;
+        }
+
+        stats.ignore_file(filename);
+        extend(file, flag_exclude, flag_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
+        fclose(file);
+      }
+    }
+  }
 
   stats.score_dir();
 
   std::string dirpathname;
+
+#ifdef OS_WIN
 
   do
   {
@@ -5252,19 +5289,7 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
 
 #else
 
-  DIR *dir = opendir(pathname);
-
-  if (dir == NULL)
-  {
-    warning("cannot open directory", pathname);
-
-    return;
-  }
-
-  stats.score_dir();
-
   struct dirent *dirent = NULL;
-  std::string dirpathname;
 
   while ((dirent = readdir(dir)) != NULL)
   {
@@ -5295,6 +5320,15 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
   closedir(dir);
 
 #endif
+
+  // --ignore-files: restore if changed
+  if (saved)
+  {
+    save_exclude->swap(flag_exclude);
+    save_exclude_dir->swap(flag_exclude_dir);
+    save_not_exclude->swap(flag_not_exclude);
+    save_not_exclude_dir->swap(flag_not_exclude_dir);
+  }
 }
 
 // search input, display pattern matches, return true when pattern matched anywhere
@@ -5513,7 +5547,7 @@ void Grep::search(const char *pathname)
     }
     else if (flag_only_line_number)
     {
-      // -N
+      // --only-line-number
 
       size_t lineno = 0;
       const char *separator = flag_separator;
@@ -6678,6 +6712,44 @@ exit_search:
   } while (close_file(pathname));
 }
 
+// read globs from a file to extend include/exclude files and dirs
+void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, std::vector<std::string>& not_files, std::vector<std::string>& not_dirs)
+{
+  // read globs from the specified file or files
+  reflex::BufferedInput input(file);
+  std::string line;
+
+  while (true)
+  {
+    // read the next line
+    if (getline(input, line))
+      break;
+
+    trim(line);
+
+    // add glob to files and dirs using gitignore glob pattern rules
+    if (!line.empty() && line.front() != '#')
+    {
+      // gitignore-style ! negate pattern to override include/exclude
+      bool negate = line.front() == '!' && !line.empty();
+      if (negate)
+        line.erase(0, 1);
+
+      // remove leading \ if present
+      if (line.front() == '\\' && !line.empty())
+        line.erase(0, 1);
+
+      // globs ending in / should only match directories
+      if (line.back() == '/')
+        line.pop_back();
+      else
+        (negate ? not_files : files).emplace_back(line);
+
+      (negate ? not_dirs : dirs).emplace_back(line);
+    }
+  }
+}
+
 // display format with option --format-begin and --format-end
 void format(const char *format, size_t matches)
 {
@@ -6908,7 +6980,8 @@ void help(const char *message, const char *arg)
             Mark up the matching text with the expression stored in the\n\
             GREP_COLOR or GREP_COLORS environment variable.  The possible\n\
             values of WHEN can be `never', `always', or `auto', where `auto'\n\
-            marks up matches only when output on a terminal.\n\
+            marks up matches only when output on a terminal.  The default is\n\
+            `auto'.\n\
     --cpp\n\
             Output file matches in C++.  See also option --format.\n\
     --csv\n\
@@ -6935,6 +7008,7 @@ void help(const char *message, const char *arg)
     -e PATTERN, --regexp=PATTERN\n\
             Specify a PATTERN used during the search of the input: an input\n\
             line is selected if it matches any of the specified patterns.\n\
+            Note that longer patterns take precedence over shorter patterns.\n\
             This option is most useful when multiple -e options are used to\n\
             specify multiple patterns, when a pattern begins with a dash (`-'),\n\
             to specify a pattern after option -f or after the FILE arguments.\n\
@@ -6984,7 +7058,7 @@ void help(const char *message, const char *arg)
     -g GLOB, --glob=GLOB\n\
             Search only files whose name matches GLOB, same as --include=GLOB.\n\
             If GLOB is preceded by a `!', skip files whose name matches GLOB,\n\
-            same as --exclude=GLOB.  This option may be repeated.\n\
+            same as --exclude=GLOB.\n\
     --group-separator=SEP\n\
             Use SEP as a group separator for context options -A, -B, and -C. By\n\
             default SEP is a double hyphen (`--').\n\
@@ -7002,6 +7076,12 @@ void help(const char *message, const char *arg)
     -i, --ignore-case\n\
             Perform case insensitive matching.  By default, ugrep is case\n\
             sensitive.  This option applies to ASCII letters only.\n\
+    --ignore-files[=FILE]\n\
+            Ignore files and directories specified in a FILE when encountered\n\
+            in recursive searches.  The default is `" DEFAULT_IGNORE_FILE "'.  Files and\n\
+            directories matching the globs in FILE are ignored in the directory\n\
+            tree rooted at each FILE's location by temporarily overriding\n\
+            --exclude and --exclude-dir globs.  This option may be repeated.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB using wildcard matching,\n\
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,\n\
@@ -7067,7 +7147,7 @@ void help(const char *message, const char *arg)
     -m NUM, --max-count=NUM\n\
             Stop reading the input after NUM matches for each file processed.\n\
     --match\n\
-            Match input.  Same as specifying an empty pattern to search.\n\
+            Match all input.  Same as specifying an empty pattern to search.\n\
     --max-depth=NUM\n\
             Restrict recursive search to NUM (NUM > 0) directories deep, where\n\
             --max-depth=1 searches the specified path without visiting\n\
@@ -7077,10 +7157,13 @@ void help(const char *message, const char *arg)
             If -R or -r is specified, restrict the number of files matched to\n\
             NUM.  Specify -J1 to produce replicable results by ensuring that\n\
             files are searched in the same order as specified.\n\
-    -N, --only-line-number\n\
-            The line number of the matching line in the file is output without\n\
-            displaying the match.  The line number counter is reset for each\n\
-            file processed.\n\
+    -N PATTERN, --not-regexp=PATTERN\n\
+            Specify a negative PATTERN used during the search of the input: an\n\
+            input line is selected only if it matches any of the specified\n\
+            patterns when PATTERN does not match.  Same as -e (?^PATTERN)\n\
+            Negative PATTERN matches are removed before any other specified\n\
+            patterns are matched.  Note that longer patterns take precedence\n\
+            over shorter patterns.  This option may be repeated.\n\
     -n, --line-number\n\
             Each output line is preceded by its relative line number in the\n\
             file, starting at line 1.  The line number counter is reset for\n\
@@ -7112,6 +7195,10 @@ void help(const char *message, const char *arg)
             the line numbers with option -n are displayed using `|' as the\n\
             field separator for each additional line matched by the pattern.\n\
             This option cannot be combined with options -A, -B, -C, -v, and -y.\n\
+    --only-line-number\n\
+            The line number of the matching line in the file is output without\n\
+            displaying the match.  The line number counter is reset for each\n\
+            file processed.\n\
     -P, --perl-regexp\n\
             Interpret PATTERN as a Perl regular expression.\n";
 #ifndef HAVE_BOOST_REGEX
@@ -7121,13 +7208,14 @@ void help(const char *message, const char *arg)
   std::cout << "\
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
-            they are on the command line.\n";
+            they are specified on the command line.\n";
 #ifndef OS_WIN
   std::cout << "\
     --pager[=COMMAND]\n\
             When output is sent to the terminal, uses COMMAND to page through\n\
             the output.  The default COMMAND is `less -R'.  This option makes\n\
-            --color=auto behave as --color=always.  Enables --break.\n";
+            --color=auto behave as --color=always.  Enables --break and\n\
+            --line-buffered.\n";
 #endif
   std::cout << "\
     -Q ENCODING, --encoding=ENCODING\n\
@@ -7169,13 +7257,13 @@ void help(const char *message, const char *arg)
             search is expanded to include files found on the search path with\n\
             matching file signature magic bytes passed to option -M.  This\n\
             option may be repeated.  The possible values of TYPES can be\n\
-            (use option -tlist to display a detailed list):";
+            (use option -tlist to display a more detailed list):";
   for (int i = 0; type_table[i].type != NULL; ++i)
     std::cout << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";
   std::cout << "\n\
     --tabs=NUM\n\
             Set the tab size to NUM to expand tabs for option -k.  The value of\n\
-            NUM may be 1, 2, 4, or 8.\n\
+            NUM may be 1, 2, 4, or 8.  The default tab size is 8.\n\
     -U, --binary\n\
             Disables Unicode matching for binary file matching, forcing PATTERN\n\
             to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\

@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 21, 2019" "ugrep 1.6.7" "User Commands"
+.TH UGREP "1" "December 24, 2019" "ugrep 1.6.8" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -78,7 +78,8 @@ If \fB\-v\fR is specified, counts the number of non\-matching lines.
 Mark up the matching text with the expression stored in the
 GREP_COLOR or GREP_COLORS environment variable.  The possible
 values of WHEN can be `never', `always', or `auto', where `auto'
-marks up matches only when output on a terminal.
+marks up matches only when output on a terminal.  The default is
+`auto'.
 .TP
 \fB\-\-cpp\fR
 Output file matches in C++.  See also option \fB\-\-format\fR.
@@ -111,13 +112,14 @@ the default.
 \fB\-e\fR \fIPATTERN\fR, \fB\-\-regexp\fR=\fIPATTERN\fR
 Specify a PATTERN used during the search of the input: an input
 line is selected if it matches any of the specified patterns.
+Note that longer patterns take precedence over shorter patterns.
 This option is most useful when multiple \fB\-e\fR options are used to
 specify multiple patterns, when a pattern begins with a dash (`\fB\-'\fR),
 to specify a pattern after option \fB\-f\fR or after the FILE arguments.
 .TP
 \fB\-\-exclude\fR=\fIGLOB\fR
 Skip files whose name matches GLOB using wildcard matching, same as
-\-g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
+\fB\-g\fR \fI!GLOB\fR.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
 quote a wildcard or backslash character literally.  If GLOB
 contains /, full pathnames are matched.  Otherwise basenames are
 matched.  Note that \fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR
@@ -165,7 +167,7 @@ behave as traditional grep.
 \fB\-g\fR \fIGLOB\fR, \fB\-\-glob\fR=\fIGLOB\fR
 Search only files whose name matches GLOB, same as \fB\-\-include\fR=\fIGLOB\fR.
 If GLOB is preceded by a `!', skip files whose name matches GLOB,
-same as \fB\-\-exclude\fR=\fIGLOB\fR.  This option may be repeated.
+same as \fB\-\-exclude\fR=\fIGLOB\fR.
 .TP
 \fB\-\-group\-separator\fR=\fISEP\fR
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR. By
@@ -189,6 +191,13 @@ Ignore matches in binary files.  This option is equivalent to the
 \fB\-i\fR, \fB\-\-ignore\-case\fR
 Perform case insensitive matching.  By default, ugrep is case
 sensitive.  This option applies to ASCII letters only.
+.TP
+\fB\-\-ignore\-files\fR[=\fIFILE\fR]
+Ignore files and directories specified in a FILE when encountered
+in recursive searches.  The default is `.gitignore'.  Files and
+directories matching the globs in FILE are ignored in the directory
+tree rooted at each FILE's location by temporarily overriding
+\fB\-\-exclude\fR and \fB\-\-exclude\-dir\fR globs.  This option may be repeated.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Search only files whose name matches GLOB using wildcard matching,
@@ -269,7 +278,7 @@ slow as every file on the search path is read to compare MAGIC.
 Stop reading the input after NUM matches for each file processed.
 .TP
 \fB\-\-match\fR
-Match input.  Same as specifying an empty pattern to search.
+Match all input.  Same as specifying an empty pattern to search.
 .TP
 \fB\-\-max\-depth\fR=\fINUM\fR
 Restrict recursive search to NUM (NUM > 0) directories deep, where
@@ -282,10 +291,13 @@ If \fB\-R\fR or \fB\-r\fR is specified, restrict the number of files matched to
 NUM.  Specify \fB\-J\fR1 to produce replicable results by ensuring that
 files are searched in the same order as specified.
 .TP
-\fB\-N\fR, \fB\-\-only\-line\-number\fR
-The line number of the matching line in the file is output without
-displaying the match.  The line number counter is reset for each
-file processed.
+\fB\-N\fR \fIPATTERN\fR, \fB\-\-not\-regexp\fR=\fIPATTERN\fR
+Specify a negative PATTERN used during the search of the input: an
+input line is selected only if it matches any of the specified
+patterns when PATTERN does not match.  Same as \fB\-e\fR (?^PATTERN)
+Negative PATTERN matches are removed before any other specified
+patterns are matched.  Note that longer patterns take precedence
+over shorter patterns.  This option may be repeated.
 .TP
 \fB\-n\fR, \fB\-\-line\-number\fR
 Each output line is preceded by its relative line number in the
@@ -316,17 +328,23 @@ the line numbers with option \fB\-n\fR are displayed using `|' as the
 field separator for each additional line matched by the pattern.
 This option cannot be combined with options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR, \fB\-v\fR, and \fB\-y\fR.
 .TP
+\fB\-\-only\-line\-number\fR
+The line number of the matching line in the file is output without
+displaying the match.  The line number counter is reset for each
+file processed.
+.TP
 \fB\-P\fR, \fB\-\-perl\-regexp\fR
 Interpret PATTERN as a Perl regular expression.
 .TP
 \fB\-p\fR, \fB\-\-no\-dereference\fR
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
-they are on the command line.
+they are specified on the command line.
 .TP
 \fB\-\-pager\fR[=\fICOMMAND\fR]
 When output is sent to the terminal, uses COMMAND to page through
 the output.  The default COMMAND is `less \fB\-R\fR'.  This option makes
-\fB\-\-color\fR=auto behave as \fB\-\-color\fR=always.  Enables \fB\-\-break\fR.
+\fB\-\-color\fR=auto behave as \fB\-\-color\fR=always.  Enables \fB\-\-break\fR and
+\fB\-\-line\-buffered\fR.
 .TP
 \fB\-Q\fR \fIENCODING\fR, \fB\-\-encoding\fR=\fIENCODING\fR
 The input file encoding.  The possible values of ENCODING can be:
@@ -377,7 +395,7 @@ extensions passed to option \fB\-O\fR.  For capitalized file types, the
 search is expanded to include files found on the search path with
 matching file signature magic bytes passed to option \fB\-M\fR.  This
 option may be repeated.  The possible values of TYPES can be
-(use option \fB\-t\fRlist to display a detailed list):
+(use option \fB\-t\fRlist to display a more detailed list):
 `actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
 `awk', `Awk', `basic', `batch', `bison', `c', `c++',
 `clojure', `csharp', `css', `csv', `dart', `Dart', `delphi',
@@ -395,7 +413,7 @@ option may be repeated.  The possible values of TYPES can be
 .TP
 \fB\-\-tabs\fR=\fINUM\fR
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
-NUM may be 1, 2, 4, or 8.
+NUM may be 1, 2, 4, or 8.  The default tab size is 8.
 .TP
 \fB\-U\fR, \fB\-\-binary\fR
 Disables Unicode matching for binary file matching, forcing PATTERN
@@ -456,7 +474,7 @@ Decompress files to search, when compressed.  Archives (.cpio,
 .pax, .tar, .zip) and compressed archives (e.g. .taz, .tgz, .tpz,
 .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and matching
 pathnames of files in archives are output in braces.  If \fB\-g\fR, \fB\-O\fR,
-\-M, or \fB\-t\fR is specified, searches files within archives whose name
+\fB\-M\fR, or \fB\-t\fR is specified, searches files within archives whose name
 matches globs, matches file name extensions, matches file
 signature magic bytes, or matches file types, respectively.
 Supported compression formats: gzip (default, optional suffix .gz),
@@ -469,7 +487,7 @@ standard input is used, unless recursive searches are specified which examine
 the working directory.
 .PP
 If no \fIFILE\fR arguments are specified and one of the options \fB-g\fR,
-\fB-t\fR, \fB-O\fR, \fB-M\fR, \fB--include\fR, \fB--include-dir\fR,
+\fB-O\fR, \fB-M\fR, \fB-t\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches
 are enabled, same as \fB-r\fR.
 .PP
@@ -629,7 +647,7 @@ the file pathname.
 .IP \fB%h\fR
 the quoted file pathname.
 .IP \fB%z\fR
-the pathname in a (compressed) tar file.
+the file pathname in a (compressed) archive.
 .IP \fB%n\fR
 the line number of the match.
 .IP \fB%k\fR
@@ -669,9 +687,11 @@ the matching line formatted as XML character data.
 .IP \fB%x\fR
 the match formatted as XML character data.
 .IP \fB%w\fR
-the width of the match, counting (wide) characters.
+the width of the match, counting wide characters.
 .IP \fB%d\fR
 the size of the match, counting bytes.
+.IP \fB%e\fR
+the ending byte offset of the match.
 .IP \fB%,\fR
 if not the first match: a comma, same as \fB%[,]>\fR.
 .IP \fB%:\fR
@@ -757,9 +777,9 @@ $ ugrep -nko -f c/comments myfile
 .PP
 To list the lines that need fixing in a C/C++ source file by looking for the
 word FIXME while skipping any FIXME in quoted strings by using a negative
-pattern `(?^X)' to ignore quoted strings:
+pattern to ignore any pattern matches inside quoted strings:
 .IP
-$ ugrep -no -e 'FIXME' -e '(?^"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*")' myfile
+$ ugrep -no -e 'FIXME' -N '"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*"' myfile
 .PP
 To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
 Unicode pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a
