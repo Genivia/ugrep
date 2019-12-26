@@ -31,7 +31,7 @@ Grep super fast through source code, Unicode text, binary files, cpio/tar/pax/zi
 - Searches archives (cpio, tar, pax, zip)
 - Includes predefined regex patterns to search source code, XML, JSON, HTML, etc.
 - Generates matches in CSV, JSON, XML, and user-specified formats 
-- Runs on Linux, Unix, Mac OS X, and Windows
+- Compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
 
 Table of contents
 -----------------
@@ -203,8 +203,8 @@ Introduction: why use ugrep?
   known to exist that may increase the initial running time of **ugrep** for
   complex DFA construction.
 
-- **ugrep is portable** to Unix/Linux/Mac and compiles with MSVC++ to run on
-  Windows.  Binaries are included for Linux, Mac, and Windows.
+- **ugrep is portable** to Linux, Unix, Mac OS X, and compiles with MSVC++ to
+  run on Windows.  Binaries are included for Mac OS X and Windows.
 
 - **ugrep is free [BSD-3](https://opensource.org/licenses/BSD-3-Clause) source
   code** and does not include any GNU or BSD grep open source code.  **ugrep**
@@ -247,7 +247,7 @@ T5   | `GREP -Fon -f words3+1000 enwik8`                                | search
 T6   | `GREP -Fon -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
 T7   | `GREP -Fon -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
 T8   | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
-T9   | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T8 but single-threaded ugrep (option `-J1`) and ripgrep (option `-j1`)
+T9   | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T8 but single-threaded
 T10  | `GREP -z -Fc word word*.gz`                                      | count `word` in 6 compressed files of 1MB to 3MB each
 
 Note: T8 and T9 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
@@ -276,11 +276,11 @@ ripgep          | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01   
 ugrep           | **0.11** | **0.06** | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
 
 Most of the ugrep tests produce even better performance results without `mmap`
-(option `--no-mmap`) on faster machines, which may be counter-intuitive.
+(option `--no-mmap`) on faster machines.
 
-Option `-z` uses task parallelism to further optimize file reading and
-decompression of compressed files, which may speed up searching a single large
-file, even beating the performance of `mmap`.
+Option `-z` of **ugrep** uses task parallelism to optimize file reading,
+decompression, and searching.  This also may speed up searching a single large
+file, even beating the performance of `mmap`, depending on the machine.
 
 In some cases we decided in favor of features and safety over performance.  For
 example, **ugrep** considers files binary when containing invalid UTF encodings
@@ -344,7 +344,7 @@ To see all options available to you, execute:
 
 Copy `bin/ugrep` to a convenient location, for example in your `bin` directory.
 
-Or you can install the **ugrep** utility and manual page with:
+Or you can install the **ugrep** utility and its manual page with:
 
     $ sudo make install
 
@@ -383,9 +383,9 @@ To work around this problem, run:
 
 Download **ugrep** from https://github.com/Genivia/ugrep
 
-Prebuilt binaries for Linux, Mac OS X, and Windows are included in the `bin`
-directory.  All versions of ugrep are designed to run from the command line
-interface (CLI).
+Prebuilt binaries for Mac OS X and Windows are included in the `bin` directory.
+All versions of ugrep are designed to run from the command line interface
+(CLI).
 
 There are two Windows versions: `ugrep\bin\win32\ugrep.exe` and
 `ugrep\bin\win64\ugrep.exe`.  Depending on your system, add the 32 or 64 bit
@@ -402,8 +402,6 @@ Notes on using `ugrep.exe` from the Windows command line:
 - when specifying an empty pattern `""` to match all input, this may be ignored
   by some Windows command interpreters such as Powershell, in that case use
   option `--match` instead
-
-The Linux binary was built on CentOS 7.6.
 
 <a name="vim"/>
 
@@ -843,6 +841,11 @@ To recursively list all Python files that do not contain the word `display`,
 allowing the word to occur in strings and comments:
 
     ugrep -RL -tPython -w 'display' -f python/zap_strings -f python/zap_comments
+
+To search `myfile.cpp` for lines with `TODO` or `FIXME` but not both on the
+same line, like XOR:
+
+    ugrep -e TODO -e FIXME -N '.*TODO.*FIXME.*' -N '.*FIXME.*TODO.*' myfile.cpp
 
 <a name="unicode"/>
 
@@ -1464,7 +1467,7 @@ To display the line and column numbers of matches in XML with `--xml`:
 
 To change the color palette, set the `GREP_COLORS` environment variable.  Its
 value is a colon-separated list of ANSI SGR parameters that defaults to
-`cx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36` when not assigned:
+`cx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36` when not assigned:
 
 param | result
 ----- | ------------------------------------------------------------------------
@@ -1480,17 +1483,46 @@ param | result
 `bn=` | SGR substring for byte offsets
 `se=` | SGR substring for separators
 
-See Wikipedia [ANSI escape code - SGR parameters](https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters)
+Multiple SGR codes may be specified for a single parameter when separated by a
+semicolon, e.g. `mt=1;31` is bright red.  The following SGR codes are widely
+supported and available on most color terminals, where the "bright" color codes
+90-97 and 100-107 available on newer terminals:
+
+code | effect                     | code | effect
+---- | -------------------------- | ---- | -------------------------------------
+0    | normal font and color      |      |
+1    | bold font and bright color | 21   | bold off
+4    | underline                  | 24   | underline off
+7    | reverse video              | 27   | reverse off
+30   | black foreground           | 90   | bright gray foreground
+31   | red foreground             | 91   | bright red foreground
+32   | green foreground           | 92   | bright green foreground
+33   | yellow foreground          | 93   | bright yellow foreground
+34   | blue foreground            | 94   | bright blue foreground
+35   | magenta foreground         | 95   | bright magenta foreground
+36   | cyan foreground            | 96   | bright cyan foreground
+37   | white foreground           | 97   | bright white foreground
+40   | black background           | 100  | bright gray background
+41   | dark red background        | 101  | bright red background
+42   | dark green background      | 102  | bright green background
+43   | dark yellow backgrounda    | 103  | bright yellow background
+44   | dark blue background       | 104  | bright blue background
+45   | dark magenta background    | 105  | bright magenta background
+46   | dark cyan background       | 106  | bright cyan background
+47   | dark white background      | 107  | bright white background
+
+For more details, see Wikipedia
+[ANSI escape code - SGR parameters](https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters)
 
 For example, to display matches in underlined bright green on bright selected
-lines with a dark gray background, thereby aiding in visualizing white space:
+lines with a dark gray background, aiding in visualizing white space:
 
     export GREP_COLORS='sl=1;100:cx=44:ms=1;4;32;100:mc=1;4;32;44:fn=35:ln=32:cn=32:bn=32:se=36'
 
 For Windows command interpreters that support ANSI escape codes, use
 `SET GREP_COLORS=<params>`.  For example:
 
-    SET GREP_COLORS=cx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36
+    SET GREP_COLORS=sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=1;36
 
 Color intensities may differ per platform and per terminal program used, which
 affects readability.

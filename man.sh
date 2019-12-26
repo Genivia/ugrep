@@ -18,21 +18,22 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
-      [\fB-e\fR \fIPATTERN\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fB-J\fR [\fINUM\fR]]
+[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
+      [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fB-J\fR [\fINUM\fR]]
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
 regular expression (RE) in the pattern matches the input line without its
-trailing newline.  An empty expression matches every line.  Each input line
-that matches at least one of the patterns is written to the standard output.
+trailing newline.  A pattern matches multiple input lines if the RE in the
+pattern matches one or more newlines in the input.  An empty RE matches every
+line.  Each input line that matches at least one of the patterns is written to
+the standard output.
 .PP
-The \fBugrep\fR utility normalizes and decodes encoded input to search for the
-specified ASCII/Unicode patterns.  If the input contains a UTF BOM indicating
-UTF-8, UTF-16, or UTF-32 input, then \fBugrep\fR normalizes the input to UTF-8.
-If no UTF BOM is present, then \fBugrep\fR assumes the input is ASCII, UTF-8,
-or raw binary.  To explicitly specify an input encoding to decode, use option
+The \fBugrep\fR utility accepts input of various encoding formats and
+normalizes the input to UTF-8.  When a UTF BOM is present in the input, the
+input is automatically normalized.  Otherwise, \fBugrep\fR assumes the input is
+ASCII, UTF-8, or raw binary.  To specify the input encoding format, use option
 \fB-Q\fR, \fB--encoding\fR.
 .PP
 The following options are available:
@@ -170,7 +171,7 @@ on a black background.
 May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
-\fBcx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
+\fBcx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
 \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
 \fBGREP_COLOR\fR.
 .SH GREP_COLORS

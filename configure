@@ -742,8 +742,10 @@ enable_dependency_tracking
 with_zlib
 with_bzlib
 with_lzma
+with_grep_colors
 enable_color
 enable_pager
+enable_mmap
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1382,9 +1384,10 @@ Optional Features:
   --disable-dependency-tracking
                           speeds up one-time build
   --enable-color          enable colorized output by default without requiring
-                          ugrep flag --color=auto
+                          ugrep flag --color
   --enable-pager          enable pager by default without requiring ugrep flag
                           --pager
+  --disable-mmap          disable mmap file reading
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1402,6 +1405,9 @@ Optional Packages:
   --with-lzma=DIR         root directory path of lzma installation [defaults to
                           /usr/local or /usr if not found in /usr/local]
   --without-lzma          to disable lzma usage completely
+  --with-grep-colors="GREP_COLORS"
+                          specifies the default ANSI SGR color parameters when
+                          variable GREP_COLORS is undefined
 
 Some influential environment variables:
   CC          C compiler command
@@ -5189,6 +5195,25 @@ $as_echo "#define HAVE_LIBLZMA 1" >>confdefs.h
 fi
 
 
+
+# Check whether --with-grep-colors was given.
+if test "${with_grep_colors+set}" = set; then :
+  withval=$with_grep_colors; with_grep_colors="$withval"
+else
+  with_grep_colors=""
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-grep-colors" >&5
+$as_echo_n "checking for --with-grep-colors... " >&6; }
+if test "x$with_grep_colors" != "x"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: \"$with_grep_colors\"" >&5
+$as_echo "\"$with_grep_colors\"" >&6; }
+  EXTRA_CFLAGS="-DDEFAULT_GREP_COLORS=\"\\\"$with_grep_colors\\\"\" ${EXTRA_FLAGS}"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: " >&5
+$as_echo "" >&6; }
+fi
+
 # Check whether --enable-color was given.
 if test "${enable_color+set}" = set; then :
   enableval=$enable_color; with_color="$enable_color"
@@ -5196,8 +5221,8 @@ else
   with_color="no"
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for enable color by default" >&5
-$as_echo_n "checking for enable color by default... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-color" >&5
+$as_echo_n "checking for --enable-color... " >&6; }
 if test "x$with_color" = "xyes"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
@@ -5214,8 +5239,8 @@ else
   with_pager="no"
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for enable pager by default" >&5
-$as_echo_n "checking for enable pager by default... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-pager" >&5
+$as_echo_n "checking for --enable-pager... " >&6; }
 if test "x$with_pager" = "xyes"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
@@ -5223,6 +5248,24 @@ $as_echo "yes" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+fi
+
+# Check whether --enable-mmap was given.
+if test "${enable_mmap+set}" = set; then :
+  enableval=$enable_mmap; with_no_mmap="yes"
+else
+  with_no_mmap="no"
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --disable-mmap" >&5
+$as_echo_n "checking for --disable-mmap... " >&6; }
+if test "x$with_no_mmap" = "xno"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  EXTRA_CFLAGS="-DMAX_MMAP_SIZE=0 ${EXTRA_CFLAGS}"
 fi
 
 

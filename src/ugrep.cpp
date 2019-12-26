@@ -73,6 +73,9 @@ Prebuilt executables are located in ugrep/bin.
 
 */
 
+// ugrep version
+#define UGREP_VERSION "1.6.9"
+
 #include <reflex/input.h>
 #include <reflex/matcher.h>
 #include <iomanip>
@@ -90,21 +93,6 @@ Prebuilt executables are located in ugrep/bin.
 #include <mutex>
 #include <condition_variable>
 
-#include "glob.hpp"
-
-// use a task-parallel thread to decompress the stream into a pipe to search, increases speed on most systems
-#define WITH_DECOMPRESSION_THREAD
-
-// the default pager when --pager is used
-#define DEFAULT_PAGER "less -R"
-
-// the default ignore file
-#define DEFAULT_IGNORE_FILE ".gitignore"
-
-// optional: specify an optimal decompression block size, default is 65536, must be larger than 1024 for tar extraction
-// #define Z_BUF_LEN 16384
-// #define Z_BUF_LEN 32768
-
 // check if we are compiling for a windows OS
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # define OS_WIN
@@ -112,14 +100,23 @@ Prebuilt executables are located in ugrep/bin.
 
 #ifdef OS_WIN
 
+// optionally enable --color=auto by default
+// #define WITH_COLOR
+
 // optionally enable Boost.Regex
 // #define HAVE_BOOST_REGEX
 
-// optionally enable zlib (requires zlib static library or zlib source code files)
+// optionally enable zlib
 // #define HAVE_LIBZ
 
-// optionally enable --color=auto by default
-// #define WITH_COLOR
+// optionally enable libbz2
+// #define HAVE_LIBBZ2
+
+// optionally enable liblzma
+// #define HAVE_LIBLZMA
+
+// because colors are dim in the Windows command window, use bold & bright except for context and separators
+#define DEFAULT_GREP_COLORS "sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
 
 // disable min/max macros to use std::min and std::max
 #define NOMINMAX
@@ -172,6 +169,8 @@ int pipe(int fd[2])
 
 #endif
 
+#include "glob.hpp"
+
 #ifdef HAVE_BOOST_REGEX
 #include <reflex/boostmatcher.h>
 #endif
@@ -186,19 +185,44 @@ int pipe(int fd[2])
 #define FLAG_COLOR NULL
 #endif
 
+// use a task-parallel thread to decompress the stream into a pipe to search, increases speed on most systems
+#define WITH_DECOMPRESSION_THREAD
+
+// optional: specify an optimal decompression block size, default is 65536, must be larger than 1024 for tar extraction
+// #define Z_BUF_LEN 16384
+// #define Z_BUF_LEN 32768
+
+// the default GREP_COLORS
+#ifndef DEFAULT_GREP_COLORS
+#define DEFAULT_GREP_COLORS "cx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36"
+#endif
+
+// the default pager when --pager is used
+#ifndef DEFAULT_PAGER
+#define DEFAULT_PAGER "less -R"
+#endif
+
+// the default ignore file
+#ifndef DEFAULT_IGNORE_FILE
+#define DEFAULT_IGNORE_FILE ".gitignore"
+#endif
+
 #ifdef WITH_PAGER
 #define FLAG_PAGER DEFAULT_PAGER
 #else
 #define FLAG_PAGER NULL
 #endif
 
-// ugrep version info
-#define UGREP_VERSION "1.6.8"
-
 // ugrep platform -- see configure.ac
 #if !defined(PLATFORM)
 # if defined(OS_WIN)
-#  define PLATFORM "WIN"
+#  if defined(_WIN32)
+#   define PLATFORM "WIN32"
+#  elif defined(_WIN64)
+#   define PLATFORM "WIN64"
+#  else
+#   define PLATFORM "WIN"
+#  endif
 # else
 #  define PLATFORM ""
 # endif
@@ -210,18 +234,28 @@ int pipe(int fd[2])
 #define EXIT_ERROR 2 // An error occurred
 
 // limit the total number of threads spawn (i.e. limit spawn overhead), because grepping is practically IO bound
+#ifndef MAX_JOBS
 #define MAX_JOBS 16U
+#endif
 
 // a hard limit on the recursive search depth
 // TODO use iteration and a stack for virtually unlimited recursion depth, but it is important to have a hard limit
+#ifndef MAX_DEPTH
 #define MAX_DEPTH 100
+#endif
 
 // --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, smaller values result in higher job stealing rates, should not be less than 3
+#ifndef MIN_STEAL
 #define MIN_STEAL 3U
+#endif
 
 // --min-mmap and --max-mmap file size to allocate with mmap(), not greater than 4294967295LL, max 0 disables mmap()
+#ifndef MIN_MMAP_SIZE
 #define MIN_MMAP_SIZE 16384
+#endif
+#ifndef MAX_MMAP_SIZE
 #define MAX_MMAP_SIZE 2147483648LL
+#endif
 
 // use dirent d_type when available
 #ifdef HAVE_STRUCT_DIRENT_D_TYPE
@@ -3807,13 +3841,13 @@ int main(int argc, char **argv)
   // -t list: list table of types and exit
   if (flag_file_types.size() == 1 && flag_file_types[0] == "list")
   {
-    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME EXTENSIONS (-O) AND FILE SIGNATURE 'MAGIC' BYTES (-M)" << std::endl;
+    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME -O EXTENSIONS AND FILE SIGNATURE -M 'MAGIC BYTES'\n";
 
     for (int i = 0; type_table[i].type != NULL; ++i)
     {
-      std::cerr << std::setw(12) << type_table[i].type << " = -O " << type_table[i].extensions << std::endl;
+      std::cerr << std::setw(12) << type_table[i].type << " = -O " << type_table[i].extensions << '\n';
       if (type_table[i].magic)
-        std::cerr << std::setw(19) << "-M '" << type_table[i].magic << "'" << std::endl;
+        std::cerr << std::setw(19) << "-M '" << type_table[i].magic << "'\n";
     }
 
     exit(EXIT_ERROR);
@@ -4272,7 +4306,7 @@ int main(int argc, char **argv)
           if (env_grep_color != NULL)
             set_color(std::string("mt=").append(env_grep_color).c_str(), "mt", color_mt);
           else if (grep_colors == NULL)
-            grep_colors = "mt=1;31:cx=2:fn=35:ln=32:cn=32:bn=32:se=36";
+            grep_colors = DEFAULT_GREP_COLORS;
 
           if (grep_colors != NULL)
           {
@@ -4388,7 +4422,10 @@ int main(int argc, char **argv)
   for (auto& i : flag_glob)
   {
     bool negate = !i.empty() && i.front() == '!';
-    (negate ? flag_exclude : flag_include).emplace_back(i.substr(1));
+    if (negate)
+      flag_exclude.emplace_back(i.substr(1));
+    else
+      flag_include.emplace_back(i);
   }
 
   // -O: add extensions as globs to the --include list
@@ -7321,13 +7358,13 @@ void help(const char *message, const char *arg)
   std::cout << "\
             Supported compression formats: gzip (default, optional suffix .gz),\n\
             compress (requires suffix .Z), zip (requires suffix .zip or .ZIP)";
-#ifdef HAVE_LIBLZMA
-  std::cout << ",\n\
-            lzma (requires suffix .lzma), xz (requires suffix .xz)";
-#endif
 #ifdef HAVE_LIBBZ2
   std::cout << ",\n\
             bzip2 (requires suffix .bz, .bz2, or .bzip2)";
+#endif
+#ifdef HAVE_LIBLZMA
+  std::cout << ",\n\
+            lzma (requires suffix .lzma), and xz (requires suffix .xz)";
 #endif
   std::cout << ".\n";
 #endif
@@ -7353,7 +7390,7 @@ void version()
   std::cout << "ugrep " UGREP_VERSION " " PLATFORM << "\n"
     "Copyright (c) Genivia Inc.\n"
     "License BSD-3-Clause: <https://opensource.org/licenses/BSD-3-Clause>\n"
-    "Written by Robert van Engelen: <https://github.com/Genivia/ugrep>" << std::endl;
+    "Written by Robert van Engelen: <https://github.com/Genivia/ugrep>\n";
   exit(EXIT_OK);
 }
 

@@ -98,10 +98,14 @@ int yywrap(void);
 
 /// Flex-compatible macro: the token value returned upon end-of-file.
 #ifndef YY_NULL
+#ifdef REFLEX_OPTION_token_eof
+#define YY_NULL                 REFLEX_OPTION_token_eof
+#else
 #ifdef REFLEX_OPTION_token_type
 #define YY_NULL                 REFLEX_OPTION_token_type()
 #else
 #define YY_NULL                 (0)
+#endif
 #endif
 #endif
 
