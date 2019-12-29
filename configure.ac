@@ -1,4 +1,4 @@
-AC_INIT(ugrep,1.5)
+AC_INIT(ugrep,1.6)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
 AC_COPYRIGHT([Copyright (C) 2019-2019 Robert van Engelen, Genivia Inc.])
@@ -12,6 +12,21 @@ AX_CHECK_ZLIB([], [echo "libz not found: option -z disabled"])
 AX_CHECK_BZLIB([], [echo "libbz2 not found: option -z won't decompress .bz and .bz2 files"])
 
 AX_CHECK_LZMALIB([], [echo "liblzma not found: option -z won't decompress .lzma and .xz files"])
+
+AC_ARG_WITH(grep-path,
+  [AC_HELP_STRING([--with-grep-path=GREP_PATH],
+                  [specifies the GREP_PATH if different than the default DATAROOTDIR/ugrep/patterns])],
+  [with_grep_path="$withval"],
+  [with_grep_path=""])
+AC_MSG_CHECKING(for --with-grep-path)
+if test "x$with_grep_path" != "x"; then
+  GREP_PATH="$with_grep_path"
+  AC_MSG_RESULT("$with_grep_path")
+else
+  AC_MSG_RESULT()
+  GREP_PATH="${datadir}/ugrep/patterns"
+fi
+AC_SUBST(GREP_PATH)
 
 AC_ARG_WITH(grep-colors,
   [AC_HELP_STRING([--with-grep-colors="GREP_COLORS"],
@@ -52,9 +67,22 @@ else
   AC_MSG_RESULT(no)
 fi
 
+AC_ARG_ENABLE(hidden,
+  [AC_HELP_STRING([--disable-hidden],
+                  [disable searching hidden files and directories unless explicitly enabled with --hidden])],
+  [with_no_hidden="yes"],
+  [with_no_hidden="no"])
+AC_MSG_CHECKING(for --disable-hidden)
+if test "x$with_no_hidden" = "xno"; then
+  AC_MSG_RESULT(no)
+else
+  AC_MSG_RESULT(yes)
+  EXTRA_CFLAGS="-DWITH_NO_HIDDEN ${EXTRA_CFLAGS}"
+fi
+
 AC_ARG_ENABLE(mmap,
   [AC_HELP_STRING([--disable-mmap],
-                  [disable mmap file reading])],
+                  [disable mmap file reading unless explicitly enabled with --mmap])],
   [with_no_mmap="yes"],
   [with_no_mmap="no"])
 AC_MSG_CHECKING(for --disable-mmap)
@@ -62,15 +90,19 @@ if test "x$with_no_mmap" = "xno"; then
   AC_MSG_RESULT(no)
 else
   AC_MSG_RESULT(yes)
-  EXTRA_CFLAGS="-DMAX_MMAP_SIZE=0 ${EXTRA_CFLAGS}"
+  EXTRA_CFLAGS="-DWITH_NO_MMAP ${EXTRA_CFLAGS}"
 fi
 
 AC_SUBST(EXTRA_CFLAGS)
 
+AC_HEADER_DIRENT
 AC_STRUCT_DIRENT_D_INO
 AC_STRUCT_DIRENT_D_TYPE
 
+AC_FUNC_MMAP
+
 AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
 
 AC_PROG_CXX
 AM_PROG_AR
@@ -81,9 +113,6 @@ AC_CANONICAL_HOST
 
 PLATFORM=${host}
 AC_SUBST(PLATFORM)
-
-GREP_PATH=${datadir}/ugrep/patterns
-AC_SUBST(GREP_PATH)
 
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])

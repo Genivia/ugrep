@@ -90,11 +90,10 @@ Introduction: why use ugrep?
 
 - **ugrep is faster than GNU grep and other grep tools**.  We use
   [RE/flex](https://github.com/Genivia/RE-flex) for high-performance regex
-  matching, which is 100 times faster than the GNU C POSIX.2 regex library and
-  10 times faster than PCRE2 and RE2.  **ugrep** is multi-threaded and uses
-  lock-free job queue stealing to search files concurrently.  In addition,
-  option `-z` enables task parallelism to optimize searching compressed files
-  (and large files).  See [speed comparisons](#speed).
+  matching, which is 10 to 100 times faster than PCRE2 and RE2.  **ugrep** is
+  multi-threaded and uses lock-free job queue stealing to search files
+  concurrently.  In addition, option `-z` enables task parallelism to optimize
+  searching compressed files and archives.  See [speed comparisons](#speed).
 
 - **ugrep makes it simple to search source code** with options to select files
   by file type, filename extension, file signature "magic bytes" or shebangs.
@@ -272,11 +271,8 @@ GREP            | T1       | T2       | T3       | T4       | T5       | T6     
 BSD grep        | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 GNU grep        | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
 silver searcher | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.46     | 0.46     | *n/a*    |
-ripgep          | 0.19     | **0.06** | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
-ugrep           | **0.11** | **0.06** | **1.15** | **1.08** | **0.99** | **0.97** | **0.37** | **0.10** | **0.20** | **0.02** |
-
-Most of the ugrep tests produce even better performance results without `mmap`
-(option `--no-mmap`) on faster machines.
+ripgep          | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
+ugrep           | **0.09** | **0.05** | **1.06** | **1.04** | **0.93** | **0.95** | **0.33** | **0.10** | **0.20** | **0.02** |
 
 Option `-z` of **ugrep** uses task parallelism to optimize file reading,
 decompression, and searching.  This also may speed up searching a single large
@@ -327,7 +323,7 @@ Build **ugrep** on Unix-like systems with:
     $ cd ugrep
     $ ./configure && make
 
-This builds `ugrep` in the `ugrep/src` directory and copies it to `ugrep/bin`.
+This builds `ugrep` in the `ugrep/src` directory and copy it to `ugrep/bin`.
 You can tell which version it is with:
 
     $ bin/ugrep -V
@@ -338,11 +334,15 @@ If you prefer to enable colorized output by default without requiring option
 
     $ ./configure --enable-color && make
 
-To see all options available to you, execute:
+To see the details of all build configuration options available, including
+`--with-grep-path=GREP_PATH`, `--with-grep-colors="GREP_COLORS"`,
+`--enable-color`, `--enable-pager`, `--disable-hidden`, and `--disable-mmap`,
+execute:
 
     $ ./configure --help
 
-Copy `bin/ugrep` to a convenient location, for example in your `bin` directory.
+After `make` finishes, copy `bin/ugrep` to a convenient location, for example
+in your `bin` directory.
 
 Or you can install the **ugrep** utility and its manual page with:
 
@@ -491,7 +491,8 @@ empty matches for GNU/BSD compatibility, see details further below.
 
     alias ug     = 'ugrep --color --pager'       # short & quick text pattern search
     alias ux     = 'ugrep --color --pager -UX'   # short & quick binary pattern search
-    alias ugit   = 'ugrep -R --ignore-files      # like git-grep (but options differ)
+    alias uz     = 'ugrep --color --pager -z'    # short & quick compressed files and archives search
+    alias ugit   = 'ugrep -R --ignore-files      # like git-grep
 
     alias grep   = 'ugrep --color --pager -G'    # search with basic regular expressions (BRE)
     alias egrep  = 'ugrep --color --pager -E'    # search with extended regular expressions (ERE)
@@ -573,8 +574,6 @@ empty matches for GNU/BSD compatibility, see details further below.
 Let us know what features you like to have in ugrep.  Here are a couple that we
 are considering:
 
-- Extend the "filter" mechanism to add more filters, e.g. to search Office
-  documents.
 - The speed of matching multiple words is faster than GNU grep (ugrep uses
   Bitap and hashing), but Hyperscan may be slightly faster as it uses SIMD/AVX
   so it makes sense to look into that.
@@ -1050,6 +1049,12 @@ characters of context instead of a single word:
             search is expanded to include files found on the search path with
             matching file signature magic bytes passed to option -M.  This
             option may be repeated.
+
+The file types are listed with `ugrep -tlist`.  The list is based on
+established filename extensions and "magic bytes".  If you have a file type
+that is not listed, use options `-O` and/or `-M`.  You may want to define an
+alias, e.g. `alias ugft='ugrep -Oft'` as a shorthand to search files with
+filename suffix `.ft`.
 
 To recursively display function definitions in C/C++ files (`.h`, `.hpp`, `.c`,
 `.cpp` etc.) with line numbers with `-tc++`, `-o`, `-n`, and `-f c++/functions`:
@@ -1657,6 +1662,7 @@ field     | output
 `%w`      | the width of the match, counting (wide) characters
 `%d`      | the size of the match, counting bytes
 `%e`      | the ending byte offset of the match
+`%u`      | select uniquely matched lines only unless option -u is used
 `%,`      | if not the first match: a comma, same as `%[,]>`
 `%:`      | if not the first match: a colon, same as `%[:]>`
 `%;`      | if not the first match: a semicolon, same as `%[;]>`
@@ -1667,11 +1673,19 @@ field     | output
 
 Note:
 
-- The `[ARG]` part of a field is optional and may be omitted.
+- The `[ARG]` part of a field is optional and may be omitted.  When present,
+  the argument must be placed in `[]` brackets, for example `%[,]F` to output a
+  comma, the pathname, and a separator, if option `-H` is used.
+- Fields `%[SEP]$` and `%u` are switches and do not write anything to the
+  output.
 - The separator used by `%P`, `%H`, `%N`, `%K`, `%B`, and `%S` may be changed
-  by preceeding the field with a `%[SEP]$`.  When `[SEP]` is not provided as in
-  `%$`, reverses the separator to the default separator or the separator
-  specified by `--separator`.
+  by preceeding the field with a `%[SEP]$`.  When `[SEP]` is not provided,
+  reverses the separator to the default separator or the separator specified by
+  `--separator`.
+- Formatted output is written for each matching pattern, which means that a
+  line may be output multiple times when patterns match more than once on the
+  same  line.   Use format field `%u` to output matching lines only once unless
+  option `-u`, `--ungroup` is used or when a newline is matched.
 
 To output matching lines faster by omitting the header output and binary match
 checks, using `--format` with field `%O` (output matching line as is) and field
@@ -2919,8 +2933,6 @@ sub-expression patterns `φ` and `ψ`:
   `\>φ`     | matches `φ` that starts a non-word (top-level `φ`, not for sub-patterns `φ`)
   `φ\<`     | matches `φ` that ends a non-word (top-level `φ`, not nested in a sub-pattern)
   `φ\>`     | matches `φ` that ends a word (top-level `φ`, not nested in a sub-pattern)
-  `\i`      | matches an indent
-  `\j`      | matches a dedent
   `(?i:φ)`  | matches `φ` ignoring case
   `(?s:φ)`  | `.` (dot) in `φ` matches newline
   `(?x:φ)`  | ignore all whitespace and comments in `φ`

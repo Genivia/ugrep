@@ -44,14 +44,17 @@
 #include <streambuf>
 #include <zlib.h>
 
+// Z decompress z_open(), z_read(), z_close()
 #include "zopen.h"
 
+// if we have libbz2 (bzip2), otherwise declare incomplete bz_stream
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #else
 struct bz_stream;
 #endif
 
+// if we have liblzma (xz utils), otherwise declare incomplete lzma_stream
 #ifdef HAVE_LIBLZMA
 #include <lzma.h>
 #else
@@ -122,7 +125,7 @@ class zstreambuf : public std::streambuf {
     Compression method;  // zip compression method
     uint16_t    time;    // zip last mod file time (unused)
     uint16_t    date;    // zip last mod file date (unused)
-    uint32_t    crc;     // zip crc-32 (unused)
+    uint32_t    crc;     // zip crc-32
     uint64_t    size;    // zip compressed file size
     uint64_t    usize;   // zip uncompressed file size (unused)
     std::string name;    // zip file name from local file header or extra field
@@ -131,8 +134,8 @@ class zstreambuf : public std::streambuf {
 
     static constexpr size_t ZIPBLOCK = 65536; // block size to read zip data, at least 64K to fit name
 
-    static constexpr uint32_t HEADER_MAGIC     = 0x04034b50; // zip local file header magic
-    static constexpr uint32_t DESCRIPTOR_MAGIC = 0x08074b50; // zip descriptor magic
+    static constexpr uint32_t ZIP_HEADER_MAGIC     = 0x04034b50; // zip local file header magic
+    static constexpr uint32_t ZIP_DESCRIPTOR_MAGIC = 0x08074b50; // zip descriptor magic
 
     // convert 2 bytes to 16 bit
     static uint16_t u16(const unsigned char *buf)
@@ -168,7 +171,7 @@ class zstreambuf : public std::streambuf {
 
       // read the header data and check header magic
       const unsigned char *data = read_num(30);
-      if (data == NULL || u32(data) != HEADER_MAGIC)
+      if (data == NULL || u32(data) != ZIP_HEADER_MAGIC)
         return false;
 
       // we're reading the zip local file header
@@ -649,7 +652,7 @@ class zstreambuf : public std::streambuf {
         {
           // read data descriptor data and check descriptor magic
           const unsigned char *data = read_num(16);
-          if (data == NULL || u32(data) != DESCRIPTOR_MAGIC)
+          if (data == NULL || u32(data) != ZIP_DESCRIPTOR_MAGIC)
           {
             cannot_decompress(pathname_, "an error was detected in the zip compressed data");
             return false;
@@ -1244,6 +1247,7 @@ class zstreambuf : public std::streambuf {
   unsigned char   buf_[Z_BUF_LEN]; // buffer with decompressed stream data
   std::streamsize cur_;            // current position in buffer to read the stream data, less or equal to len_
   std::streamsize len_;            // length of decompressed data in the buffer
+
 };
 
 #endif

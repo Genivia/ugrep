@@ -2665,7 +2665,7 @@ void Pattern::predict_match_dfa(State& start)
     {
       if (pmh_[i] != 0xFF)
       {
-        if (isprint(i))
+        if (isprint(pmh_[i]))
           DBGLOGN("pmh['%c'] = %2x\n", i, pmh_[i]);
         else
           DBGLOGN("pmh[%3d] = %2x\n", i, pmh_[i]);
@@ -2675,7 +2675,7 @@ void Pattern::predict_match_dfa(State& start)
     {
       if (pma_[i] != 0xFF)
       {
-        if (isprint(i))
+        if (isprint(pma_[i]))
           DBGLOGN("pma['%c'] = %2x\n", i, pma_[i]);
         else
           DBGLOGN("pma[%3d] = %2x\n", i, pma_[i]);
@@ -2859,6 +2859,5 @@ void Pattern::write_namespace_close(FILE *file) const
   }
   ::fprintf(file, "} // namespace %s\n\n", s.substr(i).c_str());
 }
-
 
 } // namespace reflex

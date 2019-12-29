@@ -74,7 +74,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.6.9"
+#define UGREP_VERSION "1.6.10"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -157,11 +157,14 @@ int pipe(int fd[2])
 #include <stdio.h>
 #include <signal.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
+#ifdef HAVE_MMAP
+#include <sys/mman.h>
 #endif
 
 #define PATHSEPCHR '/'
@@ -207,6 +210,7 @@ int pipe(int fd[2])
 #define DEFAULT_IGNORE_FILE ".gitignore"
 #endif
 
+// pager is disabled by default, unless enabled with WITH_PAGER
 #ifdef WITH_PAGER
 #define FLAG_PAGER DEFAULT_PAGER
 #else
@@ -255,6 +259,23 @@ int pipe(int fd[2])
 #endif
 #ifndef MAX_MMAP_SIZE
 #define MAX_MMAP_SIZE 2147483648LL
+#endif
+
+// default --min-mmap
+#define DEFAULT_MIN_MMAP_SIZE MIN_MMAP_SIZE
+
+// default --max-mmap: mmap is enabled by default, unless disabled with WITH_NO_MMAP
+#ifdef WITH_NO_MMAP
+#define DEFAULT_MAX_MMAP_SIZE 0
+#else
+#define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
+#endif
+
+// hidden file and directory search is enabled by default, unless disabled with WITH_NO_HIDDEN
+#ifdef WITH_NO_HIDDEN
+#define DEFAULT_HIDDEN true
+#else
+#define DEFAULT_HIDDEN false
 #endif
 
 // use dirent d_type when available
@@ -331,7 +352,6 @@ bool flag_with_filename            = false;
 bool flag_no_filename              = false;
 bool flag_no_header                = false;
 bool flag_no_messages              = false;
-bool flag_no_hidden                = false;
 bool flag_match                    = false;
 bool flag_count                    = false;
 bool flag_fixed_strings            = false;
@@ -372,6 +392,7 @@ bool flag_csv                      = false;
 bool flag_json                     = false;
 bool flag_xml                      = false;
 bool flag_stdin                    = false;
+bool flag_no_hidden                = DEFAULT_HIDDEN;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
@@ -381,8 +402,8 @@ size_t flag_min_line               = 0;
 size_t flag_max_line               = 0;
 size_t flag_jobs                   = 0;
 size_t flag_tabs                   = 8;
-size_t flag_min_mmap               = MIN_MMAP_SIZE;
-size_t flag_max_mmap               = MAX_MMAP_SIZE;
+size_t flag_min_mmap               = DEFAULT_MIN_MMAP_SIZE;
+size_t flag_max_mmap               = DEFAULT_MAX_MMAP_SIZE;
 size_t flag_min_steal              = MIN_STEAL;
 const char *flag_pager             = FLAG_PAGER;
 const char *flag_color             = FLAG_COLOR;
@@ -717,7 +738,7 @@ struct MMap {
 
   ~MMap()
   {
-#if !defined(OS_WIN) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__) && MAX_MMAP_SIZE > 0
+#if defined(HAVE_MMAP) && MAX_MMAP_SIZE > 0
     if (mmap_base != NULL)
       munmap(mmap_base, mmap_size);
 #endif
@@ -737,7 +758,7 @@ bool MMap::file(reflex::Input& input, const char*& base, size_t& size)
   base = NULL;
   size = 0;
 
-#if !defined(OS_WIN) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__) && MAX_MMAP_SIZE > 0
+#if defined(HAVE_MMAP) && MAX_MMAP_SIZE > 0
 
   // get current input file and check if its encoding is plain
   FILE *file = input.file();
@@ -837,6 +858,7 @@ struct Output {
     :
       lock(),
       file(file),
+      lineno(0),
       dump(*this),
       eof(false)
   {
@@ -1114,6 +1136,7 @@ struct Output {
 
   std::unique_lock<std::mutex> *lock;    // synchronization lock
   FILE                         *file;    // output stream
+  size_t                        lineno;  // last line number matched, when --format field %u (unique) is used
   Dump                          dump;    // hex dump state
   Buffers                       buffers; // buffers container
   Buffers::iterator             buf;     // current buffer in the container
@@ -1373,6 +1396,9 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
 // output formatted match with options --format, --format-open, --format-close
 void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher)
 {
+  if (lineno > 0 && lineno == matcher->lineno() && matcher->lines() == 1)
+    return;
+
   size_t len = 0;
   const char *sep = NULL;
   const char *s = format;
@@ -1642,6 +1668,11 @@ void Output::format(const char *format, const char *pathname, const std::string&
 
       case 'z':
         str(partname);
+        break;
+
+      case 'u':
+        if (!flag_ungroup)
+          lineno = matcher->lineno();
         break;
 
       case '$':
@@ -3373,10 +3404,14 @@ int main(int argc, char **argv)
               flag_glob.emplace_back(arg + 5);
             else if (strncmp(arg, "group-separator=", 16) == 0)
               flag_group_separator = arg + 16;
+            else if (strcmp(arg, "group-separator") == 0)
+              flag_group_separator = "--";
             else if (strcmp(arg, "help") == 0)
               help();
             else if (strcmp(arg, "hex") == 0)
               flag_binary_files = "hex";
+            else if (strcmp(arg, "hidden") == 0)
+              flag_no_hidden = false;
             else if (strcmp(arg, "ignore-case") == 0)
               flag_ignore_case = true;
             else if (strncmp(arg, "ignore-files=", 13) == 0)
@@ -3421,6 +3456,8 @@ int main(int argc, char **argv)
               flag_min_mmap = strtopos(arg + 9, "invalid argument --min-mmap=");
             else if (strncmp(arg, "min-steal=", 10) == 0)
               flag_min_steal = strtopos(arg + 10, "invalid argument --min-steal=");
+            else if (strcmp(arg, "mmap") == 0)
+              flag_max_mmap = MAX_MMAP_SIZE;
             else if (strcmp(arg, "no-dereference") == 0)
               flag_no_dereference = true;
             else if (strcmp(arg, "no-filename") == 0)
@@ -3457,6 +3494,8 @@ int main(int argc, char **argv)
               flag_regexp.emplace_back(arg + 7);
             else if (strncmp(arg, "separator=", 10) == 0)
               flag_separator = arg + 10;
+            else if (strcmp(arg, "separator") == 0)
+              flag_separator = ":";
             else if (strcmp(arg, "smart-case") == 0)
               flag_smart_case = true;
             else if (strcmp(arg, "stats") == 0)
@@ -7082,8 +7121,8 @@ void help(const char *message, const char *arg)
             If that fails, looks for FILE in " GREP_PATH ".\n"
 #endif
 "\
-            When FILE is a `-', standard input is read.  This option may be\n\
-            repeated.\n\
+            When FILE is a `-', standard input is read.  Empty files contain no\n\
+            patterns, thus nothing is matched.  This option may be repeated.\n\
     --format=FORMAT\n\
             Output FORMAT-formatted matches.  See `man ugrep' section FORMAT\n\
             for the `%' fields.  Options -A, -B, -C, -y, and -v are disabled.\n\
@@ -7096,9 +7135,9 @@ void help(const char *message, const char *arg)
             Search only files whose name matches GLOB, same as --include=GLOB.\n\
             If GLOB is preceded by a `!', skip files whose name matches GLOB,\n\
             same as --exclude=GLOB.\n\
-    --group-separator=SEP\n\
-            Use SEP as a group separator for context options -A, -B, and -C. By\n\
-            default SEP is a double hyphen (`--').\n\
+    --group-separator[=SEP]\n\
+            Use SEP as a group separator for context options -A, -B, and -C.\n\
+            The default is a double hyphen (`--').\n\
     -H, --with-filename\n\
             Always print the filename with output lines.  This is the default\n\
             when there is more than one file to search.\n\
@@ -7208,16 +7247,16 @@ void help(const char *message, const char *arg)
     --no-group-separator\n\
             Removes the group separator line from the output for context\n\
             options -A, -B, and -C.\n\
-    --no-hidden\n\
-            Do not search ";
+    --[no-]hidden\n\
+            Do (not) search ";
 #ifdef OS_WIN
   std::cout << "Windows system and ";
 #endif
   std::cout << "hidden files and directories.\n";
 #ifndef OS_WIN
   std::cout << "\
-    --no-mmap\n\
-            Do not use memory maps to search files.  By default, memory maps\n\
+    --[no-]mmap\n\
+            Do (not) use memory maps to search files.  By default, memory maps\n\
             are used under certain conditions to improve performance.\n";
 #endif
   std::cout << "\
@@ -7277,7 +7316,7 @@ void help(const char *message, const char *arg)
     -s, --no-messages\n\
             Silent mode: nonexistent and unreadable files are ignored, i.e.\n\
             their error messages are suppressed.\n\
-    --separator=SEP\n\
+    --separator[=SEP]\n\
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset, and the matched line.  The default is a colon\n\
             (`:').\n\

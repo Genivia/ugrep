@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 25, 2019" "ugrep 1.6.8" "User Commands"
+.TH UGREP "1" "December 29, 2019" "ugrep 1.6.10" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -151,8 +151,8 @@ Read one or more newline\-separated patterns from FILE.  Empty
 pattern lines in FILE are not processed.  If FILE does not exist,
 the GREP_PATH environment variable is used as the path to FILE.
 If that fails, looks for FILE in /usr/local/share/ugrep/patterns.
-When FILE is a `\fB\-'\fR, standard input is read.  This option may be
-repeated.
+When FILE is a `\fB\-'\fR, standard input is read.  Empty files contain no
+patterns, thus nothing is matched.  This option may be repeated.
 .TP
 \fB\-\-format\fR=\fIFORMAT\fR
 Output FORMAT\-formatted matches.  See `man ugrep' section FORMAT
@@ -170,9 +170,9 @@ Search only files whose name matches GLOB, same as \fB\-\-include\fR=\fIGLOB\fR.
 If GLOB is preceded by a `!', skip files whose name matches GLOB,
 same as \fB\-\-exclude\fR=\fIGLOB\fR.
 .TP
-\fB\-\-group\-separator\fR=\fISEP\fR
-Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR. By
-default SEP is a double hyphen (`\fB\-\-\fR').
+\fB\-\-group\-separator\fR[=\fISEP\fR]
+Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
+The default is a double hyphen (`\fB\-\-\fR').
 .TP
 \fB\-H\fR, \fB\-\-with\-filename\fR
 Always print the filename with output lines.  This is the default
@@ -309,11 +309,11 @@ each file processed.
 Removes the group separator line from the output for context
 options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
-\fB\-\-no\-hidden\fR
-Do not search hidden files and directories.
+\fB\-\-\fR[no\-]hidden
+Do (not) search hidden files and directories.
 .TP
-\fB\-\-no\-mmap\fR
-Do not use memory maps to search files.  By default, memory maps
+\fB\-\-\fR[no\-]mmap
+Do (not) use memory maps to search files.  By default, memory maps
 are used under certain conditions to improve performance.
 .TP
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
@@ -376,7 +376,7 @@ default is not to follow symbolic links.
 Silent mode: nonexistent and unreadable files are ignored, i.e.
 their error messages are suppressed.
 .TP
-\fB\-\-separator\fR=\fISEP\fR
+\fB\-\-separator\fR[=\fISEP\fR]
 Use SEP as field separator between file name, line number, column
 number, byte offset, and the matched line.  The default is a colon
 (`:').
@@ -480,8 +480,8 @@ matches globs, matches file name extensions, matches file
 signature magic bytes, or matches file types, respectively.
 Supported compression formats: gzip (default, optional suffix .gz),
 compress (requires suffix .Z), zip (requires suffix .zip or .ZIP),
-lzma (requires suffix .lzma), xz (requires suffix .xz),
-bzip2 (requires suffix .bz, .bz2, or .bzip2).
+bzip2 (requires suffix .bz, .bz2, or .bzip2),
+lzma (requires suffix .lzma), and xz (requires suffix .xz).
 .PP
 If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
 standard input is used, unless recursive searches are specified which examine
@@ -592,7 +592,7 @@ on a black background.
 May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
-\fBcx=2:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
+\fBcx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
 \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
 \fBGREP_COLOR\fR.
 .SH GREP_COLORS
@@ -622,7 +622,7 @@ SGR substring for byte offsets.
 SGR substring for separators.
 .SH FORMAT
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
-Fields may be used in \fIFORMAT\fR which expand into the following values:
+Fields may be used in \fIFORMAT\fR, which expand into the following values:
 .IP \fB%[\fR\fIARG\fR\fB]F\fR
 if option \fB-H\fR is used: \fIARG\fR, the file pathname, and separator.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
@@ -693,6 +693,8 @@ the width of the match, counting wide characters.
 the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
+.IP \fB%u\fR
+select uniquely matched lines only unless option \fB-u\fR is used.
 .IP \fB%,\fR
 if not the first match: a comma, same as \fB%[,]>\fR.
 .IP \fB%:\fR
@@ -707,15 +709,25 @@ the percentage sign.
 the first regex group capture of the match, and so on up to group \fB%9\fR,
 same as \fB%[1]#\fR, requires option \fB-P\fR Perl matching.
 .IP \fB%[\fINUM\fR\fB]#\fR
-the regex group capture \fINUM\fR, requires option \fB-P\fR Perl matching.
+the regex group capture \fINUM\fR, requires option \fB-P\fR.
 .PP
 The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
+When present, the argument must be placed in \fB[]\fR brackets, for example
+\fB%[,]F\fR to output a comma, the pathname, and a separator.
+.PP
+Fields \fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not write
+anything to the output.
 .PP
 The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
 \fB%S\fR may be changed by preceeding the field with a
-\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided as in
-\fB%$\fR, reverses the separator to the default separator or the separator
-specified by \fB--separator\fR.
+\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided,
+reverses the separator to the default separator or the separator specified by
+\fB--separator\fR.
+.PP
+Formatted output is written for each matching pattern, which means that a line
+may be output multiple times when patterns match more than once on the same
+line.  Use format field \fB%u\fR to output matching lines only once unless
+option \fB-u\fR, \fB--ungroup\fR is used or when a newline is matched.
 .PP
 Additional formatting options:
 .IP \fB--format-begin\fR=\fIFORMAT\fR

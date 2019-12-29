@@ -201,7 +201,7 @@ SGR substring for byte offsets.
 SGR substring for separators.
 .SH FORMAT
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
-Fields may be used in \fIFORMAT\fR which expand into the following values:
+Fields may be used in \fIFORMAT\fR, which expand into the following values:
 .IP \fB%[\fR\fIARG\fR\fB]F\fR
 if option \fB-H\fR is used: \fIARG\fR, the file pathname, and separator.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
@@ -272,6 +272,8 @@ the width of the match, counting wide characters.
 the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
+.IP \fB%u\fR
+select uniquely matched lines only unless option \fB-u\fR is used.
 .IP \fB%,\fR
 if not the first match: a comma, same as \fB%[,]>\fR.
 .IP \fB%:\fR
@@ -286,15 +288,25 @@ the percentage sign.
 the first regex group capture of the match, and so on up to group \fB%9\fR,
 same as \fB%[1]#\fR, requires option \fB-P\fR Perl matching.
 .IP \fB%[\fINUM\fR\fB]#\fR
-the regex group capture \fINUM\fR, requires option \fB-P\fR Perl matching.
+the regex group capture \fINUM\fR, requires option \fB-P\fR.
 .PP
 The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
+When present, the argument must be placed in \fB[]\fR brackets, for example
+\fB%[,]F\fR to output a comma, the pathname, and a separator.
+.PP
+Fields \fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not write
+anything to the output.
 .PP
 The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
 \fB%S\fR may be changed by preceeding the field with a
-\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided as in
-\fB%$\fR, reverses the separator to the default separator or the separator
-specified by \fB--separator\fR.
+\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided,
+reverses the separator to the default separator or the separator specified by
+\fB--separator\fR.
+.PP
+Formatted output is written for each matching pattern, which means that a line
+may be output multiple times when patterns match more than once on the same
+line.  Use format field \fB%u\fR to output matching lines only once unless
+option \fB-u\fR, \fB--ungroup\fR is used or when a newline is matched.
 .PP
 Additional formatting options:
 .IP \fB--format-begin\fR=\fIFORMAT\fR

@@ -275,6 +275,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   {
     cur_ = txt_ - buf_ + pos;
   }
+#if !defined(WITH_NO_INDENT)
   /// FSM code META DED.
   inline bool FSM_META_DED()
   {
@@ -293,6 +294,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     ded_ = 0;
     return mrk;
   }
+#endif
   /// FSM code META EOB.
   inline bool FSM_META_EOB(int c1)
   {
@@ -355,11 +357,431 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// Returns true if input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
   virtual size_t match(Method method) ///< Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero if input matched the pattern
-    ;
+  {
+    DBGLOG("BEGIN Matcher::match()");
+    reset_text();
+    len_ = 0; // split text length starts with 0
+scan:
+    txt_ = buf_ + cur_;
+#if !defined(WITH_NO_INDENT)
+    mrk_ = false;
+    ind_ = pos_; // ind scans input in buf[] in newline() up to pos - 1
+    col_ = 0; // count columns for indent matching
+    if (ded_ == 0 && hit_end() && tab_.empty())
+    {
+      if (method == Const::SPLIT && !at_bob() && cap_ != 0 && cap_ != Const::EMPTY)
+      {
+        cap_ = Const::EMPTY;
+        DBGLOG("Split empty at end, cap = %zu", cap_);
+        DBGLOG("END Matcher::match()");
+        return cap_;
+      }
+      cap_ = 0;
+      DBGLOG("END Matcher::match()");
+      return 0;
+    }
+#endif
+find:
+    int c1 = got_;
+    bool bol = at_bol();
+    if (pat_->fsm_)
+      fsm_.c1 = c1;
+#if !defined(WITH_NO_INDENT)
+redo:
+#endif
+    lap_.resize(0);
+    cap_ = 0;
+    bool nul = method == Const::MATCH;
+    if (pat_->fsm_)
+    {
+      DBGLOG("FSM code %p", pat_->fsm_);
+      fsm_.bol = bol;
+      fsm_.nul = nul;
+      pat_->fsm_(*this);
+      nul = fsm_.nul;
+      c1 = fsm_.c1;
+    }
+    else if (pat_->opc_)
+    {
+      const Pattern::Opcode *pc = pat_->opc_;
+      while (true)
+      {
+        Pattern::Opcode opcode = *pc;
+        DBGLOG("Fetch: code[%zu] = 0x%08X", pc - pat_->opc_, opcode);
+        Pattern::Index index;
+        if (Pattern::is_opcode_halt(opcode))
+          break;
+        if (Pattern::is_opcode_meta(opcode))
+        {
+          switch (opcode >> 16)
+          {
+            case 0xFF00: // TAKE
+              cap_ = Pattern::index_of(opcode);
+              DBGLOG("Take: cap = %zu", cap_);
+              cur_ = pos_;
+              ++pc;
+              continue;
+            case 0xFF7E: // TAIL
+              index = Pattern::index_of(opcode);
+              DBGLOG("Tail: %u", index);
+              if (lap_.size() > index && lap_[index] >= 0)
+                cur_ = txt_ - buf_ + static_cast<size_t>(lap_[index]); // mind the (new) gap
+              ++pc;
+              continue;
+            case 0xFF7F: // HEAD
+              index = Pattern::index_of(opcode);
+              DBGLOG("Head: lookahead[%u] = %zu", index, pos_ - (txt_ - buf_));
+              if (lap_.size() <= index)
+                lap_.resize(index + 1, -1);
+              lap_[index] = static_cast<int>(pos_ - (txt_ - buf_)); // mind the gap
+              ++pc;
+              continue;
+#if !defined(WITH_NO_INDENT)
+            case 0xFF00 | Pattern::META_DED:
+              if (ded_ > 0)
+              {
+                index = Pattern::index_of(opcode);
+                DBGLOG("Dedent ded = %zu", ded_); // unconditional dedent matching \j
+                nul = true;
+                pc = pat_->opc_ + index;
+                continue;
+              }
+#endif
+          }
+          if (c1 == EOF)
+            break;
+          int c0 = c1;
+          c1 = get();
+          DBGLOG("Get: c1 = %d", c1);
+          Pattern::Index back = Pattern::Const::IMAX; // where to jump back to (backtrack on meta transitions)
+          Pattern::Index la;
+          index = Pattern::Const::IMAX;
+          while (true)
+          {
+            if (Pattern::is_opcode_meta(opcode) && (index == Pattern::Const::IMAX || back == Pattern::Const::IMAX))
+            {
+              // we no longer have to pass through all if index and back are set
+              switch (opcode >> 16)
+              {
+                case 0xFF00: // TAKE
+                  cap_ = Pattern::index_of(opcode);
+                  DBGLOG("Take: cap = %zu", cap_);
+                  cur_ = pos_;
+                  if (c1 != EOF)
+                    --cur_; // must unget one char
+                  opcode = *++pc;
+                  continue;
+                case 0xFF7E: // TAIL
+                  la = Pattern::index_of(opcode);
+                  DBGLOG("Tail: %u", la);
+                  if (lap_.size() > la && lap_[la] >= 0)
+                    cur_ = txt_ - buf_ + static_cast<size_t>(lap_[la]); // mind the (new) gap
+                  opcode = *++pc;
+                  continue;
+                case 0xFF7F: // HEAD
+                  opcode = *++pc;
+                  continue;
+#if !defined(WITH_NO_INDENT)
+                case 0xFF00 | Pattern::META_DED:
+                  DBGLOG("DED? %d", c1);
+                  if (index == Pattern::Const::IMAX && back == Pattern::Const::IMAX && bol && dedent())
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_IND:
+                  DBGLOG("IND? %d", c1);
+                  if (index == Pattern::Const::IMAX && back == Pattern::Const::IMAX && bol && indent())
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_UND:
+                  DBGLOG("UND");
+                  if (mrk_)
+                    index = Pattern::index_of(opcode);
+                  mrk_ = false;
+                  ded_ = 0;
+                  opcode = *++pc;
+                  continue;
+#endif
+                case 0xFF00 | Pattern::META_EOB:
+                  DBGLOG("EOB? %d", c1);
+                  if (index == Pattern::Const::IMAX && c1 == EOF)
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_BOB:
+                  DBGLOG("BOB? %d", at_bob());
+                  if (index == Pattern::Const::IMAX && at_bob())
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_EOL:
+                  DBGLOG("EOL? %d", c1);
+                  if (index == Pattern::Const::IMAX && (c1 == EOF || c1 == '\n'))
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_BOL:
+                  DBGLOG("BOL? %d", bol);
+                  if (index == Pattern::Const::IMAX && bol)
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_EWE:
+                  DBGLOG("EWE? %d %d %d", c0, c1, isword(c0) && !isword(c1));
+                  if (index == Pattern::Const::IMAX && isword(c0) && !isword(c1))
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_BWE:
+                  DBGLOG("BWE? %d %d %d", c0, c1, !isword(c0) && isword(c1));
+                  if (index == Pattern::Const::IMAX && !isword(c0) && isword(c1))
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_EWB:
+                  DBGLOG("EWB? %d", at_eow());
+                  if (index == Pattern::Const::IMAX && at_eow())
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_BWB:
+                  DBGLOG("BWB? %d", at_bow());
+                  if (index == Pattern::Const::IMAX && at_bow())
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_NWE:
+                  DBGLOG("NWE? %d %d %d", c0, c1, isword(c0) == isword(c1));
+                  if (index == Pattern::Const::IMAX && isword(c0) == isword(c1))
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+                case 0xFF00 | Pattern::META_NWB:
+                  DBGLOG("NWB? %d %d", at_bow(), at_eow());
+                  if (index == Pattern::Const::IMAX && !at_bow() && !at_eow())
+                    index = Pattern::index_of(opcode);
+                  opcode = *++pc;
+                  continue;
+              }
+            }
+            if (index == Pattern::Const::IMAX)
+            {
+              if (back != Pattern::Const::IMAX)
+              {
+                pc = pat_->opc_ + back;
+                opcode = *pc;
+              }
+              break;
+            }
+            DBGLOG("Backtrack: pc = %u", index);
+            if (back == Pattern::Const::IMAX)
+              back = static_cast<Pattern::Index>(pc - pat_->opc_);
+            pc = pat_->opc_ + index;
+            opcode = *pc;
+            index = Pattern::Const::IMAX;
+          }
+          if (c1 == EOF)
+            break;
+        }
+        else
+        {
+          if (c1 == EOF)
+            break;
+          c1 = get();
+          DBGLOG("Get: c1 = %d", c1);
+          if (c1 == EOF)
+            break;
+        }
+        Pattern::Opcode lo = c1 << 24;
+        Pattern::Opcode hi = lo | 0x00FFFFFF;
+unrolled:
+        if (hi < opcode || lo > (opcode << 8))
+        {
+          opcode = *++pc;
+          if (hi < opcode || lo > (opcode << 8))
+          {
+            opcode = *++pc;
+            if (hi < opcode || lo > (opcode << 8))
+            {
+              opcode = *++pc;
+              if (hi < opcode || lo > (opcode << 8))
+              {
+                opcode = *++pc;
+                if (hi < opcode || lo > (opcode << 8))
+                {
+                  opcode = *++pc;
+                  if (hi < opcode || lo > (opcode << 8))
+                  {
+                    opcode = *++pc;
+                    if (hi < opcode || lo > (opcode << 8))
+                    {
+                      opcode = *++pc;
+                      if (hi < opcode || lo > (opcode << 8))
+                      {
+                        opcode = *++pc;
+                        goto unrolled;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        index = Pattern::index_of(opcode);
+        if (index == Pattern::Const::IMAX)
+          break;
+        if (index == 0 && cap_ == 0) // failed to match so far, set cur_ to move forward from cur_ + 1 with FIND advance()
+          cur_ = pos_;
+        pc = pat_->opc_ + index;
+      }
+    }
+#if !defined(WITH_NO_INDENT)
+    if (mrk_ && cap_ != Const::EMPTY)
+    {
+      if (col_ > 0 && (tab_.empty() || tab_.back() < col_))
+      {
+        DBGLOG("Set new stop: tab_[%zu] = %zu", tab_.size(), col_);
+        tab_.push_back(col_);
+      }
+      else if (!tab_.empty() && tab_.back() > col_)
+      {
+        size_t n;
+        for (n = tab_.size() - 1; n > 0; --n)
+          if (tab_.at(n - 1) <= col_)
+            break;
+        ded_ += tab_.size() - n;
+        DBGLOG("Dedents: ded = %zu tab_ = %zu", ded_, tab_.size());
+        tab_.resize(n);
+        if (n > 0)
+          tab_.back() = col_; // adjust stop when indents are not aligned (Python would give an error)
+      }
+    }
+    if (ded_ > 0)
+    {
+      DBGLOG("Dedents: ded = %zu", ded_);
+      if (col_ == 0 && bol)
+      {
+        ded_ += tab_.size();
+        tab_.resize(0);
+        DBGLOG("Rescan for pending dedents: ded = %zu", ded_);
+        pos_ = ind_;
+        bol = false; // avoid looping, match \j exactly
+        goto redo;
+      }
+      --ded_;
+    }
+#endif
+    if (method == Const::SPLIT)
+    {
+      DBGLOG("Split: len = %zu cap = %zu cur = %zu pos = %zu end = %zu txt-buf = %zu eob = %d got = %d", len_, cap_, cur_, pos_, end_, txt_-buf_, (int)eof_, got_);
+      if (cap_ == 0 || (cur_ == static_cast<size_t>(txt_ - buf_) && !at_bob()))
+      {
+        if (!hit_end() && (txt_ + len_ < buf_ + end_ || peek() != EOF))
+        {
+          ++len_;
+          DBGLOG("Split continue: len = %zu", len_);
+          set_current(++cur_);
+          goto find;
+        }
+        if (got_ != Const::EOB)
+        {
+          cap_ = Const::EMPTY;
+          set_current(pos_);
+          got_ = Const::EOB;
+        }
+        DBGLOG("Split at eof: cap = %zu txt = '%s' len = %zu", cap_, std::string(txt_, len_).c_str(), len_);
+        DBGLOG("END Matcher::match()");
+        return cap_;
+      }
+      if (cur_ == 0 && at_bob() && at_end())
+        cap_ = Const::EMPTY;
+      set_current(cur_);
+      DBGLOG("Split: txt = '%s' len = %zu", std::string(txt_, len_).c_str(), len_);
+      DBGLOG("END Matcher::match()");
+      return cap_;
+    }
+    if (cap_ == 0)
+    {
+      if (method == Const::FIND && !at_end())
+      {
+        if (pos_ == cur_ + 1) // early fail after one non-matching char, i.e. no META executed
+        {
+          if (advance())
+          {
+            txt_ = buf_ + cur_;
+            goto find;
+          }
+        }
+        else if (pos_ > cur_) // we didn't fail on META alone
+        {
+          if (advance())
+            goto scan;
+        }
+        txt_ = buf_ + cur_;
+      }
+      else
+      {
+        cur_ = txt_ - buf_; // no match: backup to begin of unmatched text
+      }
+    }
+    len_ = cur_ - (txt_ - buf_);
+    if (len_ == 0 && !nul)
+    {
+      DBGLOG("Empty or no match cur = %zu pos = %zu end = %zu", cur_, pos_, end_);
+      pos_ = cur_;
+      if (at_end())
+      {
+        set_current(cur_);
+        DBGLOG("Reject empty match at EOF");
+        cap_ = 0;
+      }
+      else if (method == Const::FIND)
+      {
+        DBGLOG("Reject empty match and continue?");
+        set_current(++cur_); // skip one char to keep searching
+        if (cap_ == 0 || !opt_.N || (!bol && c1 == '\n')) // allow FIND with "N" to match an empty line, with ^$ etc.
+          goto scan;
+        DBGLOG("Accept empty match");
+      }
+      else
+      {
+        set_current(cur_);
+        DBGLOG("Reject empty match");
+        cap_ = 0;
+      }
+    }
+    else if (len_ == 0 && cur_ == end_)
+    {
+      DBGLOG("Hit end: got = %d", got_);
+      if (cap_ == Const::EMPTY && !opt_.A)
+        cap_ = 0;
+    }
+    else
+    {
+      set_current(cur_);
+      if (len_ > 0)
+      {
+        if (cap_ == Const::EMPTY && !opt_.A)
+        {
+          DBGLOG("Ignore accept and continue: len = %zu", len_);
+          len_ = 0;
+          if (method != Const::MATCH)
+            goto scan;
+          cap_ = 0;
+        }
+      }
+    }
+    DBGLOG("Return: cap = %zu txt = '%s' len = %zu pos = %zu got = %d", cap_, std::string(txt_, len_).c_str(), len_, pos_, got_);
+    DBGLOG("END match()");
+    return cap_;
+  }
   /// Returns true if able to advance to next possible match
   bool advance()
     /// @returns true if possible match found
     ;
+#if !defined(WITH_NO_INDENT)
   /// Update indentation column counter for indent() and dedent().
   inline void newline()
   {
@@ -382,88 +804,12 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     newline();
     return !tab_.empty() && tab_.back() > col_;
   }
+#endif
   /// Boyer-Moore preprocessing of the given pattern pat of length len, generates bmd_ > 0 and bms_[] shifts.
   void boyer_moore_init(
       const char *pat, ///< pattern string
       size_t      len) ///< nonzero length of the pattern string, should be less than 256
-  {
-    // Relative frquency table of English letters, source code, and UTF-8 bytes
-    static unsigned char freq[256] = "\0\0\0\0\0\0\0\0\0\73\4\0\0\4\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\73\70\70\1\1\2\2\70\70\70\2\2\70\70\70\2\3\3\3\3\3\3\3\3\3\3\70\70\70\70\70\70\2\35\14\24\26\37\20\17\30\33\11\12\25\22\32\34\15\7\27\31\36\23\13\21\10\16\6\70\1\70\2\70\1\67\46\56\60\72\52\51\62\65\43\44\57\54\64\66\47\41\61\63\71\55\45\53\42\50\40\70\2\70\2\0\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\0\0\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\46\56\56\56\56\56\56\56\56\56\56\56\56\46\56\56\73\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-    size_t i;
-    for (i = 0; i < 256; ++i)
-      bms_[i] = static_cast<uint8_t>(len);
-    size_t sum = 0;
-    lcp_ = 0;
-    for (i = 0; i < len; ++i)
-    {
-      uint8_t pch = static_cast<uint8_t>(pat[i]);
-      bms_[pch] = static_cast<uint8_t>(len - i - 1);
-      sum += bms_[pch];
-      if (freq[static_cast<uint8_t>(pat[lcp_])] > freq[pch])
-        lcp_ = i;
-    }
-    size_t j;
-    for (i = len - 1, j = i; j > 0; --j)
-      if (pat[j - 1] == pat[i])
-        break;
-    bmd_ = i - j + 1;
-    sum /= len;
-    uint8_t fch = freq[static_cast<uint8_t>(pat[lcp_])];
-    if (sum > 1 && fch > 35 && (sum > 3 || fch > 48) && fch + sum > 48)
-      lcp_ = 0xffff;
-  }
-  /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4).
-  static inline bool predict_match(const Pattern::Pred pmh[], const char *s, size_t n)
-  {
-    Pattern::Hash h = static_cast<uint8_t>(*s);
-    if (pmh[h] & 1)
-      return false;
-    h = Pattern::hash(h, static_cast<uint8_t>(*++s));
-    if (pmh[h] & 2)
-      return false;
-    h = Pattern::hash(h, static_cast<uint8_t>(*++s));
-    if (pmh[h] & 4)
-      return false;
-    h = Pattern::hash(h, static_cast<uint8_t>(*++s));
-    if (pmh[h] & 8)
-      return false;
-    Pattern::Pred m = 16;
-    const char *e = s + n - 3;
-    while (++s < e)
-    {
-      h = Pattern::hash(h, static_cast<uint8_t>(*s));
-      if (pmh[h] & m)
-        return false;
-      m <<= 1;
-    }
-    return true;
-  }
-  /// Returns zero when match is predicted or nonzero shift value, based on s[0..3].
-  static inline size_t predict_match(const Pattern::Pred pma[], const char *s)
-  {
-    uint8_t b0 = s[0];
-    uint8_t b1 = s[1];
-    uint8_t b2 = s[2];
-    uint8_t b3 = s[3];
-    Pattern::Hash h1 = Pattern::hash(b0, b1);
-    Pattern::Hash h2 = Pattern::hash(h1, b2);
-    Pattern::Hash h3 = Pattern::hash(h2, b3);
-    Pattern::Pred a0 = pma[b0];
-    Pattern::Pred a1 = pma[h1];
-    Pattern::Pred a2 = pma[h2];
-    Pattern::Pred a3 = pma[h3];
-    Pattern::Pred p = (a0 & 0xc0) | (a1 & 0x30) | (a2 & 0x0c) | (a3 & 0x03);
-    Pattern::Pred m = (p >> 5) | (p >> 3) | (p >> 1) | p;
-    if (m != 0xff)
-      return 0;
-    if ((pma[b1] & 0xc0) != 0xc0)
-      return 1;
-    if ((pma[b2] & 0xc0) != 0xc0)
-      return 2;
-    if ((pma[b3] & 0xc0) != 0xc0)
-      return 3;
-    return 4;
-  }
+    ;
   size_t            ded_;      ///< dedent count
   size_t            col_;      ///< column counter for indent matching, updated by newline(), indent(), and dedent()
   Stops             tab_;      ///< tab stops set by detecting indent margins
