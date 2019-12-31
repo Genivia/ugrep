@@ -18,9 +18,15 @@ skipping all matches of identifiers in comments and strings:
 
 Pattern files contain one or more regex patters, one pattern per line.  Empty
 lines and lines starting with a `#` are ignored in pattern files.  A starting
-line with `###-o` auto-enables option `-o` for all patterns matched.
+line with `###-o` auto-enables option `-o` for all patterns matched.  Use `\#`
+to define a pattern that starts with a `#` on a line.
 
 Patterns that requiring Unicode matching should be placed in Unicode mode with
 `(?u:X)`, just in case to prevent ugrep option `-U` from disabling them.
+
+Some programming languages permit nested comments, e.g. rust, scala, and swift.
+Comments with nested comments are truncated at the first nested `*/` when
+matched with a regex pattern, because of the fundamental limitations of regular
+expression matching.
 
 We love to receive your contributions to this effort! ❤️

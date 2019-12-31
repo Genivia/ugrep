@@ -1,13 +1,38 @@
 AC_INIT(ugrep,1.6)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
-AC_COPYRIGHT([Copyright (C) 2019-2019 Robert van Engelen, Genivia Inc.])
+AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
 
 AC_CONFIG_MACRO_DIR([m4])
 
+AC_HEADER_DIRENT
+AC_STRUCT_DIRENT_D_INO
+AC_STRUCT_DIRENT_D_TYPE
+
+AC_FUNC_MMAP
+
+AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
+
+AC_PROG_CXX
+AM_PROG_AR
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+
+AC_CANONICAL_HOST
+
+PLATFORM=${host}
+AC_SUBST(PLATFORM)
+
+# Mac OS X has slow memory mapped files so we're disabling mmap
+case "$PLATFORM" in
+  *-apple-*)    EXTRA_CFLAGS="-DWITH_NO_MMAP ${EXTRA_CFLAGS}"
+                ;;
+esac
+
 AX_BOOST_REGEX
 
-AX_CHECK_ZLIB([], [echo "libz not found: option -z disabled"])
+AX_CHECK_ZLIB([], [echo "zlib not found: option -z disabled"])
 
 AX_CHECK_BZLIB([], [echo "libbz2 not found: option -z won't decompress .bz and .bz2 files"])
 
@@ -36,7 +61,7 @@ AC_ARG_WITH(grep-colors,
 AC_MSG_CHECKING(for --with-grep-colors)
 if test "x$with_grep_colors" != "x"; then
   AC_MSG_RESULT("$with_grep_colors")
-  EXTRA_CFLAGS="-DDEFAULT_GREP_COLORS=\"\\\"$with_grep_colors\\\"\" ${EXTRA_FLAGS}"
+  EXTRA_CFLAGS="-DDEFAULT_GREP_COLORS=\"\\\"$with_grep_colors\\\"\" ${EXTRA_CFLAGS}"
 else
   AC_MSG_RESULT()
 fi
@@ -82,7 +107,7 @@ fi
 
 AC_ARG_ENABLE(mmap,
   [AC_HELP_STRING([--disable-mmap],
-                  [disable mmap file reading unless explicitly enabled with --mmap])],
+                  [disable memory mapped files unless explicitly enabled with --mmap])],
   [with_no_mmap="yes"],
   [with_no_mmap="no"])
 AC_MSG_CHECKING(for --disable-mmap)
@@ -94,25 +119,6 @@ else
 fi
 
 AC_SUBST(EXTRA_CFLAGS)
-
-AC_HEADER_DIRENT
-AC_STRUCT_DIRENT_D_INO
-AC_STRUCT_DIRENT_D_TYPE
-
-AC_FUNC_MMAP
-
-AC_TYPE_SIZE_T
-AC_TYPE_SSIZE_T
-
-AC_PROG_CXX
-AM_PROG_AR
-AC_PROG_RANLIB
-AC_PROG_INSTALL
-
-AC_CANONICAL_HOST
-
-PLATFORM=${host}
-AC_SUBST(PLATFORM)
 
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])

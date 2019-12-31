@@ -273,7 +273,7 @@ the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
 .IP \fB%u\fR
-select uniquely matched lines only unless option \fB-u\fR is used.
+select unique lines only unless option \fB-u\fR is used.
 .IP \fB%,\fR
 if not the first match: a comma, same as \fB%[,]>\fR.
 .IP \fB%:\fR
@@ -305,8 +305,9 @@ reverses the separator to the default separator or the separator specified by
 .PP
 Formatted output is written for each matching pattern, which means that a line
 may be output multiple times when patterns match more than once on the same
-line.  Use format field \fB%u\fR to output matching lines only once unless
-option \fB-u\fR, \fB--ungroup\fR is used or when a newline is matched.
+line.  When field \fB%u\fR is found anywhere in the specified format string,
+matching lines are output only once unless option \fB-u\fR, \fB--ungroup\fR is
+used or when a newline is matched.
 .PP
 Additional formatting options:
 .IP \fB--format-begin\fR=\fIFORMAT\fR

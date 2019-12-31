@@ -3,8 +3,8 @@ C patterns
 
 Traditional C with non-Unicode identifiers.
 
-- `comments` matches comment
--u `defines` matches `#define` lines
+- `comments` matches comments
+- `defines` matches `#define` lines
 - `directives` matches #-directives
 - `doc_comments` matches Doxygen comments
 - `enums` matches enumerations
