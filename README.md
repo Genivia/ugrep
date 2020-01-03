@@ -407,20 +407,34 @@ Notes on using `ugrep.exe` from the Windows command line:
 
 ### Using ugrep within Vim
 
-Add to `.vimrc`:
+First, let's define the `:grep` command in Vim to search files recursively.  To
+do so, add the following lines to your `.vimrc` located in the root directory:
 
     if executable('ugrep')
-        set grepprg=ugrep\ -Rnk\ -u\ --tabs=1
+        set grepprg=ugrep\ -RInk\ -j\ -u\ --tabs=1\ --no-hidden\ --ignore-files
         set grepformat=%f:%l:%c:%m,%f+%l+%c+%m,%-G%f\\\|%l\\\|%c\\\|%m
     endif
 
-Within Vim you can now use **ugrep** with the Vim `:grep` command to search one
-or more files on a specified `PATH` (optional, search working directory
-recursively by default) for `PATTERN` matches:
+This specifies case insensitive searches with the Vim `:grep` command.  For
+case sensitive searches, remove `\ -j` from `grepprg`.  Multiple matches on the
+same line are listed in the quickfix window separately.  If this is not
+desired, remove `\ -u` from `grepprg`.  With this change, only the first match
+on a line is shown.  Option `--no-hidden` skips hidden files (dotfiles) and
+option `--ignore-files` skips files specified in `.gitignore` files, when
+present.  To limit the depth of recursive searches to the current directory
+only, append `\ --max-depth=1` to `grepprg`.
+
+You can now invoke the Vim `:grep` command in Vim to search files on a
+specified `PATH` for `PATTERN` matches:
 
     :grep PATTERN [PATH]
 
-This query shows the results in a
+If you omit `PATH`, then the working directory is searched.  Use `%` as `PATH`
+to search only the currently opened file in Vim:
+
+    :grep PATTERN %
+
+The `:grep` command shows the results in a
 [quickfix](http://vimdoc.sourceforge.net/htmldoc/quickfix.html#:grep) window
 that allows you to quickly jump to the matches found.
 
@@ -436,26 +450,45 @@ recursively search C++ source code marked `FIXME` in the working directory:
 
     :grep -tc++ FIXME
 
-Use `%` as `PATH` to search the current file in Vim:
-
-    :grep FIXME %
-
 To close the quickfix window:
 
     :cclose
 
-Note that multiple matches on the same line are listed in the quickfix window
-separately.  If this is not desired then remove `\ -u` from `grepprg` in
-`.vimrc`.  With this change, only the first match on a line is shown.
-
-You can use **ugrep** options with the Vim `:grep` command, for example to
+You can use **ugrep** options with the `:grep` command, for example to
 select single- and multi-line comments in the current file:
 
     :grep -f c++/comments %
 
 Only the first line of a multi-line comment is shown in quickfix, to save
-space.  To show all lines of a multi-line match, remove `%-G` from `grepformat`
-in `.vimrc`.
+space.  To show all lines of a multi-line match, remove `%-G` from
+`grepformat`.
+
+A popular Vim tool is [ctrlp.vim](http://kien.github.io/ctrlp.vim), which is
+installed with:
+
+    $ cd ~/.vim
+    $ git clone https://github.com/kien/ctrlp.vim.git bundle/ctrlp.vim
+
+CtrlP uses **ugrep** by adding the following lines to your `.vimrc`:
+
+    if executable('ugrep')
+        set runtimepath^=~/.vim/bundle/ctrlp.vim
+        let g:ctrlp_match_window='bottom,order:ttb'
+        let g:ctrlp_user_command='ugrep %s -RIl --no-hidden --ignore-files --max-depth=3'
+    endif
+
+Option `--no-hidden` skips hidden files (dotfiles), option `--ignore-files`
+skips files specified in `.gitignore` files, when present, and option
+`--max-depth=3` restricts searching directories to three levels deep.
+NOte that binary files are ignored with option `-I`.
+
+Start Vim then enter the command:
+
+    :helptags ~/.vim/bundle/ctrlp.vim/doc
+
+To view the CtrlP documentation in Vim, enter the command:
+
+    :help ctrlp.txt
 
 <a name="comparison"/>
 
@@ -2887,7 +2920,7 @@ in markdown:
 
 
 
-    ugrep 1.6.11                   December 31, 2019                      UGREP(1)
+    ugrep 1.6.12                   January 03, 2020                       UGREP(1)
 
 <a name="patterns"/>
 

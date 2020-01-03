@@ -30,14 +30,8 @@
 @file      ugrep.cpp
 @brief     Universal grep - a pattern search utility written in C++11
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
-
-Universal grep: high-performance file search utility.  Supersedes GNU and BSD
-grep with full Unicode support.  Offers easy options and predefined regex
-patterns to quickly search source code, text, and binary files in large
-directory trees.  Compatible with GNU/BSD grep, offering a faster drop-in
-replacement.
 
 For download and installation instructions:
 
@@ -51,6 +45,8 @@ Optional libraries to support options -P and -z:
 
   Boost.Regex
   zlib
+  libbz2
+  liblzma
 
 Build ugrep as follows:
 
@@ -74,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.6.11"
+#define UGREP_VERSION "1.6.12"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -4150,10 +4146,10 @@ int main(int argc, char **argv)
         // add line to the regex if not empty
         if (!line.empty())
         {
-          // enable -o when the first line is ###-o
+          // enable -o when the first line is ###-o, skip ###-comments
           if (lineno == 1 && line == "###-o")
             flag_only_matching = true;
-          else
+          else if (line.substr(0, 3) != "###")
             regex.append(Q).append(line).append(E);
         }
       }
@@ -5437,10 +5433,19 @@ void Grep::search(const char *pathname)
 
         read_file();
 
+        // -I: do not match binary
+        if (flag_binary_without_matches)
+        {
+          const char *eol = matcher->eol(); // warning: call eol() before bol()
+          const char *bol = matcher->bol();
+          if (is_binary(bol, eol - bol))
+            goto exit_search;
+        }
+
         matches = matcher->find() != 0;
 
         // -K: max line exceeded?
-        if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
+        if (matches > 0 && flag_max_line > 0 && matcher->lineno() > flag_max_line)
           matches = 0;
 
         if (flag_invert_match)
@@ -5492,7 +5497,16 @@ void Grep::search(const char *pathname)
 
           read_file();
 
-          while (matcher->find() != 0)
+          // -I: do not match binary
+          if (flag_binary_without_matches)
+          {
+            const char *eol = matcher->eol(); // warning: call eol() before bol()
+            const char *bol = matcher->bol();
+            if (is_binary(bol, eol - bol))
+              goto exit_search;
+          }
+
+          while (matcher->find())
           {
             // -K: max line exceeded?
             if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
@@ -5512,6 +5526,15 @@ void Grep::search(const char *pathname)
           size_t lineno = 0;
 
           read_file();
+
+          // -I: do not match binary
+          if (flag_binary_without_matches)
+          {
+            const char *eol = matcher->eol(); // warning: call eol() before bol()
+            const char *bol = matcher->bol();
+            if (is_binary(bol, eol - bol))
+              goto exit_search;
+          }
 
           while (matcher->find())
           {
@@ -5634,6 +5657,15 @@ void Grep::search(const char *pathname)
 
         read_file();
 
+        // -I: do not match binary
+        if (flag_binary_without_matches)
+        {
+          const char *eol = matcher->eol(); // warning: call eol() before bol()
+          const char *bol = matcher->bol();
+          if (is_binary(bol, eol - bol))
+            goto exit_search;
+        }
+
         while (matcher->find())
         {
           size_t current_lineno = matcher->lineno();
@@ -5674,6 +5706,15 @@ void Grep::search(const char *pathname)
         size_t lineno = 0;
 
         read_file();
+
+        // -I: do not match binary
+        if (flag_binary_without_matches)
+        {
+          const char *eol = matcher->eol(); // warning: call eol() before bol()
+          const char *bol = matcher->bol();
+          if (is_binary(bol, eol - bol))
+            goto exit_search;
+        }
 
         while (matcher->find())
         {
@@ -5814,6 +5855,15 @@ void Grep::search(const char *pathname)
         size_t lineno = 0;
 
         read_file();
+
+        // -I: do not match binary
+        if (flag_binary_without_matches)
+        {
+          const char *eol = matcher->eol(); // warning: call eol() before bol()
+          const char *bol = matcher->bol();
+          if (is_binary(bol, eol - bol))
+            goto exit_search;
+        }
 
         while (matcher->find())
         {

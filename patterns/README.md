@@ -17,9 +17,8 @@ skipping all matches of identifiers in comments and strings:
     ugrep -r -n -f java/names -f java/zap_comments -f java/zap_strings
 
 Pattern files contain one or more regex patters, one pattern per line.  Empty
-lines and lines starting with a `#` are ignored in pattern files.  A starting
-line with `###-o` auto-enables option `-o` for all patterns matched.  Use `\#`
-to define a pattern that starts with a `#` on a line.
+lines and lines starting with `###` are ignored in pattern files.  A starting
+line with `###-o` auto-enables option `-o` for all patterns matched.
 
 Patterns that requiring Unicode matching should be placed in Unicode mode with
 `(?u:X)`, just in case to prevent ugrep option `-U` from disabling them.
