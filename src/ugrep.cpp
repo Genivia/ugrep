@@ -5491,59 +5491,28 @@ void Grep::search(const char *pathname)
       {
         // -c: count the number of lines/patterns matched
 
-        if (flag_ungroup || flag_only_matching)
+        bool binary = false;
+
+        read_file();
+
+        // -I: do not match binary
+        if (flag_binary_without_matches)
         {
-          // -co or -cu: count the number of patterns matched in the file
-
-          read_file();
-
-          // -I: do not match binary
-          if (flag_binary_without_matches)
-          {
-            const char *eol = matcher->eol(); // warning: call eol() before bol()
-            const char *bol = matcher->bol();
-            if (is_binary(bol, eol - bol))
-              goto exit_search;
-          }
-
-          while (matcher->find())
-          {
-            // -K: max line exceeded?
-            if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
-              break;
-
-            ++matches;
-
-            // -m: max number of matches reached?
-            if (flag_max_count > 0 && matches >= flag_max_count)
-              break;
-          }
+          const char *eol = matcher->eol(); // warning: call eol() before bol()
+          const char *bol = matcher->bol();
+          binary = is_binary(bol, eol - bol);
         }
-        else
+
+        if (!binary)
         {
-          // -c without -o/-u: count the number of matching lines
-
-          size_t lineno = 0;
-
-          read_file();
-
-          // -I: do not match binary
-          if (flag_binary_without_matches)
+          if (flag_ungroup || flag_only_matching)
           {
-            const char *eol = matcher->eol(); // warning: call eol() before bol()
-            const char *bol = matcher->bol();
-            if (is_binary(bol, eol - bol))
-              goto exit_search;
-          }
+            // -co or -cu: count the number of patterns matched in the file
 
-          while (matcher->find())
-          {
-            size_t current_lineno = matcher->lineno();
-
-            if (lineno != current_lineno)
+            while (matcher->find())
             {
               // -K: max line exceeded?
-              if (flag_max_line > 0 && current_lineno > flag_max_line)
+              if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
                 break;
 
               ++matches;
@@ -5551,13 +5520,37 @@ void Grep::search(const char *pathname)
               // -m: max number of matches reached?
               if (flag_max_count > 0 && matches >= flag_max_count)
                 break;
-
-              lineno = current_lineno;
             }
           }
+          else
+          {
+            // -c without -o/-u: count the number of matching lines
 
-          if (flag_invert_match)
-            matches = matcher->lineno() - matches - 1;
+            size_t lineno = 0;
+
+            while (matcher->find())
+            {
+              size_t current_lineno = matcher->lineno();
+
+              if (lineno != current_lineno)
+              {
+                // -K: max line exceeded?
+                if (flag_max_line > 0 && current_lineno > flag_max_line)
+                  break;
+
+                ++matches;
+
+                // -m: max number of matches reached?
+                if (flag_max_count > 0 && matches >= flag_max_count)
+                  break;
+
+                lineno = current_lineno;
+              }
+            }
+
+            if (flag_invert_match)
+              matches = matcher->lineno() - matches - 1;
+          }
         }
 
         // --format: acquire lock early before stats.found()
