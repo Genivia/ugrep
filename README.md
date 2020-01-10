@@ -23,7 +23,7 @@ Grep super fast through source code, Unicode text, binary files, cpio/tar/pax/zi
 - Selects files to search by filename extensions and magic bytes
 - Searches UTF-encoded files with Unicode patterns
 - Searches files encoded in ISO-8859-1 thru 16, CP 437, CP 850, KOI8, etc.
-- Searches documents such as PDFs with filters
+- Searches documents such as pdf, odt, doc, and docx using third-party filters
 - Searches files excluding files specified by .gitignore etc.
 - Searches binary patterns, displaying hexdumps
 - Searches patterns across newlines
@@ -493,8 +493,9 @@ CtrlP uses **ugrep** by adding the following lines to your `.vimrc`:
 
 Option `--no-hidden` skips hidden files (dotfiles), option `--ignore-files`
 skips files specified in `.gitignore` files, when present, and option
-`--max-depth=3` restricts searching directories to three levels deep.
-NOte that binary files are ignored with option `-I`.
+`--max-depth=3` restricts searching directories to three levels (the working
+directory and up to two levels below).  Binary files are ignored with option
+`-I`.
 
 Start Vim then enter the command:
 
@@ -580,8 +581,10 @@ empty matches for GNU/BSD compatibility, see [further below](#improvements).
   ignore pattern matches in C++ comments.
 - **ugrep** produces hexdumps with `-W` (output binary matches in hex with text
   matches output as usual) and `-X` (output all matches in hex).
-- **ugreo** searches compressed files with option `-z`.
-- **ugreo** searches cpio, tar, pax, and zip archives with option `-z`.
+- **ugrep** searches compressed files with option `-z`.
+- **ugrep** searches cpio, tar, pax, and zip archives with option `-z`.
+- **ugrep** searches pdf, odt, doc, docx, with `--filter`, by using third-party
+  format conversion filters.
 - **ugrep** options `-O`, `-M`, and `-t` specify file extensions, file
   signature magic byte patterns, and predefined file types, respectively.  This
   allows searching for certain types of files in directory trees, for example
