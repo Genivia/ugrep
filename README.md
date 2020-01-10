@@ -53,12 +53,13 @@ Table of contents
 - [Tutorial](#tutorial)
   - [Examples](#examples)
   - [Displaying helpful info](#help)
-  - [Recursively list matching files with options -R or -r and -L or -l](#recursion)
+  - [Recursively list matching files with options -R or -r with -L or -l](#recursion)
   - [Search this but not that with -v, -e, -N, -f, -L, -w, -x](#not)
   - [Searching ASCII, Unicode, and other encodings with -Q](#unicode)
   - [Matching multiple lines of text](#multiline)
   - [Displaying context with -A, -B, -C, and -y](#context)
   - [Searching source code using -f, -O, and -t](#source)
+  - [Searching compressed files and archives with -z](#archives)
   - [Find files by file signature and shebang "magic bytes" with -M and -t](#magic)
   - [Using filter utilities to search documents with --filter](#filter)
   - [Searching and displaying binary files with -U, -W, and -X](#binary)
@@ -72,7 +73,6 @@ Table of contents
   - [Customized output with --format](#format)
   - [Replacing matches with --format backreferences to group captures](#replace)
   - [Limiting the number of matches with -K, -m, --max-depth, and --max-files](#max)
-  - [Searching compressed files and archives with -z](#gz)
   - [Matching empty patterns with -Y](#empty)
   - [Tips for advanced users](#tips)
   - [More examples](#more)
@@ -583,8 +583,8 @@ empty matches for GNU/BSD compatibility, see [further below](#improvements).
   matches output as usual) and `-X` (output all matches in hex).
 - **ugrep** searches compressed files with option `-z`.
 - **ugrep** searches cpio, tar, pax, and zip archives with option `-z`.
-- **ugrep** searches pdf, odt, doc, docx, with `--filter`, by using third-party
-  format conversion filters.
+- **ugrep** searches pdf, odt, doc, docx, epub, and so on with `--filter` using
+  third-party format conversion utilities as plugins.
 - **ugrep** options `-O`, `-M`, and `-t` specify file extensions, file
   signature magic byte patterns, and predefined file types, respectively.  This
   allows searching for certain types of files in directory trees, for example
@@ -615,6 +615,10 @@ empty matches for GNU/BSD compatibility, see [further below](#improvements).
   devices by default.
 - **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
   `LANG=en_US.UTF-8`, whereas grep is locale-sensitive.
+- **ugrep** does not use a .greprc or a configuration file or a `GREP_OPTIONS`
+  environment variable, because the behavior of **ugrep** must be portable.
+  Also GNU grep abandoned `GREP_OPTIONS` for this reason.  Instead, please use
+  aliases to create new commands with specific search options.
 - BSD grep (e.g. on Mac OS X) has limitations and some bugs that **ugrep**
   fixes (options `-r` versus `-R`), support for `GREP_COLORS`, and more.
 
@@ -774,7 +778,7 @@ To show a list of `-t TYPES` option values:
 
 <a name="recursion"/>
 
-### Recursively list matching files with options -R or -r and -L or -l
+### Recursively list matching files with options -R or -r with -L or -l
 
     -L, --files-without-match
             Only the names of files not containing selected lines are written
@@ -1149,6 +1153,124 @@ comments:
 
     ugrep -o -f xml/tags -f xml/zap_comments myfile.xml
 
+<a name="archives"/>
+
+### Searching compressed files and archives with -z
+
+    -z, --decompress
+            Decompress files to search, when compressed.  Archives (.cpio,
+            .pax, .tar, .zip) and compressed archives (e.g. .taz, .tgz, .tpz,
+            .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and matching
+            pathnames of files in archives are output in braces.  If -g, -O,
+            -M, or -t is specified, searches files within archives whose name
+            matches globs, matches file name extensions, matches file
+            signature magic bytes, or matches file types, respectively.
+            Option --label=.ext associates suffix `ext' with standard input.
+            Supported compression formats: gzip (default, optional suffix .gz),
+            compress (requires suffix .Z), zip (requires suffix .zip or .ZIP),
+            lzma (requires suffix .lzma), xz (requires suffix .xz),
+            bzip2 (requires suffix .bz, .bz2, or .bzip2)
+
+Compressed files with gzip (`.gz`), compress (`.Z`), bzip2 (`.bz`, `.bz2`,
+`.bzip2`), lzma (`.lzma`), and xz (`.xz`) are searched with option `-z`.  This
+option does not require files to be compressed.  Uncompressed files are
+searched also.
+
+Archives (cpio, tar, pax, and zip) are searched with option `-z`.  Regular
+files in an archive that match are output with the archive pathnames enclosed
+in `{` and `}` braces.  Supported tar formats are v7, ustar, gnu, oldgnu, and
+pax.  Supported cpio formats are odc, newc, and crc.  Not supported is the
+obsolete non-portable old binary cpio format.  Archive formats cpio, tar, and
+pax are automatically recognized with option `-z` based on their content,
+independent of their filename suffix.
+
+The gzip/zlib format is automatically detected, which is useful when reading
+gzip-compressed data from standard input.  Other compression formats require a
+filename suffix: `.Z` for compress, `.zip` or `.ZIP` for zip, `.bz`, `.bz2`, or
+`.bzip2` for bzip2, `.lzma` for lzma, and `.xz` for xz.  Also the compressed
+tar archive shorthands `.taz`, `.tgz`, and `.tpz` for gzip, `.tbz`, `.tbz2`,
+`.tb2`, and `.tz2` for bzip2, `.tlz` for lzma, and `.txz` for xz are
+recognized.  To decompress these formats from standard input, use option
+`--label='stdin.Z'` for compress, `--label=stdin.zip` for zip,
+`--label='stdin.bz2'` for bzip2, `--label='stdin.lzma'` for lzma, and
+`--label='stdin.xz'` for xz.  The name `stdin` is arbitrary and may be omitted:
+
+format    | filename suffix         | tar/pax archive short suffix    | suffix required? | ugrep from stdin | lib install |
+--------- | ----------------------- | ------------------------------- | ---------------- | ---------------- | ----------- |
+gzip/zlib | `.gz`                   | `.taz`, `.tgz`, `.tpz`          | no               | automatic        | libz        |
+compress  | `.Z`                    |                                 | yes              | `--label=.Z`     | (built-in)  |
+zip       | `.zip`, `.ZIP`          |                                 | yes              | `--label=.zip`   | libz+libbz2 |
+bzip2     | `.bz`, `.bz2`, `.bzip2` | `.tb2`, `.tbz`, `.tbz2`, `.tz2` | yes              | `--label=.bz2`   | libbz2      |
+lzma      | `.lzma`                 | `.tlz`                          | yes              | `--label=.lzma`  | liblzma     |
+xz        | `.xz`                   | `.txz`                          | yes              | `--label=.xz`    | liblzma     |
+
+Supported zip compression methods are stored (0), deflate (8), bzip2 (12) if
+libbz2 is available, lzma (14) and xz (95) if liblzma is available.  Archives
+compressed within zip archives are searched:  all cpio, tar, and pax files in
+zip archives are automatically recognized and searched.  Compressed files in
+archives are not recognized and searched however, such as any compressed files
+stored in cpio, tar, pax, and zip archives, which are considered binary files.
+Searching encrypted zip archives is not supported (perhaps in future releases,
+depending on requests).
+
+When option `-z` is used with options `-g`, `-O`, `-M`, or `-t`, archives and
+compressed and uncompressed files that match the filename selection criteria
+(glob, extension, magic bytes, or file type) are searched only.  For example,
+`ugrep -r -z -tc++` searches C++ files such as `main.cpp`, and also
+`main.cpp.gz` and `main.cpp.xz` when present.  Also any cpio, tar, pax, and zip
+archives when present are searched for C++ files such as `main.cpp`.  Use
+option `--stats` to see a list of the glob patterns applied to filter file
+pathnames in the recursive search and when searching archive contents.
+
+When option `-z` is used with options `-g`, `-O`, `-M`, or `-t` to search cpio,
+tar, pax, and zip archives, archived files that match the filename selection
+criteria are searched only.
+
+Option `-z` uses task parallelism to speed up searching and may produce results
+for uncompressed files even faster than without option `-z`, depending on the
+OS and hardware.
+
+To recursively search C++ files including compressed files for the word
+`my_function`, while skipping C and C++ comments:
+
+    ugrep -z -r -tc++ -Fw my_function -f cpp/zap_comments
+
+To search bzip2, xz, and lzma-compressed data on standard input, option
+`--label` may be used to specify the extension corresponding to the compression
+format to force decompression when the bzip2 extension is not available to
+ugrep, for example:
+
+    cat myfile.bz2 | ugrep -z --label='stdin.bz2' 'xyz'
+
+To search file `main.cpp` in `project.zip` for `TODO` and `FIXME` lines:
+
+    ugrep -z -g main.cpp -w -e 'TODO' -e 'FIXME' project.zip
+
+To search tarball `project.tar.gz` for C++ files with `TODO` and `FIXME` lines:
+
+    ugrep -z -tc++ -w -e 'TODO' -e 'FIXME' project.tar.gz
+
+To display and page through all C++ files in tarball `project.tgz`:
+
+    ugrep --color --pager -z -tc++ '' project.tgz
+
+To list the files matching the gitignore-style glob `/**/projects/project1.*`
+in `projects.tgz`, by selecting files containing in the archive the text
+`December 12`:
+
+    ugrep -z -l -g '/**/projects/project1.*' -F 'December 12' projects.tgz
+
+To extract C++ files that contain `FIXME` from `project.tgz`, we use `-m1`
+with `--format="'%z '"` to generate a list of pathnames of file located in the
+archive that match the word `FIXME`:
+
+    tar xzf project.tgz `ugrep -ztc++ -m1 --format="'%z '" -w FIXME project.tgz`
+
+To perform a depth-first search with `find`, then use `cpio` and `ugrep` to
+search the files:
+
+    find . -depth -print | cpio -o | ugrep --color -z 'xyz'
+
 <a name="magic"/>
 
 ### Find files by file signature and shebang "magic bytes" with -M and -t
@@ -1205,22 +1327,23 @@ forking a process.  The utility's standard input reads the open input file and
 the utility's standard output is read and searched.  When a `%` is specified as
 an option to the utility, the utility may open and read the file using the
 expanded pathname.  When a utility is not found an error message is displayed.
-When a utility fails to run, e.g. when the specified options are invalid, the
-file searched is silently skipped.
+When a utility fails to produce output, e.g. when the specified options for the
+utility are invalid, the search is silently skipped.
 
 Filter utilities are typically `cat` (pass through), `tr` (translate),
-`iconv` (convert), and more advanced document processing utilities such as
-`pdftotext` and `soffice`.  Filter utilities also include decompressors
-such as `gunzip`, `unxz`, `unlzma` that can decompress files to standard
-output.  However, option `-z` is typically faster to search compressed files.
+`iconv` (convert), and more advanced document conversion utilities such as
+`pdftotext`, `pandoc`, and `soffice`.  Filter utilities also include
+decompressors such as `gunzip`, `unxz`, `unlzma` that can decompress files to
+standard output.  However, option `-z` is faster to search compressed files.
 
 To recursively search files including PDF files in the working directory
-without recursing into subdirectories, for `drink me`:
+without recursing into subdirectories, for `drink me` using the `pdftotext`
+filter to convert PDF to text:
 
     ugrep --color -r --filter='pdf:pdftotext % -' --max-depth=1 'drink me'
 
 To recursively search text files for `eat me` while converting non-printable
-characters in .txt and .md files:
+characters in .txt and .md files using the `cat -v` filter:
 
     ugrep --color -r -ttext --filter='txt,md:cat -v' 'eat me'
 
@@ -1228,10 +1351,20 @@ The same, but specifying the .txt and .md filters separately:
 
     ugrep --color -r -ttext --filter='txt:cat -v, md:cat -v' 'eat me'
 
-To recursively search and list the files including .odt, .doc, and .docx
-documents that contain `find me`:
+To recursively search and list the files that contain the word `Alice`,
+including .docx and .epub documents using the `pandoc` filter:
 
-    ugrep -rl --filter='odt,doc,docx:soffice --headless --cat %' 'find me'
+    ugrep -rl -w --filter='docx,epub:pandoc --wrap=preserve -t markdown % -o -' 'Alice'
+
+**Important:** the `pandoc` utility requires an input file and will not read
+standard input.  Option `%` expands into the full pathname of the file to
+search.  The output format specified is `markdown`, which is close enough to
+text to be searched.
+
+To recursively search and list the files that contain the word `Alice`,
+including .odt, .doc, .docx, and .rtf documents using the `soffice` filter:
+
+    ugrep -rl -w --filter='odt,doc,docx,rtf:soffice --headless --cat %' 'Alice'
 
 **Important:** the `soffice` utility will not output any text when one or more
 LibreOffice GUIs are open.  Make sure to quit all LibreOffice apps first.  This
@@ -1946,123 +2079,6 @@ Same, but showing only the first four matching lines after line 2, with one
 line of context:
 
     ugrep -n -C1 -K2 -m4 -w make install.sh
-
-<a name="gz"/>
-
-### Searching compressed files and archives with -z
-
-    -z, --decompress
-            Decompress files to search, when compressed.  Archives (.cpio,
-            .pax, .tar, .zip) and compressed archives (e.g. .taz, .tgz, .tpz,
-            .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and matching
-            pathnames of files in archives are output in braces.  If -g, -O,
-            -M, or -t is specified, searches files within archives whose name
-            matches globs, matches file name extensions, matches file
-            signature magic bytes, or matches file types, respectively.
-            Option --label=.ext associates suffix `ext' with standard input.
-            Supported compression formats: gzip (default, optional suffix .gz),
-            compress (requires suffix .Z), zip (requires suffix .zip or .ZIP),
-            lzma (requires suffix .lzma), xz (requires suffix .xz),
-            bzip2 (requires suffix .bz, .bz2, or .bzip2)
-
-Compressed files with gzip (`.gz`), compress (`.Z`), bzip2 (`.bz`, `.bz2`,
-`.bzip2`), lzma (`.lzma`), and xz (`.xz`) are searched with option `-z`.  This
-option does not require files to be compressed.  Uncompressed files are
-searched also.
-
-Archives (cpio, tar, pax, and zip) are searched with option `-z`.  Regular
-files in an archive that match are output with the archive pathnames enclosed
-in `{` and `}` braces.  Supported tar formats are v7, ustar, gnu, oldgnu, and
-pax.  Supported cpio formats are odc, newc, and crc.  Not supported is the
-obsolete non-portable old binary cpio format.  Archive formats cpio, tar, and
-pax are automatically recognized with option `-z` based on their content,
-independent of their filename suffix.
-
-The gzip/zlib format is automatically detected, which is useful when reading
-gzip-compressed data from standard input.  Other compression formats require a
-filename suffix: `.Z` for compress, `.zip` or `.ZIP` for zip, `.bz`, `.bz2`, or
-`.bzip2` for bzip2, `.lzma` for lzma, and `.xz` for xz.  Also the compressed
-tar archive shorthands `.taz`, `.tgz`, and `.tpz` for gzip, `.tbz`, `.tbz2`,
-`.tb2`, and `.tz2` for bzip2, `.tlz` for lzma, and `.txz` for xz are
-recognized.  To decompress these formats from standard input, use option
-`--label='stdin.Z'` for compress, `--label=stdin.zip` for zip,
-`--label='stdin.bz2'` for bzip2, `--label='stdin.lzma'` for lzma, and
-`--label='stdin.xz'` for xz.  The name `stdin` is arbitrary and may be omitted:
-
-format    | filename suffix         | tar/pax archive short suffix    | suffix required? | ugrep from stdin | lib install |
---------- | ----------------------- | ------------------------------- | ---------------- | ---------------- | ----------- |
-gzip/zlib | `.gz`                   | `.taz`, `.tgz`, `.tpz`          | no               | automatic        | libz        |
-compress  | `.Z`                    |                                 | yes              | `--label=.Z`     | (built-in)  |
-zip       | `.zip`, `.ZIP`          |                                 | yes              | `--label=.zip`   | libz+libbz2 |
-bzip2     | `.bz`, `.bz2`, `.bzip2` | `.tb2`, `.tbz`, `.tbz2`, `.tz2` | yes              | `--label=.bz2`   | libbz2      |
-lzma      | `.lzma`                 | `.tlz`                          | yes              | `--label=.lzma`  | liblzma     |
-xz        | `.xz`                   | `.txz`                          | yes              | `--label=.xz`    | liblzma     |
-
-Supported zip compression methods are stored (0), deflate (8), bzip2 (12) if
-libbz2 is available, lzma (14) and xz (95) if liblzma is available.  Archives
-compressed within zip archives are searched:  all cpio, tar, and pax files in
-zip archives are automatically recognized and searched.  Compressed files in
-archives are not recognized and searched however, such as any compressed files
-stored in cpio, tar, pax, and zip archives, which are considered binary files.
-Searching encrypted zip archives is not supported (perhaps in future releases,
-depending on requests).
-
-When option `-z` is used with options `-g`, `-O`, `-M`, or `-t`, archives and
-compressed and uncompressed files that match the filename selection criteria
-(glob, extension, magic bytes, or file type) are searched only.  For example,
-`ugrep -r -z -tc++` searches C++ files such as `main.cpp`, and also
-`main.cpp.gz` and `main.cpp.xz` when present.  Also any cpio, tar, pax, and zip
-archives when present are searched for C++ files such as `main.cpp`.  Use
-option `--stats` to see a list of the glob patterns applied to filter file
-pathnames in the recursive search and when searching archive contents.
-
-When option `-z` is used with options `-g`, `-O`, `-M`, or `-t` to search cpio,
-tar, pax, and zip archives, archived files that match the filename selection
-criteria are searched only.
-
-Option `-z` uses task parallelism to speed up searching and may produce results
-for uncompressed files even faster than without option `-z`, depending on the
-OS and hardware.
-
-To recursively search C++ files including compressed files for the word
-`my_function`, while skipping C and C++ comments:
-
-    ugrep -z -r -tc++ -Fw my_function -f cpp/zap_comments
-
-To search bzip2-compressed data on standard input, option `--label` may be used
-to specify the bzip2 extension to force decompression when the bzip2 extension
-is not available to ugrep, for example:
-
-    cat myfile.bz2 | ugrep -z --label='stdin.bz2' 'xyz'
-
-To search file `main.cpp` in `project.zip` for `TODO` and `FIXME` lines:
-
-    ugrep -z -g main.cpp -w -e 'TODO' -e 'FIXME' project.zip
-
-To search tarball `project.tar.gz` for C++ files with `TODO` and `FIXME` lines:
-
-    ugrep -z -tc++ -w -e 'TODO' -e 'FIXME' project.tar.gz
-
-To display and page through all C++ files in tarball `project.tgz`:
-
-    ugrep --color --pager -z -tc++ '' project.tgz
-
-To list the files matching the gitignore-style glob `/**/projects/project1.*`
-in `projects.tgz`, by selecting files containing in the archive the text
-`December 12`:
-
-    ugrep -z -l -g '/**/projects/project1.*' -F 'December 12' projects.tgz
-
-To extract C++ files that contain `FIXME` from `project.tgz`, we use `-m1`
-with `--format="'%z '"` to generate a list of pathnames of file located in the
-archive that match the word `FIXME`:
-
-    tar xzf project.tgz `ugrep -ztc++ -m1 --format="'%z '" -w FIXME project.tgz`
-
-To perform a depth-first search with `find`, then use `cpio` and `ugrep` to
-search the files:
-
-    find . -depth -print | cpio -o | ugrep --color -z 'xyz'
 
 <a name="empty"/>
 
