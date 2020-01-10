@@ -5,6 +5,9 @@ AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
 
 AC_CONFIG_MACRO_DIR([m4])
 
+# if CXXFLAGS is undefined, set it to our preferred default flags
+: ${CXXFLAGS="-Wall -Wextra -Wunused -O2"}
+
 AC_HEADER_DIRENT
 AC_STRUCT_DIRENT_D_INO
 AC_STRUCT_DIRENT_D_TYPE

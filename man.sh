@@ -68,11 +68,11 @@ the working directory.
 .PP
 If no \fIFILE\fR arguments are specified and one of the options \fB-g\fR,
 \fB-O\fR, \fB-M\fR, \fB-t\fR, \fB--include\fR, \fB--include-dir\fR,
-\fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches
-are enabled, same as \fB-r\fR.
+\fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches are
+performed as if \fB-r\fR was specified.
 .PP
-Use `--' before the \fIFILE\fR arguments to allow file and directory names to
-start with a `-'.
+A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
+arguments, allowing filenames to begin with a `-' character.
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
@@ -80,8 +80,9 @@ syntax.  For an overview of the syntax see README.md or visit:
 https://github.com/Genivia/ugrep
 .PP
 Note that `.' matches any non-newline character.  Pattern `\\n' matches a
-newline and multiple lines may be matched, unless one or more of the context
-options \fB-A\fR, \fB-B\fR, \fB-C\fR or \fB-y\fR is used, or option \fB-v\fR.
+newline character.  Multiple lines may be matched with patterns that match
+newlines, unless one or more of the context options \fB-A\fR, \fB-B\fR,
+  \fB-C\fR or \fB-y\fR is used, or option \fB-v\fR.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -171,7 +172,7 @@ on a black background.
 May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
-\fBcx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
+\fBcx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36\fR.  The \fBmt=\fR,
 \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
 \fBGREP_COLOR\fR.
 .SH GREP_COLORS
@@ -243,9 +244,9 @@ a newline character.
 .IP \fB%m\fR
 the number of matches or matched files.
 .IP \fB%O\fR
-the matching line is output as is (a raw string of bytes).
+the matching line is output as a raw string of bytes.
 .IP \fB%o\fR
-the match is output as is (a raw string of bytes).
+the match is output as a raw string of bytes.
 .IP \fB%Q\fR
 the matching line as a quoted string, \\" and \\\\ replace " and \\.
 .IP \fB%q\fR

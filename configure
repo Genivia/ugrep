@@ -2977,6 +2977,9 @@ ac_config_headers="$ac_config_headers config.h"
 
 
 
+# if CXXFLAGS is undefined, set it to our preferred default flags
+: ${CXXFLAGS="-Wall -Wextra -Wunused -O2"}
+
 DEPDIR="${am__leading_dot}deps"
 
 ac_config_commands="$ac_config_commands depfiles"

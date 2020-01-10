@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 03, 2020" "ugrep 1.6.12" "User Commands"
+.TH UGREP "1" "January 10, 2020" "ugrep 1.7.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -82,12 +82,17 @@ values of WHEN can be `never', `always', or `auto', where `auto'
 marks up matches only when output on a terminal.  The default is
 `auto'.
 .TP
+\fB\-\-colors\fR=\fICOLORS\fR, \fB\-\-colours\fR=\fICOLORS\fR
+Use COLORS to mark up matching text.  COLORS should be a valid
+GREP_COLORS specification.  COLORS selectively overrides the colors
+specified by the GREP_COLORS environment variable.
+.TP
 \fB\-\-cpp\fR
 Output file matches in C++.  See also option \fB\-\-format\fR.
 .TP
 \fB\-\-csv\fR
-Output file matches in CSV.  Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
-specify CSV values to output.  See also option \fB\-\-format\fR.
+Output file matches in CSV.  When option \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is used
+additional CSV values are output.  See also option \fB\-\-format\fR.
 .TP
 \fB\-D\fR \fIACTION\fR, \fB\-\-devices\fR=\fIACTION\fR
 If an input file is a device, FIFO or socket, use ACTION to process
@@ -153,6 +158,19 @@ the GREP_PATH environment variable is used as the path to FILE.
 If that fails, looks for FILE in /usr/local/share/ugrep/patterns.
 When FILE is a `\fB\-'\fR, standard input is read.  Empty files contain no
 patterns, thus nothing is matched.  This option may be repeated.
+.TP
+\fB\-\-filter\fR=\fICOMMANDS\fR
+Filter files through the specified COMMANDS first before searching.
+COMMANDS is a comma\-separated list of `exts:command [option ...]',
+where `exts' is a comma\-separated list of filename extensions and
+`command' is a filter utility.  The filter utility should read from
+standard input and write to standard output.  Files matching one of
+`exts` are filtered only.  One or more `option' separated by
+spacing may be specified, which are passed verbatim to the command
+without expansion.  A `%' as `option' expands into the pathname,
+which is the conventional dash `\fB\-'\fR when searching standard input.
+Option \fB\-\-label\fR=.ext may be used to force filtering standard input.
+For example, \fB\-\-filter\fR='pdf:pdftotext % \fB\-'\fR searches PDF files.
 .TP
 \fB\-\-format\fR=\fIFORMAT\fR
 Output FORMAT\-formatted matches.  See `man ugrep' section FORMAT
@@ -233,8 +251,8 @@ Perform case insensitive matching unless PATTERN contains a capital
 letter.  Case insensitive matching applies to ASCII letters only.
 .TP
 \fB\-\-json\fR
-Output file matches in JSON.  Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
-specify JSON properties to output.  See also option \fB\-\-format\fR.
+Output file matches in JSON.  When option \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is used
+additional JSON properties are output.  See also option \fB\-\-format\fR.
 .TP
 \fB\-K\fR \fINUM\fR1[,NUM2], \fB\-\-range\fR=\fINUM\fR1[,NUM2]
 Start searching at line NUM1 and end at line NUM2 when specified.
@@ -292,7 +310,7 @@ If \fB\-R\fR or \fB\-r\fR is specified, restrict the number of files matched to
 NUM.  Specify \fB\-J\fR1 to produce replicable results by ensuring that
 files are searched in the same order as specified.
 .TP
-\fB\-N\fR \fIPATTERN\fR, \fB\-\-not\-regexp\fR=\fIPATTERN\fR
+\fB\-N\fR \fIPATTERN\fR, \fB\-\-neg\-regexp\fR=\fIPATTERN\fR
 Specify a negative PATTERN used during the search of the input: an
 input line is selected only if it matches any of the specified
 patterns when PATTERN does not match.  Same as \fB\-e\fR (?^PATTERN)
@@ -317,11 +335,11 @@ Do (not) use memory maps to search files.  By default, memory maps
 are used under certain conditions to improve performance.
 .TP
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
-Search only files whose file name extensions match the specified
-comma\-separated list of file name EXTENSIONS.  This option is the
-same as specifying \fB\-\-include\fR='*.ext' for each extension name `ext'
-in the EXTENSIONS list.  This option may be repeated and may be
-combined with options \fB\-M\fR and \fB\-t\fR to expand the search.
+Search only files whose filename extensions match the specified
+comma\-separated list of EXTENSIONS.  This option is the same as
+specifying \fB\-\-include\fR='*.ext' for each extension suffix `ext' in the
+EXTENSIONS list.  This option may be repeated and may be combined
+with options \fB\-M\fR and \fB\-t\fR to expand the recursive search.
 .TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
 Prints only the matching part of lines.  When multiple lines match,
@@ -349,10 +367,16 @@ the output.  The default COMMAND is `less \fB\-R\fR'.  This option makes
 .TP
 \fB\-Q\fR \fIENCODING\fR, \fB\-\-encoding\fR=\fIENCODING\fR
 The input file encoding.  The possible values of ENCODING can be:
-`binary', `ISO\-8859\-1', `ASCII', `EBCDIC', `UTF\-8', `UTF\-16',
-`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE', `UTF\-32LE', `CP437',
-`CP850', `CP858', `CP1250', `CP1251', `CP1252', `CP1253',
-`CP1254', `CP1255', `CP1256', `CP1257', `CP1258'
+`binary', `ASCII', `UTF\-8', `UTF\-16',
+`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE',
+`UTF\-32LE', `ISO\-8859\-1', `ISO\-8869\-2', `ISO\-8869\-3',
+`ISO\-8869\-4', `ISO\-8869\-5', `ISO\-8869\-6', `ISO\-8869\-7',
+`ISO\-8869\-8', `ISO\-8869\-9', `ISO\-8869\-10', `ISO\-8869\-11',
+`ISO\-8869\-13', `ISO\-8869\-14', `ISO\-8869\-15', `ISO\-8869\-16',
+`EBCDIC', `CP437', `CP850', `CP858',
+`CP1250', `CP1251', `CP1252', `CP1253',
+`CP1254', `CP1255', `CP1256', `CP1257',
+`CP1258', `KOI8\-R', `KOI8\-U', `KOI8\-RU'
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress normal output.  ugrep will only search until a
@@ -454,8 +478,8 @@ If PATTERN or \fB\-e\fR \fIPATTERN\fR is also specified, then this option does
 not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-\-xml\fR
-Output file matches in XML.  Use options \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, and \fB\-b\fR to
-specify XML attributes to output.  See also option \fB\-\-format\fR.
+Output file matches in XML.  When option \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is used
+additional XML attributes are output.  See also option \fB\-\-format\fR.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches, such as `^\\h*$' to match blank lines.  Empty
@@ -478,6 +502,7 @@ pathnames of files in archives are output in braces.  If \fB\-g\fR, \fB\-O\fR,
 \fB\-M\fR, or \fB\-t\fR is specified, searches files within archives whose name
 matches globs, matches file name extensions, matches file
 signature magic bytes, or matches file types, respectively.
+Option \fB\-\-label\fR=.ext associates suffix `ext' with standard input.
 Supported compression formats: gzip (default, optional suffix .gz),
 compress (requires suffix .Z), zip (requires suffix .zip or .ZIP),
 bzip2 (requires suffix .bz, .bz2, or .bzip2),
@@ -489,11 +514,11 @@ the working directory.
 .PP
 If no \fIFILE\fR arguments are specified and one of the options \fB-g\fR,
 \fB-O\fR, \fB-M\fR, \fB-t\fR, \fB--include\fR, \fB--include-dir\fR,
-\fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches
-are enabled, same as \fB-r\fR.
+\fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches are
+performed as if \fB-r\fR was specified.
 .PP
-Use `--' before the \fIFILE\fR arguments to allow file and directory names to
-start with a `-'.
+A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
+arguments, allowing filenames to begin with a `-' character.
 .PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
@@ -501,8 +526,9 @@ syntax.  For an overview of the syntax see README.md or visit:
 https://github.com/Genivia/ugrep
 .PP
 Note that `.' matches any non-newline character.  Pattern `\\n' matches a
-newline and multiple lines may be matched, unless one or more of the context
-options \fB-A\fR, \fB-B\fR, \fB-C\fR or \fB-y\fR is used, or option \fB-v\fR.
+newline character.  Multiple lines may be matched with patterns that match
+newlines, unless one or more of the context options \fB-A\fR, \fB-B\fR,
+  \fB-C\fR or \fB-y\fR is used, or option \fB-v\fR.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -592,7 +618,7 @@ on a black background.
 May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
-\fBcx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\fR.  The \fBmt=\fR,
+\fBcx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36\fR.  The \fBmt=\fR,
 \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
 \fBGREP_COLOR\fR.
 .SH GREP_COLORS
@@ -664,9 +690,9 @@ a newline character.
 .IP \fB%m\fR
 the number of matches or matched files.
 .IP \fB%O\fR
-the matching line is output as is (a raw string of bytes).
+the matching line is output as a raw string of bytes.
 .IP \fB%o\fR
-the match is output as is (a raw string of bytes).
+the match is output as a raw string of bytes.
 .IP \fB%Q\fR
 the matching line as a quoted string, \\" and \\\\ replace " and \\.
 .IP \fB%q\fR

@@ -272,27 +272,44 @@ class Input {
   typedef unsigned short file_encoding_type;
   /// Common file_encoding constants.
   struct file_encoding {
-    static const file_encoding_type plain   =  0; ///< plain octets: 7-bit ASCII, 8-bit binary or UTF-8 without BOM detected
-    static const file_encoding_type utf8    =  1; ///< UTF-8 with BOM detected
-    static const file_encoding_type utf16be =  2; ///< UTF-16 big endian
-    static const file_encoding_type utf16le =  3; ///< UTF-16 little endian
-    static const file_encoding_type utf32be =  4; ///< UTF-32 big endian
-    static const file_encoding_type utf32le =  5; ///< UTF-32 little endian
-    static const file_encoding_type latin   =  6; ///< Basic Latin ASCII and Latin-1 supplement, ISO-8859-1
-    static const file_encoding_type cp437   =  7; ///< CP 427
-    static const file_encoding_type cp850   =  8; ///< CP 850
-    static const file_encoding_type cp858   =  9; ///< CP 858
-    static const file_encoding_type ebcdic  = 10; ///< EBCDIC
-    static const file_encoding_type cp1250  = 11; ///< CP 1250
-    static const file_encoding_type cp1251  = 12; ///< CP 1251
-    static const file_encoding_type cp1252  = 13; ///< CP 1252
-    static const file_encoding_type cp1253  = 14; ///< CP 1253
-    static const file_encoding_type cp1254  = 15; ///< CP 1254
-    static const file_encoding_type cp1255  = 16; ///< CP 1255
-    static const file_encoding_type cp1256  = 17; ///< CP 1256
-    static const file_encoding_type cp1257  = 18; ///< CP 1257
-    static const file_encoding_type cp1258  = 19; ///< CP 1258
-    static const file_encoding_type custom  = 20; ///< custom code page
+    static const file_encoding_type plain      =  0; ///< plain octets: 7-bit ASCII, 8-bit binary or UTF-8 without BOM detected
+    static const file_encoding_type utf8       =  1; ///< UTF-8 with BOM detected
+    static const file_encoding_type utf16be    =  2; ///< UTF-16 big endian
+    static const file_encoding_type utf16le    =  3; ///< UTF-16 little endian
+    static const file_encoding_type utf32be    =  4; ///< UTF-32 big endian
+    static const file_encoding_type utf32le    =  5; ///< UTF-32 little endian
+    static const file_encoding_type latin      =  6; ///< ISO-8859-1, Latin-1
+    static const file_encoding_type cp437      =  7; ///< DOS CP 437
+    static const file_encoding_type cp850      =  8; ///< DOS CP 850
+    static const file_encoding_type cp858      =  9; ///< DOS CP 858
+    static const file_encoding_type ebcdic     = 10; ///< EBCDIC
+    static const file_encoding_type cp1250     = 11; ///< Windows CP 1250
+    static const file_encoding_type cp1251     = 12; ///< Windows CP 1251
+    static const file_encoding_type cp1252     = 13; ///< Windows CP 1252
+    static const file_encoding_type cp1253     = 14; ///< Windows CP 1253
+    static const file_encoding_type cp1254     = 15; ///< Windows CP 1254
+    static const file_encoding_type cp1255     = 16; ///< Windows CP 1255
+    static const file_encoding_type cp1256     = 17; ///< Windows CP 1256
+    static const file_encoding_type cp1257     = 18; ///< Windows CP 1257
+    static const file_encoding_type cp1258     = 19; ///< Windows CP 1258
+    static const file_encoding_type iso8859_2  = 20; ///< ISO-8859-2, Latin-2
+    static const file_encoding_type iso8859_3  = 21; ///< ISO-8859-3, Latin-3
+    static const file_encoding_type iso8859_4  = 22; ///< ISO-8859-4, Latin-4
+    static const file_encoding_type iso8859_5  = 23; ///< ISO-8859-5, Cyrillic
+    static const file_encoding_type iso8859_6  = 24; ///< ISO-8859-6, Arabic
+    static const file_encoding_type iso8859_7  = 25; ///< ISO-8859-7, Greek
+    static const file_encoding_type iso8859_8  = 26; ///< ISO-8859-8, Hebrew
+    static const file_encoding_type iso8859_9  = 27; ///< ISO-8859-9, Latin-5
+    static const file_encoding_type iso8859_10 = 28; ///< ISO-8859-10, Latin-6
+    static const file_encoding_type iso8859_11 = 29; ///< ISO-8859-11, Thai
+    static const file_encoding_type iso8859_13 = 30; ///< ISO-8859-13, Latin-7
+    static const file_encoding_type iso8859_14 = 31; ///< ISO-8859-14, Latin-8
+    static const file_encoding_type iso8859_15 = 32; ///< ISO-8859-15, Latin-9
+    static const file_encoding_type iso8859_16 = 33; ///< ISO-8859-16
+    static const file_encoding_type koi8_r     = 34; ///< KOI8-R
+    static const file_encoding_type koi8_u     = 35; ///< KOI8-U
+    static const file_encoding_type koi8_ru    = 36; ///< KOI8-RU
+    static const file_encoding_type custom     = 37; ///< custom code page
   };
   /// Stream buffer for reflex::Input, derived from std::streambuf.
   class streambuf;

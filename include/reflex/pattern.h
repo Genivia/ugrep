@@ -360,7 +360,7 @@ class Pattern {
     Pattern::Pred a2 = pma[h2];
     Pattern::Pred a3 = pma[h3];
     Pattern::Pred p = (a0 & 0xc0) | (a1 & 0x30) | (a2 & 0x0c) | (a3 & 0x03);
-    Pattern::Pred m = (p >> 5) | (p >> 3) | (p >> 1) | p;
+    Pattern::Pred m = ((((((p >> 2) | p) >> 2) | p) >> 1) | p);
     if (m != 0xff)
       return 0;
     if ((pma[b1] & 0xc0) != 0xc0)
