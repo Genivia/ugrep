@@ -1336,6 +1336,11 @@ Filter utilities are typically `cat` (pass through), `tr` (translate),
 decompressors such as `gunzip`, `unxz`, `unlzma` that can decompress files to
 standard output.  However, option `-z` is faster to search compressed files.
 
+**Warning:** option `--format` should not be used with utilities that modify
+files.  Otherwise searches may be unpredicatable.  In the worst case files may
+be lost, for example when the specified utility modifies or deletes the file
+passed as option `%`.
+
 To recursively search files including PDF files in the working directory
 without recursing into subdirectories, for `drink me` using the `pdftotext`
 filter to convert PDF to text:
