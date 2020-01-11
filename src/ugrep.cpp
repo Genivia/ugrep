@@ -70,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.0"
+#define UGREP_VERSION "1.7.1"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -5336,13 +5336,10 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
 #else
 
   struct stat buf;
-  memset(&buf, 0, sizeof(buf));
 
-  // use lstat() to check if pathname is a symlink
+  // if dir entry is unknown, use lstat() to check if pathname is a symlink
   if (type != DIRENT_TYPE_UNKNOWN || lstat(pathname, &buf) == 0)
   {
-    ino_t lino = buf.st_ino;
-
     // symlinks are followed when specified on the command line (unless option -p) or with options -R, -S, --dereference
     if (is_argument_dereference || flag_dereference || (type != DIRENT_TYPE_UNKNOWN ? type != DIRENT_TYPE_LNK : !S_ISLNK(buf.st_mode)))
     {
@@ -5366,7 +5363,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
             // this directory was visited before?
             if (flag_dereference)
             {
-              vino = visited.insert(type == DIRENT_TYPE_UNKNOWN ? lino : inode);
+              vino = visited.insert(type == DIRENT_TYPE_DIR ? inode : buf.st_ino);
 
               // if visited before, then do not recurse on this directory again
               if (!vino.second)
@@ -5413,7 +5410,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
               visited.erase(vino.first);
           }
         }
-        else if (type == DIRENT_TYPE_REG ? !is_output(inode) : type == DIRENT_TYPE_UNKNOWN && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == READ)
+        else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == READ)
         {
           // do not exclude files that are reversed by ! negation
           bool negate = false;

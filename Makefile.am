@@ -28,6 +28,7 @@ install-data-hook:
 		 echo "| Some useful aliases to consider:                     |"; \
 		 echo "|   alias ug     = 'ugrep --color --pager'             |"; \
 		 echo "|   alias ux     = 'ugrep --color --pager -UX'         |"; \
+		 echo "|   alias uz     = 'ugrep --color --pager -z'          |"; \
 		 echo "|   alias grep   = 'ugrep --color --pager -G'          |"; \
 		 echo "|   alias egrep  = 'ugrep --color --pager -E'          |"; \
 		 echo "|   alias fgrep  = 'ugrep --color --pager -F'          |"; \
