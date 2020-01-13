@@ -184,10 +184,9 @@ Introduction: why use ugrep?
   quantifiers, and negative patterns to skip unwanted matches to produce more
   precise results.
 
-- **ugrep searches UTF-8/16/32 input and other formats**.  ASCII and
-  UTF-8/16/32 are searched automatically (based on UTF BOM).  Use option `-Q`
-  to specify a file format, such as ISO-8859-1, EBCDIC, and code pages 437,
-  850, 858, 1250 to 1258.
+- **ugrep searches UTF-8/16/32 input and other formats**.  Option -Q permits
+  many other file formats to be searched, such as ISO-8859-1 to 16, EBCDIC,
+  code pages 437, 850, 858, 1250 to 1258, MacRoman, and KIO8.
 
 - **ugrep customizes the output format** with options `--csv`, `--json`, and
   `--xml` to output CSV, JSON, or XML.  Option `--format` may be used to
@@ -372,8 +371,6 @@ significant runtime overhead and should not be used for the final build.
 
 #### Optional dependencies
 
-There are two optional dependencies:
-
 - Option `-P` (Perl regular expressions) requires the
   [Boost.Regex](https://www.boost.org) library installed.
 - Option `-z` (decompress) requires the [Zlib](https://www.zlib.net)
@@ -397,11 +394,13 @@ To work around this problem, run:
 
 ### Download the binaries
 
-Download **ugrep** from https://github.com/Genivia/ugrep
+Clone **ugrep** from https://github.com/Genivia/ugrep
 
-Prebuilt binaries for Mac OS X and Windows are included in the `bin` directory.
-All versions of ugrep are designed to run from the command line interface
-(CLI).
+    $ git clone https://github.com/Genivia/ugrep
+
+Prebuilt binaries for Mac OS X and Windows are included in the `ugrep/bin`
+directory.  All versions of ugrep are designed to run from the command line
+interface (CLI).
 
 There are two Windows versions: `ugrep\bin\win32\ugrep.exe` and
 `ugrep\bin\win64\ugrep.exe`.  Depending on your system, add the 32 or 64 bit
