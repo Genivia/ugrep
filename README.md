@@ -180,11 +180,10 @@ Introduction: why use ugrep?
 
 - **ugrep matches Unicode patterns** by default (disabled with option `-U`).  The
   [regular expression pattern syntax](#pattern) is POSIX ERE compliant extended
-  with PCRE-like syntax.  Patterns may include Unicode character classes, lazy
-  quantifiers, and negative patterns to skip unwanted matches to produce more
-  precise results.
+  with PCRE-like syntax.  Option `-P` may also be used for Perl matching with
+  Unicode patterns.
 
-- **ugrep searches UTF-8/16/32 input and other formats**.  Option -Q permits
+- **ugrep searches UTF-8/16/32 input and other formats**.  Option `-Q` permits
   many other file formats to be searched, such as ISO-8859-1 to 16, EBCDIC,
   code pages 437, 850, 858, 1250 to 1258, MacRoman, and KIO8.
 
@@ -614,9 +613,12 @@ empty matches for GNU/BSD compatibility, see [further below](#improvements).
   `read`.  This prevents unexpectedly hanging on named pipes in directories
   that are recursively searched, as may happen with GNU/BSD grep that `read`
   devices by default.
-- **ugrep** always assumes UTF-8 locale to support Unicode, e.g.
-  `LANG=en_US.UTF-8`, whereas grep is locale-sensitive.
-- **ugrep** does not use a .greprc or a configuration file or a `GREP_OPTIONS`
+- **ugrep** always assumes UTF-8 locale to support Unicode, i.e.
+  `LANG=en_US.UTF-8`.  By contrast, grep is locale-sensitive, which often
+  causes problems or produces surprising results.  Simply put, the
+  [principle of least astonishment](https://en.wikipedia.org/wiki/Principle_of_least_astonishment)
+  rules!
+- **ugrep** does not use a `.greprc` configuration file or a `GREP_OPTIONS`
   environment variable, because the behavior of **ugrep** must be portable.
   Also GNU grep abandoned `GREP_OPTIONS` for this reason.  Instead, please use
   aliases to create new commands with specific search options.
@@ -983,9 +985,15 @@ UTF-16, and UTF-32 files with non-ASCII Unicode characters (U+0080 and up):
 
     ugrep -Rl '[^[:ascii:]]'
 
-To check that a file contains Unicode ((U+0080 and up):
+To check if a file contains non-ASCII Unicode (U+0080 and up):
 
     ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
+
+To remove invalid Unicode characters from a file (note that `-o` does not work
+because binary data is detected and rejected and newlines are added, but
+`--format="%o%` does not check for binary and copies the match "as is"):
+
+    ugrep "\p{Unicode}" --format="%o" badfile.txt
 
 To recursively list files with invalid UTF content (i.e. invalid UTF-8 byte
 sequences or files that contain any UTF-8/16/32 code points that are outside
