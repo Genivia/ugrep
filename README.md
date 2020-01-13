@@ -20,14 +20,14 @@ Grep super fast through source code, Unicode text, binary files, cpio/tar/pax/zi
 - Task-parallel decompression and search of decompressed streams
 - Compatible with the standard GNU and BSD grep command-line options
 - Selects files to search by file types
-- Selects files to search by filename extensions and magic bytes
-- Searches UTF-encoded files with Unicode patterns
-- Searches files encoded in ISO-8859-1 thru 16, CP 437, CP 850, MAC, KOI8, etc.
+- Selects files to search by filename extensions and "magic bytes"
 - Searches archives (cpio, tar, pax, zip)
 - Searches compressed files (.gz, .Z, .zip, .bz, .bz2, .lzma, .xz)
 - Searches documents such as pdf, odt, doc, and docx using third-party filter utilities
+- Searches UTF-encoded files by supporting Unicode pattern matches
+- Searches files encoded in ISO-8859-1 thru 16, CP 437, CP 850, MAC, KOI8, etc.
 - Searches files excluding files specified by .gitignore etc.
-- Searches binary patterns, displaying hexdumps
+- Searches binary patterns and displays hexdumps with matches
 - Searches patterns across newlines
 - Searches patterns excluding negative patterns ("match this but not that")
 - Includes predefined regex patterns to search source code, XML, JSON, HTML, etc.
@@ -169,7 +169,7 @@ Introduction: why use ugrep?
 - **ugrep produces hexdumps for binary matches** to search for binary patterns
   of bytes, for example:
 
-      ugrep --color -XU '\xed\xab\xee\xdb' some.rpm
+      ugrep --color -UX '\xed\xab\xee\xdb' some.rpm
 
   where `-X` produces hexadecimal output, `-U` specifies a binary pattern to
   search (meaning non-Unicode), and `--color` shows the results in color.
@@ -319,7 +319,9 @@ Installation
 
 ### Download and build steps
 
-Download **ugrep** from https://github.com/Genivia/ugrep
+Clone **ugrep** from https://github.com/Genivia/ugrep
+
+    $ git clone https://github.com/Genivia/ugrep
 
 Build **ugrep** on Unix-like systems with:
 
@@ -1361,10 +1363,9 @@ text, [`pandoc`](https://pandoc.org) to convert .docx, .epub, and other
 document formats, [`soffice`](https://www.libreoffice.org) to convert office
 documents, and [`csvkit`](https://pypi.org/project/csvkit) to convert
 spreadsheets.  Also decompressors may be used as filter utilities, such as
-`gunzip`, `bunzip2`, `unxz`, and `unlzma` that can decompress files to standard
-output by specifying option `--stdout`.  However, **ugrep** option `-z` is
-typically faster to search compressed files because a separate process is does
-not need to be forked.
+`unzip`, `gunzip`, `bunzip2`, `unxz`, and `unlzma` that can decompress files to
+standard output by specifying option `--stdout`.  However, **ugrep** option
+`-z` is typically faster to search compressed files.
 
 To recursively search files including PDF files in the working directory
 without recursing into subdirectories, for `drink me` using the `pdftotext`
@@ -1401,6 +1402,19 @@ including .odt, .doc, .docx, .rtf, .xls, .xlsx, .ppt, .pptx documents using the
 LibreOffice GUIs are open.  Make sure to quit all LibreOffice apps first.  This
 looks like a bug, but the LibreOffice developers do not appear to fix this
 (unless perhaps more people complain.)
+
+To recursively search and display rows of .csv, .xls, and .xlsx spreadsheets
+that contain `10/6` using the `in2csv` filter of csvkit:
+
+    ugrep -r -Ocsv,xls,xlsx --filter='xls,xlsx:in2csv %' '10/6'
+
+To search .docx, .xlsx, and .pptx files converted to XML for a match with
+`10/6` using `unzip` as a filter:
+
+    ugrep -lr -Odocx,xlsx,pptx --filter='docx,xlsx,pptx:unzip -p %' '10/6'
+
+**Important:** unzipping .docx, .xlxs, .pptx produces extensive XML output
+containing meta information and binary data such as images.
 
 <a name="binary"/>
 
@@ -1501,9 +1515,11 @@ Option `--ignore-files` looks for `.gitignore`, or the specified FILE argument
 of this option, in recursive searches.  When found, the `.gitignore` file is
 used to exclude the files and directories matching the globs in `.gitignore` in
 the directory tree rooted at the `.gitignore` location by temporarily
-overriding the `--exclude` and `--exclude-dir` globs.  Use `--stats` to show
-the selection criteria applied to the search results.  See also the next
-section.
+overriding the `--exclude` and `--exclude-dir` globs, i.e. the `.gitignore`
+exclusions are applied precisely.  Use `--stats` to show the selection criteria
+applied to the search results.
+
+See also [Using gitignore-style globs to select directories and files to search](#gitignore).
 
 To recursively search while skipping hidden files and ignoring files and
 directories ignored by .gitignore (when present), use option `--ignore-files`:
@@ -1599,21 +1615,48 @@ implicit:
             in the EXTENSIONS list.  This option may be repeated and may be
             combined with options -M and -t to expand the search.
 
-See also `--exclude-fs=MOUNTS` and `--include-fs=MOUNTS`.
+See also [Including or excluding mounted file systems from searches](#fs).
+
+Gitignore-style glob syntax and conventions:
+
+glob     | matches
+-------- | --------------------------------------------------------------------
+`*`      | matches anything except a `/`
+`?`      | matches any one character except a `/`
+`[a-z]`  | matches one character in the selected range of characters
+`[^a-z]` | matches one character not in the selected range of characters
+`[!a-z]` | matches one character not in the selected range of characters
+`/`      | when used at the begin of a glob, matches if pathname has no `/`
+`**/`    | matches zero or more directories
+`/**`    | when at the end of a glob, matches everything after the `/`
+`\?`     | matches a `?` (or any character specified after the backslash)
+
+When a glob contains a path separator `/`, the pathname is matched.  Otherwise
+the basename of a file or directory is matched.  For example, `*.h` matches
+`foo.h` and `bar/foo.h`. `bar/*.h` matches `bar/foo.h` but not `foo.h` and not
+`bar/bar/foo.h`.  Use a leading `/` to force `/*.h` to match `foo.h` but not
+`bar/foo.h`.
+
+When a glob starts with a `!` as specified with `-g!GLOB`, or specified in a
+`FILE` with `--include-from=FILE` or `--exclude-from=FILE`, it is negated.
+
+To view a list of inclusions and exclusions that were applied to a search, use
+option `--stats`.
 
 To list only readable files with names starting with `foo` in the working
-directory, that contain `xyz` with `-s` and `-l`:
+directory, that contain `xyz`, without producing warning messages with `-s` and
+`-l`:
 
     ugrep -sl 'xyz' foo*
 
-The same is obtained using recursion with a directory inclusion constraint:
+The same, but using recursion with a directory inclusion constraint:
 
     ugrep -Rl 'xyz' --include-dir='/foo*'
 
 To recursively list files in the working directory, `docs`, and `docs/latest`,
 but not below, that contain `xyz`:
 
-    ugrep -sl 'xyz' * docs/* docs/latest/*
+    ugrep -l 'xyz' * docs/* docs/latest/*
 
 To recursively list files in directory `docs/latest` and below, that contain
 `xyz`:
@@ -1640,8 +1683,8 @@ at any depth, that contain `xyz`:
 
     ugrep -Rl 'xyz' -g '*.cpp'
 
-The same using a .gitignore-style glob that matches pathnames (globs with `/`)
-instead of matching basenames (globs without `/`) in the recursive search:
+The same, but using a .gitignore-style glob that matches pathnames (globs with
+`/`) instead of matching basenames (globs without `/`) in the recursive search:
 
     ugrep -Rl 'xyz' -g '**/*.cpp'
 
@@ -1655,7 +1698,7 @@ ignored by a specific .gitignore file:
     ugrep -Rl '' --exclude-from=.gitignore
 
 To recursively list all files in the working directory and below that are not
-ignored by .gitignore file(s), when any are present:
+ignored by one or more .gitignore files, when any are present:
 
     ugrep -Rl '' --ignore-files
 
@@ -1676,9 +1719,9 @@ ignored by .gitignore file(s), when any are present:
             priority over --include-fs mounts.  This option may be repeated.
 
 These options control recursive searches across file systems.  Mounted devices
-and symbolic links to mounted devices may be included or excluded from
-recursive searches by specifying a mount point or a directory pathname located
-in the file system to identify the file system.
+and symbolic links to files and directories located on mounted devices may be
+included or excluded from recursive searches by specifying a mount point or a
+directory pathname located in the file system to identify the file system.
 
 A list of mounted file systems is typically stored in `/etc/mtab`.
 
@@ -1692,14 +1735,15 @@ searches:
 
     ugrep -Rl --exclude-fs=/dev,/proc 'xyz' 
 
-To only include the file system mounted at `d:` in recursive searches:
+To only include the file system associated with drive `d:` in recursive
+searches:
 
     ugrep -Rl --include-fs=d:/ 'xyz' 
 
 To exclude `fuse` and `tmpfs` type file systems from recursive searches:
 
-    fusefs=`ugrep -w -e fuse -e tmpfs /etc/mtab | ugrep -P '^\S+ (\S+)' --format='%,%1'`
-    ugrep -Rl --exclude-fs="$fusefs" 'xyz'
+    exfs=`ugrep -w -e fuse -e tmpfs /etc/mtab | ugrep -P '^\S+ (\S+)' --format='%,%1'`
+    ugrep -Rl --exclude-fs="$exfs" 'xyz'
 
 <a name="count"/>
 
@@ -1888,7 +1932,7 @@ default):
 To display a hexdump of a zip file itself (without decompressing), with
 color-highlighted matches of the zip magic bytes `PK\x03\x04`:
 
-    ugrep --color -y -XU 'PK\x03\x04' some.zip
+    ugrep --color -y -UX 'PK\x03\x04' some.zip
 
 To use predefined patterns to list all `#include` and `#define` in C++ files:
 
@@ -2207,13 +2251,17 @@ single line, then option `-u` can be used to speed up displaying matches:
     ugrep -r -a -u -Opython -w 'def'
 
 Even greater speeds can be achieved with `--format` when searching files with
-many matches, for example when almost every line of the file has a match, use
-`--format='%O%~'` to output matching lines for every match, or
-`--format='%o%~'` to output the only matching part.  The `--format` option does
-not check for binary matches and may output a line repeatedly with field `%O`,
-like option `-u`.  For example, to match all words recursively in the working
-directory with line and column numbers, where `%n` is the line number, `%k` is
-the column number, `%o` is the match (only matching), and `%~` is a newline:
+many matches.  For example, `--format='%O%~'` displays matching lines for each
+match on that line, while `--format='%o%~'` displays the matching part only.
+Note that the `--format` option does not check for binary matches, so the
+output is "as is".  To match text and binary, you can use `--format='%C%~'`
+to display matches formatted as quoted C++ strings with escapes.
+To display a line at most once (unless option `-u` is used), add the `%u`
+(unique) field to the format string, e.g. `--format='%u%O%~'`.
+
+For example, to match all words recursively in the working directory with line
+and column numbers, where `%n` is the line number, `%k` is the column number,
+`%o` is the match (only matching), and `%~` is a newline:
 
     ugrep -r --format='%n,%k:%o%~' '\w+'
 
