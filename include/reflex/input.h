@@ -306,10 +306,11 @@ class Input {
     static const file_encoding_type iso8859_14 = 31; ///< ISO-8859-14, Latin-8
     static const file_encoding_type iso8859_15 = 32; ///< ISO-8859-15, Latin-9
     static const file_encoding_type iso8859_16 = 33; ///< ISO-8859-16
-    static const file_encoding_type koi8_r     = 34; ///< KOI8-R
-    static const file_encoding_type koi8_u     = 35; ///< KOI8-U
-    static const file_encoding_type koi8_ru    = 36; ///< KOI8-RU
-    static const file_encoding_type custom     = 37; ///< custom code page
+    static const file_encoding_type macroman   = 34; ///< Macintosh Roman with CR to LF translation
+    static const file_encoding_type koi8_r     = 35; ///< KOI8-R
+    static const file_encoding_type koi8_u     = 36; ///< KOI8-U
+    static const file_encoding_type koi8_ru    = 37; ///< KOI8-RU
+    static const file_encoding_type custom     = 38; ///< custom code page
   };
   /// Stream buffer for reflex::Input, derived from std::streambuf.
   class streambuf;

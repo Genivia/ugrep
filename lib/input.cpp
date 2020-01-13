@@ -49,7 +49,7 @@
 
 namespace reflex {
 
-static const unsigned short codepages[][256] =
+static const unsigned short codepages[38][256] =
 {
   // DOS CP 437 to Unicode
   {
@@ -621,6 +621,25 @@ static const unsigned short codepages[][256] =
   0x042E,0x0410,0x0411,0x0426,0x0414,0x0415,0x0424,0x0413,0x0425,0x0418,0x0419,0x041A,0x041B,0x041C,0x041D,0x041E,
   0x041F,0x042F,0x0420,0x0421,0x0422,0x0423,0x0416,0x0412,0x042C,0x042B,0x0417,0x0428,0x042D,0x0429,0x0427,0x042A
   },
+  // Macintosh Roman to Unicode with CR to LF translation
+  {
+       0,     1,     2,     3,     4,     5,     6,     7,     8,     9,    10,    11,    12,0x000A,    14,    15,
+      16,    17,    18,    19,    20,    21,    22,    23,    24,    25,    26,    27,    28,    29,    30,    31,
+      32,    33,    34,    35,    36,    37,    38,    39,    40,    41,    42,    43,    44,    45,    46,    47,
+      48,    49,    50,    51,    52,    53,    54,    55,    56,    57,    58,    59,    60,    61,    62,    63,
+      64,    65,    66,    67,    68,    69,    70,    71,    72,    73,    74,    75,    76,    77,    78,    79,
+      80,    81,    82,    83,    84,    85,    86,    87,    88,    89,    90,    91,    92,    93,    94,    95,
+      96,    97,    98,    99,   100,   101,   102,   103,   104,   105,   106,   107,   108,   109,   110,   111,
+     112,   113,   114,   115,   116,   117,   118,   119,   120,   121,   122,   123,   124,   125,   126,   127,
+  0x00C4,0x00C5,0x00C7,0x00C9,0x00D1,0x00D6,0x00DC,0x00E1,0x00E0,0x00E2,0x00E4,0x00E3,0x00E5,0x00E7,0x00E9,0x00E8,
+  0x00EA,0x00EB,0x00ED,0x00EC,0x00EE,0x00EF,0x00F1,0x00F3,0x00F2,0x00F4,0x00F6,0x00F5,0x00FA,0x00F9,0x00FB,0x00FC,
+  0x2020,0x00B0,0x00A2,0x00A3,0x00A7,0x2022,0x00B6,0x00DF,0x00AE,0x00A9,0x2122,0x00B4,0x00A8,0x2260,0x00C6,0x00D8,
+  0x221E,0x00B1,0x2264,0x2265,0x00A5,0x00B5,0x2202,0x2211,0x220F,0x03C0,0x222B,0x00AA,0x00BA,0x03A9,0x00E6,0x00F8,
+  0x00BF,0x00A1,0x00AC,0x221A,0x0192,0x2248,0x2206,0x00AB,0x00BB,0x2026,0x00A0,0x00C0,0x00C3,0x00D5,0x0152,0x0153,
+  0x2013,0x2014,0x201C,0x201D,0x2018,0x2019,0x00F7,0x25CA,0x00FF,0x0178,0x2044,0x20AC,0x2039,0x203A,0xFB01,0xFB02,
+  0x2021,0x00B7,0x201A,0x201E,0x2030,0x00C2,0x00CA,0x00C1,0x00CB,0x00C8,0x00CD,0x00CE,0x00CF,0x00CC,0x00D3,0x00D4,
+  0xF8FF,0x00D2,0x00DA,0x00DB,0x00D9,0x0131,0x02C6,0x02DC,0x00AF,0x02D8,0x02D9,0x02DA,0x00B8,0x02DD,0x02DB,0x02C7
+  },
 };
 
 void Input::file_init()
@@ -913,6 +932,7 @@ size_t Input::file_get(char *s, size_t n)
     case file_encoding::iso8859_14:
     case file_encoding::iso8859_15:
     case file_encoding::iso8859_16:
+    case file_encoding::macroman:
     case file_encoding::koi8_r:
     case file_encoding::koi8_u:
     case file_encoding::koi8_ru:
@@ -1017,6 +1037,7 @@ void Input::file_size()
       case file_encoding::iso8859_14:
       case file_encoding::iso8859_15:
       case file_encoding::iso8859_16:
+      case file_encoding::macroman:
       case file_encoding::koi8_r:
       case file_encoding::koi8_u:
       case file_encoding::koi8_ru:
@@ -1169,6 +1190,7 @@ void Input::file_encoding(unsigned short enc, const unsigned short *page)
         case file_encoding::iso8859_14:
         case file_encoding::iso8859_15:
         case file_encoding::iso8859_16:
+        case file_encoding::macroman:
         case file_encoding::koi8_r:
         case file_encoding::koi8_u:
         case file_encoding::koi8_ru:

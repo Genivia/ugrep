@@ -1,4 +1,4 @@
-AC_INIT(ugrep,1.6)
+AC_INIT(ugrep,1.7)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
 AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
@@ -13,6 +13,10 @@ AC_STRUCT_DIRENT_D_INO
 AC_STRUCT_DIRENT_D_TYPE
 
 AC_FUNC_MMAP
+
+AC_CHECK_HEADERS([sys/statvfs.h])
+
+AC_CHECK_FUNCS([statvfs])
 
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T

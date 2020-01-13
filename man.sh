@@ -175,8 +175,11 @@ attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
 \fBcx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36\fR.  The \fBmt=\fR,
 \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
-\fBGREP_COLOR\fR.
+\fBGREP_COLOR\fR.  Option \fB--colors\fR has priority over \fBGREP_COLORS\fR.
 .SH GREP_COLORS
+Colors are specified as a substring of semicolon-separated ANSI SGR codes to
+highlight specific parts of the output when option \fB--color=auto\fR or
+\fB--color=always\fR is used:
 .IP \fBsl=\fR
 SGR substring for selected lines.
 .IP \fBcx=\fR
@@ -325,76 +328,109 @@ The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
 \fB-v\fR, \fB--break\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR are disabled
 and have no effect on the formatted output.
 .SH EXAMPLES
-To find all occurrences of the word `patricia' in a file:
+Display lines containing the word `patricia' in `myfile.txt':
 .IP
-$ ugrep -w 'patricia' myfile
+$ ugrep -w 'patricia' myfile.txt
 .PP
-To count the number of lines containing the word `patricia' or `Patricia` in a
-file:
+Count the number of lines containing the word `patricia' or `Patricia`:
 .IP
-$ ugrep -cw '[Pp]atricia' myfile
+$ ugrep -cw '[Pp]atricia' myfile.txt
 .PP
-To count the total number of times the word `patricia' or `Patricia` occur in a
-file:
+Count the number of words `patricia' of any mixed case:
 .IP
-$ ugrep -cuw '[Pp]atricia' myfile
+$ ugrep -cowi 'patricia' myfile.txt
 .PP
-To list all Unicode words in a file:
+List all Unicode words in a file:
 .IP
-$ ugrep -o '\\w+' myfile
+$ ugrep -o '\\w+' myfile.txt
 .PP
-To list all ASCII words in a file:
+List all ASCII words in a file:
 .IP
-$ ugrep -o '[[:word:]]+' myfile
+$ ugrep -o '[[:word:]]+' myfile.txt
 .PP
-To list all laughing face emojis (Unicode code points U+1F600 to U+1F60F) in a file:
+List the laughing face emojis (Unicode code points U+1F600 to U+1F60F):
 .IP
-$ ugrep -o '[\\x{1F600}-\\x{1F60F}]' myfile
+$ ugrep -o '[\\x{1F600}-\\x{1F60F}]' myfile.txt
 .PP
-To check if a file contains any non-ASCII (i.e. Unicode) characters:
+Check if a file contains any non-ASCII (i.e. Unicode) characters:
 .IP
-$ ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
+$ ugrep -q '[^[:ascii:]]' myfile.txt && echo "contains Unicode"
 .PP
-To display the line and column number of all `FIXME' in all C++ files using
-recursive search, with one line of context before and after each matched line:
+Display the line and column number of `FIXME' in C++ files using recursive
+search, with one line of context before and after a matched line:
 .IP
-$ ugrep --color -C1 -R -n -k -tc++ 'FIXME'
+$ ugrep --color -C1 -r -n -k -tc++ 'FIXME'
 .PP
-To list all C/C++ comments in a file displaying their line and column numbers
-using options \fB-n\fR and \fB-k\fR, and option \fB-o\fR to restrict the match
-to the pattern only:
+List the C/C++ comments in a file with line numbers:
 .IP
-$ ugrep -nko -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile
+$ ugrep -n -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile.cpp
 .PP
-The same search, but using predefined patterns:
+The same, but using predefined pattern c++/comments:
 .IP
-$ ugrep -nko -f c/comments myfile
+$ ugrep -n -f c++/comments myfile.cpp
 .PP
-To list the lines that need fixing in a C/C++ source file by looking for the
-word FIXME while skipping any FIXME in quoted strings by using a negative
-pattern to ignore any pattern matches inside quoted strings:
+List the lines that need fixing in a C/C++ source file by looking for the word
+`FIXME' while skipping any `FIXME' in quoted strings:
 .IP
-$ ugrep -no -e 'FIXME' -N '"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*"' myfile
+$ ugrep -e 'FIXME' -N '"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*"' myfile.cpp
 .PP
-To match the binary pattern `A3hhhhA3hh` (hex) in a binary file without
-Unicode pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a
+The same, but using predefined pattern cpp/zap_strings:
+.IP
+$ ugrep -e 'FIXME' -f cpp/zap_strings myfile.cpp
+.PP
+Find lines with `FIXME' or `TODO':
+.IP
+$ ugrep -n -e 'FIXME' -e 'TODO' myfile.cpp
+.PP
+Find lines with `FIXME' that also contain the word `urgent':
+.IP
+$ ugrep -n 'FIXME' myfile.cpp | ugrep -w 'urgent'
+.PP
+Find lines with `FIXME' but not the word `later':
+.IP
+$ ugrep -n 'FIXME' myfile.cpp | ugrep -v -w 'later'
+.PP
+Output a list of line numbers of lines with `FIXME' but not `later':
+.IP
+$ ugrep -n 'FIXME' myfile.cpp | ugrep -vw 'later' | 
+  ugrep -P '^(\\d+)' --format='%,%n'
+.PP
+Monitor the system log for bug reports:
+.IP
+$ tail -f /var/log/system.log | ugrep --color -i -w 'bug'
+.PP
+Find lines with `FIXME' in the C/C++ files stored in a tarball:
+.IP
+$ ugrep -z -tc++ -n 'FIXME' project.tgz
+.PP
+Recursively search for the word `copyright' in cpio/pax/tar/zip archives,
+compressed and regular files, and in PDFs using a PDF filter:
+.IP
+$ ugrep -r -z -w --filter='pdf:pdftotext % -' 'copyright'
+.PP
+Match the binary pattern `A3hhhhA3hh' (hex) in a binary file without Unicode
+pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a
 Unicode character U+00A3 with UTF-8 byte sequence C2 A3) and display the
 results in hex with \fB-X\fR using `less -R' as a pager:
 .IP
 $ ugrep --pager -UXo '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out
 .PP
-To hex dump an entire file in color:
+Hexdump an entire file in color:
 .IP
-$ ugrep --color --pager -Xo '' a.out
+$ ugrep --color -X '' a.out
 .PP
-To list all files containing a RPM signature, located in the `rpm` directory and
-recursively below:
+List all files that are not ignored by one or more `.gitignore':
 .IP
-$ ugrep -R -l -tRpm '' rpm/
+$ ugrep -Rl '' --ignore-files
 .PP
-To monitor the system log for bug reports:
+List all files containing a RPM signature, located in the `rpm' directory and
+recursively below up to two levels deeper:
 .IP
-$ tail -f /var/log/system.log | ugrep --color -i -w 'bug'
+$ ugrep -R --max-depth=3 -l -tRpm '' rpm/
+.PP
+Display all words in a MacRoman-encoded file that has CR newlines:
+.IP
+$ ugrep -QMACROMAN '\\w+' mac.txt
 .SH BUGS
 Report bugs at:
 .IP

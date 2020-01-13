@@ -12,6 +12,7 @@ C++ with Unicode identifiers.
 - `functions` matches function definitions
 - `includes` matches `#include` lines
 - `names` matches identifiers (and keywords)
+- `namespaces` matches namespace scopes
 - `strings` matches strings
 - `structs` matches struct definitions
 - `typedefs` matches `typedef` lines
