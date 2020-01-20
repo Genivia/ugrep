@@ -83,7 +83,7 @@ https://github.com/Genivia/ugrep
 Note that `.' matches any non-newline character.  Pattern `\\n' matches a
 newline character.  Multiple lines may be matched with patterns that match
 newlines, unless one or more of the context options \fB-A\fR, \fB-B\fR,
-  \fB-C\fR or \fB-y\fR is used, or option \fB-v\fR.
+\fB-C\fR, or \fB-y\fR is used, or option \fB-v\fR is used.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -104,8 +104,11 @@ a glob contains a path separator `/', the pathname is matched.  Otherwise the
 basename of a file or directory is matched.  For example, \fB*.h\fR matches
 \fIfoo.h\fR and \fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not
 \fIfoo.h\fR and not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR
-to match \fIfoo.h\fR but not \fIbar/foo.h\fR.  A glob starting with a `!' is
-negated, i.e. does not match.
+to match \fIfoo.h\fR but not \fIbar/foo.h\fR.
+.PP
+When a glob starts with a `!' as specified with \fB-g\fR!\fIGLOB\fR, or
+specified in a \fIFILE\fR with \fB--include-from\fR=\fIFILE\fR or
+\fB--exclude-from\fR=\fIFILE\fR, it is negated.
 .PP
 \fBGlob Syntax and Conventions\fR
 .IP \fB*\fR
@@ -177,9 +180,9 @@ list of ANSI SGR parameters that defaults to
 \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
 \fBGREP_COLOR\fR.  Option \fB--colors\fR has priority over \fBGREP_COLORS\fR.
 .SH GREP_COLORS
-Colors are specified as a substring of semicolon-separated ANSI SGR codes to
-highlight specific parts of the output when option \fB--color=auto\fR or
-\fB--color=always\fR is used:
+Colors are specified as string of colon-separated ANSI SGR parameters of the
+form `what=substring', where `substring' is a semicolon-separated list of SGR
+codes to color-highlight `what':
 .IP \fBsl=\fR
 SGR substring for selected lines.
 .IP \fBcx=\fR
@@ -291,22 +294,21 @@ if not the first match: a verical bar, same as \fB%[|]>\fR.
 the percentage sign.
 .IP \fB%1\fR
 the first regex group capture of the match, and so on up to group \fB%9\fR,
-same as \fB%[1]#\fR, requires option \fB-P\fR Perl matching.
+same as \fB%[1]#\fR; requires option \fB-P\fR Perl matching.
 .IP \fB%[\fINUM\fR\fB]#\fR
-the regex group capture \fINUM\fR, requires option \fB-P\fR.
+the regex group capture \fINUM\fR; requires option \fB-P\fR Perl matching.
 .PP
 The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
 When present, the argument must be placed in \fB[]\fR brackets, for example
 \fB%[,]F\fR to output a comma, the pathname, and a separator.
 .PP
-Fields \fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not write
+Fields \fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not send
 anything to the output.
 .PP
 The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
-\fB%S\fR may be changed by preceeding the field with a
-\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided,
-reverses the separator to the default separator or the separator specified by
-\fB--separator\fR.
+\fB%S\fR may be changed by preceeding the field by \fB%[\fR\fISEP\fR\fB]$\fR.
+When \fB[\fR\fISEP\fR\fB]\fR is not provided, this reverses the separator to
+the default separator or the separator specified with \fB--separator\fR.
 .PP
 Formatted output is written for each matching pattern, which means that a line
 may be output multiple times when patterns match more than once on the same
@@ -403,7 +405,7 @@ Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
 $ ugrep -z -tc++ -n 'FIXME' project.tgz
 .PP
-Recursively search for the word `copyright' in cpio/pax/tar/zip archives,
+Recursively search for the word `copyright' in cpio/jar/pax/tar/zip archives,
 compressed and regular files, and in PDFs using a PDF filter:
 .IP
 $ ugrep -r -z -w --filter='pdf:pdftotext % -' 'copyright'

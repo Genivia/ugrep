@@ -856,11 +856,11 @@ class AbstractMatcher {
     (void)lineno();
     return bol_;
   }
-  /// Returns pointer to the end of line in the buffer after the matched text, DANGER: invalidates previous bol() and text() pointers, only use eol() before bol() and text().
+  /// Returns pointer to the end of line in the buffer after the matched text, DANGER: invalidates previous bol() and text() pointers, use eol() before bol(), text(), begin(), and end() when those are required.
   inline const char *eol(bool inclusive = false) ///< true if eol should be inclusive, i.e. after \n
     /// @returns pointer to the end of line
   {
-    if (chr_ == '\n' || txt_[len_] == '\n')
+    if (chr_ == '\n' || (txt_ + len_ < buf_ + end_ && txt_[len_] == '\n'))
       return txt_ + len_ + inclusive;
     size_t tmp = pos_;
     while (true)
@@ -876,7 +876,9 @@ class AbstractMatcher {
       }
       if (eof_)
         break;
+      pos_ = tmp;
       (void)grow();
+      tmp = pos_;
       pos_ = end_;
       end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
       if (pos_ >= end_ && !wrap())
@@ -1161,7 +1163,7 @@ class AbstractMatcher {
   virtual size_t match(Method method)
     /// @returns nonzero when input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     = 0;
-  /// Shift or expand the internal buffer when it is too small to accommodate more input, where the buffer size is doubled when needed.
+  /// Shift or expand the internal buffer when it is too small to accommodate more input, where the buffer size is doubled when needed, change cur_, pos_, end_, max_, ind_, buf_, bol_, lpb_, and txt_.
   bool grow(size_t need = Const::BLOCK) ///< optional needed space = Const::BLOCK size by default
     /// @returns true if buffer was shifted or was enlarged
   {

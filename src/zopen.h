@@ -76,7 +76,7 @@
 extern "C" {
 #endif
 
-void *z_open(FILE *, const char *, int);
+void *z_open(FILE *, const char *, int, int);
 int z_close(void *);
 int z_read(void *, unsigned char *, int);
 int z_write(void *, const unsigned char *, int);

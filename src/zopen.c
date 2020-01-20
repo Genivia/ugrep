@@ -87,11 +87,12 @@
  * to the following four functions, without requiring BSD funopen() and to
  * avoid a clash with BSD zopen():
  *
- * z_open(FILE *file, const char *mode, int bits)
+ * z_open(FILE *file, const char *mode, int bits, int plain)
  *      Returns a new void* handle to read (decompress) or write (compress)
  *      from/to the specified FILE* with mode "r" or "w" using bits (only used
- *      for writing, use 0 for default 16 bits), returns NULL when unable to
- *      allocate.
+ *      for writing, use 0 for default 16 bits).  Normally, plain should be
+ *      zero, unless the two-byte magic header 1F 9D is, or should be, removed
+ *      from the compressed stream.  Returns NULL when unable to allocate.
  *
  * z_read(void *, unsigned char *buf, int len)
  *      Read and decompress up to len bytes into buf, returns the number of
@@ -148,6 +149,7 @@ static char_type magic_header[] =
 struct s_zstate {
 	FILE *zs_fp;			/* File stream for I/O */
 	char zs_mode;			/* r or w */
+        char zs_magic;                  /* read or write the magic header */
 	enum {
 		S_START, S_MIDDLE, S_EOF
 	} zs_state;			/* State of computation */
@@ -192,6 +194,7 @@ struct s_zstate {
 /* Definitions to retain old variable names */
 #define	fp		zs->zs_fp
 #define	zmode		zs->zs_mode
+#define	zmagic		zs->zs_magic
 #define	state		zs->zs_state
 #define	n_bits		zs->zs_n_bits
 #define	maxbits		zs->zs_maxbits
@@ -299,9 +302,12 @@ z_write(void *handle, const unsigned char *wbp, int num)
 	state = S_MIDDLE;
 
 	maxmaxcode = 1L << maxbits;
-	if (fwrite(magic_header,
-	    sizeof(char), sizeof(magic_header), fp) != sizeof(magic_header))
-		return (-1);
+        if (zmagic)
+        {
+                if (fwrite(magic_header,
+                    sizeof(char), sizeof(magic_header), fp) != sizeof(magic_header))
+                        return (-1);
+        }
 	tmp = (u_char)((maxbits) | block_compress);
 	if (fwrite(&tmp, sizeof(char), sizeof(tmp), fp) != sizeof(tmp))
 		return (-1);
@@ -518,12 +524,12 @@ z_read(void *handle, unsigned char *rbp, int num)
 
 	/* Check the magic number */
 	if (fread(header,
-	    sizeof(char), sizeof(header), fp) != sizeof(header) ||
-	    memcmp(header, magic_header, sizeof(magic_header)) != 0) {
+	    sizeof(char), zmagic + 1, fp) != zmagic + 1 ||
+	    memcmp(header, magic_header, zmagic) != 0) {
 		errno = EINVAL;
 		return (-1);
 	}
-	maxbits = header[2];	/* Set -b from file. */
+	maxbits = header[zmagic];	/* Set -b from file. */
 	block_compress = maxbits & BLOCK_MASK;
 	maxbits &= BIT_MASK;
 	maxmaxcode = 1L << maxbits;
@@ -731,7 +737,7 @@ cl_hash(struct s_zstate *zs, count_int cl_hsize)	/* Reset code table. */
 }
 
 void *
-z_open(FILE *file, const char *mode, int bits)
+z_open(FILE *file, const char *mode, int bits, int plain)
 {
 	struct s_zstate *zs;
 
@@ -756,6 +762,7 @@ z_open(FILE *file, const char *mode, int bits)
 	in_count = 1;			/* Length of input. */
 	out_count = 0;			/* # of codes output (for debugging). */
 	state = S_START;
+        zmagic = plain ? 0 : 2;         /* plain compressed, without magic header */
 	roffset = 0;
 	size = 0;
 

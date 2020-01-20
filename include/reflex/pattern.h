@@ -265,17 +265,23 @@ class Pattern {
   {
     return assign(fsm);
   }
-  /// Number of subpatterns of this pattern object.
+  /// Get the number of subpatterns of this pattern object.
   Index size() const
     /// @returns number of subpatterns
   {
     return static_cast<Index>(end_.size());
   }
+  /// Return true if this pattern is not assigned.
+  bool empty() const
+    /// @return true if this pattern is not assigned
+  {
+    return opc_ == NULL && fsm_ == NULL;
+  }
   /// Get subpattern regex of this pattern object or the whole regex with index 0.
   const std::string operator[](Index choice) const
     /// @returns subpattern string or "" when not set
     ;
-  /// Check is subpattern is reachable by a match.
+  /// Check if subpattern is reachable by a match.
   bool reachable(Index choice) const
     /// @returns true if subpattern is reachable
   {

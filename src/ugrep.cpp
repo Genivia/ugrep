@@ -50,19 +50,19 @@ Optional libraries to support options -P and -z:
 
 Build ugrep as follows:
 
-  ./configure
-  make
+  ./configure && make
+
+Or build ugrep with colors enabled by default:
+
+  ./configure --enable-color && make
 
 Github does not preserve time stamps so ./configure may fail, in that case do:
 
   ./autoreconf -fi
-  ./configure
-  make
+  ./configure && make
 
-Install as follows:
+After this, you may want to install ugrep (optional):
 
-  ./configure
-  make
   sudo make install
 
 Prebuilt executables are located in ugrep/bin.
@@ -70,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.2"
+#define UGREP_VERSION "1.7.3"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -329,7 +329,7 @@ int pclose(FILE *stream)
 // undefined size_t value
 #define UNDEFINED static_cast<size_t>(~0UL)
 
-// the -M MAGIC pattern (compiled, read-only)
+// the -M MAGIC pattern DFAs constructed before threads start, read-only afterwards
 reflex::Pattern magic_pattern;
 
 // number of concurrent threads for workers
@@ -439,6 +439,8 @@ size_t flag_max_depth              = 0;
 size_t flag_max_files              = 0;
 size_t flag_min_line               = 0;
 size_t flag_max_line               = 0;
+size_t flag_not_magic              = 0;
+size_t flag_min_magic              = 1;
 size_t flag_jobs                   = 0;
 size_t flag_tabs                   = 8;
 size_t flag_min_mmap               = DEFAULT_MIN_MMAP_SIZE;
@@ -747,27 +749,32 @@ struct Stats {
       for (auto& i : ignore)
         fprintf(output, "  %s exclusions were applied to %s\n", i.c_str(), i.substr(0, i.find_last_of(PATHSEPCHR)).c_str());
       for (auto& i : flag_file_magic)
-        fprintf(output, "--file-magic='%s'\n", i.c_str());
+      {
+        if (!i.empty() && (i.front() == '!' || i.front() == '^'))
+          fprintf(output, "--file-magic='!%s' (negation)\n", i.c_str() + 1);
+        else
+          fprintf(output, "--file-magic='%s'\n", i.c_str());
+      }
       for (auto& i : flag_include)
         fprintf(output, "--include='%s'\n", i.c_str());
       for (auto& i : flag_not_include)
-        fprintf(output, "--include='!%s' (negation override)\n", i.c_str());
+        fprintf(output, "--include='!%s' (negation)\n", i.c_str());
       for (auto& i : flag_include_fs)
         fprintf(output, "--include-fs='%s'\n", i.c_str());
       for (auto& i : flag_include_dir)
         fprintf(output, "--include-dir='%s'\n", i.c_str());
       for (auto& i : flag_not_include_dir)
-        fprintf(output, "--include-dir='!%s' (negation override)\n", i.c_str());
+        fprintf(output, "--include-dir='!%s' (negation)\n", i.c_str());
       for (auto& i : flag_exclude)
         fprintf(output, "--exclude='%s'\n", i.c_str());
       for (auto& i : flag_not_exclude)
-        fprintf(output, "--exclude='!%s' (negation override)\n", i.c_str());
+        fprintf(output, "--exclude='!%s' (negation)\n", i.c_str());
       for (auto& i : flag_exclude_fs)
         fprintf(output, "--exclude-fs='%s'\n", i.c_str());
       for (auto& i : flag_exclude_dir)
         fprintf(output, "--exclude-dir='%s'\n", i.c_str());
       for (auto& i : flag_not_exclude_dir)
-        fprintf(output, "--exclude-dir='!%s' (negation override)\n", i.c_str());
+        fprintf(output, "--exclude-dir='!%s' (negation)\n", i.c_str());
     }
   }
 
@@ -2941,15 +2948,13 @@ struct Grep {
         }
       }
 
-      // -M: check magic bytes, requires sufficiently large len of buf[]
-      if ((flag_include.empty() || !is_selected) && !flag_file_magic.empty())
+      // -M: check magic bytes, requires sufficiently large len of buf[] to match patterns, which is fine when Z_BUF_LEN is large e.g. 64K
+      if (buf != NULL && !flag_file_magic.empty() && (flag_include.empty() || !is_selected))
       {
-        if (buf != NULL)
-        {
-          reflex::Matcher magic(magic_pattern);
-          magic.buffer(const_cast<char*>(reinterpret_cast<const char*>(buf)), len + 1);
-          is_selected = magic.scan() != 0;
-        }
+        reflex::Matcher magic(magic_pattern);
+        magic.buffer(const_cast<char*>(reinterpret_cast<const char*>(buf)), len + 1);
+        size_t match = magic.scan();
+        is_selected = match == flag_not_magic || match >= flag_min_magic;
       }
     }
 
@@ -4155,6 +4160,10 @@ int main(int argc, char **argv)
   if (flag_regexp.empty() && flag_file.empty())
     help("");
 
+  // -x: enable -Y
+  if (flag_line_regexp)
+    flag_empty = true;
+
   // -F: make newline-separated lines in regex literal with \Q and \E
   const char *Q = flag_fixed_strings ? "\\Q" : "";
   const char *E = flag_fixed_strings ? "\\E|" : "|";
@@ -4174,14 +4183,14 @@ int main(int argc, char **argv)
       {
         regex.append(".*\n?|");
 
-        // indicate we're matching everything
+        // we're matching everything
         flag_match = true;
       }
       else
       {
         regex.append(".*|");
 
-        // indicate we're matching everything
+        // we're matching everything
         flag_match = true;
       }
 
@@ -4209,8 +4218,9 @@ int main(int argc, char **argv)
       if (from < pattern.size())
         regex.append(Q).append(pattern.substr(from)).append(E);
 
-      if (pattern == "^$")
-        flag_empty = true; // we're matching empty lines, so enable -Y
+      // if pattern starts with ^ and ends with $, enable -Y
+      if (pattern.size() >= 2 && pattern.front() == '^' && pattern.back() == '$')
+        flag_empty = true;
     }
   }
 
@@ -4240,6 +4250,9 @@ int main(int argc, char **argv)
 
       if (from < pattern.size())
         neg_regex.append(Q).append(pattern.substr(from)).append(E);
+
+      if (pattern.size() >= 2 && pattern.front() == '^' && pattern.back() == '$')
+        flag_empty = true; // we're possibly matching empty lines, so enable -Y
     }
   }
 
@@ -4249,11 +4262,14 @@ int main(int argc, char **argv)
     // remove the ending '|' from the |-concatenated regexes in the regex string
     neg_regex.pop_back();
 
-    // -x or -w
-    if (flag_line_regexp)
-      neg_regex.insert(0, "^(").append(")$"); // make the regex line-anchored
-    else if (flag_word_regexp)
-      neg_regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+    if (regex != "^$")
+    {
+      // -x or -w
+      if (flag_line_regexp)
+        neg_regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+      else if (flag_word_regexp)
+        neg_regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+    }
 
     // construct negative (?^PATTERN)
     neg_regex.insert(0, "(?^").push_back(')');
@@ -4677,22 +4693,49 @@ int main(int argc, char **argv)
     {
       size_t to = types.find(',', from);
       size_t size = (to == std::string::npos ? types.size() : to) - from;
-      std::string type(types.substr(from, size));
 
-      size_t i;
+      if (size > 0)
+      {
+        bool negate = size > 1 && (types[from] == '!' || types[from] == '^');
 
-      // scan the type_table[] for a matching type
-      for (i = 0; type_table[i].type != NULL; ++i)
-        if (type == type_table[i].type)
-          break;
+        if (negate)
+        {
+          ++from;
+          --size;
+        }
 
-      if (type_table[i].type == NULL)
-        help("invalid argument --file-type=TYPE, to list the valid values use -tlist");
+        std::string type(types.substr(from, size));
 
-      flag_file_extensions.emplace_back(type_table[i].extensions);
+        size_t i;
 
-      if (type_table[i].magic != NULL)
-        flag_file_magic.emplace_back(type_table[i].magic);
+        // scan the type_table[] for a matching type
+        for (i = 0; type_table[i].type != NULL; ++i)
+          if (type == type_table[i].type)
+            break;
+
+        if (type_table[i].type == NULL)
+          help("invalid argument --file-types=TYPES, -tlist displays valid values");
+
+        std::string extensions(type_table[i].extensions);
+
+        if (negate)
+        {
+          extensions.insert(0, "!");
+          size_t j = 0;
+          while ((j = extensions.find(',', j)) != std::string::npos)
+            extensions.insert(++j, "!");
+        }
+
+        flag_file_extensions.emplace_back(extensions);
+
+        if (type_table[i].magic != NULL)
+        {
+          flag_file_magic.emplace_back(type_table[i].magic);
+
+          if (negate)
+            flag_file_magic.back().insert(0, "!");
+        }
+      }
 
       if (to == std::string::npos)
         break;
@@ -4701,17 +4744,18 @@ int main(int argc, char **argv)
     }
   }
 
-  // -g, --glob: add globs to --include and --exclude
+  // -g, --glob: add globs to --include/--exclude
   for (auto& i : flag_glob)
   {
-    bool negate = !i.empty() && i.front() == '!';
+    bool negate = i.size() > 1 && (i.front() == '!' || i.front() == '^');
+
     if (negate)
       flag_exclude.emplace_back(i.substr(1));
     else
       flag_include.emplace_back(i);
   }
 
-  // -O: add extensions as globs to the --include list
+  // -O: add filename extensions as globs to --include/--exclude
   for (auto& extensions : flag_file_extensions)
   {
     size_t from = 0;
@@ -4722,27 +4766,38 @@ int main(int argc, char **argv)
       size_t to = extensions.find(',', from);
       size_t size = (to == std::string::npos ? extensions.size() : to) - from;
 
-      flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, size)));
+      if (size > 0)
+      {
+        bool negate = size > 1 && (extensions[from] == '!' || extensions[from] == '^');
+
+        if (negate)
+        {
+          ++from;
+          --size;
+        }
+
+        (negate ? flag_exclude : flag_include).emplace_back(glob.assign("*.").append(extensions.substr(from, size)));
 
 #ifdef HAVE_LIBZ
-      // -z: add globs to search compressed files and tarballs
-      if (flag_decompress)
-      {
-        const char *zextensions[] = {
-          ".gz", ".Z", ".zip", ".ZIP",
+        // -z: add globs to search compressed files and tarballs
+        if (!negate && flag_decompress)
+        {
+          const char *zextensions[] = {
+            ".gz", ".Z", ".zip", ".ZIP",
 #ifdef HAVE_LIBBZ2
-          ".bz", ".bz2", ".bzip2",
+            ".bz", ".bz2", ".bzip2",
 #endif
 #ifdef HAVE_LIBLZMA
-          ".lzma", ".xz",
+            ".lzma", ".xz",
 #endif
-          NULL
-        };
+            NULL
+          };
 
-        for (size_t i = 0; zextensions[i] != NULL; ++i)
-          flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, size)).append(zextensions[i]));
-      }
+          for (size_t i = 0; zextensions[i] != NULL; ++i)
+            flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, size)).append(zextensions[i]));
+        }
 #endif
+      }
 
       if (to == std::string::npos)
         break;
@@ -4807,15 +4862,35 @@ int main(int argc, char **argv)
 #endif
 #endif
 
-  // -M: file signature "magic bytes" MAGIC regex
+  // -M: file signature "magic bytes" regex string
   std::string signature;
 
-  // -M: combine to create a signature regex from MAGIC
-  for (auto& magic : flag_file_magic)
+  // -M !MAGIC: combine to create a signature regex string
+  for (auto& i : flag_file_magic)
   {
-    if (!signature.empty())
-      signature.push_back('|');
-    signature.append(magic);
+    if (i.size() > 1 && (i.front() == '!' || i.front() == '^'))
+    {
+      if (!signature.empty())
+        signature.push_back('|');
+      signature.append(i.substr(1));
+
+      // tally negative MAGIC patterns
+      ++flag_min_magic;
+    }
+  }
+
+  // -M MAGIC: append to signature regex string
+  for (auto& i : flag_file_magic)
+  {
+    if (i.size() <= 1 || (i.front() != '!' && i.front() != '^'))
+    {
+      if (!signature.empty())
+        signature.push_back('|');
+      signature.append(i);
+
+      // we have positive MAGIC patterns, so scan() is a match when flag_min_magic or greater
+      flag_not_magic = flag_min_magic;
+    }
   }
 
   // --exclude-from: add globs to the --exclude and --exclude-dir lists
@@ -4851,12 +4926,16 @@ int main(int argc, char **argv)
       {
         size_t to = i.find(',', from);
         size_t size = (to == std::string::npos ? i.size() : to) - from;
-        std::string mount(i.substr(from, size));
 
-        if (statvfs(mount.c_str(), &buf) == 0)
-          exclude_fs.insert(static_cast<uint64_t>(buf.f_fsid));
-        else
-          warning("--exclude-fs: cannot stat", mount.c_str());
+        if (size > 0)
+        {
+          std::string mount(i.substr(from, size));
+
+          if (statvfs(mount.c_str(), &buf) == 0)
+            exclude_fs.insert(static_cast<uint64_t>(buf.f_fsid));
+          else
+            warning("--exclude-fs: cannot stat", mount.c_str());
+        }
 
         if (to == std::string::npos)
           break;
@@ -4901,12 +4980,16 @@ int main(int argc, char **argv)
       {
         size_t to = i.find(',', from);
         size_t size = (to == std::string::npos ? i.size() : to) - from;
-        std::string mount(i.substr(from, size));
 
-        if (statvfs(mount.c_str(), &buf) == 0)
-          include_fs.insert(static_cast<uint64_t>(buf.f_fsid));
-        else
-          warning("--include-fs: cannot stat", mount.c_str());
+        if (size > 0)
+        {
+          std::string mount(i.substr(from, size));
+
+          if (statvfs(mount.c_str(), &buf) == 0)
+            include_fs.insert(static_cast<uint64_t>(buf.f_fsid));
+          else
+            warning("--include-fs: cannot stat", mount.c_str());
+        }
 
         if (to == std::string::npos)
           break;
@@ -4982,7 +5065,9 @@ int main(int argc, char **argv)
 
   try
   {
-    magic_pattern.assign(signature, "r");
+    // construct magic_pattern DFA for -M !MAGIC and -M MAGIC
+    if (!signature.empty())
+      magic_pattern.assign(signature, "r");
     magic.pattern(magic_pattern);
   }
 
@@ -5329,7 +5414,8 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
         std::istream stream(&streambuf);
 
         // file has the magic bytes we're looking for: search the file
-        if (magic.input(&stream).scan() != 0)
+        size_t match = magic.input(&stream).scan();
+        if (match == flag_not_magic || match >= flag_min_magic)
         {
           stats.score_file();
 
@@ -5342,16 +5428,19 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
       }
       else
 #endif
-      if (magic.input(reflex::Input(file, flag_encoding_type)).scan() != 0)
       {
-        // if file has the magic bytes we're looking for: search the file
-        stats.score_file();
+        size_t match = magic.input(reflex::Input(file, flag_encoding_type)).scan();
+        if (match == flag_not_magic || match >= flag_min_magic)
+        {
+          // if file has the magic bytes we're looking for: search the file
+          stats.score_file();
 
-        fclose(file);
+          fclose(file);
 
-        grep.search(pathname);
+          grep.search(pathname);
 
-        return;
+          return;
+        }
       }
 
       fclose(file);
@@ -5492,7 +5581,8 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
               std::istream stream(&streambuf);
 
               // file has the magic bytes we're looking for: search the file
-              if (magic.input(&stream).scan() != 0)
+              size_t match = magic.input(&stream).scan();
+              if (match == flag_not_magic || match >= flag_min_magic)
               {
                 stats.score_file();
 
@@ -5507,7 +5597,8 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
 #endif
             {
               // if file has the magic bytes we're looking for: search the file
-              if (magic.input(reflex::Input(file, flag_encoding_type)).scan() != 0)
+              size_t match = magic.input(reflex::Input(file, flag_encoding_type)).scan();
+              if (match == flag_not_magic || match >= flag_min_magic)
               {
                 stats.score_file();
 
@@ -6241,7 +6332,7 @@ void Grep::search(const char *pathname)
             if (out.eof)
               goto exit_search;
 
-            const char *eol = matcher->eol(true); // warning: call eol() before bol()
+            const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
             const char *bol = matcher->bol();
 
             binary = flag_hex || (!flag_text && is_binary(bol, eol - bol));
@@ -6429,7 +6520,7 @@ void Grep::search(const char *pathname)
                 }
                 else
                 {
-                  const char *eol = matcher->eol(true); // warning: call eol() before bol()
+                  const char *eol = matcher->eol(true); // warning: call eol() before end()
                   const char *end = matcher->end();
 
                   bool rest_binary = flag_hex || (!flag_text && is_binary(end, eol - end));
@@ -7199,6 +7290,7 @@ void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string
     {
       // gitignore-style ! negate pattern to override include/exclude
       bool negate = line.front() == '!' && !line.empty();
+
       if (negate)
         line.erase(0, 1);
 
@@ -7565,8 +7657,8 @@ void help(const char *message, const char *arg)
             zero byte or invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
             and -X options.\n\
     --break\n\
-            Groups matches per file and adds a line break between results from\n\
-            different files.\n\
+            Group matches per file.  Adds a header and line break between\n\
+            results from different files.\n\
     -C[NUM], --context[=NUM]\n\
             Print NUM lines of leading and trailing context surrounding each\n\
             match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
@@ -7587,10 +7679,10 @@ void help(const char *message, const char *arg)
             list of ANSI SGR parameters.  COLORS selectively overrides the\n\
             colors specified by the GREP_COLORS environment variable.\n\
     --cpp\n\
-            Output file matches in C++.  See also option --format.\n\
+            Output file matches in C++.  See also the --format and -u options.\n\
     --csv\n\
             Output file matches in CSV.  When option -H, -n, -k, or -b is used\n\
-            additional CSV values are output.  See also option --format.\n\
+            additional values are output.  See also the --format and -u options.\n\
     -D ACTION, --devices=ACTION\n\
             If an input file is a device, FIFO or socket, use ACTION to process\n\
             it.  By default, ACTION is `skip', which means that devices are\n\
@@ -7619,29 +7711,31 @@ void help(const char *message, const char *arg)
     --exclude=GLOB\n\
             Skip files whose name matches GLOB using wildcard matching, same as\n\
             -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
-            quote a wildcard or backslash character literally.  If GLOB\n\
-            contains /, full pathnames are matched.  Otherwise basenames are\n\
-            matched.  Note that --exclude patterns take priority over --include\n\
-            patterns.  This option may be repeated.\n\
+            quote a wildcard or backslash character literally.  When GLOB\n\
+            contains a `/', full pathnames are matched.  Otherwise basenames\n\
+            are matched.  Note that --exclude patterns take priority over\n\
+            --include patterns.  This option may be repeated.\n\
     --exclude-dir=GLOB\n\
             Exclude directories whose name matches GLOB from recursive\n\
-            searches.  If GLOB contains /, full pathnames are matched.\n\
-            Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
-            take priority over --include-dir patterns.  This option may be\n\
-            repeated.\n\
+            searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
+            quote a wildcard or backslash character literally.  When GLOB\n\
+            contains a `/', full pathnames are matched.  Otherwise basenames\n\
+            are matched.  Note that --exclude-dir patterns take priority over\n\
+            --include-dir patterns.  This option may be repeated.\n\
     --exclude-from=FILE\n\
             Read the globs from FILE and skip files and directories whose name\n\
             matches one or more globs (as if specified by --exclude and\n\
             --exclude-dir).  Lines starting with a `#' and empty lines in FILE\n\
             are ignored.  When FILE is a `-', standard input is read.  This\n\
-            option may be repeated.\n";
-#ifdef HAVE_STATVFS
-  std::cout << "\
+            option may be repeated.\n\
     --exclude-fs=MOUNTS\n\
-            Exclude file systems with mounting points MOUNTS from recursive\n\
-            searches,  MOUNTS is a comma-separated list of pathnames.  Note\n\
-            that --exclude-fs mounts take priority over --include-fs mounts.\n\
-            This option may be repeated.\n";
+            Exclude file systems specified by MOUNTS from recursive searches,\n\
+            MOUNTS is a comma-separated list of mount points or pathnames of\n\
+            directories on file systems.  Note that --exclude-fs mounts take\n\
+            priority over --include-fs mounts.  This option may be repeated.\n";
+#ifndef HAVE_STATVFS
+  std::cout << "\
+            This option is not available in this build configuration of ugrep.\n";
 #endif
   std::cout << "\
     -F, --fixed-strings\n\
@@ -7669,11 +7763,11 @@ void help(const char *message, const char *arg)
             `command' is a filter utility.  The filter utility should read from\n\
             standard input and write to standard output.  Files matching one of\n\
             `exts` are filtered only.  One or more `option' separated by\n\
-            spacing may be specified, which are passed verbatim to the command\n\
-            without expansion.  A `%' as `option' expands into the pathname,\n\
-            which is the conventional dash `-' when searching standard input.\n\
-            Option --label=.ext may be used to force filtering standard input.\n\
-            For example, --filter='pdf:pdftotext % -' searches PDF files.\n";
+            spacing may be specified, which are passed verbatim to the command.\n\
+            A `%' as `option' expands into the pathname to search.  For example,\n\
+            --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands\n\
+            into a `-' when searching standard input.  Option --label=.ext may\n\
+            be used to specify extension `ext' when searching standard input.\n";
 #endif
   std::cout << "\
     --format=FORMAT\n\
@@ -7686,8 +7780,8 @@ void help(const char *message, const char *arg)
             behave as traditional grep.\n\
     -g GLOB, --glob=GLOB\n\
             Search only files whose name matches GLOB, same as --include=GLOB.\n\
-            If GLOB is preceded by a `!', skip files whose name matches GLOB,\n\
-            same as --exclude=GLOB.\n\
+            When GLOB is preceded by a `!' or a `^', skip files whose name\n\
+            matches GLOB, same as --exclude=GLOB.\n\
     --group-separator[=SEP]\n\
             Use SEP as a group separator for context options -A, -B, and -C.\n\
             The default is a double hyphen (`--').\n\
@@ -7706,38 +7800,43 @@ void help(const char *message, const char *arg)
             Perform case insensitive matching.  By default, ugrep is case\n\
             sensitive.  This option applies to ASCII letters only.\n\
     --ignore-files[=FILE]\n\
-            Ignore files and directories specified in a FILE when encountered\n\
-            in recursive searches.  The default is `" DEFAULT_IGNORE_FILE "'.  Files and\n\
-            directories matching the globs in FILE are ignored in the directory\n\
-            tree rooted at each FILE's location by temporarily overriding\n\
-            --exclude and --exclude-dir globs.  This option may be repeated.\n\
+            Ignore files and directories matching the globs in each FILE when\n\
+            encountered in recursive searches.  The default FILE is\n\
+            `" DEFAULT_IGNORE_FILE "'.  Matching files and directories located in the\n\
+            directory tree rooted at a FILE's location are ignored by\n\
+            temporarily overriding the --exclude and --exclude-dir globs.\n\
+            Files and directories specified as FILE arguments are not ignored.\n\
+            This option may be repeated.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB using wildcard matching,\n\
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,\n\
-            and \\ to quote a wildcard or backslash character literally.  If\n\
-            GLOB contains /, file pathnames are matched.  Otherwise file\n\
+            and \\ to quote a wildcard or backslash character literally.  When\n\
+            GLOB contains a `/', full pathnames are matched.  Otherwise\n\
             basenames are matched.  Note that --exclude patterns take priority\n\
             over --include patterns.  This option may be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose name matches GLOB are included in recursive\n\
-            searches.  If GLOB contains /, full pathnames are matched.\n\
-            Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
-            take priority over --include-dir patterns.  This option may be\n\
-            repeated.\n\
+            searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
+            quote a wildcard or backslash character literally.  When GLOB\n\
+            contains a `/', full pathnames are matched.  Otherwise basenames\n\
+            are matched.  Note that --exclude-dir patterns take priority over\n\
+            --include-dir patterns.  This option may be repeated.\n\
     --include-from=FILE\n\
             Read the globs from FILE and search only files and directories\n\
             whose name matches one or more globs (as if specified by --include\n\
             and --include-dir).  Lines starting with a `#' and empty lines in\n\
             FILE are ignored.  When FILE is a `-', standard input is read.\n\
-            This option may be repeated.\n";
-#ifdef HAVE_STATVFS
-  std::cout << "\
+            This option may be repeated.\n\
     --include-fs=MOUNTS\n\
-            Only file systems with mounting points MOUNTS are included in\n\
-            recursive searches.  MOUNTS is a comma-separated list of pathnames.\n\
-            --include-fs=. restricts recursive searches to the file system of\n\
-            the working directory only.  Note that --exclude-fs mounts take\n\
-            priority over --include-fs mounts.  This option may be repeated.\n";
+            Only file systems specified by MOUNTS are included in recursive\n\
+            searches.  MOUNTS is a comma-separated list of mount points or\n\
+            pathnames of directories on file systems.  --include-fs=. restricts\n\
+            recursive searches to the file system of the working directory\n\
+            only.  Note that --exclude-fs mounts take priority over\n\
+            --include-fs mounts.  This option may be repeated.\n";
+#ifndef HAVE_STATVFS
+  std::cout << "\
+            This option is not available in this build configuration of ugrep.\n";
 #endif
   std::cout << "\
     -J NUM, --jobs=NUM\n\
@@ -7750,13 +7849,13 @@ void help(const char *message, const char *arg)
             letter.  Case insensitive matching applies to ASCII letters only.\n\
     --json\n\
             Output file matches in JSON.  When option -H, -n, -k, or -b is used\n\
-            additional JSON properties are output.  See also option --format.\n\
+            additional values are output.  See also the --format and -u options.\n\
     -K NUM1[,NUM2], --range=NUM1[,NUM2]\n\
             Start searching at line NUM1 and end at line NUM2 when specified.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
-            when columns are counted, see option --tabs.\n\
+            when columns are counted, see also option --tabs.\n\
     -L, --files-without-match\n\
             Only the names of files not containing selected lines are written\n\
             to standard output.  Pathnames are listed once per file searched.\n\
@@ -7779,10 +7878,11 @@ void help(const char *message, const char *arg)
     -M MAGIC, --file-magic=MAGIC\n\
             Only files matching the signature pattern MAGIC are searched.  The\n\
             signature \"magic bytes\" at the start of a file are compared to\n\
-            the `MAGIC' regex pattern.  When matching, the file will be\n\
-            searched.  This option may be repeated and may be combined with\n\
-            options -O and -t to expand the search.  This option is relatively\n\
-            slow as every file on the search path is read to compare MAGIC.\n\
+            the MAGIC regex pattern.  When matching, the file will be searched.\n\
+            When MAGIC is preceded by a `!' or a `^', skip files with matching\n\
+            MAGIC signatures.  This option may be repeated and may be combined\n\
+            with options -O and -t to expand the search.  Every file on the\n\
+            search path is read, making searches potentially more expensive.\n\
     -m NUM, --max-count=NUM\n\
             Stop reading the input after NUM matches for each file processed.\n\
     --match\n\
@@ -7797,9 +7897,9 @@ void help(const char *message, const char *arg)
             NUM.  Specify -J1 to produce replicable results by ensuring that\n\
             files are searched in the same order as specified.\n\
     -N PATTERN, --neg-regexp=PATTERN\n\
-            Specify a negative PATTERN used during the search of the input: an\n\
-            input line is selected only if it matches any of the specified\n\
-            patterns when PATTERN does not match.  Same as -e (?^PATTERN)\n\
+            Specify a negative PATTERN used during the search of the input:\n\
+            an input line is selected only if it matches any of the specified\n\
+            patterns when PATTERN does not match.  Same as -e (?^PATTERN).\n\
             Negative PATTERN matches are removed before any other specified\n\
             patterns are matched.  Note that longer patterns take precedence\n\
             over shorter patterns.  This option may be repeated.\n\
@@ -7825,12 +7925,13 @@ void help(const char *message, const char *arg)
   std::cout << "\
     -O EXTENSIONS, --file-extensions=EXTENSIONS\n\
             Search only files whose filename extensions match the specified\n\
-            comma-separated list of EXTENSIONS.  This option is the same as\n\
-            specifying --include='*.ext' for each extension suffix `ext' in the\n\
-            EXTENSIONS list.  This option may be repeated and may be combined\n\
+            comma-separated list of EXTENSIONS, same as --include='*.ext' for\n\
+            each `ext' in EXTENSIONS.  When `ext' is preceded by a `!' or a\n\
+            `^', skip files whose filename extensions matches `ext', same as\n\
+            --exclude='*.ext'.  This option may be repeated and may be combined\n\
             with options -M and -t to expand the recursive search.\n\
     -o, --only-matching\n\
-            Prints only the matching part of lines.  When multiple lines match,\n\
+            Print only the matching part of lines.  When multiple lines match,\n\
             the line numbers with option -n are displayed using `|' as the\n\
             field separator for each additional line matched by the pattern.\n\
             This option cannot be combined with options -A, -B, -C, -v, and -y.\n\
@@ -7842,7 +7943,7 @@ void help(const char *message, const char *arg)
             Interpret PATTERN as a Perl regular expression.\n";
 #ifndef HAVE_BOOST_REGEX
   std::cout << "\
-            This feature is not available in this build configuration of ugrep.\n";
+            This option is not available in this build configuration of ugrep.\n";
 #endif
   std::cout << "\
     -p, --no-dereference\n\
@@ -7863,11 +7964,11 @@ void help(const char *message, const char *arg)
             match has been found, making searches potentially less expensive.\n\
     -R, --dereference-recursive\n\
             Recursively read all files under each directory.  Follow all\n\
-            symbolic links, unlike -r.  If -J1 is specified, files are searched\n\
-            in the same order as specified.\n\
+            symbolic links, unlike -r.  When -J1 is specified, files are\n\
+            searched in the same order as specified.\n\
     -r, --recursive\n\
             Recursively read all files under each directory, following symbolic\n\
-            links only if they are on the command line.  If -J1 is specified,\n\
+            links only if they are on the command line.  When -J1 is specified,\n\
             files are searched in the same order as specified.\n\
     -S, --dereference\n\
             If -r is specified, all symbolic links are followed, like -R.  The\n\
@@ -7881,18 +7982,19 @@ void help(const char *message, const char *arg)
             (`:').\n\
     --stats\n\
             Display statistics on the number of files and directories searched.\n\
-            Display MAGIC and GLOB selections applied to recursive searches.\n\
+            Display the inclusion and exclusion constraints applied.\n\
     -T, --initial-tab\n\
             Add a tab space to separate the file name, line number, column\n\
             number, and byte offset with the matched line.\n\
     -t TYPES, --file-type=TYPES\n\
             Search only files associated with TYPES, a comma-separated list of\n\
-            file types.  Each file type corresponds to a set of file name\n\
+            file types.  Each file type corresponds to a set of filename\n\
             extensions passed to option -O.  For capitalized file types, the\n\
-            search is expanded to include files found on the search path with\n\
-            matching file signature magic bytes passed to option -M.  This\n\
-            option may be repeated.  The possible values of TYPES can be\n\
-            (use option -tlist to display a more detailed list):";
+            search is expanded to include files with matching file signature\n\
+            magic bytes, as if passed to option -M.  When a type is preceeded\n\
+            by a `!' or a `^', excludes files of the specified type.  This\n\
+            option may be repeated.  The possible file types can be (where\n\
+            -tlist displays a detailed list):";
   for (int i = 0; type_table[i].type != NULL; ++i)
     std::cout << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";
   std::cout << ".\n\
@@ -7917,24 +8019,25 @@ void help(const char *message, const char *arg)
             Output binary matches in hexadecimal, leaving text matches alone.\n\
             This option is equivalent to the --binary-files=with-hex option.\n\
     -w, --word-regexp\n\
-            The PATTERN or -e PATTERN is searched for as a word (as if\n\
-            surrounded by \\< and \\>).  If PATTERN or -e PATTERN is also\n\
-            specified, then this option does not apply to -f FILE patterns.\n\
+            The PATTERN is searched for as a word (as if surrounded by \\< and\n\
+            \\>).  If a PATTERN is specified (or -e PATTERN or -N PATTERN), then\n\
+            this option does not apply to -f FILE patterns.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.\n\
     -x, --line-regexp\n\
-            Only input lines selected against the entire PATTERN or -e PATTERN\n\
-            is considered to be matching lines (as if surrounded by ^ and $).\n\
-            If PATTERN or -e PATTERN is also specified, then this option does\n\
+            Only input lines selected against the entire PATTERN is considered\n\
+            to be matching lines (as if surrounded by ^ and $).  If a PATTERN\n\
+            is specified (or -e PATTERN or -N PATTERN), then this option does\n\
             not apply to -f FILE patterns.\n\
     --xml\n\
             Output file matches in XML.  When option -H, -n, -k, or -b is used\n\
-            additional XML attributes are output.  See also option --format.\n\
+            additional values are output.  See also the --format and -u options.\n\
     -Y, --empty\n\
-            Permits empty matches, such as `^\\h*$' to match blank lines.  Empty\n\
-            matches are disabled by default.  Note that empty-matching patterns,\n\
-            such as x? and x*, match all input with -Y, not only lines with `x'.\n\
+            Permits empty matches.  By default, empty matches are disabled,\n\
+            unless a pattern starts with `^' and ends with `$'.  Note that -Y\n\
+            when specified with an empty-matching pattern such as x? and x*,\n\
+            match all input, not only lines with a `x'.\n\
     -y, --any-line\n\
             Any matching or non-matching line is output.  Non-matching lines\n\
             are output with the `-' separator as context of the matching lines.\n\
@@ -7943,27 +8046,25 @@ void help(const char *message, const char *arg)
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
-            .pax, .tar, .zip) and compressed archives (e.g. .taz, .tgz, .tpz,\n\
-            .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and matching\n\
-            pathnames of files in archives are output in braces.  If -g, -O,\n\
-            -M, or -t is specified, searches files within archives whose name\n\
-            matches globs, matches file name extensions, matches file\n\
-            signature magic bytes, or matches file types, respectively.\n";
+            .jar, .pax, .tar, .zip) and compressed archives (e.g. .taz, .tgz,\n\
+            .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and\n\
+            matching pathnames of files in archives are output in braces.  If\n\
+            -g, -O, -M, or -t is specified, searches files within archives\n\
+            whose name matches globs, matches file name extensions, matches\n\
+            file signature magic bytes, or matches file types, respectively.\n";
 #ifndef HAVE_LIBZ
   std::cout << "\
-            This feature is not available in this build configuration of ugrep.\n";
+            This option is not available in this build configuration of ugrep.\n";
 #else
   std::cout << "\
-            Option --label=.ext associates suffix `ext' with standard input.\n\
-            Supported compression formats: gzip (default, optional suffix .gz),\n\
-            compress (requires suffix .Z), zip (requires suffix .zip or .ZIP)";
+            Supported compression formats: gzip (.gz), compress (.Z), zip";
 #ifdef HAVE_LIBBZ2
   std::cout << ",\n\
-            bzip2 (requires suffix .bz, .bz2, or .bzip2)";
+            bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2)";
 #endif
 #ifdef HAVE_LIBLZMA
   std::cout << ",\n\
-            lzma (requires suffix .lzma), and xz (requires suffix .xz)";
+            lzma and xz (requires suffix .lzma, .tlz, .xz, .txz)";
 #endif
   std::cout << ".\n";
 #endif

@@ -431,7 +431,7 @@ class Input {
   {
     init();
   }
-  /// Construct input character sequence from an open FILE* file descriptor, supports UTF-8 conversion from UTF-16 and UTF-32.
+  /// Construct input character sequence from an open FILE* file descriptor, using the specified file encoding
   Input(
       FILE                 *file,        ///< input file
       file_encoding_type    enc,         ///< file_encoding (when UTF BOM is not present)
@@ -927,6 +927,17 @@ class BufferedInput : public Input {
     pos_ = input.pos_;
     std::memcpy(buf_, input.buf_, len_);
     return *this;
+  }
+  /// Construct buffered input character sequence from an open FILE* file descriptor, using the specified file encoding
+  BufferedInput(
+      FILE                 *file,        ///< input file
+      file_encoding_type    enc,         ///< file_encoding (when UTF BOM is not present)
+      const unsigned short *page = NULL) ///< code page for file_encoding::custom
+    :
+      Input(file, enc, page)
+  {
+    len_ = Input::get(buf_, SIZE);
+    pos_ = 0;
   }
   // Cast this Input object to bool, same as checking good().
   operator bool()
