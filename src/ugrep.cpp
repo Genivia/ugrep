@@ -70,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.3"
+#define UGREP_VERSION "1.7.4"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -259,13 +259,12 @@ int pclose(FILE *stream)
 #endif
 
 // enable easy-to-use abbreviated ANSI SGR color codes with WITH_EASY_GREP_COLORS
-// note that this feature cripples tricks with GREP_COLORS to insert characters in the output!
 // semicolons are not required and abbreviations can be mixed with numeric ANSI SGR codes
 // foreground colors: k=black, r=red, g=green, y=yellow b=blue, m=magenta, c=cyan, w=white
 // background colors: K=black, R=red, G=green, Y=yellow B=blue, M=magenta, C=cyan, W=white
 // bright colors: +k, +r, +g, +y, +b, +m, +c, +w, +K, +R, +G, +Y, +B, +M, +C, +W
-// modifiers: x=bold, u=underline, i=invert, f=faint, n=normal, X=bold off, U=underline off, I=invert off
-// #define WITH_EASY_GREP_COLORS
+// modifiers: h=highlight, u=underline, i=invert, f=faint, n=normal, H=highlight off, U=underline off, I=invert off
+#define WITH_EASY_GREP_COLORS
 
 // ugrep exit codes
 #define EXIT_OK    0 // One or more lines were selected
@@ -304,6 +303,13 @@ int pclose(FILE *stream)
 #define DEFAULT_MAX_MMAP_SIZE 0
 #else
 #define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
+#endif
+
+// pretty is disabled by default, unless enabled with WITH_PRETTY
+#ifdef WITH_PRETTY
+#define DEFAULT_PRETTY true
+#else
+#define DEFAULT_PRETTY false
 #endif
 
 // hidden file and directory search is enabled by default, unless disabled with WITH_NO_HIDDEN
@@ -354,7 +360,9 @@ char color_cn[COLORLEN]; // column number
 char color_bn[COLORLEN]; // byte offset
 char color_se[COLORLEN]; // separator
 
+const char *color_del     = ""; // erase line after the cursor
 const char *color_off     = ""; // disable colors
+
 const char *color_high    = ""; // stderr highlighted text
 const char *color_error   = ""; // stderr error text
 const char *color_warning = ""; // stderr warning text
@@ -424,6 +432,7 @@ bool flag_empty                    = false;
 bool flag_initial_tab              = false;
 bool flag_decompress               = false;
 bool flag_any_line                 = false;
+bool flag_heading                  = false;
 bool flag_break                    = false;
 bool flag_stats                    = false;
 bool flag_cpp                      = false;
@@ -431,6 +440,7 @@ bool flag_csv                      = false;
 bool flag_json                     = false;
 bool flag_xml                      = false;
 bool flag_stdin                    = false;
+bool flag_pretty                   = DEFAULT_PRETTY;
 bool flag_no_hidden                = DEFAULT_HIDDEN;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
@@ -1329,7 +1339,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
   bool sep = false;
 
   if (flag_with_filename && pathname != NULL)
-  {
+  { 
     str(color_fn);
     str(pathname);
     str(color_off);
@@ -1338,8 +1348,11 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     {
       chr('\0');
     }
-    else if (flag_break)
+    else if (flag_heading)
     {
+      str(color_fn);
+      str(color_del);
+      str(color_off);
       chr('\n');
       pathname = NULL;
     }
@@ -2279,137 +2292,152 @@ struct Grep {
     // --filter
     if (flag_filter != NULL && in != NULL)
     {
-      // get the filename's extension suffix
-      const char *suffix = strrchr(pathname, '.');
+      const char *basename = strrchr(pathname, PATHSEPCHR);
+      if (basename == NULL)
+        basename = pathname;
+      else
+        ++basename;
 
-      if (suffix != NULL && suffix[1] != '\0')
-      {
+      // get the basenames's extension suffix
+      const char *suffix = strrchr(basename, '.');
+
+      // basenames without a suffix get "*" as a suffix
+      if (suffix != NULL && suffix != basename && suffix[1] != '\0')
         ++suffix;
+      else
+        suffix = "*";
 
-        size_t sep = strlen(suffix);
+      size_t sep = strlen(suffix);
 
-        const char *command = flag_filter;
+      const char *command = flag_filter;
+      const char *default_command = NULL;
 
-        // find the command corresponding to the suffix
-        while (true)
-        {
-          while (isspace(*command))
-            ++command;
-
-          if (strncmp(suffix, command, sep) == 0 && (command[sep] == ':' || command[sep] == ',' || isspace(command[sep])))
-          {
-            command = strchr(command, ':');
-            break;
-          }
-
-          command = strchr(command, ',');
-          if (command == NULL)
-            break;
-
+      // find the command corresponding to the suffix
+      while (true)
+      {
+        while (isspace(*command))
           ++command;
+
+        if (*command == '*')
+          default_command = strchr(command, ':');
+
+        if (strncmp(suffix, command, sep) == 0 && (command[sep] == ':' || command[sep] == ',' || isspace(command[sep])))
+        {
+          command = strchr(command, ':');
+          break;
         }
 
-        // suffix has a command to execute
-        if (command != NULL)
+        command = strchr(command, ',');
+        if (command == NULL)
+          break;
+
+        ++command;
+      }
+
+      // if no matching command, use the *:command if specified
+      if (command == NULL)
+        command = default_command;
+
+      // suffix has a command to execute
+      if (command != NULL)
+      {
+        // skip over the ':'
+        ++command;
+
+        int fd[2];
+
+        if (pipe(fd) == 0)
         {
-          // skip over the ':'
-          ++command;
+          int pid;
 
-          int fd[2];
-
-          if (pipe(fd) == 0)
+          if ((pid = fork()) == 0)
           {
-            int pid;
+            // child process
 
-            if ((pid = fork()) == 0)
+            // close the reading end of the pipe
+            close(fd[0]);
+
+            // dup the input file to stdin unless reading stdin
+            if (in != stdin)
             {
-              // child process
-
-              // close the reading end of the pipe
-              close(fd[0]);
-
-              // dup the input file to stdin unless reading stdin
-              if (in != stdin)
-              {
-                dup2(fileno(in), STDIN_FILENO);
-                fclose(in);
-              }
-
-              // dup the writing end of the pipe to stdout
-              dup2(fd[1], STDOUT_FILENO);
-              close(fd[1]);
-
-              // populate argv[] with the command and its arguments, thereby destroying flag_filter
-              std::vector<const char*> args;
-
-              char *arg = const_cast<char*>(command);
-
-              while (*arg != '\0' && *arg != ',')
-              {
-                while (isspace(*arg))
-                  ++arg;
-
-                char *p = arg;
-
-                while (*p != '\0' && *p != ',' && !isspace(*p))
-                  ++p;
-
-                if (p > arg)
-                {
-                  if (p - arg == 1 && *arg == '%')
-                    args.push_back(in == stdin ? "-" : pathname);
-                  else
-                    args.push_back(arg);
-                }
-
-                if (*p == '\0')
-                  break;
-
-                if (*p == ',')
-                {
-                  *p = '\0';
-                  break;
-                }
-
-                *p = '\0';
-
-                arg = p + 1;
-              }
-
-              // silently bail out if there is no command
-              if (args.empty())
-                exit(EXIT_SUCCESS);
-
-              // add sentinel
-              args.push_back(NULL);
-
-              // get argv[] array data
-              char * const *argv = const_cast<char * const *>(args.data());
-
-              // execute
-              execvp(argv[0], argv);
-
-              error("--filter: cannot exec", argv[0]);
+              dup2(fileno(in), STDIN_FILENO);
+              fclose(in);
             }
 
-            // close the writing end of the pipe
+            // dup the writing end of the pipe to stdout
+            dup2(fd[1], STDOUT_FILENO);
             close(fd[1]);
 
-            // close the file and use the reading end of the pipe
-            if (in != stdin)
-              fclose(in);
-            in = fdopen(fd[0], "r");
-          }
-          else
-          {
-            warning("--filter: cannot open pipe", flag_filter);
+            // populate argv[] with the command and its arguments, thereby destroying flag_filter
+            std::vector<const char*> args;
 
-            if (in != stdin)
-              fclose(in);
-            in = NULL;
+            char *arg = const_cast<char*>(command);
 
-            return false;
+            while (*arg != '\0' && *arg != ',')
+            {
+              while (isspace(*arg))
+                ++arg;
+
+              char *p = arg;
+
+              while (*p != '\0' && *p != ',' && !isspace(*p))
+                ++p;
+
+              if (p > arg)
+              {
+                if (p - arg == 1 && *arg == '%')
+                  args.push_back(in == stdin ? "-" : pathname);
+                else
+                  args.push_back(arg);
+              }
+
+              if (*p == '\0')
+                break;
+
+              if (*p == ',')
+              {
+                *p = '\0';
+                break;
+              }
+
+              *p = '\0';
+
+              arg = p + 1;
+            }
+
+            // silently bail out if there is no command
+            if (args.empty())
+              exit(EXIT_SUCCESS);
+
+            // add sentinel
+            args.push_back(NULL);
+
+            // get argv[] array data
+            char * const *argv = const_cast<char * const *>(args.data());
+
+            // execute
+            execvp(argv[0], argv);
+
+            error("--filter: cannot exec", argv[0]);
           }
+
+          // close the writing end of the pipe
+          close(fd[1]);
+
+          // close the file and use the reading end of the pipe
+          if (in != stdin)
+            fclose(in);
+          in = fdopen(fd[0], "r");
+        }
+        else
+        {
+          warning("--filter: cannot open pipe", flag_filter);
+
+          if (in != stdin)
+            fclose(in);
+          in = NULL;
+
+          return false;
         }
       }
     }
@@ -3639,6 +3667,8 @@ int main(int argc, char **argv)
               flag_group_separator = arg + 16;
             else if (strcmp(arg, "group-separator") == 0)
               flag_group_separator = "--";
+            else if (strcmp(arg, "heading") == 0)
+              flag_heading = true;
             else if (strcmp(arg, "help") == 0)
               help();
             else if (strcmp(arg, "hex") == 0)
@@ -3715,10 +3745,12 @@ int main(int argc, char **argv)
               flag_only_matching = true;
             else if (strncmp(arg, "pager=", 6) == 0)
               flag_pager = arg + 6;
-            else if (strncmp(arg, "pager", 5) == 0)
+            else if (strcmp(arg, "pager") == 0)
               flag_pager = DEFAULT_PAGER;
             else if (strcmp(arg, "perl-regexp") == 0)
               flag_perl_regexp = true;
+            else if (strcmp(arg, "pretty") == 0)
+              flag_pretty = true;
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
               flag_quiet = flag_no_messages = true;
             else if (strncmp(arg, "range=", 6) == 0)
@@ -4309,7 +4341,7 @@ int main(int argc, char **argv)
   if (flag_perl_regexp)
     flag_basic_regexp = false;
 
-  // -j: case insensitive search if regex does not contain a capital letter
+  // -j: case insensitive search if regex does not contain an upper case letter
   if (flag_smart_case)
   {
     flag_ignore_case = true;
@@ -4319,6 +4351,11 @@ int main(int argc, char **argv)
       if (regex[i] == '\\')
       {
         ++i;
+      }
+      else if (regex[i] == '{')
+      {
+        while (++i < regex.size() && regex[i] != '}')
+          continue;
       }
       else if (isupper(regex[i]))
       {
@@ -4493,20 +4530,30 @@ int main(int argc, char **argv)
     // check if standard output is a TTY
     tty_term = isatty(STDOUT_FILENO) != 0;
 
-
-    // --pager: if output is to a TTY then page through the results
-    if (tty_term && flag_pager != NULL)
+    if (tty_term)
     {
-      // open a pipe to a forked pager
-      output = popen(flag_pager, "w");
-      if (output == NULL)
-        error("cannot open pipe to pager", flag_pager);
+      // --pager: if output is to a TTY then page through the results
+      if (flag_pager != NULL)
+      {
+        // open a pipe to a forked pager
+        output = popen(flag_pager, "w");
+        if (output == NULL)
+          error("cannot open pipe to pager", flag_pager);
 
-      // enable --break
-      flag_break = true;
+        // enable --heading
+        flag_heading = true;
 
-      // enable --line-buffered to flush output to the pager immediately
-      flag_line_buffered = true;
+        // enable --line-buffered to flush output to the pager immediately
+        flag_line_buffered = true;
+      }
+      else if (flag_pretty)
+      {
+        // enable --color
+        flag_color ="auto";
+
+        // enable --heading
+        flag_heading = true;
+      }
     }
 
 #ifndef OS_WIN
@@ -4648,6 +4695,7 @@ int main(int argc, char **argv)
               copy_color(color_mc, color_mt);
           }
 
+          color_del = "\033[0K";
           color_off = "\033[0m";
 
           if (isatty(STDERR_FILENO))
@@ -4666,6 +4714,10 @@ int main(int argc, char **argv)
       }
     }
   }
+
+  // --headin: enable --break
+  if (flag_heading)
+    flag_break = true;
 
   // -Q: parse ENCODING value
   if (flag_encoding != NULL)
@@ -5301,7 +5353,6 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
 
       // search file or directory, get the basename from the file argument first
       const char *basename = strrchr(file, PATHSEPCHR);
-
       if (basename != NULL)
         ++basename;
       else
@@ -7251,9 +7302,8 @@ void Grep::search(const char *pathname)
 done_search:
 
       // --break: add a line break when applicable
-      if (flag_break && flag_format == NULL && (matches > 0 || flag_count || flag_any_line))
+      if (flag_break && (matches > 0 || flag_any_line) && !flag_quiet && !flag_files_with_match && !flag_count && flag_format == NULL)
         out.chr('\n');
-
     }
 
     catch (...)
@@ -7445,13 +7495,13 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
       // foreground colors: k=black, r=red, g=green, y=yellow b=blue, m=magenta, c=cyan, w=white
       // background colors: K=black, R=red, G=green, Y=yellow B=blue, M=magenta, C=cyan, W=white
       // bright colors: +k, +r, +g, +y, +b, +m, +c, +w, +K, +R, +G, +Y, +B, +M, +C, +W
-      // modifiers: x=bold, u=underline, i=invert, f=faint, n=normal, X=bold off, U=underline off, I=invert off
+      // modifiers: h=highlight, u=underline, i=invert, f=faint, n=normal, H=highlight off, U=underline off, I=invert off
       // semicolons are not required and abbreviations can be mixed with numeric ANSI SGR codes
 
       uint8_t offset = 30;
       bool sep = false;
 
-      while (*s && t - color < COLORLEN - 6)
+      while (*s != '\0' && *s != ':' && t - color < COLORLEN - 6)
       {
         if (isdigit(*s))
         {
@@ -7481,14 +7531,14 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
           *t++ = '0';
           sep = true;
         }
-        else if (*s == 'x')
+        else if (*s == 'h')
         {
           if (sep)
             *t++ = ';';
           *t++ = '1';
           sep = true;
         }
-        else if (*s == 'X')
+        else if (*s == 'H')
         {
           if (sep)
             *t++ = ';';
@@ -7545,21 +7595,21 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
           const char *c = "krgybmcw  KRGYBMCW";
           const char *k = strchr(c, *s);
 
-          if (k == NULL)
-            break;
-
-          if (sep)
-            *t++ = ';';
-          uint8_t n = offset + k - c;
-          if (n >= 100)
+          if (k != NULL)
           {
-            *t++ = '1';
-            n -= 100;
+            if (sep)
+              *t++ = ';';
+            uint8_t n = offset + k - c;
+            if (n >= 100)
+            {
+              *t++ = '1';
+              n -= 100;
+            }
+            *t++ = '0' + n / 10;
+            *t++ = '0' + n % 10;
+            offset = 30;
+            sep = true;
           }
-          *t++ = '0' + n / 10;
-          *t++ = '0' + n % 10;
-          offset = 30;
-          sep = true;
         }
 
         ++s;
@@ -7567,6 +7617,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
 
 #else
 
+      // traditional grep SGR parameters
       while ((*s == ';' || isdigit(*s)) && t - color < COLORLEN - 2)
         *t++ = *s++;
 
@@ -7657,8 +7708,7 @@ void help(const char *message, const char *arg)
             zero byte or invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
             and -X options.\n\
     --break\n\
-            Group matches per file.  Adds a header and line break between\n\
-            results from different files.\n\
+            Adds a line break between results from different files.\n\
     -C[NUM], --context[=NUM]\n\
             Print NUM lines of leading and trailing context surrounding each\n\
             match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
@@ -7675,9 +7725,17 @@ void help(const char *message, const char *arg)
             marks up matches only when output on a terminal.  The default is\n\
             `auto'.\n\
     --colors=COLORS, --colours=COLORS\n\
-            Use COLORS to mark up matching text.  COLORS is a colon-separated\n\
-            list of ANSI SGR parameters.  COLORS selectively overrides the\n\
-            colors specified by the GREP_COLORS environment variable.\n\
+            Use COLORS to mark up text.  COLORS is a colon-separated list of\n\
+            one or more parameters `sl=' (selected line), `cx=' (context line),\n\
+            `mt=' (matched text), `ms=' (match selected), `mc=' (match\n\
+            context), `fn=' (file name), `ln=' (line number), `cn=' (column\n\
+            number), `bn=' (byte offset), `se=' (separator).  Parameter values\n\
+            are ANSI SGR color codes or `k' (black), `r' (red), `g' (green),\n\
+            `y' (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white).\n\
+            Upper case specifies background colors.  A `+' qualifies a color as\n\
+            bright.  A foreground and a background color may be combined with\n\
+            font properties `n' (normal), `f' (faint), `h' (highlight), `i'\n\
+            (invert), `u' (underline).  Selectively overrides GREP_COLORS.\n\
     --cpp\n\
             Output file matches in C++.  See also the --format and -u options.\n\
     --csv\n\
@@ -7762,9 +7820,10 @@ void help(const char *message, const char *arg)
             where `exts' is a comma-separated list of filename extensions and\n\
             `command' is a filter utility.  The filter utility should read from\n\
             standard input and write to standard output.  Files matching one of\n\
-            `exts` are filtered only.  One or more `option' separated by\n\
-            spacing may be specified, which are passed verbatim to the command.\n\
-            A `%' as `option' expands into the pathname to search.  For example,\n\
+            `exts` are filtered.  When `exts' is `*', files with non-matching\n\
+            extensions are filtered.  One or more `option' separated by spacing\n\
+            may be specified, which are passed verbatim to the command.  A `%'\n\
+            as `option' expands into the pathname to search.  For example,\n\
             --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands\n\
             into a `-' when searching standard input.  Option --label=.ext may\n\
             be used to specify extension `ext' when searching standard input.\n";
@@ -7791,6 +7850,9 @@ void help(const char *message, const char *arg)
     -h, --no-filename\n\
             Never print filenames with output lines.  This is the default\n\
             when there is only one file (or only standard input) to search.\n\
+    --heading\n\
+            Group matches per file.  Adds a heading and a line break between\n\
+            results from different files.\n\
     --help\n\
             Print a help message.\n\
     -I\n\
@@ -7805,8 +7867,8 @@ void help(const char *message, const char *arg)
             `" DEFAULT_IGNORE_FILE "'.  Matching files and directories located in the\n\
             directory tree rooted at a FILE's location are ignored by\n\
             temporarily overriding the --exclude and --exclude-dir globs.\n\
-            Files and directories specified as FILE arguments are not ignored.\n\
-            This option may be repeated.\n\
+            Note that files and directories specified as ugrep FILE arguments\n\
+            are not ignored.  This option may be repeated.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB using wildcard matching,\n\
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,\n\
@@ -7845,8 +7907,8 @@ void help(const char *message, const char *arg)
             simultaneously.  -J1 disables threading: files are searched in the\n\
             same order as specified.\n\
     -j, --smart-case\n\
-            Perform case insensitive matching unless PATTERN contains a capital\n\
-            letter.  Case insensitive matching applies to ASCII letters only.\n\
+            Perform case insensitive matching unless PATTERN contains an upper\n\
+            case letter.  Note that this mode applies to ASCII letters only.\n\
     --json\n\
             Output file matches in JSON.  When option -H, -n, -k, or -b is used\n\
             additional values are output.  See also the --format and -u options.\n\
@@ -7951,9 +8013,10 @@ void help(const char *message, const char *arg)
             they are specified on the command line.\n\
     --pager[=COMMAND]\n\
             When output is sent to the terminal, uses COMMAND to page through\n\
-            the output.  The default COMMAND is `" DEFAULT_PAGER "'.  This option makes\n\
-            --color=auto behave as --color=always.  Enables --break and\n\
-            --line-buffered.\n\
+            the output.  The default COMMAND is `" DEFAULT_PAGER "'.  Enables --heading\n\
+            and --line-buffered.\n\
+    --pretty\n\
+            When output is sent to the terminal, enables --color and --heading.\n\
     -Q ENCODING, --encoding=ENCODING\n\
             The input file encoding.  The possible values of ENCODING can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)
@@ -8087,8 +8150,20 @@ void help(const char *message, const char *arg)
 // display version info
 void version()
 {
-  std::cout << "ugrep " UGREP_VERSION " " PLATFORM << "\n"
-    "Copyright (c) Genivia Inc.\n"
+  std::cout << "ugrep " UGREP_VERSION " " PLATFORM <<
+#ifdef HAVE_BOOST_REGEX
+    " +libboost_regex" <<
+#endif
+#ifdef HAVE_LIBZ
+    " +libz" <<
+#endif
+#ifdef HAVE_LIBBZ2
+    " +libbz2" <<
+#endif
+#ifdef HAVE_LIBLZMA
+    " +liblzma" <<
+#endif
+    "\n"
     "License BSD-3-Clause: <https://opensource.org/licenses/BSD-3-Clause>\n"
     "Written by Robert van Engelen and others: <https://github.com/Genivia/ugrep>" << std::endl;
   exit(EXIT_OK);

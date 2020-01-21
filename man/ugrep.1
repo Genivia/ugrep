@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 20, 2020" "ugrep 1.7.3" "User Commands"
+.TH UGREP "1" "January 21, 2020" "ugrep 1.7.4" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -61,8 +61,7 @@ zero byte or invalid UTF encoding.  See also the \fB\-a\fR, \fB\-I\fR, \fB\-U\fR
 and \fB\-X\fR options.
 .TP
 \fB\-\-break\fR
-Group matches per file.  Adds a header and line break between
-results from different files.
+Adds a line break between results from different files.
 .TP
 \fB\-C\fR[NUM], \fB\-\-context\fR[=\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
@@ -83,9 +82,17 @@ marks up matches only when output on a terminal.  The default is
 `auto'.
 .TP
 \fB\-\-colors\fR=\fICOLORS\fR, \fB\-\-colours\fR=\fICOLORS\fR
-Use COLORS to mark up matching text.  COLORS is a colon\-separated
-list of ANSI SGR parameters.  COLORS selectively overrides the
-colors specified by the GREP_COLORS environment variable.
+Use COLORS to mark up text.  COLORS is a colon\-separated list of
+one or more parameters `sl=' (selected line), `cx=' (context line),
+`mt=' (matched text), `ms=' (match selected), `mc=' (match
+context), `fn=' (file name), `ln=' (line number), `cn=' (column
+number), `bn=' (byte offset), `se=' (separator).  Parameter values
+are ANSI SGR color codes or `k' (black), `r' (red), `g' (green),
+`y' (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white).
+Upper case specifies background colors.  A `+' qualifies a color as
+bright.  A foreground and a background color may be combined with
+font properties `n' (normal), `f' (faint), `h' (highlight), `i'
+(invert), `u' (underline).  Selectively overrides GREP_COLORS.
 .TP
 \fB\-\-cpp\fR
 Output file matches in C++.  See also the \fB\-\-format\fR and \fB\-u\fR options.
@@ -172,9 +179,10 @@ COMMANDS is a comma\-separated list of `exts:command [option ...]',
 where `exts' is a comma\-separated list of filename extensions and
 `command' is a filter utility.  The filter utility should read from
 standard input and write to standard output.  Files matching one of
-`exts` are filtered only.  One or more `option' separated by
-spacing may be specified, which are passed verbatim to the command.
-A `%' as `option' expands into the pathname to search.  For example,
+`exts` are filtered.  When `exts' is `*', files with non\-matching
+extensions are filtered.  One or more `option' separated by spacing
+may be specified, which are passed verbatim to the command.  A `%'
+as `option' expands into the pathname to search.  For example,
 \fB\-\-filter\fR='pdf:pdftotext % \fB\-'\fR searches PDF files.  The `%' expands
 into a `\fB\-'\fR when searching standard input.  Option \fB\-\-label\fR=.ext may
 be used to specify extension `ext' when searching standard input.
@@ -207,6 +215,10 @@ when there is more than one file to search.
 Never print filenames with output lines.  This is the default
 when there is only one file (or only standard input) to search.
 .TP
+\fB\-\-heading\fR
+Group matches per file.  Adds a heading and a line break between
+results from different files.
+.TP
 \fB\-\-help\fR
 Print a help message.
 .TP
@@ -224,8 +236,8 @@ encountered in recursive searches.  The default FILE is
 `.gitignore'.  Matching files and directories located in the
 directory tree rooted at a FILE's location are ignored by
 temporarily overriding the \fB\-\-exclude\fR and \fB\-\-exclude\-dir\fR globs.
-Files and directories specified as FILE arguments are not ignored.
-This option may be repeated.
+Note that files and directories specified as ugrep FILE arguments
+are not ignored.  This option may be repeated.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Search only files whose name matches GLOB using wildcard matching,
@@ -265,8 +277,8 @@ simultaneously.  \fB\-J\fR1 disables threading: files are searched in the
 same order as specified.
 .TP
 \fB\-j\fR, \fB\-\-smart\-case\fR
-Perform case insensitive matching unless PATTERN contains a capital
-letter.  Case insensitive matching applies to ASCII letters only.
+Perform case insensitive matching unless PATTERN contains an upper
+case letter.  Note that this mode applies to ASCII letters only.
 .TP
 \fB\-\-json\fR
 Output file matches in JSON.  When option \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is used
@@ -381,9 +393,11 @@ they are specified on the command line.
 .TP
 \fB\-\-pager\fR[=\fICOMMAND\fR]
 When output is sent to the terminal, uses COMMAND to page through
-the output.  The default COMMAND is `less \fB\-R\fR'.  This option makes
-\fB\-\-color\fR=auto behave as \fB\-\-color\fR=always.  Enables \fB\-\-break\fR and
-\fB\-\-line\-buffered\fR.
+the output.  The default COMMAND is `less \fB\-R\fR'.  Enables \fB\-\-heading\fR
+and \fB\-\-line\-buffered\fR.
+.TP
+\fB\-\-pretty\fR
+When output is sent to the terminal, enables \fB\-\-color\fR and \fB\-\-heading\fR.
 .TP
 \fB\-Q\fR \fIENCODING\fR, \fB\-\-encoding\fR=\fIENCODING\fR
 The input file encoding.  The possible values of ENCODING can be:
@@ -647,8 +661,12 @@ list of ANSI SGR parameters that defaults to
 \fBGREP_COLOR\fR.  Option \fB--colors\fR has priority over \fBGREP_COLORS\fR.
 .SH GREP_COLORS
 Colors are specified as string of colon-separated ANSI SGR parameters of the
-form `what=substring', where `substring' is a semicolon-separated list of SGR
-codes to color-highlight `what':
+form `what=substring', where `substring' is a semicolon-separated list of ANSI
+SGR codes or `k' (black), `r' (red), `g' (green), `y' (yellow), `b' (blue), `m'
+(magenta), `c' (cyan), `w' (white).  Upper case specifies background colors.
+Adding a `+' qualifies a color as bright.  A foreground and a background color
+may be combined with one or more font properties `n' (normal), `f' (faint), `h'
+(highlight), `i' (invert), `u' (underline).  Substrings may be specified for:
 .IP \fBsl=\fR
 SGR substring for selected lines.
 .IP \fBcx=\fR
@@ -793,8 +811,8 @@ the \fIFORMAT\fR when closing a file and a match was found.
 the \fIFORMAT\fR when ending the search.
 .PP
 The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
-\fB-v\fR, \fB--break\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR are disabled
-and have no effect on the formatted output.
+\fB-v\fR, \fB--break\fR, \fB--heading\fR, \fB--color\fR, \fB-T\fR, and
+\fB--null\fR have no effect on the formatted output.
 .SH EXAMPLES
 Display lines containing the word `patricia' in `myfile.txt':
 .IP

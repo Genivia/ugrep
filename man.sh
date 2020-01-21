@@ -181,8 +181,12 @@ list of ANSI SGR parameters that defaults to
 \fBGREP_COLOR\fR.  Option \fB--colors\fR has priority over \fBGREP_COLORS\fR.
 .SH GREP_COLORS
 Colors are specified as string of colon-separated ANSI SGR parameters of the
-form `what=substring', where `substring' is a semicolon-separated list of SGR
-codes to color-highlight `what':
+form `what=substring', where `substring' is a semicolon-separated list of ANSI
+SGR codes or `k' (black), `r' (red), `g' (green), `y' (yellow), `b' (blue), `m'
+(magenta), `c' (cyan), `w' (white).  Upper case specifies background colors.
+Adding a `+' qualifies a color as bright.  A foreground and a background color
+may be combined with one or more font properties `n' (normal), `f' (faint), `h'
+(highlight), `i' (invert), `u' (underline).  Substrings may be specified for:
 .IP \fBsl=\fR
 SGR substring for selected lines.
 .IP \fBcx=\fR
@@ -327,8 +331,8 @@ the \fIFORMAT\fR when closing a file and a match was found.
 the \fIFORMAT\fR when ending the search.
 .PP
 The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
-\fB-v\fR, \fB--break\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR are disabled
-and have no effect on the formatted output.
+\fB-v\fR, \fB--break\fR, \fB--heading\fR, \fB--color\fR, \fB-T\fR, and
+\fB--null\fR have no effect on the formatted output.
 .SH EXAMPLES
 Display lines containing the word `patricia' in `myfile.txt':
 .IP

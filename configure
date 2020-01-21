@@ -746,6 +746,7 @@ with_lzma
 with_grep_path
 with_grep_colors
 enable_color
+enable_pretty
 enable_pager
 enable_hidden
 enable_mmap
@@ -1388,10 +1389,12 @@ Optional Features:
                           speeds up one-time build
   --enable-color          enable colorized output by default without requiring
                           ugrep flag --color
-  --enable-pager          enable pager by default without requiring ugrep flag
-                          --pager
+  --enable-pretty         enable pretty output by default without requiring
+                          ugrep flag --pretty
+  --enable-pager          enable the pager by default without requiring ugrep
+                          flag --pager
   --disable-hidden        disable searching hidden files and directories
-                          unless explicitly enabled with --hidden
+                          unless explicitly enabled with ugrep flag --hidden
   --disable-mmap          disable memory mapped files unless explicitly
                           enabled with --mmap
 
@@ -6145,6 +6148,24 @@ if test "x$with_color" = "xyes"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
   EXTRA_CFLAGS="-DWITH_COLOR ${EXTRA_CFLAGS}"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+# Check whether --enable-pretty was given.
+if test "${enable_pretty+set}" = set; then :
+  enableval=$enable_pretty; with_pretty="$enable_pretty"
+else
+  with_pretty="no"
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-pretty" >&5
+$as_echo_n "checking for --enable-pretty... " >&6; }
+if test "x$with_pretty" = "xyes"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  EXTRA_CFLAGS="-DWITH_PRETTY ${EXTRA_CFLAGS}"
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }

@@ -56,7 +56,7 @@ Table of contents
   - [Search this but not that with -v, -e, -N, -f, -L, -w, -x](#not)
   - [Searching ASCII, Unicode, and other encodings with -Q](#unicode)
   - [Matching multiple lines of text](#multiline)
-  - [Displaying context with -A, -B, -C, and -y](#context)
+  - [Displaying match context with -A, -B, -C, and -y](#context)
   - [Searching source code using -f, -O, and -t](#source)
   - [Searching compressed files and archives with -z](#archives)
   - [Find files by file signature and shebang "magic bytes" with -M and -t](#magic)
@@ -174,7 +174,7 @@ Introduction: why use ugrep?
   search (meaning non-Unicode), and `--color` shows the results in color.
   Other options that normally work with text matches work with `-X` too, such
   as the context options `-A`, `-B`, `-C`, and `-y`.  A match is considered
-  binary if it contains a NUL (`\0`) or an invalid UTF multi byte sequence that
+  binary if it contains a NUL (`\0`) or an invalid UTF multibyte sequence that
   cannot be properly displayed on the terminal as text.
 
 - **ugrep matches Unicode patterns** by default (disabled with option `-U`).  The
@@ -323,7 +323,7 @@ Clone **ugrep** from https://github.com/Genivia/ugrep
 Build **ugrep** on Unix-like systems with:
 
     $ cd ugrep
-    $ ./configure && make
+    $ ./configure && make -j
 
 This builds `ugrep` in the `ugrep/src` directory and copy it to `ugrep/bin`.
 You can tell which version it is with:
@@ -334,12 +334,16 @@ You can tell which version it is with:
 If you prefer to enable colorized output by default without requiring option
 `--color` then execute:
 
-    $ ./configure --enable-color && make
+    $ ./configure --enable-color && make -j
+
+Or pretty output with color and headings by default:
+
+    $ ./configure --enable-pretty && make -j
 
 To see the details of all build configuration options available, including
 `--with-grep-path=GREP_PATH`, `--with-grep-colors="GREP_COLORS"`,
-`--enable-color`, `--enable-pager`, `--disable-hidden`, and `--disable-mmap`,
-execute:
+`--enable-color`, `--enable-pretty`, `--enable-pager`, `--disable-hidden`, and
+`--disable-mmap`, execute:
 
     $ ./configure --help
 
@@ -361,7 +365,7 @@ significant changes, for example to detect data races with the
 [ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html):
 
     $ ./configure --enable-color CXXFLAGS='-fsanitize=thread -O1 -g'
-    $ make clean; make
+    $ make clean; make -j
 
 We checked **ugrep** with the clang AddressSanitizer, MemorySanitizer,
 ThreadSanitizer, and UndefinedBehaviorSanitizer.  These options incur
@@ -386,7 +390,7 @@ you may run into "WARNING: 'aclocal-1.15' is missing on your system."
 To work around this problem, run:
 
     $ autoreconf -fi
-    $ ./configure && make
+    $ ./configure && make -j
 
 <a name="binaries"/>
 
@@ -1057,7 +1061,7 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
 
 <a name="context"/>
 
-### Displaying context with -A, -B, -C, and -y
+### Displaying match context with -A, -B, -C, and -y
 
     -A NUM, --after-context=NUM
             Print NUM lines of trailing context after matching lines.  Places
@@ -1135,8 +1139,8 @@ characters of context instead of a single word:
             `.gitignore'.  Matching files and directories located in the
             directory tree rooted at a FILE's location are ignored by
             temporarily overriding the --exclude and --exclude-dir globs.
-            Files and directories specified as FILE arguments are not ignored.
-            This option may be repeated.
+            Note that files and directories specified as ugrep FILE arguments
+            are not ignored.  This option may be repeated.
     -O EXTENSIONS, --file-extensions=EXTENSIONS
             Search only files whose filename extensions match the specified
             comma-separated list of EXTENSIONS, same as --include='*.ext' for
@@ -1311,6 +1315,12 @@ in `projects.tgz`, by selecting files containing in the archive the text
 
     ugrep -z -l -g '/**/projects/project1.*' -F 'December 12' projects.tgz
 
+To view the META-INF/MANIFEST.MF data in a jar file with `-Ojar` and `-OMF` to
+select the jar file and the MF file therein (`-Ojar` is required, otherwise the
+jar file will be skipped though we could read it from standard input instead):
+
+    ugrep -z -h -OMF,jar '' my.jar
+
 To extract C++ files that contain `FIXME` from `project.tgz`, we use `-m1`
 with `--format="'%z '"` to generate a list of pathnames of file located in the
 archive that match the word `FIXME`:
@@ -1332,8 +1342,8 @@ search the files:
             `.gitignore'.  Matching files and directories located in the
             directory tree rooted at a FILE's location are ignored by
             temporarily overriding the --exclude and --exclude-dir globs.
-            Files and directories specified as FILE arguments are not ignored.
-            This option may be repeated.
+            Note that files and directories specified as ugrep FILE arguments
+            are not ignored.  This option may be repeated.
     -M MAGIC, --file-magic=MAGIC
             Only files matching the signature pattern MAGIC are searched.  The
             signature \"magic bytes\" at the start of a file are compared to
@@ -1386,12 +1396,13 @@ statements, excluding hidden files:
             where `exts' is a comma-separated list of filename extensions and
             `command' is a filter utility.  The filter utility should read from
             standard input and write to standard output.  Files matching one of
-            `exts` are filtered only.  One or more `option' separated by
-            spacing may be specified, which are passed verbatim to the command.
-            A `%' as `option' expands into the pathname to search.  For example,
+            `exts` are filtered.  When `exts' is `*', files with non-matching
+            extensions are filtered.  One or more `option' separated by spacing
+            may be specified, which are passed verbatim to the command.  A `%'
+            as `option' expands into the pathname to search.  For example,
             --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands
             into a `-' when searching standard input.  Option --label=.ext may
-            be used to specify extenion `ext' when searching standard input.
+            be used to specify extension `ext' when searching standard input.
 
 Filter utilities may be associated with specific filename extensions.  A
 filter utility is selected based on the filename extension and executed by
@@ -1407,16 +1418,17 @@ files.  Otherwise searches may be unpredicatable.  In the worst case files may
 be lost, for example when the specified utility replaces or deletes the file
 passed to the command with `--filter` option `%`.
 
-Common filter utilities are `cat` (concat, pass through), `tr` (translate),
-`iconv` and `uconv` (convert), and more advanced document conversion utilities
-such as [`pdftotext`](https://pypi.org/project/pdftotext) to convert PDF to
-text, [`pandoc`](https://pandoc.org) to convert .docx, .epub, and other
-document formats, [`soffice`](https://www.libreoffice.org) to convert office
-documents, and [`csvkit`](https://pypi.org/project/csvkit) to convert
-spreadsheets.  Also decompressors may be used as filter utilities, such as
-`unzip`, `gunzip`, `bunzip2`, `unxz`, and `unlzma` that can decompress files to
-standard output by specifying option `--stdout`.  However, **ugrep** option
-`-z` is typically faster to search compressed files.
+Common filter utilities are `cat` (concat, pass through), `head` (select first
+lines or bytes) `tr` (translate), `iconv` and `uconv` (convert), and more
+advanced document conversion utilities such as
+[`pdftotext`](https://pypi.org/project/pdftotext) to convert PDF to text,
+[`pandoc`](https://pandoc.org) to convert .docx, .epub, and other document
+formats, [`soffice`](https://www.libreoffice.org) to convert office documents,
+and [`csvkit`](https://pypi.org/project/csvkit) to convert spreadsheets.  Also
+decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
+`bunzip2`, `unxz`, and `unlzma` that can decompress files to standard output by
+specifying option `--stdout`.  However, **ugrep** option `-z` is typically
+faster to search compressed files.
 
 To recursively search files including PDF files in the working directory
 without recursing into subdirectories, for `drink me` using the `pdftotext`
@@ -1432,6 +1444,10 @@ characters in .txt and .md files using the `cat -v` filter:
 The same, but specifying the .txt and .md filters separately:
 
     ugrep --color -r -ttext --filter='txt:cat -v, md:cat -v' 'eat me'
+
+To search the first 8K of a text file:
+
+    ugrep --color --filter='txt:head -c 8192' 'eat me' wonderland.txt
 
 To recursively search and list the files that contain the word `Alice`,
 including .docx and .epub documents using the `pandoc` filter:
@@ -1569,8 +1585,8 @@ source):
             `.gitignore'.  Matching files and directories located in the
             directory tree rooted at a FILE's location are ignored by
             temporarily overriding the --exclude and --exclude-dir globs.
-            Files and directories specified as FILE arguments are not ignored.
-            This option may be repeated.
+            Note that files and directories specified as ugrep FILE arguments
+            are not ignored.  This option may be repeated.
 
 Option `--ignore-files` looks for `.gitignore`, or the specified `FILE`, in
 recursive searches.  When found, the `.gitignore` file is used to exclude the
@@ -1914,18 +1930,27 @@ To display the line and column numbers of matches in XML with `--xml`:
             marks up matches only when output on a terminal.  The default is
             `auto'.
     --colors=COLORS, --colours=COLORS
-            Use COLORS to mark up matching text.  COLORS is a colon-separated
-            list of ANSI SGR parameters.  COLORS selectively overrides the
-            colors specified by the GREP_COLORS environment variable.
+            Use COLORS to mark up text.  COLORS is a colon-separated list of
+            one or more parameters `sl=' (selected line), `cx=' (context line),
+            `mt=' (matched text), `ms=' (match selected), `mc=' (match
+            context), `fn=' (file name), `ln=' (line number), `cn=' (column
+            number), `bn=' (byte offset), `se=' (separator).  Parameter values
+            are ANSI SGR color codes or `k' (black), `r' (red), `g' (green),
+            `y' (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white).
+            Upper case specifies background colors.  A `+' qualifies a color as
+            bright.  A foreground and a background color may be combined with
+            font properties `n' (normal), `f' (faint), `h' (highlight), `i'
+            (invert), `u' (underline).  Selectively overrides GREP_COLORS.
     --pager[=COMMAND]
             When output is sent to the terminal, uses COMMAND to page through
-            the output.  The default COMMAND is `less -R'.  This option makes
-            --color=auto behave as --color=always.  Enables --break and
-            --line-buffered.
+            the output.  The default COMMAND is `less -R'.  Enables --heading
+            and --line-buffered.
+    --pretty
+            When output is sent to the terminal, enables --color and --heading.
 
 To change the color palette, set the `GREP_COLORS` environment variable or use
 `--colors`.  Its value is a colon-separated list of ANSI SGR parameters that
-defaults to `cx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36` when not assigned:
+defaults to `cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36`:
 
 param | result
 ----- | ------------------------------------------------------------------------
@@ -1943,44 +1968,53 @@ param | result
 
 Multiple SGR codes may be specified for a single parameter when separated by a
 semicolon, e.g. `mt=1;31` specifies bright red.  The following SGR codes are
-widely supported and available on most color terminals:
+available on most color terminals:
 
-code | effect                     | code | effect
----- | -------------------------- | ---- | -------------------------------------
-0    | reset font and color       |      |
-1    | bold font and bright color | 21   | bold off
-4    | underline                  | 24   | underline off
-7    | reverse video              | 27   | reverse off
-30   | black text                 | 90   | bright gray text
-31   | red text                   | 91   | bright red text
-32   | green text                 | 92   | bright green text
-33   | yellow text                | 93   | bright yellow text
-34   | blue text                  | 94   | bright blue text
-35   | magenta text               | 95   | bright magenta text
-36   | cyan text                  | 96   | bright cyan text
-37   | white text                 | 97   | bright white text
-40   | black background           | 100  | bright gray background
-41   | dark red background        | 101  | bright red background
-42   | dark green background      | 102  | bright green background
-43   | dark yellow backgrounda    | 103  | bright yellow background
-44   | dark blue background       | 104  | bright blue background
-45   | dark magenta background    | 105  | bright magenta background
-46   | dark cyan background       | 106  | bright cyan background
-47   | dark white background      | 107  | bright white background
+code | c | effect                     | code | c  | effect
+---- | - | -------------------------- | ---- | -- | ----------------------------
+0    | n | normal font and color      | 2    | f  | faint (not widely supported)
+1    | h | highlighted bold font      | 21   | H  | highlighted bold off
+4    | u | underline                  | 24   | U  | underline off
+7    | i | invert video               | 27   | I  | invert off
+30   | k | black text                 | 90   | +k | bright gray text
+31   | r | red text                   | 91   | +r | bright red text
+32   | g | green text                 | 92   | +g | bright green text
+33   | y | yellow text                | 93   | +y | bright yellow text
+34   | b | blue text                  | 94   | +b | bright blue text
+35   | m | magenta text               | 95   | +m | bright magenta text
+36   | c | cyan text                  | 96   | +c | bright cyan text
+37   | w | white text                 | 97   | +w | bright white text
+40   | K | black background           | 100  | +K | bright gray background
+41   | R | dark red background        | 101  | +R | bright red background
+42   | G | dark green background      | 102  | +G | bright green background
+43   | Y | dark yellow backgrounda    | 103  | +Y | bright yellow background
+44   | B | dark blue background       | 104  | +B | bright blue background
+45   | M | dark magenta background    | 105  | +M | bright magenta background
+46   | C | dark cyan background       | 106  | +C | bright cyan background
+47   | W | dark white background      | 107  | +W | bright white background
 
-For more details, see Wikipedia
-[ANSI escape code - SGR parameters](https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters)
+See Wikipedia [ANSI escape code - SGR parameters](https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters)
+
+For quick and easy color specification, the corresponding single-letter color
+names may be used in place of numeric SGR codes.  Semicolons are not required
+to separate color names.  Color names and numeric codes may be mixed.
 
 For example, to display matches in underlined bright green on bright selected
-lines with a dark gray background, aiding in visualizing white space:
+lines with a dark gray background, aiding in visualizing white space in matches
+and file names:
 
-    export GREP_COLORS='sl=1;100:cx=44:ms=1;4;32;100:mc=1;4;32;44:fn=35:ln=32:cn=32:bn=32:se=36'
+    export GREP_COLORS='sl=1;100:cx=33:ms=1;4;32;100:mc=1;4;32:fn=1;32;100:ln=1;32:cn=1;32:bn=1;32:se=36'
 
-Modern Windows command interpreters support ANSI escape codes.  For example:
+The same, but with single-letter color names:
+
+    export GREP_COLORS='sl=h+K:cx=y:ms=hug+K:mc=hug:fn=hg+K:ln=hg:cn=hg:bn=hg:se=c'
+
+Modern Windows command interpreters support ANSI escape codes.  Named or
+numeric colors can be set with `SET GREP_COLORS`, for example:
 
     SET GREP_COLORS=sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36
 
-To disable colors:
+To disable colors on Windows:
 
     SET GREP_COLORS=""
 
@@ -1989,6 +2023,10 @@ affects readability.
 
 Option `-y` outputs every line of input, including non-matching lines as
 context.  The use of color helps distinguish matches from non-matching context.
+
+To copy silver searcher's color palette:
+
+    export GREP_COLORS='mt=30;43:fn=1;32:ln=1;33:cn=1;33:bn=1;33'
 
 To produce color-highlighted results:
 
@@ -2006,12 +2044,12 @@ color-highlighted matches of the zip magic bytes `PK\x03\x04`:
 
 To use predefined patterns to list all `#include` and `#define` in C++ files:
 
-    ugrep --color -R -n -tc++ -f c++/includes -f c++/defines
+    ugrep --pretty -R -n -tc++ -f c++/includes -f c++/defines
 
-Same, but overriding the color for selected lines with bold on a dark blue
-background, e.g. to visualize spacing:
+Same, but overriding the color of matches as inverted yellow (reverse video)
+and headings with yellow on blue using `--pretty`:
 
-    ugrep --color --colors="sl=1;44" -R -n -tc++ -f c++/includes -f c++/defines
+    ugrep --pretty --colors="ms=yi:fn=hyB" -R -n -tc++ -f c++/includes -f c++/defines
 
 To list all `#define FOO...` macros in C++ files, color-highlighted:
 
@@ -2442,31 +2480,39 @@ in markdown:
                   encoding.  See also the -a, -I, -U, -W, and -X options.
 
            --break
-                  Group  matches  per  file.  Adds a header and line break between
-                  results from different files.
+                  Adds a line break between results from different files.
 
            -C[NUM], --context[=NUM]
                   Print NUM lines of leading and trailing context surrounding each
                   match.  The default is 2 and is equivalent to -A 2 -B 2.  Places
-                  a --group-separator between contiguous groups  of  matches.   No
+                  a  --group-separator  between  contiguous groups of matches.  No
                   whitespace may be given between -C and its argument NUM.
 
            -c, --count
-                  Only  a  count  of selected lines is written to standard output.
+                  Only a count of selected lines is written  to  standard  output.
                   If -o or -u is specified, counts the number of patterns matched.
                   If -v is specified, counts the number of non-matching lines.
 
            --color[=WHEN], --colour[=WHEN]
-                  Mark  up  the  matching  text  with the expression stored in the
-                  GREP_COLOR or GREP_COLORS environment  variable.   The  possible
+                  Mark up the matching text with  the  expression  stored  in  the
+                  GREP_COLOR  or  GREP_COLORS  environment variable.  The possible
                   values of WHEN can be `never', `always', or `auto', where `auto'
                   marks up matches only when output on a terminal.  The default is
                   `auto'.
 
            --colors=COLORS, --colours=COLORS
-                  Use  COLORS  to  mark up matching text.  COLORS is a colon-sepa-
-                  rated list of ANSI SGR parameters.  COLORS selectively overrides
-                  the colors specified by the GREP_COLORS environment variable.
+                  Use COLORS to mark up text.  COLORS is a colon-separated list of
+                  one  or  more  parameters  `sl=' (selected line), `cx=' (context
+                  line), `mt='  (matched  text),  `ms='  (match  selected),  `mc='
+                  (match  context),  `fn=' (file name), `ln=' (line number), `cn='
+                  (column number), `bn=' (byte offset), `se=' (separator).  Param-
+                  eter  values are ANSI SGR color codes or `k' (black), `r' (red),
+                  `g' (green),  `y'  (yellow),  `b'  (blue),  `m'  (magenta),  `c'
+                  (cyan), `w' (white).  Upper case specifies background colors.  A
+                  `+' qualifies a color as bright.  A foreground and a  background
+                  color  may  be  combined  with font properties `n' (normal), `f'
+                  (faint), `h' (highlight), `i' (invert), `u' (underline).  Selec-
+                  tively overrides GREP_COLORS.
 
            --cpp  Output  file  matches  in  C++.   See  also  the --format and -u
                   options.
@@ -2556,17 +2602,18 @@ in markdown:
                   [option  ...]',  where `exts' is a comma-separated list of file-
                   name extensions and `command' is a filter utility.   The  filter
                   utility  should  read  from standard input and write to standard
-                  output.  Files matching one of `exts` are filtered only.  One or
-                  more  `option'  separated by spacing may be specified, which are
-                  passed verbatim to the command.  A `%' as `option' expands  into
-                  the  pathname to search.  For example, --filter='pdf:pdftotext %
-                  -' searches PDF files.  The `%' expands into a `-' when  search-
-                  ing  standard input.  Option --label=.ext may be used to specify
+                  output.  Files matching one of `exts` are filtered.  When `exts'
+                  is `*', files with non-matching extensions are filtered.  One or
+                  more `option' separated by spacing may be specified,  which  are
+                  passed  verbatim to the command.  A `%' as `option' expands into
+                  the pathname to search.  For example, --filter='pdf:pdftotext  %
+                  -'  searches PDF files.  The `%' expands into a `-' when search-
+                  ing standard input.  Option --label=.ext may be used to  specify
                   extension `ext' when searching standard input.
 
            --format=FORMAT
                   Output FORMAT-formatted matches.  See `man ugrep' section FORMAT
-                  for  the  `%'  fields.   Options -A, -B, -C, -y, and -v are dis-
+                  for the `%' fields.  Options -A, -B, -C, -y,  and  -v  are  dis-
                   abled.
 
            --free-space
@@ -2577,8 +2624,8 @@ in markdown:
                   behave as traditional grep.
 
            -g GLOB, --glob=GLOB
-                  Search   only   files   whose   name   matches   GLOB,  same  as
-                  --include=GLOB.  When GLOB is preceded by a `!' or a  `^',  skip
+                  Search  only  files   whose   name   matches   GLOB,   same   as
+                  --include=GLOB.   When  GLOB is preceded by a `!' or a `^', skip
                   files whose name matches GLOB, same as --exclude=GLOB.
 
            --group-separator[=SEP]
@@ -2586,12 +2633,16 @@ in markdown:
                   The default is a double hyphen (`--').
 
            -H, --with-filename
-                  Always print the  filename  with  output  lines.   This  is  the
+                  Always  print  the  filename  with  output  lines.   This is the
                   default when there is more than one file to search.
 
            -h, --no-filename
-                  Never  print  filenames  with output lines.  This is the default
-                  when there is only one file (or only standard input) to  search.
+                  Never print filenames with output lines.  This  is  the  default
+                  when  there is only one file (or only standard input) to search.
+
+           --heading
+                  Group matches per file.  Adds a heading and a line break between
+                  results from different files.
 
            --help Print a help message.
 
@@ -2607,9 +2658,9 @@ in markdown:
                   when encountered in recursive searches.   The  default  FILE  is
                   `.gitignore'.   Matching  files  and  directories located in the
                   directory tree rooted at a FILE's location are ignored by tempo-
-                  rarily  overriding the --exclude and --exclude-dir globs.  Files
-                  and directories specified as FILE  arguments  are  not  ignored.
-                  This option may be repeated.
+                  rarily  overriding  the --exclude and --exclude-dir globs.  Note
+                  that files and directories specified as ugrep FILE arguments are
+                  not ignored.  This option may be repeated.
 
            --include=GLOB
                   Search  only files whose name matches GLOB using wildcard match-
@@ -2651,8 +2702,8 @@ in markdown:
                   the same order as specified.
 
            -j, --smart-case
-                  Perform case insensitive matching unless PATTERN contains a cap-
-                  ital letter.  Case insensitive matching applies to ASCII letters
+                  Perform  case  insensitive  matching  unless PATTERN contains an
+                  upper case letter.  Note that this mode applies to ASCII letters
                   only.
 
            --json Output  file  matches in JSON.  When option -H, -n, -k, or -b is
@@ -2773,9 +2824,12 @@ in markdown:
 
            --pager[=COMMAND]
                   When output is sent  to  the  terminal,  uses  COMMAND  to  page
-                  through  the  output.   The  default COMMAND is `less -R'.  This
-                  option makes --color=auto  behave  as  --color=always.   Enables
-                  --break and --line-buffered.
+                  through  the output.  The default COMMAND is `less -R'.  Enables
+                  --heading and --line-buffered.
+
+           --pretty
+                  When output is sent to the terminal, enables --color and --head-
+                  ing.
 
            -Q ENCODING, --encoding=ENCODING
                   The  input  file  encoding.  The possible values of ENCODING can
@@ -3049,7 +3103,12 @@ in markdown:
     GREP_COLORS
            Colors  are  specified as string of colon-separated ANSI SGR parameters
            of the form `what=substring', where `substring'  is  a  semicolon-sepa-
-           rated list of SGR codes to color-highlight `what':
+           rated  list  of  ANSI SGR codes or `k' (black), `r' (red), `g' (green),
+           `y' (yellow), `b' (blue),  `m'  (magenta),  `c'  (cyan),  `w'  (white).
+           Upper case specifies background colors.  Adding a `+' qualifies a color
+           as bright.  A foreground and a background color may  be  combined  with
+           one or more font properties `n' (normal), `f' (faint), `h' (highlight),
+           `i' (invert), `u' (underline).  Substrings may be specified for:
 
            sl=    SGR substring for selected lines.
 
@@ -3059,10 +3118,10 @@ in markdown:
 
            mt=    SGR substring for matching text in any matching line.
 
-           ms=    SGR  substring  for  matching text in a selected line.  The sub-
+           ms=    SGR substring for matching text in a selected  line.   The  sub-
                   string mt= by default.
 
-           mc=    SGR substring for matching text in a  context  line.   The  sub-
+           mc=    SGR  substring  for  matching  text in a context line.  The sub-
                   string mt= by default.
 
            fn=    SGR substring for file names.
@@ -3076,7 +3135,7 @@ in markdown:
            se=    SGR substring for separators.
 
     FORMAT
-           Option  --format=FORMAT  specifies  an  output format for file matches.
+           Option --format=FORMAT specifies an output  format  for  file  matches.
            Fields may be used in FORMAT, which expand into the following values:
 
            %[ARG]F
@@ -3171,28 +3230,28 @@ in markdown:
 
            %%     the percentage sign.
 
-           %1     the  first  regex  group  capture  of the match, and so on up to
+           %1     the first regex group capture of the match,  and  so  on  up  to
                   group %9, same as %[1]#; requires option -P Perl matching.
 
            %[NUM]#
                   the regex group capture NUM; requires option -P Perl matching.
 
-           The [ARG] part of a  field  is  optional  and  may  be  omitted.   When
-           present,  the argument must be placed in [] brackets, for example %[,]F
+           The  [ARG]  part  of  a  field  is  optional  and may be omitted.  When
+           present, the argument must be placed in [] brackets, for example  %[,]F
            to output a comma, the pathname, and a separator.
 
            Fields %[SEP]$ and %u are switches and do not send anything to the out-
            put.
 
            The separator used by %P, %H, %N, %K, %B, and %S may be changed by pre-
-           ceeding the field  by  %[SEP]$.   When  [SEP]  is  not  provided,  this
+           ceeding  the  field  by  %[SEP]$.   When  [SEP]  is  not provided, this
            reverses the separator to the default separator or the separator speci-
            fied with --separator.
 
            Formatted output is written for each matching pattern, which means that
-           a  line may be output multiple times when patterns match more than once
-           on the same line.  When field %u is found  anywhere  in  the  specified
-           format  string,  matching  lines are output only once unless option -u,
+           a line may be output multiple times when patterns match more than  once
+           on  the  same  line.   When field %u is found anywhere in the specified
+           format string, matching lines are output only once  unless  option  -u,
            --ungroup is used or when a newline is matched.
 
            Additional formatting options:
@@ -3209,8 +3268,8 @@ in markdown:
            --format-end=FORMAT
                   the FORMAT when ending the search.
 
-           The context options -A, -B, -C, -y, and options -v,  --break,  --color,
-           -T, and --null are disabled and have no effect on the formatted output.
+           The context options -A, -B, -C, -y, and options -v, --break, --heading,
+           --color, -T, and --null have no effect on the formatted output.
 
     EXAMPLES
            Display lines containing the word `patricia' in `myfile.txt':
@@ -3333,7 +3392,7 @@ in markdown:
 
 
 
-    ugrep 1.7.3                    January 20, 2020                       UGREP(1)
+    ugrep 1.7.4                    January 21, 2020                       UGREP(1)
 
 <a name="patterns"/>
 

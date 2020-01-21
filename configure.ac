@@ -86,9 +86,22 @@ else
   AC_MSG_RESULT(no)
 fi
 
+AC_ARG_ENABLE(pretty,
+  [AC_HELP_STRING([--enable-pretty],
+                  [enable pretty output by default without requiring ugrep flag --pretty])],
+  [with_pretty="$enable_pretty"],
+  [with_pretty="no"])
+AC_MSG_CHECKING(for --enable-pretty)
+if test "x$with_pretty" = "xyes"; then
+  AC_MSG_RESULT(yes)
+  EXTRA_CFLAGS="-DWITH_PRETTY ${EXTRA_CFLAGS}"
+else
+  AC_MSG_RESULT(no)
+fi
+
 AC_ARG_ENABLE(pager,
   [AC_HELP_STRING([--enable-pager],
-                  [enable pager by default without requiring ugrep flag --pager])],
+                  [enable the pager by default without requiring ugrep flag --pager])],
   [with_pager="$enable_pager"],
   [with_pager="no"])
 AC_MSG_CHECKING(for --enable-pager)
@@ -101,7 +114,7 @@ fi
 
 AC_ARG_ENABLE(hidden,
   [AC_HELP_STRING([--disable-hidden],
-                  [disable searching hidden files and directories unless explicitly enabled with --hidden])],
+                  [disable searching hidden files and directories unless explicitly enabled with ugrep flag --hidden])],
   [with_no_hidden="yes"],
   [with_no_hidden="no"])
 AC_MSG_CHECKING(for --disable-hidden)
