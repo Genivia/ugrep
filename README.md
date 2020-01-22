@@ -240,7 +240,7 @@ T4   | `GREP -Fon -f words2+1000 enwik8`                                | search
 T5   | `GREP -Fon -f words3+1000 enwik8`                                | search 1000 words of length 3 or longer in a 100MB Wikipedia file
 T6   | `GREP -Fon -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
 T7   | `GREP -Fon -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
-T8   | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
+T8   | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | multi-threaded recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
 T9   | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T8 but single-threaded
 T10  | `GREP -z -Fc word word*.gz`                                      | count `word` in 6 compressed files of 1MB to 3MB each
 
@@ -271,7 +271,8 @@ GREP            | T0        | T1       | T2       | T3       | T4       | T5    
 --------------- | --------  | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
 BSD grep 2.5.1  | 0.67      | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 GNU grep 3.3    | 0.06      | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
-silver searcher | 0.05      | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.46     | 0.46     | *n/a*    |
+PCREGREP  8.42  | 0.07      | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | 2.47     | *n/a*    |
+silver searcher | 0.05      | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.46     | 0.33     | *n/a*    |
 ripgep          | 0.03      | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
 ugrep           | **0.02**  | **0.09** | **0.05** | **1.06** | **1.04** | **0.93** | **0.95** | **0.33** | **0.10** | **0.20** | **0.02** |
 
