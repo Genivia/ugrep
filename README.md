@@ -279,11 +279,6 @@ ugrep           | **0.02**  | **0.09** | **0.05** | **1.06** | **1.04** | **0.93
 Option `-z` of **ugrep** uses task parallelism to optimize file reading,
 decompression, and searching.
 
-In some cases we decided in favor of features and safety over performance.  For
-example, **ugrep** considers files binary when containing invalid UTF encodings
-or a NUL (`\0`).  GNU and BSD grep only check for NUL, which is faster but may
-lead to display problems on most terminals.
-
 For these tests, search results are piped to a `null` utility to eliminate
 terminal display overhead.  Looking through the GNU grep source code revealed
 that GNU grep "cheats" when output is redirected to `/dev/null` by essentially
