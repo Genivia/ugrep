@@ -1,0 +1,20 @@
+<grep>
+  <file name="Hello.bat">
+    <match>false</match>
+  </file>
+  <file name="Hello.class">
+    <match>false</match>
+  </file>
+  <file name="Hello.java">
+    <match>false</match>
+  </file>
+  <file name="Hello.pdf">
+    <match>false</match>
+  </file>
+  <file name="Hello.sh">
+    <match>false</match>
+  </file>
+  <file name="Hello.txt">
+    <match>false</match>
+  </file>
+</grep>

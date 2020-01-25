@@ -87,6 +87,8 @@
 #define PATHSEP '/'
 #endif
 
+static int utf8(const char **s);
+
 // match text against glob, return true or false
 static bool match(const char *text, const char *glob)
 {
@@ -132,28 +134,36 @@ static bool match(const char *text, const char *glob)
         if (*text == PATHSEP)
           break;
 
-        text++;
+        utf8(&text);
         glob++;
         continue;
 
       case '[':
       {
+        int chr = utf8(&text), last = 0x10ffff;
+
+        // match anything except /
+        if (chr == PATHSEP)
+          break;
+
         bool matched = false;
         bool reverse = glob[1] == '^' || glob[1] == '!';
 
         // inverted character class
         if (reverse)
           glob++;
+        glob++;
 
         // match character class
-        for (int last = 256; *++glob && *glob != ']'; last = *glob)
-          if (*glob == '-' && glob[1] ? *text <= *++glob && *text >= last : *text == *glob)
+        while (*glob != '\0' && *glob != ']')
+          if (last < 0x10ffff && *glob == '-' && glob[1] != ']' && glob[1] != '\0' ?
+              chr <= utf8(&++glob) && chr >= last :
+              chr == (last = utf8(&glob)))
             matched = true;
 
         if (matched == reverse)
           break;
 
-        text++;
         if (*glob)
           glob++;
         continue;
@@ -221,4 +231,36 @@ bool glob_match(const char *pathname, const char *basename, const char *glob)
   }
 
   return match(basename, glob);
+}
+
+// return wide character of UTF-8 multi-byte sequence
+static int utf8(const char **s)
+{
+  int c1, c2, c3, c = (unsigned char)**s;
+  if (c != '\0')
+    (*s)++;
+  if (c < 0x80)
+    return c;
+  c1 = (unsigned char)**s;
+  if (c < 0xC0 || (c == 0xC0 && c1 != 0x80) || c == 0xC1 || (c1 & 0xC0) != 0x80)
+    return 0xFFFD;
+  if (c1 != '\0')
+    (*s)++;
+  c1 &= 0x3F;
+  if (c < 0xE0)
+    return (((c & 0x1F) << 6) | c1);
+  c2 = (unsigned char)**s;
+  if ((c == 0xE0 && c1 < 0x20) || (c2 & 0xC0) != 0x80)
+    return 0xFFFD;
+  if (c2 != '\0')
+    (*s)++;
+  c2 &= 0x3F;
+  if (c < 0xF0)
+    return (((c & 0x0F) << 12) | (c1 << 6) | c2);
+  c3 = (unsigned char)**s;
+  if (c3 != '\0')
+    (*s)++;
+  if ((c == 0xF0 && c1 < 0x10) || (c == 0xF4 && c1 >= 0x10) || c >= 0xF5 || (c3 & 0xC0) != 0x80)
+    return 0xFFFD;
+  return (((c & 0x07) << 18) | (c1 << 12) | (c2 << 6) | (c3 & 0x3F));
 }

@@ -1,0 +1,39 @@
+[
+  {
+    "file": "Hello.bat",
+    "matches": [
+      { "line": 2, "column": 7, "offset": 16, "match": "Hello" }
+    ]
+  },
+  {
+    "file": "Hello.class",
+    "matches": [
+      { "line": 5, "column": 1, "offset": 122, "match": "Hello" }
+    ]
+  },
+  {
+    "file": "Hello.java",
+    "matches": [
+      { "line": 2, "column": 14, "offset": 33, "match": "Hello" },
+      { "line": 4, "column": 25, "offset": 137, "match": "Hello" }
+    ]
+  },
+  {
+    "file": "Hello.pdf",
+    "matches": [
+      { "line": 85, "column": 2, "offset": 5217, "match": "Hello" }
+    ]
+  },
+  {
+    "file": "Hello.sh",
+    "matches": [
+      { "line": 2, "column": 7, "offset": 16, "match": "Hello" }
+    ]
+  },
+  {
+    "file": "Hello.txt",
+    "matches": [
+      { "line": 1, "column": 1, "offset": 0, "match": "Hello" }
+    ]
+  }
+]

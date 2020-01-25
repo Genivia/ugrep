@@ -46,4 +46,4 @@ install-data-hook:
 .PHONY:		test
 
 test:		$(top_builddir)/src/ugrep
-		$(top_builddir)/src/ugrep -rltc++ copyright $(top_builddir)/src
+		-cd tests; ./verify.sh

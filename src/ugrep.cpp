@@ -70,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.4"
+#define UGREP_VERSION "1.7.5"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -368,7 +368,7 @@ const char *color_error   = ""; // stderr error text
 const char *color_warning = ""; // stderr warning text
 const char *color_message = ""; // stderr error or warning message text
 
-// default file encoding is plain (no conversion), but detect UTF-8/16/32 automatically
+// default file encoding is plain (no conversion), detects UTF-8/16/32 automatically
 reflex::Input::file_encoding_type flag_encoding_type = reflex::Input::file_encoding::plain;
 
 // -D, --devices and -d, --directories
@@ -1180,7 +1180,7 @@ struct Output {
   void binary_file_matches(const char *pathname, const std::string& partname);
 
   // output formatted match with options --format, --format-open, --format-close
-  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher);
+  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body = true);
 
   // output a quoted string with escapes for \ and "
   void quote(const char *data, size_t size);
@@ -1460,9 +1460,11 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
 }
 
 // output formatted match with options --format, --format-open, --format-close
-void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher)
+void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body)
 {
-  if (lineno > 0 && lineno == matcher->lineno() && matcher->lines() == 1)
+  if (!body)
+    lineno = 0;
+  else if (lineno > 0 && lineno == matcher->lineno() && matcher->lines() == 1)
     return;
 
   size_t len = 0;
@@ -1681,56 +1683,72 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'C':
-        if (flag_count)
+        if (flag_files_with_match)
+          str(flag_invert_match ? "\"false\"" : "\"true\"");
+        else if (flag_count)
           chr('"'), num(matches), chr('"');
         else
           cpp(matcher);
         break;
 
       case 'c':
-        if (flag_count)
+        if (flag_files_with_match)
+          str(flag_invert_match ? "\"false\"" : "\"true\"");
+        else if (flag_count)
           chr('"'), num(matches), chr('"');
         else
           cpp(matcher->begin(), matcher->size());
         break;
 
       case 'V':
-        if (flag_count)
+        if (flag_files_with_match)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
           num(matches);
         else
           csv(matcher);
         break;
 
       case 'v':
-        if (flag_count)
+        if (flag_files_with_match)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
           num(matches);
         else
           csv(matcher->begin(), matcher->size());
         break;
 
       case 'J':
-        if (flag_count)
+        if (flag_files_with_match)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
           num(matches);
         else
           json(matcher);
         break;
 
       case 'j':
-        if (flag_count)
+        if (flag_files_with_match)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
           num(matches);
         else
           json(matcher->begin(), matcher->size());
         break;
 
       case 'X':
-        if (flag_count)
+        if (flag_files_with_match)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
           num(matches);
         else
           xml(matcher);
         break;
 
       case 'x':
-        if (flag_count)
+        if (flag_files_with_match)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
           num(matches);
         else
           xml(matcher->begin(), matcher->size());
@@ -3398,6 +3416,7 @@ const struct { const char *format; reflex::Input::file_encoding_type encoding; }
   { "UTF-32",      reflex::Input::file_encoding::utf32be    },
   { "UTF-32BE",    reflex::Input::file_encoding::utf32be    },
   { "UTF-32LE",    reflex::Input::file_encoding::utf32le    },
+  { "LATIN1",      reflex::Input::file_encoding::latin      },
   { "ISO-8859-1",  reflex::Input::file_encoding::latin      },
   { "ISO-8869-2",  reflex::Input::file_encoding::iso8859_2  },
   { "ISO-8869-3",  reflex::Input::file_encoding::iso8859_3  },
@@ -4426,8 +4445,6 @@ int main(int argc, char **argv)
 
         ++lineno;
 
-        trim(line);
-
         // add line to the regex if not empty
         if (!line.empty())
         {
@@ -4530,32 +4547,6 @@ int main(int argc, char **argv)
     // check if standard output is a TTY
     tty_term = isatty(STDOUT_FILENO) != 0;
 
-    if (tty_term)
-    {
-      // --pager: if output is to a TTY then page through the results
-      if (flag_pager != NULL)
-      {
-        // open a pipe to a forked pager
-        output = popen(flag_pager, "w");
-        if (output == NULL)
-          error("cannot open pipe to pager", flag_pager);
-
-        // enable --heading
-        flag_heading = true;
-
-        // enable --line-buffered to flush output to the pager immediately
-        flag_line_buffered = true;
-      }
-      else if (flag_pretty)
-      {
-        // enable --color
-        flag_color ="auto";
-
-        // enable --heading
-        flag_heading = true;
-      }
-    }
-
 #ifndef OS_WIN
 
     if (!tty_term)
@@ -4576,6 +4567,47 @@ int main(int argc, char **argv)
     }
 
 #endif
+  }
+
+  if (!flag_quiet)
+  {
+    if (tty_term)
+    {
+      if (flag_pager != NULL)
+      {
+        // --pager: if output is to a TTY then page through the results
+
+        // open a pipe to a forked pager
+        output = popen(flag_pager, "w");
+        if (output == NULL)
+          error("cannot open pipe to pager", flag_pager);
+
+        // enable --heading
+        flag_heading = true;
+
+        // enable --line-buffered to flush output to the pager immediately
+        flag_line_buffered = true;
+      }
+      else if (flag_pretty)
+      {
+        // --pretty: if output is to a TTY then enable --color and --heading
+
+        // enable --color
+        if (flag_color == NULL)
+          flag_color ="auto";
+
+        // enable --heading
+        flag_heading = true;
+      }
+      else if (flag_colors != NULL)
+      {
+        // --colors: if output is to a TTY then enable --color and use the specified --colors (below)
+
+        // enable --color
+        if (flag_color == NULL)
+          flag_color ="auto";
+      }
+    }
 
     // --color: (re)set flag_color depending on color_term and TTY output
     if (flag_color != NULL)
@@ -5937,10 +5969,10 @@ void Grep::search(const char *pathname)
             if (flag_format != NULL)
             {
               if (flag_format_open != NULL)
-                out.format(flag_format_open, pathname, partname, stats.found_files(), matcher);
+                out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false);
               out.format(flag_format, pathname, partname, 1, matcher);
               if (flag_format_close != NULL)
-                out.format(flag_format_close, pathname, partname, stats.found_files(), matcher);
+                out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false);
             }
             else
             {
@@ -6018,12 +6050,17 @@ void Grep::search(const char *pathname)
               }
             }
 
+            // -c with -v: count non-matching lines
             if (flag_invert_match)
-              matches = matcher->lineno() - matches - 1;
+            {
+              matches = matcher->lineno() - matches;
+              if (matches > 0)
+                --matches;
+            }
           }
         }
 
-        // --format: acquire lock early before stats.found()
+        // --format-open or --format-close: acquire lock early before stats.found()
         if (flag_format_open != NULL || flag_format_close != NULL)
           out.acquire();
 
@@ -6034,10 +6071,10 @@ void Grep::search(const char *pathname)
         if (flag_format != NULL)
         {
           if (flag_format_open != NULL)
-            out.format(flag_format_open, pathname, partname, stats.found_files(), matcher);
+            out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false);
           out.format(flag_format, pathname, partname, matches, matcher);
           if (flag_format_close != NULL)
-            out.format(flag_format_close, pathname, partname, stats.found_files(), matcher);
+            out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false);
         }
         else
         {
@@ -6100,13 +6137,13 @@ void Grep::search(const char *pathname)
               goto exit_search;
 
             if (flag_format_open != NULL)
-              out.format(flag_format_open, pathname, partname, stats.found_files(), matcher);
+              out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false);
           }
 
           ++matches;
 
           // output --format
-          out.format(flag_format, pathname, partname, matches, matcher);
+          out.format(flag_format, pathname, partname, matches, matcher, true);
 
           // -m: max number of matches reached?
           if (flag_max_count > 0 && matches >= flag_max_count)
@@ -6118,7 +6155,7 @@ void Grep::search(const char *pathname)
 
         // output --format-close
         if (matches > 0 && flag_format_close != NULL)
-          out.format(flag_format_close, pathname, partname, stats.found_files(), matcher);
+          out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false);
       }
       else if (flag_only_line_number)
       {
@@ -7678,7 +7715,7 @@ void help(const char *message, const char *arg)
     -A NUM, --after-context=NUM\n\
             Print NUM lines of trailing context after matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
-            the -B, -C, and -y options.\n\
+            options -B, -C, and -y.\n\
     -a, --text\n\
             Process a binary file as if it were text.  This is equivalent to\n\
             the --binary-files=text option.  This option might output binary\n\
@@ -7687,13 +7724,13 @@ void help(const char *message, const char *arg)
     -B NUM, --before-context=NUM\n\
             Print NUM lines of leading context before matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
-            the -A, -C, and -y options.\n\
+            options -A, -C, and -y.\n\
     -b, --byte-offset\n\
             The offset in bytes of a matched line is displayed in front of the\n\
-            respective matched line.  When used with option -u, displays the\n\
-            offset in bytes of each pattern matched.  Byte offsets are exact\n\
+            respective matched line.  If -u is specified, displays the offset\n\
+            for each pattern matched on the same line.  Byte offsets are exact\n\
             for ASCII, UTF-8, and raw binary input.  Otherwise, the byte offset\n\
-            in the UTF-8 converted input is displayed.\n\
+            in the UTF-8 normalized input is displayed.\n\
     --binary-files=TYPE\n\
             Controls searching and reporting pattern matches in binary files.\n\
             Options are `binary', `without-match`, `text`, `hex`, and\n\
@@ -7704,9 +7741,8 @@ void help(const char *message, const char *arg)
             problematic consequences if the terminal driver interprets some of\n\
             it as commands.  `hex' reports all matches in hexadecimal.\n\
             `with-hex' only reports binary matches in hexadecimal, leaving text\n\
-            matches alone.  A match is considered binary if a match contains a\n\
-            zero byte or invalid UTF encoding.  See also the -a, -I, -U, -W,\n\
-            and -X options.\n\
+            matches alone.  A match is considered binary when matching a zero\n\
+            byte or invalid UTF.  Short options are -a, -I, -U, -W, and -X.\n\
     --break\n\
             Adds a line break between results from different files.\n\
     -C[NUM], --context[=NUM]\n\
@@ -7737,10 +7773,10 @@ void help(const char *message, const char *arg)
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'\n\
             (invert), `u' (underline).  Selectively overrides GREP_COLORS.\n\
     --cpp\n\
-            Output file matches in C++.  See also the --format and -u options.\n\
+            Output file matches in C++.  See also options --format and -u.\n\
     --csv\n\
-            Output file matches in CSV.  When option -H, -n, -k, or -b is used\n\
-            additional values are output.  See also the --format and -u options.\n\
+            Output file matches in CSV.  If -H, -n, -k, or -b is specified,\n\
+            additional values are output.  See also options --format and -u.\n\
     -D ACTION, --devices=ACTION\n\
             If an input file is a device, FIFO or socket, use ACTION to process\n\
             it.  By default, ACTION is `skip', which means that devices are\n\
@@ -7802,8 +7838,8 @@ void help(const char *message, const char *arg)
             If PATTERN or -e PATTERN is also specified, then this option does\n\
             not apply to -f FILE patterns.\n\
     -f FILE, --file=FILE\n\
-            Read one or more newline-separated patterns from FILE.  Empty\n\
-            pattern lines in FILE are not processed.  If FILE does not exist,\n\
+            Read newline-separated patterns from FILE.  Empty patterns and\n\
+            patterns starting with `###' are ignored.  If FILE does not exist,\n\
             the GREP_PATH environment variable is used as the path to FILE.\n"
 #ifdef GREP_PATH
 "\
@@ -7811,7 +7847,7 @@ void help(const char *message, const char *arg)
 #endif
 "\
             When FILE is a `-', standard input is read.  Empty files contain no\n\
-            patterns, thus nothing is matched.  This option may be repeated.\n";
+            patterns; thus nothing is matched.  This option may be repeated.\n";
 #ifndef OS_WIN
   std::cout << "\
     --filter=COMMANDS\n\
@@ -7831,7 +7867,7 @@ void help(const char *message, const char *arg)
   std::cout << "\
     --format=FORMAT\n\
             Output FORMAT-formatted matches.  See `man ugrep' section FORMAT\n\
-            for the `%' fields.  Options -A, -B, -C, -y, and -v are disabled.\n\
+            for the `%' fields.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -7908,12 +7944,12 @@ void help(const char *message, const char *arg)
             same order as specified.\n\
     -j, --smart-case\n\
             Perform case insensitive matching unless PATTERN contains an upper\n\
-            case letter.  Note that this mode applies to ASCII letters only.\n\
+            case letter.  This option applies to ASCII letters only.\n\
     --json\n\
-            Output file matches in JSON.  When option -H, -n, -k, or -b is used\n\
-            additional values are output.  See also the --format and -u options.\n\
+            Output file matches in JSON.  If -H, -n, -k, or -b is specified,\n\
+            additional values are output.  See also options --format and -u.\n\
     -K NUM1[,NUM2], --range=NUM1[,NUM2]\n\
-            Start searching at line NUM1 and end at line NUM2 when specified.\n\
+            Start searching at line NUM1; stops at line NUM2 when specified.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -7934,9 +7970,7 @@ void help(const char *message, const char *arg)
             where a file name would normally be printed in the output.  This\n\
             option applies to options -H, -L, and -l.\n\
     --line-buffered\n\
-            Force output to be line buffered.  By default, output is line\n\
-            buffered when standard output is a terminal and block buffered\n\
-            otherwise.\n\
+            Force output to be line buffered instead of block buffered.\n\
     -M MAGIC, --file-magic=MAGIC\n\
             Only files matching the signature pattern MAGIC are searched.  The\n\
             signature \"magic bytes\" at the start of a file are compared to\n\
@@ -7946,7 +7980,7 @@ void help(const char *message, const char *arg)
             with options -O and -t to expand the search.  Every file on the\n\
             search path is read, making searches potentially more expensive.\n\
     -m NUM, --max-count=NUM\n\
-            Stop reading the input after NUM matches for each file processed.\n\
+            Stop reading the input after NUM matches in each input file.\n\
     --match\n\
             Match all input.  Same as specifying an empty pattern to search.\n\
     --max-depth=NUM\n\
@@ -7996,6 +8030,7 @@ void help(const char *message, const char *arg)
             Print only the matching part of lines.  When multiple lines match,\n\
             the line numbers with option -n are displayed using `|' as the\n\
             field separator for each additional line matched by the pattern.\n\
+            If -u is specified, ungroups multiple matches on the same line.\n\
             This option cannot be combined with options -A, -B, -C, -v, and -y.\n\
     --only-line-number\n\
             The line number of the matching line in the file is output without\n\
@@ -8016,7 +8051,7 @@ void help(const char *message, const char *arg)
             the output.  The default COMMAND is `" DEFAULT_PAGER "'.  Enables --heading\n\
             and --line-buffered.\n\
     --pretty\n\
-            When output is sent to the terminal, enables --color and --heading.\n\
+            When output is sent to a terminal, enables --color and --heading.\n\
     -Q ENCODING, --encoding=ENCODING\n\
             The input file encoding.  The possible values of ENCODING can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)
@@ -8044,8 +8079,8 @@ void help(const char *message, const char *arg)
             number, byte offset, and the matched line.  The default is a colon\n\
             (`:').\n\
     --stats\n\
-            Display statistics on the number of files and directories searched.\n\
-            Display the inclusion and exclusion constraints applied.\n\
+            Display statistics on the number of files and directories searched,\n\
+            and the inclusion and exclusion constraints applied.\n\
     -T, --initial-tab\n\
             Add a tab space to separate the file name, line number, column\n\
             number, and byte offset with the matched line.\n\
@@ -8094,17 +8129,17 @@ void help(const char *message, const char *arg)
             is specified (or -e PATTERN or -N PATTERN), then this option does\n\
             not apply to -f FILE patterns.\n\
     --xml\n\
-            Output file matches in XML.  When option -H, -n, -k, or -b is used\n\
-            additional values are output.  See also the --format and -u options.\n\
+            Output file matches in XML.  If -H, -n, -k, or -b is specified,\n\
+            additional values are output.  See also options --format and -u.\n\
     -Y, --empty\n\
             Permits empty matches.  By default, empty matches are disabled,\n\
-            unless a pattern starts with `^' and ends with `$'.  Note that -Y\n\
+            unless a pattern begins with `^' and ends with `$'.  Note that -Y\n\
             when specified with an empty-matching pattern such as x? and x*,\n\
             match all input, not only lines with a `x'.\n\
     -y, --any-line\n\
             Any matching or non-matching line is output.  Non-matching lines\n\
             are output with the `-' separator as context of the matching lines.\n\
-            See also the -A, -B, and -C options.\n\
+            See also options -A, -B, and -C.\n\
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n\

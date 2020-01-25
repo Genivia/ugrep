@@ -1,0 +1,24 @@
+<grep>
+  <file name="Hello.bat">
+    <match line="2" column="7" offset="16">echo &quot;Hello World!&quot;</match>
+  </file>
+  <file name="Hello.class">
+    <match line="5" column="1" offset="122">Hello.java&#12;&#0;&#7;&#0;&#8;&#7;&#0;&#23;&#12;&#0;&#24;&#0;&#25;&#1;&#0;&#12;Hello World!&#7;&#0;&#26;&#12;&#0;&#27;&#0;&#28;&#1;&#0;&#5;Hello&#1;&#0;&#16;java/lang/Object&#1;&#0;&#16;java/lang/System&#1;&#0;&#3;out&#1;&#0;&#21;Ljava/io/PrintStream;&#1;&#0;&#19;java/io/PrintStream&#1;&#0;&#7;println&#1;&#0;&#21;(Ljava/lang/String;)V&#0;!&#0;&#5;&#0;&#6;&#0;&#0;&#0;&#0;&#0;&#2;&#0;&#1;&#0;&#7;&#0;&#8;&#0;&#1;&#0;&#9;&#0;&#0;&#0;&#29;&#0;&#1;&#0;&#1;&#0;&#0;&#0;&#5;*·&#0;&#1;±&#0;&#0;&#0;&#1;&#0;</match>
+    <match line="5" column="27" offset="148">Hello.java&#12;&#0;&#7;&#0;&#8;&#7;&#0;&#23;&#12;&#0;&#24;&#0;&#25;&#1;&#0;&#12;Hello World!&#7;&#0;&#26;&#12;&#0;&#27;&#0;&#28;&#1;&#0;&#5;Hello&#1;&#0;&#16;java/lang/Object&#1;&#0;&#16;java/lang/System&#1;&#0;&#3;out&#1;&#0;&#21;Ljava/io/PrintStream;&#1;&#0;&#19;java/io/PrintStream&#1;&#0;&#7;println&#1;&#0;&#21;(Ljava/lang/String;)V&#0;!&#0;&#5;&#0;&#6;&#0;&#0;&#0;&#0;&#0;&#2;&#0;&#1;&#0;&#7;&#0;&#8;&#0;&#1;&#0;&#9;&#0;&#0;&#0;&#29;&#0;&#1;&#0;&#1;&#0;&#0;&#0;&#5;*·&#0;&#1;±&#0;&#0;&#0;&#1;&#0;</match>
+    <match line="5" column="50" offset="171">Hello.java&#12;&#0;&#7;&#0;&#8;&#7;&#0;&#23;&#12;&#0;&#24;&#0;&#25;&#1;&#0;&#12;Hello World!&#7;&#0;&#26;&#12;&#0;&#27;&#0;&#28;&#1;&#0;&#5;Hello&#1;&#0;&#16;java/lang/Object&#1;&#0;&#16;java/lang/System&#1;&#0;&#3;out&#1;&#0;&#21;Ljava/io/PrintStream;&#1;&#0;&#19;java/io/PrintStream&#1;&#0;&#7;println&#1;&#0;&#21;(Ljava/lang/String;)V&#0;!&#0;&#5;&#0;&#6;&#0;&#0;&#0;&#0;&#0;&#2;&#0;&#1;&#0;&#7;&#0;&#8;&#0;&#1;&#0;&#9;&#0;&#0;&#0;&#29;&#0;&#1;&#0;&#1;&#0;&#0;&#0;&#5;*·&#0;&#1;±&#0;&#0;&#0;&#1;&#0;</match>
+  </file>
+  <file name="Hello.java">
+    <match line="2" column="14" offset="33">public class Hello // prints a Hello World! greeting</match>
+    <match line="2" column="32" offset="51">public class Hello // prints a Hello World! greeting</match>
+    <match line="4" column="25" offset="137">  { System.out.println(&quot;Hello World!&quot;);</match>
+  </file>
+  <file name="Hello.pdf">
+    <match line="85" column="2" offset="5217">(Hello)</match>
+  </file>
+  <file name="Hello.sh">
+    <match line="2" column="7" offset="16">echo &quot;Hello World!&quot;</match>
+  </file>
+  <file name="Hello.txt">
+    <match line="1" column="1" offset="0">Hello</match>
+  </file>
+</grep>

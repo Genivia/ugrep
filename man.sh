@@ -24,25 +24,24 @@ cat >> man/ugrep.1 << 'END'
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
-regular expression (RE) in the pattern matches the input line without its
-trailing newline.  A pattern matches multiple input lines if the RE in the
-pattern matches one or more newlines in the input.  An empty RE matches every
-line.  Each input line that matches at least one of the patterns is written to
-the standard output.
+regular expression (RE) matches the input line.  A pattern matches multiple
+input lines if the RE in the pattern matches one or more newlines in the input.
+An empty pattern matches every line.  Each input line that matches at least one
+of the patterns is written to the standard output.
 .PP
 The \fBugrep\fR utility accepts input of various encoding formats and
-normalizes the input to UTF-8.  When a UTF BOM is present in the input, the
-input is automatically normalized.  Otherwise, \fBugrep\fR assumes the input is
-ASCII, UTF-8, or raw binary.  To specify the input encoding format, use option
-\fB-Q\fR, \fB--encoding\fR.
+normalizes the input to UTF-8.  When a UTF byte order mark is present in the
+input, the input is automatically normalized; otherwise, \fBugrep\fR assumes
+the input is ASCII, UTF-8, or raw binary.  An input encoding format may be
+specified with option \fB-Q\fR, \fB--encoding\fR.
 .PP
 The following options are available:
 END
 src/ugrep --help \
+| tail -n+2 \
 | sed -e 's/\([^\\]\)\\/\1\\\\/g' \
 | sed \
   -e '/^$/ d' \
-  -e '/^Usage:/ d' \
   -e '/^    The ugrep/ d' \
   -e '/^    0       / d' \
   -e '/^    1       / d' \
@@ -53,7 +52,7 @@ src/ugrep --help \
   -e 's/^            //' \
   -e 's/^\.\([A-Za-z]\)/\\\&.\1/g' \
   -e $'s/^    \(.*\)$/.TP\\\n\\1/' \
-  -e 's/\(--[-+0-9A-Za-z_]*\)/\\fB\1\\fR/g' \
+  -e 's/\(--[][+0-9A-Za-z_-]*\)/\\fB\1\\fR/g' \
   -e 's/\([^-0-9A-Za-z_]\)\(-.\) \([A-Z]\{1,\}\)/\1\\fB\2\\fR \\fI\3\\fR/g' \
   -e 's/\([^-0-9A-Za-z_]\)\(-.\)/\1\\fB\2\\fR/g' \
   -e 's/^\(-.\) \([!A-Z]\{1,\}\)/\\fB\1\\fR \\fI\2\\fR/g' \
@@ -64,7 +63,7 @@ src/ugrep --help \
 cat >> man/ugrep.1 << 'END'
 .PP
 If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
-standard input is used, unless recursive searches are specified which examine
+standard input is read, unless recursive searches are specified which examine
 the working directory.
 .PP
 If no \fIFILE\fR arguments are specified and one of the options \fB-g\fR,
@@ -123,10 +122,11 @@ Matches one character not in the selected range of characters.
 Matches one character not in the selected range of characters.
 .IP \fB/\fR
 When used at the begin of a glob, matches if pathname has no /.
+When used at the end of a glob, matches directories only.
 .IP \fB**/\fR
 Matches zero or more directories.
 .IP \fB/**\fR
-When at the end of a glob, matches everything after the /.
+When used at the end of a glob, matches everything after the /.
 .IP \fB\\\\?\fR
 Matches a ? (or any character specified after the backslash).
 .PP
@@ -161,9 +161,8 @@ Matches a/x, a/y, a/x/y,     but not a, b/x
 Matches a?b,                 but not a, b, ab, axb, a/b
 .PP
 Lines in the \fB--exclude-from\fR and \fB--include-from\fR files are ignored
-when empty or start with a `#'.  The prefix `!' to a glob in such a file
-negates the pattern match, i.e. matching files are excluded except files
-matching the globs prefixed with `!' in the \fB--exclude-from\fR file.
+when empty or start with a `#'.  When a glob is prefixed with `!', negates the
+match.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
@@ -171,7 +170,8 @@ option \fB-f\fR to open a pattern file, when the file cannot be opened.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
-on a black background.
+on a black background.  Deprecated in favor of \fBGREP_COLORS\fR, but still
+supported.
 .IP \fBGREP_COLORS\fR
 May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
@@ -183,9 +183,9 @@ list of ANSI SGR parameters that defaults to
 Colors are specified as string of colon-separated ANSI SGR parameters of the
 form `what=substring', where `substring' is a semicolon-separated list of ANSI
 SGR codes or `k' (black), `r' (red), `g' (green), `y' (yellow), `b' (blue), `m'
-(magenta), `c' (cyan), `w' (white).  Upper case specifies background colors.
-Adding a `+' qualifies a color as bright.  A foreground and a background color
-may be combined with one or more font properties `n' (normal), `f' (faint), `h'
+(magenta), `c' (cyan), `w' (white).  Upper case specifies background colors.  A
+`+' qualifies a color as bright.  A foreground and a background color may be
+combined with one or more font properties `n' (normal), `f' (faint), `h'
 (highlight), `i' (invert), `u' (underline).  Substrings may be specified for:
 .IP \fBsl=\fR
 SGR substring for selected lines.
@@ -306,8 +306,8 @@ The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
 When present, the argument must be placed in \fB[]\fR brackets, for example
 \fB%[,]F\fR to output a comma, the pathname, and a separator.
 .PP
-Fields \fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not send
-anything to the output.
+\fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not send anything to
+the output.
 .PP
 The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
 \fB%S\fR may be changed by preceeding the field by \fB%[\fR\fISEP\fR\fB]$\fR.

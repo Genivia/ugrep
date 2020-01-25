@@ -1,0 +1,38 @@
+[
+  {
+    "file": "Hello.bat",
+    "matches": [
+      { "match": false }
+    ]
+  },
+  {
+    "file": "Hello.class",
+    "matches": [
+      { "match": false }
+    ]
+  },
+  {
+    "file": "Hello.java",
+    "matches": [
+      { "match": false }
+    ]
+  },
+  {
+    "file": "Hello.pdf",
+    "matches": [
+      { "match": false }
+    ]
+  },
+  {
+    "file": "Hello.sh",
+    "matches": [
+      { "match": false }
+    ]
+  },
+  {
+    "file": "Hello.txt",
+    "matches": [
+      { "match": false }
+    ]
+  }
+]

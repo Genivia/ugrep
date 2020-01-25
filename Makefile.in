@@ -916,7 +916,7 @@ install-data-hook:
 .PHONY:		test
 
 test:		$(top_builddir)/src/ugrep
-		$(top_builddir)/src/ugrep -rltc++ copyright $(top_builddir)/src
+		-cd tests; ./verify.sh
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
