@@ -4445,6 +4445,8 @@ int main(int argc, char **argv)
 
         ++lineno;
 
+        trim(line);
+
         // add line to the regex if not empty
         if (!line.empty())
         {

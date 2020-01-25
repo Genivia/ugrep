@@ -116,6 +116,18 @@ printf .
 $UG -e Hello -N '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF out/Hello_Hello-eN.out \
     || ERR "-e Hello -N '\".*?\"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+printf .
+$UG --max-count=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF out/Hello_Hello--max-count.out \
+    || ERR "--max-count=1  Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+printf .
+$UG --max-files=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF out/Hello_Hello--max-files.out \
+    || ERR "--max-files=1 Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+printf .
+$UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF out/Hello_Hello--range.out \
+    || ERR "--range=1,1 Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
 
 for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`

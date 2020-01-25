@@ -46,7 +46,6 @@ $UG -Rl -tShell                          Hello dir1 > out/dir-t.out
 $UG -Rl --max-depth=1                    Hello dir1 > out/dir--max-depth.out
 $UG -Rl --include='*.sh'                 Hello dir1 > out/dir--include.out
 $UG -Rl --exclude='*.sh'                 Hello dir1 > out/dir--exclude.out
-$UG -Rl --exclude-dir='dir2'             Hello dir1 > out/dir--exclude-dir.out
 $UG -Rl --include-dir='dir1'             Hello dir1 > out/dir--include-dir.out
 $UG -Rl --exclude-dir='dir2'             Hello dir1 > out/dir--exclude-dir.out
 $UG -Rl --include-from='dir1/.gitignore' Hello dir2 > out/dir--include-from.out
@@ -73,6 +72,9 @@ cat lorem | $UG -Fjwco -Q LATIN1 -f - lorem.latin1.txt > out/lorem.latin1.out
 
 $UG -e Hello -e '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ee.out
 $UG -e Hello -N '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-eN.out
+$UG --max-count=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--max-count.out
+$UG --max-files=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--max-files.out
+$UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--range.out
 
 for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
