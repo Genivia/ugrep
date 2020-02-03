@@ -14,7 +14,7 @@
   {
     "file": "Hello.java",
     "matches": [,
-      { "match": 2 }
+      { "match": 3 }
     ]
   },
   {

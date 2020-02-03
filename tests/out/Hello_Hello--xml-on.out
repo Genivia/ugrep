@@ -6,8 +6,8 @@
     <match line="5">Hello</match>
   </file>
   <file name="Hello.java">
-    <match line="2">Hello</match>
-    <match line="4">Hello</match>
+    <match line="3">Hello</match>
+    <match line="5">Hello</match>
   </file>
   <file name="Hello.pdf">
     <match line="85">Hello</match>

@@ -1,7 +1,7 @@
 [1;35mHello.bat[0m[1;36m:[0m[32;1m     2[0m[1;36m:[0m[1;32m  7[0m[1;36m:[0m[1;32m     16[0m[1;36m:[0m	echo "[0m[1;4;32mHello[0m World!"[0m
 [0mBinary file[1m Hello.class[0m matches
-[1;35mHello.java[0m[1;36m:[0m[32;1m     2[0m[1;36m:[0m[1;32m 14[0m[1;36m:[0m[1;32m     33[0m[1;36m:[0m	public class [0m[1;4;32mHello[0m // prints a [0m[1;4;32mHello[0m World! greeting[0m
-[1;35mHello.java[0m[1;36m:[0m[32;1m     4[0m[1;36m:[0m[1;32m 25[0m[1;36m:[0m[1;32m    137[0m[1;36m:[0m	  { System.out.println("[0m[1;4;32mHello[0m World!");[0m
+[1;35mHello.java[0m[1;36m:[0m[32;1m     3[0m[1;36m:[0m[1;32m 14[0m[1;36m:[0m[1;32m     34[0m[1;36m:[0m	public class [0m[1;4;32mHello[0m // prints a [0m[1;4;32mHello[0m World! greeting[0m
+[1;35mHello.java[0m[1;36m:[0m[32;1m     5[0m[1;36m:[0m[1;32m 25[0m[1;36m:[0m[1;32m    138[0m[1;36m:[0m	  { System.out.println("[0m[1;4;32mHello[0m World!");[0m
 [1;35mHello.pdf[0m[1;36m:[0m[32;1m    85[0m[1;36m:[0m[1;32m  2[0m[1;36m:[0m[1;32m   5217[0m[1;36m:[0m	([0m[1;4;32mHello[0m)[0m
 [1;35mHello.sh[0m[1;36m:[0m[32;1m     2[0m[1;36m:[0m[1;32m  7[0m[1;36m:[0m[1;32m     16[0m[1;36m:[0m	echo "[0m[1;4;32mHello[0m World!"[0m
 [1;35mHello.txt[0m[1;36m:[0m[32;1m     1[0m[1;36m:[0m[1;32m  1[0m[1;36m:[0m[1;32m      0[0m[1;36m:[0m	[0m[1;4;32mHello[0m

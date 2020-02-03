@@ -787,7 +787,7 @@ class AbstractMatcher {
     /// @returns the next wide character (unsigned 0..U+10FFFF) or EOF (-1)
   {
     DBGLOG("AbstractMatcher::winput()");
-    char tmp[6], *s = tmp;
+    char tmp[8], *s = tmp;
     int c;
     if ((c = input()) == EOF)
       return EOF;
@@ -818,6 +818,28 @@ class AbstractMatcher {
       ++end_;
     }
     buf_[pos_] = c;
+    cur_ = pos_;
+  }
+  /// Put back one (wide) character on the input character sequence for matching, DANGER: invalidates the previous text() pointer and match info, unput is not honored when matching in-place using buffer(base, size) and nothing has been read yet.
+  void wunput(int c) ///< character to put back
+  {
+    DBGLOG("AbstractMatcher::wunput()");
+    char tmp[8];
+    size_t n = utf8(c, tmp);
+    if (pos_ >= n)
+    {
+      pos_ -= n;
+    }
+    else if (own_)
+    {
+      txt_ = buf_;
+      len_ = 0;
+      if (end_ + n >= max_)
+        (void)grow();
+      std::memmove(buf_ + n, buf_, end_);
+      end_ += n;
+    }
+    std::memcpy(&buf_[pos_], tmp, n);
     cur_ = pos_;
   }
   /// Peek at the next character available for reading from the current input source.

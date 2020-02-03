@@ -9,6 +9,7 @@
 "Hello.class","\x00\x00\x00"
 "Hello.class","\x00\x02\x00\x00\x00\x04\x00\b\x00\x05\x00\x01\x00\r\x00\x00\x00\x02\x00\x0e"
 "Hello.java","import java.lang.*;"
+"Hello.java",""
 "Hello.java","public class Hello // prints a Hello World! greeting"
 "Hello.java","{ public static void main(String[] arg)"
 "Hello.java","  { System.out.println(""Hello World!"");"

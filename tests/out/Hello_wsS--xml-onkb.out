@@ -8,10 +8,10 @@
   </file>
   <file name="Hello.java">
     <match line="1" column="1" offset="0">import java.lang.*;</match>
-    <match line="2" column="1" offset="20">public class</match>
-    <match line="2" column="45" offset="64">greeting&#10;{</match>
-    <match line="3" column="3" offset="75">public static</match>
-    <match line="4" column="25" offset="137">Hello World!&quot;);</match>
+    <match line="3" column="1" offset="21">public class</match>
+    <match line="3" column="45" offset="65">greeting&#10;{</match>
+    <match line="4" column="3" offset="76">public static</match>
+    <match line="5" column="25" offset="138">Hello World!&quot;);</match>
   </file>
   <file name="Hello.pdf">
     <match line="1" column="8" offset="7">3&#10;%Детел§у РДЖ</match>

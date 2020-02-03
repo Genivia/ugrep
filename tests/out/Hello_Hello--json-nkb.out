@@ -14,8 +14,8 @@
   {
     "file": "Hello.java",
     "matches": [
-      { "line": 2, "column": 14, "offset": 33, "match": "public class Hello // prints a Hello World! greeting" },
-      { "line": 4, "column": 25, "offset": 137, "match": "  { System.out.println(\"Hello World!\");" }
+      { "line": 3, "column": 14, "offset": 34, "match": "public class Hello // prints a Hello World! greeting" },
+      { "line": 5, "column": 25, "offset": 138, "match": "  { System.out.println(\"Hello World!\");" }
     ]
   },
   {

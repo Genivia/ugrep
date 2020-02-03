@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 24, 2020" "ugrep 1.7.5" "User Commands"
+.TH UGREP "1" "February 03, 2020" "ugrep 1.7.6" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -25,7 +25,7 @@ The following options are available:
 \fB\-A\fR \fINUM\fR, \fB\-\-after\-context\fR=\fINUM\fR
 Print NUM lines of trailing context after matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
-options \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR.
+options \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR.  Disables multi\-line matching.
 .TP
 \fB\-a\fR, \fB\-\-text\fR
 Process a binary file as if it were text.  This is equivalent to
@@ -36,7 +36,7 @@ the terminal driver interprets some of it as commands.
 \fB\-B\fR \fINUM\fR, \fB\-\-before\-context\fR=\fINUM\fR
 Print NUM lines of leading context before matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
-options \fB\-A\fR, \fB\-C\fR, and \fB\-y\fR.
+options \fB\-A\fR, \fB\-C\fR, and \fB\-y\fR.  Disables multi\-line matching.
 .TP
 \fB\-b\fR, \fB\-\-byte\-offset\fR
 The offset in bytes of a matched line is displayed in front of the
@@ -47,7 +47,7 @@ in the UTF\-8 normalized input is displayed.
 .TP
 \fB\-\-binary\-files\fR=\fITYPE\fR
 Controls searching and reporting pattern matches in binary files.
-Options are `binary', `without\-match`, `text`, `hex`, and
+TYPE can be `binary', `without\-match`, `text`, `hex`, and
 `with\-hex'.  The default is `binary' to search binary files and to
 report a match without displaying the match.  `without\-match'
 ignores binary matches.  `text' treats all binary files as text,
@@ -61,7 +61,7 @@ byte or invalid UTF.  Short options are \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\
 \fB\-\-break\fR
 Adds a line break between results from different files.
 .TP
-\fB\-C\fR[NUM], \fB\-\-context[\fR=\fINUM\fR]
+\fB\-C\fR[\fINUM\fR], \fB\-\-context[\fR=\fINUM\fR]
 Print NUM lines of leading and trailing context surrounding each
 match.  The default is 2 and is equivalent to \fB\-A\fR 2 \fB\-B\fR 2.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.
@@ -74,10 +74,9 @@ If \fB\-v\fR is specified, counts the number of non\-matching lines.
 .TP
 \fB\-\-color[\fR=\fIWHEN\fR], \fB\-\-colour[\fR=\fIWHEN\fR]
 Mark up the matching text with the expression stored in the
-GREP_COLOR or GREP_COLORS environment variable.  The possible
-values of WHEN can be `never', `always', or `auto', where `auto'
-marks up matches only when output on a terminal.  The default is
-`auto'.
+GREP_COLOR or GREP_COLORS environment variable.  WHEN can be
+`never', `always', or `auto', where `auto' marks up matches only
+when output on a terminal.  The default is `auto'.
 .TP
 \fB\-\-colors\fR=\fICOLORS\fR, \fB\-\-colours\fR=\fICOLORS\fR
 Use COLORS to mark up text.  COLORS is a colon\-separated list of
@@ -220,6 +219,12 @@ results from different files.
 \fB\-\-help\fR
 Print a help message.
 .TP
+\fB\-\-hexdump\fR=[1\-8][b][c]
+Output matches in 1 to 8 columns of 8 bytes hexadecimal.  The
+default is 2 columns or 16 bytes per line.  Option `b' removes
+the space breaks.  Option `c' removes the character column.
+Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
+.TP
 \fB\-I\fR
 Ignore matches in binary files.  This option is equivalent to the
 \fB\-\-binary\-files\fR=without\-match option.
@@ -275,15 +280,15 @@ simultaneously.  \fB\-J\fR1 disables threading: files are searched in the
 same order as specified.
 .TP
 \fB\-j\fR, \fB\-\-smart\-case\fR
-Perform case insensitive matching unless PATTERN contains an upper
-case letter.  This option applies to ASCII letters only.
+Perform case insensitive matching unless a pattern contains an
+upper case letter.  This option applies to ASCII letters only.
 .TP
 \fB\-\-json\fR
 Output file matches in JSON.  If \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is specified,
 additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
-\fB\-K\fR \fINUM\fR1[,NUM2], \fB\-\-range\fR=\fINUM\fR1[,NUM2]
-Start searching at line NUM1; stops at line NUM2 when specified.
+\fB\-K\fR \fIFROM\fR[,\fIEND\fR], \fB\-\-range\fR=\fIFROM\fR[,\fIEND\fR]
+Start searching at line FROM; stops at line END when specified.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of the
@@ -397,7 +402,7 @@ and \fB\-\-line\-buffered\fR.
 When output is sent to a terminal, enables \fB\-\-color\fR and \fB\-\-heading\fR.
 .TP
 \fB\-Q\fR \fIENCODING\fR, \fB\-\-encoding\fR=\fIENCODING\fR
-The input file encoding.  The possible values of ENCODING can be:
+The encoding format of the input, where ENCODING can be:
 `binary', `ASCII', `UTF\-8', `UTF\-16',
 `UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE',
 `UTF\-32LE', `LATIN1', `ISO\-8859\-1', `ISO\-8869\-2',
@@ -411,7 +416,7 @@ The input file encoding.  The possible values of ENCODING can be:
 `KOI8\-R', `KOI8\-U', `KOI8\-RU'.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
-Quiet mode: suppress normal output.  ugrep will only search until a
+Quiet mode: suppress all output.  ugrep will only search until a
 match has been found, making searches potentially less expensive.
 .TP
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
@@ -502,7 +507,7 @@ this option does not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
-\fB\-\-binary\-files\fR=hex option.
+\fB\-\-binary\-files\fR=hex option.  See also option \fB\-\-hexdump\fR.
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire PATTERN is considered
@@ -523,7 +528,7 @@ match all input, not only lines with a `x'.
 \fB\-y\fR, \fB\-\-any\-line\fR
 Any matching or non\-matching line is output.  Non\-matching lines
 are output with the `\fB\-'\fR separator as context of the matching lines.
-See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
+See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.  Disables multi\-line matching.
 .TP
 \fB\-Z\fR, \fB\-\-null\fR
 Prints a zero\-byte after the file name.

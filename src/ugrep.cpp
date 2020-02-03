@@ -70,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.5"
+#define UGREP_VERSION "1.7.6"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -282,6 +282,11 @@ int pclose(FILE *stream)
 #define MAX_DEPTH 100
 #endif
 
+// max hexadecimal columns of bytes per line
+#ifndef MAX_HEX_COLUMNS
+#define MAX_HEX_COLUMNS 64
+#endif
+
 // --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, smaller values result in higher job stealing rates, should not be less than 3
 #ifndef MIN_STEAL
 #define MIN_STEAL 3U
@@ -442,6 +447,8 @@ bool flag_xml                      = false;
 bool flag_stdin                    = false;
 bool flag_pretty                   = DEFAULT_PRETTY;
 bool flag_no_hidden                = DEFAULT_HIDDEN;
+bool flag_hex_brk                  = true;
+bool flag_hex_chr                  = true;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_max_count              = 0;
@@ -453,11 +460,13 @@ size_t flag_not_magic              = 0;
 size_t flag_min_magic              = 1;
 size_t flag_jobs                   = 0;
 size_t flag_tabs                   = 8;
+size_t flag_hex_columns            = 16;
 size_t flag_min_mmap               = DEFAULT_MIN_MMAP_SIZE;
 size_t flag_max_mmap               = DEFAULT_MAX_MMAP_SIZE;
 size_t flag_min_steal              = MIN_STEAL;
 const char *flag_pager             = FLAG_PAGER;
 const char *flag_color             = FLAG_COLOR;
+const char *flag_hexdump           = NULL;
 const char *flag_colors            = NULL;
 const char *flag_encoding          = NULL;
 const char *flag_filter            = NULL;
@@ -495,6 +504,7 @@ std::vector<std::string> flag_not_exclude_dir;
 
 void set_color(const char *colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
+void trim_nl(std::string& line);
 bool is_output(ino_t inode);
 size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message);
@@ -895,7 +905,7 @@ struct Output {
         out(out),
         offset(0)
     {
-      for (int i = 0; i < 16; ++i)
+      for (int i = 0; i < MAX_HEX_COLUMNS; ++i)
         bytes[i] = -1;
     }
 
@@ -911,9 +921,9 @@ struct Output {
     // dump one line of hex
     void line(const char *separator);
 
-    Output& out;       // reference to the output state of this hex dump state
-    size_t  offset;    // current byte offset in the hex dump
-    short   bytes[16]; // one line of hex dump bytes with their mode bits for color highlighting
+    Output& out;                 // reference to the output state of this hex dump state
+    size_t  offset;              // current byte offset in the hex dump
+    short   bytes[MAX_HEX_COLUMNS]; // one line of hex dump bytes with their mode bits for color highlighting
 
   };
 
@@ -1217,8 +1227,8 @@ void Output::Dump::hex(short mode, size_t byte_offset, const char *data, size_t 
   offset = byte_offset;
   while (size > 0)
   {
-    bytes[offset++ & 0x0f] = (mode << 8) | *reinterpret_cast<const unsigned char*>(data++);
-    if ((offset & 0x0f) == 0)
+    bytes[offset++ % flag_hex_columns] = (mode << 8) | *reinterpret_cast<const unsigned char*>(data++);
+    if (offset % flag_hex_columns == 0)
       line(separator);
     --size;
   }
@@ -1227,17 +1237,18 @@ void Output::Dump::hex(short mode, size_t byte_offset, const char *data, size_t 
 // next hex dump location
 void Output::Dump::next(size_t byte_offset, const char *separator)
 {
-  if ((offset & ~static_cast<size_t>(0x0f)) != (byte_offset & ~static_cast<size_t>(0x0f)))
+  if (offset - offset % flag_hex_columns != byte_offset - byte_offset % flag_hex_columns)
     done(separator);
 }
 
 // done dumping hex
 void Output::Dump::done(const char *separator)
 {
-  if ((offset & 0x0f) != 0)
+  if (offset % flag_hex_columns != 0)
   {
     line(separator);
-    offset = (offset + 0x0f) & ~static_cast<size_t>(0x0f);
+    offset += flag_hex_columns - 1;
+    offset -= offset % flag_hex_columns;
   }
 }
 
@@ -1245,20 +1256,22 @@ void Output::Dump::done(const char *separator)
 void Output::Dump::line(const char *separator)
 {
   out.str(color_bn);
-  out.hex((offset - 1) & ~static_cast<size_t>(0x0f), 8);
+  out.hex((offset - 1) - (offset - 1) % flag_hex_columns, 8);
   out.str(color_off);
   out.str(color_se);
   out.str(separator);
   out.str(color_off);
   out.chr(' ');
 
-  for (size_t i = 0; i < 16; ++i)
+  for (size_t i = 0; i < flag_hex_columns; ++i)
   {
     if (bytes[i] < 0)
     {
       out.str(color_cx);
-      out.str(" --");
-      if ((i & 7) == 7)
+      if (flag_hex_brk)
+        out.chr(' ');
+      out.str("--");
+      if ((i & 7) == 7 && flag_hex_brk)
         out.chr(' ');
       out.str(color_off);
     }
@@ -1266,70 +1279,75 @@ void Output::Dump::line(const char *separator)
     {
       short byte = bytes[i];
       out.str(color_hex[byte >> 8]);
-      out.chr(' ');
+      if (flag_hex_brk)
+        out.chr(' ');
       out.hex(byte & 0xff, 2);
-      if ((i & 7) == 7)
+      if ((i & 7) == 7 && flag_hex_brk)
         out.chr(' ');
       out.str(color_off);
     }
   }
 
-  out.chr(' ');
-  out.str(color_se);
-  out.chr('|');
-  out.str(color_off);
-
-  for (size_t i = 0; i < 16; ++i)
+  if (flag_hex_chr)
   {
-    if (bytes[i] < 0)
+    out.chr(' ');
+    out.str(color_se);
+    out.chr('|');
+    out.str(color_off);
+
+    for (size_t i = 0; i < flag_hex_columns; ++i)
     {
-      out.str(color_cx);
-      out.chr('-');
-      out.str(color_off);
-    }
-    else
-    {
-      short byte = bytes[i];
-      out.str(color_hex[byte >> 8]);
-      byte &= 0xff;
-      if (flag_color != NULL)
+      if (bytes[i] < 0)
       {
-        if (byte < 0x20)
+        out.str(color_cx);
+        out.chr('-');
+        out.str(color_off);
+      }
+      else
+      {
+        short byte = bytes[i];
+        out.str(color_hex[byte >> 8]);
+        byte &= 0xff;
+        if (flag_color != NULL)
         {
-          out.str("\033[7m");
-          out.chr('@' + byte);
+          if (byte < 0x20)
+          {
+            out.str("\033[7m");
+            out.chr('@' + byte);
+          }
+          else if (byte == 0x7f)
+          {
+            out.str("\033[7m~");
+          }
+          else if (byte > 0x7f)
+          {
+            out.str("\033[7m.");
+          }
+          else
+          {
+            out.chr(byte);
+          }
         }
-        else if (byte == 0x7f)
+        else if (byte < 0x20 || byte >= 0x7f)
         {
-          out.str("\033[7m~");
-        }
-        else if (byte > 0x7f)
-        {
-          out.str("\033[7m.");
+          out.chr('.');
         }
         else
         {
           out.chr(byte);
         }
+        out.str(color_off);
       }
-      else if (byte < 0x20 || byte >= 0x7f)
-      {
-        out.chr('.');
-      }
-      else
-      {
-        out.chr(byte);
-      }
-      out.str(color_off);
     }
+
+    out.str(color_se);
+    out.chr('|');
+    out.str(color_off);
   }
 
-  out.str(color_se);
-  out.chr('|');
-  out.str(color_off);
   out.nl();
 
-  for (size_t i = 0; i < 16; ++i)
+  for (size_t i = 0; i < MAX_HEX_COLUMNS; ++i)
     bytes[i] = -1;
 }
 
@@ -3692,6 +3710,8 @@ int main(int argc, char **argv)
               help();
             else if (strcmp(arg, "hex") == 0)
               flag_binary_files = "hex";
+            else if (strncmp(arg, "hexdump=", 8) == 0)
+              flag_hexdump = arg + 8;
             else if (strcmp(arg, "hidden") == 0)
               flag_no_hidden = false;
             else if (strcmp(arg, "ignore-case") == 0)
@@ -4190,17 +4210,31 @@ int main(int argc, char **argv)
   else if (strcmp(flag_binary_files, "binary") != 0)
     help("invalid argument --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex', and 'with-hex'");
 
-  // --match-all is the same as specifying an '' empty pattern argument
+  // --hexdump
+  if (flag_hexdump != NULL)
+  {
+    if (isdigit(*flag_hexdump))
+    {
+      flag_hex_columns = 8 * (*flag_hexdump - '0');
+      if (flag_hex_columns == 0 || flag_hex_columns > MAX_HEX_COLUMNS)
+        help("invalid argument --hexdump=[1-8][b][c]");
+    }
+    if (strchr(flag_hexdump, 'b') != NULL)
+      flag_hex_brk = false;
+    if (strchr(flag_hexdump, 'c') != NULL)
+      flag_hex_chr = false;
+    if (!flag_with_hex)
+      flag_hex = true;
+  }
+
+  // --match: same as specifying an '' empty pattern argument if no patterns are specified
   if (flag_match)
     flag_regexp.emplace_back("");
-
-  // the regex compiled from PATTERN
-  std::string regex;
 
   // regex PATTERN specified
   if (pattern != NULL)
   {
-    // if not --match-all, then add pattern to the front else add to the front of FILE args
+    // if no regex specified, then add pattern else add to the front of FILE args
     if (flag_regexp.empty())
       flag_regexp.emplace_back(pattern);
     else
@@ -4214,6 +4248,9 @@ int main(int argc, char **argv)
   // -x: enable -Y
   if (flag_line_regexp)
     flag_empty = true;
+
+  // the regex compiled from PATTERN
+  std::string regex;
 
   // -F: make newline-separated lines in regex literal with \Q and \E
   const char *Q = flag_fixed_strings ? "\\Q" : "";
@@ -4245,8 +4282,11 @@ int main(int argc, char **argv)
         flag_match = true;
       }
 
-      // include empty pattern matches in the results
+      // enable -Y: include empty pattern matches in the results
       flag_empty = true;
+
+      // disable -w
+      flag_word_regexp = false;
     }
     else
     {
@@ -4360,30 +4400,6 @@ int main(int argc, char **argv)
   if (flag_perl_regexp)
     flag_basic_regexp = false;
 
-  // -j: case insensitive search if regex does not contain an upper case letter
-  if (flag_smart_case)
-  {
-    flag_ignore_case = true;
-
-    for (size_t i = 0; i < regex.size(); ++i)
-    {
-      if (regex[i] == '\\')
-      {
-        ++i;
-      }
-      else if (regex[i] == '{')
-      {
-        while (++i < regex.size() && regex[i] != '}')
-          continue;
-      }
-      else if (isupper(regex[i]))
-      {
-        flag_ignore_case = false;
-        break;
-      }
-    }
-  }
-
   // -f: get patterns from file
   if (!flag_file.empty())
   {
@@ -4445,17 +4461,11 @@ int main(int argc, char **argv)
 
         ++lineno;
 
-        trim(line);
+        trim_nl(line);
 
         // add line to the regex if not empty
         if (!line.empty())
-        {
-          // enable -o when the first line is ###-o, skip ###-comments
-          if (lineno == 1 && line == "###-o")
-            flag_only_matching = true;
-          else if (line.substr(0, 3) != "###")
-            regex.append(Q).append(line).append(E);
-        }
+          regex.append(Q).append(line).append(E);
       }
 
       if (file != stdin)
@@ -4470,6 +4480,30 @@ int main(int argc, char **argv)
       regex.insert(0, "^(").append(")$"); // make the regex line-anchored
     else if (flag_word_regexp)
       regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+  }
+
+  // -j: case insensitive search if regex does not contain an upper case letter
+  if (flag_smart_case)
+  {
+    flag_ignore_case = true;
+
+    for (size_t i = 0; i < regex.size(); ++i)
+    {
+      if (regex[i] == '\\')
+      {
+        ++i;
+      }
+      else if (regex[i] == '{')
+      {
+        while (++i < regex.size() && regex[i] != '}')
+          continue;
+      }
+      else if (isupper(regex[i]))
+      {
+        flag_ignore_case = false;
+        break;
+      }
+    }
   }
 
   // -y: disable -A, -B, and -C
@@ -4749,7 +4783,7 @@ int main(int argc, char **argv)
     }
   }
 
-  // --headin: enable --break
+  // --heading: enable --break
   if (flag_heading)
     flag_break = true;
 
@@ -7372,6 +7406,7 @@ void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string
     if (getline(input, line))
       break;
 
+    // trim white space from either end
     trim(line);
 
     // add glob to files and dirs using gitignore glob pattern rules
@@ -7496,7 +7531,7 @@ void format(const char *format, size_t matches)
   }
 }
 
-// trim line to remove leading and trailing white space
+// trim white space from either end of the line
 void trim(std::string& line)
 {
   size_t len = line.length();
@@ -7514,6 +7549,20 @@ void trim(std::string& line)
     continue;
 
   line.erase(pos, len - pos);
+}
+
+// trim trailing CR and LF if present
+void trim_nl(std::string& line)
+{
+  size_t len = line.length();
+
+  if (len > 0 && line.back() == '\n')
+  {
+    line.pop_back();
+    --len;
+  }
+  if (len > 0 && line.back() == '\r')
+    line.pop_back();
 }
 
 // convert GREP_COLORS and set the color substring to the ANSI SGR sequence
@@ -7717,7 +7766,7 @@ void help(const char *message, const char *arg)
     -A NUM, --after-context=NUM\n\
             Print NUM lines of trailing context after matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
-            options -B, -C, and -y.\n\
+            options -B, -C, and -y.  Disables multi-line matching.\n\
     -a, --text\n\
             Process a binary file as if it were text.  This is equivalent to\n\
             the --binary-files=text option.  This option might output binary\n\
@@ -7726,7 +7775,7 @@ void help(const char *message, const char *arg)
     -B NUM, --before-context=NUM\n\
             Print NUM lines of leading context before matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
-            options -A, -C, and -y.\n\
+            options -A, -C, and -y.  Disables multi-line matching.\n\
     -b, --byte-offset\n\
             The offset in bytes of a matched line is displayed in front of the\n\
             respective matched line.  If -u is specified, displays the offset\n\
@@ -7735,7 +7784,7 @@ void help(const char *message, const char *arg)
             in the UTF-8 normalized input is displayed.\n\
     --binary-files=TYPE\n\
             Controls searching and reporting pattern matches in binary files.\n\
-            Options are `binary', `without-match`, `text`, `hex`, and\n\
+            TYPE can be `binary', `without-match`, `text`, `hex`, and\n\
             `with-hex'.  The default is `binary' to search binary files and to\n\
             report a match without displaying the match.  `without-match'\n\
             ignores binary matches.  `text' treats all binary files as text,\n\
@@ -7758,10 +7807,9 @@ void help(const char *message, const char *arg)
             If -v is specified, counts the number of non-matching lines.\n\
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the expression stored in the\n\
-            GREP_COLOR or GREP_COLORS environment variable.  The possible\n\
-            values of WHEN can be `never', `always', or `auto', where `auto'\n\
-            marks up matches only when output on a terminal.  The default is\n\
-            `auto'.\n\
+            GREP_COLOR or GREP_COLORS environment variable.  WHEN can be\n\
+            `never', `always', or `auto', where `auto' marks up matches only\n\
+            when output on a terminal.  The default is `auto'.\n\
     --colors=COLORS, --colours=COLORS\n\
             Use COLORS to mark up text.  COLORS is a colon-separated list of\n\
             one or more parameters `sl=' (selected line), `cx=' (context line),\n\
@@ -7893,6 +7941,11 @@ void help(const char *message, const char *arg)
             results from different files.\n\
     --help\n\
             Print a help message.\n\
+    --hexdump=[1-8][b][c]\n\
+            Output matches in 1 to 8 columns of 8 bytes hexadecimal.  The\n\
+            default is 2 columns or 16 bytes per line.  Option `b' removes\n\
+            the space breaks.  Option `c' removes the character column.\n\
+            Enables -X if -W or -X is not specified.\n\
     -I\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\
@@ -7945,13 +7998,13 @@ void help(const char *message, const char *arg)
             simultaneously.  -J1 disables threading: files are searched in the\n\
             same order as specified.\n\
     -j, --smart-case\n\
-            Perform case insensitive matching unless PATTERN contains an upper\n\
-            case letter.  This option applies to ASCII letters only.\n\
+            Perform case insensitive matching unless a pattern contains an\n\
+            upper case letter.  This option applies to ASCII letters only.\n\
     --json\n\
             Output file matches in JSON.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
-    -K NUM1[,NUM2], --range=NUM1[,NUM2]\n\
-            Start searching at line NUM1; stops at line NUM2 when specified.\n\
+    -K FROM[,END], --range=FROM[,END]\n\
+            Start searching at line FROM; stops at line END when specified.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -8055,12 +8108,12 @@ void help(const char *message, const char *arg)
     --pretty\n\
             When output is sent to a terminal, enables --color and --heading.\n\
     -Q ENCODING, --encoding=ENCODING\n\
-            The input file encoding.  The possible values of ENCODING can be:";
+            The encoding format of the input, where ENCODING can be:";
   for (int i = 0; format_table[i].format != NULL; ++i)
     std::cout << (i == 0 ? "" : ",") << (i % 4 ? " " : "\n            ") << "`" << format_table[i].format << "'";
   std::cout << ".\n\
     -q, --quiet, --silent\n\
-            Quiet mode: suppress normal output.  ugrep will only search until a\n\
+            Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found, making searches potentially less expensive.\n\
     -R, --dereference-recursive\n\
             Recursively read all files under each directory.  Follow all\n\
@@ -8124,7 +8177,7 @@ void help(const char *message, const char *arg)
             this option does not apply to -f FILE patterns.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
-            --binary-files=hex option.\n\
+            --binary-files=hex option.  See also option --hexdump.\n\
     -x, --line-regexp\n\
             Only input lines selected against the entire PATTERN is considered\n\
             to be matching lines (as if surrounded by ^ and $).  If a PATTERN\n\
@@ -8141,7 +8194,7 @@ void help(const char *message, const char *arg)
     -y, --any-line\n\
             Any matching or non-matching line is output.  Non-matching lines\n\
             are output with the `-' separator as context of the matching lines.\n\
-            See also options -A, -B, and -C.\n\
+            See also options -A, -B, and -C.  Disables multi-line matching.\n\
     -Z, --null\n\
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n\

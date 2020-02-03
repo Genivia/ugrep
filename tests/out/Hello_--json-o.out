@@ -23,6 +23,7 @@
     "file": "Hello.java",
     "matches": [
       { "match": "import java.lang.*;" },
+      { "match": "" },
       { "match": "public class Hello // prints a Hello World! greeting" },
       { "match": "{ public static void main(String[] arg)" },
       { "match": "  { System.out.println(\"Hello World!\");" },

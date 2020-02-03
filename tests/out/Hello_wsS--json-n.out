@@ -16,10 +16,10 @@
     "file": "Hello.java",
     "matches": [
       { "line": 1, "match": "import java.lang.*;" },
-      { "line": 2, "match": "public class Hello // prints a Hello World! greeting" },
-      { "line": 2, "match": "public class Hello // prints a Hello World! greeting\n{ public static void main(String[] arg)" },
-      { "line": 3, "match": "{ public static void main(String[] arg)" },
-      { "line": 4, "match": "  { System.out.println(\"Hello World!\");" }
+      { "line": 3, "match": "public class Hello // prints a Hello World! greeting" },
+      { "line": 3, "match": "public class Hello // prints a Hello World! greeting\n{ public static void main(String[] arg)" },
+      { "line": 4, "match": "{ public static void main(String[] arg)" },
+      { "line": 5, "match": "  { System.out.println(\"Hello World!\");" }
     ]
   },
   {

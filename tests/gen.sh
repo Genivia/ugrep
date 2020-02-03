@@ -68,7 +68,10 @@ END
 $UG -Fiwco -f lorem lorem.utf8.txt  > out/lorem.utf8.out
 $UG -Fiwco -f lorem lorem.utf16.txt > out/lorem.utf16.out
 $UG -Fiwco -f lorem lorem.utf32.txt > out/lorem.utf32.out
-cat lorem | $UG -Fjwco -Q LATIN1 -f - lorem.latin1.txt > out/lorem.latin1.out
+cat lorem | $UG -Fiwco -Q LATIN1 -f - lorem.latin1.txt > out/lorem.latin1.out
+
+$UG -ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ci.out
+$UG -cj hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-cj.out
 
 $UG -e Hello -e '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ee.out
 $UG -e Hello -N '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-eN.out
@@ -79,15 +82,29 @@ $UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hell
 for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
-    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-ounkbT' '-on' '-onkbT' '-nv' '-nC1' '-nvC1' '-ny' '-nvy' ; do
+    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-nv' '-nC1' '-nvC1' '-ny' '-nvy' ; do
       $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN$OUT$OPS.out"
     done
   done
   for OUT in '--csv' '--json' '--xml' ; do
-    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkb' '-unkb' '-o' '-ounkb' '-on' '-onkb' ; do
+    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkb' '-unkb' '-o' '-on' '-onkb' '-ounkb' ; do
       $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN$OUT$OPS.out"
     done
   done
+  $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN--format.out"
+  $UG -U -Iw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Iw.out"
+  $UG -U -Ix "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Ix.out"
+  $UG -U -F  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-F.out"
+  $UG -U -Fw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Fw.out"
+  $UG -U -Fx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Fx.out"
+  if [ "$PAT" == '\w+\s+\S+' ]; then
+    $UG -U -G '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-G.out"
+  else
+    $UG -U -G "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-G.out"
+  fi
+  $UG -U -P  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-P.out"
+  $UG -U -Pw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Pw.out"
+  $UG -U -Px "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Px.out"
 done
 
 echo "GENERATING TEST ARCHIVES"

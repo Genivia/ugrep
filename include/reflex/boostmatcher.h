@@ -236,14 +236,14 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
           DBGLOG("END BoostMatcher::match()");
           return cap_;
         }
+        if (itr_ != fin_)
+          break; // OK if iterator is still valid
         if (method == Const::FIND && opt_.N)
         {
           DBGLOGN("No match, pos = %zu", pos_);
           DBGLOG("END BoostMatcher::match()");
           return 0;
         }
-        if (itr_ != fin_)
-          break; // OK if iterator is still valid
       }
       new_itr(method); // need new iterator
       if (itr_ != fin_)

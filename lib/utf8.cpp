@@ -41,7 +41,7 @@ namespace reflex {
 static const char *regex_char(char *buf, int a, int esc, size_t *n = NULL)
 {
   static const char digits[] = "0123456789abcdef";
-  if (a >= '!' && a <= '~' && a != '-' && a != '[' && a != '\\' && a != ']' && a != '^' &&
+  if (a >= '!' && a <= '~' && a != '#' && a != '-' && a != '[' && a != '\\' && a != ']' && a != '^' &&
       (n != NULL || (a <= 'z' && a != '$' && a != '(' && a != ')' && a != '*' && a != '+' && a != '.' && a != '?'))
      )
   {

@@ -289,7 +289,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// FSM code META UND.
   inline bool FSM_META_UND()
   {
-    bool mrk = mrk_;
+    bool mrk = mrk_ && !nodent();
     mrk_ = false;
     ded_ = 0;
     return mrk;
@@ -803,6 +803,13 @@ unrolled:
   {
     newline();
     return !tab_.empty() && tab_.back() > col_;
+  }
+  /// Returns true if nodent.
+  inline bool nodent()
+    /// @returns true if nodent
+  {
+    newline();
+    return (col_ <= 0 || (!tab_.empty() && tab_.back() >= col_)) && (tab_.empty() || tab_.back() <= col_);
   }
 #endif
   /// Boyer-Moore preprocessing of the given pattern pat of length len, generates bmd_ > 0 and bms_[] shifts.

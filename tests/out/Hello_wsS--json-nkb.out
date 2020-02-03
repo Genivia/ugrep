@@ -16,10 +16,10 @@
     "file": "Hello.java",
     "matches": [
       { "line": 1, "column": 1, "offset": 0, "match": "import java.lang.*;" },
-      { "line": 2, "column": 1, "offset": 20, "match": "public class Hello // prints a Hello World! greeting" },
-      { "line": 2, "column": 45, "offset": 64, "match": "public class Hello // prints a Hello World! greeting\n{ public static void main(String[] arg)" },
-      { "line": 3, "column": 3, "offset": 75, "match": "{ public static void main(String[] arg)" },
-      { "line": 4, "column": 25, "offset": 137, "match": "  { System.out.println(\"Hello World!\");" }
+      { "line": 3, "column": 1, "offset": 21, "match": "public class Hello // prints a Hello World! greeting" },
+      { "line": 3, "column": 45, "offset": 65, "match": "public class Hello // prints a Hello World! greeting\n{ public static void main(String[] arg)" },
+      { "line": 4, "column": 3, "offset": 76, "match": "{ public static void main(String[] arg)" },
+      { "line": 5, "column": 25, "offset": 138, "match": "  { System.out.println(\"Hello World!\");" }
     ]
   },
   {

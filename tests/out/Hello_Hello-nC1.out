@@ -1,14 +1,14 @@
 [1;35mHello.bat[0m[1;36m-[0m[32;1m1[0m[1;36m-[0m[1;34m#!/bin/sh[0m
 [1;35mHello.bat[0m[1;36m:[0m[32;1m2[0m[1;36m:[0mecho "[0m[1;4;32mHello[0m World!"[0m
 [0mBinary file[1m Hello.class[0m matches
-[1;35mHello.java[0m[1;36m-[0m[32;1m1[0m[1;36m-[0m[1;34mimport java.lang.*;[0m
-[1;35mHello.java[0m[1;36m:[0m[32;1m2[0m[1;36m:[0mpublic class [0m[1;4;32mHello[0m // prints a [0m[1;4;32mHello[0m World! greeting[0m
-[1;35mHello.java[0m[1;36m-[0m[32;1m3[0m[1;36m-[0m[1;34m{ public static void main(String[] arg)[0m
+[1;35mHello.java[0m[1;36m-[0m[32;1m2[0m[1;36m-[0m[1;34m[0m
+[1;35mHello.java[0m[1;36m:[0m[32;1m3[0m[1;36m:[0mpublic class [0m[1;4;32mHello[0m // prints a [0m[1;4;32mHello[0m World! greeting[0m
+[1;35mHello.java[0m[1;36m-[0m[32;1m4[0m[1;36m-[0m[1;34m{ public static void main(String[] arg)[0m
 [1;36m--[0m
 [1;36m--[0m
-[1;35mHello.java[0m[1;36m-[0m[32;1m3[0m[1;36m-[0m[1;34m{ public static void main(String[] arg)[0m
-[1;35mHello.java[0m[1;36m:[0m[32;1m4[0m[1;36m:[0m  { System.out.println("[0m[1;4;32mHello[0m World!");[0m
-[1;35mHello.java[0m[1;36m-[0m[32;1m5[0m[1;36m-[0m[1;34m  }[0m
+[1;35mHello.java[0m[1;36m-[0m[32;1m4[0m[1;36m-[0m[1;34m{ public static void main(String[] arg)[0m
+[1;35mHello.java[0m[1;36m:[0m[32;1m5[0m[1;36m:[0m  { System.out.println("[0m[1;4;32mHello[0m World!");[0m
+[1;35mHello.java[0m[1;36m-[0m[32;1m6[0m[1;36m-[0m[1;34m  }[0m
 [1;35mHello.pdf[0m[1;36m-[0m[32;1m84[0m[1;36m-[0m[1;34m15 0 obj[0m
 [1;35mHello.pdf[0m[1;36m:[0m[32;1m85[0m[1;36m:[0m([0m[1;4;32mHello[0m)[0m
 [1;35mHello.pdf[0m[1;36m-[0m[32;1m86[0m[1;36m-[0m[1;34mendobj[0m

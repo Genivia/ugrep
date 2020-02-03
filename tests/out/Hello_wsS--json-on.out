@@ -16,10 +16,10 @@
     "file": "Hello.java",
     "matches": [
       { "line": 1, "match": "import java.lang.*;" },
-      { "line": 2, "match": "public class" },
-      { "line": 2, "match": "greeting\n{" },
-      { "line": 3, "match": "public static" },
-      { "line": 4, "match": "Hello World!\");" }
+      { "line": 3, "match": "public class" },
+      { "line": 3, "match": "greeting\n{" },
+      { "line": 4, "match": "public static" },
+      { "line": 5, "match": "Hello World!\");" }
     ]
   },
   {

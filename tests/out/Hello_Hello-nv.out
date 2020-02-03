@@ -1,9 +1,10 @@
 [1;35mHello.bat[0m[1;36m:[0m[32;1m1[0m[1;36m:[0m#!/bin/sh[0m
 [0mBinary file[1m Hello.class[0m matches
 [1;35mHello.java[0m[1;36m:[0m[32;1m1[0m[1;36m:[0mimport java.lang.*;[0m
-[1;35mHello.java[0m[1;36m:[0m[32;1m3[0m[1;36m:[0m{ public static void main(String[] arg)[0m
-[1;35mHello.java[0m[1;36m:[0m[32;1m5[0m[1;36m:[0m  }[0m
-[1;35mHello.java[0m[1;36m:[0m[32;1m6[0m[1;36m:[0m}[0m
+[1;35mHello.java[0m[1;36m:[0m[32;1m2[0m[1;36m:[0m[0m
+[1;35mHello.java[0m[1;36m:[0m[32;1m4[0m[1;36m:[0m{ public static void main(String[] arg)[0m
+[1;35mHello.java[0m[1;36m:[0m[32;1m6[0m[1;36m:[0m  }[0m
+[1;35mHello.java[0m[1;36m:[0m[32;1m7[0m[1;36m:[0m}[0m
 [1;35mHello.pdf[0m[1;36m:[0m[32;1m1[0m[1;36m:[0m%PDF-1.3[0m
 [0mBinary file[1m Hello.pdf[0m matches
 [1;35mHello.sh[0m[1;36m:[0m[32;1m1[0m[1;36m:[0m#!/bin/sh[0m

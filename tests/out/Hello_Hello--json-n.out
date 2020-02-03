@@ -14,8 +14,8 @@
   {
     "file": "Hello.java",
     "matches": [
-      { "line": 2, "match": "public class Hello // prints a Hello World! greeting" },
-      { "line": 4, "match": "  { System.out.println(\"Hello World!\");" }
+      { "line": 3, "match": "public class Hello // prints a Hello World! greeting" },
+      { "line": 5, "match": "  { System.out.println(\"Hello World!\");" }
     ]
   },
   {

@@ -8,10 +8,10 @@
   </file>
   <file name="Hello.java">
     <match line="1">import java.lang.*;</match>
-    <match line="2">public class Hello // prints a Hello World! greeting</match>
-    <match line="2">public class Hello // prints a Hello World! greeting&#10;{ public static void main(String[] arg)</match>
-    <match line="3">{ public static void main(String[] arg)</match>
-    <match line="4">  { System.out.println(&quot;Hello World!&quot;);</match>
+    <match line="3">public class Hello // prints a Hello World! greeting</match>
+    <match line="3">public class Hello // prints a Hello World! greeting&#10;{ public static void main(String[] arg)</match>
+    <match line="4">{ public static void main(String[] arg)</match>
+    <match line="5">  { System.out.println(&quot;Hello World!&quot;);</match>
   </file>
   <file name="Hello.pdf">
     <match line="1">%PDF-1.3&#10;%Детел§у РДЖ</match>

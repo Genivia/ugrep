@@ -9,14 +9,14 @@
   </file>
   <file name="Hello.java">
     <match line="1" column="1" offset="0">import java.lang.*;</match>
-    <match line="2" column="1" offset="20">public class Hello // prints a Hello World! greeting</match>
-    <match line="2" column="14" offset="33">public class Hello // prints a Hello World! greeting</match>
-    <match line="2" column="23" offset="42">public class Hello // prints a Hello World! greeting</match>
-    <match line="2" column="32" offset="51">public class Hello // prints a Hello World! greeting</match>
-    <match line="2" column="45" offset="64">public class Hello // prints a Hello World! greeting&#10;{ public static void main(String[] arg)</match>
-    <match line="3" column="3" offset="75">{ public static void main(String[] arg)</match>
-    <match line="3" column="17" offset="89">{ public static void main(String[] arg)</match>
-    <match line="4" column="25" offset="137">  { System.out.println(&quot;Hello World!&quot;);</match>
+    <match line="3" column="1" offset="21">public class Hello // prints a Hello World! greeting</match>
+    <match line="3" column="14" offset="34">public class Hello // prints a Hello World! greeting</match>
+    <match line="3" column="23" offset="43">public class Hello // prints a Hello World! greeting</match>
+    <match line="3" column="32" offset="52">public class Hello // prints a Hello World! greeting</match>
+    <match line="3" column="45" offset="65">public class Hello // prints a Hello World! greeting&#10;{ public static void main(String[] arg)</match>
+    <match line="4" column="3" offset="76">{ public static void main(String[] arg)</match>
+    <match line="4" column="17" offset="90">{ public static void main(String[] arg)</match>
+    <match line="5" column="25" offset="138">  { System.out.println(&quot;Hello World!&quot;);</match>
   </file>
   <file name="Hello.pdf">
     <match line="1" column="8" offset="7">%PDF-1.3&#10;%Äåòåë§ó ÐÄÆ</match>

@@ -106,7 +106,16 @@ $UG -Fiwco -f lorem lorem.utf16.txt | $DIFF out/lorem.utf16.out || ERR "-Fiwco -
 printf .
 $UG -Fiwco -f lorem lorem.utf32.txt | $DIFF out/lorem.utf32.out || ERR "-Fiwco -f lorem lorem.utf32.txt"
 printf .
-cat lorem | $UG -Fjwco -Q LATIN1 -f - lorem.latin1.txt | $DIFF out/lorem.latin1.out || ERR "-Fiwco -Q LATIN1 -f lorem lorem.latin1.txt"
+cat lorem | $UG -Fiwco -Q LATIN1 -f - lorem.latin1.txt | $DIFF out/lorem.latin1.out || ERR "-Fiwco -Q LATIN1 -f lorem lorem.latin1.txt"
+
+printf .
+$UG -ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF out/Hello_Hello-ci.out \
+    || ERR "-ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+printf .
+$UG -cj hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF out/Hello_Hello-cj.out \
+    || ERR "-cj hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
 
 printf .
 $UG -e Hello -e '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
@@ -132,7 +141,7 @@ $UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hell
 for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
-    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-ounkbT' '-on' '-onkbT' '-nv' '-nC1' '-nvC1' '-ny' '-nvy' ; do
+    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-nv' '-nC1' '-nvC1' '-ny' '-nvy' ; do
       printf .
       $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
         | $DIFF "out/$FN$OUT$OPS.out" \
@@ -140,13 +149,61 @@ for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
     done
   done
   for OUT in '--csv' '--json' '--xml' ; do
-    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkb' '-unkb' '-o' '-ounkb' '-on' '-onkb' ; do
+    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkb' '-unkb' '-o' '-on' '-onkb' '-ounkb' ; do
       printf .
       $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
         | $DIFF "out/$FN$OUT$OPS.out" \
         || ERR "$OUT $OPS $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
     done
   done
+  printf .
+  $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF "out/$FN--format.out" \
+    || ERR "--format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  printf .
+  $UG -U -Iw  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF "out/$FN-Iw.out" \
+    || ERR "-w $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  printf .
+  $UG -U -Ix  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF "out/$FN-Ix.out" \
+    || ERR "-x $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  printf .
+  $UG -U -F  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF "out/$FN-F.out" \
+    || ERR "-F $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  printf .
+  $UG -U -Fw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF "out/$FN-Fw.out" \
+    || ERR "-Fw $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  printf .
+  $UG -U -Fx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF "out/$FN-Fx.out" \
+    || ERR "-Fx $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  printf .
+  if [ "$PAT" == '\w+\s+\S+' ]; then
+    $UG -U -G '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-G.out" \
+      || ERR "-G $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  else
+    $UG -U -G "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-G.out" \
+      || ERR "-G $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  fi
+  if [ "$have_boost_regex" == yes ]; then
+    printf .
+    $UG -U -P  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-P.out" \
+      || ERR "-P $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    printf .
+    $UG -U -Pw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-Pw.out" \
+      || ERR "-Pw $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    printf .
+    $UG -U -Px "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-Px.out" \
+      || ERR "-Px $PAT Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  fi
 done
 
 printf .

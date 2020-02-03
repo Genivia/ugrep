@@ -15,6 +15,7 @@
   </file>
   <file name="Hello.java">
     <match>import java.lang.*;</match>
+    <match></match>
     <match>public class Hello // prints a Hello World! greeting</match>
     <match>{ public static void main(String[] arg)</match>
     <match>  { System.out.println(&quot;Hello World!&quot;);</match>

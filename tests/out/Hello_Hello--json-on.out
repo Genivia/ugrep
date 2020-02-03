@@ -14,8 +14,8 @@
   {
     "file": "Hello.java",
     "matches": [
-      { "line": 2, "match": "Hello" },
-      { "line": 4, "match": "Hello" }
+      { "line": 3, "match": "Hello" },
+      { "line": 5, "match": "Hello" }
     ]
   },
   {

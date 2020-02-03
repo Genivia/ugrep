@@ -2,6 +2,7 @@
 [1;35mHello.bat[0m[1;36m:[0mecho "Hello World!"[0m
 [0mBinary file[1m Hello.class[0m matches
 [1;35mHello.java[0m[1;36m:[0mimport java.lang.*;[0m
+[1;35mHello.java[0m[1;36m:[0m[0m
 [1;35mHello.java[0m[1;36m:[0mpublic class Hello // prints a Hello World! greeting[0m
 [1;35mHello.java[0m[1;36m:[0m{ public static void main(String[] arg)[0m
 [1;35mHello.java[0m[1;36m:[0m  { System.out.println("Hello World!");[0m

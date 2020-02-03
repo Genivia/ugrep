@@ -112,6 +112,10 @@ inherited `std::set` methods:
 - `bool contains(const Ranges& rs) const` returns true if this set of ranges
   contains all ranges rs, i.e. ranges rs is a subset.
 
+- `bound_type lo()` returns the lowest value in the set of ranges.
+
+- `bound_type hi()` returns the highest value in the set of ranges.
+
 @warning Using `std::set::insert()` instead of `Ranges::insert()` may result in
 overlapping ranges rather than merging ranges to produce disjoint
 non-overlapping ranges.
@@ -506,6 +510,18 @@ class Ranges : public std::set< std::pair<T,T>,range_compare<T> > {
     }
     return true;
   }
+  /// Return the lowest value in the set of ranges (the set cannot be empty)
+  bound_type lo() const
+    /// @returns lowest value
+  {
+    return this->begin()->first;
+  }
+  /// Return the highest value in the set of ranges (the set cannot be empty)
+  bound_type hi() const
+    /// @returns highest value
+  {
+    return this->rbegin()->second;
+  }
 };
 
 /// RE/flex ORanges (open-ended, ordinal value range) template class.
@@ -886,6 +902,12 @@ class ORanges : public Ranges<T> {
         return true;
     }
     return false;
+  }
+  /// Return the highest value in the set of ranges (the set cannot be empty)
+  bound_type hi() const
+    /// @returns highest value
+  {
+    return this->rbegin()->second - static_cast<bound_type>(1);
   }
  private:
   /// Bump value.

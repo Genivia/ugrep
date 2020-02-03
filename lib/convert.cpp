@@ -830,29 +830,7 @@ static void merge_list(const char *pattern, size_t len, size_t& pos, convert_fla
   if (pattern[pos] == '[')
   {
     ++pos;
-    if (pattern[pos] == '^')
-    {
-      ++pos;
-      ORanges<int> merge;
-      insert_list(pattern, len, pos, flags, mod, merge, macros);
-      if (is_modified(mod, 'u'))
-      {
-        ORanges<int> inverse(0x00, 0x10FFFF);
-        inverse -= ORanges<int>(0xD800, 0xDFFF); // remove surrogates
-        inverse -= merge;
-        ranges |= inverse;
-      }
-      else
-      {
-        ORanges<int> inverse(0x00, 0x7F);
-        inverse -= merge;
-        ranges |= inverse;
-      }
-    }
-    else
-    {
-      insert_list(pattern, len, pos, flags, mod, ranges, macros);
-    }
+    insert_list(pattern, len, pos, flags, mod, ranges, macros);
   }
   else if (pattern[pos] == '{' && macros != NULL)
   {
@@ -860,31 +838,9 @@ static void merge_list(const char *pattern, size_t len, size_t& pos, convert_fla
     const std::string& list = expand(macros, pattern, len, pos);
     if (list.size() < 2 || list.at(0) != '[')
       throw regex_error(regex_error::invalid_class_range, pattern, pos);
-    size_t k = 1;
-    if (list[k] == '^')
-    {
-      ++k;
-      ORanges<int> merge;
-      insert_list(list.c_str(), list.size(), k, flags, mod, merge, macros);
-      if (is_modified(mod, 'u'))
-      {
-        ORanges<int> inverse(0x00, 0x10FFFF);
-        inverse -= ORanges<int>(0xD800, 0xDFFF); // remove surrogates
-        inverse -= merge;
-        ranges |= inverse;
-      }
-      else
-      {
-        ORanges<int> inverse(0x00, 0x7F);
-        inverse -= merge;
-        ranges |= inverse;
-      }
-    }
-    else
-    {
-      insert_list(list.c_str(), list.size(), k, flags, mod, ranges, macros);
-    }
-    if (k + 1 < list.size())
+    size_t subpos = 1;
+    insert_list(list.c_str(), list.size(), subpos, flags, mod, ranges, macros);
+    if (subpos + 1 < list.size())
       throw regex_error(regex_error::invalid_class_range, pattern, pos);
   }
   else
@@ -899,29 +855,8 @@ static void intersect_list(const char *pattern, size_t len, size_t& pos, convert
   if (pattern[pos] == '[')
   {
     ++pos;
-    if (pattern[pos] == '^')
-    {
-      ++pos;
-      insert_list(pattern, len, pos, flags, mod, intersect, macros);
-      if (is_modified(mod, 'u'))
-      {
-        ORanges<int> inverse(0x00, 0x10FFFF);
-        inverse -= ORanges<int>(0xD800, 0xDFFF); // remove surrogates
-        inverse -= intersect;
-        ranges &= inverse;
-      }
-      else
-      {
-        ORanges<int> inverse(0x00, 0x7F);
-        inverse -= intersect;
-        ranges &= inverse;
-      }
-    }
-    else
-    {
-      insert_list(pattern, len, pos, flags, mod, intersect, macros);
-      ranges &= intersect;
-    }
+    insert_list(pattern, len, pos, flags, mod, intersect, macros);
+    ranges &= intersect;
   }
   else if (pattern[pos] == '{' && macros != NULL)
   {
@@ -929,31 +864,10 @@ static void intersect_list(const char *pattern, size_t len, size_t& pos, convert
     const std::string& list = expand(macros, pattern, len, pos);
     if (list.size() < 2 || list.at(0) != '[')
       throw regex_error(regex_error::invalid_class_range, pattern, pos);
-    size_t k = 1;
-    if (list[k] == '^')
-    {
-      ++k;
-      insert_list(list.c_str(), list.size(), k, flags, mod, intersect, macros);
-      if (is_modified(mod, 'u'))
-      {
-        ORanges<int> inverse(0x00, 0x10FFFF);
-        inverse -= ORanges<int>(0xD800, 0xDFFF); // remove surrogates
-        inverse -= intersect;
-        ranges &= inverse;
-      }
-      else
-      {
-        ORanges<int> inverse(0x00, 0x7F);
-        inverse -= intersect;
-        ranges &= inverse;
-      }
-    }
-    else
-    {
-      insert_list(list.c_str(), list.size(), k, flags, mod, intersect, macros);
-      ranges &= intersect;
-    }
-    if (k + 1 < list.size())
+    size_t subpos = 1;
+    insert_list(list.c_str(), list.size(), subpos, flags, mod, intersect, macros);
+    ranges &= intersect;
+    if (subpos + 1 < list.size())
       throw regex_error(regex_error::invalid_class_range, pattern, pos);
   }
   else
@@ -968,29 +882,8 @@ static void subtract_list(const char *pattern, size_t len, size_t& pos, convert_
   if (pattern[pos] == '[')
   {
     ++pos;
-    if (pattern[pos] == '^')
-    {
-      ++pos;
-      insert_list(pattern, len, pos, flags, mod, subtract, macros);
-      if (is_modified(mod, 'u'))
-      {
-        ORanges<int> inverse(0x00, 0x10FFFF);
-        inverse -= ORanges<int>(0xD800, 0xDFFF); // remove surrogates
-        inverse -= subtract;
-        ranges -= inverse;
-      }
-      else
-      {
-        ORanges<int> inverse(0x00, 0x7F);
-        inverse -= subtract;
-        ranges -= inverse;
-      }
-    }
-    else
-    {
-      insert_list(pattern, len, pos, flags, mod, subtract, macros);
-      ranges -= subtract;
-    }
+    insert_list(pattern, len, pos, flags, mod, subtract, macros);
+    ranges -= subtract;
   }
   else if (pattern[pos] == '{' && macros != NULL)
   {
@@ -998,31 +891,10 @@ static void subtract_list(const char *pattern, size_t len, size_t& pos, convert_
     const std::string& list = expand(macros, pattern, len, pos);
     if (list.size() < 2 || list.at(0) != '[')
       throw regex_error(regex_error::invalid_class_range, pattern, pos);
-    size_t k = 1;
-    if (list[k] == '^')
-    {
-      ++k;
-      insert_list(list.c_str(), list.size(), k, flags, mod, subtract, macros);
-      if (is_modified(mod, 'u'))
-      {
-        ORanges<int> inverse(0x00, 0x10FFFF);
-        inverse -= ORanges<int>(0xD800, 0xDFFF); // remove surrogates
-        inverse -= subtract;
-        ranges -= inverse;
-      }
-      else
-      {
-        ORanges<int> inverse(0x00, 0x7F);
-        inverse -= subtract;
-        ranges -= inverse;
-      }
-    }
-    else
-    {
-      insert_list(list.c_str(), list.size(), k, flags, mod, subtract, macros);
-      ranges -= subtract;
-    }
-    if (k + 1 < list.size())
+    size_t subpos = 1;
+    insert_list(list.c_str(), list.size(), subpos, flags, mod, subtract, macros);
+    ranges -= subtract;
+    if (subpos + 1 < list.size())
       throw regex_error(regex_error::invalid_class_range, pattern, pos);
   }
   else
@@ -1031,11 +903,61 @@ static void subtract_list(const char *pattern, size_t len, size_t& pos, convert_
   }
 }
 
+static void extend_list(const char *pattern, size_t len, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges, const std::map<std::string,std::string> *macros)
+{
+  if ((flags & convert_flag::lex))
+  {
+    int c;
+    while (pos + 5 < len && pattern[pos + 1] == '{' && ((c = pattern[pos + 2]) == '+' || c == '|' || c == '&' || c == '-') && pattern[pos + 3] == '}')
+    {
+      // lex: [a-z]{+}[A-Z] character class addition, [a-z]{-}[aeiou] subtraction, [a-z]{&}[^aeiou] intersection
+      pos += 4;
+      switch (c)
+      {
+        case '+':
+        case '|':
+          merge_list(pattern, len, pos, flags & ~convert_flag::lex, mod, ranges, macros);
+          break;
+        case '&':
+          intersect_list(pattern, len, pos, flags & ~convert_flag::lex, mod, ranges, macros);
+          break;
+        case '-':
+          subtract_list(pattern, len, pos, flags & ~convert_flag::lex, mod, ranges, macros);
+          break;
+      }
+    }
+  }
+}
+
+static void negate_list(const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
+{
+  if (is_modified(mod, 'u'))
+  {
+    ORanges<int> inverse(0x00, 0x10FFFF);
+    inverse -= ORanges<int>(0xD800, 0xDFFF); // remove surrogates
+    inverse -= ranges;
+    ranges.swap(inverse);
+  }
+  else
+  {
+    ORanges<int> inverse(0x00, 0x7F);
+    inverse -= ranges;
+    ranges.swap(inverse);
+  }
+}
+
 static void insert_list(const char *pattern, size_t len, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges, const std::map<std::string,std::string> *macros)
 {
   size_t loc = pos;
+  bool negate = false;
   bool range = false;
   int pc = -2;
+  if (pos + 1 < len)
+  {
+    negate = pattern[pos] == '^';
+    if (negate)
+      ++pos;
+  }
   while (pos + 1 < len)
   {
     int c = pattern[pos];
@@ -1127,30 +1049,9 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
   }
   if (pos >= len || pattern[pos] != ']')
     throw regex_error(regex_error::mismatched_brackets, pattern, loc);
-  if ((flags & convert_flag::lex))
-  {
-    int c;
-    while (pos + 5 < len && pattern[pos + 1] == '{' && ((c = pattern[pos + 2]) == '+' || c == '|' || c == '&' || c == '-') && pattern[pos + 3] == '}')
-    {
-      // lex: [a-z]{+}[A-Z] character class addition, [a-z]{-}[aeiou] subtraction, [a-z]{&}[^aeiou] intersection
-      pos += 4;
-      switch (c)
-      {
-        case '+':
-        case '|':
-          merge_list(pattern, len, pos, flags & ~convert_flag::lex, mod, ranges, macros);
-          break;
-        case '&':
-          intersect_list(pattern, len, pos, flags & ~convert_flag::lex, mod, ranges, macros);
-          break;
-        case '-':
-          subtract_list(pattern, len, pos, flags & ~convert_flag::lex, mod, ranges, macros);
-          break;
-      }
-    }
-    if (pos >= len)
-      throw regex_error(regex_error::mismatched_brackets, pattern, loc);
-  }
+  if (negate)
+    negate_list(mod, ranges);
+  extend_list(pattern, len, pos, flags, mod, ranges, macros);
   if (ranges.empty())
     throw regex_error(regex_error::empty_class, pattern, loc);
 }
@@ -1169,10 +1070,23 @@ static std::string convert_unicode_ranges(const ORanges<int>& ranges, const char
 
 static std::string convert_posix_ranges(const ORanges<int>& ranges, const char *signature)
 {
-  std::string regex;
   int esc = hex_or_octal_escape(signature);
-  for (ORanges<int>::const_iterator i = ranges.begin(); i != ranges.end(); ++i)
-    regex.append(latin1(i->first, i->second - 1, esc, false));
+  std::string regex;
+  bool negate = ranges.lo() == 0x00 && ranges.hi() == 0x7F;
+  if (negate)
+  {
+    ORanges<int> inverse(0x00, 0x7F);
+    inverse -= ranges;
+    regex = "[^";
+    for (ORanges<int>::const_iterator i = inverse.begin(); i != inverse.end(); ++i)
+      regex.append(latin1(i->first, i->second - 1, esc, false));
+  }
+  else
+  {
+    regex = "[";
+    for (ORanges<int>::const_iterator i = ranges.begin(); i != ranges.end(); ++i)
+      regex.append(latin1(i->first, i->second - 1, esc, false));
+  }
   return regex.append("]");
 }
 
@@ -1184,6 +1098,17 @@ static void convert_anycase_ranges(ORanges<int>& ranges)
   letters &= ranges;
   for (ORanges<int>::const_iterator i = letters.begin(); i != letters.end(); ++i)
     ranges.insert(i->first ^ 0x20, (i->second - 1) ^ 0x20);
+}
+
+static std::string convert_ranges(const char *pattern, size_t pos, ORanges<int>& ranges, const std::map<size_t,std::string>& mod, const char *signature, const char *par)
+{
+  if (is_modified(mod, 'i'))
+    convert_anycase_ranges(ranges);
+  if (is_modified(mod, 'u') && ranges.hi() > 0x7F)
+    return convert_unicode_ranges(ranges, signature, par);
+  if (ranges.hi() > 0xFF)
+    throw regex_error(regex_error::invalid_class, pattern, pos);
+  return convert_posix_ranges(ranges, signature);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1587,63 +1512,12 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         }
         else
         {
-          if (pos + 1 < len && pattern[pos + 1] == '^')
-          {
-            ORanges<int> ranges;
-            regex.append(&pattern[loc], pos - loc);
-            pos += 2;
-            insert_list(pattern, len, pos, flags, mod, ranges, macros);
-            if (is_modified(mod, 'i'))
-              convert_anycase_ranges(ranges);
-            if (is_modified(mod, 'u'))
-            {
-              // Unicode: translate [^ ] to new [ ] regex with inverted content
-              ORanges<int> inverse(0x00, 0x10FFFF);
-              inverse -= ORanges<int>(0xD800, 0xDFFF); // remove surrogates
-              inverse -= ranges;
-              if (inverse.empty())
-                throw regex_error(regex_error::empty_class, pattern, loc);
-              regex.append(convert_unicode_ranges(inverse, signature, par));
-            }
-            else
-            {
-              ORanges<int>::const_reverse_iterator i = ranges.rbegin();
-              if (i == ranges.rend())
-                throw regex_error(regex_error::empty_class, pattern, loc);
-              if (i->second - 1 > 0xFF)
-                throw regex_error(regex_error::invalid_class, pattern, pos);
-              // ASCII: translate [^ ] to new [^ ] regex
-              regex.append("[^").append(convert_posix_ranges(ranges, signature));
-            }
-            loc = pos + 1;
-          }
-          else
-          {
-            ORanges<int> ranges;
-            regex.append(&pattern[loc], pos - loc);
-            ++pos;
-            insert_list(pattern, len, pos, flags, mod, ranges, macros);
-            if (is_modified(mod, 'i'))
-              convert_anycase_ranges(ranges);
-            if (is_modified(mod, 'u'))
-            {
-              if (ranges.empty())
-                throw regex_error(regex_error::empty_class, pattern, loc);
-              // Unicode: translate [ ] to new regex
-              regex.append(convert_unicode_ranges(ranges, signature, par));
-            }
-            else
-            {
-              ORanges<int>::const_reverse_iterator i = ranges.rbegin();
-              if (i == ranges.rend())
-                throw regex_error(regex_error::empty_class, pattern, loc);
-              if (i->second - 1 > 0xFF)
-                throw regex_error(regex_error::invalid_class, pattern, pos);
-              // ASCII: translate [ ] to new regex
-              regex.append("[").append(convert_posix_ranges(ranges, signature));
-            }
-            loc = pos + 1;
-          }
+          ORanges<int> ranges;
+          regex.append(&pattern[loc], pos - loc);
+          ++pos;
+          insert_list(pattern, len, pos, flags, mod, ranges, macros);
+          regex.append(convert_ranges(pattern, pos, ranges, mod, signature, par));
+          loc = pos + 1;
           anc = false;
           beg = false;
         }
@@ -1727,7 +1601,23 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             // if macros are provided: lookup {name} and expand without converting
             regex.append(&pattern[loc], pos - loc);
             ++pos;
-            regex.append(par).append(expand(macros, pattern, len, pos)).append(")");
+            loc = pos;
+            const std::string& subregex = expand(macros, pattern, len, pos);
+            int c;
+            if ((flags & convert_flag::lex) && pos + 5 < len && pattern[pos + 1] == '{' && ((c = pattern[pos + 2]) == '+' || c == '|' || c == '&' || c == '-') && pattern[pos + 3] == '}')
+            {
+              size_t subpos = 0;
+              ORanges<int> ranges;
+              merge_list(subregex.c_str(), subregex.size(), subpos, flags, mod, ranges, macros);
+              if (subpos + 1 < subregex.size())
+                throw regex_error(regex_error::invalid_class_range, pattern, loc);
+              extend_list(pattern, len, pos, flags, mod, ranges, macros);
+              regex.append(convert_ranges(pattern, pos, ranges, mod, signature, par));
+            }
+            else
+            {
+              regex.append(par).append(subregex).append(")");
+            }
             loc = pos + (pattern[pos] == '\\') + 1;
             anc = false;
             beg = false;
