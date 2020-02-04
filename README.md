@@ -18,9 +18,10 @@ ugrep cpio, pax, tar, zip archives and compressed files
 <img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
 <br>
 ugrep binary files (displayed as hexdumps)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 ugrep pdf and office documents using filters
 </div>
+<br>
 
 - Unlimited pro edition
 - Fully compatible with the standard GNU and BSD grep command-line options
