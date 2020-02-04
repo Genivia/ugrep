@@ -5,23 +5,22 @@ Universal grep ("uber grep")
 
 <table align="center" border="0">
 <tr>
-<td><img src="https://www.genivia.com/images/scr1.png" width="456"  alt=""></td>
-<td><img src="https://www.genivia.com/images/scr2.png" width="456" alt=""></td>
+<td><img src="https://www.genivia.com/images/scr1.png" alt=""></td>
+<td><img src="https://www.genivia.com/images/scr2.png" alt=""></td>
 </tr>
 <tr>
 <td align="center">ugrep source code, scripts, text files, etc.</td>
 <td align="center">ugrep cpio, pax, tar, zip archives and compressed files</td>
 </tr>
 <tr>
-<td><img src="https://www.genivia.com/images/scr3.png" width="456"  alt=""></td>
-<td><img src="https://www.genivia.com/images/scr4.png" width="456"  alt=""></td>
+<td><img src="https://www.genivia.com/images/scr3.png" alt=""></td>
+<td><img src="https://www.genivia.com/images/scr4.png" alt=""></td>
 </tr>
 <tr>
 <td align="center">ugrep binary files</td>
 <td align="center">ugrep pdf files, office documents, etc.</td>
 </tr>
 </table>
-<br>
 
 - Unlimited pro edition
 - Fully compatible with the standard GNU and BSD grep command-line options
