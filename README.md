@@ -3,24 +3,24 @@
 Universal grep ("uber grep")
 ============================
 
-<table align="center" border="0" style="padding: 0px 0px">
-<tr>
-<td><img src="https://www.genivia.com/images/scr1.png" width="439" alt=""></td>
-<td><img src="https://www.genivia.com/images/scr2.png" width="439" alt=""></td>
-</tr>
-<tr>
-<td align="center">ugrep source code, scripts, text files, etc.</td>
-<td align="center">ugrep cpio, pax, tar, zip archives and compressed files</td>
-</tr>
-<tr>
-<td><img src="https://www.genivia.com/images/scr3.png" width="439" alt=""></td>
-<td><img src="https://www.genivia.com/images/scr4.png" width="439" alt=""></td>
-</tr>
-<tr>
-<td align="center">ugrep binary files</td>
-<td align="center">ugrep pdf files, office documents, etc.</td>
-</tr>
-</table>
+<div align="center">
+<img src="https://www.genivia.com/images/scr1.png" width="438" alt="">
+<img src="https://www.genivia.com/images/scr2.png" width="438" alt="">
+<br>
+ugrep source code, shell scripts, Unicode text files, etc.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ugrep cpio, pax, tar, zip archives and compressed files
+</div>
+<br>
+<div>
+<div align="center">
+<img src="https://www.genivia.com/images/scr3.png" width="438" alt="">
+<img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
+<br>
+ugrep binary files (displayed as hexdumps)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ugrep pdf and office documents using filters
+</div>
 
 - Unlimited pro edition
 - Fully compatible with the standard GNU and BSD grep command-line options
