@@ -18,7 +18,7 @@ ugrep cpio, pax, tar, zip archives and compressed files
 <img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
 <br>
 ugrep binary files (displayed as hexdumps)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 ugrep pdf and office documents using filters
 </div>
 <br>
@@ -1499,11 +1499,11 @@ files, otherwise these files will be ignored.
     -X, --hex
             Output matches in hexadecimal.  This option is equivalent to the
             --binary-files=hex option.
-    --hexdump==[1-8][b][c]
-            Output matches in 1 to 8 columns of 8 bytes hexadecimal.  The
-            default is 2 columns or 16 bytes per line.  Option `b' removes
-            the space breaks.  Option `c' removes the character column.
-            Enables -X if -W or -X is not specified.
+    --hexdump=[1-8][b][c][h]
+            Output matches in 1 to 8 columns of 8 hexadecimal bytes.  The
+            default is 2 columns or 16 bytes per line. Option `b' removes space
+            breaks, `c' removes the character column, and `h' removes the byte
+            spacing.  Enables -X if -W or -X is not specified.
 
 To search a file for ASCII words, displaying text lines as usual while binary
 content is shown in hex with `-U` and `-W`:
@@ -2644,11 +2644,11 @@ in markdown:
 
            --help Print a help message.
 
-           --hexdump=[1-8][b][c]
-                  Output matches in 1 to 8 columns of 8  bytes  hexadecimal.   The
+           --hexdump=[1-8][b][c][h]
+                  Output matches in 1 to 8 columns of 8  hexadecimal  bytes.   The
                   default  is  2 columns or 16 bytes per line.  Option `b' removes
-                  the space breaks.  Option  `c'  removes  the  character  column.
-                  Enables -X if -W or -X is not specified.
+                  space breaks, `c' removes the character column, and `h'  removes
+                  the byte spacing.  Enables -X if -W or -X is not specified.
 
            -I     Ignore  matches  in  binary files.  This option is equivalent to
                   the --binary-files=without-match option.
@@ -3390,7 +3390,7 @@ in markdown:
 
 
 
-    ugrep 1.7.6                    February 03, 2020                      UGREP(1)
+    ugrep 1.7.6                    February 04, 2020                      UGREP(1)
 
 <a name="patterns"/>
 

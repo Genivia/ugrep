@@ -1,0 +1,2 @@
+^\h*\{?\h*([\w.<,>\[\]]+\h+)+\w+\h*\([^)\n]*\)\h*(\{.*|[^{;\w\n]*)$
+(?^^.*\h+(catch|for|if|return|switch|throw|while).*$)

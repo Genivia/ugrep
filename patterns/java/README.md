@@ -5,7 +5,8 @@ Java patterns
 - `comments` matches comments
 - `doc_comments` matches Doxygen comments
 - `enums` matches enumerations
-- `functions` matches function definitions
+- `imports` matches import directives
+- `methods` matches method definitions
 - `names` matches identifiers (and keywords)
 - `strings` matches strings
 - `zap_comments` removes comments from matches

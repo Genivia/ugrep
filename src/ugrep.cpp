@@ -352,6 +352,16 @@ bool tty_term = false;
 // color term detected
 bool color_term = false;
 
+#ifndef OS_WIN
+static void sigint_reset_tty(int)
+{
+  if (color_term)
+    write(1, "\033[0m", 4);
+  signal(SIGINT, SIG_DFL);
+  kill(getpid(), SIGINT);
+}
+#endif
+
 // ANSI SGR substrings extracted from GREP_COLORS
 #define COLORLEN 32
 char color_sl[COLORLEN]; // selected line
@@ -447,7 +457,8 @@ bool flag_xml                      = false;
 bool flag_stdin                    = false;
 bool flag_pretty                   = DEFAULT_PRETTY;
 bool flag_no_hidden                = DEFAULT_HIDDEN;
-bool flag_hex_brk                  = true;
+bool flag_hex_hbr                  = true;
+bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
@@ -1268,10 +1279,10 @@ void Output::Dump::line(const char *separator)
     if (bytes[i] < 0)
     {
       out.str(color_cx);
-      if (flag_hex_brk)
+      if (flag_hex_hbr)
         out.chr(' ');
       out.str("--");
-      if ((i & 7) == 7 && flag_hex_brk)
+      if ((i & 7) == 7 && flag_hex_cbr)
         out.chr(' ');
       out.str(color_off);
     }
@@ -1279,10 +1290,10 @@ void Output::Dump::line(const char *separator)
     {
       short byte = bytes[i];
       out.str(color_hex[byte >> 8]);
-      if (flag_hex_brk)
+      if (flag_hex_hbr)
         out.chr(' ');
       out.hex(byte & 0xff, 2);
-      if ((i & 7) == 7 && flag_hex_brk)
+      if ((i & 7) == 7 && flag_hex_cbr)
         out.chr(' ');
       out.str(color_off);
     }
@@ -4175,6 +4186,8 @@ int main(int argc, char **argv)
 #ifndef OS_WIN
   // ignore SIGPIPE
   signal(SIGPIPE, SIG_IGN);
+  // reset color on SIGINT
+  signal(SIGINT, sigint_reset_tty);
 #endif
 
 #ifndef HAVE_LIBZ
@@ -4220,9 +4233,11 @@ int main(int argc, char **argv)
         help("invalid argument --hexdump=[1-8][b][c]");
     }
     if (strchr(flag_hexdump, 'b') != NULL)
-      flag_hex_brk = false;
+      flag_hex_hbr = flag_hex_cbr = false;
     if (strchr(flag_hexdump, 'c') != NULL)
       flag_hex_chr = false;
+    if (strchr(flag_hexdump, 'h') != NULL)
+      flag_hex_hbr = false;
     if (!flag_with_hex)
       flag_hex = true;
   }
@@ -7941,11 +7956,11 @@ void help(const char *message, const char *arg)
             results from different files.\n\
     --help\n\
             Print a help message.\n\
-    --hexdump=[1-8][b][c]\n\
-            Output matches in 1 to 8 columns of 8 bytes hexadecimal.  The\n\
+    --hexdump=[1-8][b][c][h]\n\
+            Output matches in 1 to 8 columns of 8 hexadecimal bytes.  The\n\
             default is 2 columns or 16 bytes per line.  Option `b' removes\n\
-            the space breaks.  Option `c' removes the character column.\n\
-            Enables -X if -W or -X is not specified.\n\
+            space breaks, `c' removes the character column, and `h' removes\n\
+            the byte spacing.  Enables -X if -W or -X is not specified.\n\
     -I\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\

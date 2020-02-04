@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 03, 2020" "ugrep 1.7.6" "User Commands"
+.TH UGREP "1" "February 04, 2020" "ugrep 1.7.6" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -219,11 +219,11 @@ results from different files.
 \fB\-\-help\fR
 Print a help message.
 .TP
-\fB\-\-hexdump\fR=[1\-8][b][c]
-Output matches in 1 to 8 columns of 8 bytes hexadecimal.  The
+\fB\-\-hexdump\fR=[1\-8][b][c][h]
+Output matches in 1 to 8 columns of 8 hexadecimal bytes.  The
 default is 2 columns or 16 bytes per line.  Option `b' removes
-the space breaks.  Option `c' removes the character column.
-Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
+space breaks, `c' removes the character column, and `h' removes
+the byte spacing.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
 .TP
 \fB\-I\fR
 Ignore matches in binary files.  This option is equivalent to the
