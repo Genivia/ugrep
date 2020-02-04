@@ -3,18 +3,18 @@
 Universal grep ("uber grep")
 ============================
 
-<table align="center" border="0" style="padding: 0px">
+<table align="center" border="0" style="padding: 0px 0px">
 <tr>
-<td><img src="https://www.genivia.com/images/scr1.png" width="456" alt=""></td>
-<td><img src="https://www.genivia.com/images/scr2.png" width="456" alt=""></td>
+<td><img src="https://www.genivia.com/images/scr1.png" width="439" alt=""></td>
+<td><img src="https://www.genivia.com/images/scr2.png" width="439" alt=""></td>
 </tr>
 <tr>
 <td align="center">ugrep source code, scripts, text files, etc.</td>
 <td align="center">ugrep cpio, pax, tar, zip archives and compressed files</td>
 </tr>
 <tr>
-<td><img src="https://www.genivia.com/images/scr3.png" width="456" alt=""></td>
-<td><img src="https://www.genivia.com/images/scr4.png" width="456" alt=""></td>
+<td><img src="https://www.genivia.com/images/scr3.png" width="439" alt=""></td>
+<td><img src="https://www.genivia.com/images/scr4.png" width="439" alt=""></td>
 </tr>
 <tr>
 <td align="center">ugrep binary files</td>
