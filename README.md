@@ -3,14 +3,25 @@
 Universal grep ("uber grep")
 ============================
 
-<div align="center">
-<img src="https://www.genivia.com/images/function_defs.png" width="45%" height="45%" alt="ugrep C++ function search results">
-<img src="https://www.genivia.com/images/hexdump.png" width="45%" height="45%" alt="ugrep hexdump results">
+<table align="center" border="0">
+<tr>
+<td><img src="https://www.genivia.com/images/scr1.png" width="456"  alt=""></td>
+<td><img src="https://www.genivia.com/images/scr2.png" width="456" alt=""></td>
+</tr>
+<tr>
+<td align="center">ugrep source code, scripts, text files, etc.</td>
+<td align="center">ugrep cpio, pax, tar, zip archives and compressed files</td>
+</tr>
+<tr>
+<td><img src="https://www.genivia.com/images/scr3.png" width="456"  alt=""></td>
+<td><img src="https://www.genivia.com/images/scr4.png" width="456"  alt=""></td>
+</tr>
+<tr>
+<td align="center">ugrep binary files</td>
+<td align="center">ugrep pdf files, office documents, etc.</td>
+</tr>
+</table>
 <br>
-Grep super fast through source code, Unicode text, binary files, cpio/jar/pax/tar/zip archives, and compressed files.
-<br>
-<br>
-</div>
 
 - Unlimited pro edition
 - Fully compatible with the standard GNU and BSD grep command-line options
