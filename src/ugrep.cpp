@@ -70,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.7"
+#define UGREP_VERSION "1.7.8"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>

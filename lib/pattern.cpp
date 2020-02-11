@@ -2653,7 +2653,7 @@ void Pattern::predict_match_dfa(State& start)
       break;
     }
     State *next = state->edges.begin()->second.second;
-    if (next == NULL || next->index < state->index)
+    if (next == NULL)
     {
       one_ = false;
       break;

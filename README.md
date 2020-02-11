@@ -3,7 +3,7 @@
 Universal grep ("uber grep")
 ============================
 
-Search everything for anything... fast.
+Search for anything in everything... fast.
 
 <br>
 <div align="center">
@@ -30,7 +30,7 @@ search pdf and office documents using filters
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
 - Fully compatible with the standard GNU and BSD grep command-line options
 - Written in clean and efficient C++11, built for extreme speed
-- Faster than GNU/BSD/PCRE grep, beating ripgrep, silver searcher, etc.
+- Faster than GNU/BSD/PCRE grep, [also beats](#speed) ripgrep, silver searcher, etc.
 - Multi-threaded search using high-performance lock-free job queue stealing
 - Multi-threaded decompression and search of decompressed streams
 - Optimized with SIMD string matching (AVX, SSE2, ARM NEON/AArch64)
@@ -226,7 +226,7 @@ Speed
 
 ### Tests
 
-The following tests span a range of use cases:
+The following tests span a range of practical use cases:
 
 Test | Command                                                          | Description
 ---- | ---------------------------------------------------------------- | -----------------------------------------------------
@@ -3397,7 +3397,7 @@ in markdown:
 
 
 
-    ugrep 1.7.7                    February 10, 2020                      UGREP(1)
+    ugrep 1.7.8                    February 11, 2020                      UGREP(1)
 
 <a name="patterns"/>
 

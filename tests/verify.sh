@@ -265,10 +265,10 @@ fi
 if [ "$have_libz" == yes ]; then
 printf .
 $UG -z -c '' archive.gz | $DIFF out/archive.gz.out || ERR "-z -c '' archive.gz"
-for PAT in '.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at metus sit amet aliquam'; do
+for PAT in '\.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at metus sit amet aliquam' 'adip[a-z]{1,}' 'adip[a-z]{4,}'; do
   FN=`echo "archive_$PAT" | tr -Cd '[:alnum:]_'`
   printf .
-  $UG -z -Fco "$PAT" archive.gz | $DIFF out/$FN-Fco.gz.out || ERR "-z -Fco \"$PAT\" archive.gz"
+  $UG -z -co "$PAT" archive.gz | $DIFF out/$FN-co.gz.out || ERR "-z -co \"$PAT\" archive.gz"
 done
 fi
 

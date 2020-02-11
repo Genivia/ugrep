@@ -98,7 +98,7 @@ void Matcher::boyer_moore_init(const char *pat, size_t len)
 {
   // Relative frequency table of English letters, source code, and UTF-8 bytes
   static unsigned char freq[256] = "\0\0\0\0\0\0\0\0\0\73\4\0\0\4\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\73\70\70\1\1\2\2\70\70\70\2\2\70\70\70\2\3\3\3\3\3\3\3\3\3\3\70\70\70\70\70\70\2\35\14\24\26\37\20\17\30\33\11\12\25\22\32\34\15\7\27\31\36\23\13\21\10\16\6\70\1\70\2\70\1\67\46\56\60\72\52\51\62\65\43\44\57\54\64\66\47\41\61\63\71\55\45\53\42\50\40\70\2\70\2\0\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\0\0\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\46\56\56\56\56\56\56\56\56\56\56\56\56\46\56\56\73\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-  size_t i;
+  uint16_t i;
   for (i = 0; i < 256; ++i)
     bms_[i] = static_cast<uint8_t>(len); // okay to cast: actually never more than 255
   lcp_ = 0;
@@ -120,7 +120,7 @@ void Matcher::boyer_moore_init(const char *pat, size_t len)
       }
     }
   }
-  size_t j;
+  uint16_t j;
   for (i = len - 1, j = i; j > 0; --j)
     if (pat[j - 1] == pat[i])
       break;
@@ -379,16 +379,16 @@ bool Matcher::advance()
             {
               loc = s - lcp_ + offset - buf_;
               set_current(loc);
-              if (min == 0 || loc + 4 > end_)
+              if (min == 0)
                 return true;
               if (min >= 4)
               {
-                if (Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
                   return true;
               }
               else
               {
-                if (Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
                   return true;
               }
             }
@@ -415,16 +415,16 @@ bool Matcher::advance()
             {
               loc = s - lcp_ + offset - buf_;
               set_current(loc);
-              if (min == 0 || loc + 4 > end_)
+              if (min == 0)
                 return true;
               if (min >= 4)
               {
-                if (Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
                   return true;
               }
               else
               {
-                if (Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
                   return true;
               }
             }
@@ -452,16 +452,16 @@ bool Matcher::advance()
             {
               loc = s - lcp_ + offset - buf_;
               set_current(loc);
-              if (min == 0 || loc + 4 > end_)
+              if (min == 0)
                 return true;
               if (min >= 4)
               {
-                if (Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
                   return true;
               }
               else
               {
-                if (Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
                   return true;
               }
             }
@@ -490,16 +490,16 @@ bool Matcher::advance()
             {
               loc = s - lcp_ + i - buf_;
               set_current(loc);
-              if (min == 0 || loc + 4 > end_)
+              if (min == 0)
                 return true;
               if (min >= 4)
               {
-                if (Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
                   return true;
               }
               else
               {
-                if (Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
                   return true;
               }
             }
@@ -514,16 +514,16 @@ bool Matcher::advance()
             {
               loc = s - lcp_ + i + 8 - buf_;
               set_current(loc);
-              if (min == 0 || loc + 4 > end_)
+              if (min == 0)
                 return true;
               if (min >= 4)
               {
-                if (Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
                   return true;
               }
               else
               {
-                if (Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
                   return true;
               }
             }
@@ -545,18 +545,18 @@ bool Matcher::advance()
         }
         if (len <= 2 || memcmp(s - lcp_, pre, len) == 0)
         {
-          loc = s  - lcp_ - buf_;
+          loc = s - lcp_ - buf_;
           set_current(loc);
-          if (min == 0 || loc + 4 > end_)
+          if (min == 0)
             return true;
           if (min >= 4)
           {
-            if (Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+            if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
               return true;
           }
           else
           {
-            if (Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+            if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
               return true;
           }
         }
@@ -597,16 +597,16 @@ bool Matcher::advance()
         {
           loc = q - buf_ + 1;
           set_current(loc);
-          if (min == 0 || loc + 4 > end_)
+          if (min == 0)
             return true;
           if (min >= 4)
           {
-            if (Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+            if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
               return true;
           }
           else
           {
-            if (Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+            if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
               return true;
           }
         }
