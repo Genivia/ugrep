@@ -93,7 +93,7 @@ int Matcher::get_HW()
 
 int Matcher::HW = Matcher::get_HW();
 
-/// Boyer-Moore preprocessing of the given pattern pat of length len, generates bmd_ > 0 and bms_[] shifts.
+/// Boyer-Moore preprocessing of the given pattern pat of length len (<=255), generates bmd_ > 0 and bms_[] shifts.
 void Matcher::boyer_moore_init(const char *pat, size_t len)
 {
   // Relative frequency table of English letters, source code, and UTF-8 bytes
@@ -121,7 +121,7 @@ void Matcher::boyer_moore_init(const char *pat, size_t len)
     }
   }
   uint16_t j;
-  for (i = len - 1, j = i; j > 0; --j)
+  for (i = static_cast<uint8_t>(len) - 1, j = i; j > 0; --j)
     if (pat[j - 1] == pat[i])
       break;
   bmd_ = i - j + 1;

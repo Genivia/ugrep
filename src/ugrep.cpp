@@ -5133,6 +5133,17 @@ int main(int argc, char **argv)
 
 #endif
 
+  // if no FILE specified and reading standard input from a TTY: enable -R
+  if (!flag_stdin && files.empty() && isatty(STDIN_FILENO))
+  {
+    flag_directories_action = Action::RECURSE;
+    flag_dereference = true;
+  }
+
+  // normalize -p (--no-dereference) and -S (--dereference) options, -p taking priority over -S
+  if (flag_no_dereference)
+    flag_dereference = false;
+
   // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
   if (!flag_no_filename && (flag_directories_action == Action::RECURSE || files.size() > 1 || (flag_stdin && !files.empty())))
     flag_with_filename = true;
@@ -5168,17 +5179,6 @@ int main(int argc, char **argv)
     flag_with_filename = true;
     flag_count = false;
   }
-
-  // if no FILE specified and reading standard input from a TTY but one or more of -z, -l, -L, -g, -O, -m, -t, --include, --include-dir, --exclude, --exclude dir: enable -R
-  if (!flag_stdin && files.empty() && (flag_decompress || flag_files_with_match || !flag_include.empty() || !flag_include_dir.empty() || !flag_exclude.empty() || !flag_exclude_dir.empty() || !flag_file_magic.empty()) && isatty(STDIN_FILENO))
-  {
-    flag_directories_action = Action::RECURSE;
-    flag_dereference = true;
-  }
-
-  // normalize -p (--no-dereference) and -S (--dereference) options, -p taking priority over -S
-  if (flag_no_dereference)
-    flag_dereference = false;
 
   // -J: when not set the default is the number of cores (or hardware threads), limited to MAX_JOBS
   if (flag_jobs == 0)

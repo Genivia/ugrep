@@ -2985,21 +2985,21 @@ in markdown:
            dard input is read, unless recursive searches are specified which exam-
            ine the working directory.
 
-           If  no  FILE arguments are specified and one of the options -z, -l, -L,
-           -g, -O, -M, -t, --include, --include-dir, --exclude,  or  --exclude-dir
-           is  specified, recursive searches are performed as if -R was specified.
+           If  no FILE arguments are specified and standard input is from a termi-
+           nal, recursive searches are performed as if -R is specified.  To  force
+           input from a terminal, specify `-' as the FILE argument.
 
-           A `--' signals the end of options; the rest of the parameters are  FILE
+           A  `--' signals the end of options; the rest of the parameters are FILE
            arguments, allowing filenames to begin with a `-' character.
 
-           The  regular expression pattern syntax is an extended form of the POSIX
+           The regular expression pattern syntax is an extended form of the  POSIX
            ERE syntax.  For an overview of the syntax see README.md or visit:
 
                   https://github.com/Genivia/ugrep
 
-           Note that `.' matches any non-newline character.  Pattern `\n'  matches
-           a  newline character.  Multiple lines may be matched with patterns that
-           match newlines, unless one or more of the context options -A,  -B,  -C,
+           Note  that `.' matches any non-newline character.  Pattern `\n' matches
+           a newline character.  Multiple lines may be matched with patterns  that
+           match  newlines,  unless one or more of the context options -A, -B, -C,
            or -y is used, or option -v is used.
 
     EXIT STATUS
@@ -3011,21 +3011,21 @@ in markdown:
 
            >1     An error occurred.
 
-           If  -q  or --quiet or --silent is used and a line is selected, the exit
+           If -q or --quiet or --silent is used and a line is selected,  the  exit
            status is 0 even if an error occurred.
 
     GLOBBING
-           Globbing is used by options -g,  --include,  --include-dir,  --include-
-           from,  --exclude,  --exclude-dir, --exclude-from to match pathnames and
-           basenames in recursive searches.  Globbing  supports  gitignore  syntax
+           Globbing  is  used  by options -g, --include, --include-dir, --include-
+           from, --exclude, --exclude-dir, --exclude-from to match  pathnames  and
+           basenames  in  recursive  searches.  Globbing supports gitignore syntax
            and the corresponding matching rules.  When a glob contains a path sep-
-           arator `/', the pathname is matched.  Otherwise the basename of a  file
+           arator  `/', the pathname is matched.  Otherwise the basename of a file
            or directory is matched.  For example, *.h matches foo.h and bar/foo.h.
-           bar/*.h matches bar/foo.h but not foo.h and not bar/bar/foo.h.   Use  a
+           bar/*.h  matches  bar/foo.h but not foo.h and not bar/bar/foo.h.  Use a
            leading `/' to force /*.h to match foo.h but not bar/foo.h.
 
-           When  a  glob starts with a `!' as specified with -g!GLOB, or specified
-           in a  FILE  with  --include-from=FILE  or  --exclude-from=FILE,  it  is
+           When a glob starts with a `!' as specified with -g!GLOB,  or  specified
+           in  a  FILE  with  --include-from=FILE  or  --exclude-from=FILE,  it is
            negated.
 
            Glob Syntax and Conventions
@@ -3040,12 +3040,12 @@ in markdown:
 
            [!a-z] Matches one character not in the selected range of characters.
 
-           /      When  used at the begin of a glob, matches if pathname has no /.
+           /      When used at the begin of a glob, matches if pathname has no  /.
                   When used at the end of a glob, matches directories only.
 
            **/    Matches zero or more directories.
 
-           /**    When used at the end of a glob, matches everything after the  /.
+           /**    When  used at the end of a glob, matches everything after the /.
 
            \?     Matches a ? (or any character specified after the backslash).
 
@@ -3082,37 +3082,37 @@ in markdown:
 
            a\?b   Matches a?b,                 but not a, b, ab, axb, a/b
 
-           Lines  in  the --exclude-from and --include-from files are ignored when
-           empty or start with a `#'.  When a glob is prefixed with  `!',  negates
+           Lines in the --exclude-from and --include-from files are  ignored  when
+           empty  or  start with a `#'.  When a glob is prefixed with `!', negates
            the match.
 
     ENVIRONMENT
            GREP_PATH
-                  May  be  used to specify a file path to pattern files.  The file
-                  path is used by option -f to open a pattern file, when the  file
+                  May be used to specify a file path to pattern files.   The  file
+                  path  is used by option -f to open a pattern file, when the file
                   cannot be opened.
 
            GREP_COLOR
-                  May  be used to specify ANSI SGR parameters to highlight matches
-                  when option --color is used, e.g. 1;35;40 shows pattern  matches
+                  May be used to specify ANSI SGR parameters to highlight  matches
+                  when  option --color is used, e.g. 1;35;40 shows pattern matches
                   in bold magenta text on a black background.  Deprecated in favor
                   of GREP_COLORS, but still supported.
 
            GREP_COLORS
-                  May be used to specify ANSI SGR parameters to highlight  matches
-                  and  other attributes when option --color is used.  Its value is
-                  a colon-separated list of ANSI SGR parameters that  defaults  to
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  and other attributes when option --color is used.  Its value  is
+                  a  colon-separated  list of ANSI SGR parameters that defaults to
                   cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36.   The  mt=,
-                  ms=, and mc= capabilities  of  GREP_COLORS  have  priority  over
+                  ms=,  and  mc=  capabilities  of  GREP_COLORS have priority over
                   GREP_COLOR.  Option --colors has priority over GREP_COLORS.
 
     GREP_COLORS
-           Colors  are  specified as string of colon-separated ANSI SGR parameters
-           of the form `what=substring', where `substring'  is  a  semicolon-sepa-
-           rated  list  of  ANSI SGR codes or `k' (black), `r' (red), `g' (green),
-           `y' (yellow), `b' (blue),  `m'  (magenta),  `c'  (cyan),  `w'  (white).
-           Upper  case  specifies  background  colors.  A `+' qualifies a color as
-           bright.  A foreground and a background color may be combined  with  one
+           Colors are specified as string of colon-separated ANSI  SGR  parameters
+           of  the  form  `what=substring', where `substring' is a semicolon-sepa-
+           rated list of ANSI SGR codes or `k' (black), `r'  (red),  `g'  (green),
+           `y'  (yellow),  `b'  (blue),  `m'  (magenta),  `c' (cyan), `w' (white).
+           Upper case specifies background colors.  A `+'  qualifies  a  color  as
+           bright.   A  foreground and a background color may be combined with one
            or more font properties `n' (normal), `f' (faint), `h' (highlight), `i'
            (invert), `u' (underline).  Substrings may be specified for:
 
@@ -3124,10 +3124,10 @@ in markdown:
 
            mt=    SGR substring for matching text in any matching line.
 
-           ms=    SGR substring for matching text in a selected  line.   The  sub-
+           ms=    SGR  substring  for  matching text in a selected line.  The sub-
                   string mt= by default.
 
-           mc=    SGR  substring  for  matching  text in a context line.  The sub-
+           mc=    SGR substring for matching text in a  context  line.   The  sub-
                   string mt= by default.
 
            fn=    SGR substring for file names.
@@ -3141,7 +3141,7 @@ in markdown:
            se=    SGR substring for separators.
 
     FORMAT
-           Option --format=FORMAT specifies an output  format  for  file  matches.
+           Option  --format=FORMAT  specifies  an  output format for file matches.
            Fields may be used in FORMAT, which expand into the following values:
 
            %[ARG]F
@@ -3236,27 +3236,27 @@ in markdown:
 
            %%     the percentage sign.
 
-           %1     the first regex group capture of the match,  and  so  on  up  to
+           %1     the  first  regex  group  capture  of the match, and so on up to
                   group %9, same as %[1]#; requires option -P Perl matching.
 
            %[NUM]#
                   the regex group capture NUM; requires option -P Perl matching.
 
-           The  [ARG]  part  of  a  field  is  optional  and may be omitted.  When
-           present, the argument must be placed in [] brackets, for example  %[,]F
+           The [ARG] part of a  field  is  optional  and  may  be  omitted.   When
+           present,  the argument must be placed in [] brackets, for example %[,]F
            to output a comma, the pathname, and a separator.
 
            %[SEP]$ and %u are switches and do not send anything to the output.
 
            The separator used by %P, %H, %N, %K, %B, and %S may be changed by pre-
-           ceeding the field  by  %[SEP]$.   When  [SEP]  is  not  provided,  this
+           ceeding  the  field  by  %[SEP]$.   When  [SEP]  is  not provided, this
            reverses the separator to the default separator or the separator speci-
            fied with --separator.
 
            Formatted output is written for each matching pattern, which means that
-           a  line may be output multiple times when patterns match more than once
-           on the same line.  When field %u is found  anywhere  in  the  specified
-           format  string,  matching  lines are output only once unless option -u,
+           a line may be output multiple times when patterns match more than  once
+           on  the  same  line.   When field %u is found anywhere in the specified
+           format string, matching lines are output only once  unless  option  -u,
            --ungroup is used or when a newline is matched.
 
            Additional formatting options:
@@ -3318,7 +3318,7 @@ in markdown:
 
                   $ ugrep -n -f c++/comments myfile.cpp
 
-           List the lines that need fixing in a C/C++ source file by  looking  for
+           List  the  lines that need fixing in a C/C++ source file by looking for
            the word `FIXME' while skipping any `FIXME' in quoted strings:
 
                   $ ugrep -e 'FIXME' -N '"(\\.|\\\r?\n|[^\\\n"])*"' myfile.cpp
@@ -3357,9 +3357,9 @@ in markdown:
 
                   $ ugrep -r -z -w --filter='pdf:pdftotext % -' 'copyright'
 
-           Match the binary pattern `A3hhhhA3hh' (hex) in a  binary  file  without
-           Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
-           Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
+           Match  the  binary  pattern `A3hhhhA3hh' (hex) in a binary file without
+           Unicode pattern matching -U (which would otherwise match  `\xaf'  as  a
+           Unicode  character  U+00A3  with UTF-8 byte sequence C2 A3) and display
            the results in hex with -X using `less -R' as a pager:
 
                   $ ugrep --pager -UXo '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
@@ -3372,7 +3372,7 @@ in markdown:
 
                   $ ugrep -Rl '' --ignore-files
 
-           List  all files containing a RPM signature, located in the `rpm' direc-
+           List all files containing a RPM signature, located in the `rpm'  direc-
            tory and recursively below up to two levels deeper:
 
                   $ ugrep -R --max-depth=3 -l -tRpm '' rpm/
@@ -3388,8 +3388,8 @@ in markdown:
 
 
     LICENSE
-           ugrep is released under the BSD-3 license.  All parts of  the  software
-           have  reasonable  copyright terms permitting free redistribution.  This
+           ugrep  is  released under the BSD-3 license.  All parts of the software
+           have reasonable copyright terms permitting free  redistribution.   This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
