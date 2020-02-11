@@ -2630,7 +2630,7 @@ void Pattern::predict_match_dfa(State& start)
   one_ = true;
   while (state->accept == 0)
   {
-    if (state->edges.size() != 1)
+    if (state->edges.size() != 1 || state->edges.begin()->first < state->edges.begin()->second.first)
     {
       one_ = false;
       break;
