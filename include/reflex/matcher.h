@@ -345,6 +345,16 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   {
     return !at_bow() && !at_eow();
   }
+  /// Check CPU hardware for AVX capability.
+  static bool has_HW_AVX()
+  {
+    return HW & (1 << 28);
+  }
+  /// Check CPU hardware for SSE2 capability.
+  static bool has_HW_SSE2()
+  {
+    return HW & (1 << 26);
+  }
  protected:
   typedef std::vector<size_t> Stops; ///< indent margin/tab stops
   /// FSM data for FSM code
@@ -354,6 +364,10 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     bool nul;
     int  c1;
   };
+  /// Get CPU hardware info.
+  static int get_HW();
+  /// CPU hardware info[2]
+  static int HW;
   /// Returns true if input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
   virtual size_t match(Method method) ///< Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero if input matched the pattern
@@ -711,13 +725,25 @@ unrolled:
           if (advance())
           {
             txt_ = buf_ + cur_;
-            goto find;
+            if (!pat_->one_)
+              goto find;
+            len_ = pat_->len_;
+            txt_ = buf_ + cur_;
+            set_current(cur_ + len_);
+            return cap_ = 1;
           }
         }
         else if (pos_ > cur_) // we didn't fail on META alone
         {
           if (advance())
-            goto scan;
+          {
+            if (!pat_->one_)
+              goto scan;
+            len_ = pat_->len_;
+            txt_ = buf_ + cur_;
+            set_current(cur_ + len_);
+            return cap_ = 1;
+          }
         }
         txt_ = buf_ + cur_;
       }
@@ -823,7 +849,8 @@ unrolled:
   std::vector<int>  lap_;      ///< lookahead position in input that heads a lookahead match (indexed by lookahead number)
   std::stack<Stops> stk_;      ///< stack to push/pop stops
   FSM               fsm_;      ///< local state for FSM code
-  size_t            lcp_;      ///< least common character in the pattern prefix or 0xffff
+  uint16_t          lcp_;      ///< primary least common character position in the pattern prefix or 0xffff for pure Boyer-Moore
+  uint16_t          lcs_;      ///< secondary least common character position in the pattern prefix or 0xffff for pure Boyer-Moore
   size_t            bmd_;      ///< Boyer-Moore jump distance on mismatch, B-M is enabled when bmd_ > 0
   uint8_t           bms_[256]; ///< Boyer-Moore skip array
   bool              mrk_;      ///< indent \i or dedent \j in pattern found: should check and update indent stops

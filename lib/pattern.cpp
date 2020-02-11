@@ -155,20 +155,22 @@ void Pattern::error(regex_error_type code, size_t pos) const
 void Pattern::init(const char *opt, const uint8_t *pred)
 {
   init_options(opt);
+  nop_ = 0;
+  len_ = 0;
+  min_ = 0;
+  one_ = false;
   if (opc_ || fsm_)
   {
-    nop_ = 0;
-    pre_.clear();
-    min_ = 0;
     if (pred != NULL)
     {
-      size_t n = pred[0];
-      pre_.assign(reinterpret_cast<const char*>(pred + 2), n);
-      min_ = pred[1];
+      len_ = pred[0];
+      min_ = pred[1] & 0x0f;
+      one_ = pred[1] & 0x10;
+      memcpy(pre_, pred + 2, len_);
       if (min_ > 0)
       {
-        n += 2;
-        if (min_ > 1 && pre_.empty())
+        size_t n = len_ + 2;
+        if (min_ > 1 && len_ == 0)
         {
           for (size_t i = 0; i < 256; ++i)
             bit_[i] = ~pred[i + n];
@@ -2625,24 +2627,41 @@ void Pattern::predict_match_dfa(State& start)
 {
   DBGLOG("BEGIN Pattern::predict_match_dfa()");
   State *state = &start;
+  one_ = true;
   while (state->accept == 0)
   {
     if (state->edges.size() != 1)
-        break;
+    {
+      one_ = false;
+      break;
+    }
     Char lo = state->edges.begin()->first;
     if (!is_meta(lo))
     {
       if (lo != state->edges.begin()->second.first)
         break;
-      pre_.push_back(lo);
-      if (pre_.size() >= 255)
+      if (len_ >= 255)
+      {
+        one_ = false;
         break;
+      }
+      pre_[len_++] = lo;
+    }
+    else
+    {
+      one_ = false;
+      break;
     }
     State *next = state->edges.begin()->second.second;
     if (next == NULL || next->index < state->index)
+    {
+      one_ = false;
       break;
+    }
     state = next;
   }
+  if (state != NULL && state->accept != 0 && !state->edges.empty())
+    one_ = false;
   min_ = 0;
   std::memset(bit_, 0xFF, sizeof(bit_));
   std::memset(pmh_, 0xFF, sizeof(pmh_));
@@ -2805,13 +2824,13 @@ void Pattern::gen_predict_match_transitions(Index level, State *state, ORanges<C
 
 void Pattern::write_predictor(FILE *file) const
 {
-  ::fprintf(file, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + pre_.size() + (min_ > 1 && pre_.empty()) * 256 + (min_ > 0) * Const::HASH);
-  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(pre_.size()), static_cast<uint8_t>(min_));
-  for (size_t i = 0; i < pre_.size(); ++i)
+  ::fprintf(file, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (min_ > 1 && len_ == 0) * 256 + (min_ > 0) * Const::HASH);
+  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4))));
+  for (size_t i = 0; i < len_; ++i)
     ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(pre_[i]));
   if (min_ > 0)
   {
-    if (min_ > 1 && pre_.empty())
+    if (min_ > 1 && len_ == 0)
     {
       for (Index i = 0; i < 256; ++i)
         ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~bit_[i]));

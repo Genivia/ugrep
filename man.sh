@@ -67,10 +67,10 @@ If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
 standard input is read, unless recursive searches are specified which examine
 the working directory.
 .PP
-If no \fIFILE\fR arguments are specified and one of the options \fB-g\fR,
-\fB-O\fR, \fB-M\fR, \fB-t\fR, \fB--include\fR, \fB--include-dir\fR,
-\fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches are
-performed as if \fB-r\fR was specified.
+If no \fIFILE\fR arguments are specified and one of the options \fB-z\fR,
+\fB-l\fR, \fB-L\fR, \fB-g\fR, \fB-O\fR, \fB-M\fR, \fB-t\fR, \fB--include\fR,
+\fB--include-dir\fR, \fB--exclude\fR, or \fB--exclude-dir\fR is specified,
+recursive searches are performed as if \fB-R\fR was specified.
 .PP
 A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
 arguments, allowing filenames to begin with a `-' character.

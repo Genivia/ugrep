@@ -787,7 +787,7 @@ class AbstractMatcher {
     /// @returns the next wide character (unsigned 0..U+10FFFF) or EOF (-1)
   {
     DBGLOG("AbstractMatcher::winput()");
-    char tmp[8], *s = tmp;
+    char tmp[8] = { 0 }, *s = tmp;
     int c;
     if ((c = input()) == EOF)
       return EOF;

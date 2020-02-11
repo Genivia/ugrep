@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 04, 2020" "ugrep 1.7.6" "User Commands"
+.TH UGREP "1" "February 10, 2020" "ugrep 1.7.7" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -287,8 +287,8 @@ upper case letter.  This option applies to ASCII letters only.
 Output file matches in JSON.  If \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is specified,
 additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
-\fB\-K\fR \fIFROM\fR[,\fIEND\fR], \fB\-\-range\fR=\fIFROM\fR[,\fIEND\fR]
-Start searching at line FROM; stops at line END when specified.
+\fB\-K\fR \fIFIRST\fR[,\fILAST\fR], \fB\-\-range\fR=\fIFIRST\fR[,\fILAST\fR]
+Start searching at line FIRST; stops at line LAST when specified.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of the
@@ -535,7 +535,7 @@ Prints a zero\-byte after the file name.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,
-\&.jar, .pax, .tar, .zip) and compressed archives (e.g. .taz, .tgz,
+\&.pax, .tar, and .zip) and compressed archives (e.g. .taz, .tgz,
 \&.tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and
 matching pathnames of files in archives are output in braces.  If
 \fB\-g\fR, \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches files within archives
@@ -549,10 +549,10 @@ If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
 standard input is read, unless recursive searches are specified which examine
 the working directory.
 .PP
-If no \fIFILE\fR arguments are specified and one of the options \fB-g\fR,
-\fB-O\fR, \fB-M\fR, \fB-t\fR, \fB--include\fR, \fB--include-dir\fR,
-\fB--exclude\fR, or \fB--exclude-dir\fR is specified, recursive searches are
-performed as if \fB-r\fR was specified.
+If no \fIFILE\fR arguments are specified and one of the options \fB-z\fR,
+\fB-l\fR, \fB-L\fR, \fB-g\fR, \fB-O\fR, \fB-M\fR, \fB-t\fR, \fB--include\fR,
+\fB--include-dir\fR, \fB--exclude\fR, or \fB--exclude-dir\fR is specified,
+recursive searches are performed as if \fB-R\fR was specified.
 .PP
 A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
 arguments, allowing filenames to begin with a `-' character.

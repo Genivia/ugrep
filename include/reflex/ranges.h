@@ -28,10 +28,15 @@
 
 /**
 @file      ranges.h
-@brief     RE/flex range closed and open-ended set containers
+@brief     RE/flex range sets as closed and open-ended set containers
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2015-2017, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
+
+Open-ended ranges are more efficient than `std::set` when the values stored are
+adjacent (e.g. integers 2 and 3 are adjacent), since `std::set` stores values
+individually whereas open-ended ranges merges adjacent values into ranges.
+This lowers storage overhead and reduces insertion, deletion, and search time.
 */
 
 #ifndef REFLEX_RANGES_H
@@ -42,7 +47,7 @@
 
 namespace reflex {
 
-/// Functor to order ranges in the reflex::Ranges set container.
+/// Functor to define a total order on ranges (intervals) represented by pairs.
 template<typename T>
 struct range_compare {
   /// Compares two ranges lhs and rhs and returns true if lhs < rhs.
@@ -58,7 +63,7 @@ struct range_compare {
 
 /// RE/flex Ranges template class.
 /**
-The `std::set` container is a base class of this Ranges class.  Value ranges
+The `std::set` container is the base class of this Ranges class.  Value ranges
 [lo,hi] are stored in the underlying `std::set` container as a pair of bounds
 `std::pair(lo, hi)`.
 
@@ -527,12 +532,12 @@ class Ranges : public std::set< std::pair<T,T>,range_compare<T> > {
 /// RE/flex ORanges (open-ended, ordinal value range) template class.
 /**
 The ORanges class is an optimization of the ranges class for ordinal types,
-i.e. types with the property that values can be counted (enumerable, i.e.
+i.e. types with the property that values can be counted (enumerable, e.g.
 integers and enumerations).
 
 The optimization merges adjacent ranges.  Two ranges `[a,b]` and `[c,d]` are
 adjacent when `b+1=c`.  It is safe to merge adjacent ranges over values of an
-ordinal type, because `[a,b]<+>[b+1,c]=[a,c]` with `<+>` representing range
+ordinal type, because `[a,b](+)[b+1,c]=[a,c]` with `(+)` representing range
 merging (set union).
 
 By storing open-ended ranges `[lo,hi+1)` in the ranges class container,
@@ -540,7 +545,7 @@ adjacent ranges are merged automatically by the fact that the bounds of
 open-ended adjacent ranges overlap.
 
 In addition to the methods inherited from the Range base class, open-ended
-ranges can be updated by erasing ranges:
+ranges can be updated by deleting ranges from the set with:
 
 - `bool erase(const bound_type& lo, const bound_type& hi)` erases a range from
   this set of open-ended ranges.  Returns true if the set was updated.
@@ -554,9 +559,10 @@ ranges can be updated by erasing ranges:
 - `ORanges operator-(const ORanges& rs) const` returns difference, i.e. ranges
   rs erased from this set of open-ended ranges.
 
-Open-ended ranges are more efficient than `std::set` when values are adjacent,
-since `std::set` stores values individually whereas open-ended ranges merges
-adjacent values thereby reducing storage overhead and saving search time.
+Open-ended ranges are more efficient than `std::set` when the values stored are
+adjacent (e.g. integers 2 and 3 are adjacent), since `std::set` stores values
+individually whereas open-ended ranges merges adjacent values into ranges.
+This lowers storage overhead and reduces insertion, deletion, and search time.
 
 We can iterate over open-ended ranges.  The iterator dereferences values are
 `[lo,hi+1)` pairs, i.e. `lo = i->first` and `hi = i->second - 1`.
@@ -566,8 +572,9 @@ maximum representable value minus 1.  For example, `reflex::ORanges<char>`
 holds values -128 to 126 and excludes 127.  The macro WITH_ORANGES_CLAMPED can
 be defined to use this library such that the maximum value is clamped to
 prevent overflow, e.g. `reflex::ORanges<char> ch = 127` is clamped to 126.
-Though this feature should not be required when the library is used properly
-with sufficiently wide container value types.
+However, this still excludes 127 from the range set.  This feature should not
+be required when the library is used with sufficiently wide container value
+types.
 
 Example:
 

@@ -1,4 +1,4 @@
-AC_INIT(ugrep,1.7)
+AC_INIT(ugrep,1.8)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
 AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
@@ -139,6 +139,75 @@ else
 fi
 
 AC_SUBST(EXTRA_CFLAGS)
+
+AC_ARG_ENABLE(avx,
+  [AC_HELP_STRING([--disable-avx],
+                  [disable AVX optimizations])],
+  [with_no_avx="yes"],
+  [with_no_avx="no"])
+AC_MSG_CHECKING(for --disable-avx)
+if test "x$with_no_avx" = "xno"; then
+  AC_MSG_RESULT(no)
+  AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n;]])],
+                    [mavx_ok=yes],
+                    [mavx_ok=no])
+  AC_MSG_RESULT($mavx_ok)
+  if test "x$mavx_ok" = "xyes"; then
+    SIMD_FLAGS="-mavx2 -DHAVE_AVX"
+  fi
+else
+  AC_MSG_RESULT(yes)
+  SIMD_FLAGS=
+fi
+
+if test "x$SIMD_FLAGS" = "x"; then
+AC_ARG_ENABLE(sse2,
+  [AC_HELP_STRING([--disable-sse2],
+                  [disable SSE2 optimizations])],
+  [with_no_sse2="yes"],
+  [with_no_sse2="no"])
+AC_MSG_CHECKING(for --disable-sse2)
+if test "x$with_no_sse2" = "xno"; then
+  AC_MSG_RESULT(no)
+  AC_MSG_CHECKING([whether ${CXX} supports SSE2 intrinsics])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <emmintrin.h>]], [[__m128i n;]])],
+                    [msse2_ok=yes],
+                    [msse2_ok=no])
+  AC_MSG_RESULT($msse2_ok)
+  if test "x$msse2_ok" = "xyes"; then
+    SIMD_FLAGS="-msse2 -DHAVE_SSE2"
+  fi
+else
+  AC_MSG_RESULT(yes)
+  SIMD_FLAGS=
+fi
+fi
+
+if test "x$SIMD_FLAGS" = "x"; then
+AC_ARG_ENABLE(neon,
+  [AC_HELP_STRING([--disable-neon],
+                  [disable ARM NEON optimizations])],
+  [with_no_neon="yes"],
+  [with_no_neon="no"])
+AC_MSG_CHECKING(for --disable-neon)
+if test "x$with_no_neon" = "xno"; then
+  AC_MSG_RESULT(no)
+  AC_MSG_CHECKING([whether ${CXX} supports ARM NEON intrinsics])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint8x16_t n;]])],
+                    [mneon_ok=yes],
+                    [mneon_ok=no])
+  AC_MSG_RESULT($mneon_ok)
+  if test "x$mneon_ok" = "xyes"; then
+    SIMD_FLAGS="-mfpu=neon-vfpv4 -DHAVE_NEON"
+  fi
+else
+  AC_MSG_RESULT(yes)
+  SIMD_FLAGS=
+fi
+fi
+
+AC_SUBST(SIMD_FLAGS)
 
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])

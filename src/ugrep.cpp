@@ -70,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.6"
+#define UGREP_VERSION "1.7.7"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -4558,10 +4558,6 @@ int main(int argc, char **argv)
   else
     help("invalid argument --directories=ACTION, valid arguments are 'read', 'recurse', 'dereference-recurse', and 'skip'");
 
-  // normalize -p (--no-dereference) and -S (--dereference) options, -p taking priority over -S
-  if (flag_no_dereference)
-    flag_dereference = false;
-
   // normalize --cpp, --csv, --json, --xml
   if (flag_cpp)
   {
@@ -5137,10 +5133,6 @@ int main(int argc, char **argv)
 
 #endif
 
-  // if no FILE specified and reading standard input from a TTY but one or more of -g, -O, -m, -t, --include, --include-dir, --exclude, --exclude dir: enable -dRECURSE
-  if (!flag_stdin && files.empty() && (!flag_include.empty() || !flag_include_dir.empty() || !flag_exclude.empty() || !flag_exclude_dir.empty() || !flag_file_magic.empty()) && isatty(STDIN_FILENO))
-    flag_directories_action = Action::RECURSE;
-
   // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
   if (!flag_no_filename && (flag_directories_action == Action::RECURSE || files.size() > 1 || (flag_stdin && !files.empty())))
     flag_with_filename = true;
@@ -5176,6 +5168,17 @@ int main(int argc, char **argv)
     flag_with_filename = true;
     flag_count = false;
   }
+
+  // if no FILE specified and reading standard input from a TTY but one or more of -z, -l, -L, -g, -O, -m, -t, --include, --include-dir, --exclude, --exclude dir: enable -R
+  if (!flag_stdin && files.empty() && (flag_decompress || flag_files_with_match || !flag_include.empty() || !flag_include_dir.empty() || !flag_exclude.empty() || !flag_exclude_dir.empty() || !flag_file_magic.empty()) && isatty(STDIN_FILENO))
+  {
+    flag_directories_action = Action::RECURSE;
+    flag_dereference = true;
+  }
+
+  // normalize -p (--no-dereference) and -S (--dereference) options, -p taking priority over -S
+  if (flag_no_dereference)
+    flag_dereference = false;
 
   // -J: when not set the default is the number of cores (or hardware threads), limited to MAX_JOBS
   if (flag_jobs == 0)
@@ -8018,8 +8021,8 @@ void help(const char *message, const char *arg)
     --json\n\
             Output file matches in JSON.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
-    -K FROM[,END], --range=FROM[,END]\n\
-            Start searching at line FROM; stops at line END when specified.\n\
+    -K FIRST[,LAST], --range=FIRST[,LAST]\n\
+            Start searching at line FIRST; stops at line LAST when specified.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -8214,7 +8217,7 @@ void help(const char *message, const char *arg)
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
-            .jar, .pax, .tar, .zip) and compressed archives (e.g. .taz, .tgz,\n\
+            .pax, .tar, and .zip) and compressed archives (e.g. .taz, .tgz,\n\
             .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and\n\
             matching pathnames of files in archives are output in braces.  If\n\
             -g, -O, -M, or -t is specified, searches files within archives\n\
@@ -8256,17 +8259,24 @@ void help(const char *message, const char *arg)
 void version()
 {
   std::cout << "ugrep " UGREP_VERSION " " PLATFORM <<
+#if defined(HAVE_AVX)
+    (reflex::Matcher::has_HW_AVX() ? " +avx" : reflex::Matcher::has_HW_SSE2() ?  " +sse2" : " (-avx)") <<
+#elif defined(HAVE_SSE2)
+    (reflex::Matcher::has_HW_SSE2() ?  " +sse2" : " (-sse2)") <<
+#elif defined(HAVE_NEON)
+    " +neon" <<
+#endif
 #ifdef HAVE_BOOST_REGEX
-    " +libboost_regex" <<
+    " +boost_regex" <<
 #endif
 #ifdef HAVE_LIBZ
-    " +libz" <<
+    " +zlib" <<
 #endif
 #ifdef HAVE_LIBBZ2
-    " +libbz2" <<
+    " +bzip2" <<
 #endif
 #ifdef HAVE_LIBLZMA
-    " +liblzma" <<
+    " +lzma" <<
 #endif
     "\n"
     "License BSD-3-Clause: <https://opensource.org/licenses/BSD-3-Clause>\n"

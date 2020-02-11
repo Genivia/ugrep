@@ -7,9 +7,8 @@ if [ ! -x "../src/ugrep" ] ; then
   exit 1
 fi
 
-printf "Are you sure to overwrite all test cases with new ones? [y/n] "
-read -rsn1 key < /dev/tty
-case $key in 
+read -p "Are you sure to overwrite all test cases with new ones? [y/n] " -rsn1 key < /dev/tty
+case $key in
   y|Y)
     echo yes
     ;;
@@ -145,7 +144,12 @@ $UG -z -c -tShell Hello archive.tlz     > out/archive-t.tlz.out
 $UG -z -c -tShell Hello archive.txz     > out/archive-t.txz.out
 
 for (( i = 0 ; i < 100000 ; i++ )) ; do
-  echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+  echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit.  Nunc hendrerit at metus sit amet aliquam."
 done | gzip -c > archive.gz
 
 $UG -z -c '' archive.gz > out/archive.gz.out
+
+for PAT in '.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at metus sit amet aliquam'; do
+  FN=`echo "archive_$PAT" | tr -Cd '[:alnum:]_'`
+  $UG -z -Fco "$PAT" archive.gz > out/$FN-Fco.gz.out
+done

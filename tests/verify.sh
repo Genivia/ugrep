@@ -12,6 +12,8 @@ if [ ! -e ../config.h ] ; then
   exit 1
 fi
 
+$UG --version | head -n1
+
 if $UG -Fq 'HAVE_BOOST_REGEX 1' ../config.h ; then
   have_boost_regex=yes
 else
@@ -263,6 +265,11 @@ fi
 if [ "$have_libz" == yes ]; then
 printf .
 $UG -z -c '' archive.gz | $DIFF out/archive.gz.out || ERR "-z -c '' archive.gz"
+for PAT in '.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at metus sit amet aliquam'; do
+  FN=`echo "archive_$PAT" | tr -Cd '[:alnum:]_'`
+  printf .
+  $UG -z -Fco "$PAT" archive.gz | $DIFF out/$FN-Fco.gz.out || ERR "-z -Fco \"$PAT\" archive.gz"
+done
 fi
 
 echo

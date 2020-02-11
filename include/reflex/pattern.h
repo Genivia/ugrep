@@ -773,8 +773,9 @@ class Pattern {
   const Opcode         *opc_; ///< points to the opcode table
   Index                 nop_; ///< number of opcodes generated
   FSM                   fsm_; ///< function pointer to FSM code
-  std::string           pre_; ///< pattern prefix, no more than 255 bytes
+  size_t                len_; ///< prefix length of pre_[], less or equal to 255
   size_t                min_; ///< patterns after the prefix are at least this long but no more than 8
+  char                  pre_[256];         ///< pattern prefix, shorter or equal to 255 bytes
   Pred                  bit_[256];         ///< bitap array
   Pred                  pmh_[Const::HASH]; ///< predict-match hash array
   Pred                  pma_[Const::HASH]; ///< predict-match array
@@ -782,6 +783,7 @@ class Pattern {
   float                 vms_; ///< ms elapsed time to compile DFA vertices
   float                 ems_; ///< ms elapsed time to compile DFA edges
   float                 wms_; ///< ms elapsed time to assemble code words
+  bool                  one_; ///< true if matching one string in pre_[] without meta/anchors
 };
 
 } // namespace reflex

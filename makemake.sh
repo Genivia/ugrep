@@ -14,4 +14,5 @@ autoheader
 automake --add-missing --foreign
 autoconf
 automake
+touch config.h.in
 ./configure --enable-color
