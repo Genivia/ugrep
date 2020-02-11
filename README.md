@@ -3,13 +3,16 @@
 Universal grep ("uber grep")
 ============================
 
+Search everything for anything... fast.
+
+<br>
 <div align="center">
 <img src="https://www.genivia.com/images/scr1.png" width="438" alt="">
 <img src="https://www.genivia.com/images/scr2.png" width="438" alt="">
 <br>
-ugrep source code, shell scripts, text files, etc.
+search source code, shell scripts, text files, and more
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-ugrep cpio, pax, tar, zip archives and compressed files
+search cpio, pax, tar, zip archives and compressed files
 </div>
 <br>
 <div>
@@ -17,9 +20,9 @@ ugrep cpio, pax, tar, zip archives and compressed files
 <img src="https://www.genivia.com/images/scr3.png" width="438" alt="">
 <img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
 <br>
-ugrep binary files (displayed as hexdumps)
+search binary files (displayed as hexdumps)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-ugrep pdf and office documents using filters
+search pdf and office documents using filters
 </div>
 <br>
 
@@ -30,7 +33,7 @@ ugrep pdf and office documents using filters
 - Faster than GNU/BSD/PCRE grep, beating ripgrep, silver searcher, etc.
 - Multi-threaded search using high-performance lock-free job queue stealing
 - Multi-threaded decompression and search of decompressed streams
-- Optimized with SIMD string matching (AVX, SSE2, ARM NEON)
+- Optimized with SIMD string matching (AVX, SSE2, ARM NEON/AArch64)
 - Optimized non-blocking asynchronous IO
 - Select files to search by file types, filename suffix, and/or "magic bytes"
 - Search archives (cpio, jar, tar, pax, zip)
@@ -268,7 +271,7 @@ GREP            | T1       | T2       | T3       | T4       | T5       | T6     
 --------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
 BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 GNU grep 3.3    | 0.08     | 0.15     | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
-PCREGREP 8.42   | 0.17     | 0.07     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | 2.47     | *n/a*    |
+PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | 2.47     | *n/a*    |
 silver searcher | 0.10     | 0.11     | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
 ripgep          | 0.06     | 0.10     | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
 ugrep           | **0.05** | **0.06** | **0.08** | **0.03** | **0.99** | **0.97** | **0.87** | **0.89** | **0.30** | **0.10** | **0.19** | **0.02** |
