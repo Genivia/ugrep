@@ -70,7 +70,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.8"
+#define UGREP_VERSION "1.7.9"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -355,8 +355,9 @@ bool color_term = false;
 #ifndef OS_WIN
 static void sigint_reset_tty(int)
 {
+  // be nice, reset colors on interrupt when sending output to a color TTY
   if (color_term)
-    write(1, "\033[0m", 4);
+    (void)write(1, "\033[0m", 4);
   signal(SIGINT, SIG_DFL);
   kill(getpid(), SIGINT);
 }
@@ -3152,7 +3153,7 @@ struct Grep {
         matcher->buffer();
     }
 
-    // -K=NUM1[,NUM2]: start searching at line NUM1
+    // --range=NUM1[,NUM2]: start searching at line NUM1
     for (size_t i = flag_min_line; i > 1; --i)
       if (!matcher->skip('\n'))
         break;
@@ -3773,6 +3774,8 @@ int main(int argc, char **argv)
               flag_min_steal = strtopos(arg + 10, "invalid argument --min-steal=");
             else if (strcmp(arg, "mmap") == 0)
               flag_max_mmap = MAX_MMAP_SIZE;
+            else if (strncmp(arg, "neg-regexp=", 11) == 0)
+              flag_neg_regexp.emplace_back(arg + 11);
             else if (strcmp(arg, "no-dereference") == 0)
               flag_no_dereference = true;
             else if (strcmp(arg, "no-filename") == 0)
@@ -3785,8 +3788,6 @@ int main(int argc, char **argv)
               flag_no_messages = true;
             else if (strcmp(arg, "no-mmap") == 0)
               flag_max_mmap = 0;
-            else if (strncmp(arg, "neg-regexp=", 11) == 0)
-              flag_neg_regexp.emplace_back(arg + 11);
             else if (strcmp(arg, "null") == 0)
               flag_null = true;
             else if (strcmp(arg, "only-line-number") == 0)
@@ -5223,8 +5224,12 @@ int main(int argc, char **argv)
 
   try
   {
-    // -U: set flags to convert regex to Unicode
-    reflex::convert_flag_type convert_flags = flag_binary ? reflex::convert_flag::none : reflex::convert_flag::unicode;
+    // negative character classes do not match newlines
+    reflex::convert_flag_type convert_flags = reflex::convert_flag::notnewline;
+
+    // not -U: convert regex to Unicode
+    if (!flag_binary)
+      convert_flags |= reflex::convert_flag::unicode;
 
     // -G: convert basic regex (BRE) to extended regex (ERE)
     if (flag_basic_regexp)
@@ -6000,7 +6005,7 @@ void Grep::search(const char *pathname)
 
         matches = matcher->find() != 0;
 
-        // -K: max line exceeded?
+        // --range: max line exceeded?
         if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
           matches = 0;
 
@@ -6067,7 +6072,7 @@ void Grep::search(const char *pathname)
 
             while (matcher->find())
             {
-              // -K: max line exceeded?
+              // --range: max line exceeded?
               if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
                 break;
 
@@ -6090,7 +6095,7 @@ void Grep::search(const char *pathname)
 
               if (lineno != current_lineno)
               {
-                // -K: max line exceeded?
+                // --range: max line exceeded?
                 if (flag_max_line > 0 && current_lineno > flag_max_line)
                   break;
 
@@ -6176,7 +6181,7 @@ void Grep::search(const char *pathname)
 
         while (matcher->find())
         {
-          // -K: max line exceeded?
+          // --range: max line exceeded?
           if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
             break;
 
@@ -6237,7 +6242,7 @@ void Grep::search(const char *pathname)
 
           if (lineno != current_lineno || flag_ungroup)
           {
-            // -K: max line exceeded?
+            // --range: max line exceeded?
             if (flag_max_line > 0 && current_lineno > flag_max_line)
               break;
 
@@ -6290,7 +6295,7 @@ void Grep::search(const char *pathname)
 
           if (lineno != current_lineno || flag_ungroup)
           {
-            // -K: max line exceeded?
+            // --range: max line exceeded?
             if (flag_max_line > 0 && current_lineno > flag_max_line)
               break;
 
@@ -6458,7 +6463,7 @@ void Grep::search(const char *pathname)
               rest_line_data = NULL;
             }
 
-            // -K: max line exceeded?
+            // --range: max line exceeded?
             if (flag_max_line > 0 && current_lineno > flag_max_line)
               break;
 
@@ -6771,7 +6776,7 @@ void Grep::search(const char *pathname)
 
         const char *hex = NULL;
 
-        // -K=NUM1[,NUM2]: start searching at line NUM1
+        // --range=NUM1[,NUM2]: start searching at line NUM1
         if (flag_min_line > 0)
         {
           std::string line;
@@ -6803,7 +6808,7 @@ void Grep::search(const char *pathname)
 
         while (true)
         {
-          // -K: max line exceeded?
+          // --range: max line exceeded?
           if (flag_max_line > 0 && lineno > flag_max_line)
             break;
 
@@ -7705,7 +7710,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
           {
             if (sep)
               *t++ = ';';
-            uint8_t n = offset + k - c;
+            uint8_t n = offset + static_cast<uint8_t>(k - c);
             if (n >= 100)
             {
               *t++ = '1';
@@ -8022,7 +8027,7 @@ void help(const char *message, const char *arg)
             Output file matches in JSON.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
     -K FIRST[,LAST], --range=FIRST[,LAST]\n\
-            Start searching at line FIRST; stops at line LAST when specified.\n\
+            Start searching at line FIRST, stop at line LAST when specified.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -8141,6 +8146,8 @@ void help(const char *message, const char *arg)
             Recursively read all files under each directory, following symbolic\n\
             links only if they are on the command line.  When -J1 is specified,\n\
             files are searched in the same order as specified.\n\
+    --range=FIRST[,LAST]\n\
+            Start searching at line FIRST, stop at line LAST when specified.\n\
     -S, --dereference\n\
             If -r is specified, all symbolic links are followed, like -R.  The\n\
             default is not to follow symbolic links.\n\

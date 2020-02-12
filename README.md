@@ -37,13 +37,13 @@ search pdf and office documents using filters
 - Optimized non-blocking asynchronous IO
 - Select files to search by file types, filename suffix, and/or "magic bytes"
 - Search archives (cpio, jar, tar, pax, zip)
-- Search compressed files (.gz, .Z, .zip, .bz, .bz2, .lzma, .xz)
-- Search pdf, doc, docx, xls, xlxs, and more using filter utilities
+- Search compressed files (.zip, .gz, .Z, .bz, .bz2, .lzma, .xz)
+- Search pdf, doc, docx, xls, xlxs, and more using filters
 - Search binary files and displays hexdumps with binary pattern matches
 - Search UTF-encoded files by supporting Unicode pattern matches
 - Search files encoded in ISO-8859-1 thru 16, CP 437, CP 850, MAC, KOI8, etc.
 - Search files excluding files specified by .gitignore etc.
-- Search patterns across newlines
+- Search patterns across newlines, matching multiple lines at once
 - Search patterns excluding negative patterns ("match this but not that")
 - Includes predefined regex patterns to search source code, XML, JSON, HTML, etc.
 - Generates matches in CSV, JSON, XML, and user-specified formats 
@@ -88,7 +88,7 @@ Table of contents
   - [Output matches in JSON, XML, CSV, C++](#json)
   - [Customized output with --format](#format)
   - [Replacing matches with --format backreferences to group captures](#replace)
-  - [Limiting the number of matches with -K, -m, --max-depth, and --max-files](#max)
+  - [Limiting the number of matches with -m, --max-depth, --max-files, and --range](#max)
   - [Matching empty patterns with -Y](#empty)
   - [Case-insensitive matching with -i and -j](#case)
   - [Tips for advanced users](#tips)
@@ -269,12 +269,12 @@ options are not supported (e.g. option `-z`).
 
 GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      | T11      | T12      |
 --------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
+ugrep           | **0.05** | **0.06** | **0.08** | **0.03** | **0.99** | **0.97** | **0.87** | **0.89** | **0.30** | **0.10** | **0.19** | **0.02** |
+ripgrep         | 0.06     | 0.10     | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
+silver searcher | 0.10     | 0.11     | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
 GNU grep 3.3    | 0.08     | 0.15     | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
 PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | 2.47     | *n/a*    |
-silver searcher | 0.10     | 0.11     | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
-ripgep          | 0.06     | 0.10     | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
-ugrep           | **0.05** | **0.06** | **0.08** | **0.03** | **0.99** | **0.97** | **0.87** | **0.89** | **0.30** | **0.10** | **0.19** | **0.02** |
+BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 
 The output is sent to a `null` utility to eliminate terminal display overhead:
 
@@ -310,7 +310,7 @@ Clone **ugrep** from https://github.com/Genivia/ugrep
 Build **ugrep** on Unix-like systems with:
 
     $ cd ugrep
-    $ ./configure && make -j
+    $ ./configure && make -j clean all
 
 This builds `ugrep` in the `ugrep/src` directory and copies it to `ugrep/bin`.
 Make sure all tests pass on your system:
@@ -366,12 +366,12 @@ you may run into "WARNING: 'aclocal-1.15' is missing on your system."
 To work around this problem, run:
 
     $ autoreconf -fi
-    $ ./configure --enable-color && make -j
+    $ ./configure --enable-color && make -j clean all
 
 If you get an error that `autoheader` was not found when running `make`, try:
 
     $ touch config.h.in
-    $ make -j
+    $ make -j clean all
 
 <a name="binaries"/>
 
@@ -514,7 +514,7 @@ not support Unicode!):
     zfgrep = ugrep -J1 -F -U -Y -z
 
 Option `-J1` specifies one thread of execution to produce the exact same output
-ordering as GNU/BSD grep at the cost of lower performance and `-Y` enables
+ordering as GNU/BSD grep at the cost of lower performance, and `-Y` enables
 empty matches for GNU/BSD compatibility (`-Y` is not strictly necessary, see
 [further below](#improvements).)
 
@@ -631,7 +631,7 @@ This search query also finds `main` in strings and comment blocks.  With
 **ugrep** we can use *negative patterns* with option `-N` to skip unwanted
 matches in C/C++ quoted strings and comment blocks:
 
-    ugrep -r -nkw 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|(\*+[^*/]))*\*+\/' myproject
+    ugrep -r -nkw 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
 
 This is a lot of work to type in correctly!  If you are like me, I'm lazy and
 don't want to spend time fiddling with regex patterns when I am working on
@@ -953,12 +953,12 @@ Note that regex patterns are always specified in UTF-8 (includes ASCII).  To
 search binary files with binary patterns, see
 [searching and displaying binary files with -U, -W, and -X](#binary).
 
-To recursively list all files and symlinks that are ASCII (i.e. 7-bit):
+To recursively list all files that are ASCII (i.e. 7-bit):
 
     ugrep -RL '[^[:ascii:]]'
 
-To recursively list all files and symlinks that are non-ASCII, i.e. UTF-8,
-UTF-16, and UTF-32 files with non-ASCII Unicode characters (U+0080 and up):
+To recursively list all files that are non-ASCII, i.e. UTF-8, UTF-16, and
+UTF-32 files with non-ASCII Unicode characters (U+0080 and up):
 
     ugrep -Rl '[^[:ascii:]]'
 
@@ -1023,7 +1023,7 @@ lines(s) that match.
 
 To match C/C++ `/*...*/` multi-line comments, color highlighted:
 
-    ugrep --color '/\*([^*]|(\*+[^*/]))*\*+\/' myfile.cpp
+    ugrep --color '/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myfile.cpp
 
 To match C/C++ comments using the predefined `c/comments` patterns with
 `-f c/comments`, restricted to the matching part only with option `-o`:
@@ -2194,12 +2194,12 @@ commas with field `%,`:
 To output the matching part of a line only with field `%o` (or option `-o` with
 field `%O`):
 
-    ugrep --format='%o%~' "href=[\"'][^\"'\n][\"']" index.html
+    ugrep --format='%o%~' "href=[\"'][^\"'][\"']" index.html
 
 To string together the pattern matches as CSV-formatted strings with field `%v`
 separated by commas with field `%,`:
 
-    ugrep --format='%,%v' "href=[\"'][^\"'\n][\"']" index.html
+    ugrep --format='%,%v' "href=[\"'][^\"'][\"']" index.html
 
 To output matches in CSV (comma-separated values), the same as option `--csv`
 (works with options `-H`, `-n`, `-k`, `-b` to add CSV values):
@@ -2244,7 +2244,7 @@ Same, but displaying the replaced matches line-by-line:
 To collect all `href` URLs from all HTML and PHP files down the working
 directory, then sort them:
 
-    ugrep -R -thtml,php -P '<[^<>\n]+href\h*=\h*.([^\x27"\n]+).' --format='%1%~' | sort -u
+    ugrep -R -thtml,php -P '<[^<>]+href\h*=\h*.([^\x27"]+).' --format='%1%~' | sort -u
 
 Same, but much easier by using the predefined `html/href` pattern:
 
@@ -2253,14 +2253,12 @@ Same, but much easier by using the predefined `html/href` pattern:
 Likewise, but in this case select `<script>` `src` URLs when referencing `http`
 and `https` sites:
 
-    ugrep -R -thtml,php -P '<script.*src\h*=\h*.(https?:[^\x27"\n]+).' --format='%1%~' | sort -u
+    ugrep -R -thtml,php -P '<script.*src\h*=\h*.(https?:[^\x27"]+).' --format='%1%~' | sort -u
 
 <a name="max"/>
 
-### Limiting the number of matches with -K, -m, --max-depth, and --max-files
+### Limiting the number of matches with -m, --max-depth, --max-files, and --range
 
-    -K NUM1[,NUM2], --range=NUM1[,NUM2]
-            Start searching at line NUM1; stops at line NUM2 when specified.
     -m NUM, --max-count=NUM
             Stop reading the input after NUM matches for each file processed.
     --max-depth=NUM
@@ -2272,6 +2270,8 @@ and `https` sites:
             If -R or -r is specified, restrict the number of files matched to
             NUM.  Specify -J1 to produce replicable results by ensuring that
             files are searched in the same order as specified.
+    --range=NUM1[,NUM2]
+            Start searching at line NUM1; stops at line NUM2 when specified.
 
 To show only the first 10 matches of `FIXME` in C++ files in the working
 directory and all sub-directories below:
@@ -2289,25 +2289,25 @@ parallel search with `-J1` and use `--max-files=1`:
     ugrep -J1 -R --max-files=1 -tc++ FIXME
 
 To search file `install.sh` for the occurrences of the word `make` after the
-first line, we use `-K` (`--range`) with line number 2 to start searching,
+first line, we use `--range` with line number 2 to start searching,
 where `-n` shows the line numbers in the output:
 
-    ugrep -n -K2 -w make install.sh
+    ugrep -n --range=2 -w make install.sh
 
 Same, but restricting the search to lines 2 to 40 (inclusive):
 
-    ugrep -n -K2,40 -w make install.sh
+    ugrep -n --range=2,40 -w make install.sh
 
 Same, but showing all lines 2 to 40 with `-y` and showing the matches in color:
 
-    ugrep --color -y -n -K2,40 -w make install.sh
+    ugrep --color -y -n --range=2,40 -w make install.sh
 
 Same, but showing only the first four matching lines after line 2, with one
 line of context:
 
-    ugrep -n -C1 -K2 -m4 -w make install.sh
+    ugrep -n -C1 --range=2 -m4 -w make install.sh
 
-<a name="empty"/>
+<a name="newline"/>
 
 ### Matching empty patterns with -Y
 
@@ -2317,10 +2317,11 @@ line of context:
             when specified with an empty-matching pattern such as x? and x*,
             match all input, not only lines with a `x'.
 
-Option `-Y` permits empty pattern matches.  This option is introduced by
-**ugrep** to prevent accidental matching with empty patterns: empty-matching
-patterns such as `x?` and `x*` match all input, not only lines with `x`.  By
-default, without `-Y`, patterns match lines with at least one `x` as intended.
+Option `-Y` permits empty pattern matches, like GNU/BSD grep.  This option is
+introduced by **ugrep** to prevent accidental matching with empty patterns:
+empty-matching patterns such as `x?` and `x*` match all input, not only lines
+with `x`.  By default, without `-Y`, patterns match lines with at least one `x`
+as intended.
 
 This option is automatically enabled when a pattern starts with `^` and ends
 with `$` is specified.  For example, `^\h*$` matches blank lines, including
@@ -2337,15 +2338,15 @@ implicitly enabled since the pattern starts with `^` and ends with `$`):
 ### Case-insentitive matching with -i and -j
 
     -i, --ignore-case
-           Perform case insensitive matching.  By default, ugrep is case
-           sensitive.  This option applies to ASCII letters only.
+            Perform case insensitive matching.  By default, ugrep is case
+            sensitive.  This option applies to ASCII letters only.
     -j, --smart-case
-           Perform case insensitive matching unless a pattern contains an
-           upper case letter.  This option applies to ASCII letters only.
+            Perform case insensitive matching unless a pattern contains an
+            upper case letter.  This option applies to ASCII letters only.
 
     POSIX regular expression syntax
 
-           (?i:φ) matches φ ignoring case
+            (?i:φ) matches φ ignoring case
 
 To match `todo` in `myfile.cpp` regardless of case:
 
@@ -2408,14 +2409,14 @@ To list all markdown sections in text files (.text, .txt, .TXT, and .md):
     ugrep -R -o -ttext -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*'
 
 To display multi-line backtick and indented code blocks in markdown files with
-their line numbers:
+their line numbers, using a lazy quantifier `*?` to make the pattern compact:
 
-    ugrep -R -o -n -ttext -e '^```([^`]|`[^`]|``[^`])+\n```' -e '^(\t|[ ]{4}).*'
+    ugrep -R -n -ttext -e '^```(.|\n)*?\n```' -e '^(\t|[ ]{4}).*'
 
 To find mismatched code (a backtick without matching backtick on the same line)
 in markdown:
 
-    ugrep -R -o -n -ttext -e '`[^`]+`' -N '`[^`\n]*`'
+    ugrep -R -n -ttext -e '`[^`]+' -N '`[^`]*`'
 
 <a name="man"/>
 
@@ -2719,8 +2720,7 @@ in markdown:
                   additional values are output.  See also options --format and -u.
 
            -K FIRST[,LAST], --range=FIRST[,LAST]
-                  Start searching at line FIRST; stops at line  LAST  when  speci-
-                  fied.
+                  Start searching at line FIRST, stop at line LAST when specified.
 
            -k, --column-number
                   The  column number of a matched pattern is displayed in front of
@@ -2864,48 +2864,51 @@ in markdown:
                   bolic links only if they are on the command line.  When  -J1  is
                   specified, files are searched in the same order as specified.
 
+           --range=FIRST[,LAST]
+                  Start searching at line FIRST, stop at line LAST when specified.
+
            -S, --dereference
-                  If  -r  is  specified, all symbolic links are followed, like -R.
+                  If -r is specified, all symbolic links are  followed,  like  -R.
                   The default is not to follow symbolic links.
 
            -s, --no-messages
-                  Silent mode: nonexistent and unreadable files are ignored,  i.e.
+                  Silent  mode: nonexistent and unreadable files are ignored, i.e.
                   their error messages are suppressed.
 
            --separator[=SEP]
-                  Use  SEP as field separator between file name, line number, col-
+                  Use SEP as field separator between file name, line number,  col-
                   umn number, byte offset, and the matched line.  The default is a
                   colon (`:').
 
            --stats
-                  Display  statistics  on  the  number  of  files  and directories
+                  Display statistics  on  the  number  of  files  and  directories
                   searched, and the inclusion and exclusion constraints applied.
 
            -T, --initial-tab
-                  Add a tab space to separate the file name, line  number,  column
+                  Add  a  tab space to separate the file name, line number, column
                   number, and byte offset with the matched line.
 
            -t TYPES, --file-type=TYPES
-                  Search  only files associated with TYPES, a comma-separated list
-                  of file types.  Each file type corresponds to a set of  filename
+                  Search only files associated with TYPES, a comma-separated  list
+                  of  file types.  Each file type corresponds to a set of filename
                   extensions passed to option -O.  For capitalized file types, the
                   search is expanded to include files with matching file signature
-                  magic  bytes,  as  if  passed to option -M.  When a type is pre-
-                  ceeded by a `!' or a `^', excludes files of the specified  type.
-                  This  option  may  be  repeated.  The possible file types can be
-                  (where -tlist displays a detailed list): `actionscript',  `ada',
-                  `asm',  `asp',  `aspx',  `autoconf',  `automake',  `awk', `Awk',
-                  `basic', `batch',  `bison',  `c',  `c++',  `clojure',  `csharp',
+                  magic bytes, as if passed to option -M.  When  a  type  is  pre-
+                  ceeded  by a `!' or a `^', excludes files of the specified type.
+                  This option may be repeated.  The possible  file  types  can  be
+                  (where  -tlist displays a detailed list): `actionscript', `ada',
+                  `asm', `asp',  `aspx',  `autoconf',  `automake',  `awk',  `Awk',
+                  `basic',  `batch',  `bison',  `c',  `c++',  `clojure', `csharp',
                   `css',  `csv',  `dart',  `Dart',  `delphi',  `elisp',  `elixir',
-                  `erlang',  `fortran',  `gif',  `Gif',  `go',  `groovy',   `gsp',
+                  `erlang',   `fortran',  `gif',  `Gif',  `go',  `groovy',  `gsp',
                   `haskell', `html', `jade', `java', `jpeg', `Jpeg', `js', `json',
-                  `jsp', `julia', `kotlin', `less', `lex',  `lisp',  `lua',  `m4',
-                  `make',  `markdown', `matlab', `node', `Node', `objc', `objc++',
+                  `jsp',  `julia',  `kotlin',  `less', `lex', `lisp', `lua', `m4',
+                  `make', `markdown', `matlab', `node', `Node', `objc',  `objc++',
                   `ocaml',  `parrot',  `pascal',  `pdf',  `Pdf',  `perl',  `Perl',
-                  `php',  `Php',  `png', `Png', `prolog', `python', `Python', `r',
-                  `rpm', `Rpm',  `rst',  `rtf',  `Rtf',  `ruby',  `Ruby',  `rust',
-                  `scala',  `scheme', `shell', `Shell', `smalltalk', `sql', `svg',
-                  `swift', `tcl', `tex',  `text',  `tiff',  `Tiff',  `tt',  `type-
+                  `php', `Php', `png', `Png', `prolog', `python',  `Python',  `r',
+                  `rpm',  `Rpm',  `rst',  `rtf',  `Rtf',  `ruby',  `Ruby', `rust',
+                  `scala', `scheme', `shell', `Shell', `smalltalk', `sql',  `svg',
+                  `swift',  `tcl',  `tex',  `text',  `tiff',  `Tiff', `tt', `type-
                   script', `verilog', `vhdl', `vim', `xml', `Xml', `yacc', `yaml'.
 
            --tabs=NUM
@@ -2914,12 +2917,12 @@ in markdown:
 
            -U, --binary
                   Disables Unicode matching for binary file matching, forcing PAT-
-                  TERN to match bytes, not Unicode characters.   For  example,  -U
-                  '\xa3'  matches  byte A3 (hex) instead of the Unicode code point
+                  TERN  to  match  bytes, not Unicode characters.  For example, -U
+                  '\xa3' matches byte A3 (hex) instead of the Unicode  code  point
                   U+00A3 represented by the two-byte UTF-8 sequence C2 A3.
 
            -u, --ungroup
-                  Do not group multiple pattern matches on the same matched  line.
+                  Do  not group multiple pattern matches on the same matched line.
                   Output the matched line again for each additional pattern match,
                   using `+' as the field separator.
 
@@ -2927,17 +2930,17 @@ in markdown:
                   Display version information and exit.
 
            -v, --invert-match
-                  Selected lines are those not matching any of the specified  pat-
+                  Selected  lines are those not matching any of the specified pat-
                   terns.
 
            -W, --with-hex
-                  Output  binary  matches  in  hexadecimal,  leaving  text matches
+                  Output binary  matches  in  hexadecimal,  leaving  text  matches
                   alone.  This option is equivalent to the --binary-files=with-hex
                   option.
 
            -w, --word-regexp
-                  The  PATTERN  is  searched for as a word (as if surrounded by \<
-                  and \>).  If a PATTERN is specified (or -e PATTERN  or  -N  PAT-
+                  The PATTERN is searched for as a word (as if  surrounded  by  \<
+                  and  \>).   If  a PATTERN is specified (or -e PATTERN or -N PAT-
                   TERN), then this option does not apply to -f FILE patterns.
 
            -X, --hex
@@ -2945,61 +2948,61 @@ in markdown:
                   --binary-files=hex option.  See also option --hexdump.
 
            -x, --line-regexp
-                  Only input lines selected against the entire PATTERN is  consid-
-                  ered  to  be matching lines (as if surrounded by ^ and $).  If a
-                  PATTERN is specified (or -e PATTERN or -N  PATTERN),  then  this
+                  Only  input lines selected against the entire PATTERN is consid-
+                  ered to be matching lines (as if surrounded by ^ and $).   If  a
+                  PATTERN  is  specified  (or -e PATTERN or -N PATTERN), then this
                   option does not apply to -f FILE patterns.
 
-           --xml  Output  file matches in XML.  If -H, -n, -k, or -b is specified,
+           --xml  Output file matches in XML.  If -H, -n, -k, or -b is  specified,
                   additional values are output.  See also options --format and -u.
 
            -Y, --empty
-                  Permits  empty matches.  By default, empty matches are disabled,
-                  unless a pattern begins with `^' and ends with `$'.   Note  that
-                  -Y  when specified with an empty-matching pattern such as x? and
+                  Permits empty matches.  By default, empty matches are  disabled,
+                  unless  a  pattern begins with `^' and ends with `$'.  Note that
+                  -Y when specified with an empty-matching pattern such as x?  and
                   x*, match all input, not only lines with a `x'.
 
            -y, --any-line
                   Any matching or non-matching line is output.  Non-matching lines
-                  are  output  with  the  `-' separator as context of the matching
-                  lines.  See also options -A, -B, and  -C.   Disables  multi-line
+                  are output with the `-' separator as  context  of  the  matching
+                  lines.   See  also  options -A, -B, and -C.  Disables multi-line
                   matching.
 
            -Z, --null
                   Prints a zero-byte after the file name.
 
            -z, --decompress
-                  Decompress  files  to search, when compressed.  Archives (.cpio,
-                  .pax, .tar, and .zip) and compressed archives (e.g. .taz,  .tgz,
-                  .tpz,  .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and
-                  matching pathnames of files in archives are  output  in  braces.
-                  If  -g,  -O,  -M,  or -t is specified, searches files within ar-
-                  chives whose name matches globs, matches file  name  extensions,
-                  matches  file  signature  magic  bytes,  or  matches file types,
-                  respectively.  Supported compression formats: gzip  (.gz),  com-
+                  Decompress files to search, when compressed.   Archives  (.cpio,
+                  .pax,  .tar, and .zip) and compressed archives (e.g. .taz, .tgz,
+                  .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched  and
+                  matching  pathnames  of  files in archives are output in braces.
+                  If -g, -O, -M, or -t is specified,  searches  files  within  ar-
+                  chives  whose  name matches globs, matches file name extensions,
+                  matches file signature  magic  bytes,  or  matches  file  types,
+                  respectively.   Supported  compression formats: gzip (.gz), com-
                   press (.Z), zip, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz,
-                  .tbz2, .tb2, .tz2), lzma and xz (requires  suffix  .lzma,  .tlz,
+                  .tbz2,  .tb2,  .tz2),  lzma and xz (requires suffix .lzma, .tlz,
                   .xz, .txz).
 
            If no FILE arguments are specified, or if a `-' is specified, the stan-
            dard input is read, unless recursive searches are specified which exam-
            ine the working directory.
 
-           If  no FILE arguments are specified and standard input is from a termi-
-           nal, recursive searches are performed as if -R is specified.  To  force
+           If no FILE arguments are specified and standard input is from a  termi-
+           nal,  recursive searches are performed as if -R is specified.  To force
            input from a terminal, specify `-' as the FILE argument.
 
-           A  `--' signals the end of options; the rest of the parameters are FILE
+           A `--' signals the end of options; the rest of the parameters are  FILE
            arguments, allowing filenames to begin with a `-' character.
 
-           The regular expression pattern syntax is an extended form of the  POSIX
+           The  regular expression pattern syntax is an extended form of the POSIX
            ERE syntax.  For an overview of the syntax see README.md or visit:
 
                   https://github.com/Genivia/ugrep
 
-           Note  that `.' matches any non-newline character.  Pattern `\n' matches
-           a newline character.  Multiple lines may be matched with patterns  that
-           match  newlines,  unless one or more of the context options -A, -B, -C,
+           Note that `.' matches any non-newline character.  Pattern `\n'  matches
+           a  newline character.  Multiple lines may be matched with patterns that
+           match newlines, unless one or more of the context options -A,  -B,  -C,
            or -y is used, or option -v is used.
 
     EXIT STATUS
@@ -3011,21 +3014,21 @@ in markdown:
 
            >1     An error occurred.
 
-           If -q or --quiet or --silent is used and a line is selected,  the  exit
+           If  -q  or --quiet or --silent is used and a line is selected, the exit
            status is 0 even if an error occurred.
 
     GLOBBING
-           Globbing  is  used  by options -g, --include, --include-dir, --include-
-           from, --exclude, --exclude-dir, --exclude-from to match  pathnames  and
-           basenames  in  recursive  searches.  Globbing supports gitignore syntax
+           Globbing is used by options -g,  --include,  --include-dir,  --include-
+           from,  --exclude,  --exclude-dir, --exclude-from to match pathnames and
+           basenames in recursive searches.  Globbing  supports  gitignore  syntax
            and the corresponding matching rules.  When a glob contains a path sep-
-           arator  `/', the pathname is matched.  Otherwise the basename of a file
+           arator `/', the pathname is matched.  Otherwise the basename of a  file
            or directory is matched.  For example, *.h matches foo.h and bar/foo.h.
-           bar/*.h  matches  bar/foo.h but not foo.h and not bar/bar/foo.h.  Use a
+           bar/*.h matches bar/foo.h but not foo.h and not bar/bar/foo.h.   Use  a
            leading `/' to force /*.h to match foo.h but not bar/foo.h.
 
-           When a glob starts with a `!' as specified with -g!GLOB,  or  specified
-           in  a  FILE  with  --include-from=FILE  or  --exclude-from=FILE,  it is
+           When  a  glob starts with a `!' as specified with -g!GLOB, or specified
+           in a  FILE  with  --include-from=FILE  or  --exclude-from=FILE,  it  is
            negated.
 
            Glob Syntax and Conventions
@@ -3040,12 +3043,12 @@ in markdown:
 
            [!a-z] Matches one character not in the selected range of characters.
 
-           /      When used at the begin of a glob, matches if pathname has no  /.
+           /      When  used at the begin of a glob, matches if pathname has no /.
                   When used at the end of a glob, matches directories only.
 
            **/    Matches zero or more directories.
 
-           /**    When  used at the end of a glob, matches everything after the /.
+           /**    When used at the end of a glob, matches everything after the  /.
 
            \?     Matches a ? (or any character specified after the backslash).
 
@@ -3082,37 +3085,37 @@ in markdown:
 
            a\?b   Matches a?b,                 but not a, b, ab, axb, a/b
 
-           Lines in the --exclude-from and --include-from files are  ignored  when
-           empty  or  start with a `#'.  When a glob is prefixed with `!', negates
+           Lines  in  the --exclude-from and --include-from files are ignored when
+           empty or start with a `#'.  When a glob is prefixed with  `!',  negates
            the match.
 
     ENVIRONMENT
            GREP_PATH
-                  May be used to specify a file path to pattern files.   The  file
-                  path  is used by option -f to open a pattern file, when the file
+                  May  be  used to specify a file path to pattern files.  The file
+                  path is used by option -f to open a pattern file, when the  file
                   cannot be opened.
 
            GREP_COLOR
-                  May be used to specify ANSI SGR parameters to highlight  matches
-                  when  option --color is used, e.g. 1;35;40 shows pattern matches
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  when option --color is used, e.g. 1;35;40 shows pattern  matches
                   in bold magenta text on a black background.  Deprecated in favor
                   of GREP_COLORS, but still supported.
 
            GREP_COLORS
-                  May  be used to specify ANSI SGR parameters to highlight matches
-                  and other attributes when option --color is used.  Its value  is
-                  a  colon-separated  list of ANSI SGR parameters that defaults to
+                  May be used to specify ANSI SGR parameters to highlight  matches
+                  and  other attributes when option --color is used.  Its value is
+                  a colon-separated list of ANSI SGR parameters that  defaults  to
                   cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36.   The  mt=,
-                  ms=,  and  mc=  capabilities  of  GREP_COLORS have priority over
+                  ms=, and mc= capabilities  of  GREP_COLORS  have  priority  over
                   GREP_COLOR.  Option --colors has priority over GREP_COLORS.
 
     GREP_COLORS
-           Colors are specified as string of colon-separated ANSI  SGR  parameters
-           of  the  form  `what=substring', where `substring' is a semicolon-sepa-
-           rated list of ANSI SGR codes or `k' (black), `r'  (red),  `g'  (green),
-           `y'  (yellow),  `b'  (blue),  `m'  (magenta),  `c' (cyan), `w' (white).
-           Upper case specifies background colors.  A `+'  qualifies  a  color  as
-           bright.   A  foreground and a background color may be combined with one
+           Colors  are  specified as string of colon-separated ANSI SGR parameters
+           of the form `what=substring', where `substring'  is  a  semicolon-sepa-
+           rated  list  of  ANSI SGR codes or `k' (black), `r' (red), `g' (green),
+           `y' (yellow), `b' (blue),  `m'  (magenta),  `c'  (cyan),  `w'  (white).
+           Upper  case  specifies  background  colors.  A `+' qualifies a color as
+           bright.  A foreground and a background color may be combined  with  one
            or more font properties `n' (normal), `f' (faint), `h' (highlight), `i'
            (invert), `u' (underline).  Substrings may be specified for:
 
@@ -3124,10 +3127,10 @@ in markdown:
 
            mt=    SGR substring for matching text in any matching line.
 
-           ms=    SGR  substring  for  matching text in a selected line.  The sub-
+           ms=    SGR substring for matching text in a selected  line.   The  sub-
                   string mt= by default.
 
-           mc=    SGR substring for matching text in a  context  line.   The  sub-
+           mc=    SGR  substring  for  matching  text in a context line.  The sub-
                   string mt= by default.
 
            fn=    SGR substring for file names.
@@ -3141,7 +3144,7 @@ in markdown:
            se=    SGR substring for separators.
 
     FORMAT
-           Option  --format=FORMAT  specifies  an  output format for file matches.
+           Option --format=FORMAT specifies an output  format  for  file  matches.
            Fields may be used in FORMAT, which expand into the following values:
 
            %[ARG]F
@@ -3236,27 +3239,27 @@ in markdown:
 
            %%     the percentage sign.
 
-           %1     the  first  regex  group  capture  of the match, and so on up to
+           %1     the first regex group capture of the match,  and  so  on  up  to
                   group %9, same as %[1]#; requires option -P Perl matching.
 
            %[NUM]#
                   the regex group capture NUM; requires option -P Perl matching.
 
-           The [ARG] part of a  field  is  optional  and  may  be  omitted.   When
-           present,  the argument must be placed in [] brackets, for example %[,]F
+           The  [ARG]  part  of  a  field  is  optional  and may be omitted.  When
+           present, the argument must be placed in [] brackets, for example  %[,]F
            to output a comma, the pathname, and a separator.
 
            %[SEP]$ and %u are switches and do not send anything to the output.
 
            The separator used by %P, %H, %N, %K, %B, and %S may be changed by pre-
-           ceeding  the  field  by  %[SEP]$.   When  [SEP]  is  not provided, this
+           ceeding the field  by  %[SEP]$.   When  [SEP]  is  not  provided,  this
            reverses the separator to the default separator or the separator speci-
            fied with --separator.
 
            Formatted output is written for each matching pattern, which means that
-           a line may be output multiple times when patterns match more than  once
-           on  the  same  line.   When field %u is found anywhere in the specified
-           format string, matching lines are output only once  unless  option  -u,
+           a  line may be output multiple times when patterns match more than once
+           on the same line.  When field %u is found  anywhere  in  the  specified
+           format  string,  matching  lines are output only once unless option -u,
            --ungroup is used or when a newline is matched.
 
            Additional formatting options:
@@ -3318,7 +3321,7 @@ in markdown:
 
                   $ ugrep -n -f c++/comments myfile.cpp
 
-           List  the  lines that need fixing in a C/C++ source file by looking for
+           List the lines that need fixing in a C/C++ source file by  looking  for
            the word `FIXME' while skipping any `FIXME' in quoted strings:
 
                   $ ugrep -e 'FIXME' -N '"(\\.|\\\r?\n|[^\\\n"])*"' myfile.cpp
@@ -3357,9 +3360,9 @@ in markdown:
 
                   $ ugrep -r -z -w --filter='pdf:pdftotext % -' 'copyright'
 
-           Match  the  binary  pattern `A3hhhhA3hh' (hex) in a binary file without
-           Unicode pattern matching -U (which would otherwise match  `\xaf'  as  a
-           Unicode  character  U+00A3  with UTF-8 byte sequence C2 A3) and display
+           Match the binary pattern `A3hhhhA3hh' (hex) in a  binary  file  without
+           Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
+           Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
            the results in hex with -X using `less -R' as a pager:
 
                   $ ugrep --pager -UXo '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
@@ -3372,7 +3375,7 @@ in markdown:
 
                   $ ugrep -Rl '' --ignore-files
 
-           List all files containing a RPM signature, located in the `rpm'  direc-
+           List  all files containing a RPM signature, located in the `rpm' direc-
            tory and recursively below up to two levels deeper:
 
                   $ ugrep -R --max-depth=3 -l -tRpm '' rpm/
@@ -3388,8 +3391,8 @@ in markdown:
 
 
     LICENSE
-           ugrep  is  released under the BSD-3 license.  All parts of the software
-           have reasonable copyright terms permitting free  redistribution.   This
+           ugrep is released under the BSD-3 license.  All parts of  the  software
+           have  reasonable  copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
@@ -3397,7 +3400,7 @@ in markdown:
 
 
 
-    ugrep 1.7.8                    February 11, 2020                      UGREP(1)
+    ugrep 1.7.9                    February 12, 2020                      UGREP(1)
 
 <a name="patterns"/>
 
@@ -3481,12 +3484,12 @@ follows, from high to low precedence:
 ### POSIX and Unicode character classes
 
 Character classes in bracket lists represent sets of characters.  Sets can be
-inverted, subtracted, intersected, and merged:
+negated (or inverted), subtracted, intersected, and merged:
 
   Pattern           | Matches
   ----------------- | ---------------------------------------------------------
   `[a-zA-Z]`        | matches a letter
-  `[^a-zA-Z]`       | matches a non-letter (character class inversion)
+  `[^a-zA-Z]`       | matches a non-letter (character class negation), newlines are not matched
   `[a-z−−[aeiou]]`  | matches a consonant (character class subtraction)
   `[a-z&&[^aeiou]]` | matches a consonant (character class intersection)
   `[a-z⎮⎮[A-Z]]`    | matches a letter (character class union)
@@ -3495,6 +3498,9 @@ Bracket lists cannot be empty, so `[]` and `[^]` are invalid.  In fact, the
 first character after the bracket is always part of the list.  So `[][]` is a
 list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
 `]` and `[`, and `[-^]` is a list that matches a `-` and a `^`.
+
+Negated character classes such as `[^a-z]` do not match newlines for
+compatibility with traditional grep pattern matching.
 
 <a name="posix-categories"/>
 
@@ -3522,20 +3528,20 @@ list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
 The POSIX form can only be used in bracket lists, for example
 `[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  
 
-You can also use the capitalized `\P{C}` form that has the same meaning as
+You can also use the upper case `\P{C}` form that has the same meaning as
 `\p{^C}`, which matches any character except characters in the class `C`.
-For example, `\P{ASCII}` is the same as `\p{^ASCII}` which is the same as
-`[^[:ascii:]]`.  A word of caution: because POSIX character categories only
-cover ASCII, `[[:^ascii]]` is empty and invalid to use.  By contrast,
-`[^[:ascii]]` is a Unicode character class that excludes the ASCII character
-category.
+For example, `\P{ASCII}` is the same as `\p{^ASCII}`.
+
+Because POSIX character categories only cover ASCII, `[[:^ascii]]` is empty and
+therefore invalid to use.  By contrast, `[^[:ascii]]` is a Unicode character
+class that excludes the ASCII character category.
 
   Unicode category                       | Matches
   -------------------------------------- | ------------------------------------
   `.`                                    | matches any single Unicode character except newline
   `\X`                                   | matches any ISO-8859-1 or Unicode character
   `\R`                                   | matches a Unicode line break
-  `\s`, `\p{Zs}`                         | matches a white space character with Unicode sub-propert Zs
+  `\s`, `\p{Zs}`                         | matches a white space character with Unicode sub-property Zs
   `\l`, `\p{Ll}`                         | matches a lower case letter with Unicode sub-property Ll
   `\u`, `\p{Lu}`                         | matches an upper case letter with Unicode sub-property Lu
   `\w`, `\p{Word}`                       | matches a Unicode word character with property L, Nd, or Pc

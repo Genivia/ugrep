@@ -30,7 +30,7 @@
 @file      convert.cpp
 @brief     RE/flex regex converter
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2015-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -158,7 +158,7 @@ static std::string unicode_class(const char *s, int esc, const char *par)
     else
     {
       regex.assign(utf8(wc[0], wc[1], esc, par));
-     wc += 2;
+      wc += 2;
       for (; wc[1] != 0; wc += 2)
         regex.append("|").append(utf8(wc[0], wc[1], esc, par));
     }
@@ -929,7 +929,7 @@ static void extend_list(const char *pattern, size_t len, size_t& pos, convert_fl
   }
 }
 
-static void negate_list(const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
+static void negate_list(convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
 {
   if (is_modified(mod, 'u'))
   {
@@ -944,6 +944,8 @@ static void negate_list(const std::map<size_t,std::string>& mod, ORanges<int>& r
     inverse -= ranges;
     ranges.swap(inverse);
   }
+  if ((flags & convert_flag::notnewline))
+    ranges.erase('\n');
 }
 
 static void insert_list(const char *pattern, size_t len, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges, const std::map<std::string,std::string> *macros)
@@ -1050,7 +1052,7 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
   if (pos >= len || pattern[pos] != ']')
     throw regex_error(regex_error::mismatched_brackets, pattern, loc);
   if (negate)
-    negate_list(mod, ranges);
+    negate_list(flags, mod, ranges);
   extend_list(pattern, len, pos, flags, mod, ranges, macros);
   if (ranges.empty())
     throw regex_error(regex_error::empty_class, pattern, loc);
@@ -1073,7 +1075,7 @@ static std::string convert_posix_ranges(const ORanges<int>& ranges, const char *
   int esc = hex_or_octal_escape(signature);
   std::string regex;
   bool negate = ranges.lo() == 0x00 && ranges.hi() == 0x7F;
-  if (negate)
+  if (negate && ranges.size() > 1)
   {
     ORanges<int> inverse(0x00, 0x7F);
     inverse -= ranges;

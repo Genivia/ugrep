@@ -30,7 +30,7 @@
 @file      convert.h
 @brief     RE/flex regex converter
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2015-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -57,16 +57,17 @@ namespace reflex {
 typedef int convert_flag_type;
 
 namespace convert_flag {
-  const convert_flag_type none      = 0x0000; ///< no conversion (default)
-  const convert_flag_type basic     = 0x0001; ///< convert basic regex (BRE) to extended regex (ERE)
-  const convert_flag_type unicode   = 0x0002; ///< convert . (dot), `\s`, `\w`, `\l`, `\u`, `\S`, `\W`, `\L`, `\U` to Unicode
-  const convert_flag_type recap     = 0x0004; ///< remove capturing groups, add capturing groups to the top level
-  const convert_flag_type lex       = 0x0008; ///< convert Lex/Flex regular expression syntax
-  const convert_flag_type u4        = 0x0010; ///< convert `\uXXXX` and UTF-16 surrogate pairs
-  const convert_flag_type anycase   = 0x0020; ///< convert regex to ignore case, same as `(?i)`
-  const convert_flag_type multiline = 0x0040; ///< regex with multiline anchors `^` and `$`, same as `(?m)`
-  const convert_flag_type dotall    = 0x0080; ///< convert `.` (dot) to match all, same as `(?s)`
-  const convert_flag_type freespace = 0x0100; ///< convert regex by removing spacing, same as `(?x)`
+  const convert_flag_type none       = 0x0000; ///< no conversion (default)
+  const convert_flag_type basic      = 0x0001; ///< convert basic regex (BRE) to extended regex (ERE)
+  const convert_flag_type unicode    = 0x0002; ///< convert . (dot), `\s`, `\w`, `\l`, `\u`, `\S`, `\W`, `\L`, `\U` to Unicode
+  const convert_flag_type recap      = 0x0004; ///< remove capturing groups, add capturing groups to the top level
+  const convert_flag_type lex        = 0x0008; ///< convert Lex/Flex regular expression syntax
+  const convert_flag_type u4         = 0x0010; ///< convert `\uXXXX` and UTF-16 surrogate pairs
+  const convert_flag_type anycase    = 0x0020; ///< convert regex to ignore case, same as `(?i)`
+  const convert_flag_type multiline  = 0x0040; ///< regex with multiline anchors `^` and `$`, same as `(?m)`
+  const convert_flag_type dotall     = 0x0080; ///< convert `.` (dot) to match all, same as `(?s)`
+  const convert_flag_type freespace  = 0x0100; ///< convert regex by removing spacing, same as `(?x)`
+  const convert_flag_type notnewline = 0x0200; ///< inverted character classes do not match newline `\n`
 }
 
 /// @brief Returns the converted regex string given a regex library signature and conversion flags, throws regex_error.

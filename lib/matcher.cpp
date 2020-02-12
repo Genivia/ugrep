@@ -362,6 +362,7 @@ bool Matcher::advance()
 #if defined(HAVE_AVX)
       if (has_HW_AVX())
       {
+        // implements SIMD string search scheme described in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
         __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
         while (s + 32 < e)
@@ -398,6 +399,7 @@ bool Matcher::advance()
       }
       else if (has_HW_SSE2())
       {
+        // implements SIMD string search scheme described in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
         while (s + 16 < e)
@@ -435,6 +437,7 @@ bool Matcher::advance()
 #elif defined(HAVE_SSE2)
       if (has_HW_SSE2())
       {
+        // implements SIMD string search scheme described in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
         while (s + 16 < e)
@@ -470,6 +473,7 @@ bool Matcher::advance()
         }
       }
 #elif defined(HAVE_NEON)
+      // implements SIMD string search scheme described in http://0x80.pl/articles/simd-friendly-karp-rabin.html
       uint8x16_t vlcp = vdupq_n_u8(pre[lcp_]);
       uint8x16_t vlcs = vdupq_n_u8(pre[lcs_]);
       while (s + 16 < e)
@@ -574,7 +578,7 @@ bool Matcher::advance()
     }
     else
     {
-      // improved Boyer-Moore
+      // implementation of our improved Boyer-Moore scheme
       const char *s = buf_ + loc + len - 1;
       const char *e = buf_ + end_;
       const char *t = pre + len - 1;

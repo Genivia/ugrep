@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 11, 2020" "ugrep 1.7.8" "User Commands"
+.TH UGREP "1" "February 12, 2020" "ugrep 1.7.9" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -288,7 +288,7 @@ Output file matches in JSON.  If \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR i
 additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
 \fB\-K\fR \fIFIRST\fR[,\fILAST\fR], \fB\-\-range\fR=\fIFIRST\fR[,\fILAST\fR]
-Start searching at line FIRST; stops at line LAST when specified.
+Start searching at line FIRST, stop at line LAST when specified.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of the
@@ -428,6 +428,9 @@ searched in the same order as specified.
 Recursively read all files under each directory, following symbolic
 links only if they are on the command line.  When \fB\-J\fR1 is specified,
 files are searched in the same order as specified.
+.TP
+\fB\-\-range\fR=\fIFIRST\fR[,\fILAST\fR]
+Start searching at line FIRST, stop at line LAST when specified.
 .TP
 \fB\-S\fR, \fB\-\-dereference\fR
 If \fB\-r\fR is specified, all symbolic links are followed, like \fB\-R\fR.  The

@@ -2630,13 +2630,13 @@ void Pattern::predict_match_dfa(State& start)
   one_ = true;
   while (state->accept == 0)
   {
-    if (state->edges.size() != 1 || state->edges.begin()->first < state->edges.begin()->second.first)
+    if (state->edges.size() != 1)
     {
       one_ = false;
       break;
     }
     Char lo = state->edges.begin()->first;
-    if (!is_meta(lo))
+    if (!is_meta(lo) && lo == state->edges.begin()->second.first)
     {
       if (lo != state->edges.begin()->second.first)
         break;

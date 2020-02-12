@@ -149,7 +149,7 @@ done | gzip -c > archive.gz
 
 $UG -z -c '' archive.gz > out/archive.gz.out
 
-for PAT in '\.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at metus sit amet aliquam' 'adip[a-z]{1,}' 'adip[a-z]{4,}' 'adip[a-z]{6}'; do
+for PAT in '\.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at metus sit amet aliquam' 'adip[a-z]{1,}' 'adip[a-z]{4,}' 'adip[a-z]{6}' '[a-z]+' 'a[a-z]+' 'ad[a-z]+' 'adi[a-z]+' ; do
   FN=`echo "archive_$PAT" | tr -Cd '[:alnum:]_'`
   $UG -z -co "$PAT" archive.gz > out/$FN-co.gz.out
 done

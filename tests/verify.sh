@@ -49,7 +49,7 @@ echo "Have liblzma?" $have_libz
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
 function ERR() {
-  echo "[1;31mError:[0m ugrep $1 [1;31mfailed[0m"
+  echo "[1;31mError:[0m[1m ugrep $1 [1;31mfailed[0m"
   exit 1
 }
 
@@ -265,7 +265,7 @@ fi
 if [ "$have_libz" == yes ]; then
 printf .
 $UG -z -c '' archive.gz | $DIFF out/archive.gz.out || ERR "-z -c '' archive.gz"
-for PAT in '\.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at metus sit amet aliquam' 'adip[a-z]{1,}' 'adip[a-z]{4,}' 'adip[a-z]{6}'; do
+for PAT in '\.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at metus sit amet aliquam' 'adip[a-z]{1,}' 'adip[a-z]{4,}' 'adip[a-z]{6}' '[a-z]+' 'a[a-z]+' 'ad[a-z]+' 'adi[a-z]+' ; do
   FN=`echo "archive_$PAT" | tr -Cd '[:alnum:]_'`
   printf .
   $UG -z -co "$PAT" archive.gz | $DIFF out/$FN-co.gz.out || ERR "-z -co \"$PAT\" archive.gz"

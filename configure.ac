@@ -8,6 +8,9 @@ AC_CONFIG_MACRO_DIR([m4])
 # if CXXFLAGS is undefined, set it to our preferred default flags
 : ${CXXFLAGS="-Wall -Wextra -Wunused -O2"}
 
+AC_LANG([C++])
+AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])
+
 AC_HEADER_DIRENT
 AC_STRUCT_DIRENT_D_INO
 AC_STRUCT_DIRENT_D_TYPE
@@ -149,12 +152,15 @@ AC_MSG_CHECKING(for --disable-avx)
 if test "x$with_no_avx" = "xno"; then
   AC_MSG_RESULT(no)
   AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n;]])],
+  save_CXXFLAGS=$CXXFLAGS
+  CXXFLAGS="-march=native -mavx"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42);]])],
                     [mavx_ok=yes],
                     [mavx_ok=no])
+  CXXFLAGS=$save_CXXFLAGS
   AC_MSG_RESULT($mavx_ok)
   if test "x$mavx_ok" = "xyes"; then
-    SIMD_FLAGS="-mavx2 -DHAVE_AVX"
+    SIMD_FLAGS="-march=native -mavx -DHAVE_AVX"
   fi
 else
   AC_MSG_RESULT(yes)
@@ -171,12 +177,15 @@ AC_MSG_CHECKING(for --disable-sse2)
 if test "x$with_no_sse2" = "xno"; then
   AC_MSG_RESULT(no)
   AC_MSG_CHECKING([whether ${CXX} supports SSE2 intrinsics])
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <emmintrin.h>]], [[__m128i n;]])],
+  save_CXXFLAGS=$CXXFLAGS
+  CXXFLAGS="-march=native -msse2"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <emmintrin.h>]], [[__m128i n = _mm_set1_epi8(42);]])],
                     [msse2_ok=yes],
                     [msse2_ok=no])
+  CXXFLAGS=$save_CXXFLAGS
   AC_MSG_RESULT($msse2_ok)
   if test "x$msse2_ok" = "xyes"; then
-    SIMD_FLAGS="-msse2 -DHAVE_SSE2"
+    SIMD_FLAGS="-march=native -msse2 -DHAVE_SSE2"
   fi
 else
   AC_MSG_RESULT(yes)
@@ -187,16 +196,19 @@ fi
 if test "x$SIMD_FLAGS" = "x"; then
 AC_ARG_ENABLE(neon,
   [AC_HELP_STRING([--disable-neon],
-                  [disable ARM NEON optimizations])],
+                  [disable ARM NEON/AArch64 optimizations])],
   [with_no_neon="yes"],
   [with_no_neon="no"])
 AC_MSG_CHECKING(for --disable-neon)
 if test "x$with_no_neon" = "xno"; then
   AC_MSG_RESULT(no)
-  AC_MSG_CHECKING([whether ${CXX} supports ARM NEON intrinsics])
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint8x16_t n;]])],
+  AC_MSG_CHECKING([whether ${CXX} supports ARM NEON/AArch64 intrinsics])
+  save_CXXFLAGS=$CXXFLAGS
+  CXXFLAGS="-mfpu=neon-vfpv4"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
                     [mneon_ok=yes],
                     [mneon_ok=no])
+  CXXFLAGS=$save_CXXFLAGS
   AC_MSG_RESULT($mneon_ok)
   if test "x$mneon_ok" = "xyes"; then
     SIMD_FLAGS="-mfpu=neon-vfpv4 -DHAVE_NEON"
@@ -208,10 +220,6 @@ fi
 fi
 
 AC_SUBST(SIMD_FLAGS)
-
-AC_LANG([C++])
-AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])
-AC_SUBST([AM_CXXFLAGS], ["-Wall -Wunused -Wextra"])
 
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
