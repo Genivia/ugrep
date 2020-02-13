@@ -292,14 +292,23 @@ Installation
 
 ### Optional dependencies
 
-- Option `-P` (Perl regular expressions) requires the
-  [Boost.Regex](https://www.boost.org) library installed.
+You can always add these later, when you need these features:
+
+- Option `-P` (Perl regular expressions) requires the Boost.Regex library.
+  To install it, [download Boost.Regex](https://www.boost.org/users/download/) from
+  the Boost site.  Simply run `./bootstrap.sh` and `./b2 --with-regex install`.
+  See [Boost: getting started](https://www.boost.org/doc/libs/1_72_0/more/getting_started/unix-variants.html).
+
 - Option `-z` (decompress) requires the [zlib](https://www.zlib.net) library
   installed, e.g. `sudo apt-get install -y libz-dev`.  To search `.bz` and
   `.bz2` files, install the [bzip2](https://www.sourceware.org/bzip2) library,
   e.g. `sudo apt-get install -y libbz2-dev`.  To search `.lzma` and `.xz`
   files, install the [lzma](https://tukaani.org/xz/) library, e.g.
   `sudo apt-get install -y liblzma-dev`.
+
+After installing one or more of these, re-execute the commands to build ugrep:
+
+    $ ./configure --enable-color && make -j clean all
 
 ### Download and build
 
