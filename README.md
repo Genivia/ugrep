@@ -273,10 +273,14 @@ ugrep           | **0.05** | **0.06** | **0.08** | **0.03** | **0.99** | **0.97*
 ripgrep         | 0.06     | 0.10     | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
 silver searcher | 0.10     | 0.11     | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
 GNU grep 3.3    | 0.08     | 0.15     | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
-PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | 2.47     | *n/a*    |
+PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | 2.37     | *n/a*    |
 BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 
-The output is sent to a `null` utility to eliminate terminal display overhead:
+Note: silver searcher 2.2.0 runs faster with a single thread (T11 0.32s) than
+multi-threaded (T10 0.45s), which was reported as an issue.
+
+Note: output is sent to a `null` utility to eliminate terminal display
+overhead:
 
     #include <sys/types.h>
     #include <sys/uio.h>
@@ -300,15 +304,21 @@ You can always add these later, when you need these features:
   [Boost: getting started](https://www.boost.org/doc/libs/1_72_0/more/getting_started/unix-variants.html).
 
 - Option `-z` (decompress) requires the [zlib](https://www.zlib.net) library
-  installed, e.g. `sudo apt-get install -y libz-dev`.  To search `.bz` and
-  `.bz2` files, install the [bzip2](https://www.sourceware.org/bzip2) library,
+  installed.  It is typically installed on most systems.  If not, install it
+  with e.g. `sudo apt-get install -y libz-dev`.  To search `.bz` and `.bz2`
+  files, install the [bzip2](https://www.sourceware.org/bzip2) library,
   e.g. `sudo apt-get install -y libbz2-dev`.  To search `.lzma` and `.xz`
   files, install the [lzma](https://tukaani.org/xz/) library, e.g.
   `sudo apt-get install -y liblzma-dev`.
 
-After installing one or more of these, re-execute the commands to build ugrep:
+After installing, re-execute the commands to rebuild **ugrep**:
 
     $ ./configure --enable-color && make -j clean all
+
+Some Linux systems may not be configured to load dynamic libraries from
+`/usr/local/lib`, causing a library load error.  To correct this, add
+`export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to your `~/.bashrc`
+file.  Or run `sudo ldconfig /usr/local/lib`.
 
 ### Download and build
 
