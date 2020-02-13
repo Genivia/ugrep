@@ -7303,7 +7303,7 @@ $as_echo "no" >&6; }
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ${CXX} supports AVX intrinsics" >&5
 $as_echo_n "checking whether ${CXX} supports AVX intrinsics... " >&6; }
   save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-march=native -mavx"
+  CXXFLAGS="-march=native"
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <immintrin.h>
@@ -7349,7 +7349,7 @@ $as_echo "no" >&6; }
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ${CXX} supports SSE2 intrinsics" >&5
 $as_echo_n "checking whether ${CXX} supports SSE2 intrinsics... " >&6; }
   save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-march=native -msse2"
+  CXXFLAGS="-march=native"
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <emmintrin.h>
@@ -7396,7 +7396,7 @@ $as_echo "no" >&6; }
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ${CXX} supports ARM NEON/AArch64 intrinsics" >&5
 $as_echo_n "checking whether ${CXX} supports ARM NEON/AArch64 intrinsics... " >&6; }
   save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-mfpu=neon-vfpv4"
+  CXXFLAGS="-march=native"
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <arm_neon.h>
@@ -7418,7 +7418,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $mneon_ok" >&5
 $as_echo "$mneon_ok" >&6; }
   if test "x$mneon_ok" = "xyes"; then
-    SIMD_FLAGS="-mfpu=neon-vfpv4 -DHAVE_NEON"
+    SIMD_FLAGS="-march=native -mfpu=neon-vfpv4 -DHAVE_NEON"
   fi
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5

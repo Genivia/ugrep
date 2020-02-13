@@ -153,7 +153,7 @@ if test "x$with_no_avx" = "xno"; then
   AC_MSG_RESULT(no)
   AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
   save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-march=native -mavx"
+  CXXFLAGS="-march=native"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42);]])],
                     [mavx_ok=yes],
                     [mavx_ok=no])
@@ -178,7 +178,7 @@ if test "x$with_no_sse2" = "xno"; then
   AC_MSG_RESULT(no)
   AC_MSG_CHECKING([whether ${CXX} supports SSE2 intrinsics])
   save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-march=native -msse2"
+  CXXFLAGS="-march=native"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <emmintrin.h>]], [[__m128i n = _mm_set1_epi8(42);]])],
                     [msse2_ok=yes],
                     [msse2_ok=no])
@@ -204,14 +204,14 @@ if test "x$with_no_neon" = "xno"; then
   AC_MSG_RESULT(no)
   AC_MSG_CHECKING([whether ${CXX} supports ARM NEON/AArch64 intrinsics])
   save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-mfpu=neon-vfpv4"
+  CXXFLAGS="-march=native"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
                     [mneon_ok=yes],
                     [mneon_ok=no])
   CXXFLAGS=$save_CXXFLAGS
   AC_MSG_RESULT($mneon_ok)
   if test "x$mneon_ok" = "xyes"; then
-    SIMD_FLAGS="-mfpu=neon-vfpv4 -DHAVE_NEON"
+    SIMD_FLAGS="-march=native -mfpu=neon-vfpv4 -DHAVE_NEON"
   fi
 else
   AC_MSG_RESULT(yes)
