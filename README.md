@@ -295,9 +295,9 @@ Installation
 You can always add these later, when you need these features:
 
 - Option `-P` (Perl regular expressions) requires the Boost.Regex library.
-  To install it, [download Boost.Regex](https://www.boost.org/users/download/) from
-  the Boost site.  Simply run `./bootstrap.sh` and `./b2 --with-regex install`.
-  See [Boost: getting started](https://www.boost.org/doc/libs/1_72_0/more/getting_started/unix-variants.html).
+  To install it, [download Boost.Regex](https://www.boost.org/users/download/).
+  Then run `./bootstrap.sh` and `sudo ./b2 --with-regex install`.  See
+  [Boost: getting started](https://www.boost.org/doc/libs/1_72_0/more/getting_started/unix-variants.html).
 
 - Option `-z` (decompress) requires the [zlib](https://www.zlib.net) library
   installed, e.g. `sudo apt-get install -y libz-dev`.  To search `.bz` and
