@@ -36,7 +36,7 @@ else
   have_libbz2=no
 fi
 
-echo "Have libbz2?" $have_libz
+echo "Have libbz2?" $have_libbz2
 
 if $UG -Fq 'HAVE_LIBLZMA 1' ../config.h ; then
   have_liblzma=yes
@@ -44,7 +44,7 @@ else
   have_liblzma=no
 fi
 
-echo "Have liblzma?" $have_libz
+echo "Have liblzma?" $have_liblzma
 
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
