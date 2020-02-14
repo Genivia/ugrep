@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 12, 2020" "ugrep 1.7.9" "User Commands"
+.TH UGREP "1" "February 14, 2020" "ugrep 1.7.9" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -176,7 +176,7 @@ COMMANDS is a comma\-separated list of `exts:command [option ...]',
 where `exts' is a comma\-separated list of filename extensions and
 `command' is a filter utility.  The filter utility should read from
 standard input and write to standard output.  Files matching one of
-`exts` are filtered.  When `exts' is `*', files with non\-matching
+`exts' are filtered.  When `exts' is `*', files with non\-matching
 extensions are filtered.  One or more `option' separated by spacing
 may be specified, which are passed verbatim to the command.  A `%'
 as `option' expands into the pathname to search.  For example,
@@ -308,10 +308,10 @@ been found, making searches potentially less expensive.  Pathnames
 are listed once per file searched.  If the standard input is
 searched, the string ``(standard input)'' is written.
 .TP
-\fB\-\-label[\fR=\fILABEL\fR]
+\fB\-\-label\fR=\fILABEL\fR
 Displays the LABEL value when input is read from standard input
-where a file name would normally be printed in the output.  This
-option applies to options \fB\-H\fR, \fB\-L\fR, and \fB\-l\fR.
+where a file name would normally be printed in the output.  The
+default value is `(standard input)'.
 .TP
 \fB\-\-line\-buffered\fR
 Force output to be line buffered instead of block buffered.
@@ -422,7 +422,9 @@ match has been found, making searches potentially less expensive.
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
 Recursively read all files under each directory.  Follow all
 symbolic links, unlike \fB\-r\fR.  When \fB\-J\fR1 is specified, files are
-searched in the same order as specified.
+searched in the same order as specified.  Note that when no FILE
+arguments are specified and input is read from a terminal,
+recursive searches are performed as if \fB\-R\fR is specified.
 .TP
 \fB\-r\fR, \fB\-\-recursive\fR
 Recursively read all files under each directory, following symbolic
@@ -548,11 +550,7 @@ Supported compression formats: gzip (.gz), compress (.Z), zip,
 bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 lzma and xz (requires suffix .lzma, .tlz, .xz, .txz).
 .PP
-If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
-standard input is read, unless recursive searches are specified which examine
-the working directory.
-.PP
-If no \fIFILE\fR arguments are specified and standard input is from a terminal,
+If no \fIFILE\fR arguments are specified and input is read from a terminal,
 recursive searches are performed as if \fB-R\fR is specified.  To force input
 from a terminal, specify `-' as the \fIFILE\fR argument.
 .PP
@@ -584,15 +582,17 @@ Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
 \fB--exclude-from\fR to match pathnames and basenames in recursive searches.
 Globbing supports gitignore syntax and the corresponding matching rules.  When
-a glob contains a path separator `/', the pathname is matched.  Otherwise the
-basename of a file or directory is matched.  For example, \fB*.h\fR matches
-\fIfoo.h\fR and \fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not
-\fIfoo.h\fR and not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR
-to match \fIfoo.h\fR but not \fIbar/foo.h\fR.
+a glob ends in a path separator it matches directories as if
+\fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
+a path separator `/', the full pathname is matched.  Otherwise the basename of
+a file or directory is matched.  For example, \fB*.h\fR matches \fIfoo.h\fR and
+\fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not \fIfoo.h\fR and
+not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
+\fIfoo.h\fR but not \fIbar/foo.h\fR.
 .PP
 When a glob starts with a `!' as specified with \fB-g\fR!\fIGLOB\fR, or
 specified in a \fIFILE\fR with \fB--include-from\fR=\fIFILE\fR or
-\fB--exclude-from\fR=\fIFILE\fR, it is negated.
+\fB--exclude-from\fR=\fIFILE\fR, its match is negated.
 .PP
 \fBGlob Syntax and Conventions\fR
 .IP \fB*\fR

@@ -63,11 +63,7 @@ src/ugrep --help \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
 cat >> man/ugrep.1 << 'END'
 .PP
-If no \fIFILE\fR arguments are specified, or if a `-' is specified, the
-standard input is read, unless recursive searches are specified which examine
-the working directory.
-.PP
-If no \fIFILE\fR arguments are specified and standard input is from a terminal,
+If no \fIFILE\fR arguments are specified and input is read from a terminal,
 recursive searches are performed as if \fB-R\fR is specified.  To force input
 from a terminal, specify `-' as the \fIFILE\fR argument.
 .PP
@@ -99,15 +95,17 @@ Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
 \fB--exclude-from\fR to match pathnames and basenames in recursive searches.
 Globbing supports gitignore syntax and the corresponding matching rules.  When
-a glob contains a path separator `/', the pathname is matched.  Otherwise the
-basename of a file or directory is matched.  For example, \fB*.h\fR matches
-\fIfoo.h\fR and \fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not
-\fIfoo.h\fR and not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR
-to match \fIfoo.h\fR but not \fIbar/foo.h\fR.
+a glob ends in a path separator it matches directories as if
+\fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
+a path separator `/', the full pathname is matched.  Otherwise the basename of
+a file or directory is matched.  For example, \fB*.h\fR matches \fIfoo.h\fR and
+\fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not \fIfoo.h\fR and
+not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
+\fIfoo.h\fR but not \fIbar/foo.h\fR.
 .PP
 When a glob starts with a `!' as specified with \fB-g\fR!\fIGLOB\fR, or
 specified in a \fIFILE\fR with \fB--include-from\fR=\fIFILE\fR or
-\fB--exclude-from\fR=\fIFILE\fR, it is negated.
+\fB--exclude-from\fR=\fIFILE\fR, its match is negated.
 .PP
 \fBGlob Syntax and Conventions\fR
 .IP \fB*\fR

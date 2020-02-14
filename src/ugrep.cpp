@@ -357,7 +357,7 @@ static void sigint_reset_tty(int)
 {
   // be nice, reset colors on interrupt when sending output to a color TTY
   if (color_term)
-    (void)write(1, "\033[0m", 4);
+    color_term = write(1, "\033[0m", 4) > 0; // appease -Wunused-result
   signal(SIGINT, SIG_DFL);
   kill(getpid(), SIGINT);
 }
@@ -404,8 +404,8 @@ struct stat output_stat;
 std::set<ino_t> visited;
 
 #ifdef HAVE_STATVFS
-// containers of file system ids to include in recursive searches or exclude from recursive searches
-std::set<uint64_t> include_fs, exclude_fs;
+// containers of file system ids to exclude from recursive searches or include in recursive searches
+std::set<uint64_t> exclude_fs_ids, include_fs_ids;
 #endif
 
 #endif
@@ -2208,130 +2208,6 @@ struct Grep {
     return true;
   }
 
-#ifdef HAVE_LIBZ
-#ifdef WITH_DECOMPRESSION_THREAD
-
-  // decompression thread
-  void decompress(const char *pathname)
-  {
-    // create a decompression stream buffer
-    zstreambuf zstrm(pathname, file);
-
-    // let's use the internal zstreambuf buffer to hold decompressed data
-    unsigned char *buf;
-    size_t maxlen;
-    zstrm.get_buffer(buf, maxlen);
-
-    // by default, we are not extracting parts of an archive
-    extracting = false;
-
-    // to hold the path (prefix + name) extracted from the zip file
-    std::string path;
-
-    // extract the parts of a zip file, one by one, if zip file detected
-    while (true)
-    {
-      // a regular file, may be reset when unzipping a directory
-      bool is_regular = true;
-
-      const zstreambuf::ZipInfo *zipinfo = zstrm.zipinfo();
-      if (zipinfo != NULL)
-      {
-        if (!zipinfo->name.empty() && zipinfo->name.back() == '/')
-        {
-          // skip zip directories
-          is_regular = false;
-        }
-        else
-        {
-          path.assign(zipinfo->name);
-
-          // produce headers with zip file pathnames for each archived part (Grep::partname)
-          if (!flag_no_filename)
-            flag_no_header = false;
-        }
-      }
-
-      // decompress a block of data into the buffer
-      std::streamsize len = zstrm.decompress(buf, maxlen);
-      if (len < 0)
-        break;
-
-      if (!filter_tar(zstrm, path, buf, maxlen, len) && !filter_cpio(zstrm, path, buf, maxlen, len))
-      {
-        // not a tar/cpio file, decompress the data into pipe, if not unzipping or if zipped file meets selection criteria
-        bool is_selected = is_regular && (zipinfo == NULL || select_matching(path.c_str(), buf, static_cast<size_t>(len), true));
-        if (is_selected)
-        {
-          // if pipe is closed, then reopen it
-          if (pipe_fd[1] == -1)
-          {
-            // signal close and wait until the main grep thread created a new pipe in close_file()
-            std::unique_lock<std::mutex> lock(pipe_mutex);
-            pipe_close.notify_one();
-            waiting = true;
-            pipe_ready.wait(lock);
-            waiting = false;
-            lock.unlock();
-
-            // failed to create a pipe in close_file()
-            if (pipe_fd[1] == -1)
-              break;
-          }
-
-          // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
-          partname.swap(path);
-        }
-
-        // push decompressed data into pipe
-        while (len > 0)
-        {
-          // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-          if (is_selected && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
-            break;
-
-          // decompress the next block of data into the buffer
-          len = zstrm.decompress(buf, maxlen);
-        }
-      }
-
-      // break if not unzipping or if no more files to unzip
-      if (zstrm.zipinfo() == NULL)
-        break;
-
-      // extracting a zip file
-      extracting = true;
-
-      // close our end of the pipe
-      close(pipe_fd[1]);
-      pipe_fd[1] = -1;
-    }
-
-    if (extracting)
-    {
-      // inform the main grep thread we are done extracting
-      extracting = false;
-
-      // close our end of the pipe
-      if (pipe_fd[1] >= 0)
-      {
-        close(pipe_fd[1]);
-        pipe_fd[1] = -1;
-      }
-
-      // signal close
-      std::unique_lock<std::mutex> lock(pipe_mutex);
-      pipe_close.notify_one();
-      lock.unlock();
-    }
-    else
-    {
-      // close our end of the pipe
-      close(pipe_fd[1]);
-      pipe_fd[1] = -1;
-    }
-  }
-
   // true pipe if filtering files in a forked process and replace file pointer with pipe
   bool filter(FILE *& in, const char *pathname)
   {
@@ -2493,6 +2369,130 @@ struct Grep {
 #endif
 
     return true;
+  }
+
+#ifdef HAVE_LIBZ
+#ifdef WITH_DECOMPRESSION_THREAD
+
+  // decompression thread
+  void decompress(const char *pathname)
+  {
+    // create a decompression stream buffer
+    zstreambuf zstrm(pathname, file);
+
+    // let's use the internal zstreambuf buffer to hold decompressed data
+    unsigned char *buf;
+    size_t maxlen;
+    zstrm.get_buffer(buf, maxlen);
+
+    // by default, we are not extracting parts of an archive
+    extracting = false;
+
+    // to hold the path (prefix + name) extracted from the zip file
+    std::string path;
+
+    // extract the parts of a zip file, one by one, if zip file detected
+    while (true)
+    {
+      // a regular file, may be reset when unzipping a directory
+      bool is_regular = true;
+
+      const zstreambuf::ZipInfo *zipinfo = zstrm.zipinfo();
+      if (zipinfo != NULL)
+      {
+        if (!zipinfo->name.empty() && zipinfo->name.back() == '/')
+        {
+          // skip zip directories
+          is_regular = false;
+        }
+        else
+        {
+          path.assign(zipinfo->name);
+
+          // produce headers with zip file pathnames for each archived part (Grep::partname)
+          if (!flag_no_filename)
+            flag_no_header = false;
+        }
+      }
+
+      // decompress a block of data into the buffer
+      std::streamsize len = zstrm.decompress(buf, maxlen);
+      if (len < 0)
+        break;
+
+      if (!filter_tar(zstrm, path, buf, maxlen, len) && !filter_cpio(zstrm, path, buf, maxlen, len))
+      {
+        // not a tar/cpio file, decompress the data into pipe, if not unzipping or if zipped file meets selection criteria
+        bool is_selected = is_regular && (zipinfo == NULL || select_matching(path.c_str(), buf, static_cast<size_t>(len), true));
+        if (is_selected)
+        {
+          // if pipe is closed, then reopen it
+          if (pipe_fd[1] == -1)
+          {
+            // signal close and wait until the main grep thread created a new pipe in close_file()
+            std::unique_lock<std::mutex> lock(pipe_mutex);
+            pipe_close.notify_one();
+            waiting = true;
+            pipe_ready.wait(lock);
+            waiting = false;
+            lock.unlock();
+
+            // failed to create a pipe in close_file()
+            if (pipe_fd[1] == -1)
+              break;
+          }
+
+          // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
+          partname.swap(path);
+        }
+
+        // push decompressed data into pipe
+        while (len > 0)
+        {
+          // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
+          if (is_selected && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
+            break;
+
+          // decompress the next block of data into the buffer
+          len = zstrm.decompress(buf, maxlen);
+        }
+      }
+
+      // break if not unzipping or if no more files to unzip
+      if (zstrm.zipinfo() == NULL)
+        break;
+
+      // extracting a zip file
+      extracting = true;
+
+      // close our end of the pipe
+      close(pipe_fd[1]);
+      pipe_fd[1] = -1;
+    }
+
+    if (extracting)
+    {
+      // inform the main grep thread we are done extracting
+      extracting = false;
+
+      // close our end of the pipe
+      if (pipe_fd[1] >= 0)
+      {
+        close(pipe_fd[1]);
+        pipe_fd[1] = -1;
+      }
+
+      // signal close
+      std::unique_lock<std::mutex> lock(pipe_mutex);
+      pipe_close.notify_one();
+      lock.unlock();
+    }
+    else
+    {
+      // close our end of the pipe
+      close(pipe_fd[1]);
+      pipe_fd[1] = -1;
+    }
   }
 
   // if tar file, extract regular file contents and push into pipes one by one, return true when done
@@ -3043,6 +3043,7 @@ struct Grep {
   // close the file and clear input, return true if next file is extracted from an archive to search
   bool close_file(const char *pathname)
   {
+    (void)pathname; // appease -Wunused-parameter
 
 #ifdef HAVE_LIBZ
 
@@ -3750,8 +3751,6 @@ int main(int argc, char **argv)
               flag_json = true;
             else if (strncmp(arg, "label=", 6) == 0)
               flag_label = arg + 6;
-            else if (strcmp(arg, "label") == 0)
-              flag_label = "";
             else if (strcmp(arg, "line-buffered") == 0)
               flag_line_buffered = true;
             else if (strcmp(arg, "line-number") == 0)
@@ -4887,6 +4886,56 @@ int main(int argc, char **argv)
       flag_include.emplace_back(i);
   }
 
+  // --exclude: normalize by moving directory globs (globs ending in a path separator /) to --exclude-dir
+  auto i = flag_exclude.begin();
+  while (i != flag_exclude.end())
+  {
+    if (i->empty())
+    {
+      i = flag_exclude.erase(i);
+    }
+    else if (i->back() == PATHSEPCHR)
+    {
+      i->pop_back();
+      flag_exclude_dir.emplace_back(*i);
+      i = flag_exclude.erase(i);
+    }
+    else
+    {
+      ++i;
+    }
+  }
+
+  // --include: normalize by moving directory globs (globs ending in a path separator /) to --include-dir
+  i = flag_include.begin();
+  while (i != flag_include.end())
+  {
+    if (i->empty())
+    {
+      i = flag_include.erase(i);
+    }
+    else if (i->back() == PATHSEPCHR)
+    {
+      i->pop_back();
+      flag_include_dir.emplace_back(*i);
+      i = flag_include.erase(i);
+    }
+    else
+    {
+      ++i;
+    }
+  }
+
+  // --exclude-dir/--include-dir: remove trailing path separators
+  for (auto& i : flag_exclude_dir)
+    while (!i.empty() && i.back() == PATHSEPCHR)
+      i.pop_back();
+
+  // --include-dir: remove trailing path separators
+  for (auto& i : flag_include_dir)
+    while (!i.empty() && i.back() == PATHSEPCHR)
+      i.pop_back();
+
   // -O: add filename extensions as globs to --include/--exclude
   for (auto& extensions : flag_file_extensions)
   {
@@ -5044,41 +5093,6 @@ int main(int argc, char **argv)
     }
   }
 
-#ifdef HAVE_STATVFS
-
-  // --exclude-fs: add file system ids to exclude
-  for (auto& i : flag_exclude_fs)
-  {
-    if (!i.empty())
-    {
-      struct statvfs buf;
-      size_t from = 0;
-
-      while (true)
-      {
-        size_t to = i.find(',', from);
-        size_t size = (to == std::string::npos ? i.size() : to) - from;
-
-        if (size > 0)
-        {
-          std::string mount(i.substr(from, size));
-
-          if (statvfs(mount.c_str(), &buf) == 0)
-            exclude_fs.insert(static_cast<uint64_t>(buf.f_fsid));
-          else
-            warning("--exclude-fs: cannot stat", mount.c_str());
-        }
-
-        if (to == std::string::npos)
-          break;
-
-        from = to + 1;
-      }
-    }
-  }
-
-#endif
-
   // --include-from: add globs to the --include and --include-dir lists
   for (auto& i : flag_include_from)
   {
@@ -5100,6 +5114,37 @@ int main(int argc, char **argv)
 
 #ifdef HAVE_STATVFS
 
+  // --exclude-fs: add file system ids to exclude
+  for (auto& i : flag_exclude_fs)
+  {
+    if (!i.empty())
+    {
+      struct statvfs buf;
+      size_t from = 0;
+
+      while (true)
+      {
+        size_t to = i.find(',', from);
+        size_t size = (to == std::string::npos ? i.size() : to) - from;
+
+        if (size > 0)
+        {
+          std::string mount(i.substr(from, size));
+
+          if (statvfs(mount.c_str(), &buf) == 0)
+            exclude_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
+          else
+            warning("--exclude-fs: cannot stat", mount.c_str());
+        }
+
+        if (to == std::string::npos)
+          break;
+
+        from = to + 1;
+      }
+    }
+  }
+
   // --include-fs: add file system ids to include
   for (auto& i : flag_include_fs)
   {
@@ -5118,7 +5163,7 @@ int main(int argc, char **argv)
           std::string mount(i.substr(from, size));
 
           if (statvfs(mount.c_str(), &buf) == 0)
-            include_fs.insert(static_cast<uint64_t>(buf.f_fsid));
+            include_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
           else
             warning("--include-fs: cannot stat", mount.c_str());
         }
@@ -5828,7 +5873,7 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
 
 #ifdef HAVE_STATVFS
 
-  if (!exclude_fs.empty() || !include_fs.empty())
+  if (!exclude_fs_ids.empty() || !include_fs_ids.empty())
   {
     struct statvfs buf;
 
@@ -5836,10 +5881,10 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
     {
       uint64_t id = static_cast<uint64_t>(buf.f_fsid);
 
-      if (exclude_fs.find(id) != exclude_fs.end())
+      if (exclude_fs_ids.find(id) != exclude_fs_ids.end())
         return;
 
-      if (!include_fs.empty() && include_fs.find(id) == include_fs.end())
+      if (!include_fs_ids.empty() && include_fs_ids.find(id) == include_fs_ids.end())
         return;
     }
   }
@@ -7929,7 +7974,7 @@ void help(const char *message, const char *arg)
             where `exts' is a comma-separated list of filename extensions and\n\
             `command' is a filter utility.  The filter utility should read from\n\
             standard input and write to standard output.  Files matching one of\n\
-            `exts` are filtered.  When `exts' is `*', files with non-matching\n\
+            `exts' are filtered.  When `exts' is `*', files with non-matching\n\
             extensions are filtered.  One or more `option' separated by spacing\n\
             may be specified, which are passed verbatim to the command.  A `%'\n\
             as `option' expands into the pathname to search.  For example,\n\
@@ -8043,10 +8088,10 @@ void help(const char *message, const char *arg)
             been found, making searches potentially less expensive.  Pathnames\n\
             are listed once per file searched.  If the standard input is\n\
             searched, the string ``(standard input)'' is written.\n\
-    --label[=LABEL]\n\
+    --label=LABEL\n\
             Displays the LABEL value when input is read from standard input\n\
-            where a file name would normally be printed in the output.  This\n\
-            option applies to options -H, -L, and -l.\n\
+            where a file name would normally be printed in the output.  The\n\
+            default value is `(standard input)'.\n\
     --line-buffered\n\
             Force output to be line buffered instead of block buffered.\n\
     -M MAGIC, --file-magic=MAGIC\n\
@@ -8141,7 +8186,9 @@ void help(const char *message, const char *arg)
     -R, --dereference-recursive\n\
             Recursively read all files under each directory.  Follow all\n\
             symbolic links, unlike -r.  When -J1 is specified, files are\n\
-            searched in the same order as specified.\n\
+            searched in the same order as specified.  Note that when no FILE\n\
+            arguments are specified and input is read from a terminal,\n\
+            recursive searches are performed as if -R is specified.\n\
     -r, --recursive\n\
             Recursively read all files under each directory, following symbolic\n\
             links only if they are on the command line.  When -J1 is specified,\n\
