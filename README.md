@@ -310,6 +310,7 @@ You can always add these later, when you need these features:
 
 After installing, re-execute the commands to rebuild **ugrep**:
 
+    $ cd ugrep
     $ ./configure --enable-color && make -j clean all
 
 Some Linux systems may not be configured to load dynamic libraries from
@@ -319,19 +320,15 @@ file.  Or run `sudo ldconfig /usr/local/lib`.
 
 ### Build
 
-Build **ugrep** on Unix-like systems with:
+Build **ugrep** on Unix-like systems with colors enabled by default:
 
     $ cd ugrep
-    $ ./configure && make -j clean all
+    $ ./configure --enable-color && make -j clean all
 
 This builds `ugrep` in the `ugrep/src` directory and copies it to `ugrep/bin`.
 Make sure all tests pass on your system:
 
     $ make test
-
-If you prefer colorized output by default without ugrep option `--color`:
-
-    $ ./configure --enable-color && make -j clean all
 
 To produce colorized output with headings by default:
 
@@ -369,7 +366,7 @@ To work around this problem, run:
 
 Or try:
 
-    $ touch configure
+    $ touch config.h.in lib/Makefile.in src/Makefile.in
     $ ./configure --enable-color && make -j clean all
 
 If you get an error that `autoheader` was not found when running `make`, try:

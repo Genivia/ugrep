@@ -5,7 +5,7 @@
 # docker run -it ugrep bash
 #
 # step 3: run ugrep, for example:
-# ugrep -r -tjava Hello tests/
+# ugrep -r -n -tjava Hello tests/
 
 FROM ubuntu
 
@@ -24,9 +24,10 @@ RUN apt-get install -y \
     liblzma-dev
 
 RUN cd / &&\
-    git clone https://github.com/Genivia/ugrep &&\
-    cd ugrep &&\
-    touch config.h.in configure &&\
+    git clone https://github.com/Genivia/ugrep
+
+RUN cd ugrep &&\
+    touch config.h.in lib/Makefile.in src/Makefile.in &&\
     ./configure --enable-color &&\
     make -j &&\
     make install
