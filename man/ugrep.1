@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 14, 2020" "ugrep 1.7.9" "User Commands"
+.TH UGREP "1" "February 18, 2020" "ugrep 1.7.10" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -221,9 +221,9 @@ Print a help message.
 .TP
 \fB\-\-hexdump\fR=[1\-8][b][c][h]
 Output matches in 1 to 8 columns of 8 hexadecimal bytes.  The
-default is 2 columns or 16 bytes per line.  Option `b' removes
-space breaks, `c' removes the character column, and `h' removes
-the byte spacing.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
+default is 2 columns or 16 bytes per line.  Option `b' removes all
+space breaks, `c' hides the character column, and `h' removes the
+hex spacing only.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
 .TP
 \fB\-I\fR
 Ignore matches in binary files.  This option is equivalent to the
@@ -275,9 +275,9 @@ only.  Note that \fB\-\-exclude\-fs\fR mounts take priority over
 .TP
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
 Specifies the number of threads spawned to search files.  By
-default, an optimum number of threads is spawned to search files
-simultaneously.  \fB\-J\fR1 disables threading: files are searched in the
-same order as specified.
+default, or when NUM is specified as zero, an optimum number of
+threads is spawned to search files simultaneously.  \fB\-J\fR1 disables
+threading: files are searched in the same order as specified.
 .TP
 \fB\-j\fR, \fB\-\-smart\-case\fR
 Perform case insensitive matching unless a pattern contains an

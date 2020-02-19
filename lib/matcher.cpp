@@ -30,7 +30,7 @@
 @file      matcher.cpp
 @brief     RE/flex matcher engine
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2015-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -93,20 +93,21 @@ int Matcher::get_HW()
 
 int Matcher::HW = Matcher::get_HW();
 
-/// Boyer-Moore preprocessing of the given pattern pat of length len (<=255), generates bmd_ > 0 and bms_[] shifts.
+/// Boyer-Moore preprocessing of the given pattern prefix pat of length len (<=255), generates bmd_ > 0 and bms_[] shifts.
 void Matcher::boyer_moore_init(const char *pat, size_t len)
 {
   // Relative frequency table of English letters, source code, and UTF-8 bytes
   static unsigned char freq[256] = "\0\0\0\0\0\0\0\0\0\73\4\0\0\4\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\73\70\70\1\1\2\2\70\70\70\2\2\70\70\70\2\3\3\3\3\3\3\3\3\3\3\70\70\70\70\70\70\2\35\14\24\26\37\20\17\30\33\11\12\25\22\32\34\15\7\27\31\36\23\13\21\10\16\6\70\1\70\2\70\1\67\46\56\60\72\52\51\62\65\43\44\57\54\64\66\47\41\61\63\71\55\45\53\42\50\40\70\2\70\2\0\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\0\0\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\46\56\56\56\56\56\56\56\56\56\56\56\56\46\56\56\73\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+  uint8_t n = static_cast<uint8_t>(len); // okay to cast: actually never more than 255
   uint16_t i;
   for (i = 0; i < 256; ++i)
-    bms_[i] = static_cast<uint8_t>(len); // okay to cast: actually never more than 255
+    bms_[i] = n;
   lcp_ = 0;
-  lcs_ = len > 1;
-  for (i = 0; i < len; ++i)
+  lcs_ = n > 1;
+  for (i = 0; i < n; ++i)
   {
     uint8_t pch = static_cast<uint8_t>(pat[i]);
-    bms_[pch] = static_cast<uint8_t>(len - i - 1);
+    bms_[pch] = static_cast<uint8_t>(n - i - 1);
     if (i > 0)
     {
       if (freq[static_cast<uint8_t>(pat[lcp_])] > freq[pch])
@@ -121,15 +122,15 @@ void Matcher::boyer_moore_init(const char *pat, size_t len)
     }
   }
   uint16_t j;
-  for (i = static_cast<uint8_t>(len) - 1, j = i; j > 0; --j)
+  for (i = n - 1, j = i; j > 0; --j)
     if (pat[j - 1] == pat[i])
       break;
   bmd_ = i - j + 1;
 #if !defined(HAVE_NEON)
   size_t score = 0;
-  for (i = 0; i < len; ++i)
+  for (i = 0; i < n; ++i)
     score += bms_[static_cast<uint8_t>(pat[i])];
-  score /= len;
+  score /= n;
   uint8_t fch = freq[static_cast<uint8_t>(pat[lcp_])];
   if (!has_HW_SSE2() && !has_HW_AVX())
   {

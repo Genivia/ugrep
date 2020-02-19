@@ -2,17 +2,20 @@
 
 UG="../src/ugrep --color=always -J1"
 
-if [ ! -x "../src/ugrep" ] ; then
+if test ! -x "../src/ugrep" ; then
   echo "../src/ugrep not found, exiting"
   exit 1
 fi
 
-if [ ! -e ../config.h ] ; then
+if test ! -e ../config.h ; then
   echo "../config.h not found, exiting"
   exit 1
 fi
 
-$UG --version | head -n1
+if ! $UG --version | head -n1 ; then
+  echo "../src/ugrep failed to execute, exiting"
+  exit 1
+fi
 
 if $UG -Fq 'HAVE_BOOST_REGEX 1' ../config.h ; then
   have_boost_regex=yes
@@ -53,7 +56,7 @@ function ERR() {
   exit 1
 }
 
-DIFF="diff -C0 -"
+DIFF="diff -C1 -"
 
 rm -rf dir1/ dir2/
 
@@ -73,31 +76,31 @@ cat > dir1/.gitignore << END
 END
 
 printf .
-$UG -rl                                  Hello dir1 | $DIFF out/dir.out               || ERR "-rl Hello dir1"
+$UG -rl                                  Hello dir1 | sort -df | $DIFF out/dir.out               || ERR "-rl Hello dir1"
 printf .
-$UG -Rl                                  Hello dir1 | $DIFF out/dir-S.out             || ERR "-Rl Hello dir1"
+$UG -Rl                                  Hello dir1 | sort -df | $DIFF out/dir-S.out             || ERR "-Rl Hello dir1"
 printf .
-$UG -Rl -tShell                          Hello dir1 | $DIFF out/dir-t.out             || ERR "-Rl -tShell Hello dir1"
+$UG -Rl -tShell                          Hello dir1 | sort -df | $DIFF out/dir-t.out             || ERR "-Rl -tShell Hello dir1"
 printf .
-$UG -Rl --max-depth=1                    Hello dir1 | $DIFF out/dir--max-depth.out    || ERR "-Rl --max-depth=1 Hello dir1"
+$UG -Rl --max-depth=1                    Hello dir1 | sort -df | $DIFF out/dir--max-depth.out    || ERR "-Rl --max-depth=1 Hello dir1"
 printf .
-$UG -Rl --include='*.sh'                 Hello dir1 | $DIFF out/dir--include.out      || ERR "-Rl --include='*.sh' Hello dir1"
+$UG -Rl --include='*.sh'                 Hello dir1 | sort -df | $DIFF out/dir--include.out      || ERR "-Rl --include='*.sh' Hello dir1"
 printf .
-$UG -Rl --exclude='*.sh'                 Hello dir1 | $DIFF out/dir--exclude.out      || ERR "-Rl --exclude='*.sh' Hello dir1"
+$UG -Rl --exclude='*.sh'                 Hello dir1 | sort -df | $DIFF out/dir--exclude.out      || ERR "-Rl --exclude='*.sh' Hello dir1"
 printf .
-$UG -Rl --exclude-dir='dir2'             Hello dir1 | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
+$UG -Rl --exclude-dir='dir2'             Hello dir1 | sort -df | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
 printf .
-$UG -Rl --include-dir='dir1'             Hello dir1 | $DIFF out/dir--include-dir.out  || ERR "-Rl --include-dir='dir1' Hello dir1"
+$UG -Rl --include-dir='dir1'             Hello dir1 | sort -df | $DIFF out/dir--include-dir.out  || ERR "-Rl --include-dir='dir1' Hello dir1"
 printf .
-$UG -Rl --exclude-dir='dir2'             Hello dir1 | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
+$UG -Rl --exclude-dir='dir2'             Hello dir1 | sort -df | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
 printf .
-$UG -Rl --include-from='dir1/.gitignore' Hello dir2 | $DIFF out/dir--include-from.out || ERR "-Rl --include-from='dir1/.gitignore' Hello dir2"
+$UG -Rl --include-from='dir1/.gitignore' Hello dir2 | sort -df | $DIFF out/dir--include-from.out || ERR "-Rl --include-from='dir1/.gitignore' Hello dir2"
 printf .
-$UG -Rl --exclude-from='dir1/.gitignore' Hello dir1 | $DIFF out/dir--exclude-from.out || ERR "-Rl --exclude-from='dir1/.gitignore' Hello dir1"
+$UG -Rl --exclude-from='dir1/.gitignore' Hello dir1 | sort -df | $DIFF out/dir--exclude-from.out || ERR "-Rl --exclude-from='dir1/.gitignore' Hello dir1"
 printf .
-$UG -Rl --ignore-files                   Hello dir1 | $DIFF out/dir--ignore-files.out || ERR "-Rl -ignore-files Hello Hello dir1"
+$UG -Rl --ignore-files                   Hello dir1 | sort -df | $DIFF out/dir--ignore-files.out || ERR "-Rl -ignore-files Hello Hello dir1"
 printf .
-$UG -Rl --filter='sh:head -n1'           Hello dir1 | $DIFF out/dir--filter.out       || ERR "-Rl --filter='sh:head -n1' Hello dir1"
+$UG -Rl --filter='sh:head -n1'           Hello dir1 | sort -df | $DIFF out/dir--filter.out       || ERR "-Rl --filter='sh:head -n1' Hello dir1"
 
 rm -rf dir1 dir2
 

@@ -1,2 +1,2 @@
 ^\h*\{?\h*(\h*[[:word:]:*&]+)+\h+[[:word:]]+\h*\([^)\n]*\)\h*(\{.*|[^{;[:word:]\n]*)$
-(?^^\h+(for|if|return|switch|while).*$)
+(?^^\h+(else|for|if|return|switch|while).*$)

@@ -50,27 +50,24 @@ Optional libraries to support options -P and -z:
 
 Build ugrep as follows:
 
-  ./configure && make
+  $ ./configure --enable-colors && make -j
 
-Or build ugrep with colors enabled by default:
+Git does not preserve time stamps so ./configure may fail, in that case do:
 
-  ./configure --enable-color && make
+  $ touch config.h.in configure
+  $ ./configure --enable-colors && make -j
 
-Github does not preserve time stamps so ./configure may fail, in that case do:
+After this, you may want to test ugrep and install it (optional):
 
-  ./autoreconf -fi
-  ./configure && make
-
-After this, you may want to install ugrep (optional):
-
-  sudo make install
+  $ make test
+  $ sudo make install
 
 Prebuilt executables are located in ugrep/bin.
 
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.9"
+#define UGREP_VERSION "1.7.10"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -355,10 +352,14 @@ bool color_term = false;
 #ifndef OS_WIN
 static void sigint_reset_tty(int)
 {
+  // reset SIGINT to the default handler
+  signal(SIGINT, SIG_DFL);
+
   // be nice, reset colors on interrupt when sending output to a color TTY
   if (color_term)
     color_term = write(1, "\033[0m", 4) > 0; // appease -Wunused-result
-  signal(SIGINT, SIG_DFL);
+
+  // signal SIGINT again
   kill(getpid(), SIGINT);
 }
 #endif
@@ -518,6 +519,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
 void trim_nl(std::string& line);
 bool is_output(ino_t inode);
+size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message);
 
@@ -908,9 +910,10 @@ struct Output {
     static constexpr short HEX_LINE          = 1;
     static constexpr short HEX_CONTEXT_MATCH = 2;
     static constexpr short HEX_CONTEXT_LINE  = 3;
+    static constexpr short HEX_MAX           = 4;
 
     // hex color highlights for HEX_MATCH, HEX_LINE, HEX_CONTEXT_MATCH, HEX_CONTEXT_LINE
-    static const char *color_hex[4];
+    static const char *color_hex[HEX_MAX];
 
     Dump(Output& out)
       :
@@ -1272,53 +1275,76 @@ void Output::Dump::line(const char *separator)
   out.str(color_off);
   out.str(color_se);
   out.str(separator);
-  out.str(color_off);
-  out.chr(' ');
+  if (flag_hex_hbr)
+    out.chr(' ');
+
+  short last_hex_color = HEX_MAX;
 
   for (size_t i = 0; i < flag_hex_columns; ++i)
   {
     if (bytes[i] < 0)
     {
-      out.str(color_cx);
-      if (flag_hex_hbr)
+      if (last_hex_color != -1)
+      {
+        last_hex_color = -1;
+        out.str(color_off);
+        out.str(color_cx);
+      }
+      if (flag_hex_hbr || (i == 0 && flag_hex_cbr))
         out.chr(' ');
       out.str("--");
-      if ((i & 7) == 7 && flag_hex_cbr)
+      if (flag_hex_cbr && (i & 7) == 7)
         out.chr(' ');
-      out.str(color_off);
     }
     else
     {
       short byte = bytes[i];
-      out.str(color_hex[byte >> 8]);
-      if (flag_hex_hbr)
+      if ((byte >> 8) != last_hex_color)
+      {
+        last_hex_color = byte >> 8;
+        out.str(color_off);
+        out.str(color_hex[last_hex_color]);
+      }
+      if (flag_hex_hbr || (i == 0 && flag_hex_cbr))
         out.chr(' ');
       out.hex(byte & 0xff, 2);
-      if ((i & 7) == 7 && flag_hex_cbr)
+      if (flag_hex_cbr && (i & 7) == 7)
         out.chr(' ');
-      out.str(color_off);
     }
   }
 
+  out.str(color_off);
+
   if (flag_hex_chr)
   {
-    out.chr(' ');
     out.str(color_se);
+    if (flag_hex_hbr)
+      out.chr(' ');
     out.chr('|');
-    out.str(color_off);
+
+    last_hex_color = HEX_MAX;
 
     for (size_t i = 0; i < flag_hex_columns; ++i)
     {
       if (bytes[i] < 0)
       {
-        out.str(color_cx);
+        if (last_hex_color != -1)
+        {
+          last_hex_color = -1;
+          out.str(color_off);
+          out.str(color_cx);
+        }
         out.chr('-');
-        out.str(color_off);
       }
       else
       {
         short byte = bytes[i];
-        out.str(color_hex[byte >> 8]);
+        if ((byte >> 8) != last_hex_color)
+        {
+          last_hex_color = byte >> 8;
+          out.str(color_off);
+          out.str(color_hex[last_hex_color]);
+        }
         byte &= 0xff;
         if (flag_color != NULL)
         {
@@ -1348,10 +1374,10 @@ void Output::Dump::line(const char *separator)
         {
           out.chr(byte);
         }
-        out.str(color_off);
       }
     }
 
+    out.str(color_off);
     out.str(color_se);
     out.chr('|');
     out.str(color_off);
@@ -3746,7 +3772,7 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "invert-match") == 0)
               flag_invert_match = true;
             else if (strncmp(arg, "jobs=", 4) == 0)
-              flag_jobs = strtopos(arg + 4, "invalid argument --jobs=");
+              flag_jobs = strtonum(arg + 4, "invalid argument --jobs=");
             else if (strcmp(arg, "json") == 0)
               flag_json = true;
             else if (strncmp(arg, "label=", 6) == 0)
@@ -3972,9 +3998,9 @@ int main(int argc, char **argv)
           case 'J':
             ++arg;
             if (*arg)
-              flag_jobs = strtopos(&arg[*arg == '='], "invalid argument -J=");
+              flag_jobs = strtonum(&arg[*arg == '='], "invalid argument -J=");
             else if (++i < argc)
-              flag_jobs = strtopos(argv[i], "invalid argument -J=");
+              flag_jobs = strtonum(argv[i], "invalid argument -J=");
             else
               help("missing NUM argument for option -J");
             is_grouped = false;
@@ -7794,17 +7820,26 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
   }
 }
 
-// convert unsigned decimal to positive size_t, produce error when conversion fails or when the value is zero
-size_t strtopos(const char *string, const char *message)
+// convert unsigned decimal to non-negative size_t, produce error when conversion fails
+size_t strtonum(const char *string, const char *message)
 {
   char *rest = NULL;
   size_t size = static_cast<size_t>(strtoull(string, &rest, 10));
-  if (rest == NULL || *rest != '\0' || size == 0)
+  if (rest == NULL || *rest != '\0')
     help(message, string);
   return size;
 }
 
-// convert two comma-separated unsigned decimals specifying a range to positive size_t, produce error when conversion fails or when the range is invalid
+// convert unsigned decimal to positive size_t, produce error when conversion fails or when the value is zero
+size_t strtopos(const char *string, const char *message)
+{
+  size_t size = strtonum(string, message);
+  if (size == 0)
+    help(message, string);
+  return size;
+}
+
+// convert one or two comma-separated unsigned decimals specifying a range to positive size_t, produce error when conversion fails or when the range is invalid
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message)
 {
   char *rest = const_cast<char*>(string);
@@ -8011,9 +8046,9 @@ void help(const char *message, const char *arg)
             Print a help message.\n\
     --hexdump=[1-8][b][c][h]\n\
             Output matches in 1 to 8 columns of 8 hexadecimal bytes.  The\n\
-            default is 2 columns or 16 bytes per line.  Option `b' removes\n\
-            space breaks, `c' removes the character column, and `h' removes\n\
-            the byte spacing.  Enables -X if -W or -X is not specified.\n\
+            default is 2 columns or 16 bytes per line.  Option `b' removes all\n\
+            space breaks, `c' hides the character column, and `h' removes the\n\
+            hex spacing only.  Enables -X if -W or -X is not specified.\n\
     -I\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\
@@ -8062,9 +8097,9 @@ void help(const char *message, const char *arg)
   std::cout << "\
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
-            default, an optimum number of threads is spawned to search files\n\
-            simultaneously.  -J1 disables threading: files are searched in the\n\
-            same order as specified.\n\
+            default, or when NUM is specified as zero, an optimum number of\n\
+            threads is spawned to search files simultaneously.  -J1 disables\n\
+            threading: files are searched in the same order as specified.\n\
     -j, --smart-case\n\
             Perform case insensitive matching unless a pattern contains an\n\
             upper case letter.  This option applies to ASCII letters only.\n\

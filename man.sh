@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Generates man page man/ugrep.1 from ./ugrep --help
 # Robert van Engelen, Genivia Inc. All rights reserved.

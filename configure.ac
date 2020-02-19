@@ -205,14 +205,27 @@ if test "x$with_no_neon" = "xno"; then
   AC_MSG_CHECKING([whether ${CXX} supports ARM NEON/AArch64 intrinsics])
   save_CXXFLAGS=$CXXFLAGS
   CXXFLAGS="-march=native"
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
                     [mneon_ok=yes],
                     [mneon_ok=no])
+  if test "x$mneon_ok" = "xyes"; then
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+                      [mneon_ok=yes],
+                      [mneon_ok=no])
+    if test "x$mneon_ok" = "xyes"; then
+      SIMD_FLAGS="-march=native -DHAVE_NEON"
+    else
+      CXXFLAGS="-march=native -mfpu=neon"
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+                        [mneon_ok=yes],
+                        [mneon_ok=no])
+      if test "x$mneon_ok" = "xyes"; then
+        SIMD_FLAGS="-march=native -mfpu=neon -DHAVE_NEON"
+      fi
+    fi
+  fi
   CXXFLAGS=$save_CXXFLAGS
   AC_MSG_RESULT($mneon_ok)
-  if test "x$mneon_ok" = "xyes"; then
-    SIMD_FLAGS="-march=native -mfpu=neon-vfpv4 -DHAVE_NEON"
-  fi
 else
   AC_MSG_RESULT(yes)
   SIMD_FLAGS=
