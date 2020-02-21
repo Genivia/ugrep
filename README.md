@@ -275,8 +275,8 @@ runs faster with a single thread (T11 0.32s) than multi-threaded (T10 0.45s),
 which was reported as an issue to the maintainers.
 
 [Hyperscan simple grep](https://github.com/intel/hyperscan/tree/master/examples)
-returns a few more matches than other greps due to its "all matches" pattern
-matching behavior.  Option `-w` was emulated using the pattern
+returns a few more matches than other greps due to its "all matches reported"
+pattern matching behavior.  Option `-w` was emulated using the pattern
 `\b(char|int|long|size_t|void)\b`.  Option `-f` was emulated as follows:
 
     paste -d'|' -s words1+1000 > pattern.txt
@@ -320,7 +320,8 @@ You can always add these later, when you need these features:
 
 After installing, re-execute the commands to rebuild **ugrep**:
 
-    $ sh build.sh
+    $ cd ugrep
+    $ ./configure --enable-color && make -j clean all
 
 Some Linux systems may not be configured to load dynamic libraries from
 `/usr/local/lib`, causing a library load error.  To correct this, add
@@ -331,23 +332,23 @@ file.  Or run `sudo ldconfig /usr/local/lib`.
 
 Build **ugrep** on Unix-like systems with colors enabled by default:
 
-    $ sh build.sh
+    $ cd ugrep
+    $ ./configure --enable-color && make -j clean all
 
 This builds `ugrep` in the `ugrep/src` directory, tests it, and copies it
 locally to `ugrep/bin`.
 
-To produce colorized output with headings by default:
+To produce colorized output with filename headings by default:
 
-    $ sh build.sh --enable-pretty
+    $ cd ugrep
+    $ ./configure --enable-pretty && make -j clean all
 
 To see the details of all build configuration options available, including
 `--with-grep-path=GREP_PATH`, `--with-grep-colors="GREP_COLORS"`,
 `--enable-color`, `--enable-pretty`, `--enable-pager`, `--disable-hidden`, and
 `--disable-mmap`:
 
-    $ sh build.sh --help
-
-All options specified with the `build.sh` command are passed to `./configure`.
+    $ ./configure --help
 
 After the build completes, copy `ugrep/bin/ugrep` to a convenient location, for
 example in your `bin` directory.
@@ -365,13 +366,18 @@ installed predefined pattern files.
 ### Troubleshooting
 
 Unfortunately, git clones do not preserve timestamps which means that you may
-run into "WARNING: 'aclocal-1.15' is missing on your system."
+run into "WARNING: 'aclocal-1.15' is missing on your system." or that
+`autoheader` was not found when running `make`
 
-The `build.sh` script attempts to work around such problems.  But if that
-fails, try `autoreconf -fi`:
+To work around this problem, run:
 
     $ autoreconf -fi
-    $ sh build.sh
+    $ ./configure --enable-color && make -j clean all
+
+Or try:
+
+    $ touch config.h.in lib/Makefile.in src/Makefile.in
+    $ ./configure --enable-color && make -j clean all
 
 ### For developers
 
