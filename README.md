@@ -225,8 +225,8 @@ The following tests span a range of practical use cases:
 
 Test | Command                                                          | Description
 ---- | ---------------------------------------------------------------- | -----------------------------------------------------
-T1   | `GREP -c quartz enwik8.cpp`                                      | count "quartz" in a 100MB file (word with low frequency letters)
-T2   | `GREP -c sternness enwik8.cpp`                                   | count "sternness" in a 100MB file (word with high frequency letters)
+T1   | `GREP -c quartz enwik8`                                          | count "quartz" in a 100MB file (word with low frequency letters)
+T2   | `GREP -c sternness enwik8`                                       | count "sternness" in a 100MB file (word with high frequency letters)
 T3   | `GREP -cw -e char -e int -e long -e size_t -e void big.cpp`      | count 5 short words in a 35MB C++ source code file
 T4   | `GREP -Eon 'serialize_[a-zA-Z0-9_]+Type' big.cpp`                | search and display C++ serialization functions in a 35MB source code file
 T5   | `GREP -Fon -f words1+1000 enwik8`                                | search 1000 words of length 1 or longer in a 100MB Wikipedia file
@@ -263,14 +263,24 @@ options are not supported (e.g. option `-z`).
 GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      | T11      | T12      |
 --------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
 ugrep           | **0.05** | **0.06** | **0.08** | **0.03** | **0.99** | **0.97** | **0.87** | **0.89** | **0.30** | **0.10** | **0.19** | **0.02** |
+hyperscan grep  | 0.09     | 0.10     | 0.11     | 0.04     | 7.78     | 3.39     | 2.35     | 1.41     | 1.17     | *n/a*    | *n/a*    | *n/a*    |
 ripgrep         | 0.06     | 0.10     | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
 silver searcher | 0.10     | 0.11     | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
 GNU grep 3.3    | 0.08     | 0.15     | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
 PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | 2.37     | *n/a*    |
 BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
 
-Note: silver searcher 2.2.0 runs faster with a single thread (T11 0.32s) than
-multi-threaded (T10 0.45s), which was reported as an issue.
+Note: [silver searcher 2.2.0](https://github.com/ggreer/the_silver_searcher)
+runs faster with a single thread (T11 0.32s) than multi-threaded (T10 0.45s),
+which was reported as an issue to the maintainers.
+
+[Hyperscan simple grep](https://github.com/intel/hyperscan/tree/master/examples)
+returns a few more matches than other greps due to its "all matches" pattern
+matching behavior.  Option `-w` was emulated using the pattern
+`\b(char|int|long|size_t|void)\b`.  Option `-f` was emulated as follows:
+
+    paste -d'|' -s words1+1000 > pattern.txt
+    /usr/bin/time ./simplegrep `cat pattern.txt` enwik8 | ./null
 
 Note: output is sent to a `null` utility to eliminate terminal display
 overhead.  The `null` utility source code:
@@ -310,8 +320,7 @@ You can always add these later, when you need these features:
 
 After installing, re-execute the commands to rebuild **ugrep**:
 
-    $ cd ugrep
-    $ ./configure --enable-color && make -j clean all
+    $ sh build.sh
 
 Some Linux systems may not be configured to load dynamic libraries from
 `/usr/local/lib`, causing a library load error.  To correct this, add
@@ -322,27 +331,26 @@ file.  Or run `sudo ldconfig /usr/local/lib`.
 
 Build **ugrep** on Unix-like systems with colors enabled by default:
 
-    $ cd ugrep
-    $ ./configure --enable-color && make -j clean all
+    $ sh build.sh
 
-This builds `ugrep` in the `ugrep/src` directory and copies it to `ugrep/bin`.
-Make sure all tests pass on your system:
-
-    $ make test
+This builds `ugrep` in the `ugrep/src` directory, tests it, and copies it
+locally to `ugrep/bin`.
 
 To produce colorized output with headings by default:
 
-    $ ./configure --enable-pretty && make -j clean all
+    $ sh build.sh --enable-pretty
 
 To see the details of all build configuration options available, including
 `--with-grep-path=GREP_PATH`, `--with-grep-colors="GREP_COLORS"`,
 `--enable-color`, `--enable-pretty`, `--enable-pager`, `--disable-hidden`, and
 `--disable-mmap`:
 
-    $ ./configure --help
+    $ sh build.sh --help
 
-After `make` finishes, copy `bin/ugrep` to a convenient location, for example
-in your `bin` directory.
+All options specified with the `build.sh` command are passed to `./configure`.
+
+After the build completes, copy `ugrep/bin/ugrep` to a convenient location, for
+example in your `bin` directory.
 
 Or you may want to install the `ugrep` command and its manual page with:
 
@@ -356,23 +364,14 @@ installed predefined pattern files.
 
 ### Troubleshooting
 
-Unfortunately, cloning from Git does not preserve timestamps which means that
-you may run into "WARNING: 'aclocal-1.15' is missing on your system."
+Unfortunately, git clones do not preserve timestamps which means that you may
+run into "WARNING: 'aclocal-1.15' is missing on your system."
 
-To work around this problem, run:
+The `build.sh` script attempts to work around such problems.  But if that
+fails, try `autoreconf -fi`:
 
     $ autoreconf -fi
-    $ ./configure --enable-color && make -j clean all
-
-Or try:
-
-    $ touch config.h.in lib/Makefile.in src/Makefile.in
-    $ ./configure --enable-color && make -j clean all
-
-If you get an error that `autoheader` was not found when running `make`, try:
-
-    $ touch config.h.in
-    $ make -j clean all
+    $ sh build.sh
 
 ### For developers
 
