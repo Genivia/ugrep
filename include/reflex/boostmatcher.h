@@ -30,7 +30,7 @@
 @file      boostmatcher.h
 @brief     Boost::regex-based matcher engines for pattern matching
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2017, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -50,7 +50,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   template<typename T>
   static std::string convert(T regex, convert_flag_type flags = convert_flag::none)
   {
-    return reflex::convert(regex, "imsx!#<=:abcdefghlnprstuvwxzABDHLPQSUWZ0123456789<>?+", flags);
+    return reflex::convert(regex, "imsx!#<=:abcdefghlnrstuvwxzABDHLNQSUWZ0123456789<>?+", flags);
   }
   /// Default constructor.
   BoostMatcher()
@@ -94,6 +94,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   BoostMatcher& operator=(const BoostMatcher& matcher) ///< matcher to copy
   {
     PatternMatcher<boost::regex>::operator=(matcher);
+    flg_ = matcher.flg_;
     return *this;
   }
   /// Polymorphic cloning.
@@ -158,7 +159,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   }
  protected:
   /// The match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH, implemented with boost::regex.
-  virtual size_t match(Method method)
+  virtual size_t match(Method method) ///< match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero when input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
   {
     DBGLOG("BEGIN BoostMatcher::match(%d)", method);
@@ -185,19 +186,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
       {
         if (end_ + blk_ + 1 >= max_ && grow()) // make sure we have enough storage to read input
           itr_ = fin_; // buffer shifting/growing invalidates iterator
-        while (true)
-        {
-          end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
-          if (pos_ < end_)
-            break;
-          if (itr_ != fin_ && (*itr_)[0].matched && cur_ != pos_)
-            break; // OK if iterator is still valid and we have a non-empty match
-          if (!wrap())
-          {
-            eof_ = true;
-            break;
-          }
-        }
+        (void)peek_more();
         DBGLOGN("Got more input pos = %zu end = %zu max = %zu", pos_, end_, max_);
       }
       if (pos_ == end_) // if pos_ is hitting the end_ then
@@ -236,14 +225,14 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
           DBGLOG("END BoostMatcher::match()");
           return cap_;
         }
-        if (itr_ != fin_)
-          break; // OK if iterator is still valid
-        if (method == Const::FIND && opt_.N)
+        if (method == Const::FIND && opt_.N && eof_ && (itr_ == fin_ || (*itr_)[0].first == buf_ + end_))
         {
           DBGLOGN("No match, pos = %zu", pos_);
           DBGLOG("END BoostMatcher::match()");
           return 0;
         }
+        if (itr_ != fin_)
+          break; // OK if iterator is still valid
       }
       new_itr(method); // need new iterator
       if (itr_ != fin_)
@@ -346,8 +335,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
 
 /// Boost matcher engine class, extends reflex::BoostMatcher for Boost POSIX regex matching.
 /**
-Boost POSIX regex matching enables Boost match flags `match_posix` and
-`match_not_dot_newline`. Lazy quantifiers are not supported by this matcher
+Boost POSIX regex matching enables Boost match flags `match_posix` and `match_not_dot_newline`. Lazy quantifiers are not supported by this matcher
 engine.
 */
 class BoostPosixMatcher : public BoostMatcher {
@@ -356,7 +344,7 @@ class BoostPosixMatcher : public BoostMatcher {
   template<typename T>
   static std::string convert(T regex, convert_flag_type flags = convert_flag::none)
   {
-    return reflex::convert(regex, "imsx!#<=:abcdefghlnprstuvwxzABDHLPQSUWZ0<>", flags);
+    return reflex::convert(regex, "imsx!#<=:abcdefghlnrstuvwxzABDHLNQSUWZ0<>", flags);
   }
   /// Default constructor.
   BoostPosixMatcher() : BoostMatcher()
@@ -387,8 +375,7 @@ class BoostPosixMatcher : public BoostMatcher {
 
 /// Boost matcher engine class, extends reflex::BoostMatcher for Boost Perl regex matching.
 /**
-Boost Perl regex matching enables Boost match flag `match_perl` and
-`match_not_dot_newline`.
+Boost Perl regex matching enables Boost match flag `match_perl` and `match_not_dot_newline`.
 */
 class BoostPerlMatcher : public BoostMatcher {
  public:

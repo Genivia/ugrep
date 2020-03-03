@@ -30,7 +30,7 @@
 @file      error.cpp
 @brief     RE/flex regex errors
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2017, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -40,7 +40,7 @@
 
 namespace reflex {
 
-std::string regex_error::regex_error_message(regex_error_type code, const char *pattern, size_t pos)
+std::string regex_error::regex_error_message_code(regex_error_type code, const char *pattern, size_t pos)
 {
   static const char *messages[] = {
     "mismatched ( )",
@@ -59,12 +59,16 @@ std::string regex_error::regex_error_message(regex_error_type code, const char *
     "invalid collating element",
     "invalid backreference",
     "invalid syntax",
+    "exceeds length limit",
     "exceeds complexity limits",
     "undefined name",
   };
+  return regex_error_message(messages[code], pattern, pos);
+}
 
-  const char *s = messages[code];
-  size_t l = std::strlen(s);
+std::string regex_error::regex_error_message(const char *message, const char *pattern, size_t pos)
+{
+  size_t l = std::strlen(message);
   size_t n = pos / 80;
   const char *p = pattern + 80 * n;
   while (p > pattern && (p[0] & 0xc0) == 0x80)
@@ -88,9 +92,9 @@ std::string regex_error::regex_error_message(regex_error_type code, const char *
 #endif
   what.append(buf).append(p, m).append("\n");
   if (r >= l + 4)
-    what.append(r - l - 4, ' ').append(s).append("___/\n");
+    what.append(r - l - 4, ' ').append(message).append("___/\n");
   else
-    what.append(r, ' ').append("\\___").append(s).append("\n");
+    what.append(r, ' ').append("\\___").append(message).append("\n");
 
   return what;
 }

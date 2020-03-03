@@ -7,7 +7,7 @@
 #   This macro searches for an installed lzma library. If nothing was
 #   specified when calling configure, it searches first in /usr/local and
 #   then in /usr, /opt/local and /sw. If the --with-lzma=DIR is specified,
-#   it will try to find it in DIR/include/lzma.h and DIR/lib/liblzma.a. If
+#   it will try to find it in DIR/include/lzma.h and DIR/lib/liblzma. If
 #   --without-lzma is specified, the library is not searched at all.
 #
 #   If either the header file (lzma.h) or the library (liblzma) is not found,
@@ -57,7 +57,8 @@
 #   modified version of the Autoconf Macro, you may extend this special
 #   exception to the GPL to apply to your modified version as well.
 
-AU_ALIAS([CHECK_LZMALIB], [AX_CHECK_LZMALIB])
+#serial 1
+
 AC_DEFUN([AX_CHECK_LZMALIB],
 #
 # Handle user hints
@@ -68,7 +69,7 @@ AC_ARG_WITH([lzma],
 [  --with-lzma=DIR         root directory path of lzma installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@
   --without-lzma          to disable lzma usage completely],
-[if test "$withval" != no ; then
+[if test "$withval" != "no" ; then
   AC_MSG_RESULT(yes)
   if test -d "$withval"
   then
@@ -77,29 +78,28 @@ AC_ARG_WITH([lzma],
     AC_MSG_WARN([Sorry, $withval does not exist, checking usual places])
   fi
 else
-  lzma_places=
+  lzma_places=""
   AC_MSG_RESULT(no)
 fi],
 [AC_MSG_RESULT(yes)])
-
 #
 # Locate lzma, if wanted
 #
 if test -n "${lzma_places}"
 then
-	# check the user supplied or any other more or less 'standard' place:
-	#   Most UNIX systems      : /usr/local and /usr
-	#   MacPorts / Fink on OSX : /opt/local respectively /sw
-	for LZMA_HOME in ${lzma_places} ; do
-	  if test -f "${LZMA_HOME}/include/lzma.h"; then break; fi
-	  LZMA_HOME=""
-	done
+  # check the user supplied or any other more or less 'standard' place:
+  #   Most UNIX systems      : /usr/local and /usr
+  #   MacPorts / Fink on OSX : /opt/local respectively /sw
+  for LZMA_HOME in ${lzma_places} ; do
+    if test -f "${LZMA_HOME}/include/lzma.h"; then break; fi
+    LZMA_HOME=""
+  done
 
   LZMA_OLD_LDFLAGS=$LDFLAGS
   LZMA_OLD_CPPFLAGS=$CPPFLAGS
   if test -n "${LZMA_HOME}"; then
-        LDFLAGS="$LDFLAGS -L${LZMA_HOME}/lib"
-        CPPFLAGS="$CPPFLAGS -I${LZMA_HOME}/include"
+    LDFLAGS="$LDFLAGS -L${LZMA_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${LZMA_HOME}/include"
   fi
   AC_LANG_PUSH([C])
   AC_CHECK_LIB([lzma], [lzma_code], [lzma_cv_liblzma=yes], [lzma_cv_liblzma=no])

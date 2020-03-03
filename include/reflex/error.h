@@ -30,7 +30,7 @@
 @file      error.h
 @brief     RE/flex regex errors
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -64,15 +64,16 @@ class regex_error : public std::runtime_error {
   static const regex_error_type invalid_collating     = 13; ///< invalid collating element [[.name.]]
   static const regex_error_type invalid_backreference = 14; ///< invalid backreference
   static const regex_error_type invalid_syntax        = 15; ///< invalid regex syntax
-  static const regex_error_type exceeds_limits        = 16; ///< regex exceeds complexity limits (reflex::Pattern class only)
-  static const regex_error_type undefined_name        = 17; ///< undefined macro name (reflex tool only)
+  static const regex_error_type exceeds_length        = 16; ///< regex exceeds length limit (reflex::Pattern class only)
+  static const regex_error_type exceeds_limits        = 17; ///< regex exceeds complexity limits (reflex::Pattern class only)
+  static const regex_error_type undefined_name        = 18; ///< undefined macro name (reflex tool only)
   /// Construct regex error info.
   regex_error(
       regex_error_type   code,
       const std::string& pattern,
       size_t             pos = 0)
     :
-      std::runtime_error(regex_error_message(code, pattern.c_str(), pos)),
+      std::runtime_error(regex_error_message_code(code, pattern.c_str(), pos)),
       code_(code),
       pos_(pos)
   { }
@@ -82,8 +83,28 @@ class regex_error : public std::runtime_error {
       const char      *pattern,
       size_t           pos = 0)
     :
-      std::runtime_error(regex_error_message(code, pattern, pos)),
+      std::runtime_error(regex_error_message_code(code, pattern, pos)),
       code_(code),
+      pos_(pos)
+  { }
+  /// Construct regex error info.
+  regex_error(
+      const char        *message,
+      const std::string& pattern,
+      size_t             pos = 0)
+    :
+      std::runtime_error(regex_error_message(message, pattern.c_str(), pos)),
+      code_(invalid_syntax),
+      pos_(pos)
+  { }
+  /// Construct regex error info.
+  regex_error(
+      const char      *message,
+      const char      *pattern,
+      size_t           pos = 0)
+    :
+      std::runtime_error(regex_error_message(message, pattern, pos)),
+      code_(invalid_syntax),
       pos_(pos)
   { }
   /// Returns error code, a reflex::regex_error_type constant.
@@ -99,10 +120,14 @@ class regex_error : public std::runtime_error {
     return pos_;
   }
  private:
-  static std::string regex_error_message(
+  static std::string regex_error_message_code(
       regex_error_type code,
       const char      *pattern,
       size_t           pos);
+  static std::string regex_error_message(
+      const char *message,
+      const char *pattern,
+      size_t      pos);
   regex_error_type code_;
   size_t           pos_;
 };

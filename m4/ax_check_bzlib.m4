@@ -7,7 +7,7 @@
 #   This macro searches for an installed bzlib/bz2 library. If nothing was
 #   specified when calling configure, it searches first in /usr/local and
 #   then in /usr, /opt/local and /sw. If the --with-bzlib=DIR is specified,
-#   it will try to find it in DIR/include/bzlib.h and DIR/lib/libbz2.a. If
+#   it will try to find it in DIR/include/bzlib.h and DIR/lib/libbz2. If
 #   --without-bzlib is specified, the library is not searched at all.
 #
 #   If either the header file (bzlib.h) or the library (libbz2) is not found,
@@ -57,7 +57,8 @@
 #   modified version of the Autoconf Macro, you may extend this special
 #   exception to the GPL to apply to your modified version as well.
 
-AU_ALIAS([CHECK_BZLIB], [AX_CHECK_BZLIB])
+#serial 1
+
 AC_DEFUN([AX_CHECK_BZLIB],
 #
 # Handle user hints
@@ -68,7 +69,7 @@ AC_ARG_WITH([bzlib],
 [  --with-bzlib=DIR        root directory path of bzlib installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@
   --without-bzlib         to disable bzlib usage completely],
-[if test "$withval" != no ; then
+[if test "$withval" != "no" ; then
   AC_MSG_RESULT(yes)
   if test -d "$withval"
   then
@@ -77,29 +78,28 @@ AC_ARG_WITH([bzlib],
     AC_MSG_WARN([Sorry, $withval does not exist, checking usual places])
   fi
 else
-  bzlib_places=
+  bzlib_places=""
   AC_MSG_RESULT(no)
 fi],
 [AC_MSG_RESULT(yes)])
-
 #
 # Locate bzlib, if wanted
 #
 if test -n "${bzlib_places}"
 then
-	# check the user supplied or any other more or less 'standard' place:
-	#   Most UNIX systems      : /usr/local and /usr
-	#   MacPorts / Fink on OSX : /opt/local respectively /sw
-	for BZLIB_HOME in ${bzlib_places} ; do
-	  if test -f "${BZLIB_HOME}/include/bzlib.h"; then break; fi
-	  BZLIB_HOME=""
-	done
+  # check the user supplied or any other more or less 'standard' place:
+  #   Most UNIX systems      : /usr/local and /usr
+  #   MacPorts / Fink on OSX : /opt/local respectively /sw
+  for BZLIB_HOME in ${bzlib_places} ; do
+    if test -f "${BZLIB_HOME}/include/bzlib.h"; then break; fi
+    BZLIB_HOME=""
+  done
 
   BZLIB_OLD_LDFLAGS=$LDFLAGS
   BZLIB_OLD_CPPFLAGS=$CPPFLAGS
   if test -n "${BZLIB_HOME}"; then
-        LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
-        CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
+    LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
   fi
   AC_LANG_PUSH([C])
   AC_CHECK_LIB([bz2], [BZ2_bzRead], [bzlib_cv_libbz2=yes], [bzlib_cv_libbz2=no])

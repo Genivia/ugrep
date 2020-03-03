@@ -75,7 +75,7 @@ AC_ARG_WITH([zlib],
 [  --with-zlib=DIR         root directory path of zlib installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@
   --without-zlib          to disable zlib usage completely],
-[if test "$withval" != no ; then
+[if test "$withval" != "no" ; then
   AC_MSG_RESULT(yes)
   if test -d "$withval"
   then
@@ -84,29 +84,28 @@ AC_ARG_WITH([zlib],
     AC_MSG_WARN([Sorry, $withval does not exist, checking usual places])
   fi
 else
-  zlib_places=
+  zlib_places=""
   AC_MSG_RESULT(no)
 fi],
 [AC_MSG_RESULT(yes)])
-
 #
 # Locate zlib, if wanted
 #
 if test -n "${zlib_places}"
 then
-	# check the user supplied or any other more or less 'standard' place:
-	#   Most UNIX systems      : /usr/local and /usr
-	#   MacPorts / Fink on OSX : /opt/local respectively /sw
-	for ZLIB_HOME in ${zlib_places} ; do
-	  if test -f "${ZLIB_HOME}/include/zlib.h"; then break; fi
-	  ZLIB_HOME=""
-	done
+  # check the user supplied or any other more or less 'standard' place:
+  #   Most UNIX systems      : /usr/local and /usr
+  #   MacPorts / Fink on OSX : /opt/local respectively /sw
+  for ZLIB_HOME in ${zlib_places} ; do
+    if test -f "${ZLIB_HOME}/include/zlib.h"; then break; fi
+    ZLIB_HOME=""
+  done
 
   ZLIB_OLD_LDFLAGS=$LDFLAGS
   ZLIB_OLD_CPPFLAGS=$CPPFLAGS
   if test -n "${ZLIB_HOME}"; then
-        LDFLAGS="$LDFLAGS -L${ZLIB_HOME}/lib"
-        CPPFLAGS="$CPPFLAGS -I${ZLIB_HOME}/include"
+    LDFLAGS="$LDFLAGS -L${ZLIB_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${ZLIB_HOME}/include"
   fi
   AC_LANG_PUSH([C])
   AC_CHECK_LIB([z], [inflateEnd], [zlib_cv_libz=yes], [zlib_cv_libz=no])

@@ -30,13 +30,15 @@
 @file      matcher.cpp
 @brief     RE/flex matcher engine
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
 #include <reflex/matcher.h>
 
-#if defined(HAVE_AVX)
+#if defined(HAVE_AVX512BW)
+# include <immintrin.h>
+#elif defined(HAVE_AVX)
 # include <immintrin.h>
 #elif defined(HAVE_SSE2)
 # include <emmintrin.h>
@@ -44,7 +46,7 @@
 # include <arm_neon.h>
 #endif
 
-#if defined(HAVE_SSE2) || defined(HAVE_AVX)
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX) || defined(HAVE_SSE2)
 # ifdef _MSC_VER
 #  include <intrin.h>
 #  define cpuid __cpuid
@@ -56,9 +58,19 @@
 
 namespace reflex {
 
-#if defined(HAVE_SSE2) || defined(HAVE_AVX)
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX) || defined(HAVE_SSE2)
 
 #ifdef _MSC_VER
+#ifdef _WIN64
+#pragma intrinsic(_BitScanForward64)
+inline uint32_t ctzl(uint64_t x)
+{
+  unsigned long r;
+  _BitScanForward64(&r, x);
+  return r;
+}
+#endif
+#pragma intrinsic(_BitScanForward)
 inline uint32_t ctz(uint32_t x)
 {
   unsigned long r;
@@ -66,32 +78,40 @@ inline uint32_t ctz(uint32_t x)
   return r;
 }
 #else
+inline uint32_t ctzl(uint64_t x)
+{
+  return __builtin_ctzl(x);
+}
 inline uint32_t ctz(uint32_t x)
 {
   return __builtin_ctz(x);
 }
 #endif
 
-int Matcher::get_HW()
+uint64_t Matcher::get_HW()
 {
-  int CPUInfo[4] = { -1 };
-  cpuid(CPUInfo, 0);
-  if (CPUInfo[0] < 1)
-    return 0;
-  cpuid(CPUInfo, 1);
-  return CPUInfo[2];
+  int CPUInfo1[4] = { -1, 0, 0, 0 };
+  int CPUInfo7[4] = {  0, 0, 0, 0 };
+  cpuid(CPUInfo1, 0);
+  int n = CPUInfo1[0];
+  if (n < 1)
+    return 0ULL;
+  cpuid(CPUInfo1, 1);
+  if (n >= 7)
+    cpuid(CPUInfo7, 7);
+  return static_cast<uint64_t>(CPUInfo1[2]) | (static_cast<uint64_t>(CPUInfo7[1]) << 32);
 }
 
 #else
 
-int Matcher::get_HW()
+uint64_t Matcher::get_HW()
 {
-  return 0;
+  return 0ULL;
 }
 
 #endif
 
-int Matcher::HW = Matcher::get_HW();
+uint64_t Matcher::HW = Matcher::get_HW();
 
 /// Boyer-Moore preprocessing of the given pattern prefix pat of length len (<=255), generates bmd_ > 0 and bms_[] shifts.
 void Matcher::boyer_moore_init(const char *pat, size_t len)
@@ -132,7 +152,7 @@ void Matcher::boyer_moore_init(const char *pat, size_t len)
     score += bms_[static_cast<uint8_t>(pat[i])];
   score /= n;
   uint8_t fch = freq[static_cast<uint8_t>(pat[lcp_])];
-  if (!has_HW_SSE2() && !has_HW_AVX())
+  if (!have_HW_SSE2() && !have_HW_AVX() && !have_HW_AVX512BW())
   {
     // if scoring is high and freq is high, then use improved Boyer-Moore instead of memchr()
 #if defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
@@ -360,10 +380,45 @@ bool Matcher::advance()
     {
       const char *s = buf_ + loc + lcp_;
       const char *e = buf_ + end_ + lcp_ - len + 1;
-#if defined(HAVE_AVX)
-      if (has_HW_AVX())
+#if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
+      if (have_HW_AVX512BW())
       {
-        // implements SIMD string search scheme described in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        __m512i vlcp = _mm512_set1_epi8(pre[lcp_]);
+        __m512i vlcs = _mm512_set1_epi8(pre[lcs_]);
+        while (s + 64 < e)
+        {
+          __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
+          __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs_ - lcp_));
+          uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
+          while (mask != 0)
+          {
+            uint32_t offset = ctzl(mask);
+            if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
+            {
+              loc = s - lcp_ + offset - buf_;
+              set_current(loc);
+              if (min == 0)
+                return true;
+              if (min >= 4)
+              {
+                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                  return true;
+              }
+              else
+              {
+                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                  return true;
+              }
+            }
+            mask &= ~(1ULL << offset);
+          }
+          s += 64;
+        }
+      }
+      else if (have_HW_AVX())
+      {
+        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
         __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
         while (s + 32 < e)
@@ -376,7 +431,6 @@ bool Matcher::advance()
           while (mask != 0)
           {
             uint32_t offset = ctz(mask);
-            mask &= ~(1 << offset);
             if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
             {
               loc = s - lcp_ + offset - buf_;
@@ -394,13 +448,14 @@ bool Matcher::advance()
                   return true;
               }
             }
+            mask &= ~(1 << offset);
           }
           s += 32;
         }
       }
-      else if (has_HW_SSE2())
+      else if (have_HW_SSE2())
       {
-        // implements SIMD string search scheme described in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
         while (s + 16 < e)
@@ -413,7 +468,6 @@ bool Matcher::advance()
           while (mask != 0)
           {
             uint32_t offset = ctz(mask);
-            mask &= ~(1 << offset);
             if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
             {
               loc = s - lcp_ + offset - buf_;
@@ -431,14 +485,90 @@ bool Matcher::advance()
                   return true;
               }
             }
+            mask &= ~(1 << offset);
+          }
+          s += 16;
+        }
+      }
+#elif defined(HAVE_AVX)
+      if (have_HW_AVX())
+      {
+        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
+        __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
+        while (s + 32 < e)
+        {
+          __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
+          __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs_ - lcp_));
+          __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
+          __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
+          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
+          while (mask != 0)
+          {
+            uint32_t offset = ctz(mask);
+            if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
+            {
+              loc = s - lcp_ + offset - buf_;
+              set_current(loc);
+              if (min == 0)
+                return true;
+              if (min >= 4)
+              {
+                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                  return true;
+              }
+              else
+              {
+                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                  return true;
+              }
+            }
+            mask &= ~(1 << offset);
+          }
+          s += 32;
+        }
+      }
+      else if (have_HW_SSE2())
+      {
+        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
+        __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
+        while (s + 16 < e)
+        {
+          __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+          __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs_ - lcp_));
+          __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
+          __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
+          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
+          while (mask != 0)
+          {
+            uint32_t offset = ctz(mask);
+            if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
+            {
+              loc = s - lcp_ + offset - buf_;
+              set_current(loc);
+              if (min == 0)
+                return true;
+              if (min >= 4)
+              {
+                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                  return true;
+              }
+              else
+              {
+                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                  return true;
+              }
+            }
+            mask &= ~(1 << offset);
           }
           s += 16;
         }
       }
 #elif defined(HAVE_SSE2)
-      if (has_HW_SSE2())
+      if (have_HW_SSE2())
       {
-        // implements SIMD string search scheme described in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
         while (s + 16 < e)
@@ -451,7 +581,6 @@ bool Matcher::advance()
           while (mask != 0)
           {
             uint32_t offset = ctz(mask);
-            mask &= ~(1 << offset);
             if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
             {
               loc = s - lcp_ + offset - buf_;
@@ -469,12 +598,13 @@ bool Matcher::advance()
                   return true;
               }
             }
+            mask &= ~(1 << offset);
           }
           s += 16;
         }
       }
 #elif defined(HAVE_NEON)
-      // implements SIMD string search scheme described in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+      // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
       uint8x16_t vlcp = vdupq_n_u8(pre[lcp_]);
       uint8x16_t vlcs = vdupq_n_u8(pre[lcs_]);
       while (s + 16 < e)
@@ -485,13 +615,12 @@ bool Matcher::advance()
         uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
         uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
         uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
-        uint64_t mask1 = vgetq_lane_u64(vmask64, 0);
-        uint64_t mask2 = vgetq_lane_u64(vmask64, 1);
-        if (mask1 != 0)
+        uint64_t mask = vgetq_lane_u64(vmask64, 0);
+        if (mask != 0)
         {
           for (int i = 0; i < 8; ++i)
           {
-            if ((mask1 & 0xff) && std::memcmp(s - lcp_ + i, pre, len) == 0)
+            if ((mask & 0xff) && std::memcmp(s - lcp_ + i, pre, len) == 0)
             {
               loc = s - lcp_ + i - buf_;
               set_current(loc);
@@ -508,14 +637,15 @@ bool Matcher::advance()
                   return true;
               }
             }
-            mask1 >>= 8;
+            mask >>= 8;
           }
         }
-        else if (mask2 != 0)
+        mask = vgetq_lane_u64(vmask64, 1);
+        if (mask != 0)
         {
           for (int i = 0; i < 8; ++i)
           {
-            if ((mask2 & 0xff) && std::memcmp(s - lcp_ + i + 8, pre, len) == 0)
+            if ((mask & 0xff) && std::memcmp(s - lcp_ + i + 8, pre, len) == 0)
             {
               loc = s - lcp_ + i + 8 - buf_;
               set_current(loc);
@@ -532,7 +662,7 @@ bool Matcher::advance()
                   return true;
               }
             }
-            mask2 >>= 8;
+            mask >>= 8;
           }
         }
         s += 16;

@@ -40,7 +40,7 @@ search pdf and office documents using filters
 - Search compressed files (.zip, .gz, .Z, .bz, .bz2, .lzma, .xz)
 - Search pdf, doc, docx, xls, xlxs, and more using filters
 - Search binary files and displays hexdumps with binary pattern matches
-- Search UTF-encoded files by supporting Unicode pattern matches
+- Search UTF-encoded files with Unicode pattern matches
 - Search files encoded in ISO-8859-1 thru 16, CP 437, CP 850, MAC, KOI8, etc.
 - Search files excluding files specified by .gitignore etc.
 - Search patterns across newlines, matching multiple lines at once
@@ -257,8 +257,8 @@ performance results depend on compilers, libraries, the OS, the CPU type, and
 file system latencies.
 
 Results are shown in real time (wall clock time) seconds elapsed.  Best times
-are shown in boldface, *n/a* means that the running time exceeded 1 minute or
-options are not supported (e.g. option `-z`).
+are shown in **boldface** and *n/a* means that the running time exceeded 1
+minute or the selected options are not supported (e.g. option `-z`).
 
 GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      | T11      | T12      |
 --------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
@@ -266,9 +266,9 @@ ugrep           | **0.05** | **0.06** | **0.08** | **0.03** | **0.99** | **0.97*
 hyperscan grep  | 0.09     | 0.10     | 0.11     | 0.04     | 7.78     | 3.39     | 2.35     | 1.41     | 1.17     | *n/a*    | *n/a*    | *n/a*    |
 ripgrep         | 0.06     | 0.10     | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
 silver searcher | 0.10     | 0.11     | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
-GNU grep 3.3    | 0.08     | 0.15     | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | 0.26     | 0.26     | *n/a*    |
-PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | 2.37     | *n/a*    |
-BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 3.35     | 0.60     |
+GNU grep 3.3    | 0.08     | 0.15     | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | **n/a**  | 0.26     | *n/a*    |
+PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | **n/a**  | 2.37     | *n/a*    |
+BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | **n/a**  | 3.35     | 0.60     |
 
 Note: [silver searcher 2.2.0](https://github.com/ggreer/the_silver_searcher)
 runs faster with a single thread (T11 0.32s) than multi-threaded (T10 0.45s),
@@ -297,61 +297,65 @@ Download and build
 
 ### Download
 
-Clone **ugrep** from https://github.com/Genivia/ugrep
+Clone **ugrep**
 
     $ git clone https://github.com/Genivia/ugrep
 
-### Consider these optional dependencies
+### Consider optional dependencies
 
 You can always add these later, when you need these features:
 
-- Option `-P` (Perl regular expressions) requires the Boost.Regex library.
-  To install it, [download Boost.Regex](https://www.boost.org/users/download/).
-  Then run `./bootstrap.sh` and `sudo ./b2 --with-regex install`.  See
+- Option `-P` (Perl regular expressions) requires either the PCRE2 library
+  (preferred) or the Boost.Regex library.  If PCRE2 is not installed,
+  install PCRE2 with e.g. `sudo apt-get install -y libpcre2-dev` or
+  [download PCRE2](https://www.pcre.org) and follow the installation
+  instructions.  Alternatively,
+  [download Boost.Regex](https://www.boost.org/users/download) and run
+  `./bootstrap.sh` and `sudo ./b2 --with-regex install`.  See
   [Boost: getting started](https://www.boost.org/doc/libs/1_72_0/more/getting_started/unix-variants.html).
 
 - Option `-z` (decompress) requires the [zlib](https://www.zlib.net) library
-  installed.  It is typically installed on most systems.  If not, install it
-  with e.g. `sudo apt-get install -y libz-dev`.  To search `.bz` and `.bz2`
+  installed.  It is typically installed on most systems.  If not, install it,
+  e.g. with `sudo apt-get install -y libz-dev`.  To search `.bz` and `.bz2`
   files, install the [bzip2](https://www.sourceware.org/bzip2) library,
-  e.g. `sudo apt-get install -y libbz2-dev`.  To search `.lzma` and `.xz`
-  files, install the [lzma](https://tukaani.org/xz/) library, e.g.
+  e.g. with `sudo apt-get install -y libbz2-dev`.  To search `.lzma` and `.xz`
+  files, install the [lzma](https://tukaani.org/xz) library, e.g. with
   `sudo apt-get install -y liblzma-dev`.
 
-After installing, re-execute the commands to rebuild **ugrep**:
+After installing these libraries, re-execute the commands to rebuild **ugrep**:
 
     $ cd ugrep
-    $ ./configure --enable-color && make -j clean all
+    $ ./build.sh
 
 Some Linux systems may not be configured to load dynamic libraries from
-`/usr/local/lib`, causing a library load error.  To correct this, add
-`export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to your `~/.bashrc`
-file.  Or run `sudo ldconfig /usr/local/lib`.
+`/usr/local/lib`, causing a library load error when running ugrep.  To correct
+this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to your
+`~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
 
 ### Build
 
 Build **ugrep** on Unix-like systems with colors enabled by default:
 
     $ cd ugrep
-    $ ./configure --enable-color && make -j clean all
+    $ ./build.sh
 
-This builds `ugrep` in the `ugrep/src` directory, tests it, and copies it
-locally to `ugrep/bin`.
+This builds the `ugrep` executable in the `ugrep/src` directory with
+`./configure --enable-color` and `make -j`, tests it with `make test`.
+When all tests pass, the `ugrep` executable is copied to `ugrep/bin`.
 
 To produce colorized output with filename headings by default:
 
     $ cd ugrep
-    $ ./configure --enable-pretty && make -j clean all
+    $ ./build.sh --enable-pretty
 
 To see the details of all build configuration options available, including
-`--with-grep-path=GREP_PATH`, `--with-grep-colors="GREP_COLORS"`,
-`--enable-color`, `--enable-pretty`, `--enable-pager`, `--disable-hidden`, and
-`--disable-mmap`:
+`--with-grep-path`, `--with-grep-colors`, `--enable-color`, `--enable-pretty`,
+`--enable-pager`, `--disable-hidden`, and `--disable-mmap`:
 
-    $ ./configure --help
+    $ ./build.sh --help
 
 After the build completes, copy `ugrep/bin/ugrep` to a convenient location, for
-example in your `bin` directory.
+example in your `~/bin` directory.
 
 Or you may want to install the `ugrep` command and its manual page with:
 
@@ -367,17 +371,12 @@ installed predefined pattern files.
 
 Unfortunately, git clones do not preserve timestamps which means that you may
 run into "WARNING: 'aclocal-1.15' is missing on your system." or that
-`autoheader` was not found when running `make`
+autoheader was not found when running `make`.
 
 To work around this problem, run:
 
     $ autoreconf -fi
-    $ ./configure --enable-color && make -j clean all
-
-Or try:
-
-    $ touch config.h.in lib/Makefile.in src/Makefile.in
-    $ ./configure --enable-color && make -j clean all
+    $ ./build.sh
 
 ### For developers
 
@@ -385,8 +384,7 @@ Developers may want to use sanitizers to verify the **ugrep** code when making
 significant changes, for example to detect data races with the
 [ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html):
 
-    $ ./configure --enable-color CXXFLAGS='-fsanitize=thread -O1 -g'
-    $ make -j clean all
+    $ ./build.sh CXXFLAGS='-fsanitize=thread -O1 -g'
 
 We checked **ugrep** with the clang AddressSanitizer, MemorySanitizer,
 ThreadSanitizer, and UndefinedBehaviorSanitizer.  These options incur
@@ -562,6 +560,15 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
 
     alias xdump  = 'ugrep --color --pager -X ""' # hexdump files without searching
 
+To search PDF and office documents automatically, add a filter option to the
+aliased `ugrep` command:
+
+    --filter="pdf:pdftotext % -,odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %"
+
+This requires the utilities [`pdftotext`](https://pypi.org/project/pdftotext)
+and [`soffice`](https://www.libreoffice.org) to be installed.  See
+[Using filter utilities to search documents with --filter](#filter).
+
 <a name="improvements"/>
 
 ### Notable improvements over grep
@@ -600,8 +607,8 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
 - **ugrep** option `-k`, `--column-number` to display the column number, taking
   tab spacing into account by expanding tabs, as specified by option `--tabs`.
 - **ugrep** option `-P` (Perl regular expressions) supports backreferences
-  (with `--format`) and lookbehinds, which uses the Boost.Regex library for
-  fast Perl regex matching with a PCRE-like syntax.
+  (with `--format`) and lookbehinds, which uses the PCRE2 or Boost.Regex
+  library for fast Perl regex matching with a PCRE-like syntax.
 - **ugrep** option `-b` with option `-o` or with option `-u`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line reported by GNU/BSD grep.
@@ -1393,7 +1400,7 @@ statements, excluding hidden files:
             where `exts' is a comma-separated list of filename extensions and
             `command' is a filter utility.  The filter utility should read from
             standard input and write to standard output.  Files matching one of
-            `exts` are filtered.  When `exts' is `*', files with non-matching
+            `exts' are filtered.  When `exts' is `*', files with non-matching
             extensions are filtered.  One or more `option' separated by spacing
             may be specified, which are passed verbatim to the command.  A `%'
             as `option' expands into the pathname to search.  For example,
@@ -1401,31 +1408,39 @@ statements, excluding hidden files:
             into a `-' when searching standard input.  Option --label=.ext may
             be used to specify extension `ext' when searching standard input.
 
-Filter utilities may be associated with specific filename extensions.  A
-filter utility is selected based on the filename extension and executed by
-forking a process.  The utility's standard input reads the open input file and
-the utility's standard output is read and searched.  When a `%` is specified as
-an option to the utility, the utility may open and read the file using the
-expanded pathname.  When a utility is not found an error message is displayed.
-When a utility fails to produce output, e.g. when the specified options for the
-utility are invalid, the search is silently skipped.
+The `--filter` option associates one or more filter utilities with specific
+filename extensions.  A filter utility is selected based on the filename
+extension and executed by forking a process:  the utility's standard input
+reads the open input file and the utility's standard output is searched.  When
+a `%` is specified as an option to the utility, the utility may open and read
+the file using the expanded pathname.  When a utility is not found an error
+message is displayed.  When a utility fails to produce output, e.g. when the
+specified options for the utility are invalid, the search is silently skipped.
+
+Common filter utilities are `cat` (concat, pass through), `head` (select first
+lines or bytes) `tr` (translate), `iconv` and `uconv` (convert), and more
+advanced document conversion utilities such as:
+
+- [`pdftotext`](https://pypi.org/project/pdftotext) to convert PDF to text,
+- [`pandoc`](https://pandoc.org) to convert .docx, .epub, and other document
+  formats,
+- [`soffice`](https://www.libreoffice.org) to convert office documents,
+- [`csvkit`](https://pypi.org/project/csvkit) to convert spreadsheets, and
+- [`openssl`](https://wiki.openssl.org/index.php/Command_Line_Utilities) to
+  convert certificates and key files.
+
+Also decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
+`bunzip2`, `unxz`, and `unlzma` that can decompress files to standard output by
+specifying option `--stdout`.  However, **ugrep** option `-z` is typically
+faster to search compressed files.
+
+The `--filter` option may also be used to run a user-defined shell script to
+filter files with matching filename extensions.
 
 **Warning:** option `--filter` should not be used with utilities that modify
 files.  Otherwise searches may be unpredicatable.  In the worst case files may
 be lost, for example when the specified utility replaces or deletes the file
 passed to the command with `--filter` option `%`.
-
-Common filter utilities are `cat` (concat, pass through), `head` (select first
-lines or bytes) `tr` (translate), `iconv` and `uconv` (convert), and more
-advanced document conversion utilities such as
-[`pdftotext`](https://pypi.org/project/pdftotext) to convert PDF to text,
-[`pandoc`](https://pandoc.org) to convert .docx, .epub, and other document
-formats, [`soffice`](https://www.libreoffice.org) to convert office documents,
-and [`csvkit`](https://pypi.org/project/csvkit) to convert spreadsheets.  Also
-decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
-`bunzip2`, `unxz`, and `unlzma` that can decompress files to standard output by
-specifying option `--stdout`.  However, **ugrep** option `-z` is typically
-faster to search compressed files.
 
 To recursively search files including PDF files in the working directory
 without recursing into subdirectories, for `drink me` using the `pdftotext`
@@ -1487,6 +1502,16 @@ containing meta information and binary data such as images.  By contrast,
 When selecting the XML components with option `-Oxml` in docx, xlsx, and pptx
 documents, we should also specify `-Odocx,xlsx,pptx` to search these type of
 files, otherwise these files will be ignored.
+
+To recurssively search X509 certificate files for lines with `Not After` (e.g.
+to find expired certificates), using `openssl` as a filter:
+
+    ugrep -r 'Not After' -Ocer,der,pem --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der'
+
+Note that `openssl` warning messages are displayed on standard error.  If
+a file cannot be converted it is probably in a different format.  This can
+be resolved by writing a shell script that executes `openssl` with options
+based on the file content.  Then use the script with `--filter`.
 
 <a name="binary"/>
 
@@ -3422,7 +3447,7 @@ in markdown:
 
 
 
-    ugrep 1.7.10                   February 18, 2020                      UGREP(1)
+    ugrep 1.8.0                     March 02, 2020                        UGREP(1)
 
 <a name="patterns"/>
 
@@ -3570,13 +3595,14 @@ class that excludes the ASCII character category.
   `\p{Unicode}`                          | matches any Unicode character (U+0000 to U+10FFFF minus U+D800 to U+DFFF)
   `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F)
   `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+0080 to U+10FFFF minus U+D800 to U+DFFF)
-  `\p{Letter}`                           | matches a character with Unicode property Letter
-  `\p{Mark}`                             | matches a character with Unicode property Mark
-  `\p{Separator}`                        | matches a character with Unicode property Separator
-  `\p{Symbol}`                           | matches a character with Unicode property Symbol
-  `\p{Number}`                           | matches a character with Unicode property Number
-  `\p{Punctuation}`                      | matches a character with Unicode property Punctuation
-  `\p{Other}`                            | matches a character with Unicode property Other
+  `\p{L&}`                               | matches a character with Unicode property L& (i.e. property Ll, Lu, or Lt)
+  `\p{Letter}`,`\p{L}`                   | matches a character with Unicode property Letter
+  `\p{Mark}`,`\p{M}`                     | matches a character with Unicode property Mark
+  `\p{Separator}`,`\p{Z}`                | matches a character with Unicode property Separator
+  `\p{Symbol}`,`\p{S}`                   | matches a character with Unicode property Symbol
+  `\p{Number}`,`\p{N}`                   | matches a character with Unicode property Number
+  `\p{Punctuation}`,`\p{P}`              | matches a character with Unicode property Punctuation
+  `\p{Other}`,`\p{C}`                    | matches a character with Unicode property Other
   `\p{Lowercase_Letter}`, `\p{Ll}`       | matches a character with Unicode sub-property Ll
   `\p{Uppercase_Letter}`, `\p{Lu}`       | matches a character with Unicode sub-property Lu
   `\p{Titlecase_Letter}`, `\p{Lt}`       | matches a character with Unicode sub-property Lt
@@ -3631,8 +3657,9 @@ unassigned characters.
 ### Perl regular expression syntax
 
 For the pattern syntax of **ugrep** option `-P` (Perl regular expressions), see
-the Boost.Regex documentation
-[Perl regular expression syntax](https://www.boost.org/doc/libs/1_70_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html).
+for example [Perl regular expression syntax](https://www.boost.org/doc/libs/1_70_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html).
+However, **ugrep** enhances the Perl regular expression syntax with all of the
+features listed in [POSIX regular expression syntax](#posix-syntax).
 
 <a name="bugs"/>
 

@@ -1,5 +1,5 @@
 /******************************************************************************\
-* Copyright (c) 2017, Robert van Engelen, Genivia Inc. All rights reserved.    *
+* Copyright (c) 2016, Robert van Engelen, Genivia Inc. All rights reserved.    *
 *                                                                              *
 * Redistribution and use in source and binary forms, with or without           *
 * modification, are permitted provided that the following conditions are met:  *
@@ -30,7 +30,7 @@
 @file      stdmatcher.h
 @brief     C++11 std::regex-based matcher engines for pattern matching
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2017, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -91,6 +91,7 @@ class StdMatcher : public PatternMatcher<std::regex> {
   StdMatcher& operator=(const StdMatcher& matcher) ///< matcher to copy
   {
     PatternMatcher<std::regex>::operator=(matcher);
+    flg_ = matcher.flg_;
     return *this;
   }
   /// Polymorphic cloning.
@@ -157,7 +158,7 @@ class StdMatcher : public PatternMatcher<std::regex> {
   }
  protected:
   /// The match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH, implemented with std::regex.
-  virtual size_t match(Method method)
+  virtual size_t match(Method method) ///< match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero when input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
   {
     DBGLOG("BEGIN StdMatcher::match(%d)", method);
@@ -199,19 +200,7 @@ class StdMatcher : public PatternMatcher<std::regex> {
       {
         if (end_ + blk_ + 1 >= max_ && grow()) // make sure we have enough storage to read input
           itr_ = fin_; // buffer shifting/growing invalidates iterator
-        while (true)
-        {
-          end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
-          if (pos_ < end_)
-            break;
-          if (itr_ != fin_ && (*itr_)[0].matched && cur_ != pos_)
-            break; // OK if iterator is still valid and we have a non-empty match
-          if (!wrap())
-          {
-            eof_ = true;
-            break;
-          }
-        }
+        (void)peek_more();
         DBGLOGN("Got more input pos = %zu end = %zu max = %zu", pos_, end_, max_);
       }
       if (pos_ == end_) // if pos_ is hitting the end_ then
@@ -250,7 +239,7 @@ class StdMatcher : public PatternMatcher<std::regex> {
           DBGLOG("END StdMatcher::match()");
           return cap_;
         }
-        if (method == Const::FIND && opt_.N)
+        if (method == Const::FIND && opt_.N && eof_ && (itr_ == fin_ || (*itr_)[0].first == buf_ + end_))
         {
           DBGLOGN("No match, pos = %zu", pos_);
           DBGLOG("END StdMatcher::match()");

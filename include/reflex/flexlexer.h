@@ -30,7 +30,7 @@
 @file      flexlexer.h
 @brief     RE/flex Flex-compatible FlexLexer base class and Lex/Flex-compatible macros
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 

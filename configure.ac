@@ -40,6 +40,8 @@ case "$PLATFORM" in
                 ;;
 esac
 
+AX_CHECK_PCRE2([8], [], [echo "checking for Boost.Regex because PCRE2 is not usable"])
+
 AX_BOOST_REGEX
 
 AX_CHECK_ZLIB([], [echo "zlib not found: option -z disabled"])
@@ -154,14 +156,21 @@ if test "x$with_no_avx" = "xno"; then
   AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
   save_CXXFLAGS=$CXXFLAGS
   CXXFLAGS="-march=native"
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42);]])],
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m512 n = _mm512_set1_epi8(42); unsigned long long m = _mm512_cmpeq_epi8_mask(n, n);]])],
                     [mavx_ok=yes],
                     [mavx_ok=no])
+  if test "x$mavx_ok" = "xyes"; then
+    SIMD_FLAGS="-march=native -mavx512bw -DHAVE_AVX512BW"
+  else
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42); n =_mm256_and_si256(n, n);]])],
+                      [mavx_ok=yes],
+                      [mavx_ok=no])
+    if test "x$mavx_ok" = "xyes"; then
+      SIMD_FLAGS="-march=native -mavx -DHAVE_AVX"
+    fi
+  fi
   CXXFLAGS=$save_CXXFLAGS
   AC_MSG_RESULT($mavx_ok)
-  if test "x$mavx_ok" = "xyes"; then
-    SIMD_FLAGS="-march=native -mavx -DHAVE_AVX"
-  fi
 else
   AC_MSG_RESULT(yes)
   SIMD_FLAGS=

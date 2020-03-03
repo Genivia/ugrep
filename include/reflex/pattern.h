@@ -30,7 +30,7 @@
 @file      pattern.h
 @brief     RE/flex regular expression pattern compiler
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -64,7 +64,7 @@ class Pattern {
   friend class Matcher; ///< permit access by the reflex::Matcher engine
  public:
   typedef uint8_t  Pred;   ///< predict match bits
-  typedef uint16_t Hash;   ///< hash type (uint16_t), may be narrowed to uint8_t when Const::HASH == 0x100
+  typedef uint16_t Hash;   ///< hash type (uint16_t), max value is Const::HASH
   typedef uint16_t Index;  ///< index into opcodes array Pattern::opc_ and subpattern indexing
   typedef uint32_t Opcode; ///< 32 bit opcode word
   typedef void (*FSM)(class Matcher&); ///< function pointer to FSM code
@@ -326,25 +326,25 @@ class Pattern {
     return wms_;
   }
   /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4).
-  static inline bool predict_match(const Pattern::Pred pmh[], const char *s, size_t n)
+  static inline bool predict_match(const Pred pmh[], const char *s, size_t n)
   {
-    Pattern::Hash h = static_cast<uint8_t>(*s);
+    Hash h = static_cast<uint8_t>(*s);
     if (pmh[h] & 1)
       return false;
-    h = Pattern::hash(h, static_cast<uint8_t>(*++s));
+    h = hash(h, static_cast<uint8_t>(*++s));
     if (pmh[h] & 2)
       return false;
-    h = Pattern::hash(h, static_cast<uint8_t>(*++s));
+    h = hash(h, static_cast<uint8_t>(*++s));
     if (pmh[h] & 4)
       return false;
-    h = Pattern::hash(h, static_cast<uint8_t>(*++s));
+    h = hash(h, static_cast<uint8_t>(*++s));
     if (pmh[h] & 8)
       return false;
-    Pattern::Pred m = 16;
+    Pred m = 16;
     const char *e = s + n - 3;
     while (++s < e)
     {
-      h = Pattern::hash(h, static_cast<uint8_t>(*s));
+      h = hash(h, static_cast<uint8_t>(*s));
       if (pmh[h] & m)
         return false;
       m <<= 1;
@@ -352,21 +352,21 @@ class Pattern {
     return true;
   }
   /// Returns zero when match is predicted or nonzero shift value, based on s[0..3].
-  static inline size_t predict_match(const Pattern::Pred pma[], const char *s)
+  static inline size_t predict_match(const Pred pma[], const char *s)
   {
     uint8_t b0 = s[0];
     uint8_t b1 = s[1];
     uint8_t b2 = s[2];
     uint8_t b3 = s[3];
-    Pattern::Hash h1 = Pattern::hash(b0, b1);
-    Pattern::Hash h2 = Pattern::hash(h1, b2);
-    Pattern::Hash h3 = Pattern::hash(h2, b3);
-    Pattern::Pred a0 = pma[b0];
-    Pattern::Pred a1 = pma[h1];
-    Pattern::Pred a2 = pma[h2];
-    Pattern::Pred a3 = pma[h3];
-    Pattern::Pred p = (a0 & 0xc0) | (a1 & 0x30) | (a2 & 0x0c) | (a3 & 0x03);
-    Pattern::Pred m = ((((((p >> 2) | p) >> 2) | p) >> 1) | p);
+    Hash h1 = hash(b0, b1);
+    Hash h2 = hash(h1, b2);
+    Hash h3 = hash(h2, b3);
+    Pred a0 = pma[b0];
+    Pred a1 = pma[h1];
+    Pred a2 = pma[h2];
+    Pred a3 = pma[h3];
+    Pred p = (a0 & 0xc0) | (a1 & 0x30) | (a2 & 0x0c) | (a3 & 0x03);
+    Pred m = ((((((p >> 2) | p) >> 2) | p) >> 1) | p);
     if (m != 0xff)
       return 0;
     if ((pma[b1] & 0xc0) != 0xc0)
@@ -397,7 +397,8 @@ class Pattern {
   /// Finite state machine construction position information.
   struct Position {
     typedef uint64_t        value_type;
-    static const value_type NPOS = static_cast<value_type>(-1LL);
+    static const value_type MAXLOC = (1 << 24) - 1;
+    static const value_type NPOS   = static_cast<value_type>(~0ULL);
     static const value_type TICKED = 1LL << 44;
     static const value_type GREEDY = 1LL << 45;
     static const value_type ANCHOR = 1LL << 46;
@@ -407,21 +408,21 @@ class Pattern {
     Position(const Position& p)  : k(p.k)  { }
     Position& operator=(const Position& p) { k = p.k; return *this; }
     operator value_type()            const { return k; }
-    Position iter(Index i)           const { return Position(k + (static_cast<value_type>(i) << 16)); }
+    Position iter(Index i)           const { return Position(k + (static_cast<value_type>(i) << 24)); }
     Position ticked(bool b)          const { return b ? Position(k | TICKED) : Position(k & ~TICKED); }
     Position greedy(bool b)          const { return b ? Position(k | GREEDY) : Position(k & ~GREEDY); }
     Position anchor(bool b)          const { return b ? Position(k | ANCHOR) : Position(k & ~ANCHOR); }
     Position accept(bool b)          const { return b ? Position(k | ACCEPT) : Position(k & ~ACCEPT); }
     Position lazy(Location l)        const { return Position((k & 0x0000FFFFFFFFFFFFLL) | static_cast<value_type>(l) << 48); }
-    Position pos()                   const { return Position(k & 0x00000000FFFFFFFFLL); }
-    Location loc()                   const { return static_cast<Location>(k & 0xFFFF); }
+    Position pos()                   const { return Position(k & 0x000000FFFFFFFFFFLL); }
+    Location loc()                   const { return static_cast<Location>(k & 0xFFFFFF); }
     Index    accepts()               const { return static_cast<Index>(k & 0xFFFF); }
-    Index    iter()                  const { return static_cast<Index>(k >> 16 & 0xFFFF); }
+    Index    iter()                  const { return static_cast<Index>((k >> 24) & 0xFFFF); }
     bool     ticked()                const { return (k & TICKED) != 0; }
     bool     greedy()                const { return (k & GREEDY) != 0; }
     bool     anchor()                const { return (k & ANCHOR) != 0; }
     bool     accept()                const { return (k & ACCEPT) != 0; }
-    Location lazy()                  const { return static_cast<Location>(k >> 48 & 0xFFFF); }
+    Location lazy()                  const { return static_cast<Location>((k >> 48) & 0xFFFF); }
     value_type k;
   };
   typedef std::set<Position>           Positions;
@@ -597,8 +598,8 @@ class Pattern {
   void export_code() const;
   void predict_match_dfa(State& start);
   void gen_predict_match(State *state);
-  void gen_predict_match_transitions(State *state, std::map<State*,ORanges<Char> >& states);
-  void gen_predict_match_transitions(Index level, State *state, ORanges<Char>& labels, std::map<State*,ORanges<Char> >& states);
+  void gen_predict_match_transitions(State *state, std::map<State*,ORanges<Hash> >& states);
+  void gen_predict_match_transitions(Index level, State *state, ORanges<Hash>& labels, std::map<State*,ORanges<Hash> >& states);
   void write_predictor(FILE *fd) const;
   void write_namespace_open(FILE* fd) const;
   void write_namespace_close(FILE* fd) const;
@@ -756,9 +757,9 @@ class Pattern {
   {
     return static_cast<unsigned char>(c ^ 0x20);
   }
-  static inline Hash hash(Hash h1, Hash h2)
+  static inline Hash hash(Hash h, uint8_t b)
   {
-    return ((h1 << 3) ^ h2) & (Const::HASH - 1);
+    return ((h << 3) ^ b) & (Const::HASH - 1);
   }
   static inline Hash hash(Hash h)
   {

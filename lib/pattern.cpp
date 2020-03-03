@@ -30,7 +30,7 @@
 @file      pattern.cpp
 @brief     RE/flex regular expression pattern compiler
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2015-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -301,6 +301,8 @@ void Pattern::parse(
     Map&       lookahead)
 {
   DBGLOG("BEGIN parse()");
+  if (rex_.size() > Position::MAXLOC)
+    throw regex_error(regex_error::exceeds_length, rex_, Position::MAXLOC);
   Location   loc = 0;
   Index      choice = 1;
   Positions  firstpos;
@@ -1150,7 +1152,7 @@ void Pattern::compile(
           back_state = back_state->next = *branch_ptr = target_state = new State(pos);
 #if defined(WITH_BITS)
         Char lo = i->first.find_first(), j = lo, k = lo;
-        for (;;)
+        while (true)
         {
           if (j != k)
           {
@@ -1162,11 +1164,21 @@ void Pattern::compile(
 #endif
             lo = k = j;
           }
-          if (j == Bits::npos)
-            break;
           j = i->first.find_next(j);
           ++k;
           ++eno_;
+          size_t n = i->first.find_next(j);
+          if (n == Bits::npos)
+          {
+            Char hi = k - 1;
+#if WITH_COMPACT_DFA == -1
+            state->edges[lo] = std::pair<Char,State*>(hi, target_state);
+#else
+            state->edges[hi] = std::pair<Char,State*>(lo, target_state);
+#endif
+            break;
+          }
+          j = static_cast<Char>(n);
         }
 #else
         for (Chars::const_iterator j = i->first.begin(); j != i->first.end(); ++j)
@@ -1521,27 +1533,27 @@ void Pattern::transition(
         rest -= common;
         ++i;
       }
-      else if (i->first == common && is_subset(i->second, follow))
+      else if (i->first == common)
       {
-        moves.erase(i++);
+        if (is_subset(i->second, follow))
+        {
+          moves.erase(i++);
+        }
+        else
+        {
+          rest -= common;
+          set_insert(i->second, follow);
+        }
       }
       else
       {
         rest -= common;
         i->first -= common;
-        if (i->first.any()) // any bits or ranges?
-        {
-          Move back;
-          back.first.swap(common);
-          back.second = i->second;
-          set_insert(back.second, follow);
-          moves.push_back(back); // faster: C++11 emplace_back(Chars(), i->second); move.back().first.swap(common)
-        }
-        else
-        {
-          i->first.swap(common);
-          set_insert(i->second, follow);
-        }
+        Move back;
+        back.first.swap(common);
+        back.second = i->second;
+        set_insert(back.second, follow);
+        moves.push_back(back); // faster: C++11 emplace_back(Chars(), i->second); move.back().first.swap(common)
         ++i;
       }
     }
@@ -1580,6 +1592,11 @@ Pattern::Char Pattern::compile_esc(Location loc, Chars& chars) const
   else if (c == '_')
   {
     posix(6 /* alpha */, chars);
+  }
+  else if (c == 'N')
+  {
+    chars.insert(0, 9);
+    chars.insert(11, 255);
   }
   else if ((c == 'p' || c == 'P') && at(loc + 1) == '{')
   {
@@ -1912,7 +1929,7 @@ void Pattern::encode_dfa(State& start)
 #endif
     nop_ += static_cast<Index>(state->heads.size() + state->tails.size() + (state->accept > 0 || state->redo));
     if (nop_ < state->index)
-      throw regex_error(regex_error::exceeds_limits, rex_);
+      throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
   }
   Opcode *opcode = new Opcode[nop_];
   opc_ = opcode;
@@ -2709,16 +2726,16 @@ void Pattern::predict_match_dfa(State& start)
 void Pattern::gen_predict_match(State *state)
 {
   min_ = 8;
-  std::map<State*,ORanges<Char> > states[8];
+  std::map<State*,ORanges<Hash> > states[8];
   gen_predict_match_transitions(state, states[0]);
   for (Index level = 1; level < 8; ++level)
-    for (std::map<State*,ORanges<Char> >::iterator from = states[level - 1].begin(); from != states[level - 1].end(); ++from)
+    for (std::map<State*,ORanges<Hash> >::iterator from = states[level - 1].begin(); from != states[level - 1].end(); ++from)
       gen_predict_match_transitions(level, from->first, from->second, states[level]);
   for (Char i = 0; i < 256; ++i)
     bit_[i] &= (1 << min_) - 1;
 }
 
-void Pattern::gen_predict_match_transitions(State *state, std::map<State*,ORanges<Char> >& states)
+void Pattern::gen_predict_match_transitions(State *state, std::map<State*,ORanges<Hash> >& states)
 {
   for (State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
   {
@@ -2764,7 +2781,7 @@ void Pattern::gen_predict_match_transitions(State *state, std::map<State*,ORange
   }
 }
 
-void Pattern::gen_predict_match_transitions(Index level, State *state, ORanges<Char>& labels, std::map<State*,ORanges<Char> >& states)
+void Pattern::gen_predict_match_transitions(Index level, State *state, ORanges<Hash>& labels, std::map<State*,ORanges<Hash> >& states)
 {
   for (State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
   {
@@ -2798,10 +2815,10 @@ void Pattern::gen_predict_match_transitions(Index level, State *state, ORanges<C
       if (level <= min_)
         while (lo <= hi)
           bit_[lo++] &= ~(1 << level);
-      for (ORanges<Char>::const_iterator label = labels.begin(); label != labels.end(); ++label)
+      for (ORanges<Hash>::const_iterator label = labels.begin(); label != labels.end(); ++label)
       {
-        Char label_hi = label->second - 1;
-        for (Char label_lo = label->first; label_lo <= label_hi; ++label_lo)
+        Hash label_hi = label->second - 1;
+        for (Hash label_lo = label->first; label_lo <= label_hi; ++label_lo)
         {
           for (lo = edge->first; lo <= hi; ++lo)
           {

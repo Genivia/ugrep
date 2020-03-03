@@ -1,10 +1,10 @@
 # step 1: create a container for ugrep named "ugrep"
 # docker -D build --no-cache -t ugrep .
 #
-# step 2: run bash in the container to execute ugrep from the command line
+# step 2: run bash in the container, e.g. to run ugrep from the command line
 # docker run -it ugrep bash
 #
-# step 3: run ugrep, for example:
+# step 3: run ugrep in the container, for example:
 # ugrep -r -n -tjava Hello tests/
 
 FROM ubuntu

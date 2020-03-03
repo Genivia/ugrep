@@ -34,6 +34,9 @@
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
+/* Define to 1 if you have `PCRE2' library (-lpcre2-8) */
+#undef HAVE_PCRE2
+
 /* Define to 1 if you have the `statvfs' function. */
 #undef HAVE_STATVFS
 

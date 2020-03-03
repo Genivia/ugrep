@@ -43,6 +43,7 @@ This program uses RE/flex:
 
 Optional libraries to support options -P and -z:
 
+  PCRE2
   Boost.Regex
   zlib
   libbz2
@@ -67,7 +68,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.7.10"
+#define UGREP_VERSION "1.8.0"
 
 #include <reflex/input.h>
 #include <reflex/matcher.h>
@@ -98,6 +99,9 @@ Prebuilt executables are located in ugrep/bin.
 
 // optionally enable --color=auto by default
 // #define WITH_COLOR
+
+// optionally enable PCRE2 for -P
+// #define HAVE_PCRE2
 
 // optionally enable Boost.Regex for -P
 // #define HAVE_BOOST_REGEX
@@ -167,15 +171,15 @@ int pclose(FILE *stream)
 #include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #ifdef HAVE_MMAP
-#include <sys/mman.h>
+# include <sys/mman.h>
 #endif
 
 #ifdef HAVE_SYS_STATVFS_H
-#include <sys/statvfs.h>
+# include <sys/statvfs.h>
 #endif
 
 #define PATHSEPCHR '/'
@@ -201,14 +205,19 @@ int pclose(FILE *stream)
 // fast gitignore-style glob matching
 #include "glob.hpp"
 
+// use PCRE2 for option -P
+#ifdef HAVE_PCRE2
+# include <reflex/pcre2matcher.h>
+#else
 // use Boost.Regex for option -P
-#ifdef HAVE_BOOST_REGEX
-#include <reflex/boostmatcher.h>
+# ifdef HAVE_BOOST_REGEX
+#  include <reflex/boostmatcher.h>
+# endif
 #endif
 
 // use zlib, libbz2, liblzma for option -z
 #ifdef HAVE_LIBZ
-#include "zstream.hpp"
+# include "zstream.hpp"
 #endif
 
 // use a task-parallel thread to decompress the stream into a pipe to search, increases speed on most systems
@@ -220,39 +229,39 @@ int pclose(FILE *stream)
 
 // the default GREP_COLORS
 #ifndef DEFAULT_GREP_COLORS
-#ifdef OS_WIN
-#define DEFAULT_GREP_COLORS "sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
-#else
-#define DEFAULT_GREP_COLORS "cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
-#endif
+# ifdef OS_WIN
+#  define DEFAULT_GREP_COLORS "sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
+# else
+#  define DEFAULT_GREP_COLORS "cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
+# endif
 #endif
 
 // the default pager when --pager is used
 #ifndef DEFAULT_PAGER
-#ifdef OS_WIN
-#define DEFAULT_PAGER "more"
-#else
-#define DEFAULT_PAGER "less -R"
-#endif
+# ifdef OS_WIN
+#  define DEFAULT_PAGER "more"
+# else
+#  define DEFAULT_PAGER "less -R"
+# endif
 #endif
 
 // the default ignore file
 #ifndef DEFAULT_IGNORE_FILE
-#define DEFAULT_IGNORE_FILE ".gitignore"
+# define DEFAULT_IGNORE_FILE ".gitignore"
 #endif
 
 // color is disabled by default, unless enabled with WITH_COLOR
 #ifdef WITH_COLOR
-#define FLAG_COLOR "auto"
+# define FLAG_COLOR "auto"
 #else
-#define FLAG_COLOR NULL
+# define FLAG_COLOR NULL
 #endif
 
 // pager is disabled by default, unless enabled with WITH_PAGER
 #ifdef WITH_PAGER
-#define FLAG_PAGER DEFAULT_PAGER
+# define FLAG_PAGER DEFAULT_PAGER
 #else
-#define FLAG_PAGER NULL
+# define FLAG_PAGER NULL
 #endif
 
 // enable easy-to-use abbreviated ANSI SGR color codes with WITH_EASY_GREP_COLORS
@@ -270,31 +279,31 @@ int pclose(FILE *stream)
 
 // limit the total number of threads spawn (i.e. limit spawn overhead), because grepping is practically IO bound
 #ifndef MAX_JOBS
-#define MAX_JOBS 16U
+# define MAX_JOBS 16U
 #endif
 
 // a hard limit on the recursive search depth
 // TODO use iteration and a stack for virtually unlimited recursion depth, but it is important to have a hard limit
 #ifndef MAX_DEPTH
-#define MAX_DEPTH 100
+# define MAX_DEPTH 100
 #endif
 
 // max hexadecimal columns of bytes per line
 #ifndef MAX_HEX_COLUMNS
-#define MAX_HEX_COLUMNS 64
+# define MAX_HEX_COLUMNS 64
 #endif
 
 // --min-steal default, the minimum co-worker's queue size of pending jobs to steal a job from, smaller values result in higher job stealing rates, should not be less than 3
 #ifndef MIN_STEAL
-#define MIN_STEAL 3U
+# define MIN_STEAL 3U
 #endif
 
 // --min-mmap and --max-mmap file size to allocate with mmap(), not greater than 4294967295LL, max 0 disables mmap()
 #ifndef MIN_MMAP_SIZE
-#define MIN_MMAP_SIZE 16384LL
+# define MIN_MMAP_SIZE 16384LL
 #endif
 #ifndef MAX_MMAP_SIZE
-#define MAX_MMAP_SIZE 2147483648LL
+# define MAX_MMAP_SIZE 2147483648LL
 #endif
 
 // default --min-mmap
@@ -302,36 +311,36 @@ int pclose(FILE *stream)
 
 // default --max-mmap: mmap is enabled by default, unless disabled with WITH_NO_MMAP
 #ifdef WITH_NO_MMAP
-#define DEFAULT_MAX_MMAP_SIZE 0
+# define DEFAULT_MAX_MMAP_SIZE 0
 #else
-#define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
+# define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
 #endif
 
 // pretty is disabled by default, unless enabled with WITH_PRETTY
 #ifdef WITH_PRETTY
-#define DEFAULT_PRETTY true
+# define DEFAULT_PRETTY true
 #else
-#define DEFAULT_PRETTY false
+# define DEFAULT_PRETTY false
 #endif
 
 // hidden file and directory search is enabled by default, unless disabled with WITH_NO_HIDDEN
 #ifdef WITH_NO_HIDDEN
-#define DEFAULT_HIDDEN true
+# define DEFAULT_HIDDEN true
 #else
-#define DEFAULT_HIDDEN false
+# define DEFAULT_HIDDEN false
 #endif
 
 // use dirent d_type when available
 #ifdef HAVE_STRUCT_DIRENT_D_TYPE
-#define DIRENT_TYPE_UNKNOWN DT_UNKNOWN
-#define DIRENT_TYPE_LNK     DT_LNK
-#define DIRENT_TYPE_DIR     DT_DIR
-#define DIRENT_TYPE_REG     DT_REG
+# define DIRENT_TYPE_UNKNOWN DT_UNKNOWN
+# define DIRENT_TYPE_LNK     DT_LNK
+# define DIRENT_TYPE_DIR     DT_DIR
+# define DIRENT_TYPE_REG     DT_REG
 #else
-#define DIRENT_TYPE_UNKNOWN 0
-#define DIRENT_TYPE_LNK     1
-#define DIRENT_TYPE_DIR     1
-#define DIRENT_TYPE_REG     1
+# define DIRENT_TYPE_UNKNOWN 0
+# define DIRENT_TYPE_LNK     1
+# define DIRENT_TYPE_DIR     1
+# define DIRENT_TYPE_REG     1
 #endif
 
 // undefined size_t value
@@ -3175,9 +3184,11 @@ struct Grep {
     {
       matcher->input(input);
 
+#ifdef HAVE_BOOST_REGEX
       // buffer all input to work around Boost.Regex bug, this may throw std::bad_alloc if the file is too large
       if (flag_perl_regexp)
         matcher->buffer();
+#endif
     }
 
     // --range=NUM1[,NUM2]: start searching at line NUM1
@@ -5205,8 +5216,8 @@ int main(int argc, char **argv)
 
 #endif
 
-  // if no FILE specified and reading standard input from a TTY: enable -R
-  if (!flag_stdin && files.empty() && isatty(STDIN_FILENO))
+  // if no FILE specified and no -r or -R specified, when reading standard input from a TTY: enable -R
+  if (flag_directories_action != Action::RECURSE && !flag_stdin && files.empty() && isatty(STDIN_FILENO))
   {
     flag_directories_action = Action::RECURSE;
     flag_dereference = true;
@@ -5343,7 +5354,22 @@ int main(int argc, char **argv)
     // -P: Perl matching with Boost.Regex
     if (flag_perl_regexp)
     {
-#ifdef HAVE_BOOST_REGEX
+#if defined(HAVE_PCRE2)
+      // construct the PCRE2 JIT-optimized NFA-based Perl pattern matcher
+      std::string pattern(reflex::PCRE2Matcher::convert(regex, convert_flags));
+      reflex::PCRE2Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
+
+      if (threads > 1)
+      {
+        GrepMaster grep(output, &matcher);
+        ugrep(magic, grep, files);
+      }
+      else
+      {
+        Grep grep(output, &matcher);
+        ugrep(magic, grep, files);
+      }
+#elif defined(HAVE_BOOST_REGEX)
       // construct the Boost.Regex NFA-based Perl pattern matcher
       std::string pattern(reflex::BoostPerlMatcher::convert(regex, convert_flags));
       reflex::BoostPerlMatcher matcher(pattern, reflex::Input(), matcher_options.c_str());
@@ -5386,7 +5412,7 @@ int main(int argc, char **argv)
     abort("error: ", error.what());
   }
 
-#ifdef HAVE_BOOST_REGEX
+#if !defined(HAVE_PCRE2) && defined(HAVE_BOOST_REGEX)
   catch (boost::regex_error& error)
   {
     if (!flag_no_messages)
@@ -8196,7 +8222,7 @@ void help(const char *message, const char *arg)
             file processed.\n\
     -P, --perl-regexp\n\
             Interpret PATTERN as a Perl regular expression.\n";
-#ifndef HAVE_BOOST_REGEX
+#if !defined(HAVE_PCRE2) && !defined(HAVE_BOOST_REGEX)
   std::cout << "\
             This option is not available in this build configuration of ugrep.\n";
 #endif
@@ -8347,15 +8373,22 @@ void help(const char *message, const char *arg)
 // display version info
 void version()
 {
+#if defined(HAVE_PCRE2)
+  uint32_t tmp = 0;
+#endif
   std::cout << "ugrep " UGREP_VERSION " " PLATFORM <<
-#if defined(HAVE_AVX)
-    (reflex::Matcher::has_HW_AVX() ? " +avx" : reflex::Matcher::has_HW_SSE2() ?  " +sse2" : " (-avx)") <<
+#if defined(HAVE_AVX512BW)
+    (reflex::Matcher::have_HW_AVX512BW() ? " +avx512" : (reflex::Matcher::have_HW_AVX() ? " +avx" : reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-avx512)") <<
+#elif defined(HAVE_AVX)
+    (reflex::Matcher::have_HW_AVX() ? " +avx" : reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-avx)") <<
 #elif defined(HAVE_SSE2)
-    (reflex::Matcher::has_HW_SSE2() ?  " +sse2" : " (-sse2)") <<
+    (reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-sse2)") <<
 #elif defined(HAVE_NEON)
     " +neon" <<
 #endif
-#ifdef HAVE_BOOST_REGEX
+#if defined(HAVE_PCRE2)
+    (pcre2_config(PCRE2_CONFIG_JIT, &tmp) >= 0 && tmp != 0 ? " +pcre2_jit" : " +pcre2") <<
+#elif defined(HAVE_BOOST_REGEX)
     " +boost_regex" <<
 #endif
 #ifdef HAVE_LIBZ
