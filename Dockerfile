@@ -18,6 +18,7 @@ RUN apt-get install -y \
     g\+\+ \
     wget \
     unzip \
+    libpcre2-dev \
     libboost-all-dev \
     libz-dev \
     libbz2-dev \
@@ -27,7 +28,5 @@ RUN cd / &&\
     git clone https://github.com/Genivia/ugrep
 
 RUN cd ugrep &&\
-    touch config.h.in lib/Makefile.in src/Makefile.in &&\
-    ./configure --enable-color &&\
-    make -j &&\
+    ./build.sh &&\
     make install

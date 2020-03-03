@@ -1505,7 +1505,7 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
 {
   str(color_off);
   str("Binary file");
-  str(color_high);
+  str(color_fn);
   if (pathname != NULL)
   {
     chr(' ');

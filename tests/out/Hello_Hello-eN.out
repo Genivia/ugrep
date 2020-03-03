@@ -1,4 +1,4 @@
-[0mBinary file[1m Hello.class[0m matches
+[0mBinary file[1;35m Hello.class[0m matches
 [1;35mHello.java[0m[1;36m:[0mpublic class [0m[1;4;32mHello[0m // prints a [0m[1;4;32mHello[0m World! greeting[0m
 [1;35mHello.pdf[0m[1;36m:[0m([0m[1;4;32mHello[0m)[0m
 [1;35mHello.txt[0m[1;36m:[0m[0m[1;4;32mHello[0m
