@@ -8378,7 +8378,7 @@ void version()
 #endif
   std::cout << "ugrep " UGREP_VERSION " " PLATFORM <<
 #if defined(HAVE_AVX512BW)
-    (reflex::Matcher::have_HW_AVX512BW() ? " +avx512" : (reflex::Matcher::have_HW_AVX() ? " +avx" : reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-avx512)") <<
+    (reflex::Matcher::have_HW_AVX512BW() ? " +avx512" : (reflex::Matcher::have_HW_AVX() ? " +avx" : reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-avx512)")) <<
 #elif defined(HAVE_AVX)
     (reflex::Matcher::have_HW_AVX() ? " +avx" : reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-avx)") <<
 #elif defined(HAVE_SSE2)
