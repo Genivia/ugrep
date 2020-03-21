@@ -109,6 +109,11 @@ int yywrap(void);
 #endif
 #endif
 
+/// Flex-compatible macro: exit error code
+#ifndef YY_EXIT_FAILURE
+#define YY_EXIT_FAILURE         (2)
+#endif
+
 /// Flex-compatible macro: size of default input buffer.
 #ifndef YY_BUF_SIZE
 #define YY_BUF_SIZE             (16384)
@@ -529,14 +534,15 @@ class FlexLexer : public AbstractLexer<M> {
 #if defined(REFLEX_OPTION_reentrant) || defined(REFLEX_OPTION_bison_bridge)
   YY_EXTRA_TYPE yyextra;       ///< Flex-compatible reentrant YY_EXTRA_TYPE yyextra
 #endif
- protected:
   /// Invoked by FlexLexer::Matcher to read input character sequence.
   virtual size_t LexerInput(
       char  *s, ///< points to the string buffer to fill with input
       size_t n) ///< size of buffer pointed to by s
     /// @returns the nonzero number of (less or equal to n) 8-bit characters added to buffer s from the current input, or zero when EOF.
   {
-    return this->matcher().in.get(s, n);
+    if (this->has_matcher())
+      return this->matcher().in.get(s, n);
+    return 0;
   }
   /// Invoked by ECHO and FlexLexer::output.
   virtual void LexerOutput(
@@ -549,7 +555,7 @@ class FlexLexer : public AbstractLexer<M> {
   virtual void LexerError(const char *s) ///< error message
   {
     std::cerr << s << std::endl;
-    exit(2);
+    exit(YY_EXIT_FAILURE);
   }
 };
 

@@ -43,8 +43,7 @@ This program uses RE/flex:
 
 Optional libraries to support options -P and -z:
 
-  PCRE2
-  Boost.Regex
+  PCRE2 or Boost.Regex
   zlib
   libbz2
   liblzma
@@ -68,8 +67,9 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.8.0"
+#define UGREP_VERSION "1.8.1"
 
+#include <reflex/bits.h>
 #include <reflex/input.h>
 #include <reflex/matcher.h>
 #include <iomanip>
@@ -80,7 +80,7 @@ Prebuilt executables are located in ugrep/bin.
 #include <algorithm>
 #include <functional>
 #include <list>
-#include <queue>
+#include <deque>
 #include <set>
 #include <atomic>
 #include <thread>
@@ -283,7 +283,6 @@ int pclose(FILE *stream)
 #endif
 
 // a hard limit on the recursive search depth
-// TODO use iteration and a stack for virtually unlimited recursion depth, but it is important to have a hard limit
 #ifndef MAX_DEPTH
 # define MAX_DEPTH 100
 #endif
@@ -349,6 +348,9 @@ int pclose(FILE *stream)
 // the -M MAGIC pattern DFAs constructed before threads start, read-only afterwards
 reflex::Pattern magic_pattern;
 
+// number of warnings given
+std::atomic_size_t warnings;
+
 // number of concurrent threads for workers
 size_t threads;
 
@@ -398,7 +400,7 @@ const char *color_message = ""; // stderr error or warning message text
 reflex::Input::file_encoding_type flag_encoding_type = reflex::Input::file_encoding::plain;
 
 // -D, --devices and -d, --directories
-enum class Action { READ, RECURSE, SKIP } flag_devices_action, flag_directories_action;
+enum class Action { SKIP, READ, RECURSE } flag_devices_action, flag_directories_action;
 
 // output destination is standard output by default or a pipe to --pager
 FILE *output = stdout;
@@ -466,6 +468,12 @@ bool flag_csv                      = false;
 bool flag_json                     = false;
 bool flag_xml                      = false;
 bool flag_stdin                    = false;
+bool flag_sort_name                = false;
+bool flag_sort_size                = false;
+bool flag_sort_atime               = false;
+bool flag_sort_mtime               = false;
+bool flag_sort_ctime               = false;
+bool flag_sort_reversed            = false;
 bool flag_pretty                   = DEFAULT_PRETTY;
 bool flag_no_hidden                = DEFAULT_HIDDEN;
 bool flag_hex_hbr                  = true;
@@ -473,8 +481,8 @@ bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
+size_t flag_depth                  = 0;
 size_t flag_max_count              = 0;
-size_t flag_max_depth              = 0;
 size_t flag_max_files              = 0;
 size_t flag_min_line               = 0;
 size_t flag_max_line               = 0;
@@ -497,8 +505,9 @@ const char *flag_format_begin      = NULL;
 const char *flag_format_end        = NULL;
 const char *flag_format_open       = NULL;
 const char *flag_format_close      = NULL;
+const char *flag_sort              = NULL;
 const char *flag_devices           = "skip";
-const char *flag_directories       = "read";
+const char *flag_directories       = "skip";
 const char *flag_label             = "(standard input)";
 const char *flag_separator         = ":";
 const char *flag_group_separator   = "--";
@@ -732,7 +741,7 @@ struct Stats {
     ++dirs;
   }
 
-  // atomically update the number of matching files found, returns true if max file matches is not reached yet
+  // atomically update the number of matching files found, returns true if max file matches (+ number of threads-1 when sorting) is not reached yet
   bool found()
   {
     if (flag_max_files > 0)
@@ -770,6 +779,8 @@ struct Stats {
     if (dirs > 0)
       fprintf(output, " in %zu director%s", dirs, (dirs == 1 ? "y" : "ies"));
     fprintf(output, ": %zu matching\n", n);
+    if (warnings > 0)
+      fprintf(output, "Received %zu warning%s\n", warnings.load(), warnings == 1 ? "" : "s");
     if (flag_no_hidden ||
         !flag_ignore_files.empty() ||
         !flag_file_magic.empty() ||
@@ -907,9 +918,127 @@ struct Output {
 
   static constexpr size_t SIZE = 16384; // size of each buffer in the buffers container
 
-  struct Buffer { char data[SIZE]; }; // a buffer in the buffers container
+  struct Buffer { char data[SIZE]; }; // data buffer in the buffers container
 
   typedef std::list<Buffer> Buffers; // buffers container
+
+  // sync state to synchronize output of multiple threads
+  struct Sync {
+
+    enum class Mode { UNORDERED, ORDERED };
+
+    Sync(Mode mode)
+      :
+        mode(mode),
+        mutex(),
+        turn(),
+        next(0),
+        last(0),
+        bits_mutex(),
+        completed()
+    { }
+
+    // acquire output access
+    void acquire(std::unique_lock<std::mutex> *lock, size_t slot)
+    {
+      switch (mode)
+      {
+        case Mode::UNORDERED:
+          // if lock is not already acquired, acquire the lock
+          if (!lock->owns_lock())
+            lock->lock();
+          break;
+
+        case Mode::ORDERED:
+          // if lock is not already acquired, wait for our turn to acquire the lock
+          if (!lock->owns_lock())
+          {
+            lock->lock();
+            while (slot != last)
+              turn.wait(*lock);
+          }
+          break;
+      }
+    }
+
+    // try to acquire output access
+    bool try_acquire(std::unique_lock<std::mutex> *lock)
+    {
+      switch (mode)
+      {
+        case Mode::UNORDERED:
+          // lock is owned or is available to be acquired
+          return lock->owns_lock() || lock->try_lock();
+
+        case Mode::ORDERED:
+          // lock is owned
+          return lock->owns_lock();
+      }
+
+      return false;
+    }
+
+    // release output access in UNORDERED mode, otherwise do nothing (until finish() is called later)
+    void release(std::unique_lock<std::mutex> *lock)
+    {
+      switch (mode)
+      {
+        case Mode::UNORDERED:
+          // if lock is owned, release it
+          if (lock->owns_lock())
+            lock->unlock();
+          break;
+
+        case Mode::ORDERED:
+          break;
+      }
+    }
+
+    // release output access in ORDERED mode, otherwise do nothing
+    void finish(std::unique_lock<std::mutex> *lock, size_t slot)
+    {
+      switch (mode)
+      {
+        case Mode::UNORDERED:
+          break;
+
+        case Mode::ORDERED:
+        {
+          // if this is our slot, bump last to allow next turn, release lock, and notify other threads
+          std::unique_lock<std::mutex> lock_bits(bits_mutex);
+
+          if (slot == last)
+          {
+            if (!lock->owns_lock())
+              lock->lock();
+            do
+            {
+              ++last;
+              completed.rshift();
+            }
+            while (completed[0]);
+            lock->unlock();
+            turn.notify_all();
+          }
+          else
+          {
+            // threads without output may run ahead but must mark off their completion
+            completed.insert(slot - last);
+          }
+          break;
+        }
+      }
+    }
+
+    Mode                         mode;       // UNORDERED or ORDERED (--sort) mode
+    std::mutex                   mutex;      // mutex to synchronize output
+    std::condition_variable      turn;       // ORDERED: cv for threads to take turns by checking if last slot is their slot
+    size_t                       next;       // ORDERED: next slot assigned to thread
+    std::atomic_size_t           last;       // ORDERED: slot for threads to wait for their turn to output
+    std::mutex                   bits_mutex; // ORDERED: mutex to synchronize bitset access
+    reflex::Bits                 completed;  // ORDERED: bitset of completed slots marked by release() by threads that don't acquire() output
+
+  };
 
   // hex dump state
   struct Dump {
@@ -953,7 +1082,9 @@ struct Output {
 
   Output(FILE *file)
     :
-      lock(),
+      sync(NULL),
+      lock(NULL),
+      slot(0),
       file(file),
       lineno(0),
       dump(*this),
@@ -1129,49 +1260,67 @@ struct Output {
       flush();
   }
 
-  // acquire synchronization lock on the master's mutex, if not owned already
+  // synchronize output by threads on the given sync object
+  void sync_on(Sync *s)
+  {
+    sync = s;
+    if (lock != NULL)
+      delete lock;
+    lock = new std::unique_lock<std::mutex>(sync->mutex, std::defer_lock);
+  }
+
+  // start synchronizing output for this slot in ORDERED mode (--sort)
+  void begin(size_t s)
+  {
+    slot = s;
+  }
+
+  // acquire output synchronization lock
   void acquire()
   {
-    // if multi-threaded and lock is not owned already, then lock on master's mutex
-    if (lock != NULL && !lock->owns_lock())
-      lock->lock();
+    if (sync != NULL)
+      sync->acquire(lock, slot);
   }
 
   // flush the buffers and acquire lock
   void flush()
   {
-    // if multi-threaded and lock is not owned already, then lock on master's mutex
-    acquire();
-
-    if (!eof)
+    if (buf != buffers.begin() || cur > buf->data)
     {
-      // flush the buffers container to the designated output file, pipe, or stream
-      for (Buffers::iterator i = buffers.begin(); i != buf; ++i)
-      {
-        if (fwrite(i->data, 1, SIZE, file) < SIZE)
-        {
-          eof = true;
-          break;
-        }
-      }
       if (!eof)
       {
-        size_t num = cur - buf->data;
-        if (fwrite(buf->data, 1, num, file) < num)
-          eof = true;
-        else
-          fflush(file);
-      }
-    }
+        // if multi-threaded and lock is not owned already, then lock on master's mutex
+        acquire();
 
-    buf = buffers.begin();
-    cur = buf->data;
+        // flush the buffers container to the designated output file, pipe, or stream
+        for (Buffers::iterator i = buffers.begin(); i != buf; ++i)
+        {
+          if (fwrite(i->data, 1, SIZE, file) < SIZE)
+          {
+            eof = true;
+            break;
+          }
+        }
+
+        if (!eof)
+        {
+          size_t num = cur - buf->data;
+          if (num > 0 && fwrite(buf->data, 1, num, file) < num)
+            eof = true;
+          else
+            fflush(file);
+        }
+      }
+
+      buf = buffers.begin();
+      cur = buf->data;
+    }
   }
 
   // next buffer, allocate one if needed (when multi-threaded and lock is owned by another thread)
   void next()
   {
-    if (lock == NULL || lock->owns_lock() || lock->try_lock())
+    if (sync == NULL || sync->try_acquire(lock))
     {
       flush();
     }
@@ -1180,7 +1329,8 @@ struct Output {
       // allocate a new buffer if no next buffer was allocated before
       if (++buf == buffers.end())
         grow();
-      cur = buf->data;
+      else
+        cur = buf->data;
     }
   }
 
@@ -1191,20 +1341,20 @@ struct Output {
     cur = buf->data;
   }
 
-  // synchronize output on the given mutex
-  void sync(std::mutex& mutex)
-  {
-    lock = new std::unique_lock<std::mutex>(mutex, std::defer_lock);
-  }
-
-  // flush and release synchronization lock on the master's mutex, if one was assigned before with sync()
+  // flush output and release sync slot, if one was assigned with sync_on()
   void release()
   {
     flush();
 
-    // if multi-threaded and lock is owned, then release it
-    if (lock != NULL && lock->owns_lock())
-      lock->unlock();
+    if (sync != NULL)
+      sync->release(lock);
+  }
+
+  // end output in ORDERED mode (--sort)
+  void end()
+  {
+    if (sync != NULL)
+      sync->finish(lock, slot);
   }
 
   // output the header part of the match, preceeding the matched line
@@ -1231,7 +1381,9 @@ struct Output {
   // output in XML
   void xml(const char *data, size_t size);
 
+  Sync                         *sync;    // synchronization object
   std::unique_lock<std::mutex> *lock;    // synchronization lock
+  size_t                        slot;    // current slot to take turns
   FILE                         *file;    // output stream
   size_t                        lineno;  // last line number matched, when --format field %u (unique) is used
   Dump                          dump;    // hex dump state
@@ -2158,6 +2310,63 @@ void Output::xml(const char *data, size_t size)
 // grep manages output, matcher, input, and decompression
 struct Grep {
 
+  // directory entry type
+  enum class Type { SKIP, DIRECTORY, OTHER };
+
+  // directory entry data extracted from directory contents
+  struct Entry {
+    Entry(std::string& pathname, ino_t inode, uint64_t info)
+      :
+        pathname(std::move(pathname)),
+        inode(inode),
+        info(info)
+    { }
+
+    std::string pathname;
+    ino_t       inode;
+    uint64_t    info;
+
+#ifndef OS_WIN
+    // get sortable info from stat buf
+    static uint64_t sort_info(const struct stat& buf)
+    {
+#if defined(HAVE_STAT_ST_ATIM) && defined(HAVE_STAT_ST_MTIM) && defined(HAVE_STAT_ST_CTIM)
+      // tv_sec may be 64 bit, but value is small enough to multiply by 1000000 to fit in 64 bits
+      return static_cast<uint64_t>(flag_sort_size ? buf.st_size : flag_sort_atime ? static_cast<uint64_t>(buf.st_atim.tv_sec) * 1000000 + buf.st_atim.tv_nsec / 1000 : flag_sort_mtime ?static_cast<uint64_t>(buf.st_mtim.tv_sec) * 1000000 + buf.st_mtim.tv_nsec / 1000 : flag_sort_ctime ? static_cast<uint64_t>(buf.st_ctim.tv_sec) * 1000000 + buf.st_ctim.tv_nsec / 1000 : 0);
+#elif defined(HAVE_STAT_ST_ATIMESPEC) && defined(HAVE_STAT_ST_MTIMESPEC) && defined(HAVE_STAT_ST_CTIMESPEC)
+      // tv_sec may be 64 bit, but value is small enough to multiply by 1000000 to fit in 64 bits
+      return static_cast<uint64_t>(flag_sort_size ? buf.st_size : flag_sort_atime ? static_cast<uint64_t>(buf.st_atimespec.tv_sec) * 1000000 + buf.st_atimespec.tv_nsec / 1000 : flag_sort_mtime ?static_cast<uint64_t>(buf.st_mtimespec.tv_sec) * 1000000 + buf.st_mtimespec.tv_nsec / 1000 : flag_sort_ctime ? static_cast<uint64_t>(buf.st_ctimespec.tv_sec) * 1000000 + buf.st_ctimespec.tv_nsec / 1000 : 0);
+#else
+      return static_cast<uint64_t>(flag_sort_size ? buf.st_size : flag_sort_atime ? buf.st_atime : flag_sort_mtime ? buf.st_mtime : flag_sort_ctime ? buf.st_ctime : 0);
+#endif
+    }
+#endif
+
+    // compare two entries by pathname
+    static bool comp_by_path(const Entry& a, const Entry& b)
+    {
+      return a.pathname < b.pathname;
+    }
+
+    // compare two entries by size or time (atime, mtime, or ctime), if equal compare by pathname
+    static bool comp_by_info(const Entry& a, const Entry& b)
+    {
+      return a.info < b.info || (a.info == b.info && a.pathname < b.pathname);
+    }
+
+    // reverse compare two entries by pathname
+    static bool rev_comp_by_path(const Entry& a, const Entry& b)
+    {
+      return a.pathname > b.pathname;
+    }
+
+    // reverse compare two entries by size or time (atime, mtime, or ctime), if equal reverse compare by pathname
+    static bool rev_comp_by_info(const Entry& a, const Entry& b)
+    {
+      return a.info > b.info || (a.info == b.info && a.pathname > b.pathname);
+    }
+  };
+
   Grep(FILE *file, reflex::AbstractMatcher *matcher)
     :
       out(file),
@@ -2168,6 +2377,9 @@ struct Grep {
       streambuf(NULL)
 #endif
   { }
+
+  // recurse a directory
+  virtual void recurse(size_t level, reflex::Matcher& magic, const char *pathname);
 
   // search a file
   virtual void search(const char *pathname);
@@ -3223,28 +3435,28 @@ struct Grep {
 struct Job {
 
   // sentinel job NONE
-  static const char *NONE;
+  static const size_t NONE = ~0;
 
   Job()
     :
-      pathname()
+      pathname(),
+      slot(NONE)
   { }
 
-  Job(const char *pathname)
+  Job(const char *pathname, size_t slot)
     :
-      pathname(pathname)
+      pathname(pathname),
+      slot(slot)
   { }
 
   bool none()
   {
-    return pathname.empty();
+    return slot == NONE;
   }
 
   std::string pathname;
+  size_t      slot;
 };
-
-// we could use C++20 constinit, though declaring this here is more efficient:
-const char *Job::NONE = "";
 
 struct GrepWorker;
 
@@ -3253,7 +3465,8 @@ struct GrepMaster : public Grep {
 
   GrepMaster(FILE *file, reflex::AbstractMatcher *matcher)
     :
-      Grep(file, matcher)
+      Grep(file, matcher),
+      sync(flag_sort == NULL ? Output::Sync::Mode::UNORDERED : Output::Sync::Mode::ORDERED)
   {
     start_workers();
     iworker = workers.begin();
@@ -3282,13 +3495,13 @@ struct GrepMaster : public Grep {
   // lock-free job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
   bool steal(GrepWorker *worker);
 
-  std::list<GrepWorker>           workers;    // workers running threads
-  std::list<GrepWorker>::iterator iworker;    // the next worker to submit a job to
-  std::mutex                      sync_mutex; // mutex to sync output, shared by workers
+  std::list<GrepWorker>           workers; // workers running threads
+  std::list<GrepWorker>::iterator iworker; // the next worker to submit a job to
+  Output::Sync                    sync;    // sync output of workers
 
 };
 
-// worker runs a thread waiting for jobs submitted by the master
+// worker runs a thread to execute jobs submitted by the master
 struct GrepWorker : public Grep {
 
   GrepWorker(FILE *file, reflex::AbstractMatcher *matcher, GrepMaster *master)
@@ -3297,8 +3510,8 @@ struct GrepWorker : public Grep {
       master(master),
       todo(0)
   {
-    // all workers synchronize their output on the master's mutex lock
-    out.sync(master->sync_mutex);
+    // all workers synchronize their output on the master's sync object
+    out.sync_on(&master->sync);
 
     // run worker thread executing jobs assigned in its queue
     thread = std::thread(&GrepWorker::execute, this);
@@ -3313,12 +3526,49 @@ struct GrepWorker : public Grep {
   // worker thread execution
   void execute();
 
-  // submit a job to this worker
-  void submit_job(const char *pathname)
+  // submit NONE sentinel to this worker
+  void submit_job()
   {
     std::unique_lock<std::mutex> lock(queue_mutex);
 
-    jobs.emplace(pathname);
+    jobs.emplace_back();
+    ++todo;
+
+    queue_work.notify_one();
+  }
+
+  // submit a job to this worker
+  void submit_job(const char *pathname, size_t slot)
+  {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+
+    jobs.emplace_back(pathname, slot);
+    ++todo;
+
+    queue_work.notify_one();
+  }
+
+  // move a stolen job to this worker, maintaining job slot order
+  void move_job(Job& job)
+  {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+
+    bool inserted = false;
+
+    // insert job in the queue to maintain job order
+    for (std::deque<Job>::iterator j = jobs.begin(); j != jobs.end(); ++j)
+    {
+      if (j->slot > job.slot)
+      {
+        jobs.insert(j, std::move(job));
+        inserted = true;
+        break;
+      }
+    }
+
+    if (!inserted)
+      jobs.emplace_back(std::move(job));
+
     ++todo;
 
     queue_work.notify_one();
@@ -3334,15 +3584,15 @@ struct GrepWorker : public Grep {
 
     job = jobs.front();
 
-    jobs.pop();
+    jobs.pop_front();
     --todo;
 
     // if we popped a NONE sentinel but the queue has some jobs, then move the sentinel to the back of the queue
     if (job.none() && !jobs.empty())
     {
-      jobs.emplace(Job::NONE);
+      jobs.emplace_back();
       job = jobs.front();
-      jobs.pop();
+      jobs.pop_front();
     }
   }
 
@@ -3354,6 +3604,7 @@ struct GrepWorker : public Grep {
       return false;
 
     std::unique_lock<std::mutex> lock(queue_mutex);
+
     if (jobs.empty())
       return false;
 
@@ -3363,23 +3614,23 @@ struct GrepWorker : public Grep {
     if (job.none())
       return false;
 
-    jobs.pop();
+    jobs.pop_front();
     --todo;
 
     return true;
   }
 
-  // submit stop to this worker
+  // submit NONE sentinel to stop this worker
   void stop()
   {
-    submit_job(Job::NONE);
+    submit_job();
   }
 
   std::thread             thread;      // thread of this worker, spawns GrepWorker::execute()
   GrepMaster             *master;      // the master of this worker
   std::mutex              queue_mutex; // job queue mutex
   std::condition_variable queue_work;  // cv to control the job queue
-  std::queue<Job>         jobs;        // queue of pending jobs submitted to this worker
+  std::deque<Job>         jobs;        // queue of pending jobs submitted to this worker
   std::atomic_size_t      todo;        // number of jobs in the queue, for lock-free job stealing
 
 };
@@ -3404,7 +3655,7 @@ void GrepMaster::stop_workers()
 // submit a job with a pathname to a worker, workers are visited round-robin
 void GrepMaster::submit(const char *pathname)
 {
-  iworker->submit_job(pathname);
+  iworker->submit_job(pathname, sync.next++);
 
   // around we go
   ++iworker;
@@ -3436,7 +3687,7 @@ bool GrepMaster::steal(GrepWorker *worker)
       // if co-worker has at least --min-steal jobs then steal one for this worker
       if (iworker->steal_job(job))
       {
-        worker->submit_job(job.pathname.c_str());
+        worker->move_job(job);
 
         return true;
       }
@@ -3464,10 +3715,16 @@ void GrepWorker::execute()
     if (job.none())
       break;
 
+    // start synchronizing output for this job slot in ORDERED mode (--sort)
+    out.begin(job.slot);
+
     // search the file for this job
     search(job.pathname.c_str());
 
-    // if almost nothing to do and we need a next job, then try stealing a job from a co-worker
+    // end output in ORDERED mode (--sort) for this job slot
+    out.end();
+
+    // if only one job is left to do, try stealing another job from a co-worker
     if (todo <= 1)
       master->steal(this);
   }
@@ -3626,8 +3883,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
 
 // function protos
 void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files);
-void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname, const char *basename, int type, ino_t inode, bool is_argument = false);
-void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname);
+Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument = false);
 
 // ugrep main()
 int main(int argc, char **argv)
@@ -3698,6 +3954,8 @@ int main(int argc, char **argv)
               flag_csv = true;
             else if (strcmp(arg, "decompress") == 0)
               flag_decompress = true;
+            else if (strncmp(arg, "depth=", 6) == 0)
+              flag_depth = strtopos(arg + 6, "invalid argument --depth=");
             else if (strcmp(arg, "dereference") == 0)
               flag_dereference = true;
             else if (strcmp(arg, "dereference-recursive") == 0)
@@ -3798,8 +4056,6 @@ int main(int argc, char **argv)
               flag_match = true;
             else if (strncmp(arg, "max-count=", 10) == 0)
               flag_max_count = strtopos(arg + 10, "invalid argument --max-count=");
-            else if (strncmp(arg, "max-depth=", 10) == 0)
-              flag_max_depth = strtopos(arg + 10, "invalid argument --max-depth=");
             else if (strncmp(arg, "max-files=", 10) == 0)
               flag_max_files = strtopos(arg + 10, "invalid argument --max-files=");
             else if (strncmp(arg, "max-mmap=", 9) == 0)
@@ -3852,6 +4108,10 @@ int main(int argc, char **argv)
               flag_separator = ":";
             else if (strcmp(arg, "smart-case") == 0)
               flag_smart_case = true;
+            else if (strcmp(arg, "sort") == 0)
+              flag_sort = "name";
+            else if (strncmp(arg, "sort=", 5) == 0)
+              flag_sort = arg + 5;
             else if (strcmp(arg, "stats") == 0)
               flag_stats = true;
             else if (strncmp(arg, "tabs=", 5) == 0)
@@ -4196,6 +4456,22 @@ int main(int argc, char **argv)
 
           case 'z':
             flag_decompress = true;
+            break;
+
+          case '0':
+            flag_null = true;
+            break;
+
+          case '1':
+          case '2':
+          case '3':
+          case '4':
+          case '5':
+          case '6':
+          case '7':
+          case '8':
+          case '9':
+            flag_depth = *arg - '0';
             break;
 
           default:
@@ -4578,22 +4854,49 @@ int main(int argc, char **argv)
   }
 
   // -D: check ACTION value
-  if (strcmp(flag_devices, "read") == 0)
-    flag_devices_action = Action::READ;
-  else if (strcmp(flag_devices, "skip") == 0)
+  if (strcmp(flag_devices, "skip") == 0)
     flag_devices_action = Action::SKIP;
+  else if (strcmp(flag_devices, "read") == 0)
+    flag_devices_action = Action::READ;
   else
-    help("invalid argument --devices=ACTION, valid arguments are 'read' and 'skip'");
+    help("invalid argument --devices=ACTION, valid arguments are 'skip' and 'read'");
 
   // -d: check ACTION value
-  if (strcmp(flag_directories, "read") == 0)
+  if (strcmp(flag_directories, "skip") == 0)
+    flag_directories_action = Action::SKIP;
+  else if (strcmp(flag_directories, "read") == 0)
     flag_directories_action = Action::READ;
   else if (strcmp(flag_directories, "recurse") == 0)
     flag_directories_action = Action::RECURSE;
-  else if (strcmp(flag_directories, "skip") == 0)
-    flag_directories_action = Action::SKIP;
   else
-    help("invalid argument --directories=ACTION, valid arguments are 'read', 'recurse', 'dereference-recurse', and 'skip'");
+    help("invalid argument --directories=ACTION, valid arguments are 'skip', 'read', 'recurse', and 'dereference-recurse'");
+
+  // --sort: check KEY value
+  if (flag_sort != NULL)
+  {
+    if (strcmp(flag_sort, "name") == 0)
+      flag_sort_name = true;
+    else if (strcmp(flag_sort, "size") == 0)
+      flag_sort_size = true;
+    else if (strcmp(flag_sort, "used") == 0)
+      flag_sort_atime = true;
+    else if (strcmp(flag_sort, "changed") == 0)
+      flag_sort_mtime = true;
+    else if (strcmp(flag_sort, "created") == 0)
+      flag_sort_ctime = true;
+    else if (strcmp(flag_sort, "rname") == 0)
+      flag_sort_reversed = flag_sort_name = true;
+    else if (strcmp(flag_sort, "rsize") == 0)
+      flag_sort_reversed = flag_sort_size = true;
+    else if (strcmp(flag_sort, "rused") == 0)
+      flag_sort_reversed = flag_sort_atime = true;
+    else if (strcmp(flag_sort, "rchanged") == 0)
+      flag_sort_reversed = flag_sort_mtime = true;
+    else if (strcmp(flag_sort, "rcreated") == 0)
+      flag_sort_reversed = flag_sort_ctime = true;
+    else
+      help("invalid argument --sort=KEY, valid arguments are 'name', 'size', 'used', 'changed', 'created, 'rname', 'rsize', 'rused', 'rchanged', and 'rcreated'");
+  }
 
   // normalize --cpp, --csv, --json, --xml
   if (flag_cpp)
@@ -5171,7 +5474,7 @@ int main(int argc, char **argv)
           if (statvfs(mount.c_str(), &buf) == 0)
             exclude_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
           else
-            warning("--exclude-fs: cannot stat", mount.c_str());
+            warning("--exclude-fs", mount.c_str());
         }
 
         if (to == std::string::npos)
@@ -5202,7 +5505,7 @@ int main(int argc, char **argv)
           if (statvfs(mount.c_str(), &buf) == 0)
             include_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
           else
-            warning("--include-fs: cannot stat", mount.c_str());
+            warning("--include-fs", mount.c_str());
         }
 
         if (to == std::string::npos)
@@ -5210,25 +5513,86 @@ int main(int argc, char **argv)
 
         from = to + 1;
       }
-
     }
   }
 
 #endif
 
-  // if no FILE specified and no -r or -R specified, when reading standard input from a TTY: enable -R
+  // run all worker threads?
+  bool directory_arg = false;
+
+  // check FILE arguments, warn about non-existing FILE
+  std::vector<const char*>::iterator file = files.begin();
+  while (file != files.end())
+  {
+#ifdef OS_WIN
+
+    DWORD attr = GetFileAttributesA(*file);
+
+    if (attr == INVALID_FILE_ATTRIBUTES)
+    {
+      // FILE does not exist
+      errno = ENOENT;
+      warning(NULL, *file);
+
+      file = files.erase(file);
+      if (files.empty())
+        exit(EXIT_ERROR);
+    }
+    else
+    {
+      // use threads to recurse into a directory
+      if ((attr & FILE_ATTRIBUTE_DIRECTORY))
+        directory_arg = true;
+
+      ++file;
+    }
+
+#else
+
+    struct stat buf;
+
+    if (stat(*file, &buf) != 0)
+    {
+      // FILE does not exist
+      warning(NULL, *file);
+
+      file = files.erase(file);
+      if (files.empty())
+        exit(EXIT_ERROR);
+    }
+    else
+    {
+      // use threads to recurse into a directory
+      if (S_ISDIR(buf.st_mode))
+        directory_arg = true;
+
+      ++file;
+    }
+
+#endif
+  }
+
+  // --depth: if -R or -r is not specified then enable -R 
+  if (flag_depth > 0 && flag_directories_action != Action::RECURSE)
+  {
+    flag_directories_action = Action::RECURSE;
+    flag_dereference = true;
+  }
+
+  // if no FILE specified and no -r or -R specified, when reading standard input from a TTY then enable -R
   if (flag_directories_action != Action::RECURSE && !flag_stdin && files.empty() && isatty(STDIN_FILENO))
   {
     flag_directories_action = Action::RECURSE;
     flag_dereference = true;
   }
 
-  // normalize -p (--no-dereference) and -S (--dereference) options, -p taking priority over -S
+  // normalize -p (--no-dereference) and -S (--dereference) options, -p takes priority over -S
   if (flag_no_dereference)
     flag_dereference = false;
 
   // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
-  if (!flag_no_filename && (flag_directories_action == Action::RECURSE || files.size() > 1 || (flag_stdin && !files.empty())))
+  if (!flag_no_filename && (directory_arg || flag_directories_action == Action::RECURSE || files.size() > 1 || (flag_stdin && !files.empty())))
     flag_with_filename = true;
 
   // --only-line-number implies -n
@@ -5263,6 +5627,10 @@ int main(int argc, char **argv)
     flag_count = false;
   }
 
+  // if no FILE specified then read standard input, unless recursive searches are specified
+  if (files.empty() && flag_directories_action != Action::RECURSE)
+    flag_stdin = true;
+
   // -J: when not set the default is the number of cores (or hardware threads), limited to MAX_JOBS
   if (flag_jobs == 0)
   {
@@ -5271,15 +5639,15 @@ int main(int argc, char **argv)
     flag_jobs = std::min(concurrency, MAX_JOBS);
   }
 
+  // --sort and --max-files: limit number of threads to --max-files to prevent unordered results
+  if (flag_sort != NULL && flag_max_files > 0)
+    flag_jobs = std::min(flag_jobs, flag_max_files);
+
   // set the number of threads to the number of files or when recursing to the value of -J, --jobs
-  if (flag_directories_action == Action::RECURSE)
+  if (directory_arg || flag_directories_action == Action::RECURSE)
     threads = flag_jobs;
   else
     threads = std::min(files.size() + flag_stdin, flag_jobs);
-
-  // if no FILE specified then read standard input, unless recursive searches are specified
-  if (files.empty() && flag_directories_action != Action::RECURSE)
-    flag_stdin = true;
 
   // -M: create a magic matcher for the MAGIC regex signature to match file signatures with magic.scan()
   reflex::Matcher magic;
@@ -5485,7 +5853,7 @@ int main(int argc, char **argv)
     exit(EXIT_ERROR);
   }
 
-  catch (boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<std::runtime_error> >& error)
+  catch (boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<std::runtime_error>>& error)
   {
     abort("Boost.Regex error: ", error.what());
   }
@@ -5508,7 +5876,7 @@ int main(int argc, char **argv)
   if (output != stdout)
     pclose(output);
 
-  return stats.found_any_file() ? EXIT_OK : EXIT_FAIL;
+  return warnings == 0 && stats.found_any_file() ? EXIT_OK : EXIT_FAIL;
 }
 
 // search the specified files or standard input for pattern matches
@@ -5516,7 +5884,7 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
 {
   if (!flag_stdin && files.empty())
   {
-    recurse(1, magic, grep, ".");
+    grep.recurse(1, magic, ".");
   }
   else
   {
@@ -5528,6 +5896,10 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
       // search standard input
       grep.search(NULL);
     }
+
+#ifndef OS_WIN
+    std::pair<std::set<ino_t>::iterator,bool> vino;
+#endif
 
     for (auto file : files)
     {
@@ -5546,16 +5918,42 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
       else
         basename = file;
 
-      find(1, magic, grep, file, basename, DIRENT_TYPE_UNKNOWN, 0, !flag_no_dereference);
+      ino_t inode = 0;
+      uint64_t info;
+
+      // search file, unless searchable directory into which we should recurse
+      switch (select(1, magic, file, basename, DIRENT_TYPE_UNKNOWN, inode, info, true))
+      {
+        case Grep::Type::DIRECTORY:
+#ifndef OS_WIN
+          if (flag_dereference)
+            vino = visited.insert(inode);
+#endif
+
+          grep.recurse(1, magic, file);
+
+#ifndef OS_WIN
+          if (flag_dereference)
+            visited.erase(vino.first);
+#endif
+          break;
+
+        case Grep::Type::OTHER:
+          grep.search(file);
+          break;
+
+        case Grep::Type::SKIP:
+          break;
+      }
     }
   }
 }
 
 // search file or directory for pattern matches
-void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname, const char *basename, int type, ino_t inode, bool is_argument_dereference)
+Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument)
 {
   if (*basename == '.' && flag_no_hidden)
-    return;
+    return Grep::Type::SKIP;
 
 #ifdef OS_WIN
 
@@ -5565,11 +5963,11 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
   {
     errno = ENOENT;
     warning("cannot read", pathname);
-    return;
+    return Grep::Type::SKIP;
   }
 
   if (flag_no_hidden && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
-    return;
+    return Grep::Type::SKIP;
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
   {
@@ -5577,11 +5975,23 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
     {
       // directories cannot be read actually, so grep produces a warning message (errno is not set)
       is_directory(pathname);
-      return;
+      return Grep::Type::SKIP;
     }
 
-    if (flag_directories_action == Action::RECURSE)
+    if (is_argument || flag_directories_action == Action::RECURSE)
     {
+      // --depth: soft recursion level exceeds max depth?
+      if (flag_depth > 0 && level > flag_depth)
+        return Grep::Type::SKIP;
+
+      // hard maximum recursion depth reached?
+      if (level > MAX_DEPTH)
+      {
+        if (!flag_no_messages)
+          fprintf(stderr, "%sugrep: %s%s%s recursion depth exceeds hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
+        return Grep::Type::SKIP;
+      }
+
       // check for --exclude-dir and --include-dir constraints if pathname != "."
       if (strcmp(pathname, ".") != 0)
       {
@@ -5596,7 +6006,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
           // exclude directories whose basename matches any one of the --exclude-dir globs
           for (auto& glob : flag_exclude_dir)
             if (glob_match(pathname, basename, glob.c_str()))
-              return;
+              return Grep::Type::SKIP;
         }
 
         if (!flag_include_dir.empty())
@@ -5604,7 +6014,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
           // do not include directories that are reversed by ! negation
           for (auto& glob : flag_not_include_dir)
             if (glob_match(pathname, basename, glob.c_str()))
-              return;
+              return Grep::Type::SKIP;
 
           // include directories whose basename matches any one of the --include-dir globs
           bool ok = false;
@@ -5612,11 +6022,11 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
             if ((ok = glob_match(pathname, basename, glob.c_str())))
               break;
           if (!ok)
-            return;
+            return Grep::Type::SKIP;
         }
       }
 
-      recurse(level, magic, grep, pathname);
+      return Grep::Type::DIRECTORY;
     }
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || flag_devices_action == Action::READ)
@@ -5632,7 +6042,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
       // exclude files whose basename matches any one of the --exclude globs
       for (auto& glob : flag_exclude)
         if (glob_match(pathname, basename, glob.c_str()))
-          return;
+          return Grep::Type::SKIP;
     }
 
     // check magic pattern against the file signature, when --file-magic=MAGIC is specified
@@ -5643,7 +6053,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
       if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
       {
         warning("cannot read", pathname);
-        return;
+        return Grep::Type::SKIP;
       }
 
 #ifdef HAVE_LIBZ
@@ -5656,13 +6066,11 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
         size_t match = magic.input(&stream).scan();
         if (match == flag_not_magic || match >= flag_min_magic)
         {
-          stats.score_file();
-
           fclose(file);
 
-          grep.search(pathname);
+          stats.score_file();
 
-          return;
+          return Grep::Type::OTHER;
         }
       }
       else
@@ -5671,21 +6079,18 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
         size_t match = magic.input(reflex::Input(file, flag_encoding_type)).scan();
         if (match == flag_not_magic || match >= flag_min_magic)
         {
-          // if file has the magic bytes we're looking for: search the file
-          stats.score_file();
-
           fclose(file);
 
-          grep.search(pathname);
+          stats.score_file();
 
-          return;
+          return Grep::Type::OTHER;
         }
       }
 
       fclose(file);
 
       if (flag_include.empty())
-        return;
+        return Grep::Type::SKIP;
     }
 
     if (!flag_include.empty())
@@ -5693,7 +6098,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
       // do not include files that are reversed by ! negation
       for (auto& glob : flag_not_include)
         if (glob_match(pathname, basename, glob.c_str()))
-          return;
+          return Grep::Type::SKIP;
 
       // include files whose basename matches any one of the --include globs
       bool ok = false;
@@ -5701,12 +6106,12 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
         if ((ok = glob_match(pathname, basename, glob.c_str())))
           break;
       if (!ok)
-        return;
+        return Grep::Type::SKIP;
     }
 
     stats.score_file();
 
-    grep.search(pathname);
+    return Grep::Type::OTHER;
   }
 
 #else
@@ -5717,10 +6122,10 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
   if (type != DIRENT_TYPE_UNKNOWN || lstat(pathname, &buf) == 0)
   {
     // symlinks are followed when specified on the command line (unless option -p) or with options -R, -S, --dereference
-    if (is_argument_dereference || flag_dereference || (type != DIRENT_TYPE_UNKNOWN ? type != DIRENT_TYPE_LNK : !S_ISLNK(buf.st_mode)))
+    if ((is_argument && !flag_no_dereference) || flag_dereference || (type != DIRENT_TYPE_UNKNOWN ? type != DIRENT_TYPE_LNK : !S_ISLNK(buf.st_mode)))
     {
-      // if we got a symlink, use stat() to check if pathname is a directory or a regular file
-      if ((type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) || stat(pathname, &buf) == 0)
+      // if we got a symlink, use stat() to check if pathname is a directory or a regular file, we also stat when sorting by stat info
+      if (((flag_sort == NULL || flag_sort_name) && type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) || stat(pathname, &buf) == 0)
       {
         // check if directory
         if (type == DIRENT_TYPE_DIR || ((type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISDIR(buf.st_mode)))
@@ -5729,21 +6134,21 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
           {
             // directories cannot be read actually, so grep produces a warning message (errno is not set)
             is_directory(pathname);
-            return;
+            return Grep::Type::SKIP;
           }
 
-          if (flag_directories_action == Action::RECURSE)
+          if (is_argument || flag_directories_action == Action::RECURSE)
           {
-            std::pair<std::set<ino_t>::iterator,bool> vino;
+            // --depth: soft recursion level exceeds max depth?
+            if (flag_depth > 0 && level > flag_depth)
+              return Grep::Type::SKIP;
 
-            // this directory was visited before?
-            if (flag_dereference)
+            // hard maximum recursion depth reached?
+            if (level > MAX_DEPTH)
             {
-              vino = visited.insert(type == DIRENT_TYPE_DIR ? inode : buf.st_ino);
-
-              // if visited before, then do not recurse on this directory again
-              if (!vino.second)
-                return;
+              if (!flag_no_messages)
+                fprintf(stderr, "%sugrep: %s%s%s recursion depth exceeds hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
+              return Grep::Type::SKIP;
             }
 
             // check for --exclude-dir and --include-dir constraints if pathname != "."
@@ -5760,7 +6165,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
                 // exclude directories whose pathname matches any one of the --exclude-dir globs
                 for (auto& glob : flag_exclude_dir)
                   if (glob_match(pathname, basename, glob.c_str()))
-                    return;
+                    return Grep::Type::SKIP;
               }
 
               if (!flag_include_dir.empty())
@@ -5768,7 +6173,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
                 // do not include directories that are reversed by ! negation
                 for (auto& glob : flag_not_include_dir)
                   if (glob_match(pathname, basename, glob.c_str()))
-                    return;
+                    return Grep::Type::SKIP;
 
                 // include directories whose pathname matches any one of the --include-dir globs
                 bool ok = false;
@@ -5776,14 +6181,16 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
                   if ((ok = glob_match(pathname, basename, glob.c_str())))
                     break;
                 if (!ok)
-                  return;
+                  return Grep::Type::SKIP;
               }
             }
 
-            recurse(level, magic, grep, pathname);
+            if (type != DIRENT_TYPE_DIR)
+              inode = buf.st_ino;
 
-            if (flag_dereference)
-              visited.erase(vino.first);
+            info = Grep::Entry::sort_info(buf);
+
+            return Grep::Type::DIRECTORY;
           }
         }
         else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == Action::READ)
@@ -5799,7 +6206,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
             // exclude files whose pathname matches any one of the --exclude globs
             for (auto& glob : flag_exclude)
               if (glob_match(pathname, basename, glob.c_str()))
-                return;
+                return Grep::Type::SKIP;
           }
 
           // check magic pattern against the file signature, when --file-magic=MAGIC is specified
@@ -5810,7 +6217,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
             if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
             {
               warning("cannot read", pathname);
-              return;
+              return Grep::Type::SKIP;
             }
 
 #ifdef HAVE_LIBZ
@@ -5823,13 +6230,13 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
               size_t match = magic.input(&stream).scan();
               if (match == flag_not_magic || match >= flag_min_magic)
               {
-                stats.score_file();
-
                 fclose(file);
 
-                grep.search(pathname);
+                stats.score_file();
 
-                return;
+                info = Grep::Entry::sort_info(buf);
+
+                return Grep::Type::OTHER;
               }
             }
             else
@@ -5839,20 +6246,20 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
               size_t match = magic.input(reflex::Input(file, flag_encoding_type)).scan();
               if (match == flag_not_magic || match >= flag_min_magic)
               {
-                stats.score_file();
-
                 fclose(file);
 
-                grep.search(pathname);
+                stats.score_file();
 
-                return;
+                info = Grep::Entry::sort_info(buf);
+
+                return Grep::Type::OTHER;
               }
             }
 
             fclose(file);
 
             if (flag_include.empty())
-              return;
+              return Grep::Type::SKIP;
           }
 
           if (!flag_include.empty())
@@ -5860,7 +6267,7 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
             // do not include files that are reversed by ! negation
             for (auto& glob : flag_not_include)
               if (glob_match(pathname, basename, glob.c_str()))
-                return;
+                return Grep::Type::SKIP;
 
             // include files whose pathname matches any one of the --include globs
             bool ok = false;
@@ -5868,39 +6275,31 @@ void find(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname
               if ((ok = glob_match(pathname, basename, glob.c_str())))
                 break;
             if (!ok)
-              return;
+              return Grep::Type::SKIP;
           }
 
           stats.score_file();
 
-          grep.search(pathname);
+          info = Grep::Entry::sort_info(buf);
+
+          return Grep::Type::OTHER;
         }
       }
     }
   }
   else
   {
-    warning("cannot stat", pathname);
+    warning(NULL, pathname);
   }
 
 #endif
+
+  return Grep::Type::SKIP;
 }
 
-// recurse over directory, searching for pattern matches in files and sub-directories
-void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathname)
+// recurse over directory, searching for pattern matches in files and subdirectories
+void Grep::recurse(size_t level, reflex::Matcher& magic, const char *pathname)
 {
-  // --max-depth: soft recursion level exceeds max depth?
-  if (flag_max_depth > 0 && level > flag_max_depth)
-    return;
-
-  // hard maximum recursion depth reached?
-  if (level > MAX_DEPTH)
-  {
-    if (!flag_no_messages)
-      fprintf(stderr, "%sugrep: %s%s%s recursion depth exceeds hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
-    return;
-  }
-
 #ifdef OS_WIN
 
   WIN32_FIND_DATAA ffd;
@@ -5955,7 +6354,7 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
 
   // --ignore-files: check if one or more a present to read and extend the file and dir exclusions
   // std::vector<std::string> *save_exclude = NULL, *save_exclude_dir = NULL, *save_not_exclude = NULL, *save_not_exclude_dir = NULL;
-  std::unique_ptr< std::vector<std::string> > save_exclude, save_exclude_dir, save_not_exclude, save_not_exclude_dir;
+  std::unique_ptr<std::vector<std::string>> save_exclude, save_exclude_dir, save_not_exclude, save_not_exclude_dir;
   bool saved = false;
 
   if (!flag_ignore_files.empty())
@@ -5971,13 +6370,13 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
       {
         if (!saved)
         {
-          save_exclude = std::unique_ptr< std::vector<std::string> >(new std::vector<std::string>);
+          save_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
           save_exclude->swap(flag_exclude);
-          save_exclude_dir = std::unique_ptr< std::vector<std::string> >(new std::vector<std::string>);
+          save_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
           save_exclude_dir->swap(flag_exclude_dir);
-          save_not_exclude = std::unique_ptr< std::vector<std::string> >(new std::vector<std::string>);
+          save_not_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
           save_not_exclude->swap(flag_not_exclude);
-          save_not_exclude_dir = std::unique_ptr< std::vector<std::string> >(new std::vector<std::string>);
+          save_not_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
           save_not_exclude_dir->swap(flag_not_exclude_dir);
 
           saved = true;
@@ -5992,27 +6391,63 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
 
   stats.score_dir();
 
+  std::vector<Entry> content;
+  std::vector<Entry> subdirs;
   std::string dirpathname;
 
 #ifdef OS_WIN
 
   do
   {
-    if (strcmp(ffd.cFileName, ".") != 0 && strcmp(ffd.cFileName, "..") != 0)
+    // search directory entries that aren't . or .. or hidden when --no-hidden is enabled
+    if (ffd.cFileName[0] != '.' || (!flag_no_hidden && ffd.cFileName[1] != '\0' && ffd.cFileName[1] != '.'))
     {
       if (pathname[0] == '.' && pathname[1] == '\0')
         dirpathname.assign(ffd.cFileName);
       else
         dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
 
-      find(level + 1, magic, grep, dirpathname.c_str(), ffd.cFileName, DIRENT_TYPE_UNKNOWN, 0);
+      ino_t inode = 0;
+      uint64_t info = 0;
+
+      // --sort: get file info
+      if (flag_sort != NULL && !flag_sort_name)
+      {
+        if (flag_sort_size)
+        {
+          info = static_cast<uint64_t>(ffd.nFileSizeLow) | (static_cast<uint64_t>(ffd.nFileSizeHigh) << 32);
+        }
+        else
+        {
+          struct _FILETIME& time = flag_sort_atime ? ffd.ftLastAccessTime : flag_sort_mtime ? ffd.ftLastWriteTime : ffd.ftCreationTime;
+          info = static_cast<uint64_t>(time.dwLowDateTime) | (static_cast<uint64_t>(time.dwHighDateTime) << 32);
+        }
+      }
+
+      // search dirpathname, unless searchable directory into which we should recurse
+      switch (select(level + 1, magic, dirpathname.c_str(), ffd.cFileName, DIRENT_TYPE_UNKNOWN, inode, info))
+      {
+        case Type::DIRECTORY:
+          subdirs.emplace_back(dirpathname, 0, info);
+          break;
+
+        case Type::OTHER:
+          if (flag_sort == NULL)
+            search(dirpathname.c_str());
+          else
+            content.emplace_back(dirpathname, 0, info);
+          break;
+
+        case Type::SKIP:
+          break;
+      }
 
       // stop after finding max-files matching files
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
 
       // stop when output is blocked
-      if (grep.out.eof)
+      if (out.eof)
         break;
     }
   } while (FindNextFileA(hFind, &ffd) != 0);
@@ -6033,18 +6468,42 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
       else
         dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
 
+      Type type;
+      ino_t inode;
+      uint64_t info;
+
+      // search dirpathname, unless searchable directory into which we should recurse
 #if defined(HAVE_STRUCT_DIRENT_D_TYPE) && defined(HAVE_STRUCT_DIRENT_D_INO)
-      find(level + 1, magic, grep, dirpathname.c_str(), dirent->d_name, dirent->d_type, dirent->d_ino);
+      inode = dirent->d_ino;
+      type = select(level + 1, magic, dirpathname.c_str(), dirent->d_name, dirent->d_type, inode, info);
 #else
-      find(level + 1, magic, grep, dirpathname.c_str(), dirent->d_name, DIRENT_TYPE_UNKNOWN, 0);
+      inode = 0;
+      type = select(level + 1, magic, dirpathname.c_str(), dirent->d_name, DIRENT_TYPE_UNKNOWN, inode, info);
 #endif
+
+      switch (type)
+      {
+        case Type::DIRECTORY:
+          subdirs.emplace_back(dirpathname, inode, info);
+          break;
+
+        case Type::OTHER:
+          if (flag_sort == NULL)
+            search(dirpathname.c_str());
+          else
+            content.emplace_back(dirpathname, inode, info);
+          break;
+
+        case Type::SKIP:
+          break;
+      }
 
       // stop after finding max-files matching files
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
 
       // stop when output is blocked
-      if (grep.out.eof)
+      if (out.eof)
         break;
     }
   }
@@ -6052,6 +6511,91 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
   closedir(dir);
 
 #endif
+
+  // --sort: sort the selected non-directory entries and search them
+  if (flag_sort != NULL)
+  {
+    if (flag_sort_name)
+    {
+      if (flag_sort_reversed)
+        std::sort(content.begin(), content.end(), Entry::rev_comp_by_path);
+      else
+        std::sort(content.begin(), content.end(), Entry::comp_by_path);
+    }
+    else
+    {
+      if (flag_sort_reversed)
+        std::sort(content.begin(), content.end(), Entry::rev_comp_by_info);
+      else
+        std::sort(content.begin(), content.end(), Entry::comp_by_info);
+    }
+
+    // search the select sorted non-directory entries
+    for (auto& entry : content)
+    {
+      search(entry.pathname.c_str());
+
+      // stop after finding max-files matching files
+      if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
+        break;
+
+      // stop when output is blocked
+      if (out.eof)
+        break;
+    }
+  }
+
+  // --sort: sort the selected subdirectory entries
+  if (flag_sort != NULL)
+  {
+    if (flag_sort_name)
+    {
+      if (flag_sort_reversed)
+        std::sort(subdirs.begin(), subdirs.end(), Entry::rev_comp_by_path);
+      else
+        std::sort(subdirs.begin(), subdirs.end(), Entry::comp_by_path);
+    }
+    else
+    {
+      if (flag_sort_reversed)
+        std::sort(subdirs.begin(), subdirs.end(), Entry::rev_comp_by_info);
+      else
+        std::sort(subdirs.begin(), subdirs.end(), Entry::comp_by_info);
+    }
+  }
+
+  // recurse into the selected subdirectories
+  for (auto& entry : subdirs)
+  {
+    // stop after finding max-files matching files
+    if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
+      break;
+
+    // stop when output is blocked
+    if (out.eof)
+      break;
+
+#ifndef OS_WIN
+    // -R: check if this directory was visited before
+    std::pair<std::set<ino_t>::iterator,bool> vino;
+
+    if (flag_dereference)
+    {
+      vino = visited.insert(entry.inode);
+
+      // if visited before, then do not recurse on this directory again
+      if (!vino.second)
+        continue;
+    }
+#endif
+
+    recurse(level + 1, magic, entry.pathname.c_str());
+
+#ifndef OS_WIN
+    if (flag_dereference)
+      visited.erase(vino.first);
+#endif
+  }
 
   // --ignore-files: restore if changed
   if (saved)
@@ -6063,14 +6607,14 @@ void recurse(size_t level, reflex::Matcher& magic, Grep& grep, const char *pathn
   }
 }
 
-// search input, display pattern matches, return true when pattern matched anywhere
+// search input and display pattern matches
 void Grep::search(const char *pathname)
 {
   // stop when output is blocked
   if (out.eof)
     return;
 
-  // open file (pathname is NULL to read stdin)
+  // open (archive or compressed) file (pathname is NULL to read stdin)
   if (!open_file(pathname))
     return;
 
@@ -6112,7 +6656,7 @@ void Grep::search(const char *pathname)
 
         if (matches > 0)
         {
-          // --format-open or format-close: acquire lock early before stats.found()
+          // --format-open or format-close: we must acquire lock early before stats.found()
           if (flag_files_with_match && (flag_format_open != NULL || flag_format_close != NULL))
             out.acquire();
 
@@ -6126,7 +6670,7 @@ void Grep::search(const char *pathname)
             {
               if (flag_format_open != NULL)
                 out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false);
-              out.format(flag_format, pathname, partname, 1, matcher);
+              out.format(flag_format, pathname, partname, 1, matcher, false);
               if (flag_format_close != NULL)
                 out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false);
             }
@@ -6216,7 +6760,7 @@ void Grep::search(const char *pathname)
           }
         }
 
-        // --format-open or --format-close: acquire lock early before stats.found()
+        // --format-open or --format-close: we must acquire lock early before stats.found()
         if (flag_format_open != NULL || flag_format_close != NULL)
           out.acquire();
 
@@ -6228,7 +6772,7 @@ void Grep::search(const char *pathname)
         {
           if (flag_format_open != NULL)
             out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false);
-          out.format(flag_format, pathname, partname, matches, matcher);
+          out.format(flag_format, pathname, partname, matches, matcher, false);
           if (flag_format_close != NULL)
             out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false);
         }
@@ -6285,7 +6829,7 @@ void Grep::search(const char *pathname)
           // output --format-open
           if (matches == 0)
           {
-            // --format-open or --format-close: acquire lock early before stats.found()
+            // --format-open or --format-close: we must acquire lock early before stats.found()
             if (flag_format_open != NULL || flag_format_close != NULL)
               out.acquire();
 
@@ -6299,7 +6843,7 @@ void Grep::search(const char *pathname)
           ++matches;
 
           // output --format
-          out.format(flag_format, pathname, partname, matches, matcher, true);
+          out.format(flag_format, pathname, partname, matches, matcher, matches > 1);
 
           // -m: max number of matches reached?
           if (flag_max_count > 0 && matches >= flag_max_count)
@@ -7501,6 +8045,7 @@ done_search:
 
     catch (...)
     {
+      // this can or should never happen
       warning("exception while searching", pathname);
     }
 
@@ -7510,7 +8055,7 @@ exit_search:
     out.release();
 
     // close file or -z: loop over next extracted archive parts, when applicable
-  } while (close_file(pathname));
+  } while (close_file(pathname) && !out.eof);
 }
 
 // read globs from a file to extend include/exclude files and dirs
@@ -7963,14 +8508,18 @@ void help(const char *message, const char *arg)
             they were ordinary files.\n\
     -d ACTION, --directories=ACTION\n\
             If an input file is a directory, use ACTION to process it.  By\n\
-            default, ACTION is `read', i.e., read directories just as if they\n\
-            were ordinary files.  If ACTION is `skip', silently skip\n\
-            directories.  If ACTION is `recurse', read all files under each\n\
-            directory, recursively, following symbolic links only if they are\n\
-            on the command line.  This is equivalent to the -r option.  If\n\
-            ACTION is `dereference-recurse', read all files under each\n\
-            directory, recursively, following symbolic links.  This is\n\
+            default, ACTION is `skip', i.e., silently skip directories unless\n\
+            specified on the command line.  If ACTION is `read', warn when\n\
+            directories are read as input.  If ACTION is `recurse', read all\n\
+            files under each directory, recursively, following symbolic links\n\
+            only if they are on the command line.  This is equivalent to the -r\n\
+            option.  If ACTION is `dereference-recurse', read all files under\n\
+            each directory, recursively, following symbolic links.  This is\n\
             equivalent to the -R option.\n\
+    --depth=NUM, -1, -2, -3, -4, -5, -6, -7, -8, -9\n\
+            Restrict recursive searches to NUM (NUM > 0) directory levels deep,\n\
+            where -1 (--depth=1) searches the specified path without recursing\n\
+            into subdirectories.  Enables -R if -R or -r is not specified.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
@@ -8017,9 +8566,9 @@ void help(const char *message, const char *arg)
             If PATTERN or -e PATTERN is also specified, then this option does\n\
             not apply to -f FILE patterns.\n\
     -f FILE, --file=FILE\n\
-            Read newline-separated patterns from FILE.  Empty patterns and\n\
-            patterns starting with `###' are ignored.  If FILE does not exist,\n\
-            the GREP_PATH environment variable is used as the path to FILE.\n"
+            Read newline-separated patterns from FILE.  White space in patterns\n\
+            is significant.  Empty lines in FILE are ignored.  If FILE does not\n\
+            exist, the GREP_PATH environment variable is used as path to FILE.\n"
 #ifdef GREP_PATH
 "\
             If that fails, looks for FILE in " GREP_PATH ".\n"
@@ -8167,15 +8716,10 @@ void help(const char *message, const char *arg)
             Stop reading the input after NUM matches in each input file.\n\
     --match\n\
             Match all input.  Same as specifying an empty pattern to search.\n\
-    --max-depth=NUM\n\
-            Restrict recursive search to NUM (NUM > 0) directories deep, where\n\
-            --max-depth=1 searches the specified path without visiting\n\
-            sub-directories.  By comparison, -dskip skips all directories even\n\
-            when they are on the command line.\n\
     --max-files=NUM\n\
-            If -R or -r is specified, restrict the number of files matched to\n\
-            NUM.  Specify -J1 to produce replicable results by ensuring that\n\
-            files are searched in the same order as specified.\n\
+            Restrict the number of files matched to NUM.  Note that --sort or\n\
+            -J1 may be specified to produce replicable results.  If --sort is\n\
+            specified, the number of threads spawned is limited to NUM.\n\
     -N PATTERN, --neg-regexp=PATTERN\n\
             Specify a negative PATTERN used during the search of the input:\n\
             an input line is selected only if it matches any of the specified\n\
@@ -8266,6 +8810,16 @@ void help(const char *message, const char *arg)
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset, and the matched line.  The default is a colon\n\
             (`:').\n\
+    --sort[=KEY]\n\
+            Displays matching files in the order specified by KEY in recursive\n\
+            searches.  KEY can be `name' to sort by pathname (default), `size'\n\
+            to sort by file size, `used' to sort by last access time, `changed'\n\
+            to sort by last modification time, and `created' to sort by\n\
+            creation time.  Sorting is reversed by `rname', `rsize', `rused',\n\
+            `rchanged', or `rcreated'.  Archive contents are not sorted.\n\
+            Subdirectories are displayed after matching files.  FILE arguments\n\
+            are searched in the same order as specified.  Normally ugrep\n\
+            displays matches in no particular order to improve performance.\n\
     --stats\n\
             Display statistics on the number of files and directories searched,\n\
             and the inclusion and exclusion constraints applied.\n\
@@ -8322,13 +8876,13 @@ void help(const char *message, const char *arg)
     -Y, --empty\n\
             Permits empty matches.  By default, empty matches are disabled,\n\
             unless a pattern begins with `^' and ends with `$'.  Note that -Y\n\
-            when specified with an empty-matching pattern such as x? and x*,\n\
+            when specified with an empty-matching pattern, such as x? and x*,\n\
             match all input, not only lines with a `x'.\n\
     -y, --any-line\n\
             Any matching or non-matching line is output.  Non-matching lines\n\
             are output with the `-' separator as context of the matching lines.\n\
             See also options -A, -B, and -C.  Disables multi-line matching.\n\
-    -Z, --null\n\
+    -Z, --null, -0\n\
             Prints a zero-byte after the file name.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
@@ -8418,7 +8972,7 @@ void is_directory(const char *pathname)
 void cannot_decompress(const char *pathname, const char *message)
 {
   if (!flag_no_messages)
-    fprintf(stderr, "%sugrep: %swarning:%s %scannot decompress %s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, pathname, color_off, color_message, message, color_off);
+    fprintf(stderr, "%sugrep: %swarning:%s %scannot decompress %s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, pathname, color_off, color_message, message ? message : "", color_off);
 }
 #endif
 
@@ -8434,7 +8988,8 @@ void warning(const char *message, const char *arg)
 #else
     const char *errmsg = strerror(errno);
 #endif
-    fprintf(stderr, "%sugrep: %swarning:%s %s%s %s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, message, arg, color_off, color_message, errmsg, color_off);
+    fprintf(stderr, "%sugrep: %swarning:%s %s%s%s%s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, message ? message : "", message ? " " : "", arg ? arg : "", color_off, color_message, errmsg, color_off);
+    ++warnings;
   }
 }
 
@@ -8448,13 +9003,13 @@ void error(const char *message, const char *arg)
 #else
   const char *errmsg = strerror(errno);
 #endif
-  fprintf(stderr, "%sugrep: %serror:%s %s%s %s:%s %s%s%s\n\n", color_off, color_error, color_off, color_high, message, arg, color_off, color_message, errmsg, color_off);
+  fprintf(stderr, "%sugrep: %serror:%s %s%s%s%s:%s %s%s%s\n\n", color_off, color_error, color_off, color_high, message ? message : "", message ? " " : "", arg ? arg : "", color_off, color_message, errmsg, color_off);
   exit(EXIT_ERROR);
 }
 
 // print to standard error: abort message with exception details, then exit
 void abort(const char *message, const std::string& what)
 {
-  fprintf(stderr, "%sugrep: %s%s%s%s%s%s\n\n", color_off, color_error, message, color_off, color_high, what.c_str(), color_off);
+  fprintf(stderr, "%sugrep: %s%s%s%s%s%s\n\n", color_off, color_error, message ? message : "", color_off, color_high, what.c_str(), color_off);
   exit(EXIT_ERROR);
 }

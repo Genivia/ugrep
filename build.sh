@@ -44,6 +44,3 @@ if ! make test ; then
   echo "https://github.com/Genivia/ugrep/issues"
   exit 1
 fi
-
-echo
-echo "OK"

@@ -21,6 +21,9 @@ AC_CHECK_HEADERS([sys/statvfs.h])
 
 AC_CHECK_FUNCS([statvfs])
 
+AC_CHECK_MEMBERS([struct stat.st_atim, struct stat.st_mtim, struct stat.st_ctim])
+AC_CHECK_MEMBERS([struct stat.st_atimespec, struct stat.st_mtimespec, struct stat.st_ctimespec])
+
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 

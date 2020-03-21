@@ -100,6 +100,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsCJKUnifiedIdeographsExtensionE"] = IsCJKUnifiedIdeographsExtensionE;
   static const int IsCJKUnifiedIdeographsExtensionF[] = { 183984, 191471, 0, 0 };
   range["IsCJKUnifiedIdeographsExtensionF"] = IsCJKUnifiedIdeographsExtensionF;
+  static const int IsCJKUnifiedIdeographsExtensionG[] = { 196608, 201551, 0, 0 };
+  range["IsCJKUnifiedIdeographsExtensionG"] = IsCJKUnifiedIdeographsExtensionG;
   static const int IsCarian[] = { 66208, 66271, 0, 0 };
   range["IsCarian"] = IsCarian;
   static const int IsCaucasianAlbanian[] = { 66864, 66927, 0, 0 };
@@ -114,6 +116,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsCherokeeSupplement"] = IsCherokeeSupplement;
   static const int IsChessSymbols[] = { 129536, 129647, 0, 0 };
   range["IsChessSymbols"] = IsChessSymbols;
+  static const int IsChorasmian[] = { 69552, 69599, 0, 0 };
+  range["IsChorasmian"] = IsChorasmian;
   static const int IsCombiningDiacriticalMarks[] = { 768, 879, 0, 0 };
   range["IsCombiningDiacriticalMarks"] = IsCombiningDiacriticalMarks;
   static const int IsCombiningDiacriticalMarksExtended[] = { 6832, 6911, 0, 0 };
@@ -160,6 +164,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsDevanagariExtended"] = IsDevanagariExtended;
   static const int IsDingbats[] = { 9984, 10175, 0, 0 };
   range["IsDingbats"] = IsDingbats;
+  static const int IsDivesAkuru[] = { 71936, 72031, 0, 0 };
+  range["IsDivesAkuru"] = IsDivesAkuru;
   static const int IsDogra[] = { 71680, 71759, 0, 0 };
   range["IsDogra"] = IsDogra;
   static const int IsDominoTiles[] = { 127024, 127135, 0, 0 };
@@ -286,6 +292,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsKayahLi"] = IsKayahLi;
   static const int IsKharoshthi[] = { 68096, 68191, 0, 0 };
   range["IsKharoshthi"] = IsKharoshthi;
+  static const int IsKhitanSmallScript[] = { 101120, 101631, 0, 0 };
+  range["IsKhitanSmallScript"] = IsKhitanSmallScript;
   static const int IsKhmer[] = { 6016, 6143, 0, 0 };
   range["IsKhmer"] = IsKhmer;
   static const int IsKhmerSymbols[] = { 6624, 6655, 0, 0 };
@@ -324,6 +332,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsLinearBSyllabary"] = IsLinearBSyllabary;
   static const int IsLisu[] = { 42192, 42239, 0, 0 };
   range["IsLisu"] = IsLisu;
+  static const int IsLisuSupplement[] = { 73648, 73663, 0, 0 };
+  range["IsLisuSupplement"] = IsLisuSupplement;
   static const int IsLowSurrogates[] = { 56320, 57343, 0, 0 };
   range["IsLowSurrogates"] = IsLowSurrogates;
   static const int IsLycian[] = { 66176, 66207, 0, 0 };
@@ -532,6 +542,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsSylotiNagri"] = IsSylotiNagri;
   static const int IsSymbolsandPictographsExtended_A[] = { 129648, 129791, 0, 0 };
   range["IsSymbolsandPictographsExtended-A"] = IsSymbolsandPictographsExtended_A;
+  static const int IsSymbolsforLegacyComputing[] = { 129792, 130047, 0, 0 };
+  range["IsSymbolsforLegacyComputing"] = IsSymbolsforLegacyComputing;
   static const int IsSyriac[] = { 1792, 1871, 0, 0 };
   range["IsSyriac"] = IsSyriac;
   static const int IsSyriacSupplement[] = { 2144, 2159, 0, 0 };
@@ -560,6 +572,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsTangut"] = IsTangut;
   static const int IsTangutComponents[] = { 100352, 101119, 0, 0 };
   range["IsTangutComponents"] = IsTangutComponents;
+  static const int IsTangutSupplement[] = { 101632, 101775, 0, 0 };
+  range["IsTangutSupplement"] = IsTangutSupplement;
   static const int IsTelugu[] = { 3072, 3199, 0, 0 };
   range["IsTelugu"] = IsTelugu;
   static const int IsThaana[] = { 1920, 1983, 0, 0 };
@@ -594,6 +608,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsWancho"] = IsWancho;
   static const int IsWarangCiti[] = { 71840, 71935, 0, 0 };
   range["IsWarangCiti"] = IsWarangCiti;
+  static const int IsYezidi[] = { 69248, 69311, 0, 0 };
+  range["IsYezidi"] = IsYezidi;
   static const int IsYiRadicals[] = { 42128, 42191, 0, 0 };
   range["IsYiRadicals"] = IsYiRadicals;
   static const int IsYiSyllables[] = { 40960, 42127, 0, 0 };

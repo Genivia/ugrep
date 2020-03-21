@@ -46,4 +46,14 @@ install-data-hook:
 .PHONY:		test
 
 test:		$(top_builddir)/src/ugrep
+		@echo
+		@echo "*** SINGLE-THREADED TESTS ***"
+		@echo
+		-cd tests; ./verify.sh -J1
+		@echo
+		@echo "*** MULTI-THREADED TESTS ***"
+		@echo
 		-cd tests; ./verify.sh
+		@echo
+		@echo "OK"
+		@echo

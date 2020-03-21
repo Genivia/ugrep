@@ -19,7 +19,7 @@ cat >> man/ugrep.1 << 'END'
 .SH SYNOPSIS
 .B ugrep
 [\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
-      [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-Q\fR \fIENCODING\fR] [\fB-J\fR [\fINUM\fR]]
+      [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-J\fR [\fINUM\fR]] [\fB--sort\fR[=\fIKEY\fR]]
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
@@ -30,10 +30,10 @@ An empty pattern matches every line.  Each input line that matches at least one
 of the patterns is written to the standard output.
 .PP
 The \fBugrep\fR utility accepts input of various encoding formats and
-normalizes the input to UTF-8.  When a UTF byte order mark is present in the
+normalizes the output to UTF-8.  When a UTF byte order mark is present in the
 input, the input is automatically normalized; otherwise, \fBugrep\fR assumes
 the input is ASCII, UTF-8, or raw binary.  An input encoding format may be
-specified with option \fB-Q\fR, \fB--encoding\fR.
+specified with option \fB--encoding\fR.
 .PP
 The following options are available:
 END
@@ -64,8 +64,8 @@ src/ugrep --help \
 cat >> man/ugrep.1 << 'END'
 .PP
 If no \fIFILE\fR arguments are specified and input is read from a terminal,
-recursive searches are performed as if \fB-R\fR is specified.  To force input
-from a terminal, specify `-' as the \fIFILE\fR argument.
+recursive searches are performed as if \fB-R\fR is specified.  To force reading
+from standard input, specify `-' as the \fIFILE\fR argument.
 .PP
 A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
 arguments, allowing filenames to begin with a `-' character.
@@ -430,11 +430,11 @@ $ ugrep -Rl '' --ignore-files
 List all files containing a RPM signature, located in the `rpm' directory and
 recursively below up to two levels deeper:
 .IP
-$ ugrep -R --max-depth=3 -l -tRpm '' rpm/
+$ ugrep -3 -l -tRpm '' rpm/
 .PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
-$ ugrep -QMACROMAN '\\w+' mac.txt
+$ ugrep --encoding=MACROMAN '\\w+' mac.txt
 .SH BUGS
 Report bugs at:
 .IP

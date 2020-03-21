@@ -5,7 +5,7 @@
 # docker run -it ugrep bash
 #
 # step 3: run ugrep in the container, for example:
-# ugrep -r -n -tjava Hello tests/
+# ugrep -r -n -tjava Hello ugrep/tests/
 
 FROM ubuntu
 

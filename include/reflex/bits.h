@@ -95,7 +95,7 @@ class Bits {
     Bitref(
         size_t    n, ///< n'th bit
         uint64_t *p) ///< in this word
-      : 
+      :
         m(1ULL << n),
         p(p)
     { }
@@ -257,14 +257,46 @@ class Bits {
     return *this;
   }
   /// Flip a range of bits in the bit vector.
-  /// @returns reference to this object.
   Bits& flip(
       size_t n1, ///< first bit to flip
       size_t n2) ///< last bit to flip
+    /// @returns reference to this object.
   {
     alloc((n2 >> 6) + 1);
     for (size_t i = n1; i <= n2; ++i)
       vec_[i >> 6] ^= 1ULL << (i & 0x3F);
+    return *this;
+  }
+  /// Bit-shift left by one.
+  Bits& lshift()
+  {
+    if (len_ > 0)
+    {
+      uint64_t lo = 0;
+      for (size_t i = 0; i < len_; ++i)
+      {
+        uint64_t hi = vec_[i] & (1ULL << 63);
+        vec_[i] = (vec_[i] << 1) | lo;
+        lo = hi >> 63;
+      }
+      if (lo)
+      {
+        alloc(len_ + 1);
+        vec_[len_ - 1] = 1;
+      }
+    }
+    return *this;
+  }
+  /// Bit-shift right by one.
+  Bits& rshift()
+  {
+    uint64_t hi = 0;
+    for (size_t i = 1; i <= len_; ++i)
+    {
+      uint64_t lo = vec_[len_ - i] & 1;
+      vec_[len_ - i] = (vec_[len_ - i] >> 1) | hi;
+      hi = lo << 63;
+    }
     return *this;
   }
   /// Bit-or (set union) the bit vector with the given bits.
@@ -275,7 +307,7 @@ class Bits {
     for (size_t i = 0; i < bits.len_; ++i)
       vec_[i] |= bits.vec_[i];
     return *this;
-  } 
+  }
   /// Bit-and (set intersection) the bit vector with the given bits.
   Bits& operator&=(const Bits& bits) ///< bits
     /// @returns reference to this object.
@@ -286,7 +318,7 @@ class Bits {
     for (size_t i = bits.len_; i < len_; ++i)
       vec_[i] = 0;
     return *this;
-  } 
+  }
   /// Bit-xor the bit vector with the given bits.
   Bits& operator^=(const Bits& bits) ///< bits
     /// @returns reference to this object.
@@ -295,7 +327,7 @@ class Bits {
     for (size_t i = 0; i < bits.len_; ++i)
       vec_[i] ^= bits.vec_[i];
     return *this;
-  } 
+  }
   /// Bit-delete (set minus) the bit vector with the given bits.
   Bits& operator-=(const Bits& bits) ///< bits
     /// @returns reference to this object.
@@ -306,41 +338,41 @@ class Bits {
     for (size_t i = 0; i < k; ++i)
       vec_[i] = (vec_[i] | bits.vec_[i]) - bits.vec_[i];
     return *this;
-  } 
+  }
   /// Bit-or (set union) of two bit vectors.
   Bits operator|(const Bits& bits) ///< bits
     /// @returns bit vector of the result.
     const
   {
     return Bits(*this) |= bits;
-  } 
+  }
   /// Bit-and (set intersection) of two bit vectors.
   Bits operator&(const Bits& bits) ///< bits
     /// @returns bit vector of the result.
     const
   {
     return Bits(*this) &= bits;
-  } 
+  }
   /// Bit-xor of two bit vectors.
   Bits operator^(const Bits& bits) ///< bits
     /// @returns bit vector of the result.
     const
   {
     return Bits(*this) ^= bits;
-  } 
+  }
   /// Bit-delete (set minus) of two bit vectors.
   Bits operator-(const Bits& bits) ///< bits
     /// @returns bit vector of the result.
     const
   {
     return Bits(*this) -= bits;
-  } 
+  }
   /// Complement of the bit vector with all bits flipped.
   Bits operator~() const
     /// @returns bit vector of the result.
   {
     return Bits(*this).flip();
-  } 
+  }
   /// Returns true if bit vectors are equal.
   bool operator==(const Bits& bits) ///< rhs bits
     /// @returns true (equal) or false (unequal).

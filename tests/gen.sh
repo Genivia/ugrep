@@ -1,6 +1,6 @@
 #!/bin/bash
 
-UG="../src/ugrep --color=always -J1"
+UG="../src/ugrep --color=always --sort"
 
 if [ ! -x "../src/ugrep" ] ; then
   echo "../src/ugrep not found, exiting"
@@ -39,18 +39,19 @@ cat > dir1/.gitignore << END
 **/dir2/
 END
 
-$UG -rl                                  Hello dir1 | sort -df > out/dir.out
-$UG -Rl                                  Hello dir1 | sort -df > out/dir-S.out
-$UG -Rl -tShell                          Hello dir1 | sort -df > out/dir-t.out
-$UG -Rl --max-depth=1                    Hello dir1 | sort -df > out/dir--max-depth.out
-$UG -Rl --include='*.sh'                 Hello dir1 | sort -df > out/dir--include.out
-$UG -Rl --exclude='*.sh'                 Hello dir1 | sort -df > out/dir--exclude.out
-$UG -Rl --include-dir='dir1'             Hello dir1 | sort -df > out/dir--include-dir.out
-$UG -Rl --exclude-dir='dir2'             Hello dir1 | sort -df > out/dir--exclude-dir.out
-$UG -Rl --include-from='dir1/.gitignore' Hello dir2 | sort -df > out/dir--include-from.out
-$UG -Rl --exclude-from='dir1/.gitignore' Hello dir1 | sort -df > out/dir--exclude-from.out
-$UG -Rl --ignore-files                   Hello dir1 | sort -df > out/dir--ignore-files.out
-$UG -Rl --filter='sh:head -n1'           Hello dir1 | sort -df > out/dir--filter.out
+$UG -rl                                  Hello dir1 > out/dir.out
+$UG -Rl                                  Hello dir1 > out/dir-S.out
+$UG -Rl -tShell                          Hello dir1 > out/dir-t.out
+$UG -1l                                  Hello dir1 > out/dir-1.out
+$UG -2l                                  Hello dir1 > out/dir-2.out
+$UG -Rl --include='*.sh'                 Hello dir1 > out/dir--include.out
+$UG -Rl --exclude='*.sh'                 Hello dir1 > out/dir--exclude.out
+$UG -Rl --include-dir='dir1'             Hello dir1 > out/dir--include-dir.out
+$UG -Rl --exclude-dir='dir2'             Hello dir1 > out/dir--exclude-dir.out
+$UG -Rl --include-from='dir1/.gitignore' Hello dir2 > out/dir--include-from.out
+$UG -Rl --exclude-from='dir1/.gitignore' Hello dir1 > out/dir--exclude-from.out
+$UG -Rl --ignore-files                   Hello dir1 > out/dir--ignore-files.out
+$UG -Rl --filter='sh:head -n1'           Hello dir1 > out/dir--filter.out
 
 rm -rf dir1 dir2
 

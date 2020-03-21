@@ -1,6 +1,6 @@
 #!/bin/bash
 
-UG="../src/ugrep --color=always -J1"
+UG="../src/ugrep --color=always --sort $@"
 
 if test ! -x "../src/ugrep" ; then
   echo "../src/ugrep not found, exiting"
@@ -62,7 +62,7 @@ echo "Have liblzma?" $have_liblzma
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
 function ERR() {
-  echo "[1;31mError:[0m[1m ugrep $1 [1;31mfailed[0m"
+  echo "[1;31mError:[0m[1m ugrep --sort $1 [1;31mfailed[0m"
   exit 1
 }
 
@@ -86,31 +86,33 @@ cat > dir1/.gitignore << END
 END
 
 printf .
-$UG -rl                                  Hello dir1 | sort -df | $DIFF out/dir.out               || ERR "-rl Hello dir1"
+$UG -rl                                  Hello dir1 | $DIFF out/dir.out               || ERR "-rl Hello dir1"
 printf .
-$UG -Rl                                  Hello dir1 | sort -df | $DIFF out/dir-S.out             || ERR "-Rl Hello dir1"
+$UG -Rl                                  Hello dir1 | $DIFF out/dir-S.out             || ERR "-Rl Hello dir1"
 printf .
-$UG -Rl -tShell                          Hello dir1 | sort -df | $DIFF out/dir-t.out             || ERR "-Rl -tShell Hello dir1"
+$UG -Rl -tShell                          Hello dir1 | $DIFF out/dir-t.out             || ERR "-Rl -tShell Hello dir1"
 printf .
-$UG -Rl --max-depth=1                    Hello dir1 | sort -df | $DIFF out/dir--max-depth.out    || ERR "-Rl --max-depth=1 Hello dir1"
+$UG -1l                                  Hello dir1 | $DIFF out/dir-1.out             || ERR "-1l Hello dir1"
 printf .
-$UG -Rl --include='*.sh'                 Hello dir1 | sort -df | $DIFF out/dir--include.out      || ERR "-Rl --include='*.sh' Hello dir1"
+$UG -2l                                  Hello dir1 | $DIFF out/dir-2.out             || ERR "-2l Hello dir1"
 printf .
-$UG -Rl --exclude='*.sh'                 Hello dir1 | sort -df | $DIFF out/dir--exclude.out      || ERR "-Rl --exclude='*.sh' Hello dir1"
+$UG -Rl --include='*.sh'                 Hello dir1 | $DIFF out/dir--include.out      || ERR "-Rl --include='*.sh' Hello dir1"
 printf .
-$UG -Rl --exclude-dir='dir2'             Hello dir1 | sort -df | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
+$UG -Rl --exclude='*.sh'                 Hello dir1 | $DIFF out/dir--exclude.out      || ERR "-Rl --exclude='*.sh' Hello dir1"
 printf .
-$UG -Rl --include-dir='dir1'             Hello dir1 | sort -df | $DIFF out/dir--include-dir.out  || ERR "-Rl --include-dir='dir1' Hello dir1"
+$UG -Rl --exclude-dir='dir2'             Hello dir1 | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
 printf .
-$UG -Rl --exclude-dir='dir2'             Hello dir1 | sort -df | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
+$UG -Rl --include-dir='dir1'             Hello dir1 | $DIFF out/dir--include-dir.out  || ERR "-Rl --include-dir='dir1' Hello dir1"
 printf .
-$UG -Rl --include-from='dir1/.gitignore' Hello dir2 | sort -df | $DIFF out/dir--include-from.out || ERR "-Rl --include-from='dir1/.gitignore' Hello dir2"
+$UG -Rl --exclude-dir='dir2'             Hello dir1 | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
 printf .
-$UG -Rl --exclude-from='dir1/.gitignore' Hello dir1 | sort -df | $DIFF out/dir--exclude-from.out || ERR "-Rl --exclude-from='dir1/.gitignore' Hello dir1"
+$UG -Rl --include-from='dir1/.gitignore' Hello dir2 | $DIFF out/dir--include-from.out || ERR "-Rl --include-from='dir1/.gitignore' Hello dir2"
 printf .
-$UG -Rl --ignore-files                   Hello dir1 | sort -df | $DIFF out/dir--ignore-files.out || ERR "-Rl -ignore-files Hello Hello dir1"
+$UG -Rl --exclude-from='dir1/.gitignore' Hello dir1 | $DIFF out/dir--exclude-from.out || ERR "-Rl --exclude-from='dir1/.gitignore' Hello dir1"
 printf .
-$UG -Rl --filter='sh:head -n1'           Hello dir1 | sort -df | $DIFF out/dir--filter.out       || ERR "-Rl --filter='sh:head -n1' Hello dir1"
+$UG -Rl --ignore-files                   Hello dir1 | $DIFF out/dir--ignore-files.out || ERR "-Rl -ignore-files Hello Hello dir1"
+printf .
+$UG -Rl --filter='sh:head -n1'           Hello dir1 | $DIFF out/dir--filter.out       || ERR "-Rl --filter='sh:head -n1' Hello dir1"
 
 rm -rf dir1 dir2
 
@@ -143,15 +145,15 @@ $UG -e Hello -N '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hell
 printf .
 $UG --max-count=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF out/Hello_Hello--max-count.out \
-    || ERR "--max-count=1  Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    || ERR "--max-count=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
 printf .
 $UG --max-files=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF out/Hello_Hello--max-files.out \
-    || ERR "--max-files=1 Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    || ERR "--max-files=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
 printf .
 $UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF out/Hello_Hello--range.out \
-    || ERR "--range=1,1 Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    || ERR "--range=1,1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
 
 for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
