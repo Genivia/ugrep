@@ -1,9 +1,6 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-Universal grep ("uber grep")
-============================
-
-Search for anything in everything... fast.
+Search for anything in everything... ultra fast.
 
 <br>
 <div align="center">
@@ -28,10 +25,10 @@ search pdf and office documents using filters
 
 - Unlimited pro edition
 - Written in clean and efficient C++11, built for extreme speed
-- Faster than GNU/BSD/PCRE grep, [also beats](#speed) ripgrep, silver searcher, etc.
+- Ultra fast with new algorithms, [beating](#speed) ripgrep, silver searcher, hyperscan grep, etc.
 - Multi-threaded search using high-performance lock-free job queue stealing
 - Multi-threaded decompression and search of decompressed streams
-- Optimized with SIMD string matching (AVX, SSE2, ARM NEON/AArch64)
+- Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64)
 - Optimized asynchronous IO
 - Compatible with the standard GNU/BSD grep command-line options
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
@@ -46,8 +43,9 @@ search pdf and office documents using filters
 - Search patterns across newlines, matching multiple lines at once
 - Search patterns excluding negative patterns ("match this but not that")
 - Includes predefined regex patterns to search source code, XML, JSON, HTML, etc.
-- Generates matches in CSV, JSON, XML, and user-specified formats 
-- Compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
+- Output matches in CSV, JSON, XML, and user-specified formats 
+- Sort matching files by name, size, and time used/changed/created
+- Portable, compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
 - Includes binaries for Windows
 
 Table of contents
@@ -100,19 +98,28 @@ Table of contents
 
 <a name="introduction"/>
 
-Why use ugrep? 
+Why use ugrep?
 --------------
 
-- **ugrep options are compatible with GNU and BSD grep**, so existing GNU/BSD 
-  examples and scripts work with **ugrep** just as well.  However, **ugrep**
-  offers a lot more options and is more intelligent in interpreting them.
-
-- **ugrep is faster than GNU grep and other grep tools**, using
-  [RE/flex](https://github.com/Genivia/RE-flex) for high-performance regex
-  matching, which is 10 to 100 times faster than PCRE2 and RE2.  **ugrep** is
+- **ugrep is faster than GNU grep and other grep tools**.  We use our new fuzzy
+  match algorithm with the [RE/flex](https://github.com/Genivia/RE-flex) regex
+  matcher, which is 10 to 100 times faster than PCRE2 and RE2.  **ugrep** is
   multi-threaded and uses lock-free job queue stealing to search files
-  concurrently.  In addition, option `-z` enables task parallelism to optimize
-  searching compressed files and archives.  See [speed comparisons](#speed).
+  concurrently.  Option `-z` uses task parallelism to searching compressed
+  files and archives.  This combination beats ripgrep, silver searcher,
+  hyperscan grep, pcregrep, UNIX grep, see [speed comparisons](#speed).
+
+- **ugrep searches compressed files and archives (cpio, jar, tar, pax, zip)**
+  with option `-z`.  The matching file names in archives are output in braces.
+  For example `myprojects.tgz{main.cpp}` indicates that file `main.cpp` in
+  compressed tar file `myprojects.tgz` has a match.  Filename glob matching,
+  file types, filename extensions, and file signature "magic bytes" can be
+  selected to filter files in archives with options `-g`, `-t`, `-O`, and `-M`,
+  respectively.  For example:
+
+      ugrep -z -tc++ -w 'main' myprojects.tgz
+
+  looks for `main` in C++ files in the compressed tar file `myprojects.tgz`.
 
 - **ugrep makes it simple to search source code** with options to select files
   by file type, filename extension, file signature "magic bytes" or shebangs.
@@ -126,17 +133,23 @@ Why use ugrep?
   used to select files by extension and by file signature "magic bytes",
   respectively.
 
-- **ugrep searches compressed files and archives (cpio, jar, tar, pax, zip)**
-  with option `-z`.  The matching file names in archives are output in braces.
-  For example `myprojects.tgz{main.cpp}` indicates that file `main.cpp` in
-  compressed tar file `myprojects.tgz` has a match.  Filename glob matching,
-  file types, filename extensions, and file signature "magic bytes" can be
-  selected to filter files in archives with options `-g`, `-t`, `-O`, and `-M`,
-  respectively.  For example:
+- **ugrep understands gitignore-style globs** and ignores files specified
+  in a `.gitignore` file, or any other file.  Either explicitly with
+  `--exclude-from=.gitignore` or implicitly with `--ignore-files` to ignore
+  files in and below the directory of a `.gitignore` file found during
+  recursive searches.
 
-      ugrep -z -tc++ -w 'main' myprojects.tgz
+- **ugrep produces hexdumps for binary matches** to search for binary patterns
+  of bytes, for example:
 
-  looks for `main` in C++ files in the compressed tar file `myprojects.tgz`.
+      ugrep --color -UX '\xed\xab\xee\xdb' some.rpm
+
+  where `-X` produces hexadecimal output, `-U` specifies a binary pattern to
+  search (meaning non-Unicode), and `--color` shows the results in color.
+  Other options that normally work with text matches work with `-X` too, such
+  as the context options `-A`, `-B`, `-C`, and `-y`.  A match is considered
+  binary if it contains a NUL (`\0`) or an invalid UTF multibyte sequence that
+  cannot be properly displayed on the terminal as text.
 
 - **ugrep includes a [database of search patterns](https://github.com/Genivia/ugrep/tree/master/patterns)**,
   so you don't need to memorize complex regex patterns for common searches.
@@ -153,18 +166,6 @@ Why use ugrep?
   option specifies predefined patterns to search for Python `import` statements
   (matched by the two patterns `\<import\h+.*` and `\<from\h+.*import\h+.*`
   redefined in `patterns/python/imports`).
-
-- **ugrep produces hexdumps for binary matches** to search for binary patterns
-  of bytes, for example:
-
-      ugrep --color -UX '\xed\xab\xee\xdb' some.rpm
-
-  where `-X` produces hexadecimal output, `-U` specifies a binary pattern to
-  search (meaning non-Unicode), and `--color` shows the results in color.
-  Other options that normally work with text matches work with `-X` too, such
-  as the context options `-A`, `-B`, `-C`, and `-y`.  A match is considered
-  binary if it contains a NUL (`\0`) or an invalid UTF multibyte sequence that
-  cannot be properly displayed on the terminal as text.
 
 - **ugrep is the only grep tool that allows you to specify negative patterns**
   to *zap* parts in files you want to skip.  This removes false positives.  For
@@ -204,17 +205,15 @@ Why use ugrep?
   `--xml` to output CSV, JSON, or XML.  Option `--format` takes custom
   formatting to the extreme.
 
-- **ugrep understands gitignore-style globs** and ignores files specified
-  in a `.gitignore` file, or any other file.  Either explicitly with
-  `--exclude-from=.gitignore` or implicitly with `--ignore-files` to ignore
-  files in and below the directory of a `.gitignore` file found during
-  recursive searches.
-
 - **ugrep POSIX regex patterns are converted to efficient DFAs** for faster
   matching without backtracking.  DFAs yield significant speedups when
   searching multiple files and large files.  Rare and pathological cases are
   known to exist that may increase the initial running time of **ugrep** for
   complex DFA construction.
+
+- **ugrep options are compatible with GNU and BSD grep**, so existing GNU/BSD 
+  examples and scripts work with **ugrep** just as well.  However, **ugrep**
+  offers a lot more options and is more intelligent in interpreting them.
 
 <a name="speed"/>
 
