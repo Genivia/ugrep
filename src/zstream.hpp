@@ -28,14 +28,14 @@
 
 /**
 @file      zstream.hpp
-@brief     file decompression streams written in C++11
+@brief     file decompression streams
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#ifndef ZSTREAM_H
-#define ZSTREAM_H
+#ifndef ZSTREAM_HPP
+#define ZSTREAM_HPP
 
 #include <cstdio>
 #include <cstdlib>

@@ -7,7 +7,7 @@ if [ ! -x "../src/ugrep" ] ; then
   exit 1
 fi
 
-read -p "Are you sure to overwrite all test cases with new ones? [y/n] " -rsn1 key < /dev/tty
+read -p "Are you sure to overwrite all test cases with new ones? (y/n [n]) " -rsn1 key < /dev/tty
 case $key in
   y|Y)
     echo yes
@@ -68,7 +68,7 @@ END
 $UG -Fiwco -f lorem lorem.utf8.txt  > out/lorem.utf8.out
 $UG -Fiwco -f lorem lorem.utf16.txt > out/lorem.utf16.out
 $UG -Fiwco -f lorem lorem.utf32.txt > out/lorem.utf32.out
-cat lorem | $UG -Fiwco -Q LATIN1 -f - lorem.latin1.txt > out/lorem.latin1.out
+cat lorem | $UG -Fiwco --encoding=LATIN1 -f - lorem.latin1.txt > out/lorem.latin1.out
 
 $UG -ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ci.out
 $UG -cj hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-cj.out

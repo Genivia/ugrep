@@ -6632,7 +6632,7 @@ PLATFORM=${host}
 
 # Mac OS X has slow memory mapped files so we're disabling mmap
 case "$PLATFORM" in
-  *-apple-*)    EXTRA_CFLAGS="-DWITH_NO_MMAP ${EXTRA_CFLAGS}"
+  *-apple-*)    EXTRA_CFLAGS="-DWITH_NO_MMAP -DWITH_MACOS_META_KEY ${EXTRA_CFLAGS}"
                 ;;
 esac
 

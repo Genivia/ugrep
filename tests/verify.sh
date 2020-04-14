@@ -123,7 +123,7 @@ $UG -Fiwco -f lorem lorem.utf16.txt | $DIFF out/lorem.utf16.out || ERR "-Fiwco -
 printf .
 $UG -Fiwco -f lorem lorem.utf32.txt | $DIFF out/lorem.utf32.out || ERR "-Fiwco -f lorem lorem.utf32.txt"
 printf .
-cat lorem | $UG -Fiwco -Q LATIN1 -f - lorem.latin1.txt | $DIFF out/lorem.latin1.out || ERR "-Fiwco -Q LATIN1 -f lorem lorem.latin1.txt"
+cat lorem | $UG -Fiwco --encoding=LATIN1 -f - lorem.latin1.txt | $DIFF out/lorem.latin1.out || ERR "-Fiwco --encoding=LATIN1 -f lorem lorem.latin1.txt"
 
 printf .
 $UG -ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \

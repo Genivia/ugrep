@@ -56,6 +56,7 @@ src/ugrep --help \
   -e 's/\([^-0-9A-Za-z_]\)\(-.\)/\1\\fB\2\\fR/g' \
   -e 's/^\(-.\) \([!A-Z]\{1,\}\)/\\fB\1\\fR \\fI\2\\fR/g' \
   -e 's/^\(-.\)/\\fB\1\\fR/g' \
+  -e 's/\[\([-A-Z]\{1,\}\),\]\[\([-A-Z]\{1,\}\)\]/[\\fI\1\\fR,][\\fI\2\\fR]/g' \
   -e 's/\[\([-A-Z]\{1,\}\)\]/[\\fI\1\\fR]/g' \
   -e 's/\[,\([-A-Z]\{1,\}\)\]/[,\\fI\1\\fR]/g' \
   -e 's/\[=\([-A-Z]\{1,\}\)\]/[=\\fI\1\\fR]/g' \
@@ -428,7 +429,7 @@ List all files that are not ignored by one or more `.gitignore':
 $ ugrep -Rl '' --ignore-files
 .PP
 List all files containing a RPM signature, located in the `rpm' directory and
-recursively below up to two levels deeper:
+recursively below up to two levels deeper (3 levels):
 .IP
 $ ugrep -3 -l -tRpm '' rpm/
 .PP

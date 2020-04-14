@@ -61,6 +61,13 @@ namespace reflex {
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX) || defined(HAVE_SSE2)
 
 #ifdef _MSC_VER
+#pragma intrinsic(_BitScanForward)
+inline uint32_t ctz(uint32_t x)
+{
+  unsigned long r;
+  _BitScanForward(&r, x);
+  return r;
+}
 #ifdef _WIN64
 #pragma intrinsic(_BitScanForward64)
 inline uint32_t ctzl(uint64_t x)
@@ -70,21 +77,14 @@ inline uint32_t ctzl(uint64_t x)
   return r;
 }
 #endif
-#pragma intrinsic(_BitScanForward)
-inline uint32_t ctz(uint32_t x)
-{
-  unsigned long r;
-  _BitScanForward(&r, x);
-  return r;
-}
 #else
-inline uint32_t ctzl(uint64_t x)
-{
-  return __builtin_ctzl(x);
-}
 inline uint32_t ctz(uint32_t x)
 {
   return __builtin_ctz(x);
+}
+inline uint32_t ctzl(uint64_t x)
+{
+  return __builtin_ctzl(x);
 }
 #endif
 

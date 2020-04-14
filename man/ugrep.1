@@ -1,4 +1,4 @@
-.TH UGREP "1" "March 20, 2020" "ugrep 1.8.1" "User Commands"
+.TH UGREP "1" "April 14, 2020" "ugrep 2.0.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -115,10 +115,11 @@ option.  If ACTION is `dereference\-recurse', read all files under
 each directory, recursively, following symbolic links.  This is
 equivalent to the \fB\-R\fR option.
 .TP
-\fB\-\-depth\fR=\fINUM\fR, \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, \fB\-4\fR, \fB\-5\fR, \fB\-6\fR, \fB\-7\fR, \fB\-8\fR, \fB\-9\fR
-Restrict recursive searches to NUM (NUM > 0) directory levels deep,
+\fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, \fB\-4\fR, \fB\-5\fR, \fB\-6\fR, \fB\-7\fR, \fB\-8\fR, \fB\-9\fR
+Restrict recursive searches from MIN to MAX directory levels deep,
 where \fB\-1\fR (\fB\-\-depth\fR=1) searches the specified path without recursing
-into subdirectories.  Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
+into subdirectories.  Note that \fB\-3\fR\-5 searches 3 to 5 levels deep.
+Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is
@@ -132,13 +133,28 @@ This option is most useful when multiple \fB\-e\fR options are used to
 specify multiple patterns, when a pattern begins with a dash (`\fB\-'\fR),
 to specify a pattern after option \fB\-f\fR or after the FILE arguments.
 .TP
+\fB\-\-encoding\fR=\fIENCODING\fR
+The encoding format of the input, where ENCODING can be:
+`binary', `ASCII', `UTF\-8', `UTF\-16',
+`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE',
+`UTF\-32LE', `LATIN1', `ISO\-8859\-1', `ISO\-8869\-2',
+`ISO\-8869\-3', `ISO\-8869\-4', `ISO\-8869\-5', `ISO\-8869\-6',
+`ISO\-8869\-7', `ISO\-8869\-8', `ISO\-8869\-9', `ISO\-8869\-10',
+`ISO\-8869\-11', `ISO\-8869\-13', `ISO\-8869\-14', `ISO\-8869\-15',
+`ISO\-8869\-16', `MAC', `MACROMAN', `EBCDIC',
+`CP437', `CP850', `CP858', `CP1250',
+`CP1251', `CP1252', `CP1253', `CP1254',
+`CP1255', `CP1256', `CP1257', `CP1258',
+`KOI8\-R', `KOI8\-U', `KOI8\-RU'.
+.TP
 \fB\-\-exclude\fR=\fIGLOB\fR
 Skip files whose name matches GLOB using wildcard matching, same as
 \fB\-g\fR \fI!GLOB\fR.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
 quote a wildcard or backslash character literally.  When GLOB
 contains a `/', full pathnames are matched.  Otherwise basenames
 are matched.  Note that \fB\-\-exclude\fR patterns take priority over
-\fB\-\-include\fR patterns.  This option may be repeated.
+\fB\-\-include\fR patterns.  GLOB should be quoted to prevent shell
+globbing.  This option may be repeated.
 .TP
 \fB\-\-exclude\-dir\fR=\fIGLOB\fR
 Exclude directories whose name matches GLOB from recursive
@@ -146,7 +162,8 @@ searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
 quote a wildcard or backslash character literally.  When GLOB
 contains a `/', full pathnames are matched.  Otherwise basenames
 are matched.  Note that \fB\-\-exclude\-dir\fR patterns take priority over
-\fB\-\-include\-dir\fR patterns.  This option may be repeated.
+\fB\-\-include\-dir\fR patterns.  GLOB should be quoted to prevent shell
+globbing.  This option may be repeated.
 .TP
 \fB\-\-exclude\-from\fR=\fIFILE\fR
 Read the globs from FILE and skip files and directories whose name
@@ -203,7 +220,8 @@ behave as traditional grep.
 \fB\-g\fR \fIGLOB\fR, \fB\-\-glob\fR=\fIGLOB\fR
 Search only files whose name matches GLOB, same as \fB\-\-include\fR=\fIGLOB\fR.
 When GLOB is preceded by a `!' or a `^', skip files whose name
-matches GLOB, same as \fB\-\-exclude\fR=\fIGLOB\fR.
+matches GLOB, same as \fB\-\-exclude\fR=\fIGLOB\fR.  GLOB should be quoted to
+prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-group\-separator[\fR=\fISEP\fR]
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
@@ -230,6 +248,9 @@ default is 2 columns or 16 bytes per line.  Option `b' removes all
 space breaks, `c' hides the character column, and `h' removes the
 hex spacing only.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
 .TP
+\fB\-\-[no\-]hidden\fR
+Do (not) search hidden files and directories.
+.TP
 \fB\-I\fR
 Ignore matches in binary files.  This option is equivalent to the
 \fB\-\-binary\-files\fR=without\-match option.
@@ -253,7 +274,8 @@ same as \fB\-g\fR \fIGLOB\fR.  GLOB can use **, *, ?, and [...] as wildcards,
 and \\ to quote a wildcard or backslash character literally.  When
 GLOB contains a `/', full pathnames are matched.  Otherwise
 basenames are matched.  Note that \fB\-\-exclude\fR patterns take priority
-over \fB\-\-include\fR patterns.  This option may be repeated.
+over \fB\-\-include\fR patterns.  GLOB should be quoted to prevent shell
+globbing.  This option may be repeated.
 .TP
 \fB\-\-include\-dir\fR=\fIGLOB\fR
 Only directories whose name matches GLOB are included in recursive
@@ -261,7 +283,8 @@ searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
 quote a wildcard or backslash character literally.  When GLOB
 contains a `/', full pathnames are matched.  Otherwise basenames
 are matched.  Note that \fB\-\-exclude\-dir\fR patterns take priority over
-\fB\-\-include\-dir\fR patterns.  This option may be repeated.
+\fB\-\-include\-dir\fR patterns.  GLOB should be quoted to prevent shell
+globbing.  This option may be repeated.
 .TP
 \fB\-\-include\-from\fR=\fIFILE\fR
 Read the globs from FILE and search only files and directories
@@ -341,6 +364,11 @@ Restrict the number of files matched to NUM.  Note that \fB\-\-sort\fR or
 \fB\-J\fR1 may be specified to produce replicable results.  If \fB\-\-sort\fR is
 specified, the number of threads spawned is limited to NUM.
 .TP
+\fB\-\-[no\-]mmap[\fR=\fIMAX\fR]
+Do (not) use memory maps to search files.  By default, memory maps
+are used under certain conditions to improve performance.  When MAX
+is specified, use up to MAX mmap memory per thread.
+.TP
 \fB\-N\fR \fIPATTERN\fR, \fB\-\-neg\-regexp\fR=\fIPATTERN\fR
 Specify a negative PATTERN used during the search of the input:
 an input line is selected only if it matches any of the specified
@@ -357,13 +385,6 @@ each file processed.
 \fB\-\-no\-group\-separator\fR
 Removes the group separator line from the output for context
 options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
-.TP
-\fB\-\-[no\-]hidden\fR
-Do (not) search hidden files and directories.
-.TP
-\fB\-\-[no\-]mmap\fR
-Do (not) use memory maps to search files.  By default, memory maps
-are used under certain conditions to improve performance.
 .TP
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
 Search only files whose filename extensions match the specified
@@ -386,7 +407,7 @@ displaying the match.  The line number counter is reset for each
 file processed.
 .TP
 \fB\-P\fR, \fB\-\-perl\-regexp\fR
-Interpret PATTERN as a Perl regular expression.
+Interpret PATTERN as a Perl regular expression using PCRE2.
 .TP
 \fB\-p\fR, \fB\-\-no\-dereference\fR
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
@@ -397,22 +418,18 @@ When output is sent to the terminal, uses COMMAND to page through
 the output.  The default COMMAND is `less \fB\-R\fR'.  Enables \fB\-\-heading\fR
 and \fB\-\-line\-buffered\fR.
 .TP
-\fB\-\-pretty\fR
-When output is sent to a terminal, enables \fB\-\-color\fR and \fB\-\-heading\fR.
+\fB\-\-[no\-]pretty\fR
+When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-T\fR.
 .TP
-\fB\-Q\fR \fIENCODING\fR, \fB\-\-encoding\fR=\fIENCODING\fR
-The encoding format of the input, where ENCODING can be:
-`binary', `ASCII', `UTF\-8', `UTF\-16',
-`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE',
-`UTF\-32LE', `LATIN1', `ISO\-8859\-1', `ISO\-8869\-2',
-`ISO\-8869\-3', `ISO\-8869\-4', `ISO\-8869\-5', `ISO\-8869\-6',
-`ISO\-8869\-7', `ISO\-8869\-8', `ISO\-8869\-9', `ISO\-8869\-10',
-`ISO\-8869\-11', `ISO\-8869\-13', `ISO\-8869\-14', `ISO\-8869\-15',
-`ISO\-8869\-16', `MAC', `MACROMAN', `EBCDIC',
-`CP437', `CP850', `CP858', `CP1250',
-`CP1251', `CP1252', `CP1253', `CP1254',
-`CP1255', `CP1256', `CP1257', `CP1258',
-`KOI8\-R', `KOI8\-U', `KOI8\-RU'.
+\fB\-Q\fR[\fIDELAY\fR], \fB\-\-query[\fR=\fIDELAY\fR]
+Query mode: user interface to perform interactive searches.  This
+mode requires an ANSI capable terminal.  An optional DELAY argument
+may be specified to reduce or increase the response time to perform
+searches after the last key press, in increments of 100ms, where
+the default is 5 (500ms delay).  Initial patterns may be specified
+with \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press
+F1 or CTRL\-Z to view the help screen.  No whitespace may be given
+between \fB\-Q\fR and its argument DELAY.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  ugrep will only search until a
@@ -925,7 +942,7 @@ List all files that are not ignored by one or more `.gitignore':
 $ ugrep -Rl '' --ignore-files
 .PP
 List all files containing a RPM signature, located in the `rpm' directory and
-recursively below up to two levels deeper:
+recursively below up to two levels deeper (3 levels):
 .IP
 $ ugrep -3 -l -tRpm '' rpm/
 .PP

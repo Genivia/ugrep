@@ -1,16 +1,16 @@
-[1;35mHello.bat[0m[1;36m:[0m[1;4;32msh
-[0m[1;35mHello.bat[0m[1;36m|[0m[1;4;32mecho[0m
-[1;4;32mHello World!"[0m
-[1;35mHello.java[0m[1;36m:[0m[1;4;32mimport java.lang.*;[0m
-[1;35mHello.java[0m[1;36m:[0m[1;4;32mpublic class[0m
-[1;4;32mHello //[0m
-[1;4;32mprints a[0m
-[1;4;32mHello World![0m
+[1;35mHello.bat[m[1;36m:[m[1;4;32msh
+[m[1;35mHello.bat[m[1;36m|[m[1;4;32mecho[m
+[1;4;32mHello World!"[m
+[1;35mHello.java[m[1;36m:[m[1;4;32mimport java.lang.*;[m
+[1;35mHello.java[m[1;36m:[m[1;4;32mpublic class[m
+[1;4;32mHello //[m
+[1;4;32mprints a[m
+[1;4;32mHello World![m
 [1;4;32mgreeting
-[0m[1;35mHello.java[0m[1;36m|[0m[1;4;32m{[0m
-[1;4;32mpublic static[0m
-[1;4;32mvoid main(String[][0m
-[1;35mHello.java[0m[1;36m:[0m[1;4;32mHello World!");[0m
-[1;35mHello.sh[0m[1;36m:[0m[1;4;32msh
-[0m[1;35mHello.sh[0m[1;36m|[0m[1;4;32mecho[0m
-[1;4;32mHello World!"[0m
+[m[1;35mHello.java[m[1;36m|[m[1;4;32m{[m
+[1;4;32mpublic static[m
+[1;4;32mvoid main(String[][m
+[1;35mHello.java[m[1;36m:[m[1;4;32mHello World!");[m
+[1;35mHello.sh[m[1;36m:[m[1;4;32msh
+[m[1;35mHello.sh[m[1;36m|[m[1;4;32mecho[m
+[1;4;32mHello World!"[m

@@ -26,6 +26,7 @@ install-data-hook:
 		 echo "| You can use the ugrep command to search files.       |"; \
 		 echo "|                                                      |"; \
 		 echo "| Some useful aliases to consider:                     |"; \
+		 echo "|   alias uq     = 'ugrep --color --query'             |"; \
 		 echo "|   alias ug     = 'ugrep --color --pager'             |"; \
 		 echo "|   alias ux     = 'ugrep --color --pager -UX'         |"; \
 		 echo "|   alias uz     = 'ugrep --color --pager -z'          |"; \

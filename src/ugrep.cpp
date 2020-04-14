@@ -67,15 +67,15 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "1.8.1"
+#define UGREP_VERSION "2.0.0"
+
+#include "ugrep.hpp"
+#include "query.hpp"
 
 #include <reflex/bits.h>
-#include <reflex/input.h>
 #include <reflex/matcher.h>
 #include <iomanip>
 #include <cctype>
-#include <cstring>
-#include <cerrno>
 #include <limits>
 #include <algorithm>
 #include <functional>
@@ -88,14 +88,9 @@ Prebuilt executables are located in ugrep/bin.
 #include <mutex>
 #include <condition_variable>
 
-// check if we are compiling for a windows OS, but not Cygwin or MinGW
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-# define OS_WIN
-#endif
+#ifdef OS_WIN
 
 // compiling for a windows OS, except Cygwin and MinGW
-
-#ifdef OS_WIN
 
 // optionally enable --color=auto by default
 // #define WITH_COLOR
@@ -115,91 +110,17 @@ Prebuilt executables are located in ugrep/bin.
 // optionally enable liblzma for -z
 // #define HAVE_LIBLZMA
 
-// disable min/max macros to use std::min and std::max
-#define NOMINMAX
-
-#include <windows.h>
-#include <tchar.h> 
-#include <stdio.h>
-#include <io.h>
-#include <strsafe.h>
-
-#define STDIN_FILENO  0
-#define STDOUT_FILENO 1
-#define STDERR_FILENO 2
-
-#define PATHSEPCHR '\\'
-#define PATHSEPSTR "\\"
-
-// POSIX read() and write() return type is ssize_t
-typedef int ssize_t;
-
-// POSIX pipe() emulation
-int pipe(int fd[2])
-{
-  HANDLE pipe_r = NULL;
-  HANDLE pipe_w = NULL;
-  if (CreatePipe(&pipe_r, &pipe_w, NULL, 0))
-  {
-    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), 0);
-    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), 0);
-    return 0;
-  }
-  return 1;
-}
-
-// POSIX popen()
-FILE *popen(const char *command, const char *mode)
-{
-  return _popen(command, mode);
-}
-
-// POSIX pclose()
-int pclose(FILE *stream)
-{
-  return _pclose(stream);
-}
+#include <codecvt>
 
 #else
 
 // not compiling for a windows OS
 
-#include <dirent.h>
-#include <stdio.h>
 #include <signal.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-#ifdef HAVE_CONFIG_H
-# include "config.h"
-#endif
-
-#ifdef HAVE_MMAP
-# include <sys/mman.h>
-#endif
-
-#ifdef HAVE_SYS_STATVFS_H
-# include <sys/statvfs.h>
-#endif
-
-#define PATHSEPCHR '/'
-#define PATHSEPSTR "/"
-
-#endif
-
-// platform -- see configure.ac
-#if !defined(PLATFORM)
-# if defined(OS_WIN)
-#  if defined(_WIN32)
-#   define PLATFORM "WIN32"
-#  elif defined(_WIN64)
-#   define PLATFORM "WIN64"
-#  else
-#   define PLATFORM "WIN"
-#  endif
-# else
-#  define PLATFORM ""
-# endif
 #endif
 
 // fast gitignore-style glob matching
@@ -305,7 +226,7 @@ int pclose(FILE *stream)
 # define MAX_MMAP_SIZE 2147483648LL
 #endif
 
-// default --min-mmap
+// default --mmap
 #define DEFAULT_MIN_MMAP_SIZE MIN_MMAP_SIZE
 
 // default --max-mmap: mmap is enabled by default, unless disabled with WITH_NO_MMAP
@@ -314,6 +235,9 @@ int pclose(FILE *stream)
 #else
 # define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
 #endif
+
+// default --query delay is 500ms
+#define DEFAULT_QUERY_DELAY 5
 
 // pretty is disabled by default, unless enabled with WITH_PRETTY
 #ifdef WITH_PRETTY
@@ -346,7 +270,8 @@ int pclose(FILE *stream)
 #define UNDEFINED static_cast<size_t>(~0UL)
 
 // the -M MAGIC pattern DFAs constructed before threads start, read-only afterwards
-reflex::Pattern magic_pattern;
+reflex::Pattern magic_pattern; // concurrent access is thread safe
+reflex::Matcher magic_matcher; // concurrent access is not thread safe
 
 // number of warnings given
 std::atomic_size_t warnings;
@@ -361,18 +286,20 @@ bool tty_term = false;
 bool color_term = false;
 
 #ifndef OS_WIN
-static void sigint_reset_tty(int)
+
+static void sigint(int)
 {
   // reset SIGINT to the default handler
   signal(SIGINT, SIG_DFL);
 
   // be nice, reset colors on interrupt when sending output to a color TTY
   if (color_term)
-    color_term = write(1, "\033[0m", 4) > 0; // appease -Wunused-result
+    color_term = write(1, "\033[m", 3) > 0; // appease -Wunused-result
 
   // signal SIGINT again
   kill(getpid(), SIGINT);
 }
+
 #endif
 
 // ANSI SGR substrings extracted from GREP_COLORS
@@ -388,6 +315,9 @@ char color_cn[COLORLEN]; // column number
 char color_bn[COLORLEN]; // byte offset
 char color_se[COLORLEN]; // separator
 
+char match_ms[COLORLEN]; // --match: matched text in a selected line
+char match_mc[COLORLEN]; // --match: matched text in a context line
+
 const char *color_del     = ""; // erase line after the cursor
 const char *color_off     = ""; // disable colors
 
@@ -396,19 +326,16 @@ const char *color_error   = ""; // stderr error text
 const char *color_warning = ""; // stderr warning text
 const char *color_message = ""; // stderr error or warning message text
 
-// default file encoding is plain (no conversion), detects UTF-8/16/32 automatically
-reflex::Input::file_encoding_type flag_encoding_type = reflex::Input::file_encoding::plain;
+// redirectable source is standard input by default or a pipe
+FILE *source = stdin;
 
-// -D, --devices and -d, --directories
-enum class Action { SKIP, READ, RECURSE } flag_devices_action, flag_directories_action;
-
-// output destination is standard output by default or a pipe to --pager
+// redirectable output destination is standard output by default or a pipe
 FILE *output = stdout;
 
 #ifndef OS_WIN
 
 // output file stat is available when stat() result is true
-bool output_stat_result = false;
+bool output_stat_result  = false;
 bool output_stat_regular = false;
 struct stat output_stat;
 
@@ -468,6 +395,7 @@ bool flag_csv                      = false;
 bool flag_json                     = false;
 bool flag_xml                      = false;
 bool flag_stdin                    = false;
+bool flag_all_threads              = false;
 bool flag_sort_name                = false;
 bool flag_sort_size                = false;
 bool flag_sort_atime               = false;
@@ -479,9 +407,13 @@ bool flag_no_hidden                = DEFAULT_HIDDEN;
 bool flag_hex_hbr                  = true;
 bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
+Action flag_devices_action         = Action::SKIP;
+Action flag_directories_action     = Action::SKIP;
+size_t flag_query                  = 0;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
-size_t flag_depth                  = 0;
+size_t flag_min_depth              = 0;
+size_t flag_max_depth              = 0;
 size_t flag_max_count              = 0;
 size_t flag_max_files              = 0;
 size_t flag_min_line               = 0;
@@ -491,11 +423,11 @@ size_t flag_min_magic              = 1;
 size_t flag_jobs                   = 0;
 size_t flag_tabs                   = 8;
 size_t flag_hex_columns            = 16;
-size_t flag_min_mmap               = DEFAULT_MIN_MMAP_SIZE;
 size_t flag_max_mmap               = DEFAULT_MAX_MMAP_SIZE;
 size_t flag_min_steal              = MIN_STEAL;
 const char *flag_pager             = FLAG_PAGER;
 const char *flag_color             = FLAG_COLOR;
+const char *flag_apply_color       = NULL;
 const char *flag_hexdump           = NULL;
 const char *flag_colors            = NULL;
 const char *flag_encoding          = NULL;
@@ -532,6 +464,11 @@ std::vector<std::string> flag_exclude_from;
 std::vector<std::string> flag_exclude_fs;
 std::vector<std::string> flag_not_exclude;
 std::vector<std::string> flag_not_exclude_dir;
+reflex::Input::file_encoding_type flag_encoding_type = reflex::Input::file_encoding::plain;
+
+// ugrep command-line arguments pointing to argv[]
+const char *arg_pattern = NULL;
+std::vector<const char*> arg_files;
 
 void set_color(const char *colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
@@ -539,7 +476,7 @@ void trim_nl(std::string& line);
 bool is_output(ino_t inode);
 size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
-void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message);
+void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message, bool optional_first = false);
 
 void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, std::vector<std::string>& not_files, std::vector<std::string>& not_dirs);
 void format(const char *format, size_t matches);
@@ -547,9 +484,6 @@ void help(const char *message = NULL, const char *arg = NULL);
 void version();
 void is_directory(const char *pathname);
 void cannot_decompress(const char *pathname, const char *message);
-void warning(const char *message, const char *arg);
-void error(const char *message, const char *arg);
-void abort(const char *message, const std::string& what);
 
 // read a line from buffered input, returns true when eof
 inline bool getline(reflex::BufferedInput& input, std::string& line)
@@ -668,37 +602,6 @@ inline bool is_output(ino_t inode)
 #endif
 }
 
-#ifdef OS_WIN
-
-// Wrap Windows _dupenv_s()
-inline int dupenv_s(char **ptr, const char *name)
-{
-  size_t len;
-  return _dupenv_s(ptr, &len, name);
-}
-
-#else
-
-// Windows-like dupenv_s()
-inline int dupenv_s(char **ptr, const char *name)
-{
-  if (ptr == NULL)
-    return EINVAL;
-  *ptr = NULL;
-  const char *env = getenv(name);
-  if (env != NULL && (*ptr = strdup(env)) == NULL)
-    return ENOMEM;
-  return 0;
-}
-
-// Windows-compatible fopen_s()
-inline int fopen_s(FILE **file, const char *filename, const char *mode)
-{
-  return (*file = fopen(filename, mode)) == NULL ? errno : 0;
-}
-
-#endif
-
 // specify a line of input for the matcher to read, matcher must not use text() or rest() to keep the line contents unmodified
 inline void read_line(reflex::AbstractMatcher *matcher, const char *line, size_t size)
 {
@@ -728,6 +631,15 @@ struct Stats {
       dirs(0),
       fileno(0)
   { }
+
+  // reset stats
+  void reset()
+  {
+    files = 0;
+    dirs = 0;
+    fileno = 0;
+    ignore.clear();
+  }
 
   // score a file searched
   void score_file()
@@ -781,7 +693,8 @@ struct Stats {
     fprintf(output, ": %zu matching\n", n);
     if (warnings > 0)
       fprintf(output, "Received %zu warning%s\n", warnings.load(), warnings == 1 ? "" : "s");
-    if (flag_no_hidden ||
+    if (flag_min_depth > 0 || flag_max_depth > 0 ||
+        flag_no_hidden ||
         !flag_ignore_files.empty() ||
         !flag_file_magic.empty() ||
         !flag_include.empty() ||
@@ -796,6 +709,12 @@ struct Stats {
         !flag_not_exclude_dir.empty())
     {
       fprintf(output, "The following pathname selections and restrictions were applied:\n");
+      if (flag_min_depth > 0 && flag_max_depth > 0)
+        fprintf(output, "--depth=%zu,%zu\n", flag_min_depth, flag_max_depth);
+      else if (flag_min_depth > 0)
+        fprintf(output, "--depth=%zu,\n", flag_min_depth);
+      else if (flag_max_depth > 0)
+        fprintf(output, "--depth=%zu\n", flag_max_depth);
       if (flag_no_hidden)
         fprintf(output, "--no-hidden\n");
       for (auto& i : flag_ignore_files)
@@ -885,7 +804,7 @@ bool MMap::file(reflex::Input& input, const char*& base, size_t& size)
 
   // is this file not too small or too large? if -P is used, try to mmap a large file without imposing a max
   size = static_cast<size_t>(buf.st_size);
-  if (size < flag_min_mmap || (size > flag_max_mmap && !flag_perl_regexp))
+  if (size < MIN_MMAP_SIZE || (size > flag_max_mmap && !flag_perl_regexp))
     return false;
 
   // mmap the file and round requested size up to 4K (typical page size)
@@ -922,7 +841,7 @@ struct Output {
 
   typedef std::list<Buffer> Buffers; // buffers container
 
-  // sync state to synchronize output of multiple threads
+  // sync state to synchronize output produced by multiple threads, UNORDERED or ORDERED by slot number
   struct Sync {
 
     enum class Mode { UNORDERED, ORDERED };
@@ -1030,7 +949,7 @@ struct Output {
       }
     }
 
-    Mode                         mode;       // UNORDERED or ORDERED (--sort) mode
+    Mode                         mode;       // UNORDERED or ORDERED (--sort by slot) mode
     std::mutex                   mutex;      // mutex to synchronize output
     std::condition_variable      turn;       // ORDERED: cv for threads to take turns by checking if last slot is their slot
     size_t                       next;       // ORDERED: next slot assigned to thread
@@ -1295,7 +1214,12 @@ struct Output {
         // flush the buffers container to the designated output file, pipe, or stream
         for (Buffers::iterator i = buffers.begin(); i != buf; ++i)
         {
-          if (fwrite(i->data, 1, SIZE, file) < SIZE)
+          size_t nwritten;
+
+          while ((nwritten = fwrite(i->data, 1, SIZE, file)) < SIZE && errno == EINTR)
+            continue;
+
+          if (nwritten < SIZE)
           {
             eof = true;
             break;
@@ -1305,10 +1229,20 @@ struct Output {
         if (!eof)
         {
           size_t num = cur - buf->data;
-          if (num > 0 && fwrite(buf->data, 1, num, file) < num)
+
+          if (num > 0)
+          {
+            size_t nwritten;
+
+            while ((nwritten = fwrite(buf->data, 1, num, file)) < num && errno == EINTR)
+              continue;
+
+            if (nwritten < num)
+              eof = true;
+          }
+
+          if (!eof && fflush(file) != 0)
             eof = true;
-          else
-            fflush(file);
         }
       }
 
@@ -1395,7 +1329,7 @@ struct Output {
 };
 
 // we could use C++20 constinit, though declaring this here is more efficient:
-const char *Output::Dump::color_hex[4] = { color_ms, color_sl, color_mc, color_cx };
+const char *Output::Dump::color_hex[4] = { match_ms, color_sl, match_mc, color_cx };
 
 // dump matching data in hex
 void Output::Dump::hex(short mode, size_t byte_offset, const char *data, size_t size, const char *separator)
@@ -1507,7 +1441,7 @@ void Output::Dump::line(const char *separator)
           out.str(color_hex[last_hex_color]);
         }
         byte &= 0xff;
-        if (flag_color != NULL)
+        if (flag_apply_color != NULL)
         {
           if (byte < 0x20)
           {
@@ -2378,8 +2312,14 @@ struct Grep {
 #endif
   { }
 
+  // search the specified files or standard input for pattern matches
+  virtual void ugrep();
+
+  // search file or directory for pattern matches
+  Type select(size_t level, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument = false);
+
   // recurse a directory
-  virtual void recurse(size_t level, reflex::Matcher& magic, const char *pathname);
+  virtual void recurse(size_t level, const char *pathname);
 
   // search a file
   virtual void search(const char *pathname);
@@ -2390,7 +2330,7 @@ struct Grep {
     if (pathname == NULL)
     {
       pathname = flag_label;
-      file = stdin;
+      file = source;
     }
     else if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
     {
@@ -3706,7 +3646,7 @@ void GrepWorker::execute()
 {
   Job job;
 
-  while (true)
+  while (!out.eof)
   {
     // wait for next job
     next_job(job);
@@ -3881,15 +3821,82 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
   { NULL,           NULL,                                                       NULL }
 };
 
-// function protos
-void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files);
-Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument = false);
+// function protos for functions used in main()
+void options(int argc, const char **argv);
+void termina();
+void ugrep();
 
 // ugrep main()
-int main(int argc, char **argv)
+int main(int argc, const char **argv)
 {
-  const char *pattern = NULL;
-  std::vector<const char*> files;
+#ifdef OS_WIN
+
+  std::vector<std::string> args;
+
+  LPWSTR *argws = CommandLineToArgvW(GetCommandLineW(), &argc);
+
+  if (argws == NULL)
+    error("cannot parse command line arguments", "CommandLineToArgvW failed");
+
+  // convert Unicode command line arguments argws[] to UTF-8 arguments argv[]
+  args.resize(argc);
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> conversion;
+  for (int i = 0; i < argc; ++i)
+  {
+    args[i] = conversion.to_bytes(argws[i]);
+    argv[i] = args[i].c_str();
+  }
+
+  LocalFree(argws);
+
+#endif
+
+#ifndef OS_WIN
+
+  // ignore SIGPIPE
+  signal(SIGPIPE, SIG_IGN);
+
+  // reset color on SIGINT
+  signal(SIGINT, sigint);
+
+#endif
+
+  options(argc, argv);
+
+  if (flag_query > 0)
+  {
+    if (!flag_no_messages && warnings > 0)
+      abort("option -Q: warnings are present, use -s to ignore");
+
+    Query::query();
+  }
+  else
+  {
+    if (!flag_no_messages && flag_pager != NULL && warnings > 0)
+      abort("option --pager: warnings are present, use -s to ignore");
+
+    try
+    {
+      ugrep();
+    }
+
+    catch (reflex::regex_error& error)
+    {
+      abort("error: ", error.what());
+    }
+
+    catch (std::exception& error)
+    {
+      abort("exception: ", error.what());
+    }
+  }
+
+  return warnings == 0 && stats.found_any_file() ? EXIT_OK : EXIT_FAIL;
+}
+
+// parse the command-line options
+void options(int argc, const char **argv)
+{
   bool options = true;
 
   // parse ugrep command-line options and arguments
@@ -3955,7 +3962,7 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "decompress") == 0)
               flag_decompress = true;
             else if (strncmp(arg, "depth=", 6) == 0)
-              flag_depth = strtopos(arg + 6, "invalid argument --depth=");
+              strtopos2(arg + 6, flag_min_depth, flag_max_depth, "invalid argument --depth=", true);
             else if (strcmp(arg, "dereference") == 0)
               flag_dereference = true;
             else if (strcmp(arg, "dereference-recursive") == 0)
@@ -4058,12 +4065,10 @@ int main(int argc, char **argv)
               flag_max_count = strtopos(arg + 10, "invalid argument --max-count=");
             else if (strncmp(arg, "max-files=", 10) == 0)
               flag_max_files = strtopos(arg + 10, "invalid argument --max-files=");
-            else if (strncmp(arg, "max-mmap=", 9) == 0)
-              flag_max_mmap = strtopos(arg + 9, "invalid argument --max-mmap=");
-            else if (strncmp(arg, "min-mmap=", 9) == 0)
-              flag_min_mmap = strtopos(arg + 9, "invalid argument --min-mmap=");
             else if (strncmp(arg, "min-steal=", 10) == 0)
               flag_min_steal = strtopos(arg + 10, "invalid argument --min-steal=");
+            else if (strncmp(arg, "mmap=", 5) == 0)
+              flag_max_mmap = strtopos(arg + 5, "invalid argument --mmap=");
             else if (strcmp(arg, "mmap") == 0)
               flag_max_mmap = MAX_MMAP_SIZE;
             else if (strncmp(arg, "neg-regexp=", 11) == 0)
@@ -4080,6 +4085,8 @@ int main(int argc, char **argv)
               flag_no_messages = true;
             else if (strcmp(arg, "no-mmap") == 0)
               flag_max_mmap = 0;
+            else if (strcmp(arg, "no-pretty") == 0)
+              flag_pretty = false;
             else if (strcmp(arg, "null") == 0)
               flag_null = true;
             else if (strcmp(arg, "only-line-number") == 0)
@@ -4094,6 +4101,10 @@ int main(int argc, char **argv)
               flag_perl_regexp = true;
             else if (strcmp(arg, "pretty") == 0)
               flag_pretty = true;
+            else if (strcmp(arg, "query") == 0)
+              flag_query = DEFAULT_QUERY_DELAY;
+            else if (strncmp(arg, "query=", 6) == 0)
+              flag_query = strtopos(arg + 6, "invalid argument --query=");
             else if (strcmp(arg, "quiet") == 0 || strcmp(arg, "silent") == 0)
               flag_quiet = flag_no_messages = true;
             else if (strncmp(arg, "range=", 6) == 0)
@@ -4131,7 +4142,27 @@ int main(int argc, char **argv)
             else if (strcmp(arg, "xml") == 0)
               flag_xml = true;
             else
-              help("invalid option --", arg);
+            {
+              if (isdigit(*arg))
+              {
+                if (flag_max_depth > 0)
+                {
+                  if (flag_min_depth == 0)
+                    flag_min_depth = flag_max_depth;
+                  flag_max_depth = strtopos(arg, "invalid argument --");
+                  if (flag_min_depth > flag_max_depth)
+                    help("invalid argument -", arg);
+                }
+                else
+                {
+                  strtopos2(arg, flag_min_depth, flag_max_depth, "invalid argument --", true);
+                }
+              }
+              else
+              {
+                help("invalid option --", arg);
+              }
+            }
             is_grouped = false;
             break;
 
@@ -4366,13 +4397,16 @@ int main(int argc, char **argv)
 
           case 'Q':
             ++arg;
-            if (*arg)
-              flag_encoding = &arg[*arg == '='];
-            else if (++i < argc)
-              flag_encoding = argv[i];
+            if (*arg == '=' || isdigit(*arg))
+            {
+              flag_query = strtopos(&arg[*arg == '='], "invalid argument -Q=");
+              is_grouped = false;
+            }
             else
-              help("missing ENCODING argument for option -:");
-            is_grouped = false;
+            {
+              flag_query = DEFAULT_QUERY_DELAY;
+              --arg;
+            }
             break;
 
           case 'q':
@@ -4471,12 +4505,19 @@ int main(int argc, char **argv)
           case '7':
           case '8':
           case '9':
-            flag_depth = *arg - '0';
+            if (flag_min_depth == 0 && flag_max_depth > 0)
+              flag_min_depth = flag_max_depth;
+            flag_max_depth = *arg - '0';
+            if (flag_min_depth > flag_max_depth)
+              help("invalid argument -", arg);
             break;
 
           default:
             help("invalid option -", arg);
         }
+
+        if (!is_grouped)
+          break;
       }
     }
     else if (options && strcmp(arg, "-") == 0)
@@ -4484,30 +4525,17 @@ int main(int argc, char **argv)
       // read standard input
       flag_stdin = true;
     }
-    else if (pattern == NULL && flag_file.empty())
+    else if (arg_pattern == NULL && flag_file.empty())
     {
       // no regex pattern specified yet, so assume it is PATTERN
-      pattern = arg;
+      arg_pattern = arg;
     }
     else
     {
       // otherwise add the file argument to the list of FILE files
-      files.emplace_back(arg);
+      arg_files.emplace_back(arg);
     }
   }
-
-#ifndef OS_WIN
-  // ignore SIGPIPE
-  signal(SIGPIPE, SIG_IGN);
-  // reset color on SIGINT
-  signal(SIGINT, sigint_reset_tty);
-#endif
-
-#ifndef HAVE_LIBZ
-  // -z: but we don't have libz
-  if (flag_decompress)
-    help("option -z is not available in this build configuration of ugrep");
-#endif
 
   // -t list: list table of types and exit
   if (flag_file_types.size() == 1 && flag_file_types[0] == "list")
@@ -4524,6 +4552,42 @@ int main(int argc, char **argv)
     exit(EXIT_ERROR);
   }
 
+#ifndef HAVE_LIBZ
+  // -z: but we don't have libz
+  if (flag_decompress)
+    help("option -z is not available in this build configuration of ugrep");
+#endif
+
+  // -P disables -G
+  if (flag_perl_regexp)
+  {
+#if defined(HAVE_PCRE2) || defined(HAVE_BOOST_REGEX)
+    flag_basic_regexp = false;
+#else
+    help("option -P is not available in this build configuration of ugrep");
+#endif
+  }
+
+  // check TTY info and set colors (warnings and errors may occur from here on)
+  terminal();
+
+  // --encoding: parse ENCODING value
+  if (flag_encoding != NULL)
+  {
+    int i;
+
+    // scan the format_table[] for a matching encoding
+    for (i = 0; format_table[i].format != NULL; ++i)
+      if (strcmp(flag_encoding, format_table[i].format) == 0)
+        break;
+
+    if (format_table[i].format == NULL)
+      help("invalid argument --encoding=ENCODING");
+
+    // encoding is the file encoding used by all input files, if no BOM is present
+    flag_encoding_type = format_table[i].encoding;
+  }
+
   // --binary-files: normalize by assigning flags
   if (strcmp(flag_binary_files, "without-matches") == 0)
     flag_binary_without_matches = true;
@@ -4536,7 +4600,7 @@ int main(int argc, char **argv)
   else if (strcmp(flag_binary_files, "binary") != 0)
     help("invalid argument --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex', and 'with-hex'");
 
-  // --hexdump
+  // --hexdump: normalize by assigning flags
   if (flag_hexdump != NULL)
   {
     if (isdigit(*flag_hexdump))
@@ -4554,303 +4618,24 @@ int main(int argc, char **argv)
     if (!flag_with_hex)
       flag_hex = true;
   }
-
-  // --match: same as specifying an '' empty pattern argument if no patterns are specified
-  if (flag_match)
-    flag_regexp.emplace_back("");
-
-  // regex PATTERN specified
-  if (pattern != NULL)
-  {
-    // if no regex specified, then add pattern else add to the front of FILE args
-    if (flag_regexp.empty())
-      flag_regexp.emplace_back(pattern);
-    else
-      files.insert(files.begin(), pattern);
-  }
   
-  // if no regex pattern is specified and no -f file then exit with usage message
-  if (flag_regexp.empty() && flag_file.empty())
-    help("");
+  // --tabs: value should be 1, 2, 4, or 8
+  if (flag_tabs && flag_tabs != 1 && flag_tabs != 2 && flag_tabs != 4 && flag_tabs != 8)
+    help("invalid argument --tabs=NUM, valid arguments are 1, 2, 4, or 8");
 
-  // -x: enable -Y
-  if (flag_line_regexp)
-    flag_empty = true;
+  // --match: same as specifying an empty "" pattern argument
+  if (flag_match)
+    arg_pattern = "";
 
-  // the regex compiled from PATTERN
-  std::string regex;
+  // if no regex pattern is specified and no -f file and not -Q, then exit with usage message
+  if (arg_pattern == NULL && flag_regexp.empty() && flag_file.empty() && flag_query == 0)
+    help("no PATTERN specified: use --match or an empty \"\" pattern to match all input");
 
-  // -F: make newline-separated lines in regex literal with \Q and \E
-  const char *Q = flag_fixed_strings ? "\\Q" : "";
-  const char *E = flag_fixed_strings ? "\\E|" : "|";
-
-  // combine all -e PATTERN into a single regex string for matching
-  for (auto& pattern : flag_regexp)
+  // regex PATTERN should be a FILE argument when -Q or -e PATTERN is specified
+  if (arg_pattern != NULL && (flag_query > 0 || !flag_regexp.empty()))
   {
-    // empty PATTERN matches everything
-    if (pattern.empty())
-    {
-      // pattern ".*\n?|" could be used throughout without flag_empty = true, but this garbles output for -o, -H, -n, etc.
-      if (flag_line_regexp)
-      {
-        regex.append("^$|");
-      }
-      else if (flag_hex)
-      {
-        regex.append(".*\n?|");
-
-        // we're matching everything
-        flag_match = true;
-      }
-      else
-      {
-        regex.append(".*|");
-
-        // we're matching everything
-        flag_match = true;
-      }
-
-      // enable -Y: include empty pattern matches in the results
-      flag_empty = true;
-
-      // disable -w
-      flag_word_regexp = false;
-    }
-    else
-    {
-      // split newline-separated regex up into alternations
-      size_t from = 0;
-      size_t to;
-
-      // split regex at newlines, for -F add \Q \E to each string, separate by |
-      while ((to = pattern.find('\n', from)) != std::string::npos)
-      {
-        if (from < to)
-        {
-          size_t len = to - from - (pattern[to - 1] == '\r');
-          if (len > 0)
-            regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
-        }
-        from = to + 1;
-      }
-
-      if (from < pattern.size())
-        regex.append(Q).append(pattern.substr(from)).append(E);
-
-      // if pattern starts with ^ and ends with $, enable -Y
-      if (pattern.size() >= 2 && pattern.front() == '^' && pattern.back() == '$')
-        flag_empty = true;
-    }
-  }
-
-  // the regex compiled from -N PATTERN
-  std::string neg_regex;
-
-  // append -N PATTERN to regex as negative patterns
-  for (auto& pattern : flag_neg_regexp)
-  {
-    if (!pattern.empty())
-    {
-      // split newline-separated regex up into alternations
-      size_t from = 0;
-      size_t to;
-
-      // split regex at newlines, for -F add \Q \E to each string, separate by |
-      while ((to = pattern.find('\n', from)) != std::string::npos)
-      {
-        if (from < to)
-        {
-          size_t len = to - from - (pattern[to - 1] == '\r');
-          if (len > 0)
-            neg_regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
-        }
-        from = to + 1;
-      }
-
-      if (from < pattern.size())
-        neg_regex.append(Q).append(pattern.substr(from)).append(E);
-
-      if (pattern.size() >= 2 && pattern.front() == '^' && pattern.back() == '$')
-        flag_empty = true; // we're possibly matching empty lines, so enable -Y
-    }
-  }
-
-  // -x or -w: apply to -N PATTERN
-  if (!neg_regex.empty())
-  {
-    // remove the ending '|' from the |-concatenated regexes in the regex string
-    neg_regex.pop_back();
-
-    if (regex != "^$")
-    {
-      // -x or -w
-      if (flag_line_regexp)
-        neg_regex.insert(0, "^(").append(")$"); // make the regex line-anchored
-      else if (flag_word_regexp)
-        neg_regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
-    }
-
-    // construct negative (?^PATTERN)
-    neg_regex.insert(0, "(?^").push_back(')');
-  }
-
-  // -x or -w: apply to PATTERN then disable -x, -w, -F for patterns in -f FILE when PATTERN or -e PATTERN is specified
-  if (!regex.empty())
-  {
-    // remove the ending '|' from the |-concatenated regexes in the regex string
-    regex.pop_back();
-
-    if (regex != "^$")
-    {
-      // -x or -w
-      if (flag_line_regexp)
-        regex.insert(0, "^(").append(")$"); // make the regex line-anchored
-      else if (flag_word_regexp)
-        regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
-    }
-
-    // -x and -w do not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
-    flag_line_regexp = false;
-    flag_word_regexp = false;
-
-    // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
-    Q = "";
-    E = "|";
-  }
-
-  // combine regexes
-  if (regex.empty())
-    regex.swap(neg_regex);
-  else if (!neg_regex.empty())
-    regex.append("|").append(neg_regex);
-
-  // -P disables -G
-  if (flag_perl_regexp)
-    flag_basic_regexp = false;
-
-  // -f: get patterns from file
-  if (!flag_file.empty())
-  {
-    // add an ending '|' to the regex to concatenate sub-expressions
-    if (!regex.empty())
-      regex.push_back('|');
-
-    // -f: read patterns from the specified file or files
-    for (auto& filename : flag_file)
-    {
-      FILE *file = NULL;
-
-      if (filename == "-")
-        file = stdin;
-      else if (fopen_s(&file, filename.c_str(), "r") != 0)
-        file = NULL;
-
-      if (file == NULL)
-      {
-        // could not open, try GREP_PATH environment variable
-        char *env_grep_path = NULL;
-        dupenv_s(&env_grep_path, "GREP_PATH");
-
-        if (env_grep_path != NULL)
-        {
-          std::string path_file(env_grep_path);
-          path_file.append(PATHSEPSTR).append(filename);
-
-          if (fopen_s(&file, path_file.c_str(), "r") != 0)
-            file = NULL;
-
-          free(env_grep_path);
-        }
-      }
-
-#ifdef GREP_PATH
-      if (file == NULL)
-      {
-        std::string path_file(GREP_PATH);
-        path_file.append(PATHSEPSTR).append(filename);
-
-        if (fopen_s(&file, path_file.c_str(), "r") != 0)
-          file = NULL;
-      }
-#endif
-
-      if (file == NULL)
-        error("cannot read", filename.c_str());
-
-      reflex::BufferedInput input(file);
-      std::string line;
-      size_t lineno = 0;
-
-      while (true)
-      {
-        // read the next line
-        if (getline(input, line))
-          break;
-
-        ++lineno;
-
-        trim_nl(line);
-
-        // add line to the regex if not empty
-        if (!line.empty())
-          regex.append(Q).append(line).append(E);
-      }
-
-      if (file != stdin)
-        fclose(file);
-    }
-
-    // remove the ending '|' from the |-concatenated regexes in the regex string
-    regex.pop_back();
-
-    // -x or -w
-    if (flag_line_regexp)
-      regex.insert(0, "^(").append(")$"); // make the regex line-anchored
-    else if (flag_word_regexp)
-      regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
-  }
-
-  // -j: case insensitive search if regex does not contain an upper case letter
-  if (flag_smart_case)
-  {
-    flag_ignore_case = true;
-
-    for (size_t i = 0; i < regex.size(); ++i)
-    {
-      if (regex[i] == '\\')
-      {
-        ++i;
-      }
-      else if (regex[i] == '{')
-      {
-        while (++i < regex.size() && regex[i] != '}')
-          continue;
-      }
-      else if (isupper(regex[i]))
-      {
-        flag_ignore_case = false;
-        break;
-      }
-    }
-  }
-
-  // -y: disable -A, -B, and -C
-  if (flag_any_line)
-    flag_after_context = flag_before_context = 0;
-
-  // -A, -B, or -C: disable -o
-  if (flag_after_context > 0 || flag_before_context > 0)
-    flag_only_matching = false;
-
-  // -v or -y: disable -o and -u
-  if (flag_invert_match || flag_any_line)
-    flag_only_matching = flag_ungroup = false;
-
-  // normalize -R (--dereference-recurse) option
-  if (strcmp(flag_directories, "dereference-recurse") == 0)
-  {
-    flag_directories = "recurse";
-    flag_dereference = true;
+    arg_files.insert(arg_files.begin(), arg_pattern);
+    arg_pattern = NULL;
   }
 
   // -D: check ACTION value
@@ -4861,7 +4646,14 @@ int main(int argc, char **argv)
   else
     help("invalid argument --devices=ACTION, valid arguments are 'skip' and 'read'");
 
-  // -d: check ACTION value
+  // normalize -R (--dereference-recurse) option
+  if (strcmp(flag_directories, "dereference-recurse") == 0)
+  {
+    flag_directories = "recurse";
+    flag_dereference = true;
+  }
+
+  // -d: check ACTION value and set flags
   if (strcmp(flag_directories, "skip") == 0)
     flag_directories_action = Action::SKIP;
   else if (strcmp(flag_directories, "read") == 0)
@@ -4871,7 +4663,18 @@ int main(int argc, char **argv)
   else
     help("invalid argument --directories=ACTION, valid arguments are 'skip', 'read', 'recurse', and 'dereference-recurse'");
 
-  // --sort: check KEY value
+  // if no FILE specified and no -r or -R specified, when reading standard input from a TTY then enable -R
+  if (!flag_stdin && arg_files.empty() && flag_directories_action != Action::RECURSE && isatty(STDIN_FILENO))
+  {
+    flag_directories_action = Action::RECURSE;
+    flag_dereference = true;
+  }
+
+  // if no FILE specified then read standard input, unless recursive searches are specified
+  if (arg_files.empty() && flag_min_depth == 0 && flag_max_depth == 0 && flag_directories_action != Action::RECURSE)
+    flag_stdin = true;
+
+  // --sort: check sort KEY and set flags
   if (flag_sort != NULL)
   {
     if (strcmp(flag_sort, "name") == 0)
@@ -4926,233 +4729,6 @@ int main(int argc, char **argv)
     flag_format       = "    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%X</match>\n%u";
     flag_format_close = "  </file>\n";
     flag_format_end   = "</grep>\n";
-  }
-
-  // is output sent to a color TTY, to a pager, or to /dev/null?
-  if (!flag_quiet)
-  {
-    // check if standard output is a TTY
-    tty_term = isatty(STDOUT_FILENO) != 0;
-
-#ifndef OS_WIN
-
-    if (!tty_term)
-    {
-      output_stat_result = fstat(STDOUT_FILENO, &output_stat) == 0;
-      output_stat_regular = output_stat_result && S_ISREG(output_stat.st_mode);
-
-      // if output is sent to /dev/null, then enable -q (i.e. "cheat" like GNU grep!)
-      struct stat dev_null_stat;
-      if (output_stat_result &&
-          S_ISCHR(output_stat.st_mode) &&
-          stat("/dev/null", &dev_null_stat) == 0 &&
-          output_stat.st_dev == dev_null_stat.st_dev &&
-          output_stat.st_ino == dev_null_stat.st_ino)
-      {
-        flag_quiet = true;
-      }
-    }
-
-#endif
-  }
-
-  if (!flag_quiet)
-  {
-    if (tty_term)
-    {
-      if (flag_pager != NULL)
-      {
-        // --pager: if output is to a TTY then page through the results
-
-        // open a pipe to a forked pager
-        output = popen(flag_pager, "w");
-        if (output == NULL)
-          error("cannot open pipe to pager", flag_pager);
-
-        // enable --heading
-        flag_heading = true;
-
-        // enable --line-buffered to flush output to the pager immediately
-        flag_line_buffered = true;
-      }
-      else if (flag_pretty)
-      {
-        // --pretty: if output is to a TTY then enable --color and --heading
-
-        // enable --color
-        if (flag_color == NULL)
-          flag_color ="auto";
-
-        // enable --heading
-        flag_heading = true;
-      }
-      else if (flag_colors != NULL)
-      {
-        // --colors: if output is to a TTY then enable --color and use the specified --colors (below)
-
-        // enable --color
-        if (flag_color == NULL)
-          flag_color ="auto";
-      }
-    }
-
-    // --color: (re)set flag_color depending on color_term and TTY output
-    if (flag_color != NULL)
-    {
-      if (strcmp(flag_color, "never") == 0)
-      {
-        flag_color = NULL;
-      }
-      else
-      {
-#ifdef OS_WIN
-
-        if (tty_term)
-        {
-          // blindly assume that we have a color terminal on Windows if isatty() is true
-          color_term = true;
-
-#ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
-          HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-          DWORD dwMode;
-          GetConsoleMode(hOutput, &dwMode);
-          dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-          SetConsoleMode(hOutput, dwMode);
-#endif
-
-        }
-
-#else
-
-        // check whether we have a color terminal
-        if (tty_term)
-        {
-          const char *term = getenv("TERM");
-          if (term &&
-              (strstr(term, "ansi") != NULL ||
-               strstr(term, "xterm") != NULL ||
-               strstr(term, "color") != NULL))
-            color_term = true;
-        }
-
-#endif
-
-        if (strcmp(flag_color, "auto") == 0)
-        {
-          if (!color_term)
-            flag_color = NULL;
-        }
-        else if (strcmp(flag_color, "always") != 0)
-        {
-          help("invalid argument --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
-        }
-
-        if (flag_color != NULL)
-        {
-          // get GREP_COLOR and GREP_COLORS
-          char *env_grep_color = NULL;
-          dupenv_s(&env_grep_color, "GREP_COLOR");
-          char *env_grep_colors = NULL;
-          dupenv_s(&env_grep_colors, "GREP_COLORS");
-          const char *grep_colors = env_grep_colors;
-
-          // if GREP_COLOR is defined, use it to set mt= default value (overridden by GREP_COLORS mt=, ms=, mc=)
-          if (env_grep_color != NULL)
-            set_color(std::string("mt=").append(env_grep_color).c_str(), "mt", color_mt);
-          else if (grep_colors == NULL)
-            grep_colors = DEFAULT_GREP_COLORS;
-
-          // parse GREP_COLORS
-          set_color(grep_colors, "sl", color_sl); // selected line
-          set_color(grep_colors, "cx", color_cx); // context line
-          set_color(grep_colors, "mt", color_mt); // matched text in any line
-          set_color(grep_colors, "ms", color_ms); // matched text in selected line
-          set_color(grep_colors, "mc", color_mc); // matched text in a context line
-          set_color(grep_colors, "fn", color_fn); // file name
-          set_color(grep_colors, "ln", color_ln); // line number
-          set_color(grep_colors, "cn", color_cn); // column number
-          set_color(grep_colors, "bn", color_bn); // byte offset
-          set_color(grep_colors, "se", color_se); // separator
-
-          // parse --colors
-          set_color(flag_colors, "sl", color_sl); // selected line
-          set_color(flag_colors, "cx", color_cx); // context line
-          set_color(flag_colors, "mt", color_mt); // matched text in any line
-          set_color(flag_colors, "ms", color_ms); // matched text in selected line
-          set_color(flag_colors, "mc", color_mc); // matched text in a context line
-          set_color(flag_colors, "fn", color_fn); // file name
-          set_color(flag_colors, "ln", color_ln); // line number
-          set_color(flag_colors, "cn", color_cn); // column number
-          set_color(flag_colors, "bn", color_bn); // byte offset
-          set_color(flag_colors, "se", color_se); // separator
-
-          // -v: if rv in GREP_COLORS then swap the sl and cx colors
-          if (flag_invert_match &&
-              ((grep_colors != NULL && strstr(grep_colors, "rv") != NULL) ||
-               (flag_colors != NULL && strstr(flag_colors, "rv") != NULL)))
-          {
-            char color_tmp[COLORLEN];
-            copy_color(color_tmp, color_sl);
-            copy_color(color_sl, color_cx);
-            copy_color(color_cx, color_tmp);
-          }
-
-          // if pattern is empty to match all, matches are shown as selected lines
-          if (flag_match)
-          {
-            copy_color(color_ms, color_sl);
-            copy_color(color_mc, color_cx);
-          }
-          else
-          {
-            // if ms= is not specified, use the mt= value
-            if (*color_ms == '\0')
-              copy_color(color_ms, color_mt);
-
-            // if mc= is not specified, use the mt= value
-            if (*color_mc == '\0')
-              copy_color(color_mc, color_mt);
-          }
-
-          color_del = "\033[0K";
-          color_off = "\033[0m";
-
-          if (isatty(STDERR_FILENO))
-          {
-            color_high    = "\033[1m";
-            color_error   = "\033[1;31m";
-            color_warning = "\033[1;35m";
-            color_message = "\033[1;36m";
-          }
-
-          if (env_grep_color != NULL)
-            free(env_grep_color);
-          if (env_grep_colors != NULL)
-            free(env_grep_colors);
-        }
-      }
-    }
-  }
-
-  // --heading: enable --break
-  if (flag_heading)
-    flag_break = true;
-
-  // -Q: parse ENCODING value
-  if (flag_encoding != NULL)
-  {
-    int i;
-
-    // scan the format_table[] for a matching encoding
-    for (i = 0; format_table[i].format != NULL; ++i)
-      if (strcmp(flag_encoding, format_table[i].format) == 0)
-        break;
-
-    if (format_table[i].format == NULL)
-      help("invalid argument --encoding=ENCODING");
-
-    // encoding is the file encoding used by all input files, if no BOM is present
-    flag_encoding_type = format_table[i].encoding;
   }
 
   // -t: parse TYPES and access type table to add -O (--file-extensions) and -M (--file-magic) values
@@ -5383,37 +4959,6 @@ int main(int argc, char **argv)
 #endif
 #endif
 
-  // -M: file signature "magic bytes" regex string
-  std::string signature;
-
-  // -M !MAGIC: combine to create a signature regex string
-  for (auto& i : flag_file_magic)
-  {
-    if (i.size() > 1 && (i.front() == '!' || i.front() == '^'))
-    {
-      if (!signature.empty())
-        signature.push_back('|');
-      signature.append(i.substr(1));
-
-      // tally negative MAGIC patterns
-      ++flag_min_magic;
-    }
-  }
-
-  // -M MAGIC: append to signature regex string
-  for (auto& i : flag_file_magic)
-  {
-    if (i.size() <= 1 || (i.front() != '!' && i.front() != '^'))
-    {
-      if (!signature.empty())
-        signature.push_back('|');
-      signature.append(i);
-
-      // we have positive MAGIC patterns, so scan() is a match when flag_min_magic or greater
-      flag_not_magic = flag_min_magic;
-    }
-  }
-
   // --exclude-from: add globs to the --exclude and --exclude-dir lists
   for (auto& i : flag_exclude_from)
   {
@@ -5518,12 +5063,54 @@ int main(int argc, char **argv)
 
 #endif
 
-  // run all worker threads?
-  bool directory_arg = false;
+  // -M: file signature "magic bytes" regex string
+  std::string signature;
+
+  // -M !MAGIC: combine to create a signature regex string
+  for (auto& i : flag_file_magic)
+  {
+    if (i.size() > 1 && (i.front() == '!' || i.front() == '^'))
+    {
+      if (!signature.empty())
+        signature.push_back('|');
+      signature.append(i.substr(1));
+
+      // tally negative MAGIC patterns
+      ++flag_min_magic;
+    }
+  }
+
+  // -M MAGIC: append to signature regex string
+  for (auto& i : flag_file_magic)
+  {
+    if (i.size() <= 1 || (i.front() != '!' && i.front() != '^'))
+    {
+      if (!signature.empty())
+        signature.push_back('|');
+      signature.append(i);
+
+      // we have positive MAGIC patterns, so scan() is a match when flag_min_magic or greater
+      flag_not_magic = flag_min_magic;
+    }
+  }
+
+  // -M: create a magic matcher for the MAGIC regex signature to match file signatures with magic.scan()
+  try
+  {
+    // construct magic_pattern DFA for -M !MAGIC and -M MAGIC
+    if (!signature.empty())
+      magic_pattern.assign(signature, "r");
+    magic_matcher.pattern(magic_pattern);
+  }
+
+  catch (reflex::regex_error& error)
+  {
+    abort("option -M", error.what());
+  }
 
   // check FILE arguments, warn about non-existing FILE
-  std::vector<const char*>::iterator file = files.begin();
-  while (file != files.end())
+  std::vector<const char*>::iterator file = arg_files.begin();
+  while (file != arg_files.end())
   {
 #ifdef OS_WIN
 
@@ -5535,15 +5122,15 @@ int main(int argc, char **argv)
       errno = ENOENT;
       warning(NULL, *file);
 
-      file = files.erase(file);
-      if (files.empty())
+      file = arg_files.erase(file);
+      if (arg_files.empty())
         exit(EXIT_ERROR);
     }
     else
     {
       // use threads to recurse into a directory
       if ((attr & FILE_ATTRIBUTE_DIRECTORY))
-        directory_arg = true;
+        flag_all_threads = true;
 
       ++file;
     }
@@ -5557,42 +5144,566 @@ int main(int argc, char **argv)
       // FILE does not exist
       warning(NULL, *file);
 
-      file = files.erase(file);
-      if (files.empty())
+      file = arg_files.erase(file);
+      if (arg_files.empty())
         exit(EXIT_ERROR);
     }
     else
     {
       // use threads to recurse into a directory
       if (S_ISDIR(buf.st_mode))
-        directory_arg = true;
+        flag_all_threads = true;
 
       ++file;
     }
 
 #endif
   }
+}
+
+// check TTY info and set colors
+void terminal()
+{
+  if (flag_query > 0)
+  {
+    // -Q: disable --quiet
+    flag_quiet = false;
+  }
+  else if (!flag_quiet)
+  {
+    // is output sent to a color TTY, to a pager, or to /dev/null?
+
+    // check if standard output is a TTY
+    tty_term = isatty(STDOUT_FILENO) != 0;
+
+#ifndef OS_WIN
+
+    if (!tty_term)
+    {
+      output_stat_result = fstat(STDOUT_FILENO, &output_stat) == 0;
+      output_stat_regular = output_stat_result && S_ISREG(output_stat.st_mode);
+
+      // if output is sent to /dev/null, then enable -q (i.e. "cheat" like GNU grep!)
+      struct stat dev_null_stat;
+      if (output_stat_result &&
+          S_ISCHR(output_stat.st_mode) &&
+          stat("/dev/null", &dev_null_stat) == 0 &&
+          output_stat.st_dev == dev_null_stat.st_dev &&
+          output_stat.st_ino == dev_null_stat.st_ino)
+      {
+        flag_quiet = true;
+      }
+    }
+
+#endif
+  }
+
+  // whether to apply colors
+  flag_apply_color = flag_query > 0 ? "always" : flag_color;
+
+  if (!flag_quiet)
+  {
+    if (tty_term || flag_query > 0)
+    {
+      if (flag_pretty)
+      {
+        // --pretty: if output is to a TTY then enable --color and --heading
+
+        // enable --color
+        if (flag_apply_color == NULL)
+          flag_apply_color = "auto";
+
+        // enable --heading (enables --break later)
+        flag_heading = true;
+
+        // enable -T (initial tab)
+        flag_initial_tab = true;
+      }
+      else if (flag_apply_color != NULL)
+      {
+        // --colors: if output is to a TTY then enable --color and use the specified --colors
+
+        // enable --color
+        if (flag_apply_color == NULL)
+          flag_apply_color = "auto";
+      }
+
+      if (flag_query > 0)
+      {
+        // --query: enable --line-buffered to flush output to the pager immediately
+        flag_line_buffered = true;
+      }
+      else if (flag_pager != NULL)
+      {
+        // --pager: if output is to a TTY then page through the results
+
+        // open a pipe to a forked pager
+        output = popen(flag_pager, "w");
+        if (output == NULL)
+          error("cannot open pipe to pager", flag_pager);
+
+        // enable --heading
+        flag_heading = true;
+
+        // enable --line-buffered to flush output to the pager immediately
+        flag_line_buffered = true;
+      }
+    }
+
+    // --color: (re)set flag_apply_color depending on color_term and TTY output
+    if (flag_apply_color != NULL)
+    {
+      color_term = flag_query > 0;
+
+      if (strcmp(flag_apply_color, "never") == 0)
+      {
+        flag_apply_color = NULL;
+      }
+      else
+      {
+#ifdef OS_WIN
+
+        if (tty_term)
+        {
+#ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+          // assume we have a color terminal on Windows if isatty() is true
+          HANDLE hConOut = GetStdHandle(STD_OUTPUT_HANDLE);
+          if (hConOut != INVALID_HANDLE_VALUE)
+          {
+#ifdef CP_UTF8
+            // enable UTF-8 output
+            SetConsoleOutputCP(CP_UTF8);
+#endif
+            // try virtual terminal processing for ANSI SGR codes, enable colors when successful
+            DWORD outMode;
+            GetConsoleMode(hConOut, &outMode);
+            outMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+            color_term = SetConsoleMode(hConOut, outMode) != 0;
+          }
+#endif
+        }
+
+#else
+
+        // check whether we have a color terminal
+        if (tty_term)
+        {
+          const char *term = getenv("TERM");
+          if (term &&
+              (strstr(term, "ansi") != NULL ||
+               strstr(term, "xterm") != NULL ||
+               strstr(term, "color") != NULL))
+            color_term = true;
+        }
+
+#endif
+
+        if (strcmp(flag_apply_color, "auto") == 0)
+        {
+          if (!color_term)
+            flag_apply_color = NULL;
+        }
+        else if (strcmp(flag_apply_color, "always") != 0)
+        {
+          help("invalid argument --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
+        }
+
+        if (flag_apply_color != NULL)
+        {
+          // get GREP_COLOR and GREP_COLORS
+          char *env_grep_color = NULL;
+          dupenv_s(&env_grep_color, "GREP_COLOR");
+          char *env_grep_colors = NULL;
+          dupenv_s(&env_grep_colors, "GREP_COLORS");
+          const char *grep_colors = env_grep_colors;
+
+          // if GREP_COLOR is defined, use it to set mt= default value (overridden by GREP_COLORS mt=, ms=, mc=)
+          if (env_grep_color != NULL)
+            set_color(std::string("mt=").append(env_grep_color).c_str(), "mt", color_mt);
+          else if (grep_colors == NULL)
+            grep_colors = DEFAULT_GREP_COLORS;
+
+          // parse GREP_COLORS
+          set_color(grep_colors, "sl", color_sl); // selected line
+          set_color(grep_colors, "cx", color_cx); // context line
+          set_color(grep_colors, "mt", color_mt); // matched text in any line
+          set_color(grep_colors, "ms", color_ms); // matched text in selected line
+          set_color(grep_colors, "mc", color_mc); // matched text in a context line
+          set_color(grep_colors, "fn", color_fn); // file name
+          set_color(grep_colors, "ln", color_ln); // line number
+          set_color(grep_colors, "cn", color_cn); // column number
+          set_color(grep_colors, "bn", color_bn); // byte offset
+          set_color(grep_colors, "se", color_se); // separator
+
+          // parse --colors
+          set_color(flag_colors, "sl", color_sl); // selected line
+          set_color(flag_colors, "cx", color_cx); // context line
+          set_color(flag_colors, "mt", color_mt); // matched text in any line
+          set_color(flag_colors, "ms", color_ms); // matched text in selected line
+          set_color(flag_colors, "mc", color_mc); // matched text in a context line
+          set_color(flag_colors, "fn", color_fn); // file name
+          set_color(flag_colors, "ln", color_ln); // line number
+          set_color(flag_colors, "cn", color_cn); // column number
+          set_color(flag_colors, "bn", color_bn); // byte offset
+          set_color(flag_colors, "se", color_se); // separator
+
+          // -v: if rv in GREP_COLORS then swap the sl and cx colors
+          if (flag_invert_match &&
+              ((grep_colors != NULL && strstr(grep_colors, "rv") != NULL) ||
+               (flag_colors != NULL && strstr(flag_colors, "rv") != NULL)))
+          {
+            char color_tmp[COLORLEN];
+            copy_color(color_tmp, color_sl);
+            copy_color(color_sl, color_cx);
+            copy_color(color_cx, color_tmp);
+          }
+
+          // if ms= is not specified, use the mt= value
+          if (*color_ms == '\0')
+            copy_color(color_ms, color_mt);
+
+          // if mc= is not specified, use the mt= value
+          if (*color_mc == '\0')
+            copy_color(color_mc, color_mt);
+
+          color_del = "\033[K";
+          color_off = "\033[m";
+
+          if (isatty(STDERR_FILENO))
+          {
+            color_high    = "\033[1m";
+            color_error   = "\033[1;31m";
+            color_warning = "\033[1;35m";
+            color_message = "\033[1;36m";
+          }
+
+          if (env_grep_color != NULL)
+            free(env_grep_color);
+          if (env_grep_colors != NULL)
+            free(env_grep_colors);
+        }
+      }
+    }
+  }
+}
+
+// search the specified files or standard input for pattern matches
+void ugrep()
+{
+  // reset warnings
+  warnings = 0;
+
+  // reset stats
+  stats.reset();
+
+  // -x: enable -Y
+  if (flag_line_regexp)
+    flag_empty = true;
+
+  // the regex compiled from PATTERN, -e PATTERN, -N PATTERN, and -f FILE
+  std::string regex;
+
+  // -F: make newline-separated lines in regex literal with \Q and \E
+  const char *Q = flag_fixed_strings ? "\\Q" : "";
+  const char *E = flag_fixed_strings ? "\\E|" : "|";
+
+  // either one PATTERN or one or more -e PATTERN (cannot specify both)
+  std::vector<std::string> arg_patterns;
+  if (arg_pattern != NULL)
+    arg_patterns.emplace_back(arg_pattern);
+  std::vector<std::string>& patterns = arg_pattern != NULL ? arg_patterns : flag_regexp;
+
+  // combine all -e PATTERN into a single regex string for matching
+  for (auto& pattern : patterns)
+  {
+    // empty PATTERN matches everything
+    if (pattern.empty())
+    {
+      // pattern ".*\n?|" could be used throughout without flag_empty = true, but this garbles output for -o, -H, -n, etc.
+      if (flag_line_regexp)
+      {
+        regex.append("^$|");
+      }
+      else if (flag_hex)
+      {
+        regex.append(".*\n?|");
+
+        // we're matching everything
+        flag_match = true;
+      }
+      else
+      {
+        regex.append(".*|");
+
+        // we're matching everything
+        flag_match = true;
+      }
+
+      // enable -Y: include empty pattern matches in the results
+      flag_empty = true;
+
+      // disable -w
+      flag_word_regexp = false;
+    }
+    else
+    {
+      // split newline-separated regex up into alternations
+      size_t from = 0;
+      size_t to;
+
+      // split regex at newlines, for -F add \Q \E to each string, separate by |
+      while ((to = pattern.find('\n', from)) != std::string::npos)
+      {
+        if (from < to)
+        {
+          size_t len = to - from - (pattern[to - 1] == '\r');
+          if (len > 0)
+            regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
+        }
+        from = to + 1;
+      }
+
+      if (from < pattern.size())
+        regex.append(Q).append(pattern.substr(from)).append(E);
+
+      // if pattern starts with ^ and ends with $, enable -Y
+      if (pattern.size() >= 2 && pattern.front() == '^' && pattern.back() == '$')
+        flag_empty = true;
+    }
+  }
+
+  // we're matching everything, including empty lines
+  if (flag_match)
+    flag_empty = true;
+
+  // --match: adjust color highlighting to show matches as selected lines
+  if (flag_match)
+  {
+    copy_color(match_ms, color_sl);
+    copy_color(match_mc, color_cx);
+  }
+  else
+  {
+    copy_color(match_ms, color_ms);
+    copy_color(match_mc, color_mc);
+  }
+
+  // --heading: enable --break
+  if (flag_heading)
+    flag_break = true;
+
+  // the regex compiled from -N PATTERN
+  std::string neg_regex;
+
+  // append -N PATTERN to regex as negative patterns
+  for (auto& pattern : flag_neg_regexp)
+  {
+    if (!pattern.empty())
+    {
+      // split newline-separated regex up into alternations
+      size_t from = 0;
+      size_t to;
+
+      // split regex at newlines, for -F add \Q \E to each string, separate by |
+      while ((to = pattern.find('\n', from)) != std::string::npos)
+      {
+        if (from < to)
+        {
+          size_t len = to - from - (pattern[to - 1] == '\r');
+          if (len > 0)
+            neg_regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
+        }
+        from = to + 1;
+      }
+
+      if (from < pattern.size())
+        neg_regex.append(Q).append(pattern.substr(from)).append(E);
+
+      if (pattern.size() >= 2 && pattern.front() == '^' && pattern.back() == '$')
+        flag_empty = true; // we're possibly matching empty lines, so enable -Y
+    }
+  }
+
+  // -x or -w: apply to -N PATTERN
+  if (!neg_regex.empty())
+  {
+    // remove the ending '|' from the |-concatenated regexes in the regex string
+    neg_regex.pop_back();
+
+    if (regex != "^$")
+    {
+      // -x or -w
+      if (flag_line_regexp)
+        neg_regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+      else if (flag_word_regexp)
+        neg_regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+    }
+
+    // construct negative (?^PATTERN)
+    neg_regex.insert(0, "(?^").push_back(')');
+  }
+
+  // -x or -w: apply to PATTERN then disable -x, -w, -F for patterns in -f FILE when PATTERN or -e PATTERN is specified
+  if (!regex.empty())
+  {
+    // remove the ending '|' from the |-concatenated regexes in the regex string
+    regex.pop_back();
+
+    if (regex != "^$")
+    {
+      // -x or -w
+      if (flag_line_regexp)
+        regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+      else if (flag_word_regexp)
+        regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+    }
+
+    // -x and -w do not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
+    flag_line_regexp = false;
+    flag_word_regexp = false;
+
+    // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
+    Q = "";
+    E = "|";
+  }
+
+  // combine regexes
+  if (regex.empty())
+    regex.swap(neg_regex);
+  else if (!neg_regex.empty())
+    regex.append("|").append(neg_regex);
+
+  // -f: get patterns from file
+  if (!flag_file.empty())
+  {
+    // add an ending '|' to the regex to concatenate sub-expressions
+    if (!regex.empty())
+      regex.push_back('|');
+
+    // -f: read patterns from the specified file or files
+    for (auto& filename : flag_file)
+    {
+      FILE *file = NULL;
+
+      if (filename == "-")
+        file = stdin;
+      else if (fopen_s(&file, filename.c_str(), "r") != 0)
+        file = NULL;
+
+      if (file == NULL)
+      {
+        // could not open, try GREP_PATH environment variable
+        char *env_grep_path = NULL;
+        dupenv_s(&env_grep_path, "GREP_PATH");
+
+        if (env_grep_path != NULL)
+        {
+          std::string path_file(env_grep_path);
+          path_file.append(PATHSEPSTR).append(filename);
+
+          if (fopen_s(&file, path_file.c_str(), "r") != 0)
+            file = NULL;
+
+          free(env_grep_path);
+        }
+      }
+
+#ifdef GREP_PATH
+      if (file == NULL)
+      {
+        std::string path_file(GREP_PATH);
+        path_file.append(PATHSEPSTR).append(filename);
+
+        if (fopen_s(&file, path_file.c_str(), "r") != 0)
+          file = NULL;
+      }
+#endif
+
+      if (file == NULL)
+        error("cannot read", filename.c_str());
+
+      reflex::BufferedInput input(file);
+      std::string line;
+      size_t lineno = 0;
+
+      while (true)
+      {
+        // read the next line
+        if (getline(input, line))
+          break;
+
+        ++lineno;
+
+        trim_nl(line);
+
+        // add line to the regex if not empty
+        if (!line.empty())
+          regex.append(Q).append(line).append(E);
+      }
+
+      if (file != stdin)
+        fclose(file);
+    }
+
+    // remove the ending '|' from the |-concatenated regexes in the regex string
+    regex.pop_back();
+
+    // -x or -w
+    if (flag_line_regexp)
+      regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+    else if (flag_word_regexp)
+      regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+  }
+
+  // -j: case insensitive search if regex does not contain an upper case letter
+  if (flag_smart_case)
+  {
+    flag_ignore_case = true;
+
+    for (size_t i = 0; i < regex.size(); ++i)
+    {
+      if (regex[i] == '\\')
+      {
+        ++i;
+      }
+      else if (regex[i] == '{')
+      {
+        while (++i < regex.size() && regex[i] != '}')
+          continue;
+      }
+      else if (isupper(regex[i]))
+      {
+        flag_ignore_case = false;
+        break;
+      }
+    }
+  }
+
+  // -y: disable -A, -B, and -C
+  if (flag_any_line)
+    flag_after_context = flag_before_context = 0;
+
+  // -A, -B, or -C: disable -o
+  if (flag_after_context > 0 || flag_before_context > 0)
+    flag_only_matching = false;
+
+  // -v or -y: disable -o and -u
+  if (flag_invert_match || flag_any_line)
+    flag_only_matching = flag_ungroup = false;
 
   // --depth: if -R or -r is not specified then enable -R 
-  if (flag_depth > 0 && flag_directories_action != Action::RECURSE)
+  if ((flag_min_depth > 0 || flag_max_depth > 0) && flag_directories_action != Action::RECURSE)
   {
     flag_directories_action = Action::RECURSE;
     flag_dereference = true;
   }
 
-  // if no FILE specified and no -r or -R specified, when reading standard input from a TTY then enable -R
-  if (flag_directories_action != Action::RECURSE && !flag_stdin && files.empty() && isatty(STDIN_FILENO))
-  {
-    flag_directories_action = Action::RECURSE;
-    flag_dereference = true;
-  }
-
-  // normalize -p (--no-dereference) and -S (--dereference) options, -p takes priority over -S
+  // -p (--no-dereference) and -S (--dereference): -p takes priority over -S and -R
   if (flag_no_dereference)
     flag_dereference = false;
 
   // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
-  if (!flag_no_filename && (directory_arg || flag_directories_action == Action::RECURSE || files.size() > 1 || (flag_stdin && !files.empty())))
+  if (!flag_no_filename && (flag_all_threads || flag_directories_action == Action::RECURSE || arg_files.size() > 1 || (flag_stdin && !arg_files.empty())))
     flag_with_filename = true;
 
   // --only-line-number implies -n
@@ -5627,10 +5738,6 @@ int main(int argc, char **argv)
     flag_count = false;
   }
 
-  // if no FILE specified then read standard input, unless recursive searches are specified
-  if (files.empty() && flag_directories_action != Action::RECURSE)
-    flag_stdin = true;
-
   // -J: when not set the default is the number of cores (or hardware threads), limited to MAX_JOBS
   if (flag_jobs == 0)
   {
@@ -5644,100 +5751,76 @@ int main(int argc, char **argv)
     flag_jobs = std::min(flag_jobs, flag_max_files);
 
   // set the number of threads to the number of files or when recursing to the value of -J, --jobs
-  if (directory_arg || flag_directories_action == Action::RECURSE)
+  if (flag_all_threads || flag_directories_action == Action::RECURSE)
     threads = flag_jobs;
   else
-    threads = std::min(files.size() + flag_stdin, flag_jobs);
+    threads = std::min(arg_files.size() + flag_stdin, flag_jobs);
 
-  // -M: create a magic matcher for the MAGIC regex signature to match file signatures with magic.scan()
-  reflex::Matcher magic;
+  // negative character classes do not match newlines
+  reflex::convert_flag_type convert_flags = reflex::convert_flag::notnewline;
 
-  try
+  // not -U: convert regex to Unicode
+  if (!flag_binary)
+    convert_flags |= reflex::convert_flag::unicode;
+
+  // -G: convert basic regex (BRE) to extended regex (ERE)
+  if (flag_basic_regexp)
+    convert_flags |= reflex::convert_flag::basic;
+
+  // set reflex::Pattern options to enable multiline mode
+  std::string pattern_options("(?m");
+
+  // -i: case insensitive reflex::Pattern option, applies to ASCII only
+  if (flag_ignore_case)
+    pattern_options.push_back('i');
+
+  // --free-space: this is needed to check free-space conformance by the converter
+  if (flag_free_space)
   {
-    // construct magic_pattern DFA for -M !MAGIC and -M MAGIC
-    if (!signature.empty())
-      magic_pattern.assign(signature, "r");
-    magic.pattern(magic_pattern);
+    convert_flags |= reflex::convert_flag::freespace;
+    pattern_options.push_back('x');
   }
 
-  catch (reflex::regex_error& error)
-  {
-    if (!flag_no_messages)
-      std::cerr << "option -M:\n" << error.what();
+  // prepend the pattern options (?m...) to the regex
+  pattern_options.push_back(')');
+  regex = pattern_options + regex;
 
-    exit(EXIT_ERROR);
-  }
+  // reflex::Matcher options
+  std::string matcher_options;
+
+  // -Y: permit empty pattern matches
+  if (flag_empty)
+    matcher_options.push_back('N');
+
+  // --tabs: set reflex::Matcher option T to NUM (1, 2, 4, or 8) tab size
+  if (flag_tabs)
+    matcher_options.append("T=").push_back(static_cast<char>(flag_tabs) + '0');
 
   // --format-begin
   if (!flag_quiet && flag_format_begin != NULL)
     format(flag_format_begin, 0);
 
-  try
+  // -P: Perl matching with Boost.Regex
+  if (flag_perl_regexp)
   {
-    // negative character classes do not match newlines
-    reflex::convert_flag_type convert_flags = reflex::convert_flag::notnewline;
-
-    // not -U: convert regex to Unicode
-    if (!flag_binary)
-      convert_flags |= reflex::convert_flag::unicode;
-
-    // -G: convert basic regex (BRE) to extended regex (ERE)
-    if (flag_basic_regexp)
-      convert_flags |= reflex::convert_flag::basic;
-
-    // set reflex::Pattern options to enable multiline mode
-    std::string pattern_options("(?m");
-
-    // -i: case-insensitive reflex::Pattern option, applies to ASCII only
-    if (flag_ignore_case)
-      pattern_options.push_back('i');
-
-    // --free-space: this is needed to check free-space conformance by the converter
-    if (flag_free_space)
-    {
-      convert_flags |= reflex::convert_flag::freespace;
-      pattern_options.push_back('x');
-    }
-
-    // prepend the pattern options (?m...) to the regex
-    pattern_options.push_back(')');
-    regex = pattern_options + regex;
-
-    // reflex::Matcher options
-    std::string matcher_options;
-
-    // -Y: permit empty pattern matches
-    if (flag_empty)
-      matcher_options.push_back('N');
-
-    // --tabs: set reflex::Matcher option T to NUM tab size
-    if (flag_tabs)
-    {
-      if (flag_tabs == 1 || flag_tabs == 2 || flag_tabs == 4 || flag_tabs == 8)
-        matcher_options.append("T=").push_back(static_cast<char>(flag_tabs) + '0');
-      else
-        help("invalid argument --tabs=NUM, valid arguments are 1, 2, 4, or 8");
-    }
-
-    // -P: Perl matching with Boost.Regex
-    if (flag_perl_regexp)
-    {
 #if defined(HAVE_PCRE2)
-      // construct the PCRE2 JIT-optimized NFA-based Perl pattern matcher
-      std::string pattern(reflex::PCRE2Matcher::convert(regex, convert_flags));
-      reflex::PCRE2Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
+    // construct the PCRE2 JIT-optimized NFA-based Perl pattern matcher
+    std::string pattern(reflex::PCRE2Matcher::convert(regex, convert_flags));
+    reflex::PCRE2Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
 
-      if (threads > 1)
-      {
-        GrepMaster grep(output, &matcher);
-        ugrep(magic, grep, files);
-      }
-      else
-      {
-        Grep grep(output, &matcher);
-        ugrep(magic, grep, files);
-      }
+    if (threads > 1)
+    {
+      GrepMaster grep(output, &matcher);
+      grep.ugrep();
+    }
+    else
+    {
+      Grep grep(output, &matcher);
+      grep.ugrep();
+    }
 #elif defined(HAVE_BOOST_REGEX)
+    try
+    {
       // construct the Boost.Regex NFA-based Perl pattern matcher
       std::string pattern(reflex::BoostPerlMatcher::convert(regex, convert_flags));
       reflex::BoostPerlMatcher matcher(pattern, reflex::Input(), matcher_options.c_str());
@@ -5745,45 +5828,15 @@ int main(int argc, char **argv)
       if (threads > 1)
       {
         GrepMaster grep(output, &matcher);
-        ugrep(magic, grep, files);
+        grep.ugrep();
       }
       else
       {
         Grep grep(output, &matcher);
-        ugrep(magic, grep, files);
-      }
-#else
-      help("option -P is not available in this build configuration of ugrep");
-#endif
-    }
-    else
-    {
-      // construct the RE/flex DFA pattern matcher and start matching files
-      reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), "r");
-      reflex::Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
-
-      if (threads > 1)
-      {
-        GrepMaster grep(output, &matcher);
-        ugrep(magic, grep, files);
-      }
-      else
-      {
-        Grep grep(output, &matcher);
-        ugrep(magic, grep, files);
+        grep.ugrep();
       }
     }
-  }
-
-  catch (reflex::regex_error& error)
-  {
-    abort("error: ", error.what());
-  }
-
-#if !defined(HAVE_PCRE2) && defined(HAVE_BOOST_REGEX)
-  catch (boost::regex_error& error)
-  {
-    if (!flag_no_messages)
+    catch (boost::regex_error& error)
     {
       const char *message;
       reflex::regex_error_type code;
@@ -5791,77 +5844,68 @@ int main(int argc, char **argv)
       switch (error.code())
       {
         case boost::regex_constants::error_collate:
-          message = "Boost.Regex error: invalid collating element in a [[.name.]] block\n";
           code = reflex::regex_error::invalid_collating;
           break;
         case boost::regex_constants::error_ctype:
-          message = "Boost.Regex error: invalid character class name in a [[:name:]] block\n";
           code = reflex::regex_error::invalid_class;
           break;
         case boost::regex_constants::error_escape:
-          message = "Boost.Regex error: invalid or trailing escape\n";
           code = reflex::regex_error::invalid_escape;
           break;
         case boost::regex_constants::error_backref:
-          message = "Boost.Regex error: back-reference to a non-existent marked sub-expression\n";
           code = reflex::regex_error::invalid_backreference;
           break;
         case boost::regex_constants::error_brack:
-          message = "Boost.Regex error: invalid character set [...]\n";
           code = reflex::regex_error::invalid_class;
           break;
         case boost::regex_constants::error_paren:
-          message = "Boost.Regex error: mismatched ( and )\n";
           code = reflex::regex_error::mismatched_parens;
           break;
         case boost::regex_constants::error_brace:
-          message = "Boost.Regex error: mismatched { and }\n";
           code = reflex::regex_error::mismatched_braces;
           break;
         case boost::regex_constants::error_badbrace:
-          message = "Boost.Regex error: invalid contents of a {...} block\n";
           code = reflex::regex_error::invalid_repeat;
           break;
         case boost::regex_constants::error_range:
-          message = "Boost.Regex error: character range is invalid, for example [d-a]\n";
           code = reflex::regex_error::invalid_class_range;
           break;
         case boost::regex_constants::error_space:
-          message = "Boost.Regex error: out of memory\n";
           code = reflex::regex_error::exceeds_limits;
           break;
         case boost::regex_constants::error_badrepeat:
-          message = "Boost.Regex error: attempt to repeat something that cannot be repeated\n";
           code = reflex::regex_error::invalid_repeat;
           break;
         case boost::regex_constants::error_complexity:
-          message = "Boost.Regex error: the expression became too complex to handle\n";
           code = reflex::regex_error::exceeds_limits;
           break;
         case boost::regex_constants::error_stack:
-          message = "Boost.Regex error: out of program stack space\n";
           code = reflex::regex_error::exceeds_limits;
           break;
         default:
-          message = "Boost.Regex error: bad pattern\n";
           code = reflex::regex_error::invalid_syntax;
       }
 
-      abort(message, reflex::regex_error(code, regex, error.position() + 1).what());
+      throw reflex::regex_error(code, regex, error.position() + 1);
     }
-
-    exit(EXIT_ERROR);
-  }
-
-  catch (boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<std::runtime_error>>& error)
-  {
-    abort("Boost.Regex error: ", error.what());
-  }
 #endif
-
-  catch (std::runtime_error& error)
+  }
+  else
   {
-    abort("Exception: ", error.what());
+    // construct the RE/flex DFA pattern matcher and start matching files
+    reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), "r");
+    reflex::Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
+
+    if (threads > 1)
+    {
+      GrepMaster grep(output, &matcher);
+      grep.ugrep();
+    }
+    else
+    {
+      Grep grep(output, &matcher);
+      grep.ugrep();
+    }
   }
 
   // --format-end
@@ -5873,18 +5917,16 @@ int main(int argc, char **argv)
     stats.report();
 
   // close the pipe to the forked pager
-  if (output != stdout)
+  if (flag_pager != NULL && output != NULL && output != stdout)
     pclose(output);
-
-  return warnings == 0 && stats.found_any_file() ? EXIT_OK : EXIT_FAIL;
 }
 
 // search the specified files or standard input for pattern matches
-void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
+void Grep::ugrep()
 {
-  if (!flag_stdin && files.empty())
+  if (!flag_stdin && arg_files.empty())
   {
-    grep.recurse(1, magic, ".");
+    recurse(1, ".");
   }
   else
   {
@@ -5894,21 +5936,21 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
       stats.score_file();
 
       // search standard input
-      grep.search(NULL);
+      search(NULL);
     }
 
 #ifndef OS_WIN
     std::pair<std::set<ino_t>::iterator,bool> vino;
 #endif
 
-    for (auto file : files)
+    for (auto file : arg_files)
     {
       // stop after finding max-files matching files
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
 
       // stop when output is blocked
-      if (grep.out.eof)
+      if (out.eof)
         break;
 
       // search file or directory, get the basename from the file argument first
@@ -5922,15 +5964,15 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
       uint64_t info;
 
       // search file, unless searchable directory into which we should recurse
-      switch (select(1, magic, file, basename, DIRENT_TYPE_UNKNOWN, inode, info, true))
+      switch (select(1, file, basename, DIRENT_TYPE_UNKNOWN, inode, info, true))
       {
-        case Grep::Type::DIRECTORY:
+        case Type::DIRECTORY:
 #ifndef OS_WIN
           if (flag_dereference)
             vino = visited.insert(inode);
 #endif
 
-          grep.recurse(1, magic, file);
+          recurse(1, file);
 
 #ifndef OS_WIN
           if (flag_dereference)
@@ -5938,11 +5980,11 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
 #endif
           break;
 
-        case Grep::Type::OTHER:
-          grep.search(file);
+        case Type::OTHER:
+          search(file);
           break;
 
-        case Grep::Type::SKIP:
+        case Type::SKIP:
           break;
       }
     }
@@ -5950,7 +5992,7 @@ void ugrep(reflex::Matcher& magic, Grep& grep, std::vector<const char*>& files)
 }
 
 // search file or directory for pattern matches
-Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument)
+Grep::Type Grep::select(size_t level, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument)
 {
   if (*basename == '.' && flag_no_hidden)
     return Grep::Type::SKIP;
@@ -5980,15 +6022,15 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
 
     if (is_argument || flag_directories_action == Action::RECURSE)
     {
-      // --depth: soft recursion level exceeds max depth?
-      if (flag_depth > 0 && level > flag_depth)
+      // --depth: recursion level exceeds max depth?
+      if (flag_max_depth > 0 && level > flag_max_depth)
         return Grep::Type::SKIP;
 
       // hard maximum recursion depth reached?
       if (level > MAX_DEPTH)
       {
         if (!flag_no_messages)
-          fprintf(stderr, "%sugrep: %s%s%s recursion depth exceeds hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
+          fprintf(stderr, "%sugrep: %s%s%s recursion depth hit hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
         return Grep::Type::SKIP;
       }
 
@@ -6031,6 +6073,10 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || flag_devices_action == Action::READ)
   {
+    // --depth: recursion level not deep enough?
+    if (flag_min_depth > 0 && level <= flag_min_depth)
+      return Grep::Type::SKIP;
+
     // do not exclude files that are reversed by ! negation
     bool negate = false;
     for (auto& glob : flag_not_exclude)
@@ -6063,7 +6109,7 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
         std::istream stream(&streambuf);
 
         // file has the magic bytes we're looking for: search the file
-        size_t match = magic.input(&stream).scan();
+        size_t match = magic_matcher.input(&stream).scan();
         if (match == flag_not_magic || match >= flag_min_magic)
         {
           fclose(file);
@@ -6076,7 +6122,7 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
       else
 #endif
       {
-        size_t match = magic.input(reflex::Input(file, flag_encoding_type)).scan();
+        size_t match = magic_matcher.input(reflex::Input(file, flag_encoding_type)).scan();
         if (match == flag_not_magic || match >= flag_min_magic)
         {
           fclose(file);
@@ -6139,15 +6185,15 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
 
           if (is_argument || flag_directories_action == Action::RECURSE)
           {
-            // --depth: soft recursion level exceeds max depth?
-            if (flag_depth > 0 && level > flag_depth)
+            // --depth: recursion level exceeds max depth?
+            if (flag_max_depth > 0 && level > flag_max_depth)
               return Grep::Type::SKIP;
 
             // hard maximum recursion depth reached?
             if (level > MAX_DEPTH)
             {
               if (!flag_no_messages)
-                fprintf(stderr, "%sugrep: %s%s%s recursion depth exceeds hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
+                fprintf(stderr, "%sugrep: %s%s%s recursion depth hit hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
               return Grep::Type::SKIP;
             }
 
@@ -6195,6 +6241,10 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
         }
         else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == Action::READ)
         {
+          // --depth: recursion level not deep enough?
+          if (flag_min_depth > 0 && level <= flag_min_depth)
+            return Grep::Type::SKIP;
+
           // do not exclude files that are reversed by ! negation
           bool negate = false;
           for (auto& glob : flag_not_exclude)
@@ -6227,7 +6277,7 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
               std::istream stream(&streambuf);
 
               // file has the magic bytes we're looking for: search the file
-              size_t match = magic.input(&stream).scan();
+              size_t match = magic_matcher.input(&stream).scan();
               if (match == flag_not_magic || match >= flag_min_magic)
               {
                 fclose(file);
@@ -6243,7 +6293,7 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
 #endif
             {
               // if file has the magic bytes we're looking for: search the file
-              size_t match = magic.input(reflex::Input(file, flag_encoding_type)).scan();
+              size_t match = magic_matcher.input(reflex::Input(file, flag_encoding_type)).scan();
               if (match == flag_not_magic || match >= flag_min_magic)
               {
                 fclose(file);
@@ -6298,7 +6348,7 @@ Grep::Type select(size_t level, reflex::Matcher& magic, const char *pathname, co
 }
 
 // recurse over directory, searching for pattern matches in files and subdirectories
-void Grep::recurse(size_t level, reflex::Matcher& magic, const char *pathname)
+void Grep::recurse(size_t level, const char *pathname)
 {
 #ifdef OS_WIN
 
@@ -6425,7 +6475,7 @@ void Grep::recurse(size_t level, reflex::Matcher& magic, const char *pathname)
       }
 
       // search dirpathname, unless searchable directory into which we should recurse
-      switch (select(level + 1, magic, dirpathname.c_str(), ffd.cFileName, DIRENT_TYPE_UNKNOWN, inode, info))
+      switch (select(level + 1, dirpathname.c_str(), ffd.cFileName, DIRENT_TYPE_UNKNOWN, inode, info))
       {
         case Type::DIRECTORY:
           subdirs.emplace_back(dirpathname, 0, info);
@@ -6475,10 +6525,10 @@ void Grep::recurse(size_t level, reflex::Matcher& magic, const char *pathname)
       // search dirpathname, unless searchable directory into which we should recurse
 #if defined(HAVE_STRUCT_DIRENT_D_TYPE) && defined(HAVE_STRUCT_DIRENT_D_INO)
       inode = dirent->d_ino;
-      type = select(level + 1, magic, dirpathname.c_str(), dirent->d_name, dirent->d_type, inode, info);
+      type = select(level + 1, dirpathname.c_str(), dirent->d_name, dirent->d_type, inode, info);
 #else
       inode = 0;
-      type = select(level + 1, magic, dirpathname.c_str(), dirent->d_name, DIRENT_TYPE_UNKNOWN, inode, info);
+      type = select(level + 1, dirpathname.c_str(), dirent->d_name, DIRENT_TYPE_UNKNOWN, inode, info);
 #endif
 
       switch (type)
@@ -6589,7 +6639,7 @@ void Grep::recurse(size_t level, reflex::Matcher& magic, const char *pathname)
     }
 #endif
 
-    recurse(level + 1, magic, entry.pathname.c_str());
+    recurse(level + 1, entry.pathname.c_str());
 
 #ifndef OS_WIN
     if (flag_dereference)
@@ -7023,7 +7073,7 @@ void Grep::search(const char *pathname)
 
               while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
               {
-                out.str(color_ms);
+                out.str(match_ms);
                 out.str(from, to - from + 1);
                 out.str(color_off);
 
@@ -7037,7 +7087,7 @@ void Grep::search(const char *pathname)
               begin = from;
             }
 
-            out.str(color_ms);
+            out.str(match_ms);
             out.str(begin, size);
             out.str(color_off);
 
@@ -7194,7 +7244,7 @@ void Grep::search(const char *pathname)
 
                 while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
                 {
-                  out.str(color_ms);
+                  out.str(match_ms);
                   out.str(from, to - from + 1);
                   out.str(color_off);
 
@@ -7209,7 +7259,7 @@ void Grep::search(const char *pathname)
                 begin = from;
               }
 
-              out.str(color_ms);
+              out.str(match_ms);
               out.str(begin, size);
               out.str(color_off);
 
@@ -7253,7 +7303,7 @@ void Grep::search(const char *pathname)
             {
               size_t lines = matcher->lines();
 
-              if (lines > 1 || flag_color)
+              if (lines > 1 || flag_apply_color)
               {
                 size_t first = matcher->first();
                 size_t last = matcher->last();
@@ -7280,7 +7330,7 @@ void Grep::search(const char *pathname)
 
                     while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
                     {
-                      out.str(color_ms);
+                      out.str(match_ms);
                       out.str(from, to - from + 1);
                       out.str(color_off);
 
@@ -7295,7 +7345,7 @@ void Grep::search(const char *pathname)
                     begin = from;
                   }
 
-                  out.str(color_ms);
+                  out.str(match_ms);
                   out.str(begin, size);
                   out.str(color_off);
                 }
@@ -7544,7 +7594,7 @@ void Grep::search(const char *pathname)
                 }
                 else
                 {
-                  out.str(color_mc);
+                  out.str(match_mc);
                   out.str(matcher->begin(), matcher->size());
                   out.str(color_off);
                 }
@@ -7683,7 +7733,7 @@ void Grep::search(const char *pathname)
                     }
                     else
                     {
-                      out.str(color_mc);
+                      out.str(match_mc);
                       out.str(matcher->begin(), matcher->size());
                       out.str(color_off);
                     }
@@ -7873,7 +7923,7 @@ void Grep::search(const char *pathname)
                 out.str(color_sl);
                 out.str(lines[current].c_str(), matcher->first());
                 out.str(color_off);
-                out.str(color_ms);
+                out.str(match_ms);
                 out.str(matcher->begin(), matcher->size());
                 out.str(color_off);
                 out.str(color_sl);
@@ -7926,7 +7976,7 @@ void Grep::search(const char *pathname)
                   out.str(color_sl);
                   out.str(lines[current].c_str() + last, matcher->first() - last);
                   out.str(color_off);
-                  out.str(color_ms);
+                  out.str(match_ms);
                   out.str(matcher->begin(), matcher->size());
                   out.str(color_off);
                 }
@@ -8045,7 +8095,7 @@ done_search:
 
     catch (...)
     {
-      // this can or should never happen
+      // this cannot or should never happen
       warning("exception while searching", pathname);
     }
 
@@ -8230,7 +8280,7 @@ void trim_nl(std::string& line)
     line.pop_back();
 }
 
-// convert GREP_COLORS and set the color substring to the ANSI SGR sequence
+// convert GREP_COLORS and set the color substring to the ANSI SGR codes
 void set_color(const char *colors, const char *parameter, char color[COLORLEN])
 {
   if (colors != NULL)
@@ -8411,7 +8461,7 @@ size_t strtopos(const char *string, const char *message)
 }
 
 // convert one or two comma-separated unsigned decimals specifying a range to positive size_t, produce error when conversion fails or when the range is invalid
-void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message)
+void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message, bool optional_first)
 {
   char *rest = const_cast<char*>(string);
   if (*string != ',')
@@ -8420,6 +8470,8 @@ void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *messa
     pos1 = 0;
   if (*rest == ',')
     pos2 = static_cast<size_t>(strtoull(rest + 1, &rest, 10));
+  else if (optional_first)
+    pos2 = pos1, pos1 = 0;
   else
     pos2 = 0;
   if (rest == NULL || *rest != '\0' || (pos2 > 0 && pos1 > pos2))
@@ -8434,7 +8486,11 @@ void help(const char *message, const char *arg)
 
   std::cout << "Usage: ugrep [OPTIONS] [PATTERN] [-f FILE] [-e PATTERN] [FILE ...]\n";
 
-  if (!message)
+  if (message)
+  {
+    std::cout << "Try 'ugrep --help' for more information.\n";
+  }
+  else
   {
     std::cout << "\n\
     -A NUM, --after-context=NUM\n\
@@ -8516,10 +8572,11 @@ void help(const char *message, const char *arg)
             option.  If ACTION is `dereference-recurse', read all files under\n\
             each directory, recursively, following symbolic links.  This is\n\
             equivalent to the -R option.\n\
-    --depth=NUM, -1, -2, -3, -4, -5, -6, -7, -8, -9\n\
-            Restrict recursive searches to NUM (NUM > 0) directory levels deep,\n\
+    --depth=[MIN,][MAX], -1, -2, -3, -4, -5, -6, -7, -8, -9\n\
+            Restrict recursive searches from MIN to MAX directory levels deep,\n\
             where -1 (--depth=1) searches the specified path without recursing\n\
-            into subdirectories.  Enables -R if -R or -r is not specified.\n\
+            into subdirectories.  Note that -3-5 searches 3 to 5 levels deep.\n\
+            Enables -R if -R or -r is not specified.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
@@ -8530,20 +8587,27 @@ void help(const char *message, const char *arg)
             This option is most useful when multiple -e options are used to\n\
             specify multiple patterns, when a pattern begins with a dash (`-'),\n\
             to specify a pattern after option -f or after the FILE arguments.\n\
+    --encoding=ENCODING\n\
+            The encoding format of the input, where ENCODING can be:";
+  for (int i = 0; format_table[i].format != NULL; ++i)
+    std::cout << (i == 0 ? "" : ",") << (i % 4 ? " " : "\n            ") << "`" << format_table[i].format << "'";
+  std::cout << ".\n\
     --exclude=GLOB\n\
             Skip files whose name matches GLOB using wildcard matching, same as\n\
             -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
             quote a wildcard or backslash character literally.  When GLOB\n\
             contains a `/', full pathnames are matched.  Otherwise basenames\n\
             are matched.  Note that --exclude patterns take priority over\n\
-            --include patterns.  This option may be repeated.\n\
+            --include patterns.  GLOB should be quoted to prevent shell\n\
+            globbing.  This option may be repeated.\n\
     --exclude-dir=GLOB\n\
             Exclude directories whose name matches GLOB from recursive\n\
             searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
             quote a wildcard or backslash character literally.  When GLOB\n\
             contains a `/', full pathnames are matched.  Otherwise basenames\n\
             are matched.  Note that --exclude-dir patterns take priority over\n\
-            --include-dir patterns.  This option may be repeated.\n\
+            --include-dir patterns.  GLOB should be quoted to prevent shell\n\
+            globbing.  This option may be repeated.\n\
     --exclude-from=FILE\n\
             Read the globs from FILE and skip files and directories whose name\n\
             matches one or more globs (as if specified by --exclude and\n\
@@ -8604,7 +8668,8 @@ void help(const char *message, const char *arg)
     -g GLOB, --glob=GLOB\n\
             Search only files whose name matches GLOB, same as --include=GLOB.\n\
             When GLOB is preceded by a `!' or a `^', skip files whose name\n\
-            matches GLOB, same as --exclude=GLOB.\n\
+            matches GLOB, same as --exclude=GLOB.  GLOB should be quoted to\n\
+            prevent shell globbing.  This option may be repeated.\n\
     --group-separator[=SEP]\n\
             Use SEP as a group separator for context options -A, -B, and -C.\n\
             The default is a double hyphen (`--').\n\
@@ -8624,6 +8689,14 @@ void help(const char *message, const char *arg)
             default is 2 columns or 16 bytes per line.  Option `b' removes all\n\
             space breaks, `c' hides the character column, and `h' removes the\n\
             hex spacing only.  Enables -X if -W or -X is not specified.\n\
+    --[no-]hidden\n\
+            Do (not) search ";
+#ifdef OS_WIN
+  std::cout << "Windows system and ";
+#endif
+  std::cout << "hidden files and directories.\n";
+#ifndef OS_WIN
+  std::cout << "\
     -I\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\
@@ -8644,14 +8717,16 @@ void help(const char *message, const char *arg)
             and \\ to quote a wildcard or backslash character literally.  When\n\
             GLOB contains a `/', full pathnames are matched.  Otherwise\n\
             basenames are matched.  Note that --exclude patterns take priority\n\
-            over --include patterns.  This option may be repeated.\n\
+            over --include patterns.  GLOB should be quoted to prevent shell\n\
+            globbing.  This option may be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose name matches GLOB are included in recursive\n\
             searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
             quote a wildcard or backslash character literally.  When GLOB\n\
             contains a `/', full pathnames are matched.  Otherwise basenames\n\
             are matched.  Note that --exclude-dir patterns take priority over\n\
-            --include-dir patterns.  This option may be repeated.\n\
+            --include-dir patterns.  GLOB should be quoted to prevent shell\n\
+            globbing.  This option may be repeated.\n\
     --include-from=FILE\n\
             Read the globs from FILE and search only files and directories\n\
             whose name matches one or more globs (as if specified by --include\n\
@@ -8720,6 +8795,10 @@ void help(const char *message, const char *arg)
             Restrict the number of files matched to NUM.  Note that --sort or\n\
             -J1 may be specified to produce replicable results.  If --sort is\n\
             specified, the number of threads spawned is limited to NUM.\n\
+    --[no-]mmap[=MAX]\n\
+            Do (not) use memory maps to search files.  By default, memory maps\n\
+            are used under certain conditions to improve performance.  When MAX\n\
+            is specified, use up to MAX mmap memory per thread.\n\
     -N PATTERN, --neg-regexp=PATTERN\n\
             Specify a negative PATTERN used during the search of the input:\n\
             an input line is selected only if it matches any of the specified\n\
@@ -8733,18 +8812,7 @@ void help(const char *message, const char *arg)
             each file processed.\n\
     --no-group-separator\n\
             Removes the group separator line from the output for context\n\
-            options -A, -B, and -C.\n\
-    --[no-]hidden\n\
-            Do (not) search ";
-#ifdef OS_WIN
-  std::cout << "Windows system and ";
-#endif
-  std::cout << "hidden files and directories.\n";
-#ifndef OS_WIN
-  std::cout << "\
-    --[no-]mmap\n\
-            Do (not) use memory maps to search files.  By default, memory maps\n\
-            are used under certain conditions to improve performance.\n";
+            options -A, -B, and -C.\n";
 #endif
   std::cout << "\
     -O EXTENSIONS, --file-extensions=EXTENSIONS\n\
@@ -8765,9 +8833,13 @@ void help(const char *message, const char *arg)
             displaying the match.  The line number counter is reset for each\n\
             file processed.\n\
     -P, --perl-regexp\n\
-            Interpret PATTERN as a Perl regular expression.\n";
-#if !defined(HAVE_PCRE2) && !defined(HAVE_BOOST_REGEX)
-  std::cout << "\
+            Interpret PATTERN as a Perl regular expression";
+#if defined(HAVE_PCRE2)
+  std::cout << " using PCRE2.\n";
+#elif defined(HAVE_BOOST_REGEX)
+  std::cout << " using Boost.Regex.\n";
+#else
+  std::cout << ".\n\
             This option is not available in this build configuration of ugrep.\n";
 #endif
   std::cout << "\
@@ -8778,13 +8850,17 @@ void help(const char *message, const char *arg)
             When output is sent to the terminal, uses COMMAND to page through\n\
             the output.  The default COMMAND is `" DEFAULT_PAGER "'.  Enables --heading\n\
             and --line-buffered.\n\
-    --pretty\n\
-            When output is sent to a terminal, enables --color and --heading.\n\
-    -Q ENCODING, --encoding=ENCODING\n\
-            The encoding format of the input, where ENCODING can be:";
-  for (int i = 0; format_table[i].format != NULL; ++i)
-    std::cout << (i == 0 ? "" : ",") << (i % 4 ? " " : "\n            ") << "`" << format_table[i].format << "'";
-  std::cout << ".\n\
+    --[no-]pretty\n\
+            When output is sent to a terminal, enables --color, --heading, -T.\n\
+    -Q[DELAY], --query[=DELAY]\n\
+            Query mode: user interface to perform interactive searches.  This\n\
+            mode requires an ANSI capable terminal.  An optional DELAY argument\n\
+            may be specified to reduce or increase the response time to perform\n\
+            searches after the last key press, in increments of 100ms, where\n\
+            the default is 5 (500ms delay).  Initial patterns may be specified\n\
+            with -e PATTERN, i.e. a PATTERN argument requires option -e.  Press\n\
+            F1 or CTRL-Z to view the help screen.  No whitespace may be given\n\
+            between -Q and its argument DELAY.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found, making searches potentially less expensive.\n\
@@ -9004,6 +9080,13 @@ void error(const char *message, const char *arg)
   const char *errmsg = strerror(errno);
 #endif
   fprintf(stderr, "%sugrep: %serror:%s %s%s%s%s:%s %s%s%s\n\n", color_off, color_error, color_off, color_high, message ? message : "", message ? " " : "", arg ? arg : "", color_off, color_message, errmsg, color_off);
+  exit(EXIT_ERROR);
+}
+
+// print to standard error: abort message with exception details, then exit
+void abort(const char *message)
+{
+  fprintf(stderr, "%sugrep: %s%s%s\n\n", color_off, color_error, message, color_off);
   exit(EXIT_ERROR);
 }
 
