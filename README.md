@@ -549,6 +549,7 @@ are not recommended (see below), but are the GNU/BSD grep defaults.
 
 Commonly-used aliases to add to `.bashrc` to increase productivity:
 
+    alias uq     = 'ugrep --color --query'       # short & quick query UI (interactive)
     alias ug     = 'ugrep --color --pager'       # short & quick text pattern search
     alias ux     = 'ugrep --color --pager -UX'   # short & quick binary pattern search
     alias uz     = 'ugrep --color --pager -z'    # short & quick compressed files and archives search
@@ -865,8 +866,12 @@ this also overrides the default context size of 2 lines):
 
     ugrep -Q -C5 -e TODO main.cpp
 
+To view and search the contents of an archive (e.g. zip, tarball):
+
+    ugrep -Q -z archive.tar.gz
+
 To interactively select files from `project.zip` to decompress with `unzip`,
-using selection mode (press Enter):
+using ugrep query selection mode (press Enter to select lines):
 
     unzip project.zip `zipinfo -1 project.zip | ugrep -Q`
 
@@ -2082,7 +2087,7 @@ To display the line and column numbers of matches in XML with `--xml`:
             bright.  A foreground and a background color may be combined with
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'
             (invert), `u' (underline).  Selectively overrides GREP_COLORS.
-    --pager[=COMMAND]
+    --[no-]pager[=COMMAND]
             When output is sent to the terminal, uses COMMAND to page through
             the output.  The default COMMAND is `less -R'.  Enables --heading
             and --line-buffered.

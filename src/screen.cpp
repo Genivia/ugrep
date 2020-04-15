@@ -209,6 +209,8 @@ void Screen::getsize()
 // setup screen using an alternative screen buffer and optional title, returns true on success
 bool Screen::setup(const char *title)
 {
+  ok = true;
+
 #ifdef OS_WIN
 
 #ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
@@ -225,7 +227,7 @@ bool Screen::setup(const char *title)
     {
       CloseHandle(hConOut);
       hConOut = INVALID_HANDLE_VALUE;
-      return false;
+      return ok = false;
     }
 
 #ifdef CP_UTF8
@@ -234,12 +236,12 @@ bool Screen::setup(const char *title)
   }
   else
   {
-    return false;
+    return ok = false;
   }
 
 #else
 
-  return false;
+  return ok = false;
 
 #endif
 
@@ -249,7 +251,7 @@ bool Screen::setup(const char *title)
   if (tty < 0)
   {
     if (isatty(STDOUT_FILENO) == 0)
-      return false;
+      return ok = false;
     tty = STDOUT_FILENO;
   }
 
@@ -277,7 +279,7 @@ bool Screen::setup(const char *title)
   int col = -1;
   getpos(NULL, &col);
   if (col == -1)
-    return false;
+    return ok = false;
   double_width       = col > 3;
   double_width_Emoji = col > 5;
   double_width_CJK   = col > 4;
@@ -288,7 +290,7 @@ bool Screen::setup(const char *title)
   // cursor home
   home();
 
-  return true;
+  return ok = true;
 }
 
 // cleanup to restore main screen buffer
@@ -739,6 +741,7 @@ void Screen::sigwinch(int)
 int  Screen::rows = 24;    // number of screen rows
 int  Screen::cols = 80;    // number of screen columns
 bool Screen::mono = false; // monochrome
+bool Screen::ok   = false; // true if all previous screen operations were OK after setup()
 
 #ifdef OS_WIN
 

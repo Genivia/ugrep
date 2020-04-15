@@ -4085,6 +4085,8 @@ void options(int argc, const char **argv)
               flag_no_messages = true;
             else if (strcmp(arg, "no-mmap") == 0)
               flag_max_mmap = 0;
+            else if (strcmp(arg, "no-pager") == 0)
+              flag_pager = NULL;
             else if (strcmp(arg, "no-pretty") == 0)
               flag_pretty = false;
             else if (strcmp(arg, "null") == 0)
@@ -8846,7 +8848,7 @@ void help(const char *message, const char *arg)
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
             they are specified on the command line.\n\
-    --pager[=COMMAND]\n\
+    --[no-]pager[=COMMAND]\n\
             When output is sent to the terminal, uses COMMAND to page through\n\
             the output.  The default COMMAND is `" DEFAULT_PAGER "'.  Enables --heading\n\
             and --line-buffered.\n\

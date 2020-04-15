@@ -220,9 +220,9 @@ class Screen {
   static void put(const char *text, size_t size)
   {
 #ifdef OS_WIN
-    WriteFile(hConOut, text, size, NULL, NULL);
+    ok = WriteFile(hConOut, text, size, NULL, NULL) && ok;
 #else
-    write(tty, text, size);
+    ok = write(tty, text, size) == static_cast<ssize_t>(size) && ok;
 #endif
   }
 
@@ -251,6 +251,7 @@ class Screen {
   static int  rows; // number of screen rows
   static int  cols; // number of screen columns
   static bool mono; // monochrome
+  static bool ok;   // true if all previous screen operations were OK after setup()
 
  protected:
 

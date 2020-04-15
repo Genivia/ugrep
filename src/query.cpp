@@ -684,6 +684,7 @@ void Query::query(const char *prompt)
 
   if (prompt_ != NULL)
   {
+    start_ = 2;
     Screen::put(prompt_);
     Screen::getpos(NULL, &start_);
   }
