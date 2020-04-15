@@ -2,6 +2,11 @@
 
 Search for anything in everything... ultra fast.
 
+<div align="center">
+<img src="https://www.genivia.com/images/scranim.gif" alt="">
+<br>
+interactive query UI to search files &amp; select results to output
+</div>
 <br>
 <div align="center">
 <img src="https://www.genivia.com/images/scr1.png" width="438" alt="">
