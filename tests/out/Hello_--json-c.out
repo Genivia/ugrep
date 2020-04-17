@@ -1,31 +1,31 @@
 [
   {
     "file": "Hello.bat",
-    "matches": [,
+    "matches": [
       { "match": 2 }
     ]
   },
   {
     "file": "Hello.class",
-    "matches": [,
+    "matches": [
       { "match": 8 }
     ]
   },
   {
     "file": "Hello.java",
-    "matches": [,
+    "matches": [
       { "match": 7 }
     ]
   },
   {
     "file": "Hello.pdf",
-    "matches": [,
+    "matches": [
       { "match": 134 }
     ]
   },
   {
     "file": "Hello.sh",
-    "matches": [,
+    "matches": [
       { "match": 2 }
     ]
   },

@@ -7,13 +7,13 @@
   },
   {
     "file": "Hello.class",
-    "matches": [,
+    "matches": [
       { "match": 3 }
     ]
   },
   {
     "file": "Hello.java",
-    "matches": [,
+    "matches": [
       { "match": 3 }
     ]
   },

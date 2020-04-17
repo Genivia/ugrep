@@ -290,7 +290,7 @@ bool Screen::setup(const char *title)
   // cursor home
   home();
 
-  return ok = true;
+  return ok;
 }
 
 // cleanup to restore main screen buffer

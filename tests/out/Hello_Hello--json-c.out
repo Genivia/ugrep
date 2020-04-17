@@ -13,7 +13,7 @@
   },
   {
     "file": "Hello.java",
-    "matches": [,
+    "matches": [
       { "match": 2 }
     ]
   },

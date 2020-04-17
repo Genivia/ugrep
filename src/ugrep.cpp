@@ -67,7 +67,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "2.0.0"
+#define UGREP_VERSION "2.0.1"
 
 #include "ugrep.hpp"
 #include "query.hpp"
@@ -396,17 +396,13 @@ bool flag_json                     = false;
 bool flag_xml                      = false;
 bool flag_stdin                    = false;
 bool flag_all_threads              = false;
-bool flag_sort_name                = false;
-bool flag_sort_size                = false;
-bool flag_sort_atime               = false;
-bool flag_sort_mtime               = false;
-bool flag_sort_ctime               = false;
-bool flag_sort_reversed            = false;
 bool flag_pretty                   = DEFAULT_PRETTY;
 bool flag_no_hidden                = DEFAULT_HIDDEN;
 bool flag_hex_hbr                  = true;
 bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
+bool flag_sort_rev                 = false;
+Sort flag_sort_key                 = Sort::NA;
 Action flag_devices_action         = Action::SKIP;
 Action flag_directories_action     = Action::SKIP;
 size_t flag_query                  = 0;
@@ -1298,7 +1294,7 @@ struct Output {
   void binary_file_matches(const char *pathname, const std::string& partname);
 
   // output formatted match with options --format, --format-open, --format-close
-  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body = true);
+  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool sep);
 
   // output a quoted string with escapes for \ and "
   void quote(const char *data, size_t size);
@@ -1611,7 +1607,7 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
 }
 
 // output formatted match with options --format, --format-open, --format-close
-void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body)
+void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next)
 {
   if (!body)
     lineno = 0;
@@ -1783,7 +1779,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'S':
-        if (matches > 0)
+        if (next)
         {
           if (a)
             str(a, s - a - 1);
@@ -1924,12 +1920,12 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case '<':
-        if (matches <= 1 && a)
+        if (!next && a != NULL)
           str(a, s - a - 1);
         break;
 
       case '>':
-        if (matches > 1 && a)
+        if (next && a != NULL)
           str(a, s - a - 1);
         break;
 
@@ -1937,7 +1933,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case ':':
       case ';':
       case '|':
-        if (matches > 1)
+        if (next)
           chr(c);
         break;
 
@@ -2266,12 +2262,12 @@ struct Grep {
     {
 #if defined(HAVE_STAT_ST_ATIM) && defined(HAVE_STAT_ST_MTIM) && defined(HAVE_STAT_ST_CTIM)
       // tv_sec may be 64 bit, but value is small enough to multiply by 1000000 to fit in 64 bits
-      return static_cast<uint64_t>(flag_sort_size ? buf.st_size : flag_sort_atime ? static_cast<uint64_t>(buf.st_atim.tv_sec) * 1000000 + buf.st_atim.tv_nsec / 1000 : flag_sort_mtime ?static_cast<uint64_t>(buf.st_mtim.tv_sec) * 1000000 + buf.st_mtim.tv_nsec / 1000 : flag_sort_ctime ? static_cast<uint64_t>(buf.st_ctim.tv_sec) * 1000000 + buf.st_ctim.tv_nsec / 1000 : 0);
+      return static_cast<uint64_t>(flag_sort_key == Sort::SIZE ? buf.st_size : flag_sort_key == Sort::USED ? static_cast<uint64_t>(buf.st_atim.tv_sec) * 1000000 + buf.st_atim.tv_nsec / 1000 : flag_sort_key == Sort::CHANGED ? static_cast<uint64_t>(buf.st_mtim.tv_sec) * 1000000 + buf.st_mtim.tv_nsec / 1000 : flag_sort_key == Sort::CREATED ? static_cast<uint64_t>(buf.st_ctim.tv_sec) * 1000000 + buf.st_ctim.tv_nsec / 1000 : 0);
 #elif defined(HAVE_STAT_ST_ATIMESPEC) && defined(HAVE_STAT_ST_MTIMESPEC) && defined(HAVE_STAT_ST_CTIMESPEC)
       // tv_sec may be 64 bit, but value is small enough to multiply by 1000000 to fit in 64 bits
-      return static_cast<uint64_t>(flag_sort_size ? buf.st_size : flag_sort_atime ? static_cast<uint64_t>(buf.st_atimespec.tv_sec) * 1000000 + buf.st_atimespec.tv_nsec / 1000 : flag_sort_mtime ?static_cast<uint64_t>(buf.st_mtimespec.tv_sec) * 1000000 + buf.st_mtimespec.tv_nsec / 1000 : flag_sort_ctime ? static_cast<uint64_t>(buf.st_ctimespec.tv_sec) * 1000000 + buf.st_ctimespec.tv_nsec / 1000 : 0);
+      return static_cast<uint64_t>(flag_sort_key == Sort::SIZE ? buf.st_size : flag_sort_key == Sort::USED ? static_cast<uint64_t>(buf.st_atimespec.tv_sec) * 1000000 + buf.st_atimespec.tv_nsec / 1000 : flag_sort_key == Sort::CHANGED ? static_cast<uint64_t>(buf.st_mtimespec.tv_sec) * 1000000 + buf.st_mtimespec.tv_nsec / 1000 : flag_sort_key == Sort::CREATED ? static_cast<uint64_t>(buf.st_ctimespec.tv_sec) * 1000000 + buf.st_ctimespec.tv_nsec / 1000 : 0);
 #else
-      return static_cast<uint64_t>(flag_sort_size ? buf.st_size : flag_sort_atime ? buf.st_atime : flag_sort_mtime ? buf.st_mtime : flag_sort_ctime ? buf.st_ctime : 0);
+      return static_cast<uint64_t>(flag_sort_key == Sort::SIZE ? buf.st_size : flag_sort_key == Sort::USED ? buf.st_atime : flag_sort_key == Sort::CHANGED ? buf.st_mtime : flag_sort_key == Sort::CREATED ? buf.st_ctime : 0);
 #endif
     }
 #endif
@@ -2329,6 +2325,9 @@ struct Grep {
   {
     if (pathname == NULL)
     {
+      if (source == NULL)
+        return false;
+
       pathname = flag_label;
       file = source;
     }
@@ -3309,7 +3308,7 @@ struct Grep {
 #endif
 
     // close the file
-    if (file != NULL && file != stdin)
+    if (file != NULL && file != stdin && file != source)
     {
       fclose(file);
       file = NULL;
@@ -3406,7 +3405,7 @@ struct GrepMaster : public Grep {
   GrepMaster(FILE *file, reflex::AbstractMatcher *matcher)
     :
       Grep(file, matcher),
-      sync(flag_sort == NULL ? Output::Sync::Mode::UNORDERED : Output::Sync::Mode::ORDERED)
+      sync(flag_sort_key == Sort::NA ? Output::Sync::Mode::UNORDERED : Output::Sync::Mode::ORDERED)
   {
     start_workers();
     iworker = workers.begin();
@@ -3667,6 +3666,19 @@ void GrepWorker::execute()
     // if only one job is left to do, try stealing another job from a co-worker
     if (todo <= 1)
       master->steal(this);
+  }
+
+  // --sort: flush the queue to allow other workers to terminate that are waiting for their assigned slots
+  if (out.sync != NULL && out.sync->mode == Output::Sync::Mode::ORDERED && out.eof && !job.none())
+  {
+    while (true)
+    {
+      next_job(job);
+      if (job.none())
+        break;
+      out.begin(job.slot);
+      out.end();
+    }
   }
 }
 
@@ -4676,33 +4688,6 @@ void options(int argc, const char **argv)
   if (arg_files.empty() && flag_min_depth == 0 && flag_max_depth == 0 && flag_directories_action != Action::RECURSE)
     flag_stdin = true;
 
-  // --sort: check sort KEY and set flags
-  if (flag_sort != NULL)
-  {
-    if (strcmp(flag_sort, "name") == 0)
-      flag_sort_name = true;
-    else if (strcmp(flag_sort, "size") == 0)
-      flag_sort_size = true;
-    else if (strcmp(flag_sort, "used") == 0)
-      flag_sort_atime = true;
-    else if (strcmp(flag_sort, "changed") == 0)
-      flag_sort_mtime = true;
-    else if (strcmp(flag_sort, "created") == 0)
-      flag_sort_ctime = true;
-    else if (strcmp(flag_sort, "rname") == 0)
-      flag_sort_reversed = flag_sort_name = true;
-    else if (strcmp(flag_sort, "rsize") == 0)
-      flag_sort_reversed = flag_sort_size = true;
-    else if (strcmp(flag_sort, "rused") == 0)
-      flag_sort_reversed = flag_sort_atime = true;
-    else if (strcmp(flag_sort, "rchanged") == 0)
-      flag_sort_reversed = flag_sort_mtime = true;
-    else if (strcmp(flag_sort, "rcreated") == 0)
-      flag_sort_reversed = flag_sort_ctime = true;
-    else
-      help("invalid argument --sort=KEY, valid arguments are 'name', 'size', 'used', 'changed', 'created, 'rname', 'rsize', 'rused', 'rchanged', and 'rcreated'");
-  }
-
   // normalize --cpp, --csv, --json, --xml
   if (flag_cpp)
   {
@@ -5398,6 +5383,25 @@ void ugrep()
   // reset stats
   stats.reset();
 
+  // --sort: check sort KEY and set flags
+  if (flag_sort != NULL)
+  {
+    flag_sort_rev = *flag_sort == 'r';
+
+    if (strcmp(flag_sort, "name") == 0 || strcmp(flag_sort, "rname") == 0)
+      flag_sort_key = Sort::NAME;
+    else if (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0)
+      flag_sort_key = Sort::SIZE;
+    else if (strcmp(flag_sort, "used") == 0 || strcmp(flag_sort, "rused") == 0)
+      flag_sort_key = Sort::USED;
+    else if (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "rchanged") == 0)
+      flag_sort_key = Sort::CHANGED;
+    else if (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "rcreated") == 0)
+      flag_sort_key = Sort::CREATED;
+    else
+      help("invalid argument --sort=KEY, valid arguments are 'name', 'size', 'used', 'changed', 'created, 'rname', 'rsize', 'rused', 'rchanged', and 'rcreated'");
+  }
+
   // -x: enable -Y
   if (flag_line_regexp)
     flag_empty = true;
@@ -5469,7 +5473,7 @@ void ugrep()
         regex.append(Q).append(pattern.substr(from)).append(E);
 
       // if pattern starts with ^ and ends with $, enable -Y
-      if (pattern.size() >= 2 && pattern.front() == '^' && pattern.back() == '$')
+      if (pattern.size() >= 1 && (pattern.front() == '^' || pattern.back() == '$'))
         flag_empty = true;
     }
   }
@@ -5521,7 +5525,7 @@ void ugrep()
       if (from < pattern.size())
         neg_regex.append(Q).append(pattern.substr(from)).append(E);
 
-      if (pattern.size() >= 2 && pattern.front() == '^' && pattern.back() == '$')
+      if (pattern.size() >= 1 && (pattern.front() == '^' || pattern.back() == '$'))
         flag_empty = true; // we're possibly matching empty lines, so enable -Y
     }
   }
@@ -5748,8 +5752,8 @@ void ugrep()
     flag_jobs = std::min(concurrency, MAX_JOBS);
   }
 
-  // --sort and --max-files: limit number of threads to --max-files to prevent unordered results
-  if (flag_sort != NULL && flag_max_files > 0)
+  // --sort and --max-files: limit number of threads to --max-files to prevent unordered results, this is a special case
+  if (flag_sort_key != Sort::NA && flag_max_files > 0)
     flag_jobs = std::min(flag_jobs, flag_max_files);
 
   // set the number of threads to the number of files or when recursing to the value of -J, --jobs
@@ -6173,7 +6177,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     if ((is_argument && !flag_no_dereference) || flag_dereference || (type != DIRENT_TYPE_UNKNOWN ? type != DIRENT_TYPE_LNK : !S_ISLNK(buf.st_mode)))
     {
       // if we got a symlink, use stat() to check if pathname is a directory or a regular file, we also stat when sorting by stat info
-      if (((flag_sort == NULL || flag_sort_name) && type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) || stat(pathname, &buf) == 0)
+      if (((flag_sort_key == Sort::NA || flag_sort_key == Sort::NAME) && type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) || stat(pathname, &buf) == 0)
       {
         // check if directory
         if (type == DIRENT_TYPE_DIR || ((type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISDIR(buf.st_mode)))
@@ -6463,15 +6467,15 @@ void Grep::recurse(size_t level, const char *pathname)
       uint64_t info = 0;
 
       // --sort: get file info
-      if (flag_sort != NULL && !flag_sort_name)
+      if (flag_sort_key != Sort::NA && flag_sort_key != Sort::NAME)
       {
-        if (flag_sort_size)
+        if (flag_sort_key == Sort::SIZE)
         {
           info = static_cast<uint64_t>(ffd.nFileSizeLow) | (static_cast<uint64_t>(ffd.nFileSizeHigh) << 32);
         }
         else
         {
-          struct _FILETIME& time = flag_sort_atime ? ffd.ftLastAccessTime : flag_sort_mtime ? ffd.ftLastWriteTime : ffd.ftCreationTime;
+          struct _FILETIME& time = flag_sort_key == Sort::USED ? ffd.ftLastAccessTime : flag_sort_key == Sort::CHANGED ? ffd.ftLastWriteTime : ffd.ftCreationTime;
           info = static_cast<uint64_t>(time.dwLowDateTime) | (static_cast<uint64_t>(time.dwHighDateTime) << 32);
         }
       }
@@ -6484,7 +6488,7 @@ void Grep::recurse(size_t level, const char *pathname)
           break;
 
         case Type::OTHER:
-          if (flag_sort == NULL)
+          if (flag_sort_key == Sort::NA)
             search(dirpathname.c_str());
           else
             content.emplace_back(dirpathname, 0, info);
@@ -6540,7 +6544,7 @@ void Grep::recurse(size_t level, const char *pathname)
           break;
 
         case Type::OTHER:
-          if (flag_sort == NULL)
+          if (flag_sort_key == Sort::NA)
             search(dirpathname.c_str());
           else
             content.emplace_back(dirpathname, inode, info);
@@ -6565,18 +6569,18 @@ void Grep::recurse(size_t level, const char *pathname)
 #endif
 
   // --sort: sort the selected non-directory entries and search them
-  if (flag_sort != NULL)
+  if (flag_sort_key != Sort::NA)
   {
-    if (flag_sort_name)
+    if (flag_sort_key == Sort::NAME)
     {
-      if (flag_sort_reversed)
+      if (flag_sort_rev)
         std::sort(content.begin(), content.end(), Entry::rev_comp_by_path);
       else
         std::sort(content.begin(), content.end(), Entry::comp_by_path);
     }
     else
     {
-      if (flag_sort_reversed)
+      if (flag_sort_rev)
         std::sort(content.begin(), content.end(), Entry::rev_comp_by_info);
       else
         std::sort(content.begin(), content.end(), Entry::comp_by_info);
@@ -6598,18 +6602,18 @@ void Grep::recurse(size_t level, const char *pathname)
   }
 
   // --sort: sort the selected subdirectory entries
-  if (flag_sort != NULL)
+  if (flag_sort_key != Sort::NA)
   {
-    if (flag_sort_name)
+    if (flag_sort_key == Sort::NAME)
     {
-      if (flag_sort_reversed)
+      if (flag_sort_rev)
         std::sort(subdirs.begin(), subdirs.end(), Entry::rev_comp_by_path);
       else
         std::sort(subdirs.begin(), subdirs.end(), Entry::comp_by_path);
     }
     else
     {
-      if (flag_sort_reversed)
+      if (flag_sort_rev)
         std::sort(subdirs.begin(), subdirs.end(), Entry::rev_comp_by_info);
       else
         std::sort(subdirs.begin(), subdirs.end(), Entry::comp_by_info);
@@ -6721,10 +6725,10 @@ void Grep::search(const char *pathname)
             if (flag_format != NULL)
             {
               if (flag_format_open != NULL)
-                out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false);
-              out.format(flag_format, pathname, partname, 1, matcher, false);
+                out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false, stats.found_files() > 1);
+              out.format(flag_format, pathname, partname, 1, matcher, false, false);
               if (flag_format_close != NULL)
-                out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false);
+                out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false, stats.found_files() > 1);
             }
             else
             {
@@ -6823,10 +6827,10 @@ void Grep::search(const char *pathname)
         if (flag_format != NULL)
         {
           if (flag_format_open != NULL)
-            out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false);
-          out.format(flag_format, pathname, partname, matches, matcher, false);
+            out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false, stats.found_files() > 1);
+          out.format(flag_format, pathname, partname, matches, matcher, false, false);
           if (flag_format_close != NULL)
-            out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false);
+            out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false, stats.found_files() > 1);
         }
         else
         {
@@ -6889,13 +6893,13 @@ void Grep::search(const char *pathname)
               goto exit_search;
 
             if (flag_format_open != NULL)
-              out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false);
+              out.format(flag_format_open, pathname, partname, stats.found_files(), matcher, false, stats.found_files() > 1);
           }
 
           ++matches;
 
           // output --format
-          out.format(flag_format, pathname, partname, matches, matcher, matches > 1);
+          out.format(flag_format, pathname, partname, matches, matcher, matches > 1, matches > 1);
 
           // -m: max number of matches reached?
           if (flag_max_count > 0 && matches >= flag_max_count)
@@ -6907,7 +6911,7 @@ void Grep::search(const char *pathname)
 
         // output --format-close
         if (matches > 0 && flag_format_close != NULL)
-          out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false);
+          out.format(flag_format_close, pathname, partname, stats.found_files(), matcher, false, stats.found_files() > 1);
       }
       else if (flag_only_line_number)
       {
@@ -8953,9 +8957,9 @@ void help(const char *message, const char *arg)
             additional values are output.  See also options --format and -u.\n\
     -Y, --empty\n\
             Permits empty matches.  By default, empty matches are disabled,\n\
-            unless a pattern begins with `^' and ends with `$'.  Note that -Y\n\
+            unless a pattern begins with `^' or ends with `$'.  Note that -Y\n\
             when specified with an empty-matching pattern, such as x? and x*,\n\
-            match all input, not only lines with a `x'.\n\
+            match all input, not only lines containing the character `x'.\n\
     -y, --any-line\n\
             Any matching or non-matching line is output.  Non-matching lines\n\
             are output with the `-' separator as context of the matching lines.\n\

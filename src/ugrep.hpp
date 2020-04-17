@@ -160,6 +160,9 @@ inline int fopen_s(FILE **file, const char *filename, const char *mode)
 #include <string>
 #include <vector>
 
+// --sort=KEY is n/a or by name, size, used time, changed time, created time
+enum class Sort { NA, NAME, SIZE, USED, CHANGED, CREATED };
+
 // -D, --devices and -d, --directories
 enum class Action { SKIP, READ, RECURSE };
 
@@ -210,17 +213,13 @@ extern bool flag_json;
 extern bool flag_xml;
 extern bool flag_stdin;
 extern bool flag_all_threads;
-extern bool flag_sort_name;
-extern bool flag_sort_size;
-extern bool flag_sort_atime;
-extern bool flag_sort_mtime;
-extern bool flag_sort_ctime;
-extern bool flag_sort_reversed;
 extern bool flag_pretty;
 extern bool flag_no_hidden;
 extern bool flag_hex_hbr;
 extern bool flag_hex_cbr;
 extern bool flag_hex_chr;
+extern bool flag_sort_rev;
+extern Sort flag_sort_key;
 extern Action flag_devices_action;
 extern Action flag_directories_action;
 extern size_t flag_query;

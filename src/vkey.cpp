@@ -181,9 +181,10 @@ int VKey::in(int timeout)
 // wait until key press and return raw VKey::xxx code
 int VKey::raw_get()
 {
-  char ch;
+  char ch = 0;
+  DWORD nread = 0;
 
-  if (ReadFile(hConIn, &ch, 1, NULL, NULL))
+  if (ReadFile(hConIn, &ch, 1, &nread, NULL))
     return static_cast<unsigned char>(ch);
 
   return EOF;

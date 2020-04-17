@@ -391,7 +391,6 @@ void Query::redraw()
       {
         row = 2;
         col += 28;
-        Screen::end();
       }
       Screen::put(row, col, buf);
       ++row;
@@ -413,9 +412,7 @@ void Query::redraw()
       message_ = false;
     }
 
-    Screen::setpos(Screen::rows - 1, 0);
-    Screen::erase();
-    Screen::put(Screen::rows - 1, Screen::cols - 1, "?");
+    Screen::put(0, Screen::cols - 1, "?");
   }
 }
 
@@ -515,12 +512,12 @@ void Query::erase(int num)
 void Query::query()
 {
   if (!VKey::setup(VKey::RAW))
-    abort("cannot access keyboard");
+    abort("no keyboard detected");
 
   if (!Screen::setup("ugrep --query"))
   {
     VKey::cleanup();
-    abort("cannot access screen");
+    abort("no ANSI terminal screen detected");
   }
 
   for (Flags *fp = flags_; fp->text != NULL; ++fp)
@@ -546,11 +543,17 @@ void Query::query()
 
   // close the search pipe to terminate the search threads, if still open
   if (!eof_)
+  {
     close(search_pipe_[0]);
+    eof_ = true;
+  }
 
-  // close the stdin pipe to terminate the stdin sender thread
-  if (flag_stdin)
-    close(stdin_pipe_[0]);
+  // close the stdin pipe
+  if (flag_stdin && source != stdin && source != NULL)
+  {
+    fclose(source);
+    source = NULL;
+  }
 
   if (!flag_quiet)
   {
@@ -756,12 +759,17 @@ void Query::query(const char *prompt)
 
     if (ctrl_o)
     {
+      // CTRL-O + key = Alt+key
       meta(key);
+
       ctrl_o = false;
     }
     else if (ctrl_v)
     {
-      insert(key);
+      // CTRL-V: insert verbatim character
+      if (key < 0x80)
+        insert(key);
+
       ctrl_v = false;
     }
     else
@@ -1014,7 +1022,7 @@ void Query::result()
   row_ = 0;
   rows_ = 0;
   skip_ = 0;
-  dots_ = 2;
+  dots_ = 3;
 
   if (!eof_)
   {
@@ -1104,16 +1112,18 @@ void Query::update()
 
     Screen::setpos(rows_ - row_ + 1, 0);
     Screen::normal();
-    Screen::erase();
     Screen::invert();
     if (error_ == -1)
     {
       Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
       Screen::normal();
+      Screen::erase();
     }
     else
     {
       Screen::put(rows_ - row_ + 1, 0, "(ERROR)");
+      Screen::normal();
+      Screen::erase();
 
       if (!Screen::mono)
       {
@@ -1121,9 +1131,11 @@ void Query::update()
         Screen::put(CERROR);
         Screen::end();
       }
+
       Screen::put(2, 0, what_);
       Screen::normal();
       Screen::end();
+
       draw();
     }
   }
@@ -1287,7 +1299,7 @@ void Query::execute(int fd)
       error_ = error.pos();
 
       // subtract 4 for (?m) or (?mi)
-      if (error_ >= 5)
+      if (error_ >= 4 + flag_ignore_case)
         error_ -= 4 + flag_ignore_case;
 
       // subtract 2 for -F
@@ -1651,6 +1663,22 @@ void Query::meta(int key)
               flags_[i].flag = false;
             if (!flags_[17].flag && !flags_[18].flag)
               flags_[17].flag = true;
+
+          case '#':
+            flags_[42].flag = false;
+            flags_[43].flag = false;
+            break;
+
+          case '%':
+            flags_[41].flag = false;
+            flags_[43].flag = false;
+            break;
+
+          case '@':
+            flags_[41].flag = false;
+            flags_[42].flag = false;
+            break;
+
         }
       }
       else
@@ -1751,22 +1779,22 @@ void Query::get_flags()
   flags_[37].flag = flag_max_depth == 7;
   flags_[38].flag = flag_max_depth == 8;
   flags_[39].flag = flag_max_depth == 9;
+  flags_[40].flag = flag_no_hidden;
+  flags_[41].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
+  flags_[42].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
+  flags_[43].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
+  flags_[44].flag = flag_sort && *flag_sort == 'r';
 }
 
 void Query::set_flags()
 {
-  // reset ugrep flags that are set by ugrep depending on other flags
+  // reset flags that are set by ugrep() depending on other flags
   flag_no_header = false;
   flag_dereference = false;
   flag_no_dereference = false;
   flag_files_without_match = false;
-  flag_empty = false;
   flag_match = false;
   flag_binary_files = NULL;
-
-  // make sure we sort, if sorting was not specified
-  if (flag_sort == NULL)
-    flag_sort = "name";
 
   // set ugrep flags to the interactive flags
   flag_after_context = context_ * (flags_[0].flag || flags_[3].flag);
@@ -1807,6 +1835,16 @@ void Query::set_flags()
   for (size_t i = 31; i <= 39; ++i)
     if (flags_[i].flag)
       flag_max_depth = i - 30;
+  flag_no_hidden = flags_[40].flag;
+  if (flags_[41].flag)
+    flag_sort = flags_[44].flag ? "rsize" : "size";
+  else if (flags_[42].flag)
+    flag_sort = flags_[44].flag ? "rchanged" : "changed";
+  else if (flags_[43].flag)
+    flag_sort = flags_[44].flag ? "rcreated" : "created";
+  else
+    flag_sort = flags_[44].flag ? "rname" : "name";
+
 }
 
 void Query::get_stdin()
@@ -1831,6 +1869,13 @@ void Query::set_stdin()
   // if standard input is searched, start thread to produce data
   if (flag_stdin)
   {
+    // close the stdin pipe
+    if (source != stdin && source != NULL)
+    {
+      fclose(source);
+      source = NULL;
+    }
+
     if (stdin_thread_.joinable())
       stdin_thread_.join();
 
@@ -1887,7 +1932,7 @@ std::string              Query::stdin_buffer_;
 int                      Query::stdin_pipe_[2];
 std::thread              Query::stdin_thread_;
 char                     Query::searching_[16]       = "Searching...";
-int                      Query::dots_                = 2;
+int                      Query::dots_                = 3;
 size_t                   Query::context_             = 2;
 
 #ifdef OS_WIN
@@ -1939,5 +1984,10 @@ Query::Flags Query::flags_[] = {
   { false, '7', "recurse 7 levels" },
   { false, '8', "recurse 8 levels" },
   { false, '9', "recurse 9 levels" },
+  { false, '.', "no hidden files" },
+  { false, '#', "sort by size" },
+  { false, '$', "sort by changed" },
+  { false, '@', "sort by created" },
+  { false, '^', "reverse sort" },
   { false, 0, NULL, }
 };

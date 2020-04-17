@@ -1,4 +1,4 @@
-.TH UGREP "1" "April 14, 2020" "ugrep 2.0.0" "User Commands"
+.TH UGREP "1" "April 17, 2020" "ugrep 2.0.1" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -413,7 +413,7 @@ Interpret PATTERN as a Perl regular expression using PCRE2.
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
 they are specified on the command line.
 .TP
-\fB\-\-pager[\fR=\fICOMMAND\fR]
+\fB\-\-[no\-]pager[\fR=\fICOMMAND\fR]
 When output is sent to the terminal, uses COMMAND to page through
 the output.  The default COMMAND is `less \fB\-R\fR'.  Enables \fB\-\-heading\fR
 and \fB\-\-line\-buffered\fR.
@@ -553,9 +553,9 @@ additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches.  By default, empty matches are disabled,
-unless a pattern begins with `^' and ends with `$'.  Note that \fB\-Y\fR
+unless a pattern begins with `^' or ends with `$'.  Note that \fB\-Y\fR
 when specified with an empty\-matching pattern, such as x? and x*,
-match all input, not only lines with a `x'.
+match all input, not only lines containing the character `x'.
 .TP
 \fB\-y\fR, \fB\-\-any\-line\fR
 Any matching or non\-matching line is output.  Non\-matching lines

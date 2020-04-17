@@ -1,7 +1,7 @@
 [
   {
     "file": "Hello.bat",
-    "matches": [,
+    "matches": [
       { "match": 2 }
     ]
   },
@@ -13,19 +13,19 @@
   },
   {
     "file": "Hello.java",
-    "matches": [,
+    "matches": [
       { "match": 4 }
     ]
   },
   {
     "file": "Hello.pdf",
-    "matches": [,
+    "matches": [
       { "match": 101 }
     ]
   },
   {
     "file": "Hello.sh",
-    "matches": [,
+    "matches": [
       { "match": 2 }
     ]
   },
