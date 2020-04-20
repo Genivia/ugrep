@@ -67,7 +67,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "2.0.1"
+#define UGREP_VERSION "2.0.2"
 
 #include "ugrep.hpp"
 #include "query.hpp"
@@ -2331,7 +2331,7 @@ struct Grep {
       pathname = flag_label;
       file = source;
     }
-    else if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+    else if (fopen_s(&file, pathname, "rb") != 0)
     {
       warning("cannot read", pathname);
 
@@ -5250,7 +5250,7 @@ void terminal()
       {
 #ifdef OS_WIN
 
-        if (tty_term)
+        if (tty_term || flag_query > 0)
         {
 #ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
           // assume we have a color terminal on Windows if isatty() is true
@@ -6102,7 +6102,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     {
       FILE *file;
 
-      if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+      if (fopen_s(&file, pathname, "rb") != 0)
       {
         warning("cannot read", pathname);
         return Grep::Type::SKIP;
@@ -6270,7 +6270,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           {
             FILE *file;
 
-            if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+            if (fopen_s(&file, pathname, "rb") != 0)
             {
               warning("cannot read", pathname);
               return Grep::Type::SKIP;

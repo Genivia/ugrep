@@ -1,11 +1,11 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-Search for anything in everything... ultra fast.
+Search for anything in everything... ultra fast
 
 <div align="center">
 <img src="https://www.genivia.com/images/scranim.gif" alt="">
 <br>
-interactive query UI to search files &amp; select results to output
+new option -Q opens a query UI to search files and select results to output
 </div>
 <br>
 <div align="center">
@@ -28,16 +28,16 @@ search pdf and office documents using filters
 </div>
 <br>
 
-- Unlimited pro edition - free open source (BSD-3)
+- Unlimited pro edition - forever free open source (BSD-3)
 - Written in clean and efficient C++11, built for speed
-- Ultra fast with new fuzzy match algorithms [beating](#speed) ripgrep, silver searcher, hyperscan, etc.
+- Ultra fast with new match algorithms [beating](#speed) ripgrep, silver searcher, hyperscan, etc.
 - Multi-threaded search using high-performance lock-free job queue stealing
-- Multi-threaded decompression and search of decompressed streams
+- Multi-threaded task-parallel decompression and search
 - Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64)
-- Optimized asynchronous IO
+- Optimized asynchronous IO implementation
 - Compatible with the standard GNU/BSD grep command-line options
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
-- New interactive query UI to enter search patterns, with option -Q
+- Interactive query UI to enter search patterns (option -Q)
 - Select files to search by file types, filename suffix, and/or "magic bytes"
 - Search archives (cpio, jar, tar, pax, zip)
 - Search compressed files (zip, gz, Z, bz, bz2, lzma, xz)
@@ -52,7 +52,7 @@ search pdf and office documents using filters
 - Output matches in CSV, JSON, XML, and user-specified formats 
 - Sort matching files by name, size, and time used/changed/created
 - Portable, compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
-- Includes binaries for Windows
+- Includes binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
 
 Table of contents
 -----------------
@@ -149,16 +149,16 @@ Why use ugrep?
 - **ugrep produces hexdumps for binary matches** to search for binary patterns
   of bytes, for example:
 
-      ugrep --color -UX '\xed\xab\xee\xdb' some.rpm
+      ugrep -UX '\xed\xab\xee\xdb' some.rpm
 
-  where `-X` produces hexadecimal output, `-U` specifies a binary pattern to
-  search (meaning non-Unicode), and `--color` shows the results in color.
-  Other options that normally work with text matches work with `-X` too, such
-  as the context options `-A`, `-B`, `-C`, and `-y`.  A match is considered
-  binary if it contains a NUL (`\0`) or an invalid UTF multibyte sequence that
-  cannot be properly displayed on the terminal as text.
+  where `-X` produces hexadecimal output and `-U` specifies a binary pattern to
+  search (meaning non-Unicode).  You can use either `-X` or `-W` (with-hex to
+  hexdump binary files only).  Other options that normally work with text
+  matches work with `-X` and `-W` too, such as the context options `-A`, `-B`,
+  `-C`, and `-y`.  A match is considered binary if it contains a NUL (`\0`) or
+  an invalid UTF multibyte sequence.
 
-- **ugrep includes a [database of search patterns](https://github.com/Genivia/ugrep/tree/master/patterns)**,
+- **ugrep includes a growing [database of search patterns](https://github.com/Genivia/ugrep/tree/master/patterns)**,
   so you don't need to memorize complex regex patterns for common searches.
   Environment variable `GREP_PATH` can be set to point to your own directory
   with patterns that option `-f` uses to read your pattern files.  For example
@@ -3606,7 +3606,7 @@ in markdown:
 
 
 
-    ugrep 2.0.1                     April 17, 2020                        UGREP(1)
+    ugrep 2.0.2                     April 19, 2020                        UGREP(1)
 
 <a name="patterns"/>
 

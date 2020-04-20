@@ -35,6 +35,11 @@
 */
 
 #include "vkey.hpp"
+#include <reflex/utf8.h>
+
+#ifdef VKEY_DOS
+extern "C" int _getch(void);
+#endif
 
 // expand vkey support for non-portable META-PGUP/PGDN/HOME/END and META-F1/F2/F3/F4
 // #define WITH_VKEY_ENABLE_EXPANDED
@@ -181,27 +186,97 @@ int VKey::in(int timeout)
 // wait until key press and return raw VKey::xxx code
 int VKey::raw_get()
 {
-  char ch = 0;
   DWORD nread = 0;
+  INPUT_RECORD rec;
 
-  if (ReadFile(hConIn, &ch, 1, &nread, NULL))
-    return static_cast<unsigned char>(ch);
+  while (true)
+  {
+    if (ReadConsoleInputW(hConIn, &rec, 1, &nread) == 0)
+      return EOF;
 
-  return EOF;
+    if (nread == 1 && rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+    {
+      int wc = rec.Event.KeyEvent.uChar.UnicodeChar;
+
+      while (wc == 0)
+      {
+        if (ReadConsoleInputW(hConIn, &rec, 1, &nread) == 0)
+          return EOF;
+
+        if (nread == 1 && rec.EventType == KEY_EVENT)
+        {
+          wc = rec.Event.KeyEvent.uChar.UnicodeChar;
+          if (!rec.Event.KeyEvent.bKeyDown)
+            break;
+        }
+      }
+
+      // convert non-ASCII to UTF-8
+      if (wc >= 0x80)
+      {	
+        // convert UTF-16LE surrogate pair (wc,ws)
+        if (wc >= 0xD800 && wc < 0xE000)
+        {
+          if (ReadConsoleInputW(hConIn, &rec, 1, &nread) == 0)
+            return EOF;
+
+          if (nread == 1 && rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+          {
+            int ws = rec.Event.KeyEvent.uChar.UnicodeChar;
+
+            while (ws == 0)
+            {
+              if (ReadConsoleInputW(hConIn, &rec, 1, &nread) == 0)
+                return EOF;
+
+              if (nread == 1 && rec.EventType == KEY_EVENT)
+              {
+                ws = rec.Event.KeyEvent.uChar.UnicodeChar;
+                if (rec.Event.KeyEvent.bKeyDown)
+                  break;
+              }
+            }
+
+            wc = 0x010000 - 0xDC00 + ((wc - 0xD800) << 10) + ws;
+          }
+        }
+
+        // convert to UTF-8 and save result to keybuf
+        char utf8[4];
+        size_t n = reflex::utf8(wc, utf8);
+        if (n > 0 && n <= 4)
+        {
+          wc = utf8[0];
+          keybuf[0] = 0;
+          keybuf[1] = 0;
+          keybuf[2] = 0;
+          memcpy(keybuf, &utf8[1], n - 1);
+        }
+      }
+
+      return static_cast<unsigned char>(wc);
+    }
+  }
 }
 
 // wait until key press and return raw VKey::xxx code, time out after timeout ms
 int VKey::raw_in(int timeout)
 {
+  DWORD nread = 0;
+  INPUT_RECORD rec;
+
   switch (WaitForSingleObject(hConIn, timeout))
   {
     case WAIT_OBJECT_0:
-      if (!_kbhit())
-      {
-        FlushConsoleInputBuffer(hConIn);
-        return 0;
-      }
-      return raw_get();
+      if (PeekConsoleInputW(hConIn, &rec, 1, &nread) != 0 &&
+          nread == 1 &&
+          rec.EventType == KEY_EVENT &&
+          rec.Event.KeyEvent.bKeyDown)
+        return raw_get();
+
+      // discard non-key event
+      ReadConsoleInputW(hConIn, &rec, 1, &nread);
+      return 0;
 
     case WAIT_TIMEOUT:
       return 0;

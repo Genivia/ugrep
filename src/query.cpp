@@ -1146,15 +1146,19 @@ void Query::update()
 // fetch rows up to and including the specified row, when available (i.e. do not block)
 void Query::fetch(int row)
 {
+  bool append = false;
+
   while (rows_ <= row)
   {
+    bool incomplete = false;
+
     // look for the first newline character in the buffer
     char *nlptr = static_cast<char*>(memchr(buffer_, '\n', buflen_));
 
     if (nlptr == NULL)
     {
       // no newline and buffer is not full and not EOF reached yet, get more data
-      if (buflen_ < sizeof(buffer_) && !eof_)
+      if (buflen_ < QUERY_BUFFER_SIZE && !eof_)
       {
 #ifdef OS_WIN
 
@@ -1185,7 +1189,7 @@ void Query::fetch(int row)
         {
           pending_ = false;
 
-          if (!ReadFile(hPipe_, buffer_ + buflen_, sizeof(buffer_) - buflen_, &nread, &overlapped_))
+          if (!ReadFile(hPipe_, buffer_ + buflen_, QUERY_BUFFER_SIZE - buflen_, &nread, &overlapped_))
           {
             switch (GetLastError())
             {
@@ -1210,7 +1214,7 @@ void Query::fetch(int row)
 #else
 
         // try to fetch more data from the non-blocking pipe when immediately available
-        ssize_t nread = read(search_pipe_[0], buffer_ + buflen_, sizeof(buffer_) - buflen_);
+        ssize_t nread = read(search_pipe_[0], buffer_ + buflen_, QUERY_BUFFER_SIZE - buflen_);
 
         if (nread > 0)
         {
@@ -1244,12 +1248,11 @@ void Query::fetch(int row)
 
       if (nlptr == NULL)
       {
-        // if no newline and EOF not reached yet, bail out
-        if (!eof_)
-          break;
-
-        // data has no newline but buffer is full or EOF reached, so we must read it as an incomplete row
+        // data has no newline but buffer_[] is full, so we will add it and mark it as an incomplete row
         nlptr = buffer_ + buflen_;
+
+        if (!eof_)
+          incomplete = true;
       }
     }
 
@@ -1262,19 +1265,32 @@ void Query::fetch(int row)
         selected_.push_back(select_all_);
       }
 
-      // copy the row from the buffer
-      view_[rows_].assign(buffer_, nlptr - buffer_);
+      // assign or append the row from the buffer
+      if (append)
+        view_[rows_].append(buffer_, nlptr - buffer_);
+      else
+        view_[rows_].assign(buffer_, nlptr - buffer_);
+
+      // this row is selected if select all is set
       selected_[rows_] = select_all_;
 
-      // added another row
-      ++rows_;
+      // if row is complete, move to the next
+      if (!incomplete)
+      {
+        // added another row
+        ++rows_;
 
-      if (nlptr < buffer_ + buflen_)
-        ++nlptr;
+        // skip \n
+        if (nlptr < buffer_ + buflen_)
+          ++nlptr;
+      }
+
+      // append the next chunk of text from the buffer
+      append = incomplete;
 
       buflen_ -= nlptr - buffer_;
 
-      // update the buffer
+      // shift the buffer
       memmove(buffer_, nlptr, buflen_);
     }
   }
@@ -1663,6 +1679,7 @@ void Query::meta(int key)
               flags_[i].flag = false;
             if (!flags_[17].flag && !flags_[18].flag)
               flags_[17].flag = true;
+            break;
 
           case '#':
             flags_[42].flag = false;

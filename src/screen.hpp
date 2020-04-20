@@ -220,7 +220,8 @@ class Screen {
   static void put(const char *text, size_t size)
   {
 #ifdef OS_WIN
-    ok = WriteFile(hConOut, text, size, NULL, NULL) && ok;
+    DWORD nwritten;
+    ok = WriteFile(hConOut, text, static_cast<DWORD>(size), &nwritten, NULL) && ok;
 #else
     ok = write(tty, text, size) == static_cast<ssize_t>(size) && ok;
 #endif

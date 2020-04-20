@@ -34,6 +34,9 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
+#ifndef QUERY_HPP
+#define QUERY_HPP
+
 #include "ugrep.hpp"
 #include "screen.hpp"
 #include "vkey.hpp"
@@ -48,9 +51,9 @@
 #define QUERY_MAX_LEN 1024
 #endif
 
-// how much data to buffer in the search pipe
+// size of the chunks of data to buffer when received from the search pipe
 #ifndef QUERY_BUFFER_SIZE
-#define QUERY_BUFFER_SIZE 8192
+#define QUERY_BUFFER_SIZE 16384
 #endif
 
 class Query {
@@ -176,3 +179,5 @@ class Query {
   static Flags                    flags_[];
 
 };
+
+#endif

@@ -1947,6 +1947,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         if (beg && (flags & convert_flag::lex))
           throw regex_error(regex_error::empty_expression, pattern, pos);
         anc = true;
+        beg = false;
         break;
       default:
         if (std::isalpha(pattern[pos]))

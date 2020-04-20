@@ -200,9 +200,6 @@ Unicode code point entry:
 # define VKEY_DOS
 #endif
 
-extern "C" int _getch(void);
-extern "C" int _kbhit(void);
-
 #else
 
 #include <termios.h>

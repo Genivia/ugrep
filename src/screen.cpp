@@ -485,6 +485,8 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
   {
     const char *next;
 
+    setpos(row, col);
+
     if (skip > 0)
     {
       // skip text to display
@@ -504,17 +506,16 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             break;
 
           case '\n':
-            setpos(row, col);
             erase();
             ++row;
             if (row >= rows)
               return;
+            setpos(row, col);
             num = skip;
             ++text;
             break;
 
           case '\r':
-            num = skip;
             ++text;
             break;
 
@@ -526,9 +527,9 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
               ++next;
               while (next < end && !isalpha(*next))
                 ++next;
+              if (next < end)
+                ++next;
             }
-            if (next < end)
-              ++next;
             if (!mono && codeptr + (next - text) < codebuf + SCREEN_MAX_CODELEN)
             {
               memcpy(codeptr, text, next - text);
@@ -538,16 +539,22 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             break;
 
           default:
-            int width = mbchar_width(text, &next);
+            uint32_t wc = wchar(text, &next);
+            int width = *text == '\0' || (wc == 0 && *text != '\0') ? 2 : wchar_width(wc);
             num -= width;
             if (num < 0)
             {
               // cut a double wide character in half?
               if (width == 2 && num == -1)
               {
-                ++num;
-                ++len;
+                put(' ');
+                --len;
               }
+            }
+            else if (wc == 0 && *text != '\0')
+            {
+              // invalid Unicode character
+              next = text + 1;
             }
             text = next;
         }
@@ -562,8 +569,6 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
     }
 
     const char *ptr = text;
-
-    setpos(row, col);
 
     while (ptr != NULL && ptr < end)
     {
@@ -614,9 +619,8 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
           break;
 
         case '\r':
-          ++ptr;
-          col = 0;
-          len = cols - col;
+          put(text, ptr - text);
+          text = ++ptr;
           break;
 
         case '\033':
@@ -628,9 +632,9 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             ++ptr;
             while (ptr < end && !isalpha(*ptr))
               ++ptr;
+            if (ptr < end)
+              ++ptr;
           }
-          if (ptr < end)
-            ++ptr;
           if (mono)
           {
             text = ptr;
@@ -643,17 +647,10 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
           }
           break;
 
-        case 0x7f:
-          put(text, ptr - text);
-          invert();
-          put("^?");
-          noinvert();
-          text = ++ptr;
-          break;
-
         default:
           uint32_t wc = wchar(ptr, &next);
-          len -= wchar_width(wc);
+          int width = *ptr == '\0' || (wc == 0 && *ptr != '\0') ? 2 : wchar_width(wc);
+          len -= width;
           if (len < 0)
           {
             put(text, ptr - text);
@@ -673,12 +670,32 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
               ptr = text;
             }
           }
+          else if (wc == 0 && *ptr != '\0')
+          {
+            // invalid Unicode character
+            const char *xdigits = "0123456789ABCDEF";
+            put(text, ptr - text);
+            invert();
+            unsigned char c = static_cast<unsigned char>(*ptr);
+            char buf[2] = { xdigits[c >> 4], xdigits[c & 0xf] };
+            put(buf, 2);
+            noinvert();
+            text = ++ptr;
+          }
           else if (wc <= 0x1f)
           {
             put(text, ptr - text);
             invert();
             char buf[2] = { '^', static_cast<char>('@' + wc) };
             put(buf, 2);
+            noinvert();
+            text = ++ptr;
+          }
+          else if (wc == 0x7f)
+          {
+            put(text, ptr - text);
+            invert();
+            put("^?", 2);
             noinvert();
             text = ++ptr;
           }
