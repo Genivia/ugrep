@@ -2331,7 +2331,7 @@ struct Grep {
       pathname = flag_label;
       file = source;
     }
-    else if (fopen_s(&file, pathname, "rb") != 0)
+    else if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
     {
       warning("cannot read", pathname);
 
@@ -6102,7 +6102,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     {
       FILE *file;
 
-      if (fopen_s(&file, pathname, "rb") != 0)
+      if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
       {
         warning("cannot read", pathname);
         return Grep::Type::SKIP;
@@ -6270,7 +6270,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           {
             FILE *file;
 
-            if (fopen_s(&file, pathname, "rb") != 0)
+            if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
             {
               warning("cannot read", pathname);
               return Grep::Type::SKIP;
