@@ -843,14 +843,17 @@ This option starts a user interface to enter search patterns interactively:
   and cancelling searches by each key pressed.  Reducing the level of
   parallelism helps to reduce system load, i.e. with option `-J`, e.g. `-J2` to
   run 2 worker jobs at most.
+- To avoid long pathnames to obscure the view, use `--pretty` or `--heading` to
+  separate matching files by headings and line breaks.
 
 To interactively search the files in the working directory and below:
 
     ugrep -Q
 
-Same, but restricted to C++ files only and ignoring `.gitignore` files:
+Same, but restricted to C++ files only and ignoring `.gitignore` files,
+using `--pretty` to add headings between matching files and "initial tabs":
 
-    ugrep -Q -tc++ --ignore-files
+    ugrep -Q -tc++ --pretty --ignore-files
 
 To interactively search all makefiles in the working directory and below:
 
@@ -1786,12 +1789,14 @@ implicit:
 
     --exclude=GLOB
             Skip files whose name matches GLOB using wildcard matching, same as
-            -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \ to
+            -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
             quote a wildcard or backslash character literally.  When GLOB
             contains a `/', full pathnames are matched.  Otherwise basenames
-            are matched.  Note that --exclude patterns take priority over
-            --include patterns.  GLOB should be quoted to prevent shell
-            globbing.  This option may be repeated.
+            are matched.  When GLOB ends with a `/', directories are excluded
+            as if --exclude-dir is specified.  Otherwise files are excluded.
+            Note that --exclude patterns take priority over --include patterns.
+            GLOB should be quoted to prevent shell globbing.  This option may
+            be repeated.
     --exclude-dir=GLOB
             Exclude directories whose name matches GLOB from recursive
             searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
@@ -1820,10 +1825,12 @@ implicit:
     --include=GLOB
             Search only files whose name matches GLOB using wildcard matching,
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,
-            and \ to quote a wildcard or backslash character literally.  If
+            and \\ to quote a wildcard or backslash character literally.  When
             GLOB contains a `/', full pathnames are matched.  Otherwise
-            basenames are matched.  Note that --exclude patterns take priority
-            over --include patterns.  GLOB should be quoted to prevent shell
+            basenames are matched.  When GLOB ends with a `/', directories are
+            included as if --include-dir is specified.  Otherwise files are
+            included.  Note that --exclude patterns take priority over
+            --include patterns.  GLOB should be quoted to prevent shell
             globbing.  This option may be repeated.
     --include-dir=GLOB
             Only directories whose name matches GLOB are included in recursive
