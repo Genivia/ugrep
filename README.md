@@ -558,7 +558,7 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
     alias ug     = 'ugrep --color --pager'       # short & quick text pattern search
     alias ux     = 'ugrep --color --pager -UX'   # short & quick binary pattern search
     alias uz     = 'ugrep --color --pager -z'    # short & quick compressed files and archives search
-    alias ugit   = 'ugrep -R --ignore-files      # like git-grep
+    alias ugit   = 'ugrep -R --ignore-files'     # like git-grep
 
     alias grep   = 'ugrep --color --pager -G'    # search with basic regular expressions (BRE)
     alias egrep  = 'ugrep --color --pager -E'    # search with extended regular expressions (ERE)
