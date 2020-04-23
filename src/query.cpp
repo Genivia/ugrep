@@ -333,6 +333,8 @@ void Query::redraw()
 
   if (mode_ == Mode::QUERY)
   {
+    if (select_ >= 0 && select_ >= row_ + Screen::rows - 1)
+      row_ = select_ - Screen::rows + 2;
     if (row_ + Screen::rows - 1 > rows_)
       row_ = rows_ - Screen::rows + 1;
     if (row_ < 0)

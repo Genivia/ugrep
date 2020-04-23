@@ -67,7 +67,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "2.0.3"
+#define UGREP_VERSION "2.0.4"
 
 #include "ugrep.hpp"
 #include "query.hpp"
@@ -2431,6 +2431,7 @@ struct Grep {
       pipe_fd[0] = -1;
       pipe_fd[1] = -1;
       extracting = false;
+      waiting    = false;
 
       FILE *pipe_in = NULL;
 
@@ -2652,9 +2653,6 @@ struct Grep {
     size_t maxlen;
     zstrm.get_buffer(buf, maxlen);
 
-    // by default, we are not extracting parts of an archive
-    extracting = false;
-
     // to hold the path (prefix + name) extracted from the zip file
     std::string path;
 
@@ -2667,6 +2665,9 @@ struct Grep {
       const zstreambuf::ZipInfo *zipinfo = zstrm.zipinfo();
       if (zipinfo != NULL)
       {
+        // extracting a zip file
+        extracting = true;
+
         if (!zipinfo->name.empty() && zipinfo->name.back() == '/')
         {
           // skip zip directories
@@ -2739,9 +2740,6 @@ struct Grep {
 
     if (extracting)
     {
-      // inform the main grep thread we are done extracting
-      extracting = false;
-
       // close our end of the pipe
       if (pipe_fd[1] >= 0)
       {
@@ -2749,8 +2747,9 @@ struct Grep {
         pipe_fd[1] = -1;
       }
 
-      // signal close
+      // signal close and inform the main grep thread we are done extracting
       std::unique_lock<std::mutex> lock(pipe_mutex);
+      extracting = false;
       pipe_close.notify_one();
       lock.unlock();
     }
@@ -3325,11 +3324,11 @@ struct Grep {
       // our end of the pipe is now closed
       pipe_fd[0] = -1;
 
-      // if extracting and the decompression filter thread is not yet waiting, then wait until the other end closed the pipe
       std::unique_lock<std::mutex> lock(pipe_mutex);
+
+      // if extracting and the decompression filter thread is not yet waiting, then wait until the other end closed the pipe
       if (extracting && !waiting)
         pipe_close.wait(lock);
-      lock.unlock();
 
       // extract the next file from the archive when applicable, e.g. zip format
       if (extracting)
@@ -3344,6 +3343,8 @@ struct Grep {
           {
             // notify the decompression filter thread of the new pipe
             pipe_ready.notify_one();
+
+            lock.unlock();
 
             input = reflex::Input(pipe_in, flag_encoding_type);
 
@@ -3364,12 +3365,11 @@ struct Grep {
         pipe_fd[0] = -1;
         pipe_fd[1] = -1;
 
-        // stop extracting
-        extracting = false;
-
         // notify the decompression thread filter_tar/filter_cpio
         pipe_ready.notify_one();
       }
+
+      lock.unlock();
 
       // join the decompression thread
       thread.join();

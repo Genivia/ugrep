@@ -3618,7 +3618,7 @@ in markdown:
 
 
 
-    ugrep 2.0.3                     April 22, 2020                        UGREP(1)
+    ugrep 2.0.4                     April 23, 2020                        UGREP(1)
 
 <a name="patterns"/>
 
