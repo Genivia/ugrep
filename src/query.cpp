@@ -364,20 +364,19 @@ void Query::redraw()
 #endif
     Screen::put(10, 0, "");
     Screen::put(11, 0, "\033[7mHome\033[m \033[7mEnd\033[m begin/end of line");
-    Screen::put(12, 0, "");
-    Screen::put(13, 0, "\033[7m^K\033[m delete after cursor");
-    Screen::put(14, 0, "\033[7m^L\033[m refresh screen");
-    Screen::put(15, 0, "\033[7m^Q\033[m quick exit & save");
-    Screen::put(16, 0, "\033[7m^T\033[m toggle colors on/off");
-    Screen::put(17, 0, "\033[7m^U\033[m delete before cursor");
-    Screen::put(18, 0, "\033[7m^V\033[m verbatim character");
-    Screen::put(19, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
-    Screen::put(20, 0, "");
-    Screen::put(21, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
-    Screen::put(22, 0, "");
+    Screen::put(12, 0, "\033[7m^K\033[m delete after cursor");
+    Screen::put(13, 0, "\033[7m^L\033[m refresh screen");
+    Screen::put(14, 0, "\033[7m^Q\033[m quick exit & save");
+    Screen::put(15, 0, "\033[7m^T\033[m toggle colors on/off");
+    Screen::put(16, 0, "\033[7m^U\033[m delete before cursor");
+    Screen::put(17, 0, "\033[7m^V\033[m verbatim character");
+    Screen::put(18, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
+    Screen::put(19, 0, "");
+    Screen::put(20, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
+    Screen::put(21, 0, "");
 
     std::string buf;
-    int row = 23;
+    int row = 22;
     int col = 0;
 
     for (Flags *fp = flags_; fp->text != NULL; ++fp)
@@ -416,6 +415,20 @@ void Query::redraw()
   }
 }
 
+#ifdef OS_WIN
+
+// CTRL-C handler
+BOOL WINAPI Query::sigint(DWORD signal)
+{
+  VKey::cleanup();
+  Screen::cleanup();
+
+  // return FALSE to invoke the next handler
+  return FALSE;
+}
+
+#else
+
 void Query::sigwinch(int)
 {
   redraw();
@@ -426,14 +439,14 @@ void Query::sigint(int)
   VKey::cleanup();
   Screen::cleanup();
 
-#ifndef OS_WIN
   // reset SIGINT to the default handler
   signal(SIGINT, SIG_DFL);
 
   // signal SIGINT again
   kill(getpid(), SIGINT);
-#endif
 }
+
+#endif
 
 void Query::move(int col)
 {
@@ -546,6 +559,9 @@ void Query::query()
   {
     close(search_pipe_[0]);
     eof_ = true;
+
+    // graciously shut down ugrep() if still running
+    cancel_ugrep();
   }
 
   // close the stdin pipe
@@ -633,8 +649,13 @@ void Query::query(const char *prompt)
   eof_        = true;
   buflen_     = 0;
 
-#ifndef OS_WIN
+#ifdef OS_WIN
 
+  // handle CTRL-C
+  SetConsoleCtrlHandler(&sigint, TRUE);
+
+#else
+  
   signal(SIGINT, sigint);
 
   signal(SIGPIPE, SIG_IGN);
@@ -656,17 +677,15 @@ void Query::query(const char *prompt)
     }
     else
     {
-      pattern.assign("(");
       for (auto& regex : flag_regexp)
       {
         if (!regex.empty())
         {
           if (!pattern.empty())
-            pattern.append(")|(");
+            pattern.push_back('|');
           pattern.append(regex);
         }
       }
-      pattern.push_back(')');
     }
 
     flag_regexp.clear();
@@ -1029,6 +1048,9 @@ void Query::result()
     close(search_pipe_[0]);
     eof_ = true;
     buflen_ = 0;
+
+    // graciously shut down ugrep() if still running
+    cancel_ugrep();
   }
 
   error_ = -1;
@@ -1182,6 +1204,7 @@ void Query::fetch(int row)
               default:
                 close(search_pipe_[0]);
                 eof_ = true;
+                cancel_ugrep();
             }
           }
         }
@@ -1205,6 +1228,7 @@ void Query::fetch(int row)
               default:
                 close(search_pipe_[0]);
                 eof_ = true;
+                cancel_ugrep();
             }
           }
         }
@@ -1228,6 +1252,7 @@ void Query::fetch(int row)
           {
             close(search_pipe_[0]);
             eof_ = true;
+            cancel_ugrep();
           }
         }
         else
@@ -1235,6 +1260,7 @@ void Query::fetch(int row)
           // no data, pipe is closed (EOF)
           close(search_pipe_[0]);
           eof_ = true;
+          cancel_ugrep();
         }
 
 #endif
@@ -1457,6 +1483,8 @@ void Query::pgdn(bool half_page)
 
 void Query::help()
 {
+  Mode oldMode = mode_;
+
   mode_ = Mode::HELP;
 
   Screen::clear();
@@ -1543,7 +1571,7 @@ void Query::help()
     }
   }
 
-  mode_ = Mode::QUERY;
+  mode_ = oldMode;
 
   Screen::clear();
   redraw();
@@ -1682,18 +1710,18 @@ void Query::meta(int key)
             break;
 
           case '#':
-            flags_[42].flag = false;
             flags_[43].flag = false;
+            flags_[44].flag = false;
             break;
 
           case '%':
-            flags_[41].flag = false;
-            flags_[43].flag = false;
+            flags_[42].flag = false;
+            flags_[44].flag = false;
             break;
 
           case '@':
-            flags_[41].flag = false;
             flags_[42].flag = false;
+            flags_[43].flag = false;
             break;
 
         }
@@ -1797,10 +1825,11 @@ void Query::get_flags()
   flags_[38].flag = flag_max_depth == 8;
   flags_[39].flag = flag_max_depth == 9;
   flags_[40].flag = flag_no_hidden;
-  flags_[41].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
-  flags_[42].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
-  flags_[43].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
-  flags_[44].flag = flag_sort && *flag_sort == 'r';
+  flags_[41].flag = flag_heading;
+  flags_[42].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
+  flags_[43].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
+  flags_[44].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
+  flags_[45].flag = flag_sort && *flag_sort == 'r';
 }
 
 void Query::set_flags()
@@ -1812,6 +1841,9 @@ void Query::set_flags()
   flag_files_without_match = false;
   flag_match = false;
   flag_binary_files = NULL;
+
+  // suppress warning messages
+  flag_no_messages = true;
 
   // set ugrep flags to the interactive flags
   flag_after_context = context_ * (flags_[0].flag || flags_[3].flag);
@@ -1853,15 +1885,15 @@ void Query::set_flags()
     if (flags_[i].flag)
       flag_max_depth = i - 30;
   flag_no_hidden = flags_[40].flag;
-  if (flags_[41].flag)
-    flag_sort = flags_[44].flag ? "rsize" : "size";
-  else if (flags_[42].flag)
-    flag_sort = flags_[44].flag ? "rchanged" : "changed";
+  flag_heading = flags_[41].flag;
+  if (flags_[42].flag)
+    flag_sort = flags_[45].flag ? "rsize" : "size";
   else if (flags_[43].flag)
-    flag_sort = flags_[44].flag ? "rcreated" : "created";
+    flag_sort = flags_[45].flag ? "rchanged" : "changed";
+  else if (flags_[44].flag)
+    flag_sort = flags_[45].flag ? "rcreated" : "created";
   else
-    flag_sort = flags_[44].flag ? "rname" : "name";
-
+    flag_sort = flags_[45].flag ? "rname" : "name";
 }
 
 void Query::get_stdin()
@@ -2002,6 +2034,7 @@ Query::Flags Query::flags_[] = {
   { false, '8', "recurse 8 levels" },
   { false, '9', "recurse 9 levels" },
   { false, '.', "no hidden files" },
+  { false, '+', "with heading" },
   { false, '#', "sort by size" },
   { false, '$', "sort by changed" },
   { false, '@', "sort by created" },

@@ -221,9 +221,9 @@ class Screen {
   {
 #ifdef OS_WIN
     DWORD nwritten;
-    ok = WriteFile(hConOut, text, static_cast<DWORD>(size), &nwritten, NULL) && ok;
+    good = WriteFile(hConOut, text, static_cast<DWORD>(size), &nwritten, NULL) && good;
 #else
-    ok = write(tty, text, size) == static_cast<ssize_t>(size) && ok;
+    good = write(tty, text, size) == static_cast<ssize_t>(size) && good;
 #endif
   }
 
@@ -252,7 +252,7 @@ class Screen {
   static int  rows; // number of screen rows
   static int  cols; // number of screen columns
   static bool mono; // monochrome
-  static bool ok;   // true if all previous screen operations were OK after setup()
+  static bool good; // true if all previous screen operations were successful after setup()
 
  protected:
 

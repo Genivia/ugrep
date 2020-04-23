@@ -1,4 +1,4 @@
-.TH UGREP "1" "April 19, 2020" "ugrep 2.0.2" "User Commands"
+.TH UGREP "1" "April 22, 2020" "ugrep 2.0.3" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -152,9 +152,11 @@ Skip files whose name matches GLOB using wildcard matching, same as
 \fB\-g\fR \fI!GLOB\fR.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
 quote a wildcard or backslash character literally.  When GLOB
 contains a `/', full pathnames are matched.  Otherwise basenames
-are matched.  Note that \fB\-\-exclude\fR patterns take priority over
-\fB\-\-include\fR patterns.  GLOB should be quoted to prevent shell
-globbing.  This option may be repeated.
+are matched.  When GLOB ends with a `/', directories are excluded
+as if \fB\-\-exclude\-dir\fR is specified.  Otherwise files are excluded.
+Note that \fB\-\-exclude\fR patterns take priority over \fB\-\-include\fR patterns.
+GLOB should be quoted to prevent shell globbing.  This option may
+be repeated.
 .TP
 \fB\-\-exclude\-dir\fR=\fIGLOB\fR
 Exclude directories whose name matches GLOB from recursive
@@ -273,8 +275,10 @@ Search only files whose name matches GLOB using wildcard matching,
 same as \fB\-g\fR \fIGLOB\fR.  GLOB can use **, *, ?, and [...] as wildcards,
 and \\ to quote a wildcard or backslash character literally.  When
 GLOB contains a `/', full pathnames are matched.  Otherwise
-basenames are matched.  Note that \fB\-\-exclude\fR patterns take priority
-over \fB\-\-include\fR patterns.  GLOB should be quoted to prevent shell
+basenames are matched.  When GLOB ends with a `/', directories are
+included as if \fB\-\-include\-dir\fR is specified.  Otherwise files are
+included.  Note that \fB\-\-exclude\fR patterns take priority over
+\fB\-\-include\fR patterns.  GLOB should be quoted to prevent shell
 globbing.  This option may be repeated.
 .TP
 \fB\-\-include\-dir\fR=\fIGLOB\fR
@@ -424,9 +428,9 @@ When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \
 \fB\-Q\fR[\fIDELAY\fR], \fB\-\-query[\fR=\fIDELAY\fR]
 Query mode: user interface to perform interactive searches.  This
 mode requires an ANSI capable terminal.  An optional DELAY argument
-may be specified to reduce or increase the response time to perform
+may be specified to reduce or increase the response time to execute
 searches after the last key press, in increments of 100ms, where
-the default is 5 (500ms delay).  Initial patterns may be specified
+the default is 5 (0.5s delay).  Initial patterns may be specified
 with \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press
 F1 or CTRL\-Z to view the help screen.  No whitespace may be given
 between \fB\-Q\fR and its argument DELAY.

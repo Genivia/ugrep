@@ -273,9 +273,10 @@ int VKey::raw_in(int timeout)
           rec.EventType == KEY_EVENT &&
           rec.Event.KeyEvent.bKeyDown)
         return raw_get();
-
-      // discard non-key event
-      ReadConsoleInputW(hConIn, &rec, 1, &nread);
+  
+      // discard event
+      if (nread == 1)
+        ReadConsoleInputW(hConIn, &rec, 1, &nread);
       return 0;
 
     case WAIT_TIMEOUT:

@@ -805,9 +805,9 @@ To show a list of `-t TYPES` option values:
     -Q[DELAY], --query[=DELAY]
             Query mode: user interface to perform interactive searches.  This
             mode requires an ANSI capable terminal.  An optional DELAY argument
-            may be specified to reduce or increase the response time to perform
+            may be specified to reduce or increase the response time to execute
             searches after the last key press, in increments of 100ms, where
-            the default is 5 (500ms delay).  Initial patterns may be specified
+            the default is 5 (0.5s delay).  Initial patterns may be specified
             with -e PATTERN, i.e. a PATTERN argument requires option -e.  Press
             F1 or CTRL-Z to view the help screen.  No whitespace may be given
             between -Q and its argument DELAY.
@@ -843,8 +843,9 @@ This option starts a user interface to enter search patterns interactively:
   and cancelling searches by each key pressed.  Reducing the level of
   parallelism helps to reduce system load, i.e. with option `-J`, e.g. `-J2` to
   run 2 worker jobs at most.
-- To avoid long pathnames to obscure the view, use `--pretty` or `--heading` to
-  separate matching files by headings and line breaks.
+- To avoid long pathnames to obscure the view, press Alt-+ or use option
+  `--pretty` or `--heading` to separate matching files by headings and line
+  breaks.
 
 To interactively search the files in the working directory and below:
 
@@ -2763,9 +2764,11 @@ in markdown:
                   as -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and
                   \  to  quote  a wildcard or backslash character literally.  When
                   GLOB contains a `/',  full  pathnames  are  matched.   Otherwise
-                  basenames are matched.  Note that --exclude patterns take prior-
-                  ity over --include patterns.  GLOB should be quoted  to  prevent
-                  shell globbing.  This option may be repeated.
+                  basenames  are  matched.  When GLOB ends with a `/', directories
+                  are excluded as if --exclude-dir is specified.  Otherwise  files
+                  are  excluded.   Note that --exclude patterns take priority over
+                  --include patterns.  GLOB should  be  quoted  to  prevent  shell
+                  globbing.  This option may be repeated.
 
            --exclude-dir=GLOB
                   Exclude  directories  whose  name  matches  GLOB  from recursive
@@ -2887,9 +2890,11 @@ in markdown:
                   ing, same as -g GLOB.  GLOB can use **, *, ?, and [...] as wild-
                   cards,  and  \ to quote a wildcard or backslash character liter-
                   ally.  When GLOB contains a `/',  full  pathnames  are  matched.
-                  Otherwise  basenames  are matched.  Note that --exclude patterns
-                  take priority over --include patterns.  GLOB should be quoted to
-                  prevent shell globbing.  This option may be repeated.
+                  Otherwise  basenames  are  matched.   When GLOB ends with a `/',
+                  directories are included as if --include-dir is specified.  Oth-
+                  erwise  files  are  included.  Note that --exclude patterns take
+                  priority over --include patterns.  GLOB should be quoted to pre-
+                  vent shell globbing.  This option may be repeated.
 
            --include-dir=GLOB
                   Only  directories whose name matches GLOB are included in recur-
@@ -3043,9 +3048,9 @@ in markdown:
                   Query  mode:  user  interface  to  perform interactive searches.
                   This mode requires an ANSI capable terminal.  An optional  DELAY
                   argument  may  be  specified  to reduce or increase the response
-                  time to perform searches after the last key press, in increments
-                  of  100ms,  where  the default is 5 (500ms delay).  Initial pat-
-                  terns may be specified with -e PATTERN, i.e. a PATTERN  argument
+                  time to execute searches after the last key press, in increments
+                  of 100ms, where the default is 5 (0.5s delay).  Initial patterns
+                  may be specified  with  -e  PATTERN,  i.e.  a  PATTERN  argument
                   requires option -e.  Press F1 or CTRL-Z to view the help screen.
                   No whitespace may be given between -Q and its argument DELAY.
 
@@ -3613,7 +3618,7 @@ in markdown:
 
 
 
-    ugrep 2.0.2                     April 19, 2020                        UGREP(1)
+    ugrep 2.0.3                     April 22, 2020                        UGREP(1)
 
 <a name="patterns"/>
 

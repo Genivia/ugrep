@@ -209,7 +209,7 @@ void Screen::getsize()
 // setup screen using an alternative screen buffer and optional title, returns true on success
 bool Screen::setup(const char *title)
 {
-  ok = true;
+  good = true;
 
 #ifdef OS_WIN
 
@@ -227,7 +227,7 @@ bool Screen::setup(const char *title)
     {
       CloseHandle(hConOut);
       hConOut = INVALID_HANDLE_VALUE;
-      return ok = false;
+      return good = false;
     }
 
 #ifdef CP_UTF8
@@ -236,12 +236,12 @@ bool Screen::setup(const char *title)
   }
   else
   {
-    return ok = false;
+    return good = false;
   }
 
 #else
 
-  return ok = false;
+  return good = false;
 
 #endif
 
@@ -251,7 +251,7 @@ bool Screen::setup(const char *title)
   if (tty < 0)
   {
     if (isatty(STDOUT_FILENO) == 0)
-      return ok = false;
+      return good = false;
     tty = STDOUT_FILENO;
   }
 
@@ -260,8 +260,8 @@ bool Screen::setup(const char *title)
 
 #endif
 
-  // enable alternative screen buffer, soft reset, clear screen, reset colors
-  put("\033[?1049h\033[!p\033[2J\033[m");
+  // enable alternative screen buffer, alternate scroll, enable cursor w/o blinking, soft reset, clear screen, reset colors
+  put("\033[?1049h\033[?1007h\033[?25h\033[?12l\033[!p\033[2J\033[m");
 
   // set title, when provided as argument
   if (title != NULL)
@@ -279,7 +279,7 @@ bool Screen::setup(const char *title)
   int col = -1;
   getpos(NULL, &col);
   if (col == -1)
-    return ok = false;
+    return good = false;
   double_width       = col > 3;
   double_width_Emoji = col > 5;
   double_width_CJK   = col > 4;
@@ -290,7 +290,7 @@ bool Screen::setup(const char *title)
   // cursor home
   home();
 
-  return ok;
+  return good;
 }
 
 // cleanup to restore main screen buffer
@@ -300,8 +300,8 @@ void Screen::cleanup()
 
   if (hConOut != INVALID_HANDLE_VALUE)
   {
-    // disable alternative screen buffer
-    put("\033[1;1H\033[2J\033[m\033[?1049l");
+    // disable alternative scroll and screen buffer
+    put("\033[1;1H\033[2J\033[m\033[?1007l\033[?1049l");
 
     SetConsoleMode(hConOut, oldOutMode);
 
@@ -758,7 +758,7 @@ void Screen::sigwinch(int)
 int  Screen::rows = 24;    // number of screen rows
 int  Screen::cols = 80;    // number of screen columns
 bool Screen::mono = false; // monochrome
-bool Screen::ok   = false; // true if all previous screen operations were OK after setup()
+bool Screen::good = false; // true if all previous screen operations were successful after setup()
 
 #ifdef OS_WIN
 

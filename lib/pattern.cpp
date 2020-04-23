@@ -627,155 +627,159 @@ void Pattern::parse3(
   if (opt_.x)
     while (std::isspace(c))
       c = at(++loc);
-  if (c == '*' || c == '+' || c == '?')
+  while (true)
   {
-    if (c == '*' || c == '?')
-      nullable = true;
-    if (at(++loc) == '?')
+    if (c == '*' || c == '+' || c == '?')
     {
-      lazypos.insert(loc);
-      if (nullable)
-        lazy(lazypos, firstpos);
-      ++loc;
-    }
-    else
-    {
-      // CHECKED algorithmic options: 7/30 if (!nullable)
-      // CHECKED algorithmic options: 7/30   lazypos.clear();
-      greedy(firstpos);
-    }
-    if (c == '+' && !nullable && !lazypos.empty())
-    {
-      Positions firstpos1;
-      lazy(lazypos, firstpos, firstpos1);
-      for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-        set_insert(followpos[p->pos()], firstpos1);
-      set_insert(firstpos, firstpos1);
-    }
-    else if (c == '*' || c == '+')
-    {
-      for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-        set_insert(followpos[p->pos()], firstpos);
-    }
-  }
-  else if (c == '{') // {n,m} repeat min n times to max m
-  {
-    size_t k = 0;
-    for (Location i = 0; i < 7 && std::isdigit(c = at(++loc)); ++i)
-      k = 10 * k + (c - '0');
-    if (k > Const::IMAX)
-      error(regex_error::exceeds_limits, loc);
-    Index n = static_cast<Index>(k);
-    Index m = n;
-    bool unlimited = false;
-    if (at(loc) == ',')
-    {
-      if (std::isdigit(at(loc + 1)))
-      {
-        m = 0;
-        for (Location i = 0; i < 7 && std::isdigit(c = at(++loc)); ++i)
-          m = 10 * m + (c - '0');
-      }
-      else
-      {
-        unlimited = true;
-        ++loc;
-      }
-    }
-    if (at(loc) == '}')
-    {
-      bool nullable1 = nullable;
-      if (n == 0)
+      if (c == '*' || c == '?')
         nullable = true;
-      if (n > m)
-        error(regex_error::invalid_repeat, loc);
       if (at(++loc) == '?')
       {
         lazypos.insert(loc);
         if (nullable)
-        {
           lazy(lazypos, firstpos);
-        }
-        /* CHECKED algorithmic options: 8/1 else
-        {
-          lazy(lazypos, firstpos, firstpos1);
-          set_insert(firstpos, firstpos1);
-          pfirstpos = &firstpos1;
-        } */
         ++loc;
       }
       else
       {
-        // CHECKED algorithmic options 7/30 if (!nullable)
-        // CHECKED algorithmic options 7/30   lazypos.clear();
-        if (n < m && lazypos.empty())
-          greedy(firstpos);
+        // CHECKED algorithmic options: 7/30 if (!nullable)
+        // CHECKED algorithmic options: 7/30   lazypos.clear();
+        greedy(firstpos);
       }
-      // CHECKED added pfirstpos to point to updated firstpos with lazy quants
-      Positions firstpos1, *pfirstpos = &firstpos;
-      if (!nullable && !lazypos.empty()) // CHECKED algorithmic options 8/1 added to make ((a|b)*?b){2} work
+      if (c == '+' && !nullable && !lazypos.empty())
       {
+        Positions firstpos1;
         lazy(lazypos, firstpos, firstpos1);
-        pfirstpos = &firstpos1;
+        for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
+          set_insert(followpos[p->pos()], firstpos1);
+        set_insert(firstpos, firstpos1);
       }
-      if (nullable && unlimited) // {0,} == *
+      else if (c == '*' || c == '+')
       {
         for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-          set_insert(followpos[p->pos()], *pfirstpos);
+          set_insert(followpos[p->pos()], firstpos);
       }
-      else if (m > 0)
+    }
+    else if (c == '{') // {n,m} repeat min n times to max m
+    {
+      size_t k = 0;
+      for (Location i = 0; i < 7 && std::isdigit(c = at(++loc)); ++i)
+        k = 10 * k + (c - '0');
+      if (k > Const::IMAX)
+        error(regex_error::exceeds_limits, loc);
+      Index n = static_cast<Index>(k);
+      Index m = n;
+      bool unlimited = false;
+      if (at(loc) == ',')
       {
-        if (iter * m >= Const::IMAX)
-          error(regex_error::exceeds_limits, loc);
-        // update followpos by virtually repeating sub-regex m-1 times
-        Follow followpos1;
-        for (Follow::const_iterator fp = followpos.begin(); fp != followpos.end(); ++fp)
-          if (fp->first.loc() >= b_pos)
-            for (Index i = 1; i < m; ++i)
-              for (Positions::const_iterator p = fp->second.begin(); p != fp->second.end(); ++p)
-                followpos1[fp->first.iter(iter * i)].insert(p->iter(iter * i));
-        for (Follow::const_iterator fp = followpos1.begin(); fp != followpos1.end(); ++fp)
-          set_insert(followpos[fp->first], fp->second);
-        // add m-1 times virtual concatenation (by indexed positions k.i)
-        for (Index i = 0; i < m - 1; ++i)
-          for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
-            for (Positions::const_iterator j = pfirstpos->begin(); j != pfirstpos->end(); ++j)
-              followpos[k->pos().iter(iter * i)].insert(j->iter(iter * i + iter));
-        if (unlimited)
-          for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
-            for (Positions::const_iterator j = pfirstpos->begin(); j != pfirstpos->end(); ++j)
-              followpos[k->pos().iter(iter * m - iter)].insert(j->iter(iter * m - iter));
-        if (nullable1)
+        if (std::isdigit(at(loc + 1)))
         {
-          // extend firstpos when sub-regex is nullable
-          Positions firstpos1 = *pfirstpos;
-          for (Index i = 1; i <= m - 1; ++i)
-            for (Positions::const_iterator k = firstpos1.begin(); k != firstpos1.end(); ++k)
-              firstpos.insert(k->iter(iter * i));
+          m = 0;
+          for (Location i = 0; i < 7 && std::isdigit(c = at(++loc)); ++i)
+            m = 10 * m + (c - '0');
         }
-        // n to m-1 are optional with all 0 to m-1 are optional when nullable
-        Positions lastpos1;
-        for (Index i = (nullable ? 0 : n - 1); i <= m - 1; ++i)
-          for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
-            lastpos1.insert(k->iter(iter * i));
-        lastpos.swap(lastpos1);
-        iter *= m;
+        else
+        {
+          unlimited = true;
+          ++loc;
+        }
       }
-      else // zero range {0}
+      if (at(loc) == '}')
       {
-        firstpos.clear();
-        lastpos.clear();
-        lazypos.clear();
+        bool nullable1 = nullable;
+        if (n == 0)
+          nullable = true;
+        if (n > m)
+          error(regex_error::invalid_repeat, loc);
+        if (at(++loc) == '?')
+        {
+          lazypos.insert(loc);
+          if (nullable)
+          {
+            lazy(lazypos, firstpos);
+          }
+          /* CHECKED algorithmic options: 8/1 else
+             {
+             lazy(lazypos, firstpos, firstpos1);
+             set_insert(firstpos, firstpos1);
+             pfirstpos = &firstpos1;
+             } */
+          ++loc;
+        }
+        else
+        {
+          // CHECKED algorithmic options 7/30 if (!nullable)
+          // CHECKED algorithmic options 7/30   lazypos.clear();
+          if (n < m && lazypos.empty())
+            greedy(firstpos);
+        }
+        // CHECKED added pfirstpos to point to updated firstpos with lazy quants
+        Positions firstpos1, *pfirstpos = &firstpos;
+        if (!nullable && !lazypos.empty()) // CHECKED algorithmic options 8/1 added to make ((a|b)*?b){2} work
+        {
+          lazy(lazypos, firstpos, firstpos1);
+          pfirstpos = &firstpos1;
+        }
+        if (nullable && unlimited) // {0,} == *
+        {
+          for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
+            set_insert(followpos[p->pos()], *pfirstpos);
+        }
+        else if (m > 0)
+        {
+          if (iter * m >= Const::IMAX)
+            error(regex_error::exceeds_limits, loc);
+          // update followpos by virtually repeating sub-regex m-1 times
+          Follow followpos1;
+          for (Follow::const_iterator fp = followpos.begin(); fp != followpos.end(); ++fp)
+            if (fp->first.loc() >= b_pos)
+              for (Index i = 1; i < m; ++i)
+                for (Positions::const_iterator p = fp->second.begin(); p != fp->second.end(); ++p)
+                  followpos1[fp->first.iter(iter * i)].insert(p->iter(iter * i));
+          for (Follow::const_iterator fp = followpos1.begin(); fp != followpos1.end(); ++fp)
+            set_insert(followpos[fp->first], fp->second);
+          // add m-1 times virtual concatenation (by indexed positions k.i)
+          for (Index i = 0; i < m - 1; ++i)
+            for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
+              for (Positions::const_iterator j = pfirstpos->begin(); j != pfirstpos->end(); ++j)
+                followpos[k->pos().iter(iter * i)].insert(j->iter(iter * i + iter));
+          if (unlimited)
+            for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
+              for (Positions::const_iterator j = pfirstpos->begin(); j != pfirstpos->end(); ++j)
+                followpos[k->pos().iter(iter * m - iter)].insert(j->iter(iter * m - iter));
+          if (nullable1)
+          {
+            // extend firstpos when sub-regex is nullable
+            Positions firstpos1 = *pfirstpos;
+            for (Index i = 1; i <= m - 1; ++i)
+              for (Positions::const_iterator k = firstpos1.begin(); k != firstpos1.end(); ++k)
+                firstpos.insert(k->iter(iter * i));
+          }
+          // n to m-1 are optional with all 0 to m-1 are optional when nullable
+          Positions lastpos1;
+          for (Index i = (nullable ? 0 : n - 1); i <= m - 1; ++i)
+            for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
+              lastpos1.insert(k->iter(iter * i));
+          lastpos.swap(lastpos1);
+          iter *= m;
+        }
+        else // zero range {0}
+        {
+          firstpos.clear();
+          lastpos.clear();
+          lazypos.clear();
+        }
+      }
+      else
+      {
+        error(regex_error::invalid_repeat, loc);
       }
     }
     else
     {
-      error(regex_error::invalid_repeat, loc);
+      break;
     }
-  }
-  else if (c == '}')
-  {
-    error(regex_error::mismatched_braces, loc++);
+    c = at(loc);
   }
   DBGLOG("END parse3()");
 }
@@ -1031,7 +1035,15 @@ void Pattern::parse4(
   {
     ++loc;
   }
-  else if (c != '\0' && c != '|' && c != ')' && c != '?' && c != '*' && c != '+')
+  else if (c == ')')
+  {
+    error(regex_error::mismatched_parens, loc++);
+  }
+  else if (c == '}')
+  {
+    error(regex_error::mismatched_braces, loc++);
+  }
+  else if (c != '\0' && c != '|' && c != '?' && c != '*' && c != '+')
   {
     firstpos.insert(loc);
     lastpos.insert(loc);

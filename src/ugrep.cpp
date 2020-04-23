@@ -67,7 +67,7 @@ Prebuilt executables are located in ugrep/bin.
 */
 
 // ugrep version
-#define UGREP_VERSION "2.0.2"
+#define UGREP_VERSION "2.0.3"
 
 #include "ugrep.hpp"
 #include "query.hpp"
@@ -87,6 +87,7 @@ Prebuilt executables are located in ugrep/bin.
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
 
 #ifdef OS_WIN
 
@@ -285,8 +286,25 @@ bool tty_term = false;
 // color term detected
 bool color_term = false;
 
-#ifndef OS_WIN
+#ifdef OS_WIN
 
+// CTRL-C handler
+BOOL WINAPI sigint(DWORD signal)
+{
+  if (signal == CTRL_C_EVENT || signal == CTRL_BREAK_EVENT)
+  {
+    // be nice, reset colors on interrupt when sending output to a color TTY
+    if (color_term)
+      color_term = write(1, "\033[m", 3) > 0; // appease -Wunused-result
+  }
+
+  // return FALSE to invoke the next handler (when applicable) or just exit
+  return FALSE;
+}
+
+#else
+
+// SIGINT handler
 static void sigint(int)
 {
   // reset SIGINT to the default handler
@@ -331,6 +349,14 @@ FILE *source = stdin;
 
 // redirectable output destination is standard output by default or a pipe
 FILE *output = stdout;
+
+// Grep object handle, to cancel the search with cancel_ugrep()
+struct Grep *grep_handle = NULL;
+
+std::mutex grep_handle_mutex;
+
+void set_handle(struct Grep*);
+void reset_handle();
 
 #ifndef OS_WIN
 
@@ -832,6 +858,7 @@ bool MMap::file(reflex::Input& input, const char*& base, size_t& size)
 struct Output {
 
   static constexpr size_t SIZE = 16384; // size of each buffer in the buffers container
+  static constexpr size_t STOP = ~0;    // if last == STOP, cancel
 
   struct Buffer { char data[SIZE]; }; // data buffer in the buffers container
 
@@ -869,7 +896,7 @@ struct Output {
           if (!lock->owns_lock())
           {
             lock->lock();
-            while (slot != last)
+            while (last != STOP && slot != last)
               turn.wait(*lock);
           }
           break;
@@ -922,17 +949,26 @@ struct Output {
           // if this is our slot, bump last to allow next turn, release lock, and notify other threads
           std::unique_lock<std::mutex> lock_bits(bits_mutex);
 
-          if (slot == last)
+          if (last == STOP)
+          {
+            if (lock->owns_lock())
+              lock->unlock();
+
+            turn.notify_all();
+          }
+          else if (slot == last)
           {
             if (!lock->owns_lock())
               lock->lock();
+
             do
             {
               ++last;
               completed.rshift();
-            }
-            while (completed[0]);
+            } while (completed[0]);
+
             lock->unlock();
+
             turn.notify_all();
           }
           else
@@ -945,12 +981,42 @@ struct Output {
       }
     }
 
+    // cancel sync, release all threads waiting on their turn in ORDERED mode
+    void cancel()
+    {
+      switch (mode)
+      {
+        case Mode::UNORDERED:
+          last = STOP;
+          break;
+
+        case Mode::ORDERED:
+        {
+          // set last to STOP to cancel sync in ORDERED mode
+          std::unique_lock<std::mutex> lock_bits(bits_mutex);
+
+          last = STOP;
+
+          lock_bits.unlock();
+
+          turn.notify_all();
+          break;
+        }
+      }
+    }
+
+    // true if sync was cancelled
+    bool cancelled()
+    {
+      return last == STOP;
+    }
+
     Mode                         mode;       // UNORDERED or ORDERED (--sort by slot) mode
     std::mutex                   mutex;      // mutex to synchronize output
     std::condition_variable      turn;       // ORDERED: cv for threads to take turns by checking if last slot is their slot
     size_t                       next;       // ORDERED: next slot assigned to thread
-    std::atomic_size_t           last;       // ORDERED: slot for threads to wait for their turn to output
-    std::mutex                   bits_mutex; // ORDERED: mutex to synchronize bitset access
+    std::atomic_size_t           last;       // ORDERED: slot for threads to wait for their turn to output, or STOP to cancel
+    std::mutex                   bits_mutex; // ORDERED: mutex to synchronize bitset access and when setting last = STOP
     reflex::Bits                 completed;  // ORDERED: bitset of completed slots marked by release() by threads that don't acquire() output
 
   };
@@ -1217,7 +1283,7 @@ struct Output {
 
           if (nwritten < SIZE)
           {
-            eof = true;
+            cancel();
             break;
           }
         }
@@ -1234,11 +1300,11 @@ struct Output {
               continue;
 
             if (nwritten < num)
-              eof = true;
+              cancel();
           }
 
           if (!eof && fflush(file) != 0)
-            eof = true;
+            cancel();
         }
       }
 
@@ -1287,6 +1353,21 @@ struct Output {
       sync->finish(lock, slot);
   }
 
+  // cancel output
+  void cancel()
+  {
+    eof = true;
+
+    if (sync != NULL)
+      sync->cancel();
+  }
+
+  // true if output was cancelled()
+  bool cancelled()
+  {
+    return sync != NULL && sync->cancelled();
+  }
+
   // output the header part of the match, preceeding the matched line
   void header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *sep, bool newline);
 
@@ -1320,7 +1401,7 @@ struct Output {
   Buffers                       buffers; // buffers container
   Buffers::iterator             buf;     // current buffer in the container
   char                         *cur;     // current position in the current buffer
-  bool                          eof;     // the other end closed or has an error
+  std::atomic_bool              eof;     // the other end closed or has an error
 
 };
 
@@ -3237,11 +3318,11 @@ struct Grep {
 
     if (flag_decompress && pipe_fd[0] != -1)
     {
-      // close the FILE* pipe created with fdopen()
+      // close the FILE* and its underlying pipe created with pipe() and fdopen()
       if (input.file() != NULL)
         fclose(input.file());
 
-      // our end of the pipe is no longer in use
+      // our end of the pipe is now closed
       pipe_fd[0] = -1;
 
       // if extracting and the decompression filter thread is not yet waiting, then wait until the other end closed the pipe
@@ -3250,11 +3331,11 @@ struct Grep {
         pipe_close.wait(lock);
       lock.unlock();
 
-      // extract the next file
+      // extract the next file from the archive when applicable, e.g. zip format
       if (extracting)
       {
-        // output is not blocked
-        if (!out.eof)
+        // output is not blocked or cancelled
+        if (!out.eof && !out.cancelled())
         {
           FILE *pipe_in = NULL;
 
@@ -3266,7 +3347,7 @@ struct Grep {
 
             input = reflex::Input(pipe_in, flag_encoding_type);
 
-            // loop back the the start to search next file in the archive
+            // loop back in search() to start searching the next file in the archive
             return true;
           }
 
@@ -3282,6 +3363,9 @@ struct Grep {
 
         pipe_fd[0] = -1;
         pipe_fd[1] = -1;
+
+        // stop extracting
+        extracting = false;
 
         // notify the decompression thread filter_tar/filter_cpio
         pipe_ready.notify_one();
@@ -3399,7 +3483,7 @@ struct Job {
 
 struct GrepWorker;
 
-// master submits jobs to workers and supports lock-free job stealing
+// master submits jobs to workers and implements operations to support lock-free job stealing
 struct GrepMaster : public Grep {
 
   GrepMaster(FILE *file, reflex::AbstractMatcher *matcher)
@@ -3407,13 +3491,21 @@ struct GrepMaster : public Grep {
       Grep(file, matcher),
       sync(flag_sort_key == Sort::NA ? Output::Sync::Mode::UNORDERED : Output::Sync::Mode::ORDERED)
   {
+    // master and workers synchronize their output
+    out.sync_on(&sync);
+
+    // set global handle to be able to call cancel_ugrep()
+    set_handle(this);
+
     start_workers();
+
     iworker = workers.begin();
   }
 
   ~GrepMaster()
   {
     stop_workers();
+    reset_handle();
   }
 
   // search a file by submitting it as a job to a worker
@@ -3428,15 +3520,18 @@ struct GrepMaster : public Grep {
   // stop all workers
   void stop_workers();
 
+  // cancel search and terminate workers
+  void cancel();
+
   // submit a job with a pathname to a worker, workers are visited round-robin
   void submit(const char *pathname);
 
   // lock-free job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
   bool steal(GrepWorker *worker);
 
-  std::list<GrepWorker>           workers; // workers running threads
-  std::list<GrepWorker>::iterator iworker; // the next worker to submit a job to
-  Output::Sync                    sync;    // sync output of workers
+  std::list<GrepWorker>           workers;   // workers running threads
+  std::list<GrepWorker>::iterator iworker;   // the next worker to submit a job to
+  Output::Sync                    sync;      // sync output of workers
 
 };
 
@@ -3465,7 +3560,7 @@ struct GrepWorker : public Grep {
   // worker thread execution
   void execute();
 
-  // submit NONE sentinel to this worker
+  // submit Job::NONE sentinel to this worker
   void submit_job()
   {
     std::unique_lock<std::mutex> lock(queue_mutex);
@@ -3526,7 +3621,7 @@ struct GrepWorker : public Grep {
     jobs.pop_front();
     --todo;
 
-    // if we popped a NONE sentinel but the queue has some jobs, then move the sentinel to the back of the queue
+    // if we popped a Job::NONE sentinel but the queue has some jobs, then move the sentinel to the back of the queue
     if (job.none() && !jobs.empty())
     {
       jobs.emplace_back();
@@ -3549,7 +3644,7 @@ struct GrepWorker : public Grep {
 
     job = jobs.front();
 
-    // we cannot steal a NONE sentinel
+    // we cannot steal a Job::NONE sentinel
     if (job.none())
       return false;
 
@@ -3559,7 +3654,7 @@ struct GrepWorker : public Grep {
     return true;
   }
 
-  // submit NONE sentinel to stop this worker
+  // submit Job::NONE sentinel to stop this worker
   void stop()
   {
     submit_job();
@@ -3570,7 +3665,7 @@ struct GrepWorker : public Grep {
   std::mutex              queue_mutex; // job queue mutex
   std::condition_variable queue_work;  // cv to control the job queue
   std::deque<Job>         jobs;        // queue of pending jobs submitted to this worker
-  std::atomic_size_t      todo;        // number of jobs in the queue, for lock-free job stealing
+  std::atomic_size_t      todo;        // number of jobs in the queue, atomic for lock-free job stealing
 
 };
 
@@ -3584,9 +3679,11 @@ void GrepMaster::start_workers()
 // stop all workers
 void GrepMaster::stop_workers()
 {
+  // submit Job::NONE sentinel to workers
   for (auto& worker : workers)
     worker.stop();
 
+  // wait for workers to join
   for (auto& worker : workers)
     worker.thread.join();
 }
@@ -3605,8 +3702,8 @@ void GrepMaster::submit(const char *pathname)
 // lock-free job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
 bool GrepMaster::steal(GrepWorker *worker)
 {
-  // pick a random co-worker
-  long n = rand() % threads;
+  // pick a random co-worker using thread-safe std::chrono::high_resolution_clock as a simple RNG
+  long n = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() % threads;
   std::list<GrepWorker>::iterator iworker = workers.begin();
   while (--n >= 0)
     ++iworker;
@@ -3645,7 +3742,7 @@ void GrepWorker::execute()
 {
   Job job;
 
-  while (!out.eof)
+  while (!out.eof && !out.cancelled())
   {
     // wait for next job
     next_job(job);
@@ -3666,19 +3763,6 @@ void GrepWorker::execute()
     // if only one job is left to do, try stealing another job from a co-worker
     if (todo <= 1)
       master->steal(this);
-  }
-
-  // --sort: flush the queue to allow other workers to terminate that are waiting for their assigned slots
-  if (out.sync != NULL && out.sync->mode == Output::Sync::Mode::ORDERED && out.eof && !job.none())
-  {
-    while (true)
-    {
-      next_job(job);
-      if (job.none())
-        break;
-      out.begin(job.slot);
-      out.end();
-    }
   }
 }
 
@@ -3837,6 +3921,7 @@ const struct { const char *type; const char *extensions; const char *magic; } ty
 void options(int argc, const char **argv);
 void termina();
 void ugrep();
+void cancel_ugrep();
 
 // ugrep main()
 int main(int argc, const char **argv)
@@ -3863,7 +3948,12 @@ int main(int argc, const char **argv)
 
 #endif
 
-#ifndef OS_WIN
+#ifdef OS_WIN
+
+  // handle CTRL-C
+  SetConsoleCtrlHandler(&sigint, TRUE);
+
+#else
 
   // ignore SIGPIPE
   signal(SIGPIPE, SIG_IGN);
@@ -5822,7 +5912,9 @@ void ugrep()
     else
     {
       Grep grep(output, &matcher);
+      set_handle(&grep);
       grep.ugrep();
+      reset_handle();
     }
 #elif defined(HAVE_BOOST_REGEX)
     try
@@ -5839,7 +5931,9 @@ void ugrep()
       else
       {
         Grep grep(output, &matcher);
+        set_handle(&grep);
         grep.ugrep();
+        reset_handle();
       }
     }
     catch (boost::regex_error& error)
@@ -5910,7 +6004,9 @@ void ugrep()
     else
     {
       Grep grep(output, &matcher);
+      set_handle(&grep);
       grep.ugrep();
+      reset_handle();
     }
   }
 
@@ -5925,6 +6021,28 @@ void ugrep()
   // close the pipe to the forked pager
   if (flag_pager != NULL && output != NULL && output != stdout)
     pclose(output);
+}
+
+// cancel the search
+void cancel_ugrep()
+{
+  std::unique_lock<std::mutex> lock(grep_handle_mutex);
+  if (grep_handle != NULL)
+    grep_handle->out.cancel();
+}
+
+// set the handle
+void set_handle(Grep *grep)
+{
+  std::unique_lock<std::mutex> lock(grep_handle_mutex);
+  grep_handle = grep;
+}
+
+// reset the handle
+void reset_handle()
+{
+  std::unique_lock<std::mutex> lock(grep_handle_mutex);
+  grep_handle = NULL;
 }
 
 // search the specified files or standard input for pattern matches
@@ -5955,7 +6073,7 @@ void Grep::ugrep()
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
 
-      // stop when output is blocked
+      // stop when output is blocked or search cancelled
       if (out.eof)
         break;
 
@@ -6502,7 +6620,7 @@ void Grep::recurse(size_t level, const char *pathname)
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
 
-      // stop when output is blocked
+      // stop when output is blocked or search cancelled
       if (out.eof)
         break;
     }
@@ -6558,7 +6676,7 @@ void Grep::recurse(size_t level, const char *pathname)
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
 
-      // stop when output is blocked
+      // stop when output is blocked or search cancelled
       if (out.eof)
         break;
     }
@@ -6595,7 +6713,7 @@ void Grep::recurse(size_t level, const char *pathname)
       if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
         break;
 
-      // stop when output is blocked
+      // stop when output is blocked or search cancelled
       if (out.eof)
         break;
     }
@@ -6627,7 +6745,7 @@ void Grep::recurse(size_t level, const char *pathname)
     if (flag_max_files > 0 && stats.found_files() >= flag_max_files)
       break;
 
-    // stop when output is blocked
+    // stop when output is blocked or search cancelled
     if (out.eof)
       break;
 
@@ -6670,7 +6788,7 @@ void Grep::search(const char *pathname)
   if (out.eof)
     return;
 
-  // open (archive or compressed) file (pathname is NULL to read stdin)
+  // open (archive or compressed) file (pathname is NULL to read stdin), return on failure
   if (!open_file(pathname))
     return;
 
@@ -8111,7 +8229,7 @@ exit_search:
     out.release();
 
     // close file or -z: loop over next extracted archive parts, when applicable
-  } while (close_file(pathname) && !out.eof);
+  } while (close_file(pathname));
 }
 
 // read globs from a file to extend include/exclude files and dirs
@@ -8603,9 +8721,11 @@ void help(const char *message, const char *arg)
             -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
             quote a wildcard or backslash character literally.  When GLOB\n\
             contains a `/', full pathnames are matched.  Otherwise basenames\n\
-            are matched.  Note that --exclude patterns take priority over\n\
-            --include patterns.  GLOB should be quoted to prevent shell\n\
-            globbing.  This option may be repeated.\n\
+            are matched.  When GLOB ends with a `/', directories are excluded\n\
+            as if --exclude-dir is specified.  Otherwise files are excluded.\n\
+            Note that --exclude patterns take priority over --include patterns.\n\
+            GLOB should be quoted to prevent shell globbing.  This option may\n\
+            be repeated.\n\
     --exclude-dir=GLOB\n\
             Exclude directories whose name matches GLOB from recursive\n\
             searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
@@ -8722,8 +8842,10 @@ void help(const char *message, const char *arg)
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,\n\
             and \\ to quote a wildcard or backslash character literally.  When\n\
             GLOB contains a `/', full pathnames are matched.  Otherwise\n\
-            basenames are matched.  Note that --exclude patterns take priority\n\
-            over --include patterns.  GLOB should be quoted to prevent shell\n\
+            basenames are matched.  When GLOB ends with a `/', directories are\n\
+            included as if --include-dir is specified.  Otherwise files are\n\
+            included.  Note that --exclude patterns take priority over\n\
+            --include patterns.  GLOB should be quoted to prevent shell\n\
             globbing.  This option may be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose name matches GLOB are included in recursive\n\
@@ -8861,9 +8983,9 @@ void help(const char *message, const char *arg)
     -Q[DELAY], --query[=DELAY]\n\
             Query mode: user interface to perform interactive searches.  This\n\
             mode requires an ANSI capable terminal.  An optional DELAY argument\n\
-            may be specified to reduce or increase the response time to perform\n\
+            may be specified to reduce or increase the response time to execute\n\
             searches after the last key press, in increments of 100ms, where\n\
-            the default is 5 (500ms delay).  Initial patterns may be specified\n\
+            the default is 5 (0.5s delay).  Initial patterns may be specified\n\
             with -e PATTERN, i.e. a PATTERN argument requires option -e.  Press\n\
             F1 or CTRL-Z to view the help screen.  No whitespace may be given\n\
             between -Q and its argument DELAY.\n\
@@ -8923,11 +9045,23 @@ void help(const char *message, const char *arg)
     --tabs=NUM\n\
             Set the tab size to NUM to expand tabs for option -k.  The value of\n\
             NUM may be 1, 2, 4, or 8.  The default tab size is 8.\n\
-    -U, --binary\n\
+    -U, --binary\n";
+#ifdef OS_WIN
+  std::cout << "\
+            Opens files in binary mode (mode specific to Windows) and disables\n\
+            Unicode matching for binary file matching, forcing PATTERN to match\n\
+            bytes, not Unicode characters.  For example, -U '\\xa3' matches\n\
+            byte A3 (hex) instead of the Unicode code point U+00A3 represented\n\
+            by the two-byte UTF-8 sequence C2 A3.  Note that binary files\n\
+            may appear truncated when searched without this option.\n";
+#else
+  std::cout << "\
             Disables Unicode matching for binary file matching, forcing PATTERN\n\
             to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\
             matches byte A3 (hex) instead of the Unicode code point U+00A3\n\
-            represented by the two-byte UTF-8 sequence C2 A3.\n\
+            represented by the two-byte UTF-8 sequence C2 A3.\n";
+#endif
+  std::cout << "\
     -u, --ungroup\n\
             Do not group multiple pattern matches on the same matched line.\n\
             Output the matched line again for each additional pattern match,\n\

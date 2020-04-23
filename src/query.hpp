@@ -94,9 +94,17 @@ class Query {
 
   static void redraw();
 
+#ifdef OS_WIN
+
+  static BOOL WINAPI sigint(DWORD);
+
+#else
+
   static void sigwinch(int);
 
   static void sigint(int);
+
+#endif
 
   static void move(int pos);
 

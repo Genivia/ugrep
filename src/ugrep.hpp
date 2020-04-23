@@ -295,6 +295,9 @@ extern void terminal();
 // perform a ugrep search given the specified command line flags, patterns, and files
 extern void ugrep();
 
+// graciously shut down ugrep() if still running as a thread
+extern void cancel_ugrep();
+
 extern void warning(const char *message, const char *arg);
 extern void error(const char *message, const char *arg);
 extern void abort(const char *message);
