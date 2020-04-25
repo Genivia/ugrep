@@ -28,7 +28,7 @@
 
 /**
 @file      ugrep.cpp
-@brief     Universal grep - a pattern search utility written in C++11
+@brief     a pattern search utility written in C++11
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -43,10 +43,10 @@ This program uses RE/flex:
 
 Optional libraries to support options -P and -z:
 
-  PCRE2 or Boost.Regex
-  zlib
-  libbz2
-  liblzma
+  -P: PCRE2 or Boost.Regex
+  -z: zlib (.gz)
+  -z: libbz2 (.bz, bz2, .bzip2)
+  -z: liblzma (.lzma, .xz)
 
 Build ugrep as follows:
 
@@ -54,7 +54,7 @@ Build ugrep as follows:
 
 Git does not preserve time stamps so ./configure may fail, in that case do:
 
-  $ touch config.h.in configure
+  $ autoreconf -fi
   $ ./configure --enable-colors && make -j
 
 After this, you may want to test ugrep and install it (optional):
@@ -62,12 +62,10 @@ After this, you may want to test ugrep and install it (optional):
   $ make test
   $ sudo make install
 
-Prebuilt executables are located in ugrep/bin.
-
 */
 
 // ugrep version
-#define UGREP_VERSION "2.0.4"
+#define UGREP_VERSION "2.0.5"
 
 #include "ugrep.hpp"
 #include "query.hpp"
@@ -142,7 +140,7 @@ Prebuilt executables are located in ugrep/bin.
 # include "zstream.hpp"
 #endif
 
-// use a task-parallel thread to decompress the stream into a pipe to search, increases speed on most systems
+// use a task-parallel thread to decompress the stream into a pipe to search, handles archives and increases speed on most systems
 #define WITH_DECOMPRESSION_THREAD
 
 // optional: specify an optimal decompression block size, default is 65536, must be larger than 1024 for tar extraction
@@ -221,23 +219,23 @@ Prebuilt executables are located in ugrep/bin.
 
 // --min-mmap and --max-mmap file size to allocate with mmap(), not greater than 4294967295LL, max 0 disables mmap()
 #ifndef MIN_MMAP_SIZE
-# define MIN_MMAP_SIZE 16384LL
+# define MIN_MMAP_SIZE 16384LL // 16KB at minimum, smaller files are efficiently read in one go with read()
 #endif
 #ifndef MAX_MMAP_SIZE
-# define MAX_MMAP_SIZE 2147483648LL
+# define MAX_MMAP_SIZE 1073741824LL // in the worst case each worker thread may use up to 1GB mmap space but not more
 #endif
 
 // default --mmap
 #define DEFAULT_MIN_MMAP_SIZE MIN_MMAP_SIZE
 
-// default --max-mmap: mmap is enabled by default, unless disabled with WITH_NO_MMAP
+// default --max-mmap: mmap is enabled by default, unless disabled with WITH_NO_MMAP, e.g. mmap is slow on MacOS
 #ifdef WITH_NO_MMAP
 # define DEFAULT_MAX_MMAP_SIZE 0
 #else
 # define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
 #endif
 
-// default --query delay is 500ms
+// default -Q delay is 0.5s
 #define DEFAULT_QUERY_DELAY 5
 
 // pretty is disabled by default, unless enabled with WITH_PRETTY
@@ -254,7 +252,7 @@ Prebuilt executables are located in ugrep/bin.
 # define DEFAULT_HIDDEN false
 #endif
 
-// use dirent d_type when available
+// use dirent d_type when available to improve performance
 #ifdef HAVE_STRUCT_DIRENT_D_TYPE
 # define DIRENT_TYPE_UNKNOWN DT_UNKNOWN
 # define DIRENT_TYPE_LNK     DT_LNK
@@ -821,23 +819,31 @@ bool MMap::file(reflex::Input& input, const char*& base, size_t& size)
   // is this a regular file that is not too large (for size_t)?
   int fd = fileno(file);
   struct stat buf;
-  if (fstat(fd, &buf) != 0 || !S_ISREG(buf.st_mode) || static_cast<unsigned long long>(buf.st_size) > static_cast<unsigned long long>(std::numeric_limits<size_t>::max()))
+  if (fstat(fd, &buf) != 0 || !S_ISREG(buf.st_mode) || static_cast<uint64_t>(buf.st_size) > static_cast<uint64_t>(std::numeric_limits<size_t>::max()))
     return false;
 
-  // is this file not too small or too large? if -P is used, try to mmap a large file without imposing a max
+  // is this file not too small or too large?
   size = static_cast<size_t>(buf.st_size);
-  if (size < MIN_MMAP_SIZE || (size > flag_max_mmap && !flag_perl_regexp))
+  if (size < MIN_MMAP_SIZE || size > flag_max_mmap)
     return false;
 
   // mmap the file and round requested size up to 4K (typical page size)
-  if (mmap_base == NULL || mmap_size < size)
-    mmap_size = (size + 0xfff) & ~0xfffUL;
+  if (mmap_base == NULL)
+  {
+    // allocate fixed mmap region to reuse
+    mmap_size = (flag_max_mmap + 0xfff) & ~0xfffUL;
+    mmap_base = mmap(NULL, mmap_size, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  }
 
-  base = static_cast<const char*>(mmap_base = mmap(mmap_base, mmap_size, PROT_READ, MAP_PRIVATE, fd, 0));
+  if (mmap_base != NULL)
+  {
+    // mmap file to the fixed mmap region
+    base = static_cast<const char*>(mmap_base = mmap(mmap_base, mmap_size, PROT_READ, MAP_FIXED | MAP_PRIVATE, fd, 0));
 
-  // mmap OK?
-  if (mmap_base != MAP_FAILED)
-    return true;
+    // mmap OK?
+    if (mmap_base != MAP_FAILED)
+      return true;
+  }
 
   // not OK
   mmap_base = NULL;
@@ -2438,9 +2444,22 @@ struct Grep {
       // open pipe between worker and decompression thread, then start decompression thread
       if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "r")) != NULL)
       {
-        thread = std::thread(&Grep::decompress, this, pathname);
+        try
+        {
+          thread = std::thread(&Grep::decompress, this, pathname);
+        }
 
-        input = reflex::Input(pipe_in, flag_encoding_type);
+        catch (std::system_error&)
+        {
+          fclose(pipe_in);
+          close(pipe_fd[1]);
+          pipe_fd[0] = -1;
+          pipe_fd[1] = -1;
+
+          warning("cannot create thread to decompress",  pathname);
+
+          return false;
+        }
       }
       else
       {
@@ -2452,11 +2471,12 @@ struct Grep {
           pipe_fd[1] = -1;
         }
 
-        // if creating a pipe fails, then we fall back on using a decompression stream as input
-        streambuf = new zstreambuf(pathname, file);
-        stream = new std::istream(streambuf);
-        input = stream;
+        warning("cannot create pipe to decompress",  pathname);
+
+        return false;
       }
+
+      input = reflex::Input(pipe_in, flag_encoding_type);
 
 #else
 
@@ -2623,11 +2643,11 @@ struct Grep {
         }
         else
         {
-          warning("--filter: cannot open pipe", flag_filter);
-
           if (in != stdin)
             fclose(in);
           in = NULL;
+
+          warning("--filter: cannot create pipe", flag_filter);
 
           return false;
         }
@@ -2663,6 +2683,7 @@ struct Grep {
       bool is_regular = true;
 
       const zstreambuf::ZipInfo *zipinfo = zstrm.zipinfo();
+
       if (zipinfo != NULL)
       {
         // extracting a zip file
@@ -3672,8 +3693,23 @@ struct GrepWorker : public Grep {
 // start worker threads
 void GrepMaster::start_workers()
 {
-  for (size_t i = 0; i < threads; ++i)
-    workers.emplace(workers.end(), out.file, matcher, this);
+  size_t num;
+
+  // create worker threads
+  try
+  {
+    for (num = 0; num < threads; ++num)
+      workers.emplace(workers.end(), out.file, matcher, this);
+  }
+
+  // if sufficient resources are not available then reduce the number of threads to the number of active workers created
+  catch (std::system_error& error)
+  {
+    if (error.code() != std::errc::resource_unavailable_try_again)
+      throw;
+
+    threads = num;
+  }
 }
 
 // stop all workers
@@ -5387,7 +5423,7 @@ void terminal()
 
         if (flag_apply_color != NULL)
         {
-          // get GREP_COLOR and GREP_COLORS
+          // get GREP_COLOR and GREP_COLORS, when defined
           char *env_grep_color = NULL;
           dupenv_s(&env_grep_color, "GREP_COLOR");
           char *env_grep_colors = NULL;
@@ -9188,7 +9224,10 @@ void is_directory(const char *pathname)
 void cannot_decompress(const char *pathname, const char *message)
 {
   if (!flag_no_messages)
+  {
     fprintf(stderr, "%sugrep: %swarning:%s %scannot decompress %s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, pathname, color_off, color_message, message ? message : "", color_off);
+    ++warnings;
+  }
 }
 #endif
 

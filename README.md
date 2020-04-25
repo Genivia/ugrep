@@ -72,7 +72,7 @@ Table of contents
   - [Interactive search with -Q](#query)
   - [Recursively list matching files with -l, -R, -r, and --depth](#recursion)
   - [Search this but not that with -v, -e, -N, -f, -L, -w, -x](#not)
-  - [Searching ASCII, Unicode, and other encodings with --encoding](#unicode)
+  - [Search non-Unicode files with --encoding](#encoding)
   - [Matching multiple lines of text](#multiline)
   - [Displaying match context with -A, -B, -C, and -y](#context)
   - [Searching source code using -f, -O, and -t](#source)
@@ -1034,16 +1034,17 @@ same line, like XOR:
 
     ugrep -e TODO -e FIXME -N '.*TODO.*FIXME.*' -N '.*FIXME.*TODO.*' myfile.cpp
 
-<a name="unicode"/>
+<a name="encoding"/>
 
-### Searching ASCII, Unicode, and other encodings with --encoding
+### Search non-Unicode files with --encoding
 
     --encoding=ENCODING
             The input file encoding.
 
 ASCII, UTF-8, UTF-16, and UTF-32 files do not require this option, assuming
-that UTF-16 and UTF-32 files include a UTF BOM as usual.  Other file encodings
-require option `--encoding=ENCODING`:
+that UTF-16 and UTF-32 files start with a UTF BOM
+([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) as usual.
+Other file encodings require option `--encoding=ENCODING`:
 
 encoding               | parameter
 ---------------------- | --------------
@@ -3618,7 +3619,7 @@ in markdown:
 
 
 
-    ugrep 2.0.4                     April 23, 2020                        UGREP(1)
+    ugrep 2.0.5                     April 25, 2020                        UGREP(1)
 
 <a name="patterns"/>
 

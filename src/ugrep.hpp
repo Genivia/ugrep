@@ -28,7 +28,7 @@
 
 /**
 @file      ugrep.hpp
-@brief     Universal grep - a pattern search utility written in C++11
+@brief     a pattern search utility written in C++11
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt

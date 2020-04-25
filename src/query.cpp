@@ -1843,6 +1843,7 @@ void Query::set_flags()
   flag_files_without_match = false;
   flag_match = false;
   flag_binary_files = NULL;
+  flag_break = false;
 
   // suppress warning messages
   flag_no_messages = true;
