@@ -67,7 +67,7 @@ struct lzma_stream;
 
 // buffer size to hold compressed data copied from compressed files
 #ifndef Z_BUF_LEN
-#define Z_BUF_LEN (65536)
+#define Z_BUF_LEN 65536
 #endif
 
 extern void cannot_decompress(const char *pathname, const char *message);
@@ -139,7 +139,7 @@ class zstreambuf : public std::streambuf {
 
    protected:
 
-    static constexpr size_t ZIPBLOCK = 65536; // block size to read zip data, at least 64K to fit name
+    static constexpr size_t ZIPBLOCK = 65536; // block size to read zip data, at least 64K to fit long 64K pathnames
 
     static constexpr uint16_t COMPRESS_HEADER_MAGIC = 0x9d1f;     // compress header magic
     static constexpr uint16_t DEFLATE_HEADER_MAGIC  = 0x8b1f;     // zlib deflate header magic
@@ -824,6 +824,20 @@ class zstreambuf : public std::streambuf {
   }
 
   // constructor
+  zstreambuf()
+    :
+      pathname_(NULL),
+      file_(NULL),
+      zfile_(NULL),
+      zzfile_(NULL),
+      bzfile_(NULL),
+      xzfile_(NULL),
+      zipinfo_(NULL),
+      cur_(0),
+      len_(0)
+  { }
+
+  // constructor
   zstreambuf(const char *pathname, FILE *file)
     :
       pathname_(pathname),
@@ -836,6 +850,33 @@ class zstreambuf : public std::streambuf {
       cur_(0),
       len_(0)
   {
+    open(pathname, file);
+  }
+
+  // no copy constructor
+  zstreambuf(const zstreambuf&) = delete;
+
+  // destructor
+  virtual ~zstreambuf()
+  {
+    close();
+  }
+
+  // open the decompression stream
+  void open(const char *pathname, FILE *file)
+  {
+    // close old stream, if still open
+    close();
+
+    if (file == NULL)
+      return;
+
+    pathname_ = pathname;
+    file_ = file;
+
+    cur_ = 0;
+    len_ = 0;
+
     if (is_bz(pathname))
     {
 #ifdef HAVE_LIBBZ2
@@ -981,27 +1022,27 @@ class zstreambuf : public std::streambuf {
     }
   }
 
-  // no copy constructor
-  zstreambuf(const zstreambuf&) = delete;
-
-  // destructor
-  virtual ~zstreambuf()
+  // close the decompression stream
+  void close()
   {
     if (zfile_ != NULL)
     {
       // close zlib compressed file
       delete zfile_;
+      zfile_ = NULL;
     }
     else if (zzfile_ != NULL)
     {
       // close compress (Z) compressed file
       z_close(zzfile_);
+      zzfile_ = NULL;
     }
 #ifdef HAVE_LIBBZ2
     else if (bzfile_ != NULL)
     {
       // close bzlib compressed file
       delete bzfile_;
+      bzfile_ = NULL;
     }
 #endif
 #ifdef HAVE_LIBLZMA
@@ -1009,6 +1050,7 @@ class zstreambuf : public std::streambuf {
     {
       // close lzma compressed file
       delete xzfile_;
+      xzfile_ = NULL;
     }
     else
 #endif
@@ -1016,6 +1058,7 @@ class zstreambuf : public std::streambuf {
     {
       // close zip compressed file
       delete zipinfo_;
+      zipinfo_ = NULL;
     }
   }
 

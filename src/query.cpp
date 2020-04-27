@@ -38,7 +38,6 @@
 #include "query.hpp"
 
 #include <reflex/error.h>
-#include <atomic>
 #include <iostream>
 #include <fstream>
 #include <thread>
@@ -46,7 +45,7 @@
 
 #ifdef OS_WIN
 
-// non-blocking pipe (requires Windows named pipe)
+// non-blocking pipe (Windows named pipe)
 inline HANDLE nonblocking_pipe(int fd[2])
 {
   DWORD pid = GetCurrentProcessId();
@@ -71,6 +70,11 @@ inline HANDLE nonblocking_pipe(int fd[2])
   return pipe_r;
 }
 
+inline void set_blocking(HANDLE pipe_r)
+{
+  SetNamedPipeHandleState(pipe_r, PIPE_READMODE_BYTE | PIPE_WAIT, NULL, NULL);
+}
+
 #else
 
 #include <signal.h>
@@ -87,6 +91,11 @@ inline int nonblocking_pipe(int fd[2])
     close(fd[1]);
   }
   return -1;
+}
+
+inline void set_blocking(int fd0)
+{
+  fcntl(fd0, F_SETFL, fcntl(fd0, F_GETFL) & ~O_NONBLOCK);
 }
 
 #endif
@@ -551,10 +560,8 @@ void Query::query()
   flag_query = 0;
   terminal();
 
-  // if all lines selected, make sure to fetch all data to output
-  if (select_all_)
-    while (!eof_ || buflen_ > 0)
-      fetch(rows_);
+  if (!flag_quiet)
+    print();
 
   // close the search pipe to terminate the search threads, if still open
   if (!eof_)
@@ -571,54 +578,6 @@ void Query::query()
   {
     fclose(source);
     source = NULL;
-  }
-
-  if (!flag_quiet)
-  {
-    // output selected query results
-    for (int i = 0; i < rows_; ++i)
-    {
-      if (selected_[i])
-      {
-        // if output should not be colored or colors are turned off with CTRL-T, then output the selected line without its CSI sequences
-        if (flag_apply_color == NULL || Screen::mono)
-        {
-          const char *text = view_[i].c_str();
-          const char *ptr = text;
-          const char *end = text + view_[i].size();
-
-          while (ptr < end)
-          {
-            if (*ptr == '\033')
-            {
-              fwrite(text, 1, ptr - text, stdout);
-              ++ptr;
-              if (*ptr == '[')
-              {
-                ++ptr;
-                while (ptr < end && !isalpha(*ptr))
-                  ++ptr;
-              }
-              if (ptr < end)
-                ++ptr;
-              text = ptr;
-            }
-            else
-            {
-              ++ptr;
-            }
-          }
-
-          fwrite(text, 1, ptr - text, stdout);
-        }
-        else
-        {
-          fwrite(view_[i].c_str(), 1, view_[i].size(), stdout);
-        }
-
-        putchar('\n');
-      }
-    }
   }
 
   // join the search thread
@@ -1214,7 +1173,7 @@ void Query::fetch(int row)
         {
           pending_ = false;
 
-          if (!ReadFile(hPipe_, buffer_ + buflen_, QUERY_BUFFER_SIZE - buflen_, &nread, &overlapped_))
+          if (!ReadFile(hPipe_, buffer_ + buflen_, static_cast<DWORD>(QUERY_BUFFER_SIZE - buflen_), &nread, &overlapped_))
           {
             switch (GetLastError())
             {
@@ -1340,7 +1299,7 @@ void Query::execute(int fd)
       what_.assign(error.what());
       
       // error position in the pattern
-      error_ = error.pos();
+      error_ = static_cast<int>(error.pos());
 
       // subtract 4 for (?m) or (?mi)
       if (error_ >= 4 + flag_ignore_case)
@@ -1775,6 +1734,110 @@ void Query::meta(int key)
   }
 
   Screen::alert();
+}
+
+void Query::print()
+{
+  int i = 0;
+
+  // output selected query results
+  while (i < rows_)
+  {
+    if (selected_[i])
+      if (!print(i))
+        return;
+
+    // reduce memory usage by freeing what we no longer need
+    view_[i].clear();
+    view_[i].shrink_to_fit();
+
+    ++i;
+  }
+
+  // if all lines selected, make sure to fetch all data to output
+  if (select_all_ && (!eof_ || buflen_ > 0))
+  {
+    // reading the search pipe should block until data is received
+#ifdef OS_WIN
+    set_blocking(hPipe_);
+#else
+    set_blocking(search_pipe_[0]);
+#endif
+
+    while (true)
+    {
+      fetch(i);
+
+      if (rows_ == i)
+        break;
+
+      while (i < rows_)
+      {
+        if (!print(i))
+          return;
+
+        // reduce memory usage by freeing what we no longer need
+        view_[i].clear();
+        view_[i].shrink_to_fit();
+
+        ++i;
+      }
+    }
+  }
+}
+
+bool Query::print(int row)
+{
+  // if output should not be colored or colors are turned off with CTRL-T, then output the selected line without its CSI sequences
+  if (flag_apply_color == NULL || Screen::mono)
+  {
+    const char *text = view_[row].c_str();
+    const char *ptr = text;
+    const char *end = text + view_[row].size();
+
+    while (ptr < end)
+    {
+      if (*ptr == '\033')
+      {
+        size_t nwritten = fwrite(text, 1, ptr - text, stdout);
+
+        if (text + nwritten < ptr)
+          return false;
+
+        ++ptr;
+        if (*ptr == '[')
+        {
+          ++ptr;
+          while (ptr < end && !isalpha(*ptr))
+            ++ptr;
+        }
+        if (ptr < end)
+          ++ptr;
+        text = ptr;
+      }
+      else
+      {
+        ++ptr;
+      }
+    }
+
+    size_t nwritten = fwrite(text, 1, ptr - text, stdout);
+
+    if (text + nwritten < ptr)
+      return false;
+  }
+  else
+  {
+    size_t nwritten = fwrite(view_[row].c_str(), 1, view_[row].size(), stdout);
+
+    if (nwritten < view_[row].size())
+      return false;
+  }
+
+  if (fwrite("\n", 1, 1, stdout) < 1)
+    return false;
+
+  return true;
 }
 
 void Query::get_flags()

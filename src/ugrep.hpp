@@ -110,10 +110,6 @@ inline int dupenv_s(char **ptr, const char *name)
 # include "config.h"
 #endif
 
-#ifdef HAVE_MMAP
-# include <sys/mman.h>
-#endif
-
 #ifdef HAVE_SYS_STATVFS_H
 # include <sys/statvfs.h>
 #endif
@@ -157,8 +153,13 @@ inline int fopen_s(FILE **file, const char *filename, const char *mode)
 #endif
 
 #include <reflex/input.h>
+#include <algorithm>
+#include <atomic>
 #include <string>
 #include <vector>
+
+// undefined size_t value
+#define UNDEFINED_SIZE static_cast<size_t>(~0UL)
 
 // --sort=KEY is n/a or by name, size, used time, changed time, created time
 enum class Sort { NA, NAME, SIZE, USED, CHANGED, CREATED };
@@ -283,11 +284,36 @@ extern reflex::Input::file_encoding_type flag_encoding_type;
 extern const char *arg_pattern;
 extern std::vector<const char*> arg_files;
 
+// number of concurrent threads for workers
+extern size_t threads;
+
+// number of warnings given
+extern std::atomic_size_t warnings;
+
 // redirectable source is standard input by default or a pipe
 extern FILE *source;
 
 // redirectable output destination is standard output by default or a pipe
 extern FILE *output;
+
+// ANSI SGR substrings extracted from GREP_COLORS and --colors
+#define COLORLEN 32
+extern char color_sl[COLORLEN]; // selected line
+extern char color_cx[COLORLEN]; // context line
+extern char color_mt[COLORLEN]; // matched text in any matched line
+extern char color_ms[COLORLEN]; // matched text in a selected line
+extern char color_mc[COLORLEN]; // matched text in a context line
+extern char color_fn[COLORLEN]; // file name
+extern char color_ln[COLORLEN]; // line number
+extern char color_cn[COLORLEN]; // column number
+extern char color_bn[COLORLEN]; // byte offset
+extern char color_se[COLORLEN]; // separator
+
+extern char match_ms[COLORLEN]; // --match: matched text in a selected line
+extern char match_mc[COLORLEN]; // --match: matched text in a context line
+
+extern const char *color_del;   // erase line after the cursor
+extern const char *color_off;   // disable colors
 
 // check TTY availability and set colors
 extern void terminal();

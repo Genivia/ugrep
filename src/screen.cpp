@@ -35,7 +35,6 @@
 */
 
 #include "screen.hpp"
-
 #include <cctype>
 #include <string>
 #include <fcntl.h>

@@ -449,7 +449,10 @@ the ability to reuse all or parts of the ugrep source tree.
 grep(1).
 END
 
+man man/ugrep.1 | sed 's/.//g' > man.txt
+
 echo "ugrep $1 manual page created and saved in man/ugrep.1"
+echo "ugrep text-only man page created and saved as man.txt"
 
 else
 

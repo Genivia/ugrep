@@ -2861,8 +2861,8 @@ in markdown:
            --help Print a help message.
 
            --hexdump=[1-8][b][c][h]
-                  Output  matches  in  1 to 8 columns of 8 hexadecimal bytes.  The
-                  default is 2 columns or 16 bytes per line.  Option  `b'  removes
+                  Output  matches  in 1 to 8 columns of 8 hexadecimal octets.  The
+                  default is 2 columns or 16 octets per line.  Option `b'  removes
                   all  space  breaks,  `c'  hides  the  character  column, and `h'
                   removes the hex spacing only.  Enables -X if -W  or  -X  is  not
                   specified.
@@ -3619,7 +3619,7 @@ in markdown:
 
 
 
-    ugrep 2.0.5                     April 25, 2020                        UGREP(1)
+    ugrep 2.0.6                     April 27, 2020                        UGREP(1)
 
 <a name="patterns"/>
 

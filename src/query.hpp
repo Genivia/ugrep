@@ -41,10 +41,8 @@
 #include "screen.hpp"
 #include "vkey.hpp"
 
-#include <atomic>
 #include <cerrno>
 #include <thread>
-#include <vector>
 
 // max length of the query line to edit
 #ifndef QUERY_MAX_LEN
@@ -131,6 +129,10 @@ class Query {
   static void pgdn(bool half_page = false);
 
   static void meta(int key);
+
+  static void print();
+
+  static bool print(int row);
 
   static void help();
 
