@@ -1,4 +1,5 @@
 class Ugrep < Formula
+  env :std
   desc "A search tool like grep but fast and interactive"
   homepage "https://github.com/Genivia/ugrep"
   url "https://github.com/Genivia/ugrep/archive/v2.0.6.tar.gz"
