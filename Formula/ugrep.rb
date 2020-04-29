@@ -9,6 +9,10 @@ class Ugrep < Formula
   depends_on "xz"
 
   def install
+    ENV.O2
+    ENV.deparallelize
+    ENV.delete('CFLAGS')
+    ENV.delete('CXXFLAGS')
     system "./configure", "--enable-color",
                           "--disable-dependency-tracking",
                           "--disable-silent-rules",
