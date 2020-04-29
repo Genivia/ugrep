@@ -5,16 +5,16 @@ Search for anything in everything... ultra fast
 <div align="center">
 <img src="https://www.genivia.com/images/scranim.gif" alt="">
 <br>
-new option -Q opens a [query UI](#query) to search files and select results to output
+new option -Q opens a query UI to search files and select results to output
 </div>
 <br>
 <div align="center">
 <img src="https://www.genivia.com/images/scr1.png" width="438" alt="">
 <img src="https://www.genivia.com/images/scr2.png" width="438" alt="">
 <br>
-search [source code](#source), shell scripts, text files, and more
+search source code, shell scripts, text files, and more
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-search cpio, pax, tar, zip [archives and compressed files](#archives)
+search cpio, pax, tar, zip archives and compressed files
 </div>
 <br>
 <div>
@@ -22,9 +22,9 @@ search cpio, pax, tar, zip [archives and compressed files](#archives)
 <img src="https://www.genivia.com/images/scr3.png" width="438" alt="">
 <img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
 <br>
-search [binary files](#binary), displayed as hexdumps
+search binary files, displayed as hexdumps
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-search [pdf and office documents](#filter) using filters
+search pdf and office documents using filters
 </div>
 <br>
 
