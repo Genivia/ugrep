@@ -1383,11 +1383,13 @@ Concatenated compressed files are searched as one file.
 Supported zip compression methods are stored (0), deflate (8), bzip2 (12) if
 libbz2 is available, lzma (14) and xz (95) if liblzma is available.  Archives
 compressed within zip archives are searched:  all cpio, pax, and tar files in
-zip archives are automatically recognized and searched.  Compressed files in
-archives are not recognized and searched however, such as any compressed files
-stored in cpio, pax, tar, and zip archives, which are considered binary files.
+zip archives are automatically recognized and searched.  Compressed files
+stored in archives are not recognized, e.g. zip files within zip files or
+within tar files.  Any such compressed files are searched as if they are binary
+files without decompression.
+
 Searching encrypted zip archives is not supported (perhaps in future releases,
-depending on requests).
+depending on requests for enhancements).
 
 When option `-z` is used with options `-g`, `-O`, `-M`, or `-t`, archives and
 compressed and uncompressed files that match the filename selection criteria
@@ -1402,8 +1404,8 @@ When option `-z` is used with options `-g`, `-O`, `-M`, or `-t` to search cpio,
 jar, pax, tar, and zip archives, archived files that match the filename selection
 criteria are searched only.
 
-Option `-z` uses thread task parallelism to speed up searching by running the
-decompressor while searching the decompressed stream concurrently.
+Option `-z` uses thread task parallelism to speed up searching larger files by
+running the decompressor concurrently with a search of the decompressed stream.
 
 To recursively search C++ files including compressed files for the word
 `my_function`, while skipping C and C++ comments:
@@ -1533,10 +1535,12 @@ The `--filter` option associates one or more filter utilities with specific
 filename extensions.  A filter utility is selected based on the filename
 extension and executed by forking a process:  the utility's standard input
 reads the open input file and the utility's standard output is searched.  When
-a `%` is specified as an option to the utility, the utility may open and read
-the file using the expanded pathname.  When a utility is not found an error
-message is displayed.  When a utility fails to produce output, e.g. when the
-specified options for the utility are invalid, the search is silently skipped.
+a `%` is specified as an option to the utility, the `%` is expanded to the
+pathname of the file to open and read by the utility.
+
+When a specified utility is not found on the system, an error message is
+displayed.  When a utility fails to produce output, e.g. when the specified
+options for the utility are invalid, the search is silently skipped.
 
 Common filter utilities are `cat` (concat, pass through), `head` (select first
 lines or bytes) `tr` (translate), `iconv` and `uconv` (convert), and more
@@ -1556,7 +1560,18 @@ specifying option `--stdout`.  However, **ugrep** option `-z` is typically
 faster to search compressed files.
 
 The `--filter` option may also be used to run a user-defined shell script to
-filter files with matching filename extensions.
+filter files.  For example, to invoke an action depending on the filename
+extension of the `%` argument.
+
+The `--filter` option may also be used as a predicate to skip certain files
+from the search.  As the most basic example, consider the `false` utility that
+exits with a nonzero exit code without reading input or producing output.
+Therefore, `--filter='swp: false'` skips all `.swp` files from recursive
+searches.  The same can be done more efficiently with `-O^swp`.  However,
+the `--filter` option could invoke a script that determines if the filename
+passed as a `%` argument meets certain constraints.  If the constraint is met
+the script copies standard input to standard output with `cat`.  If not, the
+script exits.
 
 **Warning:** option `--filter` should not be used with utilities that modify
 files.  Otherwise searches may be unpredicatable.  In the worst case files may
