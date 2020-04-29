@@ -5,16 +5,16 @@ Search for anything in everything... ultra fast
 <div align="center">
 <img src="https://www.genivia.com/images/scranim.gif" alt="">
 <br>
-new option -Q opens a query UI to search files and select results to output
+new option -Q opens a [query UI](#query) to search files and select results to output
 </div>
 <br>
 <div align="center">
 <img src="https://www.genivia.com/images/scr1.png" width="438" alt="">
 <img src="https://www.genivia.com/images/scr2.png" width="438" alt="">
 <br>
-search source code, shell scripts, text files, and more
+search [source code](#source), shell scripts, text files, and more
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-search cpio, pax, tar, zip archives and compressed files
+search cpio, pax, tar, zip [archives and compressed files](#archives)
 </div>
 <br>
 <div>
@@ -22,9 +22,9 @@ search cpio, pax, tar, zip archives and compressed files
 <img src="https://www.genivia.com/images/scr3.png" width="438" alt="">
 <img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
 <br>
-search binary files (displayed as hexdumps)
+search [binary files](#binary), displayed as hexdumps
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-search pdf and office documents using filters
+search [pdf and office documents](#filter) using filters
 </div>
 <br>
 
@@ -37,22 +37,22 @@ search pdf and office documents using filters
 - Optimized asynchronous IO implementation
 - Compatible with the standard GNU/BSD grep command-line options
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
-- Interactive query UI to enter search patterns (option -Q)
-- Select files to search by file types, filename suffix, and/or "magic bytes"
-- Search archives (cpio, jar, tar, pax, zip)
-- Search compressed files (zip, gz, Z, bz, bz2, lzma, xz)
-- Search pdf, doc, docx, xls, xlxs, and more using filters
-- Search binary files and displays hexdumps with binary pattern matches
+- Interactive [query UI](#query) to enter search patterns
+- Select files to search by [file types, filename suffix, and "magic bytes"](#magic)
+- Search [archives](#archives) (cpio, jar, tar, pax, zip)
+- Search [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
+- Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
+- Search [binary files](#binary) and display hexdumps with binary pattern matches
 - Search UTF-encoded files with Unicode pattern matches (by default)
-- Search files encoded in ISO-8859-1 thru 16, CP 437, CP 850, MAC, KOI8, etc.
-- Search files excluding files specified by .gitignore etc.
-- Search patterns across newlines, matching multiple lines at once
-- Search patterns excluding negative patterns ("match this but not that")
-- Includes predefined regex patterns to search source code, XML, JSON, HTML, etc.
-- Output matches in CSV, JSON, XML, and user-specified formats 
-- Sort matching files by name, size, and time used/changed/created
+- Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MAC, KOI8, etc.
+- Search files excluding files specified by [.gitignore](#ignore) etc.
+- Search patterns across newlines, matching [multiple lines](#multiline) at once
+- Search patterns excluding [negative patterns](#not) ("match this but not that")
+- Includes [predefined regex patterns](#source) to search source code, XML, JSON, HTML, etc.
+- Output results in [CSV, JSON, XML](#json), and [user-specified formats](#format)
+- Sort matching files by [name, size, and time](#sort)
 - Portable, compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
-- Includes binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
+- Includes x86 and x64 binaries for Windows in [GitHub releases](https://github.com/Genivia/ugrep/releases)
 
 Table of contents
 -----------------
@@ -93,6 +93,7 @@ Table of contents
   - [Limiting the number of matches with -m, --depth, --max-files, and --range](#max)
   - [Matching empty patterns with -Y](#empty)
   - [Case-insensitive matching with -i and -j](#case)
+  - [Sort files by name, size, and time](#sort)
   - [Tips for advanced users](#tips)
   - [More examples](#more)
 - [Man page](#man)
@@ -108,23 +109,29 @@ Table of contents
 Why use ugrep?
 --------------
 
-- **ugrep is faster than GNU grep and other grep tools**.  We use our new fuzzy
+- **ugrep is user friendly**.  The interactive query UI (option `-Q`) is easy
+  to use (and offers a help page).  Also, command-line options and arguments
+  produce more predictable results for defaults, i.e. recursive search by
+  default, directories are searched when specified on the command line, etc.
+
+- **ugrep is fast**, faster than GNU grep and other grep tools.  We use our new
   match algorithm with the [RE/flex](https://github.com/Genivia/RE-flex) regex
   matcher, which is 10 to 100 times faster than PCRE2 and RE2.  **ugrep** is
   multi-threaded and uses lock-free job queue stealing to search files
-  concurrently.  Option `-z` uses task parallelism to searching compressed
-  files and archives.  This combination beats ripgrep, silver searcher,
-  hyperscan grep, pcregrep, UNIX grep, see [speed comparisons](#speed).
+  concurrently and load balanced.  See [speed comparisons](#speed).
 
-- **ugrep searches compressed files and archives (cpio, jar, tar, pax, zip)**
-  with option `-z`.  The matching file names in archives are output in braces.
-  For example `myprojects.tgz{main.cpp}` indicates that file `main.cpp` in
-  compressed tar file `myprojects.tgz` has a match.  Filename glob matching,
-  file types, filename extensions, and file signature "magic bytes" can be
-  selected to filter files in archives with options `-g`, `-t`, `-O`, and `-M`,
-  respectively.  For example:
+- **ugrep is compatible** by supporting the standard GNU/BSD grep command-line
+  options.  This means that grep use cases work with **ugrep** too.
 
-      ugrep -z -tc++ -w main myprojects.tgz
+- **ugrep searches compressed files and archives** (cpio, jar, tar, pax, zip,
+  gz, bz2, xz, lzma, Z) with option `-z`.  The matching file names in archives
+  are output in braces.  For example `myprojects.tgz{main.cpp}` indicates that
+  file `main.cpp` in compressed tar file `myprojects.tgz` has a match.
+  Filename glob matching, file types, filename extensions, and file signature
+  "magic bytes" can be selected to filter files in archives with options `-g`,
+  `-t`, `-O`, and `-M`, respectively.  For example:
+
+      ugrep -z -tc++ main myprojects.tgz
 
   looks for `main` in C++ files in the compressed tar file `myprojects.tgz`.
 
@@ -135,7 +142,7 @@ Why use ugrep?
       ugrep -l -tShell ""
 
   where `-l` lists matching files, `-tShell` selects shell files by file type
-  (i.e. shell extensions and shebangs), and the empty pattern `''` matches the
+  (i.e. shell extensions and shebangs), and the empty pattern `""` matches the
   entire file (a common grep feature).  Also new options `-O` and `-M` may be
   used to select files by extension and by file signature "magic bytes",
   respectively.
@@ -202,11 +209,9 @@ Why use ugrep?
 - **ugrep matches Unicode patterns** by default (disabled with option `-U`).  The
   [regular expression pattern syntax](#pattern) is POSIX ERE compliant extended
   with PCRE-like syntax.  Option `-P` may also be used for Perl matching with
-  Unicode patterns.
-
-- **ugrep searches UTF-8/16/32 input and other formats**.  Option `--encoding`
-  permits many other file formats to be searched, such as ISO-8859-1 to 16,
-  EBCDIC, code pages 437, 850, 858, 1250 to 1258, MacRoman, and KIO8.
+  Unicode patterns.  UTF-8/16/32 input is detected and searched accordingly.
+  Option `--encoding` permits many other file formats to be searched, such as
+  ISO-8859-1 to 16, code pages 437, 850, 858, 1250 to 1258, MacRoman, and KIO8.
 
 - **ugrep customizes the output format** with options `--csv`, `--json`, and
   `--xml` to output CSV, JSON, or XML.  Option `--format` takes custom
@@ -214,13 +219,10 @@ Why use ugrep?
 
 - **ugrep POSIX regex patterns are converted to efficient DFAs** for faster
   matching without backtracking.  DFAs yield significant speedups when
-  searching multiple files and large files.  Rare and pathological cases are
-  known to exist that may increase the initial running time of **ugrep** for
-  complex DFA construction.
-
-- **ugrep options are compatible with GNU and BSD grep**, so existing GNU/BSD 
-  examples and scripts work with **ugrep** just as well.  However, **ugrep**
-  offers a lot more options and is more intelligent in interpreting them.
+  searching large files.  Rare and pathological cases are known to exist that
+  may increase the initial running time of **ugrep** for complex DFA
+  construction.  By constrast, option `-P` uses Perl regex matching, which is
+  slower.
 
 <a name="speed"/>
 
@@ -909,11 +911,11 @@ using ugrep query selection mode (press Enter to select lines):
             Recursively read all files under each directory, following symbolic
             links only if they are on the command line.  When -J1 is specified,
             files are searched in the same order as specified.
-    --depth=[MIN,][MAX], -1, -2, -3, -4, -5, -6, -7, -8, -9
+    --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...
             Restrict recursive searches from MIN to MAX directory levels deep,
             where -1 (--depth=1) searches the specified path without recursing
-            into subdirectories.  Note that -3-5 searches 3 to 5 levels deep.
-            Enables -R if -R or -r is not specified.
+            into subdirectories.  Note that -3 -5, -3-5, or -35 search 3 to 5
+            levels deep.  Enables -R if -R or -r is not specified.
 
 To recursively list all non-empty files in the working directory, following
 symbolic links:
@@ -1599,7 +1601,7 @@ including .odt, .doc, .docx, .rtf, .xls, .xlsx, .ppt, .pptx documents using the
 **Important:** the `soffice` utility will not output any text when one or more
 LibreOffice GUIs are open.  Make sure to quit all LibreOffice apps first.  This
 looks like a bug, but the LibreOffice developers do not appear to fix this
-(unless perhaps more people complain.)
+any time soon (unless perhaps more people complain.)
 
 To recursively search and display rows of .csv, .xls, and .xlsx spreadsheets
 that contain `10/6` using the `in2csv` filter of csvkit:
@@ -1630,7 +1632,7 @@ to find expired certificates), using `openssl` as a filter:
 Note that `openssl` warning messages are displayed on standard error.  If
 a file cannot be converted it is probably in a different format.  This can
 be resolved by writing a shell script that executes `openssl` with options
-based on the file content.  Then use the script with `--filter`.
+based on the file content.  Then write a script with `ugrep --filter`.
 
 <a name="binary"/>
 
@@ -1700,8 +1702,8 @@ recursively below (see for example
 
     -I      Ignore matches in binary files.  This option is equivalent to the
             --binary-files=without-match option.
-    --no-hidden
-            Do not search hidden files and directories.
+    --[no-]hidden
+            Do (not) search hidden files and directories.
 
 To recursively search while ignoring hidden files (Unix dotfiles starting with
 a `.` and Windows hidden files), use option `--no-hidden`:
@@ -2434,11 +2436,11 @@ and `https` sites:
 
 ### Limiting the number of matches with --depth, -m, --max-files, and --range
 
-    --depth=[MIN,][MAX], -1, -2, -3, -4, -5, -6, -7, -8, -9
+    --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...
             Restrict recursive searches from MIN to MAX directory levels deep,
             where -1 (--depth=1) searches the specified path without recursing
-            into subdirectories.  Note that -3-5 searches 3 to 5 levels deep.
-            Enables -R if -R or -r is not specified.
+            into subdirectories.  Note that -3 -5, -3-5, or -35 search 3 to 5
+            levels deep.  Enables -R if -R or -r is not specified.
     -m NUM, --max-count=NUM
             Stop reading the input after NUM matches for each file processed.
     --max-files=NUM
@@ -2492,7 +2494,7 @@ line of context:
 
     ugrep -n -C1 --range=2 -m4 -w make install.sh
 
-<a name="newline"/>
+<a name="empty"/>
 
 ### Matching empty patterns with -Y
 
@@ -2518,7 +2520,7 @@ implicitly enabled since the pattern starts with `^` and ends with `$`):
 
     ugrep -Rl '^\h*$'
 
-<a name="empty"/>
+<a name="case"/>
 
 ### Case-insentitive matching with -i and -j
 
@@ -2540,6 +2542,37 @@ To match `todo` in `myfile.cpp` regardless of case:
 To match `todo XXX` with `todo` in any case but `XXX` as given:
 
      ugrep '(?i:todo) XXX' myfile.cpp
+
+<a name="sort"/>
+
+### Sort files by name, size, and time
+
+    --sort[=KEY]
+            Displays matching files in the order specified by KEY in recursive
+            searches.  KEY can be `name' to sort by pathname (default), `size'
+            to sort by file size, `used' to sort by last access time, `changed'
+            to sort by last modification time, and `created' to sort by
+            creation time.  Sorting is reversed by `rname', `rsize', `rused',
+            `rchanged', or `rcreated'.  Archive contents are not sorted.
+            Subdirectories are displayed after matching files.  FILE arguments
+            are searched in the same order as specified.  Normally ugrep
+            displays matches in no particular order to improve performance.
+
+The matching files are displayed in the order specified by `--sort`.  By
+default, the output is not sorted to improve performance, unless option `-Q` is
+used which sorts files by name by default.  An optimized sorting method and
+strategy are implemented in the asynchronous output class to keep the overhead
+of sorting very low.  Directories are displayed after files are displayed
+first, when recursing, which visually aids the user in finding the "closest"
+matching files first at the top of the displayed results.
+
+To recursively search for C++ files that match `main` and sort them by name:
+
+    ugrep --sort -tc++ 'main'
+
+Same, but sorted by time changed from most recent to oldest:
+
+    ugrep --sort=rchanged -tc++ 'main'
 
 <a name="tips"/>
 
