@@ -12,7 +12,7 @@ class Ugrep < Formula
                           "--disable-dependency-tracking",
                           "--disable-silent-rules",
                           "--prefix=#{prefix}"
-    system "make", "-j"
+    system "make"
     system "make", "install"
   end
 
