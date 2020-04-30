@@ -52,10 +52,10 @@ inline HANDLE nonblocking_pipe(int fd[2])
   std::string pipe_name = "\\\\.\\pipe\\ugrep_";
   pipe_name.append(std::to_string(pid)).append("_").append(std::to_string(time(NULL)));
   DWORD buffer_size = QUERY_BUFFER_SIZE;
-  HANDLE pipe_r = CreateNamedPipeA(pipe_name.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, 1, buffer_size, buffer_size, 0, NULL);
+  HANDLE pipe_r = CreateNamedPipeA(pipe_name.c_str(), PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, buffer_size, buffer_size, 0, NULL);
   if (pipe_r != INVALID_HANDLE_VALUE)
   {
-    HANDLE pipe_w = CreateFileA(pipe_name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL); 
+    HANDLE pipe_w = CreateFileA(pipe_name.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL); 
     if (pipe_w != INVALID_HANDLE_VALUE)
     {
       fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), 0);
@@ -68,11 +68,6 @@ inline HANDLE nonblocking_pipe(int fd[2])
     }
   }
   return pipe_r;
-}
-
-inline void set_blocking(HANDLE pipe_r)
-{
-  SetNamedPipeHandleState(pipe_r, PIPE_READMODE_BYTE | PIPE_WAIT, NULL, NULL);
 }
 
 #else
@@ -1029,6 +1024,7 @@ void Query::result()
   }
 
   memset(&overlapped_, 0, sizeof(overlapped_));
+  blocking_ = false;
   pending_ = false;
 
 #else
@@ -1126,11 +1122,9 @@ void Query::update()
   Screen::restore();
 }
 
-// fetch rows up to and including the specified row, when available (i.e. do not block)
+// fetch rows up to and including the specified row, when available, i.e. do not block when pipe is non-blocking
 void Query::fetch(int row)
 {
-  bool append = false;
-
   while (rows_ <= row)
   {
     bool incomplete = false;
@@ -1161,6 +1155,9 @@ void Query::fetch(int row)
                 pending_ = true;
                 break;
 
+              case ERROR_MORE_DATA:
+                break;
+
               case ERROR_HANDLE_EOF:
               default:
                 close(search_pipe_[0]);
@@ -1169,11 +1166,12 @@ void Query::fetch(int row)
             }
           }
         }
+
         if (avail)
         {
           pending_ = false;
 
-          if (!ReadFile(hPipe_, buffer_ + buflen_, static_cast<DWORD>(QUERY_BUFFER_SIZE - buflen_), &nread, &overlapped_))
+          if (!ReadFile(hPipe_, buffer_ + buflen_, static_cast<DWORD>(QUERY_BUFFER_SIZE - buflen_), &nread, blocking_ ? NULL : &overlapped_))
           {
             switch (GetLastError())
             {
@@ -1253,7 +1251,7 @@ void Query::fetch(int row)
       }
 
       // assign or append the row from the buffer
-      if (append)
+      if (append_)
         view_[rows_].append(buffer_, nlptr - buffer_);
       else
         view_[rows_].assign(buffer_, nlptr - buffer_);
@@ -1273,7 +1271,7 @@ void Query::fetch(int row)
       }
 
       // append the next chunk of text from the buffer
-      append = incomplete;
+      append_ = incomplete;
 
       buflen_ -= nlptr - buffer_;
 
@@ -1759,7 +1757,8 @@ void Query::print()
   {
     // reading the search pipe should block until data is received
 #ifdef OS_WIN
-    set_blocking(hPipe_);
+    blocking_ = true;
+    pending_ = false;
 #else
     set_blocking(search_pipe_[0]);
 #endif
@@ -2039,6 +2038,7 @@ int                      Query::skip_                = 0;
 std::vector<std::string> Query::view_;
 std::vector<bool>        Query::selected_;
 bool                     Query::eof_                 = true;
+bool                     Query::append_              = false;
 size_t                   Query::buflen_              = 0;
 char                     Query::buffer_[QUERY_BUFFER_SIZE];
 int                      Query::search_pipe_[2];
@@ -2054,6 +2054,7 @@ size_t                   Query::context_             = 2;
 
 HANDLE                   Query::hPipe_;
 OVERLAPPED               Query::overlapped_;
+bool                     Query::blocking_;
 bool                     Query::pending_;
 
 #endif

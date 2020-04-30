@@ -167,6 +167,7 @@ class Query {
   static std::vector<bool>        selected_;
   static FILE                    *file_;
   static bool                     eof_;
+  static bool                     append_;
   static size_t                   buflen_;
   static char                     buffer_[QUERY_BUFFER_SIZE];
   static int                      search_pipe_[2];
@@ -182,6 +183,7 @@ class Query {
 
   static HANDLE                   hPipe_;
   static OVERLAPPED               overlapped_;
+  static bool                     blocking_;
   static bool                     pending_;
 
 #endif

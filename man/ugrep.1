@@ -1,4 +1,4 @@
-.TH UGREP "1" "April 27, 2020" "ugrep 2.0.6" "User Commands"
+.TH UGREP "1" "April 29, 2020" "ugrep 2.0.7" "User Commands"
 .SH NAME
 \fBugrep\fR -- universal file pattern searcher
 .SH SYNOPSIS
@@ -115,11 +115,11 @@ option.  If ACTION is `dereference\-recurse', read all files under
 each directory, recursively, following symbolic links.  This is
 equivalent to the \fB\-R\fR option.
 .TP
-\fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, \fB\-4\fR, \fB\-5\fR, \fB\-6\fR, \fB\-7\fR, \fB\-8\fR, \fB\-9\fR
+\fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR ... \fB\-9\fR, \fB\-\-10\fR, \fB\-\-11\fR ...
 Restrict recursive searches from MIN to MAX directory levels deep,
 where \fB\-1\fR (\fB\-\-depth\fR=1) searches the specified path without recursing
-into subdirectories.  Note that \fB\-3\fR\-5 searches 3 to 5 levels deep.
-Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
+into subdirectories.  Note that \fB\-3\fR \fB\-5\fR, \fB\-3\fR\-5, or \fB\-3\fR5 search 3 to 5
+levels deep.  Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is

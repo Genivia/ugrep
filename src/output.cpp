@@ -123,6 +123,7 @@ void Output::Dump::line(const char *separator)
     out.chr('|');
 
     last_hex_color = HEX_MAX;
+    bool inverted = false;
 
     for (size_t i = 0; i < flag_hex_columns; ++i)
     {
@@ -152,14 +153,22 @@ void Output::Dump::line(const char *separator)
           {
             out.str("\033[7m");
             out.chr('@' + byte);
+            inverted = true;
           }
           else if (byte == 0x7f)
           {
             out.str("\033[7m~");
+            inverted = true;
           }
           else if (byte > 0x7f)
           {
             out.str("\033[7m.");
+            inverted = true;
+          }
+          else if (inverted)
+          {
+            out.str(color_off);
+            out.chr(byte);
           }
           else
           {

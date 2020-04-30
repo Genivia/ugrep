@@ -50,12 +50,14 @@ Optional libraries to support options -P and -z:
 
 Build ugrep as follows:
 
-  $ ./configure --enable-colors && make -j
+  $ ./configure --enable-colors
+  $ make -j
 
 Git does not preserve time stamps so ./configure may fail, in that case do:
 
   $ autoreconf -fi
-  $ ./configure --enable-colors && make -j
+  $ ./configure --enable-colors
+  $ make -j
 
 After this, you may want to test ugrep and install it (optional):
 
@@ -65,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.0.6"
+#define UGREP_VERSION "2.0.7"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -697,7 +699,7 @@ struct Grep {
 #endif
   { }
 
-  ~Grep()
+  virtual ~Grep()
   {
     if (stream != NULL)
     {
@@ -1853,7 +1855,7 @@ struct GrepMaster : public Grep {
     iworker = workers.begin();
   }
 
-  ~GrepMaster()
+  virtual ~GrepMaster()
   {
     stop_workers();
     reset_handle();
@@ -1902,7 +1904,7 @@ struct GrepWorker : public Grep {
     thread = std::thread(&GrepWorker::execute, this);
   }
 
-  ~GrepWorker()
+  virtual ~GrepWorker()
   {
     // delete the cloned matcher
     delete matcher;
@@ -7077,11 +7079,11 @@ void help(const char *message, const char *arg)
             option.  If ACTION is `dereference-recurse', read all files under\n\
             each directory, recursively, following symbolic links.  This is\n\
             equivalent to the -R option.\n\
-    --depth=[MIN,][MAX], -1, -2, -3, -4, -5, -6, -7, -8, -9\n\
+    --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...\n\
             Restrict recursive searches from MIN to MAX directory levels deep,\n\
             where -1 (--depth=1) searches the specified path without recursing\n\
-            into subdirectories.  Note that -3-5 searches 3 to 5 levels deep.\n\
-            Enables -R if -R or -r is not specified.\n\
+            into subdirectories.  Note that -3 -5, -3-5, or -35 search 3 to 5\n\
+            levels deep.  Enables -R if -R or -r is not specified.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
