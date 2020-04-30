@@ -59,7 +59,7 @@ Table of contents
 
 - [Why use ugrep?](#introduction)
 - [Speed comparisons](#speed)
-- [Download and build](#download)
+- [Download and build](#install)
 - [Binaries for Windows](#binaries)
 - [Using ugrep within Vim](#vim)
 - [Ugrep versus grep](#comparison)
@@ -300,7 +300,7 @@ overhead.  The `null` utility source code:
     #include <unistd.h>
     int main() { char buf[65536]; while (read(0, buf, 65536) > 0) continue; }
 
-<a name="download"/>
+<a name="install"/>
 
 Download and build
 ------------------
