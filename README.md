@@ -342,7 +342,8 @@ You can always add these later, when you need these features:
   files, install the [lzma](https://tukaani.org/xz) library, e.g. with
   `sudo apt-get install -y liblzma-dev`.
 
-After installing these libraries, re-execute the commands to rebuild **ugrep**:
+After installing one or more of these libraries, re-execute the commands to
+rebuild **ugrep**:
 
     $ cd ugrep
     $ ./build.sh
