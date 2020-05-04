@@ -70,7 +70,7 @@ Table of contents
   - [Examples](#examples)
   - [Displaying helpful info](#help)
   - [Interactive search with -Q](#query)
-  - [Recursively list matching files with -l, -R, -r, and --depth](#recursion)
+  - [Recursively list matching files with -l, -R, -r, --depth, -g, -O, and -t](#recursion)
   - [Search this but not that with -v, -e, -N, -f, -L, -w, -x](#not)
   - [Search non-Unicode files with --encoding](#encoding)
   - [Matching multiple lines of text](#multiline)
@@ -319,7 +319,8 @@ Clone **ugrep**:
 
     $ git clone https://github.com/Genivia/ugrep
 
-Or visit https://github.com/Genivia/ugrep/releases to download a release.
+Or visit https://github.com/Genivia/ugrep/releases to download a specific
+release.
 
 ### Consider optional dependencies
 
@@ -854,9 +855,9 @@ This option starts a user interface to enter search patterns interactively:
   and cancelling searches by each key pressed.  Reducing the level of
   parallelism helps to reduce system load, i.e. with option `-J`, e.g. `-J2` to
   run 2 worker jobs at most.
-- To avoid long pathnames to obscure the view, press Alt-+ or use option
-  `--pretty` or `--heading` to separate matching files by headings and line
-  breaks.
+- To avoid long pathnames to obscure the view, enable `--heading` or press
+  `Alt-+`.
+  
 
 To interactively search the files in the working directory and below:
 
@@ -897,7 +898,7 @@ using ugrep query selection mode (press Enter to select lines):
 
 <a name="recursion"/>
 
-### Recursively list matching files with -l, -R, -r, or --depth
+### Recursively list matching files with -l, -R, -r, --depth, -g, -O, and -t
 
     -L, --files-without-match
             Only the names of files not containing selected lines are written
@@ -925,19 +926,52 @@ using ugrep query selection mode (press Enter to select lines):
             where -1 (--depth=1) searches the specified path without recursing
             into subdirectories.  Note that -3 -5, -3-5, or -35 search 3 to 5
             levels deep.  Enables -R if -R or -r is not specified.
+    -g GLOB, --glob=GLOB
+            Search only files whose name matches GLOB, same as --include=GLOB.
+            When GLOB is preceded by a `!' or a `^', skip files whose name
+            matches GLOB, same as --exclude=GLOB.  GLOB should be quoted to
+            prevent shell globbing.  This option may be repeated.
+    -O EXTENSIONS, --file-extensions=EXTENSIONS
+            Search only files whose filename extensions match the specified
+            comma-separated list of EXTENSIONS, same as --include='*.ext' for
+            each `ext' in EXTENSIONS.  When `ext' is preceded by a `!' or a
+            `^', skip files whose filename extensions matches `ext', same as
+            --exclude='*.ext'.  This option may be repeated and may be combined
+            with options -M and -t to expand the recursive search.
+    -t TYPES, --file-type=TYPES
+            Search only files associated with TYPES, a comma-separated list of
+            file types.  Each file type corresponds to a set of filename
+            extensions passed to option -O.  For capitalized file types, the
+            search is expanded to include files with matching file signature
+            magic bytes, as if passed to option -M.  When a type is preceeded
+            by a `!' or a `^', excludes files of the specified type.  This
+            option may be repeated.
+    --stats
+            Display statistics on the number of files and directories searched.
+            Display the inclusion and exclusion constraints applied.
+
+If no FILE arguments are specified and input is read from a terminal, recursive
+searches are performed as if `-R` is specified.  To force reading from standard
+input, specify `-` as the FILE argument.
 
 To recursively list all non-empty files in the working directory, following
-symbolic links:
+symbolic links (note that `-R` is redundant as no FILE arguments are given):
 
     ugrep -Rl ''
 
-To list all non-empty files in directory `mydir`:
+To list all non-empty files in directory `mydir` (but not deeper, since a FILE
+argument is given):
 
     ugrep -l '' mydir
 
+To list all non-empty files in directory `mydir` and deeper:
+
+    ugrep -R -l '' mydir
+
 To recursively list all non-empty files on the path specified, while visiting
 subdirectories only, i.e. directories `mydir/` and subdirectories at one
-level deeper `mydir/sub/` are visited:
+level deeper `mydir/*/` are visited (note that `-2 -l` can be abbreviated to
+`-l2`):
 
     ugrep -2 -l '' mydir
 
@@ -946,18 +980,26 @@ symbolic links (except when on the command line such as `mydir`):
 
     ugrep -rl '' mydir
 
+To recursively list all `Makefile` matching the text `CPP`:
+
+    ugrep -l -gMakefile 'bin_PROGRAMS'
+
+To recursively list all `Makefile.*` matching `bin_PROGRAMS`:
+
+    ugrep -l -g'Makefile.*' 'bin_PROGRAMS'
+
 To recursively list all non-empty files with extension .sh, with `-Osh`:
 
-    ugrep -Rl -Osh ''
+    ugrep -l -Osh ''
 
 To recursively list all shell scripts based on extensions and shebangs with
 `-tShell`:
 
-    ugrep -Rl -tShell ''
+    ugrep -l -tShell ''
 
 To recursively list all shell scripts based on extensions only with `-tshell`:
 
-    ugrep -Rl -tshell ''
+    ugrep -l -tshell ''
 
 <a name="not"/>
 
@@ -1253,7 +1295,7 @@ characters of context instead of a single word:
 
 <a name="source"/>
 
-### Searching source code using -f, -O, and -t
+### Searching source code using -f, -g, -O, and -t
 
     -f FILE, --file=FILE
             Read newline-separated patterns from FILE.  White space in patterns
@@ -1270,6 +1312,11 @@ characters of context instead of a single word:
             temporarily overriding the --exclude and --exclude-dir globs.
             Note that files and directories specified as ugrep FILE arguments
             are not ignored.  This option may be repeated.
+    -g GLOB, --glob=GLOB
+            Search only files whose name matches GLOB, same as --include=GLOB.
+            When GLOB is preceded by a `!' or a `^', skip files whose name
+            matches GLOB, same as --exclude=GLOB.  GLOB should be quoted to
+            prevent shell globbing.  This option may be repeated.
     -O EXTENSIONS, --file-extensions=EXTENSIONS
             Search only files whose filename extensions match the specified
             comma-separated list of EXTENSIONS, same as --include='*.ext' for
