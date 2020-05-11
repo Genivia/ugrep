@@ -534,8 +534,7 @@ Ugrep versus other greps
 compatible output, making **ugrep** a true drop-in replacement.
 
 GNU and BSD grep and their common variants are equivalent to **ugrep** when the
-following options are used (note that `-U` disables Unicode as GNU/BSD grep do
-not support Unicode!):
+following options are used (`-U` disables Unicode matching with UTF-8 patterns):
 
     grep   = ugrep --sort -G -U -Y -Dread -dread
     egrep  = ugrep --sort -E -U -Y -Dread -dread
@@ -549,8 +548,9 @@ Option `--sort` specifies output sorted by pathname, showing sorted matching
 files first followed by sorted recursive matches in subdirectories.  Otherwise,
 matches are reported in no particular order to improve performance.  Option
 `-Y` enables empty matches for GNU/BSD compatibility (`-Y` is not strictly
-necessary, see [further below](#improvements).)  Options `-Dread` and `-dread`
-are not recommended (see below), but are the GNU/BSD grep defaults.
+necessary, for why and when to use it see [further below](#improvements).)
+Options `-Dread` and `-dread` are not recommended (see below), but are the
+GNU/BSD grep defaults.
 
 <a name="aliases"/>
 
@@ -558,23 +558,24 @@ are not recommended (see below), but are the GNU/BSD grep defaults.
 
 Commonly-used aliases to add to `.bashrc` to increase productivity:
 
-    alias uq     = 'ugrep --color --query'       # short & quick query UI (interactive)
-    alias ug     = 'ugrep --color --pager'       # short & quick text pattern search
-    alias ux     = 'ugrep --color --pager -UX'   # short & quick binary pattern search
-    alias uz     = 'ugrep --color --pager -z'    # short & quick compressed files and archives search
-    alias ugit   = 'ugrep -R --ignore-files'     # like git-grep
+    alias ug     = 'ugrep'       # short & quick text pattern search
+    alias uq     = 'ugrep -Q'    # short & quick query UI (interactive)
+    alias ux     = 'ugrep -UX'   # short & quick binary pattern search
+    alias uz     = 'ugrep -z'    # short & quick compressed files and archives search
 
-    alias grep   = 'ugrep --color --pager -G'    # search with basic regular expressions (BRE)
-    alias egrep  = 'ugrep --color --pager -E'    # search with extended regular expressions (ERE)
-    alias fgrep  = 'ugrep --color --pager -F'    # find string(s)
-    alias xgrep  = 'ugrep --color --pager -W'    # search (ERE) and output text or hex for binary
+    alias ugit   = 'ugrep -R --ignore-files' # like git-grep
 
-    alias zgrep  = 'ugrep -z --color --pager -G' # search compressed files and archives (BRE)
-    alias zegrep = 'ugrep -z --color --pager -E' # search compressed files and archives (ERE)
-    alias zfgrep = 'ugrep -z --color --pager -F' # find string(s) in compressed files and/or archives
-    alias zxgrep = 'ugrep -z --color --pager -W' # search (ERE) compressed files/archives and output text or hex for binary
+    alias grep   = 'ugrep -G'    # search with basic regular expressions (BRE)
+    alias egrep  = 'ugrep -E'    # search with extended regular expressions (ERE)
+    alias fgrep  = 'ugrep -F'    # find string(s)
+    alias xgrep  = 'ugrep -W'    # search (ERE) and output text or hex for binary
 
-    alias xdump  = 'ugrep --color --pager -X ""' # hexdump files without searching
+    alias zgrep  = 'ugrep -zG'   # search compressed files and archives (BRE)
+    alias zegrep = 'ugrep -zE'   # search compressed files and archives (ERE)
+    alias zfgrep = 'ugrep -zF'   # find string(s) in compressed files and/or archives
+    alias zxgrep = 'ugrep -zW'   # search (ERE) compressed files/archives and output text or hex for binary
+
+    alias xdump  = 'ugrep -X ""' # hexdump files without searching
 
 To search PDF and office documents automatically, add a filter option to the
 aliased `ugrep` command:
