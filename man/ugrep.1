@@ -1,6 +1,6 @@
-.TH UGREP "1" "April 29, 2020" "ugrep 2.0.7" "User Commands"
+.TH UGREP "1" "May 10, 2020" "ugrep 2.1.0" "User Commands"
 .SH NAME
-\fBugrep\fR -- universal file pattern searcher
+\fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
 .B ugrep
 [\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
@@ -433,7 +433,7 @@ searches after the last key press, in increments of 100ms, where
 the default is 5 (0.5s delay).  Initial patterns may be specified
 with \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press
 F1 or CTRL\-Z to view the help screen.  No whitespace may be given
-between \fB\-Q\fR and its argument DELAY.
+between \fB\-Q\fR and its argument DELAY.  Enables \fB\-\-heading\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  ugrep will only search until a
@@ -513,6 +513,10 @@ option may be repeated.  The possible file types can be (where
 \fB\-\-tabs\fR=\fINUM\fR
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
 NUM may be 1, 2, 4, or 8.  The default tab size is 8.
+.TP
+\fB\-\-tag[\fR=\fITAG\fR[,\fIEND\fR]]
+Disables colors to mark up matches with TAG.  If END is specified,
+the end of a match is marked with END.  The default is `___'.
 .TP
 \fB\-U\fR, \fB\-\-binary\fR
 Disables Unicode matching for binary file matching, forcing PATTERN
@@ -800,6 +804,8 @@ the width of the match, counting wide characters.
 the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
+.IP \fB%g\fR
+the group capture index of the match or zero (option -P).
 .IP \fB%u\fR
 select unique lines only unless option \fB-u\fR is used.
 .IP \fB%,\fR

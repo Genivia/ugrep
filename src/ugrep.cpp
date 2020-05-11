@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.0.7"
+#define UGREP_VERSION "2.1.0"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -153,6 +153,11 @@ After this, you may want to test ugrep and install it (optional):
 # else
 #  define DEFAULT_GREP_COLORS "cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
 # endif
+#endif
+
+// the default --tag
+#ifndef DEFAULT_TAG
+# define DEFAULT_TAG "___"
 #endif
 
 // the default pager when --pager is used
@@ -307,11 +312,12 @@ char color_cn[COLORLEN]; // column number
 char color_bn[COLORLEN]; // byte offset
 char color_se[COLORLEN]; // separator
 
-char match_ms[COLORLEN]; // --match: matched text in a selected line
-char match_mc[COLORLEN]; // --match: matched text in a context line
+char match_ms[COLORLEN];  // --match or --tag: matched text in a selected line
+char match_mc[COLORLEN];  // --match or --tag: matched text in a context line
+char match_off[COLORLEN]; // --match or --tag: off
 
-const char *color_del     = ""; // erase line after the cursor
 const char *color_off     = ""; // disable colors
+const char *color_del     = ""; // erase line after the cursor
 
 const char *color_high    = ""; // stderr highlighted text
 const char *color_error   = ""; // stderr error text
@@ -395,7 +401,6 @@ bool flag_decompress               = false;
 bool flag_any_line                 = false;
 bool flag_heading                  = false;
 bool flag_break                    = false;
-bool flag_stats                    = false;
 bool flag_cpp                      = false;
 bool flag_csv                      = false;
 bool flag_json                     = false;
@@ -429,6 +434,7 @@ size_t flag_max_mmap               = DEFAULT_MAX_MMAP_SIZE;
 size_t flag_min_steal              = MIN_STEAL;
 const char *flag_pager             = FLAG_PAGER;
 const char *flag_color             = FLAG_COLOR;
+const char *flag_tag               = NULL;
 const char *flag_apply_color       = NULL;
 const char *flag_hexdump           = NULL;
 const char *flag_colors            = NULL;
@@ -440,6 +446,7 @@ const char *flag_format_end        = NULL;
 const char *flag_format_open       = NULL;
 const char *flag_format_close      = NULL;
 const char *flag_sort              = NULL;
+const char *flag_stats             = NULL;
 const char *flag_devices           = "skip";
 const char *flag_directories       = "skip";
 const char *flag_label             = "(standard input)";
@@ -619,9 +626,16 @@ inline void read_line(reflex::AbstractMatcher *matcher, const std::string& line)
 }
 
 // copy color buffers
-inline void copy_color(char to[COLORLEN], char from[COLORLEN])
+inline void copy_color(char to[COLORLEN], const char from[COLORLEN])
 {
-  memcpy(to, from, COLORLEN);
+  size_t len = std::min(strlen(from), static_cast<size_t>(COLORLEN - 1));
+
+  memcpy(to, from, len);
+  to[len] = '\0';
+
+  char *comma = strchr(to, ',');
+  if (comma != NULL)
+    *comma = '\0';
 }
 
 // grep manages output, matcher, input, and decompression
@@ -2328,7 +2342,15 @@ int main(int argc, const char **argv)
 
 #endif
 
-  options(argc, argv);
+  try
+  {
+    options(argc, argv);
+  }
+
+  catch (std::exception& error)
+  {
+    abort("exception: ", error.what());
+  }
 
   if (flag_query > 0)
   {
@@ -2359,6 +2381,22 @@ int main(int argc, const char **argv)
   }
 
   return warnings == 0 && Stats::found_any_file() ? EXIT_OK : EXIT_FAIL;
+}
+
+static void set_depth(const char *arg)
+{
+  if (flag_max_depth > 0)
+  {
+    if (flag_min_depth == 0)
+      flag_min_depth = flag_max_depth;
+    flag_max_depth = strtopos(arg, "invalid argument --");
+    if (flag_min_depth > flag_max_depth)
+      help("invalid argument -", arg);
+  }
+  else
+  {
+    strtopos2(arg, flag_min_depth, flag_max_depth, "invalid argument --", true);
+  }
 }
 
 // parse the command-line options
@@ -2593,9 +2631,15 @@ void options(int argc, const char **argv)
             else if (strncmp(arg, "sort=", 5) == 0)
               flag_sort = arg + 5;
             else if (strcmp(arg, "stats") == 0)
-              flag_stats = true;
+              flag_stats = "";
+            else if (strncmp(arg, "stats=", 6) == 0)
+              flag_stats = arg + 6;
             else if (strncmp(arg, "tabs=", 5) == 0)
               flag_tabs = strtopos(arg + 5, "invalid argument --tabs=");
+            else if (strcmp(arg, "tag") == 0)
+              flag_tag = DEFAULT_TAG;
+            else if (strncmp(arg, "tag=", 4) == 0)
+              flag_tag = arg + 4;
             else if (strcmp(arg, "text") == 0)
               flag_binary_files = "text";
             else if (strcmp(arg, "ungroup") == 0)
@@ -2610,28 +2654,10 @@ void options(int argc, const char **argv)
               flag_word_regexp = true;
             else if (strcmp(arg, "xml") == 0)
               flag_xml = true;
+            else if (isdigit(*arg))
+              set_depth(arg);
             else
-            {
-              if (isdigit(*arg))
-              {
-                if (flag_max_depth > 0)
-                {
-                  if (flag_min_depth == 0)
-                    flag_min_depth = flag_max_depth;
-                  flag_max_depth = strtopos(arg, "invalid argument --");
-                  if (flag_min_depth > flag_max_depth)
-                    help("invalid argument -", arg);
-                }
-                else
-                {
-                  strtopos2(arg, flag_min_depth, flag_max_depth, "invalid argument --", true);
-                }
-              }
-              else
-              {
-                help("invalid option --", arg);
-              }
-            }
+              help("invalid option --", arg);
             is_grouped = false;
             break;
 
@@ -3649,7 +3675,7 @@ void terminal()
   }
 
   // whether to apply colors
-  flag_apply_color = flag_query > 0 ? "always" : flag_color;
+  flag_apply_color = flag_tag != NULL ? "never" : flag_query > 0 ? "always" : flag_color;
 
   if (!flag_quiet)
   {
@@ -3680,7 +3706,12 @@ void terminal()
 
       if (flag_query > 0)
       {
-        // --query: enable --line-buffered to flush output to the pager immediately
+        // --query: run the interactive query UI
+
+        // enable --heading
+        flag_heading = true;
+
+        // enable --line-buffered to flush output immediately
         flag_line_buffered = true;
       }
       else if (flag_pager != NULL)
@@ -3816,8 +3847,10 @@ void terminal()
           if (*color_mc == '\0')
             copy_color(color_mc, color_mt);
 
-          color_del = "\033[K";
           color_off = "\033[m";
+          color_del = "\033[K";
+
+          copy_color(match_off, color_off);
 
           if (isatty(STDERR_FILENO))
           {
@@ -3920,6 +3953,18 @@ void ugrep()
       size_t from = 0;
       size_t to;
 
+      // replace all \E in pattern with \E\\E\Q
+      if (flag_fixed_strings)
+      {
+        while ((to = pattern.find("\\E", from)) != std::string::npos)
+        {
+          pattern.insert(to + 2, "\\\\E\\Q");
+          from = to + 7;
+        }
+      }
+
+      from = 0;
+
       // split regex at newlines, for -F add \Q \E to each string, separate by |
       while ((to = pattern.find('\n', from)) != std::string::npos)
       {
@@ -3950,16 +3995,40 @@ void ugrep()
   {
     copy_color(match_ms, color_sl);
     copy_color(match_mc, color_cx);
+    copy_color(match_off, color_off);
   }
   else
   {
-    copy_color(match_ms, color_ms);
-    copy_color(match_mc, color_mc);
-  }
+    // --tag: tag matches instead of colors
+    if (flag_tag != NULL)
+    {
+      const char *s1 = strchr(flag_tag, ',');
+      const char *s2 = s1 != NULL ? strchr(s1 + 1, ',') : NULL;
 
-  // --heading: enable --break
-  if (flag_heading)
-    flag_break = true;
+      copy_color(match_ms, flag_tag);
+
+      if (s1 == NULL)
+      {
+        copy_color(match_mc, flag_tag);
+        copy_color(match_off, flag_tag);
+      }
+      else
+      {
+        copy_color(match_off, s1 + 1);
+
+        if (s2 == NULL)
+          copy_color(match_mc, match_ms);
+        else
+          copy_color(match_mc, s2 + 1);
+      }
+    }
+    else
+    {
+      copy_color(match_ms, color_ms);
+      copy_color(match_mc, color_mc);
+      copy_color(match_off, color_off);
+    }
+  }
 
   // the regex compiled from -N PATTERN
   std::string neg_regex;
@@ -4093,15 +4162,12 @@ void ugrep()
 
       reflex::BufferedInput input(file);
       std::string line;
-      size_t lineno = 0;
 
       while (true)
       {
         // read the next line
         if (getline(input, line))
           break;
-
-        ++lineno;
 
         trim_nl(line);
 
@@ -4207,6 +4273,10 @@ void ugrep()
     flag_count = false;
   }
 
+  // --heading: enable --break when filenames are shown
+  if (flag_heading && flag_with_filename)
+    flag_break = true;
+
   // -J: when not set the default is the number of cores (or hardware threads), limited to MAX_JOBS
   if (flag_jobs == 0)
   {
@@ -4268,6 +4338,13 @@ void ugrep()
   // --format-begin
   if (!flag_quiet && flag_format_begin != NULL)
     format(flag_format_begin, 0);
+
+  size_t nodes = 0;
+  size_t edges = 0;
+  size_t words = 0;
+  size_t nodes_time = 0;
+  size_t edges_time = 0;
+  size_t words_time = 0;
 
   // -P: Perl matching with Boost.Regex
   if (flag_perl_regexp)
@@ -4381,6 +4458,13 @@ void ugrep()
       grep.ugrep();
       reset_handle();
     }
+
+    nodes = pattern.nodes();
+    edges = pattern.edges();
+    words = pattern.words();
+    nodes_time = static_cast<size_t>(pattern.nodes_time());
+    edges_time = static_cast<size_t>(pattern.parse_time() + pattern.edges_time());
+    words_time = static_cast<size_t>(pattern.words_time());
   }
 
   // --format-end
@@ -4388,8 +4472,13 @@ void ugrep()
     format(flag_format_end, Stats::found_parts());
 
   // --stats: display stats when we're done
-  if (flag_stats)
+  if (flag_stats != NULL)
+  {
     Stats::report();
+
+    if (strcmp(flag_stats, "vm") == 0 && words > 0)
+      fprintf(output, "VM memory: %zu nodes (%zums), %zu edges (%zums), %zu opcode words (%zums)\n", nodes, nodes_time, edges, edges_time, words, words_time);
+  }
 
   // close the pipe to the forked pager
   if (flag_pager != NULL && output != NULL && output != stdout)
@@ -5574,7 +5663,7 @@ void Grep::search(const char *pathname)
               {
                 out.str(match_ms);
                 out.str(from, to - from + 1);
-                out.str(color_off);
+                out.str(match_off);
 
                 if (to + 1 <= begin + size)
                   out.header(pathname, partname, ++lineno, NULL, matcher->first() + (to - begin) + 1, "|", false);
@@ -5588,7 +5677,7 @@ void Grep::search(const char *pathname)
 
             out.str(match_ms);
             out.str(begin, size);
-            out.str(color_off);
+            out.str(match_off);
 
             if (size == 0 || begin[size - 1] != '\n')
               out.chr('\n');
@@ -5745,7 +5834,7 @@ void Grep::search(const char *pathname)
                 {
                   out.str(match_ms);
                   out.str(from, to - from + 1);
-                  out.str(color_off);
+                  out.str(match_off);
 
                   if (to + 1 <= begin + size)
                     out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
@@ -5760,7 +5849,7 @@ void Grep::search(const char *pathname)
 
               out.str(match_ms);
               out.str(begin, size);
-              out.str(color_off);
+              out.str(match_off);
 
               if (flag_ungroup)
               {
@@ -5831,7 +5920,7 @@ void Grep::search(const char *pathname)
                     {
                       out.str(match_ms);
                       out.str(from, to - from + 1);
-                      out.str(color_off);
+                      out.str(match_off);
 
                       if (to + 1 <= begin + size)
                         out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
@@ -5846,7 +5935,7 @@ void Grep::search(const char *pathname)
 
                   out.str(match_ms);
                   out.str(begin, size);
-                  out.str(color_off);
+                  out.str(match_off);
                 }
 
                 if (lines == 1)
@@ -6095,7 +6184,7 @@ void Grep::search(const char *pathname)
                 {
                   out.str(match_mc);
                   out.str(matcher->begin(), matcher->size());
-                  out.str(color_off);
+                  out.str(match_off);
                 }
               }
               else
@@ -6234,7 +6323,7 @@ void Grep::search(const char *pathname)
                     {
                       out.str(match_mc);
                       out.str(matcher->begin(), matcher->size());
-                      out.str(color_off);
+                      out.str(match_off);
                     }
                   }
 
@@ -6424,7 +6513,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
                 out.str(match_ms);
                 out.str(matcher->begin(), matcher->size());
-                out.str(color_off);
+                out.str(match_off);
                 out.str(color_sl);
                 out.str(lines[current].c_str() + matcher->last(), lines[current].size() - matcher->last());
                 out.str(color_off);
@@ -6477,7 +6566,7 @@ void Grep::search(const char *pathname)
                   out.str(color_off);
                   out.str(match_ms);
                   out.str(matcher->begin(), matcher->size());
-                  out.str(color_off);
+                  out.str(match_off);
                 }
               }
 
@@ -7203,9 +7292,7 @@ void help(const char *message, const char *arg)
 #ifdef OS_WIN
   std::cout << "Windows system and ";
 #endif
-  std::cout << "hidden files and directories.\n";
-#ifndef OS_WIN
-  std::cout << "\
+  std::cout << "hidden files and directories.\n\
     -I\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\
@@ -7323,9 +7410,7 @@ void help(const char *message, const char *arg)
             each file processed.\n\
     --no-group-separator\n\
             Removes the group separator line from the output for context\n\
-            options -A, -B, and -C.\n";
-#endif
-  std::cout << "\
+            options -A, -B, and -C.\n\
     -O EXTENSIONS, --file-extensions=EXTENSIONS\n\
             Search only files whose filename extensions match the specified\n\
             comma-separated list of EXTENSIONS, same as --include='*.ext' for\n\
@@ -7371,7 +7456,7 @@ void help(const char *message, const char *arg)
             the default is 5 (0.5s delay).  Initial patterns may be specified\n\
             with -e PATTERN, i.e. a PATTERN argument requires option -e.  Press\n\
             F1 or CTRL-Z to view the help screen.  No whitespace may be given\n\
-            between -Q and its argument DELAY.\n\
+            between -Q and its argument DELAY.  Enables --heading.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found, making searches potentially less expensive.\n\
@@ -7428,6 +7513,9 @@ void help(const char *message, const char *arg)
     --tabs=NUM\n\
             Set the tab size to NUM to expand tabs for option -k.  The value of\n\
             NUM may be 1, 2, 4, or 8.  The default tab size is 8.\n\
+    --tag[=TAG[,END]]\n\
+            Disables colors to mark up matches with TAG.  If END is specified,\n\
+            the end of a match is marked with END.  The default is `___'.\n\
     -U, --binary\n";
 #ifdef OS_WIN
   std::cout << "\

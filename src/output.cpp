@@ -527,6 +527,10 @@ void Output::format(const char *format, const char *pathname, const std::string&
         num(matcher->last());
         break;
 
+      case 'g':
+        num(matcher->accept());
+        break;
+
       case 'm':
         num(matches);
         break;

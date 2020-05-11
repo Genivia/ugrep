@@ -92,19 +92,22 @@ More info TODO
 class AbstractMatcher {
  protected:
   typedef int Method; ///< a method is one of Const::SCAN, Const::FIND, Const::SPLIT, Const::MATCH
+ public:
   /// AbstractMatcher::Const common constants.
   struct Const {
-    static const Method SCAN  = 0;      ///< AbstractMatcher::match method is to scan input (tokenizer)
-    static const Method FIND  = 1;      ///< AbstractMatcher::match method is to find pattern in input
-    static const Method SPLIT = 2;      ///< AbstractMatcher::match method is to split input at pattern matches
-    static const Method MATCH = 3;      ///< AbstractMatcher::match method is to match the entire input
-    static const int NUL      = '\0';   ///< NUL string terminator
-    static const int UNK      = 256;    ///< unknown/undefined character meta-char marker
-    static const int BOB      = 257;    ///< begin of buffer meta-char marker
-    static const int EOB      = EOF;    ///< end of buffer meta-char marker
-    static const size_t EMPTY = 0xFFFF; ///< accept() returns empty last split at end of input
-    static const size_t BLOCK = 8192;   ///< buffer growth factor, buffer is initially 2*BLOCK size, at least 256
+    static const Method SCAN  = 0;          ///< AbstractMatcher::match method is to scan input (tokenizer)
+    static const Method FIND  = 1;          ///< AbstractMatcher::match method is to find pattern in input
+    static const Method SPLIT = 2;          ///< AbstractMatcher::match method is to split input at pattern matches
+    static const Method MATCH = 3;          ///< AbstractMatcher::match method is to match the entire input
+    static const int NUL      = '\0';       ///< NUL string terminator
+    static const int UNK      = 256;        ///< unknown/undefined character meta-char marker
+    static const int BOB      = 257;        ///< begin of buffer meta-char marker
+    static const int EOB      = EOF;        ///< end of buffer meta-char marker
+    static const size_t BLOCK = 8192;       ///< buffer growth factor, buffer is initially 2*BLOCK size, at least 256
+    static const size_t REDO  = 0x7FFFFFFF; ///< reflex::Matcher::accept() returns "redo" with reflex::Matcher option "A"
+    static const size_t EMPTY = 0xFFFFFFFF; ///< accept() returns "empty" last split at end of input
   };
+ protected:
   /// AbstractMatcher::Options for matcher engines.
   struct Option {
     Option()

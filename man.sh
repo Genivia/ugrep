@@ -15,7 +15,7 @@ mkdir -p man
 echo '.TH UGREP "1" "'`date '+%B %d, %Y'`'" "ugrep '$1'" "User Commands"' > man/ugrep.1
 cat >> man/ugrep.1 << 'END'
 .SH NAME
-\fBugrep\fR -- universal file pattern searcher
+\fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
 .B ugrep
 [\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
@@ -283,6 +283,8 @@ the width of the match, counting wide characters.
 the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
+.IP \fB%g\fR
+the group capture index of the match or zero (option -P).
 .IP \fB%u\fR
 select unique lines only unless option \fB-u\fR is used.
 .IP \fB%,\fR

@@ -105,6 +105,7 @@ static const char *regex_range(char *buf, int a, int b, int esc, bool brackets =
   return buf;
 }
 
+/// Convert an 8-bit ASCII + Latin-1 Supplement range [a,b] to a regex pattern.
 std::string latin1(int a, int b, int esc, bool brackets)
 {
   if (a < 0)
@@ -115,13 +116,14 @@ std::string latin1(int a, int b, int esc, bool brackets)
   return regex_range(buf, a, b, esc, brackets);
 }
 
+/// Convert a UCS-4 range [a,b] to a UTF-8 regex pattern.
 std::string utf8(int a, int b, int esc, const char *par, bool strict)
 {
   if (a < 0)
     return ""; // undefined
   if (a > b)
     b = a;
-  static const char *min_utf8_strict[6] = { // strict: exact UTF-8 validation
+  static const char *min_utf8_strict[6] = { // strict: pattern is strict, matching only strictly valid UTF-8
     "\x00",
     "\xc2\x80",
     "\xe0\xa0\x80",
@@ -129,7 +131,7 @@ std::string utf8(int a, int b, int esc, const char *par, bool strict)
     "\xf8\x88\x80\x80\x80",
     "\xfc\x84\x80\x80\x80\x80"
   };
-  static const char *min_utf8_lean[6] = { // lean: permissive UTF-8 validation with more tightly compressed UTF-8
+  static const char *min_utf8_lean[6] = { // lean: pattern is permissive, matching also some invalid UTF-8 but more tightly compressed UTF-8
     "\x00",
     "\xc2\x80",
     "\xe0\x80\x80",

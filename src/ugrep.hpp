@@ -207,7 +207,6 @@ extern bool flag_decompress;
 extern bool flag_any_line;
 extern bool flag_heading;
 extern bool flag_break;
-extern bool flag_stats;
 extern bool flag_cpp;
 extern bool flag_csv;
 extern bool flag_json;
@@ -241,6 +240,7 @@ extern size_t flag_max_mmap;
 extern size_t flag_min_steal;
 extern const char *flag_pager;
 extern const char *flag_color;
+extern const char *flag_tags;
 extern const char *flag_apply_color;
 extern const char *flag_hexdump;
 extern const char *flag_colors;
@@ -252,6 +252,7 @@ extern const char *flag_format_end;
 extern const char *flag_format_open;
 extern const char *flag_format_close;
 extern const char *flag_sort;
+extern const char *flag_stats;
 extern const char *flag_devices;
 extern const char *flag_directories;
 extern const char *flag_label;
@@ -309,11 +310,12 @@ extern char color_cn[COLORLEN]; // column number
 extern char color_bn[COLORLEN]; // byte offset
 extern char color_se[COLORLEN]; // separator
 
-extern char match_ms[COLORLEN]; // --match: matched text in a selected line
-extern char match_mc[COLORLEN]; // --match: matched text in a context line
+extern char match_ms[COLORLEN];  // --match or --tag: matched text in a selected line
+extern char match_mc[COLORLEN];  // --match or --tag: matched text in a context line
+extern char match_off[COLORLEN]; // --match or --tag: off
 
-extern const char *color_del;   // erase line after the cursor
-extern const char *color_off;   // disable colors
+extern const char *color_off; // disable colors
+extern const char *color_del; // erase line after the cursor
 
 // check TTY availability and set colors
 extern void terminal();

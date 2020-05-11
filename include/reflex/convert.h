@@ -68,6 +68,7 @@ namespace convert_flag {
   const convert_flag_type dotall     = 0x0080; ///< convert `.` (dot) to match all, same as `(?s)`
   const convert_flag_type freespace  = 0x0100; ///< convert regex by removing spacing, same as `(?x)`
   const convert_flag_type notnewline = 0x0200; ///< inverted character classes do not match newline `\n`
+  const convert_flag_type permissive = 0x0400; ///< convert Unicode to compact UTF-8 patterns and DFA, permits some invalid UTF-8 sequences
 }
 
 /// @brief Returns the converted regex string given a regex library signature and conversion flags, throws regex_error.
