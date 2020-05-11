@@ -60,8 +60,7 @@ Table of contents
 
 - [Why use ugrep?](#introduction)
 - [Speed comparisons](#speed)
-- [Download and build](#install)
-- [Binaries for Windows](#binaries)
+- [Download and install](#install)
 - [Using ugrep within Vim](#vim)
 - [Ugrep versus grep](#comparison)
   - [Equivalence to GNU grep and BSD grep](#equivalence)
@@ -305,27 +304,42 @@ results were obtained on many other types of machines.
 
 <a name="install"/>
 
-Download and build
-------------------
+Download and install
+--------------------
 
 ### MacOS
 
-Install the latest fully-featured **ugrep** with [Homebrew](https://brew.sh):
+Install the latest full featured **ugrep** with [Homebrew](https://brew.sh):
 
     $ brew install https://raw.githubusercontent.com/Genivia/ugrep/master/Formula/ugrep.rb
 
-Alternatively, follow the steps below.
+### Windows
 
-### Download
+Download the full featured ugrep executable as a release artifact from
+<https://github.com/Genivia/ugrep/releases>
+
+To add `ugrep.exe` to your execution path: go to *Settings* and search for
+"Path" in *Find a Setting*.  Select *environment variables* -> *Path* -> *New*
+and add the directory where you placed `ugrep.exe`.
+
+On using `ugrep.exe` from the Windows command line:
+- when quoting patterns and arguments on the command line, do not use single
+  `'` quotes but use `"` instead; most Windows command utilities consider
+  the single `'` quotes part of the command-line argument
+- when specifying an empty pattern `""` to match all input, this may be ignored
+  by some Windows command interpreters such as Powershell, in that case use
+  option `--match` instead
+
+### All other platforms: step 1 download
 
 Clone **ugrep**:
 
     $ git clone https://github.com/Genivia/ugrep
 
-Or visit https://github.com/Genivia/ugrep/releases to download a specific
+Or visit <https://github.com/Genivia/ugrep/releases> to download a specific
 release.
 
-### Consider optional dependencies
+### All other platforms: step 2 consider optional dependencies
 
 You can always add these later, when you need these features:
 
@@ -357,7 +371,7 @@ Some Linux systems may not be configured to load dynamic libraries from
 this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to your
 `~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
 
-### Build
+### All other platforms: step 3 build
 
 Build **ugrep** on Unix-like systems with colors enabled by default:
 
@@ -417,31 +431,6 @@ significant changes, for example to detect data races with the
 We checked **ugrep** with the clang AddressSanitizer, MemorySanitizer,
 ThreadSanitizer, and UndefinedBehaviorSanitizer.  These options incur
 significant runtime overhead and should not be used for the final build.
-
-<a name="binaries"/>
-
-Binaries for Windows
---------------------
-
-Download a .zip source code asset <https://github.com/Genivia/ugrep/releases>.
-
-There are two Windows binaries in the .zip file:
-- `ugrep\bin\win32\ugrep.exe`
-- `ugrep\bin\win64\ugrep.exe`
-Depending on your system, add the 32 or 64 bit version to your execution path:
-go to *Settings* and search for "Path" in *Find a Setting*.  Select
-*environment variables* -> *Path* -> *New* and add the directory `C:\<fill this
-part in>\ugrep\bin\win32`.
-
-Notes on using `ugrep.exe` from the Windows command line:
-- ugrep.exe expands globs such as `*.txt` and `*\dir\*`
-- colorized output is enabled by default
-- when quoting patterns and arguments on the command line, do not use single
-  `'` quotes but use `"` instead; most Windows command utilities consider
-  the single `'` quotes part of the command-line argument
-- when specifying an empty pattern `""` to match all input, this may be ignored
-  by some Windows command interpreters such as Powershell, in that case use
-  option `--match` instead
 
 <a name="vim"/>
 
@@ -855,9 +844,7 @@ This option starts a user interface to enter search patterns interactively:
   message when searching files on slower systems.
 - To display results faster, specify a low `DELAY` value such as 1.  However,
   lower values may increase system load as a result of repeatedly initiating
-  and cancelling searches by each key pressed.  Reducing the level of
-  parallelism helps to reduce system load, i.e. with option `-J`, e.g. `-J2` to
-  run 2 worker jobs at most.
+  and cancelling searches by each key pressed.
 - To avoid long pathnames to obscure the view, `--heading` is enabled by
   default.  Press Alt-+ to switch headings off.
 
