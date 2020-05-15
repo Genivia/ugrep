@@ -712,8 +712,13 @@ Same, but only search C++ files in `myproject` and its subdirectories with
 
     ugrep -tc++ -2 -nkw main myproject
 
-Same, but search recursively the working directory while ignoring gitignored
-files (e.g. assuming `.gitignore` is in the working directory or below):
+Same, but also search inside archives (e.g. zip and tar files) and compressed
+files with `-z`:
+
+    ugrep -z -tc++ -2 -nkw main myproject
+
+Search recursively the working directory for `main` while ignoring gitignored
+files (e.g.  assuming `.gitignore` is in the working directory or below):
 
     ugrep --ignore-files -tc++ -nkw main
 
@@ -721,11 +726,6 @@ To list all files in the working directory and deeper that are not ignored by
 `.gitignore` file(s) and are not hidden with `-l`:
 
     ugrep --ignore-files --no-hidden -l ''
-
-Same, but also search inside archives (e.g. zip and tar files) and compressed
-files with `-z`:
-
-    ugrep -z -tc++ -2 -nkw main myproject
 
 To display the list of file name extensions and "magic bytes" (shebangs)
 that are searched corresponding to `-t` arguments:
