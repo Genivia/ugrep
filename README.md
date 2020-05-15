@@ -769,7 +769,7 @@ pattern matches:
 
 This uses the `-e` and `-N` options to explicitly specify a pattern and a
 negative pattern, respectively, which is essentially forming the pattern
-`main|(?^main\h*\()', where `\h` matches space and tab.  In general, negative
+`main|(?^main\h*\()`, where `\h` matches space and tab.  In general, negative
 patterns are useful to filter out pattern matches we are not interested in.
 
 As another example, we may want to search for the word `FIXME` in C/C++ comment
@@ -906,10 +906,9 @@ To interactively search the files in the working directory and below:
 
     ugrep -Q
 
-Same, but restricted to C++ files only and ignoring `.gitignore` files,
-using `--pretty` to add headings between matching files and "initial tabs":
+Same, but restricted to C++ files only and ignoring `.gitignore` files:
 
-    ugrep -Q -tc++ --pretty --ignore-files
+    ugrep -Q -tc++ --ignore-files
 
 To interactively search all makefiles in the working directory and below:
 
