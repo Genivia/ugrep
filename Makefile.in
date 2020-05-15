@@ -897,21 +897,21 @@ install-data-hook:
 		 echo "|                                                      |"; \
 		 echo "| You can use the ugrep command to search files.       |"; \
 		 echo "|                                                      |"; \
-		 echo "| Some useful aliases to consider:                     |"; \
-		 echo "|   alias uq     = 'ugrep --color --query'             |"; \
-		 echo "|   alias ug     = 'ugrep --color --pager'             |"; \
-		 echo "|   alias ux     = 'ugrep --color --pager -UX'         |"; \
-		 echo "|   alias uz     = 'ugrep --color --pager -z'          |"; \
-		 echo "|   alias grep   = 'ugrep --color --pager -G'          |"; \
-		 echo "|   alias egrep  = 'ugrep --color --pager -E'          |"; \
-		 echo "|   alias fgrep  = 'ugrep --color --pager -F'          |"; \
-		 echo "|   alias xgrep  = 'ugrep --color --pager -W'          |"; \
-		 echo "|   alias zgrep  = 'ugrep --color --pager -zG'         |"; \
-		 echo "|   alias zegrep = 'ugrep --color --pager -zE'         |"; \
-		 echo "|   alias zfgrep = 'ugrep --color --pager -zF'         |"; \
-		 echo "|   alias xdump  = 'ugrep --color --pager -X \"\"'       |"; \
+		 echo "| Useful aliases to consider:                          |"; \
+		 echo "|   alias ug     = 'ugrep'                             |"; \
+		 echo "|   alias uq     = 'ugrep -Q'                          |"; \
+		 echo "|   alias ux     = 'ugrep -UX'                         |"; \
+		 echo "|   alias uz     = 'ugrep -z'                          |"; \
+		 echo "|   alias grep   = 'ugrep -G'                          |"; \
+		 echo "|   alias egrep  = 'ugrep -E'                          |"; \
+		 echo "|   alias fgrep  = 'ugrep -F'                          |"; \
+		 echo "|   alias xgrep  = 'ugrep -W'                          |"; \
+		 echo "|   alias zgrep  = 'ugrep -zG'                         |"; \
+		 echo "|   alias zegrep = 'ugrep -zE'                         |"; \
+		 echo "|   alias zfgrep = 'ugrep -zF'                         |"; \
+		 echo "|   alias xdump  = 'ugrep -X \"\"'                     |"; \
 		 echo "|                                                      |"; \
-		 echo "| Thanks for using ugrep.                              |"; \
+		 echo "| Thank you for using ugrep!                           |"; \
 		 echo "|                                                      |"; \
 		 echo "|             https://github.com/Genivia/ugrep         |"; \
 		 echo "|______________________________________________________|";

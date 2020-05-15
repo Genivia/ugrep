@@ -71,10 +71,13 @@ class Pattern {
   typedef void (*FSM)(class Matcher&); ///< function pointer to FSM code
   /// Common constants.
   struct Const {
-    static const Index IMAX = static_cast<Index>(~0U); ///< max index, also serves as a marker
-    static const Index LONG = 0xFFFE;                  ///< LONG marker for 64 bit opcodes, must be HALT-1
-    static const Index HALT = 0xFFFF;                  ///< HALT marker for GOTO opcodes, must be 16 bit max
-    static const Hash  HASH = 0x1000;                  ///< size of the predict match array
+    static const Index  IMAX = 0xFFFFFFFF; ///< max index, also serves as a marker
+    static const Index  GMAX = 0xFEFFFF;   ///< max goto index
+    static const Accept AMAX = 0xFDFFFF;   ///< max accept
+    static const Index  LMAX = 0xFAFFFF;   ///< max lookahead index
+    static const Index  LONG = 0xFFFE;     ///< LONG marker for 64 bit opcodes, must be HALT-1
+    static const Index  HALT = 0xFFFF;     ///< HALT marker for GOTO opcodes, must be 16 bit max
+    static const Hash   HASH = 0x1000;     ///< size of the predict match array
   };
   /// Construct an unset pattern.
   explicit Pattern()
@@ -394,7 +397,6 @@ class Pattern {
   typedef std::set<Lookahead>     Lookaheads;
   typedef uint32_t                Location;
   typedef ORanges<Location>       Locations;
-  typedef std::set<Location>      Set;
   typedef std::map<int,Locations> Map;
   /// Set of chars and meta chars
   struct Chars {
@@ -474,39 +476,147 @@ class Pattern {
   typedef std::map<Position,Positions> Follow;
   typedef std::pair<Chars,Positions>   Move;
   typedef std::list<Move>              Moves;
-  /// Finite state machine.
-  struct State : Positions {
-    typedef std::map<Char,std::pair<Char,State*> > Edges;
-    State(const Positions& p)
+  /// Tree DFA constructed from string patterns.
+  struct Tree
+  {
+    struct Node {
+      Node()
+        :
+          accept(0)
+      {
+        for (int i = 0; i < 256; ++i)
+          edge[i] = NULL;
+      }
+      Node  *edge[256]; ///< 256 edges, one per 8-bit char
+      Accept accept;    ///< nonzero if final state, the index of an accepted/captured subpattern
+    };
+    typedef std::list<Node*> List;
+    static const uint16_t ALLOC = 64; ///< allocate 64 nodes at a time, to improve performance
+    Tree()
       :
-        Positions(p),
-        next(NULL),
-        left(NULL),
-        right(NULL),
-        first(0),
-        index(0),
-        accept(0),
-        redo(false)
+        tree(NULL),
+        next(ALLOC)
     { }
-    State     *next;   ///< points to next state in a linked list of states allocated by subset construction
-    State     *left;   ///< left pointer for O(log N) node insertion in the hash overflow tree
-    State     *right;  ///< right pointer for O(log N) node insertion in the hash overflow tree
-    Edges      edges;  ///< state transitions
-    Index      first;  ///< index of this state in the opcode table as determined by the first pass
-    Index      index;  ///< index of this state in the opcode table
-    Accept     accept; ///< nonzero if final state, the index of an accepted/captured subpattern
-    Lookaheads heads;  ///< lookahead head set
-    Lookaheads tails;  ///< lookahead tail set
-    bool       redo;   ///< true if this is an ignorable final state
+    ~Tree()
+    {
+      clear();
+    }
+    /// delete the tree DFA.
+    void clear()
+    {
+      for (List::iterator i = list.begin(); i != list.end(); ++i)
+        delete[] *i;
+      list.clear();
+    }
+    /// return the root of the tree.
+    Node *root()
+    {
+      return tree != NULL ? tree : (tree = leaf());
+    }
+    /// create an edge from a tree node to a target tree node, return the target tree node.
+    Node *edge(Node *node, Char c)
+    {
+      return node->edge[c] != NULL ? node->edge[c] : (node->edge[c] = leaf());
+    }
+    /// create a new leaf node.
+    Node *leaf()
+    {
+      if (next >= ALLOC)
+      {
+        list.push_back(new Node[ALLOC]);
+        next = 0;
+      }
+      return &list.back()[next++];
+    }
+    Node    *tree; ///< root of the tree or NULL
+    List     list; ///< block allocation list
+    uint16_t next; ///< block allocation, next available slot in last block
+  };
+  /// DFA created by subset construction from regex patterns.
+  struct DFA {
+    struct State : Positions {
+      typedef std::map<Char,std::pair<Char,State*> > Edges;
+      State()
+        :
+          next(NULL),
+          left(NULL),
+          right(NULL),
+          tnode(NULL),
+          first(0),
+          index(0),
+          accept(0),
+          redo(false)
+      { }
+      State *assign(Tree::Node *node)
+      {
+        tnode = node;
+        return this;
+      }
+      State *assign(Tree::Node *node, Positions& pos)
+      {
+        tnode = node;
+        this->swap(pos);
+        return this;
+      }
+      State      *next;   ///< points to next state in the list of states allocated depth-first by subset construction
+      State      *left;   ///< left pointer for O(log N) node insertion in the hash table overflow tree
+      State      *right;  ///< right pointer for O(log N) node insertion in the hash table overflow tree
+      Tree::Node *tnode;  ///< the corresponding tree DFA node, when applicable
+      Edges       edges;  ///< state transitions
+      Index       first;  ///< index of this state in the opcode table, determined by the first assembly pass
+      Index       index;  ///< index of this state in the opcode table
+      Accept      accept; ///< nonzero if final state, the index of an accepted/captured subpattern
+      Lookaheads  heads;  ///< lookahead head set
+      Lookaheads  tails;  ///< lookahead tail set
+      bool        redo;   ///< true if this is an ignorable final state
+    };
+    typedef std::list<State*> List;
+    static const uint16_t ALLOC = 256; ///< allocate 256 states at a time, to improve performance.
+    DFA()
+      :
+        next(ALLOC)
+    { }
+    ~DFA()
+    {
+      clear();
+    }
+    /// delete DFA
+    void clear()
+    {
+      for (List::iterator i = list.begin(); i != list.end(); ++i)
+        delete[] *i;
+      list.clear();
+    }
+    /// new DFA state with optional tree DFA node.
+    State *state(Tree::Node *node)
+    {
+      if (next >= ALLOC)
+      {
+        list.push_back(new State[ALLOC]);
+        next = 0;
+      }
+      return list.back()[next++].assign(node);
+    }
+    /// new DFA state with optional tree DFA node and positions, destroys pos.
+    State *state(Tree::Node *node, Positions& pos)
+    {
+      if (next >= ALLOC)
+      {
+        list.push_back(new State[ALLOC]);
+        next = 0;
+      }
+      return list.back()[next++].assign(node, pos);
+    }
+    List     list; ///< block allocation list
+    uint16_t next; ///< block allocation, next available slot in last block
   };
   /// Global modifier modes, syntax flags, and compiler options.
   struct Option {
-    Option() : b(), e(), f(), i(), l(), m(), n(), o(), p(), q(), r(), s(), w(), x(), z() { }
+    Option() : b(), e(), f(), i(), m(), n(), o(), p(), q(), r(), s(), w(), x(), z() { }
     bool                     b; ///< disable escapes in bracket lists
     Char                     e; ///< escape character, or > 255 for none, '\\' default
     std::vector<std::string> f; ///< output to files
     bool                     i; ///< case insensitive mode, also `(?i:X)`
-    bool                     l; ///< lex mode
     bool                     m; ///< multi-line mode, also `(?m:X)`
     std::string              n; ///< pattern name (for use in generated code)
     bool                     o; ///< generate optimized FSM code for option f
@@ -598,10 +708,10 @@ class Pattern {
       Location& loc,
       Chars    *chars = NULL) const;
   void compile(
-      State&     start,
-      Follow&    followpos,
-      const Map& modifiers,
-      const Map& lookahead);
+      DFA::State *start,
+      Follow&     followpos,
+      const Map&  modifiers,
+      const Map&  lookahead);
   void lazy(
       const Lazyset& lazyset,
       Positions&     pos) const;
@@ -610,13 +720,13 @@ class Pattern {
       const Positions& pos,
       Positions&       pos1) const;
   void greedy(Positions& pos) const;
-  void trim_lazy(Positions& pos) const;
+  void trim_lazy(Positions *pos) const;
   void compile_transition(
-      State     *state,
-      Follow&    followpos,
-      const Map& modifiers,
-      const Map& lookahead,
-      Moves&     moves) const;
+      DFA::State *state,
+      Follow&     followpos,
+      const Map&  modifiers,
+      const Map&  lookahead,
+      Moves&      moves) const;
   void transition(
       Moves&           moves,
       Chars&           chars,
@@ -629,27 +739,26 @@ class Pattern {
       size_t index,
       Chars& chars) const;
   void flip(Chars& chars) const;
-  void assemble(State& start);
-  void compact_dfa(State& start);
-  void encode_dfa(State& start);
-  void gencode_dfa(const State& start) const;
+  void assemble(DFA::State *start);
+  void compact_dfa(DFA::State *start);
+  void encode_dfa(DFA::State *start);
+  void gencode_dfa(const DFA::State *start) const;
   void check_dfa_closure(
-      const State *state,
-      int nest,
-      bool& peek,
-      bool& prev) const;
+      const DFA::State *state,
+      int               nest,
+      bool&             peek,
+      bool&             prev) const;
   void gencode_dfa_closure(
-      FILE *fd,
-      const State *start,
-      int nest,
-      bool peek) const;
-  void delete_dfa(State& start);
-  void export_dfa(const State& start) const;
+      FILE             *fd,
+      const DFA::State *start,
+      int               nest,
+      bool              peek) const;
+  void export_dfa(const DFA::State *start) const;
   void export_code() const;
-  void predict_match_dfa(State& start);
-  void gen_predict_match(State *state);
-  void gen_predict_match_transitions(State *state, std::map<State*,ORanges<Hash> >& states);
-  void gen_predict_match_transitions(size_t level, State *state, ORanges<Hash>& labels, std::map<State*,ORanges<Hash> >& states);
+  void predict_match_dfa(DFA::State *start);
+  void gen_predict_match(DFA::State *state);
+  void gen_predict_match_transitions(DFA::State *state, std::map<DFA::State*,ORanges<Hash> >& states);
+  void gen_predict_match_transitions(size_t level, DFA::State *state, ORanges<Hash>& labels, std::map<DFA::State*,ORanges<Hash> >& states);
   void write_predictor(FILE *fd) const;
   void write_namespace_open(FILE* fd) const;
   void write_namespace_close(FILE* fd) const;
@@ -683,7 +792,7 @@ class Pattern {
       return at(loc + 1);
     return '\0';
   }
-  static bool is_modified(
+  static inline bool is_modified(
       Char       mode,
       const Map& modifiers,
       Location   loc)
@@ -691,7 +800,7 @@ class Pattern {
     Map::const_iterator i = modifiers.find(mode);
     return i != modifiers.end() && i->second.find(loc) != i->second.end();
   }
-  static void update_modified(
+  static inline void update_modified(
       Char     mode,
       Map&     modifiers,
       Location from,
@@ -709,24 +818,24 @@ class Pattern {
       modifiers[mode].insert(from, to);
     }
   }
-  static inline uint16_t hash_pos(const Positions& pos)
+  static inline uint16_t hash_pos(const Positions *pos)
   {
     uint16_t h = 0;
-    for (Positions::const_iterator i = pos.begin(); i != pos.end(); ++i)
+    for (Positions::const_iterator i = pos->begin(); i != pos->end(); ++i)
       h += static_cast<uint16_t>(*i ^ (*i >> 24)); // (Position(*i).iter() << 4) unique hash for up to 16 chars iterated (abc...p){iter}
     return h;
   }
   static inline bool valid_goto_index(Index index)
   {
-    return index <= 0xFEFFFF;
+    return index <= Const::GMAX;
   }
   static inline bool valid_take_index(Index index)
   {
-    return index <= 0xFDFFFF;
+    return index <= Const::AMAX;
   }
   static inline bool valid_lookahead_index(Index index)
   {
-    return index <= 0xFAFFFF;
+    return index <= Const::LMAX;
   }
   static inline bool is_meta(Char c)
   {
@@ -734,11 +843,11 @@ class Pattern {
   }
   static inline Opcode opcode_long(Index index)
   {
-    return 0xFF000000 | (index & 0xFFFFFF); // index <= 0xFEFFFF max
+    return 0xFF000000 | (index & 0xFFFFFF); // index <= Const::GMAX (0xFEFFFF max)
   }
   static inline Opcode opcode_take(Index index)
   {
-    return 0xFE000000 | (index & 0xFFFFFF); // index <= 0xFDFFFF max
+    return 0xFE000000 | (index & 0xFFFFFF); // index <= Const::AMAX (0xFDFFFF max)
   }
   static inline Opcode opcode_redo()
   {
@@ -746,11 +855,11 @@ class Pattern {
   }
   static inline Opcode opcode_tail(Index index)
   {
-    return 0xFC000000 | (index & 0xFFFFFF); // index <= 0xFBFFFF max
+    return 0xFC000000 | (index & 0xFFFFFF); // index <= Const::LMAX (0xFAFFFF max)
   }
   static inline Opcode opcode_head(Index index)
   {
-    return 0xFB000000 | (index & 0xFFFFFF); // index <= 0xFAFFFF max
+    return 0xFB000000 | (index & 0xFFFFFF); // index <= Const::LMAX (0xFAFFFF max)
   }
   static inline Opcode opcode_goto(
       Char  lo,
@@ -846,6 +955,8 @@ class Pattern {
     return h & ((Const::HASH - 1) >> 3);
   }
   Option                opt_; ///< pattern compiler options
+  Tree                  tfa_; ///< tree DFA constructed from strings (regex uses firstpos/lastpos/followpos)
+  DFA                   dfa_; ///< DFA constructed from regex with subset construction using firstpos/lastpos/followpos
   std::string           rex_; ///< regular expression string
   std::vector<Location> end_; ///< entries point to the subpattern's ending '|' or '\0'
   std::vector<bool>     acc_; ///< true if subpattern n is accepting (state is reachable)

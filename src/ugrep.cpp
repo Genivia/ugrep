@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.1.0"
+#define UGREP_VERSION "2.1.1"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -341,8 +341,8 @@ struct Grep *grep_handle = NULL;
 
 std::mutex grep_handle_mutex;
 
-void set_handle(struct Grep*);
-void reset_handle();
+void set_grep_handle(struct Grep*);
+void clear_grep_handle();
 
 #ifndef OS_WIN
 
@@ -481,7 +481,6 @@ std::vector<const char*> arg_files;
 
 void set_color(const char *colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
-void trim_nl(std::string& line);
 bool is_output(ino_t inode);
 size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
@@ -502,10 +501,12 @@ inline bool getline(reflex::BufferedInput& input, std::string& line)
   line.erase();
   while ((ch = input.get()) != EOF)
   {
-    line.push_back(ch);
     if (ch == '\n')
       break;
+    line.push_back(ch);
   }
+  if (!line.empty() && line.back() == '\r')
+    line.pop_back();
   return ch == EOF && line.empty();
 }
 
@@ -1862,7 +1863,7 @@ struct GrepMaster : public Grep {
     out.sync_on(&sync);
 
     // set global handle to be able to call cancel_ugrep()
-    set_handle(this);
+    set_grep_handle(this);
 
     start_workers();
 
@@ -1872,7 +1873,7 @@ struct GrepMaster : public Grep {
   virtual ~GrepMaster()
   {
     stop_workers();
-    reset_handle();
+    clear_grep_handle();
   }
 
   // search a file by submitting it as a job to a worker
@@ -3288,7 +3289,6 @@ void options(int argc, const char **argv)
     }
     else if (i->back() == PATHSEPCHR)
     {
-      i->pop_back();
       flag_exclude_dir.emplace_back(*i);
       i = flag_exclude.erase(i);
     }
@@ -3308,7 +3308,6 @@ void options(int argc, const char **argv)
     }
     else if (i->back() == PATHSEPCHR)
     {
-      i->pop_back();
       flag_include_dir.emplace_back(*i);
       i = flag_include.erase(i);
     }
@@ -3320,12 +3319,12 @@ void options(int argc, const char **argv)
 
   // --exclude-dir/--include-dir: remove trailing path separators
   for (auto& i : flag_exclude_dir)
-    while (!i.empty() && i.back() == PATHSEPCHR)
+    while (i.size() > 1 && i.back() == PATHSEPCHR)
       i.pop_back();
 
   // --include-dir: remove trailing path separators
   for (auto& i : flag_include_dir)
-    while (!i.empty() && i.back() == PATHSEPCHR)
+    while (i.size() > 1 && i.back() == PATHSEPCHR)
       i.pop_back();
 
   // -O: add filename extensions as globs to --include/--exclude
@@ -3953,7 +3952,7 @@ void ugrep()
       size_t from = 0;
       size_t to;
 
-      // replace all \E in pattern with \E\\E\Q
+      // replace all \E in pattern with \E\\E\Q (or perhaps \\EE\Q)
       if (flag_fixed_strings)
       {
         while ((to = pattern.find("\\E", from)) != std::string::npos)
@@ -4169,8 +4168,6 @@ void ugrep()
         if (getline(input, line))
           break;
 
-        trim_nl(line);
-
         // add line to the regex if not empty
         if (!line.empty())
           regex.append(Q).append(line).append(E);
@@ -4362,9 +4359,9 @@ void ugrep()
     else
     {
       Grep grep(output, &matcher);
-      set_handle(&grep);
+      set_grep_handle(&grep);
       grep.ugrep();
-      reset_handle();
+      clear_grep_handle();
     }
 #elif defined(HAVE_BOOST_REGEX)
     try
@@ -4381,9 +4378,9 @@ void ugrep()
       else
       {
         Grep grep(output, &matcher);
-        set_handle(&grep);
+        set_grep_handle(&grep);
         grep.ugrep();
-        reset_handle();
+        clear_grep_handle();
       }
     }
     catch (boost::regex_error& error)
@@ -4454,9 +4451,9 @@ void ugrep()
     else
     {
       Grep grep(output, &matcher);
-      set_handle(&grep);
+      set_grep_handle(&grep);
       grep.ugrep();
-      reset_handle();
+      clear_grep_handle();
     }
 
     nodes = pattern.nodes();
@@ -4494,14 +4491,14 @@ void cancel_ugrep()
 }
 
 // set the handle
-void set_handle(Grep *grep)
+void set_grep_handle(Grep *grep)
 {
   std::unique_lock<std::mutex> lock(grep_handle_mutex);
   grep_handle = grep;
 }
 
-// reset the handle
-void reset_handle()
+// reset the grep handle
+void clear_grep_handle()
 {
   std::unique_lock<std::mutex> lock(grep_handle_mutex);
   grep_handle = NULL;
@@ -4581,7 +4578,7 @@ void Grep::ugrep()
 Grep::Type Grep::select(size_t level, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument)
 {
   if (*basename == '.' && flag_no_hidden)
-    return Grep::Type::SKIP;
+    return Type::SKIP;
 
 #ifdef OS_WIN
 
@@ -4591,11 +4588,11 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
   {
     errno = ENOENT;
     warning("cannot read", pathname);
-    return Grep::Type::SKIP;
+    return Type::SKIP;
   }
 
   if (flag_no_hidden && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
-    return Grep::Type::SKIP;
+    return Type::SKIP;
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
   {
@@ -4603,21 +4600,21 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     {
       // directories cannot be read actually, so grep produces a warning message (errno is not set)
       is_directory(pathname);
-      return Grep::Type::SKIP;
+      return Type::SKIP;
     }
 
     if (is_argument || flag_directories_action == Action::RECURSE)
     {
       // --depth: recursion level exceeds max depth?
       if (flag_max_depth > 0 && level > flag_max_depth)
-        return Grep::Type::SKIP;
+        return Type::SKIP;
 
       // hard maximum recursion depth reached?
       if (level > MAX_DEPTH)
       {
         if (!flag_no_messages)
           fprintf(stderr, "%sugrep: %s%s%s recursion depth hit hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
-        return Grep::Type::SKIP;
+        return Type::SKIP;
       }
 
       // check for --exclude-dir and --include-dir constraints if pathname != "."
@@ -4634,7 +4631,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           // exclude directories whose basename matches any one of the --exclude-dir globs
           for (auto& glob : flag_exclude_dir)
             if (glob_match(pathname, basename, glob.c_str()))
-              return Grep::Type::SKIP;
+              return Type::SKIP;
         }
 
         if (!flag_include_dir.empty())
@@ -4642,7 +4639,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           // do not include directories that are reversed by ! negation
           for (auto& glob : flag_not_include_dir)
             if (glob_match(pathname, basename, glob.c_str()))
-              return Grep::Type::SKIP;
+              return Type::SKIP;
 
           // include directories whose basename matches any one of the --include-dir globs
           bool ok = false;
@@ -4650,18 +4647,18 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
             if ((ok = glob_match(pathname, basename, glob.c_str())))
               break;
           if (!ok)
-            return Grep::Type::SKIP;
+            return Type::SKIP;
         }
       }
 
-      return Grep::Type::DIRECTORY;
+      return Type::DIRECTORY;
     }
   }
   else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || flag_devices_action == Action::READ)
   {
     // --depth: recursion level not deep enough?
     if (flag_min_depth > 0 && level <= flag_min_depth)
-      return Grep::Type::SKIP;
+      return Type::SKIP;
 
     // do not exclude files that are reversed by ! negation
     bool negate = false;
@@ -4674,7 +4671,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
       // exclude files whose basename matches any one of the --exclude globs
       for (auto& glob : flag_exclude)
         if (glob_match(pathname, basename, glob.c_str()))
-          return Grep::Type::SKIP;
+          return Type::SKIP;
     }
 
     // check magic pattern against the file signature, when --file-magic=MAGIC is specified
@@ -4685,7 +4682,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
       if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
       {
         warning("cannot read", pathname);
-        return Grep::Type::SKIP;
+        return Type::SKIP;
       }
 
 #ifdef HAVE_LIBZ
@@ -4702,7 +4699,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
           Stats::score_file();
 
-          return Grep::Type::OTHER;
+          return Type::OTHER;
         }
       }
       else
@@ -4715,14 +4712,14 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
           Stats::score_file();
 
-          return Grep::Type::OTHER;
+          return Type::OTHER;
         }
       }
 
       fclose(file);
 
       if (flag_include.empty())
-        return Grep::Type::SKIP;
+        return Type::SKIP;
     }
 
     if (!flag_include.empty())
@@ -4730,7 +4727,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
       // do not include files that are reversed by ! negation
       for (auto& glob : flag_not_include)
         if (glob_match(pathname, basename, glob.c_str()))
-          return Grep::Type::SKIP;
+          return Type::SKIP;
 
       // include files whose basename matches any one of the --include globs
       bool ok = false;
@@ -4738,12 +4735,12 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
         if ((ok = glob_match(pathname, basename, glob.c_str())))
           break;
       if (!ok)
-        return Grep::Type::SKIP;
+        return Type::SKIP;
     }
 
     Stats::score_file();
 
-    return Grep::Type::OTHER;
+    return Type::OTHER;
   }
 
 #else
@@ -4766,21 +4763,21 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           {
             // directories cannot be read actually, so grep produces a warning message (errno is not set)
             is_directory(pathname);
-            return Grep::Type::SKIP;
+            return Type::SKIP;
           }
 
           if (is_argument || flag_directories_action == Action::RECURSE)
           {
             // --depth: recursion level exceeds max depth?
             if (flag_max_depth > 0 && level > flag_max_depth)
-              return Grep::Type::SKIP;
+              return Type::SKIP;
 
             // hard maximum recursion depth reached?
             if (level > MAX_DEPTH)
             {
               if (!flag_no_messages)
                 fprintf(stderr, "%sugrep: %s%s%s recursion depth hit hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
-              return Grep::Type::SKIP;
+              return Type::SKIP;
             }
 
             // check for --exclude-dir and --include-dir constraints if pathname != "."
@@ -4797,7 +4794,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
                 // exclude directories whose pathname matches any one of the --exclude-dir globs
                 for (auto& glob : flag_exclude_dir)
                   if (glob_match(pathname, basename, glob.c_str()))
-                    return Grep::Type::SKIP;
+                    return Type::SKIP;
               }
 
               if (!flag_include_dir.empty())
@@ -4805,7 +4802,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
                 // do not include directories that are reversed by ! negation
                 for (auto& glob : flag_not_include_dir)
                   if (glob_match(pathname, basename, glob.c_str()))
-                    return Grep::Type::SKIP;
+                    return Type::SKIP;
 
                 // include directories whose pathname matches any one of the --include-dir globs
                 bool ok = false;
@@ -4813,23 +4810,23 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
                   if ((ok = glob_match(pathname, basename, glob.c_str())))
                     break;
                 if (!ok)
-                  return Grep::Type::SKIP;
+                  return Type::SKIP;
               }
             }
 
             if (type != DIRENT_TYPE_DIR)
               inode = buf.st_ino;
 
-            info = Grep::Entry::sort_info(buf);
+            info = Entry::sort_info(buf);
 
-            return Grep::Type::DIRECTORY;
+            return Type::DIRECTORY;
           }
         }
         else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == Action::READ)
         {
           // --depth: recursion level not deep enough?
           if (flag_min_depth > 0 && level <= flag_min_depth)
-            return Grep::Type::SKIP;
+            return Type::SKIP;
 
           // do not exclude files that are reversed by ! negation
           bool negate = false;
@@ -4842,7 +4839,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
             // exclude files whose pathname matches any one of the --exclude globs
             for (auto& glob : flag_exclude)
               if (glob_match(pathname, basename, glob.c_str()))
-                return Grep::Type::SKIP;
+                return Type::SKIP;
           }
 
           // check magic pattern against the file signature, when --file-magic=MAGIC is specified
@@ -4853,7 +4850,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
             if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
             {
               warning("cannot read", pathname);
-              return Grep::Type::SKIP;
+              return Type::SKIP;
             }
 
 #ifdef HAVE_LIBZ
@@ -4870,9 +4867,9 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
                 Stats::score_file();
 
-                info = Grep::Entry::sort_info(buf);
+                info = Entry::sort_info(buf);
 
-                return Grep::Type::OTHER;
+                return Type::OTHER;
               }
             }
             else
@@ -4886,16 +4883,16 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
                 Stats::score_file();
 
-                info = Grep::Entry::sort_info(buf);
+                info = Entry::sort_info(buf);
 
-                return Grep::Type::OTHER;
+                return Type::OTHER;
               }
             }
 
             fclose(file);
 
             if (flag_include.empty())
-              return Grep::Type::SKIP;
+              return Type::SKIP;
           }
 
           if (!flag_include.empty())
@@ -4903,7 +4900,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
             // do not include files that are reversed by ! negation
             for (auto& glob : flag_not_include)
               if (glob_match(pathname, basename, glob.c_str()))
-                return Grep::Type::SKIP;
+                return Type::SKIP;
 
             // include files whose pathname matches any one of the --include globs
             bool ok = false;
@@ -4911,14 +4908,14 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
               if ((ok = glob_match(pathname, basename, glob.c_str())))
                 break;
             if (!ok)
-              return Grep::Type::SKIP;
+              return Type::SKIP;
           }
 
           Stats::score_file();
 
-          info = Grep::Entry::sort_info(buf);
+          info = Entry::sort_info(buf);
 
-          return Grep::Type::OTHER;
+          return Type::OTHER;
         }
       }
     }
@@ -4930,7 +4927,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
 #endif
 
-  return Grep::Type::SKIP;
+  return Type::SKIP;
 }
 
 // recurse over directory, searching for pattern matches in files and subdirectories
@@ -6724,22 +6721,27 @@ void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string
     if (!line.empty() && line.front() != '#')
     {
       // gitignore-style ! negate pattern to override include/exclude
-      bool negate = line.front() == '!' && !line.empty();
+      bool negate = line.front() == '!' && line.size() > 1;
 
+      // remove leading ! if present
       if (negate)
         line.erase(0, 1);
 
       // remove leading \ if present
-      if (line.front() == '\\' && !line.empty())
+      if (line.front() == '\\' && line.size() > 1)
         line.erase(0, 1);
 
       // globs ending in / should only match directories
       if (line.back() == '/')
-        line.pop_back();
+      {
+        if (line.size() > 1)
+          line.pop_back();
+        (negate ? not_dirs : dirs).emplace_back(line);
+      }
       else
+      {
         (negate ? not_files : files).emplace_back(line);
-
-      (negate ? not_dirs : dirs).emplace_back(line);
+      }
     }
   }
 }
@@ -6859,21 +6861,8 @@ void trim(std::string& line)
   for (pos = len; pos > 0 && isspace(line.at(pos - 1)); --pos)
     continue;
 
-  line.erase(pos, len - pos);
-}
-
-// trim trailing CR and LF if present
-void trim_nl(std::string& line)
-{
-  size_t len = line.length();
-
-  if (len > 0 && line.back() == '\n')
-  {
-    line.pop_back();
-    --len;
-  }
-  if (len > 0 && line.back() == '\r')
-    line.pop_back();
+  if (len > pos)
+    line.erase(pos, len - pos);
 }
 
 // convert GREP_COLORS and set the color substring to the ANSI SGR codes

@@ -202,10 +202,16 @@ void Pattern::init(const char *opt, const uint8_t *pred)
     Follow    followpos;
     Map       modifiers;
     Map       lookahead;
+    // parse the regex pattern to construct the followpos NFA without epsilon transitions
     parse(startpos, followpos, modifiers, lookahead);
-    State start(startpos);
+    // start state = startpos = firstpost of the followpos NFA, also merge the tree DFA root when non-NULL
+    DFA::State *start = dfa_.state(tfa_.tree, startpos);
+    // compile the NFA into a DFA
     compile(start, followpos, modifiers, lookahead);
+    // assemble DFA opcode tables or direct code
     assemble(start);
+    // delete the DFA
+    dfa_.clear();
   }
 }
 
@@ -213,7 +219,6 @@ void Pattern::init_options(const char *opt)
 {
   opt_.b = false;
   opt_.i = false;
-  opt_.l = false;
   opt_.m = false;
   opt_.o = false;
   opt_.p = false;
@@ -241,9 +246,6 @@ void Pattern::init_options(const char *opt)
           break;
         case 'i':
           opt_.i = true;
-          break;
-        case 'l':
-          opt_.l = true;
           break;
         case 'm':
           opt_.m = true;
@@ -337,8 +339,6 @@ void Pattern::parse(
           active = false;
         else if (c == 'i')
           opt_.i = active;
-        else if (c == 'l')
-          opt_.l = active;
         else if (c == 'm')
           opt_.m = active;
         else if (c == 'q')
@@ -360,47 +360,122 @@ void Pattern::parse(
   }
   do
   {
-    Lazyset lazyset;
-    parse2(
-        true,
-        loc,
-        firstpos,
-        lastpos,
-        nullable,
-        followpos,
-        lazyidx,
-        lazyset,
-        modifiers,
-        lookahead[choice],
-        iter);
-    end_.push_back(loc);
-    set_insert(startpos, firstpos);
-    if (nullable)
+    Location end = loc;
+    if (!opt_.q && !opt_.x)
     {
-      if (lazyset.empty())
+      // TODO: perhaps allow \< \> and ^ $ anchors with string patterns?
+      while (true)
       {
-        startpos.insert(Position(choice).accept(true));
-      }
-      else
-      {
-        for (Lazyset::const_iterator l = lazyset.begin(); l != lazyset.end(); ++l)
-          startpos.insert(Position(choice).accept(true).lazy(*l));
+        Char c = at(end);
+        if (c == '\0' || c == '|')
+          break;
+        if (c == '.' || c == '^' || c == '$' || c == '(' || c == '[' || c == '{' || c == '?' || c == '*' || c == '+')
+        {
+          end = loc;
+          break;
+        }
+        if (c == opt_.e)
+        {
+          c = at(++end);
+          if (c == '\0' || std::strchr("0123456789<>ABDHLNPSUWXbcdehijklpsuwxz", c) != NULL)
+          {
+            end = loc;
+            break;
+          }
+          if (c == 'Q')
+          {
+            while ((c = at(++end)) != '\0')
+              if (c == opt_.e && at(end + 1) == 'E')
+                break;
+          }
+        }
+        ++end;
       }
     }
-    for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
+    if (loc < end)
     {
-      if (lazyset.empty())
+      // string pattern found w/o regex metas: merge string into the tree DFA
+      bool quote = false;
+      Tree::Node *t = tfa_.root();
+      while (loc < end)
       {
-        followpos[p->pos()].insert(Position(choice).accept(true));
+        Char c = at(loc++);
+        if (c == opt_.e)
+        {
+          if (at(loc) == 'Q')
+          {
+            quote = true;
+            ++loc;
+            continue;
+          }
+          if (at(loc) == 'E')
+          {
+            quote = false;
+            ++loc;
+            continue;
+          }
+          if (!quote)
+          {
+            static const char abtnvfr[] = "abtnvfr";
+            c = at(loc++);
+            const char *s = std::strchr(abtnvfr, c);
+            if (s != NULL)
+              c = static_cast<Char>(s - abtnvfr + '\a');
+          }
+        }
+        else if (c >= 'A' && c <= 'Z' && opt_.i)
+        {
+          c = lowercase(c);
+        }
+        t = tfa_.edge(t, c);
       }
-      else
+      if (t->accept == 0)
+        t->accept = choice;
+    }
+    else
+    {
+      Lazyset lazyset;
+      parse2(
+          true,
+          loc,
+          firstpos,
+          lastpos,
+          nullable,
+          followpos,
+          lazyidx,
+          lazyset,
+          modifiers,
+          lookahead[choice],
+          iter);
+      end_.push_back(loc);
+      set_insert(startpos, firstpos);
+      if (nullable)
       {
-        for (Lazyset::const_iterator l = lazyset.begin(); l != lazyset.end(); ++l)
-          followpos[p->pos()].insert(Position(choice).accept(true).lazy(*l));
+        if (lazyset.empty())
+        {
+          startpos.insert(Position(choice).accept(true));
+        }
+        else
+        {
+          for (Lazyset::const_iterator l = lazyset.begin(); l != lazyset.end(); ++l)
+            startpos.insert(Position(choice).accept(true).lazy(*l));
+        }
+      }
+      for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
+      {
+        if (lazyset.empty())
+        {
+          followpos[p->pos()].insert(Position(choice).accept(true));
+        }
+        else
+        {
+          for (Lazyset::const_iterator l = lazyset.begin(); l != lazyset.end(); ++l)
+            followpos[p->pos()].insert(Position(choice).accept(true).lazy(*l));
+        }
       }
     }
     if (++choice == 0)
-      error(regex_error::exceeds_limits, loc); // overflow: too many top-level alternations
+      error(regex_error::exceeds_limits, loc); // overflow: too many top-level alternations (should never happen)
   } while (at(loc++) == '|');
   if (opt_.i)
     update_modified('i', modifiers, 0, rex_.size() - 1);
@@ -542,12 +617,9 @@ void Pattern::parse2(
   bool      nullable1;
   Lazyset   lazyset1;
   Iter      iter1;
-  Position  l_pos;
   Char      c;
   while ((c = at(loc)) != '\0' && c != '|' && c != ')')
   {
-    if (c == '/' && l_pos == Position::NPOS && opt_.l && (!opt_.x || at(loc + 1) != '*'))
-      l_pos = loc++; // lookahead
     parse3(
         false,
         loc,
@@ -560,8 +632,6 @@ void Pattern::parse2(
         modifiers,
         lookahead,
         iter1);
-    if (c == '/' && l_pos != Position::NPOS)
-      firstpos1.insert(l_pos);
     if (!lazyset.empty()) // CHECKED this is an extra rule for + only and (may) not be needed for *
     {
       // CHECKED algorithmic options: lazy(lazyset, firstpos1); does not work for (a|b)*?a*b+, below works
@@ -593,7 +663,7 @@ void Pattern::parse2(
   for (Positions::const_iterator p = a_pos.begin(); p != a_pos.end(); ++p)
   {
     for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
-      if ((at(k->loc()) == ')' || (opt_.l && at(k->loc()) == '/')) && lookahead.find(k->loc()) != lookahead.end())
+      if (at(k->loc()) == ')' && lookahead.find(k->loc()) != lookahead.end())
         followpos[p->pos()].insert(*k);
     for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
       followpos[k->pos()].insert(p->anchor(!nullable || k->pos() != p->pos()));
@@ -604,13 +674,6 @@ void Pattern::parse2(
       firstpos.insert(*p);
       nullable = false;
     }
-  }
-  if (l_pos != Position::NPOS)
-  {
-    for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-      followpos[p->pos()].insert(l_pos.ticked(true)); // ticked for lookstop
-    lastpos.insert(l_pos.ticked(true));
-    lookahead.insert(l_pos.loc(), l_pos.loc());
   }
   DBGLOG("END parse2()");
 }
@@ -905,7 +968,6 @@ void Pattern::parse4(
       else
       {
         Location m_loc = loc;
-        bool opt_l = opt_.l;
         bool opt_q = opt_.q;
         bool opt_x = opt_.x;
         bool active = true;
@@ -913,8 +975,6 @@ void Pattern::parse4(
         {
           if (c == '-')
             active = false;
-          else if (c == 'l')
-            opt_.l = active;
           else if (c == 'q')
             opt_.q = active;
           else if (c == 'x')
@@ -925,7 +985,7 @@ void Pattern::parse4(
         } while (c != '\0' && c != ':' && c != ')');
         if (c != '\0')
           ++loc;
-        // enforce (?ilmqsx) modes
+        // enforce (?imqsx) modes
         parse1(
             begin,
             loc,
@@ -946,7 +1006,7 @@ void Pattern::parse4(
           {
             active = false;
           }
-          else if (c != '\0' && c != 'l' && c != 'q' && c != 'x' && c != ':' && c != ')')
+          else if (c != '\0' && c != 'q' && c != 'x' && c != ':' && c != ')')
           {
             if (active)
               update_modified(c, modifiers, m_loc, loc);
@@ -954,7 +1014,6 @@ void Pattern::parse4(
               update_modified(uppercase(c), modifiers, m_loc, loc);
           }
         } while (c != '\0' && c != ':' && c != ')');
-        opt_.l = opt_l;
         opt_.q = opt_q;
         opt_.x = opt_x;
       }
@@ -1046,16 +1105,6 @@ void Pattern::parse4(
       ++loc;
     if (c == '\n')
       ++loc;
-  }
-  else if (c == '/' && opt_.l && opt_.x && at(loc + 1) == '*')
-  {
-    loc += 2;
-    while ((c = at(loc)) != '\0' && (c != '*' || at(loc + 1) != '/'))
-      ++loc;
-    if (c != '\0')
-      loc += 2;
-    else
-      error(regex_error::invalid_syntax, loc);
   }
   else if (std::isspace(c) && opt_.x)
   {
@@ -1223,10 +1272,10 @@ Pattern::Char Pattern::parse_esc(Location& loc, Chars *chars) const
 }
 
 void Pattern::compile(
-    State&     start,
-    Follow&    followpos,
-    const Map& modifiers,
-    const Map& lookahead)
+    DFA::State *start,
+    Follow&     followpos,
+    const Map&  modifiers,
+    const Map&  lookahead)
 {
   DBGLOG("BEGIN compile()");
   // init stats and timers
@@ -1239,34 +1288,150 @@ void Pattern::compile(
   acc_.resize(end_.size(), false);
   trim_lazy(start);
   // hash table with 64K entries (uint16_t indexed)
-  State **table = new State*[65536];
+  DFA::State **table = new DFA::State*[65536];
   for (int i = 0; i < 65536; ++i)
     table[i] = NULL;
-  table[hash_pos(start)] = &start;
+  // start state should only be discoverable (to possibly cycle back to) if no tree DFA was constructed
+  if (start->tnode == NULL)
+    table[hash_pos(start)] = start;
   // last added state
-  State *last_state = &start;
-  for (State *state = &start; state; state = state->next)
+  DFA::State *last_state = start;
+  for (DFA::State *state = start; state; state = state->next)
   {
     Moves moves;
     timer_start(et);
+    // use the tree DFA accept state, if present
+    if (state->tnode != NULL && state->tnode->accept > 0)
+      state->accept = state->tnode->accept;
     compile_transition(
         state,
         followpos,
         modifiers,
         lookahead,
         moves);
+    if (state->tnode != NULL)
+    {
+      // merge tree DFA transitions into the final DFA transitions to target states
+      if (moves.empty())
+      {
+        // no DFA transitions: the final DFA transitions are the tree DFA transitions to target states
+        for (Char c = 0; c < 256; ++c)
+        {
+          if (state->tnode->edge[c] != NULL)
+          {
+            DFA::State *target_state = last_state = last_state->next = dfa_.state(state->tnode->edge[c]);
+            if (opt_.i && std::isalpha(c))
+            {
+              state->edges[lowercase(c)] = std::pair<Char,DFA::State*>(lowercase(c), target_state);
+              state->edges[uppercase(c)] = std::pair<Char,DFA::State*>(uppercase(c), target_state);
+              eno_ += 2;
+            }
+            else
+            {
+              state->edges[c] = std::pair<Char,DFA::State*>(c, target_state);
+              ++eno_;
+            }
+          }
+        }
+      }
+      else
+      {
+        // combine the tree DFA transitions with the regex DFA transition moves
+        Chars chars;
+        for (Char c = 0; c < 256; ++c)
+          if (state->tnode->edge[c] != NULL)
+            chars.insert(c);
+        if (opt_.i)
+          for (Char c = 'a'; c <= 'z'; ++c)
+            if (state->tnode->edge[c] != NULL)
+              chars.insert(uppercase(c));
+        Moves::iterator i = moves.begin();
+        Moves::iterator end = moves.end();
+        while (i != end)
+        {
+          if (chars.intersects(i->first))
+          {
+            // tree DFA transitions intersect with this DFA transition move
+            Chars common = chars & i->first;
+            chars -= common;
+            Char lo = common.lo();
+            Char hi = common.hi();
+            for (Char c = lo; c <= hi; ++c)
+            {
+              if (common.contains(c))
+              {
+                Positions pos(i->second);
+                if (opt_.i && std::isalpha(c))
+                {
+                  if (c >= 'a' && c <= 'z')
+                  {
+                    DFA::State *target_state = last_state = last_state->next = dfa_.state(state->tnode->edge[c], pos);
+                    state->edges[c] = std::pair<Char,DFA::State*>(c, target_state);
+                    state->edges[uppercase(c)] = std::pair<Char,DFA::State*>(uppercase(c), target_state);
+                    eno_ += 2;
+                  }
+                }
+                else
+                {
+                  DFA::State *target_state = last_state = last_state->next = dfa_.state(state->tnode->edge[c], pos);
+                  state->edges[c] = std::pair<Char,DFA::State*>(c, target_state);
+                  ++eno_;
+                }
+              }
+            }
+            i->first -= common;
+            if (i->first.any())
+              ++i;
+            else
+              moves.erase(i++);
+          }
+          else
+          {
+            ++i;
+          }
+        }
+        if (opt_.i)
+        {
+          // normalize by removing upper case if option i (case insensitivem matching) is enabled
+          static const uint64_t upper[5] = { 0x0000000000000000, 0x0000000007FFFFFE, 0, 0, 0 };
+          chars -= Chars(upper);
+        }
+        if (chars.any())
+        {
+          Char lo = chars.lo();
+          Char hi = chars.hi();
+          for (Char c = lo; c <= hi; ++c)
+          {
+            if (chars.contains(c))
+            {
+              DFA::State *target_state = last_state = last_state->next = dfa_.state(state->tnode->edge[c]);
+              if (opt_.i && std::isalpha(c))
+              {
+                state->edges[lowercase(c)] = std::pair<Char,DFA::State*>(lowercase(c), target_state);
+                state->edges[uppercase(c)] = std::pair<Char,DFA::State*>(uppercase(c), target_state);
+                eno_ += 2;
+              }
+              else
+              {
+                state->edges[c] = std::pair<Char,DFA::State*>(c, target_state);
+                ++eno_;
+              }
+            }
+          }
+        }
+      }
+    }
     ems_ += timer_elapsed(et);
-    for (Moves::iterator i = moves.begin(); i != moves.end(); ++i)
+    Moves::iterator end = moves.end();
+    for (Moves::iterator i = moves.begin(); i != end; ++i)
     {
       Positions& pos = i->second;
-      trim_lazy(pos);
       if (!pos.empty())
       {
-        State *target_state;
-        uint16_t h = hash_pos(pos);
-        State **branch_ptr = &table[h];
-        target_state = *branch_ptr;
-        // binary search for a matching state in the hash table overflow tree
+        uint16_t h = hash_pos(&pos);
+        DFA::State **branch_ptr = &table[h];
+        DFA::State *target_state = *branch_ptr;
+        // binary search the target state for a possible matching state in the hash table overflow tree
         while (target_state != NULL)
         {
           if (pos < *target_state)
@@ -1278,7 +1443,7 @@ void Pattern::compile(
         }
         if (target_state == NULL)
         {
-          last_state = last_state->next = target_state = new State(pos);
+          target_state = last_state = last_state->next = dfa_.state(NULL, pos);
           if (branch_ptr != NULL)
             *branch_ptr = target_state;
           else
@@ -1295,9 +1460,9 @@ void Pattern::compile(
               ++hi;
             --hi;
 #if WITH_COMPACT_DFA == -1
-            state->edges[lo] = std::pair<Char,State*>(hi, target_state);
+            state->edges[lo] = std::pair<Char,DFA::State*>(hi, target_state);
 #else
-            state->edges[hi] = std::pair<Char,State*>(lo, target_state);
+            state->edges[hi] = std::pair<Char,DFA::State*>(lo, target_state);
 #endif
             eno_ += hi - lo + 1;
             lo = hi + 1;
@@ -1311,6 +1476,7 @@ void Pattern::compile(
     ++vno_;
   }
   delete[] table;
+  tfa_.clear();
   vms_ = timer_elapsed(vt) - ems_;
   DBGLOG("END compile()");
 }
@@ -1347,28 +1513,28 @@ void Pattern::greedy(Positions& pos) const
   pos.swap(pos1);
 }
 
-void Pattern::trim_lazy(Positions& pos) const
+void Pattern::trim_lazy(Positions *pos) const
 {
 #ifdef DEBUG
   DBGLOG("BEGIN trim_lazy({");
-  for (Positions::const_iterator q = pos.begin(); q != pos.end(); ++q)
+  for (Positions::const_iterator q = pos->begin(); q != pos->end(); ++q)
     DBGLOGPOS(*q);
   DBGLOGA(" })");
 #endif
-  Positions::reverse_iterator p = pos.rbegin();
-  while (p != pos.rend() && p->lazy())
+  Positions::reverse_iterator p = pos->rbegin();
+  while (p != pos->rend() && p->lazy())
   {
     Location l = p->lazy();
     if (p->accept() || p->anchor()) // CHECKED algorithmic options: 7/28 added p->anchor()
     {
-      pos.insert(p->lazy(0)); // make lazy accept/anchor a non-lazy accept/anchor
-      pos.erase(--p.base());
-      while (p != pos.rend() && !p->accept() && p->lazy() == l)
+      pos->insert(p->lazy(0)); // make lazy accept/anchor a non-lazy accept/anchor
+      pos->erase(--p.base());
+      while (p != pos->rend() && !p->accept() && p->lazy() == l)
       {
 #if 0 // CHECKED algorithmic options: set to 1 to turn lazy trimming off
         ++p;
 #else
-        pos.erase(--p.base());
+        pos->erase(--p.base());
 #endif
       }
     }
@@ -1377,8 +1543,8 @@ void Pattern::trim_lazy(Positions& pos) const
 #if 0 // CHECKED algorithmic options: 7/31
       if (p->greedy())
       {
-        pos.insert(p->lazy(0).greedy(false));
-        pos.erase(--p.base());
+        pos->insert(p->lazy(0).greedy(false));
+        pos->erase(--p.base());
       }
       else
       {
@@ -1387,28 +1553,28 @@ void Pattern::trim_lazy(Positions& pos) const
 #else
       if (!p->greedy()) // stop here, greedy bit is 0 from here on
         break;
-      pos.insert(p->lazy(0));
-      pos.erase(--p.base()); // CHECKED 10/21 ++p;
+      pos->insert(p->lazy(0));
+      pos->erase(--p.base()); // CHECKED 10/21 ++p;
 #endif
     }
   }
 #if 0 // CHECKED algorithmic options: 7/31 but results in more states
-  while (p != pos.rend() && p->greedy())
+  while (p != pos->rend() && p->greedy())
   {
-    pos.insert(p->greedy(false));
-    pos.erase(--p.base());
+    pos->insert(p->greedy(false));
+    pos->erase(--p.base());
   }
 #endif
   // trims accept positions keeping the first only, and keeping redo (positions with accept == 0)
-  Positions::iterator q = pos.begin(), a = pos.end();
-  while (q != pos.end())
+  Positions::iterator q = pos->begin(), a = pos->end();
+  while (q != pos->end())
   {
     if (q->accept() && q->accepts() != 0)
     {
-      if (a == pos.end())
+      if (a == pos->end())
         a = q++;
       else
-        pos.erase(q++);
+        pos->erase(q++);
     }
     else
     {
@@ -1417,18 +1583,18 @@ void Pattern::trim_lazy(Positions& pos) const
   }
 #ifdef DEBUG
   DBGLOG("END trim_lazy({");
-  for (Positions::const_iterator q = pos.begin(); q != pos.end(); ++q)
+  for (Positions::const_iterator q = pos->begin(); q != pos->end(); ++q)
     DBGLOGPOS(*q);
   DBGLOGA(" })");
 #endif
 }
 
 void Pattern::compile_transition(
-    State     *state,
-    Follow&    followpos,
-    const Map& modifiers,
-    const Map& lookahead,
-    Moves&     moves) const
+    DFA::State *state,
+    Follow&     followpos,
+    const Map&  modifiers,
+    const Map&  lookahead,
+    Moves&      moves) const
 {
   DBGLOG("BEGIN compile_transition()");
   Positions::const_iterator end = state->end();
@@ -1448,31 +1614,7 @@ void Pattern::compile_transition(
       Char c = at(loc);
       DBGLOGN("At %u: %c", loc, c);
       bool literal = is_modified('q', modifiers, loc);
-      if (c == '/' && opt_.l && !literal)
-      {
-        Lookahead n = 0;
-        DBGLOG("LOOKAHEAD");
-        for (Map::const_iterator i = lookahead.begin(); i != lookahead.end(); ++i)
-        {
-          Locations::const_iterator j = i->second.find(loc);
-          DBGLOGN("%d %d (%d) %u", state->accept, i->first, j != i->second.end(), n);
-          if (j != i->second.end())
-          {
-            Lookahead l = n + static_cast<Lookahead>(std::distance(i->second.begin(), j));
-            if (l < n)
-              error(regex_error::exceeds_limits, loc);
-            if (k->ticked())
-              state->tails.insert(l);
-            else // CHECKED algorithmic options: 7/18 if (state->accept == i->first) no longer check for accept state, assume we are at an accept state
-              state->heads.insert(l);
-          }
-          Lookahead k = n;
-          n += static_cast<Lookahead>(i->second.size());
-          if (n < k)
-            error(regex_error::exceeds_limits, loc);
-        }
-      }
-      else if (c == '(' && !literal)
+      if (c == '(' && !literal)
       {
         Lookahead n = 0;
         DBGLOG("LOOKAHEAD HEAD");
@@ -1585,7 +1727,7 @@ void Pattern::compile_transition(
                 chars.insert(is_modified('m', modifiers, loc) ? META_EOL : META_EOB);
                 break;
               default:
-                if (c == '[' && !escapes_at(loc, "AzBb<>ijk"))
+                if (c == '[')
                 {
                   compile_list(loc + 1, chars, modifiers);
                 }
@@ -1593,6 +1735,17 @@ void Pattern::compile_transition(
                 {
                   switch (escape_at(loc))
                   {
+                    case '\0': // no escape at current loc
+                      if (std::isalpha(c) && is_modified('i', modifiers, loc))
+                      {
+                        chars.insert(uppercase(c));
+                        chars.insert(lowercase(c));
+                      }
+                      else
+                      {
+                        chars.insert(c);
+                      }
+                      break;
                     case 'i':
                       chars.insert(META_IND);
                       break;
@@ -1623,17 +1776,6 @@ void Pattern::compile_transition(
                     case '>':
                       chars.insert(k->anchor() ? META_EWB : META_EWE);
                       break;
-                    case '\0': // no escape at current loc
-                      if (std::isalpha(c) && is_modified('i', modifiers, loc))
-                      {
-                        chars.insert(uppercase(c));
-                        chars.insert(lowercase(c));
-                      }
-                      else
-                      {
-                        chars.insert(c);
-                      }
-                      break;
                     default:
                       c = parse_esc(loc, &chars);
                       if (c <= 'z' && std::isalpha(c) && is_modified('i', modifiers, loc))
@@ -1650,6 +1792,16 @@ void Pattern::compile_transition(
       }
     }
   }
+  Moves::iterator i = moves.begin();
+  Moves::iterator e = moves.end();
+  while (i != e)
+  {
+    trim_lazy(&i->second);
+    if (i->second.empty())
+      moves.erase(i++);
+    else
+      ++i;
+  }
   DBGLOG("END compile_transition()");
 }
 
@@ -1659,7 +1811,7 @@ void Pattern::transition(
     const Positions& follow) const
 {
   Moves::iterator i = moves.begin();
-  Moves::const_iterator end = moves.end();
+  Moves::iterator end = moves.end();
   while (i != end)
   {
     if (is_subset(i->second, follow))
@@ -1816,7 +1968,7 @@ void Pattern::flip(Chars& chars) const
   chars.flip256();
 }
 
-void Pattern::assemble(State& start)
+void Pattern::assemble(DFA::State *start)
 {
   DBGLOG("BEGIN assemble()");
   timer_type t;
@@ -1827,23 +1979,22 @@ void Pattern::assemble(State& start)
   encode_dfa(start);
   wms_ = timer_elapsed(t);
   gencode_dfa(start);
-  delete_dfa(start);
   export_code();
   DBGLOG("END assemble()");
 }
 
-void Pattern::compact_dfa(State& start)
+void Pattern::compact_dfa(DFA::State *start)
 {
 #if WITH_COMPACT_DFA == -1
   // edge compaction in reverse order
-  for (State *state = &start; state; state = state->next)
+  for (DFA::State *state = start; state; state = state->next)
   {
-    for (State::Edges::iterator i = state->edges.begin(); i != state->edges.end(); ++i)
+    for (DFA::State::Edges::iterator i = state->edges.begin(); i != state->edges.end(); ++i)
     {
       Char hi = i->second.first;
       if (hi >= 0xFF)
         break;
-      State::Edges::iterator j = i;
+      DFA::State::Edges::iterator j = i;
       ++j;
       while (j != state->edges.end() && j->first <= hi + 1)
       {
@@ -1862,14 +2013,14 @@ void Pattern::compact_dfa(State& start)
   }
 #elif WITH_COMPACT_DFA == 1
   // edge compaction
-  for (State *state = &start; state; state = state->next)
+  for (DFA::State *state = start; state; state = state->next)
   {
-    for (State::Edges::reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+    for (DFA::State::Edges::reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
     {
       Char lo = i->second.first;
       if (lo <= 0x00)
         break;
-      State::Edges::reverse_iterator j = i;
+      DFA::State::Edges::reverse_iterator j = i;
       ++j;
       while (j != state->edges.rend() && j->first >= lo - 1)
       {
@@ -1891,17 +2042,17 @@ void Pattern::compact_dfa(State& start)
 #endif
 }
 
-void Pattern::encode_dfa(State& start)
+void Pattern::encode_dfa(DFA::State *start)
 {
   nop_ = 0;
-  for (State *state = &start; state; state = state->next)
+  for (DFA::State *state = start; state; state = state->next)
   {
-    if (state->accept > 0 && !valid_take_index(state->accept))
-      throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
+    if (state->accept > Const::AMAX)
+      state->accept = Const::AMAX;
     state->first = state->index = nop_;
 #if WITH_COMPACT_DFA == -1
     Char hi = 0x00;
-    for (State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
+    for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
     {
       Char lo = i->first;
       if (lo == hi)
@@ -1913,13 +2064,13 @@ void Pattern::encode_dfa(State& start)
     // add dead state only when needed, i.e. skip dead state only if all input is covered
     if (hi <= 0xFF)
     {
-      state->edges[hi] = std::pair<Char,State*>(0xFF, NULL);
+      state->edges[hi] = std::pair<Char,DFA::State*>(0xFF, NULL);
       ++nop_;
     }
 #else
     Char lo = 0xFF;
     bool covered = false;
-    for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+    for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
     {
       Char hi = i->first;
       if (lo == hi)
@@ -1936,7 +2087,7 @@ void Pattern::encode_dfa(State& start)
     // add dead state only when needed, i.e. skip dead state only if all input is covered
     if (!covered)
     {
-      state->edges[lo] = std::pair<Char,State*>(0x00, NULL);
+      state->edges[lo] = std::pair<Char,DFA::State*>(0x00, NULL);
       ++nop_;
     }
 #endif
@@ -1946,12 +2097,12 @@ void Pattern::encode_dfa(State& start)
   {
     // over 64K opcodes: use 64-bit GOTO opcodes
     nop_ = 0;
-    for (State *state = &start; state; state = state->next)
+    for (DFA::State *state = start; state; state = state->next)
     {
       state->index = nop_;
 #if WITH_COMPACT_DFA == -1
       Char hi = 0x00;
-      for (State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
+      for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
       {
         Char lo = i->first;
         if (lo == hi)
@@ -1976,7 +2127,7 @@ void Pattern::encode_dfa(State& start)
       }
 #else
       Char lo = 0xFF;
-      for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+      for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
       {
         Char hi = i->first;
         if (lo == hi)
@@ -2008,7 +2159,7 @@ void Pattern::encode_dfa(State& start)
   Opcode *opcode = new Opcode[nop_];
   opc_ = opcode;
   Index pc = 0;
-  for (const State *state = &start; state; state = state->next)
+  for (const DFA::State *state = start; state; state = state->next)
   {
     if (state->redo)
     {
@@ -2031,7 +2182,7 @@ void Pattern::encode_dfa(State& start)
       opcode[pc++] = opcode_head(static_cast<Index>(*i));
     }
 #if WITH_COMPACT_DFA == -1
-    for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+    for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
     {
       Char lo = i->first;
       Char hi = i->second.first;
@@ -2074,7 +2225,7 @@ void Pattern::encode_dfa(State& start)
       }
     }
 #else
-    for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+    for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
     {
       Char hi = i->first;
       Char lo = i->second.first;
@@ -2100,7 +2251,7 @@ void Pattern::encode_dfa(State& start)
         } while (++lo <= hi);
       }
     }
-    for (State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
+    for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
     {
       Char lo = i->second.first;
       if (!is_meta(lo))
@@ -2130,7 +2281,7 @@ void Pattern::encode_dfa(State& start)
   }
 }
 
-void Pattern::gencode_dfa(const State& start) const
+void Pattern::gencode_dfa(const DFA::State *start) const
 {
   if (!opt_.o)
     return;
@@ -2170,10 +2321,10 @@ void Pattern::gencode_dfa(const State& start) const
             "{\n"
             "  int c0 = 0, c1 = 0;\n"
             "  m.FSM_INIT(c1);\n", opt_.n.empty() ? "FSM" : opt_.n.c_str());
-        for (const State *state = &start; state; state = state->next)
+        for (const DFA::State *state = start; state; state = state->next)
         {
           ::fprintf(file, "\nS%u:\n", state->index);
-          if (state == &start)
+          if (state == start)
             ::fprintf(file, "  m.FSM_FIND();\n");
           if (state->redo)
             ::fprintf(file, "  m.FSM_REDO();\n");
@@ -2187,7 +2338,7 @@ void Pattern::gencode_dfa(const State& start) const
             ::fprintf(file, "  if (m.FSM_DENT()) goto S%u;\n", state->edges.rbegin()->second.second->index);
           bool peek = false; // if we need to read a character into c1
           bool prev = false; // if we need to keep the previous character in c0
-          for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+          for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
           {
 #if WITH_COMPACT_DFA == -1
             Char lo = i->first;
@@ -2201,7 +2352,7 @@ void Pattern::gencode_dfa(const State& start) const
               Index target_index = Const::IMAX;
               if (i->second.second != NULL)
                 target_index = i->second.second->index;
-              State::Edges::const_reverse_iterator j = i;
+              DFA::State::Edges::const_reverse_iterator j = i;
               if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
                 break;
               peek = true;
@@ -2221,7 +2372,7 @@ void Pattern::gencode_dfa(const State& start) const
           bool read = peek;
           bool elif = false;
 #if WITH_COMPACT_DFA == -1
-          for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+          for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
           {
             Char lo = i->first;
             Char hi = i->second.first;
@@ -2238,7 +2389,7 @@ void Pattern::gencode_dfa(const State& start) const
             }
             if (!is_meta(lo))
             {
-              State::Edges::const_reverse_iterator j = i;
+              DFA::State::Edges::const_reverse_iterator j = i;
               if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
                 break;
               if (lo == hi)
@@ -2313,7 +2464,7 @@ void Pattern::gencode_dfa(const State& start) const
             }
           }
 #else
-          for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+          for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
           {
             Char hi = i->first;
             Char lo = i->second.first;
@@ -2364,7 +2515,7 @@ void Pattern::gencode_dfa(const State& start) const
               } while (++lo <= hi);
             }
           }
-          for (State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
+          for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
           {
             Char hi = i->first;
             Char lo = i->second.first;
@@ -2381,7 +2532,7 @@ void Pattern::gencode_dfa(const State& start) const
             }
             if (!is_meta(lo))
             {
-              State::Edges::const_iterator j = i;
+              DFA::State::Edges::const_iterator j = i;
               if (target_index == Const::IMAX && (++j == state->edges.end() || is_meta(j->second.first)))
                 break;
               if (lo == hi)
@@ -2434,11 +2585,11 @@ void Pattern::gencode_dfa(const State& start) const
   }
 }
 
-void Pattern::check_dfa_closure(const State *state, int nest, bool& peek, bool& prev) const
+void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, bool& prev) const
 {
   if (nest > 5)
     return;
-  for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+  for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
   {
 #if WITH_COMPACT_DFA == -1
     Char lo = i->first;
@@ -2461,7 +2612,7 @@ void Pattern::check_dfa_closure(const State *state, int nest, bool& peek, bool& 
   }
 }
 
-void Pattern::gencode_dfa_closure(FILE *file, const State *state, int nest, bool peek) const
+void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest, bool peek) const
 {
   bool elif = false;
   if (state->redo)
@@ -2482,7 +2633,7 @@ void Pattern::gencode_dfa_closure(FILE *file, const State *state, int nest, bool
     ::fprintf(file, "%*sm.FSM_TAIL(%u);\n", 2*nest, "", *i);
   if (nest > 5)
     return;
-  for (State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+  for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
   {
 #if WITH_COMPACT_DFA == -1
     Char lo = i->first;
@@ -2532,19 +2683,7 @@ void Pattern::gencode_dfa_closure(FILE *file, const State *state, int nest, bool
   }
 }
 
-void Pattern::delete_dfa(State& start)
-{
-  const State *state = start.next;
-  while (state)
-  {
-    const State *next_state = state->next;
-    delete state;
-    state = next_state;
-  }
-  start.next = NULL;
-}
-
-void Pattern::export_dfa(const State& start) const
+void Pattern::export_dfa(const DFA::State *start) const
 {
   for (std::vector<std::string>::const_iterator i = opt_.f.begin(); i != opt_.f.end(); ++i)
   {
@@ -2562,10 +2701,10 @@ void Pattern::export_dfa(const State& start) const
         err = reflex::fopen_s(&file, filename.c_str(), "w");
       if (!err && file)
       {
-        ::fprintf(file, "digraph %s {\n\t\trankdir=LR;\n\t\tconcentrate=true;\n\t\tnode [fontname=\"ArialNarrow\"];\n\t\tedge [fontname=\"Courier\"];\n\n\t\tinit [root=true,peripheries=0,label=\"%s\",fontname=\"Courier\"];\n\t\tinit -> N%p;\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), opt_.n.c_str(), (void*)&start);
-        for (const State *state = &start; state; state = state->next)
+        ::fprintf(file, "digraph %s {\n\t\trankdir=LR;\n\t\tconcentrate=true;\n\t\tnode [fontname=\"ArialNarrow\"];\n\t\tedge [fontname=\"Courier\"];\n\n\t\tinit [root=true,peripheries=0,label=\"%s\",fontname=\"Courier\"];\n\t\tinit -> N%p;\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), opt_.n.c_str(), (void*)start);
+        for (const DFA::State *state = start; state; state = state->next)
         {
-          if (state == &start)
+          if (state == start)
             ::fprintf(file, "\n/*START*/\t");
           if (state->redo)
             ::fprintf(file, "\n/*REDO*/\t");
@@ -2575,7 +2714,7 @@ void Pattern::export_dfa(const State& start) const
             ::fprintf(file, "\n/*HEAD %u*/\t", *i);
           for (Lookaheads::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
             ::fprintf(file, "\n/*TAIL %u*/\t", *i);
-          if (state != &start && !state->accept && state->heads.empty() && state->tails.empty())
+          if (state != start && !state->accept && state->heads.empty() && state->tails.empty())
             ::fprintf(file, "\n/*STATE*/\t");
           ::fprintf(file, "N%p [label=\"", (void*)state);
 #ifdef DEBUG
@@ -2625,7 +2764,7 @@ void Pattern::export_dfa(const State& start) const
             ::fprintf(file, "\",style=dashed,peripheries=2];\n");
           else
             ::fprintf(file, "\"];\n");
-          for (State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
+          for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
           {
 #if WITH_COMPACT_DFA == -1
             Char lo = i->first;
@@ -2787,10 +2926,10 @@ void Pattern::export_code() const
   }
 }
 
-void Pattern::predict_match_dfa(State& start)
+void Pattern::predict_match_dfa(DFA::State *start)
 {
   DBGLOG("BEGIN Pattern::predict_match_dfa()");
-  State *state = &start;
+  DFA::State *state = start;
   one_ = true;
   while (state->accept == 0)
   {
@@ -2816,7 +2955,7 @@ void Pattern::predict_match_dfa(State& start)
       one_ = false;
       break;
     }
-    State *next = state->edges.begin()->second.second;
+    DFA::State *next = state->edges.begin()->second.second;
     if (next == NULL)
     {
       one_ = false;
@@ -2870,21 +3009,21 @@ void Pattern::predict_match_dfa(State& start)
   DBGLOG("END Pattern::predict_match_dfa()");
 }
 
-void Pattern::gen_predict_match(State *state)
+void Pattern::gen_predict_match(DFA::State *state)
 {
   min_ = 8;
-  std::map<State*,ORanges<Hash> > states[8];
+  std::map<DFA::State*,ORanges<Hash> > states[8];
   gen_predict_match_transitions(state, states[0]);
   for (int level = 1; level < 8; ++level)
-    for (std::map<State*,ORanges<Hash> >::iterator from = states[level - 1].begin(); from != states[level - 1].end(); ++from)
+    for (std::map<DFA::State*,ORanges<Hash> >::iterator from = states[level - 1].begin(); from != states[level - 1].end(); ++from)
       gen_predict_match_transitions(level, from->first, from->second, states[level]);
   for (Char i = 0; i < 256; ++i)
     bit_[i] &= (1 << min_) - 1;
 }
 
-void Pattern::gen_predict_match_transitions(State *state, std::map<State*,ORanges<Hash> >& states)
+void Pattern::gen_predict_match_transitions(DFA::State *state, std::map<DFA::State*,ORanges<Hash> >& states)
 {
-  for (State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
+  for (DFA::State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
   {
     Char lo = edge->first;
     if (is_meta(lo))
@@ -2892,11 +3031,11 @@ void Pattern::gen_predict_match_transitions(State *state, std::map<State*,ORange
       min_ = 0;
       break;
     }
-    State *next = edge->second.second;
+    DFA::State *next = edge->second.second;
     bool accept = (next == NULL || next->accept != 0);
     if (!accept)
     {
-      for (State::Edges::const_iterator e = next->edges.begin(); e != next->edges.end(); ++e)
+      for (DFA::State::Edges::const_iterator e = next->edges.begin(); e != next->edges.end(); ++e)
       {
         if (is_meta(e->first))
         {
@@ -2928,18 +3067,18 @@ void Pattern::gen_predict_match_transitions(State *state, std::map<State*,ORange
   }
 }
 
-void Pattern::gen_predict_match_transitions(size_t level, State *state, ORanges<Hash>& labels, std::map<State*,ORanges<Hash> >& states)
+void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, ORanges<Hash>& labels, std::map<DFA::State*,ORanges<Hash> >& states)
 {
-  for (State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
+  for (DFA::State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
   {
     Char lo = edge->first;
     if (is_meta(lo))
       break;
-    State *next = level < 7 ? edge->second.second : NULL;
+    DFA::State *next = level < 7 ? edge->second.second : NULL;
     bool accept = next == NULL || next->accept != 0;
     if (!accept)
     {
-      for (State::Edges::const_iterator e = next->edges.begin(); e != next->edges.end(); ++e)
+      for (DFA::State::Edges::const_iterator e = next->edges.begin(); e != next->edges.end(); ++e)
       {
         if (is_meta(e->first))
         {

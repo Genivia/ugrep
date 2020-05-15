@@ -34,7 +34,7 @@ search pdf and office documents using filters
 - Multi-threaded search using high-performance lock-free job queue stealing
 - Multi-threaded task-parallel decompression and search
 - Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64)
-- Optimized asynchronous IO implementation
+- Optimized asynchronous IO for efficient concurrent searching
 - Thoroughly tested (includes over 1000 test cases)
 - Compatible with the standard GNU/BSD grep command-line options
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
@@ -68,6 +68,7 @@ Table of contents
   - [Notable improvements over grep](#improvements)
 - [Tutorial](#tutorial)
   - [Examples](#examples)
+  - [Advanced examples](#advanced)
   - [Displaying helpful info](#help)
   - [Interactive search with -Q](#query)
   - [Recursively list matching files with -l, -R, -r, --depth, -g, -O, and -t](#recursion)
@@ -114,11 +115,12 @@ Why use ugrep?
   produce more predictable results for defaults, i.e. recursive search by
   default, directories are searched when specified on the command line, etc.
 
-- **ugrep is fast**, faster than GNU grep and other grep tools.  We use our new
-  match algorithm with the [RE/flex](https://github.com/Genivia/RE-flex) regex
-  matcher, which is 10 to 100 times faster than PCRE2 and RE2.  **ugrep** is
-  multi-threaded and uses lock-free job queue stealing to search files
-  concurrently and load balanced.  See [speed comparisons](#speed).
+- **ugrep is fast**, faster than GNU grep and other grep tools for typical use
+  cases.  **ugrep** uses our new match prediction algorithm combined with our
+  [RE/flex](https://github.com/Genivia/RE-flex) regex matcher, which is 10 to
+  100 times faster than PCRE2 and RE2.  **ugrep** is multi-threaded and uses
+  lock-free job queue stealing to search files concurrently and optimally load
+  balanced.  See [speed comparisons](#speed).
 
 - **ugrep is compatible** by supporting the standard GNU/BSD grep command-line
   options.  This means that grep use cases work with **ugrep** too.
@@ -325,7 +327,7 @@ and add the directory where you placed `ugrep.exe`.
 On using `ugrep.exe` from the Windows command line:
 - when quoting patterns and arguments on the command line, do not use single
   `'` quotes but use `"` instead; most Windows command utilities consider
-  the single `'` quotes part of the command-line argument
+  the single `'` quotes part of the command-line argument!
 - when specifying an empty pattern `""` to match all input, this may be ignored
   by some Windows command interpreters such as Powershell, in that case use
   option `--match` instead
@@ -531,7 +533,8 @@ Ugrep versus other greps
 ### Equivalence to GNU grep and BSD grep
 
 **ugrep** accepts GNU/BSD grep command options and produces GNU/BSD grep
-compatible output, making **ugrep** a true drop-in replacement.
+compatible output, making **ugrep** an excellent drop-in replacement for grep
+power users.
 
 GNU and BSD grep and their common variants are equivalent to **ugrep** when the
 following options are used (`-U` disables Unicode matching with UTF-8 patterns):
@@ -549,8 +552,8 @@ files first followed by sorted recursive matches in subdirectories.  Otherwise,
 matches are reported in no particular order to improve performance.  Option
 `-Y` enables empty matches for GNU/BSD compatibility (`-Y` is not strictly
 necessary, for why and when to use it see [further below](#improvements).)
-Options `-Dread` and `-dread` are not recommended (see below), but are the
-GNU/BSD grep defaults.
+Options `-Dread` and `-dread` are the GNU/BSD grep defaults but are not
+recommended (see [further below](#improvements) for explanation).
 
 <a name="aliases"/>
 
@@ -563,7 +566,7 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
     alias ux     = 'ugrep -UX'   # short & quick binary pattern search
     alias uz     = 'ugrep -z'    # short & quick compressed files and archives search
 
-    alias ugit   = 'ugrep -R --ignore-files' # like git-grep
+    alias ugit   = 'ugrep -R --ignore-files' # works like git-grep
 
     alias grep   = 'ugrep -G'    # search with basic regular expressions (BRE)
     alias egrep  = 'ugrep -E'    # search with extended regular expressions (ERE)
@@ -650,15 +653,11 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   `y`, and `z`).  Allowing empty matches requires **ugrep** option `-Y`.
   Patterns that start with `^` and end with `$` are permitted to match empty,
   e.g. `^\h*$`, by implicitly enabling `-Y`.
-- **ugrep** always assumes UTF-8 locale to support Unicode, i.e.
-  `LC_ALL=en_US.UTF-8`.  By contrast, grep is locale-sensitive, which often
-  causes problems or produces surprising results.  Simply put, the
-  [principle of least astonishment](https://en.wikipedia.org/wiki/Principle_of_least_astonishment)
-  rules!
 - **ugrep** does not use a `.greprc` configuration file or a `GREP_OPTIONS`
-  environment variable, because the behavior of **ugrep** must be portable.
-  Also GNU grep abandoned `GREP_OPTIONS` for this reason.  Instead, please use
-  aliases to create new commands with specific search options.
+  environment variable, because the behavior of **ugrep** must be portable and
+  predictable.  Also GNU grep abandoned `GREP_OPTIONS` for this reason.
+  Instead, please use aliases to create new commands with specific search
+  options.
 
 <a name="tutorial"/>
 
@@ -669,15 +668,82 @@ Tutorial
 
 ### Examples
 
-To search for the identifier `main` as a word (`-w`) recursively (`-r`) in
-directory `myproject`, showing the matching line (`-n`) and column (`-k`)
-numbers next to the lines matched:
+To search the working directory and recursively deeper for `main` (note that
+`-R` recurse symlinks is enabled by default if no file arguments are
+specified):
 
-    ugrep -r -n -k -w 'main' myproject
+    ugrep main
 
-This search query also finds `main` in strings and comment blocks.  With
-**ugrep** we can use *negative patterns* with option `-N` to skip unwanted
-matches in C/C++ quoted strings and comment blocks:
+Same, but only search C++ source code files recursively, ignoring all other
+files:
+
+    ugrep -tc++ main
+
+Same, using the interactive query UI, starting with the initial search pattern
+`main` (note that `-Q` with an initial pattern requires option `-e` because
+patterns are normally specified interactively and all command line arguments
+are considered files/directories):
+
+    ugrep -Q -tc++ -e main
+
+To search for `#define` (and `# define` etc) using a regex pattern in C++ files
+(note that patterns should be quoted to prevent shell globbing of `*` and `?`):
+
+    ugrep -tc++ '#[\t ]*define'
+
+To search for `main` as a word (`-w`) recursively without following symlinks
+(`-r`) in directory `myproject`, showing the matching line (`-n`) and column
+(`-k`) numbers next to the lines matched:
+
+    ugrep -r -nkw main myproject
+
+Same, but only search `myproject` without recursing deeper (note that directory
+arguments are searched at one level by default):
+
+    ugrep -nkw main myproject
+
+Same, but search `myproject` and one subdirectory level deeper (two levels)
+with `-2`:
+
+    ugrep -2 -nkw main myproject
+
+Same, but only search C++ files in `myproject` and its subdirectories with
+`-tc++`:
+
+    ugrep -tc++ -2 -nkw main myproject
+
+Same, but search recursively the working directory while ignoring gitignored
+files (e.g. assuming `.gitignore` is in the working directory or below):
+
+    ugrep --ignore-files -tc++ -nkw main
+
+To list all files in the working directory and deeper that are not ignored by
+`.gitignore` file(s) and are not hidden with `-l`:
+
+    ugrep --ignore-files --no-hidden -l ''
+
+Same, but also search inside archives (e.g. zip and tar files) and compressed
+files with `-z`:
+
+    ugrep -z -tc++ -2 -nkw main myproject
+
+To display the list of file name extensions and "magic bytes" (shebangs)
+that are searched corresponding to `-t` arguments:
+
+    ugrep -tlist
+
+To list all shell files recursively, based on extensions and shebangs with `-l`
+(note that `''` matches any non-empty file):
+
+    ugrep -l -tShell ''
+
+<a name="advanced"/>
+
+### Advanced examples
+
+To search for `main` in source code while ignoring strings and comment blocks
+we can use *negative patterns* with option `-N` to skip unwanted matches in
+C/C++ quoted strings and comment blocks:
 
     ugrep -r -nkw 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
 
@@ -740,11 +806,7 @@ all function definitions.  Then we select the one we want:
     ugrep -R -Oc,cpp -nk -f c/functions | ugrep 'qsort'
 
 Note that we could have used `-tc,c++` to select C/C++ files, but this also
-includes header files when we want to only search `.c` and `.cpp` files.  To
-display the list of file name extensions searched for all available options for
-`-t` use:
-
-    ugrep -tlist
+includes header files when we want to only search `.c` and `.cpp` files.
 
 We can also skip files and directories from being searched that are defined in
 `.gitignore`.  To do so we use `--ignore-files` to exclude any files and
@@ -760,15 +822,6 @@ define an alias to search GitHub directories:
 
     alias ugit='ugrep -R --color --no-hidden --ignore-files'
     ugit -tc++ -f c++/defines
-
-To list all files in a GitHub project directory that are not ignored by
-`.gitignore` file(s) and are not hidden:
-
-    ugit -l ''
-
-Where `-l` (files with matches) lists the files specified in `.gitignore`
-matched by the empty pattern `''`, which is typically used to match any
-non-empty file (non-zero-length file, as per POSIX.1 grep standard).
 
 To highlight matches when pushed through a chain of pipes we should use
 `--color=always`:
@@ -1832,15 +1885,6 @@ To recursively list all shell scripts that are not ignored by .gitignore, when
 present:
 
     ugrep -Rl -tShell '' --ignore-files
-
-To recursively list all files that match the globs in .gitignore, when present:
-
-    ugrep -RL '' --ignore-files
-
-The same, but using both .gitignore and .ignore files, when either or both are
-present:
-
-    ugrep -RL '' --ignore-files --ignore-files=.ignore
 
 To recursively list all files that are not ignored by .gitignore and are also
 not excluded by `.git/info/exclude`:
@@ -3746,7 +3790,7 @@ in markdown:
 
 
 
-    ugrep 2.1.0                      May 10, 2020                         UGREP(1)
+    ugrep 2.1.1                      May 15, 2020                         UGREP(1)
 
 <a name="patterns"/>
 

@@ -1385,7 +1385,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
               }
               ++pos;
             }
-            if (pos >= len || pattern[pos] != '\\')
+            if (pos + 1 >= len || pattern[pos] != '\\')
               throw regex_error(regex_error::mismatched_quotation, pattern, k);
             if (k < pos)
               beg = false;
@@ -1398,7 +1398,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             size_t k = ++pos;
             while (pos + 1 < len && (pattern[pos] != '\\' || pattern[pos + 1] != 'E'))
               ++pos;
-            if (pos >= len || pattern[pos] != '\\')
+            if (pos + 1 >= len || pattern[pos] != '\\')
               throw regex_error(regex_error::mismatched_quotation, pattern, k);
             if (k < pos)
               beg = false;
@@ -1727,7 +1727,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           }
           else
           {
-            // translate "..." to \Q...\E while removing \ from \" and translating \E to \E\\E\Q
+            // translate "..." to \Q...\E while removing \ from \" and translating \E to \E\\E\Q (or perhaps \\EE\Q)
             regex.append(&pattern[loc], pos - loc).append(par).append("\\Q");
             size_t k = loc = ++pos;
             while (pos < len && pattern[pos] != '"')

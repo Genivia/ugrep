@@ -240,7 +240,7 @@ extern size_t flag_max_mmap;
 extern size_t flag_min_steal;
 extern const char *flag_pager;
 extern const char *flag_color;
-extern const char *flag_tags;
+extern const char *flag_tag;
 extern const char *flag_apply_color;
 extern const char *flag_hexdump;
 extern const char *flag_colors;
