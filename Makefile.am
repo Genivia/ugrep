@@ -37,7 +37,7 @@ install-data-hook:
 		 echo "|   alias zgrep  = 'ugrep -zG'                         |"; \
 		 echo "|   alias zegrep = 'ugrep -zE'                         |"; \
 		 echo "|   alias zfgrep = 'ugrep -zF'                         |"; \
-		 echo "|   alias xdump  = 'ugrep -X \"\"'                     |"; \
+		 echo "|   alias xdump  = 'ugrep -X \"\"'                       |"; \
 		 echo "|                                                      |"; \
 		 echo "| Thank you for using ugrep!                           |"; \
 		 echo "|                                                      |"; \

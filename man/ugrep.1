@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 15, 2020" "ugrep 2.1.1" "User Commands"
+.TH UGREP "1" "May 20, 2020" "ugrep 2.1.2" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -90,6 +90,9 @@ Upper case specifies background colors.  A `+' qualifies a color as
 bright.  A foreground and a background color may be combined with
 font properties `n' (normal), `f' (faint), `h' (highlight), `i'
 (invert), `u' (underline).  Selectively overrides GREP_COLORS.
+.TP
+\fB\-\-[no\-]confirm\fR
+Do (not) confirm actions in \fB\-Q\fR query mode.  The default is confirm.
 .TP
 \fB\-\-cpp\fR
 Output file matches in C++.  See also options \fB\-\-format\fR and \fB\-u\fR.
@@ -430,10 +433,13 @@ Query mode: user interface to perform interactive searches.  This
 mode requires an ANSI capable terminal.  An optional DELAY argument
 may be specified to reduce or increase the response time to execute
 searches after the last key press, in increments of 100ms, where
-the default is 5 (0.5s delay).  Initial patterns may be specified
-with \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press
-F1 or CTRL\-Z to view the help screen.  No whitespace may be given
-between \fB\-Q\fR and its argument DELAY.  Enables \fB\-\-heading\fR.
+the default is 5 (0.5s delay).  No whitespace may be given between
+\fB\-Q\fR and its argument DELAY.  Initial patterns may be specified with
+\fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press F1
+or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke an
+editor to edit the file displayed on screen.  The editor is taken
+from the environment variable GREP_EDIT if defined, or EDITOR if
+GREP_EDIT is not defined.  Enables \fB\-\-heading\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  ugrep will only search until a

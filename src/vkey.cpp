@@ -287,6 +287,34 @@ int VKey::raw_in(int timeout)
   }
 }
 
+// poll the keys for timeout ms, return true if a key is pressed and is available to read
+bool VKey::poll(int timeout)
+{
+  DWORD nread = 0;
+  INPUT_RECORD rec;
+
+  switch (WaitForSingleObject(hConIn, timeout))
+  {
+    case WAIT_OBJECT_0:
+      if (PeekConsoleInputW(hConIn, &rec, 1, &nread) != 0 &&
+          nread == 1 &&
+          rec.EventType == KEY_EVENT &&
+          rec.Event.KeyEvent.bKeyDown)
+        return true;
+  
+      // discard event
+      if (nread == 1)
+        ReadConsoleInputW(hConIn, &rec, 1, &nread);
+      return 0;
+
+    case WAIT_TIMEOUT:
+      return false;
+
+    default:
+      return true;
+  }
+}
+
 #else
 
 // wait until key press and return raw VKey::xxx code
@@ -323,6 +351,20 @@ int VKey::raw_in(int timeout)
   }
 
   return EOF;
+}
+
+// poll the keys for timeout ms, return true if a key is pressed and is available to read
+bool VKey::poll(int timeout)
+{
+  struct timeval tv;
+
+  fd_set readfds;
+  FD_ZERO(&readfds);
+  FD_SET(tty, &readfds);
+  tv.tv_sec = timeout / 1000;
+  tv.tv_usec = (1000 * timeout) % 1000000;
+
+  return select(tty + 1, &readfds, NULL, NULL, &tv) == 1;
 }
 
 #endif

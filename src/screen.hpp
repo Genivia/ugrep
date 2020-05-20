@@ -254,14 +254,6 @@ class Screen {
   static bool mono; // monochrome
   static bool good; // true if all previous screen operations were successful after setup()
 
- protected:
-
-  // convert integer to text
-  static void itoa(int num, char **pptr);
-
-  // SIGWINCH signal handler
-  static void sigwinch(int);
-
 #ifdef OS_WIN
 
   // Windows console
@@ -274,6 +266,14 @@ class Screen {
   static int tty;
 
 #endif
+
+ protected:
+
+  // convert integer to text
+  static void itoa(int num, char **pptr);
+
+  // SIGWINCH signal handler
+  static void sigwinch(int);
 
   static bool sel;
   static bool double_width;

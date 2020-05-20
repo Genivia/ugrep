@@ -202,18 +202,31 @@ void Output::Dump::line(const char *separator)
 void Output::header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *separator, bool newline)
 {
   bool sep = false;
+  bool nul = false;
 
   if (flag_with_filename && pathname != NULL)
   { 
+    nul = flag_query > 0 && !flag_text;
+
+    if (nul)
+      chr('\0');
+
     str(color_fn);
+
+    if (nul)
+      chr('\0');
+
     str(pathname);
+
+    if (nul)
+      chr('\0');
+
     str(color_off);
 
     if (flag_null)
-    {
       chr('\0');
-    }
-    else if (flag_heading)
+
+    if (flag_heading)
     {
       str(color_fn);
       str(color_del);
@@ -223,16 +236,29 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     }
     else
     {
-      sep = true;
+      sep = !flag_null;
     }
   }
 
   if (!flag_no_filename && !partname.empty())
   {
+    nul = flag_query > 0 && !flag_text && (flag_heading || !nul);
+    
+    if (nul)
+      chr('\0');
+
     str(color_fn);
+
+    if (nul)
+      chr('\0');
+
     chr('{');
     str(partname);
     chr('}');
+
+    if (nul)
+      chr('\0');
+
     str(color_off);
 
     sep = true;
@@ -552,7 +578,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'C':
-        if (flag_files_with_match)
+        if (flag_files_with_matches)
           str(flag_invert_match ? "\"false\"" : "\"true\"");
         else if (flag_count)
           chr('"'), num(matches), chr('"');
@@ -561,7 +587,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'c':
-        if (flag_files_with_match)
+        if (flag_files_with_matches)
           str(flag_invert_match ? "\"false\"" : "\"true\"");
         else if (flag_count)
           chr('"'), num(matches), chr('"');
@@ -570,7 +596,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'V':
-        if (flag_files_with_match)
+        if (flag_files_with_matches)
           str(flag_invert_match ? "false" : "true");
         else if (flag_count)
           num(matches);
@@ -579,7 +605,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'v':
-        if (flag_files_with_match)
+        if (flag_files_with_matches)
           str(flag_invert_match ? "false" : "true");
         else if (flag_count)
           num(matches);
@@ -588,7 +614,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'J':
-        if (flag_files_with_match)
+        if (flag_files_with_matches)
           str(flag_invert_match ? "false" : "true");
         else if (flag_count)
           num(matches);
@@ -597,7 +623,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'j':
-        if (flag_files_with_match)
+        if (flag_files_with_matches)
           str(flag_invert_match ? "false" : "true");
         else if (flag_count)
           num(matches);
@@ -606,7 +632,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'X':
-        if (flag_files_with_match)
+        if (flag_files_with_matches)
           str(flag_invert_match ? "false" : "true");
         else if (flag_count)
           num(matches);
@@ -615,7 +641,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'x':
-        if (flag_files_with_match)
+        if (flag_files_with_matches)
           str(flag_invert_match ? "false" : "true");
         else if (flag_count)
           num(matches);

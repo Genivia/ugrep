@@ -865,10 +865,15 @@ To show a list of `-t TYPES` option values:
             mode requires an ANSI capable terminal.  An optional DELAY argument
             may be specified to reduce or increase the response time to execute
             searches after the last key press, in increments of 100ms, where
-            the default is 5 (0.5s delay).  Initial patterns may be specified
-            with -e PATTERN, i.e. a PATTERN argument requires option -e.  Press
-            F1 or CTRL-Z to view the help screen.  No whitespace may be given
-            between -Q and its argument DELAY.  Enables --heading.
+            the default is 5 (0.5s delay).  No whitespace may be given between
+            -Q and its argument DELAY.  Initial patterns may be specified with
+            -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1
+            or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke an
+            editor to edit the file displayed on screen.  The editor is taken
+            from the environment variable GREP_EDIT if defined, or EDITOR if
+            GREP_EDIT is not defined.  Enables --heading.
+    --[no-]confirm\n\
+            Do (not) confirm actions in -Q query mode.  The default is confirm.
 
 This option starts a user interface to enter search patterns interactively:
 - Press F1 or CTRL-Z to view a help screen and to enable or disable options.
@@ -882,6 +887,11 @@ This option starts a user interface to enter search patterns interactively:
   exits.  Normally, ugrep in query mode does not output any results unless
   results are selected.  While in selection mode, select or deselect lines with
   Enter or Del, or press A to select all results.
+- An editor may be specified with environment variable `GREP_EDIT`.  If this
+  variable is not defined, the editor is taken from `EDITOR`.  The file viewed
+  at the top of the screen, or beneath the cursor in selection mode, is edited
+  by pressing F2 or CTRL-Y.  Filenames must be enabled and visible in the
+  output to use this feature.
 - Press CTRL-T to toggle colors on or off.  Normally ugrep in query mode uses
   colors and other markup to highlight the results.  When colors are turned
   off, selected results are also not colored in the output produced by ugrep
@@ -2868,122 +2878,126 @@ in markdown:
                   (faint), `h' (highlight), `i' (invert), `u' (underline).  Selec-
                   tively overrides GREP_COLORS.
 
+           --[no-]confirm
+                  Do (not) confirm actions in -Q query mode.  The default is  con-
+                  firm.
+
            --cpp  Output file matches in C++.  See also options --format and -u.
 
-           --csv  Output file matches in CSV.  If -H, -n, -k, or -b is  specified,
+           --csv  Output  file matches in CSV.  If -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
 
            -D ACTION, --devices=ACTION
-                  If an input file is a device, FIFO  or  socket,  use  ACTION  to
-                  process  it.   By  default,  ACTION  is `skip', which means that
+                  If  an  input  file  is  a device, FIFO or socket, use ACTION to
+                  process it.  By default, ACTION  is  `skip',  which  means  that
                   devices are silently skipped.  If ACTION is `read', devices read
                   just as if they were ordinary files.
 
            -d ACTION, --directories=ACTION
-                  If  an  input file is a directory, use ACTION to process it.  By
-                  default, ACTION  is  `skip',  i.e.,  silently  skip  directories
+                  If an input file is a directory, use ACTION to process  it.   By
+                  default,  ACTION  is  `skip',  i.e.,  silently  skip directories
                   unless specified on the command line.  If ACTION is `read', warn
-                  when directories are read as input.   If  ACTION  is  `recurse',
+                  when  directories  are  read  as input.  If ACTION is `recurse',
                   read all files under each directory, recursively, following sym-
-                  bolic links only if they are  on  the  command  line.   This  is
-                  equivalent   to   the   -r   option.   If  ACTION  is  `derefer-
+                  bolic  links  only  if  they  are  on the command line.  This is
+                  equivalent  to  the  -r  option.    If   ACTION   is   `derefer-
                   ence-recurse', read all files under each directory, recursively,
-                  following  symbolic links.  This is equivalent to the -R option.
+                  following symbolic links.  This is equivalent to the -R  option.
 
            --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...
-                  Restrict recursive searches from MIN  to  MAX  directory  levels
-                  deep,  where  -1 (--depth=1) searches the specified path without
-                  recursing into subdirectories.  Note that -3 -5,  -3-5,  or  -35
+                  Restrict  recursive  searches  from  MIN to MAX directory levels
+                  deep, where -1 (--depth=1) searches the specified  path  without
+                  recursing  into  subdirectories.   Note that -3 -5, -3-5, or -35
                   search 3 to 5 levels deep.  Enables -R if -R or -r is not speci-
                   fied.
 
            -E, --extended-regexp
-                  Interpret patterns as extended regular expressions (EREs).  This
+                  Interpret  patterns as extended regular expressions (EREs). This
                   is the default.
 
            -e PATTERN, --regexp=PATTERN
-                  Specify  a PATTERN used during the search of the input: an input
-                  line is selected if it matches any of  the  specified  patterns.
+                  Specify a PATTERN used during the search of the input: an  input
+                  line  is  selected  if it matches any of the specified patterns.
                   Note that longer patterns take precedence over shorter patterns.
-                  This option is most useful when multiple -e options are used  to
-                  specify  multiple  patterns,  when  a pattern begins with a dash
-                  (`-'), to specify a pattern after option -f or  after  the  FILE
+                  This  option is most useful when multiple -e options are used to
+                  specify multiple patterns, when a pattern  begins  with  a  dash
+                  (`-'),  to  specify  a pattern after option -f or after the FILE
                   arguments.
 
            --encoding=ENCODING
-                  The  encoding  format  of  the  input,  where  ENCODING  can be:
-                  `binary', `ASCII', `UTF-8',  `UTF-16',  `UTF-16BE',  `UTF-16LE',
-                  `UTF-32',   `UTF-32BE',   `UTF-32LE',   `LATIN1',  `ISO-8859-1',
+                  The encoding  format  of  the  input,  where  ENCODING  can  be:
+                  `binary',  `ASCII',  `UTF-8',  `UTF-16', `UTF-16BE', `UTF-16LE',
+                  `UTF-32',  `UTF-32BE',   `UTF-32LE',   `LATIN1',   `ISO-8859-1',
                   `ISO-8869-2',    `ISO-8869-3',    `ISO-8869-4',    `ISO-8869-5',
                   `ISO-8869-6',    `ISO-8869-7',    `ISO-8869-8',    `ISO-8869-9',
-                  `ISO-8869-10',  `ISO-8869-11',   `ISO-8869-13',   `ISO-8869-14',
-                  `ISO-8869-15',   `ISO-8869-16',   `MAC',  `MACROMAN',  `EBCDIC',
-                  `CP437',  `CP850',  `CP858',   `CP1250',   `CP1251',   `CP1252',
+                  `ISO-8869-10',   `ISO-8869-11',   `ISO-8869-13',  `ISO-8869-14',
+                  `ISO-8869-15',  `ISO-8869-16',  `MAC',   `MACROMAN',   `EBCDIC',
+                  `CP437',   `CP850',   `CP858',   `CP1250',  `CP1251',  `CP1252',
                   `CP1253',  `CP1254',  `CP1255',  `CP1256',  `CP1257',  `CP1258',
                   `KOI8-R', `KOI8-U', `KOI8-RU'.
 
            --exclude=GLOB
                   Skip files whose name matches GLOB using wildcard matching, same
                   as -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and
-                  \ to quote a wildcard or backslash  character  literally.   When
-                  GLOB  contains  a  `/',  full  pathnames are matched.  Otherwise
-                  basenames are matched.  When GLOB ends with a  `/',  directories
-                  are  excluded as if --exclude-dir is specified.  Otherwise files
-                  are excluded.  Note that --exclude patterns take  priority  over
-                  --include  patterns.   GLOB  should  be  quoted to prevent shell
+                  \  to  quote  a wildcard or backslash character literally.  When
+                  GLOB contains a `/',  full  pathnames  are  matched.   Otherwise
+                  basenames  are  matched.  When GLOB ends with a `/', directories
+                  are excluded as if --exclude-dir is specified.  Otherwise  files
+                  are  excluded.   Note that --exclude patterns take priority over
+                  --include patterns.  GLOB should  be  quoted  to  prevent  shell
                   globbing.  This option may be repeated.
 
            --exclude-dir=GLOB
-                  Exclude directories  whose  name  matches  GLOB  from  recursive
-                  searches.   GLOB can use **, *, ?, and [...] as wildcards, and \
+                  Exclude  directories  whose  name  matches  GLOB  from recursive
+                  searches.  GLOB can use **, *, ?, and [...] as wildcards, and  \
                   to quote a wildcard or backslash character literally.  When GLOB
                   contains a `/', full pathnames are matched.  Otherwise basenames
-                  are matched.  Note that  --exclude-dir  patterns  take  priority
-                  over  --include-dir  patterns.  GLOB should be quoted to prevent
+                  are  matched.   Note  that  --exclude-dir patterns take priority
+                  over --include-dir patterns.  GLOB should be quoted  to  prevent
                   shell globbing.  This option may be repeated.
 
            --exclude-from=FILE
-                  Read the globs from FILE and skip files  and  directories  whose
+                  Read  the  globs  from FILE and skip files and directories whose
                   name matches one or more globs (as if specified by --exclude and
-                  --exclude-dir).  Lines starting with a `#' and  empty  lines  in
-                  FILE  are  ignored.  When FILE is a `-', standard input is read.
+                  --exclude-dir).   Lines  starting  with a `#' and empty lines in
+                  FILE are ignored.  When FILE is a `-', standard input  is  read.
                   This option may be repeated.
 
            --exclude-fs=MOUNTS
-                  Exclude  file  systems  specified  by  MOUNTS   from   recursive
-                  searches,  MOUNTS  is  a comma-separated list of mount points or
-                  pathnames  of  directories   on   file   systems.    Note   that
-                  --exclude-fs  mounts  take  priority  over  --include-fs mounts.
+                  Exclude   file   systems  specified  by  MOUNTS  from  recursive
+                  searches, MOUNTS is a comma-separated list of  mount  points  or
+                  pathnames   of   directories   on   file   systems.   Note  that
+                  --exclude-fs mounts  take  priority  over  --include-fs  mounts.
                   This option may be repeated.
 
            -F, --fixed-strings
-                  Interpret pattern as a set of fixed strings, separated  by  new-
-                  lines,  any  of which is to be matched.  This makes ugrep behave
+                  Interpret  pattern  as a set of fixed strings, separated by new-
+                  lines, any of which is to be matched.  This makes  ugrep  behave
                   as fgrep.  If PATTERN or -e PATTERN is also specified, then this
                   option does not apply to -f FILE patterns.
 
            -f FILE, --file=FILE
-                  Read  newline-separated patterns from FILE.  White space in pat-
+                  Read newline-separated patterns from FILE.  White space in  pat-
                   terns is significant.  Empty lines in FILE are ignored.  If FILE
-                  does  not  exist,  the GREP_PATH environment variable is used as
-                  path  to   FILE.    If   that   fails,   looks   for   FILE   in
-                  /usr/local/share/ugrep/patterns.   When  FILE is a `-', standard
+                  does not exist, the GREP_PATH environment variable  is  used  as
+                  path   to   FILE.    If   that   fails,   looks   for   FILE  in
+                  /usr/local/share/ugrep/patterns.  When FILE is a  `-',  standard
                   input is read.  Empty files contain no patterns; thus nothing is
                   matched.  This option may be repeated.
 
            --filter=COMMANDS
                   Filter files through the specified COMMANDS first before search-
                   ing.   COMMANDS  is  a  comma-separated  list  of  `exts:command
-                  [option  ...]',  where `exts' is a comma-separated list of file-
-                  name extensions and `command' is a filter utility.   The  filter
-                  utility  should  read  from standard input and write to standard
+                  [option ...]', where `exts' is a comma-separated list  of  file-
+                  name  extensions  and `command' is a filter utility.  The filter
+                  utility should read from standard input and  write  to  standard
                   output.  Files matching one of `exts' are filtered.  When `exts'
                   is `*', files with non-matching extensions are filtered.  One or
-                  more `option' separated by spacing may be specified,  which  are
-                  passed  verbatim to the command.  A `%' as `option' expands into
-                  the pathname to search.  For example, --filter='pdf:pdftotext  %
-                  -'  searches PDF files.  The `%' expands into a `-' when search-
-                  ing standard input.  Option --label=.ext may be used to  specify
+                  more  `option'  separated by spacing may be specified, which are
+                  passed verbatim to the command.  A `%' as `option' expands  into
+                  the  pathname to search.  For example, --filter='pdf:pdftotext %
+                  -' searches PDF files.  The `%' expands into a `-' when  search-
+                  ing  standard input.  Option --label=.ext may be used to specify
                   extension `ext' when searching standard input.
 
            --format=FORMAT
@@ -2998,10 +3012,10 @@ in markdown:
                   behave as traditional grep.
 
            -g GLOB, --glob=GLOB
-                  Search   only   files   whose   name   matches   GLOB,  same  as
-                  --include=GLOB.  When GLOB is preceded by a `!' or a  `^',  skip
-                  files  whose  name  matches  GLOB, same as --exclude=GLOB.  GLOB
-                  should be quoted to prevent shell globbing.  This option may  be
+                  Search  only  files   whose   name   matches   GLOB,   same   as
+                  --include=GLOB.   When  GLOB is preceded by a `!' or a `^', skip
+                  files whose name matches GLOB,  same  as  --exclude=GLOB.   GLOB
+                  should  be quoted to prevent shell globbing.  This option may be
                   repeated.
 
            --group-separator[=SEP]
@@ -3009,12 +3023,12 @@ in markdown:
                   The default is a double hyphen (`--').
 
            -H, --with-filename
-                  Always print the  filename  with  output  lines.   This  is  the
+                  Always  print  the  filename  with  output  lines.   This is the
                   default when there is more than one file to search.
 
            -h, --no-filename
-                  Never  print  filenames  with output lines.  This is the default
-                  when there is only one file (or only standard input) to  search.
+                  Never print filenames with output lines.  This  is  the  default
+                  when  there is only one file (or only standard input) to search.
 
            --heading
                   Group matches per file.  Adds a heading and a line break between
@@ -3023,74 +3037,74 @@ in markdown:
            --help Print a help message.
 
            --hexdump=[1-8][b][c][h]
-                  Output matches in 1 to 8 columns of 8 hexadecimal  octets.   The
-                  default  is 2 columns or 16 octets per line.  Option `b' removes
-                  all space breaks,  `c'  hides  the  character  column,  and  `h'
-                  removes  the  hex  spacing  only.  Enables -X if -W or -X is not
+                  Output  matches  in 1 to 8 columns of 8 hexadecimal octets.  The
+                  default is 2 columns or 16 octets per line.  Option `b'  removes
+                  all  space  breaks,  `c'  hides  the  character  column, and `h'
+                  removes the hex spacing only.  Enables -X if -W  or  -X  is  not
                   specified.
 
            --[no-]hidden
                   Do (not) search hidden files and directories.
 
-           -I     Ignore matches in binary files.  This option  is  equivalent  to
+           -I     Ignore  matches  in  binary files.  This option is equivalent to
                   the --binary-files=without-match option.
 
            -i, --ignore-case
-                  Perform  case  insensitive  matching.  By default, ugrep is case
+                  Perform case insensitive matching.  By default,  ugrep  is  case
                   sensitive.  This option applies to ASCII letters only.
 
            --ignore-files[=FILE]
-                  Ignore files and directories matching the  globs  in  each  FILE
-                  when  encountered  in  recursive  searches.  The default FILE is
-                  `.gitignore'.  Matching files and  directories  located  in  the
+                  Ignore  files  and  directories  matching the globs in each FILE
+                  when encountered in recursive searches.   The  default  FILE  is
+                  `.gitignore'.   Matching  files  and  directories located in the
                   directory tree rooted at a FILE's location are ignored by tempo-
-                  rarily overriding the --exclude and --exclude-dir  globs.   Note
+                  rarily  overriding  the --exclude and --exclude-dir globs.  Note
                   that files and directories specified as ugrep FILE arguments are
                   not ignored.  This option may be repeated.
 
            --include=GLOB
-                  Search only files whose name matches GLOB using wildcard  match-
+                  Search  only files whose name matches GLOB using wildcard match-
                   ing, same as -g GLOB.  GLOB can use **, *, ?, and [...] as wild-
-                  cards, and \ to quote a wildcard or backslash  character  liter-
-                  ally.   When  GLOB  contains  a `/', full pathnames are matched.
-                  Otherwise basenames are matched.  When GLOB  ends  with  a  `/',
+                  cards,  and  \ to quote a wildcard or backslash character liter-
+                  ally.  When GLOB contains a `/',  full  pathnames  are  matched.
+                  Otherwise  basenames  are  matched.   When GLOB ends with a `/',
                   directories are included as if --include-dir is specified.  Oth-
-                  erwise files are included.  Note that  --exclude  patterns  take
+                  erwise  files  are  included.  Note that --exclude patterns take
                   priority over --include patterns.  GLOB should be quoted to pre-
                   vent shell globbing.  This option may be repeated.
 
            --include-dir=GLOB
-                  Only directories whose name matches GLOB are included in  recur-
-                  sive  searches.   GLOB can use **, *, ?, and [...] as wildcards,
-                  and \ to quote a  wildcard  or  backslash  character  literally.
+                  Only  directories whose name matches GLOB are included in recur-
+                  sive searches.  GLOB can use **, *, ?, and [...]  as  wildcards,
+                  and  \  to  quote  a  wildcard or backslash character literally.
                   When GLOB contains a `/', full pathnames are matched.  Otherwise
-                  basenames are matched.  Note that  --exclude-dir  patterns  take
-                  priority  over --include-dir patterns.  GLOB should be quoted to
+                  basenames  are  matched.   Note that --exclude-dir patterns take
+                  priority over --include-dir patterns.  GLOB should be quoted  to
                   prevent shell globbing.  This option may be repeated.
 
            --include-from=FILE
-                  Read the globs from FILE and search only files  and  directories
-                  whose  name  matches  one  or  more  globs  (as  if specified by
-                  --include and --include-dir).  Lines starting  with  a  `#'  and
-                  empty  lines  in FILE are ignored.  When FILE is a `-', standard
+                  Read  the  globs from FILE and search only files and directories
+                  whose name matches  one  or  more  globs  (as  if  specified  by
+                  --include  and  --include-dir).   Lines  starting with a `#' and
+                  empty lines in FILE are ignored.  When FILE is a  `-',  standard
                   input is read.  This option may be repeated.
 
            --include-fs=MOUNTS
-                  Only file systems specified by MOUNTS are included in  recursive
-                  searches.   MOUNTS  is a comma-separated list of mount points or
-                  pathnames  of  directories  on  file  systems.    --include-fs=.
-                  restricts  recursive  searches to the file system of the working
-                  directory only.  Note that  --exclude-fs  mounts  take  priority
+                  Only  file systems specified by MOUNTS are included in recursive
+                  searches.  MOUNTS is a comma-separated list of mount  points  or
+                  pathnames   of  directories  on  file  systems.   --include-fs=.
+                  restricts recursive searches to the file system of  the  working
+                  directory  only.   Note  that  --exclude-fs mounts take priority
                   over --include-fs mounts.  This option may be repeated.
 
            -J NUM, --jobs=NUM
-                  Specifies  the  number  of  threads spawned to search files.  By
-                  default, or when NUM is specified as zero, an optimum number  of
+                  Specifies the number of threads spawned  to  search  files.   By
+                  default,  or when NUM is specified as zero, an optimum number of
                   threads is spawned to search files simultaneously.  -J1 disables
                   threading: files are searched in the same order as specified.
 
            -j, --smart-case
-                  Perform case insensitive matching unless a pattern  contains  an
+                  Perform  case  insensitive matching unless a pattern contains an
                   upper case letter.  This option applies to ASCII letters only.
 
            --json Output file matches in JSON.  If -H, -n, -k, or -b is specified,
@@ -3100,39 +3114,39 @@ in markdown:
                   Start searching at line FIRST, stop at line LAST when specified.
 
            -k, --column-number
-                  The column number of a matched pattern is displayed in front  of
-                  the  respective  matched  line,  starting at column 1.  Tabs are
+                  The  column number of a matched pattern is displayed in front of
+                  the respective matched line, starting at  column  1.   Tabs  are
                   expanded when columns are counted, see also option --tabs.
 
            -L, --files-without-match
-                  Only the names of files not containing selected lines are  writ-
-                  ten  to  standard  output.   Pathnames  are listed once per file
+                  Only  the names of files not containing selected lines are writ-
+                  ten to standard output.  Pathnames  are  listed  once  per  file
                   searched.   If  the  standard  input  is  searched,  the  string
                   ``(standard input)'' is written.
 
            -l, --files-with-matches
                   Only the names of files containing selected lines are written to
-                  standard output.  ugrep will only search a file  until  a  match
-                  has  been  found,  making  searches  potentially less expensive.
-                  Pathnames are listed once per file searched.   If  the  standard
+                  standard  output.   ugrep  will only search a file until a match
+                  has been found,  making  searches  potentially  less  expensive.
+                  Pathnames  are  listed  once per file searched.  If the standard
                   input is searched, the string ``(standard input)'' is written.
 
            --label=LABEL
-                  Displays  the LABEL value when input is read from standard input
-                  where a file name would normally be printed in the output.   The
+                  Displays the LABEL value when input is read from standard  input
+                  where  a file name would normally be printed in the output.  The
                   default value is `(standard input)'.
 
            --line-buffered
                   Force output to be line buffered instead of block buffered.
 
            -M MAGIC, --file-magic=MAGIC
-                  Only  files  matching  the signature pattern MAGIC are searched.
-                  The signature "magic bytes" at the start of a file are  compared
-                  to  the  MAGIC  regex  pattern.  When matching, the file will be
-                  searched.  When MAGIC is preceded by a `!' or a `^', skip  files
+                  Only files matching the signature pattern  MAGIC  are  searched.
+                  The  signature "magic bytes" at the start of a file are compared
+                  to the MAGIC regex pattern.  When matching,  the  file  will  be
+                  searched.   When MAGIC is preceded by a `!' or a `^', skip files
                   with matching MAGIC signatures.  This option may be repeated and
-                  may be combined with options -O and -t  to  expand  the  search.
-                  Every  file  on  the search path is read, making searches poten-
+                  may  be  combined  with  options -O and -t to expand the search.
+                  Every file on the search path is read,  making  searches  poten-
                   tially more expensive.
 
            -m NUM, --max-count=NUM
@@ -3142,81 +3156,84 @@ in markdown:
                   Match all input.  Same as specifying an empty pattern to search.
 
            --max-files=NUM
-                  Restrict  the  number of files matched to NUM.  Note that --sort
-                  or -J1 may be  specified  to  produce  replicable  results.   If
+                  Restrict the number of files matched to NUM.  Note  that  --sort
+                  or  -J1  may  be  specified  to  produce replicable results.  If
                   --sort is specified, the number of threads spawned is limited to
                   NUM.
 
            --[no-]mmap[=MAX]
-                  Do (not) use memory maps to search files.   By  default,  memory
-                  maps  are  used under certain conditions to improve performance.
+                  Do  (not)  use  memory maps to search files.  By default, memory
+                  maps are used under certain conditions to  improve  performance.
                   When MAX is specified, use up to MAX mmap memory per thread.
 
            -N PATTERN, --neg-regexp=PATTERN
-                  Specify a negative PATTERN used during the search of the  input:
-                  an  input  line is selected only if it matches any of the speci-
-                  fied patterns when PATTERN does not match.  Same as  -e  (?^PAT-
-                  TERN).   Negative  PATTERN  matches are removed before any other
-                  specified patterns are matched.  Note that longer patterns  take
-                  precedence  over shorter patterns.  This option may be repeated.
+                  Specify  a negative PATTERN used during the search of the input:
+                  an input line is selected only if it matches any of  the  speci-
+                  fied  patterns  when PATTERN does not match.  Same as -e (?^PAT-
+                  TERN).  Negative PATTERN matches are removed  before  any  other
+                  specified  patterns are matched.  Note that longer patterns take
+                  precedence over shorter patterns.  This option may be  repeated.
 
            -n, --line-number
-                  Each output line is preceded by its relative line number in  the
-                  file,  starting at line 1.  The line number counter is reset for
+                  Each  output line is preceded by its relative line number in the
+                  file, starting at line 1.  The line number counter is reset  for
                   each file processed.
 
            --no-group-separator
-                  Removes the group separator line from  the  output  for  context
+                  Removes  the  group  separator  line from the output for context
                   options -A, -B, and -C.
 
            -O EXTENSIONS, --file-extensions=EXTENSIONS
-                  Search  only files whose filename extensions match the specified
-                  comma-separated list of EXTENSIONS,  same  as  --include='*.ext'
-                  for  each  `ext' in EXTENSIONS.  When `ext' is preceded by a `!'
-                  or a `^', skip files whose filename  extensions  matches  `ext',
-                  same  as --exclude='*.ext'.  This option may be repeated and may
-                  be combined with options -M  and  -t  to  expand  the  recursive
+                  Search only files whose filename extensions match the  specified
+                  comma-separated  list  of  EXTENSIONS, same as --include='*.ext'
+                  for each `ext' in EXTENSIONS.  When `ext' is preceded by  a  `!'
+                  or  a  `^',  skip files whose filename extensions matches `ext',
+                  same as --exclude='*.ext'.  This option may be repeated and  may
+                  be  combined  with  options  -M  and  -t to expand the recursive
                   search.
 
            -o, --only-matching
-                  Print  only  the  matching  part  of lines.  When multiple lines
-                  match, the line numbers with option -n are displayed  using  `|'
-                  as  the  field separator for each additional line matched by the
-                  pattern.  If -u is specified, ungroups multiple matches  on  the
-                  same  line.  This option cannot be combined with options -A, -B,
+                  Print only the matching part  of  lines.   When  multiple  lines
+                  match,  the  line numbers with option -n are displayed using `|'
+                  as the field separator for each additional line matched  by  the
+                  pattern.   If  -u is specified, ungroups multiple matches on the
+                  same line.  This option cannot be combined with options -A,  -B,
                   -C, -v, and -y.
 
            --only-line-number
                   The line number of the matching line in the file is output with-
-                  out  displaying the match.  The line number counter is reset for
+                  out displaying the match.  The line number counter is reset  for
                   each file processed.
 
            -P, --perl-regexp
                   Interpret PATTERN as a Perl regular expression using PCRE2.
 
            -p, --no-dereference
-                  If -R or -r is specified, no symbolic links are  followed,  even
+                  If  -R  or -r is specified, no symbolic links are followed, even
                   when they are specified on the command line.
 
            --[no-]pager[=COMMAND]
-                  When  output  is  sent  to  the  terminal,  uses COMMAND to page
-                  through the output.  The default COMMAND is `less -R'.   Enables
+                  When output is sent  to  the  terminal,  uses  COMMAND  to  page
+                  through  the output.  The default COMMAND is `less -R'.  Enables
                   --heading and --line-buffered.
 
            --[no-]pretty
-                  When  output  is sent to a terminal, enables --color, --heading,
+                  When output is sent to a terminal, enables  --color,  --heading,
                   -T.
 
            -Q[DELAY], --query[=DELAY]
-                  Query mode: user  interface  to  perform  interactive  searches.
-                  This  mode requires an ANSI capable terminal.  An optional DELAY
-                  argument may be specified to reduce  or  increase  the  response
+                  Query  mode:  user  interface  to  perform interactive searches.
+                  This mode requires an ANSI capable terminal.  An optional  DELAY
+                  argument  may  be  specified  to reduce or increase the response
                   time to execute searches after the last key press, in increments
-                  of 100ms, where the default is 5 (0.5s delay).  Initial patterns
-                  may  be  specified  with  -e  PATTERN,  i.e.  a PATTERN argument
+                  of  100ms,  where  the default is 5 (0.5s delay).  No whitespace
+                  may be given between -Q and its argument  DELAY.   Initial  pat-
+                  terns  may be specified with -e PATTERN, i.e. a PATTERN argument
                   requires option -e.  Press F1 or CTRL-Z to view the help screen.
-                  No  whitespace  may  be given between -Q and its argument DELAY.
-                  Enables --heading.
+                  Press  F2  or  CTRL-Y  to invoke an editor to edit the file dis-
+                  played on screen.  The editor  is  taken  from  the  environment
+                  variable  GREP_EDIT  if  defined,  or EDITOR if GREP_EDIT is not
+                  defined.  Enables --heading.
 
            -q, --quiet, --silent
                   Quiet mode: suppress all output.  ugrep will only search until a
@@ -3789,7 +3806,7 @@ in markdown:
 
 
 
-    ugrep 2.1.1                      May 15, 2020                         UGREP(1)
+    ugrep 2.1.2                      May 20, 2020                         UGREP(1)
 
 <a name="patterns"/>
 

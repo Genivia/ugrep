@@ -74,6 +74,7 @@ inline HANDLE nonblocking_pipe(int fd[2])
 
 #include <signal.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 // create a pipe with non-blocking read end
 inline int nonblocking_pipe(int fd[2])
@@ -94,12 +95,6 @@ inline void set_blocking(int fd0)
 }
 
 #endif
-
-// global flags
-bool flag_c = false;
-bool flag_h = false;
-bool flag_l = false;
-bool flag_v = false;
 
 static constexpr const char *PROMPT = "\033[32;1m";    // bright green
 static constexpr const char *CERROR = "\033[37;41;1m"; // bright white on red
@@ -223,43 +218,122 @@ void Query::display(int col, int len)
 
 void Query::draw()
 {
-  if (select_ == -1)
+  if (mode_ == Mode::QUERY)
   {
-    Screen::home();
-
-    if (prompt_ != NULL)
+    if (select_ == -1)
     {
-      if (!Screen::mono)
-      {
-        Screen::normal();
-        if (error_ == -1)
-          Screen::put(PROMPT);
-        else
-          Screen::put(CERROR);
-      }
-      Screen::put(prompt_);
-    }
+      Screen::home();
 
+      if (prompt_ != NULL)
+      {
+        if (!Screen::mono)
+        {
+          Screen::normal();
+          if (error_ == -1)
+            Screen::put(PROMPT);
+          else
+            Screen::put(CERROR);
+        }
+        Screen::put(prompt_);
+      }
+
+      Screen::normal();
+
+      int pos;
+      if (len_ - col_ < shift_)
+        pos = Screen::cols - start_ - (len_ - col_) - 1;
+      else
+        pos = Screen::cols - start_ - shift_ - 1;
+
+      offset_ = col_ > pos ? col_ - pos : 0;
+
+      if (offset_ > 0)
+      {
+        if (!Screen::mono)
+        {
+          if (error_ == -1)
+            Screen::put(PROMPT);
+          else
+            Screen::put(CERROR);
+        }
+
+        Screen::put(LARROW);
+        Screen::normal();
+
+        int adj = 1;
+        if (line_ptr(offset_) == line_ptr(offset_ + 1)) // adjust columns when double width char at offset
+        {
+          Screen::put(' ');
+          adj = 2; // make the displayed line start one character later
+        }
+
+        if (len_ >= offset_ + Screen::cols - start_)
+        {
+          display(offset_ + adj, Screen::cols - start_ - adj - 1);
+          Screen::erase();
+          if (!Screen::mono)
+          {
+            if (error_ == -1)
+              Screen::put(PROMPT);
+            else
+              Screen::put(CERROR);
+          }
+          Screen::put(RARROW);
+        }
+        else
+        {
+          display(offset_ + adj, len_ - offset_ - adj);
+          Screen::erase();
+        }
+      }
+      else
+      {
+        if (len_ > Screen::cols - start_)
+        {
+          display(0, Screen::cols - start_ - 1);
+          Screen::erase();
+          if (!Screen::mono)
+          {
+            if (error_ == -1)
+              Screen::put(PROMPT);
+            else
+              Screen::put(CERROR);
+          }
+          Screen::put(RARROW);
+        }
+        else
+        {
+          display(0, len_);
+          if (len_ < Screen::cols - start_)
+            Screen::erase();
+        }
+      }
+    }
+    else
+    {
+      Screen::normal();
+      Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle selection  \033[7mA\033[m all  \033[7mC\033[m clear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quick exit");
+    }
+  }
+  else if (mode_ == Mode::LIST)
+  {
     Screen::normal();
+    Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle file type selection  \033[7mC\033[m clear  \033[7mEsc\033[m go back");
+  }
+  else if (mode_ == Mode::EDIT)
+  {
+    Screen::setpos(select_ - row_ + 1, 0);
 
     int pos;
     if (len_ - col_ < shift_)
-      pos = Screen::cols - start_ - (len_ - col_) - 1;
+      pos = Screen::cols - (len_ - col_) - 1;
     else
-      pos = Screen::cols - start_ - shift_ - 1;
+      pos = Screen::cols - shift_ - 1;
 
     offset_ = col_ > pos ? col_ - pos : 0;
 
     if (offset_ > 0)
     {
-      if (!Screen::mono)
-      {
-        if (error_ == -1)
-          Screen::put(PROMPT);
-        else
-          Screen::put(CERROR);
-      }
-
       Screen::put(LARROW);
       Screen::normal();
 
@@ -270,17 +344,10 @@ void Query::draw()
         adj = 2; // make the displayed line start one character later
       }
 
-      if (len_ >= offset_ + Screen::cols - start_)
+      if (len_ >= offset_ + Screen::cols)
       {
-        display(offset_ + adj, Screen::cols - start_ - adj - 1);
+        display(offset_ + adj, Screen::cols - adj - 1);
         Screen::erase();
-        if (!Screen::mono)
-        {
-          if (error_ == -1)
-            Screen::put(PROMPT);
-          else
-            Screen::put(CERROR);
-        }
         Screen::put(RARROW);
       }
       else
@@ -291,31 +358,21 @@ void Query::draw()
     }
     else
     {
-      if (len_ > Screen::cols - start_)
+      Screen::normal();
+
+      if (len_ > Screen::cols)
       {
-        display(0, Screen::cols - start_ - 1);
+        display(0, Screen::cols - 1);
         Screen::erase();
-        if (!Screen::mono)
-        {
-          if (error_ == -1)
-            Screen::put(PROMPT);
-          else
-            Screen::put(CERROR);
-        }
         Screen::put(RARROW);
       }
       else
       {
         display(0, len_);
-        if (len_ < Screen::cols - start_)
+        if (len_ < Screen::cols)
           Screen::erase();
       }
     }
-  }
-  else
-  {
-    Screen::normal();
-    Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle selection  \033[7mA\033[m select all  \033[7mC\033[m clear all  \033[7mEsc\033[m exit  \033[7m^Q\033[m quick exit");
   }
 }
 
@@ -335,12 +392,12 @@ void Query::redraw()
   shift_ = (Screen::cols - start_) / 10;
   Screen::normal();
 
-  if (mode_ == Mode::QUERY)
+  if (mode_ == Mode::QUERY || mode_ == Mode::LIST)
   {
     if (select_ >= 0 && select_ >= row_ + Screen::rows - 1)
       row_ = select_ - Screen::rows + 2;
-    if (row_ + Screen::rows - 1 > rows_)
-      row_ = rows_ - Screen::rows + 1;
+    if (row_ >= rows_)
+      row_ = rows_ - 1;
     if (row_ < 0)
       row_ = 0;
     int end = rows_;
@@ -352,7 +409,24 @@ void Query::redraw()
       Screen::end();
     draw();
   }
-  else
+  else if (mode_ == Mode::EDIT)
+  {
+    if (select_ >= row_ + Screen::rows - 1)
+      row_ = select_ - Screen::rows + 2;
+    if (row_ >= rows_)
+      row_ = rows_ - 1;
+    if (row_ < 0)
+      row_ = 0;
+    int end = rows_;
+    if (end > row_ + Screen::rows - 1)
+      end = row_ + Screen::rows - 1;
+    for (int i = row_; i < end; ++i)
+      view(i);
+    if (rows_ < row_ + Screen::rows - 1)
+      Screen::end();
+    Screen::put(0, 0, "\033[7mEDIT\033[m");
+  }
+  else if (mode_ == Mode::HELP)
   {
     Screen::put( 1, 0, "");
     Screen::put( 2, 0, "\033[7mEsc\033[m   exit & save selected");
@@ -372,17 +446,23 @@ void Query::redraw()
     Screen::put(11, 0, "\033[7mHome\033[m \033[7mEnd\033[m begin/end of line");
     Screen::put(12, 0, "\033[7m^K\033[m delete after cursor");
     Screen::put(13, 0, "\033[7m^L\033[m refresh screen");
-    Screen::put(14, 0, "\033[7m^Q\033[m quick exit & save");
-    Screen::put(15, 0, "\033[7m^T\033[m toggle colors on/off");
-    Screen::put(16, 0, "\033[7m^U\033[m delete before cursor");
-    Screen::put(17, 0, "\033[7m^V\033[m verbatim character");
-    Screen::put(18, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
-    Screen::put(19, 0, "");
-    Screen::put(20, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
-    Screen::put(21, 0, "");
+    Screen::put(14, 0, "\033[7m^Q\033[m quick exit and save");
+    Screen::put(15, 0, "\033[7m^R\033[m or \033[7mF4\033[m jump to bookmark");
+    Screen::put(16, 0, "\033[7m^S\033[m scroll to next file");
+    Screen::put(17, 0, "\033[7m^T\033[m toggle colors on/off");
+    Screen::put(18, 0, "\033[7m^U\033[m delete before cursor");
+    Screen::put(19, 0, "\033[7m^V\033[m verbatim character");
+    Screen::put(20, 0, "\033[7m^W\033[m scroll back one file");
+    Screen::put(21, 0, "\033[7m^X\033[m or \033[7mF3\033[m set bookmark");
+    Screen::put(22, 0, "\033[7m^Y\033[m or \033[7mF2\033[m edit file");
+    Screen::put(23, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
+    Screen::put(24, 0, "\033[7m^\\\033[m terminate process");
+    Screen::put(25, 0, "");
+    Screen::put(26, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
+    Screen::put(27, 0, "");
 
     std::string buf;
-    int row = 22;
+    int row = 28;
     int col = 0;
 
     for (Flags *fp = flags_; fp->text != NULL; ++fp)
@@ -423,7 +503,7 @@ void Query::redraw()
 
 #ifdef OS_WIN
 
-// CTRL-C handler
+// CTRL-C/BREAK handler
 BOOL WINAPI Query::sigint(DWORD signal)
 {
   VKey::cleanup();
@@ -440,16 +520,20 @@ void Query::sigwinch(int)
   redraw();
 }
 
-void Query::sigint(int)
+// SIGINT and SIGTERM handler
+void Query::sigint(int sig)
 {
   VKey::cleanup();
   Screen::cleanup();
 
-  // reset SIGINT to the default handler
-  signal(SIGINT, SIG_DFL);
+  // force close, to deliver pending writes
+  close(Screen::tty);
 
-  // signal SIGINT again
-  kill(getpid(), SIGINT);
+  // reset to the default handler
+  signal(sig, SIG_DFL);
+
+  // signal again
+  kill(getpid(), sig);
 }
 
 #endif
@@ -614,6 +698,10 @@ void Query::query(const char *prompt)
   
   signal(SIGINT, sigint);
 
+  signal(SIGQUIT, sigint);
+
+  signal(SIGTERM, sigint);
+
   signal(SIGPIPE, SIG_IGN);
 
   signal(SIGWINCH, sigwinch);
@@ -650,7 +738,7 @@ void Query::query(const char *prompt)
     if (num >= QUERY_MAX_LEN)
       num = QUERY_MAX_LEN - 1;
 
-    memcpy(line_, pattern.c_str(), num);
+    pattern.copy(line_, num);
     line_[num] = '\0';
 
     len_ = line_len();
@@ -684,12 +772,19 @@ void Query::query(const char *prompt)
 
     while (true)
     {
-      update();
+      if (mode_ == Mode::QUERY)
+      {
+        update();
 
-      if (select_ == -1)
-        Screen::setpos(0, start_ + col_ - offset_);
+        if (select_ == -1)
+          Screen::setpos(0, start_ + col_ - offset_);
+        else
+          Screen::setpos(select_ - row_ + 1, 0);
+      }
       else
-        Screen::setpos(select_ - row_ + 1, 0);
+      {
+        Screen::setpos(select_ - row_ + 1, col_ - offset_);
+      }
 
       key = VKey::in(100);
 
@@ -706,7 +801,7 @@ void Query::query(const char *prompt)
           message_ = false;
         }
 
-        if (updated_)
+        if (mode_ == Mode::QUERY && updated_)
         {
           result();
 
@@ -752,43 +847,48 @@ void Query::query(const char *prompt)
       switch (key)
       {
         case VKey::ESC:
-          if (select_ == -1)
+          if (mode_ == Mode::QUERY)
           {
-            if (!Screen::mono)
-              Screen::put(PROMPT);
-            Screen::put(0, 0, ">>");
-            Screen::put(0, 2, "\033[mExit? (y/n) [n] ");
-            VKey::flush();
-            key = VKey::get();
-            if (key == 'y' || key == 'Y')
-              return;
-            draw();
-          }
-          else
-          {
-            select_ = -1;
-            redraw();
+            if (select_ == -1)
+            {
+              if (quit())
+                return;
+            }
+            else
+            {
+              select_ = -1;
+              redraw();
+            }
           }
           break;
 
         case VKey::LF:
         case VKey::CR:
-          if (select_ == -1)
+          if (mode_ == Mode::QUERY || mode_ == Mode::LIST)
           {
-            if (rows_ > 0)
+            if (select_ == -1)
             {
-              select_ = row_;
-              draw();
+              if (rows_ > 0)
+              {
+                select_ = row_;
+                draw();
+              }
+              else
+              {
+                Screen::alert();
+              }
             }
             else
             {
-              Screen::alert();
+              selected_[select_] = !selected_[select_];
+              view(select_);
+              down();
             }
           }
-          else
+          else if (mode_ == Mode::EDIT)
           {
-            selected_[select_] = !selected_[select_];
-            view(select_);
+            if (select_ + 1 == rows_)
+              ++rows_;
             down();
           }
           break;
@@ -798,9 +898,16 @@ void Query::query(const char *prompt)
           switch (key)
           {
             case VKey::TAB:
-              if (skip_ > 7)
-                skip_ -= 8;
-              redraw();
+              if (mode_ == Mode::QUERY)
+              {
+                if (skip_ > 7)
+                  skip_ -= 8;
+                redraw();
+              }
+              else
+              {
+                Screen::alert();
+              }
               break;
 
             case VKey::UP:
@@ -812,15 +919,29 @@ void Query::query(const char *prompt)
               break;
 
             case VKey::LEFT:
-              skip_ -= Screen::cols / 2;
-              if (skip_ < 0)
-                skip_ = 0;
-              redraw();
+              if (mode_ == Mode::QUERY)
+              {
+                skip_ -= Screen::cols / 2;
+                if (skip_ < 0)
+                  skip_ = 0;
+                redraw();
+              }
+              else
+              {
+                Screen::alert();
+              }
               break;
 
             case VKey::RIGHT:
-              skip_ += Screen::cols / 2;
-              redraw();
+              if (mode_ == Mode::QUERY)
+              {
+                skip_ += Screen::cols / 2;
+                redraw();
+              }
+              else
+              {
+                Screen::alert();
+              }
               break;
 
             default:
@@ -832,28 +953,55 @@ void Query::query(const char *prompt)
           break;
 
         case VKey::TAB:
-          skip_ += 8;
-          redraw();
-          break;
-
-        case VKey::BS:
-          if (select_ == -1)
+          if (mode_ == Mode::QUERY)
           {
-            if (col_ <= 0)
-              break;
-            move(col_ - 1);
-            erase(1);
+            skip_ += 8;
+            redraw();
+          }
+          else if (mode_ == Mode::EDIT)
+          {
+            insert('\t');
           }
           else
           {
-            up();
-            selected_[select_] = !selected_[select_];
-            view(select_);
+            Screen::alert();
+          }
+          break;
+
+        case VKey::BS:
+          if (mode_ == Mode::QUERY || mode_ == Mode::LIST)
+          {
+            if (select_ == -1)
+            {
+              if (col_ <= 0)
+                break;
+              move(col_ - 1);
+              erase(1);
+            }
+            else
+            {
+              up();
+              selected_[select_] = !selected_[select_];
+              view(select_);
+            }
+          }
+          else if (mode_ == Mode::EDIT)
+          {
+            if (col_ <= 0)
+            {
+              up();
+              move(len_);
+            }
+            else
+            {
+              move(col_ - 1);
+              erase(1);
+            }
           }
           break;
 
         case VKey::DEL:
-          if (select_ == -1)
+          if (mode_ == Mode::EDIT || select_ == -1)
           {
             erase(1);
           }
@@ -866,14 +1014,14 @@ void Query::query(const char *prompt)
           break;
 
         case VKey::RIGHT:
-          if (select_ == -1)
+          if (mode_ == Mode::EDIT || select_ == -1)
             move(col_ + 1);
           else
             Screen::alert();
           break;
 
         case VKey::LEFT:
-          if (select_ == -1)
+          if (mode_ == Mode::EDIT || select_ == -1)
             move(col_ - 1);
           else
             Screen::alert();
@@ -896,21 +1044,26 @@ void Query::query(const char *prompt)
           break;
 
         case VKey::HOME:
-          if (select_ == -1)
+          if (mode_ == Mode::EDIT || select_ == -1)
             move(0);
           else
             Screen::alert();
           break;
 
         case VKey::END:
-          if (select_ == -1)
+          if (mode_ == Mode::EDIT || select_ == -1)
             move(len_);
           else
             Screen::alert();
           break;
 
+        case VKey::CTRL_C:
+          if (quit())
+            return;
+          break;
+
         case VKey::CTRL_K:
-          if (select_ == -1)
+          if (mode_ == Mode::EDIT || select_ == -1)
             erase(len_ - col_);
           else
             Screen::alert();
@@ -921,8 +1074,16 @@ void Query::query(const char *prompt)
           break;
 
         case VKey::CTRL_O:
-          if (select_ == -1)
+          if (mode_ == Mode::EDIT || select_ == -1)
             ctrl_o = true;
+          else
+            Screen::alert();
+          break;
+
+        case VKey::CTRL_R:
+        case VKey::FN(4):
+          if (mark_ >= 0)
+            jump(mark_);
           else
             Screen::alert();
           break;
@@ -930,13 +1091,17 @@ void Query::query(const char *prompt)
         case VKey::CTRL_Q:
           return;
 
+        case VKey::CTRL_S:
+          next();
+          break;
+
         case VKey::CTRL_T:
           Screen::mono = !Screen::mono;
           redraw();
           break;
 
         case VKey::CTRL_U:
-          if (select_ == -1)
+          if (mode_ == Mode::EDIT || select_ == -1)
           {
             int pos = line_pos();
             col_ = 0;
@@ -951,16 +1116,42 @@ void Query::query(const char *prompt)
         case VKey::CTRL_V:
           if (select_ == -1)
             ctrl_v = true;
+          else
+            Screen::alert();
+          break;
+
+        case VKey::CTRL_W:
+          back();
+          break;
+
+        case VKey::CTRL_X:
+        case VKey::FN(3):
+          mark_ = select_ >= 0 ? select_ : row_;
+          break;
+
+        case VKey::CTRL_Y:
+        case VKey::FN(2):
+          edit();
           break;
 
         case VKey::CTRL_Z:
-          help();
+        case VKey::FN(1):
+          if (help())
+            return;
+          break;
+
+        case VKey::CTRL_RS:
+#ifdef OS_WIN
+          GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
+#else
+          raise(SIGTERM);
+#endif
           break;
 
         default:
           if (key >= 32 && key < 256)
           {
-            if (select_ == -1)
+            if (mode_ == Mode::EDIT || select_ == -1)
             {
               insert(key);
             }
@@ -985,7 +1176,8 @@ void Query::query(const char *prompt)
           }
           else
           {
-            help();
+            if (help())
+              return;
           }
       }
     }
@@ -1333,11 +1525,49 @@ void Query::execute(int fd)
   }
 }
 
+void Query::load_line()
+{
+  if (mode_ == Mode::EDIT)
+  {
+    if (static_cast<size_t>(select_) < view_.size())
+    {
+      size_t size = view_[select_].size();
+      if (size >= QUERY_MAX_LEN)
+        size = QUERY_MAX_LEN - 1;
+      view_[select_].copy(line_, size);
+      line_[size] = '\0';
+      len_ = line_len();
+      if (col_ > len_)
+        move(len_);
+    }
+    else
+    {
+      *line_ = '\0';
+      view_.emplace_back(line_);
+      len_ = 0;
+      col_ = 0;
+    }
+  }
+}
+
+void Query::save_line()
+{
+  if (mode_ == Mode::EDIT)
+  {
+    if (static_cast<size_t>(select_) >= view_.size())
+      view_.emplace_back(line_);
+    else
+      view_[select_].assign(line_);
+  }
+}
+
 void Query::up()
 {
   if (select_ > 0)
   {
+    save_line();
     --select_;
+    load_line();
     if (select_ > row_)
       return;
   }
@@ -1354,13 +1584,15 @@ void Query::down()
 {
   if (select_ >= 0)
   {
+    save_line();
     ++select_;
     if (select_ >= rows_)
       select_ = rows_ - 1;
+    load_line();
     if (select_ < row_ + Screen::rows - 2)
       return;
   }
-  if (row_ + Screen::rows - 1 <= rows_)
+  if (row_ + 1 < rows_)
   {
     ++row_;
     Screen::normal();
@@ -1375,12 +1607,14 @@ void Query::pgup(bool half_page)
 {
   if (select_ >= 0)
   {
+    save_line();
     if (half_page)
       select_ -= Screen::rows / 2;
     else
       select_ -= Screen::rows - 2;
     if (select_ < 0)
       select_ = 0;
+    load_line();
     if (select_ > row_)
       return;
   }
@@ -1405,12 +1639,14 @@ void Query::pgdn(bool half_page)
 {
   if (select_ >= 0)
   {
+    save_line();
     if (half_page)
       select_ += Screen::rows / 2;
     else
       select_ += Screen::rows - 2;
     if (select_ >= rows_)
       select_ = rows_ - 1;
+    load_line();
     if (select_ < row_ + Screen::rows - 2)
       return;
   }
@@ -1440,7 +1676,291 @@ void Query::pgdn(bool half_page)
   }
 }
 
-void Query::help()
+// scroll back one file
+void Query::back()
+{
+  if (row_ >= rows_)
+    return;
+
+  // if output is not suitable to scroll by filename, then PGUP
+  if (flag_text || flag_format != NULL || flag_count)
+  {
+    pgup();
+
+    return;
+  }
+
+  up();
+
+  std::string filename;
+  bool found = false;
+
+  if (select_ == -1)
+  {
+    // get the current filename to compare when present
+    is_filename(view_[row_], filename);
+
+    while (row_ > 0 && !(found = is_filename(view_[row_], filename)))
+      up();
+  }
+  else
+  {
+    // get the current filename to compare when present
+    is_filename(view_[select_], filename);
+
+    while (select_ > 0 && !(found = is_filename(view_[select_], filename)))
+      up();
+  }
+
+  if (found && !flag_heading)
+    down();
+}
+
+// scroll to next file
+void Query::next()
+{
+  // if output is not suitable to scroll by filename, then PGDN
+  if (flag_text || flag_format != NULL || flag_count)
+  {
+    pgdn();
+
+    return;
+  }
+
+  std::string filename;
+
+  if (select_ == -1)
+  {
+    if (row_ + Screen::rows - 1 > rows_)
+      return;
+
+    // get the current filename to compare when present
+    is_filename(view_[row_], filename);
+
+    down();
+
+    while (true)
+    {
+      bool found = false;
+
+      while (row_ + Screen::rows - 1 <= rows_ && !(found = is_filename(view_[row_], filename)))
+        down();
+
+      if (found || (eof_ && buflen_ == 0))
+        break;
+
+      // poll keys without timeout and stop if a key was pressed
+      if (VKey::poll(0))
+        break;
+
+      // otherwise wait and fetch more search results when available
+      update();
+    }
+  }
+  else
+  {
+    if (rows_ <= 1)
+      return;
+
+    // get the current filename to compare when present
+    is_filename(view_[select_], filename);
+
+    down();
+
+    while (true)
+    {
+      bool found = false;
+
+      while (select_ + 1 < rows_ && !(found = is_filename(view_[select_], filename)))
+        down();
+
+      if (found || (eof_ && buflen_ == 0))
+        break;
+
+      // poll keys without timeout and stop if a key was pressed
+      if (VKey::poll(0))
+        break;
+
+      // otherwise wait and fetch more search results when available
+      update();
+    }
+  }
+}
+
+// jump to the specified row
+void Query::jump(int row)
+{
+  if (rows_ <= 0)
+    return;
+
+  if (select_ == -1)
+  {
+    if (row <= row_)
+    {
+      row_ = row;
+
+      if (row_ >= rows_)
+        row_ = rows_ - 1;
+
+      redraw();
+    }
+    else
+    {
+      while (true)
+      {
+        while (row_ < row)
+        {
+          int oldrow = row_;
+          down();
+          if (row_ == oldrow)
+            break;
+        }
+
+        if (row_ == row)
+          break;
+
+        if ((eof_ && buflen_ == 0))
+          break;
+
+        // poll keys without timeout and stop if a key was pressed
+        if (VKey::poll(0))
+          break;
+
+        // otherwise wait and fetch more search results when available
+        update();
+      }
+    }
+  }
+  else
+  {
+    if (row <= select_)
+    {
+      select_ = row;
+
+      if (select_ >= rows_)
+        select_ = rows_ - 1;
+
+      redraw();
+    }
+    else
+    {
+      while (true)
+      {
+        while (select_ < row)
+        {
+          int oldselect = select_;
+          down();
+          if (select_ == oldselect)
+            break;
+        }
+
+        if (select_ == row)
+          break;
+
+        if ((eof_ && buflen_ == 0))
+          break;
+
+        // poll keys without timeout and stop if a key was pressed
+        if (VKey::poll(0))
+          break;
+
+        // otherwise wait and fetch more search results when available
+        update();
+      }
+    }
+  }
+}
+
+// edit the file located under the cursor or just above in the screen
+void Query::edit()
+{
+  if (row_ >= rows_ || flag_text || flag_format != NULL || flag_count)
+  {
+    Screen::alert();
+
+    return;
+  }
+
+  const char *editor = getenv("GREP_EDIT");
+
+  if (editor == NULL)
+    editor = getenv("EDITOR");
+
+  if (editor == NULL)
+  {
+    Screen::alert();
+
+    return;
+  }
+
+  std::string filename;
+  bool found = false;
+
+  for (int i = select_ >= 0 ? select_ : row_; i >= 0 && !(found = is_filename(view_[i], filename)); --i)
+    continue;
+
+  if (found)
+  {
+#ifdef OS_WIN
+    DWORD attr = GetFileAttributesA(filename.c_str());
+    found = attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY) && !(attr & FILE_ATTRIBUTE_SYSTEM);
+#else
+    struct stat buf;
+    found = stat(filename.c_str(), &buf) == 0 && S_ISREG(buf.st_mode);
+#endif
+  }
+
+  if (found)
+  {
+    std::string command;
+    command.assign(editor).append(" ").append(filename);
+
+    Screen::put(0, 0, command.c_str());
+
+    if (system(command.c_str()) == 0)
+    {
+      mark_ = select_ >= 0 ? select_ : row_;
+      Screen::home();
+      Screen::clear();
+      select_ = -1;
+      updated_ = true;
+    }
+    else
+    {
+      Screen::alert();
+    }
+  }
+  else
+  {
+    Screen::alert();
+    message_ = true;
+    what_.assign("Cannot edit file ").append(filename);
+  }
+}
+
+bool Query::quit()
+{
+  if (flag_no_confirm)
+    return true;
+
+  if (!Screen::mono)
+    Screen::put(PROMPT);
+  Screen::put(0, 0, ">>");
+  Screen::put(0, 2, "\033[mExit? (y/n) [n] ");
+
+  VKey::flush();
+
+  int key = VKey::get();
+
+  if (key == 'y' || key == 'Y')
+    return true;
+
+  draw();
+
+  return false;
+}
+
+bool Query::help()
 {
   Mode oldMode = mode_;
 
@@ -1449,6 +1969,7 @@ void Query::help()
   Screen::clear();
   redraw();
 
+  bool ctrl_q = false;
   bool ctrl_o = false;
 
   while (true)
@@ -1486,7 +2007,12 @@ void Query::help()
       redraw();
       ctrl_o = false;
     }
-    else if (key == VKey::ESC || key == VKey::CTRL_Q)
+    else if (key == VKey::CTRL_Q)
+    {
+      ctrl_q = true;
+      break;
+    }
+    else if (key == VKey::ESC)
     {
       break;
     }
@@ -1498,6 +2024,12 @@ void Query::help()
           redraw();
           break;
 
+        case VKey::CTRL_C:
+          if (quit())
+            return true;
+          redraw();
+          break;
+
         case VKey::CTRL_O:
           ctrl_o = true;
           break;
@@ -1505,6 +2037,14 @@ void Query::help()
         case VKey::CTRL_T:
           Screen::mono = !Screen::mono;
           redraw();
+          break;
+
+        case VKey::CTRL_RS:
+#ifdef OS_WIN
+          GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
+#else
+          raise(SIGTERM);
+#endif
           break;
 
         case VKey::META:
@@ -1534,6 +2074,8 @@ void Query::help()
 
   Screen::clear();
   redraw();
+
+  return ctrl_q;
 }
 
 void Query::meta(int key)
@@ -1787,16 +2329,37 @@ void Query::print()
 
 bool Query::print(int row)
 {
+  if (view_[row].empty())
+    return true;
+
+  const char *text = view_[row].c_str();
+  const char *end = text + view_[row].size();
+
+  // how many nulls to ignore, part of filename marking?
+  int nulls = *text == '\0' && !flag_text ? 2 : 0;
+
+  if (nulls > 0)
+    ++text;
+
+  const char *ptr = text;
+
   // if output should not be colored or colors are turned off with CTRL-T, then output the selected line without its CSI sequences
   if (flag_apply_color == NULL || Screen::mono)
   {
-    const char *text = view_[row].c_str();
-    const char *ptr = text;
-    const char *end = text + view_[row].size();
-
     while (ptr < end)
     {
-      if (*ptr == '\033')
+      if (*ptr == '\0' && nulls > 0)
+      {
+        size_t nwritten = fwrite(text, 1, ptr - text, stdout);
+
+        if (text + nwritten < ptr)
+          return false;
+
+        --nulls;
+
+        text = ++ptr;
+      }
+      else if (*ptr == '\033')
       {
         size_t nwritten = fwrite(text, 1, ptr - text, stdout);
 
@@ -1804,15 +2367,44 @@ bool Query::print(int row)
           return false;
 
         ++ptr;
+
         if (*ptr == '[')
         {
           ++ptr;
           while (ptr < end && !isalpha(*ptr))
             ++ptr;
         }
+
         if (ptr < end)
           ++ptr;
+
         text = ptr;
+      }
+      else
+      {
+        ++ptr;
+      }
+    }
+
+    size_t nwritten = fwrite(text, 1, ptr - text, stdout);
+
+    if (text + nwritten < ptr)
+      return false;
+  }
+  else if (nulls > 0)
+  {
+    while (ptr < end && nulls > 0)
+    {
+      if (*ptr == '\0')
+      {
+        size_t nwritten = fwrite(text, 1, ptr - text, stdout);
+
+        if (text + nwritten < ptr)
+          return false;
+
+        --nulls;
+
+        text = ++ptr;
       }
       else
       {
@@ -1857,11 +2449,11 @@ void Query::get_flags()
   flags_[6].flag = flag_basic_regexp;
   flags_[7].flag = flag_with_filename;
   flags_[8].flag = flag_no_filename;
-  flags_[9].flag = flag_binary_without_matches;
+  flags_[9].flag = flag_binary_without_match;
   flags_[10].flag = flag_ignore_case;
   flags_[11].flag = flag_smart_case;
   flags_[12].flag = flag_column_number;
-  flags_[13].flag = flag_files_with_match;
+  flags_[13].flag = flag_files_with_matches;
   flags_[14].flag = flag_line_number;
   flags_[15].flag = flag_only_matching;
   flags_[16].flag = flag_perl_regexp;
@@ -1919,11 +2511,11 @@ void Query::set_flags()
   flag_basic_regexp = flags_[6].flag;
   flag_with_filename = flags_[7].flag;
   flag_no_filename = flags_[8].flag;
-  flag_binary_without_matches = flags_[9].flag;
+  flag_binary_without_match = flags_[9].flag;
   flag_ignore_case = flags_[10].flag;
   flag_smart_case = flags_[11].flag;
   flag_column_number = flags_[12].flag;
-  flag_files_with_match = flags_[13].flag;
+  flag_files_with_matches = flags_[13].flag;
   flag_line_number = flags_[14].flag;
   flag_only_matching = flags_[15].flag;
   flag_perl_regexp = flags_[16].flag;
@@ -2018,10 +2610,74 @@ ssize_t Query::stdin_sender(int fd)
   return nwritten;
 }
 
+// true if line starts with a valid filename/filepath identified by three \0 markers
+bool Query::is_filename(const std::string& line, std::string& filename)
+{
+  size_t start = 0;
+  size_t pos = 0;
+  size_t end = line.size();
+
+  if (flag_files_with_matches)
+  {
+    while (pos < end)
+    {
+      unsigned char c = line.at(pos);
+
+      if (c != '\033')
+        break;
+
+      while (++pos < end && !isalpha(line.at(pos)))
+        continue;
+
+      ++pos;
+    }
+
+    if (pos >= end)
+      return false;
+
+    start = pos;
+
+    while (pos < end && line.at(pos) != '\033')
+      ++pos;
+  }
+  else
+  {
+    if (end < 4 || line.front() != '\0')
+      return false;
+
+    pos = 1;
+
+    while (pos < end && line.at(pos) != '\0')
+      ++pos;
+
+    if (++pos >= end)
+      return false;
+
+    start = pos;
+
+    while (pos < end && line.at(pos) != '\0')
+      ++pos;
+
+    if (pos == start || pos >= end)
+      return false;
+  }
+
+  std::string extract(line.substr(start, pos - start));
+
+  // the extracted filename is the same as the previous?
+  if (extract == filename)
+    return false;
+
+  filename.swap(extract);
+
+  return true;
+}
+
 Query::Mode              Query::mode_                = Query::Mode::QUERY;
 bool                     Query::updated_             = false;
 bool                     Query::message_             = false;
 char                     Query::line_[QUERY_MAX_LEN] = { '\0' };
+char                     Query::copy_[QUERY_MAX_LEN] = { '\0' };
 const char              *Query::prompt_              = NULL;
 int                      Query::start_               = 0;
 int                      Query::col_                 = 0;
@@ -2032,6 +2688,7 @@ std::atomic_int          Query::error_;
 std::string              Query::what_;
 int                      Query::row_                 = 0;
 int                      Query::rows_                = 0;
+int                      Query::mark_                = -1;
 int                      Query::select_              = -1;
 bool                     Query::select_all_          = false;
 int                      Query::skip_                = 0;

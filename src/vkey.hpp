@@ -276,6 +276,9 @@ class VKey {
   // wait until key press and return unmapped VKey::xxx code, time out after timeout ms
   static int raw_in(int timeout);
 
+  // poll the keys for timeout ms, return true if a key is pressed and is available to read
+  static bool poll(int timeout);
+
   // flush the key buffer and remove pending key presses until no key is pressed
   static void flush();
 

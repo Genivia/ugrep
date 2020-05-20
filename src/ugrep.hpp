@@ -167,8 +167,9 @@ enum class Sort { NA, NAME, SIZE, USED, CHANGED, CREATED };
 // -D, --devices and -d, --directories
 enum class Action { SKIP, READ, RECURSE };
 
-// ugrep command-line options
+// ugrep command-line options and internal flags
 extern bool flag_with_filename;
+extern bool flag_no_confirm;
 extern bool flag_no_filename;
 extern bool flag_no_header;
 extern bool flag_no_messages;
@@ -187,7 +188,7 @@ extern bool flag_line_buffered;
 extern bool flag_only_matching;
 extern bool flag_ungroup;
 extern bool flag_quiet;
-extern bool flag_files_with_match;
+extern bool flag_files_with_matches;
 extern bool flag_files_without_match;
 extern bool flag_null;
 extern bool flag_basic_regexp;
@@ -197,7 +198,7 @@ extern bool flag_line_regexp;
 extern bool flag_dereference;
 extern bool flag_no_dereference;
 extern bool flag_binary;
-extern bool flag_binary_without_matches;
+extern bool flag_binary_without_match;
 extern bool flag_text;
 extern bool flag_hex;
 extern bool flag_with_hex;
@@ -316,6 +317,25 @@ extern char match_off[COLORLEN]; // --match or --tag: off
 
 extern const char *color_off; // disable colors
 extern const char *color_del; // erase line after the cursor
+
+// --encoding file format/encoding table
+struct Encoding {
+  const char                       *format;
+  reflex::Input::file_encoding_type encoding;
+};
+
+// table of RE/flex file encodings for option --encoding
+extern const Encoding encoding_tablep[];
+
+// -t, --file-type type table
+struct Type {
+  const char *type;
+  const char *extensions;
+  const char *magic; 
+};
+
+// table of file types for option -t, --file-type
+extern const Type type_table[];
 
 // check TTY availability and set colors
 extern void terminal();

@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.1.1"
+#define UGREP_VERSION "2.1.2"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -284,18 +284,18 @@ BOOL WINAPI sigint(DWORD signal)
 
 #else
 
-// SIGINT handler
-static void sigint(int)
+// SIGINT and SIGTERM handler
+static void sigint(int sig)
 {
-  // reset SIGINT to the default handler
-  signal(SIGINT, SIG_DFL);
+  // reset to the default handler
+  signal(sig, SIG_DFL);
 
   // be nice, reset colors on interrupt when sending output to a color TTY
   if (color_term)
     color_term = write(1, "\033[m", 3) > 0; // appease -Wunused-result
 
-  // signal SIGINT again
-  kill(getpid(), SIGINT);
+  // signal again
+  kill(getpid(), sig);
 }
 
 #endif
@@ -341,6 +341,7 @@ struct Grep *grep_handle = NULL;
 
 std::mutex grep_handle_mutex;
 
+// set/clear the handle to be able to use cancel_ugrep()
 void set_grep_handle(struct Grep*);
 void clear_grep_handle();
 
@@ -361,8 +362,9 @@ std::set<uint64_t> exclude_fs_ids, include_fs_ids;
 
 #endif
 
-// ugrep command-line options
+// ugrep command-line options and internal flags
 bool flag_with_filename            = false;
+bool flag_no_confirm               = false;
 bool flag_no_filename              = false;
 bool flag_no_header                = false;
 bool flag_no_messages              = false;
@@ -381,7 +383,7 @@ bool flag_line_buffered            = false;
 bool flag_only_matching            = false;
 bool flag_ungroup                  = false;
 bool flag_quiet                    = false;
-bool flag_files_with_match         = false;
+bool flag_files_with_matches       = false;
 bool flag_files_without_match      = false;
 bool flag_null                     = false;
 bool flag_basic_regexp             = false;
@@ -391,7 +393,7 @@ bool flag_line_regexp              = false;
 bool flag_dereference              = false;
 bool flag_no_dereference           = false;
 bool flag_binary                   = false;
-bool flag_binary_without_matches   = false;
+bool flag_binary_without_match     = false;
 bool flag_text                     = false;
 bool flag_hex                      = false;
 bool flag_with_hex                 = false;
@@ -2149,8 +2151,8 @@ void GrepWorker::execute()
   }
 }
 
-// table of RE/flex file encodings for ugrep option --encoding
-const struct { const char *format; reflex::Input::file_encoding_type encoding; } format_table[] = {
+// table of RE/flex file encodings for option --encoding
+const Encoding encoding_table[] = {
   { "binary",      reflex::Input::file_encoding::plain      },
   { "ASCII",       reflex::Input::file_encoding::utf8       },
   { "UTF-8",       reflex::Input::file_encoding::utf8       },
@@ -2197,8 +2199,8 @@ const struct { const char *format; reflex::Input::file_encoding_type encoding; }
   { NULL, 0 }
 };
 
-// table of file types for ugrep option -t, --file-type
-const struct { const char *type; const char *extensions; const char *magic; } type_table[] = {
+// table of file types for option -t, --file-type
+const Type type_table[] = {
   { "actionscript", "as,mxml",                                                  NULL },
   { "ada",          "ada,adb,ads",                                              NULL },
   { "asm",          "asm,s,S",                                                  NULL },
@@ -2338,8 +2340,9 @@ int main(int argc, const char **argv)
   // ignore SIGPIPE
   signal(SIGPIPE, SIG_IGN);
 
-  // reset color on SIGINT
+  // reset color on SIGINT and SIGTERM
   signal(SIGINT, sigint);
+  signal(SIGTERM, sigint);
 
 #endif
 
@@ -2455,6 +2458,8 @@ void options(int argc, const char **argv)
               flag_colors = arg + 8;
             else if (strcmp(arg, "column-number") == 0)
               flag_column_number = true;
+            else if (strcmp(arg, "confirm") == 0)
+              flag_no_confirm = false;
             else if (strncmp(arg, "context=", 8) == 0)
               flag_after_context = flag_before_context = strtopos(arg + 8, "invalid argument --context=");
             else if (strcmp(arg, "context") == 0)
@@ -2499,8 +2504,8 @@ void options(int argc, const char **argv)
               flag_file_magic.emplace_back(arg + 11);
             else if (strncmp(arg, "file-type=", 10) == 0)
               flag_file_types.emplace_back(arg + 10);
-            else if (strcmp(arg, "files-with-match") == 0)
-              flag_files_with_match = true;
+            else if (strcmp(arg, "files-with-matches") == 0)
+              flag_files_with_matches = true;
             else if (strcmp(arg, "files-without-match") == 0)
               flag_files_without_match = true;
             else if (strcmp(arg, "fixed-strings") == 0)
@@ -2579,6 +2584,8 @@ void options(int argc, const char **argv)
               flag_max_mmap = MAX_MMAP_SIZE;
             else if (strncmp(arg, "neg-regexp=", 11) == 0)
               flag_neg_regexp.emplace_back(arg + 11);
+            else if (strcmp(arg, "no-confirm") == 0)
+              flag_no_confirm = true;
             else if (strcmp(arg, "no-dereference") == 0)
               flag_no_dereference = true;
             else if (strcmp(arg, "no-filename") == 0)
@@ -2786,7 +2793,7 @@ void options(int argc, const char **argv)
             break;
 
           case 'I':
-            flag_binary_files = "without-matches";
+            flag_binary_files = "without-match";
             break;
 
           case 'i':
@@ -2828,7 +2835,7 @@ void options(int argc, const char **argv)
             break;
 
           case 'l':
-            flag_files_with_match = true;
+            flag_files_with_matches = true;
             break;
 
           case 'M':
@@ -3080,21 +3087,21 @@ void options(int argc, const char **argv)
   {
     int i;
 
-    // scan the format_table[] for a matching encoding
-    for (i = 0; format_table[i].format != NULL; ++i)
-      if (strcmp(flag_encoding, format_table[i].format) == 0)
+    // scan the encoding_table[] for a matching encoding
+    for (i = 0; encoding_table[i].format != NULL; ++i)
+      if (strcmp(flag_encoding, encoding_table[i].format) == 0)
         break;
 
-    if (format_table[i].format == NULL)
+    if (encoding_table[i].format == NULL)
       help("invalid argument --encoding=ENCODING");
 
     // encoding is the file encoding used by all input files, if no BOM is present
-    flag_encoding_type = format_table[i].encoding;
+    flag_encoding_type = encoding_table[i].encoding;
   }
 
   // --binary-files: normalize by assigning flags
-  if (strcmp(flag_binary_files, "without-matches") == 0)
-    flag_binary_without_matches = true;
+  if (strcmp(flag_binary_files, "without-match") == 0)
+    flag_binary_without_match = true;
   else if (strcmp(flag_binary_files, "text") == 0)
     flag_text = true;
   else if (strcmp(flag_binary_files, "hex") == 0)
@@ -3869,7 +3876,7 @@ void terminal()
   }
 }
 
-// search the specified files or standard input for pattern matches
+// search the specified files, directories, and/or standard input for pattern matches
 void ugrep()
 {
   // reset warnings
@@ -4252,19 +4259,19 @@ void ugrep()
     flag_max_files = 1;
 
     // -q overrides -l and -L
-    flag_files_with_match = false;
+    flag_files_with_matches = false;
     flag_files_without_match = false;
   }
 
   // -L: enable -l and flip -v i.e. -L=-lv and -l=-Lv
   if (flag_files_without_match)
   {
-    flag_files_with_match = true;
+    flag_files_with_matches = true;
     flag_invert_match = !flag_invert_match;
   }
 
   // -l or -L: enable -H, disable -c
-  if (flag_files_with_match)
+  if (flag_files_with_matches)
   {
     flag_with_filename = true;
     flag_count = false;
@@ -4383,6 +4390,7 @@ void ugrep()
         clear_grep_handle();
       }
     }
+
     catch (boost::regex_error& error)
     {
       const char *message;
@@ -4439,7 +4447,7 @@ void ugrep()
   }
   else
   {
-    // construct the RE/flex DFA pattern matcher and start matching files
+    // construct the RE/flex DFA-based pattern matcher and start matching files
     reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), "r");
     reflex::Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
 
@@ -4490,7 +4498,7 @@ void cancel_ugrep()
     grep_handle->out.cancel();
 }
 
-// set the handle
+// set the handle to be able to use cancel_ugrep()
 void set_grep_handle(Grep *grep)
 {
   std::unique_lock<std::mutex> lock(grep_handle_mutex);
@@ -5264,14 +5272,14 @@ void Grep::search(const char *pathname)
     {
       size_t matches = 0;
 
-      if (flag_quiet || flag_files_with_match)
+      if (flag_quiet || flag_files_with_matches)
       {
         // -q, -l, or -L: report if a single pattern match was found in the input
 
         read_file();
 
         // -I: do not match binary
-        if (flag_binary_without_matches)
+        if (flag_binary_without_match)
         {
           const char *eol = matcher->eol(); // warning: call eol() before bol()
           const char *bol = matcher->bol();
@@ -5292,14 +5300,14 @@ void Grep::search(const char *pathname)
         if (matches > 0)
         {
           // --format-open or format-close: we must acquire lock early before Stats::found_part()
-          if (flag_files_with_match && (flag_format_open != NULL || flag_format_close != NULL))
+          if (flag_files_with_matches && (flag_format_open != NULL || flag_format_close != NULL))
             out.acquire();
 
           if (!Stats::found_part())
             goto exit_search;
 
           // -l or -L
-          if (flag_files_with_match)
+          if (flag_files_with_matches)
           {
             if (flag_format != NULL)
             {
@@ -5333,7 +5341,7 @@ void Grep::search(const char *pathname)
 
         // -I: do not match binary
         bool binary = false;
-        if (flag_binary_without_matches)
+        if (flag_binary_without_match)
         {
           const char *eol = matcher->eol(); // warning: call eol() before bol()
           const char *bol = matcher->bol();
@@ -5447,7 +5455,7 @@ void Grep::search(const char *pathname)
         read_file();
 
         // -I: do not match binary
-        if (flag_binary_without_matches)
+        if (flag_binary_without_match)
         {
           const char *eol = matcher->eol(); // warning: call eol() before bol()
           const char *bol = matcher->bol();
@@ -5502,7 +5510,7 @@ void Grep::search(const char *pathname)
         read_file();
 
         // -I: do not match binary
-        if (flag_binary_without_matches)
+        if (flag_binary_without_match)
         {
           const char *eol = matcher->eol(); // warning: call eol() before bol()
           const char *bol = matcher->bol();
@@ -5552,7 +5560,7 @@ void Grep::search(const char *pathname)
         read_file();
 
         // -I: do not match binary
-        if (flag_binary_without_matches)
+        if (flag_binary_without_match)
         {
           const char *eol = matcher->eol(); // warning: call eol() before bol()
           const char *bol = matcher->bol();
@@ -5591,7 +5599,7 @@ void Grep::search(const char *pathname)
 
             if (binary && !flag_hex && !flag_with_hex)
             {
-              if (flag_binary_without_matches)
+              if (flag_binary_without_match)
               {
                 matches = 0;
               }
@@ -5630,7 +5638,7 @@ void Grep::search(const char *pathname)
             }
             else
             {
-              if (flag_binary_without_matches)
+              if (flag_binary_without_match)
               {
                 matches = 0;
               }
@@ -5701,7 +5709,7 @@ void Grep::search(const char *pathname)
         read_file();
 
         // -I: do not match binary
-        if (flag_binary_without_matches)
+        if (flag_binary_without_match)
         {
           const char *eol = matcher->eol(); // warning: call eol() before bol()
           const char *bol = matcher->bol();
@@ -5764,7 +5772,7 @@ void Grep::search(const char *pathname)
 
             if (binary && !flag_hex && !flag_with_hex)
             {
-              if (flag_binary_without_matches)
+              if (flag_binary_without_match)
               {
                 matches = 0;
               }
@@ -6107,7 +6115,7 @@ void Grep::search(const char *pathname)
 
           if (!flag_text && !flag_hex && is_binary(lines[current].c_str(), lines[current].size()))
           {
-            if (flag_binary_without_matches)
+            if (flag_binary_without_match)
             {
               matches = 0;
 
@@ -6678,7 +6686,7 @@ done_search:
         matched = true;
 
       // --break: add a line break when applicable
-      if (flag_break && (matches > 0 || flag_any_line) && !flag_quiet && !flag_files_with_match && !flag_count && flag_format == NULL)
+      if (flag_break && (matches > 0 || flag_any_line) && !flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL)
         out.chr('\n');
     }
 
@@ -7137,6 +7145,8 @@ void help(const char *message, const char *arg)
             bright.  A foreground and a background color may be combined with\n\
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'\n\
             (invert), `u' (underline).  Selectively overrides GREP_COLORS.\n\
+    --[no-]confirm\n\
+            Do (not) confirm actions in -Q query mode.  The default is confirm.\n\
     --cpp\n\
             Output file matches in C++.  See also options --format and -u.\n\
     --csv\n\
@@ -7174,8 +7184,8 @@ void help(const char *message, const char *arg)
             to specify a pattern after option -f or after the FILE arguments.\n\
     --encoding=ENCODING\n\
             The encoding format of the input, where ENCODING can be:";
-  for (int i = 0; format_table[i].format != NULL; ++i)
-    std::cout << (i == 0 ? "" : ",") << (i % 4 ? " " : "\n            ") << "`" << format_table[i].format << "'";
+  for (int i = 0; encoding_table[i].format != NULL; ++i)
+    std::cout << (i == 0 ? "" : ",") << (i % 4 ? " " : "\n            ") << "`" << encoding_table[i].format << "'";
   std::cout << ".\n\
     --exclude=GLOB\n\
             Skip files whose name matches GLOB using wildcard matching, same as\n\
@@ -7442,10 +7452,13 @@ void help(const char *message, const char *arg)
             mode requires an ANSI capable terminal.  An optional DELAY argument\n\
             may be specified to reduce or increase the response time to execute\n\
             searches after the last key press, in increments of 100ms, where\n\
-            the default is 5 (0.5s delay).  Initial patterns may be specified\n\
-            with -e PATTERN, i.e. a PATTERN argument requires option -e.  Press\n\
-            F1 or CTRL-Z to view the help screen.  No whitespace may be given\n\
-            between -Q and its argument DELAY.  Enables --heading.\n\
+            the default is 5 (0.5s delay).  No whitespace may be given between\n\
+            -Q and its argument DELAY.  Initial patterns may be specified with\n\
+            -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1\n\
+            or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke an\n\
+            editor to edit the file displayed on screen.  The editor is taken\n\
+            from the environment variable GREP_EDIT if defined, or EDITOR if\n\
+            GREP_EDIT is not defined.  Enables --heading.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found, making searches potentially less expensive.\n\

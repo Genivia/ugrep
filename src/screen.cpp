@@ -480,6 +480,12 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
 
   int len = cols - col;
 
+  // how many nulls to ignore, part of filename marking?
+  int nulls = *text == '\0' && !flag_text ? 2 : 0;
+
+  if (nulls > 0)
+    ++text;
+
   if (len > 0 && row < rows)
   {
     const char *next;
@@ -499,6 +505,14 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
       {
         switch (*text)
         {
+          case '\0':
+            if (nulls > 0)
+              --nulls;
+            else
+              num += 2;
+            ++text;
+            break;
+
           case '\t':
             num -= 1 + (~(cols - num) & 7);
             ++text;
@@ -680,10 +694,18 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             else if (wc <= 0x1f)
             {
               put(text, ptr - text);
-              invert();
-              char buf[2] = { '^', static_cast<char>('@' + wc) };
-              put(buf, 2);
-              noinvert();
+              if (*ptr == '\0' && nulls > 0)
+              {
+                --nulls;
+                len += 2;
+              }
+              else
+              {
+                invert();
+                char buf[2] = { '^', static_cast<char>('@' + wc) };
+                put(buf, 2);
+                noinvert();
+              }
               text = ++ptr;
             }
             else if (wc == 0x7f)

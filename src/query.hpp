@@ -62,7 +62,7 @@ class Query {
 
  protected:
 
-  enum class Mode { QUERY, HELP };
+  enum class Mode { QUERY, LIST, EDIT, HELP };
 
   struct Flags {
     bool        flag;
@@ -120,6 +120,10 @@ class Query {
 
   static void execute(int fd);
 
+  static void load_line();
+
+  static void save_line();
+
   static void up();
 
   static void down();
@@ -128,13 +132,23 @@ class Query {
 
   static void pgdn(bool half_page = false);
 
+  static void back();
+
+  static void next();
+
+  static void jump(int row);
+
+  static void edit();
+
+  static bool quit();
+
+  static bool help();
+
   static void meta(int key);
 
   static void print();
 
   static bool print(int row);
-
-  static void help();
 
   static void get_flags();
 
@@ -146,10 +160,13 @@ class Query {
 
   static ssize_t stdin_sender(int fd);
 
+  static bool is_filename(const std::string& line, std::string& filename);
+
   static Mode                     mode_;
   static bool                     updated_;
   static bool                     message_;
   static char                     line_[QUERY_MAX_LEN];
+  static char                     copy_[QUERY_MAX_LEN];
   static const char              *prompt_;
   static int                      start_;
   static int                      col_;
@@ -160,6 +177,7 @@ class Query {
   static std::string              what_;
   static int                      row_;
   static int                      rows_;
+  static int                      mark_;
   static int                      skip_;
   static int                      select_;
   static bool                     select_all_;
