@@ -2533,7 +2533,7 @@ Note:
   option `-P`, the index corresponds to the index of the group captured in the
   specified pattern.
 - The group capture name in `%[ARG]g` corresponding to the index of the
-  sub-pattern matched is retreived from `ARG`, where `ARG` should be a list of
+  sub-pattern matched is retrieved from `ARG`, where `ARG` should be a list of
   names or strings separated by bars `|`.
 
 To output matching lines faster by omitting the header output and binary match
