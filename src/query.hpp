@@ -112,9 +112,9 @@ class Query {
 
   static void erase(int num);
 
-  static void result();
+  static void search();
 
-  static void update();
+  static bool update();
 
   static void fetch(int row);
 

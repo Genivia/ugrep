@@ -51,7 +51,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
   template<typename T>
   static std::string convert(T regex, convert_flag_type flags = convert_flag::none)
   {
-    return reflex::convert(regex, "imsx!#<=:abcdefghlnrstuvwxzABDGHKLNQRSUWXZ0123456789?+", flags);
+    return reflex::convert(regex, "imPRsx!#<=&:abcdefghlnrstuvwxzABDGHKLNQRSUWXZ0123456789?+", flags);
   }
   /// Default constructor.
   PCRE2Matcher()

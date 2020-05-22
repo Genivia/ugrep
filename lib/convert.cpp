@@ -1525,7 +1525,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
                 }
                 if (k >= len)
                   throw regex_error(regex_error::mismatched_parens, pattern, pos);
-                if (pattern[k] == ':' || pattern[k] == ')')
+                if (pattern[k] == ':' || pattern[k] == '>' || pattern[k] == ')')
                 {
                   regex.append(&pattern[loc], pos - loc - 2);
                   if (pattern[k] == ')')
@@ -1544,7 +1544,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
                     mod[lev].clear();
                     --lev;
                   }
-                  else
+                  else if (pattern[k] == ':')
                   {
                     // (?imsx:...)
                     if (can)

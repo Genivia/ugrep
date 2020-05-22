@@ -283,10 +283,12 @@ the width of the match, counting wide characters.
 the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
-.IP \fB%g\fR
-the group capture index of the match or zero (option -P).
 .IP \fB%u\fR
 select unique lines only unless option \fB-u\fR is used.
+.IP \fB%g\fR
+the group capture index of the match or 1 (option -P).
+.IP \fB%[NAME1|NAME2|...]g\fR
+NAME corresponding to the group capture index of the match.
 .IP \fB%,\fR
 if not the first match: a comma, same as \fB%[,]>\fR.
 .IP \fB%:\fR

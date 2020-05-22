@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.1.2"
+#define UGREP_VERSION "2.1.3"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -256,9 +256,12 @@ After this, you may want to test ugrep and install it (optional):
 # define DIRENT_TYPE_REG     1
 #endif
 
-// the -M MAGIC pattern DFAs constructed before threads start, read-only afterwards
+// the -M MAGIC pattern DFA constructed before threads start, read-only afterwards
 reflex::Pattern magic_pattern; // concurrent access is thread safe
 reflex::Matcher magic_matcher; // concurrent access is not thread safe
+
+// the --filter-magic-label pattern DFA
+reflex::Pattern filter_magic_pattern; // concurrent access is thread safe
 
 // TTY detected
 bool tty_term = false;
@@ -363,9 +366,7 @@ std::set<uint64_t> exclude_fs_ids, include_fs_ids;
 #endif
 
 // ugrep command-line options and internal flags
-bool flag_with_filename            = false;
 bool flag_no_confirm               = false;
-bool flag_no_filename              = false;
 bool flag_no_header                = false;
 bool flag_no_messages              = false;
 bool flag_match                    = false;
@@ -375,10 +376,13 @@ bool flag_free_space               = false;
 bool flag_ignore_case              = false;
 bool flag_smart_case               = false;
 bool flag_invert_match             = false;
-bool flag_line_number              = false;
 bool flag_only_line_number         = false;
+bool flag_with_filename            = false;
+bool flag_no_filename              = false;
+bool flag_line_number              = false;
 bool flag_column_number            = false;
 bool flag_byte_offset              = false;
+bool flag_initial_tab              = false;
 bool flag_line_buffered            = false;
 bool flag_only_matching            = false;
 bool flag_ungroup                  = false;
@@ -398,7 +402,6 @@ bool flag_text                     = false;
 bool flag_hex                      = false;
 bool flag_with_hex                 = false;
 bool flag_empty                    = false;
-bool flag_initial_tab              = false;
 bool flag_decompress               = false;
 bool flag_any_line                 = false;
 bool flag_heading                  = false;
@@ -461,6 +464,7 @@ std::vector<std::string> flag_file;
 std::vector<std::string> flag_file_types;
 std::vector<std::string> flag_file_extensions;
 std::vector<std::string> flag_file_magic;
+std::vector<std::string> flag_filter_magic_label;
 std::vector<std::string> flag_glob;
 std::vector<std::string> flag_ignore_files;
 std::vector<std::string> flag_include;
@@ -859,7 +863,7 @@ struct Grep {
     return true;
   }
 
-  // true pipe if filtering files in a forked process and replace file pointer with pipe
+  // return true on success, create a pipe to replace file input if filtering files in a forked process
   bool filter(FILE *& in, const char *pathname)
   {
 #ifndef OS_WIN
@@ -876,10 +880,52 @@ struct Grep {
       // get the basenames's extension suffix
       const char *suffix = strrchr(basename, '.');
 
-      // basenames without a suffix get "*" as a suffix
-      if (suffix != NULL && suffix != basename && suffix[1] != '\0')
+      // don't consider . at the front of basename, otherwise skip .
+      if (suffix == basename)
+        suffix = NULL;
+      else if (suffix != NULL)
         ++suffix;
-      else
+
+      // --filter-magic-label: if the file is seekable, then check for a magic pattern match
+      if (!flag_filter_magic_label.empty() && fseek(in, 0, SEEK_CUR) == 0)
+      {
+        bool is_plus = false;
+
+        // --filter-magic-label: check for overriding +
+        if (suffix != NULL)
+        {
+          for (auto& i : flag_filter_magic_label)
+          {
+            if (i.front() == '+')
+            {
+              is_plus = true;
+
+              break;
+            }
+          }
+        }
+
+        // --filter-magic-label: if the basename has no suffix or a +LABEL + then check magic bytes
+        if (suffix == NULL || is_plus)
+        {
+          // create a matcher to match the magic pattern
+          size_t match = reflex::Matcher(filter_magic_pattern, in).scan();
+
+          // rewind the input after scan
+          rewind(in);
+
+          if (match > 0 && match <= flag_filter_magic_label.size())
+          {
+            suffix = flag_filter_magic_label[match - 1].c_str();
+
+            if (*suffix == '+')
+              ++suffix;
+          }
+        }
+      }
+
+      // basenames without a suffix get "*" as a suffix
+      if (suffix == NULL || *suffix == '\0')
         suffix = "*";
 
       size_t sep = strlen(suffix);
@@ -1675,6 +1721,7 @@ struct Grep {
       // -M: check magic bytes, requires sufficiently large len of buf[] to match patterns, which is fine when Z_BUF_LEN is large e.g. 64K
       if (buf != NULL && !flag_file_magic.empty() && (flag_include.empty() || !is_selected))
       {
+        // create a matcher to match the magic pattern, we cannot use magic_matcher because it is not thread safe
         reflex::Matcher magic(magic_pattern);
         magic.buffer(const_cast<char*>(reinterpret_cast<const char*>(buf)), len + 1);
         size_t match = magic.scan();
@@ -2417,7 +2464,7 @@ void options(int argc, const char **argv)
 #ifdef OS_WIN
          || *arg == '/'
 #endif
-        ) && arg[1] && options)
+        ) && arg[1] != '\0' && options)
     {
       bool is_grouped = true;
 
@@ -2427,10 +2474,13 @@ void options(int argc, const char **argv)
         switch (*arg)
         {
           case '-':
-            ++arg;
-            if (!*arg)
+            is_grouped = false;
+            if (*++arg == '\0')
+            {
               options = false;
-            else if (strncmp(arg, "after-context=", 14) == 0)
+              continue;
+            }
+            if (strncmp(arg, "after-context=", 14) == 0)
               flag_after_context = strtopos(arg + 14, "invalid argument --after-context=");
             else if (strcmp(arg, "any-line") == 0)
               flag_any_line = true;
@@ -2512,6 +2562,8 @@ void options(int argc, const char **argv)
               flag_fixed_strings = true;
             else if (strncmp(arg, "filter=", 7) == 0)
               flag_filter = arg + 7;
+            else if (strncmp(arg, "filter-magic-label=", 19) == 0)
+              flag_filter_magic_label.emplace_back(arg + 19);
             else if (strncmp(arg, "format=", 7) == 0)
               flag_format = arg + 7;
             else if (strncmp(arg, "format-begin=", 13) == 0)
@@ -2666,7 +2718,6 @@ void options(int argc, const char **argv)
               set_depth(arg);
             else
               help("invalid option --", arg);
-            is_grouped = false;
             break;
 
           case 'A':
@@ -3545,49 +3596,87 @@ void options(int argc, const char **argv)
 
 #endif
 
-  // -M: file signature "magic bytes" regex string
-  std::string signature;
+  // -M: file "magic bytes" regex string
+  std::string magic_regex;
 
-  // -M !MAGIC: combine to create a signature regex string
+  // -M !MAGIC: combine to create a regex string
   for (auto& i : flag_file_magic)
   {
     if (i.size() > 1 && (i.front() == '!' || i.front() == '^'))
     {
-      if (!signature.empty())
-        signature.push_back('|');
-      signature.append(i.substr(1));
+      if (!magic_regex.empty())
+        magic_regex.push_back('|');
+      magic_regex.append(i.substr(1));
 
       // tally negative MAGIC patterns
       ++flag_min_magic;
     }
   }
 
-  // -M MAGIC: append to signature regex string
+  // -M MAGIC: append to regex string
   for (auto& i : flag_file_magic)
   {
     if (i.size() <= 1 || (i.front() != '!' && i.front() != '^'))
     {
-      if (!signature.empty())
-        signature.push_back('|');
-      signature.append(i);
+      if (!magic_regex.empty())
+        magic_regex.push_back('|');
+      magic_regex.append(i);
 
       // we have positive MAGIC patterns, so scan() is a match when flag_min_magic or greater
       flag_not_magic = flag_min_magic;
     }
   }
 
-  // -M: create a magic matcher for the MAGIC regex signature to match file signatures with magic.scan()
+  // -M: create a magic matcher for the MAGIC regex to match file with magic.scan()
   try
   {
     // construct magic_pattern DFA for -M !MAGIC and -M MAGIC
-    if (!signature.empty())
-      magic_pattern.assign(signature, "r");
+    if (!magic_regex.empty())
+      magic_pattern.assign(magic_regex, "r");
     magic_matcher.pattern(magic_pattern);
   }
 
   catch (reflex::regex_error& error)
   {
-    abort("option -M", error.what());
+    abort("option -M: ", error.what());
+  }
+
+  // --filter-magic-label: construct filter_magic_pattern and map "magic bytes" to labels
+  magic_regex = "(";
+
+  // --filter-magic-label: append pattern to magic_labels, parenthesized to ensure capture indexing
+  for (auto& i : flag_filter_magic_label)
+  {
+    size_t sep = i.find(':');
+
+    if (sep != std::string::npos && sep > 0 && sep + 1 < i.size())
+    {
+      if (!i.empty() && magic_regex.size() > 1)
+        magic_regex.append(")|(");
+      magic_regex.append(i.substr(sep + 1));
+
+      // truncate so we end up with a list of labels without patterns
+      i.resize(sep);
+    }
+    else
+    {
+      abort("option --filter-magic-label: invalid LABEL:MAGIC argument ", i);
+    }
+  }
+
+  magic_regex.push_back(')');
+
+  // --filter-magic-label: create a filter_magic_pattern
+  try
+  {
+    // construct filter_magic_pattern DFA
+    if (magic_regex.size() > 2)
+      filter_magic_pattern.assign(magic_regex, "r");
+  }
+
+  catch (reflex::regex_error& error)
+  {
+    abort("option --filter-magic-label: ", error.what());
   }
 
   // check FILE arguments, warn about non-existing FILE
@@ -7251,7 +7340,13 @@ void help(const char *message, const char *arg)
             as `option' expands into the pathname to search.  For example,\n\
             --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands\n\
             into a `-' when searching standard input.  Option --label=.ext may\n\
-            be used to specify extension `ext' when searching standard input.\n";
+            be used to specify extension `ext' when searching standard input.\n\
+    --filter-magic-label=LABEL:MAGIC\n\
+            Associate LABEL with files whose signature \"magic bytes\" match the\n\
+            MAGIC regex pattern.  Only files that have no filename extension\n\
+            are labeled, unless +LABEL is specified.  When LABEL matches an\n\
+            extension specified in --filter=COMMANDS, the corresponding command\n\
+            is invoked.  This option may be repeated.\n";
 #endif
   std::cout << "\
     --format=FORMAT\n\

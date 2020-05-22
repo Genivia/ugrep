@@ -322,6 +322,8 @@ void Query::draw()
   }
   else if (mode_ == Mode::EDIT)
   {
+    Screen::put(0, 0, "\033[7mEDIT\033[m");
+
     Screen::setpos(select_ - row_ + 1, 0);
 
     int pos;
@@ -392,41 +394,7 @@ void Query::redraw()
   shift_ = (Screen::cols - start_) / 10;
   Screen::normal();
 
-  if (mode_ == Mode::QUERY || mode_ == Mode::LIST)
-  {
-    if (select_ >= 0 && select_ >= row_ + Screen::rows - 1)
-      row_ = select_ - Screen::rows + 2;
-    if (row_ >= rows_)
-      row_ = rows_ - 1;
-    if (row_ < 0)
-      row_ = 0;
-    int end = rows_;
-    if (end > row_ + Screen::rows - 1)
-      end = row_ + Screen::rows - 1;
-    for (int i = row_; i < end; ++i)
-      view(i);
-    if (rows_ < row_ + Screen::rows - 1)
-      Screen::end();
-    draw();
-  }
-  else if (mode_ == Mode::EDIT)
-  {
-    if (select_ >= row_ + Screen::rows - 1)
-      row_ = select_ - Screen::rows + 2;
-    if (row_ >= rows_)
-      row_ = rows_ - 1;
-    if (row_ < 0)
-      row_ = 0;
-    int end = rows_;
-    if (end > row_ + Screen::rows - 1)
-      end = row_ + Screen::rows - 1;
-    for (int i = row_; i < end; ++i)
-      view(i);
-    if (rows_ < row_ + Screen::rows - 1)
-      Screen::end();
-    Screen::put(0, 0, "\033[7mEDIT\033[m");
-  }
-  else if (mode_ == Mode::HELP)
+  if (mode_ == Mode::HELP)
   {
     Screen::put( 1, 0, "");
     Screen::put( 2, 0, "\033[7mEsc\033[m   exit & save selected");
@@ -498,6 +466,25 @@ void Query::redraw()
     }
 
     Screen::put(0, Screen::cols - 1, "?");
+  }
+  else
+  {
+    if (select_ >= 0 && select_ >= row_ + Screen::rows - 1)
+      row_ = select_ - Screen::rows + 3;
+    else if (select_ >= 0 && select_ < row_)
+      row_ = select_ - 1;
+    if (row_ >= rows_)
+      row_ = rows_ - 1;
+    if (row_ < 0)
+      row_ = 0;
+    int end = rows_;
+    if (end > row_ + Screen::rows - 1)
+      end = row_ + Screen::rows - 1;
+    for (int i = row_; i < end; ++i)
+      view(i);
+    if (rows_ < row_ + Screen::rows - 1)
+      Screen::end();
+    draw();
   }
 }
 
@@ -759,7 +746,7 @@ void Query::query(const char *prompt)
     start_ = 0;
   }
 
-  result();
+  search();
 
   bool ctrl_o = false;
   bool ctrl_v = false;
@@ -803,7 +790,7 @@ void Query::query(const char *prompt)
 
         if (mode_ == Mode::QUERY && updated_)
         {
-          result();
+          search();
 
           updated_ = false;
           select_ = -1;
@@ -1082,10 +1069,7 @@ void Query::query(const char *prompt)
 
         case VKey::CTRL_R:
         case VKey::FN(4):
-          if (mark_ >= 0)
-            jump(mark_);
-          else
-            Screen::alert();
+          jump(mark_);
           break;
 
         case VKey::CTRL_Q:
@@ -1184,7 +1168,8 @@ void Query::query(const char *prompt)
   }
 }
 
-void Query::result()
+// start a new search, stop the previous search when still running
+void Query::search()
 {
   row_ = 0;
   rows_ = 0;
@@ -1246,14 +1231,13 @@ void Query::result()
   redraw();
 }
 
-void Query::update()
+// update screen when data is available
+bool Query::update()
 {
   int begin = rows_;
 
   // fetch viewable portion plus a screenful more, when available
   fetch(row_ + 2 * Screen::rows - 2);
-
-  Screen::save();
 
   // display the viewable portion when updated
   if (rows_ > begin && begin < row_ + Screen::rows - 1)
@@ -1269,23 +1253,25 @@ void Query::update()
     if (end > begin + Screen::rows - 1)
       end = begin + Screen::rows - 1;
 
+    if (begin < row_)
+      begin = row_;
+
     for (int i = begin; i < end; ++i)
       view(i);
   }
 
   if (rows_ < row_ + Screen::rows - 1)
   {
-    searching_[9] = '.';
-    searching_[10] = '.';
-    searching_[11] = '.';
-    searching_[9 + dots_] = '\0';
-    dots_ = (dots_ + 1) & 3;
-
-    Screen::setpos(rows_ - row_ + 1, 0);
     Screen::normal();
     Screen::invert();
     if (error_ == -1)
     {
+      searching_[9] = '.';
+      searching_[10] = '.';
+      searching_[11] = '.';
+      searching_[9 + dots_] = '\0';
+      dots_ = (dots_ + 1) & 3;
+
       Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
       Screen::normal();
       Screen::erase();
@@ -1300,18 +1286,17 @@ void Query::update()
       {
         Screen::setpos(2, 0);
         Screen::put(CERROR);
-        Screen::end();
+        Screen::erase();
       }
 
       Screen::put(2, 0, what_);
       Screen::normal();
       Screen::end();
-
-      draw();
     }
   }
 
-  Screen::restore();
+  // return true if screen was updated when data was available
+  return begin < rows_;
 }
 
 // fetch rows up to and including the specified row, when available, i.e. do not block when pipe is non-blocking
@@ -1679,48 +1664,61 @@ void Query::pgdn(bool half_page)
 // scroll back one file
 void Query::back()
 {
-  if (row_ >= rows_)
+  if (rows_ <= 0)
     return;
 
-  // if output is not suitable to scroll by filename, then PGUP
-  if (flag_text || flag_format != NULL || flag_count)
+  // if output is not suitable to scroll over its content by filename, then PGUP
+  if (flag_text || flag_format != NULL || flag_files_with_matches || flag_count)
   {
     pgup();
 
     return;
   }
 
-  up();
-
   std::string filename;
   bool found = false;
 
   if (select_ == -1)
   {
+    if (row_ == 0)
+      return;
+
+    --row_;
+
     // get the current filename to compare when present
     is_filename(view_[row_], filename);
 
     while (row_ > 0 && !(found = is_filename(view_[row_], filename)))
-      up();
+      --row_;
+
+    if (found && !flag_heading)
+      ++row_;
   }
   else
   {
+    if (select_ == 0)
+      return;
+
+    --select_;
+
     // get the current filename to compare when present
     is_filename(view_[select_], filename);
 
     while (select_ > 0 && !(found = is_filename(view_[select_], filename)))
-      up();
+      --select_;
+
+    if (found && !flag_heading)
+      ++select_;
   }
 
-  if (found && !flag_heading)
-    down();
+  redraw();
 }
 
 // scroll to next file
 void Query::next()
 {
   // if output is not suitable to scroll by filename, then PGDN
-  if (flag_text || flag_format != NULL || flag_count)
+  if (flag_text || flag_format != NULL || flag_files_with_matches || flag_count)
   {
     pgdn();
 
@@ -1731,60 +1729,80 @@ void Query::next()
 
   if (select_ == -1)
   {
-    if (row_ + Screen::rows - 1 > rows_)
-      return;
+    if (row_ < rows_)
+    {
+      // get the current filename to compare when present
+      is_filename(view_[row_], filename);
+    }
 
-    // get the current filename to compare when present
-    is_filename(view_[row_], filename);
-
-    down();
+    ++row_;
 
     while (true)
     {
       bool found = false;
 
-      while (row_ + Screen::rows - 1 <= rows_ && !(found = is_filename(view_[row_], filename)))
-        down();
+      while (row_ + 1 < rows_ && !(found = is_filename(view_[row_], filename)))
+        ++row_;
 
       if (found || (eof_ && buflen_ == 0))
         break;
 
-      // poll keys without timeout and stop if a key was pressed
-      if (VKey::poll(0))
-        break;
+      redraw();
 
-      // otherwise wait and fetch more search results when available
-      update();
+      // fetch more search results when available
+      if (update())
+      {
+        // poll keys without timeout and stop if a key was pressed
+        if (VKey::poll(0))
+          return;
+      }
+      else
+      {
+        // poll keys with 100 ms timeout and stop if a key was pressed
+        if (VKey::poll(100))
+          return;
+      }
     }
   }
   else
   {
-    if (rows_ <= 1)
-      return;
+    if (select_ < rows_)
+    {
+      // get the current filename to compare when present
+      is_filename(view_[select_], filename);
+    }
 
-    // get the current filename to compare when present
-    is_filename(view_[select_], filename);
-
-    down();
+    ++select_;
 
     while (true)
     {
       bool found = false;
 
       while (select_ + 1 < rows_ && !(found = is_filename(view_[select_], filename)))
-        down();
+        ++select_;
 
       if (found || (eof_ && buflen_ == 0))
         break;
 
-      // poll keys without timeout and stop if a key was pressed
-      if (VKey::poll(0))
-        break;
+      redraw();
 
-      // otherwise wait and fetch more search results when available
-      update();
+      // fetch more search results when available
+      if (update())
+      {
+        // poll keys without timeout and stop if a key was pressed
+        if (VKey::poll(0))
+          return;
+      }
+      else
+      {
+        // poll keys with 100 ms timeout and stop if a key was pressed
+        if (VKey::poll(100))
+          return;
+      }
     }
   }
+
+  redraw();
 }
 
 // jump to the specified row
@@ -1792,6 +1810,9 @@ void Query::jump(int row)
 {
   if (rows_ <= 0)
     return;
+
+  if (row < 0)
+    row = 0;
 
   if (select_ == -1)
   {
@@ -1801,33 +1822,36 @@ void Query::jump(int row)
 
       if (row_ >= rows_)
         row_ = rows_ - 1;
-
-      redraw();
+    }
+    else if (row < rows_)
+    {
+      row_ = row;
     }
     else
     {
       while (true)
       {
-        while (row_ < row)
+        while (row_ < row && row_ + 1 < rows_)
+          ++row_;
+
+        if (row_ == row || (eof_ && buflen_ == 0))
+          break;
+
+        redraw();
+
+        // fetch more search results when available
+        if (update())
         {
-          int oldrow = row_;
-          down();
-          if (row_ == oldrow)
-            break;
+          // poll keys without timeout and stop if a key was pressed
+          if (VKey::poll(0))
+            return;
         }
-
-        if (row_ == row)
-          break;
-
-        if ((eof_ && buflen_ == 0))
-          break;
-
-        // poll keys without timeout and stop if a key was pressed
-        if (VKey::poll(0))
-          break;
-
-        // otherwise wait and fetch more search results when available
-        update();
+        else
+        {
+          // poll keys with 100 ms timeout and stop if a key was pressed
+          if (VKey::poll(100))
+            return;
+        }
       }
     }
   }
@@ -1839,42 +1863,47 @@ void Query::jump(int row)
 
       if (select_ >= rows_)
         select_ = rows_ - 1;
-
-      redraw();
+    }
+    else if (row < rows_)
+    {
+      select_ = row;
     }
     else
     {
       while (true)
       {
-        while (select_ < row)
+        while (select_ < row && select_ + 1 < rows_)
+          ++select_;
+
+        if (select_ == row || (eof_ && buflen_ == 0))
+          break;
+
+        redraw();
+
+        // fetch more search results when available
+        if (update())
         {
-          int oldselect = select_;
-          down();
-          if (select_ == oldselect)
-            break;
+          // poll keys without timeout and stop if a key was pressed
+          if (VKey::poll(0))
+            return;
         }
-
-        if (select_ == row)
-          break;
-
-        if ((eof_ && buflen_ == 0))
-          break;
-
-        // poll keys without timeout and stop if a key was pressed
-        if (VKey::poll(0))
-          break;
-
-        // otherwise wait and fetch more search results when available
-        update();
+        else
+        {
+          // poll keys with 100 ms timeout and stop if a key was pressed
+          if (VKey::poll(100))
+            return;
+        }
       }
     }
   }
+
+  redraw();
 }
 
 // edit the file located under the cursor or just above in the screen
 void Query::edit()
 {
-  if (row_ >= rows_ || flag_text || flag_format != NULL || flag_count)
+  if (row_ >= rows_ || flag_text || flag_format != NULL)
   {
     Screen::alert();
 
@@ -1913,7 +1942,7 @@ void Query::edit()
   if (found)
   {
     std::string command;
-    command.assign(editor).append(" ").append(filename);
+    command.assign(editor).append(" \"").append(filename).append("\"");
 
     Screen::put(0, 0, command.c_str());
 
@@ -1938,6 +1967,7 @@ void Query::edit()
   }
 }
 
+// quit ugrep -Q
 bool Query::quit()
 {
   if (flag_no_confirm)
@@ -1960,6 +1990,7 @@ bool Query::quit()
   return false;
 }
 
+// display help page
 bool Query::help()
 {
   Mode oldMode = mode_;
@@ -2078,6 +2109,7 @@ bool Query::help()
   return ctrl_q;
 }
 
+// Alt/Meta/Option key
 void Query::meta(int key)
 {
   for (Flags *fp = flags_; fp->text != NULL; ++fp)
@@ -2276,6 +2308,7 @@ void Query::meta(int key)
   Screen::alert();
 }
 
+// print query results when done
 void Query::print()
 {
   int i = 0;
@@ -2327,6 +2360,7 @@ void Query::print()
   }
 }
 
+// print one row of query results
 bool Query::print(int row)
 {
   if (view_[row].empty())
@@ -2617,7 +2651,7 @@ bool Query::is_filename(const std::string& line, std::string& filename)
   size_t pos = 0;
   size_t end = line.size();
 
-  if (flag_files_with_matches)
+  if (flag_files_with_matches || flag_count)
   {
     while (pos < end)
     {
@@ -2688,7 +2722,7 @@ std::atomic_int          Query::error_;
 std::string              Query::what_;
 int                      Query::row_                 = 0;
 int                      Query::rows_                = 0;
-int                      Query::mark_                = -1;
+int                      Query::mark_                = 0;
 int                      Query::select_              = -1;
 bool                     Query::select_all_          = false;
 int                      Query::skip_                = 0;

@@ -912,6 +912,39 @@ This option starts a user interface to enter search patterns interactively:
 - To avoid long pathnames to obscure the view, `--heading` is enabled by
   default.  Press Alt-+ to switch headings off.
 
+Query UI key mapping:
+
+key(s)                      | function
+--------------------------- | -------------------------------------------------
+`Alt`-`key`                 | toggle ugrep command-line option corresponding to `key`
+`Alt`-`/`xxxx`/`            | insert Unicode hex code point U+xxxx
+`Esc` `Ctrl`-`[` `Ctrl`-`C` | exit or go back
+`Ctrl`-`Q`                  | quick exit and output results selected in selection mode
+`Enter`                     | enter selection mode and toggle selected lines to output on exit
+`Home` `Ctrl`-`A`           | move cursor to the begin of line
+`End` `Ctrl`-`E`            | move cursor to the end of line
+`Tab` `Ctrl`-`I`            | pan display to the right
+`Shift`-`Tab`               | pan display to the left
+`Up` `Ctrl`-`P`             | move up
+`Down` `Ctrl`-`N`           | move down
+`Left` `Ctrl`-`B`           | move left
+`Right` `Ctrl`-`F`          | move right
+`PgUp` `Ctrl`-`G`           | move display up by a page
+`PgDn` `Ctrl`-`D`           | move display down by a page
+`Ctrl`-`K`                  | delete after cursor
+`Ctrl`-`L`                  | refresh screen
+`Ctrl`-`O`+`key`            | toggle ugrep command-line option corresponding to `key`
+`Ctrl`-`R` `F4`             | jump to bookmark
+`Ctrl`-`S`                  | scroll to next file
+`Ctrl`-`T`                  | toggle colors on/off
+`Ctrl`-`U`                  | delete before cursor
+`Ctrl`-`V`                  | verbatim character
+`Ctrl`-`W`                  | scroll back one file
+`Ctrl`-`X` `F3`             | set bookmark
+`Ctrl`-`Y` `F2`             | edit file shown at the top of the display or under the cursor
+`Ctrl`-`Z` `F1`             | view help and options
+`Ctrl`-`\`                  | terminate process
+
 To interactively search the files in the working directory and below:
 
     ugrep -Q
@@ -1643,6 +1676,12 @@ statements, excluding hidden files:
             --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands
             into a `-' when searching standard input.  Option --label=.ext may
             be used to specify extension `ext' when searching standard input.
+    --filter-magic-label=LABEL:MAGIC
+            Associate LABEL with files whose signature "magic bytes" match the
+            MAGIC regex pattern.  Only files that have no filename extension
+            are labeled, unless +LABEL is specified.  When LABEL matches an
+            extension specified in --filter=COMMANDS, the corresponding command
+            is invoked.  This option may be repeated.
 
 The `--filter` option associates one or more filter utilities with specific
 filename extensions.  A filter utility is selected based on the filename
@@ -1666,6 +1705,8 @@ advanced document conversion utilities such as:
 - [`csvkit`](https://pypi.org/project/csvkit) to convert spreadsheets, and
 - [`openssl`](https://wiki.openssl.org/index.php/Command_Line_Utilities) to
   convert certificates and key files.
+- [`exiftool`](http://exiftool.sourceforge.net) to read meta information
+  embedded in images.
 
 Also decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
 `bunzip2`, `unxz`, and `unlzma` that can decompress files to standard output by
@@ -1761,6 +1802,21 @@ Note that `openssl` warning messages are displayed on standard error.  If
 a file cannot be converted it is probably in a different format.  This can
 be resolved by writing a shell script that executes `openssl` with options
 based on the file content.  Then write a script with `ugrep --filter`.
+
+To search PNG files by filename extension with `-tpng` using `exiftool`:
+
+    ugrep -r 'copyright' -tpng --filter='*:exiftool %'
+
+Same, but also include files matching PNG "magic bytes" with `-tPng` and
+`--filter-magic-label='+png:\x89png\x0d\x0a\x1a\x0a'` to select the `png`
+filter:
+
+    ugrep 'copyright' -tPng --filter='png:exiftool %' --filter-magic-label='+png:\x89png\x0d\x0a\x1a\x0a'
+
+Note that `+png` overrides the filename extension match for `--filter` if the
+file matches the magic pattern specified with `--filter-magic-label`.
+Otherwise, the filename extension, when present, takes priority over labelled
+magic patterns.
 
 <a name="binary"/>
 
@@ -3000,6 +3056,13 @@ in markdown:
                   ing  standard input.  Option --label=.ext may be used to specify
                   extension `ext' when searching standard input.
 
+           --filter-magic-label=LABEL:MAGIC
+                  Associate LABEL with files whose signature "magic  bytes"  match
+                  the  MAGIC  regex  pattern.   Only  files  that have no filename
+                  extension are labeled, unless +LABEL is specified.   When  LABEL
+                  matches  an extension specified in --filter=COMMANDS, the corre-
+                  sponding command is invoked.  This option may be repeated.
+
            --format=FORMAT
                   Output FORMAT-formatted matches.  See `man ugrep' section FORMAT
                   for the `%' fields.
@@ -3631,9 +3694,12 @@ in markdown:
 
            %e     the ending byte offset of the match.
 
-           %g     the group capture index of the match or zero (option -P).
-
            %u     select unique lines only unless option -u is used.
+
+           %g     the group capture index of the match or 1 (option -P).
+
+           %[NAME1|NAME2|...]g
+                  NAME corresponding to the group capture index of the match.
 
            %,     if not the first match: a comma, same as %[,]>.
 
@@ -3806,7 +3872,7 @@ in markdown:
 
 
 
-    ugrep 2.1.2                      May 20, 2020                         UGREP(1)
+    ugrep 2.1.3                      May 22, 2020                         UGREP(1)
 
 <a name="patterns"/>
 

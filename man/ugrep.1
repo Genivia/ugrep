@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 20, 2020" "ugrep 2.1.2" "User Commands"
+.TH UGREP "1" "May 22, 2020" "ugrep 2.1.3" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -210,6 +210,13 @@ as `option' expands into the pathname to search.  For example,
 \fB\-\-filter\fR='pdf:pdftotext % \fB\-'\fR searches PDF files.  The `%' expands
 into a `\fB\-'\fR when searching standard input.  Option \fB\-\-label\fR=.ext may
 be used to specify extension `ext' when searching standard input.
+.TP
+\fB\-\-filter\-magic\-label\fR=\fILABEL\fR:MAGIC
+Associate LABEL with files whose signature "magic bytes" match the
+MAGIC regex pattern.  Only files that have no filename extension
+are labeled, unless +LABEL is specified.  When LABEL matches an
+extension specified in \fB\-\-filter\fR=\fICOMMANDS\fR, the corresponding command
+is invoked.  This option may be repeated.
 .TP
 \fB\-\-format\fR=\fIFORMAT\fR
 Output FORMAT\-formatted matches.  See `man ugrep' section FORMAT
@@ -810,10 +817,12 @@ the width of the match, counting wide characters.
 the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
-.IP \fB%g\fR
-the group capture index of the match or zero (option -P).
 .IP \fB%u\fR
 select unique lines only unless option \fB-u\fR is used.
+.IP \fB%g\fR
+the group capture index of the match or 1 (option -P).
+.IP \fB%[NAME1|NAME2|...]g\fR
+NAME corresponding to the group capture index of the match.
 .IP \fB%,\fR
 if not the first match: a comma, same as \fB%[,]>\fR.
 .IP \fB%:\fR

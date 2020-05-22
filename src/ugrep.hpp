@@ -155,6 +155,7 @@ inline int fopen_s(FILE **file, const char *filename, const char *mode)
 #include <reflex/input.h>
 #include <algorithm>
 #include <atomic>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -168,9 +169,7 @@ enum class Sort { NA, NAME, SIZE, USED, CHANGED, CREATED };
 enum class Action { SKIP, READ, RECURSE };
 
 // ugrep command-line options and internal flags
-extern bool flag_with_filename;
 extern bool flag_no_confirm;
-extern bool flag_no_filename;
 extern bool flag_no_header;
 extern bool flag_no_messages;
 extern bool flag_match;
@@ -180,10 +179,13 @@ extern bool flag_free_space;
 extern bool flag_ignore_case;
 extern bool flag_smart_case;
 extern bool flag_invert_match;
-extern bool flag_line_number;
 extern bool flag_only_line_number;
+extern bool flag_with_filename;
+extern bool flag_no_filename;
+extern bool flag_line_number;
 extern bool flag_column_number;
 extern bool flag_byte_offset;
+extern bool flag_initial_tab;
 extern bool flag_line_buffered;
 extern bool flag_only_matching;
 extern bool flag_ungroup;
@@ -203,7 +205,6 @@ extern bool flag_text;
 extern bool flag_hex;
 extern bool flag_with_hex;
 extern bool flag_empty;
-extern bool flag_initial_tab;
 extern bool flag_decompress;
 extern bool flag_any_line;
 extern bool flag_heading;
@@ -266,6 +267,7 @@ extern std::vector<std::string> flag_file;
 extern std::vector<std::string> flag_file_types;
 extern std::vector<std::string> flag_file_extensions;
 extern std::vector<std::string> flag_file_magic;
+extern std::vector<std::string> flag_filter_magic_label;
 extern std::vector<std::string> flag_glob;
 extern std::vector<std::string> flag_ignore_files;
 extern std::vector<std::string> flag_include;

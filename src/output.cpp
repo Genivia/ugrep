@@ -390,7 +390,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'F':
         if (flag_with_filename && pathname != NULL)
         {
-          if (a)
+          if (a != NULL)
             str(a, s - a - 1);
           str(pathname);
           if (!partname.empty())
@@ -422,7 +422,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'H':
         if (flag_with_filename)
         {
-          if (a)
+          if (a != NULL)
             str(a, s - a - 1);
           if (!partname.empty())
           {
@@ -461,7 +461,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'N':
         if (flag_line_number)
         {
-          if (a)
+          if (a != NULL)
             str(a, s - a - 1);
           num(matcher->lineno());
           if (sep != NULL)
@@ -478,7 +478,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'K':
         if (flag_column_number)
         {
-          if (a)
+          if (a != NULL)
             str(a, s - a - 1);
           num(matcher->columno() + 1);
           if (sep != NULL)
@@ -495,7 +495,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'B':
         if (flag_byte_offset)
         {
-          if (a)
+          if (a != NULL)
             str(a, s - a - 1);
           num(matcher->first());
           if (sep != NULL)
@@ -512,7 +512,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'T':
         if (flag_initial_tab)
         {
-          if (a)
+          if (a != NULL)
             str(a, s - a - 1);
           chr('\t');
         }
@@ -525,7 +525,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'S':
         if (next)
         {
-          if (a)
+          if (a != NULL)
             str(a, s - a - 1);
           if (sep != NULL)
             str(sep, len);
@@ -554,7 +554,35 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'g':
-        num(matcher->accept());
+        if (a != NULL)
+        {
+          size_t n = matcher->accept();
+
+          if (n > 0)
+          {
+            const char *b;
+
+            while (true)
+            {
+              b = strchr(a, '|');
+
+              if (b == NULL || --n == 0)
+                break;
+
+              a = b + 1;
+            }
+
+            if (b == NULL)
+              b = strchr(a, ']');
+
+            if (b != NULL)
+              str(a, b - a);
+          }
+        }
+        else
+        {
+          num(matcher->accept());
+        }
         break;
 
       case 'm':

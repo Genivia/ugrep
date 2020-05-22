@@ -762,7 +762,7 @@ class Pattern {
   void write_predictor(FILE *fd) const;
   void write_namespace_open(FILE* fd) const;
   void write_namespace_close(FILE* fd) const;
-  Location find_at(
+  size_t find_at(
       Location loc,
       char     c) const
   {
