@@ -2500,8 +2500,9 @@ field     | output
 `%w`      | the width of the match, counting (wide) characters
 `%d`      | the size of the match, counting bytes
 `%e`      | the ending byte offset of the match
-`%g`      | the group capture index of the match or zero (see note)
 `%u`      | select unique lines only unless option -u is used
+`%g`      | the group capture index of the match or 1 (see note)
+`%[ARG]g` | the name in ARG corresponding to the group capture index of the match (see note)
 `%,`      | if not the first match: a comma, same as `%[,]>`
 `%:`      | if not the first match: a colon, same as `%[:]>`
 `%;`      | if not the first match: a semicolon, same as `%[;]>`
@@ -2531,6 +2532,9 @@ Note:
   example `foo|bar` matches `foo` with index 1 and `bar` with index 2.  With
   option `-P`, the index corresponds to the index of the group captured in the
   specified pattern.
+- The group capture name in `%[ARG]g` corresponding to the index of the
+  sub-pattern matched is retreived from `ARG`, where `ARG` should be a list of
+  names or strings separated by bars `|`.
 
 To output matching lines faster by omitting the header output and binary match
 checks, using `--format` with field `%O` (output matching line as is) and field
@@ -2591,6 +2595,12 @@ Same, but using a file `foos` containing three lines with `foo`, `bar`, and
 `baz`, where option `-F` is used to match strings instead of regex:
 
     ugrep -F -f foos --format='%g: %o%~' foobar.txt
+
+To output `one`, `two`, and `a word` for the sub-patterns `[fF]oo`, `[bB]ar`,
+and any other word `\w+`, respectively, using argument `[one|two|a word]` with
+field `%g` indexed by sub-pattern (or group captures with option `-P`):
+
+    ugrep --format='%[one|two|a word]g%~' '[fF]oo|[bB]ar|\w+' foobar.txt
 
 <a name="replace"/>
 
