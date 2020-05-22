@@ -1805,18 +1805,19 @@ based on the file content.  Then write a script with `ugrep --filter`.
 
 To search PNG files by filename extension with `-tpng` using `exiftool`:
 
-    ugrep -r 'copyright' -tpng --filter='*:exiftool %'
+    ugrep -r -i 'copyright' -tpng --filter='*:exiftool %'
 
 Same, but also include files matching PNG "magic bytes" with `-tPng` and
 `--filter-magic-label='+png:\x89png\x0d\x0a\x1a\x0a'` to select the `png`
 filter:
 
-    ugrep 'copyright' -tPng --filter='png:exiftool %' --filter-magic-label='+png:\x89png\x0d\x0a\x1a\x0a'
+    ugrep -r -i 'copyright' -tPng --filter='png:exiftool %' --filter-magic-label='+png:\x89png\x0d\x0a\x1a\x0a'
 
-Note that `+png` overrides the filename extension match for `--filter` if the
-file matches the magic pattern specified with `--filter-magic-label`.
-Otherwise, the filename extension, when present, takes priority over labelled
-magic patterns.
+Note that `+png` overrides any filename extension match for `--filter`.
+Otherwise, without a `+`, the filename extension, when present, takes priority
+over labelled magic patterns to invoke the corresponding filter command.
+The `LABEL` used with `--filter-magic-label` and `--filter` has no specific
+meaning; any name or string that does not contain a `:` or `,` may be used.
 
 <a name="binary"/>
 
