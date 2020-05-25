@@ -544,7 +544,7 @@ class Output {
     return sync != NULL && sync->cancelled();
   }
 
-  // output the header part of the match, preceeding the matched line
+  // output the header part of the match, preceding the matched line
   void header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *sep, bool newline);
 
   // output "Binary file ... matches"

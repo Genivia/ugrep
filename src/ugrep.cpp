@@ -7600,7 +7600,7 @@ void help(const char *message, const char *arg)
             file types.  Each file type corresponds to a set of filename\n\
             extensions passed to option -O.  For capitalized file types, the\n\
             search is expanded to include files with matching file signature\n\
-            magic bytes, as if passed to option -M.  When a type is preceeded\n\
+            magic bytes, as if passed to option -M.  When a type is preceded\n\
             by a `!' or a `^', excludes files of the specified type.  This\n\
             option may be repeated.  The possible file types can be (where\n\
             -tlist displays a detailed list):";

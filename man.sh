@@ -313,7 +313,7 @@ When present, the argument must be placed in \fB[]\fR brackets, for example
 the output.
 .PP
 The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
-\fB%S\fR may be changed by preceeding the field by \fB%[\fR\fISEP\fR\fB]$\fR.
+\fB%S\fR may be changed by preceding the field by \fB%[\fR\fISEP\fR\fB]$\fR.
 When \fB[\fR\fISEP\fR\fB]\fR is not provided, this reverses the separator to
 the default separator or the separator specified with \fB--separator\fR.
 .PP

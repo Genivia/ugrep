@@ -1028,7 +1028,7 @@ using ugrep query selection mode (press Enter to select lines):
             file types.  Each file type corresponds to a set of filename
             extensions passed to option -O.  For capitalized file types, the
             search is expanded to include files with matching file signature
-            magic bytes, as if passed to option -M.  When a type is preceeded
+            magic bytes, as if passed to option -M.  When a type is preceded
             by a `!' or a `^', excludes files of the specified type.  This
             option may be repeated.
     --stats
@@ -1419,7 +1419,7 @@ characters of context instead of a single word:
             file types.  Each file type corresponds to a set of filename
             extensions passed to option -O.  For capitalized file types, the
             search is expanded to include files with matching file signature
-            magic bytes, as if passed to option -M.  When a type is preceeded
+            magic bytes, as if passed to option -M.  When a type is preceded
             by a `!' or a `^', excludes files of the specified type.  This
             option may be repeated.
     --stats
@@ -1630,7 +1630,7 @@ search the files:
             file types.  Each file type corresponds to a set of filename
             extensions passed to option -O.  For capitalized file types, the
             search is expanded to include files with matching file signature
-            magic bytes, as if passed to option -M.  When a type is preceeded
+            magic bytes, as if passed to option -M.  When a type is preceded
             by a `!' or a `^', excludes files of the specified type.  This
             option may be repeated.
     --stats
@@ -2520,7 +2520,7 @@ Note:
 - Fields `%[SEP]$` and `%u` are switches and do not write anything to the
   output.
 - The separator used by `%P`, `%H`, `%N`, `%K`, `%B`, and `%S` may be changed
-  by preceeding the field with a `%[SEP]$`.  When `[SEP]` is not provided,
+  by preceding the field with a `%[SEP]$`.  When `[SEP]` is not provided,
   reverses the separator to the default separator or the separator specified by
   `--separator`.
 - Formatted output is written for each matching pattern, which means that a
