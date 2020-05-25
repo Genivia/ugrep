@@ -198,7 +198,7 @@ void Output::Dump::line(const char *separator)
     bytes[i] = -1;
 }
 
-// output the header part of the match, preceeding the matched line
+// output the header part of the match, preceding the matched line
 void Output::header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *separator, bool newline)
 {
   bool sep = false;
