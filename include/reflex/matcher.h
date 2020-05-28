@@ -116,11 +116,24 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     tab_.resize(0);
     bmd_ = 0;
   }
+  /// Returns captured text as a std::pair<const char*,size_t> with string pointer (non-0-terminated) and length.
   virtual std::pair<const char*,size_t> operator[](size_t n) const
   {
     if (n == 0)
       return std::pair<const char*,size_t>(txt_, len_);
     return std::pair<const char*,size_t>(NULL, 0);
+  }
+  /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
+  virtual std::pair<size_t,const char*> group_id()
+    /// @returns a pair of size_t and string
+  {
+    return std::pair<size_t,const char*>(accept(), NULL);
+  }
+  /// Returns the next group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (0,NULL) when no more groups matched
+  virtual std::pair<size_t,const char*> group_next_id()
+    /// @returns (0,NULL)
+  {
+    return std::pair<size_t,const char*>(0, NULL);
   }
   /// Returns the position of the last indent stop.
   size_t last_stop()
@@ -390,7 +403,7 @@ scan:
 find:
     int c1 = got_;
     bool bol = at_bol();
-    if (pat_->fsm_)
+    if (pat_->fsm_ != NULL)
       fsm_.c1 = c1;
 #if !defined(WITH_NO_INDENT)
 redo:
@@ -398,7 +411,7 @@ redo:
     lap_.resize(0);
     cap_ = 0;
     bool nul = method == Const::MATCH;
-    if (pat_->fsm_)
+    if (pat_->fsm_ != NULL)
     {
       DBGLOG("FSM code %p", pat_->fsm_);
       fsm_.bol = bol;
@@ -407,13 +420,13 @@ redo:
       nul = fsm_.nul;
       c1 = fsm_.c1;
     }
-    else if (pat_->opc_)
+    else if (pat_->opc_ != NULL)
     {
       const Pattern::Opcode *pc = pat_->opc_;
       while (true)
       {
         Pattern::Opcode opcode = *pc;
-        DBGLOG("Fetch: code[%u] = 0x%08X", pc - pat_->opc_, opcode);
+        DBGLOG("Fetch: code[%zu] = 0x%08X", pc - pat_->opc_, opcode);
         if (!Pattern::is_opcode_goto(opcode))
         {
           switch (opcode >> 24)
@@ -422,7 +435,7 @@ redo:
               cap_ = Pattern::long_index_of(opcode);
               cur_ = pos_;
               ++pc;
-              DBGLOG("Take: cap = %u", cap_);
+              DBGLOG("Take: cap = %zu", cap_);
               continue;
             case 0xFD: // REDO
               cap_ = Const::REDO;
@@ -483,7 +496,7 @@ redo:
                   if (c1 != EOF)
                     --cur_; // must unget one char
                   opcode = *++pc;
-                  DBGLOG("Take: cap = %u", cap_);
+                  DBGLOG("Take: cap = %zu", cap_);
                   continue;
                 case 0xFD: // REDO
                   cap_ = Const::REDO;

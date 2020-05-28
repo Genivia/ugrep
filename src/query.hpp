@@ -70,7 +70,7 @@ class Query {
     const char *text;
   };
 
-  static void query(const char *prompt);
+  static void query_ui();
 
   static char *line_ptr(int col);
 
@@ -153,6 +153,8 @@ class Query {
   static void get_flags();
 
   static void set_flags();
+
+  static void set_prompt();
 
   static void get_stdin();
 

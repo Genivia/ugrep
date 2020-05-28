@@ -1148,6 +1148,14 @@ class AbstractMatcher {
   virtual std::pair<const char*,size_t> operator[](size_t n)
     /// @returns std::pair of string pointer and length in the captured text, where [0] returns std::pair(begin(), size())
     const = 0;
+  /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
+  virtual std::pair<size_t,const char*> group_id()
+    /// @returns a pair of size_t and string
+    = 0;
+  /// Returns the next group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (0,NULL) when no more groups matched
+  virtual std::pair<size_t,const char*> group_next_id()
+    /// @returns a pair of size_t and string
+    = 0;
   /// Set tab size 1, 2, 4, or 8
   void tabs(char n) ///< tab size 1, 2, 4, or 8
   {

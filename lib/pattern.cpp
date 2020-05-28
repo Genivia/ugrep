@@ -313,6 +313,7 @@ void Pattern::parse(
   DBGLOG("BEGIN parse()");
   if (rex_.size() > Position::MAXLOC)
     throw regex_error(regex_error::exceeds_length, rex_, Position::MAXLOC);
+  Location   len = static_cast<Location>(rex_.size());
   Location   loc = 0;
   Accept     choice = 1;
   Lazy       lazyidx = 0;
@@ -478,11 +479,11 @@ void Pattern::parse(
       error(regex_error::exceeds_limits, loc); // overflow: too many top-level alternations (should never happen)
   } while (at(loc++) == '|');
   if (opt_.i)
-    update_modified('i', modifiers, 0, rex_.size() - 1);
+    update_modified('i', modifiers, 0, len - 1);
   if (opt_.m)
-    update_modified('m', modifiers, 0, rex_.size() - 1);
+    update_modified('m', modifiers, 0, len - 1);
   if (opt_.s)
-    update_modified('s', modifiers, 0, rex_.size() - 1);
+    update_modified('s', modifiers, 0, len - 1);
   pms_ = timer_elapsed(t);
 #ifdef DEBUG
   DBGLOGN("startpos = {");
@@ -1053,7 +1054,7 @@ void Pattern::parse4(
       if (c == '[' && at(loc + 1) == ':')
       {
         size_t c_loc = find_at(loc + 2, ':');
-        if (c_loc != std::string::npos && at(c_loc + 1) == ']')
+        if (c_loc != std::string::npos && at(static_cast<Location>(c_loc + 1)) == ']')
           loc = static_cast<Location>(c_loc + 1);
       }
       else if (c == opt_.e && !opt_.b)
@@ -1224,7 +1225,7 @@ Pattern::Char Pattern::parse_esc(Location& loc, Chars *chars) const
         error(regex_error::invalid_class, loc);
       if (c == 'P')
         flip(*chars);
-      loc += strlen(posix_class[i]);
+      loc += static_cast<Location>(strlen(posix_class[i]));
       if (at(loc) == '}')
         ++loc;
       else
@@ -1649,7 +1650,7 @@ void Pattern::compile_transition(
             DBGLOGN("%d %d (%d) %u", state->accept, i->first, j != i->second.end(), n);
             if (j != i->second.end() /* CHECKED algorithmic options: 7/18 && state->accept == i->first */ ) // only add lookstop when part of the proper accept state
             {
-              Lookahead l = n + std::distance(i->second.begin(), j);
+              Lookahead l = n + static_cast<Lookahead>(std::distance(i->second.begin(), j));
               if (l < n)
                 error(regex_error::exceeds_limits, loc);
               state->tails.insert(l);
@@ -1872,7 +1873,7 @@ void Pattern::compile_list(Location loc, Chars& chars, const Map& modifiers) con
     else
     {
       size_t c_loc;
-      if (c == '[' && at(loc + 1) == ':' && (c_loc = find_at(loc + 2, ':')) != std::string::npos && at(c_loc + 1) == ']')
+      if (c == '[' && at(loc + 1) == ':' && (c_loc = find_at(loc + 2, ':')) != std::string::npos && at(static_cast<Location>(c_loc + 1)) == ']')
       {
         if (c_loc == loc + 3)
         {
@@ -2061,7 +2062,7 @@ void Pattern::encode_dfa(DFA::State *start)
       if (is_meta(lo))
         nop_ += i->second.first - lo;
     }
-    // add dead state only when needed, i.e. skip dead state only if all input is covered
+    // add final dead state (HALT opcode) only when needed, i.e. skip dead state if all chars 0-255 are already covered
     if (hi <= 0xFF)
     {
       state->edges[hi] = std::pair<Char,DFA::State*>(0xFF, NULL);
@@ -2084,18 +2085,20 @@ void Pattern::encode_dfa(DFA::State *start)
       if (is_meta(lo))
         nop_ += hi - i->second.first;
     }
-    // add dead state only when needed, i.e. skip dead state only if all input is covered
+    // add final dead state (HALT opcode) only when needed, i.e. skip dead state if all chars 0-255 are already covered
     if (!covered)
     {
       state->edges[lo] = std::pair<Char,DFA::State*>(0x00, NULL);
       ++nop_;
     }
 #endif
-    nop_ += state->heads.size() + state->tails.size() + (state->accept > 0 || state->redo);
+    nop_ += static_cast<Index>(state->heads.size() + state->tails.size() + (state->accept > 0 || state->redo));
+    if (!valid_goto_index(nop_))
+      throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
   }
   if (nop_ > Const::LONG)
   {
-    // over 64K opcodes: use 64-bit GOTO opcodes
+    // over 64K opcodes: use 64-bit GOTO LONG opcodes
     nop_ = 0;
     for (DFA::State *state = start; state; state = state->next)
     {
@@ -2151,11 +2154,11 @@ void Pattern::encode_dfa(DFA::State *start)
         }
       }
 #endif
-      nop_ += state->heads.size() + state->tails.size() + (state->accept > 0 || state->redo);
+      nop_ += static_cast<Index>(state->heads.size() + state->tails.size() + (state->accept > 0 || state->redo));
+      if (!valid_goto_index(nop_))
+        throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
     }
   }
-  if (!valid_goto_index(nop_))
-    throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
   Opcode *opcode = new Opcode[nop_];
   opc_ = opcode;
   Index pc = 0;
@@ -2852,7 +2855,7 @@ void Pattern::export_code() const
       {
         ::fprintf(file, "#ifndef REFLEX_CODE_DECL\n#include <reflex/pattern.h>\n#define REFLEX_CODE_DECL const reflex::Pattern::Opcode\n#endif\n\n");
         write_namespace_open(file);
-        ::fprintf(file, "extern REFLEX_CODE_DECL reflex_code_%s[%zu] =\n{\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), nop_);
+        ::fprintf(file, "extern REFLEX_CODE_DECL reflex_code_%s[%u] =\n{\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), nop_);
         for (Index i = 0; i < nop_; ++i)
         {
           Opcode opcode = opc_[i];

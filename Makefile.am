@@ -18,7 +18,7 @@ cp2bin:		$(top_builddir)/src/ugrep
 
 install-data-hook:
 		(mkdir -p $(DESTDIR)$(datadir)/ugrep; \
-		 cp -rf patterns $(DESTDIR)$(datadir)/ugrep/)
+ 		 cp -rf patterns $(DESTDIR)$(datadir)/ugrep/)
 		@echo " ______________________________________________________ "; \
 		 echo "|                                                      |"; \
 		 echo "| You have successfully built and installed ugrep.     |"; \

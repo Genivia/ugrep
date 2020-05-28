@@ -104,6 +104,7 @@ class StdMatcher : public PatternMatcher<std::regex> {
   {
     DBGLOG("StdMatcher::reset()");
     itr_ = fin_ = std::cregex_iterator();
+    grp_ = 0;
     PatternMatcher::reset(opt);
     buffer(); // no partial matching supported: buffer all input
   }
@@ -155,6 +156,31 @@ class StdMatcher : public PatternMatcher<std::regex> {
     if (itr_ == fin_ || n >= (*itr_).size() || !(*itr_)[n].matched)
       return std::pair<const char*,size_t>(NULL, 0);
     return std::pair<const char*,size_t>((*itr_)[n].first, (*itr_)[n].second - (*itr_)[n].first);
+  }
+  /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
+  virtual std::pair<size_t,const char*> group_id()
+    /// @returns a pair of size_t and string
+  {
+    grp_ = 1;
+    if (itr_ == fin_ || (*itr_).size() <= 1)
+      return std::pair<size_t,const char*>(0, NULL);
+    if ((*itr_)[1].matched)
+      return std::pair<size_t,const char*>(1, NULL);
+    return group_next_id();
+  }
+  /// Returns the next group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (0,NULL) when no more groups matched
+  virtual std::pair<size_t,const char*> group_next_id()
+    /// @returns a pair of size_t and string
+  {
+    if (itr_ == fin_)
+      return std::pair<size_t,const char*>(0, NULL); 
+    size_t n = (*itr_).size();
+    while (++grp_ < n)
+      if ((*itr_)[grp_].matched)
+        break;
+    if (grp_ < n)
+      return std::pair<size_t,const char*>(grp_, NULL);
+    return std::pair<size_t,const char*>(1, NULL);
   }
  protected:
   /// The match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH, implemented with std::regex.
@@ -338,6 +364,7 @@ class StdMatcher : public PatternMatcher<std::regex> {
   std::regex_constants::match_flag_type flg_; ///< std::regex match flags
   std::cregex_iterator                  itr_; ///< const std::regex iterator
   std::cregex_iterator                  fin_; ///< const std::regex iterator final end
+  size_t                                grp_; ///< last group index for group_next_id()
 };
 
 /// std matcher engine class, extends reflex::StdMatcher for ECMA std::regex::ECMAScript syntax and regex matching.

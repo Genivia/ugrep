@@ -84,13 +84,7 @@ std::string regex_error::regex_error_message(const char *message, const char *pa
       --r;
 
   std::string what("error in regex at position ");
-  char buf[24];
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-  sprintf_s(buf, sizeof(buf), "%zu\n", pos);
-#else
-  std::sprintf(buf, "%zu\n", pos);
-#endif
-  what.append(buf).append(p, m).append("\n");
+  what.append(ztoa(pos)).append("\n").append(p, m).append("\n");
   if (r >= l + 4)
     what.append(r - l - 4, ' ').append(message).append("___/\n");
   else

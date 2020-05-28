@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 22, 2020" "ugrep 2.1.3" "User Commands"
+.TH UGREP "1" "May 28, 2020" "ugrep 2.1.4" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -749,38 +749,46 @@ Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:
 .IP \fB%[\fR\fIARG\fR\fB]F\fR
 if option \fB-H\fR is used: \fIARG\fR, the file pathname, and separator.
+.IP \fB%f\fR
+the file pathname.
+.IP \fB%z\fR
+the file pathname in a (compressed) archive.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
 if option \fB-H\fR is used: \fIARG\fR, the quoted pathname, and separator.
+.IP \fB%h\fR
+the quoted file pathname.
 .IP \fB%[\fR\fIARG\fR\fB]N\fR
 if option \fB-n\fR is used: \fIARG\fR, the line number and separator.
+.IP \fB%n\fR
+the line number of the match.
 .IP \fB%[\fR\fIARG\fR\fB]K\fR
 if option \fB-k\fR is used: \fIARG\fR, the column number and separator.
+.IP \fB%k\fR
+the column number of the match.
 .IP \fB%[\fR\fIARG\fR\fB]B\fR
 if option \fB-b\fR is used: \fIARG\fR, the byte offset and separator.
+.IP \fB%b\fR
+the byte offset of the match.
 .IP \fB%[\fR\fIARG\fR\fB]T\fR
 if option \fB-T\fR is used: \fIARG\fR and a tab character.
-.IP \fB%[\fR\fIARG\fR\fB]S\fR
-if not the first match: \fIARG\fR and separator, see also \fB%$\fR.
+.IP \fB%t\fR
+a tab character.
+.IP \fB%[\fR\fISEP\fR\fB]$\fR
+set field separator to \fISEP\fR for the rest of the format fields.
 .IP \fB%[\fR\fIARG\fR\fB]<\fR
 if the first match: \fIARG\fR.
 .IP \fB%[\fR\fIARG\fR\fB]>\fR
 if not the first match: \fIARG\fR.
-.IP \fB%[\fR\fISEP\fR\fB]$\fR
-set field separator to \fISEP\fR for the rest of the format fields.
-.IP \fB%f\fR
-the file pathname.
-.IP \fB%h\fR
-the quoted file pathname.
-.IP \fB%z\fR
-the file pathname in a (compressed) archive.
-.IP \fB%n\fR
-the line number of the match.
-.IP \fB%k\fR
-the column number of the match.
-.IP \fB%b\fR
-the byte offset of the match.
-.IP \fB%t\fR
-a tab character.
+.IP \fB%,\fR
+if not the first match: a comma, same as \fB%[,]>\fR.
+.IP \fB%:\fR
+if not the first match: a colon, same as \fB%[:]>\fR.
+.IP \fB%;\fR
+if not the first match: a semicolon, same as \fB%[;]>\fR.
+.IP \fB%|\fR
+if not the first match: a verical bar, same as \fB%[|]>\fR.
+.IP \fB%[\fR\fIARG\fR\fB]S\fR
+if not the first match: \fIARG\fR and separator, see also \fB%$\fR.
 .IP \fB%s\fR
 the separator, see also \fB%S\fR and \fB%$\fR.
 .IP \fB%~\fR
@@ -818,26 +826,22 @@ the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
 .IP \fB%u\fR
-select unique lines only unless option \fB-u\fR is used.
-.IP \fB%g\fR
-the group capture index of the match or 1 (option -P).
-.IP \fB%[NAME1|NAME2|...]g\fR
-NAME corresponding to the group capture index of the match.
-.IP \fB%,\fR
-if not the first match: a comma, same as \fB%[,]>\fR.
-.IP \fB%:\fR
-if not the first match: a colon, same as \fB%[:]>\fR.
-.IP \fB%;\fR
-if not the first match: a semicolon, same as \fB%[;]>\fR.
-.IP \fB%|\fR
-if not the first match: a verical bar, same as \fB%[|]>\fR.
-.IP \fB%%\fR
-the percentage sign.
+select unique lines only, unless option \fB-u\fR is used.
 .IP \fB%1\fR
 the first regex group capture of the match, and so on up to group \fB%9\fR,
-same as \fB%[1]#\fR; requires option \fB-P\fR Perl matching.
+same as \fB%[1]#\fR; requires option \fB-P\fR.
 .IP \fB%[\fINUM\fR\fB]#\fR
-the regex group capture \fINUM\fR; requires option \fB-P\fR Perl matching.
+the regex group capture \fINUM\fR; requires option \fB-P\fR.
+.IP \fB%G\fR
+list of group capture indices/names of the match (option -P).
+.IP \fB%[NAME1|NAME2|...]G\fR
+NAMEs corresponding to the group capture indices of the match.
+.IP \fB%g\fR
+the group capture index/name of the match or 1 (option -P).
+.IP \fB%[NAME1|NAME2|...]g\fR
+NAME corresponding to the group capture index of the match.
+.IP \fB%%\fR
+the percentage sign.
 .PP
 The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
 When present, the argument must be placed in \fB[]\fR brackets, for example
@@ -846,10 +850,11 @@ When present, the argument must be placed in \fB[]\fR brackets, for example
 \fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not send anything to
 the output.
 .PP
-The separator used by \fB%P\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR, and
-\fB%S\fR may be changed by preceding the field by \fB%[\fR\fISEP\fR\fB]$\fR.
-When \fB[\fR\fISEP\fR\fB]\fR is not provided, this reverses the separator to
-the default separator or the separator specified with \fB--separator\fR.
+The separator used by \fB%F\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR,
+\fB%S\fR, and \fB%G\fR may be changed by preceding the field by
+\fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided, this
+reverts the separator to the default separator or the separator specified with
+\fB--separator\fR.
 .PP
 Formatted output is written for each matching pattern, which means that a line
 may be output multiple times when patterns match more than once on the same

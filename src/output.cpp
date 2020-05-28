@@ -553,10 +553,66 @@ void Output::format(const char *format, const char *pathname, const std::string&
         num(matcher->last());
         break;
 
+      case 'G':
+      {
+        bool colon = false;
+        std::pair<size_t,const char*> id = matcher->group_id();
+
+        while (id.first != 0)
+        {
+          if (colon)
+          {
+            if (sep != NULL)
+              str(sep, len);
+            else
+              str(flag_separator);
+          }
+
+          colon = true;
+
+          if (a != NULL)
+          {
+            size_t n = id.first;
+            const char *b;
+
+            while (true)
+            {
+              b = strchr(a, '|');
+
+              if (--n == 0 || b == NULL)
+                break;
+
+              a = b + 1;
+            }
+
+            if (b == NULL)
+              b = strchr(a, ']');
+
+            if (n == 0 && b != NULL)
+              str(a, b - a);
+            else if (id.second != NULL)
+              str(id.second);
+            else
+              num(id.first);
+          }
+          else
+          {
+            if (id.second != NULL)
+              str(id.second);
+            else
+              num(id.first);
+          }
+
+          id = matcher->group_next_id();
+        }
+        break;
+      }
+
       case 'g':
         if (a != NULL)
         {
-          size_t n = matcher->accept();
+          std::pair<size_t,const char*> id = matcher->group_id();
+          size_t n = id.first;
 
           if (n > 0)
           {
@@ -566,7 +622,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
             {
               b = strchr(a, '|');
 
-              if (b == NULL || --n == 0)
+              if (--n == 0 || b == NULL)
                 break;
 
               a = b + 1;
@@ -575,8 +631,12 @@ void Output::format(const char *format, const char *pathname, const std::string&
             if (b == NULL)
               b = strchr(a, ']');
 
-            if (b != NULL)
+            if (n == 0 && b != NULL)
               str(a, b - a);
+            else if (id.second != NULL)
+              str(id.second);
+            else
+              num(id.first);
           }
         }
         else

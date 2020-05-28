@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.1.3"
+#define UGREP_VERSION "2.1.4"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -2135,10 +2135,14 @@ void GrepMaster::submit(const char *pathname)
 bool GrepMaster::steal(GrepWorker *worker)
 {
   // pick a random co-worker using thread-safe std::chrono::high_resolution_clock as a simple RNG
-  long n = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() % threads;
+  size_t n = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() % threads;
   std::list<GrepWorker>::iterator iworker = workers.begin();
-  while (--n >= 0)
+
+  while (n > 0)
+  {
     ++iworker;
+    --n;
+  }
 
   // try to steal a job from the random co-worker or the next co-workers
   for (size_t i = 0; i < threads; ++i)

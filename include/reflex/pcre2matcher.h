@@ -28,7 +28,7 @@
 
 /**
 @file      pcre2matcher.h
-@brief     PCRE2-based matcher engines for pattern matching
+@brief     PCRE2-JIT-based matcher engines for pattern matching
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -112,6 +112,8 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
       stk_(NULL)
   {
     reset();
+    cop_ = matcher.cop_;
+    flg_ = matcher.flg_;
 #ifdef pcre2_code_copy_with_tables
     opc_ = pcre2_code_copy_with_tables(matcher.opc_);
     dat_ = pcre2_match_data_create_from_pattern(opc_, NULL);
@@ -149,6 +151,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
   {
     DBGLOG("PCRE2Matcher::reset()");
     flg_ = 0;
+    grp_ = 0;
     PatternMatcher::reset(opt);
     if (ctx_ == NULL)
       ctx_ = pcre2_match_context_create(NULL);
@@ -224,7 +227,55 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
       return std::pair<const char*,size_t>(NULL, 0);
     return std::pair<const char*,size_t>(buf_ + ovector[n2], ovector[n2 + 1] - ovector[n2]);
   }
+  /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
+  virtual std::pair<size_t,const char*> group_id()
+    /// @returns a pair of size_t and string
+  {
+    grp_ = 1;
+    if (dat_ == NULL || pcre2_get_ovector_count(dat_) <= 1)
+      return std::pair<size_t,const char*>(0, NULL);
+    PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(dat_);
+    if (ovector[2] == PCRE2_UNSET)
+      return group_next_id();
+    return id();
+  }
+  /// Returns the next group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (0,NULL) when no more groups matched
+  virtual std::pair<size_t,const char*> group_next_id()
+    /// @returns a pair of size_t and string
+  {
+    if (dat_ == NULL)
+      return std::pair<size_t,const char*>(0, NULL);
+    PCRE2_SIZE n = pcre2_get_ovector_count(dat_);
+    PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(dat_);
+    while (++grp_ < n)
+      if (ovector[2 * grp_] != PCRE2_UNSET)
+        break;
+    if (grp_ >= n)
+      return std::pair<size_t,const char*>(0, NULL);
+    return id();
+  }
  protected:
+  /// Translate group capture index to id pair (index,name)
+  std::pair<size_t,const char*> id()
+  {
+    PCRE2_SIZE name_count = 0;;
+    PCRE2_SPTR name_table = NULL;
+    PCRE2_SIZE name_entry_size = 0;
+    (void)pcre2_pattern_info(opc_, PCRE2_INFO_NAMECOUNT, &name_count);
+    (void)pcre2_pattern_info(opc_, PCRE2_INFO_NAMETABLE, &name_table);
+    (void)pcre2_pattern_info(opc_, PCRE2_INFO_NAMEENTRYSIZE, &name_entry_size);
+    if (name_table != NULL)
+    {
+      while (name_count > 0)
+      {
+        --name_count;
+        PCRE2_SPTR p = name_table + name_count * name_entry_size;
+        if ((static_cast<size_t>(static_cast<uint8_t>(p[0]) << 8) | static_cast<uint8_t>(p[1])) == grp_)
+          return std::pair<size_t,const char*>(grp_, reinterpret_cast<const char*>(p + 2));
+      }
+    }
+    return std::pair<size_t,const char*>(grp_, NULL);
+  }
   /// Compile pattern for jit partial matching and allocate match data.
   void compile()
   {
@@ -332,10 +383,11 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
          pattern for complete and partial matching (these are not exclusive):
          pcre2_jit_compile(opc_, PCRE2_JIT_COMPLETE | PCRE2_JIT_PARTIAL_HARD);
          then pcre2_jit_match() without option PCRE2_PARTIAL_HARD always
-         returns error PCRE2_ERROR_JIT_BADOPTION when we want the complete
-         match when the end of the input is reached.  A final complete match is
-         required because we cannot tell whether the final partial match is
-         also a complete match.  Therefore, pcre2_jit_match is disabled.
+         returns error PCRE2_ERROR_JIT_BADOPTION when we actually want the
+         complete match when the end of the input is reached.  A final complete
+         match is required, because we cannot tell whether the final partial
+         match is also a complete match.  Therefore, pcre2_jit_match() is
+         unusable and disabled below in favor of pcre2_match().
          */
 #if 0
       if (jit_ && !(flg & PCRE2_ANCHORED))
@@ -405,6 +457,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
   pcre2_match_data    *dat_; ///< PCRE2 match data
   pcre2_match_context *ctx_; ///< PCRE2 match context;
   pcre2_jit_stack     *stk_; ///< PCRE2 jit match stack
+  PCRE2_SIZE           grp_; ///< last index for group_next_id()
   bool                 jit_; ///< true if jit-compiled PCRE2 code
 };
 

@@ -615,9 +615,11 @@ void Query::query()
 
   get_flags();
 
+  set_prompt();
+
   get_stdin();
 
-  query("Q>");
+  query_ui();
 
   VKey::cleanup();
   Screen::cleanup();
@@ -655,13 +657,12 @@ void Query::query()
     stdin_thread_.join();
 }
 
-void Query::query(const char *prompt)
+void Query::query_ui()
 {
   mode_       = Mode::QUERY;
   updated_    = false;
   message_    = false;
   *line_      = '\0';
-  prompt_     = prompt;
   start_      = 0;
   col_        = 0;
   len_        = 0;
@@ -2296,6 +2297,8 @@ void Query::meta(int key)
         buf[9] = fp->key;
 
         updated_ = true;
+
+        set_prompt();
       }
 
       Screen::put(0, 0, buf);
@@ -2585,6 +2588,18 @@ void Query::set_flags()
     flag_sort = flags_[45].flag ? "rcreated" : "created";
   else
     flag_sort = flags_[45].flag ? "rname" : "name";
+}
+
+void Query::set_prompt()
+{
+  if (flags_[5].flag)
+    prompt_ = "F>";
+  else if (flags_[6].flag)
+    prompt_ = "G>";
+  else if (flags_[16].flag)
+    prompt_ = "P>";
+  else
+    prompt_ = "Q>";
 }
 
 void Query::get_stdin()

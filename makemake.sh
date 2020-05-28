@@ -8,6 +8,10 @@ cp -r ../reflex/unicode/*.cpp lib
 cp -r ../reflex/lib/*.cpp lib
 fi
 
+# change lib/Makefile.am to use noinst_LIBRARIES
+sed -i .bak 's/lib_LIBRARIES/noinst_LIBRARIES/' lib/Makefile.am
+rm -f lib/Makefile.am.bak
+
 # run autoconf and automake stuff
 aclocal
 autoheader

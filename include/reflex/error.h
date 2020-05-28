@@ -42,6 +42,17 @@
 
 namespace reflex {
 
+inline std::string ztoa(size_t n)
+{
+  char buf[24];
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+  sprintf_s(buf, sizeof(buf), "%zu", n);
+#else
+  std::sprintf(buf, "%zu", n);
+#endif
+  return std::string(buf);
+}
+
 /// Regex syntax error exception error code.
 typedef int regex_error_type;
 

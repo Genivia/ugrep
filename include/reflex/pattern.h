@@ -61,7 +61,8 @@ namespace reflex {
 /// Pattern class holds a regex pattern and its compiled FSM opcode table or code for the reflex::Matcher engine.
 /** More info TODO */
 class Pattern {
-  friend class Matcher; ///< permit access by the reflex::Matcher engine
+  friend class Matcher;      ///< permit access by the reflex::Matcher engine
+  friend class FuzzyMatcher; ///< permit access by the reflex::FuzzyMatcher engine
  public:
   typedef uint8_t  Pred;   ///< predict match bits
   typedef uint16_t Hash;   ///< hash value type, max value is Const::HASH
@@ -166,7 +167,7 @@ class Pattern {
   void clear()
   {
     rex_.clear();
-    if (nop_ && opc_)
+    if (nop_ > 0 && opc_ != NULL)
       delete[] opc_;
     opc_ = NULL;
     nop_ = 0;
@@ -237,7 +238,7 @@ class Pattern {
     vms_ = pattern.vms_;
     ems_ = pattern.ems_;
     wms_ = pattern.wms_;
-    if (pattern.nop_ && pattern.opc_)
+    if (pattern.nop_ > 0 && pattern.opc_ != NULL)
     {
       nop_ = pattern.nop_;
       Opcode *code = new Opcode[nop_];
@@ -297,13 +298,13 @@ class Pattern {
   size_t nodes() const
     /// @returns number of nodes or 0 when no finite state machine was constructed by this pattern
   {
-    return nop_ ? vno_ : 0;
+    return nop_ > 0 ? vno_ : 0;
   }
   /// Get the number of finite state machine edges (transitions on input characters).
   size_t edges() const
     /// @returns number of edges or 0 when no finite state machine was constructed by this pattern
   {
-    return nop_ ? eno_ : 0;
+    return nop_ > 0 ? eno_ : 0;
   }
   /// Get the code size in number of words.
   size_t words() const
@@ -963,7 +964,7 @@ class Pattern {
   size_t                vno_; ///< number of finite state machine vertices |V|
   size_t                eno_; ///< number of finite state machine edges |E|
   const Opcode         *opc_; ///< points to the opcode table
-  size_t                nop_; ///< number of opcodes generated
+  Index                 nop_; ///< number of opcodes generated
   FSM                   fsm_; ///< function pointer to FSM code
   size_t                len_; ///< prefix length of pre_[], less or equal to 255
   size_t                min_; ///< patterns after the prefix are at least this long but no more than 8
