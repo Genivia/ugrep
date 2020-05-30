@@ -19,6 +19,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\bzip2-1.0.5\blocksort.c" />
+    <ClCompile Include="..\bzip2-1.0.5\bzlib.c" />
+    <ClCompile Include="..\bzip2-1.0.5\compress.c" />
+    <ClCompile Include="..\bzip2-1.0.5\crctable.c" />
+    <ClCompile Include="..\bzip2-1.0.5\decompress.c" />
+    <ClCompile Include="..\bzip2-1.0.5\huffman.c" />
+    <ClCompile Include="..\bzip2-1.0.5\randtable.c" />
     <ClCompile Include="..\zlib-1.2.11\adler32.c" />
     <ClCompile Include="..\zlib-1.2.11\crc32.c" />
     <ClCompile Include="..\zlib-1.2.11\gzclose.c" />
@@ -41,10 +48,17 @@
     <ClCompile Include="lib\unicode.cpp" />
     <ClCompile Include="lib\utf8.cpp" />
     <ClCompile Include="src\glob.cpp" />
+    <ClCompile Include="src\output.cpp" />
+    <ClCompile Include="src\query.cpp" />
+    <ClCompile Include="src\screen.cpp" />
+    <ClCompile Include="src\stats.cpp" />
     <ClCompile Include="src\ugrep.cpp" />
+    <ClCompile Include="src\vkey.cpp" />
     <ClCompile Include="src\zopen.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\api\lzma.h" />
+    <ClInclude Include="..\bzip2-1.0.5\bzlib.h" />
     <ClInclude Include="include\reflex\abslexer.h" />
     <ClInclude Include="include\reflex\absmatcher.h" />
     <ClInclude Include="include\reflex\bits.h" />
@@ -53,6 +67,7 @@
     <ClInclude Include="include\reflex\debug.h" />
     <ClInclude Include="include\reflex\error.h" />
     <ClInclude Include="include\reflex\flexlexer.h" />
+    <ClInclude Include="include\reflex\fuzzymatcher.h" />
     <ClInclude Include="include\reflex\input.h" />
     <ClInclude Include="include\reflex\matcher.h" />
     <ClInclude Include="include\reflex\pattern.h" />
@@ -67,6 +82,13 @@
     <ClInclude Include="include\zconf.h" />
     <ClInclude Include="include\zlib.h" />
     <ClInclude Include="src\glob.hpp" />
+    <ClInclude Include="src\mmap.hpp" />
+    <ClInclude Include="src\output.hpp" />
+    <ClInclude Include="src\query.hpp" />
+    <ClInclude Include="src\screen.hpp" />
+    <ClInclude Include="src\stats.hpp" />
+    <ClInclude Include="src\ugrep.hpp" />
+    <ClInclude Include="src\vkey.hpp" />
     <ClInclude Include="src\zopen.h" />
     <ClInclude Include="src\zstream.hpp" />
   </ItemGroup>
@@ -173,17 +195,19 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;HAVE_BOOST_REGEX;HAVE_LIBZ;ZLIB_WINAPI;NO_GZCOMPRESS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)\include;$(ProjectDir)\..\boost_1_72_0;$(ProjectDir)\..\zlib-1.2.11;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.34\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>
+      </DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>setargv.obj;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setargv.obj;pcre2-x32.lib;liblzma-x32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)\..;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -194,17 +218,17 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;HAVE_BOOST_REGEX;HAVE_LIBZ;ZLIB_WINAPI;NO_GZCOMPRESS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)\include;$(ProjectDir)\..\boost_1_72_0;$(ProjectDir)\..\zlib-1.2.11</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.34\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>setargv.obj;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setargv.obj;pcre2-x64.lib;liblzma-x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)\..;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Link>

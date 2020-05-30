@@ -198,6 +198,7 @@ class Query {
   static char                     searching_[16];
   static int                      dots_;
   static size_t                   context_;
+  static size_t                   fuzzy_;
 
 #ifdef OS_WIN
 

@@ -2156,6 +2156,18 @@ void Query::meta(int key)
             flags_[14].flag = false;
             break;
 
+          case 'F':
+            flags_[6].flag = false;
+            flags_[16].flag = false;
+            flags_[29].flag = false;
+            break;
+
+          case 'G':
+            flags_[5].flag = false;
+            flags_[16].flag = false;
+            flags_[29].flag = false;
+            break;
+
           case 'H':
             flags_[8].flag = false;
             break;
@@ -2191,15 +2203,21 @@ void Query::meta(int key)
             flags_[28].flag = false;
             break;
 
+          case 'P':
+            flags_[5].flag = false;
+            flags_[6].flag = false;
+            flags_[29].flag = false;
+            break;
+
           case 'R':
             flags_[18].flag = false;
-            for (int i = 31; i <= 39; ++i)
+            for (int i = 32; i <= 40; ++i)
               flags_[i].flag = false;
             break;
 
           case 'r':
             flags_[17].flag = false;
-            for (int i = 31; i <= 39; ++i)
+            for (int i = 32; i <= 40; ++i)
               flags_[i].flag = false;
             break;
 
@@ -2228,6 +2246,12 @@ void Query::meta(int key)
             flags_[15].flag = false;
             break;
 
+          case 'Z':
+            flags_[5].flag = false;
+            flags_[6].flag = false;
+            flags_[16].flag = false;
+            break;
+
           case '1':
           case '2':
           case '3':
@@ -2237,25 +2261,25 @@ void Query::meta(int key)
           case '7':
           case '8':
           case '9':
-            for (int i = 31; i <= 39; ++i)
+            for (int i = 32; i <= 40; ++i)
               flags_[i].flag = false;
             if (!flags_[17].flag && !flags_[18].flag)
               flags_[17].flag = true;
             break;
 
           case '#':
-            flags_[43].flag = false;
             flags_[44].flag = false;
+            flags_[45].flag = false;
             break;
 
           case '%':
-            flags_[42].flag = false;
-            flags_[44].flag = false;
+            flags_[43].flag = false;
+            flags_[45].flag = false;
             break;
 
           case '@':
-            flags_[42].flag = false;
             flags_[43].flag = false;
+            flags_[44].flag = false;
             break;
 
         }
@@ -2266,7 +2290,7 @@ void Query::meta(int key)
         {
           case 'R':
           case 'r':
-            for (int i = 31; i <= 39; ++i)
+            for (int i = 32; i <= 40; ++i)
               flags_[i].flag = false;
             break;
         }
@@ -2476,6 +2500,10 @@ void Query::get_flags()
   else if (flag_before_context > 0)
     context_ = flag_before_context;
 
+  // remember the fuzzy max, when specified
+  if (flag_fuzzy > 0)
+    fuzzy_ = flag_fuzzy;
+
   // get the interactive flags from the ugrep flags
   flags_[0].flag = flag_after_context > 0 && flag_before_context == 0;
   flags_[1].flag = flag_after_context == 0 && flag_before_context > 0;
@@ -2506,23 +2534,24 @@ void Query::get_flags()
   flags_[26].flag = flag_line_regexp;
   flags_[27].flag = flag_empty;
   flags_[28].flag = flag_any_line;
-  flags_[29].flag = flag_decompress;
-  flags_[30].flag = flag_null;
-  flags_[31].flag = flag_max_depth == 1;
-  flags_[32].flag = flag_max_depth == 2;
-  flags_[33].flag = flag_max_depth == 3;
-  flags_[34].flag = flag_max_depth == 4;
-  flags_[35].flag = flag_max_depth == 5;
-  flags_[36].flag = flag_max_depth == 6;
-  flags_[37].flag = flag_max_depth == 7;
-  flags_[38].flag = flag_max_depth == 8;
-  flags_[39].flag = flag_max_depth == 9;
-  flags_[40].flag = flag_no_hidden;
-  flags_[41].flag = flag_heading;
-  flags_[42].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
-  flags_[43].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
-  flags_[44].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
-  flags_[45].flag = flag_sort && *flag_sort == 'r';
+  flags_[29].flag = flag_fuzzy > 0;
+  flags_[30].flag = flag_decompress;
+  flags_[31].flag = flag_null;
+  flags_[32].flag = flag_max_depth == 1;
+  flags_[33].flag = flag_max_depth == 2;
+  flags_[34].flag = flag_max_depth == 3;
+  flags_[35].flag = flag_max_depth == 4;
+  flags_[36].flag = flag_max_depth == 5;
+  flags_[37].flag = flag_max_depth == 6;
+  flags_[38].flag = flag_max_depth == 7;
+  flags_[39].flag = flag_max_depth == 8;
+  flags_[40].flag = flag_max_depth == 9;
+  flags_[41].flag = flag_no_hidden;
+  flags_[42].flag = flag_heading;
+  flags_[43].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
+  flags_[44].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
+  flags_[45].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
+  flags_[46].flag = flag_sort && *flag_sort == 'r';
 }
 
 void Query::set_flags()
@@ -2572,22 +2601,23 @@ void Query::set_flags()
   flag_line_regexp = flags_[26].flag;
   flag_empty = flags_[27].flag;
   flag_any_line = flags_[28].flag;
-  flag_decompress = flags_[29].flag;
-  flag_null = flags_[30].flag;
+  flag_fuzzy = flags_[29].flag ? fuzzy_ : 0;
+  flag_decompress = flags_[30].flag;
+  flag_null = flags_[31].flag;
   flag_max_depth = 0;
-  for (size_t i = 31; i <= 39; ++i)
+  for (size_t i = 32; i <= 40; ++i)
     if (flags_[i].flag)
-      flag_max_depth = i - 30;
-  flag_no_hidden = flags_[40].flag;
-  flag_heading = flags_[41].flag;
-  if (flags_[42].flag)
-    flag_sort = flags_[45].flag ? "rsize" : "size";
-  else if (flags_[43].flag)
-    flag_sort = flags_[45].flag ? "rchanged" : "changed";
+      flag_max_depth = i - 31;
+  flag_no_hidden = flags_[41].flag;
+  flag_heading = flags_[42].flag;
+  if (flags_[43].flag)
+    flag_sort = flags_[46].flag ? "rsize" : "size";
   else if (flags_[44].flag)
-    flag_sort = flags_[45].flag ? "rcreated" : "created";
+    flag_sort = flags_[46].flag ? "rchanged" : "changed";
+  else if (flags_[45].flag)
+    flag_sort = flags_[46].flag ? "rcreated" : "created";
   else
-    flag_sort = flags_[45].flag ? "rname" : "name";
+    flag_sort = flags_[46].flag ? "rname" : "name";
 }
 
 void Query::set_prompt()
@@ -2598,6 +2628,8 @@ void Query::set_prompt()
     prompt_ = "G>";
   else if (flags_[16].flag)
     prompt_ = "P>";
+  else if (flags_[29].flag)
+    prompt_ = "Z>";
   else
     prompt_ = "Q>";
 }
@@ -2755,6 +2787,7 @@ std::thread              Query::stdin_thread_;
 char                     Query::searching_[16]       = "Searching...";
 int                      Query::dots_                = 3;
 size_t                   Query::context_             = 2;
+size_t                   Query::fuzzy_               = 1;
 
 #ifdef OS_WIN
 
@@ -2795,6 +2828,7 @@ Query::Flags Query::flags_[] = {
   { false, 'x', "line match" },
   { false, 'Y', "empty matches" },
   { false, 'y', "any line" },
+  { false, 'Z', "fuzzy matching" },
   { false, 'z', "decompress" },
   { false, '0', "file name + \\0" },
   { false, '1', "recurse 1 level" },

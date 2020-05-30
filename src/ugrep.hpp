@@ -224,6 +224,7 @@ extern bool flag_sort_rev;
 extern Sort flag_sort_key;
 extern Action flag_devices_action;
 extern Action flag_directories_action;
+extern size_t flag_fuzzy;
 extern size_t flag_query;
 extern size_t flag_after_context;
 extern size_t flag_before_context;

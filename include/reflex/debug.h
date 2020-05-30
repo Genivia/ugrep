@@ -38,14 +38,16 @@ Exploiting macro magic to simplify debug logging.
 Usage
 -----
 
-`DBGLOG(format, ...)` creates a timestamped log entry with a printf-formatted
-message. The log entry is added to a log file or sent to `stderr` as specified:
+Enable macro DEBUG to debug the compiled source code:
 
 | Source files compiled with	| DBGLOG(...) entry added to	|
 | ----------------------------- | ----------------------------- |
 | `c++ -DDEBUG`			| `DEBUG.log`			|
 | `c++ -DDEBUG=TEST`		| `TEST.log`			|
 | `c++ -DDEBUG= `		| `stderr`			|
+
+`DBGLOG(format, ...)` creates a timestamped log entry with a printf-formatted
+message. The log entry is added to a log file or sent to `stderr` as specified:
 
 `DBGLOGN(format, ...)` creates a log entry without a timestamp.
 
@@ -55,6 +57,13 @@ message. The log entry is added to a log file or sent to `stderr` as specified:
 
 The utility macro `DBGSTR(const char *s)` returns string `s` or `"(null)"` when
 `s == NULL`.
+
+@note to temporarily enable debugging a specific block of code without globally
+debugging all code, use a leading underscore, e.g. `_DBGLOG(format, ...)`.
+This appends the debugging information to `DEBUG.log`.
+
+@warning Be careful to revert these statements by removing the leading
+underscore for production-quality code.
 
 Example
 -------
@@ -115,6 +124,7 @@ Techniques used:
 #define REFLEX_DEBUG_H
 
 #include <cassert>
+#include <cstdio>
 
 /// If ASSERT not defined, make ASSERT a no-op
 #ifndef ASSERT
@@ -124,12 +134,6 @@ Techniques used:
 #undef DBGLOG
 #undef DBGLOGN
 #undef DBGLOGA
-
-#ifdef DEBUG
-
-#include <stdio.h>
-
-#define DBGCHK(c) assert(c)
 
 extern FILE *REFLEX_DBGFD_;
 
@@ -143,22 +147,29 @@ extern "C" void REFLEX_DBGOUT_(const char *log, const char *file, int line);
 # define DBGFILE DBGXIFY(DEBUG) ".log"
 #endif
 #define DBGSTR(S) (S?S:"(NULL)")
-#define DBGLOG(...) \
+#define _DBGLOG(...) \
 ( REFLEX_DBGOUT_(DBGFILE, __FILE__, __LINE__), ::fprintf(REFLEX_DBGFD_, "" __VA_ARGS__), ::fflush(REFLEX_DBGFD_))
-#define DBGLOGN(...) \
+#define _DBGLOGN(...) \
 ( ::fprintf(REFLEX_DBGFD_, "\n                                        " __VA_ARGS__), ::fflush(REFLEX_DBGFD_) )
-#define DBGLOGA(...) \
+#define _DBGLOGA(...) \
 ( ::fprintf(REFLEX_DBGFD_, "" __VA_ARGS__), ::fflush(REFLEX_DBGFD_) )
+
+#ifdef DEBUG
+
+#include <stdio.h>
+
+#define DBGCHK(c) assert(c)
+
+#define DBGLOG _DBGLOG
+#define DBGLOGN _DBGLOGN
+#define DBGLOGA _DBGLOGA
 
 #else
 
 #define DBGCHK(c) (void)0
 
-/// When compiled with -DDEBUG, adds a timestamped log entry with a printf-formatted message.
 #define DBGLOG(...) (void)0
-/// When compiled with -DDEBUG, adds a log entry with a printf-formatted message.
 #define DBGLOGN(...) (void)0
-/// When compiled with -DDEBUG, appends a printf-formatted message to the last log entry.
 #define DBGLOGA(...) (void)0
 
 #endif

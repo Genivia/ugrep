@@ -678,25 +678,25 @@ class AbstractMatcher {
   }
 #endif
   /// Returns std::pair<size_t,std::string>(accept(), str()), useful for tokenizing input into containers of pairs.
-  std::pair<size_t,std::string> pair() const
+  inline std::pair<size_t,std::string> pair() const
     /// @returns std::pair<size_t,std::string>(accept(), str())
   {
     return std::pair<size_t,std::string>(accept(), str());
   }
   /// Returns std::pair<size_t,std::wstring>(accept(), wstr()), useful for tokenizing input into containers of pairs.
-  std::pair<size_t,std::wstring> wpair() const
+  inline std::pair<size_t,std::wstring> wpair() const
     /// @returns std::pair<size_t,std::wstring>(accept(), wstr())
   {
     return std::pair<size_t,std::wstring>(accept(), wstr());
   }
   /// Returns the position of the first character of the match in the input character sequence, a constant-time operation.
-  size_t first() const
+  inline size_t first() const
     /// @returns position in the input character sequence
   {
     return num_ + txt_ - buf_;
   }
   /// Returns the exclusive position of the last character of the match in the input character sequence, a constant-time operation.
-  size_t last() const
+  inline size_t last() const
     /// @returns position in the input character sequence
   {
     return first() + size();
@@ -1439,7 +1439,9 @@ class PatternMatcher : public AbstractMatcher {
       AbstractMatcher(matcher.in, matcher.opt_),
       pat_(matcher.pat_),
       own_(false)
-  { }
+  {
+    DBGLOG("PatternMatcher::PatternMatcher(matcher)");
+  }
   /// Delete matcher, deletes pattern when owned
   virtual ~PatternMatcher()
   {
@@ -1471,7 +1473,7 @@ class PatternMatcher : public AbstractMatcher {
   virtual PatternMatcher& pattern(const Pattern& pattern) ///< pattern object for this matcher
     /// @returns this matcher
   {
-    DBGLOG("Patternatcher::pattern()");
+    DBGLOG("PatternMatcher::pattern()");
     if (pat_ != &pattern)
     {
       if (own_ && pat_ != NULL)
@@ -1485,7 +1487,7 @@ class PatternMatcher : public AbstractMatcher {
   virtual PatternMatcher& pattern(const Pattern *pattern) ///< pattern object for this matcher
     /// @returns this matcher
   {
-    DBGLOG("Patternatcher::pattern()");
+    DBGLOG("PatternMatcher::pattern()");
     if (pat_ != pattern)
     {
       if (own_ && pat_ != NULL)
@@ -1499,7 +1501,7 @@ class PatternMatcher : public AbstractMatcher {
   virtual PatternMatcher& pattern(const char *pattern) ///< regex string to instantiate internal pattern object
     /// @returns this matcher
   {
-    DBGLOG("Patternatcher::pattern(\"%s\")", pattern);
+    DBGLOG("PatternMatcher::pattern(\"%s\")", pattern);
     if (own_ && pat_ != NULL)
       delete pat_;
     pat_ = new Pattern(pattern);
@@ -1510,7 +1512,7 @@ class PatternMatcher : public AbstractMatcher {
   virtual PatternMatcher& pattern(const std::string& pattern) ///< regex string to instantiate internal pattern object
     /// @returns this matcher
   {
-    DBGLOG("Patternatcher::pattern(\"%s\")", pattern.c_str());
+    DBGLOG("PatternMatcher::pattern(\"%s\")", pattern.c_str());
     if (own_ && pat_ != NULL)
       delete pat_;
     pat_ = new Pattern(pattern);
@@ -1547,6 +1549,7 @@ class PatternMatcher : public AbstractMatcher {
       pat_(pattern),
       own_(false)
   { }
+  /// Construct a base abstract matcher from a persistent pattern object (that is shared with this class) and an input character sequence.
   PatternMatcher(
       const Pattern& pattern,         ///< pattern object for this matcher
       const Input&   input = Input(), ///< input character sequence for this matcher

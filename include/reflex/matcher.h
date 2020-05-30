@@ -58,23 +58,41 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   {
     Matcher::reset();
   }
-  /// Construct matcher engine from a pattern or a string regex, and an input character sequence.
-  template<typename P> /// @tparam <P> a reflex::Pattern or a string regex 
+  /// Construct matcher engine from a pattern, and an input character sequence.
   Matcher(
-      const P     *pattern,         ///< points to a reflex::Pattern or a string regex for this matcher
-      const Input& input = Input(), ///< input character sequence for this matcher
-      const char  *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
+      const Pattern *pattern,         ///< points to a reflex::Pattern
+      const Input&   input = Input(), ///< input character sequence for this matcher
+      const char    *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
       PatternMatcher<reflex::Pattern>(pattern, input, opt)
   {
     reset(opt);
   }
-  /// Construct matcher engine from a pattern or a string regex, and an input character sequence.
-  template<typename P> /// @tparam <P> a reflex::Pattern or a string regex 
+  /// Construct matcher engine from a string regex, and an input character sequence.
   Matcher(
-      const P&     pattern,          ///< a reflex::Pattern or a string regex for this matcher
-      const Input& input = Input(),  ///< input character sequence for this matcher
+      const char   *pattern,         ///< a string regex for this matcher
+      const Input&  input = Input(), ///< input character sequence for this matcher
       const char   *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
+    :
+      PatternMatcher<reflex::Pattern>(pattern, input, opt)
+  {
+    reset(opt);
+  }
+  /// Construct matcher engine from a pattern, and an input character sequence.
+  Matcher(
+      const Pattern& pattern,         ///< a reflex::Pattern
+      const Input&   input = Input(), ///< input character sequence for this matcher
+      const char    *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
+    :
+      PatternMatcher<reflex::Pattern>(pattern, input, opt)
+  {
+    reset(opt);
+  }
+  /// Construct matcher engine from a string regex, and an input character sequence.
+  Matcher(
+      const std::string& pattern,         ///< a reflex::Pattern or a string regex for this matcher
+      const Input&       input = Input(), ///< input character sequence for this matcher
+      const char        *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
       PatternMatcher<reflex::Pattern>(pattern, input, opt)
   {
@@ -87,6 +105,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
       ded_(matcher.ded_),
       tab_(matcher.tab_)
   {
+    DBGLOG("Matcher::Matcher(matcher)");
     bmd_ = matcher.bmd_;
     if (bmd_ != 0)
       std::memcpy(bms_, matcher.bms_, sizeof(bms_));
@@ -341,12 +360,12 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// FSM code META EWB.
   inline bool FSM_META_EWB()
   {
-    return at_eow();
+    return isword(got_) && !isword(static_cast<unsigned char>(txt_[len_]));
   }
   /// FSM code META BWB.
   inline bool FSM_META_BWB()
   {
-    return at_bow();
+    return !isword(got_) && isword(static_cast<unsigned char>(txt_[len_]));
   }
   /// FSM code META NWE.
   inline bool FSM_META_NWE(int c0, int c1)
@@ -356,7 +375,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// FSM code META NWB.
   inline bool FSM_META_NWB()
   {
-    return !at_bow() && !at_eow();
+    return isword(got_) == isword(static_cast<unsigned char>(txt_[len_]));
   }
   /// Check CPU hardware for AVX512BW capability.
   static bool have_HW_AVX512BW()
@@ -614,7 +633,8 @@ redo:
                   continue;
                 case Pattern::META_EWB - Pattern::META_MIN:
                   DBGLOG("EWB? %d", at_eow());
-                  if (jump == Pattern::Const::IMAX && at_eow())
+                  if (jump == Pattern::Const::IMAX && isword(got_) &&
+                      !isword(static_cast<unsigned char>(txt_[len_])))
                   {
                     jump = Pattern::index_of(opcode);
                     if (jump == Pattern::Const::LONG)
@@ -624,7 +644,8 @@ redo:
                   continue;
                 case Pattern::META_BWB - Pattern::META_MIN:
                   DBGLOG("BWB? %d", at_bow());
-                  if (jump == Pattern::Const::IMAX && at_bow())
+                  if (jump == Pattern::Const::IMAX && !isword(got_) &&
+                      isword(static_cast<unsigned char>(txt_[len_])))
                   {
                     jump = Pattern::index_of(opcode);
                     if (jump == Pattern::Const::LONG)
@@ -644,7 +665,8 @@ redo:
                   continue;
                 case Pattern::META_NWB - Pattern::META_MIN:
                   DBGLOG("NWB? %d %d", at_bow(), at_eow());
-                  if (jump == Pattern::Const::IMAX && !at_bow() && !at_eow())
+                  if (jump == Pattern::Const::IMAX &&
+                      isword(got_) == isword(static_cast<unsigned char>(txt_[len_])))
                   {
                     jump = Pattern::index_of(opcode);
                     if (jump == Pattern::Const::LONG)
@@ -756,8 +778,9 @@ unrolled:
         ded_ += tab_.size() - n;
         DBGLOG("Dedents: ded = %zu tab_ = %zu", ded_, tab_.size());
         tab_.resize(n);
+        // adjust stop when indents are not aligned (Python would give an error)
         if (n > 0)
-          tab_.back() = col_; // adjust stop when indents are not aligned (Python would give an error)
+          tab_.back() = col_;
       }
     }
     if (ded_ > 0)
@@ -769,7 +792,8 @@ unrolled:
         tab_.resize(0);
         DBGLOG("Rescan for pending dedents: ded = %zu", ded_);
         pos_ = ind_;
-        bol = false; // avoid looping, match \j exactly
+        // avoid looping, match \j exactly
+        bol = false;
         goto redo;
       }
       --ded_;
@@ -814,8 +838,9 @@ unrolled:
     {
       if (method == Const::FIND && !at_end())
       {
-        if (pos_ == cur_ + 1) // early fail after one non-matching char, i.e. no META executed
+        if (pos_ == cur_ + 1)
         {
+          // early fail after one non-matching char, i.e. no META executed
           if (advance())
           {
             txt_ = buf_ + cur_;
@@ -827,8 +852,9 @@ unrolled:
             return cap_ = 1;
           }
         }
-        else if (pos_ > cur_) // we didn't fail on META alone
+        else if (pos_ > cur_)
         {
+          // we didn't fail on META alone
           if (advance())
           {
             if (!pat_->one_)
@@ -843,7 +869,8 @@ unrolled:
       }
       else
       {
-        cur_ = txt_ - buf_; // no match: backup to begin of unmatched text
+        // no match: backup to begin of unmatched text
+        cur_ = txt_ - buf_;
       }
     }
     len_ = cur_ - (txt_ - buf_);
@@ -860,8 +887,10 @@ unrolled:
       else if (method == Const::FIND)
       {
         DBGLOG("Reject empty match and continue?");
-        set_current(++cur_); // skip one char to keep searching
-        if (cap_ == 0 || !opt_.N || (!bol && c1 == '\n')) // allow FIND with "N" to match an empty line, with ^$ etc.
+        // skip one char to keep searching
+        set_current(++cur_);
+        // allow FIND with "N" to match an empty line, with ^$ etc.
+        if (cap_ == 0 || !opt_.N || (!bol && c1 == '\n'))
           goto scan;
         DBGLOG("Accept empty match");
       }
@@ -881,16 +910,13 @@ unrolled:
     else
     {
       set_current(cur_);
-      if (len_ > 0)
+      if (len_ > 0 && cap_ == Const::REDO && !opt_.A)
       {
-        if (cap_ == Const::REDO && !opt_.A)
-        {
-          DBGLOG("Ignore accept and continue: len = %zu", len_);
-          len_ = 0;
-          if (method != Const::MATCH)
-            goto scan;
-          cap_ = 0;
-        }
+        DBGLOG("Ignore accept and continue: len = %zu", len_);
+        len_ = 0;
+        if (method != Const::MATCH)
+          goto scan;
+        cap_ = 0;
       }
     }
     DBGLOG("Return: cap = %zu txt = '%s' len = %zu pos = %zu got = %d", cap_, std::string(txt_, len_).c_str(), len_, pos_, got_);

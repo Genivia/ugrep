@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 28, 2020" "ugrep 2.1.4" "User Commands"
+.TH UGREP "1" "May 30, 2020" "ugrep 2.1.5" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -574,17 +574,21 @@ additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches.  By default, empty matches are disabled,
-unless a pattern begins with `^' or ends with `$'.  Note that \fB\-Y\fR
-when specified with an empty\-matching pattern, such as x? and x*,
-match all input, not only lines containing the character `x'.
+unless a pattern begins with `^' or ends with `$'.  With this
+option, empty\-matching pattern, such as x? and x*, match all input,
+not only lines containing the character `x'.
 .TP
 \fB\-y\fR, \fB\-\-any\-line\fR
 Any matching or non\-matching line is output.  Non\-matching lines
 are output with the `\fB\-'\fR separator as context of the matching lines.
 See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.  Disables multi\-line matching.
 .TP
-\fB\-Z\fR, \fB\-\-null\fR, \fB\-0\fR
-Prints a zero\-byte after the file name.
+\fB\-Z\fR[\fIMAX\fR], \fB\-\-fuzzy[\fR=\fIMAX\fR]
+Fuzzy mode: report approximate pattern matches within MAX errors.
+A character deletion, insertion or substitution counts as one
+error.  The default MAX is 1.  No whitespace may be given between
+\fB\-Z\fR and its argument MAX.  Option \fB\-\-sort\fR=best orders matching files
+by best match (not yet available in this release).
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,
@@ -597,6 +601,11 @@ file signature magic bytes, or matches file types, respectively.
 Supported compression formats: gzip (.gz), compress (.Z), zip,
 bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 lzma and xz (requires suffix .lzma, .tlz, .xz, .txz).
+.TP
+\fB\-0\fR, \fB\-\-null\fR
+Prints a zero\-byte (NUL) after the file name.  This option can be
+used with commands such as `find \fB\-p\fRrint0' and `xargs \fB\-0\fR' to process
+arbitrary file names.
 .PP
 If no \fIFILE\fR arguments are specified and input is read from a terminal,
 recursive searches are performed as if \fB-R\fR is specified.  To force reading

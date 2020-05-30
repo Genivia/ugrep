@@ -81,7 +81,7 @@ class Pattern {
     static const Hash   HASH = 0x1000;     ///< size of the predict match array
   };
   /// Construct an unset pattern.
-  explicit Pattern()
+  Pattern()
     :
       opc_(NULL),
       nop_(0),
@@ -99,7 +99,7 @@ class Pattern {
     init(options);
   }
   /// Construct a pattern object given a regex string.
-  explicit Pattern(
+  Pattern(
       const char        *regex,
       const std::string& options)
     :
@@ -121,7 +121,7 @@ class Pattern {
     init(options);
   }
   /// Construct a pattern object given a regex string.
-  explicit Pattern(
+  Pattern(
       const std::string& regex,
       const std::string& options)
     :

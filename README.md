@@ -40,6 +40,7 @@ search pdf and office documents using filters
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
 - Interactive [query UI](#query) to enter search patterns
 - Select files to search by [file types, filename suffix, and "magic bytes"](#magic)
+- Find approximate pattern matches with [fuzzy search](#fuzzy)
 - Search [archives](#archives) (cpio, jar, tar, pax, zip)
 - Search [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
 - Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
@@ -79,6 +80,7 @@ Table of contents
   - [Searching source code using -f, -O, and -t](#source)
   - [Searching compressed files and archives with -z](#archives)
   - [Find files by file signature and shebang "magic bytes" with -M and -t](#magic)
+  - [Fuzzy search with -Z](#fuzzy)
   - [Using filter utilities to search documents with --filter](#filter)
   - [Searching and displaying binary files with -U, -W, and -X](#binary)
   - [Ignoring hidden files and binary files with --no-hidden and -I](#hidden)
@@ -92,7 +94,7 @@ Table of contents
   - [Customized output with --format](#format)
   - [Replacing matches with --format backreferences to group captures](#replace)
   - [Limiting the number of matches with -m, --depth, --max-files, and --range](#max)
-  - [Matching empty patterns with -Y](#empty)
+  - [Matching empty patterns with --empty](#empty)
   - [Case-insensitive matching with -i and -j](#case)
   - [Sort files by name, size, and time](#sort)
   - [Tips for advanced users](#tips)
@@ -381,13 +383,13 @@ Build **ugrep** on Unix-like systems with colors enabled by default:
     $ ./build.sh
 
 This builds the `ugrep` executable in the `ugrep/src` directory with
-`./configure --enable-color` and `make -j`, tests it with `make test`.
-When all tests pass, the `ugrep` executable is copied to `ugrep/bin`.
+`./configure --enable-color` and `make -j`, tests it with `make test`.  When
+all tests pass, the `ugrep` executable is copied to `ugrep/bin`.
 
-To produce colorized output with filename headings by default:
+To ignore hidden files (dotfiles) and output results with a pager by default:
 
     $ cd ugrep
-    $ ./build.sh --enable-pretty
+    $ ./build.sh --disable-hidden --enable-pager
 
 To see the details of all build configuration options available, including
 `--with-grep-path`, `--with-grep-colors`, `--enable-color`, `--enable-pretty`,
@@ -595,6 +597,7 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 
 - **ugrep** matches patterns across multiple lines by default.
 - **ugrep** matches Unicode by default (disabled with option `-U`).
+- **ugrep** supports fuzzy (approximate) matching (option `-Z`).
 - **ugrep** regular expression patterns are more expressive than GNU grep and
   BSD grep POSIX ERE and support Unicode pattern matching and most of the PCRE
   syntax.  Extended regular expression (ERE) syntax is the default (i.e.
@@ -1661,6 +1664,35 @@ statements, excluding hidden files:
 
     ugrep -Rl --no-hidden -tPython -f python/imports
  
+<a name="fuzzy"/>
+
+### Fuzzy search with -Z
+
+    -Z[MAX], --fuzzy[=MAX]
+            Fuzzy mode: report approximate pattern matches within MAX errors.
+            A character deletion, insertion or substitution counts as one
+            error.  The default MAX is 1.  No whitespace may be given between
+            -Z and its argument MAX.  Option --sort=best orders matching files
+            by best match (not yet available in this release).
+
+A fuzzy pattern match always matches the first character(s) of the specified
+regex pattern, as a practical strategy to prevent empty and false "randomized"
+matches.
+
+Newlines (`\n`) and NUL (`\0`) characters are never deleted or substituted to
+ensure that fuzzy matches do not extend the pattern match beyond the number of
+lines that the pattern specifies.
+
+To search for approximate matches of the word `foobar` with `-Z`, i.e.
+approximate matching with one error, e.g. `Foobar`, `foo_bar`, `foo bar`,
+`fobar`:
+
+    ugrep -Z 'foobar'
+
+Same, but matching words only with `-w` and ignoring case with `-i`:
+
+    ugrep -Z -wi 'foobar'
+
 <a name="filter"/>
 
 ### Using filter utilities to search documents with --filter
@@ -3464,19 +3496,23 @@ in markdown:
 
            -Y, --empty
                   Permits  empty matches.  By default, empty matches are disabled,
-                  unless a pattern begins with `^' or ends with `$'.  Note that -Y
-                  when  specified  with  an empty-matching pattern, such as x? and
-                  x*, match all input, not only  lines  containing  the  character
-                  `x'.
+                  unless a pattern begins with `^' or ends with  `$'.   With  this
+                  option,  empty-matching  pattern,  such  as x? and x*, match all
+                  input, not only lines containing the character `x'.
 
            -y, --any-line
                   Any matching or non-matching line is output.  Non-matching lines
-                  are output with the `-' separator as  context  of  the  matching
-                  lines.   See  also  options -A, -B, and -C.  Disables multi-line
+                  are  output  with  the  `-' separator as context of the matching
+                  lines.  See also options -A, -B, and  -C.   Disables  multi-line
                   matching.
 
-           -Z, --null, -0
-                  Prints a zero-byte after the file name.
+           -Z[MAX], --fuzzy[=MAX]
+                  Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
+                  errors.  A character deletion, insertion or substitution  counts
+                  as one error.  The default MAX is 1.  No whitespace may be given
+                  between -Z and its  argument  MAX.   Option  --sort=best  orders
+                  matching  files  by  best  match  (not  yet  available  in  this
+                  release).
 
            -z, --decompress
                   Decompress files to search, when compressed.   Archives  (.cpio,
@@ -3490,6 +3526,11 @@ in markdown:
                   press (.Z), zip, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz,
                   .tbz2,  .tb2,  .tz2),  lzma and xz (requires suffix .lzma, .tlz,
                   .xz, .txz).
+
+           -0, --null
+                  Prints a zero-byte (NUL) after the file name.  This  option  can
+                  be  used  with commands such as `find -print0' and `xargs -0' to
+                  process arbitrary file names.
 
            If no FILE arguments are specified and input is read from  a  terminal,
            recursive searches are performed as if -R is specified.  To force read-
@@ -3915,7 +3956,7 @@ in markdown:
 
 
 
-    ugrep 2.1.4                      May 28, 2020                         UGREP(1)
+    ugrep 2.1.5                      May 30, 2020                         UGREP(1)
 
 <a name="patterns"/>
 
