@@ -173,35 +173,37 @@ class FuzzyMatcher : public Matcher {
   {
     if (bpt.pc1 == NULL)
       return NULL;
-    // search the next goto opcode
-    while (true)
-    {
-      if (Pattern::is_opcode_goto(*bpt.pc1))
-        break;
+    // find the goto opcode
+    while (!Pattern::is_opcode_goto(*bpt.pc1))
       ++bpt.pc1;
-    }
     Pattern::Index jump = Pattern::index_of(*bpt.pc1);
     if (jump == Pattern::Const::HALT)
     {
-      if (!Pattern::is_opcode_goto(*bpt.pc0) || (Pattern::lo_of(*bpt.pc0) & 0xC0) <= 0x40)
+      if (!Pattern::is_opcode_goto(*bpt.pc0) || (Pattern::lo_of(*bpt.pc0) & 0xC0) != 0xC0)
         return bpt.pc1 = NULL;
-      jump = Pattern::index_of(*bpt.pc0);
-      if (jump == Pattern::Const::HALT)
-        return bpt.pc1 = NULL;
-      // recurse over UTF-8 multibytes, linear case only (i.e. one wide char or a close range)
-      if (jump == Pattern::Const::LONG)
-        jump = Pattern::long_index_of(bpt.pc0[1]);
-      bpt.pc0 = pat_->opc_ + jump;
-      bpt.sub = false;
-      bpt.pc1 = bpt.pc0;
-      while (true)
+      for (int i = 0; i < 4; ++i)
       {
-        if (Pattern::is_opcode_goto(*bpt.pc1))
+        // recurse over UTF-8 multibytes, linear case only (i.e. one wide char)
+        jump = Pattern::index_of(*bpt.pc0);
+        if (jump == Pattern::Const::HALT)
+          return bpt.pc1 = NULL;
+        if (jump == Pattern::Const::LONG)
+          jump = Pattern::long_index_of(bpt.pc0[1]);
+        const Pattern::Opcode *pc0 = pat_->opc_ + jump;
+        const Pattern::Opcode *pc1 = pc0;
+        while (!Pattern::is_opcode_goto(*pc1))
+          ++pc1;
+        if ((Pattern::lo_of(*pc1) & 0x80) != 0x80)
           break;
-        ++bpt.pc1;
+        bpt.pc0 = pc0;
+        bpt.pc1 = pc1;
       }
+      jump = Pattern::index_of(*bpt.pc1);
+      bpt.sub = false;
       DBGLOG("Multibyte jump to %u", jump);
     }
+    if (jump == Pattern::Const::LONG)
+      jump = Pattern::long_index_of(bpt.pc1[1]);
     // restore errors
     err_ = bpt.err;
     // restore pos
@@ -211,12 +213,11 @@ class FuzzyMatcher : public Matcher {
       c1 = static_cast<unsigned char>(buf_[pos_ - 1]);
     else
       c1 = got_;
-    if (jump == Pattern::Const::LONG)
-      jump = Pattern::long_index_of(bpt.pc1[1]);
     // substitute or insert?
     if (bpt.sub)
     {
       int c = get();
+      DBGLOG("Substitute, jump to %u at pos %zu", jump, pos_);
       // skip UTF-8 multibytes
       if (c >= 0xC0)
       {
@@ -227,13 +228,12 @@ class FuzzyMatcher : public Matcher {
       }
       ++bpt.pc1;
       bpt.sub = false;
-      DBGLOG("Substitute, jump to %u at pos %zu", jump, pos_);
     }
     else
     {
+      DBGLOG("Insert, jump to %u at pos %zu", jump, pos_);
       bpt.sub = bpt.alt;
       bpt.pc1 += !bpt.alt;
-      DBGLOG("Insert, jump to %u at pos %zu", jump, pos_);
     }
     return pat_->opc_ + jump;
   }

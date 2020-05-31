@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.1.5"
+#define UGREP_VERSION "2.1.6"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -7837,8 +7837,9 @@ void help(const char *message, const char *arg)
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             A character deletion, insertion or substitution counts as one\n\
             error.  The default MAX is 1.  No whitespace may be given between\n\
-            -Z and its argument MAX.  Option --sort=best orders matching files\n\
-            by best match (not yet available in this release).\n\
+            -Z and its argument MAX.  The first character of an approximate\n\
+            match always matches the begin of a pattern.  Option --sort=best\n\
+            orders matching files by best match (not available yet).\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
             .pax, .tar, and .zip) and compressed archives (e.g. .taz, .tgz,\n\

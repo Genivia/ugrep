@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 30, 2020" "ugrep 2.1.5" "User Commands"
+.TH UGREP "1" "May 30, 2020" "ugrep 2.1.6" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -587,8 +587,11 @@ See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.  Disables multi\-line matc
 Fuzzy mode: report approximate pattern matches within MAX errors.
 A character deletion, insertion or substitution counts as one
 error.  The default MAX is 1.  No whitespace may be given between
-\fB\-Z\fR and its argument MAX.  Option \fB\-\-sort\fR=best orders matching files
-by best match (not yet available in this release).
+\fB\-Z\fR and its argument MAX.  The first character of an approximate
+match always matches the begin of a pattern.  A leading `.' in a
+pattern may be used to match any first character.  Option
+\fB\-\-sort\fR=best orders matching files by best match (not available yet
+in this release).
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,

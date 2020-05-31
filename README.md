@@ -886,8 +886,8 @@ This option starts a user interface to enter search patterns interactively:
   can be toggled with the Alt key while searching or when viewing the help
   screen.  If Alt/Meta keys are not supported (e.g. X11 xterm), then press
   CTRL-O followed by the key corresponding to the option.
-- The query UI prompt switches between `Q>` (normal), `P>` (Perl matching),
-  `F>` (fixed strings), and `G>` (basic regex).
+- The query UI prompt switches between `Q>` (normal), `F>` (fixed strings),
+  `G>` (basic regex), `P>` (Perl matching), and `Z>` (fuzzy matching).
 - Press Enter to switch to selection mode to select lines to output when ugrep
   exits.  Normally, ugrep in query mode does not output any results unless
   results are selected.  While in selection mode, select or deselect lines with
@@ -1672,12 +1672,13 @@ statements, excluding hidden files:
             Fuzzy mode: report approximate pattern matches within MAX errors.
             A character deletion, insertion or substitution counts as one
             error.  The default MAX is 1.  No whitespace may be given between
-            -Z and its argument MAX.  Option --sort=best orders matching files
-            by best match (not yet available in this release).
+            -Z and its argument MAX.  The first character of an approximate
+            match always matches the begin of a pattern.  Option --sort=best
+            orders matching files by best match (not available yet).
 
-A fuzzy pattern match always matches the first character(s) of the specified
-regex pattern, as a practical strategy to prevent empty and false "randomized"
-matches.
+The begin of a pattern always matches the first character of an approximate
+match as a practical strategy to prevent many empty and false "randomized"
+matches for short patterns.
 
 Newlines (`\n`) and NUL (`\0`) characters are never deleted or substituted to
 ensure that fuzzy matches do not extend the pattern match beyond the number of
@@ -3510,9 +3511,11 @@ in markdown:
                   Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
                   errors.  A character deletion, insertion or substitution  counts
                   as one error.  The default MAX is 1.  No whitespace may be given
-                  between -Z and its  argument  MAX.   Option  --sort=best  orders
-                  matching  files  by  best  match  (not  yet  available  in  this
-                  release).
+                  between -Z and its argument MAX.   The  first  character  of  an
+                  approximate  match  always  matches  the  begin of a pattern.  A
+                  leading `.' in a pattern may be used to match any first  charac-
+                  ter.   Option  --sort=best  orders  matching files by best match
+                  (not available yet in this release).
 
            -z, --decompress
                   Decompress files to search, when compressed.   Archives  (.cpio,
@@ -3956,7 +3959,7 @@ in markdown:
 
 
 
-    ugrep 2.1.5                      May 30, 2020                         UGREP(1)
+    ugrep 2.1.6                      May 30, 2020                         UGREP(1)
 
 <a name="patterns"/>
 
