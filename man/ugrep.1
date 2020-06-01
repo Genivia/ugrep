@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 30, 2020" "ugrep 2.1.6" "User Commands"
+.TH UGREP "1" "May 31, 2020" "ugrep 2.1.7" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -91,8 +91,8 @@ bright.  A foreground and a background color may be combined with
 font properties `n' (normal), `f' (faint), `h' (highlight), `i'
 (invert), `u' (underline).  Selectively overrides GREP_COLORS.
 .TP
-\fB\-\-[no\-]confirm\fR
-Do (not) confirm actions in \fB\-Q\fR query mode.  The default is confirm.
+\fB\-\-no\-confirm\fR
+Do not confirm actions in \fB\-Q\fR query mode.  The default is confirm.
 .TP
 \fB\-\-cpp\fR
 Output file matches in C++.  See also options \fB\-\-format\fR and \fB\-u\fR.
@@ -247,7 +247,7 @@ when there is more than one file to search.
 Never print filenames with output lines.  This is the default
 when there is only one file (or only standard input) to search.
 .TP
-\fB\-\-heading\fR
+\fB\-\-heading\fR, \fB\-+\fR
 Group matches per file.  Adds a heading and a line break between
 results from different files.
 .TP
@@ -260,8 +260,8 @@ default is 2 columns or 16 octets per line.  Option `b' removes all
 space breaks, `c' hides the character column, and `h' removes the
 hex spacing only.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
 .TP
-\fB\-\-[no\-]hidden\fR
-Do (not) search hidden files and directories.
+\fB\-\-hidden\fR, \fB\-.\fR
+Search hidden files and directories.
 .TP
 \fB\-I\fR
 Ignore matches in binary files.  This option is equivalent to the
@@ -427,12 +427,12 @@ Interpret PATTERN as a Perl regular expression using PCRE2.
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
 they are specified on the command line.
 .TP
-\fB\-\-[no\-]pager[\fR=\fICOMMAND\fR]
+\fB\-\-pager[\fR=\fICOMMAND\fR]
 When output is sent to the terminal, uses COMMAND to page through
 the output.  The default COMMAND is `less \fB\-R\fR'.  Enables \fB\-\-heading\fR
 and \fB\-\-line\-buffered\fR.
 .TP
-\fB\-\-[no\-]pretty\fR
+\fB\-\-pretty\fR
 When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-T\fR.
 .TP
 \fB\-Q\fR[\fIDELAY\fR], \fB\-\-query[\fR=\fIDELAY\fR]
@@ -585,13 +585,14 @@ See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.  Disables multi\-line matc
 .TP
 \fB\-Z\fR[\fIMAX\fR], \fB\-\-fuzzy[\fR=\fIMAX\fR]
 Fuzzy mode: report approximate pattern matches within MAX errors.
-A character deletion, insertion or substitution counts as one
-error.  The default MAX is 1.  No whitespace may be given between
-\fB\-Z\fR and its argument MAX.  The first character of an approximate
-match always matches the begin of a pattern.  A leading `.' in a
-pattern may be used to match any first character.  Option
-\fB\-\-sort\fR=best orders matching files by best match (not available yet
-in this release).
+By default, MAX is 1 and one deletion, insertion or substitution is
+allowed.  When `+' and/or `\fB\-'\fR preceed MAX, only insertions and/or
+deletions are allowed.  When `~' preceeds MAX, substitution counts
+as one error.  For example, \fB\-Z\fR+~3 allows up to three insertions or
+substitutions, but no deletions.  The first character of an
+approximate match always matches the begin of a pattern.  Option
+\fB\-\-sort\fR=best orders matching files by best match.  No whitespace may
+be given between \fB\-Z\fR and its argument.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,

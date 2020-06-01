@@ -2546,7 +2546,7 @@ void Query::get_flags()
   flags_[38].flag = flag_max_depth == 7;
   flags_[39].flag = flag_max_depth == 8;
   flags_[40].flag = flag_max_depth == 9;
-  flags_[41].flag = flag_no_hidden;
+  flags_[41].flag = flag_hidden;
   flags_[42].flag = flag_heading;
   flags_[43].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
   flags_[44].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
@@ -2608,7 +2608,7 @@ void Query::set_flags()
   for (size_t i = 32; i <= 40; ++i)
     if (flags_[i].flag)
       flag_max_depth = i - 31;
-  flag_no_hidden = flags_[41].flag;
+  flag_hidden = flags_[41].flag;
   flag_heading = flags_[42].flag;
   if (flags_[43].flag)
     flag_sort = flags_[46].flag ? "rsize" : "size";
@@ -2840,7 +2840,7 @@ Query::Flags Query::flags_[] = {
   { false, '7', "recurse 7 levels" },
   { false, '8', "recurse 8 levels" },
   { false, '9', "recurse 9 levels" },
-  { false, '.', "no hidden files" },
+  { false, '.', "hidden files" },
   { false, '+', "with heading" },
   { false, '#', "sort by size" },
   { false, '$', "sort by changed" },

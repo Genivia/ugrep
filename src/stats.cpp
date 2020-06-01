@@ -59,7 +59,7 @@ void Stats::report()
   if (warnings > 0)
     fprintf(output, "Received %zu warning%s\n", ws, ws == 1 ? "" : "s");
   if (flag_min_depth > 0 || flag_max_depth > 0 ||
-      flag_no_hidden ||
+      flag_hidden ||
       !flag_ignore_files.empty() ||
       !flag_file_magic.empty() ||
       !flag_include.empty() ||
@@ -80,8 +80,8 @@ void Stats::report()
       fprintf(output, "--depth=%zu,\n", flag_min_depth);
     else if (flag_max_depth > 0)
       fprintf(output, "--depth=%zu\n", flag_max_depth);
-    if (flag_no_hidden)
-      fprintf(output, "--no-hidden\n");
+    if (flag_hidden)
+      fprintf(output, "--hidden\n");
     for (auto& i : flag_ignore_files)
       fprintf(output, "--ignore-files='%s'\n", i.c_str());
     for (auto& i : ignore)

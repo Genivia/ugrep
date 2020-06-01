@@ -46,12 +46,19 @@ namespace reflex {
 /** More info TODO */
 class FuzzyMatcher : public Matcher {
  public:
+  /// Optional flags for the max parameter to constrain fuzzy matching, otherwise no constraints
+  static const uint16_t INS = 0x1000; ///< fuzzy match allows character insertions into the corpus
+  static const uint16_t DEL = 0x2000; ///< fuzzy match allows character deletions from the corpus
+  static const uint16_t SUB = 0x4000; ///< character substitutions in the corpus count as one edit, not two (insert+delete)
   /// Default constructor.
   FuzzyMatcher()
     :
       Matcher(),
       max_(1),
-      err_(0)
+      err_(0),
+      ins_(true),
+      del_(true),
+      sub_(true)
   {
     bpt_.resize(max_);
   }
@@ -64,7 +71,10 @@ class FuzzyMatcher : public Matcher {
     :
       Matcher(pattern, input, opt),
       max_(1),
-      err_(0)
+      err_(0),
+      ins_(true),
+      del_(true),
+      sub_(true)
   {
     bpt_.resize(max_);
   }
@@ -72,13 +82,16 @@ class FuzzyMatcher : public Matcher {
   template<typename P> /// @tparam <P> a reflex::Pattern or a string regex 
   FuzzyMatcher(
       const P     *pattern,         ///< points to a reflex::Pattern or a string regex for this matcher
-      uint8_t      max,             ///< max errors
+      uint16_t     max,             ///< max errors
       const Input& input = Input(), ///< input character sequence for this matcher
       const char  *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
       Matcher(pattern, input, opt),
-      max_(max),
-      err_(0)
+      max_(static_cast<uint8_t>(max)),
+      err_(0),
+      ins_(max <= 0xFF || (max & INS)),
+      del_(max <= 0xFF || (max & DEL)),
+      sub_(max <= 0xFF || (max & SUB))
   {
     bpt_.resize(max_);
   }
@@ -91,7 +104,10 @@ class FuzzyMatcher : public Matcher {
     :
       Matcher(pattern, input, opt),
       max_(1),
-      err_(0)
+      err_(0),
+      ins_(true),
+      del_(true),
+      sub_(true)
   {
     bpt_.resize(max_);
   }
@@ -99,13 +115,16 @@ class FuzzyMatcher : public Matcher {
   template<typename P> /// @tparam <P> a reflex::Pattern or a string regex 
   FuzzyMatcher(
       const P&     pattern,         ///< a reflex::Pattern or a string regex for this matcher
-      uint8_t      max,             ///< max errors
+      uint16_t     max,             ///< max errors
       const Input& input = Input(), ///< input character sequence for this matcher
       const char  *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
       Matcher(pattern, input, opt),
-      max_(max),
-      err_(0)
+      max_(static_cast<uint8_t>(max)),
+      err_(0),
+      ins_(max <= 0xFF || (max & INS)),
+      del_(max <= 0xFF || (max & DEL)),
+      sub_(max <= 0xFF || (max & SUB))
   {
     bpt_.resize(max_);
   }
@@ -114,7 +133,10 @@ class FuzzyMatcher : public Matcher {
     :
       Matcher(matcher),
       max_(matcher.max_),
-      err_(0)
+      err_(0),
+      ins_(true),
+      del_(true),
+      sub_(true)
   {
     DBGLOG("FuzzyMatcher::FuzzyMatcher(matcher)");
     bpt_.resize(max_);
@@ -125,6 +147,9 @@ class FuzzyMatcher : public Matcher {
     Matcher::operator=(matcher);
     max_ = matcher.max_;
     err_ = 0;
+    ins_ = matcher.ins_;
+    del_ = matcher.del_;
+    sub_ = matcher.sub_;
     return *this;
   }
   /// Polymorphic cloning.
@@ -149,14 +174,14 @@ class FuzzyMatcher : public Matcher {
         len(0),
         err(0),
         alt(true),
-        sub(false)
+        sub(true)
     { }
     const Pattern::Opcode *pc0; ///< start of opcode
     const Pattern::Opcode *pc1; ///< pointer to opcode to rerun on backtracking
     size_t                 len; ///< length of string matched so far
     uint8_t                err; ///< to restore errors
-    bool                   alt; ///< true if alternating between substitution and insertion, otherwise insertion only
-    bool                   sub; ///< flag alternates between substitution (true) and insertion (false)
+    bool                   alt; ///< true if alternating between pattern char substitution and insertion, otherwise insertion only
+    bool                   sub; ///< flag alternates between pattern char substitution (true) and insertion (false)
   };
   /// Set backtrack point.
   void point(BacktrackPoint& bpt, const Pattern::Opcode *pc, bool alternate = true, bool eof = false)
@@ -165,10 +190,10 @@ class FuzzyMatcher : public Matcher {
     bpt.pc1 = pc;
     bpt.len = pos_ - (txt_ - buf_) - !eof;
     bpt.err = err_;
-    bpt.alt = alternate;
-    bpt.sub = false;
+    bpt.alt = sub_ && alternate;
+    bpt.sub = bpt.alt;
   }
-  /// backtrack on a backtrack point to insert or substitute a char, restoring current char and errors.
+  /// backtrack on a backtrack point to insert or substitute a pattern char, restoring current text char matched and errors.
   const Pattern::Opcode *backtrack(BacktrackPoint& bpt, int& c1)
   {
     if (bpt.pc1 == NULL)
@@ -199,7 +224,7 @@ class FuzzyMatcher : public Matcher {
         bpt.pc1 = pc1;
       }
       jump = Pattern::index_of(*bpt.pc1);
-      bpt.sub = false;
+      bpt.sub = bpt.alt;
       DBGLOG("Multibyte jump to %u", jump);
     }
     if (jump == Pattern::Const::LONG)
@@ -213,12 +238,12 @@ class FuzzyMatcher : public Matcher {
       c1 = static_cast<unsigned char>(buf_[pos_ - 1]);
     else
       c1 = got_;
-    // substitute or insert?
+    // substitute or insert a pattern char in the text?
     if (bpt.sub)
     {
-      int c = get();
       DBGLOG("Substitute, jump to %u at pos %zu", jump, pos_);
       // skip UTF-8 multibytes
+      int c = get();
       if (c >= 0xC0)
       {
         int n = (c >= 0xE0) + (c >= 0xF0);
@@ -226,14 +251,14 @@ class FuzzyMatcher : public Matcher {
           if ((c = get()) == EOF)
             break;
       }
-      ++bpt.pc1;
       bpt.sub = false;
+      bpt.pc1 += !bpt.alt;
     }
     else
     {
       DBGLOG("Insert, jump to %u at pos %zu", jump, pos_);
       bpt.sub = bpt.alt;
-      bpt.pc1 += !bpt.alt;
+      ++bpt.pc1;
     }
     return pat_->opc_ + jump;
   }
@@ -603,26 +628,24 @@ unrolled:
           {
             if (c1 == EOF)
               break;
-            if (err_ < max_)
+            while (err_ < max_)
             {
-              do
+              c1 = get();
+              if (c1 == EOF)
+                break;
+              // skip one (multibyte) char
+              if (c1 >= 0xC0)
               {
-                c1 = get();
-                if (c1 == EOF)
-                  break;
-                // skip one (multibyte) char
-                if (c1 >= 0xC0)
-                {
-                  int n = (c1 >= 0xE0) + (c1 >= 0xF0);
-                  while (n-- >= 0)
-                    if ((c1 = get()) == EOF)
-                      break;
-                }
-              } while (++err_ < max_);
-              DBGLOG("match pos = %zu", pos_);
-              set_current(pos_);
-              break;
+                int n = (c1 >= 0xE0) + (c1 >= 0xF0);
+                while (n-- >= 0)
+                  if ((c1 = get()) == EOF)
+                    break;
+              }
+              ++err_;
             }
+            DBGLOG("match pos = %zu", pos_);
+            set_current(pos_);
+            break;
           }
         }
         else
@@ -634,11 +657,11 @@ unrolled:
         // no match, use fuzzy matching with max error
         if (c1 == '\0' || c1 == '\n' || c1 == EOF)
         {
-          // do not try to fuzzy match past NUL, LF, or EOF
-          if (err_ < max_)
+          // do not try to fuzzy match NUL, LF, or EOF
+          if (err_ < max_ && del_)
           {
             ++err_;
-            // set backtrack point to insert only, not substitute, if pc0 os a different point than the last
+            // set backtrack point to insert pattern char only, not substitute, if pc0 os a different point than the last
             if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
             {
               point(bpt_[stack++], pc0, false, c1 == EOF);
@@ -661,26 +684,32 @@ unrolled:
           if (err_ < max_)
           {
             ++err_;
-            // set backtrack point if pc0 is a different point than the last
-            if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
+            if (del_ || sub_)
             {
-              point(bpt_[stack++], pc0);
-              DBGLOG("point[%u] at %zu pos %zu", stack - 1, pc0 - pat_->opc_, pos_ - 1);
+              // set backtrack point if pc0 is a different point than the last
+              if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
+              {
+                point(bpt_[stack++], pc0);
+                DBGLOG("point[%u] at %zu pos %zu", stack - 1, pc0 - pat_->opc_, pos_ - 1);
+              }
             }
-            // try deletion: skip one (multibyte) char then rerun opcode at pc0
-            if (c1 >= 0xC0)
+            if (ins_)
             {
-              int n = (c1 >= 0xE0) + (c1 >= 0xF0);
-              while (n-- >= 0)
-                if ((c1 = get()) == EOF)
-                  break;
+              // try pattern char deletion (text insertion): skip one (multibyte) char then rerun opcode at pc0
+              if (c1 >= 0xC0)
+              {
+                int n = (c1 >= 0xE0) + (c1 >= 0xF0);
+                while (n-- >= 0)
+                  if ((c1 = get()) == EOF)
+                    break;
+              }
+              pc = pc0;
+              DBGLOG("delete %c at pos %zu", c1, pos_ - 1);
             }
-            pc = pc0;
-            DBGLOG("delete %c at pos %zu", c1, pos_ - 1);
           }
           else
           {
-            // try insertion or substitution
+            // try insertion or substitution of pattern char
             pc = NULL;
             while (stack > 0 && pc == NULL)
             {
@@ -859,7 +888,10 @@ unrolled:
   }
   std::vector<BacktrackPoint> bpt_; ///< vector of backtrack points, max_ size
   uint8_t max_;                     ///< max errors
-  uint8_t err_;                     ///< accumulated edit distance (not minimal)
+  uint8_t err_;                     ///< accumulated edit distance (not guaranteed minimal)
+  bool ins_;                        ///< fuzzy match inserted chars (extra chars) in the corpus
+  bool del_;                        ///< fuzzy match deleted chars (missing chars) in the corpus
+  bool sub_;                        ///< fuzzy match substituted chars in the corpus
 };
 
 } // namespace reflex

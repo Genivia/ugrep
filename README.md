@@ -5,7 +5,7 @@ Search for anything in everything... ultra fast
 <div align="center">
 <img src="https://www.genivia.com/images/scranim.gif" alt="">
 <br>
-new option -Q opens a query UI to search files and select results to output
+new option -Q opens a query UI to search files
 </div>
 <br>
 <div align="center">
@@ -81,9 +81,10 @@ Table of contents
   - [Searching compressed files and archives with -z](#archives)
   - [Find files by file signature and shebang "magic bytes" with -M and -t](#magic)
   - [Fuzzy search with -Z](#fuzzy)
+  - [Search hidden files with -.](#hidden)
   - [Using filter utilities to search documents with --filter](#filter)
   - [Searching and displaying binary files with -U, -W, and -X](#binary)
-  - [Ignoring hidden files and binary files with --no-hidden and -I](#hidden)
+  - [Ignore binary files with -I](#nobinary)
   - [Ignoring .gitignore-specified files with --ignore-files](#ignore)
   - [Using gitignore-style globs to select directories and files to search](#gitignore)
   - [Including or excluding mounted file systems from searches](#fs)
@@ -386,16 +387,21 @@ This builds the `ugrep` executable in the `ugrep/src` directory with
 `./configure --enable-color` and `make -j`, tests it with `make test`.  When
 all tests pass, the `ugrep` executable is copied to `ugrep/bin`.
 
-To ignore hidden files (dotfiles) and output results with a pager by default:
+To output results with a pager by default:
 
     $ cd ugrep
-    $ ./build.sh --disable-hidden --enable-pager
+    $ ./build.sh --enable-pager
 
-To see the details of all build configuration options available, including
-`--with-grep-path`, `--with-grep-colors`, `--enable-color`, `--enable-pretty`,
-`--enable-pager`, `--disable-hidden`, and `--disable-mmap`:
+Choices for defaults include:
 
-    $ ./build.sh --help
+- `--enable-color` colorize output to terminals (default)
+- `--enable-hidden` search hidden files and directories
+- `--enable-pager` use a pager to display output on terminals
+- `--enable-pretty` colorize output to terminals and add filename headings
+- `--disable-mmap` disable memory mapped files
+- `--with-grep-path` the default `-f` path if `GREP_PATH` is not defined
+- `--with-grep-colors` the default colors if `GREP_COLORS` is not defined
+- `--help` display build options
 
 After the build completes, copy `ugrep/bin/ugrep` to a convenient location, for
 example in your `~/bin` directory.
@@ -445,7 +451,7 @@ First, let's define the `:grep` command in Vim to search files recursively.  To
 do so, add the following lines to your `.vimrc` located in the root directory:
 
     if executable('ugrep')
-        set grepprg=ugrep\ -RInk\ -j\ -u\ --tabs=1\ --no-hidden\ --ignore-files
+        set grepprg=ugrep\ -RInk\ -j\ -u\ --tabs=1\ --ignore-files
         set grepformat=%f:%l:%c:%m,%f+%l+%c+%m,%-G%f\\\|%l\\\|%c\\\|%m
     endif
 
@@ -453,10 +459,9 @@ This specifies case insensitive searches with the Vim `:grep` command.  For
 case sensitive searches, remove `\ -j` from `grepprg`.  Multiple matches on the
 same line are listed in the quickfix window separately.  If this is not
 desired, remove `\ -u` from `grepprg`.  With this change, only the first match
-on a line is shown.  Option `--no-hidden` skips hidden files (dotfiles) and
-option `--ignore-files` skips files specified in `.gitignore` files, when
-present.  To limit the depth of recursive searches to the current directory
-only, append `\ -1` to `grepprg`.
+on a line is shown.  Option `--ignore-files` skips files specified in
+`.gitignore` files, when present.  To limit the depth of recursive searches to
+the current directory only, append `\ -1` to `grepprg`.
 
 You can now invoke the Vim `:grep` command in Vim to search files on a
 specified `PATH` for `PATTERN` matches:
@@ -508,14 +513,13 @@ CtrlP uses **ugrep** by adding the following lines to your `.vimrc`:
     if executable('ugrep')
         set runtimepath^=~/.vim/bundle/ctrlp.vim
         let g:ctrlp_match_window='bottom,order:ttb'
-        let g:ctrlp_user_command='ugrep %s -Rl -I --no-hidden --ignore-files -3'
+        let g:ctrlp_user_command='ugrep %s -Rl -I --ignore-files -3'
     endif
 
 These options are optional and may be omitted: `-I` skips binary files,
-`--no-hidden` skips hidden files (dotfiles), option `--ignore-files` skips
-files specified in `.gitignore` files, when present, and option `-3` restricts
-searching directories to three levels (the working directory and up to two
-levels below).  
+option `--ignore-files` skips files specified in `.gitignore` files, when
+present, and option `-3` restricts searching directories to three levels (the
+working directory and up to two levels below).  
 
 Start Vim then enter the command:
 
@@ -541,21 +545,22 @@ power users.
 GNU and BSD grep and their common variants are equivalent to **ugrep** when the
 following options are used (`-U` disables Unicode matching with UTF-8 patterns):
 
-    grep   = ugrep --sort -G -U -Y -Dread -dread
-    egrep  = ugrep --sort -E -U -Y -Dread -dread
-    fgrep  = ugrep --sort -F -U -Y -Dread -dread
+    grep   = ugrep --sort -G -U -Y -. -Dread -dread
+    egrep  = ugrep --sort -E -U -Y -. -Dread -dread
+    fgrep  = ugrep --sort -F -U -Y -. -Dread -dread
 
-    zgrep  = ugrep --sort -G -U -Y -z -Dread -dread
-    zegrep = ugrep --sort -E -U -Y -z -Dread -dread
-    zfgrep = ugrep --sort -F -U -Y -z -Dread -dread
+    zgrep  = ugrep --sort -G -U -Y -z -. -Dread -dread
+    zegrep = ugrep --sort -E -U -Y -z -. -Dread -dread
+    zfgrep = ugrep --sort -F -U -Y -z -. -Dread -dread
 
 Option `--sort` specifies output sorted by pathname, showing sorted matching
 files first followed by sorted recursive matches in subdirectories.  Otherwise,
 matches are reported in no particular order to improve performance.  Option
 `-Y` enables empty matches for GNU/BSD compatibility (`-Y` is not strictly
 necessary, for why and when to use it see [further below](#improvements).)
-Options `-Dread` and `-dread` are the GNU/BSD grep defaults but are not
-recommended (see [further below](#improvements) for explanation).
+Option `-.` searches hidden files (dotfiles).  Options `-Dread` and `-dread`
+are the GNU/BSD grep defaults but are not recommended (see
+[further below](#improvements) for explanation).
 
 <a name="aliases"/>
 
@@ -726,9 +731,9 @@ files (e.g.  assuming `.gitignore` is in the working directory or below):
     ugrep --ignore-files -tc++ -nkw main
 
 To list all files in the working directory and deeper that are not ignored by
-`.gitignore` file(s) and are not hidden with `-l`:
+`.gitignore` file(s):
 
-    ugrep --ignore-files --no-hidden -l ''
+    ugrep --ignore-files -l ''
 
 To display the list of file name extensions and "magic bytes" (shebangs)
 that are searched corresponding to `-t` arguments:
@@ -816,14 +821,14 @@ We can also skip files and directories from being searched that are defined in
 directories from recursive searches that match the globs in `.gitignore`, when
 one ore more`.gitignore` files are found:
 
-    ugrep -R -tc++ --color --no-hidden --ignore-files -f c++/defines
+    ugrep -R -tc++ --color --ignore-files -f c++/defines
 
 This searches C++ files (`-tc++`) in the working directory for `#define`
 lines (`-f c++/defines`), while skipping files and directories declared in
-`.gitignore` and skipping hidden files.  If you find this too long to type then
-define an alias to search GitHub directories:
+`.gitignore`.  If you find this too long to type then define an alias to search
+GitHub directories:
 
-    alias ugit='ugrep -R --color --no-hidden --ignore-files'
+    alias ugit='ugrep -R --ignore-files'
     ugit -tc++ -f c++/defines
 
 To highlight matches when pushed through a chain of pipes we should use
@@ -875,8 +880,8 @@ To show a list of `-t TYPES` option values:
             editor to edit the file displayed on screen.  The editor is taken
             from the environment variable GREP_EDIT if defined, or EDITOR if
             GREP_EDIT is not defined.  Enables --heading.
-    --[no-]confirm\n\
-            Do (not) confirm actions in -Q query mode.  The default is confirm.
+    --no-confirm\n\
+            Do not confirm actions in -Q query mode.  The default is confirm.
 
 This option starts a user interface to enter search patterns interactively:
 - Press F1 or CTRL-Z to view a help screen and to enable or disable options.
@@ -1660,9 +1665,9 @@ To recursively list all non-shell files with `-t^Shell`:
     ugrep -Rl -t^Shell ''
 
 To list Python files (extension `.py` or a shebang) that have import
-statements, excluding hidden files:
+statements, including hidden files with `-.`:
 
-    ugrep -Rl --no-hidden -tPython -f python/imports
+    ugrep -Rl. -tPython -f python/imports
  
 <a name="fuzzy"/>
 
@@ -1670,11 +1675,14 @@ statements, excluding hidden files:
 
     -Z[MAX], --fuzzy[=MAX]
             Fuzzy mode: report approximate pattern matches within MAX errors.
-            A character deletion, insertion or substitution counts as one
-            error.  The default MAX is 1.  No whitespace may be given between
-            -Z and its argument MAX.  The first character of an approximate
-            match always matches the begin of a pattern.  Option --sort=best
-            orders matching files by best match (not available yet).
+            By default, MAX is 1 and one deletion, insertion or substitution is
+            allowed.  When `+' and/or `-' preceed MAX, only insertions and/or
+            deletions are allowed.  When `~' preceeds MAX, substitution counts
+            as one error.  For example, -Z+~3 allows up to three insertions or
+            substitutions, but no deletions.  The first character of an
+            approximate match always matches the begin of a pattern.  Option
+            --sort=best orders matching files by best match.  No whitespace may
+            be given between -Z and its argument.
 
 The begin of a pattern always matches the first character of an approximate
 match as a practical strategy to prevent many empty and false "randomized"
@@ -1693,6 +1701,18 @@ approximate matching with one error, e.g. `Foobar`, `foo_bar`, `foo bar`,
 Same, but matching words only with `-w` and ignoring case with `-i`:
 
     ugrep -Z -wi 'foobar'
+
+<a name="hidden">
+
+### Search hidden files with -.
+
+    --hidden, -.
+            Search hidden files and directories.
+
+To recursively search the working directory, including hidden files and
+directories, for the word `login` in shell scripts:
+
+    ugrep -. -tShell 'login'
 
 <a name="filter"/>
 
@@ -1922,19 +1942,12 @@ recursively below (see for example
 
     ugrep -RlU '\A\xed\xab\xee\xdb' rpm
 
-<a name="hidden">
+<a name="nobinary">
 
-### Ignoring hidden files and binary files with --no-hidden and -I
+### Ignore binary files with -I
 
     -I      Ignore matches in binary files.  This option is equivalent to the
             --binary-files=without-match option.
-    --[no-]hidden
-            Do (not) search hidden files and directories.
-
-To recursively search while ignoring hidden files (Unix dotfiles starting with
-a `.` and Windows hidden files), use option `--no-hidden`:
-
-    ugrep -rl --no-hidden 'xyz'
 
 To recursively search while ignoring binary files:
 
@@ -1950,7 +1963,7 @@ matching files, e.g.  `*.exe`, `*.bin`, `*.out`, `*.a`.  Because the command is
 quite long to type, an alias for this is recommended, for example `ugs` (ugrep
 source):
 
-    alias ugs="ugrep --color --no-hidden --exclude-from=$HOME/ignore_binaries"
+    alias ugs="ugrep --exclude-from=$HOME/ignore_binaries"
     ugs -rl 'xyz'
 
 <a name="ignore"/>
@@ -1978,10 +1991,14 @@ confusion, files and directories specified as command-line arguments to
 
 See also [Using gitignore-style globs to select directories and files to search](#gitignore).
 
-To recursively search while skipping hidden files and ignoring files and
-directories ignored by .gitignore (when present), use option `--ignore-files`:
+To recursively search while ignoring files and directories ignored by
+.gitignore (when present), use option `--ignore-files`:
 
-    ugrep -rl --no-hidden --ignore-files 'xyz'
+    ugrep -rl --ignore-files 'xyz'
+
+Same, but includes hidden files with `-.` rather than ignoring them:
+
+    ugrep -rl. --ignore-files 'xyz'
 
 To recursively list all files that are not ignored by .gitignore (when present)
 with `--ignore-files`:
@@ -2323,11 +2340,11 @@ To display the line and column numbers of matches in XML with `--xml`:
     --tag[=TAG[,END]]
             Disables colors to mark up matches with TAG.  If END is specified,
             the end of a match is marked with END.  The default is `___'.
-    --[no-]pager[=COMMAND]
+    --pager[=COMMAND]
             When output is sent to the terminal, uses COMMAND to page through
             the output.  The default COMMAND is `less -R'.  Enables --heading
             and --line-buffered.
-    --[no-]pretty
+    --pretty
             When output is sent to the terminal, enables --color, --heading, -T.
 
 To change the color palette, set the `GREP_COLORS` environment variable or use
@@ -3005,8 +3022,8 @@ in markdown:
                   (faint), `h' (highlight), `i' (invert), `u' (underline).  Selec-
                   tively overrides GREP_COLORS.
 
-           --[no-]confirm
-                  Do (not) confirm actions in -Q query mode.  The default is  con-
+           --no-confirm
+                  Do not confirm actions in -Q query mode.  The  default  is  con-
                   firm.
 
            --cpp  Output file matches in C++.  See also options --format and -u.
@@ -3164,7 +3181,7 @@ in markdown:
                   Never print filenames with output lines.  This  is  the  default
                   when  there is only one file (or only standard input) to search.
 
-           --heading
+           --heading, -+
                   Group matches per file.  Adds a heading and a line break between
                   results from different files.
 
@@ -3177,8 +3194,8 @@ in markdown:
                   removes the hex spacing only.  Enables -X if -W  or  -X  is  not
                   specified.
 
-           --[no-]hidden
-                  Do (not) search hidden files and directories.
+           --hidden, -.
+                  Search hidden files and directories.
 
            -I     Ignore  matches  in  binary files.  This option is equivalent to
                   the --binary-files=without-match option.
@@ -3346,12 +3363,12 @@ in markdown:
                   If  -R  or -r is specified, no symbolic links are followed, even
                   when they are specified on the command line.
 
-           --[no-]pager[=COMMAND]
+           --pager[=COMMAND]
                   When output is sent  to  the  terminal,  uses  COMMAND  to  page
                   through  the output.  The default COMMAND is `less -R'.  Enables
                   --heading and --line-buffered.
 
-           --[no-]pretty
+           --pretty
                   When output is sent to a terminal, enables  --color,  --heading,
                   -T.
 
@@ -3509,13 +3526,14 @@ in markdown:
 
            -Z[MAX], --fuzzy[=MAX]
                   Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
-                  errors.  A character deletion, insertion or substitution  counts
-                  as one error.  The default MAX is 1.  No whitespace may be given
-                  between -Z and its argument MAX.   The  first  character  of  an
-                  approximate  match  always  matches  the  begin of a pattern.  A
-                  leading `.' in a pattern may be used to match any first  charac-
-                  ter.   Option  --sort=best  orders  matching files by best match
-                  (not available yet in this release).
+                  errors.  By default, MAX is 1 and  one  deletion,  insertion  or
+                  substitution  is allowed.  When `+' and/or `-' preceed MAX, only
+                  insertions and/or deletions are allowed.  When `~' preceeds MAX,
+                  substitution  counts as one error.  For example, -Z+~3 allows up
+                  to three insertions or substitutions,  but  no  deletions.   The
+                  first character of an approximate match always matches the begin
+                  of a pattern.  Option --sort=best orders matching files by  best
+                  match.   No whitespace may be given between -Z and its argument.
 
            -z, --decompress
                   Decompress files to search, when compressed.   Archives  (.cpio,
@@ -3959,7 +3977,7 @@ in markdown:
 
 
 
-    ugrep 2.1.6                      May 30, 2020                         UGREP(1)
+    ugrep 2.1.7                      May 31, 2020                         UGREP(1)
 
 <a name="patterns"/>
 

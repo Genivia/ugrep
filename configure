@@ -1399,8 +1399,9 @@ Optional Features:
                           ugrep flag --pretty
   --enable-pager          enable the pager by default without requiring ugrep
                           flag --pager
-  --disable-hidden        disable searching hidden files and directories
-                          unless explicitly enabled with ugrep flag --hidden
+  --enable-hidden         enable searching hidden files and directories by
+                          default unless explicitly disabled with ugrep flag
+                          --no-hidden
   --disable-mmap          disable memory mapped files unless explicitly
                           enabled with --mmap
   --disable-avx           disable AVX optimizations
@@ -7589,20 +7590,20 @@ fi
 
 # Check whether --enable-hidden was given.
 if test "${enable_hidden+set}" = set; then :
-  enableval=$enable_hidden; with_no_hidden="yes"
+  enableval=$enable_hidden; with_hidden="yes"
 else
-  with_no_hidden="no"
+  with_hidden="no"
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --disable-hidden" >&5
-$as_echo_n "checking for --disable-hidden... " >&6; }
-if test "x$with_no_hidden" = "xno"; then
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-hidden" >&5
+$as_echo_n "checking for --enable-hidden... " >&6; }
+if test "x$with_hidden" = "xno"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-  EXTRA_CFLAGS="-DWITH_NO_HIDDEN ${EXTRA_CFLAGS}"
+  EXTRA_CFLAGS="-DWITH_HIDDEN ${EXTRA_CFLAGS}"
 fi
 
 # Check whether --enable-mmap was given.

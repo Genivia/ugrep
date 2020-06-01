@@ -121,16 +121,16 @@ else
 fi
 
 AC_ARG_ENABLE(hidden,
-  [AC_HELP_STRING([--disable-hidden],
-                  [disable searching hidden files and directories unless explicitly enabled with ugrep flag --hidden])],
-  [with_no_hidden="yes"],
-  [with_no_hidden="no"])
-AC_MSG_CHECKING(for --disable-hidden)
-if test "x$with_no_hidden" = "xno"; then
+  [AC_HELP_STRING([--enable-hidden],
+                  [enable searching hidden files and directories by default unless explicitly disabled with ugrep flag --no-hidden])],
+  [with_hidden="yes"],
+  [with_hidden="no"])
+AC_MSG_CHECKING(for --enable-hidden)
+if test "x$with_hidden" = "xno"; then
   AC_MSG_RESULT(no)
 else
   AC_MSG_RESULT(yes)
-  EXTRA_CFLAGS="-DWITH_NO_HIDDEN ${EXTRA_CFLAGS}"
+  EXTRA_CFLAGS="-DWITH_HIDDEN ${EXTRA_CFLAGS}"
 fi
 
 AC_ARG_ENABLE(mmap,

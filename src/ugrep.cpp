@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.1.6"
+#define UGREP_VERSION "2.1.7"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -162,11 +162,11 @@ After this, you may want to test ugrep and install it (optional):
 #endif
 
 // the default pager when --pager is used
-#ifndef DEFAULT_PAGER
+#ifndef DEFAULT_PAGER_COMMAND
 # ifdef OS_WIN
-#  define DEFAULT_PAGER "more"
+#  define DEFAULT_PAGER_COMMAND "more"
 # else
-#  define DEFAULT_PAGER "less -R"
+#  define DEFAULT_PAGER_COMMAND "less -R"
 # endif
 #endif
 
@@ -177,16 +177,16 @@ After this, you may want to test ugrep and install it (optional):
 
 // color is disabled by default, unless enabled with WITH_COLOR
 #ifdef WITH_COLOR
-# define FLAG_COLOR "auto"
+# define DEFAULT_COLOR "auto"
 #else
-# define FLAG_COLOR NULL
+# define DEFAULT_COLOR NULL
 #endif
 
 // pager is disabled by default, unless enabled with WITH_PAGER
 #ifdef WITH_PAGER
-# define FLAG_PAGER DEFAULT_PAGER
+# define DEFAULT_PAGER DEFAULT_PAGER_COMMAND
 #else
-# define FLAG_PAGER NULL
+# define DEFAULT_PAGER NULL
 #endif
 
 // enable easy-to-use abbreviated ANSI SGR color codes with WITH_EASY_GREP_COLORS
@@ -237,8 +237,8 @@ After this, you may want to test ugrep and install it (optional):
 # define DEFAULT_PRETTY false
 #endif
 
-// hidden file and directory search is enabled by default, unless disabled with WITH_NO_HIDDEN
-#ifdef WITH_NO_HIDDEN
+// hidden file and directory search is enabled by default, unless disabled with WITH_HIDDEN
+#ifdef WITH_HIDDEN
 # define DEFAULT_HIDDEN true
 #else
 # define DEFAULT_HIDDEN false
@@ -405,7 +405,6 @@ bool flag_with_hex                 = false;
 bool flag_empty                    = false;
 bool flag_decompress               = false;
 bool flag_any_line                 = false;
-bool flag_heading                  = false;
 bool flag_break                    = false;
 bool flag_cpp                      = false;
 bool flag_csv                      = false;
@@ -413,8 +412,9 @@ bool flag_json                     = false;
 bool flag_xml                      = false;
 bool flag_stdin                    = false;
 bool flag_all_threads              = false;
+bool flag_heading                  = false;
 bool flag_pretty                   = DEFAULT_PRETTY;
-bool flag_no_hidden                = DEFAULT_HIDDEN;
+bool flag_hidden                   = DEFAULT_HIDDEN;
 bool flag_hex_hbr                  = true;
 bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
@@ -439,8 +439,8 @@ size_t flag_tabs                   = 8;
 size_t flag_hex_columns            = 16;
 size_t flag_max_mmap               = DEFAULT_MAX_MMAP_SIZE;
 size_t flag_min_steal              = MIN_STEAL;
-const char *flag_pager             = FLAG_PAGER;
-const char *flag_color             = FLAG_COLOR;
+const char *flag_pager             = DEFAULT_PAGER;
+const char *flag_color             = DEFAULT_COLOR;
 const char *flag_tag               = NULL;
 const char *flag_apply_color       = NULL;
 const char *flag_hexdump           = NULL;
@@ -493,6 +493,7 @@ bool is_output(ino_t inode);
 size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message, bool optional_first = false);
+size_t strtofuzzy(const char *string, const char *message);
 
 void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, std::vector<std::string>& not_files, std::vector<std::string>& not_dirs);
 void format(const char *format, size_t matches);
@@ -1699,7 +1700,7 @@ struct Grep {
       else
         ++basename;
 
-      if (flag_no_hidden && *basename == '.')
+      if (*basename == '.' && !flag_hidden)
         return false;
 
       // -O, -t, and -g (--include and --exclude): check if pathname or basename matches globs, is_selected = false if not
@@ -2612,7 +2613,7 @@ void options(int argc, const char **argv)
                 else if (strcmp(arg, "fuzzy") == 0)
                   flag_fuzzy = 1;
                 else if (strncmp(arg, "fuzzy=", 6) == 0)
-                  flag_fuzzy = strtopos(arg + 6, "invalid argument --fuzzy=");
+                  flag_fuzzy = strtofuzzy(arg + 6, "invalid argument --fuzzy=");
                 else if (strcmp(arg, "free-space") == 0)
                   flag_free_space = true;
                 else
@@ -2640,7 +2641,7 @@ void options(int argc, const char **argv)
                 else if (strncmp(arg, "hexdump=", 8) == 0)
                   flag_hexdump = arg + 8;
                 else if (strcmp(arg, "hidden") == 0)
-                  flag_no_hidden = false;
+                  flag_hidden = true;
                 else
                   help("invalid option --", arg);
                 break;
@@ -2718,8 +2719,10 @@ void options(int argc, const char **argv)
                   flag_no_filename = true;
                 else if (strcmp(arg, "no-group-separator") == 0)
                   flag_group_separator = NULL;
+                else if (strcmp(arg, "no-heading") == 0)
+                  flag_heading = false;
                 else if (strcmp(arg, "no-hidden") == 0)
-                  flag_no_hidden = true;
+                  flag_hidden = false;
                 else if (strcmp(arg, "no-messages") == 0)
                   flag_no_messages = true;
                 else if (strcmp(arg, "no-mmap") == 0)
@@ -3170,9 +3173,9 @@ void options(int argc, const char **argv)
 
           case 'Z':
             ++arg;
-            if (*arg == '=' || isdigit(*arg))
+            if (*arg == '=' || isdigit(*arg) || strchr("+-~", *arg) != NULL)
             {
-              flag_fuzzy = strtopos(&arg[*arg == '='], "invalid argument -Z=");
+              flag_fuzzy = strtofuzzy(&arg[*arg == '='], "invalid argument -Z=");
               is_grouped = false;
             }
             else
@@ -3208,7 +3211,7 @@ void options(int argc, const char **argv)
             break;
 
           case '.':
-            flag_no_hidden = true;
+            flag_hidden = true;
             break;
 
           case '+':
@@ -3271,10 +3274,6 @@ void options(int argc, const char **argv)
     help("option -P is not available in this build configuration of ugrep");
 #endif
   }
-
-  // -Z: MAX parameter too large?
-  if (flag_fuzzy > 255)
-    help("invalid argument -Z");
 
   // check TTY info and set colors (warnings and errors may occur from here on)
   terminal();
@@ -4687,7 +4686,7 @@ void ugrep()
 
     if (flag_fuzzy > 0)
     {
-      reflex::FuzzyMatcher matcher(pattern, static_cast<uint8_t>(flag_fuzzy), reflex::Input(), matcher_options.c_str());
+      reflex::FuzzyMatcher matcher(pattern, static_cast<uint16_t>(flag_fuzzy), reflex::Input(), matcher_options.c_str());
 
       if (threads > 1)
       {
@@ -4841,7 +4840,7 @@ void Grep::ugrep()
 // search file or directory for pattern matches
 Grep::Type Grep::select(size_t level, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument)
 {
-  if (*basename == '.' && flag_no_hidden)
+  if (*basename == '.' && !flag_hidden)
     return Type::SKIP;
 
 #ifdef OS_WIN
@@ -4855,7 +4854,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     return Type::SKIP;
   }
 
-  if (flag_no_hidden && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
+  if (!flag_hidden && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
     return Type::SKIP;
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
@@ -5297,7 +5296,7 @@ void Grep::recurse(size_t level, const char *pathname)
   do
   {
     // search directory entries that aren't . or .. or hidden when --no-hidden is enabled
-    if (ffd.cFileName[0] != '.' || (!flag_no_hidden && ffd.cFileName[1] != '\0' && ffd.cFileName[1] != '.'))
+    if (ffd.cFileName[0] != '.' || (flag_hidden && ffd.cFileName[1] != '\0' && ffd.cFileName[1] != '.'))
     {
       if (pathname[0] == '.' && pathname[1] == '\0')
         dirpathname.assign(ffd.cFileName);
@@ -5358,7 +5357,7 @@ void Grep::recurse(size_t level, const char *pathname)
   while ((dirent = readdir(dir)) != NULL)
   {
     // search directory entries that aren't . or .. or hidden when --no-hidden is enabled
-    if (dirent->d_name[0] != '.' || (!flag_no_hidden && dirent->d_name[1] != '\0' && dirent->d_name[1] != '.'))
+    if (dirent->d_name[0] != '.' || (flag_hidden && dirent->d_name[1] != '\0' && dirent->d_name[1] != '.'))
     {
       if (pathname[0] == '.' && pathname[1] == '\0')
         dirpathname.assign(dirent->d_name);
@@ -7327,6 +7326,38 @@ void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *messa
     help(message, string);
 }
 
+// convert unsigned decimal MAX fuzzy with optional prefix '+', '-', or '~' to positive size_t
+size_t strtofuzzy(const char *string, const char *message)
+{
+  char *rest = NULL;
+  size_t flags = 0;
+  size_t max = 1;
+  while (*string != '\0')
+  {
+    switch (*string)
+    {
+      case '+':
+        flags |= reflex::FuzzyMatcher::INS;
+        ++string;
+        break;
+      case '-':
+        flags |= reflex::FuzzyMatcher::DEL;
+        ++string;
+        break;
+      case '~':
+        flags |= reflex::FuzzyMatcher::SUB;
+        ++string;
+        break;
+      default:
+        max = static_cast<size_t>(strtoull(string, &rest, 10));
+        if (max == 0 || max > 255 || rest == NULL || *rest != '\0')
+          help(message, string);
+        string = rest;
+    } 
+  }
+  return max | flags;
+}
+
 // display usage/help information with an optional diagnostic message and exit
 void help(const char *message, const char *arg)
 {
@@ -7401,8 +7432,8 @@ void help(const char *message, const char *arg)
             bright.  A foreground and a background color may be combined with\n\
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'\n\
             (invert), `u' (underline).  Selectively overrides GREP_COLORS.\n\
-    --[no-]confirm\n\
-            Do (not) confirm actions in -Q query mode.  The default is confirm.\n\
+    --no-confirm\n\
+            Do not confirm actions in -Q query mode.  The default is confirm.\n\
     --cpp\n\
             Output file matches in C++.  See also options --format and -u.\n\
     --csv\n\
@@ -7538,7 +7569,7 @@ void help(const char *message, const char *arg)
     -h, --no-filename\n\
             Never print filenames with output lines.  This is the default\n\
             when there is only one file (or only standard input) to search.\n\
-    --heading\n\
+    --heading, -+\n\
             Group matches per file.  Adds a heading and a line break between\n\
             results from different files.\n\
     --help\n\
@@ -7548,8 +7579,8 @@ void help(const char *message, const char *arg)
             default is 2 columns or 16 octets per line.  Option `b' removes all\n\
             space breaks, `c' hides the character column, and `h' removes the\n\
             hex spacing only.  Enables -X if -W or -X is not specified.\n\
-    --[no-]hidden\n\
-            Do (not) search ";
+    --hidden, -.\n\
+            Search ";
 #ifdef OS_WIN
   std::cout << "Windows system and ";
 #endif
@@ -7703,11 +7734,11 @@ void help(const char *message, const char *arg)
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
             they are specified on the command line.\n\
-    --[no-]pager[=COMMAND]\n\
+    --pager[=COMMAND]\n\
             When output is sent to the terminal, uses COMMAND to page through\n\
-            the output.  The default COMMAND is `" DEFAULT_PAGER "'.  Enables --heading\n\
+            the output.  The default COMMAND is `" DEFAULT_PAGER_COMMAND "'.  Enables --heading\n\
             and --line-buffered.\n\
-    --[no-]pretty\n\
+    --pretty\n\
             When output is sent to a terminal, enables --color, --heading, -T.\n\
     -Q[DELAY], --query[=DELAY]\n\
             Query mode: user interface to perform interactive searches.  This\n\
@@ -7835,11 +7866,14 @@ void help(const char *message, const char *arg)
             See also options -A, -B, and -C.  Disables multi-line matching.\n\
     -Z[MAX], --fuzzy[=MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
-            A character deletion, insertion or substitution counts as one\n\
-            error.  The default MAX is 1.  No whitespace may be given between\n\
-            -Z and its argument MAX.  The first character of an approximate\n\
-            match always matches the begin of a pattern.  Option --sort=best\n\
-            orders matching files by best match (not available yet).\n\
+            By default, MAX is 1 and one deletion, insertion or substitution is\n\
+            allowed.  When `+' and/or `-' preceed MAX, only insertions and/or\n\
+            deletions are allowed.  When `~' preceeds MAX, substitution counts\n\
+            as one error.  For example, -Z+~3 allows up to three insertions or\n\
+            substitutions, but no deletions.  The first character of an\n\
+            approximate match always matches the begin of a pattern.  Option\n\
+            --sort=best orders matching files by best match.  No whitespace may\n\
+            be given between -Z and its argument.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
             .pax, .tar, and .zip) and compressed archives (e.g. .taz, .tgz,\n\
