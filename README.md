@@ -1685,8 +1685,9 @@ statements, including hidden files with `-.`:
             be given between -Z and its argument.
 
 The begin of a pattern always matches the first character of an approximate
-match as a practical strategy to prevent many empty and false "randomized"
-matches for short patterns.
+match as a practical strategy to prevent many false "randomized" matches for
+short patterns.  This also greatly improves search speed.  Make the first
+character optional to optionally match it, e.g. `p?attern`.
 
 Newlines (`\n`) and NUL (`\0`) characters are never deleted or substituted to
 ensure that fuzzy matches do not extend the pattern match beyond the number of
@@ -1701,6 +1702,12 @@ approximate matching with one error, e.g. `Foobar`, `foo_bar`, `foo bar`,
 Same, but matching words only with `-w` and ignoring case with `-i`:
 
     ugrep -Z -wi 'foobar'
+
+Same, but permit up to 2 insertions with `-Z+2`, no deletions/substitutions
+(matches up to 2 extra characters, such as `foos bar`), insertions-only offers
+the fastest fuzzy matching method:
+
+    ugrep -Z+3 -wi 'foobar'
 
 <a name="hidden">
 
