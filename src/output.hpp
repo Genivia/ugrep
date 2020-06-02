@@ -40,6 +40,7 @@
 #include "ugrep.hpp"
 #include <reflex/bits.h>
 #include <reflex/matcher.h>
+#include <reflex/fuzzymatcher.h>
 #include <list>
 #include <mutex>
 #include <condition_variable>

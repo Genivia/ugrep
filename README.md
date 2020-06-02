@@ -52,9 +52,11 @@ search pdf and office documents using filters
 - Search patterns excluding [negative patterns](#not) ("match this but not that")
 - Includes [predefined regex patterns](#source) to search source code, XML, JSON, HTML, etc.
 - Output results in [CSV, JSON, XML](#json), and [user-specified formats](#format)
-- Sort matching files by [name, size, and time](#sort)
+- Sort matching files by [name, best match, size, and time](#sort)
 - Portable, compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
 - Includes x86 and x64 binaries for Windows in [GitHub releases](https://github.com/Genivia/ugrep/releases)
+
+<a name="toc"/>
 
 Table of contents
 -----------------
@@ -97,7 +99,7 @@ Table of contents
   - [Limiting the number of matches with -m, --depth, --max-files, and --range](#max)
   - [Matching empty patterns with --empty](#empty)
   - [Case-insensitive matching with -i and -j](#case)
-  - [Sort files by name, size, and time](#sort)
+  - [Sort files by name, best match, size, and time](#sort)
   - [Tips for advanced users](#tips)
   - [More examples](#more)
 - [Man page](#man)
@@ -127,6 +129,9 @@ Why use ugrep?
 
 - **ugrep is compatible** by supporting the standard GNU/BSD grep command-line
   options.  This means that grep use cases work with **ugrep** too.
+
+- **ugrep has fuzzy search options** to find approximate matches and sort files
+  by best match.
 
 - **ugrep searches compressed files and archives** (cpio, jar, tar, pax, zip,
   gz, bz2, xz, lzma, Z) with option `-z`.  The matching file names in archives
@@ -229,6 +234,8 @@ Why use ugrep?
   construction.  By constrast, option `-P` uses Perl regex matching, which is
   slower.
 
+🔝 [Back to table of contents](#toc)
+
 <a name="speed"/>
 
 Speed comparisons
@@ -307,6 +314,8 @@ Note: performance results depend on warm/cold runs, compilers, libraries, the
 OS, the CPU type, and file system latencies.  However, comparable competitive
 results were obtained on many other types of machines.
 
+🔝 [Back to table of contents](#toc)
+
 <a name="install"/>
 
 Download and install
@@ -335,7 +344,7 @@ On using `ugrep.exe` from the Windows command line:
   by some Windows command interpreters such as Powershell, in that case use
   option `--match` instead
 
-### All other platforms: step 1 download
+### All platforms: step 1 download
 
 Clone **ugrep**:
 
@@ -344,7 +353,7 @@ Clone **ugrep**:
 Or visit <https://github.com/Genivia/ugrep/releases> to download a specific
 release.
 
-### All other platforms: step 2 consider optional dependencies
+### All platforms: step 2 consider optional dependencies
 
 You can always add these later, when you need these features:
 
@@ -376,7 +385,7 @@ Some Linux systems may not be configured to load dynamic libraries from
 this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to your
 `~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
 
-### All other platforms: step 3 build
+### All platforms: step 3 build
 
 Build **ugrep** on Unix-like systems with colors enabled by default:
 
@@ -441,6 +450,8 @@ significant changes, for example to detect data races with the
 We checked **ugrep** with the clang AddressSanitizer, MemorySanitizer,
 ThreadSanitizer, and UndefinedBehaviorSanitizer.  These options incur
 significant runtime overhead and should not be used for the final build.
+
+🔝 [Back to table of contents](#toc)
 
 <a name="vim"/>
 
@@ -529,6 +540,8 @@ To view the CtrlP documentation in Vim, enter the command:
 
     :help ctrlp.txt
 
+🔝 [Back to table of contents](#toc)
+
 <a name="comparison"/>
 
 Ugrep versus other greps
@@ -561,6 +574,8 @@ necessary, for why and when to use it see [further below](#improvements).)
 Option `-.` searches hidden files (dotfiles).  Options `-Dread` and `-dread`
 are the GNU/BSD grep defaults but are not recommended (see
 [further below](#improvements) for explanation).
+
+🔝 [Back to table of contents](#toc)
 
 <a name="aliases"/>
 
@@ -595,6 +610,8 @@ aliased `ugrep` command:
 This requires the utilities [`pdftotext`](https://pypi.org/project/pdftotext)
 and [`soffice`](https://www.libreoffice.org) to be installed.  See
 [Using filter utilities to search documents with --filter](#filter).
+
+🔝 [Back to table of contents](#toc)
 
 <a name="improvements"/>
 
@@ -666,6 +683,8 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   predictable.  Also GNU grep abandoned `GREP_OPTIONS` for this reason.
   Instead, please use aliases to create new commands with specific search
   options.
+
+🔝 [Back to table of contents](#toc)
 
 <a name="tutorial"/>
 
@@ -744,6 +763,8 @@ To list all shell files recursively, based on extensions and shebangs with `-l`
 (note that `''` matches any non-empty file):
 
     ugrep -l -tShell ''
+
+🔝 [Back to table of contents](#toc)
 
 <a name="advanced"/>
 
@@ -848,6 +869,8 @@ and directories to add to `--include` and `--include-dir`, respectively.  This
 means that when directory names and directory paths are not explicitly listed
 in this file then it will not be visited using `--include-from`.
 
+🔝 [Back to table of contents](#toc)
+
 <a name="help"/>
 
 ### Displaying helpful info
@@ -863,6 +886,8 @@ To show a help page:
 To show a list of `-t TYPES` option values:
 
     ugrep -tlist
+
+🔝 [Back to table of contents](#toc)
 
 <a name="query"/>
 
@@ -991,6 +1016,8 @@ using ugrep query selection mode (press Enter to select lines):
 
     unzip project.zip `zipinfo -1 project.zip | ugrep -Q`
 
+🔝 [Back to table of contents](#toc)
+
 <a name="recursion"/>
 
 ### Recursively list matching files with -l, -R, -r, --depth, -g, -O, and -t
@@ -1101,6 +1128,8 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
 
     ugrep -l -tshell ''
 
+🔝 [Back to table of contents](#toc)
+
 <a name="not"/>
 
 ### Search this but not that with -v, -e, -N, -f, -L, -w, -x
@@ -1186,6 +1215,8 @@ To search `myfile.cpp` for lines with `TODO` or `FIXME` but not both on the
 same line, like XOR:
 
     ugrep -e TODO -e FIXME -N '.*TODO.*FIXME.*' -N '.*FIXME.*TODO.*' myfile.cpp
+
+🔝 [Back to table of contents](#toc)
 
 <a name="encoding"/>
 
@@ -1300,6 +1331,8 @@ To search file `spanish-iso.txt` encoded in ISO-8859-1:
 
     ugrep --encoding=ISO-8859-1 -w 'año' spanish-iso.txt
 
+🔝 [Back to table of contents](#toc)
+
 <a name="multiline"/>
 
 ### Matching multiple lines of text
@@ -1329,6 +1362,8 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
 `begin` and the first line after that containing `end`, using lazy repetition:
 
     ugrep -o '.*begin(.|\n)*?end.*' myfile.txt
+
+🔝 [Back to table of contents](#toc)
 
 <a name="context"/>
 
@@ -1393,6 +1428,8 @@ characters of context instead of a single word:
 
     ugrep -onkTg -U '.{0,8}pattern.{0,8}' myfile.cpp | ugrep --color 'pattern'
 
+🔝 [Back to table of contents](#toc)
+
 <a name="source"/>
 
 ### Searching source code using -f, -g, -O, and -t
@@ -1405,13 +1442,13 @@ characters of context instead of a single word:
             When FILE is a `-', standard input is read.  This option may be
             repeated.
     --ignore-files[=FILE]
-            Ignore files and directories matching the globs in each FILE when
-            encountered in recursive searches.  The default FILE is
+            Ignore files and directories matching the globs in each FILE that
+            is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
             directory tree rooted at a FILE's location are ignored by
             temporarily overriding the --exclude and --exclude-dir globs.
-            Note that files and directories specified as ugrep FILE arguments
-            are not ignored.  This option may be repeated.
+            Files and directories that are explicitly specified as command line
+            arguments are never ignored.  This option may be repeated.
     -g GLOB, --glob=GLOB
             Search only files whose name matches GLOB, same as --include=GLOB.
             When GLOB is preceded by a `!' or a `^', skip files whose name
@@ -1484,6 +1521,8 @@ matching part with `-o`, excluding tags that are placed in (multi-line)
 comments:
 
     ugrep -o -f xml/tags -f xml/zap_comments myfile.xml
+
+🔝 [Back to table of contents](#toc)
 
 <a name="archives"/>
 
@@ -1615,18 +1654,20 @@ search the files:
 
     find . -depth -print | cpio -o | ugrep --color -z 'xyz'
 
+🔝 [Back to table of contents](#toc)
+
 <a name="magic"/>
 
 ### Find files by file signature and shebang "magic bytes" with -M and -t
 
     --ignore-files[=FILE]
-            Ignore files and directories matching the globs in each FILE when
-            encountered in recursive searches.  The default FILE is
+            Ignore files and directories matching the globs in each FILE that
+            is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
             directory tree rooted at a FILE's location are ignored by
             temporarily overriding the --exclude and --exclude-dir globs.
-            Note that files and directories specified as ugrep FILE arguments
-            are not ignored.  This option may be repeated.
+            Files and directories that are explicitly specified as command line
+            arguments are never ignored.  This option may be repeated.
     -M MAGIC, --file-magic=MAGIC
             Only files matching the signature pattern MAGIC are searched.  The
             signature \"magic bytes\" at the start of a file are compared to
@@ -1669,6 +1710,8 @@ statements, including hidden files with `-.`:
 
     ugrep -Rl. -tPython -f python/imports
  
+🔝 [Back to table of contents](#toc)
+
 <a name="fuzzy"/>
 
 ### Fuzzy search with -Z
@@ -1691,10 +1734,10 @@ character optional to optionally match it, e.g. `p?attern`.
 
 Newlines (`\n`) and NUL (`\0`) characters are never deleted or substituted to
 ensure that fuzzy matches do not extend the pattern match beyond the number of
-lines that the pattern specifies.
+lines specified by the regex pattern.
 
-To search for approximate matches of the word `foobar` with `-Z`, i.e.
-approximate matching with one error, e.g. `Foobar`, `foo_bar`, `foo bar`,
+To recursively search for approximate matches of the word `foobar` with `-Z`,
+i.e.  approximate matching with one error, e.g. `Foobar`, `foo_bar`, `foo bar`,
 `fobar`:
 
     ugrep -Z 'foobar'
@@ -1709,6 +1752,20 @@ the fastest fuzzy matching method:
 
     ugrep -Z+3 -wi 'foobar'
 
+Same, but sort matches from best to worst (fewest fuzzy match edits):
+
+    ugrep -Z+3 -wi --sort=best 'foobar'
+
+Note that sorting by best match requires two passes over the input files.  In
+addition, the effectiveness of concurrent searching is significantly reduced.
+
+Same, but with customized formatting to show the cost of the approximate
+matches with format field `%Z`:
+
+    ugrep -Z+3 -wi --format='%F%Z:%O%~' --sort=best 'foobar'
+
+🔝 [Back to table of contents](#toc)
+
 <a name="hidden">
 
 ### Search hidden files with -.
@@ -1720,6 +1777,8 @@ To recursively search the working directory, including hidden files and
 directories, for the word `login` in shell scripts:
 
     ugrep -. -tShell 'login'
+
+🔝 [Back to table of contents](#toc)
 
 <a name="filter"/>
 
@@ -1800,7 +1859,7 @@ be lost, for example when the specified utility replaces or deletes the file
 passed to the command with `--filter` option `%`.
 
 To recursively search files including PDF files in the working directory
-without recursing into subdirectories (with `-1), for matches of `drink me`
+without recursing into subdirectories (with `-1`), for matches of `drink me`
 using the `pdftotext` filter to convert PDF to text without preserving page
 breaks:
 
@@ -1887,6 +1946,8 @@ over labelled magic patterns to invoke the corresponding filter command.
 The `LABEL` used with `--filter-magic-label` and `--filter` has no specific
 meaning; any name or string that does not contain a `:` or `,` may be used.
 
+🔝 [Back to table of contents](#toc)
+
 <a name="binary"/>
 
 ### Searching and displaying binary files with -U, -W, and -X
@@ -1949,6 +2010,8 @@ recursively below (see for example
 
     ugrep -RlU '\A\xed\xab\xee\xdb' rpm
 
+🔝 [Back to table of contents](#toc)
+
 <a name="nobinary">
 
 ### Ignore binary files with -I
@@ -1973,18 +2036,20 @@ source):
     alias ugs="ugrep --exclude-from=$HOME/ignore_binaries"
     ugs -rl 'xyz'
 
+🔝 [Back to table of contents](#toc)
+
 <a name="ignore"/>
 
 ### Ignoring .gitignore-specified files with --ignore-files
 
     --ignore-files[=FILE]
-            Ignore files and directories matching the globs in each FILE when
-            encountered in recursive searches.  The default FILE is
+            Ignore files and directories matching the globs in each FILE that
+            is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
             directory tree rooted at a FILE's location are ignored by
             temporarily overriding the --exclude and --exclude-dir globs.
-            Note that files and directories specified as ugrep FILE arguments
-            are not ignored.  This option may be repeated.
+            Files and directories that are explicitly specified as command line
+            arguments are never ignored.  This option may be repeated.
 
 Option `--ignore-files` looks for `.gitignore`, or the specified `FILE`, in
 recursive searches.  When found, the `.gitignore` file is used to exclude the
@@ -2028,6 +2093,8 @@ implicit:
     ln -s .git/info/exclude .ignore
     ugrep -Rl '' --ignore-files --ignore-files=.ignore
 
+🔝 [Back to table of contents](#toc)
+
 <a name="gitignore"/>
 
 ### Using gitignore-style globs to select directories and files to search
@@ -2062,11 +2129,13 @@ implicit:
             matches GLOB, same as --exclude=GLOB.  GLOB should be quoted to
             prevent shell globbing.  This option may be repeated.
     --ignore-files[=FILE]
-            Ignore files and directories specified in a FILE when encountered
-            in recursive searches.  The default is `.gitignore'.  Files and
-            directories matching the globs in FILE are ignored in the directory
-            tree rooted at each FILE's location by temporarily overriding
-            --exclude and --exclude-dir globs.  This option may be repeated.
+            Ignore files and directories matching the globs in each FILE that
+            is encountered in recursive searches.  The default FILE is
+            `.gitignore'.  Matching files and directories located in the
+            directory tree rooted at a FILE's location are ignored by
+            temporarily overriding the --exclude and --exclude-dir globs.
+            Files and directories that are explicitly specified as command line
+            arguments are never ignored.  This option may be repeated.
     --include=GLOB
             Search only files whose name matches GLOB using wildcard matching,
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,
@@ -2136,44 +2205,48 @@ directory, that contain `xyz`, without producing warning messages with `-s` and
 
     ugrep -sl 'xyz' foo*
 
-The same, but using recursion with a directory inclusion constraint:
+The same, but using deep recursion with inclusion constraints (note that
+`-g'/foo*` is the same as `--include='/foo*'` and `-g'/foo*/'` is the same as
+`--include-dir='/foo*'`, i.e.  immediate subdirectories matching `/foo*` only):
 
-    ugrep -Rl 'xyz' --include-dir='/foo*'
+    ugrep -Rl 'xyz' -g'/foo*' -g'/foo*/'
 
-To recursively list files in the working directory, `docs`, and `docs/latest`,
-but not below, that contain `xyz`:
+Note that `-R` is the default, we use it here to make the examples easier to
+follow.
 
-    ugrep -l 'xyz' * docs/* docs/latest/*
+To exclude directory `bak` located in the working directory:
 
-To recursively list files in directory `docs/latest` and below, that contain
-`xyz`:
+    ugrep -Rl 'xyz' -g'^/bak/'
 
-    ugrep -Rl 'xyz' docs/latest
+To exclude all directoies `bak` at any directory level deep:
 
-To only list files in the working directory and subdirectory `docs` but not
-below, that contain `xyz`:
+    ugrep -Rl 'xyz' -g'^bak/'
 
-    ugrep -Rl 'xyz' --include-dir='docs'
+To only list files in the working directory and its subdirectory `doc`,
+that contain `xyz` (note that `-g'/doc/'` is the same as
+`--include-dir='/doc'`, i.e. immediate subdirectory `doc` only):
 
-To only list files in the working directory and in the subdirectories `docs`
-and `docs/latest` but not below, that contain `xyz`:
+    ugrep -Rl 'xyz' -g'/doc/'
 
-    ugrep -Rl 'xyz' --include-dir='docs' --include-dir='docs/latest'
+To only list files that are on a subdirectory path `doc` that includes
+subdirectory `html` anywhere, that contain `xyz`:
 
-To only list files that are on a subdirectory path that includes subdirectory
-`docs` anywhere, that contain `xyz`:
+    ugrep -Rl 'xyz' -g'doc/**/html/'
 
-    ugrep -Rl 'xyz' -g '**/docs/**'
+To only list files in the working directory and in the subdirectories `doc`
+and `doc/latest` but not below, that contain `xyz`:
+
+    ugrep -Rl 'xyz' -g'/doc/' -g'/doc/latest/'
 
 To recursively list .cpp files in the working directory and any subdirectory
 at any depth, that contain `xyz`:
 
-    ugrep -Rl 'xyz' -g '*.cpp'
+    ugrep -Rl 'xyz' -g'*.cpp'
 
 The same, but using a .gitignore-style glob that matches pathnames (globs with
 `/`) instead of matching basenames (globs without `/`) in the recursive search:
 
-    ugrep -Rl 'xyz' -g '**/*.cpp'
+    ugrep -Rl 'xyz' -g'**/*.cpp'
 
 Same, but using option `-Ocpp` to match file name extensions:
 
@@ -2188,6 +2261,8 @@ To recursively list all files in the working directory and below that are not
 ignored by one or more .gitignore files, when any are present:
 
     ugrep -Rl '' --ignore-files
+
+🔝 [Back to table of contents](#toc)
 
 <a name="fs"/>
 
@@ -2234,6 +2309,8 @@ To exclude `fuse` and `tmpfs` type file systems from recursive searches:
     exfs=`ugrep -w -e fuse -e tmpfs /etc/mtab | ugrep -P '^\S+ (\S+)' --format='%,%1'`
     ugrep -Rl --exclude-fs="$exfs" 'xyz'
 
+🔝 [Back to table of contents](#toc)
+
 <a name="count"/>
 
 ### Counting the number of matches with -c and -co
@@ -2270,6 +2347,8 @@ To count the number of Unicode characters in a file:
 To count the number of zero bytes in a file:
 
     ugrep -UX -co '\x00' image.jpg
+
+🔝 [Back to table of contents](#toc)
 
 <a name="fields"/>
 
@@ -2321,6 +2400,8 @@ To display the byte offset of matches with `-b`:
 To display the line and column numbers of matches in XML with `--xml`:
 
     ugrep -r -nk --xml -tc++ 'main'
+
+🔝 [Back to table of contents](#toc)
 
 <a name="color"/>
 
@@ -2473,6 +2554,8 @@ To search tarballs for matching names of PDF files (assuming bash is our shell):
 
     for tb in *.tar *.tar.gz *.tgz; do echo "$tb"; tar tfz "$tb" | ugrep '.*\.pdf$'; done
 
+🔝 [Back to table of contents](#toc)
+
 <a name="json"/>
 
 ### Output matches in JSON, XML, CSV, C++
@@ -2508,6 +2591,8 @@ To extract a table from an HTML file and put it in C/C++ source code using
 `-o`:
 
     ugrep -o --cpp '<tr>.*</tr>' index.html > table.cpp
+
+🔝 [Back to table of contents](#toc)
 
 <a name="format"/>
 
@@ -2570,6 +2655,7 @@ field                 | output
 `%w`                  | the width of the match, counting (wide) characters
 `%d`                  | the size of the match, counting bytes
 `%e`                  | the ending byte offset of the match
+`%Z`                  | the edit distance cost of an approximate match with option `-Z`
 `%u`                  | select unique lines only unless option -u is used
 `%1`                  | the first regex group capture of the match, and so on up to group `%9`, requires option `-P`
 `%[NUM]#`             | the regex group capture `NUM`, requires option `-P`
@@ -2687,6 +2773,8 @@ the output:
 
     ugrep -P --format='%[ and ]$%G%$%s%O%~' '(?P<foo>foo)|(?P<ba>ba(?:(?P<r>r)|(?P<z>z)))' foobar.txt
 
+🔝 [Back to table of contents](#toc)
+
 <a name="replace"/>
 
 ### Replacing matches with --format backreferences to group captures
@@ -2721,6 +2809,8 @@ and `https` sites:
 
     ugrep -R -thtml,php -P '<script.*src\h*=\h*.(https?:[^\x27"]+).' --format='%1%~' | sort -u
 
+🔝 [Back to table of contents](#toc)
+
 <a name="max"/>
 
 ### Limiting the number of matches with --depth, -m, --max-files, and --range
@@ -2740,14 +2830,16 @@ and `https` sites:
             Start searching at line FIRST, stop at line LAST when specified.
     --sort[=KEY]
             Displays matching files in the order specified by KEY in recursive
-            searches.  KEY can be `name' to sort by pathname (default), `size'
-            to sort by file size, `used' to sort by last access time, `changed'
-            to sort by last modification time, and `created' to sort by
-            creation time.  Sorting is reversed by `rname', `rsize', `rused',
-            `rchanged', or `rcreated'.  Archive contents are not sorted.
-            Subdirectories are displayed after matching files.  FILE arguments
-            are searched in the same order as specified.  Normally ugrep
-            displays matches in no particular order to improve performance.
+            searches.  KEY can be `name' to sort by pathname (default), `best'
+            to sort by best match with option -Z (sort by best match requires
+            two passes over the input files), `size' to sort by file size,
+            `used' to sort by last access time, `changed' to sort by last
+            modification time, and `created' to sort by creation time.  Sorting
+            is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or
+            `rcreated'.  Archive contents are not sorted.  Subdirectories are
+            sorted and displayed after matching files.  FILE arguments are
+            searched in the same order as specified.  Normally ugrep displays
+            matches in no particular order to improve performance.
 
 To show only the first 10 matches of `FIXME` in C++ files in the working
 directory and all subdirectories below:
@@ -2783,6 +2875,8 @@ line of context:
 
     ugrep -n -C1 --range=2 -m4 -w make install.sh
 
+🔝 [Back to table of contents](#toc)
+
 <a name="empty"/>
 
 ### Matching empty patterns with -Y
@@ -2809,6 +2903,8 @@ implicitly enabled since the pattern starts with `^` and ends with `$`):
 
     ugrep -Rl '^\h*$'
 
+🔝 [Back to table of contents](#toc)
+
 <a name="case"/>
 
 ### Case-insentitive matching with -i and -j
@@ -2832,20 +2928,24 @@ To match `todo XXX` with `todo` in any case but `XXX` as given:
 
      ugrep '(?i:todo) XXX' myfile.cpp
 
+🔝 [Back to table of contents](#toc)
+
 <a name="sort"/>
 
-### Sort files by name, size, and time
+### Sort files by name, best match, size, and time
 
     --sort[=KEY]
             Displays matching files in the order specified by KEY in recursive
-            searches.  KEY can be `name' to sort by pathname (default), `size'
-            to sort by file size, `used' to sort by last access time, `changed'
-            to sort by last modification time, and `created' to sort by
-            creation time.  Sorting is reversed by `rname', `rsize', `rused',
-            `rchanged', or `rcreated'.  Archive contents are not sorted.
-            Subdirectories are displayed after matching files.  FILE arguments
-            are searched in the same order as specified.  Normally ugrep
-            displays matches in no particular order to improve performance.
+            searches.  KEY can be `name' to sort by pathname (default), `best'
+            to sort by best match with option -Z (sort by best match requires
+            two passes over the input files), `size' to sort by file size,
+            `used' to sort by last access time, `changed' to sort by last
+            modification time, and `created' to sort by creation time.  Sorting
+            is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or
+            `rcreated'.  Archive contents are not sorted.  Subdirectories are
+            sorted and displayed after matching files.  FILE arguments are
+            searched in the same order as specified.  Normally ugrep displays
+            matches in no particular order to improve performance.
 
 The matching files are displayed in the order specified by `--sort`.  By
 default, the output is not sorted to improve performance, unless option `-Q` is
@@ -2862,6 +2962,8 @@ To recursively search for C++ files that match `main` and sort them by name:
 Same, but sorted by time changed from most recent to oldest:
 
     ugrep --sort=rchanged -tc++ 'main'
+
+🔝 [Back to table of contents](#toc)
 
 <a name="tips"/>
 
@@ -2892,6 +2994,8 @@ and column numbers, where `%n` is the line number, `%k` is the column number,
 `%o` is the match (only matching), and `%~` is a newline:
 
     ugrep -r --format='%n,%k:%o%~' '\w+'
+
+🔝 [Back to table of contents](#toc)
 
 <a name="more"/>
 
@@ -2924,6 +3028,8 @@ To find mismatched code (a backtick without matching backtick on the same line)
 in markdown:
 
     ugrep -R -n -ttext -e '`[^`]+' -N '`[^`]*`'
+
+🔝 [Back to table of contents](#toc)
 
 <a name="man"/>
 
@@ -3213,12 +3319,12 @@ in markdown:
 
            --ignore-files[=FILE]
                   Ignore  files  and  directories  matching the globs in each FILE
-                  when encountered in recursive searches.   The  default  FILE  is
+                  that is encountered in recursive searches.  The default FILE  is
                   `.gitignore'.   Matching  files  and  directories located in the
                   directory tree rooted at a FILE's location are ignored by tempo-
-                  rarily  overriding  the --exclude and --exclude-dir globs.  Note
-                  that files and directories specified as ugrep FILE arguments are
-                  not ignored.  This option may be repeated.
+                  rarily  overriding the --exclude and --exclude-dir globs.  Files
+                  and directories that are explicitly specified  as  command  line
+                  arguments are never ignored.  This option may be repeated.
 
            --include=GLOB
                   Search  only files whose name matches GLOB using wildcard match-
@@ -3429,13 +3535,15 @@ in markdown:
            --sort[=KEY]
                   Displays  matching files in the order specified by KEY in recur-
                   sive searches.  KEY can be `name' to sort by pathname (default),
-                  `size' to sort by file size, `used' to sort by last access time,
-                  `changed' to sort by last modification time,  and  `created'  to
-                  sort by creation time.  Sorting is reversed by `rname', `rsize',
+                  `best'  to sort by best match with option -Z (sort by best match
+                  requires two passes over the input files),  `size'  to  sort  by
+                  file size, `used' to sort by last access time, `changed' to sort
+                  by last modification time, and `created'  to  sort  by  creation
+                  time.   Sorting  is  reversed  with  `rname',  `rbest', `rsize',
                   `rused', `rchanged', or `rcreated'.  Archive  contents  are  not
-                  sorted.   Subdirectories  are  displayed  after  matching files.
-                  FILE arguments are searched in  the  same  order  as  specified.
-                  Normally  ugrep  displays  matches  in  no  particular  order to
+                  sorted.   Subdirectories are sorted and displayed after matching
+                  files.  FILE arguments are searched in the same order as  speci-
+                  fied.  Normally ugrep displays matches in no particular order to
                   improve performance.
 
            --stats
@@ -3809,6 +3917,8 @@ in markdown:
 
            %e     the ending byte offset of the match.
 
+           %Z     the edit distance cost of an approximate match with option -Z
+
            %u     select unique lines only, unless option -u is used.
 
            %1     the first regex group capture of the match,  and  so  on  up  to
@@ -3984,7 +4094,9 @@ in markdown:
 
 
 
-    ugrep 2.1.7                      May 31, 2020                         UGREP(1)
+    ugrep 2.2.0                      June 02, 2020                        UGREP(1)
+
+🔝 [Back to table of contents](#toc)
 
 <a name="patterns"/>
 
@@ -4063,6 +4175,8 @@ follows, from high to low precedence:
   6. Alternation `φ|ψ`
   7. Global modifiers `(?imsux)φ`
 
+🔝 [Back to table of contents](#toc)
+
 <a name="posix-classes"/>
 
 ### POSIX and Unicode character classes
@@ -4085,6 +4199,8 @@ list that matches a `]` and a `[`, `[^][]` is a list that matches anything but
 
 Negated character classes such as `[^a-z]` do not match newlines for
 compatibility with traditional grep pattern matching.
+
+🔝 [Back to table of contents](#toc)
 
 <a name="posix-categories"/>
 
@@ -4189,6 +4305,8 @@ Coptic letters and differs from the Unicode block `\p{IsGreek}` that spans a
 specific Unicode block of Greek and Coptic characters only, which also includes
 unassigned characters.
 
+🔝 [Back to table of contents](#toc)
+
 <a name="perl-syntax"/>
 
 ### Perl regular expression syntax
@@ -4197,6 +4315,8 @@ For the pattern syntax of **ugrep** option `-P` (Perl regular expressions), see
 for example [Perl regular expression syntax](https://www.boost.org/doc/libs/1_70_0/libs/regex/doc/html/boost_regex/syntax/perl_syntax.html).
 However, **ugrep** enhances the Perl regular expression syntax with all of the
 features listed in [POSIX regular expression syntax](#posix-syntax).
+
+🔝 [Back to table of contents](#toc)
 
 <a name="bugs"/>
 

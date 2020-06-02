@@ -183,7 +183,7 @@ void set_delete(
       i2++;
     else
     {
-      s1.erase(i1++);
+      i1 = s1.erase(i1);
       i2++;
     }
   }

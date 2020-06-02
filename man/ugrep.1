@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 31, 2020" "ugrep 2.1.7" "User Commands"
+.TH UGREP "1" "June 02, 2020" "ugrep 2.2.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -272,13 +272,13 @@ Perform case insensitive matching.  By default, ugrep is case
 sensitive.  This option applies to ASCII letters only.
 .TP
 \fB\-\-ignore\-files[\fR=\fIFILE\fR]
-Ignore files and directories matching the globs in each FILE when
-encountered in recursive searches.  The default FILE is
+Ignore files and directories matching the globs in each FILE that
+is encountered in recursive searches.  The default FILE is
 `.gitignore'.  Matching files and directories located in the
 directory tree rooted at a FILE's location are ignored by
 temporarily overriding the \fB\-\-exclude\fR and \fB\-\-exclude\-dir\fR globs.
-Note that files and directories specified as ugrep FILE arguments
-are not ignored.  This option may be repeated.
+Files and directories that are explicitly specified as command line
+arguments are never ignored.  This option may be repeated.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Search only files whose name matches GLOB using wildcard matching,
@@ -482,14 +482,16 @@ number, byte offset, and the matched line.  The default is a colon
 .TP
 \fB\-\-sort[\fR=\fIKEY\fR]
 Displays matching files in the order specified by KEY in recursive
-searches.  KEY can be `name' to sort by pathname (default), `size'
-to sort by file size, `used' to sort by last access time, `changed'
-to sort by last modification time, and `created' to sort by
-creation time.  Sorting is reversed by `rname', `rsize', `rused',
-`rchanged', or `rcreated'.  Archive contents are not sorted.
-Subdirectories are displayed after matching files.  FILE arguments
-are searched in the same order as specified.  Normally ugrep
-displays matches in no particular order to improve performance.
+searches.  KEY can be `name' to sort by pathname (default), `best'
+to sort by best match with option \fB\-Z\fR (sort by best match requires
+two passes over the input files), `size' to sort by file size,
+`used' to sort by last access time, `changed' to sort by last
+modification time, and `created' to sort by creation time.  Sorting
+is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or
+`rcreated'.  Archive contents are not sorted.  Subdirectories are
+sorted and displayed after matching files.  FILE arguments are
+searched in the same order as specified.  Normally ugrep displays
+matches in no particular order to improve performance.
 .TP
 \fB\-\-stats\fR
 Display statistics on the number of files and directories searched,
@@ -838,6 +840,8 @@ the width of the match, counting wide characters.
 the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
+.IP \fB%Z\fR
+the edit distance cost of an approximate match with option \fB-Z\fR
 .IP \fB%u\fR
 select unique lines only, unless option \fB-u\fR is used.
 .IP \fB%1\fR

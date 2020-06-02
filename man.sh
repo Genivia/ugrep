@@ -291,6 +291,8 @@ the width of the match, counting wide characters.
 the size of the match, counting bytes.
 .IP \fB%e\fR
 the ending byte offset of the match.
+.IP \fB%Z\fR
+the edit distance cost of an approximate match with option \fB-Z\fR
 .IP \fB%u\fR
 select unique lines only, unless option \fB-u\fR is used.
 .IP \fB%1\fR

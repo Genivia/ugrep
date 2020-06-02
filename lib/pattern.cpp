@@ -1384,7 +1384,7 @@ void Pattern::compile(
             if (i->first.any())
               ++i;
             else
-              moves.erase(i++);
+              i = moves.erase(i);
           }
           else
           {
@@ -1799,7 +1799,7 @@ void Pattern::compile_transition(
   {
     trim_lazy(&i->second);
     if (i->second.empty())
-      moves.erase(i++);
+      i = moves.erase(i);
     else
       ++i;
   }
@@ -1818,7 +1818,7 @@ void Pattern::transition(
     if (is_subset(i->second, follow))
     {
       chars += i->first;
-      moves.erase(i++);
+      i = moves.erase(i);
     }
     else
     {
@@ -2003,7 +2003,7 @@ void Pattern::compact_dfa(DFA::State *start)
         if (j->second.second == i->second.second)
         {
           i->second.first = hi;
-          state->edges.erase(j++);
+          j = state->edges.erase(j);
         }
         else
         {

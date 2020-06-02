@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.1.7"
+#define UGREP_VERSION "2.2.0"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -227,7 +227,7 @@ After this, you may want to test ugrep and install it (optional):
 # define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
 #endif
 
-// default -Q delay is 0.5s
+// default -Q response to keyboard input delay is 0.5s
 #define DEFAULT_QUERY_DELAY 5
 
 // pretty is disabled by default, unless enabled with WITH_PRETTY
@@ -651,21 +651,23 @@ inline void copy_color(char to[COLORLEN], const char from[COLORLEN])
 // grep manages output, matcher, input, and decompression
 struct Grep {
 
-  // directory entry type
+  // entry type
   enum class Type { SKIP, DIRECTORY, OTHER };
 
-  // directory entry data extracted from directory contents
+  // entry data extracted from directory contents
   struct Entry {
     Entry(std::string& pathname, ino_t inode, uint64_t info)
       :
         pathname(std::move(pathname)),
         inode(inode),
-        info(info)
+        info(info),
+        cost(0)
     { }
 
     std::string pathname;
     ino_t       inode;
     uint64_t    info;
+    uint16_t    cost;
 
 #ifndef OS_WIN
     // get sortable info from stat buf
@@ -695,6 +697,12 @@ struct Grep {
       return a.info < b.info || (a.info == b.info && a.pathname < b.pathname);
     }
 
+    // compare two entries by edit distance cost
+    static bool comp_by_best(const Entry& a, const Entry& b)
+    {
+      return a.cost < b.cost || (a.cost == b.cost && a.pathname < b.pathname);
+    }
+
     // reverse compare two entries by pathname
     static bool rev_comp_by_path(const Entry& a, const Entry& b)
     {
@@ -705,6 +713,12 @@ struct Grep {
     static bool rev_comp_by_info(const Entry& a, const Entry& b)
     {
       return a.info > b.info || (a.info == b.info && a.pathname > b.pathname);
+    }
+
+    // reverse compare two entries by edit distance cost
+    static bool rev_comp_by_best(const Entry& a, const Entry& b)
+    {
+      return a.cost > b.cost || (a.cost == b.cost && a.pathname > b.pathname);
     }
   };
 
@@ -754,6 +768,9 @@ struct Grep {
 
   // recurse a directory
   virtual void recurse(size_t level, const char *pathname);
+
+  // -Z and --sort=best: perform a presearch to determine edit distance cost, returns 65535 when no match is found
+  uint16_t cost(const char *pathname);
 
   // search a file
   virtual void search(const char *pathname);
@@ -4126,6 +4143,8 @@ void ugrep()
 
     if (strcmp(flag_sort, "name") == 0 || strcmp(flag_sort, "rname") == 0)
       flag_sort_key = Sort::NAME;
+    else if (strcmp(flag_sort, "best") == 0 || strcmp(flag_sort, "rbest") == 0)
+      flag_sort_key = Sort::BEST;
     else if (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0)
       flag_sort_key = Sort::SIZE;
     else if (strcmp(flag_sort, "used") == 0 || strcmp(flag_sort, "rused") == 0)
@@ -4135,7 +4154,7 @@ void ugrep()
     else if (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "rcreated") == 0)
       flag_sort_key = Sort::CREATED;
     else
-      help("invalid argument --sort=KEY, valid arguments are 'name', 'size', 'used', 'changed', 'created, 'rname', 'rsize', 'rused', 'rchanged', and 'rcreated'");
+      help("invalid argument --sort=KEY, valid arguments are 'name', 'best', 'size', 'used', 'changed', 'created', 'rname', 'rbest', 'rsize', 'rused', 'rchanged', and 'rcreated'");
   }
 
   // -x: enable -Y
@@ -5408,6 +5427,22 @@ void Grep::recurse(size_t level, const char *pathname)
 
 #endif
 
+  // -Z and --sort=best: presearch the selected files to determine edit distance cost
+  if (flag_fuzzy > 0 && flag_sort_key == Sort::BEST)
+  {
+    std::vector<Entry>::iterator entry = content.begin();
+    while (entry != content.end())
+    {
+      entry->cost = cost(entry->pathname.c_str());
+
+      // if a file has no match, remove it
+      if (entry->cost == 65535)
+        entry = content.erase(entry);
+      else
+        ++entry;
+    }
+  }
+
   // --sort: sort the selected non-directory entries and search them
   if (flag_sort_key != Sort::NA)
   {
@@ -5417,6 +5452,13 @@ void Grep::recurse(size_t level, const char *pathname)
         std::sort(content.begin(), content.end(), Entry::rev_comp_by_path);
       else
         std::sort(content.begin(), content.end(), Entry::comp_by_path);
+    }
+    else if (flag_sort_key == Sort::BEST)
+    {
+      if (flag_sort_rev)
+        std::sort(content.begin(), content.end(), Entry::rev_comp_by_best);
+      else
+        std::sort(content.begin(), content.end(), Entry::comp_by_best);
     }
     else
     {
@@ -5444,7 +5486,7 @@ void Grep::recurse(size_t level, const char *pathname)
   // --sort: sort the selected subdirectory entries
   if (flag_sort_key != Sort::NA)
   {
-    if (flag_sort_key == Sort::NAME)
+    if (flag_sort_key == Sort::NAME || flag_sort_key == Sort::BEST)
     {
       if (flag_sort_rev)
         std::sort(subdirs.begin(), subdirs.end(), Entry::rev_comp_by_path);
@@ -5501,6 +5543,52 @@ void Grep::recurse(size_t level, const char *pathname)
     save_not_exclude->swap(flag_not_exclude);
     save_not_exclude_dir->swap(flag_not_exclude_dir);
   }
+}
+
+// -Z and --sort=best: perform a presearch to determine edit distance cost, returns 65535 when no match is found
+uint16_t Grep::cost(const char *pathname)
+{
+  // stop when output is blocked
+  if (out.eof)
+    return 0;
+
+  // open (archive or compressed) file (pathname is NULL to read stdin), return on failure
+  if (!open_file(pathname))
+    return 0;
+
+  // -Z: matcher is a FuzzyMatcher
+  reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
+
+  uint16_t cost = 65535;
+
+  // -z: loop over extracted archive parts, when applicable
+  do
+  {
+    try
+    {
+      read_file();
+
+      while (fuzzy_matcher->find())
+      {
+        if (fuzzy_matcher->edits() < cost)
+          cost = fuzzy_matcher->edits();
+
+        // exact match?
+        if (cost == 0)
+          break;
+      }
+    }
+
+    catch (...)
+    {
+      // this should never happen
+      warning("exception while searching", pathname);
+    }
+
+    // close file or -z: loop over next extracted archive parts, when applicable
+  } while (close_file(pathname));
+
+  return cost;
 }
 
 // search input and display pattern matches
@@ -7592,13 +7680,13 @@ void help(const char *message, const char *arg)
             Perform case insensitive matching.  By default, ugrep is case\n\
             sensitive.  This option applies to ASCII letters only.\n\
     --ignore-files[=FILE]\n\
-            Ignore files and directories matching the globs in each FILE when\n\
-            encountered in recursive searches.  The default FILE is\n\
+            Ignore files and directories matching the globs in each FILE that\n\
+            is encountered in recursive searches.  The default FILE is\n\
             `" DEFAULT_IGNORE_FILE "'.  Matching files and directories located in the\n\
             directory tree rooted at a FILE's location are ignored by\n\
             temporarily overriding the --exclude and --exclude-dir globs.\n\
-            Note that files and directories specified as ugrep FILE arguments\n\
-            are not ignored.  This option may be repeated.\n\
+            Files and directories that are explicitly specified as command line\n\
+            arguments are never ignored.  This option may be repeated.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB using wildcard matching,\n\
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,\n\
@@ -7779,14 +7867,16 @@ void help(const char *message, const char *arg)
             (`:').\n\
     --sort[=KEY]\n\
             Displays matching files in the order specified by KEY in recursive\n\
-            searches.  KEY can be `name' to sort by pathname (default), `size'\n\
-            to sort by file size, `used' to sort by last access time, `changed'\n\
-            to sort by last modification time, and `created' to sort by\n\
-            creation time.  Sorting is reversed by `rname', `rsize', `rused',\n\
-            `rchanged', or `rcreated'.  Archive contents are not sorted.\n\
-            Subdirectories are displayed after matching files.  FILE arguments\n\
-            are searched in the same order as specified.  Normally ugrep\n\
-            displays matches in no particular order to improve performance.\n\
+            searches.  KEY can be `name' to sort by pathname (default), `best'\n\
+            to sort by best match with option -Z (sort by best match requires\n\
+            two passes over the input files), `size' to sort by file size,\n\
+            `used' to sort by last access time, `changed' to sort by last\n\
+            modification time, and `created' to sort by creation time.  Sorting\n\
+            is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or\n\
+            `rcreated'.  Archive contents are not sorted.  Subdirectories are\n\
+            sorted and displayed after matching files.  FILE arguments are\n\
+            searched in the same order as specified.  Normally ugrep displays\n\
+            matches in no particular order to improve performance.\n\
     --stats\n\
             Display statistics on the number of files and directories searched,\n\
             and the inclusion and exclusion constraints applied.\n\

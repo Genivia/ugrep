@@ -737,6 +737,14 @@ void Output::format(const char *format, const char *pathname, const std::string&
           xml(matcher->begin(), matcher->size());
         break;
 
+      case 'Z':
+        if (flag_fuzzy > 0)
+        {
+          reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
+          num(fuzzy_matcher->edits());
+        }
+        break;
+
       case 'z':
         str(partname);
         break;

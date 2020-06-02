@@ -2267,19 +2267,28 @@ void Query::meta(int key)
               flags_[17].flag = true;
             break;
 
-          case '#':
+          case '~':
             flags_[44].flag = false;
             flags_[45].flag = false;
+            flags_[46].flag = false;
+            break;
+
+          case '#':
+            flags_[43].flag = false;
+            flags_[45].flag = false;
+            flags_[46].flag = false;
             break;
 
           case '%':
             flags_[43].flag = false;
-            flags_[45].flag = false;
+            flags_[44].flag = false;
+            flags_[46].flag = false;
             break;
 
           case '@':
             flags_[43].flag = false;
             flags_[44].flag = false;
+            flags_[45].flag = false;
             break;
 
         }
@@ -2548,10 +2557,11 @@ void Query::get_flags()
   flags_[40].flag = flag_max_depth == 9;
   flags_[41].flag = flag_hidden;
   flags_[42].flag = flag_heading;
-  flags_[43].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
-  flags_[44].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
-  flags_[45].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
-  flags_[46].flag = flag_sort && *flag_sort == 'r';
+  flags_[43].flag = flag_sort && (strcmp(flag_sort, "best") == 0 || strcmp(flag_sort, "rbest") == 0);
+  flags_[44].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
+  flags_[45].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
+  flags_[46].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
+  flags_[47].flag = flag_sort && *flag_sort == 'r';
 }
 
 void Query::set_flags()
@@ -2611,13 +2621,15 @@ void Query::set_flags()
   flag_hidden = flags_[41].flag;
   flag_heading = flags_[42].flag;
   if (flags_[43].flag)
-    flag_sort = flags_[46].flag ? "rsize" : "size";
+    flag_sort = flags_[47].flag ? "rbest" : "best";
   else if (flags_[44].flag)
-    flag_sort = flags_[46].flag ? "rchanged" : "changed";
+    flag_sort = flags_[47].flag ? "rsize" : "size";
   else if (flags_[45].flag)
-    flag_sort = flags_[46].flag ? "rcreated" : "created";
+    flag_sort = flags_[47].flag ? "rchanged" : "changed";
+  else if (flags_[46].flag)
+    flag_sort = flags_[47].flag ? "rcreated" : "created";
   else
-    flag_sort = flags_[46].flag ? "rname" : "name";
+    flag_sort = flags_[47].flag ? "rname" : "name";
 }
 
 void Query::set_prompt()
@@ -2840,8 +2852,9 @@ Query::Flags Query::flags_[] = {
   { false, '7', "recurse 7 levels" },
   { false, '8', "recurse 8 levels" },
   { false, '9', "recurse 9 levels" },
-  { false, '.', "hidden files" },
-  { false, '+', "with heading" },
+  { false, '.', "include hidden" },
+  { false, '+', "show heading" },
+  { false, '~', "sort by best" },
   { false, '#', "sort by size" },
   { false, '$', "sort by changed" },
   { false, '@', "sort by created" },

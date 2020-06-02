@@ -126,6 +126,9 @@ printf .
 cat lorem | $UG -Fiwco --encoding=LATIN1 -f - lorem.latin1.txt | $DIFF out/lorem.latin1.out || ERR "-Fiwco --encoding=LATIN1 -f lorem lorem.latin1.txt"
 
 printf .
+$UG -Zio Lorem lorem.utf8.txt | $DIFF out/lorem_Lorem-Zio.out  || ERR "-Zio Lorem lorem.utf8.txt"
+
+printf .
 $UG -ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF out/Hello_Hello-ci.out \
     || ERR "-ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"

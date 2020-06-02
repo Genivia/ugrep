@@ -70,6 +70,8 @@ $UG -Fiwco -f lorem lorem.utf16.txt > out/lorem.utf16.out
 $UG -Fiwco -f lorem lorem.utf32.txt > out/lorem.utf32.out
 cat lorem | $UG -Fiwco --encoding=LATIN1 -f - lorem.latin1.txt > out/lorem.latin1.out
 
+$UG -Zio Lorem lorem.utf8.txt > out/lorem_Lorem-Zio.out
+
 $UG -ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ci.out
 $UG -cj hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-cj.out
 

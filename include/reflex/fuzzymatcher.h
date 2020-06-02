@@ -186,6 +186,9 @@ class FuzzyMatcher : public Matcher {
   /// Set backtrack point.
   void point(BacktrackPoint& bpt, const Pattern::Opcode *pc, bool alternate = true, bool eof = false)
   {
+    // advance to the first goto opcode
+    while (!Pattern::is_opcode_goto(*pc))
+      ++pc;
     bpt.pc0 = pc;
     bpt.pc1 = pc;
     bpt.len = pos_ - (txt_ - buf_) - !eof;
@@ -196,19 +199,21 @@ class FuzzyMatcher : public Matcher {
   /// backtrack on a backtrack point to insert or substitute a pattern char, restoring current text char matched and errors.
   const Pattern::Opcode *backtrack(BacktrackPoint& bpt, int& c1)
   {
+    // no more alternatives
     if (bpt.pc1 == NULL)
       return NULL;
-    // find the goto opcode
-    while (!Pattern::is_opcode_goto(*bpt.pc1))
-      ++bpt.pc1;
+    // done when no more goto opcodes on characters remain
+    if (!Pattern::is_opcode_goto(*bpt.pc1) || Pattern::is_meta(Pattern::lo_of(*bpt.pc1)))
+      return bpt.pc1 = NULL;
     Pattern::Index jump = Pattern::index_of(*bpt.pc1);
+    // last opcode is a HALT?
     if (jump == Pattern::Const::HALT)
     {
       if (!Pattern::is_opcode_goto(*bpt.pc0) || (Pattern::lo_of(*bpt.pc0) & 0xC0) != 0xC0)
         return bpt.pc1 = NULL;
+      // loop over UTF-8 multibytes, linear case only (i.e. one wide char)
       for (int i = 0; i < 4; ++i)
       {
-        // recurse over UTF-8 multibytes, linear case only (i.e. one wide char)
         jump = Pattern::index_of(*bpt.pc0);
         if (jump == Pattern::Const::HALT)
           return bpt.pc1 = NULL;
@@ -231,9 +236,9 @@ class FuzzyMatcher : public Matcher {
       jump = Pattern::long_index_of(bpt.pc1[1]);
     // restore errors
     err_ = bpt.err;
-    // restore pos
+    // restore pos in corpus
     pos_ = (txt_ - buf_) + bpt.len;
-    // set c1 to previous char before pos (to eventually set c0)
+    // set c1 to previous char before pos, to eventually set c0 in match(method)
     if (pos_ > 0)
       c1 = static_cast<unsigned char>(buf_[pos_ - 1]);
     else

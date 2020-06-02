@@ -162,8 +162,8 @@ inline int fopen_s(FILE **file, const char *filename, const char *mode)
 // undefined size_t value
 #define UNDEFINED_SIZE static_cast<size_t>(~0UL)
 
-// --sort=KEY is n/a or by name, size, used time, changed time, created time
-enum class Sort { NA, NAME, SIZE, USED, CHANGED, CREATED };
+// --sort=KEY is n/a or by name, score, size, used time, changed time, created time
+enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED };
 
 // -D, --devices and -d, --directories
 enum class Action { SKIP, READ, RECURSE };
