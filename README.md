@@ -38,21 +38,40 @@ search pdf and office documents using filters
 - Thoroughly tested (includes over 1000 test cases)
 - Compatible with the standard GNU/BSD grep command-line options
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
-- Interactive [query UI](#query) to enter search patterns
+- Interactive [query UI](#query)
+      ugrep -Q ...
 - Select files to search by [file types, filename suffix, and "magic bytes"](#magic)
+      ugrep -t TYPE PATTERN ...              ugrep -O SUFFIX PATTERN ...
+      ugrep -M'MAGIC' PATTERN ...            ugrep -g'GLOB' PATTERN ...
 - Find approximate pattern matches with [fuzzy search](#fuzzy)
+      ugrep -Z PATTERN ...
 - Search [archives](#archives) (cpio, jar, tar, pax, zip)
+      ugrep -z PATTERN ...
 - Search [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
+      ugrep -z PATTERN ...
 - Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
+      ugrep --filter='pdf:pdftotext % -' PATTERN ...
+      ugrep --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
 - Search [binary files](#binary) and display hexdumps with binary pattern matches
-- Search UTF-encoded files with Unicode pattern matches (by default)
-- Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MAC, KOI8, etc.
+      ugrep -W PATTERN ...                   ugrep -X PATTERN ...
+- Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
+      ugrep --encoding=LATIN1 PATTERN ...
 - Search files excluding files specified by [.gitignore](#ignore) etc.
-- Search patterns across newlines, matching [multiple lines](#multiline) at once
+      ugrep --ignore-files PATTERN ...
 - Search patterns excluding [negative patterns](#not) ("match this but not that")
+      ugrep PATTERN -N NOTPATTERN ...
 - Includes [predefined regex patterns](#source) to search source code, XML, JSON, HTML, etc.
+      ugrep PATTERN -f c++/zap_comments -f c++/zap_strings ...
 - Output results in [CSV, JSON, XML](#json), and [user-specified formats](#format)
+      ugrep --csv PATTERN ...                ugrep --json PATTERN ...
+      ugrep --xml PATTERN ...                ugrep --format='file=%f line=%O%~' PATTERN ...
 - Sort matching files by [name, best match, size, and time](#sort)
+      ugrep --sort PATTERN ...               ugrep --sort=size PATTERN ...
+      ugrep --sort=changed PATTERN ...       ugrep --sort=created PATTERN ...
+      ugrep -Z --sort=best PATTERN ...
+- Search with PCRE's Perl-compatible regex patterns
+      ugrep -P PATTERN
+- Search patterns across newlines, matching [multiple lines](#multiline) at once
 - Portable, compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
 - Includes x86 and x64 binaries for Windows in [GitHub releases](https://github.com/Genivia/ugrep/releases)
 
@@ -61,14 +80,13 @@ search pdf and office documents using filters
 Table of contents
 -----------------
 
-- [Why use ugrep?](#introduction)
-- [Speed comparisons](#speed)
 - [Download and install](#install)
+- [Speed comparisons](#speed)
 - [Using ugrep within Vim](#vim)
 - [Ugrep versus grep](#comparison)
   - [Equivalence to GNU grep and BSD grep](#equivalence)
   - [Short and quick command aliases](#aliases)
-  - [Notable improvements over grep](#improvements)
+  - [Some notable improvements over grep](#improvements)
 - [Tutorial](#tutorial)
   - [Examples](#examples)
   - [Advanced examples](#advanced)
@@ -109,212 +127,6 @@ Table of contents
   - [POSIX and Unicode character categories](#posix-categories)
   - [Perl regular expression syntax](#perl-syntax)
 - [Troubleshooting](#bugs)
-
-<a name="introduction"/>
-
-Why use ugrep?
---------------
-
-- **ugrep is user friendly**.  The interactive query UI (option `-Q`) is easy
-  to use (and offers a help page).  Also, command-line options and arguments
-  produce more predictable results for defaults, i.e. recursive search by
-  default, directories are searched when specified on the command line, etc.
-
-- **ugrep is fast**, faster than GNU grep and other grep tools for typical use
-  cases.  **ugrep** uses our new match prediction algorithm combined with our
-  [RE/flex](https://github.com/Genivia/RE-flex) regex matcher, which is 10 to
-  100 times faster than PCRE2 and RE2.  **ugrep** is multi-threaded and uses
-  lock-free job queue stealing to search files concurrently and optimally load
-  balanced.  See [speed comparisons](#speed).
-
-- **ugrep is compatible** by supporting the standard GNU/BSD grep command-line
-  options.  This means that grep use cases work with **ugrep** too.
-
-- **ugrep has fuzzy search options** to find approximate matches and sort files
-  by best match.
-
-- **ugrep searches compressed files and archives** (cpio, jar, tar, pax, zip,
-  gz, bz2, xz, lzma, Z) with option `-z`.  The matching file names in archives
-  are output in braces.  For example `myprojects.tgz{main.cpp}` indicates that
-  file `main.cpp` in compressed tar file `myprojects.tgz` has a match.
-  Filename glob matching, file types, filename extensions, and file signature
-  "magic bytes" can be selected to filter files in archives with options `-g`,
-  `-t`, `-O`, and `-M`, respectively.  For example:
-
-      ugrep -z -tc++ main myprojects.tgz
-
-  looks for `main` in C++ files in the compressed tar file `myprojects.tgz`.
-
-- **ugrep makes it simple to search source code** with options to select files
-  by file type, filename extension, file signature "magic bytes" or shebangs.
-  For example, to list all shell scripts in or below the working directory:
-
-      ugrep -l -tShell ""
-
-  where `-l` lists matching files, `-tShell` selects shell files by file type
-  (i.e. shell extensions and shebangs), and the empty pattern `""` matches the
-  entire file (a common grep feature).  Also new options `-O` and `-M` may be
-  used to select files by extension and by file signature "magic bytes",
-  respectively.
-
-- **ugrep understands gitignore-style globs** and ignores files specified
-  in a `.gitignore` file, or any other file.  Either explicitly with
-  `--exclude-from=.gitignore` or implicitly with `--ignore-files` to ignore
-  files in and below the directory of a `.gitignore` file found during
-  recursive searches.
-
-- **ugrep produces hexdumps for binary matches** to search for binary patterns
-  of bytes, for example:
-
-      ugrep -UX '\xed\xab\xee\xdb' some.rpm
-
-  where `-X` produces hexadecimal output and `-U` specifies a binary pattern to
-  search (meaning non-Unicode).  You can use either `-X` or `-W` (with-hex to
-  hexdump binary files only).  Other options that normally work with text
-  matches work with `-X` and `-W` too, such as the context options `-A`, `-B`,
-  `-C`, and `-y`.  A match is considered binary if it contains a NUL (`\0`) or
-  an invalid UTF multibyte sequence.
-
-- **ugrep includes a growing [database of search patterns](https://github.com/Genivia/ugrep/tree/master/patterns)**,
-  so you don't need to memorize complex regex patterns for common searches.
-  Environment variable `GREP_PATH` can be set to point to your own directory
-  with patterns that option `-f` uses to read your pattern files.  For example
-  to recursively search Python files in the working directory for lines with
-  `import` statements:
-
-      ugrep -3 -tPython -f python/imports
-
-  where `-3` specifies recursive search up to three levels (`-R` gives
-  unlimited depth) while following symlinks, `-tPython` selects Python files
-  only (i.e. by file name extension `.py` and by Python shebangs), and the `-f`
-  option specifies predefined patterns to search for Python `import` statements
-  (matched by the two patterns `\<import\h+.*` and `\<from\h+.*import\h+.*`
-  redefined in `patterns/python/imports`).
-
-- **ugrep is the only grep tool that allows you to specify negative patterns**
-  to *zap* parts in files you want to skip.  This removes false positives.  For
-  example to find exact matches of `main` in C/C++ source code while skipping
-  strings and comments that may have a match with `main` in them:
-
-      ugrep -tc++ -nw main -f c/zap_strings -f c/zap_comments
-
-  where `-tc++` searches C/C++ source code files, `-n` shows line numbers in
-  the output, `-w` matches exact words (for example, `mainly` won't be
-  matched), and the `-f` options specify two predefined installed patterns to
-  match and skip strings and comments in the input.  As another example, it is
-  now easy to search a PHP file while zapping past any HTML between PHP code
-  segments:
-
-      ugrep IsInjected -f php/zap_html myfile.php
-
-- **ugrep matches patterns across multiple lines** without a performance
-  penalty or requiring options.  For example:
-
-      ugrep '.*begin(.|\n)*?end.*' myfile.txt
-
-  matches all lines between a line containing `begin` and a line containing
-  `end`.  This pattern uses lazy repetition `(.|\n)*?` to match everything
-  inbetween, including newlines.
-
-- **ugrep matches Unicode patterns** by default (disabled with option `-U`).  The
-  [regular expression pattern syntax](#pattern) is POSIX ERE compliant extended
-  with PCRE-like syntax.  Option `-P` may also be used for Perl matching with
-  Unicode patterns.  UTF-8/16/32 input is detected and searched accordingly.
-  Option `--encoding` permits many other file formats to be searched, such as
-  ISO-8859-1 to 16, code pages 437, 850, 858, 1250 to 1258, MacRoman, and KIO8.
-
-- **ugrep customizes the output format** with options `--csv`, `--json`, and
-  `--xml` to output CSV, JSON, or XML.  Option `--format` takes custom
-  formatting to the extreme.
-
-- **ugrep POSIX regex patterns are converted to efficient DFAs** for faster
-  matching without backtracking.  DFAs yield significant speedups when
-  searching large files.  Rare and pathological cases are known to exist that
-  may increase the initial running time of **ugrep** for complex DFA
-  construction.  By constrast, option `-P` uses Perl regex matching, which is
-  slower.
-
-🔝 [Back to table of contents](#toc)
-
-<a name="speed"/>
-
-Speed comparisons
------------------
-
-### Tests
-
-The following tests span a range of practical use cases:
-
-Test | Command                                                          | Description
----- | ---------------------------------------------------------------- | -----------------------------------------------------
-T1   | `GREP -c quartz enwik8`                                          | count "quartz" in a 100MB file (word with low frequency letters)
-T2   | `GREP -c sternness enwik8`                                       | count "sternness" in a 100MB file (word with high frequency letters)
-T3   | `GREP -cw -e char -e int -e long -e size_t -e void big.cpp`      | count 5 short words in a 35MB C++ source code file
-T4   | `GREP -Eon 'serialize_[a-zA-Z0-9_]+Type' big.cpp`                | search and display C++ serialization functions in a 35MB source code file
-T5   | `GREP -Fon -f words1+1000 enwik8`                                | search 1000 words of length 1 or longer in a 100MB Wikipedia file
-T6   | `GREP -Fon -f words2+1000 enwik8`                                | search 1000 words of length 2 or longer in a 100MB Wikipedia file
-T7   | `GREP -Fon -f words3+1000 enwik8`                                | search 1000 words of length 3 or longer in a 100MB Wikipedia file
-T8   | `GREP -Fon -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
-T9   | `GREP -Fon -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
-T10  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | multi-threaded recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
-T11  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T10 but single-threaded
-T12  | `GREP -z -Fc word word*.gz`                                      | count `word` in 6 compressed files of 1MB to 3MB each
-
-Note: T10 and T11 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
-files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
-GNU/BSD/PCRGE grep as `--include='*.h' --include='*.hpp' --include='*.cpp'`,
-with silver searcher as `-G '.*\.(h|hpp|cpp)'` requiring `--search-binary` to
-search compressed files (a bug), and with ripgrep as `--glob='*.h'
---glob='*.hpp' --glob='*.cpp'`.
-
-The corpora used in the tests are available for
-[download](https://www.genivia.com/files/corpora.zip).
-
-### Results
-
-Performance tests were conducted with a Mac OS X using clang 9.0.0 -O2 on a 2.9
-GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 Mac OS 10.12.6 machine.  The best
-times for at least 30 runs is shown under minimal machine load.
-
-Results are shown in real time (wall clock time) seconds elapsed.  Best times
-are shown in **boldface** and *n/a* means that the running time exceeded 1
-minute or the selected options are not supported (e.g. option `-z`).
-
-GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      | T11      | T12      |
---------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-ugrep           | **0.05** | **0.06** | **0.08** | **0.03** | **0.99** | **0.99** | **0.89** | **0.88** | **0.29** | **0.10** | **0.19** | **0.02** |
-hyperscan grep  | 0.09     | 0.10     | 0.11     | 0.04     | 7.78     | 3.39     | 2.35     | 1.41     | 1.17     | *n/a*    | *n/a*    | *n/a*    |
-ripgrep         | 0.06     | 0.10     | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
-silver searcher | 0.10     | 0.11     | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
-GNU grep 3.3    | 0.08     | 0.15     | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | *n/a*    | 0.26     | *n/a*    |
-PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | *n/a*    |
-BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 0.60     |
-
-Note: [silver searcher 2.2.0](https://github.com/ggreer/the_silver_searcher)
-runs slower with multiple threads (T10 0.45s) than single-threaded (T11 0.32s),
-which was reported as an issue to the maintainers.
-
-[Hyperscan simple grep](https://github.com/intel/hyperscan/tree/master/examples)
-returns a few more matches than other greps due to its "all matches reported"
-pattern matching behavior.  Option `-w` was emulated using the pattern
-`\b(char|int|long|size_t|void)\b`.  Option `-f` was emulated as follows:
-
-    paste -d'|' -s words1+1000 > pattern.txt
-    /usr/bin/time ./simplegrep `cat pattern.txt` enwik8 | ./null
-
-Note: output is sent to a `null` utility to eliminate terminal display
-overhead.  The `null` utility source code:
-
-    #include <sys/types.h>
-    #include <sys/uio.h>
-    #include <unistd.h>
-    int main() { char buf[65536]; while (read(0, buf, 65536) > 0) continue; }
-
-Note: performance results depend on warm/cold runs, compilers, libraries, the
-OS, the CPU type, and file system latencies.  However, comparable competitive
-results were obtained on many other types of machines.
-
-🔝 [Back to table of contents](#toc)
 
 <a name="install"/>
 
@@ -450,6 +262,86 @@ significant changes, for example to detect data races with the
 We checked **ugrep** with the clang AddressSanitizer, MemorySanitizer,
 ThreadSanitizer, and UndefinedBehaviorSanitizer.  These options incur
 significant runtime overhead and should not be used for the final build.
+
+🔝 [Back to table of contents](#toc)
+
+<a name="speed">
+
+Speed comparisons
+-----------------
+
+### Tests
+
+The following tests span a range of practical use cases:
+
+Test | Command                                                          | Description
+---- | ---------------------------------------------------------------- | -----------------------------------------------------
+T1   | `GREP -c quartz enwik8`                                          | count "quartz" in a 100MB file (word with low frequency letters)
+T2   | `GREP -c sternness enwik8`                                       | count "sternness" in a 100MB file (word with high frequency letters)
+T3   | `GREP -cw -e char -e int -e long -e size_t -e void big.cpp`      | count 5 short words in a 35MB C++ source code file
+T4   | `GREP -Eon 'serialize_[a-zA-Z0-9_]+Type' big.cpp`                | search and display C++ serialization functions in a 35MB source code file
+T5   | `GREP -Fon -f words1+1000 enwik8`                                | search 1000 words of length 1 or longer in a 100MB Wikipedia file
+T6   | `GREP -Fon -f words2+1000 enwik8`                                | search 1000 words of length 2 or longer in a 100MB Wikipedia file
+T7   | `GREP -Fon -f words3+1000 enwik8`                                | search 1000 words of length 3 or longer in a 100MB Wikipedia file
+T8   | `GREP -Fon -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
+T9   | `GREP -Fon -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
+T10  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | multi-threaded recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
+T11  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T10 but single-threaded
+T12  | `GREP -z -Fc word word*.gz`                                      | count `word` in 6 compressed files of 1MB to 3MB each
+
+Note: T10 and T11 use **ugrep** option `-Oh,hpp,cpp` to restrict the search to
+files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
+GNU/BSD/PCRGE grep as `--include='*.h' --include='*.hpp' --include='*.cpp'`,
+with silver searcher as `-G '.*\.(h|hpp|cpp)'` requiring `--search-binary` to
+search compressed files (a bug), and with ripgrep as `--glob='*.h'
+--glob='*.hpp' --glob='*.cpp'`.
+
+The corpora used in the tests are available for
+[download](https://www.genivia.com/files/corpora.zip).
+
+### Results
+
+Performance tests were conducted with a Mac OS X using clang 9.0.0 -O2 on a 2.9
+GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 Mac OS 10.12.6 machine.  The best
+times for at least 30 runs is shown under minimal machine load.
+
+Results are shown in real time (wall clock time) seconds elapsed.  Best times
+are shown in **boldface** and *n/a* means that the running time exceeded 1
+minute or the selected options are not supported (e.g. option `-z`).
+
+GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      | T11      | T12      |
+--------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
+ugrep           | **0.05** | **0.06** | **0.08** | **0.03** | **0.99** | **0.99** | **0.89** | **0.88** | **0.29** | **0.10** | **0.19** | **0.02** |
+hyperscan grep  | 0.09     | 0.10     | 0.11     | 0.04     | 7.78     | 3.39     | 2.35     | 1.41     | 1.17     | *n/a*    | *n/a*    | *n/a*    |
+ripgrep         | 0.06     | 0.10     | 0.19     | 0.06     | 2.20     | 2.07     | 2.00     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
+silver searcher | 0.10     | 0.11     | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
+GNU grep 3.3    | 0.08     | 0.15     | 0.18     | 0.16     | 2.70     | 2.64     | 2.54     | 2.42     | 2.26     | *n/a*    | 0.26     | *n/a*    |
+PCREGREP 8.42   | 0.17     | 0.17     | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | *n/a*    |
+BSD grep 2.5.1  | 0.81     | 1.60     | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 0.60     |
+
+Note: [silver searcher 2.2.0](https://github.com/ggreer/the_silver_searcher)
+runs slower with multiple threads (T10 0.45s) than single-threaded (T11 0.32s),
+which was reported as an issue to the maintainers.
+
+[Hyperscan simple grep](https://github.com/intel/hyperscan/tree/master/examples)
+returns a few more matches than other greps due to its "all matches reported"
+pattern matching behavior.  Option `-w` was emulated using the pattern
+`\b(char|int|long|size_t|void)\b`.  Option `-f` was emulated as follows:
+
+    paste -d'|' -s words1+1000 > pattern.txt
+    /usr/bin/time ./simplegrep `cat pattern.txt` enwik8 | ./null
+
+Note: output is sent to a `null` utility to eliminate terminal display
+overhead.  The `null` utility source code:
+
+    #include <sys/types.h>
+    #include <sys/uio.h>
+    #include <unistd.h>
+    int main() { char buf[65536]; while (read(0, buf, 65536) > 0) continue; }
+
+Note: performance results depend on warm/cold runs, compilers, libraries, the
+OS, the CPU type, and file system latencies.  However, comparable competitive
+results were obtained on many other types of machines.
 
 🔝 [Back to table of contents](#toc)
 
@@ -615,9 +507,9 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 
 <a name="improvements"/>
 
-### Notable improvements over grep
+### Some notable improvements over grep
 
-- **ugrep** matches patterns across multiple lines by default.
+- **ugrep** matches patterns across multiple lines.
 - **ugrep** matches Unicode by default (disabled with option `-U`).
 - **ugrep** supports fuzzy (approximate) matching (option `-Z`).
 - **ugrep** regular expression patterns are more expressive than GNU grep and
@@ -680,8 +572,9 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   e.g. `^\h*$`, by implicitly enabling `-Y`.
 - **ugrep** does not use a `.greprc` configuration file or a `GREP_OPTIONS`
   environment variable, because the behavior of **ugrep** must be portable and
-  predictable.  Also GNU grep abandoned `GREP_OPTIONS` for this reason.
-  Instead, please use aliases to create new commands with specific search
+  predictable on every system, without having to copy the configuration files
+  to each system.  Also GNU grep abandoned `GREP_OPTIONS` for this reason.
+  Instead, please use shell aliases to create new commands with specific search
   options.
 
 🔝 [Back to table of contents](#toc)
@@ -1676,6 +1569,13 @@ search the files:
             MAGIC signatures.  This option may be repeated and may be combined
             with options -O and -t to expand the search.  Every file on the
             search path is read, making searches potentially more expensive.
+    -O EXTENSIONS, --file-extensions=EXTENSIONS
+            Search only files whose filename extensions match the specified
+            comma-separated list of EXTENSIONS, same as --include='*.ext' for
+            each `ext' in EXTENSIONS.  When `ext' is preceded by a `!' or a
+            `^', skip files whose filename extensions matches `ext', same as
+            --exclude='*.ext'.  This option may be repeated and may be combined
+            with options -M and -t to expand the recursive search.
     -t TYPES, --file-type=TYPES
             Search only files associated with TYPES, a comma-separated list of
             file types.  Each file type corresponds to a set of filename
@@ -1684,6 +1584,11 @@ search the files:
             magic bytes, as if passed to option -M.  When a type is preceded
             by a `!' or a `^', excludes files of the specified type.  This
             option may be repeated.
+    -g GLOB, --glob=GLOB
+            Search only files whose name matches GLOB, same as --include=GLOB.
+            When GLOB is preceded by a `!' or a `^', skip files whose name
+            matches GLOB, same as --exclude=GLOB.  GLOB should be quoted to
+            prevent shell globbing.  This option may be repeated.
     --stats
             Display statistics on the number of files and directories searched.
             Display the inclusion and exclusion constraints applied.
@@ -1718,7 +1623,7 @@ statements, including hidden files with `-.`:
 
     -Z[MAX], --fuzzy[=MAX]
             Fuzzy mode: report approximate pattern matches within MAX errors.
-            By default, MAX is 1 and one deletion, insertion or substitution is
+            By default, MAX is 1: one deletion, insertion or substitution is
             allowed.  When `+' and/or `-' preceed MAX, only insertions and/or
             deletions are allowed.  When `~' preceeds MAX, substitution counts
             as one error.  For example, -Z+~3 allows up to three insertions or
@@ -3641,8 +3546,8 @@ in markdown:
 
            -Z[MAX], --fuzzy[=MAX]
                   Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
-                  errors.  By default, MAX is 1 and  one  deletion,  insertion  or
-                  substitution  is allowed.  When `+' and/or `-' preceed MAX, only
+                  errors.  By default, MAX is 1: one deletion, insertion  or  sub-
+                  stitution  is  allowed.   When  `+' and/or `-' preceed MAX, only
                   insertions and/or deletions are allowed.  When `~' preceeds MAX,
                   substitution  counts as one error.  For example, -Z+~3 allows up
                   to three insertions or substitutions,  but  no  deletions.   The
