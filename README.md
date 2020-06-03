@@ -40,8 +40,6 @@ search pdf and office documents using filters
 
 - Compatible with the standard GNU/BSD grep command-line options
 
-- Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
-
 - Interactive [query UI](#query)
 
       ugrep -Q ...
@@ -55,11 +53,7 @@ search pdf and office documents using filters
 
       ugrep -Z PATTERN ...
 
-- Search [archives](#archives) (cpio, jar, tar, pax, zip)
-
-      ugrep -z PATTERN ...
-
-- Search [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
+- Search [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
 
       ugrep -z PATTERN ...
 
@@ -91,7 +85,7 @@ search pdf and office documents using filters
 - Output results in [CSV, JSON, XML](#json), and [user-specified formats](#format)
 
       ugrep --csv PATTERN ...                ugrep --json PATTERN ...
-      ugrep --xml PATTERN ...                ugrep --format='file=%f line=%O%~' PATTERN ...
+      ugrep --xml PATTERN ...                ugrep --format='file=%f line=%n match=%O%~' PATTERN ...
 
 - Sort matching files by [name, best match, size, and time](#sort)
 
@@ -101,9 +95,9 @@ search pdf and office documents using filters
 
 - Search with PCRE's Perl-compatible regex patterns
 
-      ugrep -P PATTERN
+      ugrep -P PATTERN ...
 
-- Search patterns across newlines, matching [multiple lines](#multiline) at once
+- Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
 
 <a name="toc"/>
 
