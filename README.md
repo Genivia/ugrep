@@ -42,7 +42,7 @@ search pdf and office documents using filters
 
 - Interactive [query UI](#query)
 
-      ugrep -Q ...
+      ugrep -Q ...                           ugrep -Q -e PATTERN ...
 
 - Select files to search by [file types, filename suffix, and "magic bytes"](#magic)
 
