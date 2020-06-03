@@ -72,7 +72,7 @@ search pdf and office documents using filters
 
 - Search files excluding files specified by [.gitignore](#ignore) etc.
 
-      ugrep --ignore-files PATTERN ...
+      ugrep --ignore-files PATTERN ...       ugrep --ignore-files=.ignore PATTERN ...
 
 - Search patterns excluding [negative patterns](#not) ("match this but not that")
 
@@ -2589,9 +2589,9 @@ field                 | output
 `%1`                  | the first regex group capture of the match, and so on up to group `%9`, requires option `-P`
 `%[NUM]#`             | the regex group capture `NUM`, requires option `-P`
 `%G`                  | list of group capture indices/names of the match (see note)
-`%[NAME1|NAME2|...]G` | NAMEs corresponding to the group capture indices of the match (see note)
+`%[NAME1\|NAME2\|...]G` | NAMEs corresponding to the group capture indices of the match (see note)
 `%g`                  | the group capture index of the match or 1 (see note)
-`%[NAME1|NAME2|...]g` | NAME corresponding to the group capture index of the match (see note)
+`%[NAME1\|NAME2\|...]g` | NAME corresponding to the group capture index of the match (see note)
 `%%`                  | the percentage sign
 
 Note:
