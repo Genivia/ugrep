@@ -39,38 +39,66 @@ search pdf and office documents using filters
 - Compatible with the standard GNU/BSD grep command-line options
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
 - Interactive [query UI](#query)
+
       ugrep -Q ...
+
 - Select files to search by [file types, filename suffix, and "magic bytes"](#magic)
+
       ugrep -t TYPE PATTERN ...              ugrep -O SUFFIX PATTERN ...
       ugrep -M'MAGIC' PATTERN ...            ugrep -g'GLOB' PATTERN ...
+
 - Find approximate pattern matches with [fuzzy search](#fuzzy)
+
       ugrep -Z PATTERN ...
+
 - Search [archives](#archives) (cpio, jar, tar, pax, zip)
+
       ugrep -z PATTERN ...
+
 - Search [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
+
       ugrep -z PATTERN ...
+
 - Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
+
       ugrep --filter='pdf:pdftotext % -' PATTERN ...
       ugrep --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
+
 - Search [binary files](#binary) and display hexdumps with binary pattern matches
+
       ugrep -W PATTERN ...                   ugrep -X PATTERN ...
+
 - Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
+
       ugrep --encoding=LATIN1 PATTERN ...
+
 - Search files excluding files specified by [.gitignore](#ignore) etc.
+
       ugrep --ignore-files PATTERN ...
+
 - Search patterns excluding [negative patterns](#not) ("match this but not that")
+
       ugrep PATTERN -N NOTPATTERN ...
+
 - Includes [predefined regex patterns](#source) to search source code, XML, JSON, HTML, etc.
+
       ugrep PATTERN -f c++/zap_comments -f c++/zap_strings ...
+
 - Output results in [CSV, JSON, XML](#json), and [user-specified formats](#format)
+
       ugrep --csv PATTERN ...                ugrep --json PATTERN ...
       ugrep --xml PATTERN ...                ugrep --format='file=%f line=%O%~' PATTERN ...
+
 - Sort matching files by [name, best match, size, and time](#sort)
+
       ugrep --sort PATTERN ...               ugrep --sort=size PATTERN ...
       ugrep --sort=changed PATTERN ...       ugrep --sort=created PATTERN ...
       ugrep -Z --sort=best PATTERN ...
+
 - Search with PCRE's Perl-compatible regex patterns
+
       ugrep -P PATTERN
+
 - Search patterns across newlines, matching [multiple lines](#multiline) at once
 - Portable, compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
 - Includes x86 and x64 binaries for Windows in [GitHub releases](https://github.com/Genivia/ugrep/releases)
