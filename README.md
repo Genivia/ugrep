@@ -40,11 +40,11 @@ search pdf and office documents using filters
 
 - Compatible with the standard GNU/BSD grep command-line options
 
-- Interactive [query UI](#query)
+- Interactive [query UI](#query), press F1 or CTRL-Z for help
 
       ugrep -Q ...                           ugrep -Q -e PATTERN ...
 
-- Select files to search by [file types, filename suffix, or "magic bytes"](#magic) and [gitignore-style globs](#gitignore)
+- Select files to search by [file types, filename suffix, "magic bytes"](#magic) and [gitignore-style globs](#gitignore)
 
       ugrep -t TYPE PATTERN ...              ugrep -O SUFFIX PATTERN ...
       ugrep -M'MAGIC' PATTERN ...            ugrep -g'GLOB' PATTERN ...
@@ -64,7 +64,8 @@ search pdf and office documents using filters
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches
 
-      ugrep -W PATTERN ...                   ugrep -X PATTERN ...
+      ugrep -W TEXTPATTERN ...               ugrep -X TEXTPATTERN ...
+      ugrep -W -U BYTEPATTERN ...            ugrep -X -U BYTEPATTERN ...
 
 - Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
@@ -78,9 +79,11 @@ search pdf and office documents using filters
 
       ugrep PATTERN -N NOTPATTERN ...
 
-- Includes [predefined regex patterns](#source) to search source code, XML, JSON, HTML, etc.
+- Includes [predefined regex patterns](#source) to search source code, javascript, XML, JSON, HTML, PHP, markdown, etc.
 
       ugrep PATTERN -f c++/zap_comments -f c++/zap_strings ...
+      ugrep PATTERN -f php/zap_html ...
+      ugrep -f js/functions ... | ugrep PATTERN ...
 
 - Output results in [CSV, JSON, XML](#json), and [user-specified formats](#format)
 
