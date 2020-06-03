@@ -44,7 +44,7 @@ search pdf and office documents using filters
 
       ugrep -Q ...                           ugrep -Q -e PATTERN ...
 
-- Select files to search by [file types, filename suffix, and "magic bytes"](#magic)
+- Select files to search by [file types, filename suffix, or "magic bytes"](#magic) and [gitignore-style globs](#gitignore)
 
       ugrep -t TYPE PATTERN ...              ugrep -O SUFFIX PATTERN ...
       ugrep -M'MAGIC' PATTERN ...            ugrep -g'GLOB' PATTERN ...
@@ -1619,20 +1619,20 @@ search the files:
 
 To recursively list all files that start with `#!` shebangs:
 
-    ugrep -Rl -M'#!' ''
+    ugrep -l -M'#!' ''
 
 To recursively list all files that start with `#` but not with `#!` shebangs:
 
-    ugrep -Rl -M'#' -M'^#!' ''
+    ugrep -l -M'#' -M'^#!' ''
 
 To recursively list all Python files (extension `.py` or a shebang) with
 `-tPython`:
 
-    ugrep -Rl -tPython ''
+    ugrep -l -tPython ''
 
 To recursively list all non-shell files with `-t^Shell`:
 
-    ugrep -Rl -t^Shell ''
+    ugrep -l -t^Shell ''
 
 To list Python files (extension `.py` or a shebang) that have import
 statements, including hidden files with `-.`:
