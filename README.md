@@ -2028,6 +2028,11 @@ implicit:
 
 ### Using gitignore-style globs to select directories and files to search
 
+    -g GLOB, --glob=GLOB
+            Search only files whose name matches GLOB, same as --include=GLOB.
+            When GLOB is preceded by a `!' or a `^', skip files whose name
+            matches GLOB, same as --exclude=GLOB.  GLOB should be quoted to
+            prevent shell globbing.  This option may be repeated.
     --exclude=GLOB
             Skip files whose name matches GLOB using wildcard matching, same as
             -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
@@ -2052,11 +2057,6 @@ implicit:
             --exclude-dir).  Lines starting with a `#' and empty lines in FILE
             are ignored.  When FILE is a `-', standard input is read.  This
             option may be repeated.
-    -g GLOB, --glob=GLOB
-            Search only files whose name matches GLOB, same as --include=GLOB.
-            When GLOB is preceded by a `!' or a `^', skip files whose name
-            matches GLOB, same as --exclude=GLOB.  GLOB should be quoted to
-            prevent shell globbing.  This option may be repeated.
     --ignore-files[=FILE]
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
@@ -2111,7 +2111,7 @@ glob     | matches
 `[a-z]`  | matches one character in the selected range of characters
 `[^a-z]` | matches one character not in the selected range of characters
 `[!a-z]` | matches one character not in the selected range of characters
-`/`      | when used at the begin of a glob, matches if pathname has no `/`
+`/`      | when used at the begin of a glob, matches root or working directory
 `**/`    | matches zero or more directories
 `/**`    | when at the end of a glob, matches everything after the `/`
 `\?`     | matches a `?` (or any character specified after the backslash)
