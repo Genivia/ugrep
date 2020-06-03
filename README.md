@@ -28,16 +28,20 @@ search pdf and office documents using filters
 </div>
 <br>
 
-- Unlimited pro edition - forever free open source (BSD-3)
-- Written in clean and efficient C++11, built for speed
+- Written in clean and efficient C++11, built for speed and thoroughly tested with over 1000 test cases
+
+- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
+
 - Ultra fast with new match algorithms [beating](#speed) grep, ripgrep, silver searcher, hyperscan, etc.
-- Multi-threaded search using high-performance lock-free job queue stealing
-- Multi-threaded task-parallel decompression and search
-- Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64)
-- Optimized asynchronous IO for efficient concurrent searching
-- Thoroughly tested (includes over 1000 test cases)
+
+- Multi-threaded search using high-performance lock-free job queue stealing and task-parallel decompression and search
+
+- Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64) and asynchronous IO for efficient concurrent searching
+
 - Compatible with the standard GNU/BSD grep command-line options
+
 - Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
+
 - Interactive [query UI](#query)
 
       ugrep -Q ...
@@ -100,8 +104,6 @@ search pdf and office documents using filters
       ugrep -P PATTERN
 
 - Search patterns across newlines, matching [multiple lines](#multiline) at once
-- Portable, compiles and runs on Linux, Unix, Mac OS X, Windows, etc.
-- Includes x86 and x64 binaries for Windows in [GitHub releases](https://github.com/Genivia/ugrep/releases)
 
 <a name="toc"/>
 
