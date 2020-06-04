@@ -1649,8 +1649,8 @@ import statements, including hidden files with `-.`:
     -Z[MAX], --fuzzy[=MAX]
             Fuzzy mode: report approximate pattern matches within MAX errors.
             By default, MAX is 1: one deletion, insertion or substitution is
-            allowed.  When `+' and/or `-' preceed MAX, only insertions and/or
-            deletions are allowed.  When `~' preceeds MAX, substitution counts
+            allowed.  When `+' and/or `-' precede MAX, only insertions and/or
+            deletions are allowed.  When `~' precedes MAX, substitution counts
             as one error.  For example, -Z+~3 allows up to three insertions or
             substitutions, but no deletions.  The first character of an
             approximate match always matches the begin of a pattern.  Option
@@ -3577,8 +3577,8 @@ in markdown:
            -Z[MAX], --fuzzy[=MAX]
                   Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
                   errors.  By default, MAX is 1: one deletion, insertion  or  sub-
-                  stitution  is  allowed.   When  `+' and/or `-' preceed MAX, only
-                  insertions and/or deletions are allowed.  When `~' preceeds MAX,
+                  stitution  is  allowed.   When  `+' and/or `-' precede MAX, only
+                  insertions and/or deletions are allowed.  When `~' precedes MAX,
                   substitution  counts as one error.  For example, -Z+~3 allows up
                   to three insertions or substitutions,  but  no  deletions.   The
                   first character of an approximate match always matches the begin

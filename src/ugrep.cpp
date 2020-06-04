@@ -7957,8 +7957,8 @@ void help(const char *message, const char *arg)
     -Z[MAX], --fuzzy[=MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             By default, MAX is 1 and one deletion, insertion or substitution is\n\
-            allowed.  When `+' and/or `-' preceed MAX, only insertions and/or\n\
-            deletions are allowed.  When `~' preceeds MAX, substitution counts\n\
+            allowed.  When `+' and/or `-' precede MAX, only insertions and/or\n\
+            deletions are allowed.  When `~' precedes MAX, substitution counts\n\
             as one error.  For example, -Z+~3 allows up to three insertions or\n\
             substitutions, but no deletions.  The first character of an\n\
             approximate match always matches the begin of a pattern.  Option\n\
