@@ -62,7 +62,7 @@ search pdf and office documents using filters
       ugrep --filter='pdf:pdftotext % -' PATTERN ...
       ugrep --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
 
-- Search [binary files](#binary) and display hexdumps with binary pattern matches
+- Search [binary files](#binary) and display hexdumps with binary pattern matches (raw bytes or Unicode text)
 
       ugrep -W TEXTPATTERN ...               ugrep -X TEXTPATTERN ...
       ugrep -W -U BYTEPATTERN ...            ugrep -X -U BYTEPATTERN ...
@@ -1667,6 +1667,11 @@ Newlines (`\n`) and NUL (`\0`) characters are never deleted or substituted to
 ensure that fuzzy matches do not extend the pattern match beyond the number of
 lines specified by the regex pattern.
 
+Option `--sort=best` orders files by best match.  Files with at least one exact
+match anywhere in the file are shown first, followed by files with approximate
+matches in increasing minimal edit distance order.  That is, ordered by the
+minimum error (edit distance) found among all approximate matches per file.
+
 To recursively search for approximate matches of the word `foobar` with `-Z`,
 i.e.  approximate matching with one error, e.g. `Foobar`, `foo_bar`, `foo bar`,
 `fobar`:
@@ -1683,7 +1688,8 @@ the fastest fuzzy matching method:
 
     ugrep -Z+3 -wi 'foobar'
 
-Same, but sort matches from best to worst (fewest fuzzy match edits):
+Same, but sort matches from best (at least one exact match or fewest fuzzy
+match errors) to worst:
 
     ugrep -Z+3 -wi --sort=best 'foobar'
 
