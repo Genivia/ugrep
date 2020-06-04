@@ -844,7 +844,8 @@ This option starts a user interface to enter search patterns interactively:
   variable is not defined, the editor is taken from `EDITOR`.  The file viewed
   at the top of the screen, or beneath the cursor in selection mode, is edited
   by pressing F2 or CTRL-Y.  Filenames must be enabled and visible in the
-  output to use this feature.
+  output to use this feature.  After editing press CTRL-R to return to the
+  previous location in the UI view (i.e. CTRL-Y bookmarks the location).
 - Press CTRL-T to toggle colors on or off.  Normally ugrep in query mode uses
   colors and other markup to highlight the results.  When colors are turned
   off, selected results are also not colored in the output produced by ugrep
@@ -1649,8 +1650,8 @@ import statements, including hidden files with `-.`:
     -Z[MAX], --fuzzy[=MAX]
             Fuzzy mode: report approximate pattern matches within MAX errors.
             By default, MAX is 1: one deletion, insertion or substitution is
-            allowed.  When `+' and/or `-' preceed MAX, only insertions and/or
-            deletions are allowed.  When `~' preceeds MAX, substitution counts
+            allowed.  When `+' and/or `-' precedes MAX, only insertions and/or
+            deletions are allowed.  When `~' precedes MAX, substitution counts
             as one error.  For example, -Z+~3 allows up to three insertions or
             substitutions, but no deletions.  The first character of an
             approximate match always matches the begin of a pattern.  Option
@@ -3100,8 +3101,8 @@ in markdown:
                   Restrict  recursive  searches  from  MIN to MAX directory levels
                   deep, where -1 (--depth=1) searches the specified  path  without
                   recursing  into  subdirectories.   Note that -3 -5, -3-5, or -35
-                  search 3 to 5 levels deep.  Enables -R if -R or -r is not speci-
-                  fied.
+                  searches 3 to 5 levels deep.  Enables -R if  -R  or  -r  is  not
+                  specified.
 
            -E, --extended-regexp
                   Interpret  patterns as extended regular expressions (EREs). This
@@ -3577,8 +3578,8 @@ in markdown:
            -Z[MAX], --fuzzy[=MAX]
                   Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
                   errors.  By default, MAX is 1: one deletion, insertion  or  sub-
-                  stitution  is  allowed.   When  `+' and/or `-' preceed MAX, only
-                  insertions and/or deletions are allowed.  When `~' preceeds MAX,
+                  stitution  is  allowed.   When `+' and/or `-' precedes MAX, only
+                  insertions and/or deletions are allowed.  When `~' precedes MAX,
                   substitution  counts as one error.  For example, -Z+~3 allows up
                   to three insertions or substitutions,  but  no  deletions.   The
                   first character of an approximate match always matches the begin
@@ -3709,8 +3710,13 @@ in markdown:
     ENVIRONMENT
            GREP_PATH
                   May  be  used to specify a file path to pattern files.  The file
-                  path is used by option -f to open a pattern file, when the  file
-                  cannot be opened.
+                  path is used by option -f to open a pattern file, when the  pat-
+                  tern file does not exist.
+
+           GREP_EDITOR
+                  May  be  used to specify an editor command to invoke with CTRL-Y
+                  within the query UI opened with option -Q.  When undefined,  the
+                  command defined by EDITOR is invoked.
 
            GREP_COLOR
                   May  be used to specify ANSI SGR parameters to highlight matches
@@ -3765,14 +3771,14 @@ in markdown:
            Fields may be used in FORMAT, which expand into the following values:
 
            %[ARG]F
-                  if option -H is used: ARG, the file pathname, and separator.
+                  if option -H is used: ARG, the file pathname and separator.
 
            %f     the file pathname.
 
            %z     the file pathname in a (compressed) archive.
 
            %[ARG]H
-                  if option -H is used: ARG, the quoted pathname, and separator.
+                  if option -H is used: ARG, the quoted pathname and separator.
 
            %h     the quoted file pathname.
 
@@ -3940,7 +3946,7 @@ in markdown:
            Display the line and column number of `FIXME' in C++ files using recur-
            sive search, with one line of context before and after a matched line:
 
-                  $ ugrep --color -C1 -r -n -k -tc++ 'FIXME'
+                  $ ugrep -C1 -r -n -k -tc++ 'FIXME'
 
            List the C/C++ comments in a file with line numbers:
 
@@ -3978,7 +3984,7 @@ in markdown:
 
            Monitor the system log for bug reports:
 
-                  $ tail -f /var/log/system.log | ugrep --color -i -w 'bug'
+                  $ tail -f /var/log/system.log | ugrep -iw 'bug'
 
            Find lines with `FIXME' in the C/C++ files stored in a tarball:
 
@@ -3996,9 +4002,9 @@ in markdown:
 
                   $ ugrep --pager -UXo '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
 
-           Hexdump an entire file in color:
+           Hexdump an entire file:
 
-                  $ ugrep --color -X '' a.out
+                  $ ugrep -X '' a.out
 
            List all files that are not ignored by one or more `.gitignore':
 
@@ -4029,7 +4035,7 @@ in markdown:
 
 
 
-    ugrep 2.2.0                      June 02, 2020                        UGREP(1)
+    ugrep 2.2.0                      June 04, 2020                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

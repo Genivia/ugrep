@@ -1,4 +1,4 @@
-.TH UGREP "1" "June 02, 2020" "ugrep 2.2.0" "User Commands"
+.TH UGREP "1" "June 04, 2020" "ugrep 2.2.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -121,7 +121,7 @@ equivalent to the \fB\-R\fR option.
 \fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR ... \fB\-9\fR, \fB\-\-10\fR, \fB\-\-11\fR ...
 Restrict recursive searches from MIN to MAX directory levels deep,
 where \fB\-1\fR (\fB\-\-depth\fR=1) searches the specified path without recursing
-into subdirectories.  Note that \fB\-3\fR \fB\-5\fR, \fB\-3\fR\-5, or \fB\-3\fR5 search 3 to 5
+into subdirectories.  Note that \fB\-3\fR \fB\-5\fR, \fB\-3\fR\-5, or \fB\-3\fR5 searches 3 to 5
 levels deep.  Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
@@ -587,9 +587,9 @@ See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.  Disables multi\-line matc
 .TP
 \fB\-Z\fR[\fIMAX\fR], \fB\-\-fuzzy[\fR=\fIMAX\fR]
 Fuzzy mode: report approximate pattern matches within MAX errors.
-By default, MAX is 1 and one deletion, insertion or substitution is
-allowed.  When `+' and/or `\fB\-'\fR preceed MAX, only insertions and/or
-deletions are allowed.  When `~' preceeds MAX, substitution counts
+By default, MAX is 1: one deletion, insertion or substitution is
+allowed.  When `+' and/or `\fB\-'\fR precedes MAX, only insertions and/or
+deletions are allowed.  When `~' precedes MAX, substitution counts
 as one error.  For example, \fB\-Z\fR+~3 allows up to three insertions or
 substitutions, but no deletions.  The first character of an
 approximate match always matches the begin of a pattern.  Option
@@ -714,7 +714,11 @@ match.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
-option \fB-f\fR to open a pattern file, when the file cannot be opened.
+option \fB-f\fR to open a pattern file, when the pattern file does not exist.
+.IP \fBGREP_EDITOR\fR
+May be used to specify an editor command to invoke with CTRL-Y within the query
+UI opened with option \fB-Q\fR.  When undefined, the command defined by
+\fBEDITOR\fR is invoked.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
@@ -763,13 +767,13 @@ SGR substring for separators.
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:
 .IP \fB%[\fR\fIARG\fR\fB]F\fR
-if option \fB-H\fR is used: \fIARG\fR, the file pathname, and separator.
+if option \fB-H\fR is used: \fIARG\fR, the file pathname and separator.
 .IP \fB%f\fR
 the file pathname.
 .IP \fB%z\fR
 the file pathname in a (compressed) archive.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
-if option \fB-H\fR is used: \fIARG\fR, the quoted pathname, and separator.
+if option \fB-H\fR is used: \fIARG\fR, the quoted pathname and separator.
 .IP \fB%h\fR
 the quoted file pathname.
 .IP \fB%[\fR\fIARG\fR\fB]N\fR
@@ -924,7 +928,7 @@ $ ugrep -q '[^[:ascii:]]' myfile.txt && echo "contains Unicode"
 Display the line and column number of `FIXME' in C++ files using recursive
 search, with one line of context before and after a matched line:
 .IP
-$ ugrep --color -C1 -r -n -k -tc++ 'FIXME'
+$ ugrep -C1 -r -n -k -tc++ 'FIXME'
 .PP
 List the C/C++ comments in a file with line numbers:
 .IP
@@ -962,7 +966,7 @@ $ ugrep -n 'FIXME' myfile.cpp | ugrep -vw 'later' |
 .PP
 Monitor the system log for bug reports:
 .IP
-$ tail -f /var/log/system.log | ugrep --color -i -w 'bug'
+$ tail -f /var/log/system.log | ugrep -iw 'bug'
 .PP
 Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
@@ -980,13 +984,13 @@ results in hex with \fB-X\fR using `less -R' as a pager:
 .IP
 $ ugrep --pager -UXo '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out
 .PP
-Hexdump an entire file in color:
+Hexdump an entire file:
 .IP
-$ ugrep --color -X '' a.out
+$ ugrep -X '' a.out
 .PP
 List all files that are not ignored by one or more `.gitignore':
 .IP
-$ ugrep -Rl '' --ignore-files
+$ ugrep -l '' --ignore-files
 .PP
 List all files containing a RPM signature, located in the `rpm' directory and
 recursively below up to two levels deeper (3 levels):

@@ -3306,7 +3306,15 @@ void options(int argc, const char **argv)
         break;
 
     if (encoding_table[i].format == NULL)
-      help("invalid argument --encoding=ENCODING");
+    {
+      std::string msg = "invalid argument --encoding=ENCODING, valid arguments are";
+
+      for (int i = 0; encoding_table[i].format != NULL; ++i)
+        msg.append(" '").append(encoding_table[i].format).append("',");
+      msg.pop_back();
+
+      help(msg.c_str());
+    }
 
     // encoding is the file encoding used by all input files, if no BOM is present
     flag_encoding_type = encoding_table[i].encoding;
@@ -3368,7 +3376,7 @@ void options(int argc, const char **argv)
   else if (strcmp(flag_devices, "read") == 0)
     flag_devices_action = Action::READ;
   else
-    help("invalid argument --devices=ACTION, valid arguments are 'skip' and 'read'");
+    help("invalid argument -D ACTION, valid arguments are 'skip' and 'read'");
 
   // normalize -R (--dereference-recurse) option
   if (strcmp(flag_directories, "dereference-recurse") == 0)
@@ -3385,7 +3393,7 @@ void options(int argc, const char **argv)
   else if (strcmp(flag_directories, "recurse") == 0)
     flag_directories_action = Action::RECURSE;
   else
-    help("invalid argument --directories=ACTION, valid arguments are 'skip', 'read', 'recurse', and 'dereference-recurse'");
+    help("invalid argument -d ACTION, valid arguments are 'skip', 'read', 'recurse', and 'dereference-recurse'");
 
   // if no FILE specified and no -r or -R specified, when reading standard input from a TTY then enable -R
   if (!flag_stdin && arg_files.empty() && flag_directories_action != Action::RECURSE && isatty(STDIN_FILENO))
@@ -3458,7 +3466,15 @@ void options(int argc, const char **argv)
             break;
 
         if (type_table[i].type == NULL)
-          help("invalid argument --file-types=TYPES, -tlist displays valid values");
+        {
+          std::string msg = "invalid argument -t TYPES, valid arguments are";
+
+          for (int i = 0; type_table[i].type != NULL; ++i)
+            msg.append(" '").append(type_table[i].type).append("',");
+          msg.append(" and 'list' to show a detailed list of file types");
+
+          help(msg.c_str());
+        }
 
         std::string extensions(type_table[i].extensions);
 
@@ -7545,7 +7561,7 @@ void help(const char *message, const char *arg)
     --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...\n\
             Restrict recursive searches from MIN to MAX directory levels deep,\n\
             where -1 (--depth=1) searches the specified path without recursing\n\
-            into subdirectories.  Note that -3 -5, -3-5, or -35 search 3 to 5\n\
+            into subdirectories.  Note that -3 -5, -3-5, or -35 searches 3 to 5\n\
             levels deep.  Enables -R if -R or -r is not specified.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
@@ -7956,9 +7972,9 @@ void help(const char *message, const char *arg)
             See also options -A, -B, and -C.  Disables multi-line matching.\n\
     -Z[MAX], --fuzzy[=MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
-            By default, MAX is 1 and one deletion, insertion or substitution is\n\
-            allowed.  When `+' and/or `-' preceed MAX, only insertions and/or\n\
-            deletions are allowed.  When `~' preceeds MAX, substitution counts\n\
+            By default, MAX is 1: one deletion, insertion or substitution is\n\
+            allowed.  When `+' and/or `-' precedes MAX, only insertions and/or\n\
+            deletions are allowed.  When `~' precedes MAX, substitution counts\n\
             as one error.  For example, -Z+~3 allows up to three insertions or\n\
             substitutions, but no deletions.  The first character of an\n\
             approximate match always matches the begin of a pattern.  Option\n\

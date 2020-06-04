@@ -1954,6 +1954,7 @@ void Query::edit()
       Screen::clear();
       select_ = -1;
       updated_ = true;
+      draw();
     }
     else
     {

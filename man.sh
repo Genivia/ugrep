@@ -165,7 +165,11 @@ match.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
-option \fB-f\fR to open a pattern file, when the file cannot be opened.
+option \fB-f\fR to open a pattern file, when the pattern file does not exist.
+.IP \fBGREP_EDITOR\fR
+May be used to specify an editor command to invoke with CTRL-Y within the query
+UI opened with option \fB-Q\fR.  When undefined, the command defined by
+\fBEDITOR\fR is invoked.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
@@ -214,13 +218,13 @@ SGR substring for separators.
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:
 .IP \fB%[\fR\fIARG\fR\fB]F\fR
-if option \fB-H\fR is used: \fIARG\fR, the file pathname, and separator.
+if option \fB-H\fR is used: \fIARG\fR, the file pathname and separator.
 .IP \fB%f\fR
 the file pathname.
 .IP \fB%z\fR
 the file pathname in a (compressed) archive.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
-if option \fB-H\fR is used: \fIARG\fR, the quoted pathname, and separator.
+if option \fB-H\fR is used: \fIARG\fR, the quoted pathname and separator.
 .IP \fB%h\fR
 the quoted file pathname.
 .IP \fB%[\fR\fIARG\fR\fB]N\fR
@@ -375,7 +379,7 @@ $ ugrep -q '[^[:ascii:]]' myfile.txt && echo "contains Unicode"
 Display the line and column number of `FIXME' in C++ files using recursive
 search, with one line of context before and after a matched line:
 .IP
-$ ugrep --color -C1 -r -n -k -tc++ 'FIXME'
+$ ugrep -C1 -r -n -k -tc++ 'FIXME'
 .PP
 List the C/C++ comments in a file with line numbers:
 .IP
@@ -413,7 +417,7 @@ $ ugrep -n 'FIXME' myfile.cpp | ugrep -vw 'later' |
 .PP
 Monitor the system log for bug reports:
 .IP
-$ tail -f /var/log/system.log | ugrep --color -i -w 'bug'
+$ tail -f /var/log/system.log | ugrep -iw 'bug'
 .PP
 Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
@@ -431,13 +435,13 @@ results in hex with \fB-X\fR using `less -R' as a pager:
 .IP
 $ ugrep --pager -UXo '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out
 .PP
-Hexdump an entire file in color:
+Hexdump an entire file:
 .IP
-$ ugrep --color -X '' a.out
+$ ugrep -X '' a.out
 .PP
 List all files that are not ignored by one or more `.gitignore':
 .IP
-$ ugrep -Rl '' --ignore-files
+$ ugrep -l '' --ignore-files
 .PP
 List all files containing a RPM signature, located in the `rpm' directory and
 recursively below up to two levels deeper (3 levels):
