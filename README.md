@@ -100,8 +100,6 @@ search pdf and office documents using filters
 
       ugrep -P PATTERN ...
 
-- Comprehensive how-to [tutorial](#tutorial) for beginners to advanced users
-
 <a name="toc"/>
 
 Table of contents
@@ -2856,15 +2854,12 @@ implicitly enabled since the pattern starts with `^` and ends with `$`):
             Perform case insensitive matching unless a pattern contains an
             upper case letter.  This option applies to ASCII letters only.
 
-    POSIX regular expression syntax
-
-            (?i:φ) matches φ ignoring case
-
 To match `todo` in `myfile.cpp` regardless of case:
 
      ugrep -i 'todo' myfile.txt
 
-To match `todo XXX` with `todo` in any case but `XXX` as given:
+To match `todo XXX` with `todo` in any case but `XXX` as given, with pattern
+`(?i:todo)` to match `todo` ignoring case:
 
      ugrep '(?i:todo) XXX' myfile.cpp
 
