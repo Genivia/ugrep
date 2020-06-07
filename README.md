@@ -38,7 +38,7 @@ search pdf and office documents using filters
 
 - Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64) and asynchronous IO for efficient concurrent searching
 
-- Compatible with the standard GNU/BSD grep command-line options
+- Compatible with the standard GNU/BSD grep command-line options, with [minor differences](#equivalence) to make ugrep more user friendly
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help
 
@@ -62,7 +62,7 @@ search pdf and office documents using filters
       ugrep --filter='pdf:pdftotext % -' PATTERN ...
       ugrep --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
 
-- Search [binary files](#binary) and display hexdumps with binary pattern matches (raw bytes or Unicode text)
+- Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or raw byte patterns)
 
       ugrep -W TEXTPATTERN ...               ugrep -X TEXTPATTERN ...
       ugrep -W -U BYTEPATTERN ...            ugrep -X -U BYTEPATTERN ...
