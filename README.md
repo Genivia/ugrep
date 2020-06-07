@@ -38,7 +38,7 @@ search pdf and office documents using filters
 
 - Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64) and asynchronous IO for efficient concurrent searching
 
-- Compatible with the standard GNU/BSD grep command-line options, with [minor differences](#equivalence) to make ugrep more user friendly
+- Compatible to GNU/BSD grep command-line options, but [with minor differences for defaults](#equivalence) to make ugrep more user friendly
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help
 
