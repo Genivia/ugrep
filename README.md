@@ -488,8 +488,9 @@ files first followed by sorted recursive matches in subdirectories.  Otherwise,
 matches are reported in no particular order to improve performance.  Option
 `-Y` enables empty matches for GNU/BSD compatibility (`-Y` is not strictly
 necessary, for why and when to use it see [further below](#improvements).)
-Option `-.` searches hidden files (dotfiles).  Options `-Dread` and `-dread`
-are the GNU/BSD grep defaults but are not recommended (see
+Option `-.` (`--hidden`) searches hidden files (dotfiles), which **ugrep**
+ignores by default like most Unix utilities such as `ls`.  Options `-Dread` and
+`-dread` are the GNU/BSD grep defaults but are not recommended (see
 [further below](#improvements) for explanation).
 
 🔝 [Back to table of contents](#toc)
