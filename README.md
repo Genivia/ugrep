@@ -5,7 +5,7 @@ Search for anything in everything... ultra fast
 <div align="center">
 <img src="https://www.genivia.com/images/scranim.gif" alt="">
 <br>
-new option -Q opens a query UI to search files
+new option -Q opens a query UI to search files as you type!
 </div>
 <br>
 <div align="center">
