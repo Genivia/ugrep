@@ -47,9 +47,9 @@ namespace reflex {
 class FuzzyMatcher : public Matcher {
  public:
   /// Optional flags for the max parameter to constrain fuzzy matching, otherwise no constraints
-  static const uint16_t INS = 0x1000; ///< fuzzy match allows character insertions into the corpus
-  static const uint16_t DEL = 0x2000; ///< fuzzy match allows character deletions from the corpus
-  static const uint16_t SUB = 0x4000; ///< character substitutions in the corpus count as one edit, not two (insert+delete)
+  static const uint16_t INS = 0x1000; ///< fuzzy match allows character insertions
+  static const uint16_t DEL = 0x2000; ///< fuzzy match allows character deletions
+  static const uint16_t SUB = 0x4000; ///< character substitutions count as one edit, not two (insert+delete)
   /// Default constructor.
   FuzzyMatcher()
     :
@@ -165,6 +165,30 @@ class FuzzyMatcher : public Matcher {
     return err_;
   }
  protected:
+  /// Save state to restore fuzzy matcher state after a second pass
+  struct SaveState {
+    SaveState(size_t ded)
+      :
+        use(false),
+        loc(0),
+        cap(0),
+        txt(0),
+        cur(0),
+        pos(0),
+        ded(ded),
+        mrk(false),
+        err(0)
+    { }
+    bool    use;
+    size_t  loc;
+    size_t  cap;
+    size_t  txt;
+    size_t  cur;
+    size_t  pos;
+    size_t  ded;
+    bool    mrk;
+    uint8_t err;
+  };
   /// Backtrack point.
   struct BacktrackPoint {
     BacktrackPoint()
@@ -211,8 +235,8 @@ class FuzzyMatcher : public Matcher {
     {
       if (!Pattern::is_opcode_goto(*bpt.pc0) || (Pattern::lo_of(*bpt.pc0) & 0xC0) != 0xC0)
         return bpt.pc1 = NULL;
-      // loop over UTF-8 multibytes, linear case only (i.e. one wide char)
-      for (int i = 0; i < 4; ++i)
+      // loop over UTF-8 multibytes, checking linear case only (i.e. one wide char or a short range)
+      for (int i = 0; i < 3; ++i)
       {
         jump = Pattern::index_of(*bpt.pc0);
         if (jump == Pattern::Const::HALT)
@@ -223,7 +247,7 @@ class FuzzyMatcher : public Matcher {
         const Pattern::Opcode *pc1 = pc0;
         while (!Pattern::is_opcode_goto(*pc1))
           ++pc1;
-        if ((Pattern::lo_of(*pc1) & 0x80) != 0x80)
+        if (!Pattern::is_opcode_goto(*pc1) || Pattern::is_meta(Pattern::lo_of(*pc1)) || (Pattern::lo_of(*pc1) & 0x80) != 0x80)
           break;
         bpt.pc0 = pc0;
         bpt.pc1 = pc1;
@@ -236,7 +260,7 @@ class FuzzyMatcher : public Matcher {
       jump = Pattern::long_index_of(bpt.pc1[1]);
     // restore errors
     err_ = bpt.err;
-    // restore pos in corpus
+    // restore pos in the input
     pos_ = (txt_ - buf_) + bpt.len;
     // set c1 to previous char before pos, to eventually set c0 in match(method)
     if (pos_ > 0)
@@ -273,6 +297,7 @@ class FuzzyMatcher : public Matcher {
   {
     DBGLOG("BEGIN FuzzyMatcher::match()");
     reset_text();
+    SaveState sst(ded_);
     len_ = 0; // split text length starts with 0
 scan:
     txt_ = buf_ + cur_;
@@ -648,9 +673,12 @@ unrolled:
               }
               ++err_;
             }
-            DBGLOG("match pos = %zu", pos_);
-            set_current(pos_);
-            break;
+            if (at_end())
+            {
+              DBGLOG("match pos = %zu", pos_);
+              set_current(pos_);
+              break;
+            }
           }
         }
         else
@@ -728,6 +756,82 @@ unrolled:
           }
         }
       }
+    }
+    // if fuzzy matched with errors then perform a second pass ahead of this match to check for an exact match
+    if (cap_ > 0 && err_ > 0 && !sst.use && (method == Const::FIND || method == Const::SPLIT))
+    {
+      // this part is based on advance() in matcher.cpp, limited to advancing ahead till the one of the first pattern char(s) match excluding \n
+      size_t loc = txt_ - buf_ + 1;
+      const char *s = buf_ + loc;
+      const char *e = static_cast<const char*>(std::memchr(s, '\n', cur_ - loc));
+      if (e == NULL)
+        e = buf_ + cur_;
+      if (pat_->len_ == 0)
+      {
+        if (pat_->min_ > 0)
+        {
+          const Pattern::Pred *pma = pat_->pma_;
+          while (s < e && (pma[static_cast<uint8_t>(*s)] & 0xc0) == 0xc0)
+            ++s;
+          if (s < e)
+          {
+            loc = s - buf_;
+            sst.use = true;
+            sst.loc = loc;
+            sst.cap = cap_;
+            sst.txt = txt_ - buf_;
+            sst.cur = cur_;
+            sst.pos = pos_;
+            size_t tmp = ded_;
+            ded_ = sst.ded;
+            sst.ded = tmp;
+            sst.mrk = mrk_;
+            sst.err = err_;
+            set_current(loc);
+            goto scan;
+          }
+        }
+      }
+      else if (s < e)
+      {
+        s = static_cast<const char*>(std::memchr(s, *pat_->pre_, e - s));
+        if (s != NULL)
+        {
+          loc = s - buf_;
+          sst.use = true;
+          sst.loc = loc;
+          sst.cap = cap_;
+          sst.txt = txt_ - buf_;
+          sst.cur = cur_;
+          sst.pos = pos_;
+          size_t tmp = ded_;
+          ded_ = sst.ded;
+          sst.ded = tmp;
+          sst.mrk = mrk_;
+          sst.err = err_;
+          set_current(loc);
+          goto scan;
+        }
+      }
+    }
+    else if (sst.use && (cap_ == 0 || err_ >= sst.err))
+    {
+      // if the buffer was shifted then cur_, pos_ and txt_ are no longer at the same location in the buffer, we must adjust for this
+      size_t loc = txt_ - buf_;
+      size_t shift = sst.loc - loc;
+      cap_ = sst.cap;
+      cur_ = sst.cur - shift;
+      pos_ = sst.pos - shift;
+      ded_ = sst.ded;
+      mrk_ = sst.mrk;
+      err_ = sst.err;
+      txt_ = buf_ + sst.txt - shift;
+    }
+    else if (sst.use && cap_ > 0 && method == Const::SPLIT)
+    {
+      size_t loc = txt_ - buf_;
+      size_t shift = sst.loc - loc;
+      len_ = loc - sst.txt + shift;
     }
 #if !defined(WITH_NO_INDENT)
     if (mrk_ && cap_ != Const::REDO)
@@ -807,29 +911,61 @@ unrolled:
       if (method == Const::FIND && !at_end())
       {
         // fuzzy search with find() can safely advance on a single prefix char of the regex
-        if (pos_ > cur_ && pat_->len_ > 0)
+        if (pos_ > cur_)
         {
-          // this part is based on advance() in matcher.cpp
+          // this part is based on advance() in matcher.cpp, limited to advancing ahead till the one of the first pattern char(s) match
           size_t loc = cur_ + 1;
-          while (true)
+          if (pat_->len_ == 0)
           {
-            const char *s = buf_ + loc;
-            const char *e = buf_ + end_;
-            s = static_cast<const char*>(std::memchr(s, *pat_->pre_, e - s));
-            if (s != NULL)
+            if (pat_->min_ > 0)
             {
-              loc = s - buf_;
-              set_current(loc);
-              goto scan;
+              const Pattern::Pred *pma = pat_->pma_;
+              while (true)
+              {
+                const char *s = buf_ + loc;
+                const char *e = buf_ + end_;
+                while (s < e && (pma[static_cast<uint8_t>(*s)] & 0xc0) == 0xc0)
+                  ++s;
+                if (s < e)
+                {
+                  loc = s - buf_;
+                  set_current(loc);
+                  goto scan;
+                }
+                loc = e - buf_;
+                set_current_match(loc - 1);
+                peek_more();
+                loc = cur_ + 1;
+                if (loc >= end_)
+                {
+                  set_current(loc);
+                  break;
+                }
+              }
             }
-            loc = e - buf_;
-            set_current_match(loc - 1);
-            peek_more();
-            loc = cur_ + 1;
-            if (loc + pat_->len_ > end_)
+          }
+          else
+          {
+            while (true)
             {
-              set_current(loc);
-              break;
+              const char *s = buf_ + loc;
+              const char *e = buf_ + end_;
+              s = static_cast<const char*>(std::memchr(s, *pat_->pre_, e - s));
+              if (s != NULL)
+              {
+                loc = s - buf_;
+                set_current(loc);
+                goto scan;
+              }
+              loc = e - buf_;
+              set_current_match(loc - 1);
+              peek_more();
+              loc = cur_ + 1;
+              if (loc + pat_->len_ > end_)
+              {
+                set_current(loc);
+                break;
+              }
             }
           }
         }
@@ -894,9 +1030,9 @@ unrolled:
   std::vector<BacktrackPoint> bpt_; ///< vector of backtrack points, max_ size
   uint8_t max_;                     ///< max errors
   uint8_t err_;                     ///< accumulated edit distance (not guaranteed minimal)
-  bool ins_;                        ///< fuzzy match inserted chars (extra chars) in the corpus
-  bool del_;                        ///< fuzzy match deleted chars (missing chars) in the corpus
-  bool sub_;                        ///< fuzzy match substituted chars in the corpus
+  bool ins_;                        ///< fuzzy match inserted chars (extra chars)
+  bool del_;                        ///< fuzzy match deleted chars (missing chars)
+  bool sub_;                        ///< fuzzy match substituted chars
 };
 
 } // namespace reflex

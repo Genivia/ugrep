@@ -1,4 +1,4 @@
-.TH UGREP "1" "June 04, 2020" "ugrep 2.2.0" "User Commands"
+.TH UGREP "1" "June 10, 2020" "ugrep 2.2.1" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -19,6 +19,14 @@ normalizes the output to UTF-8.  When a UTF byte order mark is present in the
 input, the input is automatically normalized; otherwise, \fBugrep\fR assumes
 the input is ASCII, UTF-8, or raw binary.  An input encoding format may be
 specified with option \fB--encoding\fR.
+.PP
+If no \fIFILE\fR arguments are specified and standard input is read from a
+terminal, recursive searches are performed as if \fB-R\fR is specified.  To
+force reading from standard input, specify `-' as a \fIFILE\fR argument.
+.PP
+Hidden files and directories are ignored in recursive searches.  Option
+\fB-.\fR (\fB--hidden\fR) includes hidden files and directories in recursive
+searches.
 .PP
 The following options are available:
 .TP
@@ -152,7 +160,7 @@ The encoding format of the input, where ENCODING can be:
 .TP
 \fB\-\-exclude\fR=\fIGLOB\fR
 Skip files whose name matches GLOB using wildcard matching, same as
-\fB\-g\fR \fI!GLOB\fR.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
+\fB\-g\fR ^GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
 quote a wildcard or backslash character literally.  When GLOB
 contains a `/', full pathnames are matched.  Otherwise basenames
 are matched.  When GLOB ends with a `/', directories are excluded
@@ -229,11 +237,16 @@ Spacing (blanks and tabs) in regular expressions are ignored.
 Interpret pattern as a basic regular expression, i.e. make ugrep
 behave as traditional grep.
 .TP
-\fB\-g\fR \fIGLOB\fR, \fB\-\-glob\fR=\fIGLOB\fR
-Search only files whose name matches GLOB, same as \fB\-\-include\fR=\fIGLOB\fR.
-When GLOB is preceded by a `!' or a `^', skip files whose name
-matches GLOB, same as \fB\-\-exclude\fR=\fIGLOB\fR.  GLOB should be quoted to
-prevent shell globbing.  This option may be repeated.
+\fB\-g\fR \fIGLOBS\fR, \fB\-\-glob\fR=\fIGLOBS\fR
+Search only files whose name matches the specified comma\-separated
+list of GLOBS, same as \fB\-\-include\fR='glob' for each `glob' in GLOBS.
+When a `glob' is preceded by a `!' or a `^', skip files whose name
+matches `glob', same as \fB\-\-exclude\fR='glob'.  When `glob' contains a
+`/', full pathnames are matched.  Otherwise basenames are matched.
+When `glob' ends with a `/', directories are matched, same as
+\fB\-\-include\-dir\fR='glob' and \fB\-\-exclude\-dir\fR='glob'.  This option may be
+repeated and may be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR to expand
+the recursive search.
 .TP
 \fB\-\-group\-separator[\fR=\fISEP\fR]
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
@@ -400,13 +413,13 @@ each file processed.
 Removes the group separator line from the output for context
 options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
-\fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extensions\fR=\fIEXTENSIONS\fR
+\fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extension\fR=\fIEXTENSIONS\fR
 Search only files whose filename extensions match the specified
 comma\-separated list of EXTENSIONS, same as \fB\-\-include\fR='*.ext' for
-each `ext' in EXTENSIONS.  When `ext' is preceded by a `!' or a
+each `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a
 `^', skip files whose filename extensions matches `ext', same as
 \fB\-\-exclude\fR='*.ext'.  This option may be repeated and may be combined
-with options \fB\-M\fR and \fB\-t\fR to expand the recursive search.
+with options \fB\-g\fR, \fB\-M\fR and \fB\-t\fR to expand the recursive search.
 .TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
 Print only the matching part of lines.  When multiple lines match,
@@ -612,10 +625,6 @@ lzma and xz (requires suffix .lzma, .tlz, .xz, .txz).
 Prints a zero\-byte (NUL) after the file name.  This option can be
 used with commands such as `find \fB\-p\fRrint0' and `xargs \fB\-0\fR' to process
 arbitrary file names.
-.PP
-If no \fIFILE\fR arguments are specified and input is read from a terminal,
-recursive searches are performed as if \fB-R\fR is specified.  To force reading
-from standard input, specify `-' as the \fIFILE\fR argument.
 .PP
 A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
 arguments, allowing filenames to begin with a `-' character.

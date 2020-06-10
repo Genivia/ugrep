@@ -43,7 +43,6 @@
 namespace reflex {
 
 /// Boost matcher engine class implements reflex::PatternMatcher pattern matching interface with scan, find, split functors and iterators, using the Boost::regex library.
-/** More info TODO */
 class BoostMatcher : public PatternMatcher<boost::regex> {
  public:
   /// Convert a regex to an acceptable form, given the specified regex library signature `"[decls:]escapes[?+]"`, see reflex::convert.

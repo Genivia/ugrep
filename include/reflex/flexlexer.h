@@ -402,7 +402,6 @@ namespace reflex {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Flex-compatible FlexLexer abstract base class template derived from reflex::AbstractMatcher for the reflex-generated yyFlexLexer scanner class.
-/** More info TODO */
 template<typename M> /// @tparam <M> matcher class derived from reflex::AbstractMatcher
 class FlexLexer : public AbstractLexer<M> {
  public:

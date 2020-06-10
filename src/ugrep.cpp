@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.2.0"
+#define UGREP_VERSION "2.2.1"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -161,7 +161,7 @@ After this, you may want to test ugrep and install it (optional):
 # define DEFAULT_TAG "___"
 #endif
 
-// the default pager when --pager is used
+// the default pager command when --pager is used
 #ifndef DEFAULT_PAGER_COMMAND
 # ifdef OS_WIN
 #  define DEFAULT_PAGER_COMMAND "more"
@@ -463,24 +463,28 @@ const char *flag_binary_files      = "binary";
 std::vector<std::string> flag_regexp;
 std::vector<std::string> flag_neg_regexp;
 std::vector<std::string> flag_file;
-std::vector<std::string> flag_file_types;
-std::vector<std::string> flag_file_extensions;
+std::vector<std::string> flag_file_type;
+std::vector<std::string> flag_file_extension;
 std::vector<std::string> flag_file_magic;
 std::vector<std::string> flag_filter_magic_label;
 std::vector<std::string> flag_glob;
 std::vector<std::string> flag_ignore_files;
 std::vector<std::string> flag_include;
+std::vector<std::string> flag_not_include;
 std::vector<std::string> flag_include_dir;
+std::vector<std::string> flag_not_include_dir;
 std::vector<std::string> flag_include_from;
 std::vector<std::string> flag_include_fs;
-std::vector<std::string> flag_not_include;
-std::vector<std::string> flag_not_include_dir;
 std::vector<std::string> flag_exclude;
+std::vector<std::string> flag_not_exclude;
 std::vector<std::string> flag_exclude_dir;
+std::vector<std::string> flag_not_exclude_dir;
 std::vector<std::string> flag_exclude_from;
 std::vector<std::string> flag_exclude_fs;
-std::vector<std::string> flag_not_exclude;
-std::vector<std::string> flag_not_exclude_dir;
+std::vector<std::string> flag_all_include;
+std::vector<std::string> flag_all_include_dir;
+std::vector<std::string> flag_all_exclude;
+std::vector<std::string> flag_all_exclude_dir;
 reflex::Input::file_encoding_type flag_encoding_type = reflex::Input::file_encoding::plain;
 
 // ugrep command-line arguments pointing to argv[]
@@ -1721,10 +1725,10 @@ struct Grep {
         return false;
 
       // -O, -t, and -g (--include and --exclude): check if pathname or basename matches globs, is_selected = false if not
-      if (!flag_exclude.empty() || !flag_include.empty())
+      if (!flag_all_exclude.empty() || !flag_all_include.empty())
       {
         // exclude files whose basename matches any one of the --exclude globs
-        for (auto& glob : flag_exclude)
+        for (auto& glob : flag_all_exclude)
           if (!(is_selected = !glob_match(path, basename, glob.c_str())))
             break;
 
@@ -1732,14 +1736,14 @@ struct Grep {
         if (is_selected)
         {
           // include files whose basename matches any one of the --include globs
-          for (auto& glob : flag_include)
+          for (auto& glob : flag_all_include)
             if ((is_selected = glob_match(path, basename, glob.c_str())))
               break;
         }
       }
 
       // -M: check magic bytes, requires sufficiently large len of buf[] to match patterns, which is fine when Z_BUF_LEN is large e.g. 64K
-      if (buf != NULL && !flag_file_magic.empty() && (flag_include.empty() || !is_selected))
+      if (buf != NULL && !flag_file_magic.empty() && (flag_all_include.empty() || !is_selected))
       {
         // create a matcher to match the magic pattern, we cannot use magic_matcher because it is not thread safe
         reflex::Matcher magic(magic_pattern);
@@ -2601,12 +2605,12 @@ void options(int argc, const char **argv)
               case 'f':
                 if (strncmp(arg, "file=", 5) == 0)
                   flag_file.emplace_back(arg + 5);
-                else if (strncmp(arg, "file-extensions=", 16) == 0)
-                  flag_file_extensions.emplace_back(arg + 16);
+                else if (strncmp(arg, "file-extension=", 16) == 0)
+                  flag_file_extension.emplace_back(arg + 16);
                 else if (strncmp(arg, "file-magic=", 11) == 0)
                   flag_file_magic.emplace_back(arg + 11);
                 else if (strncmp(arg, "file-type=", 10) == 0)
-                  flag_file_types.emplace_back(arg + 10);
+                  flag_file_type.emplace_back(arg + 10);
                 else if (strcmp(arg, "files-with-matches") == 0)
                   flag_files_with_matches = true;
                 else if (strcmp(arg, "files-without-match") == 0)
@@ -2765,7 +2769,7 @@ void options(int argc, const char **argv)
 
               case 'p':
                 if (strcmp(arg, "pager") == 0)
-                  flag_pager = DEFAULT_PAGER;
+                  flag_pager = DEFAULT_PAGER_COMMAND;
                 else if (strncmp(arg, "pager=", 6) == 0)
                   flag_pager = arg + 6;
                 else if (strcmp(arg, "perl-regexp") == 0)
@@ -3079,9 +3083,9 @@ void options(int argc, const char **argv)
           case 'O':
             ++arg;
             if (*arg)
-              flag_file_extensions.emplace_back(&arg[*arg == '=']);
+              flag_file_extension.emplace_back(&arg[*arg == '=']);
             else if (++i < argc)
-              flag_file_extensions.emplace_back(argv[i]);
+              flag_file_extension.emplace_back(argv[i]);
             else
               help("missing EXTENSIONS argument for option -O");
             is_grouped = false;
@@ -3140,9 +3144,9 @@ void options(int argc, const char **argv)
           case 't':
             ++arg;
             if (*arg)
-              flag_file_types.emplace_back(&arg[*arg == '=']);
+              flag_file_type.emplace_back(&arg[*arg == '=']);
             else if (++i < argc)
-              flag_file_types.emplace_back(argv[i]);
+              flag_file_type.emplace_back(argv[i]);
             else
               help("missing TYPES argument for option -t");
             is_grouped = false;
@@ -3261,7 +3265,7 @@ void options(int argc, const char **argv)
   }
 
   // -t list: list table of types and exit
-  if (flag_file_types.size() == 1 && flag_file_types[0] == "list")
+  if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
   {
     std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME -O EXTENSIONS AND FILE SIGNATURE -M 'MAGIC BYTES'\n";
 
@@ -3406,457 +3410,6 @@ void options(int argc, const char **argv)
   if (arg_files.empty() && flag_min_depth == 0 && flag_max_depth == 0 && flag_directories_action != Action::RECURSE)
     flag_stdin = true;
 
-  // normalize --cpp, --csv, --json, --xml
-  if (flag_cpp)
-  {
-    flag_format_begin = "const struct grep {\n  const char *file;\n  size_t line;\n  size_t column;\n  size_t offset;\n  const char *match;\n} matches[] = {\n";
-    flag_format_open  = "  // %f\n";
-    flag_format       = "  { %h, %n, %k, %b, %C },\n%u";
-    flag_format_close = "  \n";
-    flag_format_end   = "  { NULL, 0, 0, 0, NULL }\n};\n";
-  }
-  else if (flag_csv)
-  {
-    flag_format       = "%[,]$%H%N%K%B%V\n%u";
-  }
-  else if (flag_json)
-  {
-    flag_format_begin = "[";
-    flag_format_open  = "%,\n  {\n    %[,\n    ]$%[\"file\": ]H\"matches\": [";
-    flag_format       = "%,\n      { %[, ]$%[\"line\": ]N%[\"column\": ]K%[\"offset\": ]B\"match\": %J }%u";
-    flag_format_close = "\n    ]\n  }";
-    flag_format_end   = "\n]\n";
-  }
-  else if (flag_xml)
-  {
-    flag_format_begin = "<grep>\n";
-    flag_format_open  = "  <file%[]$%[ name=]H>\n";
-    flag_format       = "    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%X</match>\n%u";
-    flag_format_close = "  </file>\n";
-    flag_format_end   = "</grep>\n";
-  }
-
-  // -t: parse TYPES and access type table to add -O (--file-extensions) and -M (--file-magic) values
-  for (auto& types : flag_file_types)
-  {
-    size_t from = 0;
-
-    while (true)
-    {
-      size_t to = types.find(',', from);
-      size_t size = (to == std::string::npos ? types.size() : to) - from;
-
-      if (size > 0)
-      {
-        bool negate = size > 1 && (types[from] == '!' || types[from] == '^');
-
-        if (negate)
-        {
-          ++from;
-          --size;
-        }
-
-        std::string type(types.substr(from, size));
-
-        size_t i;
-
-        // scan the type_table[] for a matching type
-        for (i = 0; type_table[i].type != NULL; ++i)
-          if (type == type_table[i].type)
-            break;
-
-        if (type_table[i].type == NULL)
-        {
-          std::string msg = "invalid argument -t TYPES, valid arguments are";
-
-          for (int i = 0; type_table[i].type != NULL; ++i)
-            msg.append(" '").append(type_table[i].type).append("',");
-          msg.append(" and 'list' to show a detailed list of file types");
-
-          help(msg.c_str());
-        }
-
-        std::string extensions(type_table[i].extensions);
-
-        if (negate)
-        {
-          extensions.insert(0, "!");
-          size_t j = 0;
-          while ((j = extensions.find(',', j)) != std::string::npos)
-            extensions.insert(++j, "!");
-        }
-
-        flag_file_extensions.emplace_back(extensions);
-
-        if (type_table[i].magic != NULL)
-        {
-          flag_file_magic.emplace_back(type_table[i].magic);
-
-          if (negate)
-            flag_file_magic.back().insert(0, "!");
-        }
-      }
-
-      if (to == std::string::npos)
-        break;
-
-      from = to + 1;
-    }
-  }
-
-  // -g, --glob: add globs to --include/--exclude
-  for (auto& i : flag_glob)
-  {
-    bool negate = i.size() > 1 && (i.front() == '!' || i.front() == '^');
-
-    if (negate)
-      flag_exclude.emplace_back(i.substr(1));
-    else
-      flag_include.emplace_back(i);
-  }
-
-  // --exclude: normalize by moving directory globs (globs ending in a path separator /) to --exclude-dir
-  auto i = flag_exclude.begin();
-  while (i != flag_exclude.end())
-  {
-    if (i->empty())
-    {
-      i = flag_exclude.erase(i);
-    }
-    else if (i->back() == PATHSEPCHR)
-    {
-      flag_exclude_dir.emplace_back(*i);
-      i = flag_exclude.erase(i);
-    }
-    else
-    {
-      ++i;
-    }
-  }
-
-  // --include: normalize by moving directory globs (globs ending in a path separator /) to --include-dir
-  i = flag_include.begin();
-  while (i != flag_include.end())
-  {
-    if (i->empty())
-    {
-      i = flag_include.erase(i);
-    }
-    else if (i->back() == PATHSEPCHR)
-    {
-      flag_include_dir.emplace_back(*i);
-      i = flag_include.erase(i);
-    }
-    else
-    {
-      ++i;
-    }
-  }
-
-  // --exclude-dir/--include-dir: remove trailing path separators
-  for (auto& i : flag_exclude_dir)
-    while (i.size() > 1 && i.back() == PATHSEPCHR)
-      i.pop_back();
-
-  // --include-dir: remove trailing path separators
-  for (auto& i : flag_include_dir)
-    while (i.size() > 1 && i.back() == PATHSEPCHR)
-      i.pop_back();
-
-  // -O: add filename extensions as globs to --include/--exclude
-  for (auto& extensions : flag_file_extensions)
-  {
-    size_t from = 0;
-    std::string glob;
-
-    while (true)
-    {
-      size_t to = extensions.find(',', from);
-      size_t size = (to == std::string::npos ? extensions.size() : to) - from;
-
-      if (size > 0)
-      {
-        bool negate = size > 1 && (extensions[from] == '!' || extensions[from] == '^');
-
-        if (negate)
-        {
-          ++from;
-          --size;
-        }
-
-        (negate ? flag_exclude : flag_include).emplace_back(glob.assign("*.").append(extensions.substr(from, size)));
-
-#ifdef HAVE_LIBZ
-        // -z: add globs to search compressed files and tarballs
-        if (!negate && flag_decompress)
-        {
-          const char *zextensions[] = {
-            ".gz", ".Z", ".zip", ".ZIP",
-#ifdef HAVE_LIBBZ2
-            ".bz", ".bz2", ".bzip2",
-#endif
-#ifdef HAVE_LIBLZMA
-            ".lzma", ".xz",
-#endif
-            NULL
-          };
-
-          for (size_t i = 0; zextensions[i] != NULL; ++i)
-            flag_include.emplace_back(glob.assign("*.").append(extensions.substr(from, size)).append(zextensions[i]));
-        }
-#endif
-      }
-
-      if (to == std::string::npos)
-        break;
-
-      from = to + 1;
-    }
-  }
-
-#ifdef HAVE_LIBZ
-#ifdef WITH_DECOMPRESSION_THREAD
-  // -z with -M or -O/--include: add globs to search tarballs
-  if (flag_decompress && (!flag_file_magic.empty() || !flag_include.empty()))
-  {
-    flag_include.emplace_back("*.cpio");
-    flag_include.emplace_back("*.pax");
-    flag_include.emplace_back("*.tar");
-    flag_include.emplace_back("*.zip");
-    flag_include.emplace_back("*.ZIP");
-
-    flag_include.emplace_back("*.cpio.gz");
-    flag_include.emplace_back("*.pax.gz");
-    flag_include.emplace_back("*.tar.gz");
-    flag_include.emplace_back("*.taz");
-    flag_include.emplace_back("*.tgz");
-    flag_include.emplace_back("*.tpz");
-
-    flag_include.emplace_back("*.cpio.Z");
-    flag_include.emplace_back("*.pax.Z");
-    flag_include.emplace_back("*.tar.Z");
-
-    flag_include.emplace_back("*.cpio.zip");
-    flag_include.emplace_back("*.pax.zip");
-    flag_include.emplace_back("*.tar.zip");
-
-#ifdef HAVE_LIBBZ2
-    flag_include.emplace_back("*.cpio.bz");
-    flag_include.emplace_back("*.pax.bz");
-    flag_include.emplace_back("*.tar.bz");
-    flag_include.emplace_back("*.cpio.bz2");
-    flag_include.emplace_back("*.pax.bz2");
-    flag_include.emplace_back("*.tar.bz2");
-    flag_include.emplace_back("*.cpio.bzip2");
-    flag_include.emplace_back("*.pax.bzip2");
-    flag_include.emplace_back("*.tar.bzip2");
-    flag_include.emplace_back("*.tb2");
-    flag_include.emplace_back("*.tbz");
-    flag_include.emplace_back("*.tbz2");
-    flag_include.emplace_back("*.tz2");
-#endif
-
-#ifdef HAVE_LIBLZMA
-    flag_include.emplace_back("*.cpio.lzma");
-    flag_include.emplace_back("*.pax.lzma");
-    flag_include.emplace_back("*.tar.lzma");
-    flag_include.emplace_back("*.cpio.xz");
-    flag_include.emplace_back("*.pax.xz");
-    flag_include.emplace_back("*.tar.xz");
-    flag_include.emplace_back("*.tlz");
-    flag_include.emplace_back("*.txz");
-#endif
-  }
-#endif
-#endif
-
-  // --exclude-from: add globs to the --exclude and --exclude-dir lists
-  for (auto& i : flag_exclude_from)
-  {
-    if (!i.empty())
-    {
-      FILE *file = NULL;
-
-      if (i == "-")
-        file = stdin;
-      else if (fopen_s(&file, i.c_str(), "r") != 0)
-        error("cannot read", i.c_str());
-
-      extend(file, flag_exclude, flag_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
-
-      if (file != stdin)
-        fclose(file);
-    }
-  }
-
-  // --include-from: add globs to the --include and --include-dir lists
-  for (auto& i : flag_include_from)
-  {
-    if (!i.empty())
-    {
-      FILE *file = NULL;
-
-      if (i == "-")
-        file = stdin;
-      else if (fopen_s(&file, i.c_str(), "r") != 0)
-        error("cannot read", i.c_str());
-
-      extend(file, flag_include, flag_include_dir, flag_not_include, flag_not_include_dir);
-
-      if (file != stdin)
-        fclose(file);
-    }
-  }
-
-#ifdef HAVE_STATVFS
-
-  // --exclude-fs: add file system ids to exclude
-  for (auto& i : flag_exclude_fs)
-  {
-    if (!i.empty())
-    {
-      struct statvfs buf;
-      size_t from = 0;
-
-      while (true)
-      {
-        size_t to = i.find(',', from);
-        size_t size = (to == std::string::npos ? i.size() : to) - from;
-
-        if (size > 0)
-        {
-          std::string mount(i.substr(from, size));
-
-          if (statvfs(mount.c_str(), &buf) == 0)
-            exclude_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
-          else
-            warning("--exclude-fs", mount.c_str());
-        }
-
-        if (to == std::string::npos)
-          break;
-
-        from = to + 1;
-      }
-    }
-  }
-
-  // --include-fs: add file system ids to include
-  for (auto& i : flag_include_fs)
-  {
-    if (!i.empty())
-    {
-      struct statvfs buf;
-      size_t from = 0;
-
-      while (true)
-      {
-        size_t to = i.find(',', from);
-        size_t size = (to == std::string::npos ? i.size() : to) - from;
-
-        if (size > 0)
-        {
-          std::string mount(i.substr(from, size));
-
-          if (statvfs(mount.c_str(), &buf) == 0)
-            include_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
-          else
-            warning("--include-fs", mount.c_str());
-        }
-
-        if (to == std::string::npos)
-          break;
-
-        from = to + 1;
-      }
-    }
-  }
-
-#endif
-
-  // -M: file "magic bytes" regex string
-  std::string magic_regex;
-
-  // -M !MAGIC: combine to create a regex string
-  for (auto& i : flag_file_magic)
-  {
-    if (i.size() > 1 && (i.front() == '!' || i.front() == '^'))
-    {
-      if (!magic_regex.empty())
-        magic_regex.push_back('|');
-      magic_regex.append(i.substr(1));
-
-      // tally negative MAGIC patterns
-      ++flag_min_magic;
-    }
-  }
-
-  // -M MAGIC: append to regex string
-  for (auto& i : flag_file_magic)
-  {
-    if (i.size() <= 1 || (i.front() != '!' && i.front() != '^'))
-    {
-      if (!magic_regex.empty())
-        magic_regex.push_back('|');
-      magic_regex.append(i);
-
-      // we have positive MAGIC patterns, so scan() is a match when flag_min_magic or greater
-      flag_not_magic = flag_min_magic;
-    }
-  }
-
-  // -M: create a magic matcher for the MAGIC regex to match file with magic.scan()
-  try
-  {
-    // construct magic_pattern DFA for -M !MAGIC and -M MAGIC
-    if (!magic_regex.empty())
-      magic_pattern.assign(magic_regex, "r");
-    magic_matcher.pattern(magic_pattern);
-  }
-
-  catch (reflex::regex_error& error)
-  {
-    abort("option -M: ", error.what());
-  }
-
-  // --filter-magic-label: construct filter_magic_pattern and map "magic bytes" to labels
-  magic_regex = "(";
-
-  // --filter-magic-label: append pattern to magic_labels, parenthesized to ensure capture indexing
-  for (auto& i : flag_filter_magic_label)
-  {
-    size_t sep = i.find(':');
-
-    if (sep != std::string::npos && sep > 0 && sep + 1 < i.size())
-    {
-      if (!i.empty() && magic_regex.size() > 1)
-        magic_regex.append(")|(");
-      magic_regex.append(i.substr(sep + 1));
-
-      // truncate so we end up with a list of labels without patterns
-      i.resize(sep);
-    }
-    else
-    {
-      abort("option --filter-magic-label: invalid LABEL:MAGIC argument ", i);
-    }
-  }
-
-  magic_regex.push_back(')');
-
-  // --filter-magic-label: create a filter_magic_pattern
-  try
-  {
-    // construct filter_magic_pattern DFA
-    if (magic_regex.size() > 2)
-      filter_magic_pattern.assign(magic_regex, "r");
-  }
-
-  catch (reflex::regex_error& error)
-  {
-    abort("option --filter-magic-label: ", error.what());
-  }
-
   // check FILE arguments, warn about non-existing FILE
   std::vector<const char*>::iterator file = arg_files.begin();
   while (file != arg_files.end())
@@ -3907,6 +3460,322 @@ void options(int argc, const char **argv)
     }
 
 #endif
+  }
+
+  // normalize --cpp, --csv, --json, --xml
+  if (flag_cpp)
+  {
+    flag_format_begin = "const struct grep {\n  const char *file;\n  size_t line;\n  size_t column;\n  size_t offset;\n  const char *match;\n} matches[] = {\n";
+    flag_format_open  = "  // %f\n";
+    flag_format       = "  { %h, %n, %k, %b, %C },\n%u";
+    flag_format_close = "  \n";
+    flag_format_end   = "  { NULL, 0, 0, 0, NULL }\n};\n";
+  }
+  else if (flag_csv)
+  {
+    flag_format       = "%[,]$%H%N%K%B%V\n%u";
+  }
+  else if (flag_json)
+  {
+    flag_format_begin = "[";
+    flag_format_open  = "%,\n  {\n    %[,\n    ]$%[\"file\": ]H\"matches\": [";
+    flag_format       = "%,\n      { %[, ]$%[\"line\": ]N%[\"column\": ]K%[\"offset\": ]B\"match\": %J }%u";
+    flag_format_close = "\n    ]\n  }";
+    flag_format_end   = "\n]\n";
+  }
+  else if (flag_xml)
+  {
+    flag_format_begin = "<grep>\n";
+    flag_format_open  = "  <file%[]$%[ name=]H>\n";
+    flag_format       = "    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%X</match>\n%u";
+    flag_format_close = "  </file>\n";
+    flag_format_end   = "</grep>\n";
+  }
+
+#ifdef HAVE_STATVFS
+
+  // --exclude-fs: add file system ids to exclude
+  for (auto& mounts : flag_exclude_fs)
+  {
+    if (!mounts.empty())
+    {
+      struct statvfs buf;
+      size_t from = 0;
+
+      while (true)
+      {
+        size_t to = mounts.find(',', from);
+        size_t size = (to == std::string::npos ? mounts.size() : to) - from;
+
+        if (size > 0)
+        {
+          std::string mount(mounts.substr(from, size));
+
+          if (statvfs(mount.c_str(), &buf) == 0)
+            exclude_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
+          else
+            warning("--exclude-fs", mount.c_str());
+        }
+
+        if (to == std::string::npos)
+          break;
+
+        from = to + 1;
+      }
+    }
+  }
+
+  // --include-fs: add file system ids to include
+  for (auto& mounts : flag_include_fs)
+  {
+    if (!mounts.empty())
+    {
+      struct statvfs buf;
+      size_t from = 0;
+
+      while (true)
+      {
+        size_t to = mounts.find(',', from);
+        size_t size = (to == std::string::npos ? mounts.size() : to) - from;
+
+        if (size > 0)
+        {
+          std::string mount(mounts.substr(from, size));
+
+          if (statvfs(mount.c_str(), &buf) == 0)
+            include_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
+          else
+            warning("--include-fs", mount.c_str());
+        }
+
+        if (to == std::string::npos)
+          break;
+
+        from = to + 1;
+      }
+    }
+  }
+
+#endif
+
+  // --exclude-from: add globs to the exclude and exclude-dir lists
+  for (auto& from : flag_exclude_from)
+  {
+    if (!from.empty())
+    {
+      FILE *file = NULL;
+
+      if (from == "-")
+        file = stdin;
+      else if (fopen_s(&file, from.c_str(), "r") != 0)
+        error("cannot read", from.c_str());
+
+      extend(file, flag_exclude, flag_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
+
+      if (file != stdin)
+        fclose(file);
+    }
+  }
+
+  // --include-from: add globs to the include and include-dir lists
+  for (auto& from : flag_include_from)
+  {
+    if (!from.empty())
+    {
+      FILE *file = NULL;
+
+      if (from == "-")
+        file = stdin;
+      else if (fopen_s(&file, from.c_str(), "r") != 0)
+        error("cannot read", from.c_str());
+
+      extend(file, flag_include, flag_include_dir, flag_not_include, flag_not_include_dir);
+
+      if (file != stdin)
+        fclose(file);
+    }
+  }
+
+  // -t: parse TYPES and access type table to add -O (--file-extension) and -M (--file-magic) values
+  for (auto& types : flag_file_type)
+  {
+    size_t from = 0;
+
+    while (true)
+    {
+      size_t to = types.find(',', from);
+      size_t size = (to == std::string::npos ? types.size() : to) - from;
+
+      if (size > 0)
+      {
+        bool negate = size > 1 && (types[from] == '!' || types[from] == '^');
+
+        if (negate)
+        {
+          ++from;
+          --size;
+        }
+
+        std::string type(types.substr(from, size));
+
+        size_t i;
+
+        // scan the type_table[] for a matching type
+        for (i = 0; type_table[i].type != NULL; ++i)
+          if (type == type_table[i].type)
+            break;
+
+        if (type_table[i].type == NULL)
+        {
+          std::string msg = "invalid argument -t TYPES, valid arguments are";
+
+          for (int i = 0; type_table[i].type != NULL; ++i)
+            msg.append(" '").append(type_table[i].type).append("',");
+          msg.append(" and 'list' to show a detailed list of file types");
+
+          help(msg.c_str());
+        }
+
+        std::string extensions(type_table[i].extensions);
+
+        if (negate)
+        {
+          extensions.insert(0, "!");
+          size_t j = 0;
+          while ((j = extensions.find(',', j)) != std::string::npos)
+            extensions.insert(++j, "!");
+        }
+
+        flag_file_extension.emplace_back(extensions);
+
+        if (type_table[i].magic != NULL)
+        {
+          flag_file_magic.emplace_back(type_table[i].magic);
+
+          if (negate)
+            flag_file_magic.back().insert(0, "!");
+        }
+      }
+
+      if (to == std::string::npos)
+        break;
+
+      from = to + 1;
+    }
+  }
+
+  // -O: add filename extensions as globs
+  for (auto& extensions : flag_file_extension)
+  {
+    size_t from = 0;
+    std::string glob;
+
+    while (true)
+    {
+      size_t to = extensions.find(',', from);
+      size_t size = (to == std::string::npos ? extensions.size() : to) - from;
+
+      if (size > 0)
+      {
+        bool negate = size > 1 && (extensions[from] == '!' || extensions[from] == '^');
+
+        if (negate)
+        {
+          ++from;
+          --size;
+        }
+
+        flag_glob.emplace_back(glob.assign(negate ? "^*." : "*.").append(extensions.substr(from, size)));
+      }
+
+      if (to == std::string::npos)
+        break;
+
+      from = to + 1;
+    }
+  }
+
+  // -M: file "magic bytes" regex string
+  std::string magic_regex;
+
+  // -M !MAGIC: combine to create a regex string
+  for (auto& magic : flag_file_magic)
+  {
+    if (magic.size() > 1 && (magic.front() == '!' || magic.front() == '^'))
+    {
+      if (!magic_regex.empty())
+        magic_regex.push_back('|');
+      magic_regex.append(magic.substr(1));
+
+      // tally negative MAGIC patterns
+      ++flag_min_magic;
+    }
+  }
+
+  // -M MAGIC: append to regex string
+  for (auto& magic : flag_file_magic)
+  {
+    if (magic.size() <= 1 || (magic.front() != '!' && magic.front() != '^'))
+    {
+      if (!magic_regex.empty())
+        magic_regex.push_back('|');
+      magic_regex.append(magic);
+
+      // we have positive MAGIC patterns, so scan() is a match when flag_min_magic or greater
+      flag_not_magic = flag_min_magic;
+    }
+  }
+
+  // -M: create a magic matcher for the MAGIC regex to match file with magic.scan()
+  try
+  {
+    // construct magic_pattern DFA for -M !MAGIC and -M MAGIC
+    if (!magic_regex.empty())
+      magic_pattern.assign(magic_regex, "r");
+    magic_matcher.pattern(magic_pattern);
+  }
+
+  catch (reflex::regex_error& error)
+  {
+    abort("option -M: ", error.what());
+  }
+
+  // --filter-magic-label: construct filter_magic_pattern and map "magic bytes" to labels
+  magic_regex = "(";
+
+  // --filter-magic-label: append pattern to magic_labels, parenthesized to ensure capture indexing
+  for (auto& label : flag_filter_magic_label)
+  {
+    size_t sep = label.find(':');
+
+    if (sep != std::string::npos && sep > 0 && sep + 1 < label.size())
+    {
+      if (!label.empty() && magic_regex.size() > 1)
+        magic_regex.append(")|(");
+      magic_regex.append(label.substr(sep + 1));
+
+      // truncate so we end up with a list of labels without patterns
+      label.resize(sep);
+    }
+    else
+    {
+      abort("option --filter-magic-label: invalid LABEL:MAGIC argument ", label);
+    }
+  }
+
+  magic_regex.push_back(')');
+
+  // --filter-magic-label: create a filter_magic_pattern
+  try
+  {
+    // construct filter_magic_pattern DFA
+    if (magic_regex.size() > 2)
+      filter_magic_pattern.assign(magic_regex, "r");
+  }
+
+  catch (reflex::regex_error& error)
+  {
+    abort("option --filter-magic-label: ", error.what());
   }
 }
 
@@ -4151,6 +4020,147 @@ void ugrep()
 
   // reset stats
   Stats::reset();
+
+  // populate the combined all-include and all-exclude
+  flag_all_include = flag_include;
+  flag_all_include_dir = flag_include_dir;
+  flag_all_exclude = flag_exclude;
+  flag_all_exclude_dir = flag_exclude_dir;
+
+  // -g, --glob: add globs to all-include/all-exclude
+  for (auto& globs : flag_glob)
+  {
+    size_t from = 0;
+    std::string glob;
+
+    while (true)
+    {
+      size_t to = globs.find(',', from);
+      size_t size = (to == std::string::npos ? globs.size() : to) - from;
+
+      if (size > 0)
+      {
+        bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
+
+        if (negate)
+        {
+          ++from;
+          --size;
+        }
+
+        (negate ? flag_all_exclude : flag_all_include).emplace_back(globs.substr(from, size));
+      }
+
+      if (to == std::string::npos)
+        break;
+
+      from = to + 1;
+    }
+  }
+
+  // all excluded files: normalize by moving directory globs (globs ending in a path separator /) to --exclude-dir
+  auto i = flag_all_exclude.begin();
+  while (i != flag_all_exclude.end())
+  {
+    if (i->empty())
+    {
+      i = flag_all_exclude.erase(i);
+    }
+    else if (i->back() == '/')
+    {
+      flag_all_exclude_dir.emplace_back(*i);
+      i = flag_all_exclude.erase(i);
+    }
+    else
+    {
+      ++i;
+    }
+  }
+
+  // all included files: normalize by moving directory globs (globs ending in a path separator /) to --include-dir
+  i = flag_all_include.begin();
+  while (i != flag_all_include.end())
+  {
+    if (i->empty())
+    {
+      i = flag_all_include.erase(i);
+    }
+    else if (i->back() == '/')
+    {
+      flag_all_include_dir.emplace_back(*i);
+      i = flag_all_include.erase(i);
+    }
+    else
+    {
+      ++i;
+    }
+  }
+
+#ifdef HAVE_LIBZ
+#ifdef WITH_DECOMPRESSION_THREAD
+  // -z with -M or -O/--include: add globs to search archive contents
+  if (flag_decompress && (!flag_file_magic.empty() || !flag_all_include.empty()))
+  {
+    flag_all_include.emplace_back("*.cpio");
+    flag_all_include.emplace_back("*.pax");
+    flag_all_include.emplace_back("*.tar");
+    flag_all_include.emplace_back("*.zip");
+    flag_all_include.emplace_back("*.ZIP");
+
+    flag_all_include.emplace_back("*.cpio.gz");
+    flag_all_include.emplace_back("*.pax.gz");
+    flag_all_include.emplace_back("*.tar.gz");
+    flag_all_include.emplace_back("*.taz");
+    flag_all_include.emplace_back("*.tgz");
+    flag_all_include.emplace_back("*.tpz");
+
+    flag_all_include.emplace_back("*.cpio.Z");
+    flag_all_include.emplace_back("*.pax.Z");
+    flag_all_include.emplace_back("*.tar.Z");
+
+    flag_all_include.emplace_back("*.cpio.zip");
+    flag_all_include.emplace_back("*.pax.zip");
+    flag_all_include.emplace_back("*.tar.zip");
+
+#ifdef HAVE_LIBBZ2
+    flag_all_include.emplace_back("*.cpio.bz");
+    flag_all_include.emplace_back("*.pax.bz");
+    flag_all_include.emplace_back("*.tar.bz");
+    flag_all_include.emplace_back("*.cpio.bz2");
+    flag_all_include.emplace_back("*.pax.bz2");
+    flag_all_include.emplace_back("*.tar.bz2");
+    flag_all_include.emplace_back("*.cpio.bzip2");
+    flag_all_include.emplace_back("*.pax.bzip2");
+    flag_all_include.emplace_back("*.tar.bzip2");
+    flag_all_include.emplace_back("*.tb2");
+    flag_all_include.emplace_back("*.tbz");
+    flag_all_include.emplace_back("*.tbz2");
+    flag_all_include.emplace_back("*.tz2");
+#endif
+
+#ifdef HAVE_LIBLZMA
+    flag_all_include.emplace_back("*.cpio.lzma");
+    flag_all_include.emplace_back("*.pax.lzma");
+    flag_all_include.emplace_back("*.tar.lzma");
+    flag_all_include.emplace_back("*.cpio.xz");
+    flag_all_include.emplace_back("*.pax.xz");
+    flag_all_include.emplace_back("*.tar.xz");
+    flag_all_include.emplace_back("*.tlz");
+    flag_all_include.emplace_back("*.txz");
+#endif
+  }
+#endif
+#endif
+
+  // all excluded-dirs: normalize by removing trailing path separators
+  for (auto& i : flag_all_exclude_dir)
+    while (i.size() > 1 && i.back() == '/')
+      i.pop_back();
+
+  // all included-dirs: normalize by removing trailing path separators
+  for (auto& i : flag_all_include_dir)
+    while (i.size() > 1 && i.back() == '/')
+      i.pop_back();
 
   // --sort: check sort KEY and set flags
   if (flag_sort != NULL)
@@ -4875,7 +4885,7 @@ void Grep::ugrep()
 // search file or directory for pattern matches
 Grep::Type Grep::select(size_t level, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument)
 {
-  if (*basename == '.' && !flag_hidden)
+  if (*basename == '.' && !flag_hidden && !is_argument)
     return Type::SKIP;
 
 #ifdef OS_WIN
@@ -4889,7 +4899,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     return Type::SKIP;
   }
 
-  if (!flag_hidden && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
+  if (!flag_hidden && !is_argument && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
     return Type::SKIP;
 
   if ((attr & FILE_ATTRIBUTE_DIRECTORY))
@@ -4927,12 +4937,12 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
         if (!negate)
         {
           // exclude directories whose basename matches any one of the --exclude-dir globs
-          for (auto& glob : flag_exclude_dir)
+          for (auto& glob : flag_all_exclude_dir)
             if (glob_match(pathname, basename, glob.c_str()))
               return Type::SKIP;
         }
 
-        if (!flag_include_dir.empty())
+        if (!flag_all_include_dir.empty())
         {
           // do not include directories that are reversed by ! negation
           for (auto& glob : flag_not_include_dir)
@@ -4941,7 +4951,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
           // include directories whose basename matches any one of the --include-dir globs
           bool ok = false;
-          for (auto& glob : flag_include_dir)
+          for (auto& glob : flag_all_include_dir)
             if ((ok = glob_match(pathname, basename, glob.c_str())))
               break;
           if (!ok)
@@ -4967,7 +4977,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     if (!negate)
     {
       // exclude files whose basename matches any one of the --exclude globs
-      for (auto& glob : flag_exclude)
+      for (auto& glob : flag_all_exclude)
         if (glob_match(pathname, basename, glob.c_str()))
           return Type::SKIP;
     }
@@ -5016,11 +5026,11 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
       fclose(file);
 
-      if (flag_include.empty())
+      if (flag_all_include.empty())
         return Type::SKIP;
     }
 
-    if (!flag_include.empty())
+    if (!flag_all_include.empty())
     {
       // do not include files that are reversed by ! negation
       for (auto& glob : flag_not_include)
@@ -5029,7 +5039,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
       // include files whose basename matches any one of the --include globs
       bool ok = false;
-      for (auto& glob : flag_include)
+      for (auto& glob : flag_all_include)
         if ((ok = glob_match(pathname, basename, glob.c_str())))
           break;
       if (!ok)
@@ -5090,12 +5100,12 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
               if (!negate)
               {
                 // exclude directories whose pathname matches any one of the --exclude-dir globs
-                for (auto& glob : flag_exclude_dir)
+                for (auto& glob : flag_all_exclude_dir)
                   if (glob_match(pathname, basename, glob.c_str()))
                     return Type::SKIP;
               }
 
-              if (!flag_include_dir.empty())
+              if (!flag_all_include_dir.empty())
               {
                 // do not include directories that are reversed by ! negation
                 for (auto& glob : flag_not_include_dir)
@@ -5104,7 +5114,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
                 // include directories whose pathname matches any one of the --include-dir globs
                 bool ok = false;
-                for (auto& glob : flag_include_dir)
+                for (auto& glob : flag_all_include_dir)
                   if ((ok = glob_match(pathname, basename, glob.c_str())))
                     break;
                 if (!ok)
@@ -5135,7 +5145,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           if (!negate)
           {
             // exclude files whose pathname matches any one of the --exclude globs
-            for (auto& glob : flag_exclude)
+            for (auto& glob : flag_all_exclude)
               if (glob_match(pathname, basename, glob.c_str()))
                 return Type::SKIP;
           }
@@ -5189,11 +5199,11 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
             fclose(file);
 
-            if (flag_include.empty())
+            if (flag_all_include.empty())
               return Type::SKIP;
           }
 
-          if (!flag_include.empty())
+          if (!flag_all_include.empty())
           {
             // do not include files that are reversed by ! negation
             for (auto& glob : flag_not_include)
@@ -5202,7 +5212,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
             // include files whose pathname matches any one of the --include globs
             bool ok = false;
-            for (auto& glob : flag_include)
+            for (auto& glob : flag_all_include)
               if ((ok = glob_match(pathname, basename, glob.c_str())))
                 break;
             if (!ok)
@@ -5238,7 +5248,7 @@ void Grep::recurse(size_t level, const char *pathname)
   std::string glob;
 
   if (strcmp(pathname, ".") != 0)
-    glob.assign(pathname).append(PATHSEPSTR).push_back('*');
+    glob.assign(pathname).append("/*");
   else
     glob.assign("*");
 
@@ -5285,7 +5295,7 @@ void Grep::recurse(size_t level, const char *pathname)
 
   // --ignore-files: check if one or more a present to read and extend the file and dir exclusions
   // std::vector<std::string> *save_exclude = NULL, *save_exclude_dir = NULL, *save_not_exclude = NULL, *save_not_exclude_dir = NULL;
-  std::unique_ptr<std::vector<std::string>> save_exclude, save_exclude_dir, save_not_exclude, save_not_exclude_dir;
+  std::unique_ptr<std::vector<std::string>> save_all_exclude, save_all_exclude_dir, save_not_exclude, save_not_exclude_dir;
   bool saved = false;
 
   if (!flag_ignore_files.empty())
@@ -5301,10 +5311,10 @@ void Grep::recurse(size_t level, const char *pathname)
       {
         if (!saved)
         {
-          save_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
-          save_exclude->swap(flag_exclude);
-          save_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
-          save_exclude_dir->swap(flag_exclude_dir);
+          save_all_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
+          save_all_exclude->swap(flag_all_exclude);
+          save_all_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
+          save_all_exclude_dir->swap(flag_all_exclude_dir);
           save_not_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
           save_not_exclude->swap(flag_not_exclude);
           save_not_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
@@ -5314,7 +5324,7 @@ void Grep::recurse(size_t level, const char *pathname)
         }
 
         Stats::ignore_file(filename);
-        extend(file, flag_exclude, flag_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
+        extend(file, flag_all_exclude, flag_all_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
         fclose(file);
       }
     }
@@ -5554,8 +5564,8 @@ void Grep::recurse(size_t level, const char *pathname)
   // --ignore-files: restore if changed
   if (saved)
   {
-    save_exclude->swap(flag_exclude);
-    save_exclude_dir->swap(flag_exclude_dir);
+    save_all_exclude->swap(flag_all_exclude);
+    save_all_exclude_dir->swap(flag_all_exclude_dir);
     save_not_exclude->swap(flag_not_exclude);
     save_not_exclude_dir->swap(flag_not_exclude_dir);
   }
@@ -7580,7 +7590,7 @@ void help(const char *message, const char *arg)
   std::cout << ".\n\
     --exclude=GLOB\n\
             Skip files whose name matches GLOB using wildcard matching, same as\n\
-            -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
+            -g ^GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
             quote a wildcard or backslash character literally.  When GLOB\n\
             contains a `/', full pathnames are matched.  Otherwise basenames\n\
             are matched.  When GLOB ends with a `/', directories are excluded\n\
@@ -7659,11 +7669,16 @@ void help(const char *message, const char *arg)
     -G, --basic-regexp\n\
             Interpret pattern as a basic regular expression, i.e. make ugrep\n\
             behave as traditional grep.\n\
-    -g GLOB, --glob=GLOB\n\
-            Search only files whose name matches GLOB, same as --include=GLOB.\n\
-            When GLOB is preceded by a `!' or a `^', skip files whose name\n\
-            matches GLOB, same as --exclude=GLOB.  GLOB should be quoted to\n\
-            prevent shell globbing.  This option may be repeated.\n\
+    -g GLOBS, --glob=GLOBS\n\
+            Search only files whose name matches the specified comma-separated\n\
+            list of GLOBS, same as --include='glob' for each `glob' in GLOBS.\n\
+            When a `glob' is preceded by a `!' or a `^', skip files whose name\n\
+            matches `glob', same as --exclude='glob'.  When `glob' contains a\n\
+            `/', full pathnames are matched.  Otherwise basenames are matched.\n\
+            When `glob' ends with a `/', directories are matched, same as\n\
+            --include-dir='glob' and --exclude-dir='glob'.  This option may be\n\
+            repeated and may be combined with options -M, -O and -t to expand\n\
+            the recursive search.\n\
     --group-separator[=SEP]\n\
             Use SEP as a group separator for context options -A, -B, and -C.\n\
             The default is a double hyphen (`--').\n\
@@ -7807,13 +7822,13 @@ void help(const char *message, const char *arg)
     --no-group-separator\n\
             Removes the group separator line from the output for context\n\
             options -A, -B, and -C.\n\
-    -O EXTENSIONS, --file-extensions=EXTENSIONS\n\
+    -O EXTENSIONS, --file-extension=EXTENSIONS\n\
             Search only files whose filename extensions match the specified\n\
             comma-separated list of EXTENSIONS, same as --include='*.ext' for\n\
-            each `ext' in EXTENSIONS.  When `ext' is preceded by a `!' or a\n\
+            each `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a\n\
             `^', skip files whose filename extensions matches `ext', same as\n\
             --exclude='*.ext'.  This option may be repeated and may be combined\n\
-            with options -M and -t to expand the recursive search.\n\
+            with options -g, -M and -t to expand the recursive search.\n\
     -o, --only-matching\n\
             Print only the matching part of lines.  When multiple lines match,\n\
             the line numbers with option -n are displayed using `|' as the\n\

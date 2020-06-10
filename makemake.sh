@@ -6,7 +6,7 @@ echo "Copying updated RE/flex source code files..."
 cp -r ../reflex/include/reflex/*.h include/reflex
 cp -r ../reflex/unicode/*.cpp lib
 cp -r ../reflex/lib/*.cpp lib
-cp -r ../reflex/extras/fuzzymatcher.h include/reflex
+cp -r ../reflex/fuzzy/fuzzymatcher.h include/reflex
 fi
 
 # change lib/Makefile.am to use noinst_LIBRARIES

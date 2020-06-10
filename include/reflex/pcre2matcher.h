@@ -44,7 +44,6 @@
 namespace reflex {
 
 /// PCRE2 JIT-optimized matcher engine class implements reflex::PatternMatcher pattern matching interface with scan, find, split functors and iterators, using the PCRE2 library.
-/** More info TODO */
 class PCRE2Matcher : public PatternMatcher<std::string> {
  public:
   /// Convert a regex to an acceptable form, given the specified regex library signature `"[decls:]escapes[?+]"`, see reflex::convert.
@@ -462,7 +461,6 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
 };
 
 /// PCRE2 JIT-optimized native PCRE2_UTF+PCRE2_UCP matcher engine class, extends PCRE2Matcher.
-/** More info TODO */
 class PCRE2UTFMatcher : public PCRE2Matcher {
  public:
   /// Convert a regex to an acceptable form, given the specified regex library signature `"[decls:]escapes[?+]"`, see reflex::convert.

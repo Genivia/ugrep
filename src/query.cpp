@@ -234,6 +234,7 @@ void Query::draw()
           else
             Screen::put(CERROR);
         }
+
         Screen::put(prompt_);
       }
 
@@ -615,8 +616,6 @@ void Query::query()
 
   get_flags();
 
-  set_prompt();
-
   get_stdin();
 
   query_ui();
@@ -663,7 +662,6 @@ void Query::query_ui()
   updated_    = false;
   message_    = false;
   *line_      = '\0';
-  start_      = 0;
   col_        = 0;
   len_        = 0;
   offset_     = 0;
@@ -674,6 +672,7 @@ void Query::query_ui()
   skip_       = 0;
   select_     = -1;
   select_all_ = false;
+  globbing_   = false;
   eof_        = true;
   buflen_     = 0;
 
@@ -695,8 +694,6 @@ void Query::query_ui()
   signal(SIGWINCH, sigwinch);
 
 #endif
-
-  arg_pattern = line_;
 
   // if -e PATTERN specified, collect patterns in the line to edit
   if (!flag_regexp.empty())
@@ -736,16 +733,7 @@ void Query::query_ui()
 
   Screen::clear();
 
-  if (prompt_ != NULL)
-  {
-    start_ = 2;
-    Screen::put(prompt_);
-    Screen::getpos(NULL, &start_);
-  }
-  else
-  {
-    start_ = 0;
-  }
+  set_prompt();
 
   search();
 
@@ -837,7 +825,16 @@ void Query::query_ui()
         case VKey::ESC:
           if (mode_ == Mode::QUERY)
           {
-            if (select_ == -1)
+            if (globbing_)
+            {
+              globbing_ = false;
+              set_prompt();
+              memcpy(line_, save_, QUERY_MAX_LEN);
+              len_ = line_len();
+              move(len_);
+              draw();
+            }
+            else if (select_ == -1)
             {
               if (quit())
                 return;
@@ -1222,6 +1219,8 @@ void Query::search()
   if (search_thread_.joinable())
     search_thread_.join();
 
+  arg_pattern = globbing_ ? save_ : line_;
+
   set_flags();
 
   set_stdin();
@@ -1486,9 +1485,9 @@ void Query::execute(int fd)
         error_ -= 2;
 
       // subtract 2 or 3 for -x or -w
-      if (flags_[26].flag && error_ >= 2)
+      if (flags_[27].flag && error_ >= 2)
         error_ -= 2;
-      else if (flags_[24].flag && error_ >= 3)
+      else if (flags_[25].flag && error_ >= 3)
         error_ -= 3;
     }
 
@@ -2125,106 +2124,106 @@ void Query::meta(int key)
           case 'A':
             flags_[1].flag = false;
             flags_[3].flag = false;
-            flags_[15].flag = false;
-            flags_[28].flag = false;
+            flags_[16].flag = false;
+            flags_[29].flag = false;
             break;
 
           case 'B':
             flags_[0].flag = false;
             flags_[3].flag = false;
-            flags_[15].flag = false;
-            flags_[28].flag = false;
+            flags_[16].flag = false;
+            flags_[29].flag = false;
             break;
 
           case 'b':
           case 'k':
           case 'n':
             flags_[4].flag = false;
-            flags_[13].flag = false;
+            flags_[14].flag = false;
             break;
 
           case 'C':
             flags_[0].flag = false;
             flags_[1].flag = false;
-            flags_[15].flag = false;
-            flags_[28].flag = false;
+            flags_[16].flag = false;
+            flags_[29].flag = false;
             break;
 
           case 'c':
             flags_[2].flag = false;
-            flags_[12].flag = false;
             flags_[13].flag = false;
             flags_[14].flag = false;
+            flags_[15].flag = false;
             break;
 
           case 'F':
             flags_[6].flag = false;
-            flags_[16].flag = false;
-            flags_[29].flag = false;
+            flags_[17].flag = false;
+            flags_[30].flag = false;
             break;
 
           case 'G':
             flags_[5].flag = false;
-            flags_[16].flag = false;
-            flags_[29].flag = false;
+            flags_[17].flag = false;
+            flags_[30].flag = false;
             break;
 
           case 'H':
-            flags_[8].flag = false;
+            flags_[9].flag = false;
             break;
 
           case 'h':
-            flags_[7].flag = false;
+            flags_[8].flag = false;
             break;
 
           case 'I':
-            flags_[23].flag = false;
-            flags_[25].flag = false;
+            flags_[24].flag = false;
+            flags_[26].flag = false;
             break;
 
           case 'i':
-            flags_[11].flag = false;
+            flags_[12].flag = false;
             break;
 
           case 'j':
-            flags_[10].flag = false;
+            flags_[11].flag = false;
             break;
 
           case 'l':
             flags_[2].flag = false;
             flags_[4].flag = false;
-            flags_[12].flag = false;
-            flags_[14].flag = false;
+            flags_[13].flag = false;
+            flags_[15].flag = false;
             break;
 
           case 'o':
             flags_[0].flag = false;
             flags_[1].flag = false;
             flags_[3].flag = false;
-            flags_[28].flag = false;
+            flags_[29].flag = false;
             break;
 
           case 'P':
             flags_[5].flag = false;
             flags_[6].flag = false;
-            flags_[29].flag = false;
+            flags_[30].flag = false;
             break;
 
           case 'R':
-            flags_[18].flag = false;
-            for (int i = 32; i <= 40; ++i)
+            flags_[19].flag = false;
+            for (int i = 33; i <= 41; ++i)
               flags_[i].flag = false;
             break;
 
           case 'r':
-            flags_[17].flag = false;
-            for (int i = 32; i <= 40; ++i)
+            flags_[18].flag = false;
+            for (int i = 33; i <= 41; ++i)
               flags_[i].flag = false;
             break;
 
           case 'W':
-            flags_[9].flag = false;
-            flags_[25].flag = false;
+            flags_[10].flag = false;
+            flags_[26].flag = false;
             break;
 
           case 'w':
@@ -2232,25 +2231,25 @@ void Query::meta(int key)
             break;
 
           case 'X':
-            flags_[9].flag = false;
-            flags_[23].flag = false;
+            flags_[10].flag = false;
+            flags_[24].flag = false;
             break;
 
           case 'x':
-            flags_[24].flag = false;
+            flags_[25].flag = false;
             break;
 
           case 'y':
             flags_[0].flag = false;
             flags_[1].flag = false;
             flags_[3].flag = false;
-            flags_[15].flag = false;
+            flags_[16].flag = false;
             break;
 
           case 'Z':
             flags_[5].flag = false;
             flags_[6].flag = false;
-            flags_[16].flag = false;
+            flags_[17].flag = false;
             break;
 
           case '1':
@@ -2262,34 +2261,34 @@ void Query::meta(int key)
           case '7':
           case '8':
           case '9':
-            for (int i = 32; i <= 40; ++i)
+            for (int i = 33; i <= 41; ++i)
               flags_[i].flag = false;
-            if (!flags_[17].flag && !flags_[18].flag)
-              flags_[17].flag = true;
+            if (!flags_[18].flag && !flags_[19].flag)
+              flags_[18].flag = true;
             break;
 
           case '~':
-            flags_[44].flag = false;
             flags_[45].flag = false;
             flags_[46].flag = false;
+            flags_[47].flag = false;
             break;
 
           case '#':
-            flags_[43].flag = false;
-            flags_[45].flag = false;
+            flags_[44].flag = false;
             flags_[46].flag = false;
+            flags_[47].flag = false;
             break;
 
           case '%':
-            flags_[43].flag = false;
             flags_[44].flag = false;
-            flags_[46].flag = false;
+            flags_[45].flag = false;
+            flags_[47].flag = false;
             break;
 
           case '@':
-            flags_[43].flag = false;
             flags_[44].flag = false;
             flags_[45].flag = false;
+            flags_[46].flag = false;
             break;
 
         }
@@ -2300,43 +2299,74 @@ void Query::meta(int key)
         {
           case 'R':
           case 'r':
-            for (int i = 32; i <= 40; ++i)
+            for (int i = 33; i <= 41; ++i)
               flags_[i].flag = false;
             break;
         }
       }
 
-      std::string buf;
+      if (key == 'g')
+      {
+        if (!globbing_)
+        {
+          globbing_ = true;
+          memcpy(save_, line_, QUERY_MAX_LEN);
+          size_t num = globs_.size();
+          if (num >= QUERY_MAX_LEN)
+            num = QUERY_MAX_LEN - 1;
+          memcpy(line_, globs_.c_str(), num);
+          line_[num] = '\0';
 
-      Screen::normal();
+          len_ = line_len();
+          move(len_);
+
+          set_prompt();
+        }
+
+        if (mode_ == Mode::QUERY)
+        {
+          draw();
+        }
+        else
+        {
+          Screen::put(0, 0, "\033[m\033[7mM-g\033[m GLOBS should be entered in the query view screen, \033[7mESC\033[m to go back\033[m");
+          message_ = true;
+        }
+      }
+      else
+      {
+        std::string buf;
+
+        Screen::normal();
 
 #if !defined(HAVE_PCRE2) && !defined(HAVE_BOOST_REGEX)
-      if (key == 'P')
-      {
-        buf.assign(CERROR).append("option -P is not available in this build configuration of ugrep\033[m");
-      }
-      else
+        if (key == 'P')
+        {
+          buf.assign(CERROR).append("option -P is not available in this build configuration of ugrep\033[m");
+        }
+        else
 #endif
 #ifndef HAVE_LIBZ
-      if (key == 'z')
-      {
-        buf.assign(CERROR).append("Option -z is not available in this build configuration of ugrep\033[m");
-      }
-      else
+        if (key == 'z')
+        {
+          buf.assign(CERROR).append("Option -z is not available in this build configuration of ugrep\033[m");
+        }
+        else
 #endif
-      {
-        fp->flag = !fp->flag;
+        {
+          fp->flag = !fp->flag;
 
-        buf.assign("\033[m\033[7mM- \033[m ").append(fp->text).append(fp->flag ? " \033[32;1mon\033[m  " : " \033[31;1moff\033[m  ");
-        buf[9] = fp->key;
+          buf.assign("\033[m\033[7mM- \033[m ").append(fp->text).append(fp->flag ? " \033[32;1mon\033[m  " : " \033[31;1moff\033[m  ");
+          buf[9] = fp->key;
 
-        updated_ = true;
+          updated_ = true;
 
-        set_prompt();
+          set_prompt();
+        }
+
+        Screen::put(0, 0, buf);
+        message_ = true;
       }
-
-      Screen::put(0, 0, buf);
-      message_ = true;
 
       return;
     }
@@ -2483,9 +2513,9 @@ bool Query::print(int row)
       }
     }
 
-    size_t nwritten = fwrite(text, 1, ptr - text, stdout);
+    size_t nwritten = fwrite(text, 1, end - text, stdout);
 
-    if (text + nwritten < ptr)
+    if (text + nwritten < end)
       return false;
   }
   else
@@ -2514,6 +2544,17 @@ void Query::get_flags()
   if (flag_fuzzy > 0)
     fuzzy_ = flag_fuzzy;
 
+  // get the -g, -O, and -t globs
+  for (auto& glob : flag_glob)
+  {
+    if (!glob.empty())
+    {
+      if (!globs_.empty())
+        globs_.push_back(',');
+      globs_.append(glob);
+    }
+  }
+
   // get the interactive flags from the ugrep flags
   flags_[0].flag = flag_after_context > 0 && flag_before_context == 0;
   flags_[1].flag = flag_after_context == 0 && flag_before_context > 0;
@@ -2522,47 +2563,48 @@ void Query::get_flags()
   flags_[4].flag = flag_count;
   flags_[5].flag = flag_fixed_strings;
   flags_[6].flag = flag_basic_regexp;
-  flags_[7].flag = flag_with_filename;
-  flags_[8].flag = flag_no_filename;
-  flags_[9].flag = flag_binary_without_match;
-  flags_[10].flag = flag_ignore_case;
-  flags_[11].flag = flag_smart_case;
-  flags_[12].flag = flag_column_number;
-  flags_[13].flag = flag_files_with_matches;
-  flags_[14].flag = flag_line_number;
-  flags_[15].flag = flag_only_matching;
-  flags_[16].flag = flag_perl_regexp;
-  flags_[17].flag = flag_directories_action == Action::RECURSE && flag_dereference;
-  flags_[18].flag = flag_directories_action == Action::RECURSE && !flag_dereference;
-  flags_[19].flag = flag_initial_tab;
-  flags_[20].flag = flag_binary;
-  flags_[21].flag = flag_ungroup;
-  flags_[22].flag = flag_invert_match;
-  flags_[23].flag = flag_with_hex;
-  flags_[24].flag = flag_word_regexp;
-  flags_[25].flag = flag_hex;
-  flags_[26].flag = flag_line_regexp;
-  flags_[27].flag = flag_empty;
-  flags_[28].flag = flag_any_line;
-  flags_[29].flag = flag_fuzzy > 0;
-  flags_[30].flag = flag_decompress;
-  flags_[31].flag = flag_null;
-  flags_[32].flag = flag_max_depth == 1;
-  flags_[33].flag = flag_max_depth == 2;
-  flags_[34].flag = flag_max_depth == 3;
-  flags_[35].flag = flag_max_depth == 4;
-  flags_[36].flag = flag_max_depth == 5;
-  flags_[37].flag = flag_max_depth == 6;
-  flags_[38].flag = flag_max_depth == 7;
-  flags_[39].flag = flag_max_depth == 8;
-  flags_[40].flag = flag_max_depth == 9;
-  flags_[41].flag = flag_hidden;
-  flags_[42].flag = flag_heading;
-  flags_[43].flag = flag_sort && (strcmp(flag_sort, "best") == 0 || strcmp(flag_sort, "rbest") == 0);
-  flags_[44].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
-  flags_[45].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
-  flags_[46].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
-  flags_[47].flag = flag_sort && *flag_sort == 'r';
+  flags_[7].flag = !globs_.empty();
+  flags_[8].flag = flag_with_filename;
+  flags_[9].flag = flag_no_filename;
+  flags_[10].flag = flag_binary_without_match;
+  flags_[11].flag = flag_ignore_case;
+  flags_[12].flag = flag_smart_case;
+  flags_[13].flag = flag_column_number;
+  flags_[14].flag = flag_files_with_matches;
+  flags_[15].flag = flag_line_number;
+  flags_[16].flag = flag_only_matching;
+  flags_[17].flag = flag_perl_regexp;
+  flags_[18].flag = flag_directories_action == Action::RECURSE && flag_dereference;
+  flags_[19].flag = flag_directories_action == Action::RECURSE && !flag_dereference;
+  flags_[20].flag = flag_initial_tab;
+  flags_[21].flag = flag_binary;
+  flags_[22].flag = flag_ungroup;
+  flags_[23].flag = flag_invert_match;
+  flags_[24].flag = flag_with_hex;
+  flags_[25].flag = flag_word_regexp;
+  flags_[26].flag = flag_hex;
+  flags_[27].flag = flag_line_regexp;
+  flags_[28].flag = flag_empty;
+  flags_[29].flag = flag_any_line;
+  flags_[30].flag = flag_fuzzy > 0;
+  flags_[31].flag = flag_decompress;
+  flags_[32].flag = flag_null;
+  flags_[33].flag = flag_max_depth == 1;
+  flags_[34].flag = flag_max_depth == 2;
+  flags_[35].flag = flag_max_depth == 3;
+  flags_[36].flag = flag_max_depth == 4;
+  flags_[37].flag = flag_max_depth == 5;
+  flags_[38].flag = flag_max_depth == 6;
+  flags_[39].flag = flag_max_depth == 7;
+  flags_[40].flag = flag_max_depth == 8;
+  flags_[41].flag = flag_max_depth == 9;
+  flags_[42].flag = flag_hidden;
+  flags_[43].flag = flag_heading;
+  flags_[44].flag = flag_sort && (strcmp(flag_sort, "best") == 0 || strcmp(flag_sort, "rbest") == 0);
+  flags_[45].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
+  flags_[46].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
+  flags_[47].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
+  flags_[48].flag = flag_sort && *flag_sort == 'r';
 }
 
 void Query::set_flags()
@@ -2586,65 +2628,75 @@ void Query::set_flags()
   flag_count = flags_[4].flag;
   flag_fixed_strings = flags_[5].flag;
   flag_basic_regexp = flags_[6].flag;
-  flag_with_filename = flags_[7].flag;
-  flag_no_filename = flags_[8].flag;
-  flag_binary_without_match = flags_[9].flag;
-  flag_ignore_case = flags_[10].flag;
-  flag_smart_case = flags_[11].flag;
-  flag_column_number = flags_[12].flag;
-  flag_files_with_matches = flags_[13].flag;
-  flag_line_number = flags_[14].flag;
-  flag_only_matching = flags_[15].flag;
-  flag_perl_regexp = flags_[16].flag;
-  if (flags_[17].flag)
+  flag_glob.clear();
+  if (globbing_)
+    globs_.assign(line_);
+  flags_[7].flag = !globs_.empty();
+  if (flags_[7].flag)
+    flag_glob.emplace_back(globs_);
+  flag_with_filename = flags_[8].flag;
+  flag_no_filename = flags_[9].flag;
+  flag_binary_without_match = flags_[10].flag;
+  flag_ignore_case = flags_[11].flag;
+  flag_smart_case = flags_[12].flag;
+  flag_column_number = flags_[13].flag;
+  flag_files_with_matches = flags_[14].flag;
+  flag_line_number = flags_[15].flag;
+  flag_only_matching = flags_[16].flag;
+  flag_perl_regexp = flags_[17].flag;
+  if (flags_[18].flag)
     flag_directories_action = Action::RECURSE, flag_dereference = true;
-  else if (flags_[18].flag)
+  else if (flags_[19].flag)
     flag_directories_action = Action::RECURSE, flag_dereference = false;
   else
     flag_directories_action = Action::SKIP;
-  flag_initial_tab = flags_[19].flag;
-  flag_binary = flags_[20].flag;
-  flag_ungroup = flags_[21].flag;
-  flag_invert_match = flags_[22].flag;
-  flag_with_hex = flags_[23].flag;
-  flag_word_regexp = flags_[24].flag;
-  flag_hex = flags_[25].flag;
-  flag_line_regexp = flags_[26].flag;
-  flag_empty = flags_[27].flag;
-  flag_any_line = flags_[28].flag;
-  flag_fuzzy = flags_[29].flag ? fuzzy_ : 0;
-  flag_decompress = flags_[30].flag;
-  flag_null = flags_[31].flag;
+  flag_initial_tab = flags_[20].flag;
+  flag_binary = flags_[21].flag;
+  flag_ungroup = flags_[22].flag;
+  flag_invert_match = flags_[23].flag;
+  flag_with_hex = flags_[24].flag;
+  flag_word_regexp = flags_[25].flag;
+  flag_hex = flags_[26].flag;
+  flag_line_regexp = flags_[27].flag;
+  flag_empty = flags_[28].flag;
+  flag_any_line = flags_[29].flag;
+  flag_fuzzy = flags_[30].flag ? fuzzy_ : 0;
+  flag_decompress = flags_[31].flag;
+  flag_null = flags_[32].flag;
   flag_max_depth = 0;
-  for (size_t i = 32; i <= 40; ++i)
+  for (size_t i = 33; i <= 41; ++i)
     if (flags_[i].flag)
-      flag_max_depth = i - 31;
-  flag_hidden = flags_[41].flag;
-  flag_heading = flags_[42].flag;
-  if (flags_[43].flag)
-    flag_sort = flags_[47].flag ? "rbest" : "best";
-  else if (flags_[44].flag)
-    flag_sort = flags_[47].flag ? "rsize" : "size";
+      flag_max_depth = i - 32;
+  flag_hidden = flags_[42].flag;
+  flag_heading = flags_[43].flag;
+  if (flags_[44].flag)
+    flag_sort = flags_[48].flag ? "rbest" : "best";
   else if (flags_[45].flag)
-    flag_sort = flags_[47].flag ? "rchanged" : "changed";
+    flag_sort = flags_[48].flag ? "rsize" : "size";
   else if (flags_[46].flag)
-    flag_sort = flags_[47].flag ? "rcreated" : "created";
+    flag_sort = flags_[48].flag ? "rchanged" : "changed";
+  else if (flags_[47].flag)
+    flag_sort = flags_[48].flag ? "rcreated" : "created";
   else
-    flag_sort = flags_[47].flag ? "rname" : "name";
+    flag_sort = flags_[48].flag ? "rname" : "name";
 }
 
 void Query::set_prompt()
 {
-  if (flags_[5].flag)
+  if (globbing_)
+    prompt_ = "--glob=";
+  else if (flags_[5].flag)
     prompt_ = "F>";
   else if (flags_[6].flag)
     prompt_ = "G>";
-  else if (flags_[16].flag)
+  else if (flags_[17].flag)
     prompt_ = "P>";
-  else if (flags_[29].flag)
+  else if (flags_[30].flag)
     prompt_ = "Z>";
   else
     prompt_ = "Q>";
+
+  start_ = strlen(prompt_);
 }
 
 void Query::get_stdin()
@@ -2771,7 +2823,7 @@ Query::Mode              Query::mode_                = Query::Mode::QUERY;
 bool                     Query::updated_             = false;
 bool                     Query::message_             = false;
 char                     Query::line_[QUERY_MAX_LEN] = { '\0' };
-char                     Query::copy_[QUERY_MAX_LEN] = { '\0' };
+char                     Query::save_[QUERY_MAX_LEN] = { '\0' };
 const char              *Query::prompt_              = NULL;
 int                      Query::start_               = 0;
 int                      Query::col_                 = 0;
@@ -2785,6 +2837,8 @@ int                      Query::rows_                = 0;
 int                      Query::mark_                = 0;
 int                      Query::select_              = -1;
 bool                     Query::select_all_          = false;
+bool                     Query::globbing_            = false;
+std::string              Query::globs_;
 int                      Query::skip_                = 0;
 std::vector<std::string> Query::view_;
 std::vector<bool>        Query::selected_;
@@ -2819,6 +2873,7 @@ Query::Flags Query::flags_[] = {
   { false, 'c', "count lines" },
   { false, 'F', "fixed strings" },
   { false, 'G', "basic regex" },
+  { false, 'g', "apply globs" },
   { false, 'H', "with filename" },
   { false, 'h', "hide filename" },
   { false, 'I', "ignore binary" },

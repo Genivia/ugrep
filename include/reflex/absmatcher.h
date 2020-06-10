@@ -37,7 +37,7 @@
 #ifndef REFLEX_ABSMATCHER_H
 #define REFLEX_ABSMATCHER_H
 
-/// This compile-time option speeds up buffer reallocation.
+/// This compile-time option may speed up buffer reallocation with realloc() instead of new and delete.
 #define WITH_REALLOC
 
 /// This compile-time option speeds up matching, but slows input().
@@ -86,8 +86,6 @@ chr_ // char located at txt_[len_] when txt_[len_] is set to \0 by text(), is \0
 got_ // buf_[cur_-1] or txt_[-1] character before this match (assigned before each match), initially Const::BOB
 eof_ // true if no more data can/should be fetched to fill the buffer
 ```
- 
-More info TODO
 */
 class AbstractMatcher {
  protected:
@@ -448,7 +446,7 @@ class AbstractMatcher {
   size_t matches()
     /// @returns nonzero capture index (i.e. true) if the entire input matched this matcher's pattern, zero (i.e. false) otherwise
   {
-    if (mat_ == 0 && at_bob())
+    if (!mat_ && at_bob())
       mat_ = match(Const::MATCH) && at_end();
     return mat_;
   }
@@ -861,7 +859,7 @@ class AbstractMatcher {
     {
       if (end_ + blk_ + 1 >= max_)
         (void)grow();
-      end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
+      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
       if (pos_ < end_)
         return static_cast<unsigned char>(buf_[pos_]);
       DBGLOGN("peek(): EOF");
@@ -874,46 +872,81 @@ class AbstractMatcher {
 #endif
   }
 #if defined(WITH_SPAN)
-  /// Returns pointer to the begin of line in the buffer before the matched text.
+  /// Returns pointer to the begin of the line in the buffer containing the matched text.
   inline const char *bol()
     /// @returns pointer to the begin of line
   {
     (void)lineno();
     return bol_;
   }
-  /// Returns pointer to the end of line in the buffer after the matched text, DANGER: invalidates previous bol() and text() pointers, use eol() before bol(), text(), begin(), and end() when those are required.
-  inline const char *eol(bool inclusive = false) ///< true if eol should be inclusive, i.e. after \n
+  /// Returns pointer to the end of the line (last char + 1) in the buffer containing the matched text, DANGER: invalidates previous bol() and text() pointers, use eol() before bol(), text(), begin(), and end() when those are used.
+  inline const char *eol(bool inclusive = false) ///< true if inclusive, i.e. point after \n
     /// @returns pointer to the end of line
   {
     if (chr_ == '\n' || (txt_ + len_ < buf_ + end_ && txt_[len_] == '\n'))
       return txt_ + len_ + inclusive;
-    size_t tmp = pos_;
+    size_t loc = pos_;
     while (true)
     {
-      if (pos_ < end_)
+      if (loc < end_)
       {
-        char *s = static_cast<char*>(std::memchr(buf_ + pos_, '\n', end_ - pos_));
+        char *s = static_cast<char*>(std::memchr(buf_ + loc, '\n', end_ - loc));
         if (s != NULL)
-        {
-          pos_ = tmp;
           return s + inclusive;
-        }
       }
       if (eof_)
         break;
-      pos_ = tmp;
       (void)grow();
-      tmp = pos_;
-      pos_ = end_;
-      end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
-      if (pos_ >= end_ && !wrap())
+      loc = end_;
+      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
+      if (loc >= end_ && !wrap())
       {
         eof_ = true;
         break;
       }
     }
-    pos_ = tmp;
     return buf_ + end_;
+  }
+  /// Returns pointer to the end of the nth line after the matched line, DANGER: invalidates previous bol(), eol(), text(), and after() pointers, use after() before bol(), eol(), text(), begin(), and end() when those are used.
+  inline std::pair<size_t,const char*> after(size_t num) ///< number of lines to fetch
+    /// @returns number of lines fetched (fewer than num if EOF or when out of memory) and pointer to the end of the nth line
+  {
+    if (num == 0)
+      return std::pair<size_t,const char*>(0, eol(true));
+    reset_text();
+    size_t loc = pos_;
+    size_t hit = 0;
+    while (true)
+    {
+      while (loc < end_)
+      {
+        char *s = static_cast<char*>(std::memchr(buf_ + loc, '\n', end_ - loc));
+        if (s == NULL)
+          break;
+        if (hit == num)
+          return std::pair<size_t,const char*>(num, s + 1);
+        loc = s - buf_ + 1;
+      }
+      if (eof_)
+        break;
+      try
+      {
+        (void)grow();
+      }
+      catch (std::bad_alloc& e)
+      {
+        break;
+      }
+      loc = end_;
+      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
+      if (loc >= end_ && !wrap())
+      {
+        eof_ = true;
+        break;
+      }
+      ++hit;
+    }
+    return std::pair<size_t,const char*>(hit, buf_ + end_);
   }
   /// Returns the byte offset of the match from the start of the line.
   size_t border()
@@ -942,6 +975,7 @@ class AbstractMatcher {
     /// @returns matching line as a string
   {
     DBGLOG("AbstractMatcher::line()");
+    reset_text();
     const char *e = eol(); // warning: must call eol() before bol()
     const char *b = bol();
     return std::string(b, e - b);
@@ -951,6 +985,7 @@ class AbstractMatcher {
     /// @returns matching line as a wide string
   {
     DBGLOG("AbstractMatcher::wline()");
+    reset_text();
     const char *e = eol(); // warning: must call eol() before bol()
     const char *b = bol();
     while (b < e && (*b & 0xC0) == 0x80) // make sure we advance forward to valid UTF-8
@@ -977,7 +1012,7 @@ class AbstractMatcher {
       pos_ = cur_ = end_;
       txt_ = buf_ + end_;
       (void)grow();
-      end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
+      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
       if (pos_ >= end_ && !wrap())
       {
         eof_ = true;
@@ -1037,7 +1072,7 @@ class AbstractMatcher {
     {
       (void)grow();
       pos_ = end_;
-      end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
+      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
       if (pos_ >= end_ && !wrap())
         eof_ = true;
     }
@@ -1206,7 +1241,7 @@ class AbstractMatcher {
     update();
     if (bol_ + Const::BLOCK < txt_)
     {
-      // this line is very long, likely a binary file, so shift to the match instead of bol
+      // this line is very long, likely a binary file, so shift a block size away from the match instead
       DBGLOG("Line in buffer to long to shift, moving bol position to text match position minus %zu", Const::BLOCK);
       bol_ = txt_ - Const::BLOCK;
     }
@@ -1216,11 +1251,12 @@ class AbstractMatcher {
     pos_ -= gap;
     end_ -= gap;
     txt_ -= gap;
+    bol_ -= gap;
     lpb_ -= gap;
+    std::memmove(buf_, buf_ + gap, end_);
     if (max_ - end_ >= need)
     {
       DBGLOG("Shift buffer to close gap of %zu bytes", gap);
-      std::memmove(buf_, bol_, end_);
     }
     else
     {
@@ -1229,13 +1265,12 @@ class AbstractMatcher {
         max_ *= 2;
       DBGLOG("Expand buffer to %zu bytes", max_);
 #if defined(WITH_REALLOC)
-      std::memmove(buf_, bol_, end_);
       char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
       if (newbuf == NULL)
         throw std::bad_alloc();
 #else
       char *newbuf = new char[max_];
-      std::memcpy(newbuf, bol_, end_);
+      std::memcpy(newbuf, buf_, end_);
       delete[] buf_;
 #endif
       txt_ = newbuf + (txt_ - buf_);
@@ -1273,15 +1308,13 @@ class AbstractMatcher {
         pos_ -= gap;
         end_ -= gap;
 #if defined(WITH_REALLOC)
-        if (end_ > 0)
-          std::memmove(buf_, txt_, end_);
+        std::memmove(buf_, txt_, end_);
         char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
         if (newbuf == NULL)
           throw std::bad_alloc();
 #else
         char *newbuf = new char[max_];
-        if (end_ > 0)
-          std::memcpy(newbuf, txt_, end_);
+        std::memcpy(newbuf, txt_, end_);
         delete[] buf_;
 #endif
         buf_ = newbuf;
@@ -1308,7 +1341,7 @@ class AbstractMatcher {
     {
       if (end_ + blk_ + 1 >= max_)
         (void)grow();
-      end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
+      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
       if (pos_ < end_)
         return static_cast<unsigned char>(buf_[pos_++]);
       DBGLOGN("get(): EOF");
@@ -1357,7 +1390,7 @@ class AbstractMatcher {
     {
       if (end_ + blk_ + 1 >= max_)
         (void)grow();
-      end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
+      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
       if (pos_ < end_)
         return static_cast<unsigned char>(buf_[pos_++]);
       DBGLOGN("get_more(): EOF");
@@ -1379,7 +1412,7 @@ class AbstractMatcher {
     {
       if (end_ + blk_ + 1 >= max_)
         (void)grow();
-      end_ += get(buf_ + end_, blk_ ? blk_ : max_ - end_ - 1);
+      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
       if (pos_ < end_)
         return static_cast<unsigned char>(buf_[pos_]);
       DBGLOGN("peek_more(): EOF");
@@ -1400,35 +1433,34 @@ class AbstractMatcher {
     num_ += txt_ - buf_;
 #endif
   }
-  Option opt_; ///< options for matcher engines
-  char  *buf_; ///< input character sequence buffer
-  char  *txt_; ///< points to the matched text in buffer AbstractMatcher::buf_
-  size_t len_; ///< size of the matched text
-  size_t cap_; ///< nonzero capture index of an accepted match or zero
-  size_t cur_; ///< next position in AbstractMatcher::buf_ to assign to AbstractMatcher::txt_
-  size_t pos_; ///< position in AbstractMatcher::buf_ after AbstractMatcher::txt_
-  size_t end_; ///< ending position of the input buffered in AbstractMatcher::buf_
-  size_t max_; ///< total buffer size and max position + 1 to fill
-  size_t ind_; ///< current indent position
-  size_t blk_; ///< block size for block-based input reading, as set by AbstractMatcher::buffer
-  int    got_; ///< last unsigned character we looked at (to determine anchors and boundaries)
-  int    chr_; ///< the character located at AbstractMatcher::txt_[AbstractMatcher::len_]
+  Option opt_;              ///< options for matcher engines
+  char  *buf_;              ///< input character sequence buffer
+  char  *txt_;              ///< points to the matched text in buffer AbstractMatcher::buf_
+  size_t len_;              ///< size of the matched text
+  size_t cap_;              ///< nonzero capture index of an accepted match or zero
+  size_t cur_;              ///< next position in AbstractMatcher::buf_ to assign to AbstractMatcher::txt_
+  size_t pos_;              ///< position in AbstractMatcher::buf_ after AbstractMatcher::txt_
+  size_t end_;              ///< ending position of the input buffered in AbstractMatcher::buf_
+  size_t max_;              ///< total buffer size and max position + 1 to fill
+  size_t ind_;              ///< current indent position
+  size_t blk_;              ///< block size for block-based input reading, as set by AbstractMatcher::buffer
+  int    got_;              ///< last unsigned character we looked at (to determine anchors and boundaries)
+  int    chr_;              ///< the character located at AbstractMatcher::txt_[AbstractMatcher::len_]
 #if defined(WITH_SPAN)
-  char  *bol_; ///< begin of line pointer in buffer
+  char  *bol_;              ///< begin of line pointer in buffer
 #endif
-  char  *lpb_; ///< line pointer in buffer, updated when counting line numbers with lineno()
-  size_t lno_; ///< line number count (cached)
+  char  *lpb_;              ///< line pointer in buffer, updated when counting line numbers with lineno()
+  size_t lno_;              ///< line number count (cached)
 #if !defined(WITH_SPAN)
-  size_t cno_; ///< column number count (cached)
+  size_t cno_;              ///< column number count (cached)
 #endif
-  size_t num_; ///< character count (number of characters flushed prior to this buffered input)
-  bool   own_; ///< true if AbstractMatcher::buf_ was allocated and should be deleted
-  bool   eof_; ///< input has reached EOF
-  bool   mat_; ///< true if AbstractMatcher::matches() was successful
+  size_t num_;              ///< character count of the input till bol_
+  bool   own_;              ///< true if AbstractMatcher::buf_ was allocated and should be deleted
+  bool   eof_;              ///< input has reached EOF
+  bool   mat_;              ///< true if AbstractMatcher::matches() was successful
 };
 
 /// The pattern matcher class template extends abstract matcher base class.
-/** More info TODO */
 template<typename P> /// @tparam <P> pattern class to instantiate a matcher
 class PatternMatcher : public AbstractMatcher {
  public:
@@ -1584,7 +1616,6 @@ class PatternMatcher : public AbstractMatcher {
 };
 
 /// A specialization of the pattern matcher class template for std::string, extends abstract matcher base class.
-/** More info TODO */
 template<>
 class PatternMatcher<std::string> : public AbstractMatcher {
  public:

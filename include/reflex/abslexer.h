@@ -45,7 +45,6 @@
 namespace reflex {
 
 /// The abstract lexer class template that is the abstract root class of all reflex-generated scanners.
-/** More info TODO */
 template<typename M> /// @tparam <M> matcher class derived from reflex::AbstractMatcher
 class AbstractLexer {
  public:

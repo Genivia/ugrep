@@ -35,6 +35,14 @@ input, the input is automatically normalized; otherwise, \fBugrep\fR assumes
 the input is ASCII, UTF-8, or raw binary.  An input encoding format may be
 specified with option \fB--encoding\fR.
 .PP
+If no \fIFILE\fR arguments are specified and standard input is read from a
+terminal, recursive searches are performed as if \fB-R\fR is specified.  To
+force reading from standard input, specify `-' as a \fIFILE\fR argument.
+.PP
+Hidden files and directories are ignored in recursive searches.  Option
+\fB-.\fR (\fB--hidden\fR) includes hidden files and directories in recursive
+searches.
+.PP
 The following options are available:
 END
 src/ugrep --help \
@@ -63,10 +71,6 @@ src/ugrep --help \
   -e 's/=\([-A-Z]\{1,\}\)/=\\fI\1\\fR/g' \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
 cat >> man/ugrep.1 << 'END'
-.PP
-If no \fIFILE\fR arguments are specified and input is read from a terminal,
-recursive searches are performed as if \fB-R\fR is specified.  To force reading
-from standard input, specify `-' as the \fIFILE\fR argument.
 .PP
 A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
 arguments, allowing filenames to begin with a `-' character.

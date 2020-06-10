@@ -168,7 +168,7 @@ class Query {
   static bool                     updated_;
   static bool                     message_;
   static char                     line_[QUERY_MAX_LEN];
-  static char                     copy_[QUERY_MAX_LEN];
+  static char                     save_[QUERY_MAX_LEN];
   static const char              *prompt_;
   static int                      start_;
   static int                      col_;
@@ -183,6 +183,8 @@ class Query {
   static int                      skip_;
   static int                      select_;
   static bool                     select_all_;
+  static bool                     globbing_;
+  static std::string              globs_;
   static std::vector<std::string> view_;
   static std::vector<bool>        selected_;
   static FILE                    *file_;

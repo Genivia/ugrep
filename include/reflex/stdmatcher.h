@@ -43,7 +43,6 @@
 namespace reflex {
 
 /// std matcher engine class implements reflex::PatternMatcher pattern matching interface with scan, find, split functors and iterators, using the C++11 std::regex library.
-/** More info TODO */
 class StdMatcher : public PatternMatcher<std::regex> {
  public:
   /// Convert a regex to an acceptable form, given the specified regex library signature `"[decls:]escapes[?+]"`, see reflex::convert.
