@@ -206,6 +206,7 @@ Unicode code point entry:
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 
 #endif
 
