@@ -158,10 +158,10 @@ $UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hell
     | $DIFF out/Hello_Hello--range.out \
     || ERR "--range=1,1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
 
-for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
+for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
-    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-nv' '-nC1' '-nvC1' '-ny' '-nvy' ; do
+    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-v' '-nv' '-C2' '-nC2' '-vC2' '-nvC2' '-y' '-ny' '-vy' '-nvy' ; do
       printf .
       $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
         | $DIFF "out/$FN$OUT$OPS.out" \
@@ -183,11 +183,11 @@ for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
   printf .
   $UG -U -Iw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF "out/$FN-Iw.out" \
-    || ERR "-w '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    || ERR "-Iw '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
   printf .
   $UG -U -Ix "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF "out/$FN-Ix.out" \
-    || ERR "-x '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    || ERR "-Ix '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
   printf .
   $UG -U -F  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF "out/$FN-F.out" \

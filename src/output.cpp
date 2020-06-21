@@ -37,46 +37,25 @@
 #include "output.hpp"
 
 // dump matching data in hex
-void Output::Dump::hex(short mode, size_t byte_offset, const char *data, size_t size, const char *separator)
+void Output::Dump::hex(short mode, size_t byte_offset, const char *data, size_t size)
 {
   offset = byte_offset;
   while (size > 0)
   {
     bytes[offset++ % flag_hex_columns] = (mode << 8) | *reinterpret_cast<const unsigned char*>(data++);
     if (offset % flag_hex_columns == 0)
-      line(separator);
+      line();
     --size;
   }
 }
 
-// next hex dump location
-void Output::Dump::next(size_t byte_offset, const char *separator)
-{
-  if (offset - offset % flag_hex_columns != byte_offset - byte_offset % flag_hex_columns)
-    done(separator);
-}
-
-// done dumping hex
-void Output::Dump::done(const char *separator)
-{
-  if (offset % flag_hex_columns != 0)
-  {
-    line(separator);
-    offset += flag_hex_columns - 1;
-    offset -= offset % flag_hex_columns;
-  }
-}
-
 // dump one line of hex
-void Output::Dump::line(const char *separator)
+void Output::Dump::line()
 {
   out.str(color_bn);
   out.hex((offset - 1) - (offset - 1) % flag_hex_columns, 8);
   out.str(color_off);
-  out.str(color_se);
-  out.str(separator);
-  if (flag_hex_hbr)
-    out.chr(' ');
+  out.chr(' ');
 
   short last_hex_color = HEX_MAX;
 
@@ -101,8 +80,8 @@ void Output::Dump::line(const char *separator)
       short byte = bytes[i];
       if ((byte >> 8) != last_hex_color)
       {
+        out.str(last_hex_color == HEX_MATCH || last_hex_color == HEX_CONTEXT_MATCH ? match_off : color_off);
         last_hex_color = byte >> 8;
-        out.str(color_off);
         out.str(color_hex[last_hex_color]);
       }
       if (flag_hex_hbr || (i == 0 && flag_hex_cbr))
@@ -142,8 +121,8 @@ void Output::Dump::line(const char *separator)
         short byte = bytes[i];
         if ((byte >> 8) != last_hex_color)
         {
+          out.str(last_hex_color == HEX_MATCH || last_hex_color == HEX_CONTEXT_MATCH ? match_off : color_off);
           last_hex_color = byte >> 8;
-          out.str(color_off);
           out.str(color_hex[last_hex_color]);
         }
         byte &= 0xff;
@@ -168,7 +147,9 @@ void Output::Dump::line(const char *separator)
           else if (inverted)
           {
             out.str(color_off);
+            out.str(color_hex[last_hex_color]);
             out.chr(byte);
+            inverted = false;
           }
           else
           {
@@ -201,8 +182,17 @@ void Output::Dump::line(const char *separator)
 // output the header part of the match, preceding the matched line
 void Output::header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *separator, bool newline)
 {
-  bool sep = false;
-  bool nul = false;
+  // if hex dump line is incomplete and a header is output, then complete the hex dump first
+  if (dump.incomplete() &&
+      ((flag_with_filename && pathname != NULL) ||
+       (!flag_no_filename && !partname.empty()) ||
+       flag_line_number ||
+       flag_column_number ||
+       flag_byte_offset))
+    dump.done();
+
+  bool sep = false; // when a separator is needed
+  bool nul = false; // -Q: mark pathname with three NUL bytes unless -a
 
   if (flag_with_filename && pathname != NULL)
   { 

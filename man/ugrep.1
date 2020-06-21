@@ -1,4 +1,4 @@
-.TH UGREP "1" "June 10, 2020" "ugrep 2.2.1" "User Commands"
+.TH UGREP "1" "June 21, 2020" "ugrep 2.3.0" "User Commands"
 .SH NAME
 \fBugrep\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -33,7 +33,7 @@ The following options are available:
 \fB\-A\fR \fINUM\fR, \fB\-\-after\-context\fR=\fINUM\fR
 Print NUM lines of trailing context after matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
-options \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR.  Disables multi\-line matching.
+options \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR.
 .TP
 \fB\-a\fR, \fB\-\-text\fR
 Process a binary file as if it were text.  This is equivalent to
@@ -44,7 +44,7 @@ the terminal driver interprets some of it as commands.
 \fB\-B\fR \fINUM\fR, \fB\-\-before\-context\fR=\fINUM\fR
 Print NUM lines of leading context before matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
-options \fB\-A\fR, \fB\-C\fR, and \fB\-y\fR.  Disables multi\-line matching.
+options \fB\-A\fR, \fB\-C\fR, and \fB\-y\fR.
 .TP
 \fB\-b\fR, \fB\-\-byte\-offset\fR
 The offset in bytes of a matched line is displayed in front of the
@@ -264,7 +264,7 @@ when there is only one file (or only standard input) to search.
 Group matches per file.  Adds a heading and a line break between
 results from different files.
 .TP
-\fB\-\-help\fR
+\fB\-\-help\fR, \fB\-?\fR
 Print a help message.
 .TP
 \fB\-\-hexdump\fR=[1\-8][b][c][h]
@@ -538,13 +538,13 @@ option may be repeated.  The possible file types can be (where
 `tcl', `tex', `text', `tiff', `Tiff', `tt', `typescript',
 `verilog', `vhdl', `vim', `xml', `Xml', `yacc', `yaml'.
 .TP
-\fB\-\-tabs\fR=\fINUM\fR
+\fB\-\-tabs[\fR=\fINUM\fR]
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
 NUM may be 1, 2, 4, or 8.  The default tab size is 8.
 .TP
 \fB\-\-tag[\fR=\fITAG\fR[,\fIEND\fR]]
-Disables colors to mark up matches with TAG.  If END is specified,
-the end of a match is marked with END.  The default is `___'.
+Disables colors to mark up matches with TAG.  END marks the end of
+a match if specified, otherwise TAG.  The default is `___'.
 .TP
 \fB\-U\fR, \fB\-\-binary\fR
 Disables Unicode matching for binary file matching, forcing PATTERN
@@ -596,7 +596,7 @@ not only lines containing the character `x'.
 \fB\-y\fR, \fB\-\-any\-line\fR
 Any matching or non\-matching line is output.  Non\-matching lines
 are output with the `\fB\-'\fR separator as context of the matching lines.
-See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.  Disables multi\-line matching.
+See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
 \fB\-Z\fR[\fIMAX\fR], \fB\-\-fuzzy[\fR=\fIMAX\fR]
 Fuzzy mode: report approximate pattern matches within MAX errors.

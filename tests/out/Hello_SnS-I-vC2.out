@@ -1,0 +1,8 @@
+[1;35mHello.java[m[1;36m:[mimport java.lang.*;[m
+[1;35mHello.java[m[1;36m:[m
+[1;35mHello.java[m[1;36m-[m[1;34mpublic class Hello // prints a Hello World! greetin[m[7;34;107mg[m
+[1;35mHello.java[m[1;36m-[m[7;34;107m{[m[1;34m public static void main(String[] arg)[m
+[1;35mHello.java[m[1;36m:[m  { System.out.println("Hello World!");[m
+[1;35mHello.java[m[1;36m-[m[1;34m  [m[7;34;107m}[m
+[1;35mHello.java[m[1;36m-[m[7;34;107m}[m
+[1;35mHello.txt[m[1;36m:[mHello[m

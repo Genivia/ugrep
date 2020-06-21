@@ -28,9 +28,7 @@ search pdf and office documents using filters
 </div>
 <br>
 
-- Written in clean and efficient C++11, built for speed and thoroughly tested with over 1000 test cases
-
-- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
+- Written in clean and efficient C++11, built for speed and thoroughly tested
 
 - Ultra fast with new match algorithms [beating](#speed) grep, ripgrep, silver searcher, hyperscan, etc.
 
@@ -38,7 +36,9 @@ search pdf and office documents using filters
 
 - Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64) and asynchronous IO for efficient concurrent searching
 
-- Compatible to GNU/BSD grep command-line options [with minor differences for defaults](#equivalence) to make ugrep more user friendly
+- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
+
+- Compatible GNU/BSD grep command-line options, but user-friendly with sensible defaults and many more options
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help
 
@@ -61,6 +61,7 @@ search pdf and office documents using filters
 
       ugrep --filter='pdf:pdftotext % -' PATTERN ...
       ugrep --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
+      ugrep --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or raw byte patterns)
 
@@ -160,13 +161,13 @@ Download and install
 
 ### MacOS
 
-Install the latest full featured **ugrep** with [Homebrew](https://brew.sh):
+Install the latest **ugrep** with [Homebrew](https://brew.sh):
 
     $ brew install https://raw.githubusercontent.com/Genivia/ugrep/master/Formula/ugrep.rb
 
 ### Windows
 
-Download the full featured ugrep executable as a release artifact from
+Download the full-featured ugrep executable as a release artifact from
 <https://github.com/Genivia/ugrep/releases>
 
 To add `ugrep.exe` to your execution path: go to *Settings* and search for
@@ -240,7 +241,7 @@ To output results with a pager by default:
 
 Choices for defaults include:
 
-- `--enable-color` colorize output to terminals (default)
+- `--enable-color` colorize output to terminals (this is the default)
 - `--enable-hidden` search hidden files and directories
 - `--enable-pager` use a pager to display output on terminals
 - `--enable-pretty` colorize output to terminals and add filename headings
@@ -824,7 +825,7 @@ To show a list of `-t TYPES` option values:
             editor to edit the file displayed on screen.  The editor is taken
             from the environment variable GREP_EDIT if defined, or EDITOR if
             GREP_EDIT is not defined.  Enables --heading.
-    --no-confirm\n\
+    --no-confirm
             Do not confirm actions in -Q query mode.  The default is confirm.
 
 This option starts a user interface to enter search patterns interactively:
@@ -2393,8 +2394,8 @@ To display the line and column numbers of matches in XML with `--xml`:
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'
             (invert), `u' (underline).  Selectively overrides GREP_COLORS.
     --tag[=TAG[,END]]
-            Disables colors to mark up matches with TAG.  If END is specified,
-            the end of a match is marked with END.  The default is `___'.
+            Disables colors to mark up matches with TAG.  END marks the end of
+            a match if specified, otherwise TAG.  The default is `___'.
     --pager[=COMMAND]
             When output is sent to the terminal, uses COMMAND to page through
             the output.  The default COMMAND is `less -R'.  Enables --heading
@@ -3047,7 +3048,7 @@ in markdown:
            -A NUM, --after-context=NUM
                   Print  NUM  lines  of  trailing  context  after  matching lines.
                   Places a --group-separator between contiguous groups of matches.
-                  See  also options -B, -C, and -y.  Disables multi-line matching.
+                  See also options -B, -C, and -y.
 
            -a, --text
                   Process a binary file as if it were text.  This is equivalent to
@@ -3056,9 +3057,9 @@ in markdown:
                   if the terminal driver interprets some of it as commands.
 
            -B NUM, --before-context=NUM
-                  Print  NUM  lines  of  leading  context  before  matching lines.
+                  Print NUM  lines  of  leading  context  before  matching  lines.
                   Places a --group-separator between contiguous groups of matches.
-                  See  also options -A, -C, and -y.  Disables multi-line matching.
+                  See also options -A, -C, and -y.
 
            -b, --byte-offset
                   The offset in bytes of a matched line is displayed in  front  of
@@ -3283,7 +3284,8 @@ in markdown:
                   Group matches per file.  Adds a heading and a line break between
                   results from different files.
 
-           --help Print a help message.
+           --help, -?
+                  Print a help message.
 
            --hexdump=[1-8][b][c][h]
                   Output matches in 1 to 8 columns of 8 hexadecimal  octets.   The
@@ -3562,23 +3564,22 @@ in markdown:
                   `tex', `text', `tiff', `Tiff',  `tt',  `typescript',  `verilog',
                   `vhdl', `vim', `xml', `Xml', `yacc', `yaml'.
 
-           --tabs=NUM
+           --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value
                   of NUM may be 1, 2, 4, or 8.  The default tab size is 8.
 
            --tag[=TAG[,END]]
-                  Disables colors to mark up matches with TAG.  If END  is  speci-
-                  fied,  the  end  of  a match is marked with END.  The default is
-                  `___'.
+                  Disables colors to mark up matches with TAG.  END marks the  end
+                  of a match if specified, otherwise TAG.  The default is `___'.
 
            -U, --binary
                   Disables Unicode matching for binary file matching, forcing PAT-
-                  TERN  to  match  bytes, not Unicode characters.  For example, -U
-                  '\xa3' matches byte A3 (hex) instead of the Unicode  code  point
+                  TERN to match bytes, not Unicode characters.   For  example,  -U
+                  '\xa3'  matches  byte A3 (hex) instead of the Unicode code point
                   U+00A3 represented by the two-byte UTF-8 sequence C2 A3.
 
            -u, --ungroup
-                  Do  not group multiple pattern matches on the same matched line.
+                  Do not group multiple pattern matches on the same matched  line.
                   Output the matched line again for each additional pattern match,
                   using `+' as the field separator.
 
@@ -3586,17 +3587,17 @@ in markdown:
                   Display version information and exit.
 
            -v, --invert-match
-                  Selected  lines are those not matching any of the specified pat-
+                  Selected lines are those not matching any of the specified  pat-
                   terns.
 
            -W, --with-hex
-                  Output binary  matches  in  hexadecimal,  leaving  text  matches
+                  Output  binary  matches  in  hexadecimal,  leaving  text matches
                   alone.  This option is equivalent to the --binary-files=with-hex
                   option.
 
            -w, --word-regexp
-                  The PATTERN is searched for as a word (as if  surrounded  by  \<
-                  and  \>).   If  a PATTERN is specified (or -e PATTERN or -N PAT-
+                  The  PATTERN  is  searched for as a word (as if surrounded by \<
+                  and \>).  If a PATTERN is specified (or -e PATTERN  or  -N  PAT-
                   TERN), then this option does not apply to -f FILE patterns.
 
            -X, --hex
@@ -3604,25 +3605,24 @@ in markdown:
                   --binary-files=hex option.  See also option --hexdump.
 
            -x, --line-regexp
-                  Only  input lines selected against the entire PATTERN is consid-
-                  ered to be matching lines (as if surrounded by ^ and $).   If  a
-                  PATTERN  is  specified  (or -e PATTERN or -N PATTERN), then this
+                  Only input lines selected against the entire PATTERN is  consid-
+                  ered  to  be matching lines (as if surrounded by ^ and $).  If a
+                  PATTERN is specified (or -e PATTERN or -N  PATTERN),  then  this
                   option does not apply to -f FILE patterns.
 
-           --xml  Output file matches in XML.  If -H, -n, -k, or -b is  specified,
+           --xml  Output  file matches in XML.  If -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
 
            -Y, --empty
-                  Permits empty matches.  By default, empty matches are  disabled,
-                  unless  a  pattern  begins with `^' or ends with `$'.  With this
-                  option, empty-matching pattern, such as x?  and  x*,  match  all
+                  Permits  empty matches.  By default, empty matches are disabled,
+                  unless a pattern begins with `^' or ends with  `$'.   With  this
+                  option,  empty-matching  pattern,  such  as x? and x*, match all
                   input, not only lines containing the character `x'.
 
            -y, --any-line
                   Any matching or non-matching line is output.  Non-matching lines
-                  are output with the `-' separator as  context  of  the  matching
-                  lines.   See  also  options -A, -B, and -C.  Disables multi-line
-                  matching.
+                  are  output  with  the  `-' separator as context of the matching
+                  lines.  See also options -A, -B, and -C.
 
            -Z[MAX], --fuzzy[=MAX]
                   Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
@@ -4080,7 +4080,7 @@ in markdown:
 
 
 
-    ugrep 2.2.1                      June 10, 2020                        UGREP(1)
+    ugrep 2.3.0                      June 21, 2020                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

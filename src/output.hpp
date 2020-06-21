@@ -249,16 +249,34 @@ class Output {
     }
 
     // dump matching data in hex, mode is
-    void hex(short mode, size_t byte_offset, const char *data, size_t size, const char *separator);
+    void hex(short mode, size_t byte_offset, const char *data, size_t size);
 
-    // next hex dump location
-    void next(size_t byte_offset, const char *separator);
+    // jump to the next hex dump location (option -o)
+    void next(size_t byte_offset)
+    {
+      if (offset - offset % flag_hex_columns != byte_offset - byte_offset % flag_hex_columns)
+        done();
+    }
+
+    // hex line is incomplete: to complete invoke done()
+    bool incomplete()
+    {
+      return offset % flag_hex_columns != 0;
+    }
 
     // done dumping hex
-    void done(const char *separator);
+    void done()
+    {
+      if (offset % flag_hex_columns != 0)
+      {
+        line();
+        offset += flag_hex_columns - 1;
+        offset -= offset % flag_hex_columns;
+      }
+    }
 
     // dump one line of hex
-    void line(const char *separator);
+    void line();
 
     Output& out;                 // reference to the output state of this hex dump state
     size_t  offset;              // current byte offset in the hex dump

@@ -81,10 +81,10 @@ $UG --max-count=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hell
 $UG --max-files=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--max-files.out
 $UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--range.out
 
-for PAT in '' 'Hello' '\w+\s+\S+' 'nomatch' ; do
+for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
-    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-nv' '-nC1' '-nvC1' '-ny' '-nvy' ; do
+    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-v' '-nv' '-C2' '-nC2' '-vC2' '-nvC2' '-y' '-ny' '-vy' '-nvy' ; do
       $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN$OUT$OPS.out"
     done
   done

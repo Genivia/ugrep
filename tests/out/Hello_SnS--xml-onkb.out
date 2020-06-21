@@ -1,0 +1,135 @@
+<grep>
+  <file name="Hello.bat">
+    <match line="1" column="9" offset="8">h&#10;e</match>
+  </file>
+  <file name="Hello.class">
+    <match line="1" column="8" offset="9">&#29;&#10;&#0;</match>
+    <match line="2" column="15" offset="22">&#18;&#10;&#0;</match>
+    <match line="3" column="84" offset="107">&#0;&#10;S</match>
+    <match line="4" column="12" offset="120">&#0;&#10;H</match>
+    <match line="5" column="220" offset="343">&#0;&#10;&#0;</match>
+    <match line="6" column="51" offset="390">&#0;&#10;&#0;</match>
+    <match line="7" column="3" offset="394">&#0;&#10;&#0;</match>
+  </file>
+  <file name="Hello.java">
+    <match line="3" column="52" offset="72">g&#10;{</match>
+    <match line="6" column="3" offset="156">}&#10;}</match>
+  </file>
+  <file name="Hello.pdf">
+    <match line="1" column="8" offset="7">3&#10;%</match>
+    <match line="2" column="10" offset="20">Æ&#10;4</match>
+    <match line="3" column="7" offset="28">j&#10;&lt;</match>
+    <match line="4" column="40" offset="69">&gt;&#10;s</match>
+    <match line="5" column="6" offset="76">m&#10;x</match>
+    <match line="6" column="4" offset="82">»&#10;&#2;</match>
+    <match line="7" column="36" offset="136">Y&#10;Ÿ</match>
+    <match line="8" column="41" offset="200">¥&#10;e</match>
+    <match line="9" column="9" offset="210">m&#10;e</match>
+    <match line="10" column="6" offset="217">j&#10;5</match>
+    <match line="11" column="7" offset="225">j&#10;1</match>
+    <match line="12" column="3" offset="229">3&#10;e</match>
+    <match line="13" column="6" offset="236">j&#10;2</match>
+    <match line="14" column="7" offset="244">j&#10;&lt;</match>
+    <match line="15" column="85" offset="330">]&#10;&gt;</match>
+    <match line="16" column="2" offset="333">&gt;&#10;e</match>
+    <match line="17" column="6" offset="340">j&#10;6</match>
+    <match line="18" column="7" offset="348">j&#10;&lt;</match>
+    <match line="19" column="75" offset="424">R&#10;&gt;</match>
+    <match line="20" column="5" offset="430">&gt;&#10;e</match>
+    <match line="21" column="6" offset="437">j&#10;9</match>
+    <match line="22" column="7" offset="445">j&#10;&lt;</match>
+    <match line="23" column="69" offset="515">&gt;&#10;s</match>
+    <match line="24" column="6" offset="522">m&#10;x</match>
+    <match line="25" column="62" offset="604">&#15;&#10;&#17;</match>
+    <match line="26" column="316" offset="1017">›&#10;Ğ</match>
+    <match line="27" column="160" offset="1221">ò&#10;¾</match>
+    <match line="28" column="118" offset="1375">Ì&#10;K</match>
+    <match line="29" column="180" offset="1602">&#26;&#10;T</match>
+    <match line="30" column="29" offset="1639">4&#10;e</match>
+    <match line="31" column="9" offset="1649">m&#10;e</match>
+    <match line="32" column="6" offset="1656">j&#10;1</match>
+    <match line="33" column="8" offset="1665">j&#10;1</match>
+    <match line="34" column="4" offset="1670">6&#10;e</match>
+    <match line="35" column="6" offset="1677">j&#10;7</match>
+    <match line="36" column="7" offset="1685">j&#10;[</match>
+    <match line="37" column="19" offset="1705">]&#10;e</match>
+    <match line="38" column="6" offset="1712">j&#10;3</match>
+    <match line="39" column="7" offset="1720">j&#10;&lt;</match>
+    <match line="40" column="67" offset="1788">&gt;&#10;e</match>
+    <match line="41" column="6" offset="1795">j&#10;1</match>
+    <match line="42" column="8" offset="1804">j&#10;&lt;</match>
+    <match line="43" column="33" offset="1838">&gt;&#10;e</match>
+    <match line="44" column="6" offset="1845">j&#10;8</match>
+    <match line="45" column="7" offset="1853">j&#10;&lt;</match>
+    <match line="46" column="81" offset="1935">r&#10;1</match>
+    <match line="47" column="76" offset="2012">2&#10;0</match>
+    <match line="48" column="75" offset="2088">2&#10;0</match>
+    <match line="49" column="12" offset="2101">&gt;&#10;e</match>
+    <match line="50" column="6" offset="2108">j&#10;1</match>
+    <match line="51" column="8" offset="2117">j&#10;&lt;</match>
+    <match line="52" column="76" offset="2194">x&#10;[</match>
+    <match line="53" column="76" offset="2271">9&#10;/</match>
+    <match line="54" column="78" offset="2350">R&#10;&gt;</match>
+    <match line="55" column="2" offset="2353">&gt;&#10;e</match>
+    <match line="56" column="6" offset="2360">j&#10;1</match>
+    <match line="57" column="8" offset="2369">j&#10;&lt;</match>
+    <match line="58" column="55" offset="2425">&gt;&#10;s</match>
+    <match line="59" column="6" offset="2432">m&#10;x</match>
+    <match line="60" column="70" offset="2509">&#2;&#10;ø</match>
+    <match line="61" column="356" offset="2996">a&#10;&gt;</match>
+    <match line="62" column="38" offset="3043">/&#10;ï</match>
+    <match line="63" column="5" offset="3050">Û&#10;&#x7f;</match>
+    <match line="64" column="62" offset="3141">‹&#10;¿</match>
+    <match line="65" column="32" offset="3186">§&#10;ñ</match>
+    <match line="66" column="95" offset="3301">W&#10;Ë</match>
+    <match line="67" column="17" offset="3323">Ò&#10;T</match>
+    <match line="68" column="4" offset="3328">ı&#10;å</match>
+    <match line="69" column="7" offset="3337">=&#10;‹</match>
+    <match line="70" column="35" offset="3383">y&#10;w</match>
+    <match line="71" column="146" offset="3575">g&#10;ƒ</match>
+    <match line="72" column="72" offset="3681">î&#10;İ</match>
+    <match line="73" column="8" offset="3693">ú&#10;p</match>
+    <match line="74" column="92" offset="3820">ñ&#10;q</match>
+    <match line="75" column="7" offset="3831">-&#10;Ò</match>
+    <match line="76" column="14" offset="3850">&quot;&#10;W</match>
+    <match line="77" column="520" offset="4530">Ô&#10;—</match>
+    <match line="78" column="503" offset="5167">ä&#10;e</match>
+    <match line="79" column="9" offset="5177">m&#10;e</match>
+    <match line="80" column="6" offset="5184">j&#10;1</match>
+    <match line="81" column="8" offset="5193">j&#10;2</match>
+    <match line="82" column="4" offset="5198">4&#10;e</match>
+    <match line="83" column="6" offset="5205">j&#10;1</match>
+    <match line="84" column="8" offset="5214">j&#10;(</match>
+    <match line="85" column="7" offset="5222">)&#10;e</match>
+    <match line="86" column="6" offset="5229">j&#10;1</match>
+    <match line="87" column="8" offset="5238">j&#10;(</match>
+    <match line="88" column="36" offset="5275">)&#10;e</match>
+    <match line="89" column="6" offset="5282">j&#10;1</match>
+    <match line="90" column="8" offset="5291">j&#10;(</match>
+    <match line="91" column="10" offset="5302">)&#10;e</match>
+    <match line="92" column="6" offset="5309">j&#10;1</match>
+    <match line="93" column="8" offset="5318">j&#10;(</match>
+    <match line="94" column="25" offset="5344">)&#10;e</match>
+    <match line="95" column="6" offset="5351">j&#10;1</match>
+    <match line="96" column="8" offset="5360">j&#10;(</match>
+    <match line="97" column="2" offset="5363">)&#10;e</match>
+    <match line="98" column="6" offset="5370">j&#10;2</match>
+    <match line="99" column="8" offset="5379">j&#10;[</match>
+    <match line="100" column="3" offset="5383">]&#10;e</match>
+    <match line="101" column="6" offset="5390">j&#10;1</match>
+    <match line="102" column="7" offset="5398">j&#10;&lt;</match>
+    <match line="103" column="79" offset="5478">e&#10;1</match>
+    <match line="104" column="48" offset="5527">&gt;&#10;e</match>
+    <match line="105" column="6" offset="5534">j&#10;x</match>
+    <match line="106" column="4" offset="5539">f&#10;0</match>
+    <match line="107" column="4" offset="5544">1&#10;0</match>
+    <match line="129" column="7" offset="5972">r&#10;&lt;</match>
+    <match line="130" column="77" offset="6050">&gt;&#10;&lt;</match>
+    <match line="131" column="39" offset="6090">&gt;&#10;s</match>
+    <match line="132" column="9" offset="6100">f&#10;5</match>
+    <match line="133" column="4" offset="6105">6&#10;%</match>
+  </file>
+  <file name="Hello.sh">
+    <match line="1" column="9" offset="8">h&#10;e</match>
+  </file>
+</grep>

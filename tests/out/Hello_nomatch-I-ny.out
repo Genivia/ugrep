@@ -1,7 +1,7 @@
 [1;35mHello.bat[m[1;36m-[m[32;1m1[m[1;36m-[m[1;34m#!/bin/sh[m
 [1;35mHello.bat[m[1;36m-[m[32;1m2[m[1;36m-[m[1;34mecho "Hello World!"[m
 [1;35mHello.java[m[1;36m-[m[32;1m1[m[1;36m-[m[1;34mimport java.lang.*;[m
-[1;35mHello.java[m[1;36m-[m[32;1m2[m[1;36m-[m[1;34m[m
+[1;35mHello.java[m[1;36m-[m[32;1m2[m[1;36m-[m
 [1;35mHello.java[m[1;36m-[m[32;1m3[m[1;36m-[m[1;34mpublic class Hello // prints a Hello World! greeting[m
 [1;35mHello.java[m[1;36m-[m[32;1m4[m[1;36m-[m[1;34m{ public static void main(String[] arg)[m
 [1;35mHello.java[m[1;36m-[m[32;1m5[m[1;36m-[m[1;34m  { System.out.println("Hello World!");[m

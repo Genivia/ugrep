@@ -1,0 +1,5 @@
+<grep>
+  <file name="Hello.txt">
+    <match>false</match>
+  </file>
+</grep>

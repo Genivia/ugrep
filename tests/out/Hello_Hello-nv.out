@@ -1,7 +1,7 @@
 [1;35mHello.bat[m[1;36m:[m[32;1m1[m[1;36m:[m#!/bin/sh[m
 [mBinary file[1;35m Hello.class[m matches
 [1;35mHello.java[m[1;36m:[m[32;1m1[m[1;36m:[mimport java.lang.*;[m
-[1;35mHello.java[m[1;36m:[m[32;1m2[m[1;36m:[m[m
+[1;35mHello.java[m[1;36m:[m[32;1m2[m[1;36m:[m
 [1;35mHello.java[m[1;36m:[m[32;1m4[m[1;36m:[m{ public static void main(String[] arg)[m
 [1;35mHello.java[m[1;36m:[m[32;1m6[m[1;36m:[m  }[m
 [1;35mHello.java[m[1;36m:[m[32;1m7[m[1;36m:[m}[m

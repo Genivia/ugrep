@@ -339,7 +339,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// FSM code META EOL.
   inline bool FSM_META_EOL(int c1)
   {
-    return c1 == EOF || c1 == '\n';
+    return c1 == EOF || c1 == '\n' || peek() == '\n';
   }
   /// FSM code META BOL.
   inline bool FSM_META_BOL()
@@ -592,7 +592,7 @@ redo:
                   continue;
                 case Pattern::META_EOL - Pattern::META_MIN:
                   DBGLOG("EOL? %d", c1);
-                  if (jump == Pattern::Const::IMAX && (c1 == EOF || c1 == '\n'))
+                  if (jump == Pattern::Const::IMAX && (c1 == EOF || c1 == '\n' || peek() == '\n'))
                   {
                     jump = Pattern::index_of(opcode);
                     if (jump == Pattern::Const::LONG)
