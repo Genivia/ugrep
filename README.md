@@ -4080,7 +4080,7 @@ in markdown:
 
 
 
-    ugrep 2.3.0                      June 21, 2020                        UGREP(1)
+    ugrep 2.3.1                      June 21, 2020                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

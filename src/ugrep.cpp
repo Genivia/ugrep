@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.3.0"
+#define UGREP_VERSION "2.3.1"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
