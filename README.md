@@ -30,15 +30,15 @@ search pdf and office documents using filters
 
 - Written in clean and efficient C++11, built for speed and thoroughly tested
 
+- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
+
 - Ultra fast with new match algorithms [beating](#speed) grep, ripgrep, silver searcher, hyperscan, etc.
 
-- Multi-threaded search using high-performance lock-free job queue stealing and task-parallel decompression and search
+- Multi-threaded search with high-performance lock-free job queue stealing and task-parallel decompression
 
 - Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64) and asynchronous IO for efficient concurrent searching
 
-- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
-
-- Compatible GNU/BSD grep command-line options, but user-friendly with sensible defaults and many more options
+- Compatible GNU/BSD grep command-line options, but user-friendly with sensible defaults and more options
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help
 
