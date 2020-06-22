@@ -474,7 +474,7 @@ compatible output, making **ugrep** an excellent drop-in replacement for grep
 power users.
 
 GNU and BSD grep and their common variants are equivalent to **ugrep** when the
-following options are used (`-U` disables Unicode matching with UTF-8 patterns):
+following options are used:
 
     grep   = ugrep --sort -G -U -Y -. -Dread -dread
     egrep  = ugrep --sort -E -U -Y -. -Dread -dread
@@ -484,15 +484,22 @@ following options are used (`-U` disables Unicode matching with UTF-8 patterns):
     zegrep = ugrep --sort -E -U -Y -z -. -Dread -dread
     zfgrep = ugrep --sort -F -U -Y -z -. -Dread -dread
 
-Option `--sort` specifies output sorted by pathname, showing sorted matching
-files first followed by sorted recursive matches in subdirectories.  Otherwise,
-matches are reported in no particular order to improve performance.  Option
-`-Y` enables empty matches for GNU/BSD compatibility (`-Y` is not strictly
-necessary, for why and when to use it see [further below](#improvements).)
-Option `-.` (`--hidden`) searches hidden files (dotfiles), which **ugrep**
-ignores by default like most Unix utilities such as `ls`.  Options `-Dread` and
-`-dread` are the GNU/BSD grep defaults but are not recommended (see
-[further below](#improvements) for explanation).
+Where:
+
+- `--sort` specifies output sorted by pathname, showing sorted matching files
+  first followed by sorted recursive matches in subdirectories.  Otherwise,
+  matching files are reported in no particular order to improve performance;
+- `-U` disables Unicode pattern matching, so for example the pattern `\xa3`
+  matches byte A3 instead of the Unicode code point U+00A3 represented by the
+  UTF-8 sequence C2 A3.  By default in ugrep, `\xa3` matches U+00A3.
+- `-Y` enables empty matches, so for example the pattern `a*` matches every
+  line instead of a sequence of `a`'s.  By default in ugrep, the pattern `a*`
+  matches a sequence of `a`'s.  Moreover, by default the pattern `a*b*c*`
+  matches what it is supposed to match.  See [improvements](#improvements).
+- `-.` searches hidden files (dotfiles).  By default, hidden files are ignored
+  like most Unix utilities such as `ls`.
+- `-Dread` and `-dread` are the GNU/BSD grep defaults but are not recommended,
+  see [improvements](#improvements) for an explanation.
 
 🔝 [Back to table of contents](#toc)
 
@@ -581,13 +588,6 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   on the line.  This option is particularly useful with option `-c` to report
   the total number of pattern matches per file instead of the number of lines
   matched per file.
-- **ugrep** option `-D, --devices=ACTION` is `skip` by default, instead of
-  `read`.  This prevents unexpectedly hanging on named pipes in directories
-  that are recursively searched, as may happen with GNU/BSD grep that `read`
-  devices by default.
-- **ugrep** option `-d, --directories=ACTION` is `skip` by default, instead of
-  `read`.  By default, directories specified on the command line are searched,
-  but not recursively deeper into subdirectories.
 - **ugrep** option `-Y` enables matching empty patterns.  Grepping with
   empty-matching patterns is weird and gives different results with GNU grep
   versus BSD grep.  Empty matches are not output by **ugrep** by default, which
@@ -597,6 +597,13 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   `y`, and `z`).  Allowing empty matches requires **ugrep** option `-Y`.
   Patterns that start with `^` and end with `$` are permitted to match empty,
   e.g. `^\h*$`, by implicitly enabling `-Y`.
+- **ugrep** option `-D, --devices=ACTION` is `skip` by default, instead of
+  `read`.  This prevents unexpectedly hanging on named pipes in directories
+  that are recursively searched, as may happen with GNU/BSD grep that `read`
+  devices by default.
+- **ugrep** option `-d, --directories=ACTION` is `skip` by default, instead of
+  `read`.  By default, directories specified on the command line are searched,
+  but not recursively deeper into subdirectories.
 - **ugrep** does not use a `.greprc` configuration file or a `GREP_OPTIONS`
   environment variable, because the behavior of **ugrep** must be portable and
   predictable on every system, without having to copy the configuration files
