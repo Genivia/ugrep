@@ -2,8 +2,8 @@ class Ugrep < Formula
   env :std
   desc "Ultra fast grep with query UI, fuzzy search, archive search, and more"
   homepage "https://github.com/Genivia/ugrep"
-  url "https://github.com/Genivia/ugrep/archive/v2.3.1.tar.gz"
-  sha256 "6fee62c90caaa7e2312f9fbece4e73a6adf08f72ec1dac95ea8499b474e835a0"
+  url "https://github.com/Genivia/ugrep/archive/v2.3.2.tar.gz"
+  sha256 "a89ea05819b43cf892eaf6b7159adf6794f37b237643c2b4cd4348f9af914266"
 
   depends_on "pcre2"
   depends_on "xz"
