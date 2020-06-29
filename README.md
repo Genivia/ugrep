@@ -3,29 +3,29 @@
 Search for anything in everything... ultra fast
 
 <div align="center">
+new option -Q opens a query UI to search files as you type!
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 <br>
-new option -Q opens a query UI to search files as you type!
 <br>
+search source code, shell scripts, text files, and more:
 <img src="https://www.genivia.com/images/scr1.png" width="438" alt="">
 <br>
-search source code, shell scripts, text files, and more
 <br>
+search cpio, pax, tar, zip archives and compressed files:
 <img src="https://www.genivia.com/images/scr2.png" width="438" alt="">
 <br>
-search cpio, pax, tar, zip archives and compressed files
 <br>
+search binary files, displayed as hexdumps:
 <img src="https://www.genivia.com/images/scr3.png" width="438" alt="">
 <br>
-search binary files, displayed as hexdumps
 <br>
+search pdf and office documents using filters:
 <img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
 <br>
-search pdf and office documents using filters
 <br>
+fuzzy search to find approximate matches:
 <img src="https://www.genivia.com/images/scr5.png" width="438" alt="">
 <br>
-fuzzy search to find approximate matches
 </div>
 
 - Written in clean and efficient C++11, built for speed and thoroughly tested
