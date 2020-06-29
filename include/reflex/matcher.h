@@ -339,7 +339,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// FSM code META EOL.
   inline bool FSM_META_EOL(int c1)
   {
-    return c1 == EOF || c1 == '\n' || peek() == '\n';
+    return c1 == EOF || c1 == '\n' || (c1 == '\r' && peek() == '\n');
   }
   /// FSM code META BOL.
   inline bool FSM_META_BOL()
@@ -592,7 +592,7 @@ redo:
                   continue;
                 case Pattern::META_EOL - Pattern::META_MIN:
                   DBGLOG("EOL? %d", c1);
-                  if (jump == Pattern::Const::IMAX && (c1 == EOF || c1 == '\n' || peek() == '\n'))
+                  if (jump == Pattern::Const::IMAX && (c1 == EOF || c1 == '\n' || (c1 == '\r' && peek() == '\n')))
                   {
                     jump = Pattern::index_of(opcode);
                     if (jump == Pattern::Const::LONG)
@@ -889,7 +889,7 @@ unrolled:
         // skip one char to keep searching
         set_current(++cur_);
         // allow FIND with "N" to match an empty line, with ^$ etc.
-        if (cap_ == 0 || !opt_.N || (!bol && c1 == '\n'))
+        if (cap_ == 0 || !opt_.N || (!bol && (c1 == '\n' || (c1 == '\r' && peek() == '\n'))))
           goto scan;
         DBGLOG("Accept empty match");
       }

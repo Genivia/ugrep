@@ -3,30 +3,30 @@
 Search for anything in everything... ultra fast
 
 <div align="center">
-<img src="https://www.genivia.com/images/scranim.gif" alt="">
+<img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 <br>
 new option -Q opens a query UI to search files as you type!
-</div>
 <br>
-<div align="center">
 <img src="https://www.genivia.com/images/scr1.png" width="438" alt="">
-<img src="https://www.genivia.com/images/scr2.png" width="438" alt="">
 <br>
 search source code, shell scripts, text files, and more
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-search cpio, pax, tar, zip archives and compressed files
-</div>
 <br>
-<div>
-<div align="center">
+<img src="https://www.genivia.com/images/scr2.png" width="438" alt="">
+<br>
+search cpio, pax, tar, zip archives and compressed files
+<br>
 <img src="https://www.genivia.com/images/scr3.png" width="438" alt="">
-<img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
 <br>
 search binary files, displayed as hexdumps
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-search pdf and office documents using filters
-</div>
 <br>
+<img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
+<br>
+search pdf and office documents using filters
+<br>
+<img src="https://www.genivia.com/images/scr5.png" width="438" alt="">
+<br>
+fuzzy search to find approximate matches
+</div>
 
 - Written in clean and efficient C++11, built for speed and thoroughly tested
 
@@ -3357,9 +3357,9 @@ in markdown:
 
            -J NUM, --jobs=NUM
                   Specifies  the  number  of  threads spawned to search files.  By
-                  default, or when NUM is specified as zero, an optimum number  of
-                  threads is spawned to search files simultaneously.  -J1 disables
-                  threading: files are searched in the same order as specified.
+                  default an optimum number of threads is spawned to search  files
+                  simultaneously.   -J1  disables threading: files are searched in
+                  the same order as specified.
 
            -j, --smart-case
                   Perform case insensitive matching unless a pattern  contains  an
@@ -3969,15 +3969,24 @@ in markdown:
     EXAMPLES
            Display lines containing the word `patricia' in `myfile.txt':
 
-                  $ ugrep -w 'patricia' myfile.txt
+                  $ ugrep -w patricia myfile.txt
 
-           Count the number of lines containing the word `patricia' or `Patricia`:
+           Display lines containing the word `patricia', ignoring case:
 
-                  $ ugrep -cw '[Pp]atricia' myfile.txt
+                  $ ugrep -wi patricia myfile.txt
 
-           Count the number of words `patricia' of any mixed case:
+           Display lines approximately matching the word `patricia', ignoring case
+           and allowing up to 2 spelling errors using fuzzy search:
 
-                  $ ugrep -cowi 'patricia' myfile.txt
+                  $ ugrep -Z2 -wi patricia myfile.txt
+
+           Count the number of lines containing `patricia', ignoring case:
+
+                  $ ugrep -cwi patricia myfile.txt
+
+           Count the number of words `patricia', ignoring case:
+
+                  $ ugrep -cowi patricia myfile.txt
 
            List all Unicode words in a file:
 
@@ -3998,7 +4007,7 @@ in markdown:
            Display the line and column number of `FIXME' in C++ files using recur-
            sive search, with one line of context before and after a matched line:
 
-                  $ ugrep -C1 -r -n -k -tc++ 'FIXME'
+                  $ ugrep -C1 -R -n -k -tc++ FIXME
 
            List the C/C++ comments in a file with line numbers:
 
@@ -4011,41 +4020,41 @@ in markdown:
            List  the  lines that need fixing in a C/C++ source file by looking for
            the word `FIXME' while skipping any `FIXME' in quoted strings:
 
-                  $ ugrep -e 'FIXME' -N '"(\\.|\\\r?\n|[^\\\n"])*"' myfile.cpp
+                  $ ugrep -e FIXME -N '"(\\.|\\\r?\n|[^\\\n"])*"' myfile.cpp
 
            The same, but using predefined pattern cpp/zap_strings:
 
-                  $ ugrep -e 'FIXME' -f cpp/zap_strings myfile.cpp
+                  $ ugrep -e FIXME -f cpp/zap_strings myfile.cpp
 
            Find lines with `FIXME' or `TODO':
 
-                  $ ugrep -n -e 'FIXME' -e 'TODO' myfile.cpp
+                  $ ugrep -n -e FIXME -e TODO myfile.cpp
 
            Find lines with `FIXME' that also contain the word `urgent':
 
-                  $ ugrep -n 'FIXME' myfile.cpp | ugrep -w 'urgent'
+                  $ ugrep -n FIXME myfile.cpp | ugrep -w urgent
 
            Find lines with `FIXME' but not the word `later':
 
-                  $ ugrep -n 'FIXME' myfile.cpp | ugrep -v -w 'later'
+                  $ ugrep -n FIXME myfile.cpp | ugrep -v -w later
 
            Output a list of line numbers of lines with `FIXME' but not `later':
 
-                  $ ugrep -n 'FIXME' myfile.cpp | ugrep -vw 'later' |
+                  $ ugrep -n FIXME myfile.cpp | ugrep -vw later |
                     ugrep -P '^(\d+)' --format='%,%n'
 
            Monitor the system log for bug reports:
 
-                  $ tail -f /var/log/system.log | ugrep -iw 'bug'
+                  $ tail -f /var/log/system.log | ugrep -iw bug
 
            Find lines with `FIXME' in the C/C++ files stored in a tarball:
 
-                  $ ugrep -z -tc++ -n 'FIXME' project.tgz
+                  $ ugrep -z -tc++ -n FIXME project.tgz
 
            Recursively search for the word `copyright' in cpio/jar/pax/tar/zip ar-
            chives, compressed and regular files, and in PDFs using a PDF filter:
 
-                  $ ugrep -r -z -w --filter='pdf:pdftotext % -' 'copyright'
+                  $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 
            Match  the  binary  pattern `A3hhhhA3hh' (hex) in a binary file without
            Unicode pattern matching -U (which would otherwise match  `\xaf'  as  a
@@ -4087,7 +4096,7 @@ in markdown:
 
 
 
-    ugrep 2.3.1                      June 21, 2020                        UGREP(1)
+    ugrep 2.3.2                      June 29, 2020                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

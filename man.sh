@@ -354,15 +354,24 @@ The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
 .SH EXAMPLES
 Display lines containing the word `patricia' in `myfile.txt':
 .IP
-$ ugrep -w 'patricia' myfile.txt
+$ ugrep -w patricia myfile.txt
 .PP
-Count the number of lines containing the word `patricia' or `Patricia`:
+Display lines containing the word `patricia', ignoring case:
 .IP
-$ ugrep -cw '[Pp]atricia' myfile.txt
+$ ugrep -wi patricia myfile.txt
 .PP
-Count the number of words `patricia' of any mixed case:
+Display lines approximately matching the word `patricia', ignoring case and
+allowing up to 2 spelling errors using fuzzy search:
 .IP
-$ ugrep -cowi 'patricia' myfile.txt
+$ ugrep -Z2 -wi patricia myfile.txt
+.PP
+Count the number of lines containing `patricia', ignoring case:
+.IP
+$ ugrep -cwi patricia myfile.txt
+.PP
+Count the number of words `patricia', ignoring case:
+.IP
+$ ugrep -cowi patricia myfile.txt
 .PP
 List all Unicode words in a file:
 .IP
@@ -383,7 +392,7 @@ $ ugrep -q '[^[:ascii:]]' myfile.txt && echo "contains Unicode"
 Display the line and column number of `FIXME' in C++ files using recursive
 search, with one line of context before and after a matched line:
 .IP
-$ ugrep -C1 -r -n -k -tc++ 'FIXME'
+$ ugrep -C1 -R -n -k -tc++ FIXME
 .PP
 List the C/C++ comments in a file with line numbers:
 .IP
@@ -396,41 +405,41 @@ $ ugrep -n -f c++/comments myfile.cpp
 List the lines that need fixing in a C/C++ source file by looking for the word
 `FIXME' while skipping any `FIXME' in quoted strings:
 .IP
-$ ugrep -e 'FIXME' -N '"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*"' myfile.cpp
+$ ugrep -e FIXME -N '"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*"' myfile.cpp
 .PP
 The same, but using predefined pattern cpp/zap_strings:
 .IP
-$ ugrep -e 'FIXME' -f cpp/zap_strings myfile.cpp
+$ ugrep -e FIXME -f cpp/zap_strings myfile.cpp
 .PP
 Find lines with `FIXME' or `TODO':
 .IP
-$ ugrep -n -e 'FIXME' -e 'TODO' myfile.cpp
+$ ugrep -n -e FIXME -e TODO myfile.cpp
 .PP
 Find lines with `FIXME' that also contain the word `urgent':
 .IP
-$ ugrep -n 'FIXME' myfile.cpp | ugrep -w 'urgent'
+$ ugrep -n FIXME myfile.cpp | ugrep -w urgent
 .PP
 Find lines with `FIXME' but not the word `later':
 .IP
-$ ugrep -n 'FIXME' myfile.cpp | ugrep -v -w 'later'
+$ ugrep -n FIXME myfile.cpp | ugrep -v -w later
 .PP
 Output a list of line numbers of lines with `FIXME' but not `later':
 .IP
-$ ugrep -n 'FIXME' myfile.cpp | ugrep -vw 'later' | 
+$ ugrep -n FIXME myfile.cpp | ugrep -vw later | 
   ugrep -P '^(\\d+)' --format='%,%n'
 .PP
 Monitor the system log for bug reports:
 .IP
-$ tail -f /var/log/system.log | ugrep -iw 'bug'
+$ tail -f /var/log/system.log | ugrep -iw bug
 .PP
 Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
-$ ugrep -z -tc++ -n 'FIXME' project.tgz
+$ ugrep -z -tc++ -n FIXME project.tgz
 .PP
 Recursively search for the word `copyright' in cpio/jar/pax/tar/zip archives,
 compressed and regular files, and in PDFs using a PDF filter:
 .IP
-$ ugrep -r -z -w --filter='pdf:pdftotext % -' 'copyright'
+$ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 .PP
 Match the binary pattern `A3hhhhA3hh' (hex) in a binary file without Unicode
 pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a

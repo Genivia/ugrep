@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.3.1"
+#define UGREP_VERSION "2.3.2"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -3307,9 +3307,57 @@ static void set_depth(const char *arg)
 // parse the command-line options
 void options(int argc, const char **argv)
 {
-  bool options = true;
+  // automatically apply the appropriate options when the program is named grep, egrep, or fgrep
+
+  const char *program = strrchr(argv[0], PATHSEPCHR);
+
+  if (program == NULL)
+    program = argv[0];
+  else
+    ++program;
+
+  if (strcmp(program, "grep") == 0)
+  {
+    flag_basic_regexp = true;
+    flag_hidden = true;
+    flag_empty = true;
+  }
+  else if (strcmp(program, "egrep") == 0)
+  {
+    flag_hidden = true;
+    flag_empty = true;
+  }
+  else if (strcmp(program, "fgrep") == 0)
+  {
+    flag_fixed_strings = true;
+    flag_hidden = true;
+    flag_empty = true;
+  }
+  else if (strcmp(program, "zgrep") == 0)
+  {
+    flag_decompress = true;
+    flag_basic_regexp = true;
+    flag_hidden = true;
+    flag_empty = true;
+  }
+  else if (strcmp(program, "zegrep") == 0)
+  {
+    flag_decompress = true;
+    flag_hidden = true;
+    flag_empty = true;
+  }
+  else if (strcmp(program, "zfgrep") == 0)
+  {
+    flag_decompress = true;
+    flag_fixed_strings = true;
+    flag_hidden = true;
+    flag_empty = true;
+  }
 
   // parse ugrep command-line options and arguments
+
+  bool options = true;
+
   for (int i = 1; i < argc; ++i)
   {
     const char *arg = argv[i];
@@ -9312,9 +9360,9 @@ void help()
   std::cout << "\
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
-            default, or when NUM is specified as zero, an optimum number of\n\
-            threads is spawned to search files simultaneously.  -J1 disables\n\
-            threading: files are searched in the same order as specified.\n\
+            default an optimum number of threads is spawned to search files\n\
+            simultaneously.  -J1 disables threading: files are searched in the\n\
+            same order as specified.\n\
     -j, --smart-case\n\
             Perform case insensitive matching unless a pattern contains an\n\
             upper case letter.  This option applies to ASCII letters only.\n\
