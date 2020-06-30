@@ -2,9 +2,8 @@
 
 Search for anything in everything... ultra fast
 
-<br>
-*new option -Q opens a query UI to search files as you type!*
-<br>
+new option -Q opens a query UI to search files as you type!
+
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 <!--
 <br>
@@ -33,7 +32,6 @@ fuzzy search to find approximate matches:
 <br>
 <img src="https://www.genivia.com/images/scr5.png" width="438" alt="">
 -->
-<br>
 
 - Written in clean and efficient C++11, built for speed and thoroughly tested
 
