@@ -2,8 +2,8 @@
 
 Search for anything in everything... ultra fast
 
-new option -Q opens a query UI to search files as you type!
-
+New option -Q opens a query UI to search files as you type!
+<br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 <!--
 <br>
