@@ -37,7 +37,7 @@ fuzzy search to find approximate matches:
 
 - Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
 
-- Ultra fast with new match algorithms [beating](#speed) grep, ripgrep, silver searcher, hyperscan, sift, etc.
+- Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmark](#speed)
 
 - Multi-threaded, optimized (AVX, SSE2, ARM NEON/AArch64), and asynchronous for efficient concurrent searching
 
@@ -110,7 +110,7 @@ Table of contents
 -----------------
 
 - [Download and install](#install)
-- [Speed comparisons](#speed)
+- [Performance comparisons](#speed)
 - [Using ugrep within Vim](#vim)
 - [Ugrep versus grep](#comparison)
   - [Equivalence to GNU grep and BSD grep](#equivalence)
@@ -296,8 +296,8 @@ significant runtime overhead and should not be used for the final build.
 
 <a name="speed">
 
-Speed comparisons
------------------
+Performance comparisons
+-----------------------
 
 ### Tests
 
