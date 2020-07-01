@@ -37,22 +37,21 @@ Search for anything in everything... ultra fast
       ugrep -W TEXTPATTERN ...               ugrep -X TEXTPATTERN ...
       ugrep -W -U BYTEPATTERN ...            ugrep -X -U BYTEPATTERN ...
 
-- Include files to search by [filename extensions](#magic) or exclude them with `^`
+- Include files to search by [filename extensions](#magic) or exclude them with `^` or `!`
 
       ugrep -O EXT PATTERN ...               ugrep -O ^EXT PATTERN ...
 
-- Include files to search by [file types or file "magic bytes"](#magic) or exclude them with `^`
+- Include files to search by [file types or file "magic bytes"](#magic) or exclude them with `^` or `!`
 
       ugrep -t TYPE PATTERN ...              ugrep -t ^TYPE PATTERN ...
       ugrep -M 'MAGIC' PATTERN ...           ugrep -M '^MAGIC' PATTERN ...
 
-- Include files and directories to search that match [gitignore-style globs](#globs) or exclude them with `^`
+- Include files and directories to search that match [gitignore-style globs](#globs) or exclude them with `^` or `!`
 
-      ugrep -g 'FILEGLOB'                    ugrep -g '^FILEGLOB'
-      ugrep -g 'DIRGLOB/'                    ugrep -g '^DIRGLOB/'
-
-      ugrep -g '/FULLPATHFILEGLOB'           ugrep -g '^/FULLPATHFILEGLOB'
-      ugrep -g '/FULLPATHDIRGLOB/'           ugrep -g '^/FULLPATHDIRGLOB/'
+      ugrep -g 'FILEGLOB' PATTERN ...        ugrep -g '^FILEGLOB' PATTERN ...
+      ugrep -g 'DIRGLOB/' PATTERN ...        ugrep -g '^DIRGLOB/' PATTERN ...
+      ugrep -g '/PATHFILEGLOB' PATTERN ...   ugrep -g '^/PATHFILEGLOB' PATTERN ...
+      ugrep -g '/PATHDIRGLOB/' PATTERN ...   ugrep -g '^/PATHDIRGLOB/' PATTERN ...
 
 - Exclude files specified by [.gitignore](#ignore) etc.
 
