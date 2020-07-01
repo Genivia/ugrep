@@ -37,12 +37,21 @@ Search for anything in everything... ultra fast
       ugrep -W TEXTPATTERN ...               ugrep -X TEXTPATTERN ...
       ugrep -W -U BYTEPATTERN ...            ugrep -X -U BYTEPATTERN ...
 
-- Select files to search by [file types, filename suffix, "magic bytes"](#magic) and [gitignore-style globs](#gitignore)
+- Include files to search by [filename extension](#magic) or exclude them with `^`
 
-      ugrep -t TYPE PATTERN ...              ugrep -O SUFFIX PATTERN ...
-      ugrep -M'MAGIC' PATTERN ...            ugrep -g'GLOB' PATTERN ...
+      ugrep -O EXT PATTERN ...            ugrep -O ^EXT PATTERN ...
 
-- Search files excluding files specified by [.gitignore](#ignore) etc.
+- Include files to search by [file type or file "magic byte" patterns](#magic) or exclude them with `^`
+
+      ugrep -t TYPE PATTERN ...              ugrep -t ^TYPE PATTERN ...
+      ugrep -M 'MAGIC' PATTERN ...           ugrep -M '^MAGIC' PATTERN ...
+
+- Include files and directories to search that match [gitignore-style globs](#globs) or exclude them with `^`
+
+      ugrep -g 'FILEGLOB'                    ugrep -g '^FILEGLOB'
+      ugrep -g 'DIRGLOB/'                    ugrep -g '^DIRGLOB/'
+
+- Exclude files specified by [.gitignore](#ignore) etc.
 
       ugrep --ignore-files PATTERN ...       ugrep --ignore-files=.ignore PATTERN ...
 
@@ -101,14 +110,14 @@ Table of contents
   - [Displaying match context with -A, -B, -C, and -y](#context)
   - [Searching source code using -f, -O, and -t](#source)
   - [Searching compressed files and archives with -z](#archives)
-  - [Find files by file signature and shebang "magic bytes" with -M and -t](#magic)
+  - [Find files by file signature and shebang "magic bytes" with -M, -O and -t](#magic)
   - [Fuzzy search with -Z](#fuzzy)
   - [Search hidden files with -.](#hidden)
   - [Using filter utilities to search documents with --filter](#filter)
   - [Searching and displaying binary files with -U, -W, and -X](#binary)
   - [Ignore binary files with -I](#nobinary)
   - [Ignoring .gitignore-specified files with --ignore-files](#ignore)
-  - [Using gitignore-style globs to select directories and files to search](#gitignore)
+  - [Using gitignore-style globs to select directories and files to search](#globs)
   - [Including or excluding mounted file systems from searches](#fs)
   - [Counting the number of matches with -c and -co](#count)
   - [Displaying file, line, column, and byte offset info with -H, -n, -k, -b, and -T](#fields)
@@ -1589,7 +1598,7 @@ search the files:
 
 <a name="magic"/>
 
-### Find files by file signature and shebang "magic bytes" with -M and -t
+### Find files by file signature and shebang "magic bytes" with -M, -O and -t
 
     --ignore-files[=FILE]
             Ignore files and directories matching the globs in each FILE that
@@ -2015,7 +2024,7 @@ applied to the search results and the locations of each `FILE` found.  To avoid
 confusion, files and directories specified as command-line arguments to
 **ugrep** are never ignored.
 
-See also [Using gitignore-style globs to select directories and files to search](#gitignore).
+See also [Using gitignore-style globs to select directories and files to search](#globs).
 
 To recursively search without following symlinks, while ignoring files and
 directories ignored by .gitignore (when present), use option `--ignore-files`:
@@ -2049,7 +2058,7 @@ implicit:
 
 🔝 [Back to table of contents](#toc)
 
-<a name="gitignore"/>
+<a name="globs"/>
 
 ### Using gitignore-style globs to select directories and files to search
 
