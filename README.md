@@ -51,6 +51,9 @@ Search for anything in everything... ultra fast
       ugrep -g 'FILEGLOB'                    ugrep -g '^FILEGLOB'
       ugrep -g 'DIRGLOB/'                    ugrep -g '^DIRGLOB/'
 
+      ugrep -g '/FULLPATHFILEGLOB'           ugrep -g '^/FULLPATHFILEGLOB'
+      ugrep -g '/FULLPATHDIRGLOB/'           ugrep -g '^/FULLPATHDIRGLOB/'
+
 - Exclude files specified by [.gitignore](#ignore) etc.
 
       ugrep --ignore-files PATTERN ...       ugrep --ignore-files=.ignore PATTERN ...
