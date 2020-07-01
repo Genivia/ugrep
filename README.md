@@ -5,39 +5,12 @@ Search for anything in everything... ultra fast
 *New option -Q opens a query UI to search files as you type!*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
-<!--
-<br>
-<br>
-search source code, shell scripts, text files, and more:
-<br>
-<img src="https://www.genivia.com/images/scr1.png" width="438" alt="">
-<br>
-<br>
-search cpio, pax, tar, zip archives and compressed files:
-<br>
-<img src="https://www.genivia.com/images/scr2.png" width="438" alt="">
-<br>
-<br>
-search binary files, displayed as hexdumps:
-<br>
-<img src="https://www.genivia.com/images/scr3.png" width="438" alt="">
-<br>
-<br>
-search pdf and office documents using filters:
-<br>
-<img src="https://www.genivia.com/images/scr4.png" width="438" alt="">
-<br>
-<br>
-fuzzy search to find approximate matches:
-<br>
-<img src="https://www.genivia.com/images/scr5.png" width="438" alt="">
--->
 
 - Written in clean and efficient C++11, built for speed and thoroughly tested
 
 - Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
 
-- Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmark](#speed)
+- Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmarks](#speed)
 
 - User-friendly with sensible defaults and shortcuts for common grep options
 
@@ -101,6 +74,8 @@ fuzzy search to find approximate matches:
 - Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
       ugrep --encoding=LATIN1 PATTERN ...
+
+- Search for patterns that match multiple lines (by default), i.e. patterns may contain one or more `\n` newlines
 
 <a name="toc"/>
 
@@ -303,9 +278,9 @@ ARM NEON/AArch64 instructions.  Compressed files are decompressed concurrently
 while searching.  Asynchronous IO is used for efficient concurrent searching
 and output.
 
-### Tests
+### Benchmarks
 
-The following tests span a range of practical use cases:
+The following benchmark tests span a range of practical use cases:
 
 Test | Command                                                          | Description
 ---- | ---------------------------------------------------------------- | -----------------------------------------------------
@@ -332,7 +307,7 @@ search compressed files (a bug), and with ripgrep as `--glob='*.h'
 The corpora used in the tests are available for
 [download](https://www.genivia.com/files/corpora.zip).
 
-### Results
+### Performance results
 
 Performance tests were conducted with a Mac OS X using clang 9.0.0 -O2 on a 2.9
 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 Mac OS 10.12.6 machine.  The best
@@ -476,12 +451,7 @@ Ugrep versus other greps
 
 ### Equivalence to GNU grep and BSD grep
 
-**ugrep** accepts GNU/BSD grep command options and produces GNU/BSD grep
-compatible output, making **ugrep** an excellent drop-in replacement for grep
-power users.
-
-GNU and BSD grep and their common variants are equivalent to **ugrep** when the
-following options are used:
+**Ugrep** is equivalent to GNU/BSD grep when the following options are used:
 
     grep   = ugrep --sort -G -U -Y -. -Dread -dread
     egrep  = ugrep --sort -E -U -Y -. -Dread -dread
@@ -507,6 +477,13 @@ Where:
   like most Unix utilities such as `ls`.
 - `-Dread` and `-dread` are the GNU/BSD grep defaults but are not recommended,
   see [improvements](#improvements) for an explanation.
+
+When the **ugrep** executable is renamed to `grep` and so on, then these
+options show above are also in effect except for `-U` to permit Unicode
+matching.
+
+Note that the defaults of some options may differ to make **ugrep** more user
+friendly, see [notable improvements over grep](#improvements).
 
 🔝 [Back to table of contents](#toc)
 
@@ -548,7 +525,7 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 
 <a name="improvements"/>
 
-### Some notable improvements over grep
+### Notable improvements over grep
 
 - **ugrep** matches patterns across multiple lines.
 - **ugrep** matches Unicode by default (disabled with option `-U`).
