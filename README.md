@@ -39,8 +39,6 @@ fuzzy search to find approximate matches:
 
 - Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmark](#speed)
 
-- Multi-threaded, optimized (AVX, SSE2, ARM NEON/AArch64), and asynchronous for efficient concurrent searching
-
 - User-friendly with sensible defaults and shortcuts for common grep options
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help
@@ -298,6 +296,12 @@ significant runtime overhead and should not be used for the final build.
 
 Performance comparisons
 -----------------------
+
+Ugrep is multi-threaded and uses clever lock-free job queue stealing for
+optimized load balancing.  We also optimized regex matching with AVX, SSE2, and
+ARM NEON/AArch64 instructions.  Compressed files are decompressed concurrently
+while searching.  Asynchronous IO is used for efficient concurrent searching
+and output.
 
 ### Tests
 
