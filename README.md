@@ -2,7 +2,7 @@
 
 Search for anything in everything... ultra fast
 
-New option -Q opens a query UI to search files as you type!
+*New option -Q opens a query UI to search files as you type!*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 <!--
@@ -37,28 +37,21 @@ fuzzy search to find approximate matches:
 
 - Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
 
-- Ultra fast with new match algorithms [beating](#speed) grep, ripgrep, silver searcher, hyperscan, etc.
+- Ultra fast with new match algorithms [beating](#speed) grep, ripgrep, silver searcher, hyperscan, sift, etc.
 
-- Multi-threaded search with high-performance lock-free job queue stealing and task-parallel decompression
+- Multi-threaded, optimized (AVX, SSE2, ARM NEON/AArch64), and asynchronous for efficient concurrent searching
 
-- Optimized pattern matching (AVX, SSE2, ARM NEON/AArch64) and asynchronous IO for efficient concurrent searching
-
-- Compatible GNU/BSD grep command-line options, but user-friendly with sensible defaults and more options
+- User-friendly with sensible defaults and shortcuts for common grep options
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help
 
       ugrep -Q ...                           ugrep -Q -e PATTERN ...
 
-- Select files to search by [file types, filename suffix, "magic bytes"](#magic) and [gitignore-style globs](#gitignore)
-
-      ugrep -t TYPE PATTERN ...              ugrep -O SUFFIX PATTERN ...
-      ugrep -M'MAGIC' PATTERN ...            ugrep -g'GLOB' PATTERN ...
-
 - Find approximate pattern matches with [fuzzy search](#fuzzy)
 
       ugrep -Z PATTERN ...
 
-- Search [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
+- Search contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
 
       ugrep -z PATTERN ...
 
@@ -72,6 +65,11 @@ fuzzy search to find approximate matches:
 
       ugrep -W TEXTPATTERN ...               ugrep -X TEXTPATTERN ...
       ugrep -W -U BYTEPATTERN ...            ugrep -X -U BYTEPATTERN ...
+
+- Select files to search by [file types, filename suffix, "magic bytes"](#magic) and [gitignore-style globs](#gitignore)
+
+      ugrep -t TYPE PATTERN ...              ugrep -O SUFFIX PATTERN ...
+      ugrep -M'MAGIC' PATTERN ...            ugrep -g'GLOB' PATTERN ...
 
 - Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
