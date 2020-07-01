@@ -88,7 +88,7 @@ Table of contents
 - [Ugrep versus grep](#comparison)
   - [Equivalence to GNU grep and BSD grep](#equivalence)
   - [Short and quick command aliases](#aliases)
-  - [Some notable improvements over grep](#improvements)
+  - [Notable improvements over grep](#improvements)
 - [Tutorial](#tutorial)
   - [Examples](#examples)
   - [Advanced examples](#advanced)
@@ -482,8 +482,8 @@ When the **ugrep** executable is renamed to `grep` and so on, then these
 options show above are also in effect except for `-U` to permit Unicode
 matching.
 
-Note that the defaults of some options may differ to make **ugrep** more user
-friendly, see [notable improvements over grep](#improvements).
+Note that the defaults of some grep options may differ to make **ugrep** more
+user friendly, see [notable improvements over grep](#improvements).
 
 🔝 [Back to table of contents](#toc)
 
