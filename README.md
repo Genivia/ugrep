@@ -47,9 +47,9 @@ fuzzy search to find approximate matches:
 
       ugrep -Q ...                           ugrep -Q -e PATTERN ...
 
-- Find approximate pattern matches with [fuzzy search](#fuzzy)
+- Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
-      ugrep -Z PATTERN ...
+      ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
 
 - Search contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
 
@@ -70,10 +70,6 @@ fuzzy search to find approximate matches:
 
       ugrep -t TYPE PATTERN ...              ugrep -O SUFFIX PATTERN ...
       ugrep -M'MAGIC' PATTERN ...            ugrep -g'GLOB' PATTERN ...
-
-- Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
-
-      ugrep --encoding=LATIN1 PATTERN ...
 
 - Search files excluding files specified by [.gitignore](#ignore) etc.
 
@@ -103,6 +99,10 @@ fuzzy search to find approximate matches:
 - Search with PCRE's Perl-compatible regex patterns
 
       ugrep -P PATTERN ...
+
+- Search files [encoded](#encoding) in ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
+
+      ugrep --encoding=LATIN1 PATTERN ...
 
 <a name="toc"/>
 
