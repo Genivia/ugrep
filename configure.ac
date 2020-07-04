@@ -190,14 +190,14 @@ if test "x$with_no_sse2" = "xno"; then
   AC_MSG_RESULT(no)
   AC_MSG_CHECKING([whether ${CXX} supports SSE2 intrinsics])
   save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-march=native"
+  CXXFLAGS="-msse2"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <emmintrin.h>]], [[__m128i n = _mm_set1_epi8(42);]])],
                     [msse2_ok=yes],
                     [msse2_ok=no])
   CXXFLAGS=$save_CXXFLAGS
   AC_MSG_RESULT($msse2_ok)
   if test "x$msse2_ok" = "xyes"; then
-    SIMD_FLAGS="-march=native -msse2 -DHAVE_SSE2"
+    SIMD_FLAGS="-msse2 -DHAVE_SSE2"
   fi
 else
   AC_MSG_RESULT(yes)
