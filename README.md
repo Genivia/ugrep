@@ -12,9 +12,9 @@ Search for anything in everything... ultra fast
 
 - Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmarks](#speed)
 
-- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command (which is the same as `ugrep --config`)
+- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load .ugrep preferences
 
-      ug ...                                 ugrep --config ...
+      ug PATTERN ...                         ugrep --config PATTERN ...
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help
 
@@ -846,7 +846,7 @@ To show a list of `-t TYPES` option values:
             Use configuration FILE.  The default FILE is `.ugrep'.  The working
             directory is checked first for FILE, then the home directory.  The
             options specified in the configuration FILE are parsed first,
-            followed by the remaining options on the command line.
+            followed by the remaining options specified on the command line.
     --save-config[=FILE]
             Save configuration FILE.  By default `.ugrep' is saved.  If FILE is
             a `-', write the configuration to standard output.
@@ -884,17 +884,14 @@ Option `--stats` displays the configuration file used after searching.
 
 Named configuration files are intended to streamline custom search tasks, by
 reducing the number of command line options to just one `---FILE` to use the
-collection of options specified in `FILE`.
-
-The `--config=FILE` option and its abbreviated form `---FILE` load the specified
-configuration file located in the working directory or, when not found, located
-in the home directory:
+collection of options specified in `FILE`.  The `--config=FILE` option and its
+abbreviated form `---FILE` load the specified configuration file located in the
+working directory or, when not found, located in the home directory:
 
     ug ---FILE ...
     ugrep ---FILE ...
 
-By constrast to the default `.ugrep` configuration file, an error is produced
-when `FILE` is not found or cannot be loaded.
+An error is produced when `FILE` is not found or cannot be read.
 
 Named configuration files can be used to define a collection of options that
 are specific to the requirements of a task in the development workflow of a
