@@ -1712,12 +1712,12 @@ void Pattern::compile_transition(
               case '.':
                 if (is_modified('s', modifiers, loc))
                 {
-                  static const uint64_t dot[5] = { 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0 };
+                  static const uint64_t dot[5] = { 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0 };
                   chars |= Chars(dot);
                 }
                 else
                 {
-                  static const uint64_t dot[5] = { 0xFFFFFFFFFFFFFBFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0 };
+                  static const uint64_t dot[5] = { 0xFFFFFFFFFFFFFBFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0 };
                   chars |= Chars(dot);
                 }
                 break;
@@ -1946,20 +1946,20 @@ void Pattern::posix(size_t index, Chars& chars) const
 {
   DBGLOG("posix(%lu)", index);
   static const uint64_t posix_chars[14][5] = {
-    { 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0, 0, 0 }, // ASCII
-    { 0x0000000100003E00, 0x0000000000000000, 0, 0, 0 }, // Space: \t-\r, ' '
-    { 0x03FF000000000000, 0x0000007E0000007E, 0, 0, 0 }, // XDigit: 0-9, A-F, a-f
-    { 0x00000000FFFFFFFF, 0x8000000000000000, 0, 0, 0 }, // Cntrl: \x00-0x1F, \0x7F
-    { 0xFFFFFFFF00000000, 0x7FFFFFFFFFFFFFFF, 0, 0, 0 }, // Print: ' '-'~'
-    { 0x03FF000000000000, 0x07FFFFFE07FFFFFE, 0, 0, 0 }, // Alnum: 0-9, A-Z, a-z
-    { 0x0000000000000000, 0x07FFFFFE07FFFFFE, 0, 0, 0 }, // Alpha: A-Z, a-z
-    { 0x0000000100000200, 0x0000000000000000, 0, 0, 0 }, // Blank: \t, ' '
-    { 0x03FF000000000000, 0x0000000000000000, 0, 0, 0 }, // Digit: 0-9
-    { 0xFFFFFFFE00000000, 0x7FFFFFFFFFFFFFFF, 0, 0, 0 }, // Graph: '!'-'~'
-    { 0x0000000000000000, 0x07FFFFFE00000000, 0, 0, 0 }, // Lower: a-z
-    { 0xFC00FFFE00000000, 0x78000001F8000001, 0, 0, 0 }, // Punct: '!'-'/', ':'-'@', '['-'`', '{'-'~'
-    { 0x0000000000000000, 0x0000000007FFFFFE, 0, 0, 0 }, // Upper: A-Z
-    { 0x03FF000000000000, 0x07FFFFFE87FFFFFE, 0, 0, 0 }, // Word: 0-9, A-Z, a-z, _
+    { 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0ULL, 0ULL, 0ULL }, // ASCII
+    { 0x0000000100003E00ULL, 0x0000000000000000ULL, 0ULL, 0ULL, 0ULL }, // Space: \t-\r, ' '
+    { 0x03FF000000000000ULL, 0x0000007E0000007EULL, 0ULL, 0ULL, 0ULL }, // XDigit: 0-9, A-F, a-f
+    { 0x00000000FFFFFFFFULL, 0x8000000000000000ULL, 0ULL, 0ULL, 0ULL }, // Cntrl: \x00-0x1F, \0x7F
+    { 0xFFFFFFFF00000000ULL, 0x7FFFFFFFFFFFFFFFULL, 0ULL, 0ULL, 0ULL }, // Print: ' '-'~'
+    { 0x03FF000000000000ULL, 0x07FFFFFE07FFFFFEULL, 0ULL, 0ULL, 0ULL }, // Alnum: 0-9, A-Z, a-z
+    { 0x0000000000000000ULL, 0x07FFFFFE07FFFFFEULL, 0ULL, 0ULL, 0ULL }, // Alpha: A-Z, a-z
+    { 0x0000000100000200ULL, 0x0000000000000000ULL, 0ULL, 0ULL, 0ULL }, // Blank: \t, ' '
+    { 0x03FF000000000000ULL, 0x0000000000000000ULL, 0ULL, 0ULL, 0ULL }, // Digit: 0-9
+    { 0xFFFFFFFE00000000ULL, 0x7FFFFFFFFFFFFFFFULL, 0ULL, 0ULL, 0ULL }, // Graph: '!'-'~'
+    { 0x0000000000000000ULL, 0x07FFFFFE00000000ULL, 0ULL, 0ULL, 0ULL }, // Lower: a-z
+    { 0xFC00FFFE00000000ULL, 0x78000001F8000001ULL, 0ULL, 0ULL, 0ULL }, // Punct: '!'-'/', ':'-'@', '['-'`', '{'-'~'
+    { 0x0000000000000000ULL, 0x0000000007FFFFFEULL, 0ULL, 0ULL, 0ULL }, // Upper: A-Z
+    { 0x03FF000000000000ULL, 0x07FFFFFE87FFFFFEULL, 0ULL, 0ULL, 0ULL }, // Word: 0-9, A-Z, a-z, _
   };
   chars |= Chars(posix_chars[index]);
 }
@@ -2065,7 +2065,7 @@ void Pattern::encode_dfa(DFA::State *start)
     // add final dead state (HALT opcode) only when needed, i.e. skip dead state if all chars 0-255 are already covered
     if (hi <= 0xFF)
     {
-      state->edges[hi] = std::pair<Char,DFA::State*>(0xFF, NULL);
+      state->edges[hi] = std::pair<Char,DFA::State*>(0xFF, static_cast<DFA::State*>(NULL)); // cast to appease MSVC 2010
       ++nop_;
     }
 #else
@@ -2088,7 +2088,7 @@ void Pattern::encode_dfa(DFA::State *start)
     // add final dead state (HALT opcode) only when needed, i.e. skip dead state if all chars 0-255 are already covered
     if (!covered)
     {
-      state->edges[lo] = std::pair<Char,DFA::State*>(0x00, NULL);
+      state->edges[lo] = std::pair<Char,DFA::State*>(0x00, static_cast<DFA::State*>(NULL)); // cast to appease MSVC 2010
       ++nop_;
     }
 #endif

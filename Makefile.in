@@ -276,6 +276,7 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
@@ -810,7 +811,8 @@ install-dvi: install-dvi-recursive
 install-dvi-am:
 
 install-exec-am:
-
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 install-html: install-html-recursive
 
 install-html-am:
@@ -850,11 +852,12 @@ ps: ps-recursive
 ps-am:
 
 uninstall-am: uninstall-man
-
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-hook
 uninstall-man: uninstall-man1
 
 .MAKE: $(am__recursive_targets) all install-am install-data-am \
-	install-strip
+	install-exec-am install-strip uninstall-am
 
 .PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am all-local \
 	am--refresh check check-am clean clean-cscope clean-generic \
@@ -864,14 +867,14 @@ uninstall-man: uninstall-man1
 	distclean-tags distcleancheck distdir distuninstallcheck dvi \
 	dvi-am html html-am info info-am install install-am \
 	install-data install-data-am install-data-hook install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-man1 install-pdf install-pdf-am install-ps \
+	install-dvi-am install-exec install-exec-am install-exec-hook \
+	install-html install-html-am install-info install-info-am \
+	install-man install-man1 install-pdf install-pdf-am install-ps \
 	install-ps-am install-strip installcheck installcheck-am \
 	installdirs installdirs-am maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-generic pdf \
 	pdf-am ps ps-am tags tags-am uninstall uninstall-am \
-	uninstall-man uninstall-man1
+	uninstall-hook uninstall-man uninstall-man1
 
 .PRECIOUS: Makefile
 
@@ -880,41 +883,63 @@ all-local:	cp2bin
 
 .PHONY:		cp2bin
 
-# to copy the ugrep binary to ugrep/bin (joins ugrep.exe that's already there)
-cp2bin:		$(top_builddir)/src/ugrep
-		-mkdir -p $(top_builddir)/bin
-		-cp -f $< $(top_builddir)/bin
+# to copy the ugrep binary to the local ugrep/bin/ugrep and link ugrep/bin/ug
+cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
+		mkdir -p $(top_builddir)/bin; \
+		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT); \
+		  cd $(top_builddir)/bin; \
+		  rm -f ug$(EXEEXT); \
+		  $(LN_S) ugrep$(EXEEXT) ug$(EXEEXT)
 		@echo
 		@echo "OK"
 		@echo
 
+install-exec-hook:
+		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
+		cd $(DESTDIR)$(bindir) && $(LN_S) ugrep$(EXEEXT) ug$(EXEEXT)
+
 install-data-hook:
-		(mkdir -p $(DESTDIR)$(datadir)/ugrep; \
- 		 cp -rf patterns $(DESTDIR)$(datadir)/ugrep/)
+		mkdir -p $(DESTDIR)$(datadir)/ugrep && \
+		  cp -rf patterns $(DESTDIR)$(datadir)/ugrep/
+		cd $(DESTDIR)$(mandir)/man1; \
+		  rm -f ug.1; \
+		  $(LN_S) ugrep.1 ug.1
 		@echo " ______________________________________________________ "; \
 		 echo "|                                                      |"; \
 		 echo "| You have successfully built and installed ugrep.     |"; \
 		 echo "|                                                      |"; \
-		 echo "| You can use the ugrep command to search files.       |"; \
+		 echo "| You can use the ugrep & ug commands to search files. |"; \
+		 echo "|                                                      |"; \
+		 echo "| The ugrep command is for batch use, whereas the ug   |"; \
+		 echo "| command is intended for interactive searches using   |"; \
+		 echo "| a .ugrep configuration file with your preferences,   |"; \
+		 echo "| located in the working directory or home directory.  |"; \
+		 echo "| Run 'ug --save-config' to create a .ugrep file.      |"; \
 		 echo "|                                                      |"; \
 		 echo "| Useful aliases to consider:                          |"; \
-		 echo "|   alias ug     = 'ugrep'                             |"; \
-		 echo "|   alias uq     = 'ugrep -Q'                          |"; \
-		 echo "|   alias ux     = 'ugrep -UX'                         |"; \
-		 echo "|   alias uz     = 'ugrep -z'                          |"; \
+		 echo "|   alias uq     = 'ug -Q'                             |"; \
+		 echo "|   alias ux     = 'ug -UX'                            |"; \
+		 echo "|   alias uz     = 'ug -z'                             |"; \
 		 echo "|   alias grep   = 'ugrep -G'                          |"; \
 		 echo "|   alias egrep  = 'ugrep -E'                          |"; \
 		 echo "|   alias fgrep  = 'ugrep -F'                          |"; \
-		 echo "|   alias xgrep  = 'ugrep -W'                          |"; \
+		 echo "|   alias pgrep  = 'ugrep -P'                          |"; \
+		 echo "|   alias xgrep  = 'ugrep -UX'                         |"; \
 		 echo "|   alias zgrep  = 'ugrep -zG'                         |"; \
 		 echo "|   alias zegrep = 'ugrep -zE'                         |"; \
 		 echo "|   alias zfgrep = 'ugrep -zF'                         |"; \
+		 echo "|   alias zpgrep = 'ugrep -zP'                         |"; \
+		 echo "|   alias zxgrep = 'ugrep -zUX'                        |"; \
 		 echo "|   alias xdump  = 'ugrep -X \"\"'                       |"; \
 		 echo "|                                                      |"; \
 		 echo "| Thank you for using ugrep!                           |"; \
 		 echo "|                                                      |"; \
 		 echo "|             https://github.com/Genivia/ugrep         |"; \
 		 echo "|______________________________________________________|";
+
+uninstall-hook:
+		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
+		rm -rf $(DESTDIR)$(datadir)/ugrep
 
 .PHONY:		test
 

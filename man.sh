@@ -15,11 +15,11 @@ mkdir -p man
 echo '.TH UGREP "1" "'`date '+%B %d, %Y'`'" "ugrep '$1'" "User Commands"' > man/ugrep.1
 cat >> man/ugrep.1 << 'END'
 .SH NAME
-\fBugrep\fR -- file pattern searcher
+\fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR]
-      [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR] [\fB-t\fR \fITYPES\fR] [\fB-J\fR [\fINUM\fR]] [\fB--sort\fR[=\fIKEY\fR]]
+[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
+      [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-t\fR \fITYPES\fR] [\fB-J\fR [\fINUM\fR]] [\fB--sort\fR[=\fIKEY\fR]]
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
@@ -29,19 +29,26 @@ input lines if the RE in the pattern matches one or more newlines in the input.
 An empty pattern matches every line.  Each input line that matches at least one
 of the patterns is written to the standard output.
 .PP
-The \fBugrep\fR utility accepts input of various encoding formats and
-normalizes the output to UTF-8.  When a UTF byte order mark is present in the
-input, the input is automatically normalized; otherwise, \fBugrep\fR assumes
-the input is ASCII, UTF-8, or raw binary.  An input encoding format may be
-specified with option \fB--encoding\fR.
+\fBugrep\fR accepts input of various encoding formats and normalizes the output
+to UTF-8.  When a UTF byte order mark is present in the input, the input is
+automatically normalized; otherwise, \fBugrep\fR assumes the input is ASCII,
+UTF-8, or raw binary.  An input encoding format may be specified with option
+\fB--encoding\fR.
 .PP
 If no \fIFILE\fR arguments are specified and standard input is read from a
 terminal, recursive searches are performed as if \fB-R\fR is specified.  To
 force reading from standard input, specify `-' as a \fIFILE\fR argument.
 .PP
+Directories specified as \fIFILE\fR arguments are searched without recursing
+into subdirectories, unless \fB-R\fR, \fB-r\fR, or \fB-2\fR...\fB-9\fR is
+specified.
+.PP
 Hidden files and directories are ignored in recursive searches.  Option
 \fB-.\fR (\fB--hidden\fR) includes hidden files and directories in recursive
 searches.
+.PP
+The \fBug\fR command is equivalent to \fBugrep --config\fR to load the default
+configuration file, which allows for customization, see CONFIGURATION.
 .PP
 The following options are available:
 END
@@ -50,6 +57,7 @@ src/ugrep --help \
 | sed -e 's/\([^\\]\)\\/\1\\\\/g' \
 | sed \
   -e '/^$/ d' \
+  -e '/^    Long options may start/ d' \
   -e '/^    The ugrep/ d' \
   -e '/^    0       / d' \
   -e '/^    1       / d' \
@@ -75,6 +83,8 @@ cat >> man/ugrep.1 << 'END'
 A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
 arguments, allowing filenames to begin with a `-' character.
 .PP
+Long options may start with `\FB--no-\fR' to disable, when applicable.
+.PP
 The regular expression pattern syntax is an extended form of the POSIX ERE
 syntax.  For an overview of the syntax see README.md or visit:
 .IP
@@ -82,8 +92,7 @@ https://github.com/Genivia/ugrep
 .PP
 Note that `.' matches any non-newline character.  Pattern `\\n' matches a
 newline character.  Multiple lines may be matched with patterns that match
-newlines, unless one or more of the context options \fB-A\fR, \fB-B\fR,
-\fB-C\fR, or \fB-y\fR is used, or option \fB-v\fR is used.
+one or more newline characters.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -95,6 +104,30 @@ An error occurred.
 .PP
 If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
 the exit status is 0 even if an error occurred.
+.SH CONFIGURATION
+The \fBug\fR command is intended for context-dependent interactive searching
+and is equivalent to the \fBugrep --config\fR command to load the default
+configuration file `.ugrep' when present in the working directory or in the
+home directory.
+.PP
+A configuration file contains `NAME=VALUE' pairs per line, where `NAME` is the
+name of a long option (without `--') and `=VALUE' is an argument, which is
+optional and may be omitted depending on the option.  Empty lines and lines
+starting with a `#' are ignored.
+.PP
+The \fB--config\fR=\fIFILE\fR option and its abbreviated form
+\fB---\fR\fIFILE\fR load the specified configuration file located in the
+working directory or, when not found, located in the home directory.  An error
+is produced when \fIFILE\fR is not found or cannot be read.
+.PP
+Command line options are parsed in the following order: the configuration file
+is loaded first, followed by the remaining options and arguments on the command
+line.
+.PP
+The \fB--save-config\fR option saves a `.ugrep' configuration file to the
+working directory with a subset of the current options.  The
+\fB--save-config\fR=\fIFILE\fR option saves the configuration to \fIFILE\fR.
+The configuration is written to standard output when \fIFILE\fR is a `-'.
 .SH GLOBBING
 Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
@@ -103,14 +136,16 @@ Globbing supports gitignore syntax and the corresponding matching rules.  When
 a glob ends in a path separator it matches directories as if
 \fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
 a path separator `/', the full pathname is matched.  Otherwise the basename of
-a file or directory is matched.  For example, \fB*.h\fR matches \fIfoo.h\fR and
-\fIbar/foo.h\fR.  \fBbar/*.h\fR matches \fIbar/foo.h\fR but not \fIfoo.h\fR and
-not \fIbar/bar/foo.h\fR.  Use a leading `/' to force \fB/*.h\fR to match
-\fIfoo.h\fR but not \fIbar/foo.h\fR.
+a file or directory is matched.  For example, \fB*.h\fR matches foo.h and
+bar/foo.h.  \fBbar/*.h\fR matches bar/foo.h but not foo.h and not
+bar/bar/foo.h.  Use a leading `/' to force \fB/*.h\fR to match foo.h but not
+bar/foo.h.
 .PP
-When a glob starts with a `!' as specified with \fB-g\fR!\fIGLOB\fR, or
-specified in a \fIFILE\fR with \fB--include-from\fR=\fIFILE\fR or
-\fB--exclude-from\fR=\fIFILE\fR, its match is negated.
+When a glob starts with a `^' or a `!' as in \fB-g\fR^\fIGLOB\fR, the match is
+negated.  Likewise, a `!' (but not a `^') may be used with globs in the files
+specified \fB--include-from\fR, \fB--exclude-from\fR, and \fB--ignore-files\fR
+to negate the glob match.  Empty lines or lines starting with a `#' are
+ignored.
 .PP
 \fBGlob Syntax and Conventions\fR
 .IP \fB*\fR
@@ -162,17 +197,13 @@ Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
 Matches a/x, a/y, a/x/y,     but not a, b/x
 .IP \fBa\\\\?b\fR
 Matches a?b,                 but not a, b, ab, axb, a/b
-.PP
-Lines in the \fB--exclude-from\fR and \fB--include-from\fR files are ignored
-when empty or start with a `#'.  When a glob is prefixed with `!', negates the
-match.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
 option \fB-f\fR to open a pattern file, when the pattern file does not exist.
 .IP \fBGREP_EDITOR\fR
-May be used to specify an editor command to invoke with CTRL-Y within the query
-UI opened with option \fB-Q\fR.  When undefined, the command defined by
+May be used to specify an editor command to invoke with CTRL-Y while using the
+query UI with option \fB-Q\fR.  When undefined, the command defined by
 \fBEDITOR\fR is invoked.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
@@ -184,8 +215,8 @@ May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
 \fBcx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36\fR.  The \fBmt=\fR,
-\fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR have priority over
-\fBGREP_COLOR\fR.  Option \fB--colors\fR has priority over \fBGREP_COLORS\fR.
+\fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR take priority over
+\fBGREP_COLOR\fR.  Option \fB--colors\fR takes priority over \fBGREP_COLORS\fR.
 .SH GREP_COLORS
 Colors are specified as string of colon-separated ANSI SGR parameters of the
 form `what=substring', where `substring' is a semicolon-separated list of ANSI
@@ -334,9 +365,9 @@ reverts the separator to the default separator or the separator specified with
 .PP
 Formatted output is written for each matching pattern, which means that a line
 may be output multiple times when patterns match more than once on the same
-line.  When field \fB%u\fR is found anywhere in the specified format string,
+line.  If field \fB%u\fR is specified anywhere in a format string, then
 matching lines are output only once unless option \fB-u\fR, \fB--ungroup\fR is
-used or when a newline is matched.
+specified or when one or more newlines are matched.
 .PP
 Additional formatting options:
 .IP \fB--format-begin\fR=\fIFORMAT\fR
@@ -350,7 +381,7 @@ the \fIFORMAT\fR when ending the search.
 .PP
 The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
 \fB-v\fR, \fB--break\fR, \fB--heading\fR, \fB--color\fR, \fB-T\fR, and
-\fB--null\fR have no effect on the formatted output.
+\fB--null\fR have no effect on formatted output.
 .SH EXAMPLES
 Display lines containing the word `patricia' in `myfile.txt':
 .IP

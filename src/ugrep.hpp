@@ -156,6 +156,7 @@ inline int fopen_s(FILE **file, const char *filename, const char *mode)
 #include <algorithm>
 #include <atomic>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -169,7 +170,6 @@ enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED };
 enum class Action { SKIP, READ, RECURSE };
 
 // ugrep command-line options and internal flags
-extern bool flag_no_confirm;
 extern bool flag_no_header;
 extern bool flag_no_messages;
 extern bool flag_match;
@@ -217,6 +217,7 @@ extern bool flag_all_threads;
 extern bool flag_heading;
 extern bool flag_pretty;
 extern bool flag_hidden;
+extern bool flag_confirm;
 extern bool flag_hex_hbr;
 extern bool flag_hex_cbr;
 extern bool flag_hex_chr;
@@ -262,6 +263,10 @@ extern const char *flag_label;
 extern const char *flag_separator;
 extern const char *flag_group_separator;
 extern const char *flag_binary_files;
+extern const char *flag_config;
+extern const char *flag_save_config;
+extern std::string flag_config_file;
+extern std::set<std::string> flag_config_options;
 extern std::vector<std::string> flag_regexp;
 extern std::vector<std::string> flag_neg_regexp;
 extern std::vector<std::string> flag_file;

@@ -139,19 +139,19 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   {
     if (n == 0)
       return std::pair<const char*,size_t>(txt_, len_);
-    return std::pair<const char*,size_t>(NULL, 0);
+    return std::pair<const char*,size_t>(static_cast<const char*>(NULL), 0); // cast to appease MSVC 2010
   }
   /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
   virtual std::pair<size_t,const char*> group_id()
     /// @returns a pair of size_t and string
   {
-    return std::pair<size_t,const char*>(accept(), NULL);
+    return std::pair<size_t,const char*>(accept(), static_cast<const char*>(NULL)); // cast to appease MSVC 2010
   }
   /// Returns the next group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (0,NULL) when no more groups matched
   virtual std::pair<size_t,const char*> group_next_id()
     /// @returns (0,NULL)
   {
-    return std::pair<size_t,const char*>(0, NULL);
+    return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
   }
   /// Returns the position of the last indent stop.
   size_t last_stop()
@@ -381,10 +381,10 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   {
     return HW & (1ULL << 62);
   }
-  /// Check CPU hardware for AVX capability.
-  static bool have_HW_AVX()
+  /// Check CPU hardware for AVX2 capability.
+  static bool have_HW_AVX2()
   {
-    return HW & (1ULL << 28);
+    return HW & (1ULL << 37);
   }
   /// Check CPU hardware for SSE2 capability.
   static bool have_HW_SSE2()
@@ -889,7 +889,7 @@ unrolled:
         // skip one char to keep searching
         set_current(++cur_);
         // allow FIND with "N" to match an empty line, with ^$ etc.
-        if (cap_ == 0 || !opt_.N || (!bol && (c1 == '\n' || (c1 == '\r' && peek() == '\n'))))
+        if (cap_ == 0 || !opt_.N)
           goto scan;
         DBGLOG("Accept empty match");
       }

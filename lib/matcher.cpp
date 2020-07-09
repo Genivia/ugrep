@@ -38,7 +38,7 @@
 
 #if defined(HAVE_AVX512BW)
 # include <immintrin.h>
-#elif defined(HAVE_AVX)
+#elif defined(HAVE_AVX2)
 # include <immintrin.h>
 #elif defined(HAVE_SSE2)
 # include <emmintrin.h>
@@ -46,19 +46,19 @@
 # include <arm_neon.h>
 #endif
 
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX) || defined(HAVE_SSE2)
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
 # ifdef _MSC_VER
 #  include <intrin.h>
-#  define cpuid __cpuid
+#  define cpuidex __cpuidex
 # else
 #  include <cpuid.h>
-#  define cpuid(CPUInfo, InfoType) __cpuid(InfoType, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3])
+#  define cpuidex(CPUInfo, id, subid) __cpuid_count(id, subid, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3])
 # endif
 #endif
 
 namespace reflex {
 
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX) || defined(HAVE_SSE2)
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
 
 #ifdef _MSC_VER
 #pragma intrinsic(_BitScanForward)
@@ -90,16 +90,16 @@ inline uint32_t ctzl(uint64_t x)
 
 uint64_t Matcher::get_HW()
 {
-  int CPUInfo1[4] = { -1, 0, 0, 0 };
-  int CPUInfo7[4] = {  0, 0, 0, 0 };
-  cpuid(CPUInfo1, 0);
+  int CPUInfo1[4] = { 0, 0, 0, 0 };
+  int CPUInfo7[4] = { 0, 0, 0, 0 };
+  cpuidex(CPUInfo1, 0, 0);
   int n = CPUInfo1[0];
-  if (n < 1)
+  if (n <= 0)
     return 0ULL;
-  cpuid(CPUInfo1, 1);
+  cpuidex(CPUInfo1, 1, 0); // cpuid EAX=1
   if (n >= 7)
-    cpuid(CPUInfo7, 7);
-  return static_cast<uint64_t>(CPUInfo1[2]) | (static_cast<uint64_t>(CPUInfo7[1]) << 32);
+    cpuidex(CPUInfo7, 7, 0); // cpuid EAX=7, ECX=0
+  return static_cast<uint32_t>(CPUInfo1[2]) | (static_cast<uint64_t>(static_cast<uint32_t>(CPUInfo7[1])) << 32);
 }
 
 #else
@@ -152,7 +152,7 @@ void Matcher::boyer_moore_init(const char *pat, size_t len)
     score += bms_[static_cast<uint8_t>(pat[i])];
   score /= n;
   uint8_t fch = freq[static_cast<uint8_t>(pat[lcp_])];
-  if (!have_HW_SSE2() && !have_HW_AVX() && !have_HW_AVX512BW())
+  if (!have_HW_SSE2() && !have_HW_AVX2() && !have_HW_AVX512BW())
   {
     // if scoring is high and freq is high, then use improved Boyer-Moore instead of memchr()
 #if defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
@@ -383,7 +383,7 @@ bool Matcher::advance()
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
       if (have_HW_AVX512BW())
       {
-        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements AVX512 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m512i vlcp = _mm512_set1_epi8(pre[lcp_]);
         __m512i vlcs = _mm512_set1_epi8(pre[lcs_]);
         while (s + 64 < e)
@@ -416,9 +416,9 @@ bool Matcher::advance()
           s += 64;
         }
       }
-      else if (have_HW_AVX())
+      else if (have_HW_AVX2())
       {
-        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements AVX2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
         __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
         while (s + 32 < e)
@@ -455,7 +455,7 @@ bool Matcher::advance()
       }
       else if (have_HW_SSE2())
       {
-        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements SSE2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
         while (s + 16 < e)
@@ -490,10 +490,10 @@ bool Matcher::advance()
           s += 16;
         }
       }
-#elif defined(HAVE_AVX)
-      if (have_HW_AVX())
+#elif defined(HAVE_AVX2)
+      if (have_HW_AVX2())
       {
-        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements AVX2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
         __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
         while (s + 32 < e)
@@ -530,7 +530,7 @@ bool Matcher::advance()
       }
       else if (have_HW_SSE2())
       {
-        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements SSE2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
         while (s + 16 < e)
@@ -568,7 +568,7 @@ bool Matcher::advance()
 #elif defined(HAVE_SSE2)
       if (have_HW_SSE2())
       {
-        // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+        // implements SSE2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
         while (s + 16 < e)
@@ -604,7 +604,7 @@ bool Matcher::advance()
         }
       }
 #elif defined(HAVE_NEON)
-      // implements SIMD string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+      // implements NEON/AArch64 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html but 64 bit optimized
       uint8x16_t vlcp = vdupq_n_u8(pre[lcp_]);
       uint8x16_t vlcs = vdupq_n_u8(pre[lcs_]);
       while (s + 16 < e)

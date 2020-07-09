@@ -156,8 +156,6 @@ extern "C" void REFLEX_DBGOUT_(const char *log, const char *file, int line);
 
 #ifdef DEBUG
 
-#include <stdio.h>
-
 #define DBGCHK(c) assert(c)
 
 #define DBGLOG _DBGLOG

@@ -154,7 +154,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
     if (n == 0)
       return std::pair<const char*,size_t>(txt_, len_);
     if (itr_ == fin_ || n >= (*itr_).size() || !(*itr_)[n].matched)
-      return std::pair<const char*,size_t>(NULL, 0);
+      return std::pair<const char*,size_t>(static_cast<const char*>(NULL), 0); // cast to appease MSVC 2010
     return std::pair<const char*,size_t>((*itr_)[n].first, (*itr_)[n].second - (*itr_)[n].first);
   }
   /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
@@ -163,9 +163,9 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   {
     grp_ = 1;
     if (itr_ == fin_ || (*itr_).size() <= 1)
-      return std::pair<size_t,const char*>(0, NULL);
+      return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
     if ((*itr_)[1].matched)
-      return std::pair<size_t,const char*>(1, NULL);
+      return std::pair<size_t,const char*>(1, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
     return group_next_id();
   }
   /// Returns the next group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (0,NULL) when no more groups matched
@@ -173,14 +173,14 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
     /// @returns a pair of size_t and string
   {
     if (itr_ == fin_)
-      return std::pair<size_t,const char*>(0, NULL); 
+      return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
     size_t n = (*itr_).size();
     while (++grp_ < n)
       if ((*itr_)[grp_].matched)
         break;
     if (grp_ < n)
-      return std::pair<size_t,const char*>(grp_, NULL);
-    return std::pair<size_t,const char*>(1, NULL);
+      return std::pair<size_t,const char*>(grp_, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
+    return std::pair<size_t,const char*>(1, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
   }
  protected:
   /// The match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH, implemented with boost::regex.

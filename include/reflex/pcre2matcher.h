@@ -219,11 +219,11 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     if (n == 0)
       return std::pair<const char*,size_t>(txt_, len_);
     if (dat_ == NULL || n >= pcre2_get_ovector_count(dat_))
-      return std::pair<const char*,size_t>(NULL, 0);
+      return std::pair<const char*,size_t>(static_cast<const char*>(NULL), 0); // cast to appease MSVC 2010
     PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(dat_);
     size_t n2 = 2 * n;
     if (ovector[n2] == PCRE2_UNSET)
-      return std::pair<const char*,size_t>(NULL, 0);
+      return std::pair<const char*,size_t>(static_cast<const char*>(NULL), 0); // cast to appease MSVC 2010
     return std::pair<const char*,size_t>(buf_ + ovector[n2], ovector[n2 + 1] - ovector[n2]);
   }
   /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
@@ -232,7 +232,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
   {
     grp_ = 1;
     if (dat_ == NULL || pcre2_get_ovector_count(dat_) <= 1)
-      return std::pair<size_t,const char*>(0, NULL);
+      return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
     PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(dat_);
     if (ovector[2] == PCRE2_UNSET)
       return group_next_id();
@@ -243,14 +243,14 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     /// @returns a pair of size_t and string
   {
     if (dat_ == NULL)
-      return std::pair<size_t,const char*>(0, NULL);
+      return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
     PCRE2_SIZE n = pcre2_get_ovector_count(dat_);
     PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(dat_);
     while (++grp_ < n)
       if (ovector[2 * grp_] != PCRE2_UNSET)
         break;
     if (grp_ >= n)
-      return std::pair<size_t,const char*>(0, NULL);
+      return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
     return id();
   }
  protected:
@@ -273,7 +273,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
           return std::pair<size_t,const char*>(grp_, reinterpret_cast<const char*>(p + 2));
       }
     }
-    return std::pair<size_t,const char*>(grp_, NULL);
+    return std::pair<size_t,const char*>(grp_, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
   }
   /// Compile pattern for jit partial matching and allocate match data.
   void compile()

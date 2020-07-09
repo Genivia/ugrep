@@ -1,4 +1,4 @@
-AC_INIT(ugrep,1.8)
+AC_INIT(ugrep,2.4)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
 AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
@@ -31,6 +31,7 @@ AC_PROG_CXX
 AM_PROG_AR
 AC_PROG_RANLIB
 AC_PROG_INSTALL
+AC_PROG_LN_S
 
 AC_CANONICAL_HOST
 
@@ -159,17 +160,17 @@ if test "x$with_no_avx" = "xno"; then
   AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
   save_CXXFLAGS=$CXXFLAGS
   CXXFLAGS="-march=native"
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m512 n = _mm512_set1_epi8(42); unsigned long long m = _mm512_cmpeq_epi8_mask(n, n);]])],
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m512 n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);]])],
                     [mavx_ok=yes],
                     [mavx_ok=no])
   if test "x$mavx_ok" = "xyes"; then
-    SIMD_FLAGS="-march=native -mavx512bw -DHAVE_AVX512BW"
+    SIMD_FLAGS="-mavx512bw -DHAVE_AVX512BW"
   else
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42); n =_mm256_and_si256(n, n);]])],
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42); (void)_mm256_movemask_epi8(_mm256_and_si256(n, n));]])],
                       [mavx_ok=yes],
                       [mavx_ok=no])
     if test "x$mavx_ok" = "xyes"; then
-      SIMD_FLAGS="-march=native -mavx -DHAVE_AVX"
+      SIMD_FLAGS="-mavx2 -DHAVE_AVX2"
     fi
   fi
   CXXFLAGS=$save_CXXFLAGS
@@ -190,7 +191,7 @@ if test "x$with_no_sse2" = "xno"; then
   AC_MSG_RESULT(no)
   AC_MSG_CHECKING([whether ${CXX} supports SSE2 intrinsics])
   save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-msse2"
+  CXXFLAGS="-march=native"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <emmintrin.h>]], [[__m128i n = _mm_set1_epi8(42);]])],
                     [msse2_ok=yes],
                     [msse2_ok=no])

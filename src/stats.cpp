@@ -59,54 +59,56 @@ void Stats::report()
   if (warnings > 0)
     fprintf(output, "Received %zu warning%s\n", ws, ws == 1 ? "" : "s");
   fprintf(output, "The following pathname selections and restrictions were applied:\n");
+  if (flag_config != NULL)
+    fprintf(output, "  --config=%s\n", flag_config_file.c_str());
 #ifdef WITH_HIDDEN
   if (flag_hidden)
-    fprintf(output, "--hidden (default)\n");
+    fprintf(output, "  --hidden (default)\n");
   else
-    fprintf(output, "--no-hidden\n");
+    fprintf(output, "  --no-hidden\n");
 #else
   if (flag_hidden)
-    fprintf(output, "--hidden\n");
+    fprintf(output, "  --hidden\n");
   else
-    fprintf(output, "--no-hidden (default)\n");
+    fprintf(output, "  --no-hidden (default)\n");
 #endif
   if (flag_min_depth > 0 && flag_max_depth > 0)
-    fprintf(output, "--depth=%zu,%zu\n", flag_min_depth, flag_max_depth);
+    fprintf(output, "  --depth=%zu,%zu\n", flag_min_depth, flag_max_depth);
   else if (flag_min_depth > 0)
-    fprintf(output, "--depth=%zu,\n", flag_min_depth);
+    fprintf(output, "  --depth=%zu,\n", flag_min_depth);
   else if (flag_max_depth > 0)
-    fprintf(output, "--depth=%zu\n", flag_max_depth);
+    fprintf(output, "  --depth=%zu\n", flag_max_depth);
   for (auto& i : flag_ignore_files)
-    fprintf(output, "--ignore-files='%s'\n", i.c_str());
+    fprintf(output, "  --ignore-files='%s'\n", i.c_str());
   for (auto& i : ignore)
-    fprintf(output, "  %s exclusions were applied to %s\n", i.c_str(), i.substr(0, i.find_last_of(PATHSEPCHR)).c_str());
+    fprintf(output, "    %s exclusions were applied to %s\n", i.c_str(), i.substr(0, i.find_last_of(PATHSEPCHR)).c_str());
   for (auto& i : flag_file_magic)
   {
     if (!i.empty() && (i.front() == '!' || i.front() == '^'))
-      fprintf(output, "--file-magic='!%s' (negation)\n", i.c_str() + 1);
+      fprintf(output, "  --file-magic='!%s' (negation)\n", i.c_str() + 1);
     else
-      fprintf(output, "--file-magic='%s'\n", i.c_str());
+      fprintf(output, "  --file-magic='%s'\n", i.c_str());
   }
   for (auto& i : flag_all_include)
-    fprintf(output, "--include='%s'\n", i.c_str());
+    fprintf(output, "  --include='%s'\n", i.c_str());
   for (auto& i : flag_not_include)
-    fprintf(output, "--include='!%s' (negation)\n", i.c_str());
+    fprintf(output, "  --include='!%s' (negation)\n", i.c_str());
   for (auto& i : flag_include_fs)
-    fprintf(output, "--include-fs='%s'\n", i.c_str());
+    fprintf(output, "  --include-fs='%s'\n", i.c_str());
   for (auto& i : flag_all_include_dir)
-    fprintf(output, "--include-dir='%s'\n", i.c_str());
+    fprintf(output, "  --include-dir='%s'\n", i.c_str());
   for (auto& i : flag_not_include_dir)
-    fprintf(output, "--include-dir='!%s' (negation)\n", i.c_str());
+    fprintf(output, "  --include-dir='!%s' (negation)\n", i.c_str());
   for (auto& i : flag_all_exclude)
-    fprintf(output, "--exclude='%s'\n", i.c_str());
+    fprintf(output, "  --exclude='%s'\n", i.c_str());
   for (auto& i : flag_not_exclude)
-    fprintf(output, "--exclude='!%s' (negation)\n", i.c_str());
+    fprintf(output, "  --exclude='!%s' (negation)\n", i.c_str());
   for (auto& i : flag_exclude_fs)
-    fprintf(output, "--exclude-fs='%s'\n", i.c_str());
+    fprintf(output, "  --exclude-fs='%s'\n", i.c_str());
   for (auto& i : flag_all_exclude_dir)
-    fprintf(output, "--exclude-dir='%s'\n", i.c_str());
+    fprintf(output, "  --exclude-dir='%s'\n", i.c_str());
   for (auto& i : flag_not_exclude_dir)
-    fprintf(output, "--exclude-dir='!%s' (negation)\n", i.c_str());
+    fprintf(output, "  --exclude-dir='!%s' (negation)\n", i.c_str());
 }
 
 size_t                   Stats::files  = 0;

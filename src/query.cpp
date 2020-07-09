@@ -1971,7 +1971,7 @@ void Query::edit()
 // quit ugrep -Q
 bool Query::quit()
 {
-  if (flag_no_confirm)
+  if (!flag_confirm)
     return true;
 
   if (!Screen::mono)
