@@ -12,7 +12,7 @@ Search for anything in everything... ultra fast
 
 - Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmarks](#speed)
 
-- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load .ugrep preferences
+- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load .ugrep preferences (requires ugrep v2.4.0)
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
@@ -2101,7 +2101,7 @@ matching files, e.g.  `*.exe`, `*.bin`, `*.out`, `*.a`.  Because the command is
 quite long to type, an alias for this is recommended, for example `ugs` (ugrep
 source):
 
-    alias ugs="ugrep --exclude-from=$HOME/ignore_binaries"
+    alias ugs="ugrep --exclude-from=~/ignore_binaries"
     ugs -rl 'xyz'
 
 🔝 [Back to table of contents](#toc)
