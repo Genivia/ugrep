@@ -7237,7 +7237,7 @@ $as_echo "#define HAVE_LIBZ 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "zlib not found: option -z disabled"
+    echo "zlib not found: ugrep option -z is not available"
   fi
 fi
 
@@ -7369,7 +7369,7 @@ $as_echo "#define HAVE_LIBBZ2 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "libbz2 not found: option -z won't decompress .bz and .bz2 files"
+    echo "libbz2 not found: ugrep option -z won't decompress .bz and .bz2 files"
   fi
 fi
 
@@ -7501,7 +7501,7 @@ $as_echo "#define HAVE_LIBLZMA 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "liblzma not found: option -z won't decompress .lzma and .xz files"
+    echo "liblzma not found: ugrep option -z won't decompress .lzma and .xz files"
   fi
 fi
 

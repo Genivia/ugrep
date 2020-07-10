@@ -3363,6 +3363,7 @@ static void load_config()
 
     std::string line;
     size_t lineno = 1;
+    bool errors = false;
 
     while (true)
     {
@@ -3373,24 +3374,23 @@ static void load_config()
       trim(line);
 
       // skip empty lines and comments
-      if (line.empty() || line.front() == '#')
-        continue;
-
-      // construct an option argument and make it persistent (to parse as argv[])
-      line.insert(0, "--");
-      const char *arg = flag_config_options.insert(line).first->c_str();
-      const char *args[2] = { NULL, arg };
-
-      warnings = 0;
-
-      options(2, args);
-
-      if (warnings > 0)
+      if (!line.empty() && line.front() != '#')
       {
-        std::cerr << "ugrep: error in " << flag_config_file << " at line " << lineno << std::endl;
-        std::cerr << "Try 'ugrep --help [WHAT]' for more information\n";
+        // construct an option argument and make it persistent (to parse as argv[])
+        line.insert(0, "--");
+        const char *arg = flag_config_options.insert(line).first->c_str();
+        const char *args[2] = { NULL, arg };
 
-        exit(EXIT_ERROR);
+        warnings = 0;
+
+        options(2, args);
+
+        if (warnings > 0)
+        {
+          std::cerr << "ugrep: error in " << flag_config_file << " at line " << lineno << "\n\n";
+
+          errors = true;
+        }
       }
 
       ++lineno;
@@ -3398,6 +3398,13 @@ static void load_config()
 
     if (file != stdin)
       fclose(file);
+
+    if (errors)
+    {
+      std::cerr << "Try 'ugrep --help [WHAT]' for more information\n";
+
+      exit(EXIT_ERROR);
+    }
 
     if (ferror(file))
       error("error while reading", flag_config_file.c_str());
@@ -3436,7 +3443,7 @@ static void save_config()
 
   fprintf(file, "### TERMINAL DISPLAY ###\n\n");
 
-  fprintf(file, "# Custom color scheme overrides the default GREP_COLORS parameters\ncolors=%s\n", flag_colors != NULL ? flag_colors : "");
+  fprintf(file, "# Custom color scheme overrides default GREP_COLORS parameters\ncolors=%s\n", flag_colors != NULL ? flag_colors : "");
   fprintf(file, "\
 # The argument is a colon-separated list of one or more parameters `sl='\n\
 # (selected line), `cx=' (context line), `mt=' (matched text), `ms=' (match\n\
@@ -3475,20 +3482,16 @@ static void save_config()
     fprintf(file, "\n");
   }
   if (flag_filter != NULL)
+  {
     fprintf(file, "# Filtering\nfilter=%s\n\n", flag_filter);
-  else
-    fprintf(file, "# Search PDF files by writing them as text to stdout with the pdftotext utility\n# filter=pdf:pdftotext %% -\n");
-  if (!flag_filter_magic_label.empty())
-  {
-    fprintf(file, "# Filter by file signature magic bytes\n");
-    for (auto& label : flag_filter_magic_label)
-      fprintf(file, "filter-magic-label=%s\n", label.c_str());
+    if (!flag_filter_magic_label.empty())
+    {
+      fprintf(file, "# Filter by file signature magic bytes\n");
+      for (auto& label : flag_filter_magic_label)
+        fprintf(file, "filter-magic-label=%s\n", label.c_str());
+      fprintf(file, "# Warning: filter-magic-label significantly reduces performance!\n\n");
+    }
   }
-  else
-  {
-    fprintf(file, "# Search any PDF file even when no pdf extension is present\n# filter-magic-label=pdf:%%PDF-\n");
-  }
-  fprintf(file, "# Warning: filter-magic-label significantly reduces performance!\n\n");
 
   fprintf(file, "### OUTPUT ###\n\n");
 
@@ -9464,7 +9467,7 @@ void help(std::ostream& out)
             Use configuration FILE.  The default FILE is `.ugrep'.  The working\n\
             directory is checked first for FILE, then the home directory.  The\n\
             options specified in the configuration FILE are parsed first,\n\
-            followed by the remaining options on the command line.\n\
+            followed by the remaining options specified on the command line.\n\
     --confirm\n\
             Confirm actions in -Q query mode.  The default is confirm.\n\
     --cpp\n\

@@ -313,7 +313,7 @@ void Query::draw()
     else
     {
       Screen::normal();
-      Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle selection  \033[7mA\033[m all  \033[7mC\033[m clear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quick exit");
+      Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle selection  \033[7mA\033[m all  \033[7mC\033[m clear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quick exit and save");
     }
   }
   else if (mode_ == Mode::LIST)
@@ -398,7 +398,7 @@ void Query::redraw()
   if (mode_ == Mode::HELP)
   {
     Screen::put( 1, 0, "");
-    Screen::put( 2, 0, "\033[7mEsc\033[m   exit & save selected");
+    Screen::put( 2, 0, "\033[7mEsc\033[m   go back / exit");
     Screen::put( 3, 0, "\033[7mEnter\033[m selection mode");
     Screen::put( 4, 0, "");
     Screen::put( 5, 0, "\033[7mTab\033[m    \033[7mS-Tab\033[m   pan");

@@ -41,7 +41,7 @@ install-data-hook:
 		 echo "| located in the working directory or home directory.  |"; \
 		 echo "| Run 'ug --save-config' to create a .ugrep file.      |"; \
 		 echo "|                                                      |"; \
-		 echo "| Useful aliases to consider:                          |"; \
+		 echo "| Aliases to consider:                                 |"; \
 		 echo "|   alias uq     = 'ug -Q'                             |"; \
 		 echo "|   alias ux     = 'ug -UX'                            |"; \
 		 echo "|   alias uz     = 'ug -z'                             |"; \

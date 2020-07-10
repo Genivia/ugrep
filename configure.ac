@@ -48,11 +48,11 @@ AX_CHECK_PCRE2([8], [], [echo "checking for Boost.Regex because PCRE2 is not usa
 
 AX_BOOST_REGEX
 
-AX_CHECK_ZLIB([], [echo "zlib not found: option -z disabled"])
+AX_CHECK_ZLIB([], [echo "zlib not found: ugrep option -z is not available"])
 
-AX_CHECK_BZLIB([], [echo "libbz2 not found: option -z won't decompress .bz and .bz2 files"])
+AX_CHECK_BZLIB([], [echo "libbz2 not found: ugrep option -z won't decompress .bz and .bz2 files"])
 
-AX_CHECK_LZMALIB([], [echo "liblzma not found: option -z won't decompress .lzma and .xz files"])
+AX_CHECK_LZMALIB([], [echo "liblzma not found: ugrep option -z won't decompress .lzma and .xz files"])
 
 AC_ARG_WITH(grep-path,
   [AC_HELP_STRING([--with-grep-path=GREP_PATH],

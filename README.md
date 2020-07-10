@@ -8,11 +8,11 @@ Search for anything in everything... ultra fast
 
 - Written in clean and efficient C++11, built for speed and thoroughly tested
 
-- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows with the [GitHub releases](https://github.com/Genivia/ugrep/releases)
+- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
 
 - Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmarks](#speed)
 
-- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load .ugrep preferences (requires ugrep v2.4.0)
+- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load .ugrep preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
@@ -24,7 +24,7 @@ Search for anything in everything... ultra fast
 
       ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
 
-- Search contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
+- Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz)
 
       ugrep -z PATTERN ...
 
@@ -88,7 +88,7 @@ Search for anything in everything... ultra fast
 
       ugrep --encoding=LATIN1 PATTERN ...
 
-- Search for patterns that match multiple lines (by default), i.e. patterns may contain one or more `\n` newlines
+- Search for patterns that match multiple lines, i.e. patterns may contain one or more `\n` newlines
 
 <a name="toc"/>
 
@@ -98,8 +98,8 @@ Table of contents
 - [Download and install](#install)
 - [Performance comparisons](#speed)
 - [Using ugrep within Vim](#vim)
-- [Ugrep versus grep](#comparison)
-  - [Equivalence to GNU grep and BSD grep](#equivalence)
+- [Using ugrep to replace GNU/BSD grep](#grep)
+  - [Equivalence to GNU/BSD grep](#equivalence)
   - [Short and quick command aliases](#aliases)
   - [Notable improvements over grep](#improvements)
 - [Tutorial](#tutorial)
@@ -156,14 +156,17 @@ Install the latest **ugrep** with [Homebrew](https://brew.sh):
     $ brew install https://raw.githubusercontent.com/Genivia/ugrep/master/Formula/ugrep.rb
 
 This installs the `ugrep` and `ug` commands, where `ug` is the same as `ugrep`
-but also loads the default configuration file .ugrep when present.
+but also loads the default configuration file .ugrep when present in the
+working directory or home directory.
 
 ### Windows
 
 Download the full-featured `ugrep.exe` executable as release artifacts from
 <https://github.com/Genivia/ugrep/releases>
 
-Copy `ugrep.exe` to `ug.exe` if you want the short interactive `ug` command.
+Copy `ugrep.exe` to `ug.exe` if you also want the `ug` command, which loads the
+.ugrep configuration file when present in the working directory or home
+directory.
 
 Add `ugrep.exe` and `ug.exe` to your execution path: go to *Settings* and
 search for "Path" in *Find a Setting*.  Select *environment variables* ->
@@ -180,7 +183,7 @@ Some notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
 
 ### All platforms: step 1 download
 
-Clone **ugrep**:
+Clone `ugrep` with
 
     $ git clone https://github.com/Genivia/ugrep
 
@@ -209,19 +212,19 @@ You can always add these later, when you need these features:
   `sudo apt-get install -y liblzma-dev`.
 
 After installing one or more of these libraries, re-execute the commands to
-rebuild **ugrep**:
+rebuild `ugrep`:
 
     $ cd ugrep
     $ ./build.sh
 
 Some Linux systems may not be configured to load dynamic libraries from
-`/usr/local/lib`, causing a library load error when running ugrep.  To correct
-this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to your
-`~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
+`/usr/local/lib`, causing a library load error when running `ugrep`.  To
+correct this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to
+your `~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
 
 ### All platforms: step 3 build
 
-Build **ugrep** on Unix-like systems with colors enabled by default:
+Build `ugrep` on Unix-like systems with colors enabled by default:
 
     $ cd ugrep
     $ ./build.sh
@@ -250,9 +253,10 @@ After the build completes, copy `ugrep/bin/ugrep` and `ugrep/bin/ug` to a
 convenient location, for example in your `~/bin` directory.
 
 Note that `ug` is the same as `ugrep` but also loads the default configuration
-file .ugrep when present.
+file .ugrep when present in the working directory or home directory.  This
+means that you can define your default options for `ug` in .ugrep.
 
-You may want to install the `ugrep` and `ug` commands and its manual page with:
+You may want to install the `ugrep` and `ug` commands and man pages with:
 
     $ sudo make install
 
@@ -275,8 +279,7 @@ To work around this problem, run:
 
 ### For developers
 
-A Dockerfile is included to build **ugrep** in a Ubuntu container, e.g. to
-experiment with **ugrep**.
+A Dockerfile is included to build `ugrep` in a Ubuntu container.
 
 Developers may want to use sanitizers to verify the **ugrep** code when making
 significant changes, for example to detect data races with the
@@ -284,7 +287,7 @@ significant changes, for example to detect data races with the
 
     $ ./build.sh CXXFLAGS='-fsanitize=thread -O1 -g'
 
-We checked **ugrep** with the clang AddressSanitizer, MemorySanitizer,
+We checked `ugrep` with the clang AddressSanitizer, MemorySanitizer,
 ThreadSanitizer, and UndefinedBehaviorSanitizer.  These options incur
 significant runtime overhead and should not be used for the final build.
 
@@ -295,7 +298,7 @@ significant runtime overhead and should not be used for the final build.
 Performance comparisons
 -----------------------
 
-Ugrep is multi-threaded and uses clever lock-free job queue stealing for
+**ugrep** is multi-threaded and uses clever lock-free job queue stealing for
 optimized load balancing.  We also optimized regex matching with AVX2/512BW,
 SSE2, and ARM NEON/AArch64 instructions.  Compressed files are decompressed
 concurrently while searching.  Asynchronous IO is used for efficient concurrent
@@ -465,14 +468,14 @@ To view the CtrlP documentation in Vim, enter the command:
 
 🔝 [Back to table of contents](#toc)
 
-<a name="comparison"/>
+<a name="grep"/>
 
-Ugrep versus other greps
-------------------------
+Using ugrep to replace GNU/BSD grep
+-----------------------------------
 
 <a name="equivalence"/>
 
-### Equivalence to GNU grep and BSD grep
+### Equivalence to GNU/BSD grep
 
 **ugrep** is equivalent to GNU/BSD grep when the following options are used:
 
@@ -502,8 +505,11 @@ where:
 - `-Dread` and `-dread` are the GNU/BSD grep defaults but are not recommended,
   see [improvements](#improvements) for an explanation.
 
-When the `ugrep` executable is renamed to `grep` and so on, then these options
-shown above are also in effect except for `-U` to permit Unicode matching.
+When the `ugrep` (or `ugrep.exe`) executable is renamed to `grep` (`grep.exe`),
+`egrep` (`egrep.exe`), `fgrep` (`fgrep.exe`) and so on, then a subset of the
+options shown above are automatically in effect except for `--sort`, `-Dread`,
+`-dread`, and `-U` to permit Unicode matching.  For example, when `ugrep` is
+renamed to `egrep`, options `-E`, `-Y`, and `-.` are automatically enabled.
 
 Note that the defaults of some grep options may differ to make **ugrep** more
 user friendly, see [notable improvements over grep](#improvements).
@@ -520,7 +526,7 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
     alias ux     = 'ug -UX'      # short & quick binary pattern search (uses .ugrep config)
     alias uz     = 'ug -z'       # short & quick compressed files and archives search (uses .ugrep config)
 
-    alias ugit   = 'ug -R --ignore-files' # works like git-grep, define your preferences in .ugrep config
+    alias ugit   = 'ug -R --ignore-files' # works like git-grep & define your preferences in .ugrep config
 
     alias grep   = 'ugrep -G'    # search with basic regular expressions (BRE)
     alias egrep  = 'ugrep -E'    # search with extended regular expressions (ERE)
@@ -631,7 +637,7 @@ Tutorial
 ### Examples
 
 To perform a search using a configuration file `.ugrep` placed in the working
-directory or home directory (`ug` is the same as `ugrep --config`):
+directory or home directory (note that `ug` is the same as `ugrep --config`):
 
     ug PATTERN FILE...
 
@@ -721,10 +727,10 @@ C/C++ quoted strings and comment blocks:
 
     ugrep -r -nkw 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
 
-This is a lot of work to type in correctly!  If you are like me, I'm lazy and
-don't want to spend time fiddling with regex patterns when I am working on
-something more important.  There is an easier way by using **ugrep**'s
-predefined patterns (`-f`) that are installed with the tool:
+This is a lot of work to type in correctly!  If you are like me, I don't want
+to spend time fiddling with regex patterns when I am working on something more
+important.  There is an easier way by using **ugrep**'s predefined patterns
+(`-f`) that are installed with the `ugrep` tool:
 
     ugrep -r -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
@@ -806,13 +812,14 @@ This returns a color-highlighted list of all `#define FOO...` macros in C/C++
 source code files, skipping files defined in `.gitignore`.
 
 Note that the complement of `--exclude` is not `--include`, because exclusions
-always override inclusions, so we cannot reliably list the files that are
-ignored with `--include-from='.gitignore'`.  Only files explicitly specified
-with `--include` and directories explicitly specified with `--include-dir` are
-visited.  The `--include-from` from lists globs that are considered both files
-and directories to add to `--include` and `--include-dir`, respectively.  This
-means that when directory names and directory paths are not explicitly listed
-in this file then it will not be visited using `--include-from`.
+always take precedence over inclusions, so we cannot reliably list the files
+that are ignored with `--include-from='.gitignore'`.  Only files explicitly
+specified with `--include` and directories explicitly specified with
+`--include-dir` are visited.  The `--include-from` from lists globs that are
+considered both files and directories to add to `--include` and
+`--include-dir`, respectively.  This means that when directory names and
+directory paths are not explicitly listed in this file then it will not be
+visited using `--include-from`.
 
 🔝 [Back to table of contents](#toc)
 
@@ -858,8 +865,8 @@ equivalent to the `grep --config` command to load the default configuration
 file `.ugrep`, when present in the working directory or, when not found, in the
 home directory:
 
-    ug ...
-    ugrep --config ...
+    ug PATTERN ...
+    ugrep --config PATTERN ...
 
 A configuration file contains `NAME=VALUE` pairs per line, where `NAME` is the
 name of a long option (without `--`) and `=VALUE` is an argument, which is
@@ -867,7 +874,7 @@ optional and may be omitted depending on the option.  Empty lines and lines
 starting with a `#` are ignored:
 
     # Color scheme
-    colors=cx=hb:ms=hic:mc=hi+cB:fn=hi+c+K:ln=hg:cn=hg:bn=hg:se=
+    colors=cx=hb:ms=hiy:mc=hic:fn=hi+y+K:ln=hg:cn=hg:bn=hg:se=
     # Disable searching hidden files and directories
     no-hidden
     # ignore files specified in .ignore and .gitignore in recursive searches
@@ -888,8 +895,8 @@ collection of options specified in `FILE`.  The `--config=FILE` option and its
 abbreviated form `---FILE` load the specified configuration file located in the
 working directory or, when not found, located in the home directory:
 
-    ug ---FILE ...
-    ugrep ---FILE ...
+    ug ---FILE PATTERN ...
+    ugrep ---FILE PATTERN ...
 
 An error is produced when `FILE` is not found or cannot be read.
 
@@ -984,36 +991,36 @@ This option starts a user interface to enter search patterns interactively:
 
 Query UI key mapping:
 
-key(s)                      | function
---------------------------- | -------------------------------------------------
-`Alt`-`key`                 | toggle ugrep command-line option corresponding to `key`
-`Alt`-`/`xxxx`/`            | insert Unicode hex code point U+xxxx
-`Esc` `Ctrl`-`[` `Ctrl`-`C` | exit or go back
-`Ctrl`-`Q`                  | quick exit and output results selected in selection mode
-`Enter`                     | enter selection mode and toggle selected lines to output on exit
-`Home` `Ctrl`-`A`           | move cursor to the begin of line
-`End` `Ctrl`-`E`            | move cursor to the end of line
-`Tab` `Ctrl`-`I`            | pan display to the right
-`Shift`-`Tab`               | pan display to the left
-`Up` `Ctrl`-`P`             | move up
-`Down` `Ctrl`-`N`           | move down
-`Left` `Ctrl`-`B`           | move left
-`Right` `Ctrl`-`F`          | move right
-`PgUp` `Ctrl`-`G`           | move display up by a page
-`PgDn` `Ctrl`-`D`           | move display down by a page
-`Ctrl`-`K`                  | delete after cursor
-`Ctrl`-`L`                  | refresh screen
-`Ctrl`-`O`+`key`            | toggle ugrep command-line option corresponding to `key`
-`Ctrl`-`R` `F4`             | jump to bookmark
-`Ctrl`-`S`                  | scroll to the next file
-`Ctrl`-`T`                  | toggle colors on/off
-`Ctrl`-`U`                  | delete before cursor
-`Ctrl`-`V`                  | verbatim character
-`Ctrl`-`W`                  | scroll back one file
-`Ctrl`-`X` `F3`             | set bookmark
-`Ctrl`-`Y` `F2`             | edit file shown at the top of the display or under the cursor
-`Ctrl`-`Z` `F1`             | view help and options
-`Ctrl`-`\`                  | terminate process
+key(s)                  | function
+----------------------- | -------------------------------------------------
+`Alt-key`               | toggle ugrep command-line option corresponding to `key`
+`Alt-/`xxxx`/`          | insert Unicode hex code point U+xxxx
+`Esc` `Ctrl-[` `Ctrl-C` | exit or go back
+`Ctrl-Q`                | quick exit and output results selected in selection mode
+`Enter`                 | enter selection mode and toggle selected lines to output on exit
+`Home` `Ctrl-A`         | move cursor to the begin of line
+`End` `Ctrl-E`          | move cursor to the end of line
+`Tab` `Ctrl-I`          | pan display to the right
+`Shift-Tab`             | pan display to the left
+`Up` `Ctrl-P`           | move up
+`Down` `Ctrl-N`         | move down
+`Left` `Ctrl-B`         | move left
+`Right` `Ctrl-F`        | move right
+`PgUp` `Ctrl-G`         | move display up by a page
+`PgDn` `Ctrl-D`         | move display down by a page
+`Ctrl-K`                | delete after cursor
+`Ctrl-L`                | refresh screen
+`Ctrl-O`+`key`          | toggle ugrep command-line option corresponding to `key`
+`Ctrl-R` `F4`           | jump to bookmark
+`Ctrl-S`                | scroll to the next file
+`Ctrl-T`                | toggle colors on/off
+`Ctrl-U`                | delete before cursor
+`Ctrl-V`                | verbatim character
+`Ctrl-W`                | scroll back one file
+`Ctrl-X` `F3`           | set bookmark
+`Ctrl-Y` `F2`           | edit file shown at the top of the display or under the cursor
+`Ctrl-Z` `F1`           | view help and options
+`Ctrl-\`                | terminate process
 
 To interactively search the files in the working directory and below:
 
@@ -2560,14 +2567,17 @@ names may be used in place of numeric SGR codes.  Semicolons are not required
 to separate color names.  Color names and numeric codes may be mixed.
 
 For example, to display matches in underlined bright green on bright selected
-lines with a dark gray background, aiding in visualizing white space in matches
-and file names:
+lines, aiding in visualizing white space in matches and file names:
 
-    export GREP_COLORS='sl=1;100:cx=33:ms=1;4;32;100:mc=1;4;32:fn=1;32;100:ln=1;32:cn=1;32:bn=1;32:se=36'
+    export GREP_COLORS='sl=1:cx=33:ms=1;4;32;100:mc=1;4;32:fn=1;32;100:ln=1;32:cn=1;32:bn=1;32:se=36'
 
 The same, but with single-letter color names:
 
-    export GREP_COLORS='sl=h+K:cx=y:ms=hug+K:mc=hug:fn=hg+K:ln=hg:cn=hg:bn=hg:se=c'
+    export GREP_COLORS='sl=h:cx=y:ms=hug+K:mc=hug:fn=hg+K:ln=hg:cn=hg:bn=hg:se=c'
+
+Another color scheme that works well:
+
+    export GREP_COLORS='cx=hb:ms=hiy:mc=hic:fn=hi+y+K:ln=hg:cn=hg:bn=hg:se='
 
 Modern Windows command interpreters support ANSI escape codes.  Named or
 numeric colors can be set with `SET GREP_COLORS`, for example:
