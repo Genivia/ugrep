@@ -746,6 +746,7 @@ with_boost_regex
 with_zlib
 with_bzlib
 with_lzma
+with_lz4
 with_grep_path
 with_grep_colors
 enable_color
@@ -1428,6 +1429,9 @@ Optional Packages:
   --with-lzma=DIR         root directory path of lzma installation [defaults to
                           /usr/local or /usr if not found in /usr/local]
   --without-lzma          to disable lzma usage completely
+  --with-lz4=DIR         root directory path of lz4 installation [defaults to
+                          /usr/local or /usr if not found in /usr/local]
+  --without-lz4          to disable lz4 usage completely
   --with-grep-path=GREP_PATH
                           specifies the GREP_PATH if different than the
                           default DATAROOTDIR/ugrep/patterns
@@ -7502,6 +7506,138 @@ $as_echo "#define HAVE_LIBLZMA 1" >>confdefs.h
     # If either header or library was not found, action-if-not-found
     #
     echo "liblzma not found: ugrep option -z won't decompress .lzma and .xz files"
+  fi
+fi
+
+
+#
+# Handle user hints
+#
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if lz4 is wanted" >&5
+$as_echo_n "checking if lz4 is wanted... " >&6; }
+lz4_places="/usr/local /usr /opt/local /sw"
+
+# Check whether --with-lz4 was given.
+if test "${with_lz4+set}" = set; then :
+  withval=$with_lz4; if test "$withval" != "no" ; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  if test -d "$withval"
+  then
+    lz4_places="$withval $lz4_places"
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
+$as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
+  fi
+else
+  lz4_places=""
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+fi
+
+#
+# Locate lz4, if wanted
+#
+if test -n "${lz4_places}"
+then
+  # check the user supplied or any other more or less 'standard' place:
+  #   Most UNIX systems      : /usr/local and /usr
+  #   MacPorts / Fink on OSX : /opt/local respectively /sw
+  for LZ4_HOME in ${lz4_places} ; do
+    if test -f "${LZ4_HOME}/include/lz4.h"; then break; fi
+    LZ4_HOME=""
+  done
+
+  LZ4_OLD_LDFLAGS=$LDFLAGS
+  LZ4_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${LZ4_HOME}"; then
+    LDFLAGS="$LDFLAGS -L${LZ4_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${LZ4_HOME}/include"
+  fi
+  ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for LZ4_createStreamDecode in -llz4" >&5
+$as_echo_n "checking for LZ4_createStreamDecode in -llz4... " >&6; }
+if ${ac_cv_lib_lz4_LZ4_createStreamDecode+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-llz4  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char LZ4_createStreamDecode ();
+int
+main ()
+{
+return LZ4_createStreamDecode ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_lz4_LZ4_createStreamDecode=yes
+else
+  ac_cv_lib_lz4_LZ4_createStreamDecode=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lz4_LZ4_createStreamDecode" >&5
+$as_echo "$ac_cv_lib_lz4_LZ4_createStreamDecode" >&6; }
+if test "x$ac_cv_lib_lz4_LZ4_createStreamDecode" = xyes; then :
+  lz4_cv_liblz4=yes
+else
+  lz4_cv_liblz4=no
+fi
+
+  ac_fn_c_check_header_mongrel "$LINENO" "lz4.h" "ac_cv_header_lz4_h" "$ac_includes_default"
+if test "x$ac_cv_header_lz4_h" = xyes; then :
+  lz4_cv_lz4_h=yes
+else
+  lz4_cv_lz4_h=no
+fi
+
+
+  ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+  if test "$lz4_cv_liblz4" = "yes" && test "$lz4_cv_lz4_h" = "yes"
+  then
+    #
+    # If both library and header were found, action-if-found
+    #
+
+                CPPFLAGS="$CPPFLAGS -I${LZ4_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${LZ4_HOME}/lib"
+                LIBS="-llz4 $LIBS"
+
+$as_echo "#define HAVE_LIBLZ4 1" >>confdefs.h
+
+
+  else
+    #
+    # If either header or library was not found, action-if-not-found
+    #
+    echo "liblz4 not found: ugrep option -z won't decompress .lz4 files"
   fi
 fi
 

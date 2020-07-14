@@ -388,7 +388,14 @@ class Pattern {
   virtual void error(
       regex_error_type code,    ///< error code
       size_t           pos = 0) ///< optional location of the error in regex string Pattern::rex_
-    const;
+    const
+  {
+    regex_error err(code, rex_, pos);
+    if (opt_.w)
+      std::cerr << err.what();
+    if (code == regex_error::exceeds_limits || opt_.r)
+      throw err;
+  }
  private:
   typedef uint16_t                Char; // 8 bit char and meta chars up to META_MAX-1
   typedef uint8_t                 Lazy;

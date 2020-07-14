@@ -59,6 +59,14 @@ fi
 
 echo "Have liblzma?" $have_liblzma
 
+if $UG -Fq 'HAVE_LIBLZ4 1' ../config.h ; then
+  have_liblz4=yes
+else
+  have_liblz4=no
+fi
+
+echo "Have liblz4?" $have_liblz4
+
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
 function ERR() {
@@ -251,6 +259,10 @@ $UG -z -c Hello archive.tlz     | $DIFF out/archive.tlz.out     || ERR "-z -c He
 printf .
 $UG -z -c Hello archive.txz     | $DIFF out/archive.txz.out     || ERR "-z -c Hello archive.txz"
 fi
+if [ "$have_liblz4" == yes ]; then
+printf .
+$UG -z -c Hello archive.tar.lz4 | $DIFF out/archive.tar.lz4.out || ERR "-z -c Hello archive.tar.lz4"
+fi
 fi
 
 printf .
@@ -277,6 +289,10 @@ printf .
 $UG -z -c -tShell Hello archive.tlz     | $DIFF out/archive-t.tlz.out     || ERR "-z -c -tShell Hello archive.tlz"
 printf .
 $UG -z -c -tShell Hello archive.txz     | $DIFF out/archive-t.txz.out     || ERR "-z -c -tShell Hello archive.txz"
+fi
+if [ "$have_liblz4" == yes ]; then
+printf .
+$UG -z -c -tShell Hello archive.tar.lz4 | $DIFF out/archive-t.tar.lz4.out || ERR "-z -c -tShell Hello archive.tar.lz4"
 fi
 fi
 

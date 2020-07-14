@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 09, 2020" "ugrep 2.4.0" "User Commands"
+.TH UGREP "1" "July 14, 2020" "ugrep 2.4.1" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -110,7 +110,7 @@ font properties `n' (normal), `f' (faint), `h' (highlight), `i'
 Use configuration FILE.  The default FILE is `.ugrep'.  The working
 directory is checked first for FILE, then the home directory.  The
 options specified in the configuration FILE are parsed first,
-followed by the remaining options on the command line.
+followed by the remaining options specified on the command line.
 .TP
 \fB\-\-confirm\fR
 Confirm actions in \fB\-Q\fR query mode.  The default is confirm.
@@ -283,8 +283,8 @@ Display a help message, specifically on WHAT when specified.
 \fB\-\-hexdump\fR=[1\-8][b][c][h]
 Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
 default is 2 columns or 16 octets per line.  Option `b' removes all
-space breaks, `c' hides the character column, and `h' removes the
-hex spacing only.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
+space breaks, `c' removes the character column, and `h' removes the
+hex spacing.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
 .TP
 \fB\-\-hidden\fR, \fB\-.\fR
 Search hidden files and directories.
@@ -471,8 +471,8 @@ the default is 5 (0.5s delay).  No whitespace may be given between
 \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press F1
 or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke an
 editor to edit the file displayed on screen.  The editor is taken
-from the environment variable GREP_EDIT if defined, or EDITOR if
-GREP_EDIT is not defined.  Enables \fB\-\-heading\fR.
+from the environment variable GREP_EDIT if defined, or EDITOR.
+Press Enter to select lines to output.  Enables \fB\-\-heading\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  ugrep will only search until a
@@ -633,7 +633,8 @@ whose name matches globs, matches file name extensions, matches
 file signature magic bytes, or matches file types, respectively.
 Supported compression formats: gzip (.gz), compress (.Z), zip,
 bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
-lzma and xz (requires suffix .lzma, .tlz, .xz, .txz).
+lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
+lz4 (requires suffix .lz4).
 .TP
 \fB\-0\fR, \fB\-\-null\fR
 Prints a zero\-byte (NUL) after the file name.  This option can be

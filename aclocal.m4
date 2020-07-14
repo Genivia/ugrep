@@ -1224,6 +1224,7 @@ AC_SUBST([am__untar])
 
 m4_include([m4/ax_boost_regex.m4])
 m4_include([m4/ax_check_bzlib.m4])
+m4_include([m4/ax_check_lz4lib.m4])
 m4_include([m4/ax_check_lzmalib.m4])
 m4_include([m4/ax_check_pcre2.m4])
 m4_include([m4/ax_check_zlib.m4])

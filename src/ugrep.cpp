@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.4.0"
+#define UGREP_VERSION "2.4.1"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -111,6 +111,9 @@ After this, you may want to test ugrep and install it (optional):
 
 // optionally enable liblzma for -z
 // #define HAVE_LIBLZMA
+
+// optionally enable liblz4 for -z
+// #define HAVE_LIBLZ4
 
 #include <codecvt>
 
@@ -3464,6 +3467,7 @@ static void save_config()
 
   fprintf(file, "# Enable/disable case-insensitive search by default\n%s\n\n", flag_ignore_case ? "ignore-case" : "no-ignore-case");
   fprintf(file, "# Enable/disable smart case by default\n%s\n\n", flag_smart_case ? "smart-case" : "no-smart-case");
+  fprintf(file, "# Enable/disable empty pattern matches by default\n%s\n\n", flag_empty ? "empty" : "no-empty");
 
   fprintf(file, "### SEARCH TARGETS ###\n\n");
 
@@ -5393,6 +5397,12 @@ void ugrep()
     flag_all_include.emplace_back("*.tar.xz");
     flag_all_include.emplace_back("*.tlz");
     flag_all_include.emplace_back("*.txz");
+#endif
+
+#ifdef HAVE_LIBLZ4
+    flag_all_include.emplace_back("*.cpio.lz4");
+    flag_all_include.emplace_back("*.pax.lz4");
+    flag_all_include.emplace_back("*.tar.lz4");
 #endif
   }
 #endif
@@ -9618,8 +9628,8 @@ void help(std::ostream& out)
     --hexdump=[1-8][b][c][h]\n\
             Output matches in 1 to 8 columns of 8 hexadecimal octets.  The\n\
             default is 2 columns or 16 octets per line.  Option `b' removes all\n\
-            space breaks, `c' hides the character column, and `h' removes the\n\
-            hex spacing only.  Enables -X if -W or -X is not specified.\n\
+            space breaks, `c' removes the character column, and `h' removes the\n\
+            hex spacing.  Enables -X if -W or -X is not specified.\n\
     --hidden, -.\n\
             Search "
 #ifdef OS_WIN
@@ -9791,8 +9801,8 @@ void help(std::ostream& out)
             -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1\n\
             or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke an\n\
             editor to edit the file displayed on screen.  The editor is taken\n\
-            from the environment variable GREP_EDIT if defined, or EDITOR if\n\
-            GREP_EDIT is not defined.  Enables --heading.\n\
+            from the environment variable GREP_EDIT if defined, or EDITOR.\n\
+            Press Enter to select lines to output.  Enables --heading.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found.\n\
@@ -9940,6 +9950,10 @@ void help(std::ostream& out)
             ",\n\
             lzma and xz (requires suffix .lzma, .tlz, .xz, .txz)"
 #endif
+#ifdef HAVE_LIBLZ4
+            ",\n\
+            lz4 (requires suffix .lz4)"
+#endif
             ".\n"
 #endif
             "\
@@ -10072,6 +10086,9 @@ void version()
 #endif
 #ifdef HAVE_LIBLZMA
     " +lzma" <<
+#endif
+#ifdef HAVE_LIBLZ4
+    " +lz4" <<
 #endif
     "\n"
     "License BSD-3-Clause: <https://opensource.org/licenses/BSD-3-Clause>\n"

@@ -73,23 +73,19 @@ std::string regex_error::regex_error_message(const char *message, const char *pa
   const char *p = pattern + 80 * n;
   while (p > pattern && (p[0] & 0xc0) == 0x80)
     --p;
-
   size_t m = std::strlen(p);
   if (m >= 80)
     m = 79;
-
   size_t r = pos % 80;
   for (size_t i = r; i > 0; --i)
     if ((p[i] & 0xc0) == 0x80)
       --r;
-
   std::string what("error in regex at position ");
   what.append(ztoa(pos)).append("\n").append(p, m).append("\n");
   if (r >= l + 4)
     what.append(r - l - 4, ' ').append(message).append("___/\n");
   else
     what.append(r, ' ').append("\\___").append(message).append("\n");
-
   return what;
 }
 

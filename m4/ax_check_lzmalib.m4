@@ -18,7 +18,7 @@
 #   If both header file and library are found, shell commands
 #   'action-if-found' is run. If 'action-if-found' is not specified, the
 #   default action appends '-I${LZMA_HOME}/include' to CPFLAGS, appends
-#   '-L$LZMA_HOME}/lib' to LDFLAGS, prepends '-lz' to LIBS, and calls
+#   '-L${LZMA_HOME}/lib' to LDFLAGS, prepends '-llzma' to LIBS, and calls
 #   AC_DEFINE(HAVE_LIBLZMA). You should use autoheader to include a definition
 #   for this symbol in a config.h file. Sample usage in a C/C++ source is as
 #   follows:

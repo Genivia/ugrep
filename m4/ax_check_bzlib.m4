@@ -18,7 +18,7 @@
 #   If both header file and library are found, shell commands
 #   'action-if-found' is run. If 'action-if-found' is not specified, the
 #   default action appends '-I${BZLIB_HOME}/include' to CPFLAGS, appends
-#   '-L$BZLIB_HOME}/lib' to LDFLAGS, prepends '-lbz2' to LIBS, and calls
+#   '-L${BZLIB_HOME}/lib' to LDFLAGS, prepends '-lbz2' to LIBS, and calls
 #   AC_DEFINE(HAVE_LIBBZ2). You should use autoheader to include a definition
 #   for this symbol in a config.h file. Sample usage in a C/C++ source is as
 #   follows:

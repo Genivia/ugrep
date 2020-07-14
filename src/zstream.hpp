@@ -61,7 +61,15 @@ struct bz_stream;
 struct lzma_stream;
 #endif
 
-// TODO this feature is disabled as it is too slow, we should optimize crc32() with a table
+// if we have liblz4, otherwise declare incomplete lz4_stream
+#ifdef HAVE_LIBLZ4
+#include <lz4.h>
+typedef LZ4_streamDecode_t *lz4_stream;
+#else
+struct lz4_stream;
+#endif
+
+// TODO zip decompression crc check disabled as this is too slow, we should optimize crc32() with a table
 // use zip crc integrity check at the cost of a significant slow down?
 // #define WITH_ZIP_CRC32
 
@@ -145,24 +153,6 @@ class zstreambuf : public std::streambuf {
     static constexpr uint16_t DEFLATE_HEADER_MAGIC  = 0x8b1f;     // zlib deflate header magic
     static constexpr uint32_t ZIP_HEADER_MAGIC      = 0x04034b50; // zip local file header magic
     static constexpr uint32_t ZIP_DESCRIPTOR_MAGIC  = 0x08074b50; // zip descriptor magic
-
-    // convert 2 bytes to 16 bit
-    static uint16_t u16(const unsigned char *buf)
-    {
-      return buf[0] + (buf[1] << 8);
-    }
-
-    // convert 4 bytes to 32 bit
-    static uint32_t u32(const unsigned char *buf)
-    {
-      return u16(buf) + (static_cast<uint32_t>(u16(buf + 2)) << 16);
-    }
-
-    // convert 8 bytes to to 64 bit
-    static uint64_t u64(const unsigned char *buf)
-    {
-      return u32(buf) + (static_cast<uint64_t>(u32(buf + 4)) << 32);
-    }
 
     // read zip local file header if we are at a header, read the header, file name, and extra field
     bool header()
@@ -774,7 +764,7 @@ class zstreambuf : public std::streambuf {
     FILE         *file_;           // input file
     z_stream     *z_strm_;         // zlib stream handle
     bz_stream    *bz_strm_;        // bzip2 stream handle
-    lzma_stream  *lzma_strm_;      // lzma stream handle
+    lzma_stream  *lzma_strm_;      // xz/lzma stream handle
     unsigned char zbuf_[ZIPBLOCK]; // buffer with compressed zip file data to decompress
     size_t        zcur_;           // current position in the buffer, less or equal to zlen_
     size_t        zlen_;           // length of the compressed data in the buffer
@@ -790,10 +780,16 @@ class zstreambuf : public std::streambuf {
     return has_ext(pathname, ".bz.bz2.bzip2.tb2.tbz.tbz2.tz2");
   }
 
-  // return true if pathname has a lzma filename extension
+  // return true if pathname has a xz/lzma filename extension
   static bool is_xz(const char *pathname)
   {
     return has_ext(pathname, ".lzma.xz.tlz.txz");
+  }
+
+  // return true if pathname has a lz4 filename extension
+  static bool is_lz4(const char *pathname)
+  {
+    return has_ext(pathname, ".lz4");
   }
 
   // return true if pathname has a compress (Z) filename extension
@@ -823,7 +819,7 @@ class zstreambuf : public std::streambuf {
     return match[end] == '.' || match[end] == '\0';
   }
 
-  // constructor
+  // default constructor
   zstreambuf()
     :
       pathname_(NULL),
@@ -832,6 +828,7 @@ class zstreambuf : public std::streambuf {
       zzfile_(NULL),
       bzfile_(NULL),
       xzfile_(NULL),
+      lz4file_(NULL),
       zipinfo_(NULL),
       cur_(0),
       len_(0)
@@ -846,6 +843,7 @@ class zstreambuf : public std::streambuf {
       zzfile_(NULL),
       bzfile_(NULL),
       xzfile_(NULL),
+      lz4file_(NULL),
       zipinfo_(NULL),
       cur_(0),
       len_(0)
@@ -927,6 +925,22 @@ class zstreambuf : public std::streambuf {
       cannot_decompress("unsupported compression format", pathname);
 #endif
     }
+    else if (is_lz4(pathname))
+    {
+#ifdef HAVE_LIBLZ4
+      // open lz4 compressed file
+      try
+      {
+        lz4file_ = new LZ4();
+      }
+      catch (const std::bad_alloc&)
+      {
+        cannot_decompress(pathname_, "out of memory");
+      }
+#else
+      cannot_decompress("unsupported compression format", pathname);
+#endif
+    }
     else
     {
       // read compression format magic bytes
@@ -934,7 +948,7 @@ class zstreambuf : public std::streambuf {
 
       if (num == 2)
       {
-        if (ZipInfo::u16(buf_) == ZipInfo::DEFLATE_HEADER_MAGIC)
+        if (u16(buf_) == ZipInfo::DEFLATE_HEADER_MAGIC)
         {
           // open zlib compressed file
           try
@@ -964,7 +978,7 @@ class zstreambuf : public std::streambuf {
             warning("zlib open error", pathname);
           }
         }
-        else if (ZipInfo::u16(buf_) == ZipInfo::COMPRESS_HEADER_MAGIC)
+        else if (u16(buf_) == ZipInfo::COMPRESS_HEADER_MAGIC)
         {
           // open compress (Z) compressed file
           if ((zzfile_ = z_open(file, "r", 0, 1)) == NULL)
@@ -975,7 +989,7 @@ class zstreambuf : public std::streambuf {
           // read two more bytes of the compression format's magic bytes
           num = fread(buf_ + 2, 1, 2, file);
 
-          if (num == 2 && ZipInfo::u32(buf_) == ZipInfo::ZIP_HEADER_MAGIC)
+          if (num == 2 && u32(buf_) == ZipInfo::ZIP_HEADER_MAGIC)
           {
             // open zip compressed file
             try
@@ -1052,9 +1066,16 @@ class zstreambuf : public std::streambuf {
       delete xzfile_;
       xzfile_ = NULL;
     }
-    else
 #endif
-    if (zipinfo_ != NULL)
+#ifdef HAVE_LIBLZ4
+    else if (lz4file_ != NULL)
+    {
+      // close lz4 compressed file
+      delete lz4file_;
+      lz4file_ = NULL;
+    }
+#endif
+    else if (zipinfo_ != NULL)
     {
       // close zip compressed file
       delete zipinfo_;
@@ -1216,6 +1237,64 @@ class zstreambuf : public std::streambuf {
 
   // unused lzma/xz file handle
   typedef void *xzFile;
+
+#endif
+
+#ifdef HAVE_LIBLZ4
+
+  // lz4 state data
+  struct LZ4 {
+
+    static const size_t MAX_BLOCK_SIZE = 4194304; // lz4 4MB max block size
+
+    LZ4()
+      :
+        strm(LZ4_createStreamDecode()),
+        buf(static_cast<unsigned char*>(malloc(LZ4_DECODER_RING_BUFFER_SIZE(MAX_BLOCK_SIZE)))),
+        loc(0),
+        len(0),
+        crc(0),
+        size(0),
+        dict(0),
+        zbuf(static_cast<unsigned char*>(malloc(LZ4_COMPRESSBOUND(MAX_BLOCK_SIZE) + Z_BUF_LEN + 8))),
+        zflg(0),
+        zloc(0),
+        zlen(0),
+        zcrc(0)
+    { }
+
+    ~LZ4()
+    {
+      if (zbuf != NULL)
+        free(zbuf);
+      if (buf != NULL)
+        free(buf);
+      if (strm != NULL)
+        LZ4_freeStreamDecode(strm);
+    }
+
+    lz4_stream     strm; // lz4 decompression stream state
+    unsigned char *buf;  // decompressed data buffer
+    size_t         loc;
+    size_t         len;
+    uint32_t       crc;  // decompressed data xxHash-32 - optional, unused
+    uint64_t       size; // decompressed size - optional, unused
+    uint32_t       dict; // dict id - optional, unused
+    unsigned char *zbuf; // compressed data buffer with extra room for 64K input buffer + b.size (4 bytes) + b.checksum (4 bytes)
+    unsigned char  zflg; // frame header flags
+    size_t         zloc;
+    size_t         zlen;
+    uint32_t       zcrc; // comoressed block xxHash-32 - optional, unused
+
+  };
+  
+  // lz4 file handle
+  typedef struct LZ4 *lz4File;
+
+#else
+
+  // unused lz4 file handle
+  typedef void *lz4File;
 
 #endif
 
@@ -1492,6 +1571,228 @@ class zstreambuf : public std::streambuf {
       }
     }
 #endif
+#ifdef HAVE_LIBLZ4
+    else if (lz4file_ != NULL)
+    {
+      if (lz4file_->strm == NULL || lz4file_->buf == NULL || lz4file_->zbuf == NULL)
+      {
+        // LZ4 instantiation failed to allocate the required structures
+        cannot_decompress(pathname_, "out of memory");
+        delete lz4file_;
+        lz4file_ = NULL;
+        file_ = NULL;
+        num = -1;
+      }
+      else if (lz4file_->loc < lz4file_->len)
+      {
+        // copy decompressed data from lz4file_->buf[] into the given buf[]
+        if (lz4file_->loc + len > lz4file_->len)
+          len = lz4file_->len - lz4file_->loc;
+        memcpy(buf, lz4file_->buf + lz4file_->loc, len);
+        lz4file_->loc += len;
+        num = static_cast<std::streamsize>(len);
+      }
+      else
+      {
+        // loop over frames
+        while (true)
+        {
+          // get next frame if we do not have a valid frame
+          if (lz4file_->zflg == 0)
+          {
+            // move incomplete frame header to the start of lz4file_->zbuf[]
+            lz4file_->zlen -= lz4file_->zloc;
+            if (lz4file_->zlen > 0)
+              memmove(lz4file_->zbuf, lz4file_->zbuf + lz4file_->zloc, lz4file_->zlen);
+            lz4file_->zloc = 0;
+
+            // frame header is 7 to 19 bytes long
+            if (lz4file_->zlen < 19)
+              lz4file_->zlen += fread(lz4file_->zbuf + lz4file_->zlen, 1, Z_BUF_LEN, file_);
+
+            // if not enough frame data, error if not at EOF, otherwise EOF is OK
+            if (lz4file_->zlen < 7)
+            {
+              if (lz4file_->zlen > 0 || ferror(file_))
+              {
+                warning("cannot read", pathname_);
+                num = -1;
+              }
+              break;
+            }
+
+            // check magic bytes and flags
+            uint32_t magic = u32(lz4file_->zbuf);
+            if (magic >= 0x184D2A50 && magic <= 0x184D2A5F)
+            {
+              // skippable frame with 4 byte frame size
+              if (lz4file_->zlen < 8)
+              {
+                warning("cannot read", pathname_);
+                num = -1;
+                break;
+              }
+
+              // skip this skippable frame, then continue with next frame
+              size_t size = u32(lz4file_->zbuf + 4);
+              lz4file_->zloc = 8;
+              if (lz4file_->zloc + size > lz4file_->zlen)
+              {
+                size -= lz4file_->zlen - lz4file_->zloc;
+                lz4file_->zloc = lz4file_->zlen;
+
+                while (size > 0)
+                {
+                  size_t ret = fread(lz4file_->zbuf, 1, size < Z_BUF_LEN ? size : Z_BUF_LEN, file_);
+                  if (ret == 0)
+                    break;
+                  size -= ret;
+                }
+                if (size > 0)
+                {
+                  warning("cannot read", pathname_);
+                  num = -1;
+                  break;
+                }
+                lz4file_->zloc = lz4file_->zlen = 0;
+              }
+              else
+              {
+                lz4file_->zloc += size;
+              }
+              continue;
+            }
+            lz4file_->zflg = lz4file_->zbuf[4];
+            if (magic != 0x184D2204 || (lz4file_->zflg & 0xc0) != 0x40)
+            {
+              cannot_decompress(pathname_, "an error was detected in the lz4 compressed data");
+              num = -1;
+              break;
+            }
+
+            // get decompressed content size and dict, position to the start of the block
+            lz4file_->zloc = 7;
+            if ((lz4file_->zbuf[4] & 0x08))
+            {
+              lz4file_->size = u64(lz4file_->zbuf + lz4file_->zloc);
+              lz4file_->zloc += 8;
+            }
+            if ((lz4file_->zbuf[4] & 0x01))
+            {
+              lz4file_->dict = u32(lz4file_->zbuf + lz4file_->zloc);
+              lz4file_->zloc += 4;
+            }
+
+            // error if header was too short
+            if (lz4file_->zlen < lz4file_->zloc)
+            {
+              lz4file_->zloc = lz4file_->zlen;
+              cannot_decompress(pathname_, "an error was detected in the lz4 compressed data");
+              num = -1;
+              break;
+            }
+          }
+
+          // move incomplete block data to the start of lz4file_->zbuf
+          lz4file_->zlen -= lz4file_->zloc;
+          if (lz4file_->zlen > 0)
+            memmove(lz4file_->zbuf, lz4file_->zbuf + lz4file_->zloc, lz4file_->zlen);
+          lz4file_->zloc = 0;
+
+          // need 4 bytes with block size
+          if (lz4file_->zlen < 4)
+            lz4file_->zlen += fread(lz4file_->zbuf + lz4file_->zlen, 1, Z_BUF_LEN, file_);
+          if (lz4file_->zlen < 4)
+          {
+            warning("cannot read", pathname_);
+            num = -1;
+            break;
+          }
+
+          // get the block size
+          size_t size = u32(lz4file_->zbuf);
+          lz4file_->zloc = 4;
+
+          if (size == 0)
+          {
+            // reached the end marker, get footer with crc when present
+            if ((lz4file_->zflg & 0x04))
+            {
+              lz4file_->crc = u32(lz4file_->zbuf +lz4file_->zloc);
+              lz4file_->zloc += 4;
+            }
+
+            // reset flags to start a new frame and continue to read the frame
+            lz4file_->zflg = 0;
+            continue;
+          }
+
+          // block cannot be larger than the documented max block size of 4MB
+          if (size > LZ4::MAX_BLOCK_SIZE)
+          {
+            cannot_decompress(pathname_, "an error was detected in the lz4 compressed data");
+            num = -1;
+            break;
+          }
+
+          // read the rest of the block, may overshoot by up to Z_BUF_LEN bytes
+          while (lz4file_->zloc + size > lz4file_->zlen)
+          {
+            size_t ret = fread(lz4file_->zbuf + lz4file_->zlen, 1, Z_BUF_LEN, file_);
+            if (ret == 0)
+              break;
+            lz4file_->zlen += ret;
+          }
+          if (lz4file_->zloc + size > lz4file_->zlen)
+          {
+            warning("cannot read", pathname_);
+            num = -1;
+            break;
+          }
+
+          // decompress lz4file_->zbuf[] block into lz4file_->buf[]
+          if (lz4file_->loc >= LZ4_DECODER_RING_BUFFER_SIZE(LZ4::MAX_BLOCK_SIZE) - LZ4::MAX_BLOCK_SIZE)
+            lz4file_->loc = 0;
+          int ret = LZ4_decompress_safe_continue(lz4file_->strm, reinterpret_cast<char*>(lz4file_->zbuf + lz4file_->zloc), reinterpret_cast<char*>(lz4file_->buf + lz4file_->loc), size, LZ4::MAX_BLOCK_SIZE);
+          lz4file_->zloc += size;
+          if (ret <= 0)
+          {
+            cannot_decompress(pathname_, "an error was detected in the lz4 compressed data");
+            num = -1;
+            break;
+          }
+
+          // copy decompressed data from lz4file_->buf[] into the given buf[]
+          lz4file_->len = lz4file_->loc + ret;
+          if (lz4file_->loc + len > lz4file_->len)
+            len = lz4file_->len - lz4file_->loc;
+          memcpy(buf, lz4file_->buf + lz4file_->loc, len);
+          lz4file_->loc += len;
+          num = static_cast<std::streamsize>(len);
+
+          if ((lz4file_->zflg & 0x10))
+          {
+            // need 4 bytes with block checksum
+            if (lz4file_->zloc + 4 > lz4file_->zlen)
+              lz4file_->zlen += fread(lz4file_->zbuf + lz4file_->zlen, 1, Z_BUF_LEN, file_);
+            if (lz4file_->zloc + 4 > lz4file_->zlen)
+            {
+              warning("cannot read", pathname_);
+              num = -1;
+              break;
+            }
+
+            // get block checksum
+            lz4file_->zcrc = u32(lz4file_->zbuf + lz4file_->zloc);
+            lz4file_->zloc += 4;
+          }
+
+          if (num > 0)
+            break;
+        }
+      }
+    }
+#endif
     else if (zipinfo_ != NULL)
     {
       // decompress a zip compressed block into the guven buf[]
@@ -1576,12 +1877,31 @@ class zstreambuf : public std::streambuf {
     return n;
   }
 
+  // convert 2 bytes in little endian format to 16 bit
+  static uint16_t u16(const unsigned char *buf)
+  {
+    return buf[0] + (static_cast<uint16_t>(buf[1]) << 8);
+  }
+
+  // convert 4 bytes in little endian format to 32 bit
+  static uint32_t u32(const unsigned char *buf)
+  {
+    return u16(buf) + (static_cast<uint32_t>(u16(buf + 2)) << 16);
+  }
+
+  // convert 8 bytes in little endian format to to 64 bit
+  static uint64_t u64(const unsigned char *buf)
+  {
+    return u32(buf) + (static_cast<uint64_t>(u32(buf + 4)) << 32);
+  }
+
   const char     *pathname_;       // the pathname of the compressed file
   FILE           *file_;           // the compressed file
   zFile           zfile_;          // zlib file handle
   zzFile          zzfile_;         // compress (Z) file handle
   bzFile          bzfile_;         // bzip2 file handle
-  xzFile          xzfile_;         // lzma/xz file handle
+  xzFile          xzfile_;         // xz/lzma file handle
+  lz4File         lz4file_;        // lz4 file handle
   ZipInfo        *zipinfo_;        // zip file and zip info handle
   unsigned char   buf_[Z_BUF_LEN]; // buffer with decompressed stream data
   std::streamsize cur_;            // current position in buffer to read the stream data, less or equal to len_

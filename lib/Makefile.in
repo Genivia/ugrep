@@ -92,6 +92,7 @@ subdir = lib
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_regex.m4 \
 	$(top_srcdir)/m4/ax_check_bzlib.m4 \
+	$(top_srcdir)/m4/ax_check_lz4lib.m4 \
 	$(top_srcdir)/m4/ax_check_lzmalib.m4 \
 	$(top_srcdir)/m4/ax_check_pcre2.m4 \
 	$(top_srcdir)/m4/ax_check_zlib.m4 \

@@ -82,19 +82,19 @@ Copy pcre2.lib to ugrep\vs\ugrep\pcre2-x32.lib.
 
 To build pcre2-x64.lib, repeat the last three steps, selecting Release/x64.
 
-Download the zlib 1.2.11 source code from:
+Download zlib 1.2.11 source code from:
 
 	https://www.zlib.net/
 
-Copy the downloaded zlib-1.2.11 directory here (in the directory of this README).
+Copy directory zlib-1.2.11 with its contents here (in the directory of this README).
 
-Download the bzip2 1.0.5 "Sources" from:
+Download bzip2 1.0.5 "Sources" from:
 
 	http://gnuwin32.sourceforge.net/packages/bzip2.htm
 
-Copy the downloaded bzip2-1.0.5 directory located under bzip2-1.0.5-src\src\bzip2\1.0.5 here.
+Copy directory bzip2-1.0.5 located under bzip2-1.0.5-src\src\bzip2\1.0.5 here.
 
-Download the liblzma 5.2.4 or later from:
+Download liblzma 5.2.4 or later from:
 
 	https://sourceforge.net/projects/lzmautils/files/
 
@@ -105,9 +105,15 @@ Copy ReleaseMT\Win32\liblzma.lib to liblzma-x32.lib here (in the directory of th
 Select ReleaseMT/x64 and then build solution liblzma.
 Copy ReleaseMT\x64\liblzma.lib to liblzma-x64.lib here (in the directory of this README).
 
-Copy directory xz-5.2.4\src\liblzma\api here.
+Copy directory xz-5.2.4\src\liblzma\api with its contents here.
 
-Open vs/ugrep/ugrep.sln in Visual Studio.  Upgrade the version if prompted.
+Clone lz4 1.9.2 or later from:
+
+	https://github.com/lz4/lz4
+
+Copy directory lz4-dev\lib with its contents here, although only lz4-dev\lib\lz4.h and lz4-dev\lib\lz4.c are required.
+
+Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
 Edit Visual Studio project properties to make sure these match the following:
 
@@ -116,9 +122,9 @@ Configuration Properties
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
 		General:
-			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.34\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api
+			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.34\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib
 		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
 			Runtime Library:
 				Multi-threaded (/MT)
@@ -152,19 +158,19 @@ Boost should be built as a static release library with static runtime linkage fr
 
 After this completes, copy stage\lib\libboost_regex-vc141-mt-s-x32-1_72.lib and stage\lib\libboost_regex-vc141-mt-s-x64-1_72.lib here (in the directory of this README). Also copy the downloaded boost directory to boost_1_72_0 to create the boost_1_72_0\boost directory.
 
-Download the zlib 1.2.11 source code from:
+Download zlib 1.2.11 source code from:
 
 	https://www.zlib.net/
 
-Copy the downloaded zlib-1.2.11 directory here (in the directory of this README).
+Copy directory zlib-1.2.11 with its contents here (in the directory of this README).
 
-Download the bzip2 1.0.5 "Sources" from:
+Download bzip2 1.0.5 "Sources" from:
 
 	http://gnuwin32.sourceforge.net/packages/bzip2.htm
 
-Copy the downloaded bzip2-1.0.5 directory located under bzip2-1.0.5-src\src\bzip2\1.0.5 here.
+Copy directory bzip2-1.0.5 located under bzip2-1.0.5-src\src\bzip2\1.0.5 here.
 
-Download the liblzma 5.2.4 or later from:
+Download liblzma 5.2.4 or later from:
 
 	https://sourceforge.net/projects/lzmautils/files/
 
@@ -175,9 +181,15 @@ Copy ReleaseMT\Win32\liblzma.lib to liblzma-x32.lib here (in the directory of th
 Select ReleaseMT/x64 and then build solution liblzma.
 Copy ReleaseMT\x64\liblzma.lib to liblzma-x64.lib here (in the directory of this README).
 
-Copy directory xz-5.2.4\src\liblzma\api here.
+Copy directory xz-5.2.4\src\liblzma\api with its contents here.
 
-Open vs/ugrep/ugrep.sln in Visual Studio.  Upgrade the version if prompted.
+Clone lz4 1.9.2 or later from:
+
+	https://github.com/lz4/lz4
+
+Copy directory lz4-dev\lib with its contents here, although only lz4-dev\lib\lz4.h and lz4-dev\lib\lz4.c are required.
+
+Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
 Edit Visual Studio project properties to make sure these match the following:
 
@@ -186,9 +198,9 @@ Configuration Properties
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
 		General:
-			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\boost_1_72_0;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api
+			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\boost_1_72_0;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib
 		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
 			Runtime Library:
 				Multi-threaded (/MT)

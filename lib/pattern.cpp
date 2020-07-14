@@ -150,18 +150,9 @@ const std::string Pattern::operator[](Accept choice) const
   return "";
 }
 
-void Pattern::error(regex_error_type code, size_t pos) const
+void Pattern::init(const char *options, const uint8_t *pred)
 {
-  regex_error err(code, rex_, pos);
-  if (opt_.w)
-    std::cerr << err.what();
-  if (code == regex_error::exceeds_limits || opt_.r)
-    throw err;
-}
-
-void Pattern::init(const char *opt, const uint8_t *pred)
-{
-  init_options(opt);
+  init_options(options);
   nop_ = 0;
   len_ = 0;
   min_ = 0;
@@ -215,7 +206,7 @@ void Pattern::init(const char *opt, const uint8_t *pred)
   }
 }
 
-void Pattern::init_options(const char *opt)
+void Pattern::init_options(const char *options)
 {
   opt_.b = false;
   opt_.i = false;
@@ -228,9 +219,9 @@ void Pattern::init_options(const char *opt)
   opt_.w = false;
   opt_.x = false;
   opt_.e = '\\';
-  if (opt)
+  if (options != NULL)
   {
-    for (const char *s = opt; *s != '\0'; ++s)
+    for (const char *s = options; *s != '\0'; ++s)
     {
       switch (*s)
       {
