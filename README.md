@@ -12,7 +12,7 @@ Search for anything in everything... ultra fast
 
 - Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmarks](#speed)
 
-- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load .ugrep preferences
+- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load the .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
@@ -156,8 +156,8 @@ Install the latest **ugrep** with [Homebrew](https://brew.sh):
     $ brew install https://raw.githubusercontent.com/Genivia/ugrep/master/Formula/ugrep.rb
 
 This installs the `ugrep` and `ug` commands, where `ug` is the same as `ugrep`
-but also loads the default configuration file .ugrep when present in the
-working directory or home directory.
+but also loads the configuration file .ugrep when present in the working
+directory or home directory.
 
 ### Windows
 
@@ -233,15 +233,20 @@ Build `ugrep` on Unix-like systems with colors enabled by default:
     $ ./build.sh
 
 This builds the `ugrep` executable in the `ugrep/src` directory with
-`./configure --enable-color` and `make -j`, tests it with `make test`.  When
-all tests pass, the `ugrep` executable is copied to `ugrep/bin`.
+`./configure --enable-color` and `make -j`, verified with `make test`.  When
+all tests pass, the `ugrep` executable is copied to `ugrep/bin/ugrep` and
+the symlink `ugrep/bin/ug -> ugrep/bin/ugrep` is added for the `ug` command.
 
-To output results with a pager by default:
+Note that `ug` is the same as `ugrep` but also loads the configuration file
+.ugrep when present in the working directory or home directory.  This means
+that you can define your default options for `ug` in .ugrep.
+
+To build `ugrep` with specific hard defaults enabled, such as a pager:
 
     $ cd ugrep
     $ ./build.sh --enable-pager
 
-Choices for defaults include:
+Choices for hard defaults include:
 
 - `--enable-color` colorize output to terminals (this is the default)
 - `--enable-hidden` search hidden files and directories
@@ -254,10 +259,6 @@ Choices for defaults include:
 
 After the build completes, copy `ugrep/bin/ugrep` and `ugrep/bin/ug` to a
 convenient location, for example in your `~/bin` directory.
-
-Note that `ug` is the same as `ugrep` but also loads the default configuration
-file .ugrep when present in the working directory or home directory.  This
-means that you can define your default options for `ug` in .ugrep.
 
 You may want to install the `ugrep` and `ug` commands and man pages with:
 
@@ -304,8 +305,8 @@ Performance comparisons
 **ugrep** is multi-threaded and uses clever lock-free job queue stealing for
 optimized load balancing.  We also optimized regex matching with AVX2/512BW,
 SSE2, and ARM NEON/AArch64 instructions.  Compressed files are decompressed
-concurrently while searching.  Asynchronous IO is used for efficient concurrent
-searching and output.
+concurrently while searching them to furher improve performance.  Asynchronous
+IO is implemented for efficient input and output.
 
 ### Benchmarks
 
@@ -644,8 +645,8 @@ directory or home directory (note that `ug` is the same as `ugrep --config`):
 
     ug PATTERN FILE...
 
-To save a default configuration file to the working directory (edit this file
-in your home directory to customize your preferences for `ug` defaults):
+To save a `.ugrep` configuration file to the working directory, then edit this
+file in your home directory to customize your preferences for `ug` defaults:
 
     ug --save-config
 
@@ -864,9 +865,9 @@ To show a list of `-t TYPES` option values:
 #### The ug command versus the ugrep command
 
 The `ug` command is intended for context-dependent interactive searching and is
-equivalent to the `grep --config` command to load the default configuration
-file `.ugrep`, when present in the working directory or, when not found, in the
-home directory:
+equivalent to the `grep --config` command to load the configuration file
+`.ugrep`, when present in the working directory or, when not found, in the home
+directory:
 
     ug PATTERN ...
     ugrep --config PATTERN ...
