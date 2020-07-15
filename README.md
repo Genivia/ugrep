@@ -128,7 +128,7 @@ Table of contents
   - [Displaying file, line, column, and byte offset info with -H, -n, -k, -b, and -T](#fields)
   - [Displaying colors with --color and paging the output with --pager](#color)
   - [Output matches in JSON, XML, CSV, C++](#json)
-  a [Customized output with --format](#format)
+  - [Customized output with --format](#format)
   - [Replacing matches with --format backreferences to group captures](#replace)
   - [Limiting the number of matches with -1,-2...-9, -K, -m, and --max-files](#max)
   - [Matching empty patterns with --empty](#empty)
