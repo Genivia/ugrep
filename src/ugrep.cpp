@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.4.1"
+#define UGREP_VERSION "2.5.0"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -252,6 +252,13 @@ After this, you may want to test ugrep and install it (optional):
 # define DEFAULT_HIDDEN false
 #endif
 
+// do not confirm query UI actions
+#ifdef WITH_NO_CONFIRM
+# define DEFAULT_CONFIRM false
+#else
+# define DEFAULT_CONFIRM true
+#endif
+
 // use dirent d_type when available to improve performance
 #ifdef HAVE_STRUCT_DIRENT_D_TYPE
 # define DIRENT_TYPE_UNKNOWN DT_UNKNOWN
@@ -377,55 +384,56 @@ std::set<uint64_t> exclude_fs_ids, include_fs_ids;
 
 #endif
 
-// ugrep command-line options and internal flags
-bool flag_no_header                = false;
-bool flag_no_messages              = false;
-bool flag_match                    = false;
-bool flag_count                    = false;
-bool flag_fixed_strings            = false;
-bool flag_free_space               = false;
-bool flag_ignore_case              = false;
-bool flag_smart_case               = false;
-bool flag_invert_match             = false;
-bool flag_only_line_number         = false;
-bool flag_with_filename            = false;
-bool flag_no_filename              = false;
-bool flag_line_number              = false;
-bool flag_column_number            = false;
-bool flag_byte_offset              = false;
-bool flag_initial_tab              = false;
-bool flag_line_buffered            = false;
-bool flag_only_matching            = false;
-bool flag_ungroup                  = false;
-bool flag_quiet                    = false;
-bool flag_files_with_matches       = false;
-bool flag_files_without_match      = false;
-bool flag_null                     = false;
-bool flag_basic_regexp             = false;
-bool flag_perl_regexp              = false;
-bool flag_word_regexp              = false;
-bool flag_line_regexp              = false;
-bool flag_dereference              = false;
-bool flag_no_dereference           = false;
-bool flag_binary                   = false;
-bool flag_binary_without_match     = false;
-bool flag_text                     = false;
-bool flag_hex                      = false;
-bool flag_with_hex                 = false;
-bool flag_empty                    = false;
-bool flag_decompress               = false;
-bool flag_any_line                 = false;
-bool flag_break                    = false;
-bool flag_cpp                      = false;
-bool flag_csv                      = false;
-bool flag_json                     = false;
-bool flag_xml                      = false;
-bool flag_stdin                    = false;
-bool flag_all_threads              = false;
-bool flag_heading                  = false;
+// ugrep command-line options
+Flag flag_no_messages;
+Flag flag_match;
+Flag flag_count;
+Flag flag_fixed_strings;
+Flag flag_free_space;
+Flag flag_ignore_case;
+Flag flag_smart_case;
+Flag flag_invert_match;
+Flag flag_only_line_number;
+Flag flag_with_filename;
+Flag flag_no_filename;
+Flag flag_line_number;
+Flag flag_column_number;
+Flag flag_byte_offset;
+Flag flag_initial_tab;
+Flag flag_line_buffered;
+Flag flag_only_matching;
+Flag flag_ungroup;
+Flag flag_quiet;
+Flag flag_files_with_matches;
+Flag flag_files_without_match;
+Flag flag_null;
+Flag flag_basic_regexp;
+Flag flag_perl_regexp;
+Flag flag_word_regexp;
+Flag flag_line_regexp;
+Flag flag_dereference;
+Flag flag_no_dereference;
+Flag flag_binary;
+Flag flag_binary_without_match;
+Flag flag_text;
+Flag flag_hex;
+Flag flag_with_hex;
+Flag flag_empty;
+Flag flag_decompress;
+Flag flag_any_line;
+Flag flag_heading;
+Flag flag_break;
+Flag flag_cpp;
+Flag flag_csv;
+Flag flag_json;
+Flag flag_xml;
 bool flag_pretty                   = DEFAULT_PRETTY;
 bool flag_hidden                   = DEFAULT_HIDDEN;
-bool flag_confirm                  = true;
+bool flag_confirm                  = DEFAULT_CONFIRM;
+bool flag_stdin                    = false;
+bool flag_all_threads              = false;
+bool flag_no_header                = false;
+bool flag_usage_warnings           = false;
 bool flag_hex_hbr                  = true;
 bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
@@ -473,8 +481,8 @@ const char *flag_group_separator   = "--";
 const char *flag_binary_files      = "binary";
 const char *flag_config            = NULL;
 const char *flag_save_config       = NULL;
-std::string flag_config_file;
-std::set<std::string> flag_config_options;
+std::string              flag_config_file;
+std::set<std::string>    flag_config_options;
 std::vector<std::string> flag_regexp;
 std::vector<std::string> flag_neg_regexp;
 std::vector<std::string> flag_file;
@@ -3283,7 +3291,7 @@ int main(int argc, const char **argv)
 
   catch (std::exception& error)
   {
-    abort("exception: ", error.what());
+    abort("error: ", error.what());
   }
 
   if (flag_query > 0)
@@ -3310,7 +3318,7 @@ int main(int argc, const char **argv)
 
     catch (std::exception& error)
     {
-      abort("exception: ", error.what());
+      abort("error: ", error.what());
     }
   }
 
@@ -3338,6 +3346,8 @@ void options(int argc, const char **argv);
 // load config file specified or the default .ugrep, located in the working directory or home directory
 static void load_config()
 {
+  flag_usage_warnings = true;
+
   // the default config file is .ugrep when FILE is not specified
   if (flag_config == NULL || *flag_config == '\0')
     flag_config_file.assign(".ugrep");
@@ -3414,8 +3424,10 @@ static void load_config()
   }
   else if (flag_config != NULL && *flag_config != '\0')
   {
-    error("cannot read", flag_config_file.c_str());
+    error("option --config: cannot read", flag_config_file.c_str());
   }
+
+  flag_usage_warnings = false;
 }
 
 // save a configuration file
@@ -3435,7 +3447,7 @@ static void save_config()
   else if (strcmp(flag_save_config, "-") == 0)
     fprintf(file, "# ugrep configuration.\n");
   else
-    fprintf(file, "# configuration %s used with ugrep ---%s.\n", flag_save_config, flag_save_config);
+    fprintf(file, "# configuration used with ugrep --config=%s or ---%s.\n", flag_save_config, flag_save_config);
 
   fprintf(file, "\
 #\n\
@@ -3459,15 +3471,15 @@ static void save_config()
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\n");
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   fprintf(file, "# Enable/disable query UI confirm ESC to exit y/n\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
-  fprintf(file, "# Enable/disable headings for terminal output\n%s\n\n", flag_heading ? "heading" : "no-heading");
+  fprintf(file, "# Enable/disable headings for terminal output\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
   fprintf(file, "# Enable/disable or specify a preferred pager for terminal output\n%s\n\n", flag_pager != NULL ? flag_pager : "no-pager");
   fprintf(file, "# Enable/disable pretty output to the terminal\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
 
   fprintf(file, "### SEARCH PATTERNS ###\n\n");
 
-  fprintf(file, "# Enable/disable case-insensitive search by default\n%s\n\n", flag_ignore_case ? "ignore-case" : "no-ignore-case");
-  fprintf(file, "# Enable/disable smart case by default\n%s\n\n", flag_smart_case ? "smart-case" : "no-smart-case");
-  fprintf(file, "# Enable/disable empty pattern matches by default\n%s\n\n", flag_empty ? "empty" : "no-empty");
+  fprintf(file, "# Enable/disable case-insensitive search by default\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
+  fprintf(file, "# Enable/disable smart case by default\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
+  fprintf(file, "# Enable/disable empty pattern matches by default\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
 
   fprintf(file, "### SEARCH TARGETS ###\n\n");
 
@@ -3843,7 +3855,7 @@ void options(int argc, const char **argv)
                   flag_ignore_case = false;
                 else if (strcmp(arg, "no-ignore-files") == 0)
                   flag_ignore_files.clear();
-                else if (strcmp(arg, "no-ignore-initial-tab") == 0)
+                else if (strcmp(arg, "no-initial-tab") == 0)
                   flag_initial_tab = false;
                 else if (strcmp(arg, "no-invert-match") == 0)
                   flag_invert_match = false;
@@ -3874,7 +3886,7 @@ void options(int argc, const char **argv)
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --no-any-line, --no-binary, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-ignore-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --no-any-line, --no-binary, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup or --null");
                 break;
 
               case 'o':
@@ -4409,7 +4421,7 @@ void init(int argc, const char **argv)
   home_dir = getenv("HOME");
 #endif
 
-  // load configuration file first before parsing all other options
+  // --config=FILE or ---FILE: load configuration file first before parsing any other options
 
   for (int i = 1; i < argc; ++i)
   {
@@ -4448,7 +4460,7 @@ void init(int argc, const char **argv)
 
   if (strcmp(program, "ug") == 0)
   {
-    // the 'ug' command is equivalent to 'ugrep ---' to load custom configuration files, when no ---CONF is specified
+    // the 'ug' command is equivalent to 'ugrep --config' to load custom configuration files, when no --config=FILE is specified
     if (flag_config == NULL)
       load_config();
   }
@@ -4817,7 +4829,7 @@ void init(int argc, const char **argv)
       FILE *file = NULL;
 
       if (fopen_smart(&file, from.c_str(), "r") != 0)
-        error("cannot read", from.c_str());
+        error("option --exclude-from: cannot read", from.c_str());
 
       extend(file, flag_exclude, flag_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
 
@@ -4834,7 +4846,7 @@ void init(int argc, const char **argv)
       FILE *file = NULL;
 
       if (fopen_smart(&file, from.c_str(), "r") != 0)
-        error("cannot read", from.c_str());
+        error("option --include-from: cannot read", from.c_str());
 
       extend(file, flag_include, flag_include_dir, flag_not_include, flag_not_include_dir);
 
@@ -5075,17 +5087,27 @@ void terminal()
     {
       if (flag_pretty)
       {
-        // --pretty: if output is to a TTY then enable --color and --heading
+        // --pretty: if output is to a TTY then enable --color, --heading, -T, -n, and --sort
 
         // enable --color
         if (flag_apply_color == NULL)
           flag_apply_color = "auto";
 
-        // enable --heading (enables --break later)
-        flag_heading = true;
+        // enable --heading if not explicitly disabled (enables --break later)
+        if (flag_heading.is_undefined())
+          flag_heading = true;
 
-        // enable -T (initial tab)
-        flag_initial_tab = true;
+        // enable -T if not explicitly disabled (initial tab)
+        if (flag_initial_tab.is_undefined())
+          flag_initial_tab = true;
+
+        // enable -n if not explicitly disabled
+        if (flag_line_number.is_undefined())
+          flag_line_number = true;
+
+        // enable --sort=name if no --sort specified
+        if (flag_sort == NULL)
+          flag_sort = "name";
       }
       else if (flag_apply_color != NULL)
       {
@@ -5100,8 +5122,9 @@ void terminal()
       {
         // --query: run the interactive query UI
 
-        // enable --heading
-        flag_heading = true;
+        // enable --heading if not explicitly disabled (enables --break later)
+        if (flag_heading.is_undefined())
+          flag_heading = true;
 
         // enable --line-buffered to flush output immediately
         flag_line_buffered = true;
@@ -5115,8 +5138,9 @@ void terminal()
         if (output == NULL)
           error("cannot open pipe to pager", flag_pager);
 
-        // enable --heading
-        flag_heading = true;
+        // enable --heading if not explicitly disabled (enables --break later)
+        if (flag_heading.is_undefined())
+          flag_heading = true;
 
         // enable --line-buffered to flush output to the pager immediately
         flag_line_buffered = true;
@@ -5694,7 +5718,7 @@ void ugrep()
 #endif
 
       if (file == NULL)
-        error("cannot read", filename.c_str());
+        throw std::runtime_error(std::string("option -f: cannot read ").append(filename)); // to catch in query UI
 
       reflex::BufferedInput input(file);
       std::string line;
@@ -5779,7 +5803,7 @@ void ugrep()
   if (flag_only_line_number)
     flag_line_number = true;
 
-  // if no display options -H, -n, -k, -b are set, enable --no-labels to suppress labels for speed
+  // if no display options -H, -n, -k, -b are set, enable --no-header to suppress headers for speed
   if (!flag_with_filename && !flag_line_number && !flag_column_number && !flag_byte_offset)
     flag_no_header = true;
 
@@ -9399,13 +9423,15 @@ size_t strtofuzzy(const char *string, const char *message)
   return max | flags;
 }
 
-// display diagnostic message and exit
+// display diagnostic message
 void usage(const char *message, const char *arg, const char *valid)
 {
   std::cerr << "ugrep: " << message << (arg != NULL ? arg : "");
   if (valid != NULL)
     std::cerr << ", did you mean " << valid << "?";
   std::cerr << std::endl;
+  if (!flag_usage_warnings)
+    exit(EXIT_ERROR);
   ++warnings;
 }
 
@@ -9594,8 +9620,9 @@ void help(std::ostream& out)
 #endif
             "\
     --format=FORMAT\n\
-            Output FORMAT-formatted matches.  See `man ugrep' section FORMAT\n\
-            for the `%' fields.\n\
+            Output FORMAT-formatted matches.  For example `--format=%f:%n:%O%~'\n\
+            outputs matching lines `%O' with filename `%f` and line number `%n'\n\
+            followed by a newline `%~'. See `man ugrep' section FORMAT.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -9790,7 +9817,8 @@ void help(std::ostream& out)
             the output.  The default COMMAND is `" DEFAULT_PAGER_COMMAND "'.  Enables --heading\n\
             and --line-buffered.\n\
     --pretty\n\
-            When output is sent to a terminal, enables --color, --heading, -T.\n\
+            When output is sent to a terminal, enables --color, --heading, -n,\n\
+            --sort and -T when not explicitly disabled or set.\n\
     -Q[DELAY], --query[=DELAY]\n\
             Query mode: user interface to perform interactive searches.  This\n\
             mode requires an ANSI capable terminal.  An optional DELAY argument\n\
@@ -9800,9 +9828,11 @@ void help(std::ostream& out)
             -Q and its argument DELAY.  Initial patterns may be specified with\n\
             -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1\n\
             or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke an\n\
-            editor to edit the file displayed on screen.  The editor is taken\n\
-            from the environment variable GREP_EDIT if defined, or EDITOR.\n\
-            Press Enter to select lines to output.  Enables --heading.\n\
+            editor to edit the file shown on screen.  The editor is taken from\n\
+            the environment variable GREP_EDIT if defined, or EDITOR.  Press\n\
+            Tab and Shift-Tab to navigate directories and to select a file to\n\
+            search.  Press Enter to select lines to output.  Press Alt-l for\n\
+            option -l to list files, Alt-n for -n, etc.  Enables --heading.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found.\n\
@@ -9921,13 +9951,13 @@ void help(std::ostream& out)
     -Z[MAX], --fuzzy[=MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             By default, MAX is 1: one deletion, insertion or substitution is\n\
-            allowed.  When `+' and/or `-' precedes MAX, only insertions and/or\n\
-            deletions are allowed.  When `~' precedes MAX, substitution counts\n\
-            as one error.  For example, -Z+~3 allows up to three insertions or\n\
-            substitutions, but no deletions.  The first character of an\n\
-            approximate match always matches the begin of a pattern.  Option\n\
-            --sort=best orders matching files by best match.  No whitespace may\n\
-            be given between -Z and its argument.\n\
+            allowed.  When `+' and/or `-' precede MAX, only insertions and/or\n\
+            deletions are allowed, respectively.  When `~' precedes MAX,\n\
+            substitution counts as one error.  For example, -Z+~3 allows up to\n\
+            three insertions or substitutions, but no deletions.  The first\n\
+            character of an approximate match always matches the begin of a\n\
+            pattern.  Option --sort=best orders matching files by best match.\n\
+            No whitespace may be given between -Z and its argument.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
             .pax, .tar, and .zip) and compressed archives (e.g. .taz, .tgz,\n\

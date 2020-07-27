@@ -75,7 +75,7 @@ Key codes:
   24      CTRL-X
   25      CTRL-Y
   26      CTRL-Z/PAUSE
-  28      CTRL-\ (Right Slash)
+  28      CTRL-\ (BackSlash)
   29      CTRL-] (Right Bracket)
   30      CTRL-^ (Circumflex Accent)
 
@@ -250,7 +250,7 @@ class VKey {
   static const int CTRL_X   = 24;  // CTRL-X
   static const int CTRL_Y   = 25;  // CTRL-Y
   static const int CTRL_Z   = 26;  // CTRL-Z/PAUSE
-  static const int CTRL_RS  = 28;  // CTRL-\ (Right Slash)
+  static const int CTRL_BS  = 28;  // CTRL-\ (BackSlash)
   static const int CTRL_RB  = 29;  // CTRL-] (Right Bracket)
   static const int CTRL_CA  = 30;  // CTRL-^ (Circumflex Accent)
 

@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 14, 2020" "ugrep 2.4.1" "User Commands"
+.TH UGREP "1" "July 26, 2020" "ugrep 2.5.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -240,8 +240,9 @@ extension specified in \fB\-\-filter\fR=\fICOMMANDS\fR, the corresponding comman
 is invoked.  This option may be repeated.
 .TP
 \fB\-\-format\fR=\fIFORMAT\fR
-Output FORMAT\-formatted matches.  See `man ugrep' section FORMAT
-for the `%' fields.
+Output FORMAT\-formatted matches.  For example `\fB\-\-format\fR=%f:%n:%O%~'
+outputs matching lines `%O' with filename `%f` and line number `%n'
+followed by a newline `%~'. See `man ugrep' section FORMAT.
 .TP
 \fB\-\-free\-space\fR
 Spacing (blanks and tabs) in regular expressions are ignored.
@@ -459,7 +460,8 @@ the output.  The default COMMAND is `less \fB\-R\fR'.  Enables \fB\-\-heading\fR
 and \fB\-\-line\-buffered\fR.
 .TP
 \fB\-\-pretty\fR
-When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-T\fR.
+When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-n\fR,
+\fB\-\-sort\fR and \fB\-T\fR when not explicitly disabled or set.
 .TP
 \fB\-Q\fR[\fIDELAY\fR], \fB\-\-query[\fR=\fIDELAY\fR]
 Query mode: user interface to perform interactive searches.  This
@@ -470,9 +472,11 @@ the default is 5 (0.5s delay).  No whitespace may be given between
 \fB\-Q\fR and its argument DELAY.  Initial patterns may be specified with
 \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press F1
 or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke an
-editor to edit the file displayed on screen.  The editor is taken
-from the environment variable GREP_EDIT if defined, or EDITOR.
-Press Enter to select lines to output.  Enables \fB\-\-heading\fR.
+editor to edit the file shown on screen.  The editor is taken from
+the environment variable GREP_EDIT if defined, or EDITOR.  Press
+Tab and Shift\-Tab to navigate directories and to select a file to
+search.  Press Enter to select lines to output.  Press Alt\-l for
+option \fB\-l\fR to list files, Alt\-n for \fB\-n\fR, etc.  Enables \fB\-\-heading\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  ugrep will only search until a
@@ -615,13 +619,13 @@ See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 \fB\-Z\fR[\fIMAX\fR], \fB\-\-fuzzy[\fR=\fIMAX\fR]
 Fuzzy mode: report approximate pattern matches within MAX errors.
 By default, MAX is 1: one deletion, insertion or substitution is
-allowed.  When `+' and/or `\fB\-'\fR precedes MAX, only insertions and/or
-deletions are allowed.  When `~' precedes MAX, substitution counts
-as one error.  For example, \fB\-Z\fR+~3 allows up to three insertions or
-substitutions, but no deletions.  The first character of an
-approximate match always matches the begin of a pattern.  Option
-\fB\-\-sort\fR=best orders matching files by best match.  No whitespace may
-be given between \fB\-Z\fR and its argument.
+allowed.  When `+' and/or `\fB\-'\fR precede MAX, only insertions and/or
+deletions are allowed, respectively.  When `~' precedes MAX,
+substitution counts as one error.  For example, \fB\-Z\fR+~3 allows up to
+three insertions or substitutions, but no deletions.  The first
+character of an approximate match always matches the begin of a
+pattern.  Option \fB\-\-sort\fR=best orders matching files by best match.
+No whitespace may be given between \fB\-Z\fR and its argument.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,
@@ -693,6 +697,8 @@ The configuration is written to standard output when \fIFILE\fR is a `-'.
 Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
 \fB--exclude-from\fR to match pathnames and basenames in recursive searches.
+Glob arguments for these options should be quoted to prevent shell globbing.
+.PP
 Globbing supports gitignore syntax and the corresponding matching rules.  When
 a glob ends in a path separator it matches directories as if
 \fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
@@ -1020,13 +1026,14 @@ Output a list of line numbers of lines with `FIXME' but not `later':
 $ ugrep -n FIXME myfile.cpp | ugrep -vw later | 
   ugrep -P '^(\\d+)' --format='%,%n'
 .PP
-Monitor the system log for bug reports:
-.IP
-$ tail -f /var/log/system.log | ugrep -iw bug
-.PP
 Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
 $ ugrep -z -tc++ -n FIXME project.tgz
+.PP
+Recursively find lines with `FIXME' in C/C++ files, but do not search any `bak'
+and `old' directories:
+.IP
+$ ugrep -n FIXME -tc++ -g^bak/,^old/
 .PP
 Recursively search for the word `copyright' in cpio/jar/pax/tar/zip archives,
 compressed and regular files, and in PDFs using a PDF filter:
@@ -1049,7 +1056,7 @@ List all files that are not ignored by one or more `.gitignore':
 $ ugrep -l '' --ignore-files
 .PP
 List all files containing a RPM signature, located in the `rpm' directory and
-recursively below up to two levels deeper (3 levels):
+recursively below up to two levels deeper (3 levels total):
 .IP
 $ ugrep -3 -l -tRpm '' rpm/
 .PP

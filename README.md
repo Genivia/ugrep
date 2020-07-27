@@ -128,10 +128,10 @@ Table of contents
   - [Displaying file, line, column, and byte offset info with -H, -n, -k, -b, and -T](#fields)
   - [Displaying colors with --color and paging the output with --pager](#color)
   - [Output matches in JSON, XML, CSV, C++](#json)
-  - [Customized output with --format](#format)
-  - [Replacing matches with --format backreferences to group captures](#replace)
+  - [Customize output with --format](#format)
+  - [Replacing matches with -P --format backreferences to group captures](#replace)
   - [Limiting the number of matches with -1,-2...-9, -K, -m, and --max-files](#max)
-  - [Matching empty patterns with --empty](#empty)
+  - [Matching empty patterns with -Y](#empty)
   - [Case-insensitive matching with -i and -j](#case)
   - [Sort files by name, best match, size, and time](#sort)
   - [Tips for advanced users](#tips)
@@ -938,9 +938,11 @@ The configuration is written to standard output when `FILE` is a `-`.
             -Q and its argument DELAY.  Initial patterns may be specified with
             -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1
             or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke an
-            editor to edit the file displayed on screen.  The editor is taken
-            from the environment variable GREP_EDIT if defined, or EDITOR.
-            Press Enter to select lines to output.  Enables --heading.
+            editor to edit the file shown on screen.  The editor is taken from
+            the environment variable GREP_EDIT if defined, or EDITOR.  Press
+            Tab and Shift-Tab to navigate directories and to select a file to
+            search.  Press Enter to select lines to output.  Press Alt-l for
+            option -l to list files, Alt-n for -n, etc.  Enables --heading.
     --no-confirm
             Do not confirm actions in -Q query mode.  The default is confirm.
 
@@ -968,11 +970,14 @@ This option starts a user interface to enter search patterns interactively:
   results are selected.  While in selection mode, select or deselect lines with
   Enter or Del, or press A to select all results.
 - An editor may be specified with environment variable `GREP_EDIT`.  If this
-  variable is not defined, the editor is taken from `EDITOR`.  The file viewed
-  at the top of the screen, or beneath the cursor in selection mode, is edited
-  by pressing F2 or CTRL-Y.  Filenames must be enabled and visible in the
-  output to use this feature.  After editing press CTRL-R to return to the
+  variable is not defined, the editor is taken from `EDITOR`.  The file listed
+  or viewed at the top of the screen, or beneath the cursor in selection mode,
+  is edited by pressing F2 or CTRL-Y.  Filenames must be enabled and visible in
+  the output to use this feature.  After editing press CTRL-R to return to the
   previous location in the UI view (i.e. CTRL-Y bookmarks the location).
+- Press TAB to chdir one level down into the directory of the file listed
+  or viewed at the top of the screen.  If no directory exists, the file itself
+  is selected to search.  Press Shift-TAB to go back up one level.
 - Press CTRL-T to toggle colors on or off.  Normally ugrep in query mode uses
   colors and other markup to highlight the results.  When colors are turned
   off, selected results are also not colored in the output produced by ugrep
@@ -999,22 +1004,22 @@ key(s)                  | function
 ----------------------- | -------------------------------------------------
 `Alt-key`               | toggle ugrep command-line option corresponding to `key`
 `Alt-/`xxxx`/`          | insert Unicode hex code point U+xxxx
-`Esc` `Ctrl-[` `Ctrl-C` | exit or go back
-`Ctrl-Q`                | quick exit and output results selected in selection mode
+`Esc` `Ctrl-[` `Ctrl-C` | go back or exit
+`Ctrl-Q`                | quick exit and output the results selected in selection mode
+`Tab`                   | chdir to the directory of the file shown at the top of the screen or select file
+`Shift-Tab`             | chdir one level up or deselect file
 `Enter`                 | enter selection mode and toggle selected lines to output on exit
-`Home` `Ctrl-A`         | move cursor to the begin of line
-`End` `Ctrl-E`          | move cursor to the end of line
-`Tab` `Ctrl-I`          | pan display to the right
-`Shift-Tab`             | pan display to the left
 `Up` `Ctrl-P`           | move up
 `Down` `Ctrl-N`         | move down
 `Left` `Ctrl-B`         | move left
 `Right` `Ctrl-F`        | move right
 `PgUp` `Ctrl-G`         | move display up by a page
 `PgDn` `Ctrl-D`         | move display down by a page
+`Home` `Ctrl-A`         | move cursor to the begin of line
+`End` `Ctrl-E`          | move cursor to the end of line
 `Ctrl-K`                | delete after cursor
 `Ctrl-L`                | refresh screen
-`Ctrl-O`+`key`          | toggle ugrep command-line option corresponding to `key`
+`Ctrl-O`+`key`          | toggle ugrep command-line option corresponding to `key`, same as `Alt-key`
 `Ctrl-R` `F4`           | jump to bookmark
 `Ctrl-S`                | scroll to the next file
 `Ctrl-T`                | toggle colors on/off
@@ -1022,8 +1027,9 @@ key(s)                  | function
 `Ctrl-V`                | verbatim character
 `Ctrl-W`                | scroll back one file
 `Ctrl-X` `F3`           | set bookmark
-`Ctrl-Y` `F2`           | edit file shown at the top of the display or under the cursor
+`Ctrl-Y` `F2`           | edit file shown at the top of the screen or under the cursor
 `Ctrl-Z` `F1`           | view help and options
+`Ctrl-^`                | chdir back to the starting working directory
 `Ctrl-\`                | terminate process
 
 To interactively search the files in the working directory and below:
@@ -1703,8 +1709,8 @@ jar file will be skipped though we could read it from standard input instead):
     ugrep -z -h -OMF,jar '' my.jar
 
 To extract C++ files that contain `FIXME` from `project.tgz`, we use `-m1`
-with `--format="'%z '"` to generate a list of pathnames of file located in the
-archive that match the word `FIXME`:
+with `--format="'%z '"` to generate a space-separated list of pathnames of file
+located in the archive that match the word `FIXME`:
 
     tar xzf project.tgz `ugrep -z -l -tc++ --format='%z ' -w FIXME project.tgz`
 
@@ -2520,7 +2526,8 @@ To display the line and column numbers of matches in XML with `--xml`:
             the output.  The default COMMAND is `less -R'.  Enables --heading
             and --line-buffered.
     --pretty
-            When output is sent to the terminal, enables --color, --heading, -T.
+            When output is sent to a terminal, enables --color, --heading, -n,
+            --sort and -T when not explicitly disabled or set.
 
 To change the color palette, set the `GREP_COLORS` environment variable or use
 `--colors=COLORS`.  The value is a colon-separated list of ANSI SGR parameters
@@ -2637,10 +2644,6 @@ Same, but restricted to `.cpp` files only:
 
     ugrep --color=always -R -n -Ocpp -f c++/defines | ugrep 'FOO.*'
 
-To monitor the system log for bug reports:
-
-    tail -f /var/log/system.log | ugrep --color -i -w 'bug'
-
 To search tarballs for matching names of PDF files (assuming bash is our shell):
 
     for tb in *.tar *.tar.gz *.tgz; do echo "$tb"; tar tfz "$tb" | ugrep '.*\.pdf$'; done
@@ -2690,20 +2693,51 @@ To extract a table from an HTML file and put it in C/C++ source code using
 ### Customized output with --format
 
     --format=FORMAT
-            Output FORMAT-formatted matches.  See `man ugrep' section FORMAT
-            for the `%' fields.  Options -A, -B, -C, -y, and -v have no effect.
+            Output FORMAT-formatted matches.  For example `--format=%f:%n:%O%~'
+            outputs matching lines `%O' with filename `%f` and line number `%n'
+            followed by a newline `%~'.
 
-The following output formatting options may be used:
+The following output formatting options may be used.  The `FORMAT` string
+`%`-fields are listed in a table further below:
 
 option                  | result
 ----------------------- | ------------------------------------------------------
-`--format=FORMAT`       | `FORMAT` for each match
 `--format-begin=FORMAT` | `FORMAT` when beginning the search
 `--format-open=FORMAT`  | `FORMAT` when opening a file and a match was found
+`--format=FORMAT`       | `FORMAT` for each match in a file
 `--format-close=FORMAT` | `FORMAT` when closing a file and a match was found
 `--format-end=FORMAT`   | `FORMAT` when ending the search
 
-In the `FORMAT` string, the following fields may be used:
+The following tables show the formatting options corresponding to `--csv`,
+`--json`, and `--xml`.
+
+#### `--csv`
+
+option           | format string (within quotes)
+---------------- | -----------------------------
+`--format`       | `'%[,]$%H%N%K%B%V%~%u'`
+
+#### `--json`
+
+option           | format string (within quotes)
+---------------- | -----------------------------
+`--format-begin` | `'['`
+`--format-open`  | `'%,%~  {%~    %[,%~    ]$%["file": ]H"matches": ['`
+`--format`       | `'%,%~      { %[, ]$%["line": ]N%["column": ]K%["offset": ]B"match": %J }%u'`
+`--format-close` | `'%~    ]%~  }'`
+`--format-end`   | `'%~]%~'`
+
+#### `--xml`
+
+option           | format string (within quotes)
+---------------- | -----------------------------
+`--format-begin` | `'<grep>%~'`
+`--format-open`  | `'  <file%[]$%[ name=]H>%~'`
+`--format`       | `'    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%X</match>%~%u'`
+`--format-close` | `'  </file>%~'`
+`--format-end`   | `'</grep>%~'`
+
+The following fields may be used in the `FORMAT` string:
 
 field                   | output
 ----------------------- | ------------------------------------------------------
@@ -2735,7 +2769,7 @@ field                   | output
 `%│`                    | if not the first match: a verical bar, same as `%[│]>`
 `%[ARG]S`               | if not the first match: `ARG` and separator, see also `%$`
 `%s`                    | the separator, see also `%S` and `%$`
-`%~`                    | a newline character
+`%~`                    | a newline character, same as `\n`
 `%m`                    | the number of matches or matched files
 `%O`                    | the matching line is output as is (a raw string of bytes)
 `%o`                    | the match is output as is (a raw string of bytes)
@@ -2825,17 +2859,6 @@ To output matches in CSV (comma-separated values), the same as option `--csv`
 
     ugrep --format='"%[,]$%H%N%K%B%V%~%u"' 'href=' index.html
 
-To output matches in JSON, using formatting options that produce the same
-output as `--json` (works with options `-H`, `-n`, `-k`, `-b` to add JSON
-properties):
-
-    ugrep --format-begin='[' \
-           --format-open='%,%~  {%~    %[,%~    ]$%["file": ]H"matches": [' \
-                --format='%,%~      { %[, ]$%["line": ]N%["column": ]K%["offset": ]B"match": %J }%u' \
-          --format-close='%~    ]%~  }' \
-            --format-end='%~]%~' \
-          'href=' index.html
-
 To output matches in AckMate format:
 
     ugrep --format=":%f%~%n;%k %w:%O%~" 'href=' index.html
@@ -2875,11 +2898,12 @@ the output:
 
 <a name="replace"/>
 
-### Replacing matches with --format backreferences to group captures
+### Replacing matches with -P --format backreferences to group captures
 
     --format=FORMAT
-            Output FORMAT-formatted matches.  See `man ugrep' section FORMAT
-            for the `%' fields.  Options -A, -B, -C, -y, and -v have no effect.
+            Output FORMAT-formatted matches.  For example `--format=%f:%n:%O%~'
+            outputs matching lines `%O' with filename `%f` and line number `%n'
+            followed by a newline `%~'. See `man ugrep' section FORMAT.
     -P, --perl-regexp
             Interpret PATTERN as a Perl regular expression.
 
@@ -3380,8 +3404,10 @@ in markdown:
                   sponding command is invoked.  This option may be repeated.
 
            --format=FORMAT
-                  Output FORMAT-formatted matches.  See `man ugrep' section FORMAT
-                  for the `%' fields.
+                  Output    FORMAT-formatted   matches.    For   example   `--for-
+                  mat=%f:%n:%O%~' outputs matching lines `%O' with  filename  `%f`
+                  and line number `%n' followed by a newline `%~'. See `man ugrep'
+                  section FORMAT.
 
            --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
@@ -3606,7 +3632,7 @@ in markdown:
 
            --pretty
                   When  output  is sent to a terminal, enables --color, --heading,
-                  -T.
+                  -n, --sort and -T when not explicitly disabled or set.
 
            -Q[DELAY], --query[=DELAY]
                   Query mode: user  interface  to  perform  interactive  searches.
@@ -3617,10 +3643,12 @@ in markdown:
                   may  be  given  between -Q and its argument DELAY.  Initial pat-
                   terns may be specified with -e PATTERN, i.e. a PATTERN  argument
                   requires option -e.  Press F1 or CTRL-Z to view the help screen.
-                  Press F2 or CTRL-Y to invoke an editor to  edit  the  file  dis-
-                  played  on  screen.   The  editor  is taken from the environment
-                  variable GREP_EDIT if defined, or EDITOR.  Press Enter to select
-                  lines to output.  Enables --heading.
+                  Press F2 or CTRL-Y to invoke an editor to edit the file shown on
+                  screen.   The  editor  is  taken  from  the environment variable
+                  GREP_EDIT if defined, or EDITOR.  Press  Tab  and  Shift-Tab  to
+                  navigate  directories  and  to  select  a file to search.  Press
+                  Enter to select lines to output.  Press Alt-l for option  -l  to
+                  list files, Alt-n for -n, etc.  Enables --heading.
 
            -q, --quiet, --silent
                   Quiet mode: suppress all output.  ugrep will only search until a
@@ -3763,13 +3791,14 @@ in markdown:
            -Z[MAX], --fuzzy[=MAX]
                   Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
                   errors.  By default, MAX is 1: one deletion, insertion  or  sub-
-                  stitution  is  allowed.   When `+' and/or `-' precedes MAX, only
-                  insertions and/or deletions are allowed.  When `~' precedes MAX,
-                  substitution  counts as one error.  For example, -Z+~3 allows up
-                  to three insertions or substitutions,  but  no  deletions.   The
-                  first character of an approximate match always matches the begin
-                  of a pattern.  Option --sort=best orders matching files by  best
-                  match.   No whitespace may be given between -Z and its argument.
+                  stitution  is  allowed.   When  `+' and/or `-' precede MAX, only
+                  insertions and/or deletions are allowed, respectively.  When `~'
+                  precedes  MAX,  substitution  counts as one error.  For example,
+                  -Z+~3 allows up to three insertions  or  substitutions,  but  no
+                  deletions.   The  first character of an approximate match always
+                  matches the begin  of  a  pattern.   Option  --sort=best  orders
+                  matching  files  by  best  match.   No  whitespace  may be given
+                  between -Z and its argument.
 
            -z, --decompress
                   Decompress files to search, when compressed.   Archives  (.cpio,
@@ -3843,19 +3872,22 @@ in markdown:
     GLOBBING
            Globbing  is  used  by options -g, --include, --include-dir, --include-
            from, --exclude, --exclude-dir, --exclude-from to match  pathnames  and
-           basenames  in  recursive  searches.  Globbing supports gitignore syntax
-           and the corresponding matching rules.  When a glob ends in a path sepa-
-           rator  it  matches  directories as if --include-dir or --exclude-dir is
-           specified.  When a glob contains a path separator `/', the  full  path-
-           name  is  matched.   Otherwise  the  basename of a file or directory is
-           matched.  For  example,  *.h  matches  foo.h  and  bar/foo.h.   bar/*.h
-           matches  bar/foo.h  but not foo.h and not bar/bar/foo.h.  Use a leading
-           `/' to force /*.h to match foo.h but not bar/foo.h.
+           basenames  in  recursive  searches.   Glob  arguments for these options
+           should be quoted to prevent shell globbing.
 
-           When a glob starts with a `^' or a `!' as  in  -g^GLOB,  the  match  is
+           Globbing supports  gitignore  syntax  and  the  corresponding  matching
+           rules.   When a glob ends in a path separator it matches directories as
+           if --include-dir or --exclude-dir is specified.  When a glob contains a
+           path  separator `/', the full pathname is matched.  Otherwise the base-
+           name of a file or directory is matched.  For example, *.h matches foo.h
+           and  bar/foo.h.   bar/*.h  matches  bar/foo.h  but  not  foo.h  and not
+           bar/bar/foo.h.  Use a leading `/' to force /*.h to match foo.h but  not
+           bar/foo.h.
+
+           When  a  glob  starts  with  a `^' or a `!' as in -g^GLOB, the match is
            negated.  Likewise, a `!' (but not a `^') may be used with globs in the
-           files specified --include-from, --exclude-from, and  --ignore-files  to
-           negate  the  glob  match.  Empty lines or lines starting with a `#' are
+           files  specified  --include-from, --exclude-from, and --ignore-files to
+           negate the glob match.  Empty lines or lines starting with  a  `#'  are
            ignored.
 
            Glob Syntax and Conventions
@@ -3870,12 +3902,12 @@ in markdown:
 
            [!a-z] Matches one character not in the selected range of characters.
 
-           /      When used at the begin of a glob, matches if pathname has no  /.
+           /      When  used at the begin of a glob, matches if pathname has no /.
                   When used at the end of a glob, matches directories only.
 
            **/    Matches zero or more directories.
 
-           /**    When  used at the end of a glob, matches everything after the /.
+           /**    When used at the end of a glob, matches everything after the  /.
 
            \?     Matches a ? (or any character specified after the backslash).
 
@@ -3914,36 +3946,36 @@ in markdown:
 
     ENVIRONMENT
            GREP_PATH
-                  May be used to specify a file path to pattern files.   The  file
-                  path  is used by option -f to open a pattern file, when the pat-
+                  May  be  used to specify a file path to pattern files.  The file
+                  path is used by option -f to open a pattern file, when the  pat-
                   tern file does not exist.
 
            GREP_EDITOR
-                  May be used to specify an editor command to invoke  with  CTRL-Y
-                  while  using  the  query UI with option -Q.  When undefined, the
+                  May  be  used to specify an editor command to invoke with CTRL-Y
+                  while using the query UI with option -Q.   When  undefined,  the
                   command defined by EDITOR is invoked.
 
            GREP_COLOR
-                  May be used to specify ANSI SGR parameters to highlight  matches
-                  when  option --color is used, e.g. 1;35;40 shows pattern matches
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  when option --color is used, e.g. 1;35;40 shows pattern  matches
                   in bold magenta text on a black background.  Deprecated in favor
                   of GREP_COLORS, but still supported.
 
            GREP_COLORS
-                  May  be used to specify ANSI SGR parameters to highlight matches
-                  and other attributes when option --color is used.  Its value  is
-                  a  colon-separated  list of ANSI SGR parameters that defaults to
+                  May be used to specify ANSI SGR parameters to highlight  matches
+                  and  other attributes when option --color is used.  Its value is
+                  a colon-separated list of ANSI SGR parameters that  defaults  to
                   cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36.   The  mt=,
-                  ms=,  and  mc=  capabilities  of  GREP_COLORS take priority over
+                  ms=, and mc= capabilities  of  GREP_COLORS  take  priority  over
                   GREP_COLOR.  Option --colors takes priority over GREP_COLORS.
 
     GREP_COLORS
-           Colors are specified as string of colon-separated ANSI  SGR  parameters
-           of  the  form  `what=substring', where `substring' is a semicolon-sepa-
-           rated list of ANSI SGR codes or `k' (black), `r'  (red),  `g'  (green),
-           `y'  (yellow),  `b'  (blue),  `m'  (magenta),  `c' (cyan), `w' (white).
-           Upper case specifies background colors.  A `+'  qualifies  a  color  as
-           bright.   A  foreground and a background color may be combined with one
+           Colors  are  specified as string of colon-separated ANSI SGR parameters
+           of the form `what=substring', where `substring'  is  a  semicolon-sepa-
+           rated  list  of  ANSI SGR codes or `k' (black), `r' (red), `g' (green),
+           `y' (yellow), `b' (blue),  `m'  (magenta),  `c'  (cyan),  `w'  (white).
+           Upper  case  specifies  background  colors.  A `+' qualifies a color as
+           bright.  A foreground and a background color may be combined  with  one
            or more font properties `n' (normal), `f' (faint), `h' (highlight), `i'
            (invert), `u' (underline).  Substrings may be specified for:
 
@@ -3955,10 +3987,10 @@ in markdown:
 
            mt=    SGR substring for matching text in any matching line.
 
-           ms=    SGR  substring  for  matching text in a selected line.  The sub-
+           ms=    SGR substring for matching text in a selected  line.   The  sub-
                   string mt= by default.
 
-           mc=    SGR substring for matching text in a  context  line.   The  sub-
+           mc=    SGR  substring  for  matching  text in a context line.  The sub-
                   string mt= by default.
 
            fn=    SGR substring for file names.
@@ -3972,7 +4004,7 @@ in markdown:
            se=    SGR substring for separators.
 
     FORMAT
-           Option  --format=FORMAT  specifies  an  output format for file matches.
+           Option --format=FORMAT specifies an output  format  for  file  matches.
            Fields may be used in FORMAT, which expand into the following values:
 
            %[ARG]F
@@ -4067,7 +4099,7 @@ in markdown:
 
            %u     select unique lines only, unless option -u is used.
 
-           %1     the  first  regex  group  capture  of the match, and so on up to
+           %1     the first regex group capture of the match,  and  so  on  up  to
                   group %9, same as %[1]#; requires option -P.
 
            %[NUM]#
@@ -4085,21 +4117,21 @@ in markdown:
 
            %%     the percentage sign.
 
-           The [ARG] part of a  field  is  optional  and  may  be  omitted.   When
-           present,  the argument must be placed in [] brackets, for example %[,]F
+           The  [ARG]  part  of  a  field  is  optional  and may be omitted.  When
+           present, the argument must be placed in [] brackets, for example  %[,]F
            to output a comma, the pathname, and a separator.
 
            %[SEP]$ and %u are switches and do not send anything to the output.
 
-           The separator used by %F, %H, %N, %K, %B, %S, and %G may be changed  by
-           preceding  the  field  by  %[SEP]$.   When  [SEP] is not provided, this
-           reverts the separator to the default separator or the separator  speci-
+           The  separator used by %F, %H, %N, %K, %B, %S, and %G may be changed by
+           preceding the field by %[SEP]$.   When  [SEP]  is  not  provided,  this
+           reverts  the separator to the default separator or the separator speci-
            fied with --separator.
 
            Formatted output is written for each matching pattern, which means that
-           a line may be output multiple times when patterns match more than  once
-           on  the  same  line.   If  field  %u  is specified anywhere in a format
-           string, then matching lines are output  only  once  unless  option  -u,
+           a  line may be output multiple times when patterns match more than once
+           on the same line.  If field  %u  is  specified  anywhere  in  a  format
+           string,  then  matching  lines  are  output only once unless option -u,
            --ungroup is specified or when one or more newlines are matched.
 
            Additional formatting options:
@@ -4170,7 +4202,7 @@ in markdown:
 
                   $ ugrep -n -f c++/comments myfile.cpp
 
-           List  the  lines that need fixing in a C/C++ source file by looking for
+           List the lines that need fixing in a C/C++ source file by  looking  for
            the word `FIXME' while skipping any `FIXME' in quoted strings:
 
                   $ ugrep -e FIXME -N '"(\\.|\\\r?\n|[^\\\n"])*"' myfile.cpp
@@ -4196,13 +4228,14 @@ in markdown:
                   $ ugrep -n FIXME myfile.cpp | ugrep -vw later |
                     ugrep -P '^(\d+)' --format='%,%n'
 
-           Monitor the system log for bug reports:
-
-                  $ tail -f /var/log/system.log | ugrep -iw bug
-
            Find lines with `FIXME' in the C/C++ files stored in a tarball:
 
                   $ ugrep -z -tc++ -n FIXME project.tgz
+
+           Recursively  find  lines with `FIXME' in C/C++ files, but do not search
+           any `bak' and `old' directories:
+
+                  $ ugrep -n FIXME -tc++ -g^bak/,^old/
 
            Recursively search for the word `copyright' in cpio/jar/pax/tar/zip ar-
            chives, compressed and regular files, and in PDFs using a PDF filter:
@@ -4225,7 +4258,7 @@ in markdown:
                   $ ugrep -l '' --ignore-files
 
            List all files containing a RPM signature, located in the `rpm'  direc-
-           tory and recursively below up to two levels deeper (3 levels):
+           tory and recursively below up to two levels deeper (3 levels total):
 
                   $ ugrep -3 -l -tRpm '' rpm/
 
@@ -4249,7 +4282,7 @@ in markdown:
 
 
 
-    ugrep 2.4.1                      July 14, 2020                        UGREP(1)
+    ugrep 2.5.0                      July 26, 2020                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

@@ -169,55 +169,75 @@ enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED };
 // -D, --devices and -d, --directories
 enum class Action { SKIP, READ, RECURSE };
 
-// ugrep command-line options and internal flags
-extern bool flag_no_header;
-extern bool flag_no_messages;
-extern bool flag_match;
-extern bool flag_count;
-extern bool flag_fixed_strings;
-extern bool flag_free_space;
-extern bool flag_ignore_case;
-extern bool flag_smart_case;
-extern bool flag_invert_match;
-extern bool flag_only_line_number;
-extern bool flag_with_filename;
-extern bool flag_no_filename;
-extern bool flag_line_number;
-extern bool flag_column_number;
-extern bool flag_byte_offset;
-extern bool flag_initial_tab;
-extern bool flag_line_buffered;
-extern bool flag_only_matching;
-extern bool flag_ungroup;
-extern bool flag_quiet;
-extern bool flag_files_with_matches;
-extern bool flag_files_without_match;
-extern bool flag_null;
-extern bool flag_basic_regexp;
-extern bool flag_perl_regexp;
-extern bool flag_word_regexp;
-extern bool flag_line_regexp;
-extern bool flag_dereference;
-extern bool flag_no_dereference;
-extern bool flag_binary;
-extern bool flag_binary_without_match;
-extern bool flag_text;
-extern bool flag_hex;
-extern bool flag_with_hex;
-extern bool flag_empty;
-extern bool flag_decompress;
-extern bool flag_any_line;
-extern bool flag_break;
-extern bool flag_cpp;
-extern bool flag_csv;
-extern bool flag_json;
-extern bool flag_xml;
-extern bool flag_stdin;
-extern bool flag_all_threads;
-extern bool flag_heading;
+// three-valued logic flags that behave as bool; this allows us to check if a flag was undefined (default) and explicitly enabled/disabled
+class Flag {
+
+ public:
+
+  Flag()                     : value(UNDEFINED)  { }
+  Flag(bool flag)            : value(flag ? T : F)  { }
+  bool operator=(bool flag)  { value = flag ? T : F; return flag; }
+       operator bool() const { return is_true(); }
+  bool is_undefined()  const { return value == UNDEFINED; }
+  bool is_defined()    const { return value != UNDEFINED; }
+  bool is_false()      const { return value == F; }
+  bool is_true()       const { return value == T; }
+
+ private:
+
+  enum { UNDEFINED = -1, F = 0, T = 1 } value;
+
+};
+
+// ugrep command-line options
+extern Flag flag_no_messages;
+extern Flag flag_match;
+extern Flag flag_count;
+extern Flag flag_fixed_strings;
+extern Flag flag_free_space;
+extern Flag flag_ignore_case;
+extern Flag flag_smart_case;
+extern Flag flag_invert_match;
+extern Flag flag_only_line_number;
+extern Flag flag_with_filename;
+extern Flag flag_no_filename;
+extern Flag flag_line_number;
+extern Flag flag_column_number;
+extern Flag flag_byte_offset;
+extern Flag flag_initial_tab;
+extern Flag flag_line_buffered;
+extern Flag flag_only_matching;
+extern Flag flag_ungroup;
+extern Flag flag_quiet;
+extern Flag flag_files_with_matches;
+extern Flag flag_files_without_match;
+extern Flag flag_null;
+extern Flag flag_basic_regexp;
+extern Flag flag_perl_regexp;
+extern Flag flag_word_regexp;
+extern Flag flag_line_regexp;
+extern Flag flag_dereference;
+extern Flag flag_no_dereference;
+extern Flag flag_binary;
+extern Flag flag_binary_without_match;
+extern Flag flag_text;
+extern Flag flag_hex;
+extern Flag flag_with_hex;
+extern Flag flag_empty;
+extern Flag flag_decompress;
+extern Flag flag_any_line;
+extern Flag flag_heading;
+extern Flag flag_break;
+extern Flag flag_cpp;
+extern Flag flag_csv;
+extern Flag flag_json;
+extern Flag flag_xml;
 extern bool flag_pretty;
 extern bool flag_hidden;
 extern bool flag_confirm;
+extern bool flag_stdin;
+extern bool flag_all_threads;
+extern bool flag_no_header;
 extern bool flag_hex_hbr;
 extern bool flag_hex_cbr;
 extern bool flag_hex_chr;

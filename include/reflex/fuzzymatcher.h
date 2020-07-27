@@ -937,10 +937,7 @@ unrolled:
                 peek_more();
                 loc = cur_ + 1;
                 if (loc >= end_)
-                {
-                  set_current(loc);
                   break;
-                }
               }
             }
           }
@@ -962,10 +959,7 @@ unrolled:
               peek_more();
               loc = cur_ + 1;
               if (loc + pat_->len_ > end_)
-              {
-                set_current(loc);
                 break;
-              }
             }
           }
         }

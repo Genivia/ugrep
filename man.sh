@@ -132,6 +132,8 @@ The configuration is written to standard output when \fIFILE\fR is a `-'.
 Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
 \fB--exclude-from\fR to match pathnames and basenames in recursive searches.
+Glob arguments for these options should be quoted to prevent shell globbing.
+.PP
 Globbing supports gitignore syntax and the corresponding matching rules.  When
 a glob ends in a path separator it matches directories as if
 \fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
@@ -459,13 +461,14 @@ Output a list of line numbers of lines with `FIXME' but not `later':
 $ ugrep -n FIXME myfile.cpp | ugrep -vw later | 
   ugrep -P '^(\\d+)' --format='%,%n'
 .PP
-Monitor the system log for bug reports:
-.IP
-$ tail -f /var/log/system.log | ugrep -iw bug
-.PP
 Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
 $ ugrep -z -tc++ -n FIXME project.tgz
+.PP
+Recursively find lines with `FIXME' in C/C++ files, but do not search any `bak'
+and `old' directories:
+.IP
+$ ugrep -n FIXME -tc++ -g^bak/,^old/
 .PP
 Recursively search for the word `copyright' in cpio/jar/pax/tar/zip archives,
 compressed and regular files, and in PDFs using a PDF filter:
@@ -488,7 +491,7 @@ List all files that are not ignored by one or more `.gitignore':
 $ ugrep -l '' --ignore-files
 .PP
 List all files containing a RPM signature, located in the `rpm' directory and
-recursively below up to two levels deeper (3 levels):
+recursively below up to two levels deeper (3 levels total):
 .IP
 $ ugrep -3 -l -tRpm '' rpm/
 .PP

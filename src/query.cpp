@@ -45,6 +45,8 @@
 
 #ifdef OS_WIN
 
+#include <direct.h>
+
 // non-blocking pipe (Windows named pipe)
 inline HANDLE nonblocking_pipe(int fd[2])
 {
@@ -226,6 +228,23 @@ void Query::draw()
 
       if (prompt_ != NULL)
       {
+        start_ = static_cast<int>(strlen(prompt_));
+
+        if (!dirs_.empty())
+        {
+          int offset = 0;
+          if (dirs_.size() + 2 > static_cast<size_t>(Screen::cols/2))
+            offset = static_cast<int>(dirs_.size()) + 2 - Screen::cols/2;
+
+          Screen::normal();
+          if (offset > 0)
+            Screen::put(LARROW);
+          Screen::put(dirs_.c_str() + offset);
+          Screen::put(' ');
+
+          start_ += static_cast<int>(dirs_.size()) - offset + 1 + (offset > 0);
+        }
+
         if (!Screen::mono)
         {
           Screen::normal();
@@ -313,7 +332,7 @@ void Query::draw()
     else
     {
       Screen::normal();
-      Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle selection  \033[7mA\033[m all  \033[7mC\033[m clear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quick exit and save");
+      Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle selection  \033[7mA\033[m all  \033[7mC\033[m clear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quick exit & output");
     }
   }
   else if (mode_ == Mode::LIST)
@@ -399,39 +418,41 @@ void Query::redraw()
   {
     Screen::put( 1, 0, "");
     Screen::put( 2, 0, "\033[7mEsc\033[m   go back / exit");
-    Screen::put( 3, 0, "\033[7mEnter\033[m selection mode");
-    Screen::put( 4, 0, "");
-    Screen::put( 5, 0, "\033[7mTab\033[m    \033[7mS-Tab\033[m   pan");
-    Screen::put( 6, 0, "\033[7mUp\033[m     \033[7mDown\033[m    scroll");
-    Screen::put( 7, 0, "\033[7mPgUp\033[m   \033[7mPgDn\033[m    scroll page");
+    Screen::put( 3, 0, "\033[7mTab\033[m   cd dir / select file");
+    Screen::put( 4, 0, "\033[7mS-Tab\033[m cd .. / deselect file");
+    Screen::put( 5, 0, "\033[7mEnter\033[m line selection mode");
+    Screen::put( 6, 0, "");
+    Screen::put( 7, 0, "\033[7mUp\033[m     \033[7mDown\033[m    scroll");
+    Screen::put( 8, 0, "\033[7mPgUp\033[m   \033[7mPgDn\033[m    scroll page");
 #ifdef WITH_MACOS_META_KEY
-    Screen::put( 8, 0, "\033[7mS-Left\033[m \033[7mS-Right\033[m pan ½ page");
-    Screen::put( 9, 0, "\033[7mS-Up\033[m   \033[7mS-Down\033[m  scroll ½ pg");
+    Screen::put( 9, 0, "\033[7mS-Left\033[m \033[7mS-Right\033[m pan ½ page");
+    Screen::put(10, 0, "\033[7mS-Up\033[m   \033[7mS-Down\033[m  scroll ½ pg");
 #else
-    Screen::put( 8, 0, "\033[7mM-Left\033[m \033[7mM-Right\033[m pan ½ page");
-    Screen::put( 9, 0, "\033[7mM-Up\033[m   \033[7mM-Down\033[m  scroll ½ pg");
+    Screen::put( 9, 0, "\033[7mM-Left\033[m \033[7mM-Right\033[m pan ½ page");
+    Screen::put(10, 0, "\033[7mM-Up\033[m   \033[7mM-Down\033[m  scroll ½ pg");
 #endif
-    Screen::put(10, 0, "");
-    Screen::put(11, 0, "\033[7mHome\033[m \033[7mEnd\033[m begin/end of line");
-    Screen::put(12, 0, "\033[7m^K\033[m delete after cursor");
-    Screen::put(13, 0, "\033[7m^L\033[m refresh screen");
-    Screen::put(14, 0, "\033[7m^Q\033[m quick exit and save");
-    Screen::put(15, 0, "\033[7m^R\033[m or \033[7mF4\033[m jump to bookmark");
-    Screen::put(16, 0, "\033[7m^S\033[m scroll to next file");
-    Screen::put(17, 0, "\033[7m^T\033[m toggle colors on/off");
-    Screen::put(18, 0, "\033[7m^U\033[m delete before cursor");
-    Screen::put(19, 0, "\033[7m^V\033[m verbatim character");
-    Screen::put(20, 0, "\033[7m^W\033[m scroll back one file");
-    Screen::put(21, 0, "\033[7m^X\033[m or \033[7mF3\033[m set bookmark");
-    Screen::put(22, 0, "\033[7m^Y\033[m or \033[7mF2\033[m edit file");
-    Screen::put(23, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
-    Screen::put(24, 0, "\033[7m^\\\033[m terminate process");
-    Screen::put(25, 0, "");
-    Screen::put(26, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
+    Screen::put(11, 0, "");
+    Screen::put(12, 0, "\033[7mHome\033[m \033[7mEnd\033[m begin/end of line");
+    Screen::put(13, 0, "\033[7m^K\033[m delete after cursor");
+    Screen::put(14, 0, "\033[7m^L\033[m refresh screen");
+    Screen::put(15, 0, "\033[7m^Q\033[m quick exit and output");
+    Screen::put(16, 0, "\033[7m^R\033[m or \033[7mF4\033[m jump to bookmark");
+    Screen::put(17, 0, "\033[7m^S\033[m scroll to next file/dir");
+    Screen::put(18, 0, "\033[7m^T\033[m toggle colors on/off");
+    Screen::put(19, 0, "\033[7m^U\033[m delete before cursor");
+    Screen::put(20, 0, "\033[7m^V\033[m verbatim character");
+    Screen::put(21, 0, "\033[7m^W\033[m scroll back one file/dir");
+    Screen::put(22, 0, "\033[7m^X\033[m or \033[7mF3\033[m set bookmark");
+    Screen::put(23, 0, "\033[7m^Y\033[m or \033[7mF2\033[m edit file");
+    Screen::put(24, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
+    Screen::put(25, 0, "\033[7m^^\033[m chdir to starting dir");
+    Screen::put(26, 0, "\033[7m^\\\033[m terminate process");
     Screen::put(27, 0, "");
+    Screen::put(28, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
+    Screen::put(29, 0, "");
 
     std::string buf;
-    int row = 28;
+    int row = 30;
     int col = 0;
 
     for (Flags *fp = flags_; fp->text != NULL; ++fp)
@@ -461,10 +482,6 @@ void Query::redraw()
       Screen::put(0, 0, "\033[7mF1\033[m help and options:        \033[7m^\033[m=\033[7mCtrl\033[m  \033[7mS-\033[m=\033[7mShift\033[m  \033[7mM-\033[m=\033[7mAlt\033[m or use \033[7m^O\033[m+key");
 #endif
     }
-    else
-    {
-      message_ = false;
-    }
 
     Screen::put(0, Screen::cols - 1, "?");
   }
@@ -483,10 +500,10 @@ void Query::redraw()
       end = row_ + Screen::rows - 1;
     for (int i = row_; i < end; ++i)
       view(i);
-    if (rows_ < row_ + Screen::rows - 1)
-      Screen::end();
     draw();
   }
+
+  message_ = false;
 }
 
 #ifdef OS_WIN
@@ -611,6 +628,25 @@ void Query::query()
     abort("no ANSI terminal screen detected");
   }
 
+#ifdef OS_WIN
+
+  // handle CTRL-C
+  SetConsoleCtrlHandler(&sigint, TRUE);
+
+#else
+  
+  signal(SIGINT, sigint);
+
+  signal(SIGQUIT, sigint);
+
+  signal(SIGTERM, sigint);
+
+  signal(SIGPIPE, SIG_IGN);
+
+  signal(SIGWINCH, sigwinch);
+
+#endif
+
   for (Flags *fp = flags_; fp->text != NULL; ++fp)
     VKey::map_alt_key(fp->key, NULL);
 
@@ -676,25 +712,6 @@ void Query::query_ui()
   eof_        = true;
   buflen_     = 0;
 
-#ifdef OS_WIN
-
-  // handle CTRL-C
-  SetConsoleCtrlHandler(&sigint, TRUE);
-
-#else
-  
-  signal(SIGINT, sigint);
-
-  signal(SIGQUIT, sigint);
-
-  signal(SIGTERM, sigint);
-
-  signal(SIGPIPE, SIG_IGN);
-
-  signal(SIGWINCH, sigwinch);
-
-#endif
-
   // if -e PATTERN specified, collect patterns in the line to edit
   if (!flag_regexp.empty())
   {
@@ -742,7 +759,7 @@ void Query::query_ui()
 
   while (true)
   {
-    size_t delay = flag_query;
+    size_t delay = message_ ? 10 : flag_query;
 
     int key = 0;
 
@@ -752,10 +769,13 @@ void Query::query_ui()
       {
         update();
 
-        if (select_ == -1)
-          Screen::setpos(0, start_ + col_ - offset_);
-        else
-          Screen::setpos(select_ - row_ + 1, 0);
+        if (!message_)
+        {
+          if (select_ == -1)
+            Screen::setpos(0, start_ + col_ - offset_);
+          else
+            Screen::setpos(select_ - row_ + 1, 0);
+        }
       }
       else
       {
@@ -771,24 +791,14 @@ void Query::query_ui()
 
       if (delay == 0)
       {
-        if (message_)
-        {
-          draw();
-          message_ = false;
-        }
-
         if (mode_ == Mode::QUERY && updated_)
         {
           search();
-
-          updated_ = false;
-          select_ = -1;
-          select_all_ = false;
         }
 #ifdef OS_WIN
         else
         {
-          // detect screen size changes
+          // detect screen size changes here for Windows (no SIGWINCH)
           int rows = Screen::rows;
           int cols = Screen::cols;
 
@@ -798,6 +808,12 @@ void Query::query_ui()
             redraw();
         }
 #endif
+
+        if (message_)
+        {
+          message_ = false;
+          draw();
+        }
 
         delay = flag_query;
       }
@@ -828,10 +844,12 @@ void Query::query_ui()
             if (globbing_)
             {
               globbing_ = false;
-              set_prompt();
+
               memcpy(line_, save_, QUERY_MAX_LEN);
               len_ = line_len();
               move(len_);
+
+              set_prompt();
               draw();
             }
             else if (select_ == -1)
@@ -882,12 +900,20 @@ void Query::query_ui()
           key = VKey::get();
           switch (key)
           {
-            case VKey::TAB:
+            case VKey::TAB: // Shift-TAB: chdir .. or deselect file (or pan screen in selection mode)
               if (mode_ == Mode::QUERY)
               {
-                if (skip_ > 7)
+                if (select_ == -1)
+                {
+                  deselect();
+                }
+                else
+                {
                   skip_ -= 8;
-                redraw();
+                  if (skip_ < 0)
+                    skip_ = 0;
+                  redraw();
+                }
               }
               else
               {
@@ -895,15 +921,15 @@ void Query::query_ui()
               }
               break;
 
-            case VKey::UP:
+            case VKey::UP: // SHIFT-UP/CTRL-UP: scroll half page up
               pgup(true);
               break;
 
-            case VKey::DOWN:
+            case VKey::DOWN: // SHIFT-DOWN/CTRL-DOWN: scroll half page down
               pgdn(true);
               break;
 
-            case VKey::LEFT:
+            case VKey::LEFT: // SHIFT-LEFT/CTRL-LEFT: pan hald a page left
               if (mode_ == Mode::QUERY)
               {
                 skip_ -= Screen::cols / 2;
@@ -917,7 +943,7 @@ void Query::query_ui()
               }
               break;
 
-            case VKey::RIGHT:
+            case VKey::RIGHT: // SHIFT-RIGHT/CTRL-RIGHT: pan hald a page right
               if (mode_ == Mode::QUERY)
               {
                 skip_ += Screen::cols / 2;
@@ -937,11 +963,18 @@ void Query::query_ui()
           }
           break;
 
-        case VKey::TAB:
+        case VKey::TAB: // TAB: chdir or select file (or pan screen in selection mode)
           if (mode_ == Mode::QUERY)
           {
-            skip_ += 8;
-            redraw();
+            if (select_ == -1)
+            {
+              select();
+            }
+            else
+            {
+              skip_ += 8;
+              redraw();
+            }
           }
           else if (mode_ == Mode::EDIT)
           {
@@ -953,7 +986,7 @@ void Query::query_ui()
           }
           break;
 
-        case VKey::BS:
+        case VKey::BS: // Backspace: delete character before the cursor
           if (mode_ == Mode::QUERY || mode_ == Mode::LIST)
           {
             if (select_ == -1)
@@ -985,7 +1018,7 @@ void Query::query_ui()
           }
           break;
 
-        case VKey::DEL:
+        case VKey::DEL: // DEL: delete character under the cursor
           if (mode_ == Mode::EDIT || select_ == -1)
           {
             erase(1);
@@ -998,91 +1031,111 @@ void Query::query_ui()
           }
           break;
 
-        case VKey::RIGHT:
+        case VKey::RIGHT: // RIGHT/CTRL-F: move right
           if (mode_ == Mode::EDIT || select_ == -1)
+          {
             move(col_ + 1);
+          }
+          else if (mode_ == Mode::QUERY)
+          {
+            skip_ += 8;
+            redraw();
+          }
           else
+          {
             Screen::alert();
+          }
           break;
 
-        case VKey::LEFT:
+        case VKey::LEFT: // LEFT/CTRL-B: move left
           if (mode_ == Mode::EDIT || select_ == -1)
+          {
             move(col_ - 1);
+          }
+          else if (mode_ == Mode::QUERY)
+          {
+            skip_ -= 8;
+            if (skip_ < 0)
+              skip_ = 0;
+            redraw();
+          }
           else
+          {
             Screen::alert();
+          }
           break;
 
-        case VKey::UP:
+        case VKey::UP: // UP/CTRL-P: move up
           up();
           break;
 
-        case VKey::DOWN:
+        case VKey::DOWN: // DOWN/CTRL-N: move down
           down();
           break;
 
-        case VKey::PGUP:
+        case VKey::PGUP: // PgUp/CTRL-G: page up
           pgup();
           break;
 
-        case VKey::PGDN:
+        case VKey::PGDN: // PgDn/CTRL-D: page down
           pgdn();
           break;
 
-        case VKey::HOME:
+        case VKey::HOME: // HOME/CTRL-A: begin of line
           if (mode_ == Mode::EDIT || select_ == -1)
             move(0);
           else
             Screen::alert();
           break;
 
-        case VKey::END:
+        case VKey::END: // END/CTRL-E: end of line
           if (mode_ == Mode::EDIT || select_ == -1)
             move(len_);
           else
             Screen::alert();
           break;
 
-        case VKey::CTRL_C:
+        case VKey::CTRL_C: // CTRL-C: quit and output lines
           if (quit())
             return;
           break;
 
-        case VKey::CTRL_K:
+        case VKey::CTRL_K: // CTRL-K: delete after cursor
           if (mode_ == Mode::EDIT || select_ == -1)
             erase(len_ - col_);
           else
             Screen::alert();
           break;
 
-        case VKey::CTRL_L:
+        case VKey::CTRL_L: // CTRL-L: refresh screen
           redraw();
           break;
 
-        case VKey::CTRL_O:
+        case VKey::CTRL_O: // CTRL-O: press KEY to get Alt-KEY
           if (mode_ == Mode::EDIT || select_ == -1)
             ctrl_o = true;
           else
             Screen::alert();
           break;
 
-        case VKey::CTRL_R:
+        case VKey::CTRL_R: // CTRL-R: jump to bookmark
         case VKey::FN(4):
           jump(mark_);
           break;
 
-        case VKey::CTRL_Q:
+        case VKey::CTRL_Q: // CTRL-Q: immediately quit and output lines
           return;
 
-        case VKey::CTRL_S:
+        case VKey::CTRL_S: // CTRL=S: scroll to next file (or directory with -l or -c)
           next();
           break;
 
-        case VKey::CTRL_T:
+        case VKey::CTRL_T: // CTRL-T: toggle colors on/off
           Screen::mono = !Screen::mono;
           redraw();
           break;
 
-        case VKey::CTRL_U:
+        case VKey::CTRL_U: // CTRL-U: delete before cursor
           if (mode_ == Mode::EDIT || select_ == -1)
           {
             int pos = line_pos();
@@ -1095,39 +1148,44 @@ void Query::query_ui()
           }
           break;
 
-        case VKey::CTRL_V:
+        case VKey::CTRL_V: // CTRL-V: verbatim insert character
           if (select_ == -1)
             ctrl_v = true;
           else
             Screen::alert();
           break;
 
-        case VKey::CTRL_W:
+        case VKey::CTRL_W: // CTRL-W: scroll back one file or (or directory with -l or -c)
           back();
           break;
 
-        case VKey::CTRL_X:
+        case VKey::CTRL_X: // CTRL-X: set bookmark
         case VKey::FN(3):
           mark_ = select_ >= 0 ? select_ : row_;
           break;
 
-        case VKey::CTRL_Y:
+        case VKey::CTRL_Y: // CTRL-Y: edit file
         case VKey::FN(2):
           edit();
           break;
 
-        case VKey::CTRL_Z:
+        case VKey::CTRL_Z: // CTRL-Z: help
         case VKey::FN(1):
           if (help())
             return;
           break;
 
-        case VKey::CTRL_RS:
+        case VKey::CTRL_BS: // CTRL-\: terminate
 #ifdef OS_WIN
           GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
 #else
           raise(SIGTERM);
 #endif
+          break;
+
+        case VKey::CTRL_CA: // CTRL-^: chdir back to working directory
+          if (mode_ == Mode::QUERY && select_ == -1)
+            unselect();
           break;
 
         default:
@@ -1221,6 +1279,17 @@ void Query::search()
 
   arg_pattern = globbing_ ? save_ : line_;
 
+  if (deselect_file_)
+  {
+    selected_file_.clear();
+    arg_files.clear();
+    deselect_file_ = false;
+  }
+  else if (!selected_file_.empty() && arg_files.empty())
+  {
+    arg_files.emplace_back(selected_file_.c_str());
+  }
+
   set_flags();
 
   set_stdin();
@@ -1228,7 +1297,12 @@ void Query::search()
   if (error_ == -1)
     search_thread_ = std::thread(Query::execute, search_pipe_[1]);
 
+  select_ = -1;
+  select_all_ = false;
+
   redraw();
+
+  updated_ = false;
 }
 
 // update screen when data is available
@@ -1260,10 +1334,12 @@ bool Query::update()
       view(i);
   }
 
+  // display final status line if in view
   if (rows_ < row_ + Screen::rows - 1)
   {
     Screen::normal();
     Screen::invert();
+
     if (error_ == -1)
     {
       searching_[9] = '.';
@@ -1274,7 +1350,7 @@ bool Query::update()
 
       Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
       Screen::normal();
-      Screen::erase();
+      Screen::end();
     }
     else
     {
@@ -1668,12 +1744,15 @@ void Query::back()
     return;
 
   // if output is not suitable to scroll over its content by filename, then PGUP
-  if (flag_text || flag_format != NULL || flag_files_with_matches || flag_count)
+  if (flag_text || flag_format != NULL)
   {
     pgup();
 
     return;
   }
+
+  // compare the directory part for options -l and -c to move between directories
+  bool compare_dir = flag_files_with_matches || flag_count;
 
   std::string filename;
   bool found = false;
@@ -1688,7 +1767,7 @@ void Query::back()
     // get the current filename to compare when present
     is_filename(view_[row_], filename);
 
-    while (row_ > 0 && !(found = is_filename(view_[row_], filename)))
+    while (row_ > 0 && !(found = is_filename(view_[row_], filename, compare_dir)))
       --row_;
 
     if (found && !flag_heading)
@@ -1704,7 +1783,7 @@ void Query::back()
     // get the current filename to compare when present
     is_filename(view_[select_], filename);
 
-    while (select_ > 0 && !(found = is_filename(view_[select_], filename)))
+    while (select_ > 0 && !(found = is_filename(view_[select_], filename, compare_dir)))
       --select_;
 
     if (found && !flag_heading)
@@ -1718,12 +1797,15 @@ void Query::back()
 void Query::next()
 {
   // if output is not suitable to scroll by filename, then PGDN
-  if (flag_text || flag_format != NULL || flag_files_with_matches || flag_count)
+  if (flag_text || flag_format != NULL)
   {
     pgdn();
 
     return;
   }
+
+  // compare the directory part for options -l and -c to move between directories
+  bool compare_dir = flag_files_with_matches || flag_count;
 
   std::string filename;
 
@@ -1741,7 +1823,7 @@ void Query::next()
     {
       bool found = false;
 
-      while (row_ + 1 < rows_ && !(found = is_filename(view_[row_], filename)))
+      while (row_ + 1 < rows_ && !(found = is_filename(view_[row_], filename, compare_dir)))
         ++row_;
 
       if (found || (eof_ && buflen_ == 0))
@@ -1778,7 +1860,7 @@ void Query::next()
     {
       bool found = false;
 
-      while (select_ + 1 < rows_ && !(found = is_filename(view_[select_], filename)))
+      while (select_ + 1 < rows_ && !(found = is_filename(view_[select_], filename, compare_dir)))
         ++select_;
 
       if (found || (eof_ && buflen_ == 0))
@@ -1928,6 +2010,12 @@ void Query::edit()
   for (int i = select_ >= 0 ? select_ : row_; i >= 0 && !(found = is_filename(view_[i], filename)); --i)
     continue;
 
+  if (!found && arg_files.size() == 1)
+  {
+    filename = arg_files.front();
+    found = true;
+  }
+
   if (found)
   {
 #ifdef OS_WIN
@@ -1949,11 +2037,8 @@ void Query::edit()
     if (system(command.c_str()) == 0)
     {
       mark_ = select_ >= 0 ? select_ : row_;
-      Screen::home();
       Screen::clear();
-      select_ = -1;
-      updated_ = true;
-      draw();
+      search();
     }
     else
     {
@@ -1962,10 +2047,250 @@ void Query::edit()
   }
   else
   {
-    Screen::alert();
-    message_ = true;
-    what_.assign("Cannot edit file ").append(filename);
+    message(std::string("cannot edit file ").append(filename));
   }
+}
+
+// chdir one level down into the directory of the file located under the cursor or just above the screen
+void Query::select()
+{
+  if (flag_stdin)
+  {
+    message("cannot chdir: standard input is searched");
+
+    return;
+  }
+
+  if (!arg_files.empty())
+  {
+    message("cannot chdir: file or directory arguments are present");
+
+    return;
+  }
+
+  std::string pathname;
+  bool found = false;
+
+  for (int i = select_ >= 0 ? select_ : row_; i >= 0 && !(found = is_filename(view_[i], pathname)); --i)
+    continue;
+
+  if (found)
+  {
+    size_t n = pathname.find(PATHSEPCHR);
+    size_t b = pathname.find('{'); // do not cd into archives
+    if (n != std::string::npos && (b == std::string::npos || n < b))
+    {
+      pathname.resize(n);
+
+#ifdef OS_WIN
+      if (_chdir(pathname.c_str()) < 0)
+      {
+        message("cannot chdir: operation denied");
+
+        return;
+      }
+#else
+      if (chdir(pathname.c_str()) < 0)
+      {
+        message("cannot chdir: operation denied");
+
+        return;
+      }
+#endif
+
+      dirs_.append(pathname).append(PATHSEPSTR);
+
+      search();
+    }
+    else
+    {
+      if (b != std::string::npos)
+        pathname.resize(b);
+
+      selected_file_ = pathname;
+
+      dirs_.append(pathname);
+
+      search();
+    }
+  }
+  else
+  {
+    Screen::alert();
+  }
+}
+
+// chdir back up one level
+void Query::deselect()
+{
+  if (selected_file_.empty())
+  {
+    if (flag_stdin)
+    {
+      message("cannot chdir: standard input is searched");
+
+      return;
+    }
+
+    if (!arg_files.empty())
+    {
+      message("cannot chdir: file or directory arguments are present");
+
+      return;
+    }
+
+#ifdef OS_WIN
+    if (dirs_.size() == 3 && dirs_.at(1) == ':' && dirs_.at(2) == PATHSEPCHR)
+      return;
+#else
+    if (dirs_ == PATHSEPSTR)
+      return;
+#endif
+
+    if (dirs_.empty())
+    {
+#ifdef OS_WIN
+      char *cwd = _getcwd(NULL, 0);
+#else
+      char *cwd = getcwd(NULL, 0);
+#endif
+      if (cwd != NULL)
+      {
+        size_t n = strlen(cwd);
+        dirs_.assign(cwd);
+        wdir_.assign(cwd);
+        free(cwd);
+        if (n == 0 || cwd[n-1] != PATHSEPCHR)
+          dirs_.append(PATHSEPSTR);
+      }
+    }
+
+#ifdef OS_WIN
+    if (_chdir("..") < 0)
+      return;
+#else
+    if (chdir("..") < 0)
+      return;
+#endif
+
+    if (dirs_.empty())
+    {
+      dirs_.assign(".." PATHSEPSTR);
+    }
+    else
+    {
+      dirs_.pop_back();
+
+      size_t n = dirs_.find_last_of(PATHSEPCHR);
+
+      if (n == std::string::npos)
+      {
+        if (dirs_ != "..")
+          dirs_.clear();
+        else
+          dirs_.append(PATHSEPSTR ".." PATHSEPSTR);
+      }
+      else if (dirs_.compare(n + 1, std::string::npos, "..") == 0)
+      {
+        dirs_.append(PATHSEPSTR ".." PATHSEPSTR);
+      }
+      else
+      {
+        dirs_.resize(n + 1);
+      }
+    }
+
+    search();
+  }
+  else
+  {
+    size_t n = dirs_.find_last_of(PATHSEPCHR);
+
+    if (n != std::string::npos)
+      dirs_.resize(n + 1);
+    else
+      dirs_.clear();
+
+    deselect_file_ = true;
+
+    search();
+  }
+}
+
+// chdir back to the starting working directory
+void Query::unselect()
+{
+  if (!wdir_.empty())
+  {
+#ifdef OS_WIN
+    if (_chdir(wdir_.c_str()) < 0)
+      return;
+#else
+    if (chdir(wdir_.c_str()) < 0)
+      return;
+#endif
+
+    dirs_.clear();
+    wdir_.clear();
+
+    deselect_file_ = true;
+
+    search();
+  }
+  else if (!dirs_.empty())
+  {
+    if (!selected_file_.empty())
+    {
+      size_t n = dirs_.find_last_of(PATHSEPCHR);
+
+      if (n != std::string::npos)
+        dirs_.resize(n + 1);
+      else
+        dirs_.clear();
+    }
+
+    if (!dirs_.empty())
+    {
+      while (true)
+      {
+#ifdef OS_WIN
+        if ((dirs_.size() == 3 && dirs_.at(1) == ':' && dirs_.at(2) == PATHSEPCHR) || _chdir("..") < 0)
+          break;
+#else
+        if (dirs_ == PATHSEPSTR || chdir("..") < 0)
+          break;
+#endif
+
+        dirs_.pop_back();
+
+        size_t n = dirs_.find_last_of(PATHSEPCHR);
+
+        if (n == std::string::npos)
+          break;
+
+        dirs_.resize(n + 1);
+      }
+
+      dirs_.clear();
+    }
+
+    deselect_file_ = true;
+
+    search();
+  }
+}
+
+// display a message
+void Query::message(const std::string& message)
+{
+  if (!Screen::mono)
+   Screen::put(PROMPT);
+  Screen::put(0, 0, "-> ");
+  if (!Screen::mono)
+    Screen::normal();
+  Screen::erase();
+  Screen::put(0, 3, message.c_str());
+  message_ = true;
 }
 
 // quit ugrep -Q
@@ -1974,10 +2299,7 @@ bool Query::quit()
   if (!flag_confirm)
     return true;
 
-  if (!Screen::mono)
-    Screen::put(PROMPT);
-  Screen::put(0, 0, ">>");
-  Screen::put(0, 2, "\033[mExit? (y/n) [n] ");
+  message("Exit? (y/n) [n] ");
 
   VKey::flush();
 
@@ -1986,6 +2308,7 @@ bool Query::quit()
   if (key == 'y' || key == 'Y')
     return true;
 
+  message_ = false;
   draw();
 
   return false;
@@ -2044,7 +2367,7 @@ bool Query::help()
       ctrl_q = true;
       break;
     }
-    else if (key == VKey::ESC)
+    else if (key == VKey::ESC || key == VKey::CTRL_Z || key == VKey::FN(1))
     {
       break;
     }
@@ -2071,7 +2394,7 @@ bool Query::help()
           redraw();
           break;
 
-        case VKey::CTRL_RS:
+        case VKey::CTRL_BS:
 #ifdef OS_WIN
           GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
 #else
@@ -2085,19 +2408,16 @@ bool Query::help()
           break;
 
         default:
-          if (key != VKey::FN(1))
-          {
-            Screen::alert();
+          Screen::alert();
 #ifdef WITH_MACOS_META_KEY
-            if (key >= 0x80)
-            {
-              if (!Screen::mono)
-                Screen::put(CERROR);
-              Screen::put(1, 0, "MacOS Terminal Preferences/Profiles/Keyboard: enable \"Use Option as Meta key\"");
-              Screen::setpos(0, start_ + col_ - offset_);
-            }
-#endif
+          if (key >= 0x80)
+          {
+            if (!Screen::mono)
+              Screen::put(CERROR);
+            Screen::put(1, 0, "MacOS Terminal Preferences/Profiles/Keyboard: enable \"Use Option as Meta key\"");
+            Screen::setpos(0, start_ + col_ - offset_);
           }
+#endif
       }
     }
   }
@@ -2310,6 +2630,7 @@ void Query::meta(int key)
         if (!globbing_)
         {
           globbing_ = true;
+
           memcpy(save_, line_, QUERY_MAX_LEN);
           size_t num = globs_.size();
           if (num >= QUERY_MAX_LEN)
@@ -2322,6 +2643,16 @@ void Query::meta(int key)
 
           set_prompt();
         }
+        else
+        {
+          globbing_ = false;
+
+          memcpy(line_, save_, QUERY_MAX_LEN);
+          len_ = line_len();
+          move(len_);
+
+          set_prompt();
+        }
 
         if (mode_ == Mode::QUERY)
         {
@@ -2329,43 +2660,35 @@ void Query::meta(int key)
         }
         else
         {
-          Screen::put(0, 0, "\033[m\033[7mM-g\033[m GLOBS should be entered in the query view screen, \033[7mESC\033[m to go back\033[m");
-          message_ = true;
+          message("\033[7mM-g\033[m GLOBS should be entered in the query view screen, \033[7mESC\033[m to go back\033[m");
         }
       }
+#if !defined(HAVE_PCRE2) && !defined(HAVE_BOOST_REGEX)
+      else if (key == 'P')
+      {
+        message("option -P is not available in this build configuration of ugrep");
+      }
+#endif
+#ifndef HAVE_LIBZ
+      else if (key == 'z')
+      {
+        message("Option -z is not available in this build configuration of ugrep");
+      }
+#endif
       else
       {
         std::string buf;
 
-        Screen::normal();
+        fp->flag = !fp->flag;
 
-#if !defined(HAVE_PCRE2) && !defined(HAVE_BOOST_REGEX)
-        if (key == 'P')
-        {
-          buf.assign(CERROR).append("option -P is not available in this build configuration of ugrep\033[m");
-        }
-        else
-#endif
-#ifndef HAVE_LIBZ
-        if (key == 'z')
-        {
-          buf.assign(CERROR).append("Option -z is not available in this build configuration of ugrep\033[m");
-        }
-        else
-#endif
-        {
-          fp->flag = !fp->flag;
+        buf.assign("\033[7mM- \033[m ").append(fp->text).append(fp->flag ? " \033[32;1mon\033[m" : " \033[31;1moff\033[m");
+        buf[6] = fp->key;
 
-          buf.assign("\033[m\033[7mM- \033[m ").append(fp->text).append(fp->flag ? " \033[32;1mon\033[m  " : " \033[31;1moff\033[m  ");
-          buf[9] = fp->key;
+        search();
 
-          updated_ = true;
+        message(buf);
 
-          set_prompt();
-        }
-
-        Screen::put(0, 0, buf);
-        message_ = true;
+        set_prompt();
       }
 
       return;
@@ -2695,8 +3018,6 @@ void Query::set_prompt()
     prompt_ = "Z>";
   else
     prompt_ = "Q>";
-
-  start_ = strlen(prompt_);
 }
 
 void Query::get_stdin()
@@ -2757,7 +3078,7 @@ ssize_t Query::stdin_sender(int fd)
 }
 
 // true if line starts with a valid filename/filepath identified by three \0 markers
-bool Query::is_filename(const std::string& line, std::string& filename)
+bool Query::is_filename(const std::string& line, std::string& filename, bool compare_dir)
 {
   size_t start = 0;
   size_t pos = 0;
@@ -2808,13 +3129,26 @@ bool Query::is_filename(const std::string& line, std::string& filename)
       return false;
   }
 
-  std::string extract(line.substr(start, pos - start));
+  if (compare_dir)
+  {
+    size_t skip = 0;
+#ifdef OS_WIN
+    if (filename.size() >= 3 && filename.at(1) == ':' && filename.at(2) == PATHSEPCHR)
+      skip = 3;
+#endif
+    size_t pos1 = line.find(PATHSEPCHR, start + skip);
+    size_t pos2 = filename.find(PATHSEPCHR, skip);
+    if (pos1 != std::string::npos)
+      pos1 -= start;
+    if (pos1 == pos2 && (pos1 == std::string::npos || line.compare(start, skip + pos1, filename, 0, skip + pos2) == 0))
+      return false; // the extracted filename is the same or in the same directory as the previous
+  }
+  else if (line.compare(start, pos - start, filename) == 0)
+  {
+    return false; // the extracted filename is the same as the previous
+  }
 
-  // the extracted filename is the same as the previous?
-  if (extract == filename)
-    return false;
-
-  filename.swap(extract);
+  filename = line.substr(start, pos - start);
 
   return true;
 }
@@ -2839,6 +3173,10 @@ int                      Query::select_              = -1;
 bool                     Query::select_all_          = false;
 bool                     Query::globbing_            = false;
 std::string              Query::globs_;
+std::string              Query::dirs_;
+std::string              Query::wdir_;
+bool                     Query::deselect_file_;
+std::string              Query::selected_file_;
 int                      Query::skip_                = 0;
 std::vector<std::string> Query::view_;
 std::vector<bool>        Query::selected_;

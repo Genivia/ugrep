@@ -154,7 +154,7 @@ void Matcher::boyer_moore_init(const char *pat, size_t len)
   uint8_t fch = freq[static_cast<uint8_t>(pat[lcp_])];
   if (!have_HW_SSE2() && !have_HW_AVX2() && !have_HW_AVX512BW())
   {
-    // if scoring is high and freq is high, then use improved Boyer-Moore instead of memchr()
+    // if scoring is high and freq is high, then use our improved Boyer-Moore instead of memchr()
 #if defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
     // SSE2 is available, expect fast memchr()
     if (score > 1 && fch > 35 && (score > 3 || fch > 50) && fch + score > 52)
@@ -183,10 +183,7 @@ bool Matcher::advance()
       peek_more();
       loc = cur_ + 1;
       if (loc + min > end_)
-      {
-        set_current(loc);
         return false;
-      }
     }
     if (min >= 4)
     {
@@ -222,10 +219,7 @@ bool Matcher::advance()
           peek_more();
           loc = cur_ + min;
           if (loc >= end_)
-          {
-            set_current(loc);
             return false;
-          }
         }
       }
     }
@@ -263,10 +257,7 @@ bool Matcher::advance()
           peek_more();
           loc = cur_ + 3;
           if (loc >= end_)
-          {
-            set_current(loc);
             return false;
-          }
         }
       }
     }
@@ -303,10 +294,7 @@ bool Matcher::advance()
           peek_more();
           loc = cur_ + 2;
           if (loc >= end_)
-          {
-            set_current(loc);
             return false;
-          }
         }
       }
     }
@@ -339,10 +327,7 @@ bool Matcher::advance()
         peek_more();
         loc = cur_ + 1;
         if (loc >= end_)
-        {
-          set_current(loc);
           return false;
-        }
       }
     }
   }
@@ -366,10 +351,7 @@ bool Matcher::advance()
       peek_more();
       loc = cur_ + 1;
       if (loc + len > end_)
-      {
-        set_current(loc);
         return false;
-      }
     }
   }
   if (bmd_ == 0)
@@ -702,14 +684,11 @@ bool Matcher::advance()
       peek_more();
       loc = cur_ + 1;
       if (loc + len > end_)
-      {
-        set_current(loc);
         return false;
-      }
     }
     else
     {
-      // implementation of our improved Boyer-Moore scheme
+      // implements our improved Boyer-Moore scheme
       const char *s = buf_ + loc + len - 1;
       const char *e = buf_ + end_;
       const char *t = pre + len - 1;
@@ -764,10 +743,7 @@ bool Matcher::advance()
       peek_more();
       loc = cur_ + 1;
       if (loc + len > end_)
-      {
-        set_current(loc);
         return false;
-      }
     }
   }
 }

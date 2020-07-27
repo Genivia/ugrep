@@ -150,6 +150,15 @@ const std::string Pattern::operator[](Accept choice) const
   return "";
 }
 
+void Pattern::error(regex_error_type code, size_t pos) const
+{
+  regex_error err(code, rex_, pos);
+  if (opt_.w)
+    std::cerr << err.what();
+  if (code == regex_error::exceeds_limits || opt_.r)
+    throw err;
+}
+
 void Pattern::init(const char *options, const uint8_t *pred)
 {
   init_options(options);

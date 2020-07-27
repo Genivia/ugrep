@@ -372,15 +372,11 @@ class AbstractMatcher {
   bool buffer(size_t blk = 0) ///< new block size between 1 and Const::BLOCK, or 0 to buffer all input (default)
     /// @returns true when successful to buffer all input when n=0
   {
-    if (eof_)
-      return true;
     if (blk > Const::BLOCK)
       blk = Const::BLOCK;
     DBGLOG("AbstractMatcher::buffer(%zu)", blk);
     blk_ = blk;
-    if (blk > 0)
-      return true;
-    if (in.eof())
+    if (blk > 0 || eof_ || in.eof())
       return true;
     size_t n = in.size(); // get the (rest of the) data size, which is 0 if unknown (e.g. TTY)
     if (n > 0)

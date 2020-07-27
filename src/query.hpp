@@ -140,6 +140,14 @@ class Query {
 
   static void edit();
 
+  static void select();
+
+  static void deselect();
+
+  static void unselect();
+
+  static void message(const std::string& message);
+
   static bool quit();
 
   static bool help();
@@ -162,7 +170,7 @@ class Query {
 
   static ssize_t stdin_sender(int fd);
 
-  static bool is_filename(const std::string& line, std::string& filename);
+  static bool is_filename(const std::string& line, std::string& filename, bool compare_dir = false);
 
   static Mode                     mode_;
   static bool                     updated_;
@@ -185,9 +193,12 @@ class Query {
   static bool                     select_all_;
   static bool                     globbing_;
   static std::string              globs_;
+  static std::string              dirs_;
+  static std::string              wdir_;
+  static bool                     deselect_file_;
+  static std::string              selected_file_;
   static std::vector<std::string> view_;
   static std::vector<bool>        selected_;
-  static FILE                    *file_;
   static bool                     eof_;
   static bool                     append_;
   static size_t                   buflen_;
