@@ -74,6 +74,8 @@
       DBGLOGA("!"); \
     if ((p).ticked()) \
       DBGLOGA("'"); \
+    if ((p).negate()) \
+      DBGLOGA("-"); \
   }
 #endif
 
@@ -903,13 +905,14 @@ void Pattern::parse4(
         if (c == ')')
           ++loc;
       }
-      else if (c == '^') // (?^ negative pattern to be ignored (new mode)
+      else if (c == '^') // (?^ negative pattern to be ignored (new mode), producing a redo match
       {
+        Positions firstpos1;
         ++loc;
         parse1(
             begin,
             loc,
-            firstpos,
+            firstpos1,
             lastpos,
             nullable,
             followpos,
@@ -918,8 +921,8 @@ void Pattern::parse4(
             modifiers,
             lookahead,
             iter);
-        for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-          followpos[p->pos()].insert(Position(0).accept(true));
+        for (Positions::iterator p = firstpos1.begin(); p != firstpos1.end(); ++p)
+          firstpos.insert(p->negate(true));
       }
       else if (c == '=') // (?= lookahead
       {
@@ -1566,11 +1569,11 @@ void Pattern::trim_lazy(Positions *pos) const
     pos->erase(--p.base());
   }
 #endif
-  // trims accept positions keeping the first only, and keeping redo (positions with accept == 0)
+  // trims accept positions keeping the first only
   Positions::iterator q = pos->begin(), a = pos->end();
   while (q != pos->end())
   {
-    if (q->accept() && q->accepts() != 0)
+    if (q->accept() && !q->negate())
     {
       if (a == pos->end())
         a = q++;
@@ -1605,8 +1608,8 @@ void Pattern::compile_transition(
     {
       Accept accept = k->accepts();
       if (state->accept == 0 || accept < state->accept)
-        state->accept = accept; // pick lowest nonzero accept index
-      if (accept == 0)
+        state->accept = accept;
+      if (k->negate())
         state->redo = true;
     }
     else
@@ -1664,9 +1667,20 @@ void Pattern::compile_transition(
       }
       else
       {
-        Follow::const_iterator i = followpos.find(k->pos());
+        Follow::iterator i = followpos.find(k->pos());
         if (i != followpos.end())
         {
+          if (k->negate())
+          {
+            Positions::const_iterator b = i->second.begin();
+            if (b != i->second.end() && !b->negate())
+            {
+              Positions to;
+              for (Positions::const_iterator p = b; p != i->second.end(); ++p)
+                to.insert(p->negate(true));
+              i->second.swap(to);
+            }
+          }
           if (k->lazy())
           {
 #if 1 // CHECKED algorithmic options: 7/31 this optimization works fine when trim_lazy adds non-lazy greedy state, but may increase the total number of states:
@@ -2745,6 +2759,8 @@ void Pattern::export_dfa(const DFA::State *start) const
               ::fprintf(file, "!");
             if (i->ticked())
               ::fprintf(file, "'");
+            if (i->negate())
+              ::fprintf(file, "-");
             if (k++ % n)
               sep = " ";
             else
@@ -2753,7 +2769,7 @@ void Pattern::export_dfa(const DFA::State *start) const
           if ((state->accept && !state->redo) || !state->heads.empty() || !state->tails.empty())
             ::fprintf(file, "\\n");
 #endif
-          if (state->accept && !state->redo)
+          if (state->accept > 0 && !state->redo)
             ::fprintf(file, "[%u]", state->accept);
           for (Lookaheads::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
             ::fprintf(file, "%u>", *i);
@@ -2761,7 +2777,7 @@ void Pattern::export_dfa(const DFA::State *start) const
             ::fprintf(file, "<%u", *i);
           if (state->redo)
             ::fprintf(file, "\",style=dashed,peripheries=1];\n");
-          else if (state->accept)
+          else if (state->accept > 0)
             ::fprintf(file, "\",peripheries=2];\n");
           else if (!state->heads.empty())
             ::fprintf(file, "\",style=dashed,peripheries=2];\n");
@@ -2966,7 +2982,7 @@ void Pattern::predict_match_dfa(DFA::State *start)
     }
     state = next;
   }
-  if (state != NULL && state->accept != 0 && !state->edges.empty())
+  if (state != NULL && state->accept > 0 && !state->edges.empty())
     one_ = false;
   min_ = 0;
   std::memset(bit_, 0xFF, sizeof(bit_));
@@ -3035,7 +3051,7 @@ void Pattern::gen_predict_match_transitions(DFA::State *state, std::map<DFA::Sta
       break;
     }
     DFA::State *next = edge->second.second;
-    bool accept = (next == NULL || next->accept != 0);
+    bool accept = (next == NULL || next->accept > 0);
     if (!accept)
     {
       for (DFA::State::Edges::const_iterator e = next->edges.begin(); e != next->edges.end(); ++e)
@@ -3078,7 +3094,7 @@ void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, ORa
     if (is_meta(lo))
       break;
     DFA::State *next = level < 7 ? edge->second.second : NULL;
-    bool accept = next == NULL || next->accept != 0;
+    bool accept = next == NULL || next->accept > 0;
     if (!accept)
     {
       for (DFA::State::Edges::const_iterator e = next->edges.begin(); e != next->edges.end(); ++e)

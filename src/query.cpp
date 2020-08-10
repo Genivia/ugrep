@@ -103,6 +103,7 @@ static constexpr const char *CERROR = "\033[37;41;1m"; // bright white on red
 static constexpr const char *LARROW = "«";             // left arrow
 static constexpr const char *RARROW = "»";             // right arrow
 
+// return pointer to character at screen col, taking UTF-8 double wide characters into account
 char *Query::line_ptr(int col)
 {
   char *ptr = line_;
@@ -116,14 +117,13 @@ char *Query::line_ptr(int col)
   return ptr;
 }
 
+// return pointer to the character at pos distance after the screen col
 char *Query::line_ptr(int col, int pos)
 {
-  char *ptr = line_ptr(col);
-  while (--pos >= 0 && *ptr != '\0')
-    Screen::mbchar_width(ptr, const_cast<const char**>(&ptr));
-  return ptr;
+  return Screen::mbstring_pos(line_ptr(col), pos);
 }
 
+// return pointer to the end of the line
 char *Query::line_end()
 {
   char *ptr = line_;
@@ -132,6 +132,7 @@ char *Query::line_end()
   return ptr;
 }
 
+// return number of character positions on the line up to the current screen Query::col_, taking UTF-8 double wide characters into account
 int Query::line_pos()
 {
   char *ptr = line_;
@@ -139,20 +140,19 @@ int Query::line_pos()
   int pos = 0;
   while (ptr < end && *ptr != '\0')
   {
-    Screen::mbchar_width(ptr, const_cast<const char**>(&ptr));
+    Screen::wchar(ptr, const_cast<const char**>(&ptr));
     ++pos;
   }
   return pos;
 }
 
+// return the length of the line as a number of screen columns displayed
 int Query::line_len()
 {
-  int num = 0;
-  for (char *ptr = line_; *ptr != '\0'; ++ptr)
-    num += Screen::mbchar_width(ptr, NULL);
-  return num;
+  return Screen::mbstring_width(line_);
 }
 
+// return the length of the line as the number of wide characters
 int Query::line_wsize()
 {
   int num = 0;
@@ -165,6 +165,7 @@ int Query::line_wsize()
   return num;
 }
 
+// draw a textual part of the query search line
 void Query::display(int col, int len)
 {
   char *ptr = line_ptr(col);
@@ -218,6 +219,7 @@ void Query::display(int col, int len)
     Screen::put(CERROR);
 }
 
+// draw the query search line
 void Query::draw()
 {
   if (mode_ == Mode::QUERY)
@@ -232,17 +234,20 @@ void Query::draw()
 
         if (!dirs_.empty())
         {
+          int width = Screen::mbstring_width(dirs_.c_str());
           int offset = 0;
-          if (dirs_.size() + 2 > static_cast<size_t>(Screen::cols/2))
-            offset = static_cast<int>(dirs_.size()) + 2 - Screen::cols/2;
+          if (width + 2 > Screen::cols/2)
+            offset = width + 2 - Screen::cols/2;
 
           Screen::normal();
           if (offset > 0)
             Screen::put(LARROW);
-          Screen::put(dirs_.c_str() + offset);
+
+          const char *dir = Screen::mbstring_pos(dirs_.c_str(), offset);
+          Screen::put(dir);
           Screen::put(' ');
 
-          start_ += static_cast<int>(dirs_.size()) - offset + 1 + (offset > 0);
+          start_ += Screen::mbstring_width(dir) + 1 + (offset > 0);
         }
 
         if (!Screen::mono)
@@ -332,13 +337,13 @@ void Query::draw()
     else
     {
       Screen::normal();
-      Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle selection  \033[7mA\033[m all  \033[7mC\033[m clear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quick exit & output");
+      Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m (de)select line  \033[7mA\033[mll  \033[7mC\033[mlear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quit & output");
     }
   }
   else if (mode_ == Mode::LIST)
   {
     Screen::normal();
-    Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m toggle file type selection  \033[7mC\033[m clear  \033[7mEsc\033[m go back");
+    Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m (de)select file type  \033[7mC\033[m clear  \033[7mEsc\033[m go back");
   }
   else if (mode_ == Mode::EDIT)
   {
@@ -408,6 +413,7 @@ void Query::view(int row)
     Screen::deselect();
 }
 
+// redraw the screen
 void Query::redraw()
 {
   Screen::getsize();
@@ -483,6 +489,8 @@ void Query::redraw()
 #endif
     }
 
+    message_ = false;
+
     Screen::put(0, Screen::cols - 1, "?");
   }
   else
@@ -500,10 +508,9 @@ void Query::redraw()
       end = row_ + Screen::rows - 1;
     for (int i = row_; i < end; ++i)
       view(i);
-    draw();
+    if (!message_)
+      draw();
   }
-
-  message_ = false;
 }
 
 #ifdef OS_WIN
@@ -543,6 +550,7 @@ void Query::sigint(int sig)
 
 #endif
 
+// move the cursor to a column
 void Query::move(int col)
 {
   int dir = 0;
@@ -597,12 +605,14 @@ void Query::insert(const char *text, size_t size)
   }
 }
 
+// insert one character (or a byte of a multi-byte sequence) in the line at the cursor
 void Query::insert(int ch)
 {
   char buf = static_cast<char>(ch);
   insert(&buf, 1);
 }
 
+// erase num bytes from the line at and after the cursor
 void Query::erase(int num)
 {
   char *ptr = line_ptr(col_);
@@ -617,6 +627,7 @@ void Query::erase(int num)
   }
 }
 
+// called by the main program
 void Query::query()
 {
   if (!VKey::setup(VKey::RAW))
@@ -646,6 +657,9 @@ void Query::query()
   signal(SIGWINCH, sigwinch);
 
 #endif
+
+  VKey::map_alt_key('E', NULL);
+  VKey::map_alt_key('Q', NULL);
 
   for (Flags *fp = flags_; fp->text != NULL; ++fp)
     VKey::map_alt_key(fp->key, NULL);
@@ -692,6 +706,7 @@ void Query::query()
     stdin_thread_.join();
 }
 
+// run the query UI
 void Query::query_ui()
 {
   mode_       = Mode::QUERY;
@@ -759,7 +774,7 @@ void Query::query_ui()
 
   while (true)
   {
-    size_t delay = message_ ? 10 : flag_query;
+    size_t delay = message_ ? QUERY_MESSAGE_DELAY : flag_query;
 
     int key = 0;
 
@@ -819,6 +834,8 @@ void Query::query_ui()
       }
     }
 
+    message_ = false;
+
     if (ctrl_o)
     {
       // CTRL-O + key = Alt+key
@@ -845,7 +862,7 @@ void Query::query_ui()
             {
               globbing_ = false;
 
-              memcpy(line_, save_, QUERY_MAX_LEN);
+              memcpy(line_, temp_, QUERY_MAX_LEN);
               len_ = line_len();
               move(len_);
 
@@ -854,7 +871,7 @@ void Query::query_ui()
             }
             else if (select_ == -1)
             {
-              if (quit())
+              if (confirm("Exit"))
                 return;
             }
             else
@@ -874,6 +891,7 @@ void Query::query_ui()
               if (rows_ > 0)
               {
                 select_ = row_;
+                select_all_ = false;
                 draw();
               }
               else
@@ -1096,7 +1114,7 @@ void Query::query_ui()
           break;
 
         case VKey::CTRL_C: // CTRL-C: quit and output lines
-          if (quit())
+          if (confirm("Exit"))
             return;
           break;
 
@@ -1197,16 +1215,18 @@ void Query::query_ui()
             }
             else if (key == 'A' || key == 'a')
             {
-              select_all_ = true;
               for (int i = 0; i < rows_; ++i)
                 selected_[i] = true;
+              select_all_ = true;
+
               redraw();
             }
             else if (key == 'C' || key == 'c')
             {
-              select_all_ = false;
               for (int i = 0; i < rows_; ++i)
                 selected_[i] = false;
+              select_all_ = false;
+
               redraw();
             }
             else
@@ -1277,7 +1297,7 @@ void Query::search()
   if (search_thread_.joinable())
     search_thread_.join();
 
-  arg_pattern = globbing_ ? save_ : line_;
+  arg_pattern = globbing_ ? temp_ : line_;
 
   if (deselect_file_)
   {
@@ -1305,7 +1325,7 @@ void Query::search()
   updated_ = false;
 }
 
-// update screen when data is available
+// update screen and display more data when data becomes available
 bool Query::update()
 {
   int begin = rows_;
@@ -1350,7 +1370,10 @@ bool Query::update()
 
       Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
       Screen::normal();
-      Screen::end();
+
+      // when searching, don't immediately clear the rest of the screen
+      if (eof_ || dots_ == 3)
+        Screen::end();
     }
     else
     {
@@ -1367,6 +1390,7 @@ bool Query::update()
 
       Screen::put(2, 0, what_);
       Screen::normal();
+
       Screen::end();
     }
   }
@@ -1534,6 +1558,30 @@ void Query::fetch(int row)
   }
 }
 
+// fetch all lines when all is selected in selection mode
+void Query::fetch_all()
+{
+  if (select_all_ && (!eof_ || buflen_ > 0))
+  {
+    // reading the search pipe should block until all data is received
+#ifdef OS_WIN
+    blocking_ = true;
+    pending_ = false;
+#else
+    set_blocking(search_pipe_[0]);
+#endif
+
+    while (true)
+    {
+      int i = rows_;
+      fetch(rows_);
+      if (i < rows_)
+        break;
+    }
+  }
+}
+
+// execute the search in a new thread
 void Query::execute(int fd)
 {
   output = fdopen(fd, "w");
@@ -1571,7 +1619,7 @@ void Query::execute(int fd)
     {
       what_.assign(error.what());
 
-      // cursor to the end
+      // error at the end of the line, not within
       error_ = line_wsize();
     }
 
@@ -2293,13 +2341,13 @@ void Query::message(const std::string& message)
   message_ = true;
 }
 
-// quit ugrep -Q
-bool Query::quit()
+// return true if prompt is confirmed
+bool Query::confirm(const char *prompt)
 {
   if (!flag_confirm)
     return true;
 
-  message("Exit? (y/n) [n] ");
+  message(std::string(prompt).append("? (y/n) [n] "));
 
   VKey::flush();
 
@@ -2380,7 +2428,7 @@ bool Query::help()
           break;
 
         case VKey::CTRL_C:
-          if (quit())
+          if (confirm("Exit"))
             return true;
           redraw();
           break;
@@ -2433,6 +2481,26 @@ bool Query::help()
 // Alt/Meta/Option key
 void Query::meta(int key)
 {
+  if (key == 'E' || key == 'Q')
+  {
+    if (flags_[5].flag || flags_[6].flag || flags_[17].flag || flags_[30].flag)
+    {
+      // reset -F, -G, -P, -Z to switch back to -E (the Q> prompt)
+      flags_[5].flag = false;
+      flags_[6].flag = false;
+      flags_[17].flag = false;
+      flags_[30].flag = false;
+
+      set_prompt();
+
+      draw();
+
+      search();
+    }
+
+    return;
+  }
+
   for (Flags *fp = flags_; fp->text != NULL; ++fp)
   {
     if (fp->key == key)
@@ -2631,7 +2699,7 @@ void Query::meta(int key)
         {
           globbing_ = true;
 
-          memcpy(save_, line_, QUERY_MAX_LEN);
+          memcpy(temp_, line_, QUERY_MAX_LEN);
           size_t num = globs_.size();
           if (num >= QUERY_MAX_LEN)
             num = QUERY_MAX_LEN - 1;
@@ -2647,7 +2715,7 @@ void Query::meta(int key)
         {
           globbing_ = false;
 
-          memcpy(line_, save_, QUERY_MAX_LEN);
+          memcpy(line_, temp_, QUERY_MAX_LEN);
           len_ = line_len();
           move(len_);
 
@@ -2677,16 +2745,16 @@ void Query::meta(int key)
 #endif
       else
       {
-        std::string buf;
+        std::string msg;
 
         fp->flag = !fp->flag;
 
-        buf.assign("\033[7mM- \033[m ").append(fp->text).append(fp->flag ? " \033[32;1mon\033[m" : " \033[31;1moff\033[m");
-        buf[6] = fp->key;
+        msg.assign("\033[7mM- \033[m ").append(fp->text).append(fp->flag ? " \033[32;1mon\033[m" : " \033[31;1moff\033[m");
+        msg[6] = fp->key;
 
         search();
 
-        message(buf);
+        message(msg);
 
         set_prompt();
       }
@@ -2698,66 +2766,118 @@ void Query::meta(int key)
   Screen::alert();
 }
 
+// true if at least one line is selected
+bool Query::selections()
+{
+  if (select_all_ && rows_ > 0)
+    return true;
+
+  for (int i = 0; i < rows_; ++i)
+    if (selected_[i])
+      return true;
+
+  return false;
+}
+
+// save selected lines -- unused
+void Query::save()
+{
+  if (saved_.empty() || confirm("Overwrite saved selections"))
+  {
+    saved_.clear();
+
+    try
+    {
+      if (select_all_)
+      {
+        message("please wait a moment to complete the search...");
+        fetch_all();
+      }
+
+      for (int i = 0; i < rows_; ++i)
+        if (selected_[i])
+          saved_.emplace_back(view_[i]);
+    }
+
+    catch (std::bad_alloc&)
+    {
+      message("out of memory");
+    }
+
+    message(std::to_string(saved_.size()).append(" lines saved"));
+  }
+  else
+  {
+    for (int i = 0; i < rows_; ++i)
+      selected_[i] = false;
+    select_all_ = false;
+  }
+}
+
 // print query results when done
 void Query::print()
 {
-  int i = 0;
-
-  // output selected query results
-  while (i < rows_)
+  if (!saved_.empty())
   {
-    if (selected_[i])
-      if (!print(i))
-        return;
-
-    // reduce memory usage by freeing what we no longer need
-    view_[i].clear();
-    view_[i].shrink_to_fit();
-
-    ++i;
+    for (auto& line : saved_)
+      print(line);
   }
-
-  // if all lines selected, make sure to fetch all data to output
-  if (select_all_ && (!eof_ || buflen_ > 0))
+  else
   {
-    // reading the search pipe should block until data is received
+    int i = 0;
+
+    // output selected query results
+    while (i < rows_)
+    {
+      if (selected_[i])
+        if (!print(view_[i]))
+          return;
+      ++i;
+    }
+
+    // if all lines are selected, output the remaining lines that aren't in view
+    if (select_all_ && (!eof_ || buflen_ > 0))
+    {
+      // reading the search pipe should block until data is received
 #ifdef OS_WIN
-    blocking_ = true;
-    pending_ = false;
+      blocking_ = true;
+      pending_ = false;
 #else
-    set_blocking(search_pipe_[0]);
+      set_blocking(search_pipe_[0]);
 #endif
 
-    while (true)
-    {
-      fetch(i);
-
-      if (rows_ == i)
-        break;
-
-      while (i < rows_)
+      while (true)
       {
-        if (!print(i))
-          return;
+        // if not appending to a row, start over at the begin of the view to conserve memory
+        if (!append_)
+          rows_ = 0;
 
-        // reduce memory usage by freeing what we no longer need
-        view_[i].clear();
-        view_[i].shrink_to_fit();
+        int i = rows_;
 
-        ++i;
+        fetch(i);
+
+        if (rows_ <= i)
+          break;
+
+        while (i < rows_)
+        {
+          if (!print(view_[i]))
+            return;
+          ++i;
+        }
       }
     }
   }
 }
 
 // print one row of query results
-bool Query::print(int row)
+bool Query::print(const std::string& line)
 {
-  if (view_[row].empty())
+  if (line.empty())
     return true;
 
-  const char *text = view_[row].c_str();
-  const char *end = text + view_[row].size();
+  const char *text = line.c_str();
+  const char *end = text + line.size();
 
   // how many nulls to ignore, part of filename marking?
   int nulls = *text == '\0' && !flag_text ? 2 : 0;
@@ -2843,9 +2963,9 @@ bool Query::print(int row)
   }
   else
   {
-    size_t nwritten = fwrite(view_[row].c_str(), 1, view_[row].size(), stdout);
+    size_t nwritten = fwrite(line.c_str(), 1, line.size(), stdout);
 
-    if (nwritten < view_[row].size())
+    if (nwritten < line.size())
       return false;
   }
 
@@ -2855,6 +2975,7 @@ bool Query::print(int row)
   return true;
 }
 
+// initialze local flags with the global flags
 void Query::get_flags()
 {
   // remember the context size, when specified
@@ -2930,6 +3051,7 @@ void Query::get_flags()
   flags_[48].flag = flag_sort && *flag_sort == 'r';
 }
 
+// set the global flags to the local flags
 void Query::set_flags()
 {
   // reset flags that are set by ugrep() depending on other flags
@@ -3157,7 +3279,7 @@ Query::Mode              Query::mode_                = Query::Mode::QUERY;
 bool                     Query::updated_             = false;
 bool                     Query::message_             = false;
 char                     Query::line_[QUERY_MAX_LEN] = { '\0' };
-char                     Query::save_[QUERY_MAX_LEN] = { '\0' };
+char                     Query::temp_[QUERY_MAX_LEN] = { '\0' };
 const char              *Query::prompt_              = NULL;
 int                      Query::start_               = 0;
 int                      Query::col_                 = 0;
@@ -3179,6 +3301,7 @@ bool                     Query::deselect_file_;
 std::string              Query::selected_file_;
 int                      Query::skip_                = 0;
 std::vector<std::string> Query::view_;
+std::list<std::string>   Query::saved_;
 std::vector<bool>        Query::selected_;
 bool                     Query::eof_                 = true;
 bool                     Query::append_              = false;

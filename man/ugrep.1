@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 26, 2020" "ugrep 2.5.0" "User Commands"
+.TH UGREP "1" "August 10, 2020" "ugrep 2.5.1" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -207,8 +207,8 @@ priority over \fB\-\-include\-fs\fR mounts.  This option may be repeated.
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
 any of which is to be matched.  This makes ugrep behave as fgrep.
-If PATTERN or \fB\-e\fR \fIPATTERN\fR is also specified, then this option does
-not apply to \fB\-f\fR \fIFILE\fR patterns.
+If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this
+option does not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-f\fR \fIFILE\fR, \fB\-\-file\fR=\fIFILE\fR
 Read newline\-separated patterns from FILE.  White space in patterns
@@ -413,8 +413,8 @@ specified, use up to MAX mmap memory per thread.
 \fB\-N\fR \fIPATTERN\fR, \fB\-\-neg\-regexp\fR=\fIPATTERN\fR
 Specify a negative PATTERN used during the search of the input:
 an input line is selected only if it matches any of the specified
-patterns when PATTERN does not match.  Same as \fB\-e\fR (?^PATTERN).
-Negative PATTERN matches are removed before any other specified
+patterns unless a subpattern of PATTERN.  Same as \fB\-e\fR (?^PATTERN).
+Negative PATTERN matches are essentially removed before any other
 patterns are matched.  Note that longer patterns take precedence
 over shorter patterns.  This option may be repeated.
 .TP
@@ -422,6 +422,11 @@ over shorter patterns.  This option may be repeated.
 Each output line is preceded by its relative line number in the
 file, starting at line 1.  The line number counter is reset for
 each file processed.
+.TP
+\fB\-\-not\fR
+Specifies that the following one or more \fB\-e\fR \fIPATTERN\fR should not
+match selected lines, where \fB\-\-not\fR \fB\-e\fR \fIPATTERN\fR is the same as
+specifying \fB\-N\fR '.*PATTERN.*' but optimized to improve performance.
 .TP
 \fB\-\-no\-group\-separator\fR
 Removes the group separator line from the output for context
@@ -588,7 +593,7 @@ This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The PATTERN is searched for as a word (as if surrounded by \\< and
-\\>).  If a PATTERN is specified (or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR), then
+\\>).  If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then
 this option does not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
@@ -598,7 +603,7 @@ Output matches in hexadecimal.  This option is equivalent to the
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Only input lines selected against the entire PATTERN is considered
 to be matching lines (as if surrounded by ^ and $).  If a PATTERN
-is specified (or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR), then this option does
+is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this option does
 not apply to \fB\-f\fR \fIFILE\fR patterns.
 .TP
 \fB\-\-xml\fR

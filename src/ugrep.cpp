@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.5.0"
+#define UGREP_VERSION "2.5.1"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -406,6 +406,7 @@ Flag flag_ungroup;
 Flag flag_quiet;
 Flag flag_files_with_matches;
 Flag flag_files_without_match;
+Flag flag_not;
 Flag flag_null;
 Flag flag_basic_regexp;
 Flag flag_perl_regexp;
@@ -485,6 +486,7 @@ std::string              flag_config_file;
 std::set<std::string>    flag_config_options;
 std::vector<std::string> flag_regexp;
 std::vector<std::string> flag_neg_regexp;
+std::vector<std::string> flag_not_regexp;
 std::vector<std::string> flag_file;
 std::vector<std::string> flag_file_type;
 std::vector<std::string> flag_file_extension;
@@ -3470,29 +3472,29 @@ static void save_config()
 # foreground and a background color may be combined with font properties `n'\n\
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\n");
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
-  fprintf(file, "# Enable/disable query UI confirm ESC to exit y/n\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
-  fprintf(file, "# Enable/disable headings for terminal output\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
-  fprintf(file, "# Enable/disable or specify a preferred pager for terminal output\n%s\n\n", flag_pager != NULL ? flag_pager : "no-pager");
-  fprintf(file, "# Enable/disable pretty output to the terminal\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
+  fprintf(file, "# Enable/disable query UI confirmation prompts, default: no-confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
+  fprintf(file, "# Enable/disable headings for terminal output, default: no-heading\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
+  fprintf(file, "# Enable/disable or specify a pager for terminal output, default: no-pager\n%s\n\n", flag_pager != NULL ? flag_pager : "no-pager");
+  fprintf(file, "# Enable/disable pretty output to the terminal, default: no-pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
 
   fprintf(file, "### SEARCH PATTERNS ###\n\n");
 
-  fprintf(file, "# Enable/disable case-insensitive search by default\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
-  fprintf(file, "# Enable/disable smart case by default\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
-  fprintf(file, "# Enable/disable empty pattern matches by default\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
+  fprintf(file, "# Enable/disable case-insensitive search, default: no-ignore-case\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
+  fprintf(file, "# Enable/disable smart case, default: no-smart-case\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
+  fprintf(file, "# Enable/disable empty pattern matches, default: no-empty\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
 
   fprintf(file, "### SEARCH TARGETS ###\n\n");
 
-  fprintf(file, "# Enable/disable searching hidden files and directories\n%s\n\n", flag_hidden ? "hidden" : "no-hidden");
-  fprintf(file, "# Enable/disable binary files\n%s\n\n", strcmp(flag_binary_files, "without-match") == 0 ? "ignore-binary" : "no-ignore-binary");
-  fprintf(file, "# Enable/disable decompression and archive search by default\n%s\n\n", flag_decompress ? "decompress" : "no-decompress");
+  fprintf(file, "# Enable/disable searching hidden files and directories, default: no-hidden\n%s\n\n", flag_hidden ? "hidden" : "no-hidden");
+  fprintf(file, "# Enable/disable binary files, default: no-ignore-binary\n%s\n\n", strcmp(flag_binary_files, "without-match") == 0 ? "ignore-binary" : "no-ignore-binary");
+  fprintf(file, "# Enable/disable decompression and archive search, default: no-decompress\n%s\n\n", flag_decompress ? "decompress" : "no-decompress");
   if (flag_ignore_files.empty())
   {
-    fprintf(file, "# Enable/disable ignore files by default\nno-ignore-files\n\n");
+    fprintf(file, "# Enable/disable ignore files, default: no-ignore-files\nno-ignore-files\n\n");
   }
   else
   {
-    fprintf(file, "# Enable/disable ignore files by default\n");
+    fprintf(file, "# Enable/disable ignore files, default: no-ignore-files\n");
     for (auto& ignore : flag_ignore_files)
       fprintf(file, "ignore-files=%s\n", ignore.c_str());
     fprintf(file, "\n");
@@ -3511,7 +3513,7 @@ static void save_config()
 
   fprintf(file, "### OUTPUT ###\n\n");
 
-  fprintf(file, "# Enable/disable sorted output\n%s\n\n", flag_sort != NULL ? flag_sort : "no-sort");
+  fprintf(file, "# Enable/disable sorted output, default: no-sort\n%s\n\n", flag_sort != NULL ? flag_sort : "no-sort");
 
   if (file != stdout)
     fclose(file);
@@ -3823,6 +3825,8 @@ void options(int argc, const char **argv)
               case 'n':
                 if (strncmp(arg, "neg-regexp=", 11) == 0)
                   flag_neg_regexp.emplace_back(arg + 11);
+                else if (strcmp(arg, "not") == 0)
+                  flag_not = true;
                 else if (strcmp(arg, "no-any-line") == 0)
                   flag_any_line = false;
                 else if (strcmp(arg, "no-binary") == 0)
@@ -3886,7 +3890,7 @@ void options(int argc, const char **argv)
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --no-any-line, --no-binary, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup or --null");
                 break;
 
               case 'o':
@@ -3928,7 +3932,7 @@ void options(int argc, const char **argv)
                 else if (strcmp(arg, "recursive") == 0)
                   flag_directories = "recurse";
                 else if (strncmp(arg, "regexp=", 7) == 0)
-                  flag_regexp.emplace_back(arg + 7);
+                  (flag_not ? flag_not_regexp : flag_regexp).emplace_back(arg + 7);
                 else if (strcmp(arg, "range") == 0)
                   usage("missing argument for --", arg);
                 else
@@ -4092,9 +4096,9 @@ void options(int argc, const char **argv)
           case 'e':
             ++arg;
             if (*arg)
-              flag_regexp.emplace_back(&arg[*arg == '=']);
+              (flag_not ? flag_not_regexp : flag_regexp).emplace_back(&arg[*arg == '=']);
             else if (++i < argc)
-              flag_regexp.emplace_back(argv[i]);
+              (flag_not ? flag_not_regexp : flag_regexp).emplace_back(argv[i]);
             else
               usage("missing PATTERN argument for option -e");
             is_grouped = false;
@@ -4545,7 +4549,12 @@ void init(int argc, const char **argv)
   {
 #if defined(HAVE_PCRE2) || defined(HAVE_BOOST_REGEX)
     flag_basic_regexp = false;
-    flag_fuzzy = 0;
+    if (flag_fuzzy > 0)
+      usage("options -P and -Z are not compatible");
+    if (!flag_neg_regexp.empty())
+      usage("options -P and -N are not compatible");
+    if (!flag_not_regexp.empty())
+      usage("options -P and --not are not compatible");
 #else
     usage("option -P is not available in this build configuration of ugrep");
 #endif
@@ -5359,14 +5368,34 @@ void ugrep()
     {
       i = flag_all_include.erase(i);
     }
-    else if (i->back() == '/')
-    {
-      flag_all_include_dir.emplace_back(*i);
-      i = flag_all_include.erase(i);
-    }
     else
     {
-      ++i;
+      if (i->back() == '/')
+      {
+        flag_all_include_dir.emplace_back(*i);
+        i = flag_all_include.erase(i);
+      }
+      else
+      {
+        // if a glob starts with a dot, then enable searching hidden files and directories
+        if (i->front() == '.' || i->find(PATHSEPSTR ".") != std::string::npos)
+          flag_hidden = true;
+
+        ++i;
+      }
+    }
+  }
+
+  // if a dir glob starts with a dot, then enable searching hidden files and directories
+  if (!flag_hidden)
+  {
+    for (auto& dir : flag_all_include_dir)
+    {
+      if (dir.front() == '.' || dir.find(PATHSEPSTR ".") != std::string::npos)
+      {
+        flag_hidden = true;
+        break;
+      }
     }
   }
 
@@ -5624,30 +5653,76 @@ void ugrep()
 
       if (from < pattern.size())
         neg_regex.append(Q).append(pattern.substr(from)).append(E);
-
-      if (pattern.size() >= 1 && (pattern.front() == '^' || pattern.back() == '$'))
-        flag_empty = true; // we're possibly matching empty lines, so enable -Y
     }
   }
 
-  // -x or -w: apply to -N PATTERN
+  // --not: combine --not regexes with regex patterns using the formula PATTERNS(?^.*(NOTPATTERNS))?|(?^NOTPATTERNS).*
+  if (!regex.empty() && !flag_not_regexp.empty())
+  {
+    std::string not_regex;
+
+    // append --not -e PATTERNs to not_regex
+    for (auto& pattern : flag_not_regexp)
+    {
+      if (!pattern.empty())
+      {
+        // split newline-separated regex up into alternations
+        size_t from = 0;
+        size_t to;
+
+        // split regex at newlines, for -F add \Q \E to each string, separate by |
+        while ((to = pattern.find('\n', from)) != std::string::npos)
+        {
+          if (from < to)
+          {
+            size_t len = to - from - (pattern[to - 1] == '\r');
+            if (len > 0)
+              not_regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
+          }
+          from = to + 1;
+        }
+
+        if (from < pattern.size())
+          not_regex.append(Q).append(pattern.substr(from)).append(E);
+      }
+    }
+
+    if (!not_regex.empty())
+    {
+      if (flag_line_regexp)
+      {
+        // --not and -x: --not -x -e PATTERN is the same as -N PATTERN
+        neg_regex.append(not_regex);
+      }
+      else if (flag_word_regexp)
+      {
+        // --not and -w: --not -w -e PATTERN is the same as -N '.*PATTERN.*' which is slow
+        not_regex.pop_back();
+        neg_regex.append(".*(").append(not_regex).append(").*|");
+      }
+      else
+      {
+        // --not: optimize -e PATTERN --not -e NOTPATTERN as PATTERN(?^.*NOTPATTERN)?|(?^NOTPATTERN).*
+        regex.pop_back();
+        not_regex.pop_back();
+
+        regex.append("(?^.*(").append(not_regex).append("))?|(?^").append(not_regex).append(").*|");
+      }
+    }
+  }
+
+  // construct negative (?^PATTERN)
   if (!neg_regex.empty())
   {
-    // remove the ending '|' from the |-concatenated regexes in the regex string
     neg_regex.pop_back();
-
-    if (regex != "^$")
-    {
-      // -x or -w
-      if (flag_line_regexp)
-        neg_regex.insert(0, "^(").append(")$"); // make the regex line-anchored
-      else if (flag_word_regexp)
-        neg_regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
-    }
-
-    // construct negative (?^PATTERN)
-    neg_regex.insert(0, "(?^").push_back(')');
+    neg_regex.insert(0, "(?^").append(")|");
   }
+
+  // combine regexes
+  if (regex.empty())
+    regex.swap(neg_regex);
+  else if (!neg_regex.empty())
+    regex.append(neg_regex);
 
   // -x or -w: apply to PATTERN then disable -x, -w, -F for patterns in -f FILE when PATTERN or -e PATTERN is specified
   if (!regex.empty())
@@ -5672,12 +5747,6 @@ void ugrep()
     Q = "";
     E = "|";
   }
-
-  // combine regexes
-  if (regex.empty())
-    regex.swap(neg_regex);
-  else if (!neg_regex.empty())
-    regex.append("|").append(neg_regex);
 
   // -f: get patterns from file
   if (!flag_file.empty())
@@ -9583,8 +9652,8 @@ void help(std::ostream& out)
     -F, --fixed-strings\n\
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This makes ugrep behave as fgrep.\n\
-            If PATTERN or -e PATTERN is also specified, then this option does\n\
-            not apply to -f FILE patterns.\n\
+            If a PATTERN is specified, or -e PATTERN or -N PATTERN, then this\n\
+            option does not apply to -f FILE patterns.\n\
     -f FILE, --file=FILE\n\
             Read newline-separated patterns from FILE.  White space in patterns\n\
             is significant.  Empty lines in FILE are ignored.  If FILE does not\n\
@@ -9770,14 +9839,18 @@ void help(std::ostream& out)
     -N PATTERN, --neg-regexp=PATTERN\n\
             Specify a negative PATTERN used during the search of the input:\n\
             an input line is selected only if it matches any of the specified\n\
-            patterns when PATTERN does not match.  Same as -e (?^PATTERN).\n\
-            Negative PATTERN matches are removed before any other specified\n\
+            patterns unless a subpattern of PATTERN.  Same as -e (?^PATTERN).\n\
+            Negative PATTERN matches are essentially removed before any other\n\
             patterns are matched.  Note that longer patterns take precedence\n\
             over shorter patterns.  This option may be repeated.\n\
     -n, --line-number\n\
             Each output line is preceded by its relative line number in the\n\
             file, starting at line 1.  The line number counter is reset for\n\
             each file processed.\n\
+    --not\n\
+            Specifies that the following one or more -e PATTERN should not\n\
+            match selected lines, where --not -e PATTERN is the same as\n\
+            specifying -N '.*PATTERN.*' but optimized to improve performance.\n\
     --no-group-separator\n\
             Removes the group separator line from the output for context\n\
             options -A, -B, and -C.\n\
@@ -9926,7 +9999,7 @@ void help(std::ostream& out)
             This option is equivalent to the --binary-files=with-hex option.\n\
     -w, --word-regexp\n\
             The PATTERN is searched for as a word (as if surrounded by \\< and\n\
-            \\>).  If a PATTERN is specified (or -e PATTERN or -N PATTERN), then\n\
+            \\>).  If a PATTERN is specified, or -e PATTERN or -N PATTERN, then\n\
             this option does not apply to -f FILE patterns.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
@@ -9934,7 +10007,7 @@ void help(std::ostream& out)
     -x, --line-regexp\n\
             Only input lines selected against the entire PATTERN is considered\n\
             to be matching lines (as if surrounded by ^ and $).  If a PATTERN\n\
-            is specified (or -e PATTERN or -N PATTERN), then this option does\n\
+            is specified, or -e PATTERN or -N PATTERN, then this option does\n\
             not apply to -f FILE patterns.\n\
     --xml\n\
             Output file matches in XML.  If -H, -n, -k, or -b is specified,\n\

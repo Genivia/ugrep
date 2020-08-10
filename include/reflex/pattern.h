@@ -433,7 +433,7 @@ class Pattern {
     bool   operator>=(const Chars& c) const { return !(*this < c); }
     Char   lo()                       const { for (Char i = 0; i < 5; ++i) if (b[i]) for (Char j = 0; j < 64; ++j) if (b[i] & (1ULL << j)) return (i << 6) + j; return 0; }
     Char   hi()                       const { for (Char i = 0; i < 5; ++i) if (b[4-i]) for (Char j = 0; j < 64; ++j) if (b[4-i] & (1ULL << (63-j))) return ((4-i) << 6) + (63-j); return 0; }
-    uint64_t b[5]; ///< 256 bits for chars + bits for meta
+    uint64_t b[5]; ///< 256 bits to store a set of 8-bit chars + extra bits for meta
   };
   /// Finite state machine construction position information.
   struct Position {
@@ -444,7 +444,7 @@ class Pattern {
     static const value_type RES1    = 1ULL << 48; ///< reserved
     static const value_type RES2    = 1ULL << 49; ///< reserved
     static const value_type RES3    = 1ULL << 50; ///< reserved
-    static const value_type RES4    = 1ULL << 51; ///< reserved
+    static const value_type NEGATE  = 1ULL << 51; ///< marks negative patterns
     static const value_type TICKED  = 1ULL << 52; ///< marks lookahead ending ) in (?=X)
     static const value_type GREEDY  = 1ULL << 53; ///< force greedy quants
     static const value_type ANCHOR  = 1ULL << 54; ///< marks begin of word anchors
@@ -455,6 +455,7 @@ class Pattern {
     Position& operator=(const Position& p) { k = p.k; return *this; }
     operator value_type()            const { return k; }
     Position iter(Iter i)            const { return Position(k + (static_cast<value_type>(i) << 32)); }
+    Position negate(bool b)          const { return b ? Position(k | NEGATE) : Position(k & ~NEGATE); }
     Position ticked(bool b)          const { return b ? Position(k | TICKED) : Position(k & ~TICKED); }
     Position greedy(bool b)          const { return b ? Position(k | GREEDY) : Position(k & ~GREEDY); }
     Position anchor(bool b)          const { return b ? Position(k | ANCHOR) : Position(k & ~ANCHOR); }
@@ -464,6 +465,7 @@ class Pattern {
     Location loc()                   const { return static_cast<Location>(k); }
     Accept   accepts()               const { return static_cast<Accept>(k); }
     Iter     iter()                  const { return static_cast<Index>((k >> 32) & 0xFFFF); }
+    bool     negate()                const { return (k & NEGATE) != 0; }
     bool     ticked()                const { return (k & TICKED) != 0; }
     bool     greedy()                const { return (k & GREEDY) != 0; }
     bool     anchor()                const { return (k & ANCHOR) != 0; }
@@ -568,7 +570,7 @@ class Pattern {
       Accept      accept; ///< nonzero if final state, the index of an accepted/captured subpattern
       Lookaheads  heads;  ///< lookahead head set
       Lookaheads  tails;  ///< lookahead tail set
-      bool        redo;   ///< true if this is an ignorable final state
+      bool        redo;   ///< true if this is a final state of a negative pattern
     };
     typedef std::list<State*> List;
     static const uint16_t ALLOC = 256; ///< allocate 256 states at a time, to improve performance.

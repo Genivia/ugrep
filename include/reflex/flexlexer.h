@@ -28,7 +28,7 @@
 
 /**
 @file      flexlexer.h
-@brief     RE/flex Flex-compatible FlexLexer base class and Lex/Flex-compatible macros
+@brief     RE/flex Flex-compatible FlexLexer base class and Flex-compatible macros
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -114,7 +114,7 @@ int yywrap(void);
 #define YY_EXIT_FAILURE         (2)
 #endif
 
-/// Flex-compatible macro: size of default input buffer.
+/// Flex-compatible macro: size of default input buffer (not applicable to RE/flex, buffer is dynamic).
 #ifndef YY_BUF_SIZE
 #define YY_BUF_SIZE             (16384)
 #endif
@@ -137,7 +137,7 @@ int yywrap(void);
 
 /// Flex-compatible macro: ECHO action to output the content of yytext.
 #ifndef ECHO
-#define ECHO                    YY_SCANNER_DOT_ LexerOutput(YYText(), YYLeng())
+#define ECHO                    YY_SCANNER_DOT_ LexerOutput(yytext, yyleng)
 #endif
 
 /// Flex-compatible macro: BEGIN action to set a start condition.
@@ -191,14 +191,14 @@ int yywrap(void);
 /// Flex-compatible macro: interactive mode on/off (use only when scanner has started).
 #define yy_set_interactive(b)   YY_SCANNER_DOT_ matcher().buffer((b) ? 1 : 0)
 
-/// Flex-compatible macro: create and return a new buffer.
+/// Flex-compatible macro: create and return a new buffer (new reflex::Matcher).
 #if defined(REFLEX_OPTION_reentrant)
 #define yy_create_buffer(i,_,s) static_cast<FlexLexer*>(s)->new_matcher(i)
 #else
 #define yy_create_buffer(i,_)   YY_SCANNER_DOT_ new_matcher(i)
 #endif
 
-/// Flex-compatible macro: create and return a new buffer.
+/// Flex-compatible macro: create and return a new buffer (new reflex::Matcher).
 #if defined(REFLEX_OPTION_reentrant)
 #define yy_new_buffer(i,_,s)    static_cast<FlexLexer*>(s)->new_matcher(i)
 #else
@@ -356,7 +356,7 @@ int yywrap(void);
 #define yyscanner               this
 
 /// Flex-compatible macro: the text accessor of a reentrant scanner.
-#define yyget_text(s)           static_cast<FlexLexer*>(s)->YYText()
+#define yyget_text(s)           const_cast<char*>(static_cast<FlexLexer*>(s)->YYText())
 
 /// Flex-compatible macro: the leng accessor of a reentrant scanner.
 #define yyget_leng(s)           static_cast<FlexLexer*>(s)->YYLeng()
@@ -435,7 +435,8 @@ class FlexLexer : public AbstractLexer<M> {
         size_t n)
     {
       FlexLexer *lexer = dynamic_cast<FlexLexer*>(this->lexer_); // a safe cast
-      return lexer->LexerInput(s, n); // a nice trick to get input from LexerInput()
+      size_t k = lexer->LexerInput(s, n); // a nice trick to get input from LexerInput()
+      return k < n ? k : n; // make sure the return value is limited to n, as it should be, even when LexerInput misbehaves!
     }
     /// Check the Flex-compatible FlexLexer::yywrap method to determine if matcher should wrap input after EOF (lexer yywrap() should return 0 to wrap input after EOF).
     virtual bool wrap()

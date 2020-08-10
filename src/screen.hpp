@@ -216,6 +216,31 @@ class Screen {
     return wchar_width(wchar(ptr, endptr));
   }
 
+  // return the total number of screen columns to display a string
+  static int mbstring_width(const char *ptr)
+  {
+    int num = 0;
+    while (*ptr != '\0')
+      num += mbchar_width(ptr++, NULL);
+    return num;
+  }
+
+  // return pointer to string after pos screen columns
+  static const char *mbstring_pos(const char *ptr, int pos)
+  {
+    while (--pos >= 0 && *ptr != '\0')
+      wchar(ptr, &ptr);
+    return ptr;
+  }
+
+  // return pointer to string after pos screen columns
+  static char *mbstring_pos(char *ptr, int pos)
+  {
+    while (--pos >= 0 && *ptr != '\0')
+      wchar(ptr, const_cast<const char**>(&ptr));
+    return ptr;
+  }
+
   // emit text
   static void put(const char *text, size_t size)
   {

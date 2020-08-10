@@ -43,15 +43,21 @@
 
 #include <cerrno>
 #include <thread>
+#include <list>
 
 // max length of the query line to edit
 #ifndef QUERY_MAX_LEN
 #define QUERY_MAX_LEN 1024
 #endif
 
-// size of the chunks of data to buffer when received from the search pipe
+// size of the chunks of data to buffer when received from the search thread's pipe
 #ifndef QUERY_BUFFER_SIZE
 #define QUERY_BUFFER_SIZE 16384
+#endif
+
+// the max time that a message (to confirm a command) is shown at the query line, in steps of 100ms
+#ifndef QUERY_MESSAGE_DELAY
+#define QUERY_MESSAGE_DELAY 12
 #endif
 
 class Query {
@@ -118,6 +124,8 @@ class Query {
 
   static void fetch(int row);
 
+  static void fetch_all();
+
   static void execute(int fd);
 
   static void load_line();
@@ -148,15 +156,19 @@ class Query {
 
   static void message(const std::string& message);
 
-  static bool quit();
+  static bool confirm(const char *prompt);
 
   static bool help();
 
   static void meta(int key);
 
+  static bool selections();
+
+  static void save();
+
   static void print();
 
-  static bool print(int row);
+  static bool print(const std::string& line);
 
   static void get_flags();
 
@@ -176,7 +188,7 @@ class Query {
   static bool                     updated_;
   static bool                     message_;
   static char                     line_[QUERY_MAX_LEN];
-  static char                     save_[QUERY_MAX_LEN];
+  static char                     temp_[QUERY_MAX_LEN];
   static const char              *prompt_;
   static int                      start_;
   static int                      col_;
@@ -198,6 +210,7 @@ class Query {
   static bool                     deselect_file_;
   static std::string              selected_file_;
   static std::vector<std::string> view_;
+  static std::list<std::string>   saved_;
   static std::vector<bool>        selected_;
   static bool                     eof_;
   static bool                     append_;
