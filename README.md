@@ -157,7 +157,7 @@ Download and install
 
 Install the latest **ugrep** with [Homebrew](https://brew.sh):
 
-    $ brew install https://raw.githubusercontent.com/Genivia/ugrep/master/Formula/ugrep.rb
+    $ brew install ugrep
 
 This installs the `ugrep` and `ug` commands, where `ug` is the same as `ugrep`
 but also loads the configuration file .ugrep when present in the working
