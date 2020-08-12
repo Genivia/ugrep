@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.5.1"
+#define UGREP_VERSION "2.5.2"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -1596,6 +1596,7 @@ struct Grep {
 
   virtual ~Grep()
   {
+#ifdef HAVE_LIBZ
     if (stream != NULL)
     {
       delete stream;
@@ -1614,6 +1615,7 @@ struct Grep {
       pipe_zstrm.notify_one();
       thread.join();
     }
+#endif
 #endif
   }
 

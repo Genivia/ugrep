@@ -1250,7 +1250,7 @@ void Query::search()
   row_ = 0;
   rows_ = 0;
   skip_ = 0;
-  dots_ = 3;
+  dots_ = 0;
 
   if (!eof_)
   {
@@ -1366,7 +1366,6 @@ bool Query::update()
       searching_[10] = '.';
       searching_[11] = '.';
       searching_[9 + dots_] = '\0';
-      dots_ = (dots_ + 1) & 3;
 
       Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
       Screen::normal();
@@ -1374,6 +1373,8 @@ bool Query::update()
       // when searching, don't immediately clear the rest of the screen
       if (eof_ || dots_ == 3)
         Screen::end();
+
+      dots_ = (dots_ + 1) & 3;
     }
     else
     {
