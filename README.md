@@ -625,8 +625,8 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   GNU/BSD grep, pattern `a*` matches every line in the input, and actually
   matches `xyz` three times (the empty transitions before and between the `x`,
   `y`, and `z`).  Allowing empty matches requires **ugrep** option `-Y`.
-  Patterns that start with `^` and end with `$` are permitted to match empty,
-  e.g. `^\h*$`, by implicitly enabling `-Y`.
+  Patterns that start with `^` or end with `$`, such as `^\h*$`, match empty.
+  These patterns automatically enable option `-Y`.
 - **ugrep** option `-D, --devices=ACTION` is `skip` by default, instead of
   `read`.  This prevents unexpectedly hanging on named pipes in directories
   that are recursively searched, as may happen with GNU/BSD grep that `read`
@@ -634,12 +634,12 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 - **ugrep** option `-d, --directories=ACTION` is `skip` by default, instead of
   `read`.  By default, directories specified on the command line are searched,
   but not recursively deeper into subdirectories.
-- **ugrep** does not use a `.greprc` configuration file or a `GREP_OPTIONS`
-  environment variable, because the behavior of **ugrep** must be portable and
-  predictable on every system, without having to copy the configuration files
-  to each system.  Also GNU grep abandoned `GREP_OPTIONS` for this reason.
-  Instead, please use shell aliases to create new commands with specific search
-  options.
+- **ugrep** does not the `GREP_OPTIONS` environment variable, because the
+  behavior of **ugrep** must be portable and predictable on every system.  Also
+  GNU grep abandoned `GREP_OPTIONS` for this reason.  Please use the `ug`
+  command that loads the .ugrep configuration file located in the working
+  directory or in the home directory when present, or use shell aliases to
+  create new commands with specific search options.
 
 🔝 [Back to table of contents](#toc)
 
@@ -1027,6 +1027,10 @@ key(s)                  | function
 `Right` `Ctrl-F`        | move right
 `PgUp` `Ctrl-G`         | move display up by a page
 `PgDn` `Ctrl-D`         | move display down by a page
+`Alt-Up`                | move display up by 1/2 page (MacOS `Shift-Up`)
+`Alt-Down`              | move display down by 1/2 page (MacOS `Shift-Down`)
+`Alt-Left`              | move display left by 1/2 page (MacOS `Shift-Left`)
+`Alt-Right`             | move display right by 1/2 page (MacOS `Shift-Right`)
 `Home` `Ctrl-A`         | move cursor to the begin of line
 `End` `Ctrl-E`          | move cursor to the end of line
 `Ctrl-K`                | delete after cursor
@@ -1673,11 +1677,13 @@ depending on requests for enhancements).
 When option `-z` is used with options `-g`, `-O`, `-M`, or `-t`, archives and
 compressed and uncompressed files that match the filename selection criteria
 (glob, extension, magic bytes, or file type) are searched only.  For example,
-`ugrep -r -z -tc++` searches C++ files such as `main.cpp`, and also
-`main.cpp.gz` and `main.cpp.xz` when present.  Also any cpio, pax, tar, and zip
-archives when present are searched for C++ files such as `main.cpp`.  Use
-option `--stats` to see a list of the glob patterns applied to filter file
-pathnames in the recursive search and when searching archive contents.
+`ugrep -r -z -tc++` searches C++ files such as `main.cpp` and zip and tar
+archives that contain C++ files such as `main.cpp`.  Also included in the
+search are compressed C++ files such as `main.cpp.gz` and `main.cpp.xz` when
+present.  Also any cpio, pax, tar, and zip archives when present are searched
+for C++ files that they contain, such as `main.cpp`.  Use option `--stats` to
+see a list of the glob patterns applied to filter file pathnames in the
+recursive search and when searching archive contents.
 
 When option `-z` is used with options `-g`, `-O`, `-M`, or `-t` to search cpio,
 jar, pax, tar, and zip archives, archived files that match the filename selection
@@ -1926,19 +1932,19 @@ Common filter utilities are `cat` (concat, pass through), `head` (select first
 lines or bytes) `tr` (translate), `iconv` and `uconv` (convert), and more
 advanced document conversion utilities such as:
 
-- [`pdftotext`](https://pypi.org/project/pdftotext) to convert PDF to text,
+- [`pdftotext`](https://pypi.org/project/pdftotext) to convert PDF to text
 - [`pandoc`](https://pandoc.org) to convert .docx, .epub, and other document
-  formats,
-- [`soffice`](https://www.libreoffice.org) to convert office documents,
-- [`csvkit`](https://pypi.org/project/csvkit) to convert spreadsheets, and
+  formats
+- [`soffice`](https://www.libreoffice.org) to convert office documents
+- [`csvkit`](https://pypi.org/project/csvkit) to convert spreadsheets
 - [`openssl`](https://wiki.openssl.org/index.php/Command_Line_Utilities) to
-  convert certificates and key files.
+  convert certificates and key files to text and other formats
 - [`exiftool`](http://exiftool.sourceforge.net) to read meta information
   embedded in images.
 
 Also decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
-`bunzip2`, `unlzma`, and `unxz` that can decompress files to standard output by
-specifying option `--stdout`.  However, **ugrep** option `-z` is typically
+`bunzip2`, `unlzma`, and `unxz` that decompress files to standard output when
+option `--stdout` is specified.  However, **ugrep** option `-z` is typically
 faster to search compressed files.
 
 The `--filter` option may also be used to run a user-defined shell script to
@@ -2673,16 +2679,12 @@ To search tarballs for matching names of PDF files (assuming bash is our shell):
 
 ### Output matches in JSON, XML, CSV, C++
 
-    --cpp
-            Output file matches in C++.  See also options --format and -u.
-    --csv
-            Output file matches in CSV.  If -H, -n, -k, or -b is specified,
+    --cpp   Output file matches in C++.  See also options --format and -u.
+    --csv   Output file matches in CSV.  If -H, -n, -k, or -b is specified,
             additional values are output.  See also options --format and -u.
-    --json
-            Output file matches in JSON.  If -H, -n, -k, or -b is specified,
+    --json  Output file matches in JSON.  If -H, -n, -k, or -b is specified,
             additional values are output.  See also options --format and -u.
-    --xml
-            Output file matches in XML.  If -H, -n, -k, or -b is specified,
+    --xml   Output file matches in XML.  If -H, -n, -k, or -b is specified,
             additional values are output.  See also options --format and -u.
 
 To recursively search for lines with `TODO` and display C++ file matches in
