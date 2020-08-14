@@ -183,7 +183,14 @@ Some notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
   the single `'` quotes part of the command-line argument!
 - when specifying an empty pattern `""` to match all input, this may be ignored
   by some Windows command interpreters such as Powershell, in that case use
-  option `--match` instead
+  option `--match` instead.
+
+### Debian
+
+    $ apt-get install ugrep
+
+Check <https://packages.debian.org/sid/main/ugrep> for version info.  To build
+and try `ugrep` locally, see "All platforms" build steps further below.
 
 ### NetBSD
 
@@ -315,10 +322,12 @@ Performance comparisons
 -----------------------
 
 **ugrep** is multi-threaded and uses clever lock-free job queue stealing for
-optimized load balancing.  We also optimized regex matching with AVX2/512BW,
-SSE2, and ARM NEON/AArch64 instructions.  Compressed files are decompressed
-concurrently while searching them to furher improve performance.  Asynchronous
-IO is implemented for efficient input and output.
+optimized load balancing.  A new hashing technique is used to identify possible
+matches to speed up multi-pattern matches.  In addition, regex matching is
+optimized with SSE2/AVX2/AVX512BW and ARM NEON/AArch64 instructions.
+Compressed files are decompressed concurrently while searching them to furher
+improve performance.  Asynchronous IO is implemented for efficient input and
+output.
 
 ### Benchmarks
 
@@ -353,7 +362,7 @@ The corpora used in the tests are available for
 
 Performance tests were conducted with a Mac OS X using clang 9.0.0 -O2 on a 2.9
 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 Mac OS 10.12.6 machine.  The best
-times for at least 30 runs is shown under minimal machine load.
+times of 30 runs is shown under minimal machine load.
 
 Results are shown in real time (wall clock time) seconds elapsed.  Best times
 are shown in **boldface** and *n/a* means that the running time exceeded 1
@@ -389,9 +398,9 @@ overhead.  The `null` utility source code:
     #include <unistd.h>
     int main() { char buf[65536]; while (read(0, buf, 65536) > 0) continue; }
 
-Note: performance results depend on warm/cold runs, compilers, libraries, the
-OS, the CPU type, and file system latencies.  However, comparable competitive
-results were obtained on many other types of machines.
+Note: performance results may depend on warm/cold runs, compilers, libraries,
+the OS, the CPU type, and file system latencies.  However, comparable
+competitive results were obtained on many other types of machines.
 
 🔝 [Back to table of contents](#toc)
 
