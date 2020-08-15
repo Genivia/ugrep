@@ -6,11 +6,11 @@ Search for anything in everything... ultra fast
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-- Written in clean and efficient C++11, built for speed and thoroughly tested
+- Written in clean and efficient C++11 for features and speed, thoroughly tested
 
 - Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
 
-- Ultra fast with new match algorithms, easily beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance benchmarks](#speed)
+- Ultra fast with new match algorithms and features, beating grep, ripgrep, silver searcher, hyperscan, sift, etc. see [performance](#speed)
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load the .ugrep configuration file with your preferences
 
@@ -325,8 +325,8 @@ Performance comparisons
 optimized load balancing.  A new hashing technique is used to identify possible
 matches to speed up multi-pattern matches.  In addition, regex matching is
 optimized with SSE2/AVX2/AVX512BW and ARM NEON/AArch64 instructions.
-Compressed files are decompressed concurrently while searching them to furher
-improve performance.  Asynchronous IO is implemented for efficient input and
+Compressed files are decompressed concurrently while searching to furher
+increase performance.  Asynchronous IO is implemented for efficient input and
 output.
 
 ### Benchmarks
@@ -349,7 +349,7 @@ T11  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same a
 T12  | `GREP -z -Fc word word*.gz`                                      | count `word` in 6 compressed files of 1MB to 3MB each
 
 Note: T10 and T11 use `ugrep` option `-Oh,hpp,cpp` to restrict the search to
-files with extensions `.h`, `.hpp`, and `.cpp`, which should be formulated with
+files with extensions `.h`, `.hpp`, and `.cpp`, which is formulated with
 GNU/BSD/PCRGE grep as `--include='*.h' --include='*.hpp' --include='*.cpp'`,
 with silver searcher as `-G '.*\.(h|hpp|cpp)'` requiring `--search-binary` to
 search compressed files (a bug), and with ripgrep as `--glob='*.h'
@@ -360,9 +360,10 @@ The corpora used in the tests are available for
 
 ### Performance results
 
-Performance tests were conducted with a Mac OS X using clang 9.0.0 -O2 on a 2.9
-GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 Mac OS 10.12.6 machine.  The best
-times of 30 runs is shown under minimal machine load.
+The following performance tests were conducted with a new and common MacBook
+using clang 9.0.0 -O2 on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 Mac OS
+10.12.6 machine.  The best times of 30 runs is shown under minimal machine
+load.  When comparing tools, the same match counts were produced.
 
 Results are shown in real time (wall clock time) seconds elapsed.  Best times
 are shown in **boldface** and *n/a* means that the running time exceeded 1
@@ -2182,6 +2183,13 @@ precisely and exclusively.  Use `--stats` to show the selection criteria
 applied to the search results and the locations of each `FILE` found.  To avoid
 confusion, files and directories specified as command-line arguments to
 **ugrep** are never ignored.
+
+Note that exclude glob patterns take priority over include glob patterns when
+specified with command line options.  By contrast, negated glob patterns
+specified with `!` in `--ignore-files` files take priority.  This effectively
+overrides the exclusions and resolves conflicts in favor of listing matching
+files that are explicitly specified as exceptions and should be included in the
+search.
 
 See also [Using gitignore-style globs to select directories and files to search](#globs).
 
