@@ -88,11 +88,11 @@ Search for anything in everything... ultra fast
 
       ugrep -P PATTERN ...                   ugrep -P --format='%1 and %2%~' 'PATTERN(SUB1)(SUB2)' ...
 
-- Search files in ASCII and UTF-8/16/32 with Unicode regex patterns by default, or files with a specific [encoded](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
+- Search files in ASCII and UTF-8/16/32 with Unicode regex patterns by default, or files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
       ugrep --encoding=LATIN1 PATTERN ...
 
-- Search for patterns that match multiple lines, i.e. patterns may contain one or more `\n` newlines
+- Search patterns that match multiple lines (by default), i.e. patterns may contain one or more `\n` newlines
 
 <a name="toc"/>
 
