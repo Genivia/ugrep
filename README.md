@@ -65,7 +65,7 @@ Search for anything in everything... ultra fast
 
 - Search patterns excluding [negative patterns](#not) and excluding lines ("match this but not that")
 
-      ugrep PATTERN -N NOTPATTERN ...        ugrep PATTERN --not -e NOTLINESWITHPATTERN
+      ugrep PATTERN -N NOTPATTERN ...        ugrep PATTERN --not -e NOTLINESWITHPATTERN ...
 
 - Includes [predefined regex patterns](#source) to search source code, javascript, XML, JSON, HTML, PHP, markdown, etc.
 
@@ -321,13 +321,22 @@ significant runtime overhead and should not be used for the final build.
 Performance comparisons
 -----------------------
 
-**ugrep** is multi-threaded and uses clever lock-free job queue stealing for
-optimized load balancing.  A new hashing technique is used to identify possible
-matches to speed up multi-pattern matches.  In addition, regex matching is
-optimized with SSE2/AVX2/AVX512BW and ARM NEON/AArch64 instructions.
-Compressed files are decompressed concurrently while searching to furher
-increase performance.  Asynchronous IO is implemented for efficient input and
-output.
+Performance comparisons should represent what users can expect the performance
+to be in practice.  There should not be any shenanigans to trick the system to
+perform more optimally or to degrade an important aspect of the search to make
+one grep tool look better than another.
+
+**ugrep** is a no-nonsense fast search tool that utilizes a worker pool of
+threads with clever lock-free job queue stealing for optimized load balancing.
+A new hashing technique is used to identify possible matches to speed up
+multi-pattern matches.  In addition, regex matching is optimized with AVX/SSE
+and ARM NEON/AArch64 instructions.  Compressed files are decompressed
+concurrently while searching to furher increase performance.  Asynchronous IO
+is implemented for efficient input and output.
+
+**ugrep** performs very well overall and particularly well when searching
+compressed files and archives. This means that at its core, the search engine's
+performance of ugrep excellent if not the best among grep tools available.
 
 ### Benchmarks
 
