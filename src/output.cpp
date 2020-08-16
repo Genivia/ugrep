@@ -409,6 +409,30 @@ void Output::format(const char *format, const char *pathname, const std::string&
         }
         break;
 
+      case 'a':
+        if (pathname != NULL)
+        {
+          const char *basename = strrchr(pathname, PATHSEPCHR);
+          if (basename == NULL)
+            str(pathname);
+          else
+            str(basename + 1);
+        }
+        break;
+
+      case 'p':
+        if (pathname != NULL)
+        {
+          const char *basename = strrchr(pathname, PATHSEPCHR);
+          if (basename != NULL)
+            str(pathname, basename - pathname + 1);
+        }
+        break;
+
+      case 'z':
+        str(partname);
+        break;
+
       case 'H':
         if (flag_with_filename)
         {
@@ -733,10 +757,6 @@ void Output::format(const char *format, const char *pathname, const std::string&
           reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
           num(fuzzy_matcher->edits());
         }
-        break;
-
-      case 'z':
-        str(partname);
         break;
 
       case 'u':
