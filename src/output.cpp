@@ -425,7 +425,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename != NULL)
-            str(pathname, basename - pathname + 1);
+            str(pathname, basename - pathname);
         }
         break;
 
