@@ -630,6 +630,8 @@ void Query::erase(int num)
 // called by the main program
 void Query::query()
 {
+  get_stdin();
+
   if (!VKey::setup(VKey::RAW))
     abort("no keyboard detected");
 
@@ -665,8 +667,6 @@ void Query::query()
     VKey::map_alt_key(fp->key, NULL);
 
   get_flags();
-
-  get_stdin();
 
   query_ui();
 
@@ -1250,7 +1250,7 @@ void Query::search()
   row_ = 0;
   rows_ = 0;
   skip_ = 0;
-  dots_ = 0;
+  dots_ = 6; // to clear screen after 300ms
 
   if (!eof_)
   {
@@ -1362,17 +1362,20 @@ bool Query::update()
 
     if (error_ == -1)
     {
-      searching_[9] = '.';
-      searching_[10] = '.';
-      searching_[11] = '.';
-      searching_[9 + dots_] = '\0';
+      if (dots_ < 4)
+      {
+        searching_[9] = '.';
+        searching_[10] = '.';
+        searching_[11] = '.';
+        searching_[9 + dots_] = '\0';
 
-      Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
-      Screen::normal();
+        Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
+        Screen::normal();
 
-      // when searching, don't immediately clear the rest of the screen
-      if (eof_ || dots_ == 3)
-        Screen::end();
+        // when still searching, don't immediately clear the rest of the screen but clear after 300ms (init dots_ = 6 and three iters)
+        if (dots_ == 0)
+          Screen::end();
+      }
 
       dots_ = (dots_ + 1) & 3;
     }

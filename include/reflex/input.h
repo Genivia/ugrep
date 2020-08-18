@@ -312,6 +312,8 @@ class Input {
     static const file_encoding_type koi8_ru    = 37; ///< KOI8-RU
     static const file_encoding_type custom     = 38; ///< custom code page
   };
+  /// FILE* handler functor base class to handle FILE* errors and non-blocking FILE* reads
+  struct Handler { virtual int operator()() = 0; };
   /// Stream buffer for reflex::Input, derived from std::streambuf.
   class streambuf;
   /// Stream buffer for reflex::Input to read DOS files, replaces CRLF by LF, derived from std::streambuf.
@@ -323,7 +325,8 @@ class Input {
       wstring_(NULL),
       file_(NULL),
       istream_(NULL),
-      size_(0)
+      size_(0),
+      handler_(NULL)
   {
     init();
   }
@@ -695,10 +698,12 @@ class Input {
     }
     if (file_)
     {
-      size_t k = file_get(s, n);
-      if (size_ >= k)
-        size_ -= k;
-      return k;
+      while (true)
+      {
+        size_t k = file_get(s, n);
+        if (k > 0 || feof(file_) || handler_ == NULL || (*handler_)() == 0)
+          return k;
+      }
     }
     if (istream_)
     {
@@ -743,6 +748,11 @@ class Input {
       char  *s, ///< points to the string buffer to fill with input
       size_t n) ///< size of buffer pointed to by s
       ;
+  /// Set FILE* handler
+  void set_handler(Handler *handler)
+  {
+    handler_ = handler;
+  }
  protected:
   const char           *cstring_; ///< char string input (when non-null) of length reflex::Input::size_
   const wchar_t        *wstring_; ///< NUL-terminated wide string input (when non-null)
@@ -753,6 +763,7 @@ class Input {
   unsigned short        uidx_;    ///< index in utf8_[] or >= 8 when unused
   file_encoding_type    utfx_;    ///< file_encoding
   const unsigned short *page_;    ///< custom code page
+  Handler              *handler_; ///< to handle FILE* errors and non-blocking FILE* reads
 };
 
 /// Stream buffer for reflex::Input, derived from std::streambuf.

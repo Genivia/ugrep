@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.5.2"
+#define UGREP_VERSION "2.5.3"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -123,6 +123,7 @@ After this, you may want to test ugrep and install it (optional):
 
 #include <signal.h>
 #include <dirent.h>
+#include <sys/select.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -149,6 +150,9 @@ After this, you may want to test ugrep and install it (optional):
 
 // use a task-parallel thread to decompress the stream into a pipe to search, handles archives and increases decompression speed for larger files
 #define WITH_DECOMPRESSION_THREAD
+
+// drain stdin until eof - this is disabled for speed, almost all utilities handle SIGPIPE these days anyway
+// #define WITH_STDIN_DRAIN
 
 // the default GREP_COLORS
 #ifndef DEFAULT_GREP_COLORS
@@ -495,15 +499,11 @@ std::vector<std::string> flag_filter_magic_label;
 std::vector<std::string> flag_glob;
 std::vector<std::string> flag_ignore_files;
 std::vector<std::string> flag_include;
-std::vector<std::string> flag_not_include;
 std::vector<std::string> flag_include_dir;
-std::vector<std::string> flag_not_include_dir;
 std::vector<std::string> flag_include_from;
 std::vector<std::string> flag_include_fs;
 std::vector<std::string> flag_exclude;
-std::vector<std::string> flag_not_exclude;
 std::vector<std::string> flag_exclude_dir;
-std::vector<std::string> flag_not_exclude_dir;
 std::vector<std::string> flag_exclude_from;
 std::vector<std::string> flag_exclude_fs;
 std::vector<std::string> flag_all_include;
@@ -524,7 +524,7 @@ size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message, bool optional_first = false);
 size_t strtofuzzy(const char *string, const char *message);
 
-void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, std::vector<std::string>& not_files, std::vector<std::string>& not_dirs);
+void split_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs);
 void format(const char *format, size_t matches);
 void usage(const char *message, const char *arg = NULL, const char *valid = NULL);
 void help(std::ostream& out);
@@ -770,6 +770,39 @@ struct Grep {
       return a.cost > b.cost || (a.cost == b.cost && a.pathname > b.pathname);
     }
   };
+
+#ifndef OS_WIN
+  // extend the reflex::Input::Handler to handle stdin from a TTY or a slow pipe
+  struct StdInHandler : public reflex::Input::Handler {
+
+    StdInHandler(Grep *grep)
+      :
+        grep(grep)
+    { }
+
+    Grep *grep;
+
+    int operator()()
+    {
+      grep->out.flush();
+
+      while (true)
+      {
+        struct timeval tv;
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(0, &fds);
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        int r = ::select(1, &fds, NULL, &fds, &tv);
+        if (r < 0 && errno != EINTR)
+          return 0;
+        if (r > 0)
+          return 1;
+      }
+    }
+  };
+#endif
 
   // extend the reflex::AbstractMatcher::Handler with a grep object reference and references to some of the grep::search locals
   struct GrepHandler : public reflex::AbstractMatcher::Handler {
@@ -1584,6 +1617,9 @@ struct Grep {
       out(file),
       matcher(matcher),
       file(NULL)
+#ifndef OS_WIN
+    , stdin_handler(this)
+#endif
 #ifdef HAVE_LIBZ
     , zstream(NULL),
       stream(NULL)
@@ -2686,6 +2722,43 @@ struct Grep {
 
 #endif
 
+#ifdef WITH_STDIN_DRAIN
+    // drain stdin until eof
+    if (file == stdin && !feof(stdin))
+    {
+      if (fseek(stdin, 0, SEEK_END) != 0)
+      {
+        char buf[16384];
+        while (true)
+        {
+          size_t r = fread(buf, 1, sizeof(buf), stdin);
+          if (r == sizeof(buf))
+            continue;
+          if (feof(stdin))
+            break;
+          if (r >= 0)
+          {
+            if (!(fcntl(0, F_GETFL) & O_NONBLOCK))
+              break;
+            struct timeval tv;
+            fd_set fds;
+            FD_ZERO(&fds);
+            FD_SET(0, &fds);
+            tv.tv_sec = 1;
+            tv.tv_usec = 0;
+            int r = ::select(1, &fds, NULL, &fds, &tv);
+            if (r < 0 && errno != EINTR)
+              break;
+          }
+          else if (errno != EINTR)
+          {
+            break;
+          }
+        }
+      }
+    }
+#endif
+
     // close the file
     if (file != NULL && file != stdin && file != source)
     {
@@ -2714,10 +2787,25 @@ struct Grep {
     {
       matcher->input(input);
 
-#ifdef HAVE_BOOST_REGEX
-      // buffer all input to work around Boost.Regex bug, this may throw std::bad_alloc if the file is too large
+#if !defined(HAVE_PCRE2) && defined(HAVE_BOOST_REGEX)
+      // buffer all input to work around Boost.Regex partial matching bug, but this may throw std::bad_alloc if the file is too large
       if (flag_perl_regexp)
         matcher->buffer();
+#endif
+
+#ifndef OS_WIN
+      if (input == stdin)
+      {
+        struct stat buf;
+        bool interactive = fstat(0, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode));
+
+        // if input is a TTY or pipe, then make stdin nonblocking and register a stdin handler to continue reading and to flush results to output
+        if (interactive)
+        {
+          fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
+          matcher->in.set_handler(&stdin_handler);
+        }
+      }
 #endif
     }
 
@@ -2738,25 +2826,28 @@ struct Grep {
     return true;
   }
 
-  const char              *filename;   // the name of the file being searched
-  std::string              partname;   // the name of an extracted file from an archive
-  Output                   out;        // buffered and synchronized output
-  reflex::AbstractMatcher *matcher;    // the pattern matcher we're using
-  MMap                     mmap;       // mmap state
-  reflex::Input            input;      // input to the matcher
-  FILE                    *file;       // the current input file
+  const char              *filename;      // the name of the file being searched
+  std::string              partname;      // the name of an extracted file from an archive
+  Output                   out;           // asynchronous output
+  reflex::AbstractMatcher *matcher;       // the pattern matcher we're using
+  MMap                     mmap;          // mmap state
+  reflex::Input            input;         // input to the matcher
+  FILE                    *file;          // the current input file
+#ifndef OS_WIN
+  StdInHandler             stdin_handler; // a handler to handler non-blocking stdin from a TTY or a slow pipe
+#endif
 #ifdef HAVE_LIBZ
-  zstreambuf              *zstream;    // the decompressed stream from the current input file
-  std::istream            *stream;     // input stream layered on the decompressed stream
+  zstreambuf              *zstream;       // the decompressed stream from the current input file
+  std::istream            *stream;        // input stream layered on the decompressed stream
 #ifdef WITH_DECOMPRESSION_THREAD
-  std::thread              thread;     // decompression thread
-  int                      pipe_fd[2]; // decompressed stream pipe
-  std::mutex               pipe_mutex; // mutex to extract files in thread
-  std::condition_variable  pipe_zstrm; // cv to control new pipe creation
-  std::condition_variable  pipe_ready; // cv to control new pipe creation
-  std::condition_variable  pipe_close; // cv to control new pipe creation
-  volatile bool            extracting; // true if extracting files from TAR
-  volatile bool            waiting;    // true if decompression thread is waiting
+  std::thread              thread;        // decompression thread
+  int                      pipe_fd[2];    // decompressed stream pipe
+  std::mutex               pipe_mutex;    // mutex to extract files in thread
+  std::condition_variable  pipe_zstrm;    // cv to control new pipe creation
+  std::condition_variable  pipe_ready;    // cv to control new pipe creation
+  std::condition_variable  pipe_close;    // cv to control new pipe creation
+  volatile bool            extracting;    // true if extracting files from TAR or ZIP archive
+  volatile bool            waiting;       // true if decompression thread is waiting
 #endif
 #endif
 
@@ -4842,7 +4933,7 @@ void init(int argc, const char **argv)
       if (fopen_smart(&file, from.c_str(), "r") != 0)
         error("option --exclude-from: cannot read", from.c_str());
 
-      extend(file, flag_exclude, flag_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
+      split_globs(file, flag_exclude, flag_exclude_dir);
 
       if (file != stdin)
         fclose(file);
@@ -4859,7 +4950,7 @@ void init(int argc, const char **argv)
       if (fopen_smart(&file, from.c_str(), "r") != 0)
         error("option --include-from: cannot read", from.c_str());
 
-      extend(file, flag_include, flag_include_dir, flag_not_include, flag_not_include_dir);
+      split_globs(file, flag_include, flag_include_dir);
 
       if (file != stdin)
         fclose(file);
@@ -5163,7 +5254,7 @@ void terminal()
     {
       color_term = flag_query > 0;
 
-      if (strcmp(flag_apply_color, "never") == 0)
+      if (strcmp(flag_apply_color, "never") == 0 || strcmp(flag_apply_color, "no") == 0 || strcmp(flag_apply_color, "none") == 0)
       {
         flag_apply_color = NULL;
       }
@@ -5206,12 +5297,12 @@ void terminal()
 
 #endif
 
-        if (strcmp(flag_apply_color, "auto") == 0)
+        if (strcmp(flag_apply_color, "auto") == 0 || strcmp(flag_apply_color, "tty") == 0 || strcmp(flag_apply_color, "if-tty") == 0)
         {
           if (!color_term)
             flag_apply_color = NULL;
         }
-        else if (strcmp(flag_apply_color, "always") != 0)
+        else if (strcmp(flag_apply_color, "always") != 0 && strcmp(flag_apply_color, "yes") != 0 && strcmp(flag_apply_color, "force") != 0)
         {
           usage("invalid argument --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
         }
@@ -5379,7 +5470,7 @@ void ugrep()
       }
       else
       {
-        // if a glob starts with a dot, then enable searching hidden files and directories
+        // if an include file glob starts with a dot, then enable searching hidden files and directories
         if (i->front() == '.' || i->find(PATHSEPSTR ".") != std::string::npos)
           flag_hidden = true;
 
@@ -5388,7 +5479,7 @@ void ugrep()
     }
   }
 
-  // if a dir glob starts with a dot, then enable searching hidden files and directories
+  // if an include dir glob starts with a dot, then enable searching hidden files and directories
   if (!flag_hidden)
   {
     for (auto& dir : flag_all_include_dir)
@@ -6018,7 +6109,6 @@ void ugrep()
 
     catch (boost::regex_error& error)
     {
-      const char *message;
       reflex::regex_error_type code;
 
       switch (error.code())
@@ -6274,32 +6364,42 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
       // check for --exclude-dir and --include-dir constraints if pathname != "."
       if (strcmp(pathname, ".") != 0)
       {
-        // do not exclude directories that are reversed by ! negation
-        bool negate = false;
-        for (auto& glob : flag_not_exclude_dir)
-          if ((negate = glob_match(pathname, basename, glob.c_str())))
-            break;
-
-        if (!negate)
+        if (!flag_all_exclude_dir.empty())
         {
-          // exclude directories whose basename matches any one of the --exclude-dir globs
+          // exclude directories whose pathname matches any one of the --exclude-dir globs unless negated with !
+          bool ok = true;
           for (auto& glob : flag_all_exclude_dir)
-            if (glob_match(pathname, basename, glob.c_str()))
-              return Type::SKIP;
+          {
+            if (glob.front() == '!')
+            {
+              if (!ok && glob_match(pathname, basename, glob.c_str() + 1))
+                ok = true;
+            }
+            else if (ok && glob_match(pathname, basename, glob.c_str()))
+            {
+              ok = false;
+            }
+          }
+          if (!ok)
+            return Type::SKIP;
         }
 
         if (!flag_all_include_dir.empty())
         {
-          // do not include directories that are reversed by ! negation
-          for (auto& glob : flag_not_include_dir)
-            if (glob_match(pathname, basename, glob.c_str()))
-              return Type::SKIP;
-
-          // include directories whose basename matches any one of the --include-dir globs
+          // include directories whose pathname matches any one of the --include-dir globs unless negated with !
           bool ok = false;
           for (auto& glob : flag_all_include_dir)
-            if ((ok = glob_match(pathname, basename, glob.c_str())))
-              break;
+          {
+            if (glob.front() == '!')
+            {
+              if (ok && glob_match(pathname, basename, glob.c_str() + 1))
+                ok = false;
+            }
+            else if (!ok && glob_match(pathname, basename, glob.c_str()))
+            {
+              ok = true;
+            }
+          }
           if (!ok)
             return Type::SKIP;
         }
@@ -6314,18 +6414,24 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     if (flag_min_depth > 0 && level <= flag_min_depth)
       return Type::SKIP;
 
-    // do not exclude files that are reversed by ! negation
-    bool negate = false;
-    for (auto& glob : flag_not_exclude)
-      if ((negate = glob_match(pathname, basename, glob.c_str())))
-        break;
-
-    if (!negate)
+    if (!flag_all_exclude.empty())
     {
-      // exclude files whose basename matches any one of the --exclude globs
+      // exclude files whose pathname matches any one of the --exclude globs unless negated with !
+      bool ok = true;
       for (auto& glob : flag_all_exclude)
-        if (glob_match(pathname, basename, glob.c_str()))
-          return Type::SKIP;
+      {
+        if (glob.front() == '!')
+        {
+          if (!ok && glob_match(pathname, basename, glob.c_str() + 1))
+            ok = true;
+        }
+        else if (ok && glob_match(pathname, basename, glob.c_str()))
+        {
+          ok = false;
+        }
+      }
+      if (!ok)
+        return Type::SKIP;
     }
 
     // check magic pattern against the file signature, when --file-magic=MAGIC is specified
@@ -6378,16 +6484,20 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
     if (!flag_all_include.empty())
     {
-      // do not include files that are reversed by ! negation
-      for (auto& glob : flag_not_include)
-        if (glob_match(pathname, basename, glob.c_str()))
-          return Type::SKIP;
-
-      // include files whose basename matches any one of the --include globs
+      // include files whose pathname matches any one of the --include globs unless negated with !
       bool ok = false;
       for (auto& glob : flag_all_include)
-        if ((ok = glob_match(pathname, basename, glob.c_str())))
-          break;
+      {
+        if (glob.front() == '!')
+        {
+          if (ok && glob_match(pathname, basename, glob.c_str() + 1))
+            ok = false;
+        }
+        else if (!ok && glob_match(pathname, basename, glob.c_str()))
+        {
+          ok = true;
+        }
+      }
       if (!ok)
         return Type::SKIP;
     }
@@ -6437,32 +6547,42 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
             // check for --exclude-dir and --include-dir constraints if pathname != "."
             if (strcmp(pathname, ".") != 0)
             {
-              // do not exclude directories that are reversed by ! negation
-              bool negate = false;
-              for (auto& glob : flag_not_exclude_dir)
-                if ((negate = glob_match(pathname, basename, glob.c_str())))
-                  break;
-
-              if (!negate)
+              if (!flag_all_exclude_dir.empty())
               {
-                // exclude directories whose pathname matches any one of the --exclude-dir globs
+                // exclude directories whose pathname matches any one of the --exclude-dir globs unless negated with !
+                bool ok = true;
                 for (auto& glob : flag_all_exclude_dir)
-                  if (glob_match(pathname, basename, glob.c_str()))
-                    return Type::SKIP;
+                {
+                  if (glob.front() == '!')
+                  {
+                    if (!ok && glob_match(pathname, basename, glob.c_str() + 1))
+                      ok = true;
+                  }
+                  else if (ok && glob_match(pathname, basename, glob.c_str()))
+                  {
+                    ok = false;
+                  }
+                }
+                if (!ok)
+                  return Type::SKIP;
               }
 
               if (!flag_all_include_dir.empty())
               {
-                // do not include directories that are reversed by ! negation
-                for (auto& glob : flag_not_include_dir)
-                  if (glob_match(pathname, basename, glob.c_str()))
-                    return Type::SKIP;
-
-                // include directories whose pathname matches any one of the --include-dir globs
+                // include directories whose pathname matches any one of the --include-dir globs unless negated with !
                 bool ok = false;
                 for (auto& glob : flag_all_include_dir)
-                  if ((ok = glob_match(pathname, basename, glob.c_str())))
-                    break;
+                {
+                  if (glob.front() == '!')
+                  {
+                    if (ok && glob_match(pathname, basename, glob.c_str() + 1))
+                      ok = false;
+                  }
+                  else if (!ok && glob_match(pathname, basename, glob.c_str()))
+                  {
+                    ok = true;
+                  }
+                }
                 if (!ok)
                   return Type::SKIP;
               }
@@ -6482,18 +6602,24 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           if (flag_min_depth > 0 && level <= flag_min_depth)
             return Type::SKIP;
 
-          // do not exclude files that are reversed by ! negation
-          bool negate = false;
-          for (auto& glob : flag_not_exclude)
-            if ((negate = glob_match(pathname, basename, glob.c_str())))
-              break;
-
-          if (!negate)
+          if (!flag_all_exclude.empty())
           {
-            // exclude files whose pathname matches any one of the --exclude globs
+            // exclude files whose pathname matches any one of the --exclude globs unless negated with !
+            bool ok = true;
             for (auto& glob : flag_all_exclude)
-              if (glob_match(pathname, basename, glob.c_str()))
-                return Type::SKIP;
+            {
+              if (glob.front() == '!')
+              {
+                if (!ok && glob_match(pathname, basename, glob.c_str() + 1))
+                  ok = true;
+              }
+              else if (ok && glob_match(pathname, basename, glob.c_str()))
+              {
+                ok = false;
+              }
+            }
+            if (!ok)
+              return Type::SKIP;
           }
 
           // check magic pattern against the file signature, when --file-magic=MAGIC is specified
@@ -6551,16 +6677,20 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
           if (!flag_all_include.empty())
           {
-            // do not include files that are reversed by ! negation
-            for (auto& glob : flag_not_include)
-              if (glob_match(pathname, basename, glob.c_str()))
-                return Type::SKIP;
-
-            // include files whose pathname matches any one of the --include globs
+            // include directories whose basename matches any one of the --include-dir globs if not negated with !
             bool ok = false;
             for (auto& glob : flag_all_include)
-              if ((ok = glob_match(pathname, basename, glob.c_str())))
-                break;
+            {
+              if (glob.front() == '!')
+              {
+                if (ok && glob_match(pathname, basename, glob.c_str() + 1))
+                  ok = false;
+              }
+              else if (!ok && glob_match(pathname, basename, glob.c_str()))
+              {
+                ok = true;
+              }
+            }
             if (!ok)
               return Type::SKIP;
           }
@@ -6639,9 +6769,9 @@ void Grep::recurse(size_t level, const char *pathname)
 
 #endif
 
-  // --ignore-files: check if one or more a present to read and extend the file and dir exclusions
+  // --ignore-files: check if one or more are present to read and extend the file and dir exclusions
   // std::vector<std::string> *save_exclude = NULL, *save_exclude_dir = NULL, *save_not_exclude = NULL, *save_not_exclude_dir = NULL;
-  std::unique_ptr<std::vector<std::string>> save_all_exclude, save_all_exclude_dir, save_not_exclude, save_not_exclude_dir;
+  std::unique_ptr<std::vector<std::string>> save_all_exclude, save_all_exclude_dir;
   bool saved = false;
 
   if (!flag_ignore_files.empty())
@@ -6661,16 +6791,12 @@ void Grep::recurse(size_t level, const char *pathname)
           save_all_exclude->swap(flag_all_exclude);
           save_all_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
           save_all_exclude_dir->swap(flag_all_exclude_dir);
-          save_not_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
-          save_not_exclude->swap(flag_not_exclude);
-          save_not_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
-          save_not_exclude_dir->swap(flag_not_exclude_dir);
 
           saved = true;
         }
 
         Stats::ignore_file(filename);
-        extend(file, flag_all_exclude, flag_all_exclude_dir, flag_not_exclude, flag_not_exclude_dir);
+        split_globs(file, flag_all_exclude, flag_all_exclude_dir);
         fclose(file);
       }
     }
@@ -6912,8 +7038,6 @@ void Grep::recurse(size_t level, const char *pathname)
   {
     save_all_exclude->swap(flag_all_exclude);
     save_all_exclude_dir->swap(flag_all_exclude_dir);
-    save_not_exclude->swap(flag_not_exclude);
-    save_not_exclude_dir->swap(flag_not_exclude_dir);
   }
 }
 
@@ -7184,8 +7308,7 @@ void Grep::search(const char *pathname)
           if (flag_max_count > 0 && matches >= flag_max_count)
             break;
 
-          if (flag_line_buffered)
-            out.flush();
+          out.check_flush();
         }
 
         // output --format-close
@@ -7551,9 +7674,9 @@ void Grep::search(const char *pathname)
                 {
                   out.nl();
                 }
-                else if (flag_line_buffered)
+                else
                 {
-                  out.flush();
+                  out.check_flush();
                 }
               }
               else
@@ -7667,9 +7790,9 @@ void Grep::search(const char *pathname)
                       {
                         out.nl();
                       }
-                      else if (flag_line_buffered)
+                      else
                       {
-                        out.flush();
+                        out.check_flush();
                       }
                     }
                   }
@@ -8010,9 +8133,9 @@ void Grep::search(const char *pathname)
                 {
                   out.nl();
                 }
-                else if (flag_line_buffered)
+                else
                 {
-                  out.flush();
+                  out.check_flush();
                 }
               }
               else
@@ -8126,9 +8249,9 @@ void Grep::search(const char *pathname)
                       {
                         out.nl();
                       }
-                      else if (flag_line_buffered)
+                      else
                       {
-                        out.flush();
+                        out.check_flush();
                       }
                     }
                   }
@@ -8402,9 +8525,9 @@ void Grep::search(const char *pathname)
                 {
                   out.nl();
                 }
-                else if (flag_line_buffered)
+                else
                 {
-                  out.flush();
+                  out.check_flush();
                 }
               }
               else
@@ -8518,9 +8641,9 @@ void Grep::search(const char *pathname)
                       {
                         out.nl();
                       }
-                      else if (flag_line_buffered)
+                      else
                       {
-                        out.flush();
+                        out.check_flush();
                       }
                     }
                   }
@@ -9100,8 +9223,8 @@ exit_search:
     Stats::found_file();
 }
 
-// read globs from a file to extend include/exclude files and dirs
-void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, std::vector<std::string>& not_files, std::vector<std::string>& not_dirs)
+// read globs from a file and split them into files or dirs to include or exclude
+void split_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs)
 {
   // read globs from the specified file or files
   reflex::BufferedInput input(file);
@@ -9116,30 +9239,21 @@ void extend(FILE *file, std::vector<std::string>& files, std::vector<std::string
     // trim white space from either end
     trim(line);
 
-    // add glob to files and dirs using gitignore glob pattern rules
+    // add glob to files or dirs using gitignore glob pattern rules
     if (!line.empty() && line.front() != '#')
     {
-      // gitignore-style ! negate pattern to override include/exclude
-      bool negate = line.front() == '!' && line.size() > 1;
-
-      // remove leading ! if present
-      if (negate)
-        line.erase(0, 1);
-
-      // remove leading \ if present
-      if (line.front() == '\\' && line.size() > 1)
-        line.erase(0, 1);
-
-      // globs ending in / should only match directories
-      if (line.back() == '/')
+      if (line.front() != '!' || line.size() > 1)
       {
-        if (line.size() > 1)
-          line.pop_back();
-        (negate ? not_dirs : dirs).emplace_back(line);
-      }
-      else
-      {
-        (negate ? not_files : files).emplace_back(line);
+        if (line.back() == '/')
+        {
+          if (line.size() > 1)
+            line.pop_back();
+          dirs.emplace_back(line);
+        }
+        else
+        {
+          files.emplace_back(line);
+        }
       }
     }
   }

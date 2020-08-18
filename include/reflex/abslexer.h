@@ -100,7 +100,7 @@ class AbstractLexer {
   virtual ~AbstractLexer()
   {
     DBGLOG("AbstractLexer::~AbstractLexer()");
-    if (matcher_)
+    if (matcher_ != NULL)
       delete matcher_;
   }
   /// Set debug flag value.
@@ -233,7 +233,7 @@ class AbstractLexer {
   {
     return matcher_;
   }
-  /// Returns a new matcher for the given input.
+  /// Returns a new copy of the matcher for the given input.
   virtual Matcher *new_matcher(
       const Input& input = Input(), ///< reflex::Input character sequence to match
       const char *opt    = NULL)    ///< options, if any
@@ -259,7 +259,7 @@ class AbstractLexer {
   /// Pop matcher from the stack and continue scanning where it left off, delete the current matcher.
   bool pop_matcher()
   {
-    if (matcher_)
+    if (matcher_ != NULL)
       delete matcher_;
     if (!stack_.empty())
     {

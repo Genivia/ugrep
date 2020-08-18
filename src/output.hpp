@@ -293,7 +293,8 @@ class Output {
       dump(*this),
       lock_(NULL),
       slot_(0),
-      lineno_(0)
+      lineno_(0),
+      flush_(flag_line_buffered)
   {
     grow();
   }
@@ -457,12 +458,33 @@ class Output {
       chr(tmp[--n]);
   }
 
-  // output a new line, flush if --line-buffered
+  // output a byte in octal
+  void oct(int i)
+  {
+    uint8_t b = static_cast<uint8_t>(i);
+    chr('0' + (b >> 6));
+    chr('0' + ((b >> 3) & 7));
+    chr('0' + (b & 7));
+  }
+
+  // output a new line and flush if --line-buffered
   void nl()
   {
     chr('\n');
 
-    if (flag_line_buffered)
+    check_flush();
+  }
+
+  // enable line buffered mode to flush each line to output
+  void set_flush()
+  {
+    flush_ = true;
+  }
+
+  // flush if output is line buffered
+  void check_flush()
+  {
+    if (flush_)
       flush();
   }
 
@@ -628,6 +650,7 @@ class Output {
   Buffers                       buffers_; // buffers container
   Buffers::iterator             buf_;     // current buffer in the container
   char                         *cur_;     // current position in the current buffer
+  bool                          flush_;   // true if output is line buffered
 
 };
 

@@ -368,7 +368,7 @@ class AbstractMatcher {
     eof_ = false;
     mat_ = false;
   }
-  /// Set buffer block size for reading: use 1 for interactive input, 0 (or omit argument) to buffer all input in which case returns true if all the data could be read and false if a read error occurred.
+  /// Set buffer block size for reading: use 0 (or omit argument) to buffer all input in which case returns true if all the data could be read and false if a read error occurred.
   bool buffer(size_t blk = 0) ///< new block size between 1 and Const::BLOCK, or 0 to buffer all input (default)
     /// @returns true when successful to buffer all input when n=0
   {
@@ -378,7 +378,7 @@ class AbstractMatcher {
     blk_ = blk;
     if (blk > 0 || eof_ || in.eof())
       return true;
-    size_t n = in.size(); // get the (rest of the) data size, which is 0 if unknown (e.g. TTY)
+    size_t n = in.size(); // get the (rest of the) data size, which is 0 if unknown (e.g. reading input from a TTY or a pipe)
     if (n > 0)
     {
       (void)grow(n + 1); // now attempt to fetch all (remaining) data to store in the buffer, +1 for a final \0
@@ -419,7 +419,7 @@ class AbstractMatcher {
     return Context(buf_, 0, num_);
   }
 #endif
-  /// Set buffer to 1 for interactive input.
+  /// Set interactive input with buffer size of 1 to read data bytewise which is very slow.
   void interactive()
     /// @note Use this method before any matching is done and before any input is read since the last time input was (re)set.
   {
@@ -431,6 +431,20 @@ class AbstractMatcher {
   {
     DBGLOG("AbstractMatcher::flush()");
     pos_ = end_;
+  }
+  /// Returns more input data directly from the source (method can be overriden, as by reflex::FlexLexer::get(s, n) for example that invokes reflex::FlexLexer::LexerInput(s, n)).
+  virtual size_t get(
+      /// @returns the nonzero number of (less or equal to n) 8-bit characters added to buffer s from the current input, or zero when EOF
+      char  *s, ///< points to the string buffer to fill with input
+      size_t n) ///< size of buffer pointed to by s
+  {
+    return in.get(s, n);
+  }
+  /// Returns true if wrapping of input after EOF is supported.
+  virtual bool wrap()
+    /// @returns true if input was succesfully wrapped
+  {
+    return false;
   }
   /// Set the input character sequence for this matcher and reset/restart the matcher.
   virtual AbstractMatcher& input(const Input& input) ///< input character sequence for this matcher
@@ -1217,20 +1231,6 @@ class AbstractMatcher {
     DBGLOG("AbstractMatcher::init(%s)", opt ? opt : "");
     own_ = false; // require allocation of a buffer
     reset(opt);
-  }
-  /// Returns more input directly from the source (method can be overriden, as by reflex::FlexLexer::get(s, n) for example that invokes reflex::FlexLexer::LexerInput(s, n)).
-  virtual size_t get(
-      /// @returns the nonzero number of (less or equal to n) 8-bit characters added to buffer s from the current input, or zero when EOF
-      char  *s, ///< points to the string buffer to fill with input
-      size_t n) ///< size of buffer pointed to by s
-  {
-    return in.get(s, n);
-  }
-  /// Returns true if wrapping of input after EOF is supported.
-  virtual bool wrap()
-    /// @returns true if input was succesfully wrapped
-  {
-    return false;
   }
   /// The abstract match operation implemented by pattern matching engines derived from AbstractMatcher.
   virtual size_t match(Method method)

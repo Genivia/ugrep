@@ -89,26 +89,18 @@ void Stats::report()
     else
       fprintf(output, "  --file-magic='%s'\n", i.c_str());
   }
-  for (auto& i : flag_all_include)
-    fprintf(output, "  --include='%s'\n", i.c_str());
-  for (auto& i : flag_not_include)
-    fprintf(output, "  --include='!%s' (negation)\n", i.c_str());
   for (auto& i : flag_include_fs)
     fprintf(output, "  --include-fs='%s'\n", i.c_str());
-  for (auto& i : flag_all_include_dir)
-    fprintf(output, "  --include-dir='%s'\n", i.c_str());
-  for (auto& i : flag_not_include_dir)
-    fprintf(output, "  --include-dir='!%s' (negation)\n", i.c_str());
-  for (auto& i : flag_all_exclude)
-    fprintf(output, "  --exclude='%s'\n", i.c_str());
-  for (auto& i : flag_not_exclude)
-    fprintf(output, "  --exclude='!%s' (negation)\n", i.c_str());
   for (auto& i : flag_exclude_fs)
     fprintf(output, "  --exclude-fs='%s'\n", i.c_str());
+  for (auto& i : flag_all_include)
+    fprintf(output, "  --include='%s'%s\n", i.c_str(), i.front() == '!' ? " (negated)" : "");
+  for (auto& i : flag_all_exclude)
+    fprintf(output, "  --exclude='%s'%s\n", i.c_str(), i.front() == '!' ? " (negated)" : "");
+  for (auto& i : flag_all_include_dir)
+    fprintf(output, "  --include-dir='%s'%s\n", i.c_str(), i.front() == '!' ? " (negated)" : "");
   for (auto& i : flag_all_exclude_dir)
-    fprintf(output, "  --exclude-dir='%s'\n", i.c_str());
-  for (auto& i : flag_not_exclude_dir)
-    fprintf(output, "  --exclude-dir='!%s' (negation)\n", i.c_str());
+    fprintf(output, "  --exclude-dir='%s'%s\n", i.c_str(), i.front() == '!' ? " (negated)" : "");
 }
 
 size_t                   Stats::files  = 0;

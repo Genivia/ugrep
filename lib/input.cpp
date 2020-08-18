@@ -657,72 +657,78 @@ void Input::file_init()
 #endif
   // assume plain (ASCII, binary or UTF-8 without BOM) content by default
   utfx_ = file_encoding::plain;
-  // check first UTF BOM byte
-  if (::fread(utf8_, 1, 1, file_) == 1)
+  while (true)
   {
-    utf8_[1] = '\0';
-    uidx_ = 0;
-    if (utf8_[0] == '\0' || utf8_[0] == '\xef' || utf8_[0] == '\xfe' || utf8_[0] == '\xff')
+    // check first UTF BOM byte
+    if (::fread(utf8_, 1, 1, file_) == 1)
     {
-      // check second UTF BOM byte
-      if (::fread(utf8_ + 1, 1, 1, file_) == 1)
+      utf8_[1] = '\0';
+      uidx_ = 0;
+      if (utf8_[0] == '\0' || utf8_[0] == '\xef' || utf8_[0] == '\xfe' || utf8_[0] == '\xff')
       {
-        utf8_[2] = '\0';
-        if (utf8_[0] == '\0' && utf8_[1] == '\0')  // UTF-32 big endian BOM 0000XXXX?
+        // check second UTF BOM byte
+        if (::fread(utf8_ + 1, 1, 1, file_) == 1)
         {
-          if (::fread(utf8_ + 2, 2, 1, file_) == 1)
+          utf8_[2] = '\0';
+          if (utf8_[0] == '\0' && utf8_[1] == '\0')  // UTF-32 big endian BOM 0000XXXX?
           {
-            utf8_[4] = '\0';
-            if (utf8_[2] == '\xfe' && utf8_[3] == '\xff') // UTF-32 big endian BOM 0000FEFF?
+            if (::fread(utf8_ + 2, 2, 1, file_) == 1)
             {
-              size_ = 0;
-              uidx_ = sizeof(utf8_);
-              utfx_ = file_encoding::utf32be;
+              utf8_[4] = '\0';
+              if (utf8_[2] == '\xfe' && utf8_[3] == '\xff') // UTF-32 big endian BOM 0000FEFF?
+              {
+                size_ = 0;
+                uidx_ = sizeof(utf8_);
+                utfx_ = file_encoding::utf32be;
+              }
             }
           }
-        }
-        else if (utf8_[0] == '\xfe' && utf8_[1] == '\xff') // UTF-16 big endian BOM FEFF?
-        {
-          size_ = 0;
-          uidx_ = sizeof(utf8_);
-          utfx_ = file_encoding::utf16be;
-        }
-        else if (utf8_[0] == '\xff' && utf8_[1] == '\xfe') // UTF-16 or UTF-32 little endian BOM FFFEXXXX?
-        {
-          if (::fread(utf8_ + 2, 2, 1, file_) == 1)
+          else if (utf8_[0] == '\xfe' && utf8_[1] == '\xff') // UTF-16 big endian BOM FEFF?
           {
-            utf8_[4] = '\0';
-            if (utf8_[2] == '\0' && utf8_[3] == '\0') // UTF-32 little endian BOM FFFE0000?
+            size_ = 0;
+            uidx_ = sizeof(utf8_);
+            utfx_ = file_encoding::utf16be;
+          }
+          else if (utf8_[0] == '\xff' && utf8_[1] == '\xfe') // UTF-16 or UTF-32 little endian BOM FFFEXXXX?
+          {
+            if (::fread(utf8_ + 2, 2, 1, file_) == 1)
             {
-              size_ = 0;
-              uidx_ = sizeof(utf8_);
-              utfx_ = file_encoding::utf32le;
-            }
-            else
-            {
-              size_ = 0;
-              utf8_[utf8(utf8_[2] | utf8_[3] << 8, utf8_)] = '\0';
-              uidx_ = 0;
-              utfx_ = file_encoding::utf16le;
+              utf8_[4] = '\0';
+              if (utf8_[2] == '\0' && utf8_[3] == '\0') // UTF-32 little endian BOM FFFE0000?
+              {
+                size_ = 0;
+                uidx_ = sizeof(utf8_);
+                utfx_ = file_encoding::utf32le;
+              }
+              else
+              {
+                size_ = 0;
+                utf8_[utf8(utf8_[2] | utf8_[3] << 8, utf8_)] = '\0';
+                uidx_ = 0;
+                utfx_ = file_encoding::utf16le;
+              }
             }
           }
-        }
-        else if (utf8_[0] == '\xef' && utf8_[1] == '\xbb') // UTF-8 BOM EFBBXX?
-        {
-          if (::fread(utf8_ + 2, 1, 1, file_) == 1)
+          else if (utf8_[0] == '\xef' && utf8_[1] == '\xbb') // UTF-8 BOM EFBBXX?
           {
-            utf8_[3] = '\0';
-            if (utf8_[2] == '\xbf') // UTF-8 BOM EFBBBF?
+            if (::fread(utf8_ + 2, 1, 1, file_) == 1)
             {
-              if (size_ >= 3)
-                size_ -= 3;
-              uidx_ = sizeof(utf8_);
-              utfx_ = file_encoding::utf8;
+              utf8_[3] = '\0';
+              if (utf8_[2] == '\xbf') // UTF-8 BOM EFBBBF?
+              {
+                if (size_ >= 3)
+                  size_ -= 3;
+                uidx_ = sizeof(utf8_);
+                utfx_ = file_encoding::utf8;
+              }
             }
           }
         }
       }
+      break;
     }
+    if (feof(file_) || handler_ == NULL || (*handler_)() == 0)
+      break;
   }
 }
 
@@ -739,6 +745,8 @@ size_t Input::file_get(char *s, size_t n)
     if (n == 0)
     {
       uidx_ += k;
+      if (size_ >= k)
+        size_ -= k;
       return k;
     }
     uidx_ = sizeof(utf8_);
@@ -782,6 +790,8 @@ size_t Input::file_get(char *s, size_t n)
           }
         }
       }
+      if (size_ + s >= t)
+        size_ -= t - s;
       return t - s;
     case file_encoding::utf16le:
       while (n > 0 && ::fread(buf, 2, 1, file_) == 1)
@@ -819,6 +829,8 @@ size_t Input::file_get(char *s, size_t n)
           }
         }
       }
+      if (size_ + s >= t)
+        size_ -= t - s;
       return t - s;
     case file_encoding::utf32be:
       while (n > 0 && ::fread(buf, 4, 1, file_) == 1)
@@ -848,6 +860,8 @@ size_t Input::file_get(char *s, size_t n)
           }
         }
       }
+      if (size_ + s >= t)
+        size_ -= t - s;
       return t - s;
     case file_encoding::utf32le:
       while (n > 0 && ::fread(buf, 4, 1, file_) == 1)
@@ -877,6 +891,8 @@ size_t Input::file_get(char *s, size_t n)
           }
         }
       }
+      if (size_ + s >= t)
+        size_ -= t - s;
       return t - s;
     case file_encoding::latin:
       while (n > 0 && ::fread(t, 1, 1, file_) == 1)
@@ -904,6 +920,8 @@ size_t Input::file_get(char *s, size_t n)
           }
         }
       }
+      if (size_ + s >= t)
+        size_ -= t - s;
       return t - s;
     case file_encoding::cp437:
     case file_encoding::cp850:
@@ -964,9 +982,14 @@ size_t Input::file_get(char *s, size_t n)
           }
         }
       }
+      if (size_ + s >= t)
+        size_ -= t - s;
       return t - s;
     default:
-      return t - s + ::fread(t, 1, n, file_);
+      t += ::fread(t, 1, n, file_);
+      if (size_ + s >= t)
+        size_ -= t - s;
+      return t - s;
   }
 }
 

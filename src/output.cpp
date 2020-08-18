@@ -881,16 +881,12 @@ void Output::cpp(const char *data, size_t size)
             break;
         }
 
+        chr('\\');
+
         if (c > 0x20)
-        {
-          chr('\\');
           chr(c);
-        }
         else
-        {
-          str("\\x");
-          hex(c, 2);
-        }
+          oct(c);
       }
     }
     ++s;

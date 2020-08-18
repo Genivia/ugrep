@@ -199,6 +199,17 @@ Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
 Matches a/x, a/y, a/x/y,     but not a, b/x
 .IP \fBa\\\\?b\fR
 Matches a?b,                 but not a, b, ab, axb, a/b
+.PP
+Note that exclude glob patterns take priority over include glob patterns when
+specified with options -g, --exclude, --exclude-dir, --include and include-dir.
+.PP
+Glob patterns specified with prefix `!' in any of the files associated with
+--include-from, --exclude-from and --ignore-files will negate a previous glob
+match.  That is, any matching file or directory excluded by a previous glob
+pattern specified in the files associated with --exclude-from or --ignore-file
+will become included again.  Likewise, any matching file or directory included
+by a previous glob pattern specified in the files associated with
+--include-from will become excluded again.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
@@ -258,6 +269,10 @@ Fields may be used in \fIFORMAT\fR, which expand into the following values:
 if option \fB-H\fR is used: \fIARG\fR, the file pathname and separator.
 .IP \fB%f\fR
 the file pathname.
+.IP \fB%a\fR
+the file basename without directory path.
+.IP \fB%p\fR
+the directory path to the file.
 .IP \fB%z\fR
 the file pathname in a (compressed) archive.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
@@ -342,11 +357,11 @@ same as \fB%[1]#\fR; requires option \fB-P\fR.
 .IP \fB%[\fINUM\fR\fB]#\fR
 the regex group capture \fINUM\fR; requires option \fB-P\fR.
 .IP \fB%G\fR
-list of group capture indices/names of the match (option -P).
+list of group capture indices/names of the match (option \fB-P\fR).
 .IP \fB%[NAME1|NAME2|...]G\fR
 NAMEs corresponding to the group capture indices of the match.
 .IP \fB%g\fR
-the group capture index/name of the match or 1 (option -P).
+the group capture index/name of the match or 1 (option \fB-P\fR).
 .IP \fB%[NAME1|NAME2|...]g\fR
 NAME corresponding to the group capture index of the match.
 .IP \fB%%\fR
@@ -367,9 +382,9 @@ reverts the separator to the default separator or the separator specified with
 .PP
 Formatted output is written for each matching pattern, which means that a line
 may be output multiple times when patterns match more than once on the same
-line.  If field \fB%u\fR is specified anywhere in a format string, then
-matching lines are output only once unless option \fB-u\fR, \fB--ungroup\fR is
-specified or when one or more newlines are matched.
+line.  If field \fB%u\fR is specified anywhere in a format string, matching
+lines are output only once, unless option \fB-u\fR, \fB--ungroup\fR is
+specified or when more than one line of input matched the search pattern.
 .PP
 Additional formatting options:
 .IP \fB--format-begin\fR=\fIFORMAT\fR
@@ -494,6 +509,10 @@ List all files containing a RPM signature, located in the `rpm' directory and
 recursively below up to two levels deeper (3 levels total):
 .IP
 $ ugrep -3 -l -tRpm '' rpm/
+.PP
+Monitor the system log for bug reports and ungroup multiple matches on a line:
+.IP
+$ tail -f /var/log/system.log | ugrep -u -i -w bug
 .PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
