@@ -215,7 +215,7 @@ class VKey {
  public:
 
   static const int NORMAL   = 0;   // VKey::setup in tty normal mode
-  static const int RAW      = 1;   // VKey::setup in tty raw mode (cfmakeraw)
+  static const int TTYRAW   = 1;   // VKey::setup in tty raw mode (cfmakeraw)
 
   static const int META     = 31;  // META/ALT/OPTION/CTRL-_
 
@@ -259,7 +259,7 @@ class VKey {
     return 255 + '@' + num;        // FN1..FN12 is 256+'A'..256+'L'
   }
 
-  // setup vkey in VKey::NORMAL tty or VKey::RAW raw tty mode (cfmakeraw), returns 0 on success <0 on failure
+  // setup vkey in VKey::NORMAL tty or VKey::TTYRAW raw tty mode (cfmakeraw), returns 0 on success <0 on failure
   static bool setup(int mode = NORMAL);
 
   // release vkey resources and restore tty
