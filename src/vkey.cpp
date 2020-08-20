@@ -752,7 +752,7 @@ void VKey::flush()
 #endif
 }
 
-// setup vkey in VKey::NORMAL tty or VKey::RAW raw tty mode (cfmakeraw), returns 0 on success <0 on failure
+// setup vkey in VKey::NORMAL tty or VKey::TTYRAW raw tty mode (cfmakeraw), returns 0 on success <0 on failure
 bool VKey::setup(int mode)
 {
 #ifdef OS_WIN
@@ -767,7 +767,7 @@ bool VKey::setup(int mode)
 
   DWORD inMode = oldInMode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
 
-  if (mode == VKey::RAW)
+  if (mode == VKey::TTYRAW)
     inMode &= ~ENABLE_PROCESSED_INPUT;
 
   // get event when window is resized
@@ -801,7 +801,7 @@ bool VKey::setup(int mode)
   tcgetattr(tty, &oldterm);
   tcgetattr(tty, &newterm);
 
-  if (mode == VKey::RAW)
+  if (mode == VKey::TTYRAW)
     cfmakeraw(&newterm);
   else
     newterm.c_lflag &= ~(ECHO | ICANON);
