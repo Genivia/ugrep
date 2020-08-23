@@ -197,6 +197,14 @@ and try `ugrep` locally, see "All platforms" build steps further below.
 You can use the standard NetBSD package installer (pkgsrc):
 <http://cdn.netbsd.org/pub/pkgsrc/current/pkgsrc/textproc/ugrep/README.html>
 
+### Haiku
+
+    $ pkgman install cmd:ugrep
+
+Check <https://github.com/haikuports/haikuports/tree/master/app-text/ugrep> for
+version info.  To build and try `ugrep` locally, see "All platforms" build
+steps further below.
+
 ### All platforms: step 1 download
 
 Clone `ugrep` with
