@@ -19,5 +19,4 @@ autoheader
 automake --add-missing --foreign
 autoconf
 automake
-touch config.h.in
-./configure --disable-maintainer-mode --enable-color
+./configure --enable-color

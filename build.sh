@@ -18,14 +18,20 @@ echo
 echo "./configure $OPTIONS"
 echo
 
-# configure with maintainer mode enabled to work around git timestamp issues
+# appease automake when the original timestamps are lost, when using git clone
+touch aclocal.m4 Makefile.am lib/Makefile.am src/Makefile.am
+sleep 1
+touch config.h.in Makefile.in lib/Makefile.in src/Makefile.in
+sleep 1
+touch configure
+
 ./configure $OPTIONS
 
 echo
 echo "make -j clean all"
 echo
 
-if ! make -j ; then
+if ! make -j clean all ; then
 echo "Failed to build ugrep: please run the following two commands:"
 echo "$ autoreconf -fi"
 echo "$ ./build.sh"
