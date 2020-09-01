@@ -19,10 +19,10 @@ RUN apt-get install -y \
     wget \
     unzip \
     libpcre2-dev \
-    libboost-all-dev \
     libz-dev \
     libbz2-dev \
-    liblzma-dev
+    liblzma-dev \
+    liblz4-dev
 
 RUN cd / &&\
     git clone https://github.com/Genivia/ugrep

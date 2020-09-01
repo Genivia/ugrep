@@ -308,7 +308,7 @@ To work around this problem, run:
     $ autoreconf -fi
     $ ./build.sh
 
-### For developers
+### Dockerfile for developers
 
 A Dockerfile is included to build `ugrep` in a Ubuntu container.
 
