@@ -5,7 +5,7 @@ AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
 
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_MAINTAINER_MODE([disable])
+AM_MAINTAINER_MODE([enable])
 
 # if CXXFLAGS is undefined, set it to our preferred default flags
 : ${CXXFLAGS="-Wall -Wextra -Wunused -O2"}

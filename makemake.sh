@@ -20,4 +20,4 @@ automake --add-missing --foreign
 autoconf
 automake
 touch config.h.in
-./configure --enable-color
+./configure --disable-maintainer-mode --enable-color

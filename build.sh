@@ -18,8 +18,8 @@ echo
 echo "./configure $OPTIONS"
 echo
 
-# configure with --enable-maintainer-mode to work around git timestamp issues
-./configure --enable-maintainer-mode $OPTIONS
+# configure with maintainer mode enabled to work around git timestamp issues
+./configure $OPTIONS
 
 echo
 echo "make -j clean all"
