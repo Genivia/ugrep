@@ -11,9 +11,6 @@ esac
 echo
 echo "Building ugrep..."
 
-# fix git clone timestamp issues causing build failures
-touch config.h.in lib/Makefile.in src/Makefile.in
-
 # configure with colors enabled by default or the command arguments
 OPTIONS=${1:---enable-color}
 
@@ -21,7 +18,8 @@ echo
 echo "./configure $OPTIONS"
 echo
 
-./configure $OPTIONS
+# configure with --enable-maintainer-mode to work around git timestamp issues
+./configure --enable-maintainer-mode $OPTIONS
 
 echo
 echo "make -j clean all"

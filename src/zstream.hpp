@@ -28,7 +28,7 @@
 
 /**
 @file      zstream.hpp
-@brief     file decompression streams
+@brief     file decompression streams - zstreambuf extends std::streambuf
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -65,15 +65,19 @@ struct lzma_stream;
 #ifdef HAVE_LIBLZ4
 #include <lz4.h>
 typedef LZ4_streamDecode_t *lz4_stream;
+// define LZ4_DECODER_RING_BUFFER_SIZE when not defined by old lz4
+#ifndef LZ4_DECODER_RING_BUFFER_SIZE
+#define LZ4_DECODER_RING_BUFFER_SIZE(maxBlockSize) (65536 + 14 + (maxBlockSize))
+#endif
 #else
 struct lz4_stream;
 #endif
 
-// TODO zip decompression crc check disabled as this is too slow, we should optimize crc32() with a table
+// zip decompression crc check disabled as this is too slow, we should optimize crc32() with a table
 // use zip crc integrity check at the cost of a significant slow down?
 // #define WITH_ZIP_CRC32
 
-// buffer size to hold compressed data copied from compressed files
+// buffer size to hold compressed data that is block-wise copied from compressed files
 #ifndef Z_BUF_LEN
 #define Z_BUF_LEN 65536
 #endif
@@ -143,16 +147,16 @@ class zstreambuf : public std::streambuf {
     uint32_t    crc;     // zip crc-32
     uint64_t    size;    // zip compressed file size
     uint64_t    usize;   // zip uncompressed file size (unused)
-    std::string name;    // zip file name from local file header or extra field
+    std::string name;    // zip file name from local file header or zip extra field
 
    protected:
 
-    static constexpr size_t ZIPBLOCK = 65536; // block size to read zip data, at least 64K to fit long 64K pathnames
+    static const size_t ZIPBLOCK = 65536; // block size to read zip data, at least 64K to fit long 64K pathnames
 
-    static constexpr uint16_t COMPRESS_HEADER_MAGIC = 0x9d1f;     // compress header magic
-    static constexpr uint16_t DEFLATE_HEADER_MAGIC  = 0x8b1f;     // zlib deflate header magic
-    static constexpr uint32_t ZIP_HEADER_MAGIC      = 0x04034b50; // zip local file header magic
-    static constexpr uint32_t ZIP_DESCRIPTOR_MAGIC  = 0x08074b50; // zip descriptor magic
+    static const uint16_t COMPRESS_HEADER_MAGIC = 0x9d1f;     // compress header magic
+    static const uint16_t DEFLATE_HEADER_MAGIC  = 0x8b1f;     // zlib deflate header magic
+    static const uint32_t ZIP_HEADER_MAGIC      = 0x04034b50; // zip local file header magic
+    static const uint32_t ZIP_DESCRIPTOR_MAGIC  = 0x08074b50; // zip descriptor magic
 
     // read zip local file header if we are at a header, read the header, file name, and extra field
     bool header()
@@ -242,6 +246,7 @@ class zstreambuf : public std::streambuf {
           {
             z_strm_ = new z_stream;
           }
+
           catch (const std::bad_alloc&)
           {
             cannot_decompress(pathname_, "out of memory");
@@ -277,6 +282,7 @@ class zstreambuf : public std::streambuf {
           {
             bz_strm_ = new bz_stream;
           }
+
           catch (const std::bad_alloc&)
           {
             cannot_decompress(pathname_, "out of memory");
@@ -327,6 +333,7 @@ class zstreambuf : public std::streambuf {
           {
             lzma_strm_ = new lzma_stream;
           }
+
           catch (const std::bad_alloc&)
           {
             cannot_decompress(pathname_, "out of memory");
@@ -367,10 +374,11 @@ class zstreambuf : public std::streambuf {
       zcrc_ = 0xffffffff;
 
       zend_ = false;
+
       return true;
     }
 
-    // read and decompress zip file data into buf[0..len-1], return number of bytes decompressed
+    // read and decompress zip file data into buf[0..len-1], return number of bytes decompressed, 0 for EOF or -1 for error
     std::streamsize decompress(unsigned char *buf, size_t len)
     {
       // if no more data to decompress, then return 0 to indicate EOF
@@ -892,6 +900,7 @@ class zstreambuf : public std::streambuf {
           file_ = NULL;
         }
       }
+
       catch (const std::bad_alloc&)
       {
         cannot_decompress(pathname_, "out of memory");
@@ -917,6 +926,7 @@ class zstreambuf : public std::streambuf {
           file_ = NULL;
         }
       }
+
       catch (const std::bad_alloc&)
       {
         cannot_decompress(pathname_, "out of memory");
@@ -933,6 +943,7 @@ class zstreambuf : public std::streambuf {
       {
         lz4file_ = new LZ4();
       }
+
       catch (const std::bad_alloc&)
       {
         cannot_decompress(pathname_, "out of memory");
@@ -972,6 +983,7 @@ class zstreambuf : public std::streambuf {
               file_ = NULL;
             }
           }
+
           catch (const std::bad_alloc&)
           {
             errno = ENOMEM;
@@ -1004,6 +1016,7 @@ class zstreambuf : public std::streambuf {
                 file_ = NULL;
               }
             }
+
             catch (const std::bad_alloc&)
             {
               errno = ENOMEM;
@@ -1245,12 +1258,13 @@ class zstreambuf : public std::streambuf {
   // lz4 state data
   struct LZ4 {
 
-    static const size_t MAX_BLOCK_SIZE = 4194304; // lz4 4MB max block size
+    static const size_t MAX_BLOCK_SIZE   = 4194304; // lz4 4MB max block size
+    static const size_t RING_BUFFER_SIZE = LZ4_DECODER_RING_BUFFER_SIZE(MAX_BLOCK_SIZE);
 
     LZ4()
       :
         strm(LZ4_createStreamDecode()),
-        buf(static_cast<unsigned char*>(malloc(LZ4_DECODER_RING_BUFFER_SIZE(MAX_BLOCK_SIZE)))),
+        buf(static_cast<unsigned char*>(malloc(RING_BUFFER_SIZE))),
         loc(0),
         len(0),
         crc(0),
@@ -1751,7 +1765,7 @@ class zstreambuf : public std::streambuf {
           }
 
           // decompress lz4file_->zbuf[] block into lz4file_->buf[]
-          if (lz4file_->loc >= LZ4_DECODER_RING_BUFFER_SIZE(LZ4::MAX_BLOCK_SIZE) - LZ4::MAX_BLOCK_SIZE)
+          if (lz4file_->loc >= LZ4::RING_BUFFER_SIZE - LZ4::MAX_BLOCK_SIZE)
             lz4file_->loc = 0;
           int ret = LZ4_decompress_safe_continue(lz4file_->strm, reinterpret_cast<char*>(lz4file_->zbuf + lz4file_->zloc), reinterpret_cast<char*>(lz4file_->buf + lz4file_->loc), size, LZ4::MAX_BLOCK_SIZE);
           lz4file_->zloc += size;

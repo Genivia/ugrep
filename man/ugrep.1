@@ -1,4 +1,4 @@
-.TH UGREP "1" "August 18, 2020" "ugrep 2.5.3" "User Commands"
+.TH UGREP "1" "September 01, 2020" "ugrep 2.5.4" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -453,8 +453,7 @@ displaying the match.  The line number counter is reset for each
 file processed.
 .TP
 \fB\-P\fR, \fB\-\-perl\-regexp\fR
-Interpret PATTERN as a Perl regular expression.
-This option is not available in this build configuration of ugrep.
+Interpret PATTERN as a Perl regular expression using PCRE2.
 .TP
 \fB\-p\fR, \fB\-\-no\-dereference\fR
 If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when

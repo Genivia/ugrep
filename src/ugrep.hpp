@@ -176,7 +176,7 @@ class Flag {
 
   Flag()                     : value(UNDEFINED)  { }
   Flag(bool flag)            : value(flag ? T : F)  { }
-  bool operator=(bool flag)  { value = flag ? T : F; return flag; }
+  Flag operator=(bool flag)  { value = flag ? T : F; return *this; }
        operator bool() const { return is_true(); }
   bool is_undefined()  const { return value == UNDEFINED; }
   bool is_defined()    const { return value != UNDEFINED; }

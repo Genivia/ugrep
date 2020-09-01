@@ -13,7 +13,7 @@ fi
 sed -i .bak 's/lib_LIBRARIES/noinst_LIBRARIES/' lib/Makefile.am
 rm -f lib/Makefile.am.bak
 
-# run autoconf and automake stuff
+# run autoconf and automake stuff with maintainer mode disabled
 aclocal
 autoheader
 automake --add-missing --foreign
