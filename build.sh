@@ -12,7 +12,7 @@ echo
 echo "Building ugrep..."
 
 # configure with colors enabled by default or the command arguments
-OPTIONS=${1:---enable-color}
+OPTIONS=${@:---enable-color}
 
 echo
 echo "./configure $OPTIONS"
@@ -31,7 +31,9 @@ echo
 echo "make -j clean all"
 echo
 
-if ! make -j clean all ; then
+make clean
+
+if ! make -j ; then
 echo "Failed to build ugrep: please run the following two commands:"
 echo "$ autoreconf -fi"
 echo "$ ./build.sh"
