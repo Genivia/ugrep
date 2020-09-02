@@ -1866,7 +1866,8 @@ import statements, including hidden files with `-.`:
 The begin of a pattern always matches the first character of an approximate
 match as a practical strategy to prevent many false "randomized" matches for
 short patterns.  This also greatly improves search speed.  Make the first
-character optional to optionally match it, e.g. `p?attern`.
+character optional to optionally match it, e.g. `p?attern` or use a dot as
+the start of the pattern to match any wide character (but this is slow).
 
 Newlines (`\n`) and NUL (`\0`) characters are never deleted or substituted to
 ensure that fuzzy matches do not extend the pattern match beyond the number of
@@ -4370,7 +4371,7 @@ in markdown:
 
 
 
-    ugrep 2.5.4                   September 01, 2020                      UGREP(1)
+    ugrep 2.5.5                   September 02, 2020                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
