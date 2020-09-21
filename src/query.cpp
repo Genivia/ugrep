@@ -3448,8 +3448,8 @@ Query::Flags Query::flags_[] = {
   { false, '$', "sort by changed" },
   { false, '@', "sort by created" },
   { false, '^', "reverse sort" },
-  { false, '[', "decrease fuzzyness" },
-  { false, ']', "increase fuzzyness" },
+  { false, '[', "decrease fuzziness" },
+  { false, ']', "increase fuzziness" },
   { false, '{', "decrease context" },
   { false, '}', "increase context" },
   { false, 0, NULL, }
