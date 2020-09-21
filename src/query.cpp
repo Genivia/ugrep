@@ -170,7 +170,7 @@ void Query::display(int col, int len)
 {
   char *ptr = line_ptr(col);
   char *end = line_ptr(col + len);
-  char *err = error_ >= 0 && !Screen::mono ? line_ptr(0, error_) : NULL;
+  char *err = error_ >= 0 && !Screen::mono ? line_ + error_ : NULL;
   char *next;
   bool alert = false;
   for (next = ptr; next < end; ++next)
@@ -463,10 +463,14 @@ void Query::redraw()
 
     for (Flags *fp = flags_; fp->text != NULL; ++fp)
     {
-      buf.assign("\033[7mM- \033[m [\033[32;1m \033[m] ");
+      buf.assign("\033[7mM- \033[m ");
       buf[6] = fp->key;
-      if (fp->flag)
-        buf[19] = 'X';
+      if (strncmp(fp->text, "decrease", 8) == 0 || strncmp(fp->text, "increase", 8) == 0)
+        buf.append("    ");
+      else if (fp->flag)
+        buf.append("[\033[32;1mX\033[m] ");
+      else
+        buf.append("[ ] ");
       buf.append(fp->text);
       if (row >= Screen::rows)
       {
@@ -772,6 +776,8 @@ void Query::query_ui()
   bool ctrl_o = false;
   bool ctrl_v = false;
 
+  bool err = false;
+
   while (true)
   {
     size_t delay = message_ ? QUERY_MESSAGE_DELAY : flag_query;
@@ -797,6 +803,14 @@ void Query::query_ui()
         Screen::setpos(select_ - row_ + 1, col_ - offset_);
       }
 
+      if (error_ >= 0 && !err)
+      {
+        // show error position in the query line, but only once
+        draw();
+
+        err = true;
+      }
+
       key = VKey::in(100);
 
       if (key > 0)
@@ -809,6 +823,8 @@ void Query::query_ui()
         if (mode_ == Mode::QUERY && updated_)
         {
           search();
+
+          err = false;
         }
 #ifdef OS_WIN
         else
@@ -919,7 +935,7 @@ void Query::query_ui()
           switch (key)
           {
             case VKey::TAB: // Shift-TAB: chdir .. or deselect file (or pan screen in selection mode)
-              if (mode_ == Mode::QUERY)
+              if (mode_ == Mode::QUERY && error_ == -1)
               {
                 if (select_ == -1)
                 {
@@ -982,7 +998,7 @@ void Query::query_ui()
           break;
 
         case VKey::TAB: // TAB: chdir or select file (or pan screen in selection mode)
-          if (mode_ == Mode::QUERY)
+          if (mode_ == Mode::QUERY && error_ == -1)
           {
             if (select_ == -1)
             {
@@ -1202,7 +1218,7 @@ void Query::query_ui()
           break;
 
         case VKey::CTRL_CA: // CTRL-^: chdir back to working directory
-          if (mode_ == Mode::QUERY && select_ == -1)
+          if (mode_ == Mode::QUERY && error_ == -1 && select_ == -1)
             unselect();
           break;
 
@@ -2383,6 +2399,8 @@ bool Query::help()
   {
     int key;
 
+    Screen::put(0, Screen::cols - 1, "?");
+
 #ifdef OS_WIN
 
     while (true)
@@ -2411,7 +2429,6 @@ bool Query::help()
     if (ctrl_o)
     {
       meta(key);
-      redraw();
       ctrl_o = false;
     }
     else if (key == VKey::CTRL_Q)
@@ -2456,25 +2473,31 @@ bool Query::help()
 
         case VKey::META:
           meta(VKey::get());
-          redraw();
           break;
 
         default:
-          Screen::alert();
-#ifdef WITH_MACOS_META_KEY
-          if (key >= 0x80)
+          if (key < 0x80)
           {
+            meta(key);
+          }
+          else
+          {
+            Screen::alert();
+
+#ifdef WITH_MACOS_META_KEY
             if (!Screen::mono)
               Screen::put(CERROR);
             Screen::put(1, 0, "MacOS Terminal Preferences/Profiles/Keyboard: enable \"Use Option as Meta key\"");
             Screen::setpos(0, start_ + col_ - offset_);
-          }
 #endif
+          }
       }
     }
   }
 
   mode_ = oldMode;
+
+  message_ = false;
 
   Screen::clear();
   redraw();
@@ -2489,17 +2512,21 @@ void Query::meta(int key)
   {
     if (flags_[5].flag || flags_[6].flag || flags_[17].flag || flags_[30].flag)
     {
-      // reset -F, -G, -P, -Z to switch back to -E (the Q> prompt)
+      // option -E: reset -F, -G, -P, -Z to switch back to normal mode (the Q> prompt)
       flags_[5].flag = false;
       flags_[6].flag = false;
       flags_[17].flag = false;
       flags_[30].flag = false;
 
-      set_prompt();
-
-      draw();
-
       search();
+
+      std::string msg;
+
+      msg.assign("\033[7mM-E\033[m extended regex \033[32;1mon\033[m");
+
+      message(msg);
+
+      set_prompt();
     }
 
     return;
@@ -2699,35 +2726,35 @@ void Query::meta(int key)
 
       if (key == 'g')
       {
-        if (!globbing_)
-        {
-          globbing_ = true;
-
-          memcpy(temp_, line_, QUERY_MAX_LEN);
-          size_t num = globs_.size();
-          if (num >= QUERY_MAX_LEN)
-            num = QUERY_MAX_LEN - 1;
-          memcpy(line_, globs_.c_str(), num);
-          line_[num] = '\0';
-
-          len_ = line_len();
-          move(len_);
-
-          set_prompt();
-        }
-        else
-        {
-          globbing_ = false;
-
-          memcpy(line_, temp_, QUERY_MAX_LEN);
-          len_ = line_len();
-          move(len_);
-
-          set_prompt();
-        }
-
         if (mode_ == Mode::QUERY)
         {
+          if (!globbing_)
+          {
+            globbing_ = true;
+
+            memcpy(temp_, line_, QUERY_MAX_LEN);
+            size_t num = globs_.size();
+            if (num >= QUERY_MAX_LEN)
+              num = QUERY_MAX_LEN - 1;
+            memcpy(line_, globs_.c_str(), num);
+            line_[num] = '\0';
+
+            len_ = line_len();
+            move(len_);
+
+            set_prompt();
+          }
+          else
+          {
+            globbing_ = false;
+
+            memcpy(line_, temp_, QUERY_MAX_LEN);
+            len_ = line_len();
+            move(len_);
+
+            set_prompt();
+          }
+
           draw();
         }
         else
@@ -2750,11 +2777,52 @@ void Query::meta(int key)
       else
       {
         std::string msg;
-
-        fp->flag = !fp->flag;
-
-        msg.assign("\033[7mM- \033[m ").append(fp->text).append(fp->flag ? " \033[32;1mon\033[m" : " \033[31;1moff\033[m");
+        msg.assign("\033[7mM- \033[m ").append(fp->text);
         msg[6] = fp->key;
+
+        if (key == '[')
+        {
+          flags_[30].flag = true;
+
+          if (fuzzy_ > 1)
+            --fuzzy_;
+
+          msg.append(" to ").append(std::to_string(fuzzy_));
+        }
+        else if (key == ']')
+        {
+          if (flags_[30].flag)
+            ++fuzzy_;
+          else
+            flags_[30].flag = true;
+
+          msg.append(" to ").append(std::to_string(fuzzy_));
+        }
+        else if (key == '{')
+        {
+          if (!flags_[0].flag && !flags_[1].flag)
+            flags_[3].flag = true;
+
+          if (context_ > 1)
+            --context_;
+
+          msg.append(" to ").append(std::to_string(context_));
+        }
+        else if (key == '}')
+        {
+          if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
+            ++context_;
+          else if (!flags_[0].flag && !flags_[1].flag)
+             flags_[3].flag = true;
+
+          msg.append(" to ").append(std::to_string(context_));
+        }
+        else
+        {
+          fp->flag = !fp->flag;
+
+          msg.append(fp->flag ? " \033[32;1mon\033[m" : " \033[31;1moff\033[m");
+        }
 
         search();
 
@@ -3380,5 +3448,9 @@ Query::Flags Query::flags_[] = {
   { false, '$', "sort by changed" },
   { false, '@', "sort by created" },
   { false, '^', "reverse sort" },
+  { false, '[', "decrease fuzzyness" },
+  { false, ']', "increase fuzzyness" },
+  { false, '{', "decrease context" },
+  { false, '}', "increase context" },
   { false, 0, NULL, }
 };

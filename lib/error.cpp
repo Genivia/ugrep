@@ -68,18 +68,17 @@ std::string regex_error::regex_error_message_code(regex_error_type code, const c
 
 std::string regex_error::regex_error_message(const char *message, const char *pattern, size_t pos)
 {
-  size_t l = std::strlen(message);
-  size_t n = pos / 80;
-  const char *p = pattern + 80 * n;
-  while (p > pattern && (p[0] & 0xc0) == 0x80)
+  size_t l = strlen(message);
+  size_t n = pos / 40;
+  size_t k = pos % 40 + (n == 0 ? 0 : 20);
+  const char *p = n == 0 ? pattern : pattern + 40 * n - 20;
+  while (p > pattern && (*p & 0xc0) == 0x80)
+  {
     --p;
-  size_t m = std::strlen(p);
-  if (m >= 80)
-    m = 79;
-  size_t r = pos % 80;
-  for (size_t i = r; i > 0; --i)
-    if ((p[i] & 0xc0) == 0x80)
-      --r;
+    ++k;
+  }
+  size_t m = disppos(p, 79) - p;
+  size_t r = displen(p, k);
   std::string what("error in regex at position ");
   what.append(ztoa(pos)).append("\n").append(p, m).append("\n");
   if (r >= l + 4)
@@ -87,6 +86,79 @@ std::string regex_error::regex_error_message(const char *message, const char *pa
   else
     what.append(r, ' ').append("\\___").append(message).append("\n");
   return what;
+}
+
+size_t regex_error::displen(const char *s, size_t k)
+{
+  size_t n = 0;
+  while (k > 0 && *s != '\0')
+  {
+    unsigned char c = *s++;
+    if (c >= 0x80)
+    {
+      if (c >= 0xf0 &&
+          (c > 0xf0 ||
+           (static_cast<unsigned char>(s[0]) >= 0x9f &&
+            (static_cast<unsigned char>(s[0]) > 0x9f ||
+             (static_cast<unsigned char>(s[1]) >= 0x86 &&
+              (static_cast<unsigned char>(s[1]) > 0x86 ||
+               static_cast<unsigned char>(s[2]) >= 0x8e))))))
+      {
+        // U+1F18E (UTF-8 F0 9F 86 8E) and higher is usually double width
+        ++n;
+        if (k < 4)
+          break;
+        s += 3;
+        k -= 3;
+      }
+      else
+      {
+        while (k > 1 && (*s & 0xc0) == 0x80)
+        {
+          ++s;
+          --k;
+        }
+      }
+    }
+    ++n;
+    --k;
+  }
+  return n;
+}
+
+const char *regex_error::disppos(const char *s, size_t k)
+{
+  while (k > 0 && *s != '\0')
+  {
+    unsigned char c = *s++;
+    if (c >= 0x80)
+    {
+      if (c >= 0xf0 &&
+          (c > 0xf0 ||
+           (static_cast<unsigned char>(s[0]) >= 0x9f &&
+            (static_cast<unsigned char>(s[0]) > 0x9f ||
+             (static_cast<unsigned char>(s[1]) >= 0x86 &&
+              (static_cast<unsigned char>(s[1]) > 0x86 ||
+               static_cast<unsigned char>(s[2]) >= 0x8e))))))
+      {
+        // U+1F18E (UTF-8 F0 9F 86 8E) and higher is usually double width
+        if (k < 4)
+          break;
+        s += 3;
+        k -= 3;
+      }
+      else
+      {
+        while (k > 1 && (*s & 0xc0) == 0x80)
+        {
+          ++s;
+          --k;
+        }
+      }
+    }
+    --k;
+  }
+  return s;
 }
 
 } // namespace reflex

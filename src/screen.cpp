@@ -259,8 +259,8 @@ bool Screen::setup(const char *title)
 
 #endif
 
-  // enable alternative screen buffer, alternate scroll, enable cursor w/o blinking, soft reset, clear screen, reset colors
-  put("\033[?1049h\033[?1007h\033[?25h\033[?12l\033[!p\033[2J\033[m");
+  // enable alternative screen buffer, alternate scroll, enable cursor w/o blinking, cursor keys normal mode, clear screen, reset colors
+  put("\033[?1049h\033[?1007h\033[?25h\033[?12l\033[?1l\033[2J\033[m");
 
   // set title, when provided as argument
   if (title != NULL)
@@ -392,7 +392,7 @@ int Screen::wchar_width(uint32_t wc)
       (wc >= 0xff00 && wc <= 0xff60) || // Fullwidth Forms
       (wc >= 0xffe0 && wc <= 0xffe6) ||
       (double_width_Emoji &&
-       (wc >= 0x1f18e && wc <= 0x1f7ff)) || // Emoticons etc
+       (wc >= 0x1f18e && wc <= 0x1f9ff)) || // Emoticons etc (updated)
       (double_width_CJK &&
        ((wc >= 0x20000 && wc <= 0x2fffd) || // CJK
         (wc >= 0x30000 && wc <= 0x3fffd)))));

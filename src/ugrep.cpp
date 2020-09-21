@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.5.5"
+#define UGREP_VERSION "2.5.6"
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -1628,7 +1628,9 @@ struct Grep {
       waiting(false)
 #endif
 #endif
-  { }
+  {
+    restline.reserve(256);
+  }
 
   virtual ~Grep()
   {
@@ -2828,13 +2830,14 @@ struct Grep {
 
   const char              *filename;      // the name of the file being searched
   std::string              partname;      // the name of an extracted file from an archive
+  std::string              restline;      // a buffer to store the rest of a line to search
   Output                   out;           // asynchronous output
   reflex::AbstractMatcher *matcher;       // the pattern matcher we're using
   MMap                     mmap;          // mmap state
   reflex::Input            input;         // input to the matcher
   FILE                    *file;          // the current input file
 #ifndef OS_WIN
-  StdInHandler             stdin_handler; // a handler to handler non-blocking stdin from a TTY or a slow pipe
+  StdInHandler             stdin_handler; // a handler to handle non-blocking stdin from a TTY or a slow pipe
 #endif
 #ifdef HAVE_LIBZ
   zstreambuf              *zstream;       // the decompressed stream from the current input file
@@ -7516,10 +7519,9 @@ void Grep::search(const char *pathname)
         size_t lineno = 0;
         bool hex = false;
         bool binary = false;
-        std::string rest_line;
-        const char *rest_line_data = NULL;
-        size_t rest_line_size = 0;
-        size_t rest_line_last = 0;
+        const char *restline_data = NULL;
+        size_t restline_size = 0;
+        size_t restline_last = 0;
 
         while (matcher->find())
         {
@@ -7527,28 +7529,28 @@ void Grep::search(const char *pathname)
 
           if (lineno != current_lineno || flag_ungroup)
           {
-            if (rest_line_data != NULL)
+            if (restline_data != NULL)
             {
               if (binary)
               {
-                out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, rest_line_size);
+                out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
               }
               else
               {
-                if (rest_line_size > 0)
+                if (restline_size > 0)
                 {
-                  rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-                  if (rest_line_size > 0)
+                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  if (restline_size > 0)
                   {
                     out.str(color_sl);
-                    out.str(rest_line_data, rest_line_size);
+                    out.str(restline_data, restline_size);
                     out.str(color_off);
                   }
                 }
                 out.nl();
               }
 
-              rest_line_data = NULL;
+              restline_data = NULL;
             }
 
             // --range: max line exceeded?
@@ -7619,10 +7621,10 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                rest_line.assign(end, eol - end);
-                rest_line_data = rest_line.c_str();
-                rest_line_size = rest_line.size();
-                rest_line_last = matcher->last();
+                restline.assign(end, eol - end);
+                restline_data = restline.c_str();
+                restline_size = restline.size();
+                restline_last = matcher->last();
               }
 
               lineno += matcher->lines() - 1;
@@ -7681,10 +7683,10 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                rest_line.assign(end, eol - end);
-                rest_line_data = rest_line.c_str();
-                rest_line_size = rest_line.size();
-                rest_line_last = matcher->last();
+                restline.assign(end, eol - end);
+                restline_data = restline.c_str();
+                restline_size = restline.size();
+                restline_last = matcher->last();
               }
             }
           }
@@ -7704,13 +7706,13 @@ void Grep::search(const char *pathname)
 
                 if (binary)
                 {
-                  out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, first - rest_line_last);
+                  out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, first - restline_last);
                   out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size);
                 }
                 else
                 {
                   out.str(color_sl);
-                  out.str(rest_line_data, first - rest_line_last);
+                  out.str(restline_data, first - restline_last);
                   out.str(color_off);
 
                   if (lines > 1)
@@ -7745,9 +7747,9 @@ void Grep::search(const char *pathname)
 
                 if (lines == 1)
                 {
-                  rest_line_data += last - rest_line_last;
-                  rest_line_size -= last - rest_line_last;
-                  rest_line_last = last;
+                  restline_data += last - restline_last;
+                  restline_size -= last - restline_last;
+                  restline_last = last;
                 }
                 else
                 {
@@ -7798,10 +7800,10 @@ void Grep::search(const char *pathname)
                   }
                   else
                   {
-                    rest_line.assign(end, eol - end);
-                    rest_line_data = rest_line.c_str();
-                    rest_line_size = rest_line.size();
-                    rest_line_last = last;
+                    restline.assign(end, eol - end);
+                    restline_data = restline.c_str();
+                    restline_size = restline.size();
+                    restline_last = last;
                   }
 
                   lineno += lines - 1;
@@ -7811,28 +7813,28 @@ void Grep::search(const char *pathname)
           }
         }
 
-        if (rest_line_data != NULL)
+        if (restline_data != NULL)
         {
           if (binary)
           {
-            out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, rest_line_size);
+            out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
           }
           else
           {
-            if (rest_line_size > 0)
+            if (restline_size > 0)
             {
-              rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-              if (rest_line_size > 0)
+              restline_size -= restline_data[restline_size - 1] == '\n';
+              if (restline_size > 0)
               {
                 out.str(color_sl);
-                out.str(rest_line_data, rest_line_size);
+                out.str(restline_data, restline_size);
                 out.str(color_off);
               }
             }
             out.nl();
           }
 
-          rest_line_data = NULL;
+          restline_data = NULL;
         }
 
         if (binary)
@@ -7934,13 +7936,12 @@ void Grep::search(const char *pathname)
         bool stop = false;
 
         // to display the rest of the matching line
-        std::string rest_line;
-        const char *rest_line_data = NULL;
-        size_t rest_line_size = 0;
-        size_t rest_line_last = 0;
+        const char *restline_data = NULL;
+        size_t restline_size = 0;
+        size_t restline_last = 0;
 
         // construct event handler functor with captured *this and some of the locals
-        AnyLineGrepHandler any_line_handler(*this, pathname, lineno, hex, binary, matches, stop, rest_line_data, rest_line_size, rest_line_last);
+        AnyLineGrepHandler any_line_handler(*this, pathname, lineno, hex, binary, matches, stop, restline_data, restline_size, restline_last);
 
         // register an event handler functor to display non-matching lines
         matcher->set_handler(&any_line_handler);
@@ -7960,28 +7961,28 @@ void Grep::search(const char *pathname)
 
           if (lineno != current_lineno || flag_ungroup)
           {
-            if (rest_line_data != NULL)
+            if (restline_data != NULL)
             {
               if (binary)
               {
-                out.dump.hex(v_hex_line, rest_line_last, rest_line_data, rest_line_size);
+                out.dump.hex(v_hex_line, restline_last, restline_data, restline_size);
               }
               else
               {
-                if (rest_line_size > 0)
+                if (restline_size > 0)
                 {
-                  rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-                  if (rest_line_size > 0)
+                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  if (restline_size > 0)
                   {
                     out.str(v_color_sl);
-                    out.str(rest_line_data, rest_line_size);
+                    out.str(restline_data, restline_size);
                     out.str(color_off);
                   }
                 }
                 out.nl();
               }
 
-              rest_line_data = NULL;
+              restline_data = NULL;
             }
 
             // get the lines before the matched line
@@ -8078,10 +8079,10 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                rest_line.assign(end, eol - end);
-                rest_line_data = rest_line.c_str();
-                rest_line_size = rest_line.size();
-                rest_line_last = matcher->last();
+                restline.assign(end, eol - end);
+                restline_data = restline.c_str();
+                restline_size = restline.size();
+                restline_last = matcher->last();
               }
 
               lineno += matcher->lines() - 1;
@@ -8140,10 +8141,10 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                rest_line.assign(end, eol - end);
-                rest_line_data = rest_line.c_str();
-                rest_line_size = rest_line.size();
-                rest_line_last = matcher->last();
+                restline.assign(end, eol - end);
+                restline_data = restline.c_str();
+                restline_size = restline.size();
+                restline_last = matcher->last();
               }
             }
           }
@@ -8163,13 +8164,13 @@ void Grep::search(const char *pathname)
 
                 if (binary)
                 {
-                  out.dump.hex(v_hex_line, rest_line_last, rest_line_data, first - rest_line_last);
+                  out.dump.hex(v_hex_line, restline_last, restline_data, first - restline_last);
                   out.dump.hex(v_hex_match, first, begin, size);
                 }
                 else
                 {
                   out.str(v_color_sl);
-                  out.str(rest_line_data, first - rest_line_last);
+                  out.str(restline_data, first - restline_last);
                   out.str(color_off);
 
                   if (lines > 1)
@@ -8204,9 +8205,9 @@ void Grep::search(const char *pathname)
 
                 if (lines == 1)
                 {
-                  rest_line_data += last - rest_line_last;
-                  rest_line_size -= last - rest_line_last;
-                  rest_line_last = last;
+                  restline_data += last - restline_last;
+                  restline_size -= last - restline_last;
+                  restline_last = last;
                 }
                 else
                 {
@@ -8257,10 +8258,10 @@ void Grep::search(const char *pathname)
                   }
                   else
                   {
-                    rest_line.assign(end, eol - end);
-                    rest_line_data = rest_line.c_str();
-                    rest_line_size = rest_line.size();
-                    rest_line_last = last;
+                    restline.assign(end, eol - end);
+                    restline_data = restline.c_str();
+                    restline_size = restline.size();
+                    restline_last = last;
                   }
 
                   lineno += lines - 1;
@@ -8270,28 +8271,28 @@ void Grep::search(const char *pathname)
           }
         }
 
-        if (rest_line_data != NULL)
+        if (restline_data != NULL)
         {
           if (binary)
           {
-            out.dump.hex(v_hex_line, rest_line_last, rest_line_data, rest_line_size);
+            out.dump.hex(v_hex_line, restline_last, restline_data, restline_size);
           }
           else
           {
-            if (rest_line_size > 0)
+            if (restline_size > 0)
             {
-              rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-              if (rest_line_size > 0)
+              restline_size -= restline_data[restline_size - 1] == '\n';
+              if (restline_size > 0)
               {
                 out.str(v_color_sl);
-                out.str(rest_line_data, rest_line_size);
+                out.str(restline_data, restline_size);
                 out.str(color_off);
               }
             }
             out.nl();
           }
 
-          rest_line_data = NULL;
+          restline_data = NULL;
         }
 
         // get the remaining context
@@ -8330,13 +8331,12 @@ void Grep::search(const char *pathname)
         bool stop = false;
 
         // to display the rest of the matching line
-        std::string rest_line;
-        const char *rest_line_data = NULL;
-        size_t rest_line_size = 0;
-        size_t rest_line_last = 0;
+        const char *restline_data = NULL;
+        size_t restline_size = 0;
+        size_t restline_last = 0;
 
         // construct event handler functor with captured *this and some of the locals
-        ContextGrepHandler context_handler(*this, pathname, lineno, hex, binary, matches, stop, rest_line_data, rest_line_size, rest_line_last);
+        ContextGrepHandler context_handler(*this, pathname, lineno, hex, binary, matches, stop, restline_data, restline_size, restline_last);
 
         // register an event handler functor to display non-matching lines
         matcher->set_handler(&context_handler);
@@ -8350,28 +8350,28 @@ void Grep::search(const char *pathname)
 
           if (lineno != current_lineno || flag_ungroup)
           {
-            if (rest_line_data != NULL)
+            if (restline_data != NULL)
             {
               if (binary)
               {
-                out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, rest_line_size);
+                out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
               }
               else
               {
-                if (rest_line_size > 0)
+                if (restline_size > 0)
                 {
-                  rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-                  if (rest_line_size > 0)
+                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  if (restline_size > 0)
                   {
                     out.str(color_sl);
-                    out.str(rest_line_data, rest_line_size);
+                    out.str(restline_data, restline_size);
                     out.str(color_off);
                   }
                 }
                 out.nl();
               }
 
-              rest_line_data = NULL;
+              restline_data = NULL;
             }
 
             // get the lines before the matched line
@@ -8470,10 +8470,10 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                rest_line.assign(end, eol - end);
-                rest_line_data = rest_line.c_str();
-                rest_line_size = rest_line.size();
-                rest_line_last = matcher->last();
+                restline.assign(end, eol - end);
+                restline_data = restline.c_str();
+                restline_size = restline.size();
+                restline_last = matcher->last();
               }
 
               lineno += matcher->lines() - 1;
@@ -8532,10 +8532,10 @@ void Grep::search(const char *pathname)
               }
               else
               {
-                rest_line.assign(end, eol - end);
-                rest_line_data = rest_line.c_str();
-                rest_line_size = rest_line.size();
-                rest_line_last = matcher->last();
+                restline.assign(end, eol - end);
+                restline_data = restline.c_str();
+                restline_size = restline.size();
+                restline_last = matcher->last();
               }
             }
           }
@@ -8555,13 +8555,13 @@ void Grep::search(const char *pathname)
 
                 if (binary)
                 {
-                  out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, first - rest_line_last);
+                  out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, first - restline_last);
                   out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size);
                 }
                 else
                 {
                   out.str(color_sl);
-                  out.str(rest_line_data, first - rest_line_last);
+                  out.str(restline_data, first - restline_last);
                   out.str(color_off);
 
                   if (lines > 1)
@@ -8596,9 +8596,9 @@ void Grep::search(const char *pathname)
 
                 if (lines == 1)
                 {
-                  rest_line_data += last - rest_line_last;
-                  rest_line_size -= last - rest_line_last;
-                  rest_line_last = last;
+                  restline_data += last - restline_last;
+                  restline_size -= last - restline_last;
+                  restline_last = last;
                 }
                 else
                 {
@@ -8649,10 +8649,10 @@ void Grep::search(const char *pathname)
                   }
                   else
                   {
-                    rest_line.assign(end, eol - end);
-                    rest_line_data = rest_line.c_str();
-                    rest_line_size = rest_line.size();
-                    rest_line_last = last;
+                    restline.assign(end, eol - end);
+                    restline_data = restline.c_str();
+                    restline_size = restline.size();
+                    restline_last = last;
                   }
 
                   lineno += lines - 1;
@@ -8664,28 +8664,28 @@ void Grep::search(const char *pathname)
           context_handler.set_after_lineno(lineno + 1);
         }
 
-        if (rest_line_data != NULL)
+        if (restline_data != NULL)
         {
           if (binary)
           {
-            out.dump.hex(Output::Dump::HEX_LINE, rest_line_last, rest_line_data, rest_line_size);
+            out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
           }
           else
           {
-            if (rest_line_size > 0)
+            if (restline_size > 0)
             {
-              rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-              if (rest_line_size > 0)
+              restline_size -= restline_data[restline_size - 1] == '\n';
+              if (restline_size > 0)
               {
                 out.str(color_sl);
-                out.str(rest_line_data, rest_line_size);
+                out.str(restline_data, restline_size);
                 out.str(color_off);
               }
             }
             out.nl();
           }
 
-          rest_line_data = NULL;
+          restline_data = NULL;
         }
 
         // get the remaining context
@@ -8726,13 +8726,12 @@ void Grep::search(const char *pathname)
         bool stop = false;
 
         // to display the rest of the matching line
-        std::string rest_line;
-        const char *rest_line_data = NULL;
-        size_t rest_line_size = 0;
-        size_t rest_line_last = 0;
+        const char *restline_data = NULL;
+        size_t restline_size = 0;
+        size_t restline_last = 0;
 
         // construct event handler functor with captured *this and some of the locals
-        InvertContextGrepHandler invert_context_handler(*this, pathname, lineno, hex, binary, matches, stop, rest_line_data, rest_line_size, rest_line_last);
+        InvertContextGrepHandler invert_context_handler(*this, pathname, lineno, hex, binary, matches, stop, restline_data, restline_size, restline_last);
 
         // register an event handler functor to display non-matching lines
         matcher->set_handler(&invert_context_handler);
@@ -8752,28 +8751,28 @@ void Grep::search(const char *pathname)
 
           if (last_lineno != current_lineno)
           {
-            if (rest_line_data != NULL)
+            if (restline_data != NULL)
             {
               if (binary)
               {
-                out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, rest_line_last, rest_line_data, rest_line_size);
+                out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, restline_size);
               }
               else
               {
-                if (rest_line_size > 0)
+                if (restline_size > 0)
                 {
-                  rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-                  if (rest_line_size > 0)
+                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  if (restline_size > 0)
                   {
                     out.str(color_cx);
-                    out.str(rest_line_data, rest_line_size);
+                    out.str(restline_data, restline_size);
                     out.str(color_off);
                   }
                 }
                 out.nl();
               }
 
-              rest_line_data = NULL;
+              restline_data = NULL;
             }
 
             // get the lines before the matched line
@@ -8861,10 +8860,10 @@ void Grep::search(const char *pathname)
                   out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, first - border, bol, border);
                   out.dump.hex(Output::Dump::HEX_CONTEXT_MATCH, first, begin, size);
 
-                  rest_line.assign(end, eol - end);
-                  rest_line_data = rest_line.c_str();
-                  rest_line_size = rest_line.size();
-                  rest_line_last = matcher->last();
+                  restline.assign(end, eol - end);
+                  restline_data = restline.c_str();
+                  restline_size = restline.size();
+                  restline_last = matcher->last();
                 }
               }
               else
@@ -8902,10 +8901,10 @@ void Grep::search(const char *pathname)
                 out.str(begin, size);
                 out.str(match_off);
 
-                rest_line.assign(end, eol - end);
-                rest_line_data = rest_line.c_str();
-                rest_line_size = rest_line.size();
-                rest_line_last = matcher->last();
+                restline.assign(end, eol - end);
+                restline_data = restline.c_str();
+                restline_size = restline.size();
+                restline_last = matcher->last();
               }
             }
             else if (flag_before_context > 0)
@@ -8984,13 +8983,13 @@ void Grep::search(const char *pathname)
 
                 if (binary)
                 {
-                  out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, rest_line_last, rest_line_data, first - rest_line_last);
+                  out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, first - restline_last);
                   out.dump.hex(Output::Dump::HEX_CONTEXT_MATCH, first, begin, size);
                 }
                 else
                 {
                   out.str(color_cx);
-                  out.str(rest_line_data, first - rest_line_last);
+                  out.str(restline_data, first - restline_last);
                   out.str(color_off);
 
                   if (lines > 1)
@@ -9025,9 +9024,9 @@ void Grep::search(const char *pathname)
 
                 if (lines == 1)
                 {
-                  rest_line_data += last - rest_line_last;
-                  rest_line_size -= last - rest_line_last;
-                  rest_line_last = last;
+                  restline_data += last - restline_last;
+                  restline_size -= last - restline_last;
+                  restline_last = last;
                 }
                 else
                 {
@@ -9046,38 +9045,38 @@ void Grep::search(const char *pathname)
 
                   hex = binary;
 
-                  rest_line.assign(end, eol - end);
-                  rest_line_data = rest_line.c_str();
-                  rest_line_size = rest_line.size();
-                  rest_line_last = last;
+                  restline.assign(end, eol - end);
+                  restline_data = restline.c_str();
+                  restline_size = restline.size();
+                  restline_last = last;
                 }
               }
             }
           }
           else
           {
-            if (rest_line_data != NULL)
+            if (restline_data != NULL)
             {
               if (binary)
               {
-                out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, rest_line_last, rest_line_data, rest_line_size);
+                out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, restline_size);
               }
               else
               {
-                if (rest_line_size > 0)
+                if (restline_size > 0)
                 {
-                  rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-                  if (rest_line_size > 0)
+                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  if (restline_size > 0)
                   {
                     out.str(color_cx);
-                    out.str(rest_line_data, rest_line_size);
+                    out.str(restline_data, restline_size);
                     out.str(color_off);
                   }
                 }
                 out.nl();
               }
 
-              rest_line_data = NULL;
+              restline_data = NULL;
             }
 
             if (flag_before_context > 0)
@@ -9146,28 +9145,28 @@ void Grep::search(const char *pathname)
           last_lineno = lineno;
         }
 
-        if (rest_line_data != NULL)
+        if (restline_data != NULL)
         {
           if (binary)
           {
-            out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, rest_line_last, rest_line_data, rest_line_size);
+            out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, restline_size);
           }
           else
           {
-            if (rest_line_size > 0)
+            if (restline_size > 0)
             {
-              rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
-              if (rest_line_size > 0)
+              restline_size -= restline_data[restline_size - 1] == '\n';
+              if (restline_size > 0)
               {
                 out.str(color_cx);
-                out.str(rest_line_data, rest_line_size);
+                out.str(restline_data, restline_size);
                 out.str(color_off);
               }
             }
             out.nl();
           }
 
-          rest_line_data = NULL;
+          restline_data = NULL;
         }
 
         // get the remaining context

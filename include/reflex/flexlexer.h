@@ -364,6 +364,9 @@ int yywrap(void);
 /// Flex-compatible macro: the lineno accessor of a reentrant scanner.
 #define yyget_lineno(s)         static_cast<int>(static_cast<FlexLexer*>(s)->lineno())
 
+/// Flex-compatible macro: set the lineno accessor of a reentrant scanner.
+#define yyset_lineno(n,s)       static_cast<FlexLexer*>(s)->lineno(n)
+
 /// Flex-compatible macro: the reflex::Input in accessor of a reentrant scanner.
 #define yyget_in(s)             static_cast<FlexLexer*>(s)->in()
 

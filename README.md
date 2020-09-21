@@ -4371,7 +4371,7 @@ in markdown:
 
 
 
-    ugrep 2.5.5                   September 02, 2020                      UGREP(1)
+    ugrep 2.5.6                   September 21, 2020                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

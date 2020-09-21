@@ -577,6 +577,13 @@ class AbstractMatcher {
   {
     return utf8(txt_);
   }
+  /// Set or change the starting line number of the last match.
+  void lineno(size_t n) ///< new line number
+  {
+    if (lpb_ < txt_)
+      (void)lineno(); // update lno_ and bol_ (or cno_) before overriding lno_
+    lno_ = n;
+  }
   /// Updates and returns the starting line number of the match in the input character sequence.
   size_t lineno()
     /// @returns line number

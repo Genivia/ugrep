@@ -140,6 +140,8 @@ class regex_error : public std::runtime_error {
       const char *message,
       const char *pattern,
       size_t      pos);
+  static size_t displen(const char *s, size_t k);
+  static const char *disppos(const char *s, size_t k);
   regex_error_type code_;
   size_t           pos_;
 };

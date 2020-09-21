@@ -323,6 +323,11 @@ class AbstractLexer {
   {
     return matcher().lineno();
   }
+  /// Set or change the starting line number of the last match.
+  inline void lineno(size_t n)
+  {
+    matcher().lineno(n);
+  }
   /// Returns the number of lines that the match spans.
   inline size_t lines() const
     /// @returns number of lines
