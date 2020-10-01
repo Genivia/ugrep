@@ -340,7 +340,7 @@ class AbstractMatcher {
       max_ = 2 * Const::BLOCK;
 #if defined(WITH_REALLOC)
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-      buf_ = static_cast<char*>(_aligned_malloc(max_, 4096));
+      buf_ = static_cast<char*>(std::malloc(max_));
       if (buf_ == NULL)
         throw std::bad_alloc();
 #else
@@ -475,11 +475,7 @@ class AbstractMatcher {
       if (own_)
       {
 #if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-        _aligned_free(static_cast<void*>(buf_));
-#else
         std::free(static_cast<void*>(buf_));
-#endif
 #else
         delete[] buf_;
 #endif
@@ -1404,11 +1400,7 @@ class AbstractMatcher {
         max_ *= 2;
       DBGLOG("Expand buffer to %zu bytes", max_);
 #if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-      char *newbuf = static_cast<char*>(_aligned_realloc(static_cast<void*>(buf_), max_, 4096));
-#else
       char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
-#endif
       if (newbuf == NULL)
         throw std::bad_alloc();
 #else
@@ -1454,11 +1446,7 @@ class AbstractMatcher {
         num_ += gap;
 #if defined(WITH_REALLOC)
         std::memmove(buf_, txt_, end_);
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-        char *newbuf = static_cast<char*>(_aligned_realloc(static_cast<void*>(buf_), max_, 4096));
-#else
         char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
-#endif
         // char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
         if (newbuf == NULL)
           throw std::bad_alloc();
