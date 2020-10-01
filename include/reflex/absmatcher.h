@@ -101,7 +101,7 @@ class AbstractMatcher {
     static const int UNK      = 256;        ///< unknown/undefined character meta-char marker
     static const int BOB      = 257;        ///< begin of buffer meta-char marker
     static const int EOB      = EOF;        ///< end of buffer meta-char marker
-    static const size_t BLOCK = 8192;       ///< buffer growth factor, buffer is initially 2*BLOCK size, at least 256
+    static const size_t BLOCK = (256*1024); ///< buffer size and growth, buffer is initially 2*BLOCK size, at least 4096 bytes
     static const size_t REDO  = 0x7FFFFFFF; ///< reflex::Matcher::accept() returns "redo" with reflex::Matcher option "A"
     static const size_t EMPTY = 0xFFFFFFFF; ///< accept() returns "empty" last split at end of input
   };
@@ -337,10 +337,19 @@ class AbstractMatcher {
     }
     if (!own_)
     {
+      max_ = 2 * Const::BLOCK;
 #if defined(WITH_REALLOC)
-      buf_ = static_cast<char*>(std::malloc(max_ = 2 * Const::BLOCK));
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+      buf_ = static_cast<char*>(_aligned_malloc(max_, 4096));
+      if (buf_ == NULL)
+        throw std::bad_alloc();
 #else
-      buf_ = new char[max_ = 2 * Const::BLOCK];
+      buf_ = NULL;
+      if (::posix_memalign(reinterpret_cast<void**>(&buf_), 4096, max_) != 0)
+        throw std::bad_alloc();
+#endif
+#else
+      buf_ = new char[max_];
 #endif
     }
     buf_[0] = '\0';
@@ -400,18 +409,18 @@ class AbstractMatcher {
     evh_ = handler;
   }
   /// Get the buffered context before the matching line.
-  Context before()
+  inline Context before()
   {
     (void)lineno();
     return Context(buf_, bol_ - buf_, num_);
   }
   /// Get the buffered context after EOF is reached.
-  Context after()
+  inline Context after()
   {
     if (hit_end())
     {
       (void)lineno();
-      // if there is no \n at the end of input: increase line count by one
+      // if there is no \n at the end of input: increase line count by one to compensate
       if (bol_ < txt_)
         ++lno_;
       return Context(buf_, end_, num_);
@@ -466,7 +475,11 @@ class AbstractMatcher {
       if (own_)
       {
 #if defined(WITH_REALLOC)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+        _aligned_free(static_cast<void*>(buf_));
+#else
         std::free(static_cast<void*>(buf_));
+#endif
 #else
         delete[] buf_;
 #endif
@@ -501,7 +514,7 @@ class AbstractMatcher {
   }
   
   /// Returns nonzero capture index (i.e. true) if the entire input matches this matcher's pattern (and internally caches the true/false result to permit repeat invocations).
-  size_t matches()
+  inline size_t matches()
     /// @returns nonzero capture index (i.e. true) if the entire input matched this matcher's pattern, zero (i.e. false) otherwise
   {
     if (!mat_ && at_bob())
@@ -509,25 +522,25 @@ class AbstractMatcher {
     return mat_;
   }
   /// Returns a positive integer (true) indicating the capture index of the matched text in the pattern or zero (false) for a mismatch.
-  size_t accept() const
+  inline size_t accept() const
     /// @returns nonzero capture index of the match in the pattern, which may be matcher dependent, or zero for a mismatch, or Const::EMPTY for the empty last split
   {
     return cap_;
   }
   /// Returns pointer to the begin of the matched text (non-0-terminated), a constant-time operation, use with end() or use size() for text end/length.
-  const char *begin() const
+  inline const char *begin() const
     /// @returns const char* pointer to the matched text in the buffer
   {
     return txt_;
   }
   /// Returns pointer to the exclusive end of the matched text, a constant-time operation.
-  const char *end() const
+  inline const char *end() const
     /// @returns const char* pointer to the exclusive end of the matched text in the buffer
   {
     return txt_ + len_;
   }
   /// Returns 0-terminated string of the text matched, does not include matched \0s, this is a constant-time operation.
-  const char *text()
+  inline const char *text()
     /// @returns 0-terminated const char* string with text matched
   {
     if (chr_ == '\0')
@@ -538,25 +551,25 @@ class AbstractMatcher {
     return txt_;
   }
   /// Returns the text matched as a string, a copy of text(), may include matched \0s.
-  std::string str() const
+  inline std::string str() const
     /// @returns string with text matched
   {
     return std::string(txt_, len_);
   }
   /// Returns the match as a wide string, converted from UTF-8 text(), may include matched \0s.
-  std::wstring wstr() const
+  inline std::wstring wstr() const
     /// @returns wide string with text matched
   {
     return wcs(txt_, len_);
   }
   /// Returns the length of the matched text in number of bytes, including matched \0s, a constant-time operation.
-  size_t size() const
+  inline size_t size() const
     /// @returns match size in bytes
   {
     return len_;
   }
   /// Returns the length of the matched text in number of wide characters.
-  size_t wsize() const
+  inline size_t wsize() const
     /// @returns the length of the match in number of wide (multibyte UTF-8) characters
   {
     size_t n = 0;
@@ -566,40 +579,151 @@ class AbstractMatcher {
     return n;
   }
   /// Returns the first 8-bit character of the text matched.
-  int chr() const
+  inline int chr() const
     /// @returns 8-bit char
   {
     return *txt_;
   }
   /// Returns the first wide character of the text matched.
-  int wchr() const
+  inline int wchr() const
     /// @returns wide char (UTF-8 converted to Unicode)
   {
     return utf8(txt_);
   }
   /// Set or change the starting line number of the last match.
-  void lineno(size_t n) ///< new line number
+  inline void lineno(size_t n) ///< new line number
   {
     if (lpb_ < txt_)
       (void)lineno(); // update lno_ and bol_ (or cno_) before overriding lno_
     lno_ = n;
   }
   /// Updates and returns the starting line number of the match in the input character sequence.
-  size_t lineno()
+  inline size_t lineno()
     /// @returns line number
   {
 #if defined(WITH_SPAN)
     if (lpb_ < txt_)
     {
-      while (bol_ < txt_)
+      char *s = bol_;
+      char *t = txt_;
+      // clang/gcc 4-way vectorizable loop
+      while (t - 4 >= s)
       {
-        char *s = static_cast<char*>(std::memchr(bol_, '\n', txt_ - bol_));
-        if (s == NULL)
+        if ((t[-1] == '\n') | (t[-2] == '\n') | (t[-3] == '\n') | (t[-4] == '\n'))
           break;
-        ++lno_;
-        bol_ = s + 1;
+        t -= 4;
       }
+      // epilogue
+      if (--t >= s && *t != '\n')
+        if (--t >= s && *t != '\n')
+          if (--t >= s && *t != '\n')
+            --t;
+      bol_ = t + 1;
       lpb_ = txt_;
+      size_t n = lno_;
+#if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
+      if (have_HW_AVX512BW())
+      {
+        __m512i vlcn = _mm512_set1_epi8('\n');
+        while (s + 63 <= t)
+        {
+          __m512i vlcm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
+          __m512i vlceq = _mm512_cmpeq_epi8(vlcm, vlcn);
+          uint64_t mask = _mm512_movemask_epi8(vlceq);
+          n += popcountl(mask);
+          s += 64;
+        }
+      }
+      else if (reflex::Matcher::have_HW_AVX2())
+      {
+        __m256i vlcn = _mm256_set1_epi8('\n');
+        while (s + 31 <= t)
+        {
+          __m256i vlcm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
+          __m256i vlceq = _mm256_cmpeq_epi8(vlcm, vlcn);
+          uint32_t mask = _mm256_movemask_epi8(vlceq);
+          n += popcount(mask);
+          s += 32;
+        }
+      }
+      else if (reflex::Matcher::have_HW_SSE2())
+      {
+        __m128i vlcn = _mm_set1_epi8('\n');
+        while (s + 15 <= t)
+        {
+          __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+          __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
+          uint32_t mask = _mm_movemask_epi8(vlceq);
+          n += popcount(mask);
+          s += 16;
+        }
+      }
+#elif defined(HAVE_AVX2)
+      if (have_HW_AVX2())
+      {
+        __m256i vlcn = _mm256_set1_epi8('\n');
+        while (s + 31 <= t)
+        {
+          __m256i vlcm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
+          __m256i vlceq = _mm256_cmpeq_epi8(vlcm, vlcn);
+          uint32_t mask = _mm256_movemask_epi8(vlceq);
+          n += popcount(mask);
+          s += 32;
+        }
+      }
+      else if (have_HW_SSE2())
+      {
+        __m128i vlcn = _mm_set1_epi8('\n');
+        while (s + 15 <= t)
+        {
+          __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+          __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
+          uint32_t mask = _mm_movemask_epi8(vlceq);
+          n += popcount(mask);
+          s += 16;
+        }
+      }
+#elif defined(HAVE_SSE2)
+      if (reflex::Matcher::have_HW_SSE2())
+      {
+        __m128i vlcn = _mm_set1_epi8('\n');
+        while (s + 15 <= t)
+        {
+          __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+          __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
+          uint32_t mask = _mm_movemask_epi8(vlceq);
+          n += popcount(mask);
+          s += 16;
+        }
+      }
+#elif defined(HAVE_NEON)
+      {
+        // ARM AArch64/NEON SIMD optimized loop? - no code found yet that runs faster than the code below
+      }
+#endif
+      uint32_t n0 = 0, n1 = 0, n2 = 0, n3 = 0;
+      // clang/gcc 4-way vectorizable loop
+      while (s + 3 <= t)
+      {
+        n0 += s[0] == '\n';
+        n1 += s[1] == '\n';
+        n2 += s[2] == '\n';
+        n3 += s[3] == '\n';
+        s += 4;
+      }
+      n += n0 + n1 + n2 + n3;
+      // epilogue
+      if (s <= t)
+      {
+        n += *s == '\n';
+        if (++s <= t)
+        {
+          n += *s == '\n';
+          if (++s <= t)
+            n += *s == '\n';
+        }
+      }
+      lno_ = n;
     }
 #else
     size_t n = lno_;
@@ -632,7 +756,7 @@ class AbstractMatcher {
     return lno_;
   }
   /// Returns the number of lines that the match spans.
-  size_t lines()
+  inline size_t lines()
     /// @returns number of lines
   {
     size_t n = 1;
@@ -642,13 +766,13 @@ class AbstractMatcher {
     return n;
   }
   /// Returns the inclusive ending line number of the match in the input character sequence.
-  size_t lineno_end()
+  inline size_t lineno_end()
     /// @returns line number
   {
     return lineno() + lines() - 1;
   }
   /// Updates and returns the starting column number of the matched text, taking tab spacing into account and counting wide characters as one character each
-  size_t columno()
+  inline size_t columno()
     /// @returns column number
   {
     (void)lineno();
@@ -670,7 +794,7 @@ class AbstractMatcher {
 #endif
   }
   /// Returns the number of columns of the matched text, taking tab spacing into account and counting wide characters as one character each.
-  size_t columns()
+  inline size_t columns()
     /// @returns number of columns
   {
     // count columns in tabs and UTF-8 chars
@@ -717,7 +841,7 @@ class AbstractMatcher {
   }
 #if defined(WITH_SPAN)
   /// Returns the inclusive ending column number of the matched text on the ending matching line, taking tab spacing into account and counting wide characters as one character each
-  size_t columno_end()
+  inline size_t columno_end()
     /// @returns column number
   {
     if (len_ == 0)
@@ -1244,7 +1368,7 @@ class AbstractMatcher {
     /// @returns nonzero when input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     = 0;
   /// Shift or expand the internal buffer when it is too small to accommodate more input, where the buffer size is doubled when needed, change cur_, pos_, end_, max_, ind_, buf_, bol_, lpb_, and txt_.
-  bool grow(size_t need = Const::BLOCK) ///< optional needed space = Const::BLOCK size by default
+  inline bool grow(size_t need = Const::BLOCK) ///< optional needed space = Const::BLOCK size by default
     /// @returns true if buffer was shifted or enlarged
   {
     if (max_ - end_ >= need + 1)
@@ -1280,7 +1404,11 @@ class AbstractMatcher {
         max_ *= 2;
       DBGLOG("Expand buffer to %zu bytes", max_);
 #if defined(WITH_REALLOC)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+      char *newbuf = static_cast<char*>(_aligned_realloc(static_cast<void*>(buf_), max_, 4096));
+#else
       char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
+#endif
       if (newbuf == NULL)
         throw std::bad_alloc();
 #else
@@ -1326,7 +1454,12 @@ class AbstractMatcher {
         num_ += gap;
 #if defined(WITH_REALLOC)
         std::memmove(buf_, txt_, end_);
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+        char *newbuf = static_cast<char*>(_aligned_realloc(static_cast<void*>(buf_), max_, 4096));
+#else
         char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
+#endif
+        // char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
         if (newbuf == NULL)
           throw std::bad_alloc();
 #else
@@ -1397,7 +1530,7 @@ class AbstractMatcher {
     txt_ = buf_ + cur_;
   }
   /// Get the next character and grow the buffer to make more room if necessary.
-  int get_more()
+  inline int get_more()
     /// @returns the character read (unsigned char 0..255) or EOF (-1)
   {
     DBGLOG("AbstractMatcher::get_more()");
@@ -1419,7 +1552,7 @@ class AbstractMatcher {
     }
   }
   /// Peek at the next character and grow the buffer to make more room if necessary.
-  int peek_more()
+  inline int peek_more()
     /// @returns the character (unsigned char 0..255) or EOF (-1)
   {
     DBGLOG("AbstractMatcher::peek_more()");

@@ -376,21 +376,6 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   {
     return isword(got_) == isword(static_cast<unsigned char>(txt_[len_]));
   }
-  /// Check CPU hardware for AVX512BW capability.
-  static bool have_HW_AVX512BW()
-  {
-    return HW & (1ULL << 62);
-  }
-  /// Check CPU hardware for AVX2 capability.
-  static bool have_HW_AVX2()
-  {
-    return HW & (1ULL << 37);
-  }
-  /// Check CPU hardware for SSE2 capability.
-  static bool have_HW_SSE2()
-  {
-    return HW & (1ULL << 26);
-  }
  protected:
   typedef std::vector<size_t> Stops; ///< indent margin/tab stops
   /// FSM data for FSM code
@@ -400,10 +385,6 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     bool nul;
     int  c1;
   };
-  /// Get CPU hardware info.
-  static uint64_t get_HW();
-  /// CPU hardware info[2]
-  static uint64_t HW;
   /// Returns true if input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
   virtual size_t match(Method method) ///< Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero if input matched the pattern

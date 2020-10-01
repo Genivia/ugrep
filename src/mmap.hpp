@@ -44,7 +44,7 @@
 # define MIN_MMAP_SIZE 16384LL // 16KB at minimum, smaller files are efficiently read in one go with read()
 #endif
 #ifndef MAX_MMAP_SIZE
-# define MAX_MMAP_SIZE 1073741824LL // in the worst case each worker thread may use up to 1GB mmap space but not more
+# define MAX_MMAP_SIZE 1073741824LL // each worker thread may use up to 1GB mmap space but not more
 #endif
 
 #if defined(HAVE_MMAP) && MAX_MMAP_SIZE > 0
@@ -87,12 +87,12 @@ class MMap {
     // is this a regular file that is not too large (for size_t)?
     int fd = fileno(file);
     struct stat buf;
-    if (fstat(fd, &buf) != 0 || !S_ISREG(buf.st_mode) || static_cast<uint64_t>(buf.st_size) > static_cast<uint64_t>(std::numeric_limits<size_t>::max()))
+    if (fstat(fd, &buf) != 0 || !S_ISREG(buf.st_mode) || static_cast<uint64_t>(buf.st_size) < MIN_MMAP_SIZE || static_cast<uint64_t>(buf.st_size) > static_cast<uint64_t>(std::numeric_limits<size_t>::max()))
       return false;
 
-    // is this file not too small or too large?
+    // is this file not larger than --max-mmap?
     size = static_cast<size_t>(buf.st_size);
-    if (size < MIN_MMAP_SIZE || size > flag_max_mmap)
+    if (size > flag_max_mmap)
       return false;
 
     // mmap the file and round requested size up to 4K (typical page size)
@@ -101,11 +101,17 @@ class MMap {
       // allocate fixed mmap region to reuse
       mmap_size = (flag_max_mmap + 0xfff) & ~0xfffUL;
       mmap_base = mmap(NULL, mmap_size, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+
+      // files are sequentially read
+      if (mmap_base == MAP_FAILED)
+        mmap_base = NULL;
+      else
+        madvise(mmap_base, mmap_size, MADV_SEQUENTIAL);
     }
 
     if (mmap_base != NULL)
     {
-      // mmap file to the fixed mmap region
+      // mmap the (next) file to the fixed mmap region
       base = static_cast<const char*>(mmap_base = mmap(mmap_base, mmap_size, PROT_READ, MAP_FIXED | MAP_PRIVATE, fd, 0));
 
       // mmap OK?

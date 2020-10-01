@@ -36,82 +36,7 @@
 
 #include <reflex/matcher.h>
 
-#if defined(HAVE_AVX512BW)
-# include <immintrin.h>
-#elif defined(HAVE_AVX2)
-# include <immintrin.h>
-#elif defined(HAVE_SSE2)
-# include <emmintrin.h>
-#elif defined(HAVE_NEON)
-# include <arm_neon.h>
-#endif
-
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-# ifdef _MSC_VER
-#  include <intrin.h>
-#  define cpuidex __cpuidex
-# else
-#  include <cpuid.h>
-#  define cpuidex(CPUInfo, id, subid) __cpuid_count(id, subid, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3])
-# endif
-#endif
-
 namespace reflex {
-
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-
-#ifdef _MSC_VER
-#pragma intrinsic(_BitScanForward)
-inline uint32_t ctz(uint32_t x)
-{
-  unsigned long r;
-  _BitScanForward(&r, x);
-  return r;
-}
-#ifdef _WIN64
-#pragma intrinsic(_BitScanForward64)
-inline uint32_t ctzl(uint64_t x)
-{
-  unsigned long r;
-  _BitScanForward64(&r, x);
-  return r;
-}
-#endif
-#else
-inline uint32_t ctz(uint32_t x)
-{
-  return __builtin_ctz(x);
-}
-inline uint32_t ctzl(uint64_t x)
-{
-  return __builtin_ctzl(x);
-}
-#endif
-
-uint64_t Matcher::get_HW()
-{
-  int CPUInfo1[4] = { 0, 0, 0, 0 };
-  int CPUInfo7[4] = { 0, 0, 0, 0 };
-  cpuidex(CPUInfo1, 0, 0);
-  int n = CPUInfo1[0];
-  if (n <= 0)
-    return 0ULL;
-  cpuidex(CPUInfo1, 1, 0); // cpuid EAX=1
-  if (n >= 7)
-    cpuidex(CPUInfo7, 7, 0); // cpuid EAX=7, ECX=0
-  return static_cast<uint32_t>(CPUInfo1[2]) | (static_cast<uint64_t>(static_cast<uint32_t>(CPUInfo7[1])) << 32);
-}
-
-#else
-
-uint64_t Matcher::get_HW()
-{
-  return 0ULL;
-}
-
-#endif
-
-uint64_t Matcher::HW = Matcher::get_HW();
 
 /// Boyer-Moore preprocessing of the given pattern prefix pat of length len (<=255), generates bmd_ > 0 and bms_[] shifts.
 void Matcher::boyer_moore_init(const char *pat, size_t len)
@@ -180,7 +105,7 @@ bool Matcher::advance()
     if (loc + min > end_)
     {
       set_current_match(loc - 1);
-      peek_more();
+      (void)peek_more();
       loc = cur_ + 1;
       if (loc + min > end_)
         return false;
@@ -216,7 +141,7 @@ bool Matcher::advance()
         {
           loc = s - buf_;
           set_current_match(loc - min);
-          peek_more();
+          (void)peek_more();
           loc = cur_ + min;
           if (loc >= end_)
             return false;
@@ -254,7 +179,7 @@ bool Matcher::advance()
         {
           loc = s - buf_;
           set_current_match(loc - 3);
-          peek_more();
+          (void)peek_more();
           loc = cur_ + 3;
           if (loc >= end_)
             return false;
@@ -291,7 +216,7 @@ bool Matcher::advance()
         {
           loc = s - buf_;
           set_current_match(loc - 2);
-          peek_more();
+          (void)peek_more();
           loc = cur_ + 2;
           if (loc >= end_)
             return false;
@@ -324,7 +249,7 @@ bool Matcher::advance()
       {
         loc = s - buf_;
         set_current_match(loc - 1);
-        peek_more();
+        (void)peek_more();
         loc = cur_ + 1;
         if (loc >= end_)
           return false;
@@ -348,7 +273,7 @@ bool Matcher::advance()
       }
       loc = e - buf_;
       set_current_match(loc - 1);
-      peek_more();
+      (void)peek_more();
       loc = cur_ + 1;
       if (loc + len > end_)
         return false;
@@ -368,7 +293,7 @@ bool Matcher::advance()
         // implements AVX512 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m512i vlcp = _mm512_set1_epi8(pre[lcp_]);
         __m512i vlcs = _mm512_set1_epi8(pre[lcs_]);
-        while (s + 64 < e)
+        while (s + 64 <= e)
         {
           __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
           __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs_ - lcp_));
@@ -393,7 +318,7 @@ bool Matcher::advance()
                   return true;
               }
             }
-            mask &= ~(1ULL << offset);
+            mask &= mask - 1;
           }
           s += 64;
         }
@@ -403,7 +328,7 @@ bool Matcher::advance()
         // implements AVX2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
         __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
-        while (s + 32 < e)
+        while (s + 32 <= e)
         {
           __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
           __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs_ - lcp_));
@@ -430,7 +355,7 @@ bool Matcher::advance()
                   return true;
               }
             }
-            mask &= ~(1 << offset);
+            mask &= mask - 1;
           }
           s += 32;
         }
@@ -440,7 +365,7 @@ bool Matcher::advance()
         // implements SSE2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
-        while (s + 16 < e)
+        while (s + 16 <= e)
         {
           __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
           __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs_ - lcp_));
@@ -467,7 +392,7 @@ bool Matcher::advance()
                   return true;
               }
             }
-            mask &= ~(1 << offset);
+            mask &= mask - 1;
           }
           s += 16;
         }
@@ -478,7 +403,7 @@ bool Matcher::advance()
         // implements AVX2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
         __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
-        while (s + 32 < e)
+        while (s + 32 <= e)
         {
           __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
           __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs_ - lcp_));
@@ -505,7 +430,7 @@ bool Matcher::advance()
                   return true;
               }
             }
-            mask &= ~(1 << offset);
+            mask &= mask - 1;
           }
           s += 32;
         }
@@ -515,7 +440,7 @@ bool Matcher::advance()
         // implements SSE2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
-        while (s + 16 < e)
+        while (s + 16 <= e)
         {
           __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
           __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs_ - lcp_));
@@ -542,7 +467,7 @@ bool Matcher::advance()
                   return true;
               }
             }
-            mask &= ~(1 << offset);
+            mask &= mask - 1;
           }
           s += 16;
         }
@@ -553,7 +478,7 @@ bool Matcher::advance()
         // implements SSE2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
         __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
         __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
-        while (s + 16 < e)
+        while (s + 16 <= e)
         {
           __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
           __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs_ - lcp_));
@@ -580,7 +505,7 @@ bool Matcher::advance()
                   return true;
               }
             }
-            mask &= ~(1 << offset);
+            mask &= mask - 1;
           }
           s += 16;
         }
@@ -589,7 +514,7 @@ bool Matcher::advance()
       // implements NEON/AArch64 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html but 64 bit optimized
       uint8x16_t vlcp = vdupq_n_u8(pre[lcp_]);
       uint8x16_t vlcs = vdupq_n_u8(pre[lcs_]);
-      while (s + 16 < e)
+      while (s + 16 <= e)
       {
         uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
         uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs_ - lcp_);
@@ -681,7 +606,7 @@ bool Matcher::advance()
       }
       loc = s - lcp_ - buf_;
       set_current_match(loc - 1);
-      peek_more();
+      (void)peek_more();
       loc = cur_ + 1;
       if (loc + len > end_)
         return false;
@@ -740,7 +665,7 @@ bool Matcher::advance()
       s -= len - 1;
       loc = s - buf_;
       set_current_match(loc - 1);
-      peek_more();
+      (void)peek_more();
       loc = cur_ + 1;
       if (loc + len > end_)
         return false;

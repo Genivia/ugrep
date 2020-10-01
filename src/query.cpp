@@ -60,8 +60,8 @@ inline HANDLE nonblocking_pipe(int fd[2])
     HANDLE pipe_w = CreateFileA(pipe_name.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL); 
     if (pipe_w != INVALID_HANDLE_VALUE)
     {
-      fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), 0);
-      fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), 0);
+      fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), _O_RDONLY);
+      fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), _O_WRONLY);
     }
     else
     {

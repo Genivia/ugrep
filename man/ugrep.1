@@ -1,4 +1,4 @@
-.TH UGREP "1" "September 21, 2020" "ugrep 2.5.6" "User Commands"
+.TH UGREP "1" "October 01, 2020" "ugrep 3.0.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -480,8 +480,10 @@ or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke an
 editor to edit the file shown on screen.  The editor is taken from
 the environment variable GREP_EDIT if defined, or EDITOR.  Press
 Tab and Shift\-Tab to navigate directories and to select a file to
-search.  Press Enter to select lines to output.  Press Alt\-l for
-option \fB\-l\fR to list files, Alt\-n for \fB\-n\fR, etc.  Enables \fB\-\-heading\fR.
+search.  Press Enter to select lines to output.  Press ALT\-l for
+option \fB\-l\fR to list files, ALT\-n for \fB\-n\fR, etc.  Non\-option commands
+include ALT\-] to increase fuzziness and ALT\-} to increase context.
+Press F1 or CTRL\-Z for more information.  Enables \fB\-\-heading\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  ugrep will only search until a

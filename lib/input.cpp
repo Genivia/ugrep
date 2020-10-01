@@ -1346,4 +1346,39 @@ void Input::file_encoding(unsigned short enc, const unsigned short *page)
   }
 }
 
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+
+#ifdef _MSC_VER
+# include <intrin.h>
+# define cpuidex __cpuidex
+#else
+# include <cpuid.h>
+# define cpuidex(CPUInfo, id, subid) __cpuid_count(id, subid, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3])
+#endif
+
+static uint64_t get_HW()
+{
+  int CPUInfo1[4] = { 0, 0, 0, 0 };
+  int CPUInfo7[4] = { 0, 0, 0, 0 };
+  cpuidex(CPUInfo1, 0, 0);
+  int n = CPUInfo1[0];
+  if (n <= 0)
+    return 0ULL;
+  cpuidex(CPUInfo1, 1, 0); // cpuid EAX=1
+  if (n >= 7)
+    cpuidex(CPUInfo7, 7, 0); // cpuid EAX=7, ECX=0
+  return static_cast<uint32_t>(CPUInfo1[2]) | (static_cast<uint64_t>(static_cast<uint32_t>(CPUInfo7[1])) << 32);
+}
+
+#else
+
+static uint64_t get_HW()
+{
+  return 0ULL;
+}
+
+#endif
+
+uint64_t HW = get_HW();
+
 } // namespace reflex

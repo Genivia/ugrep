@@ -67,7 +67,10 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "2.5.6"
+#define UGREP_VERSION "3.0.0"
+
+// disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
+#define WITH_NO_MMAP
 
 #include "ugrep.hpp"
 #include "glob.hpp"
@@ -232,7 +235,7 @@ After this, you may want to test ugrep and install it (optional):
 // default --mmap
 #define DEFAULT_MIN_MMAP_SIZE MIN_MMAP_SIZE
 
-// default --max-mmap: mmap is enabled by default, unless disabled with WITH_NO_MMAP, e.g. mmap is slow on MacOS
+// default --max-mmap: mmap is disabled by default with WITH_NO_MMAP
 #ifdef WITH_NO_MMAP
 # define DEFAULT_MAX_MMAP_SIZE 0
 #else
@@ -1672,7 +1675,7 @@ struct Grep {
   // search a file
   virtual void search(const char *pathname);
 
-  // open a file for (binary) reading and assign input, decompress the file when --z, --decompress specified
+  // open a file for (binary) reading and assign input, decompress the file when -z, --decompress specified
   bool open_file(const char *pathname)
   {
     if (pathname == NULL)
@@ -1683,12 +1686,48 @@ struct Grep {
       pathname = flag_label;
       file = source;
     }
-    else if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+    else
+#ifdef OS_WIN
+    {
+      CREATEFILE2_EXTENDED_PARAMETERS params {
+        sizeof(CREATEFILE2_EXTENDED_PARAMETERS),
+        FILE_ATTRIBUTE_NORMAL,
+        FILE_FLAG_SEQUENTIAL_SCAN,
+        SECURITY_ANONYMOUS,
+        NULL,
+        NULL
+      };
+      std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> conversion;
+      std::wstring wpathname = conversion.from_bytes(pathname); 
+      HANDLE hFile = CreateFile2(wpathname.c_str(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &params);
+
+      if (hFile == INVALID_HANDLE_VALUE)
+        return false;
+
+      int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), _O_RDONLY);
+
+      if (fd == -1)
+      { 
+        CloseHandle(hFile);
+        return false; 
+      }
+
+      file = _fdopen(fd, (flag_binary || flag_decompress ? "rb" : "r"));
+
+      if (file == NULL)
+      {
+        _close(fd);
+        return false;
+      }
+    }
+#else
+    if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
     {
       warning("cannot read", pathname);
 
       return false;
     }
+#endif
 
     // --filter: fork process to filter file, when applicable
     if (!filter(file, pathname))
@@ -3323,7 +3362,7 @@ const Type type_table[] = {
   { "swift",        "swift",                                                    NULL },
   { "tcl",          "tcl,itcl,itk",                                             NULL },
   { "tex",          "tex,cls,sty,bib",                                          NULL },
-  { "text",         "text,txt,TXT,md",                                          NULL },
+  { "text",         "text,txt,TXT,md,rst",                                      NULL },
   { "tiff",         "tif,tiff",                                                 NULL },
   { "Tiff",         "tif,tiff",                                                 "\\x49\\x49\\x2a\\x00|\\x4d\\x4d\\x00\\x2a" },
   { "tt",           "tt,tt2,ttml",                                              NULL },
@@ -3915,7 +3954,7 @@ void options(int argc, const char **argv)
                 else if (strcmp(arg, "max-count") == 0 || strcmp(arg, "max-files") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--match, --max-count, --max-files or --mmap");
+                  usage("invalid option --", arg, "--match, --max-count, --max-files, --mmap or --messages");
                 break;
 
               case 'n':
@@ -10019,8 +10058,10 @@ void help(std::ostream& out)
             editor to edit the file shown on screen.  The editor is taken from\n\
             the environment variable GREP_EDIT if defined, or EDITOR.  Press\n\
             Tab and Shift-Tab to navigate directories and to select a file to\n\
-            search.  Press Enter to select lines to output.  Press Alt-l for\n\
-            option -l to list files, Alt-n for -n, etc.  Enables --heading.\n\
+            search.  Press Enter to select lines to output.  Press ALT-l for\n\
+            option -l to list files, ALT-n for -n, etc.  Non-option commands\n\
+            include ALT-] to increase fuzziness and ALT-} to increase context.\n\
+            Press F1 or CTRL-Z for more information.  Enables --heading.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found.\n\
@@ -10283,11 +10324,11 @@ void version()
 #endif
   std::cout << "ugrep " UGREP_VERSION " " PLATFORM <<
 #if defined(HAVE_AVX512BW)
-    (reflex::Matcher::have_HW_AVX512BW() ? " +avx512" : (reflex::Matcher::have_HW_AVX2() ? " +avx2" : reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-avx512)")) <<
+    (reflex::have_HW_AVX512BW() ? " +avx512" : (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (-avx512)")) <<
 #elif defined(HAVE_AVX2)
-    (reflex::Matcher::have_HW_AVX2() ? " +avx2" : reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-avx2)") <<
+    (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (-avx2)") <<
 #elif defined(HAVE_SSE2)
-    (reflex::Matcher::have_HW_SSE2() ?  " +sse2" : " (-sse2)") <<
+    (reflex::have_HW_SSE2() ?  " +sse2" : " (-sse2)") <<
 #elif defined(HAVE_NEON)
     " +neon" <<
 #endif

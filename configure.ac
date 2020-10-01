@@ -1,4 +1,4 @@
-AC_INIT(ugrep,2.5)
+AC_INIT(ugrep,3.0)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
 AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
@@ -38,11 +38,29 @@ AC_CANONICAL_HOST
 PLATFORM=${host}
 AC_SUBST(PLATFORM)
 
-# Mac OS X has slow memory mapped files so we're disabling mmap
-case "$PLATFORM" in
-  *-apple-*)    EXTRA_CFLAGS="-DWITH_NO_MMAP -DWITH_MACOS_META_KEY ${EXTRA_CFLAGS}"
-                ;;
-esac
+# F_RDAHEAD fcntl()
+AC_MSG_CHECKING(for F_RDAHEAD fcntl)
+AC_TRY_COMPILE([
+#include <fcntl.h>
+],
+[ int cmd = F_RDAHEAD; ],
+[
+  AC_DEFINE(HAVE_F_RDAHEAD,1,[ Define if F_RDAHEAD fcntl() is supported])
+  AC_MSG_RESULT(yes)
+], AC_MSG_RESULT(no)
+)
+
+# O_NOATIME open flag
+AC_MSG_CHECKING(for O_NOATIME open flag)
+AC_TRY_COMPILE([
+#include <fcntl.h>
+],
+[ int cmd = O_NOATIME; ],
+[
+  AC_DEFINE(HAVE_O_NOATIME,1,[ Define if O_NOATIME open flag is supported])
+  AC_MSG_RESULT(yes)
+], AC_MSG_RESULT(no)
+)
 
 AX_CHECK_PCRE2([8], [], [echo "checking for Boost.Regex because PCRE2 is not usable"])
 

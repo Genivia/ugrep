@@ -53,6 +53,7 @@
 #include <io.h>
 #include <strsafe.h>
 #include <string.h>
+#include <fcntl.h>
 
 #define STDIN_FILENO  0
 #define STDOUT_FILENO 1
@@ -71,8 +72,8 @@ inline int pipe(int fd[2])
   HANDLE pipe_w = NULL;
   if (CreatePipe(&pipe_r, &pipe_w, NULL, 0))
   {
-    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), 0);
-    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), 0);
+    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), _O_RDONLY);
+    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), _O_WRONLY);
     return 0;
   }
   return -1;
@@ -101,6 +102,8 @@ inline int dupenv_s(char **ptr, const char *name)
 
 // not compiling for a windows OS
 
+#define _FILE_OFFSET_BITS 64
+
 #include <cerrno>
 #include <cstdlib>
 #include <cstdio>
@@ -112,6 +115,13 @@ inline int dupenv_s(char **ptr, const char *name)
 
 #ifdef HAVE_SYS_STATVFS_H
 # include <sys/statvfs.h>
+#endif
+
+#if defined(HAVE_F_RDAHEAD) || defined(HAVE_O_NOATIME)
+# include <fcntl.h>
+# ifndef O_NOATIME
+#  define O_NOATIME 0
+# endif
 #endif
 
 #define PATHSEPCHR '/'
@@ -132,7 +142,18 @@ inline int dupenv_s(char **ptr, const char *name)
 // Windows-compatible fopen_s()
 inline int fopen_s(FILE **file, const char *filename, const char *mode)
 {
+#if defined(HAVE_F_RDAHEAD) || defined(O_NOATIME)
+  int fd = open(filename, O_RDONLY | O_NOATIME);
+  if (fd < 0)
+    return errno;
+#if defined(HAVE_F_RDAHEAD)
+  if (fcntl(fd, F_RDAHEAD, 1) < 0)
+    return errno;
+#endif
+  return (*file = fdopen(fd, mode)) == NULL ? errno : 0;
+#else
   return (*file = fopen(filename, mode)) == NULL ? errno : 0;
+#endif
 }
 
 #endif

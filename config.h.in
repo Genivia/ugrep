@@ -10,6 +10,9 @@
    */
 #undef HAVE_DIRENT_H
 
+/* Define if F_RDAHEAD fcntl() is supported */
+#undef HAVE_F_RDAHEAD
+
 /* Define to 1 if you have the `getpagesize' function. */
 #undef HAVE_GETPAGESIZE
 
@@ -36,6 +39,9 @@
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
+
+/* Define if O_NOATIME open flag is supported */
+#undef HAVE_O_NOATIME
 
 /* Define to 1 if you have `PCRE2' library (-lpcre2-8) */
 #undef HAVE_PCRE2
