@@ -624,13 +624,12 @@ class AbstractMatcher {
         while (s + 63 <= t)
         {
           __m512i vlcm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
-          __m512i vlceq = _mm512_cmpeq_epi8(vlcm, vlcn);
-          uint64_t mask = _mm512_movemask_epi8(vlceq);
+          uint64_t mask = _mm512_cmpeq_epi8_mask(vlcm, vlcn);
           n += popcountl(mask);
           s += 64;
         }
       }
-      else if (reflex::Matcher::have_HW_AVX2())
+      else if (have_HW_AVX2())
       {
         __m256i vlcn = _mm256_set1_epi8('\n');
         while (s + 31 <= t)
@@ -642,7 +641,7 @@ class AbstractMatcher {
           s += 32;
         }
       }
-      else if (reflex::Matcher::have_HW_SSE2())
+      else if (have_HW_SSE2())
       {
         __m128i vlcn = _mm_set1_epi8('\n');
         while (s + 15 <= t)
@@ -680,7 +679,7 @@ class AbstractMatcher {
         }
       }
 #elif defined(HAVE_SSE2)
-      if (reflex::Matcher::have_HW_SSE2())
+      if (have_HW_SSE2())
       {
         __m128i vlcn = _mm_set1_epi8('\n');
         while (s + 15 <= t)

@@ -1203,7 +1203,7 @@ inline uint32_t popcount(uint32_t x)
 {
   return __builtin_popcount(x);
 }
-inline uint32_t popcount(uint64_t x)
+inline uint32_t popcountl(uint64_t x)
 {
   return __builtin_popcountl(x);
 }
