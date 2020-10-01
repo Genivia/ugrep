@@ -1,8 +1,8 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-Search for anything in everything... ultra fast
-
 **ugrep v3.0 is now available: more features & even faster than before.**
+
+Search for anything in everything... ultra fast
 
 *New option -Q opens a query UI to search files as you type!*
 <br>
