@@ -142,15 +142,13 @@ inline int dupenv_s(char **ptr, const char *name)
 // Windows-compatible fopen_s()
 inline int fopen_s(FILE **file, const char *filename, const char *mode)
 {
-#if defined(HAVE_F_RDAHEAD) || defined(O_NOATIME)
+#if defined(HAVE_F_RDAHEAD)
   if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
   {
-    int fd = open(filename, O_RDONLY | O_NOATIME);
+    int fd = open(filename, O_RDONLY); // removed O_NOATIME which may fail
     if (fd < 0)
       return errno;
-#if defined(HAVE_F_RDAHEAD)
     fcntl(fd, F_RDAHEAD, 1);
-#endif
     return (*file = fdopen(fd, mode)) == NULL ? errno : 0;
   }
 #endif
