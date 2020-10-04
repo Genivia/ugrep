@@ -143,17 +143,18 @@ inline int dupenv_s(char **ptr, const char *name)
 inline int fopen_s(FILE **file, const char *filename, const char *mode)
 {
 #if defined(HAVE_F_RDAHEAD) || defined(O_NOATIME)
-  int fd = open(filename, O_RDONLY | O_NOATIME);
-  if (fd < 0)
-    return errno;
+  if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
+  {
+    int fd = open(filename, O_RDONLY | O_NOATIME);
+    if (fd < 0)
+      return errno;
 #if defined(HAVE_F_RDAHEAD)
-  if (fcntl(fd, F_RDAHEAD, 1) < 0)
-    return errno;
+    fcntl(fd, F_RDAHEAD, 1);
 #endif
-  return (*file = fdopen(fd, mode)) == NULL ? errno : 0;
-#else
+    return (*file = fdopen(fd, mode)) == NULL ? errno : 0;
+  }
+#endif
   return (*file = fopen(filename, mode)) == NULL ? errno : 0;
-#endif
 }
 
 #endif
