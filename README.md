@@ -1,6 +1,6 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-**ugrep v3.0 is now available: more features & even faster than before.**
+**ugrep v3 is now available: more features & even faster than before**
 
 Search for anything in everything... ultra fast
 
@@ -917,7 +917,7 @@ To show a list of `-t TYPES` option values:
 #### The ug command versus the ugrep command
 
 The `ug` command is intended for context-dependent interactive searching and is
-equivalent to the `grep --config` command to load the configuration file
+equivalent to the `ugrep --config` command to load the configuration file
 `.ugrep`, when present in the working directory or, when not found, in the home
 directory:
 
@@ -1011,9 +1011,9 @@ This option starts a user interface to enter search patterns interactively:
 - Press Alt-g to enter or edit option `-g` file and directory matching globs, a
   comma-separated list of gitignore-style glob patterns.  Press ESC to return
   control to the query pattern prompt (the globs are saved).  When a glob is
-  preceded by a `!' or a `^', skips files whose name matches the glob When a
-  glob contains a `/', full pathnames are matched.  Otherwise basenames are
-  matched.  When a glob ends with a `/', directories are matched.
+  preceded by a `!` or a `^`, skips files whose name matches the glob When a
+  glob contains a `/`, full pathnames are matched.  Otherwise basenames are
+  matched.  When a glob ends with a `/`, directories are matched.
 - The query UI prompt switches between `Q>` (normal), `F>` (fixed strings),
   `G>` (basic regex), `P>` (Perl matching), and `Z>` (fuzzy matching).
   When the `--glob=` prompt is shown, a comma-separated list of gitignore-style
