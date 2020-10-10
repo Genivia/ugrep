@@ -14,6 +14,8 @@ Search for anything in everything... ultra fast
 
 - Supports all GNU/BSD grep standard options; a compatible replacement for GNU/BSD grep
 
+- Matches Unicode patterns by default in UTF-8, UTF-16, UTF-32 encoded files
+
 - Ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load the .ugrep configuration file with your preferences
@@ -92,7 +94,7 @@ Search for anything in everything... ultra fast
 
       ugrep -P PATTERN ...                   ugrep -P --format='%1 and %2%~' 'PATTERN(SUB1)(SUB2)' ...
 
-- Search files in ASCII and UTF-8/16/32 with Unicode regex patterns by default, or files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
+- Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
       ugrep --encoding=LATIN1 PATTERN ...
 
@@ -558,8 +560,8 @@ where:
   line instead of a sequence of `a`'s.  By default in ugrep, the pattern `a*`
   matches a sequence of `a`'s.  Moreover, in ugrep the pattern `a*b*c*` matches
   what it is supposed to match by default.  See [improvements](#improvements).
-- `-.` searches hidden files (dotfiles).  By default, hidden files are ignored
-  by defaullt, like most Unix utilities such as `ls`.
+- `-.` searches hidden files (dotfiles).  By default, hidden files are ignored,
+  like most Unix utilities.
 - `-Dread` and `-dread` are the GNU/BSD grep defaults but are not recommended,
   see [improvements](#improvements) for an explanation.
 
@@ -631,11 +633,11 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 - **ugrep** searches pdf, doc, docx, xls, xlsx, epub, and more with `--filter`
   using third-party format conversion utilities as plugins.
 - **ugrep** offers *negative patterns* `-N PATTERN`, which are patterns of the
-  form `(?^X)` to skip input that matches `X`.  Negative patterns can be used
-  to skip strings and comments when searching for identifiers in source code
-  and find matches that aren't in strings and comments.  Predefined `zap`
-  patterns use nagative patterns, for example, use `-f cpp/zap_comments` to
-  ignore pattern matches in C++ comments.
+  form `(?^X)` that skip all `X` input, thus removing `X` from the search.
+  For example, negative patterns can be used to skip strings and comments when
+  searching for identifiers in source code and find matches that aren't in
+  strings and comments.  Predefined `zap` patterns use nagative patterns, for
+  example, use `-f cpp/zap_comments` to ignore pattern matches in C++ comments.
 - **ugrep** option `-f` uses `GREP_PATH` environment variable or the predefined
   patterns installed in `/usr/local/share/ugrep/patterns`.  If `-f` is
   specified and also one or more `-e` patterns are specified, then options
@@ -655,11 +657,11 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 - **ugrep** option `-b` with option `-o` or with option `-u`, **ugrep**
   displays the exact byte offset of the pattern match instead of the byte
   offset of the start of the matched line reported by GNU/BSD grep.
-- **ugrep** option `-u`, `--ungroup` to not group matches per line.  This
-  option displays a matched input line again for each additional pattern match
-  on the line.  This option is particularly useful with option `-c` to report
-  the total number of pattern matches per file instead of the number of lines
-  matched per file.
+- **ugrep** option `-u`, `--ungroup` to not group multiple matches per line.
+  This option displays a matched input line again for each additional pattern
+  match on the line.  This option is particularly useful with option `-c` to
+  report the total number of pattern matches per file instead of the number of
+  lines matched per file.
 - **ugrep** option `-Y` enables matching empty patterns.  Grepping with
   empty-matching patterns is weird and gives different results with GNU grep
   versus BSD grep.  Empty matches are not output by **ugrep** by default, which
@@ -900,6 +902,10 @@ To show options that mention `WHAT`:
 To show a list of `-t TYPES` option values:
 
     ugrep -tlist
+
+In the interactive query UI, press F1 or CTRL-Z for help and options:
+
+    ugrep -Q
 
 🔝 [Back to table of contents](#toc)
 
