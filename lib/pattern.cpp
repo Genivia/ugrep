@@ -1829,7 +1829,7 @@ void Pattern::transition(
   Moves::iterator end = moves.end();
   while (i != end)
   {
-    if (is_subset(i->second, follow))
+    if (i->second == follow)
     {
       chars += i->first;
       moves.erase(i++);
