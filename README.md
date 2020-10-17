@@ -8,15 +8,15 @@ Search for anything in everything... ultra fast
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-- Written in clean and efficient C++11 for advanced features and speed, thoroughly tested
-
-- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
-
 - Supports all GNU/BSD grep standard options; a compatible replacement for GNU/BSD grep
 
 - Matches Unicode patterns by default in UTF-8, UTF-16, UTF-32 encoded files
 
 - Ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.
+
+- Written in clean and efficient C++11 for advanced features and speed, thoroughly tested
+
+- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load the .ugrep configuration file with your preferences
 
