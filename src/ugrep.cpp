@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.0.2"
+#define UGREP_VERSION "3.0.3"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -118,7 +118,29 @@ After this, you may want to test ugrep and install it (optional):
 // optionally enable liblz4 for -z
 // #define HAVE_LIBLZ4
 
-#include <codecvt>
+#include <stringapiset.h>
+
+// Convert a wide Unicode string to an UTF-8 string
+std::string utf8_encode(const std::wstring &wstr)
+{
+  if (wstr.empty())
+    return std::string();
+  int size = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), NULL, 0, NULL, NULL);
+  std::string str(size, 0);
+  WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), &str[0], size, NULL, NULL);
+  return str;
+}
+
+// Convert a UTF-8 string to a wide Unicode String
+std::wstring utf8_decode(const std::string &str)
+{
+  if (str.empty())
+    return std::wstring();
+  int size = MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), NULL, 0);
+  std::wstring wstr(size, 0);
+  MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), &wstr[0], size);
+  return wstr;
+}
 
 #else
 
@@ -1697,8 +1719,7 @@ struct Grep {
         NULL,
         NULL
       };
-      std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> conversion;
-      std::wstring wpathname = conversion.from_bytes(pathname); 
+      std::wstring wpathname = utf8_decode(pathname); 
       HANDLE hFile = CreateFile2(wpathname.c_str(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &params);
 
       if (hFile == INVALID_HANDLE_VALUE)
@@ -3385,6 +3406,7 @@ int main(int argc, const char **argv)
 {
 #ifdef OS_WIN
 
+  // store UTF-8 arguments for the duration of main()
   std::vector<std::string> args;
 
   LPWSTR *argws = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -3394,10 +3416,9 @@ int main(int argc, const char **argv)
 
   // convert Unicode command line arguments argws[] to UTF-8 arguments argv[]
   args.resize(argc);
-  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> conversion;
   for (int i = 0; i < argc; ++i)
   {
-    args[i] = conversion.to_bytes(argws[i]);
+    args[i] = utf8_encode(argws[i]);
     argv[i] = args[i].c_str();
   }
 
@@ -4823,7 +4844,8 @@ void init(int argc, const char **argv)
   {
 #ifdef OS_WIN
 
-    DWORD attr = GetFileAttributesA(*file);
+    std::wstring wpathname = utf8_decode(*file);
+    DWORD attr = GetFileAttributesW(wpathname.c_str());
 
     if (attr == INVALID_FILE_ATTRIBUTES)
     {
@@ -6368,7 +6390,8 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
 #ifdef OS_WIN
 
-  DWORD attr = GetFileAttributesA(pathname);
+  std::wstring wpathname = utf8_decode(pathname);
+  DWORD attr = GetFileAttributesW(wpathname.c_str());
 
   if (attr == INVALID_FILE_ATTRIBUTES)
   {
@@ -6761,7 +6784,7 @@ void Grep::recurse(size_t level, const char *pathname)
 {
 #ifdef OS_WIN
 
-  WIN32_FIND_DATAA ffd;
+  WIN32_FIND_DATA ffd;
 
   std::string glob;
 
@@ -6770,7 +6793,8 @@ void Grep::recurse(size_t level, const char *pathname)
   else
     glob.assign("*");
 
-  HANDLE hFind = FindFirstFileA(glob.c_str(), &ffd);
+  std::wstring wglob = utf8_decode(glob);
+  HANDLE hFind = FindFirstFileW(wglob.c_str(), &ffd);
 
   if (hFind == INVALID_HANDLE_VALUE) 
   {
@@ -6852,15 +6876,19 @@ void Grep::recurse(size_t level, const char *pathname)
 
 #ifdef OS_WIN
 
+  std::string cFileName;
+
   do
   {
+    cFileName.assign(utf8_encode(ffd.cFileName));
+
     // search directory entries that aren't . or .. or hidden when --no-hidden is enabled
-    if (ffd.cFileName[0] != '.' || (flag_hidden && ffd.cFileName[1] != '\0' && ffd.cFileName[1] != '.'))
+    if (cFileName[0] != '.' || (flag_hidden && cFileName[1] != '\0' && cFileName[1] != '.'))
     {
       if (pathname[0] == '.' && pathname[1] == '\0')
-        dirpathname.assign(ffd.cFileName);
+        dirpathname.assign(cFileName);
       else
-        dirpathname.assign(pathname).append(PATHSEPSTR).append(ffd.cFileName);
+        dirpathname.assign(pathname).append(PATHSEPSTR).append(cFileName);
 
       ino_t inode = 0;
       uint64_t info = 0;
@@ -6880,7 +6908,7 @@ void Grep::recurse(size_t level, const char *pathname)
       }
 
       // search dirpathname, unless searchable directory into which we should recurse
-      switch (select(level + 1, dirpathname.c_str(), ffd.cFileName, DIRENT_TYPE_UNKNOWN, inode, info))
+      switch (select(level + 1, dirpathname.c_str(), cFileName.c_str(), DIRENT_TYPE_UNKNOWN, inode, info))
       {
         case Type::DIRECTORY:
           subdirs.emplace_back(dirpathname, 0, info);
@@ -6905,7 +6933,7 @@ void Grep::recurse(size_t level, const char *pathname)
       if (out.eof)
         break;
     }
-  } while (FindNextFileA(hFind, &ffd) != 0);
+  } while (FindNextFileW(hFind, &ffd) != 0);
 
   FindClose(hFind);
 
