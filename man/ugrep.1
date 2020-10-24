@@ -1,4 +1,4 @@
-.TH UGREP "1" "October 03, 2020" "ugrep 3.0.1" "User Commands"
+.TH UGREP "1" "October 23, 2020" "ugrep 3.0.4" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -208,7 +208,8 @@ priority over \fB\-\-include\-fs\fR mounts.  This option may be repeated.
 Interpret pattern as a set of fixed strings, separated by newlines,
 any of which is to be matched.  This makes ugrep behave as fgrep.
 If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this
-option does not apply to \fB\-f\fR \fIFILE\fR patterns.
+option does not apply to \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR patterns
+to narrow or widen the PATTERN search.
 .TP
 \fB\-f\fR \fIFILE\fR, \fB\-\-file\fR=\fIFILE\fR
 Read newline\-separated patterns from FILE.  White space in patterns
@@ -596,7 +597,8 @@ This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex option.
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The PATTERN is searched for as a word (as if surrounded by \\< and
 \\>).  If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then
-this option does not apply to \fB\-f\fR \fIFILE\fR patterns.
+this option does not apply to \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR
+patterns to narrow or widen the PATTERN search.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
@@ -606,7 +608,8 @@ Output matches in hexadecimal.  This option is equivalent to the
 Only input lines selected against the entire PATTERN is considered
 to be matching lines (as if surrounded by ^ and $).  If a PATTERN
 is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this option does
-not apply to \fB\-f\fR \fIFILE\fR patterns.
+not apply to \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR patterns to narrow
+or widen the PATTERN search.
 .TP
 \fB\-\-xml\fR
 Output file matches in XML.  If \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is specified,

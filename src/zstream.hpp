@@ -812,6 +812,18 @@ class zstreambuf : public std::streambuf {
     return has_ext(pathname, ".zip.ZIP");
   }
 
+  // return true if pathname has a 7z filename extension
+  static bool is_7z(const char *pathname)
+  {
+    return has_ext(pathname, ".7z.7Z");
+  }
+
+  // return true if pathname has a RAR filename extension
+  static bool is_rar(const char *pathname)
+  {
+    return has_ext(pathname, ".rar.RAR");
+  }
+
   // check if pathname extension matches on of the given filename extensions
   static bool has_ext(const char *pathname, const char *extensions)
   {
@@ -951,6 +963,14 @@ class zstreambuf : public std::streambuf {
 #else
       cannot_decompress("unsupported compression format", pathname);
 #endif
+    }
+    else if (is_7z(pathname))
+    {
+      cannot_decompress("unsupported compression format", pathname);
+    }
+    else if (is_rar(pathname))
+    {
+      cannot_decompress("unsupported compression format", pathname);
     }
     else
     {

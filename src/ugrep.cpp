@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.0.3"
+#define UGREP_VERSION "3.0.4"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -263,9 +263,6 @@ std::wstring utf8_decode(const std::string &str)
 #else
 # define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
 #endif
-
-// default -Q response to keyboard input delay is 0.5s
-#define DEFAULT_QUERY_DELAY 5
 
 // pretty is disabled by default, unless enabled with WITH_PRETTY
 #ifdef WITH_PRETTY
@@ -543,6 +540,8 @@ std::vector<const char*> arg_files;
 
 void set_color(const char *colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
+void trim_pathname_arg(const char *arg);
+void append(std::string& pattern, std::string& regex);
 bool is_output(ino_t inode);
 size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
@@ -962,6 +961,8 @@ struct Grep {
         if (grep.out.eof)
           break;
 
+        ++matches;
+
         if (flag_with_hex)
           binary = false;
 
@@ -972,12 +973,11 @@ struct Grep {
 
         if (hex && !binary)
           grep.out.dump.done();
-        hex = binary;
-
-        ++matches;
 
         if (!flag_no_header)
           grep.out.header(pathname, grep.partname, lineno, NULL, offset, flag_separator, binary);
+
+        hex = binary;
 
         if (binary)
         {
@@ -1091,10 +1091,11 @@ struct Grep {
 
         if (hex && !binary)
           grep.out.dump.done();
-        hex = binary;
 
         if (!flag_no_header)
           grep.out.header(pathname, grep.partname, lineno, NULL, offset, separator, binary);
+
+        hex = binary;
 
         if (binary)
         {
@@ -1188,10 +1189,11 @@ struct Grep {
 
           if (hex && !state.before_binary[j])
             grep.out.dump.done();
-          hex = state.before_binary[j];
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, state.before_offset[j], "-", hex);
+            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, state.before_offset[j], "-", state.before_binary[j]);
+
+          hex = state.before_binary[j];
 
           const char *ptr = state.before_line[j].c_str();
           size_t size = state.before_line[j].size();
@@ -1299,16 +1301,17 @@ struct Grep {
         if (binary && !flag_hex && !flag_with_hex)
           break;
 
-        if (hex && !binary)
-          grep.out.dump.done();
-        hex = binary;
-
         if (state.after_lineno > 0 && state.after_length < flag_after_context)
         {
           ++state.after_length;
 
+          if (hex && !binary)
+            grep.out.dump.done();
+
           if (!flag_no_header)
             grep.out.header(pathname, grep.partname, lineno, NULL, offset, "-", binary);
+
+          hex = binary;
 
           if (binary)
           {
@@ -1432,10 +1435,11 @@ struct Grep {
 
           if (hex && !state.before_binary[j])
             grep.out.dump.done();
-          hex = state.before_binary[j];
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, offset, "-", hex);
+            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, offset, "-", state.before_binary[j]);
+
+          hex = state.before_binary[j];
 
           const char *ptr = state.before_line[j].c_str();
           size_t size = state.before_line[j].size();
@@ -1593,6 +1597,8 @@ struct Grep {
         if (grep.out.eof)
           break;
 
+        ++matches;
+
         if (flag_with_hex)
           binary = false;
 
@@ -1603,12 +1609,11 @@ struct Grep {
 
         if (hex && !binary)
           grep.out.dump.done();
-        hex = binary;
-
-        ++matches;
 
         if (!flag_no_header)
           grep.out.header(pathname, grep.partname, lineno, NULL, offset, flag_separator, binary);
+
+        hex = binary;
 
         if (binary)
         {
@@ -1649,7 +1654,8 @@ struct Grep {
     , zstream(NULL),
       stream(NULL)
 #ifdef WITH_DECOMPRESSION_THREAD
-    , extracting(false),
+    , thread_end(false),
+      extracting(false),
       waiting(false)
 #endif
 #endif
@@ -1660,6 +1666,21 @@ struct Grep {
   virtual ~Grep()
   {
 #ifdef HAVE_LIBZ
+
+#ifdef WITH_DECOMPRESSION_THREAD
+    if (thread.joinable())
+    {
+      thread_end = true;
+
+      std::unique_lock<std::mutex> lock(pipe_mutex);
+      if (waiting)
+        pipe_zstrm.notify_one();
+      lock.unlock();
+
+      thread.join();
+    }
+#endif
+
     if (stream != NULL)
     {
       delete stream;
@@ -1671,15 +1692,14 @@ struct Grep {
       delete zstream;
       zstream = NULL;
     }
+#endif
+  }
 
-#ifdef WITH_DECOMPRESSION_THREAD
-    if (thread.joinable())
-    {
-      pipe_zstrm.notify_one();
-      thread.join();
-    }
-#endif
-#endif
+  // cancel all active searches
+  void cancel()
+  {
+    // global cancellation is forced by cancelling the shared output
+    out.cancel();
   }
 
   // search the specified files or standard input for pattern matches
@@ -1691,7 +1711,7 @@ struct Grep {
   // recurse a directory
   virtual void recurse(size_t level, const char *pathname);
 
-  // -Z and --sort=best: perform a presearch to determine edit distance cost, returns 65535 when no match is found
+  // -Z and --sort=best: perform a presearch to determine edit distance cost, return cost of pathname file, 65535 when no match is found
   uint16_t cost(const char *pathname);
 
   // search a file
@@ -1707,6 +1727,11 @@ struct Grep {
 
       pathname = flag_label;
       file = source;
+
+#ifdef OS_WIN
+      if (flag_binary || flag_decompress)
+        _setmode(fileno(source), _O_BINARY);
+#endif
     }
     else
 #ifdef OS_WIN
@@ -1719,7 +1744,7 @@ struct Grep {
         NULL,
         NULL
       };
-      std::wstring wpathname = utf8_decode(pathname); 
+      std::wstring wpathname = utf8_decode(pathname);
       HANDLE hFile = CreateFile2(wpathname.c_str(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &params);
 
       if (hFile == INVALID_HANDLE_VALUE)
@@ -1781,6 +1806,7 @@ struct Grep {
         {
           try
           {
+            thread_end = false;
             extracting = false;
             waiting = false;
 
@@ -1871,7 +1897,7 @@ struct Grep {
         // --filter-magic-label: check for overriding +
         if (suffix != NULL)
         {
-          for (auto& i : flag_filter_magic_label)
+          for (const auto& i : flag_filter_magic_label)
           {
             if (i.front() == '+')
             {
@@ -2051,7 +2077,7 @@ struct Grep {
   // decompression thread
   void decompress()
   {
-    while (zstream != NULL)
+    while (!thread_end)
     {
       // use the zstreambuf internal buffer to hold decompressed data
       unsigned char *buf;
@@ -2066,7 +2092,7 @@ struct Grep {
       waiting = false;
 
       // extract the parts of a zip file, one by one, if zip file detected
-      while (true)
+      while (!thread_end)
       {
         // a regular file, may be reset when unzipping a directory
         bool is_regular = true;
@@ -2098,10 +2124,13 @@ struct Grep {
         if (len < 0)
           break;
 
+        bool is_selected = true;
+
         if (!filter_tar(*zstream, path, buf, maxlen, len) && !filter_cpio(*zstream, path, buf, maxlen, len))
         {
           // not a tar/cpio file, decompress the data into pipe, if not unzipping or if zipped file meets selection criteria
-          bool is_selected = is_regular && (zipinfo == NULL || select_matching(path.c_str(), buf, static_cast<size_t>(len), true));
+          is_selected = is_regular && (zipinfo == NULL || select_matching(path.c_str(), buf, static_cast<size_t>(len), true));
+
           if (is_selected)
           {
             // if pipe is closed, then reopen it
@@ -2143,26 +2172,33 @@ struct Grep {
         // extracting a zip file
         extracting = true;
 
+        // after unzipping the selected zip file, close our end of the pipe and loop for the next file
+        if (is_selected && pipe_fd[1] != -1)
+        {
+          close(pipe_fd[1]);
+          pipe_fd[1] = -1;
+        }
+      }
+
+      extracting = false;
+
+      if (pipe_fd[1] != -1)
+      {
         // close our end of the pipe
         close(pipe_fd[1]);
         pipe_fd[1] = -1;
       }
 
-      extracting = false;
-
-      if (pipe_fd[1] >= 0)
+      if (!thread_end)
       {
-        close(pipe_fd[1]);
-        pipe_fd[1] = -1;
+        // wait until a new zstream is ready
+        std::unique_lock<std::mutex> lock(pipe_mutex);
+        pipe_close.notify_one();
+        waiting = true;
+        pipe_zstrm.wait(lock);
+        waiting = false;
+        lock.unlock();
       }
-
-      // wait until a new zstream is ready (zstream is NULL to terminate the thread)
-      std::unique_lock<std::mutex> lock(pipe_mutex);
-      pipe_close.notify_one();
-      waiting = true;
-      pipe_zstrm.wait(lock);
-      waiting = false;
-      lock.unlock();
     }
   }
 
@@ -2681,7 +2717,7 @@ struct Grep {
       if (!flag_all_exclude.empty() || !flag_all_include.empty())
       {
         // exclude files whose basename matches any one of the --exclude globs
-        for (auto& glob : flag_all_exclude)
+        for (const auto& glob : flag_all_exclude)
           if (!(is_selected = !glob_match(path, basename, glob.c_str())))
             break;
 
@@ -2689,7 +2725,7 @@ struct Grep {
         if (is_selected)
         {
           // include files whose basename matches any one of the --include globs
-          for (auto& glob : flag_all_include)
+          for (const auto& glob : flag_all_include)
             if ((is_selected = glob_match(path, basename, glob.c_str())))
               break;
         }
@@ -2725,7 +2761,10 @@ struct Grep {
     {
       // close the FILE* and its underlying pipe created with pipe() and fdopen()
       if (input.file() != NULL)
+      {
         fclose(input.file());
+        input = static_cast<FILE*>(NULL);
+      }
 
       // our end of the pipe is now closed
       pipe_fd[0] = -1;
@@ -2757,10 +2796,10 @@ struct Grep {
           }
 
           // failed to create a new pipe
+          warning("cannot open decompression pipe while reading", pathname);
+
           if (pipe_fd[0] != -1)
           {
-            warning("cannot open pipe while reading", pathname);
-
             close(pipe_fd[0]);
             close(pipe_fd[1]);
           }
@@ -2892,7 +2931,7 @@ struct Grep {
   std::string              partname;      // the name of an extracted file from an archive
   std::string              restline;      // a buffer to store the rest of a line to search
   Output                   out;           // asynchronous output
-  reflex::AbstractMatcher *matcher;       // the pattern matcher we're using
+  reflex::AbstractMatcher *matcher;       // the pattern matcher we're using, never NULL
   MMap                     mmap;          // mmap state
   reflex::Input            input;         // input to the matcher
   FILE                    *file;          // the current input file
@@ -2904,6 +2943,7 @@ struct Grep {
   std::istream            *stream;        // input stream layered on the decompressed stream
 #ifdef WITH_DECOMPRESSION_THREAD
   std::thread              thread;        // decompression thread
+  std::atomic_bool         thread_end;    // true if decompression thread should terminate
   int                      pipe_fd[2];    // decompressed stream pipe
   std::mutex               pipe_mutex;    // mutex to extract files in thread
   std::condition_variable  pipe_zstrm;    // cv to control new pipe creation
@@ -2982,18 +3022,15 @@ struct GrepMaster : public Grep {
   // stop all workers
   void stop_workers();
 
-  // cancel search and terminate workers
-  void cancel();
-
   // submit a job with a pathname to a worker, workers are visited round-robin
   void submit(const char *pathname);
 
   // lock-free job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
   bool steal(GrepWorker *worker);
 
-  std::list<GrepWorker>           workers;   // workers running threads
-  std::list<GrepWorker>::iterator iworker;   // the next worker to submit a job to
-  Output::Sync                    sync;      // sync output of workers
+  std::list<GrepWorker>           workers; // workers running threads
+  std::list<GrepWorker>::iterator iworker; // the next worker to submit a job to
+  Output::Sync                    sync;    // sync output of workers
 
 };
 
@@ -3009,7 +3046,7 @@ struct GrepWorker : public Grep {
     // all workers synchronize their output on the master's sync object
     out.sync_on(&master->sync);
 
-    // run worker thread executing jobs assigned in its queue
+    // run worker thread executing jobs assigned to its queue
     thread = std::thread(&GrepWorker::execute, this);
   }
 
@@ -3406,15 +3443,13 @@ int main(int argc, const char **argv)
 {
 #ifdef OS_WIN
 
-  // store UTF-8 arguments for the duration of main()
-  std::vector<std::string> args;
-
   LPWSTR *argws = CommandLineToArgvW(GetCommandLineW(), &argc);
 
   if (argws == NULL)
     error("cannot parse command line arguments", "CommandLineToArgvW failed");
 
-  // convert Unicode command line arguments argws[] to UTF-8 arguments argv[]
+  // store UTF-8 arguments for the duration of main() and convert Unicode command line arguments argws[] to UTF-8 arguments argv[]
+  std::vector<std::string> args;
   args.resize(argc);
   for (int i = 0; i < argc; ++i)
   {
@@ -3651,7 +3686,7 @@ static void save_config()
   else
   {
     fprintf(file, "# Enable/disable ignore files, default: no-ignore-files\n");
-    for (auto& ignore : flag_ignore_files)
+    for (const auto& ignore : flag_ignore_files)
       fprintf(file, "ignore-files=%s\n", ignore.c_str());
     fprintf(file, "\n");
   }
@@ -3661,7 +3696,7 @@ static void save_config()
     if (!flag_filter_magic_label.empty())
     {
       fprintf(file, "# Filter by file signature magic bytes\n");
-      for (auto& label : flag_filter_magic_label)
+      for (const auto& label : flag_filter_magic_label)
         fprintf(file, "filter-magic-label=%s\n", label.c_str());
       fprintf(file, "# Warning: filter-magic-label significantly reduces performance!\n\n");
     }
@@ -4796,7 +4831,7 @@ void init(int argc, const char **argv)
     usage("no PATTERN specified: specify an empty \"\" pattern to match all input");
 
   // regex PATTERN should be a FILE argument when -Q or -e PATTERN is specified
-  if (arg_pattern != NULL && (flag_query > 0 || !flag_regexp.empty()))
+  if (!flag_match && arg_pattern != NULL && (flag_query > 0 || !flag_regexp.empty()))
   {
     arg_files.insert(arg_files.begin(), arg_pattern);
     arg_pattern = NULL;
@@ -4861,7 +4896,12 @@ void init(int argc, const char **argv)
     {
       // use threads to recurse into a directory
       if ((attr & FILE_ATTRIBUTE_DIRECTORY))
+      {
         flag_all_threads = true;
+
+        // remove trailing path separators, if any (*file points to argv[])
+        trim_pathname_arg(*file);
+      }
 
       ++file;
     }
@@ -4883,7 +4923,12 @@ void init(int argc, const char **argv)
     {
       // use threads to recurse into a directory
       if (S_ISDIR(buf.st_mode))
+      {
         flag_all_threads = true;
+
+        // remove trailing path separators, if any (*file points to argv[])
+        trim_pathname_arg(*file);
+      }
 
       ++file;
     }
@@ -4924,7 +4969,7 @@ void init(int argc, const char **argv)
 #ifdef HAVE_STATVFS
 
   // --exclude-fs: add file system ids to exclude
-  for (auto& mounts : flag_exclude_fs)
+  for (const auto& mounts : flag_exclude_fs)
   {
     if (!mounts.empty())
     {
@@ -4955,7 +5000,7 @@ void init(int argc, const char **argv)
   }
 
   // --include-fs: add file system ids to include
-  for (auto& mounts : flag_include_fs)
+  for (const auto& mounts : flag_include_fs)
   {
     if (!mounts.empty())
     {
@@ -4988,7 +5033,7 @@ void init(int argc, const char **argv)
 #endif
 
   // --exclude-from: add globs to the exclude and exclude-dir lists
-  for (auto& from : flag_exclude_from)
+  for (const auto& from : flag_exclude_from)
   {
     if (!from.empty())
     {
@@ -5005,7 +5050,7 @@ void init(int argc, const char **argv)
   }
 
   // --include-from: add globs to the include and include-dir lists
-  for (auto& from : flag_include_from)
+  for (const auto& from : flag_include_from)
   {
     if (!from.empty())
     {
@@ -5022,7 +5067,7 @@ void init(int argc, const char **argv)
   }
 
   // -t: parse TYPES and access type table to add -O (--file-extension) and -M (--file-magic) values
-  for (auto& types : flag_file_type)
+  for (const auto& types : flag_file_type)
   {
     size_t from = 0;
 
@@ -5090,7 +5135,7 @@ void init(int argc, const char **argv)
   }
 
   // -O: add filename extensions as globs
-  for (auto& extensions : flag_file_extension)
+  for (const auto& extensions : flag_file_extension)
   {
     size_t from = 0;
     std::string glob;
@@ -5124,7 +5169,7 @@ void init(int argc, const char **argv)
   std::string magic_regex;
 
   // -M !MAGIC: combine to create a regex string
-  for (auto& magic : flag_file_magic)
+  for (const auto& magic : flag_file_magic)
   {
     if (magic.size() > 1 && (magic.front() == '!' || magic.front() == '^'))
     {
@@ -5138,7 +5183,7 @@ void init(int argc, const char **argv)
   }
 
   // -M MAGIC: append to regex string
-  for (auto& magic : flag_file_magic)
+  for (const auto& magic : flag_file_magic)
   {
     if (magic.size() <= 1 || (magic.front() != '!' && magic.front() != '^'))
     {
@@ -5468,7 +5513,7 @@ void ugrep()
   flag_all_exclude_dir = flag_exclude_dir;
 
   // -g, --glob: add globs to all-include/all-exclude
-  for (auto& globs : flag_glob)
+  for (const auto& globs : flag_glob)
   {
     size_t from = 0;
     std::string glob;
@@ -5546,7 +5591,7 @@ void ugrep()
   // if an include dir glob starts with a dot, then enable searching hidden files and directories
   if (!flag_hidden)
   {
-    for (auto& dir : flag_all_include_dir)
+    for (const auto& dir : flag_all_include_dir)
     {
       if (dir.front() == '.' || dir.find(PATHSEPSTR ".") != std::string::npos)
       {
@@ -5656,10 +5701,6 @@ void ugrep()
   // the regex compiled from PATTERN, -e PATTERN, -N PATTERN, and -f FILE
   std::string regex;
 
-  // -F: make newline-separated lines in regex literal with \Q and \E
-  const char *Q = flag_fixed_strings ? "\\Q" : "";
-  const char *E = flag_fixed_strings ? "\\E|" : "|";
-
   // either one PATTERN or one or more -e PATTERN (cannot specify both)
   std::vector<std::string> arg_patterns;
   if (arg_pattern != NULL)
@@ -5703,44 +5744,15 @@ void ugrep()
     }
     else
     {
-      // split newline-separated regex up into alternations
-      size_t from = 0;
-      size_t to;
+      append(pattern, regex);
 
-      // replace all \E in pattern with \E\\E\Q (or perhaps \\EE\Q)
-      if (flag_fixed_strings)
-      {
-        while ((to = pattern.find("\\E", from)) != std::string::npos)
-        {
-          pattern.insert(to + 2, "\\\\E\\Q");
-          from = to + 7;
-        }
-      }
-
-      from = 0;
-
-      // split regex at newlines, for -F add \Q \E to each string, separate by |
-      while ((to = pattern.find('\n', from)) != std::string::npos)
-      {
-        if (from < to)
-        {
-          size_t len = to - from - (pattern[to - 1] == '\r');
-          if (len > 0)
-            regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
-        }
-        from = to + 1;
-      }
-
-      if (from < pattern.size())
-        regex.append(Q).append(pattern.substr(from)).append(E);
-
-      // if pattern starts with ^ and ends with $, enable -Y
+      // if pattern starts with ^ or ends with $, enable -Y
       if (pattern.size() >= 1 && (pattern.front() == '^' || pattern.back() == '$'))
         flag_empty = true;
     }
   }
 
-  // we're matching everything, including empty lines
+  // --match: enable -Y because wee match everything, including empty lines
   if (flag_match)
     flag_empty = true;
 
@@ -5753,7 +5765,7 @@ void ugrep()
   }
   else
   {
-    // --tag: tag matches instead of colors
+    // --tag: output tagged matches instead of colors
     if (flag_tag != NULL)
     {
       const char *s1 = strchr(flag_tag, ',');
@@ -5787,31 +5799,10 @@ void ugrep()
   // the regex compiled from -N PATTERN
   std::string neg_regex;
 
-  // append -N PATTERN to regex as negative patterns
+  // append -N PATTERN to neg_regex
   for (auto& pattern : flag_neg_regexp)
-  {
     if (!pattern.empty())
-    {
-      // split newline-separated regex up into alternations
-      size_t from = 0;
-      size_t to;
-
-      // split regex at newlines, for -F add \Q \E to each string, separate by |
-      while ((to = pattern.find('\n', from)) != std::string::npos)
-      {
-        if (from < to)
-        {
-          size_t len = to - from - (pattern[to - 1] == '\r');
-          if (len > 0)
-            neg_regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
-        }
-        from = to + 1;
-      }
-
-      if (from < pattern.size())
-        neg_regex.append(Q).append(pattern.substr(from)).append(E);
-    }
-  }
+      append(pattern, neg_regex);
 
   // --not: combine --not regexes with regex patterns using the formula PATTERNS(?^.*(NOTPATTERNS))?|(?^NOTPATTERNS).*
   if (!regex.empty() && !flag_not_regexp.empty())
@@ -5820,29 +5811,8 @@ void ugrep()
 
     // append --not -e PATTERNs to not_regex
     for (auto& pattern : flag_not_regexp)
-    {
       if (!pattern.empty())
-      {
-        // split newline-separated regex up into alternations
-        size_t from = 0;
-        size_t to;
-
-        // split regex at newlines, for -F add \Q \E to each string, separate by |
-        while ((to = pattern.find('\n', from)) != std::string::npos)
-        {
-          if (from < to)
-          {
-            size_t len = to - from - (pattern[to - 1] == '\r');
-            if (len > 0)
-              not_regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
-          }
-          from = to + 1;
-        }
-
-        if (from < pattern.size())
-          not_regex.append(Q).append(pattern.substr(from)).append(E);
-      }
-    }
+        append(pattern, not_regex);
 
     if (!not_regex.empty())
     {
@@ -5875,7 +5845,7 @@ void ugrep()
     neg_regex.insert(0, "(?^").append(")|");
   }
 
-  // combine regexes
+  // combine regex and neg_regex patterns
   if (regex.empty())
     regex.swap(neg_regex);
   else if (!neg_regex.empty())
@@ -5895,25 +5865,34 @@ void ugrep()
       else if (flag_word_regexp)
         regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
     }
-
-    // -x and -w do not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
-    flag_line_regexp = false;
-    flag_word_regexp = false;
-
-    // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
-    Q = "";
-    E = "|";
   }
 
   // -f: get patterns from file
   if (!flag_file.empty())
   {
-    // add an ending '|' to the regex to concatenate sub-expressions
+    bool line_regexp = flag_line_regexp;
+    bool word_regexp = flag_word_regexp;
+
+    // -F: make newline-separated lines in regex literal with \Q and \E
+    const char *Q = flag_fixed_strings ? "\\Q" : "";
+    const char *E = flag_fixed_strings ? "\\E|" : "|";
+
+    // PATTERN or -e PATTERN: add an ending '|' to the regex to concatenate sub-expressions
     if (!regex.empty())
+    {
       regex.push_back('|');
 
+      // -x and -w do not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
+      line_regexp = false;
+      word_regexp = false;
+
+      // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
+      Q = "";
+      E = "|";
+    }
+
     // -f: read patterns from the specified file or files
-    for (auto& filename : flag_file)
+    for (const auto& filename : flag_file)
     {
       FILE *file = NULL;
 
@@ -5967,10 +5946,10 @@ void ugrep()
     // remove the ending '|' from the |-concatenated regexes in the regex string
     regex.pop_back();
 
-    // -x or -w
-    if (flag_line_regexp)
+    // -x or -w: if no PATTERN is specified, then apply -x or -w to -f FILE patterns
+    if (line_regexp)
       regex.insert(0, "^(").append(")$"); // make the regex line-anchored
-    else if (flag_word_regexp)
+    else if (word_regexp)
       regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
   }
 
@@ -6106,7 +6085,7 @@ void ugrep()
 
   // prepend the pattern options (?m...) to the regex
   pattern_options.push_back(')');
-  regex = pattern_options + regex;
+  regex.insert(0, pattern_options);
 
   // reflex::Matcher options
   std::string matcher_options;
@@ -6295,7 +6274,7 @@ void cancel_ugrep()
 {
   std::unique_lock<std::mutex> lock(grep_handle_mutex);
   if (grep_handle != NULL)
-    grep_handle->out.cancel();
+    grep_handle->cancel();
 }
 
 // set the handle to be able to use cancel_ugrep()
@@ -6334,7 +6313,7 @@ void Grep::ugrep()
     std::pair<std::set<ino_t>::iterator,bool> vino;
 #endif
 
-    for (auto pathname : arg_files)
+    for (const auto pathname : arg_files)
     {
       // stop after finding max-files matching files
       if (flag_max_files > 0 && Stats::found_parts() >= flag_max_files)
@@ -6433,7 +6412,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
         {
           // exclude directories whose pathname matches any one of the --exclude-dir globs unless negated with !
           bool ok = true;
-          for (auto& glob : flag_all_exclude_dir)
+          for (const auto& glob : flag_all_exclude_dir)
           {
             if (glob.front() == '!')
             {
@@ -6453,7 +6432,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
         {
           // include directories whose pathname matches any one of the --include-dir globs unless negated with !
           bool ok = false;
-          for (auto& glob : flag_all_include_dir)
+          for (const auto& glob : flag_all_include_dir)
           {
             if (glob.front() == '!')
             {
@@ -6483,7 +6462,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     {
       // exclude files whose pathname matches any one of the --exclude globs unless negated with !
       bool ok = true;
-      for (auto& glob : flag_all_exclude)
+      for (const auto& glob : flag_all_exclude)
       {
         if (glob.front() == '!')
         {
@@ -6551,7 +6530,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     {
       // include files whose pathname matches any one of the --include globs unless negated with !
       bool ok = false;
-      for (auto& glob : flag_all_include)
+      for (const auto& glob : flag_all_include)
       {
         if (glob.front() == '!')
         {
@@ -6616,7 +6595,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
               {
                 // exclude directories whose pathname matches any one of the --exclude-dir globs unless negated with !
                 bool ok = true;
-                for (auto& glob : flag_all_exclude_dir)
+                for (const auto& glob : flag_all_exclude_dir)
                 {
                   if (glob.front() == '!')
                   {
@@ -6636,7 +6615,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
               {
                 // include directories whose pathname matches any one of the --include-dir globs unless negated with !
                 bool ok = false;
-                for (auto& glob : flag_all_include_dir)
+                for (const auto& glob : flag_all_include_dir)
                 {
                   if (glob.front() == '!')
                   {
@@ -6671,7 +6650,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           {
             // exclude files whose pathname matches any one of the --exclude globs unless negated with !
             bool ok = true;
-            for (auto& glob : flag_all_exclude)
+            for (const auto& glob : flag_all_exclude)
             {
               if (glob.front() == '!')
               {
@@ -6744,7 +6723,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           {
             // include directories whose basename matches any one of the --include-dir globs if not negated with !
             bool ok = false;
-            for (auto& glob : flag_all_include)
+            for (const auto& glob : flag_all_include)
             {
               if (glob.front() == '!')
               {
@@ -6784,7 +6763,7 @@ void Grep::recurse(size_t level, const char *pathname)
 {
 #ifdef OS_WIN
 
-  WIN32_FIND_DATA ffd;
+  WIN32_FIND_DATAW ffd;
 
   std::string glob;
 
@@ -6844,7 +6823,7 @@ void Grep::recurse(size_t level, const char *pathname)
   {
     std::string filename;
 
-    for (auto& i : flag_ignore_files)
+    for (const auto& i : flag_ignore_files)
     {
       filename.assign(pathname).append(PATHSEPSTR).append(i);
 
@@ -6885,8 +6864,12 @@ void Grep::recurse(size_t level, const char *pathname)
     // search directory entries that aren't . or .. or hidden when --no-hidden is enabled
     if (cFileName[0] != '.' || (flag_hidden && cFileName[1] != '\0' && cFileName[1] != '.'))
     {
-      if (pathname[0] == '.' && pathname[1] == '\0')
+      size_t len = strlen(pathname);
+
+      if (len == 1 && pathname[0] == '.')
         dirpathname.assign(cFileName);
+      else if (len > 0 && pathname[len - 1] == PATHSEPCHR)
+        dirpathname.assign(pathname).append(cFileName);
       else
         dirpathname.assign(pathname).append(PATHSEPSTR).append(cFileName);
 
@@ -6946,8 +6929,12 @@ void Grep::recurse(size_t level, const char *pathname)
     // search directory entries that aren't . or .. or hidden when --no-hidden is enabled
     if (dirent->d_name[0] != '.' || (flag_hidden && dirent->d_name[1] != '\0' && dirent->d_name[1] != '.'))
     {
-      if (pathname[0] == '.' && pathname[1] == '\0')
+      size_t len = strlen(pathname);
+
+      if (len == 1 && pathname[0] == '.')
         dirpathname.assign(dirent->d_name);
+      else if (len > 0 && pathname[len - 1] == PATHSEPCHR)
+        dirpathname.assign(pathname).append(dirent->d_name);
       else
         dirpathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
 
@@ -7037,7 +7024,7 @@ void Grep::recurse(size_t level, const char *pathname)
     }
 
     // search the select sorted non-directory entries
-    for (auto& entry : content)
+    for (const auto& entry : content)
     {
       search(entry.pathname.c_str());
 
@@ -7071,7 +7058,7 @@ void Grep::recurse(size_t level, const char *pathname)
   }
 
   // recurse into the selected subdirectories
-  for (auto& entry : subdirs)
+  for (const auto& entry : subdirs)
   {
     // stop after finding max-files matching files
     if (flag_max_files > 0 && Stats::found_parts() >= flag_max_files)
@@ -7453,7 +7440,6 @@ void Grep::search(const char *pathname)
             out.nl();
             nl = false;
           }
-          hex = binary;
 
           size_t current_lineno = matcher->lineno();
 
@@ -7506,6 +7492,8 @@ void Grep::search(const char *pathname)
 
             lineno = current_lineno;
           }
+
+          hex = binary;
 
           if (binary)
           {
@@ -7656,10 +7644,6 @@ void Grep::search(const char *pathname)
               goto done_search;
             }
 
-            if (hex && !binary)
-              out.dump.done();
-            hex = binary;
-
             ++matches;
 
             size_t border = matcher->border();
@@ -7668,11 +7652,16 @@ void Grep::search(const char *pathname)
             const char *end = matcher->end();
             size_t size = matcher->size();
 
+            if (hex && !binary)
+              out.dump.done();
+
             if (!flag_no_header)
             {
               const char *separator = lineno != current_lineno ? flag_separator : "+";
               out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
             }
+
+            hex = binary;
 
             lineno = current_lineno;
 
@@ -7976,14 +7965,9 @@ void Grep::search(const char *pathname)
         if (binary && !flag_hex && !flag_with_hex)
         {
           if (flag_binary_without_match)
-          {
             matches = 0;
-          }
-          else
-          {
+          else if (matches > 0)
             out.binary_file_matches(pathname, partname);
-            matches = 1;
-          }
         }
 
         if (binary)
@@ -8113,10 +8097,6 @@ void Grep::search(const char *pathname)
               goto done_search;
             }
 
-            if (hex && !binary)
-              out.dump.done();
-            hex = binary;
-
             if (!flag_invert_match)
               ++matches;
 
@@ -8126,11 +8106,16 @@ void Grep::search(const char *pathname)
             const char *end = matcher->end();
             size_t size = matcher->size();
 
+            if (hex && !binary)
+              out.dump.done();
+
             if (!flag_no_header)
             {
               const char *separator = lineno != current_lineno ? flag_invert_match ? "-" : flag_separator : "+";
               out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
             }
+
+            hex = binary;
 
             lineno = current_lineno;
 
@@ -8371,14 +8356,9 @@ void Grep::search(const char *pathname)
         if (binary && !flag_hex && !flag_with_hex)
         {
           if (flag_binary_without_match)
-          {
             matches = 0;
-          }
-          else
-          {
+          else if (matches > 0)
             out.binary_file_matches(pathname, partname);
-            matches = 1;
-          }
         }
 
         if (binary)
@@ -8504,10 +8484,6 @@ void Grep::search(const char *pathname)
               goto done_search;
             }
 
-            if (hex && !binary)
-              out.dump.done();
-            hex = binary;
-
             if (!flag_invert_match)
               ++matches;
 
@@ -8517,11 +8493,16 @@ void Grep::search(const char *pathname)
             const char *end = matcher->end();
             size_t size = matcher->size();
 
+            if (hex && !binary)
+              out.dump.done();
+
             if (!flag_no_header)
             {
               const char *separator = lineno != current_lineno ? flag_invert_match ? "-" : flag_separator : "+";
               out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
             }
+
+            hex = binary;
 
             lineno = current_lineno;
 
@@ -8764,14 +8745,9 @@ void Grep::search(const char *pathname)
         if (binary && !flag_hex && !flag_with_hex)
         {
           if (flag_binary_without_match)
-          {
             matches = 0;
-          }
-          else
-          {
+          else if (matches > 0)
             out.binary_file_matches(pathname, partname);
-            matches = 1;
-          }
         }
 
         if (binary)
@@ -8907,18 +8883,19 @@ void Grep::search(const char *pathname)
                 goto done_search;
               }
 
-              if (hex && !binary)
-                out.dump.done();
-              hex = binary;
-
               size_t border = matcher->border();
               size_t first = matcher->first();
               const char *begin = matcher->begin();
               const char *end = matcher->end();
               size_t size = matcher->size();
 
+              if (hex && !binary)
+                out.dump.done();
+
               if (!flag_no_header)
                 out.header(pathname, partname, lineno, matcher, first, "-", binary);
+
+              hex = binary;
 
               if (binary)
               {
@@ -9245,14 +9222,9 @@ void Grep::search(const char *pathname)
         if (binary && !flag_hex && !flag_with_hex)
         {
           if (flag_binary_without_match)
-          {
             matches = 0;
-          }
-          else
-          {
+          else if (matches > 0)
             out.binary_file_matches(pathname, partname);
-            matches = 1;
-          }
         }
 
         if (binary)
@@ -9442,6 +9414,60 @@ void trim(std::string& line)
 
   if (len > pos)
     line.erase(pos, len - pos);
+}
+
+// trim path separators from an argv[] argument - important: modifies the argv[] string
+void trim_pathname_arg(const char *arg)
+{
+  // remove trailing path separators after the drive prefix and path, if any - note: this truncates argv[] strings
+  const char *path = strchr(arg, ':');
+  if (path != NULL)
+    ++path;
+  else
+    path = arg;
+  size_t len = strlen(path);
+  while (len > 1 && path[--len] == PATHSEPCHR)
+    const_cast<char*>(path)[len] = '\0';
+}
+
+// append newline-separated regexes as alternations and apply \Q \E when option -F is specified
+void append(std::string& pattern, std::string& regex)
+{
+  size_t from = 0;
+  size_t to;
+
+  const char *Q = "";
+  const char *E = "|";
+
+  // -F: replace all \E in pattern with \E\\E\Q (or perhaps \\EE\Q)
+  if (flag_fixed_strings)
+  {
+    while ((to = pattern.find("\\E", from)) != std::string::npos)
+    {
+      pattern.insert(to + 2, "\\\\E\\Q");
+      from = to + 7;
+    }
+
+    Q = "\\Q";
+    E = "\\E|";
+  }
+
+  from = 0;
+
+  // split regex at newlines, for -F add \Q \E to each string, separate by |
+  while ((to = pattern.find('\n', from)) != std::string::npos)
+  {
+    if (from < to)
+    {
+      size_t len = to - from - (pattern[to - 1] == '\r');
+      if (len > 0)
+        regex.append(Q).append(pattern.substr(from, to - from - (pattern[to - 1] == '\r'))).append(E);
+    }
+    from = to + 1;
+  }
+
+  if (from < pattern.size())
+    regex.append(Q).append(pattern.substr(from)).append(E);
 }
 
 // convert GREP_COLORS and set the color substring to the ANSI SGR codes
@@ -9835,7 +9861,8 @@ void help(std::ostream& out)
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This makes ugrep behave as fgrep.\n\
             If a PATTERN is specified, or -e PATTERN or -N PATTERN, then this\n\
-            option does not apply to -f FILE patterns.\n\
+            option does not apply to -f FILE patterns to allow -f FILE patterns\n\
+            to narrow or widen the PATTERN search.\n\
     -f FILE, --file=FILE\n\
             Read newline-separated patterns from FILE.  White space in patterns\n\
             is significant.  Empty lines in FILE are ignored.  If FILE does not\n\
@@ -10184,7 +10211,8 @@ void help(std::ostream& out)
     -w, --word-regexp\n\
             The PATTERN is searched for as a word (as if surrounded by \\< and\n\
             \\>).  If a PATTERN is specified, or -e PATTERN or -N PATTERN, then\n\
-            this option does not apply to -f FILE patterns.\n\
+            this option does not apply to -f FILE patterns to allow -f FILE\n\
+            patterns to narrow or widen the PATTERN search.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.  See also option --hexdump.\n\
@@ -10192,7 +10220,8 @@ void help(std::ostream& out)
             Only input lines selected against the entire PATTERN is considered\n\
             to be matching lines (as if surrounded by ^ and $).  If a PATTERN\n\
             is specified, or -e PATTERN or -N PATTERN, then this option does\n\
-            not apply to -f FILE patterns.\n\
+            not apply to -f FILE patterns to allow -f FILE patterns to narrow\n\
+            or widen the PATTERN search.\n\
     --xml\n\
             Output file matches in XML.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\

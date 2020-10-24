@@ -39,7 +39,16 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#if __cplusplus >= 201103L
+# include <tuple> // std::ignore
+# define UNUSED(arg) std::ignore = enc
+#else
+# define UNUSED(arg) (void)enc
+#endif
+
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+# include <io.h>
+# include <fcntl.h>
 # define off_t __int64
 # define ftello _ftelli64
 # define fseeko _fseeki64
@@ -642,8 +651,12 @@ static const unsigned short codepages[38][256] =
   },
 };
 
-void Input::file_init()
+void Input::file_init(file_encoding_type enc)
 {
+  // open in binary mode to detect BOM, then reset to original mode afterwards unless UTF-16 or UTF-32
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+  int mode = _setmode(_fileno(file_), _O_BINARY);
+#endif
   // attempt to determine the file size with fstat()
 #if !defined(HAVE_CONFIG_H) || defined(HAVE_FSTAT)
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
@@ -730,6 +743,13 @@ void Input::file_init()
     if (feof(file_) || handler_ == NULL || (*handler_)() == 0)
       break;
   }
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+  // if not UTF-16 or UTF-32, then reset mode to original mode (unless the original mode was binary)
+  if (mode != _O_BINARY && ((utfx_ == file_encoding::plain && enc != file_encoding::utf16be && enc != file_encoding::utf16le && enc != file_encoding::utf32be && enc != file_encoding::utf32le) || utfx_ == file_encoding::utf8))
+    _setmode(_fileno(file_), mode);
+#else
+  UNUSED(enc);
+#endif
 }
 
 size_t Input::file_get(char *s, size_t n)

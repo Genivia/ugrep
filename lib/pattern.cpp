@@ -141,7 +141,7 @@ const std::string Pattern::operator[](Accept choice) const
 {
   if (choice == 0)
     return rex_;
-  if (choice >= 1 && choice <= size())
+  if (choice <= size())
   {
     Location loc = end_.at(choice - 1);
     Location prev = 0;
@@ -1455,6 +1455,12 @@ void Pattern::compile(
         }
         Char lo = i->first.lo();
         Char max = i->first.hi();
+#ifdef DEBUG
+        DBGLOGN("from state %p on %02x-%02x move to {", state, lo, max);
+        for (Positions::const_iterator p = pos.begin(); p != pos.end(); ++p)
+          DBGLOGPOS(*p);
+        DBGLOGN(" } = state %p", target_state);
+#endif
         while (lo <= max)
         {
           if (i->first.contains(lo))

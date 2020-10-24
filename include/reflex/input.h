@@ -43,6 +43,8 @@
 #include <iostream>
 #include <string>
 
+#include <stdint.h>
+
 #if defined(HAVE_AVX512BW)
 # include <immintrin.h>
 #elif defined(HAVE_AVX2)
@@ -462,7 +464,7 @@ class Input {
       istream_(NULL),
       size_(0)
   {
-    init();
+    init(enc);
     if (file_encoding() == file_encoding::plain)
       file_encoding(enc, page);
   }
@@ -742,17 +744,17 @@ class Input {
     return utfx_;
   }
   /// Initialize the state after (re)setting the input source, auto-detects UTF BOM in FILE* input if the file size is known.
-  void init()
+  void init(file_encoding_type enc = file_encoding::plain)
   {
     std::memset(utf8_, 0, sizeof(utf8_));
     uidx_ = sizeof(utf8_);
     utfx_ = 0;
     page_ = NULL;
     if (file_ != NULL)
-      file_init();
+      file_init(enc);
   }
   /// Called by init() for a FILE*.
-  void file_init();
+  void file_init(file_encoding_type enc);
   /// Called by size() for a wstring.
   void wstring_size();
   /// Called by size() for a FILE*.
@@ -1165,6 +1167,8 @@ class BufferedInput::dos_streambuf : public std::streambuf {
   int ch2_;
 };
 
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+
 #ifdef _MSC_VER
 #pragma intrinsic(_BitScanForward)
 inline uint32_t ctz(uint32_t x)
@@ -1207,6 +1211,8 @@ inline uint32_t popcountl(uint64_t x)
 {
   return __builtin_popcountl(x);
 }
+#endif
+
 #endif
 
 extern uint64_t HW;

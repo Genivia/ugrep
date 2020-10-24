@@ -252,7 +252,7 @@ class Output {
     void hex(short mode, size_t byte_offset, const char *data, size_t size);
 
     // jump to the next hex dump location (option -o)
-    void next(size_t byte_offset)
+    inline void next(size_t byte_offset)
     {
       if (offset - offset % flag_hex_columns != byte_offset - byte_offset % flag_hex_columns)
         done();
@@ -264,8 +264,15 @@ class Output {
       return offset % flag_hex_columns != 0;
     }
 
+    // if hex line is incomplete: complete it with done()
+    inline void complete(size_t off)
+    {
+      if (offset > 0 && offset < off)
+        done();
+    }
+
     // done dumping hex
-    void done()
+    inline void done()
     {
       if (offset % flag_hex_columns != 0)
       {
