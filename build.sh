@@ -11,8 +11,8 @@ esac
 echo
 echo "Building ugrep..."
 
-# configure with colors enabled by default or the command arguments
-OPTIONS=${@:---enable-color}
+# configure with the specified command arguments
+OPTIONS=$@
 
 echo
 echo "./configure $OPTIONS"

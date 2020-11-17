@@ -749,6 +749,7 @@ with_lzma
 with_lz4
 with_grep_path
 with_grep_colors
+enable_auto_color
 enable_color
 enable_pretty
 enable_pager
@@ -1395,8 +1396,9 @@ Optional Features:
                           do not reject slow dependency extractors
   --disable-dependency-tracking
                           speeds up one-time build
-  --enable-color          enable colorized output by default without requiring
-                          ugrep flag --color
+  --disable-auto-color    disable automatic colors, otherwise colors are
+                          enabled by default
+  --enable-color          deprecated, use --disable-auto-color
   --enable-pretty         enable pretty output by default without requiring
                           ugrep flag --pretty
   --enable-pager          enable the pager by default without requiring ugrep
@@ -7738,19 +7740,34 @@ else
 $as_echo "" >&6; }
 fi
 
+# Check whether --enable-auto-color was given.
+if test "${enable_auto_color+set}" = set; then :
+  enableval=$enable_auto_color; with_no_auto_color="yes"
+else
+  with_no_auto_color="no"
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --disable-auto-color" >&5
+$as_echo_n "checking for --disable-auto-color... " >&6; }
+if test "x$with_no_auto_color" = "xno"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  EXTRA_CFLAGS="-DWITH_COLOR ${EXTRA_CFLAGS}"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+fi
+
 # Check whether --enable-color was given.
 if test "${enable_color+set}" = set; then :
-  enableval=$enable_color; with_color="$enable_color"
-else
-  with_color="no"
+  enableval=$enable_color;
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-color" >&5
 $as_echo_n "checking for --enable-color... " >&6; }
-if test "x$with_color" = "xyes"; then
+if test "x$with_no_auto_color" = "xno"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-  EXTRA_CFLAGS="-DWITH_COLOR ${EXTRA_CFLAGS}"
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }

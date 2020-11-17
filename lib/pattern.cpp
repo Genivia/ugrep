@@ -721,8 +721,8 @@ void Pattern::parse3(
       if (at(++loc) == '?')
       {
         if (++lazyidx == 0)
-          error(regex_error::exceeds_limits, loc);
-        lazyset.insert(lazyidx); // overflow: exceeds max 255 lazy quantifiers
+          error(regex_error::exceeds_limits, loc); // overflow: exceeds max 255 lazy quantifiers
+        lazyset.insert(lazyidx);
         if (nullable)
           lazy(lazyset, firstpos);
         ++loc;
@@ -784,9 +784,7 @@ void Pattern::parse3(
             error(regex_error::exceeds_limits, loc); // overflow: exceeds max 255 lazy quantifiers
           lazyset.insert(lazyidx);
           if (nullable)
-          {
             lazy(lazyset, firstpos);
-          }
           /* CHECKED algorithmic options: 8/1 else
              {
              lazy(lazyset, firstpos, firstpos1);

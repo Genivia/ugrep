@@ -102,15 +102,27 @@ else
   AC_MSG_RESULT()
 fi
 
+AC_ARG_ENABLE(auto-color,
+  [AC_HELP_STRING([--disable-auto-color],
+                  [disable automatic colors, otherwise colors are enabled by default])],
+  [with_no_auto_color="yes"],
+  [with_no_auto_color="no"])
+AC_MSG_CHECKING(for --disable-auto-color)
+if test "x$with_no_auto_color" = "xno"; then
+  AC_MSG_RESULT(no)
+  EXTRA_CFLAGS="-DWITH_COLOR ${EXTRA_CFLAGS}"
+else
+  AC_MSG_RESULT(yes)
+fi
+
 AC_ARG_ENABLE(color,
   [AC_HELP_STRING([--enable-color],
-                  [enable colorized output by default without requiring ugrep flag --color])],
-  [with_color="$enable_color"],
-  [with_color="no"])
+                  [deprecated, use --disable-auto-color])],
+  [],
+  [])
 AC_MSG_CHECKING(for --enable-color)
-if test "x$with_color" = "xyes"; then
+if test "x$with_no_auto_color" = "xno"; then
   AC_MSG_RESULT(yes)
-  EXTRA_CFLAGS="-DWITH_COLOR ${EXTRA_CFLAGS}"
 else
   AC_MSG_RESULT(no)
 fi

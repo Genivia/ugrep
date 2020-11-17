@@ -18,8 +18,8 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C\fR[\fINUM\fR]] [\fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
-      [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-t\fR \fITYPES\fR] [\fB-J\fR [\fINUM\fR]] [\fB--sort\fR[=\fIKEY\fR]]
+[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C \fR\fINUM\fR] [\fB-y\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
+      [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
@@ -35,6 +35,9 @@ automatically normalized; otherwise, \fBugrep\fR assumes the input is ASCII,
 UTF-8, or raw binary.  An input encoding format may be specified with option
 \fB--encoding\fR.
 .PP
+The \fBug\fR command is equivalent to \fBugrep --config\fR to load the default
+configuration file, which allows for customization, see CONFIGURATION.
+.PP
 If no \fIFILE\fR arguments are specified and standard input is read from a
 terminal, recursive searches are performed as if \fB-R\fR is specified.  To
 force reading from standard input, specify `-' as a \fIFILE\fR argument.
@@ -47,8 +50,11 @@ Hidden files and directories are ignored in recursive searches.  Option
 \fB-.\fR (\fB--hidden\fR) includes hidden files and directories in recursive
 searches.
 .PP
-The \fBug\fR command is equivalent to \fBugrep --config\fR to load the default
-configuration file, which allows for customization, see CONFIGURATION.
+A query interface is opened with \fB-Q\fR (\fB--query\fR) to interactively
+specify search patterns and view search results.  Note that a \fIPATTERN\fR
+argument should not be specified in this case.
+.PP
+For help, \fB--help \fIWHAT\fR displays help on options related to \fIWHAT\fR.
 .PP
 The following options are available:
 END
@@ -517,6 +523,10 @@ $ tail -f /var/log/system.log | ugrep -u -i -w bug
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
 $ ugrep --encoding=MACROMAN '\\w+' mac.txt
+.PP
+Display options related to "fuzzy" searching:
+.IP
+$ ugrep --help fuzzy
 .SH BUGS
 Report bugs at:
 .IP

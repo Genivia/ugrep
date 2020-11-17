@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.0.4"
+#define UGREP_VERSION "3.0.5"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -119,28 +119,6 @@ After this, you may want to test ugrep and install it (optional):
 // #define HAVE_LIBLZ4
 
 #include <stringapiset.h>
-
-// Convert a wide Unicode string to an UTF-8 string
-std::string utf8_encode(const std::wstring &wstr)
-{
-  if (wstr.empty())
-    return std::string();
-  int size = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), NULL, 0, NULL, NULL);
-  std::string str(size, 0);
-  WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), &str[0], size, NULL, NULL);
-  return str;
-}
-
-// Convert a UTF-8 string to a wide Unicode String
-std::wstring utf8_decode(const std::string &str)
-{
-  if (str.empty())
-    return std::wstring();
-  int size = MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), NULL, 0);
-  std::wstring wstr(size, 0);
-  MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), &wstr[0], size);
-  return wstr;
-}
 
 #else
 
@@ -557,7 +535,7 @@ void version();
 void is_directory(const char *pathname);
 void cannot_decompress(const char *pathname, const char *message);
 
-// open a file where - means stdin/stdout and ~ expands to home directory
+// open a file where - means stdin/stdout and an initial ~ expands to home directory
 int fopen_smart(FILE **file, const char *filename, const char *mode)
 {
   if (filename == NULL || *filename == '\0')
@@ -570,9 +548,9 @@ int fopen_smart(FILE **file, const char *filename, const char *mode)
   }
 
   if (*filename == '~')
-    return fopen_s(file, std::string(home_dir).append(filename + 1).c_str(), mode);
+    return fopenw_s(file, std::string(home_dir).append(filename + 1).c_str(), mode);
 
-  return fopen_s(file, filename, mode);
+  return fopenw_s(file, filename, mode);
 }
 
 // read a line from buffered input, returns true when eof
@@ -1733,47 +1711,12 @@ struct Grep {
         _setmode(fileno(source), _O_BINARY);
 #endif
     }
-    else
-#ifdef OS_WIN
-    {
-      CREATEFILE2_EXTENDED_PARAMETERS params {
-        sizeof(CREATEFILE2_EXTENDED_PARAMETERS),
-        FILE_ATTRIBUTE_NORMAL,
-        FILE_FLAG_SEQUENTIAL_SCAN,
-        SECURITY_ANONYMOUS,
-        NULL,
-        NULL
-      };
-      std::wstring wpathname = utf8_decode(pathname);
-      HANDLE hFile = CreateFile2(wpathname.c_str(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &params);
-
-      if (hFile == INVALID_HANDLE_VALUE)
-        return false;
-
-      int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), _O_RDONLY);
-
-      if (fd == -1)
-      { 
-        CloseHandle(hFile);
-        return false; 
-      }
-
-      file = _fdopen(fd, (flag_binary || flag_decompress ? "rb" : "r"));
-
-      if (file == NULL)
-      {
-        _close(fd);
-        return false;
-      }
-    }
-#else
-    if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+    else if (fopenw_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
     {
       warning("cannot read", pathname);
 
       return false;
     }
-#endif
 
     // --filter: fork process to filter file, when applicable
     if (!filter(file, pathname))
@@ -3797,8 +3740,6 @@ void options(int argc, const char **argv)
                   ;
                 else if (strcmp(arg, "confirm") == 0)
                   flag_confirm = true;
-                else if (strcmp(arg, "context") == 0)
-                  flag_after_context = flag_before_context = 2;
                 else if (strncmp(arg, "context=", 8) == 0)
                   flag_after_context = flag_before_context = strtopos(arg + 8, "invalid argument --context=");
                 else if (strcmp(arg, "count") == 0)
@@ -4242,16 +4183,13 @@ void options(int argc, const char **argv)
 
           case 'C':
             ++arg;
-            if (*arg == '=' || isdigit(*arg))
-            {
+            if (*arg)
               flag_after_context = flag_before_context = strtopos(&arg[*arg == '='], "invalid argument -C=");
-              is_grouped = false;
-            }
+            else if (++i < argc)
+              flag_after_context = flag_before_context = strtopos(argv[i], "invalid argument -C=");
             else
-            {
-              flag_after_context = flag_before_context = 2;
-              --arg;
-            }
+              usage("missing NUM argument for option -C");
+            is_grouped = false;
             break;
 
           case 'c':
@@ -6058,7 +5996,7 @@ void ugrep()
   else
     threads = std::min(arg_files.size() + flag_stdin, flag_jobs);
 
-  // negative character classes do not match newlines
+  // inverted character classes do not match newlines, e.g. [^x] matches anything except x and \n
   reflex::convert_flag_type convert_flags = reflex::convert_flag::notnewline;
 
   // not -U: convert regex to Unicode
@@ -6483,7 +6421,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     {
       FILE *file;
 
-      if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+      if (fopenw_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
       {
         warning("cannot read", pathname);
         return Type::SKIP;
@@ -6671,7 +6609,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           {
             FILE *file;
 
-            if (fopen_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+            if (fopenw_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
             {
               warning("cannot read", pathname);
               return Type::SKIP;
@@ -6828,7 +6766,7 @@ void Grep::recurse(size_t level, const char *pathname)
       filename.assign(pathname).append(PATHSEPSTR).append(i);
 
       FILE *file = NULL;
-      if (fopen_s(&file, filename.c_str(), "r") == 0)
+      if (fopenw_s(&file, filename.c_str(), "r") == 0)
       {
         if (!saved)
         {
@@ -9750,11 +9688,10 @@ void help(std::ostream& out)
             byte or invalid UTF.  Short options are -a, -I, -U, -W, and -X.\n\
     --break\n\
             Adds a line break between results from different files.\n\
-    -C[NUM], --context[=NUM]\n\
+    -C NUM, --context=NUM\n\
             Print NUM lines of leading and trailing context surrounding each\n\
-            match.  The default is 2 and is equivalent to -A 2 -B 2.  Places\n\
-            a --group-separator between contiguous groups of matches.\n\
-            No whitespace may be given between -C and its argument NUM.\n\
+            match.  Places a --group-separator between contiguous groups of\n\
+            matches.  See also options -A, -B, and -y.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
             If -o or -u is specified, counts the number of patterns matched.\n\

@@ -54,6 +54,8 @@
 #include <strsafe.h>
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <string>
 
 #define STDIN_FILENO  0
 #define STDOUT_FILENO 1
@@ -98,6 +100,58 @@ inline int dupenv_s(char **ptr, const char *name)
   return _dupenv_s(ptr, &len, name);
 }
 
+// Convert a wide Unicode string to an UTF-8 string
+inline std::string utf8_encode(const std::wstring &wstr)
+{
+  if (wstr.empty())
+    return std::string();
+  int size = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), NULL, 0, NULL, NULL);
+  std::string str(size, 0);
+  WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), &str[0], size, NULL, NULL);
+  return str;
+}
+
+// Convert a UTF-8 string to a wide Unicode String
+inline std::wstring utf8_decode(const std::string &str)
+{
+  if (str.empty())
+    return std::wstring();
+  int size = MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), NULL, 0);
+  std::wstring wstr(size, 0);
+  MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), &wstr[0], size);
+  return wstr;
+}
+
+// Open Unicode wide string UTF-8 encoded filename
+inline int fopenw_s(FILE **file, const char *filename, const char *mode)
+{
+  *file = NULL;
+
+  std::wstring wfilename = utf8_decode(filename);
+  HANDLE hFile = CreateFileW(wfilename.c_str(), GENERIC_READ, FILE_SHARE_READ, SECURITY_ANONYMOUS, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+
+  if (hFile == INVALID_HANDLE_VALUE)
+    return errno = (GetLastError() == ERROR_ACCESS_DENIED ? EACCES : ENOENT);
+
+  int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), _O_RDONLY);
+
+  if (fd == -1)
+  { 
+    CloseHandle(hFile);
+    return errno = EINVAL; 
+  }
+
+  *file = _fdopen(fd, mode);
+
+  if (*file == NULL)
+  {
+    _close(fd);
+    return errno;
+  }
+
+  return 0;
+}
+
 #else
 
 // not compiling for a windows OS
@@ -139,8 +193,8 @@ inline int dupenv_s(char **ptr, const char *name)
   return 0;
 }
 
-// Windows-compatible fopen_s()
-inline int fopen_s(FILE **file, const char *filename, const char *mode)
+// Open Unicode wide string UTF-8 encoded filename
+inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 {
 #if defined(HAVE_F_RDAHEAD)
   if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
@@ -160,10 +214,10 @@ inline int fopen_s(FILE **file, const char *filename, const char *mode)
 // platform -- see configure.ac
 #if !defined(PLATFORM)
 # if defined(OS_WIN)
-#  if defined(_WIN32)
-#   define PLATFORM "WIN32"
-#  elif defined(_WIN64)
+#  if defined(_WIN64)
 #   define PLATFORM "WIN64"
+#  elif defined(_WIN32)
+#   define PLATFORM "WIN32"
 #  else
 #   define PLATFORM "WIN"
 #  endif
