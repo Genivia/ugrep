@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.0.5"
+#define UGREP_VERSION "3.0.6"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -3545,6 +3545,9 @@ static void load_config()
       ++lineno;
     }
 
+    if (ferror(file))
+      error("error while reading", flag_config_file.c_str());
+
     if (file != stdin)
       fclose(file);
 
@@ -3554,9 +3557,6 @@ static void load_config()
 
       exit(EXIT_ERROR);
     }
-
-    if (ferror(file))
-      error("error while reading", flag_config_file.c_str());
   }
   else if (flag_config != NULL && *flag_config != '\0')
   {
@@ -3649,11 +3649,11 @@ static void save_config()
 
   fprintf(file, "# Enable/disable sorted output, default: no-sort\n%s\n\n", flag_sort != NULL ? flag_sort : "no-sort");
 
-  if (file != stdout)
-    fclose(file);
-
   if (ferror(file))
     error("cannot save", flag_save_config);
+
+  if (file != stdout)
+    fclose(file);
 }
 
 // parse the command-line options

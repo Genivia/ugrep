@@ -276,7 +276,7 @@ To build `ugrep` with specific hard defaults enabled, such as a pager:
     $ cd ugrep
     $ ./build.sh --enable-pager
 
-Options to select build defaults include:
+Options to select defaults for builds include:
 
 - `--enable-hidden` search hidden files and directories
 - `--enable-pager` use a pager to display output on terminals
