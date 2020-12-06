@@ -5338,6 +5338,7 @@ void terminal()
           if (term &&
               (strstr(term, "ansi") != NULL ||
                strstr(term, "xterm") != NULL ||
+               strstr(term, "screen") != NULL ||
                strstr(term, "color") != NULL))
             color_term = true;
         }
