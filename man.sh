@@ -402,9 +402,9 @@ the \fIFORMAT\fR when closing a file and a match was found.
 .IP \fB--format-end\fR=\fIFORMAT\fR
 the \fIFORMAT\fR when ending the search.
 .PP
-The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
-\fB-v\fR, \fB--break\fR, \fB--heading\fR, \fB--color\fR, \fB-T\fR, and
-\fB--null\fR have no effect on formatted output.
+The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and display options
+\fB--break\fR, \fB--heading\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR have
+no effect on formatted output.
 .SH EXAMPLES
 Display lines containing the word `patricia' in `myfile.txt':
 .IP
@@ -426,6 +426,14 @@ $ ugrep -cwi patricia myfile.txt
 Count the number of words `patricia', ignoring case:
 .IP
 $ ugrep -cowi patricia myfile.txt
+.PP
+List lines with both `amount' and a decimal number, ignoring case:
+.IP
+$ ugrep -wi --bool 'amount \d+(\.\d+)?' myfile.txt
+.PP
+Alternative query:
+.IP
+$ ugrep -wi -e amount --and '\d+(\.\d+)?' myfile.txt
 .PP
 List all Unicode words in a file:
 .IP
@@ -520,11 +528,15 @@ Monitor the system log for bug reports and ungroup multiple matches on a line:
 .IP
 $ tail -f /var/log/system.log | ugrep -u -i -w bug
 .PP
+Interactive fuzzy search with Boolean search queries:
+.IP
+$ ugrep -Q --bool -Z3 --sort=best
+.PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
 $ ugrep --encoding=MACROMAN '\\w+' mac.txt
 .PP
-Display options related to "fuzzy" searching:
+Display all options related to "fuzzy" searching:
 .IP
 $ ugrep --help fuzzy
 .SH BUGS

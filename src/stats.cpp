@@ -39,13 +39,14 @@
 #include <cstdio>
 
 // report the statistics
-void Stats::report()
+void Stats::report(FILE *output)
 {
   size_t sf = searched_files();
   size_t sd = searched_dirs();
   size_t ff = found_files();
   size_t fp = found_parts();
   size_t ws = warnings;
+
   fprintf(output, "Searched %zu file%s", sf, (sf == 1 ? "" : "s"));
   if (threads > 1)
     fprintf(output, " with %zu threads", threads);
@@ -58,6 +59,7 @@ void Stats::report()
     fprintf(output, "\n");
   if (warnings > 0)
     fprintf(output, "Received %zu warning%s\n", ws, ws == 1 ? "" : "s");
+
   fprintf(output, "The following pathname selections and restrictions were applied:\n");
   if (flag_config != NULL)
     fprintf(output, "  --config=%s\n", flag_config_file.c_str());

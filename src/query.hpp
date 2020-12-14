@@ -194,7 +194,7 @@ class Query {
   static bool                     message_;
   static char                     line_[QUERY_MAX_LEN];
   static char                     temp_[QUERY_MAX_LEN];
-  static const char              *prompt_;
+  static std::string              prompt_;
   static int                      start_;
   static int                      col_;
   static int                      len_;

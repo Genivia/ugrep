@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 17, 2020" "ugrep 3.0.5" "User Commands"
+.TH UGREP "1" "December 14, 2020" "ugrep 3.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -54,6 +54,19 @@ the \fB\-\-binary\-files\fR=text option.  This option might output binary
 garbage to the terminal, which can have problematic consequences if
 the terminal driver interprets some of it as commands.
 .TP
+\fB\-\-and\fR [[\fB\-e\fR] PATTERN] ... \fB\-e\fR \fIPATTERN\fR
+Specify additional patterns to match.  Patterns must be specified
+with \fB\-e\fR.  Each \fB\-e\fR \fIPATTERN\fR following this option is considered an
+alternative pattern to match, i.e. each \fB\-e\fR is interpreted as an OR
+pattern.  For example, \fB\-e\fR \fIA\fR \fB\-e\fR \fIB\fR \fB\-\-and\fR \fB\-e\fR \fIC\fR \fB\-e\fR \fID\fR matches lines with
+(`A' or `B') and (`C' or `D').  Note that multiple \fB\-e\fR \fIPATTERN\fR are
+alternations that bind more tightly together than \fB\-\-and\fR.  Option
+\fB\-\-stats\fR displays the search patterns applied.  See also options
+\fB\-\-not\fR, \fB\-\-andnot\fR, and \fB\-\-bool\fR.
+.TP
+\fB\-\-andnot\fR [[\fB\-e\fR] PATTERN] ...
+Combines \fB\-\-and\fR \fB\-\-not\fR.  See also options \fB\-\-and\fR, \fB\-\-not\fR, and \fB\-\-bool\fR.
+.TP
 \fB\-B\fR \fINUM\fR, \fB\-\-before\-context\fR=\fINUM\fR
 Print NUM lines of leading context before matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  See also
@@ -78,6 +91,28 @@ it as commands.  `hex' reports all matches in hexadecimal.
 `with\-hex' only reports binary matches in hexadecimal, leaving text
 matches alone.  A match is considered binary when matching a zero
 byte or invalid UTF.  Short options are \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\fR, and \fB\-X\fR.
+.TP
+\fB\-\-bool\fR, \fB\-%\fR
+Specifies Boolean search patterns.  A Boolean search pattern is
+composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.
+Spacing between subpatterns is the same as `AND', `|' is the same
+as `OR', and a `\fB\-'\fR is the same as `NOT'.  The `OR' operator binds
+more tightly than `AND'.  For example, \fB\-\-bool\fR 'A|B C|D' matches
+lines with (`A' or `B') and (`C' or `D'), \fB\-\-bool\fR 'A \fB\-B\fR' matches
+lines with `A' and not `B'.  Operators `AND', `OR', `NOT' require
+proper spacing.  For example, \fB\-\-bool\fR 'A OR B AND C OR D' matches
+lines with (`A' or `B') and (`C' or `D'), \fB\-\-bool\fR 'A AND NOT B'
+matches lines with `A' without `B'.  Quoted subpatterns are matched
+literally as strings.  For example, \fB\-\-bool\fR 'A "AND"|"OR"' matches
+lines with `A' and also either `AND' or `OR'.  Parenthesis are used
+for grouping.  For example, \fB\-\-bool\fR '(A B)|C' matches lines with `A'
+and `B', or lines with `C'.  Note that all subpatterns in a Boolean
+search pattern are regular expressions, unless option \fB\-F\fR is used.
+Options \fB\-E\fR, \fB\-F\fR, \fB\-G\fR, \fB\-P\fR, and \fB\-Z\fR can be combined with \fB\-\-bool\fR to match
+subpatterns as strings or regular expressions (\fB\-E\fR is the default.)
+This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  Option \fB\-\-stats\fR
+displays the search patterns applied.  See also options \fB\-\-and\fR,
+\fB\-\-andnot\fR, and \fB\-\-not\fR.
 .TP
 \fB\-\-break\fR
 Adds a line break between results from different files.
@@ -248,7 +283,8 @@ is invoked.  This option may be repeated.
 \fB\-\-format\fR=\fIFORMAT\fR
 Output FORMAT\-formatted matches.  For example `\fB\-\-format\fR=%f:%n:%O%~'
 outputs matching lines `%O' with filename `%f` and line number `%n'
-followed by a newline `%~'. See `man ugrep' section FORMAT.
+followed by a newline `%~'.  Context options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR, and \fB\-y\fR are
+ignored.  See `man ugrep' section FORMAT.
 .TP
 \fB\-\-free\-space\fR
 Spacing (blanks and tabs) in regular expressions are ignored.
@@ -429,14 +465,16 @@ Each output line is preceded by its relative line number in the
 file, starting at line 1.  The line number counter is reset for
 each file processed.
 .TP
-\fB\-\-not\fR
-Specifies that the following one or more \fB\-e\fR \fIPATTERN\fR should not
-match selected lines, where \fB\-\-not\fR \fB\-e\fR \fIPATTERN\fR is the same as
-specifying \fB\-N\fR '.*PATTERN.*' but optimized to improve performance.
-.TP
 \fB\-\-no\-group\-separator\fR
 Removes the group separator line from the output for context
 options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
+.TP
+\fB\-\-not\fR [\fB\-e\fR] PATTERN
+Specifies that PATTERN should not match.  Note that \fB\-e\fR \fIA\fR \fB\-\-not\fR \fB\-e\fR \fIB\fR
+matches lines with `A' or lines without a `B'.  To match lines with
+`A' that have no `B', specify \fB\-e\fR \fIA\fR \fB\-\-andnot\fR \fB\-e\fR \fIB\fR.  Option \fB\-\-stats\fR
+displays the search patterns applied.  See also options \fB\-\-and\fR,
+\fB\-\-andnot\fR, and \fB\-\-bool\fR.
 .TP
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extension\fR=\fIEXTENSIONS\fR
 Search only files whose filename extensions match the specified
@@ -538,7 +576,7 @@ searched in the same order as specified.  Normally ugrep displays
 matches in no particular order to improve performance.
 .TP
 \fB\-\-stats\fR
-Display statistics on the number of files and directories searched,
+Output statistics on the number of files and directories searched,
 and the inclusion and exclusion constraints applied.
 .TP
 \fB\-T\fR, \fB\-\-initial\-tab\fR
@@ -976,9 +1014,9 @@ the \fIFORMAT\fR when closing a file and a match was found.
 .IP \fB--format-end\fR=\fIFORMAT\fR
 the \fIFORMAT\fR when ending the search.
 .PP
-The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and options
-\fB-v\fR, \fB--break\fR, \fB--heading\fR, \fB--color\fR, \fB-T\fR, and
-\fB--null\fR have no effect on formatted output.
+The context options \fB-A\fR, \fB-B\fR, \fB-C\fR, \fB-y\fR, and display options
+\fB--break\fR, \fB--heading\fR, \fB--color\fR, \fB-T\fR, and \fB--null\fR have
+no effect on formatted output.
 .SH EXAMPLES
 Display lines containing the word `patricia' in `myfile.txt':
 .IP
@@ -1000,6 +1038,14 @@ $ ugrep -cwi patricia myfile.txt
 Count the number of words `patricia', ignoring case:
 .IP
 $ ugrep -cowi patricia myfile.txt
+.PP
+List lines with both `amount' and a decimal number, ignoring case:
+.IP
+$ ugrep -wi --bool 'amount \d+(\.\d+)?' myfile.txt
+.PP
+Alternative query:
+.IP
+$ ugrep -wi -e amount --and '\d+(\.\d+)?' myfile.txt
 .PP
 List all Unicode words in a file:
 .IP
@@ -1094,11 +1140,15 @@ Monitor the system log for bug reports and ungroup multiple matches on a line:
 .IP
 $ tail -f /var/log/system.log | ugrep -u -i -w bug
 .PP
+Interactive fuzzy search with Boolean search queries:
+.IP
+$ ugrep -Q --bool -Z3 --sort=best
+.PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
 $ ugrep --encoding=MACROMAN '\\w+' mac.txt
 .PP
-Display options related to "fuzzy" searching:
+Display all options related to "fuzzy" searching:
 .IP
 $ ugrep --help fuzzy
 .SH BUGS

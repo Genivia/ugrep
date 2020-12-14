@@ -814,6 +814,344 @@ void Output::format(const char *format, const char *pathname, const std::string&
   }
 }
 
+// output formatted match with options --format, --format-open, --format-close
+void Output::format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next)
+{
+  size_t len = 0;
+  const char *sep = NULL;
+  const char *s = format;
+
+  while (*s != '\0')
+  {
+    const char *a = NULL;
+    const char *t = s;
+
+    while (*s != '\0' && *s != '%')
+      ++s;
+    str(t, s - t);
+    if (*s == '\0' || *(s + 1) == '\0')
+      break;
+    ++s;
+    if (*s == '[')
+    {
+      a = ++s;
+      while (*s != '\0' && *s != ']')
+        ++s;
+      if (*s == '\0' || *(s + 1) == '\0')
+        break;
+      ++s;
+    }
+
+    int c = *s;
+
+    switch (c)
+    {
+      case 'F':
+        if (flag_with_filename && pathname != NULL)
+        {
+          if (a != NULL)
+            str(a, s - a - 1);
+          str(pathname);
+          if (!partname.empty())
+          {
+            chr('{');
+            str(partname);
+            chr('}');
+          }
+          if (sep != NULL)
+            str(sep, len);
+          else
+            str(flag_separator);
+        }
+        break;
+
+      case 'f':
+        if (pathname != NULL)
+        {
+          str(pathname);
+          if (!partname.empty())
+          {
+            chr('{');
+            str(partname);
+            chr('}');
+          }
+        }
+        break;
+
+      case 'a':
+        if (pathname != NULL)
+        {
+          const char *basename = strrchr(pathname, PATHSEPCHR);
+          if (basename == NULL)
+            str(pathname);
+          else
+            str(basename + 1);
+        }
+        break;
+
+      case 'p':
+        if (pathname != NULL)
+        {
+          const char *basename = strrchr(pathname, PATHSEPCHR);
+          if (basename != NULL)
+            str(pathname, basename - pathname);
+        }
+        break;
+
+      case 'z':
+        str(partname);
+        break;
+
+      case 'H':
+        if (flag_with_filename)
+        {
+          if (a != NULL)
+            str(a, s - a - 1);
+          if (!partname.empty())
+          {
+            std::string name(pathname);
+            name.push_back('{');
+            name.append(partname);
+            name.push_back('}');
+            quote(name.c_str(), name.size());
+          }
+          else
+          {
+            quote(pathname, strlen(pathname));
+          }
+          if (sep != NULL)
+            str(sep, len);
+          else
+            str(flag_separator);
+        }
+        break;
+
+      case 'h':
+        if (!partname.empty())
+        {
+          std::string name(pathname);
+          name.push_back('{');
+          name.append(partname);
+          name.push_back('}');
+          quote(name.c_str(), name.size());
+        }
+        else
+        {
+          quote(pathname, strlen(pathname));
+        }
+        break;
+
+      case 'N':
+        if (flag_line_number)
+        {
+          if (a != NULL)
+            str(a, s - a - 1);
+          num(lineno);
+          if (sep != NULL)
+            str(sep, len);
+          else
+            str(flag_separator);
+        }
+        break;
+
+      case 'n':
+        num(lineno);
+        break;
+
+      case 'K':
+        if (flag_column_number)
+        {
+          if (a != NULL)
+            str(a, s - a - 1);
+          chr('1');
+          if (sep != NULL)
+            str(sep, len);
+          else
+            str(flag_separator);
+        }
+        break;
+
+      case 'k':
+        chr('1');
+        break;
+
+      case 'B':
+        if (flag_byte_offset)
+        {
+          if (a != NULL)
+            str(a, s - a - 1);
+          num(offset);
+          if (sep != NULL)
+            str(sep, len);
+          else
+            str(flag_separator);
+        }
+        break;
+
+      case 'b':
+        num(offset);
+        break;
+
+      case 'T':
+        if (flag_initial_tab)
+        {
+          if (a != NULL)
+            str(a, s - a - 1);
+          chr('\t');
+        }
+        break;
+
+      case 't':
+        chr('\t');
+        break;
+
+      case 'S':
+        if (next)
+        {
+          if (a != NULL)
+            str(a, s - a - 1);
+          if (sep != NULL)
+            str(sep, len);
+          else
+            str(flag_separator);
+        }
+        break;
+
+      case 's':
+        if (sep != NULL)
+          str(sep, len);
+        else
+          str(flag_separator);
+        break;
+
+      case 'w':
+      {
+        size_t n = 0;
+        for (const char *s = ptr; s < ptr + size; ++s)
+          n += (*s & 0xC0) != 0x80;
+        num(n);
+        break;
+      }
+
+      case 'd':
+        num(size);
+        break;
+
+      case 'e':
+        num(offset + size);
+        break;
+
+      case 'G':
+      case 'g':
+        break;
+
+      case 'm':
+        num(matches);
+        break;
+
+      case 'O':
+      case 'o':
+        str(ptr, size);
+        break;
+
+      case 'Q':
+      case 'q':
+        quote(ptr, size);
+        break;
+
+      case 'C':
+      case 'c':
+        if (flag_files_with_matches)
+          str(flag_invert_match ? "\"false\"" : "\"true\"");
+        else if (flag_count)
+          chr('"'), num(matches), chr('"');
+        else
+          cpp(ptr, size);
+        break;
+
+      case 'V':
+      case 'v':
+        if (flag_files_with_matches)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
+          num(matches);
+        else
+          csv(ptr, size);
+        break;
+
+      case 'J':
+      case 'j':
+        if (flag_files_with_matches)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
+          num(matches);
+        else
+          json(ptr, size);
+        break;
+
+      case 'X':
+      case 'x':
+        if (flag_files_with_matches)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
+          num(matches);
+        else
+          xml(ptr, size);
+        break;
+
+      case 'Z':
+        break;
+
+      case 'u':
+        break;
+
+      case '$':
+        sep = a;
+        len = s - a - 1;
+        break;
+
+      case '~':
+        chr('\n');
+        break;
+
+      case '<':
+        if (!next && a != NULL)
+          str(a, s - a - 1);
+        break;
+
+      case '>':
+        if (next && a != NULL)
+          str(a, s - a - 1);
+        break;
+
+      case ',':
+      case ':':
+      case ';':
+      case '|':
+        if (next)
+          chr(c);
+        break;
+
+      default:
+        chr(c);
+        break;
+
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+      case '#':
+        break;
+    }
+    ++s;
+  }
+}
 // output a quoted string with escapes for \ and "
 void Output::quote(const char *data, size_t size)
 {

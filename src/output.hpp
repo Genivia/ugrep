@@ -599,7 +599,10 @@ class Output {
   void binary_file_matches(const char *pathname, const std::string& partname);
 
   // output formatted match with options --format, --format-open, --format-close
-  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool sep);
+  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next);
+
+  // output formatted inverted match with options -v --format, --format-open, --format-close
+  void format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next);
 
   // output a quoted string with escapes for \ and "
   void quote(const char *data, size_t size);

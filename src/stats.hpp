@@ -132,7 +132,7 @@ class Stats {
   }
 
   // report the statistics
-  static void report();
+  static void report(FILE *output);
 
  protected:
 

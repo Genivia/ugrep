@@ -226,6 +226,8 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 # endif
 #endif
 
+#include "flag.hpp"
+#include "cnf.hpp"
 #include <reflex/input.h>
 #include <algorithm>
 #include <atomic>
@@ -237,152 +239,8 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 // undefined size_t value
 #define UNDEFINED_SIZE static_cast<size_t>(~0UL)
 
-// --sort=KEY is n/a or by name, score, size, used time, changed time, created time
-enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED };
-
-// -D, --devices and -d, --directories
-enum class Action { SKIP, READ, RECURSE };
-
-// three-valued logic flags that behave as bool; this allows us to check if a flag was undefined (default) and explicitly enabled/disabled
-class Flag {
-
- public:
-
-  Flag()                     : value(UNDEFINED)  { }
-  Flag(bool flag)            : value(flag ? T : F)  { }
-  Flag& operator=(bool flag) { value = flag ? T : F; return *this; }
-       operator bool() const { return is_true(); }
-  bool is_undefined()  const { return value == UNDEFINED; }
-  bool is_defined()    const { return value != UNDEFINED; }
-  bool is_false()      const { return value == F; }
-  bool is_true()       const { return value == T; }
-
- private:
-
-  enum { UNDEFINED = -1, F = 0, T = 1 } value;
-
-};
-
-// ugrep command-line options
-extern Flag flag_no_messages;
-extern Flag flag_match;
-extern Flag flag_count;
-extern Flag flag_fixed_strings;
-extern Flag flag_free_space;
-extern Flag flag_ignore_case;
-extern Flag flag_smart_case;
-extern Flag flag_invert_match;
-extern Flag flag_only_line_number;
-extern Flag flag_with_filename;
-extern Flag flag_no_filename;
-extern Flag flag_line_number;
-extern Flag flag_column_number;
-extern Flag flag_byte_offset;
-extern Flag flag_initial_tab;
-extern Flag flag_line_buffered;
-extern Flag flag_only_matching;
-extern Flag flag_ungroup;
-extern Flag flag_quiet;
-extern Flag flag_files_with_matches;
-extern Flag flag_files_without_match;
-extern Flag flag_null;
-extern Flag flag_basic_regexp;
-extern Flag flag_perl_regexp;
-extern Flag flag_word_regexp;
-extern Flag flag_line_regexp;
-extern Flag flag_dereference;
-extern Flag flag_no_dereference;
-extern Flag flag_binary;
-extern Flag flag_binary_without_match;
-extern Flag flag_text;
-extern Flag flag_hex;
-extern Flag flag_with_hex;
-extern Flag flag_empty;
-extern Flag flag_decompress;
-extern Flag flag_any_line;
-extern Flag flag_heading;
-extern Flag flag_break;
-extern Flag flag_cpp;
-extern Flag flag_csv;
-extern Flag flag_json;
-extern Flag flag_xml;
-extern bool flag_pretty;
-extern bool flag_hidden;
-extern bool flag_confirm;
-extern bool flag_stdin;
-extern bool flag_all_threads;
-extern bool flag_no_header;
-extern bool flag_hex_hbr;
-extern bool flag_hex_cbr;
-extern bool flag_hex_chr;
-extern bool flag_sort_rev;
-extern Sort flag_sort_key;
-extern Action flag_devices_action;
-extern Action flag_directories_action;
-extern size_t flag_fuzzy;
-extern size_t flag_query;
-extern size_t flag_after_context;
-extern size_t flag_before_context;
-extern size_t flag_min_depth;
-extern size_t flag_max_depth;
-extern size_t flag_max_count;
-extern size_t flag_max_files;
-extern size_t flag_min_line;
-extern size_t flag_max_line;
-extern size_t flag_not_magic;
-extern size_t flag_min_magic;
-extern size_t flag_jobs;
-extern size_t flag_hex_columns;
-extern size_t flag_tabs;
-extern size_t flag_max_mmap;
-extern size_t flag_min_steal;
-extern const char *flag_pager;
-extern const char *flag_color;
-extern const char *flag_tag;
-extern const char *flag_apply_color;
-extern const char *flag_hexdump;
-extern const char *flag_colors;
-extern const char *flag_encoding;
-extern const char *flag_filter;
-extern const char *flag_format;
-extern const char *flag_format_begin;
-extern const char *flag_format_end;
-extern const char *flag_format_open;
-extern const char *flag_format_close;
-extern const char *flag_sort;
-extern const char *flag_stats;
-extern const char *flag_devices;
-extern const char *flag_directories;
-extern const char *flag_label;
-extern const char *flag_separator;
-extern const char *flag_group_separator;
-extern const char *flag_binary_files;
-extern const char *flag_config;
-extern const char *flag_save_config;
-extern std::string flag_config_file;
-extern std::set<std::string> flag_config_options;
-extern std::vector<std::string> flag_regexp;
-extern std::vector<std::string> flag_neg_regexp;
-extern std::vector<std::string> flag_file;
-extern std::vector<std::string> flag_file_type;
-extern std::vector<std::string> flag_file_extension;
-extern std::vector<std::string> flag_file_magic;
-extern std::vector<std::string> flag_filter_magic_label;
-extern std::vector<std::string> flag_glob;
-extern std::vector<std::string> flag_ignore_files;
-extern std::vector<std::string> flag_include;
-extern std::vector<std::string> flag_include_dir;
-extern std::vector<std::string> flag_include_from;
-extern std::vector<std::string> flag_include_fs;
-extern std::vector<std::string> flag_exclude;
-extern std::vector<std::string> flag_exclude_dir;
-extern std::vector<std::string> flag_exclude_from;
-extern std::vector<std::string> flag_exclude_fs;
-extern std::vector<std::string> flag_all_include;
-extern std::vector<std::string> flag_all_include_dir;
-extern std::vector<std::string> flag_all_exclude;
-extern std::vector<std::string> flag_all_exclude_dir;
-extern reflex::Input::file_encoding_type flag_encoding_type;
+// the CNF of Boolean search queries and patterns
+extern CNF cnf;
 
 // ugrep command-line arguments pointing to argv[]
 extern const char *arg_pattern;
@@ -427,7 +285,7 @@ struct Encoding {
 };
 
 // table of RE/flex file encodings for option --encoding
-extern const Encoding encoding_tablep[];
+extern const Encoding encoding_table[];
 
 // -t, --file-type type table
 struct Type {

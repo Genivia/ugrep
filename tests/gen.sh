@@ -89,11 +89,12 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
     done
   done
   for OUT in '--csv' '--json' '--xml' ; do
-    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkb' '-unkb' '-o' '-on' '-onkb' '-ounkb' ; do
+    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-v' '-nv' '-nkb' '-unkb' '-o' '-on' '-onkb' '-ounkb' ; do
       $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN$OUT$OPS.out"
     done
   done
   $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN--format.out"
+  $UG -U -v --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-v--format.out"
   $UG -U -Iw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Iw.out"
   $UG -U -Ix "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Ix.out"
   $UG -U -F  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-F.out"
@@ -108,6 +109,15 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   $UG -U -IPw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IPw.out"
   $UG -U -IPx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IPx.out"
 done
+
+for PAT in '' 'Hello World' 'Hello -World' 'Hello -World|greeting' 'Hello -(greeting|World)' '"a Hello" greeting' ; do
+  FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_-'`
+  $UG -U --bool "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN--bool.out"
+done
+
+$UG -U -e 'Hello' --and 'World' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--and.out"
+$UG -U -e 'Hello' --andnot 'World' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--andnot.out"
+$UG -U -e 'Hello' --and --not 'World' -e 'greeting' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--and--not.out"
 
 echo "GENERATING TEST ARCHIVES"
 

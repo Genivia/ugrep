@@ -1,0 +1,168 @@
+<grep>
+  <file name="Hello.bat">
+    <match>#!/bin/sh</match>
+    <match>echo &quot;Hello World!&quot;</match>
+  </file>
+  <file name="Hello.class">
+    <match>Êşº¾&#0;&#0;&#0;4&#0;&#29;</match>
+    <match>&#0;&#6;&#0;&#15;&#9;&#0;&#16;&#0;&#17;&#8;&#0;&#18;</match>
+    <match>&#0;&#19;&#0;&#20;&#7;&#0;&#21;&#7;&#0;&#22;&#1;&#0;&#6;&lt;init&gt;&#1;&#0;&#3;()V&#1;&#0;&#4;Code&#1;&#0;&#15;LineNumberTable&#1;&#0;&#4;main&#1;&#0;&#22;([Ljava/lang/String;)V&#1;&#0;</match>
+    <match>SourceFile&#1;&#0;</match>
+    <match>Hello.java&#12;&#0;&#7;&#0;&#8;&#7;&#0;&#23;&#12;&#0;&#24;&#0;&#25;&#1;&#0;&#12;Hello World!&#7;&#0;&#26;&#12;&#0;&#27;&#0;&#28;&#1;&#0;&#5;Hello&#1;&#0;&#16;java/lang/Object&#1;&#0;&#16;java/lang/System&#1;&#0;&#3;out&#1;&#0;&#21;Ljava/io/PrintStream;&#1;&#0;&#19;java/io/PrintStream&#1;&#0;&#7;println&#1;&#0;&#21;(Ljava/lang/String;)V&#0;!&#0;&#5;&#0;&#6;&#0;&#0;&#0;&#0;&#0;&#2;&#0;&#1;&#0;&#7;&#0;&#8;&#0;&#1;&#0;&#9;&#0;&#0;&#0;&#29;&#0;&#1;&#0;&#1;&#0;&#0;&#0;&#5;*·&#0;&#1;±&#0;&#0;&#0;&#1;&#0;</match>
+    <match>&#0;&#0;&#0;&#6;&#0;&#1;&#0;&#0;&#0;&#2;&#0;&#9;&#0;&#11;&#0;&#12;&#0;&#1;&#0;&#9;&#0;&#0;&#0;%&#0;&#2;&#0;&#1;&#0;&#0;&#0;&#9;²&#0;&#2;&#18;&#3;¶&#0;&#4;±&#0;&#0;&#0;&#1;&#0;</match>
+    <match>&#0;&#0;&#0;</match>
+    <match>&#0;&#2;&#0;&#0;&#0;&#4;&#0;&#8;&#0;&#5;&#0;&#1;&#0;&#13;&#0;&#0;&#0;&#2;&#0;&#14;</match>
+  </file>
+  <file name="Hello.java">
+    <match>import java.lang.*;</match>
+    <match></match>
+    <match>public class Hello // prints a Hello World! greeting</match>
+    <match>{ public static void main(String[] arg)</match>
+    <match>  { System.out.println(&quot;Hello World!&quot;);</match>
+    <match>  }</match>
+    <match>}</match>
+  </file>
+  <file name="Hello.pdf">
+    <match>%PDF-1.3</match>
+    <match>%Äåòåë§ó ĞÄÆ</match>
+    <match>4 0 obj</match>
+    <match>&lt;&lt; /Length 5 0 R /Filter /FlateDecode &gt;&gt;</match>
+    <match>stream</match>
+    <match>x&#1;E»</match>
+    <match>&#2;1&#20;D{¿â”Z˜½‰y˜V&#17;l&#23;.ø&#1;a-d×eÍÿƒ&#23;,¬†™9&#12;³1²Q&#2;¹F—â©&#18;ó™\LY</match>
+    <match>Ÿ‰&#7;o†k÷´Ğ›áâj©Rj²@8ş­í” »¶pQ£DÄ£&#13;ï&#x7f; iÂ&#11;º0¨z¬|²¿Oó¼&#30;Ğ&#23;7µ7ã&#23;Nÿ ¥</match>
+    <match>endstream</match>
+    <match>endobj</match>
+    <match>5 0 obj</match>
+    <match>123</match>
+    <match>endobj</match>
+    <match>2 0 obj</match>
+    <match>&lt;&lt; /Type /Page /Parent 3 0 R /Resources 6 0 R /Contents 4 0 R /MediaBox [0 0 612 792]</match>
+    <match>&gt;&gt;</match>
+    <match>endobj</match>
+    <match>6 0 obj</match>
+    <match>&lt;&lt; /ProcSet [ /PDF /Text ] /ColorSpace &lt;&lt; /Cs1 7 0 R &gt;&gt; /Font &lt;&lt; /TT1 8 0 R</match>
+    <match>&gt;&gt; &gt;&gt;</match>
+    <match>endobj</match>
+    <match>9 0 obj</match>
+    <match>&lt;&lt; /Length 10 0 R /N 1 /Alternate /DeviceGray /Filter /FlateDecode &gt;&gt;</match>
+    <match>stream</match>
+    <match>x&#1;…U]h&#28;U&#20;&gt;»sg&#3;&#18;&#7;&#31;´&#13;-´ƒ?m&#9;é2‰V&#19;‹µÛMºI&#19;·ëfS›*Êtv6;Ídfœ™İ&amp;¡O¥à›&#22;&#4;é« &gt;Æ‚&#8;¶*6/ö¥¥Å’J5&#15;</match>
+    <match>&#17;ZŒ (}Rğ;3ÛdvA2Ãùî¹ç{Îwî¹—¨ëoİóì´J4ç„~¡œ›&gt;9}JíºMiR¨›ğèFàåJ¥&#9;Æë˜üo&#x7f;&#30;Ş¥&#20;Kîìg[íc[öäª&#25;&#24;Ğº†æV&#3;c(¥&#17;ej†ç‡D]— &#31;&lt;&#27;zŒo&#3;?9[)ç×€•Ö\@zª`:¦o&#25;jÁ×&#23;Ô’ïÖ,;éëVãlcËgÎn°¯üìFë&#14;f'Çñï…Ï&#23;Lgj&#18;x&#31;ğ’¡0î&#3;¾Û´N&#20;cœN{á‘r¬ŸÎ6f§r-ùÉš&#x7f;tª%¿PoŒ2Î&#18;¥—&#22;ë•7€Ÿ&#0;^uN&#23;·ô×gİq¶ÓC$õ&#24;Aş&#20;ğ³ÀZİ&#28;ã&lt;©À&#21;ß-³&gt;ËÃª9&lt;&#2;ü2ğ%+&#28;«&#0;Ã¾ôCĞœd9° ÅzıÄZ&quot;{F?V&#2;Ş&#6;|È´&#11;¼&#22;ìˆŠ&#23;–Øæ ğ¼c&#23;y-Ä..›A&#20;/b&#23;?…õÊh¬/§C¿ÂsŸ&amp;’÷Ô¬£cÀàD&#30;­û£,‡?rèÙÑŞz&#17;xÉo”9ö=Àkº?R&#0;†ÍÌcU}˜y~&#1;x€N¤t2É¥Óø&#26;äĞ¿ˆ7 ‹š&#17;òÈÇX&#13;}›</match>
+    <match>ĞpĞ|ô&#12;h&#21;€tZ&#0;*%´LôX'£R&#21;=•f¢YA„ØÊı¨oP~×§Ô€´NëÖ^£_&quot;É&lt;ıJsèç!m`l¦Ãn&#30;^8´&#8;&#15;Ø&#19;¶ù eÓ&#21;Û…&amp;G;(&amp;Ä+bP&#12;‘*^&#21;‡Å!1&#12;é8&#24;Í‰½OúÎ~&gt;Ø°ô.ÖMú¾&#12;&#14;B¬gÃ3&#7;¬p4&#1;&lt;ø&#7;ëÎFš&#9;¶.îhìó¼Ş?ï¿c&#25;·&gt;ø³½&#0;ú1'¿Á¢&#11;k&amp;%æ^?÷MOÂCuE|õÖîëçèx2KQŞªY’×äûò</match>
+    <match>¾÷äÕ¤&#13;ùgy&#21;ï½¶\=Ê&#11;ÿ“¹Í!F;’ÍAÎ&lt;›Q´qÆ&#27;À!¸©Esö·YL²é¶b´`ÉB”«¸ÿË&#9;óÃ&lt;·±Rs.îğ¼·?c6Í÷Š&#15;‹t¾O»¬­kŸh?j&#x7f;h+ÚÇ@¿K&#31;J_JßJW¤«Ò&#13;R¥kÒ²ôô½ô¹ô5z_@º,]éØIqì&#27;»&#7;~Æ{Öhí0f†³&#20;&#16;óÂÚÌ</match>
+    <match>K&#31;ñw&#6;c›ù3¡Õ^&#3;»&#x7f;c-åˆ²SyF&#25;Vv+Ï)&#19;J¯r@9¬lW&#6;Ğú•Qe/Fvn°dc=Î€…&#x7f;’g‹¦#®â&lt;±Wu°çÃK&#29;ï¦_\ÃÖ†5ØI=&#14;ÙÚ¦&#14;¯&#17;W¿&#21;Uc¼;]œ&#6;:M!b‹Î&quot;r&#31;:œ&#31;'ªşÎÙ\“85Roâ”°Ä.Ñ/ÆZ5˜&#19;&#7;P…ãmõ8ÈUš&#25;É&#12;gr¤fz3C™şÌ1ÆQ¬Ñù’Ù‹Ñ!|G&#18;Ş3Ë1ÿ›5Äg&#24;ï&#29;æ¨&#9;l£‡[+4çqß&#17;å]oÁ·fê¡: i/©9\¯¦:æ&#24;Ù&gt;U·m5&#26;</match>
+    <match>Tß&#12;L¿iV³Äw7Ï#úëõèNNm»a4üf,£Tê&amp;Ñ&#x7f;·“4</match>
+    <match>endstream</match>
+    <match>endobj</match>
+    <match>10 0 obj</match>
+    <match>1116</match>
+    <match>endobj</match>
+    <match>7 0 obj</match>
+    <match>[ /ICCBased 9 0 R ]</match>
+    <match>endobj</match>
+    <match>3 0 obj</match>
+    <match>&lt;&lt; /Type /Pages /MediaBox [0 0 612 792] /Count 1 /Kids [ 2 0 R ] &gt;&gt;</match>
+    <match>endobj</match>
+    <match>11 0 obj</match>
+    <match>&lt;&lt; /Type /Catalog /Pages 3 0 R &gt;&gt;</match>
+    <match>endobj</match>
+    <match>8 0 obj</match>
+    <match>&lt;&lt; /Type /Font /Subtype /TrueType /BaseFont /GQTMZF+Menlo-Regular /FontDescriptor</match>
+    <match>12 0 R /Encoding /MacRomanEncoding /FirstChar 72 /LastChar 111 /Widths [ 602</match>
+    <match>0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 602 0 0 0 0 0 0 602</match>
+    <match>0 0 602 ] &gt;&gt;</match>
+    <match>endobj</match>
+    <match>12 0 obj</match>
+    <match>&lt;&lt; /Type /FontDescriptor /FontName /GQTMZF+Menlo-Regular /Flags 33 /FontBBox</match>
+    <match>[-558 -375 718 1041] /ItalicAngle 0 /Ascent 928 /Descent -236 /CapHeight 729</match>
+    <match>/StemV 99 /XHeight 547 /StemH 83 /AvgWidth 602 /MaxWidth 602 /FontFile2 13 0 R</match>
+    <match>&gt;&gt;</match>
+    <match>endobj</match>
+    <match>13 0 obj</match>
+    <match>&lt;&lt; /Length 14 0 R /Length1 4064 /Filter /FlateDecode &gt;&gt;</match>
+    <match>stream</match>
+    <match>x&#1;İW{xTÅ&#21;?s&#x7f;w6¯Í&gt;’MHH€]Öå•,„·R&#22;Hxˆ /ë.ˆòH (!&#8;A´1JQ&#9;Á@…&#8;H}&#21;Q©µ+E]&#9;ÄT¤b#E„ &#2;</match>
+    <match>ø¢hŠ&#20;!Ø&#0;CÏ½&#27;ı&gt;í×ïë¿íÜ3çüæÌyİ»÷Î”-\\DVª$P`VÉŒ&#5;d6ëI&#30;ŠgİSæ6EŠ½—HË½`NIT&#x7f;‘åNsæİ7;*'Nfy@qÑŒÂ¨LWxìWÌ@T&#22;}x¼®¸¤Œí&#24;Íú.&#19;×¼ÒYmó‰£&#12;°dÆ½mşé8Ëîù3JŠxäf0é¶ tQ™)’½šÇì&#5;&#11;‹ÚôE(¦St®&#26;–&#5;w©Y)‹î&quot;&#11;iä ”ÄĞ­¬+yÖ˜×b²–&gt;}ö;ì7\¤N±æâ½eéy&#6;s(¸¤ßå•W…¬½…Åè¤1ÁëbJT&#7;&quot;ıàå•×’e½iÉ˜ù¾É&#8;Åf½®UŠ”íë¦É¡™&quot;…j&#9;L+I&#23;.RÌ'›4‰&#3;‚pš¼Ã¤vÚÄˆÍä&#19;·&#x7f;=R&#14;õ‰Dª`ÌJ&gt;¦&#9;”Ë4Ş´&#23;gjÅ’‘&#24;“·˜:Òäu&#19;‡‰h&amp;&quot;&#2;!&#5;¥pµ&#2;W&#20;.+´æâŸuø®&#2;—Zªå%…K&#13;zËÅl©FK¥~ñB&#23;y1„‹&#1;ıB&#23;|{&gt;G~ÛŠó9ø‡Â9…orqÖ…¿×¢™ClVh\;&#24;¸¦&#x7f;=&#18;_)”_ÕâL!ş¦púË&#12;yZáË&#12;|¡ğù]øLáÓ:œ:™.Oµâd:NÔâ&#19;…&#21;&#31;K‘Ç&#21;¥àh-&gt;ú0E~¤ğáê&#4;ùa</match>
+    <match>&gt;¨À‘Ahb¡i&#16;&#14;+&#28;z?^&#30;Rx?&#30;&#7;&#21;ŞS8På”&#7;2ñ×TìWx·&#22;«|²Qá/</match>
+    <match>ïT`ŸÂÛ</match>
+    <match>&#x7f;VØ»)Q¾¥°GáM…?)4°½&#6;&#23;Ş°¢~w¬WØ½kšÜ]‡İ•ú®:ŸÜ5&#13;»&#2;z&#15;;&#21;^¯E¤f¨|MáU&#30;^mÅ+lk‡Â&#31;&#11;±½&#16;/Û&#16;NÂ&#31;&#20;^R«ø½Â‹</match>
+    <match>¿KÂ6…&#23;·É&#23;rñ¼&#13;ÏmuÊçºa«&#19;ÏnñËg+°Åß*&lt;£ğ´ÂSO¦Ë§</match>
+    <match>ñä&#19;&#14;ùd:pà7ñØ¬ğ8;y\aS&quot;6nè)7*lè‰ÇØÿcµ¨]_'k&#21;Öó³µ¾&#14;ë+õuk|rİ4¬&#11;è*üZa-Ëkë°Æ‡&#26;.FÍP&lt;ÂÙ&gt;âÂê&#4;T3P]ˆU\´U&gt;T9±Ráa…‡&#20;&#30;\á”&#15;*¬pâW</match>
+    <match>Ë&#21;&#30;p&#14;“&#15;LÂ/&#21;*ïÅ²¥&#21;r™ÂÒ</match>
+    <match>TtÄı</match>
+    <match>å6üBa‰Â=</match>
+    <match>‹Ë¬r±&#29;‹#‚&#2;Gõ2+Ê&#26;ôEIX&#20;Ğ&#23;*Ü­°@¡tş$YZ‹ù%İäüI(é†y</match>
+    <match>wåâN…¹¹(nÅœ:ÌV(R(T˜5³£œ¥0“&#28;rfGÌP˜®p‡ÂíS&#18;äí6L+Ämû0•…©.LI&#0;?ÑA&#23;nUø¹Â-&#25;éò–\LV˜¤0QaB&#5;Æ+ÜìÂ8…±Â/Ç*ÜT‡1İpãè4yc&#x7f;Œ&#30;$G§aTAš&#28;¥0’¥‘…&#24;ÁÒˆ:&#20;¤!Ÿüş&#24;&gt;Ì)‡'axD&#11;&#4;âôaCír˜&#19;Ã&quot;&#26;±44`“Cí&#24;&#26;&#17;&#13;,&#5;†XeÀ†@DT²4Ä&#26;'‡X1$&quot;&#2;Bıg</match>
+    <match>ƒ9„Á­¸Aáún&#24;¤0&#11;&lt;°&#16;&#3;z·—&#3;Æ ¿B?¿KöSè;&#6;}zµ—}Æ ‡&lt;…\VÌUèÍÓ½Û£W{ä0—“†q©²g&#29;üÙÉÒï‚?¢&#25;n³&#29;N™Œl#ÜZ=«‡Of)ô`Í&#30;&gt;t×&#6;Éî</match>
+    <match>İ&#20;º*t±Ã—:Lú</match>
+    <match>p&#29;^…Îv»ì¬àqû¥§&#2;n?:AGöÜQ¡ƒB&amp;×6S!ƒïJF:Ú+¤+¤)´c&#11;íF 5Å/S‡!Åå)~¸&#28;Hf½d&#23;’x}’‚“3w&#14;ƒƒ=8œpDkg·Y¥İ&#14;{´v¶Äxi³Â&#22;­]&quot;×.1&#30;‰\»&#29;º5&#14;VãÙê¯'(Äs&amp;ñ</match>
+    <match>q©ˆu FÁÂ¦-</match>
+    <match>Ò&#5;prh…Æ€6&#8;‚&#3;&#16;~&#3;&quot;&quot;</match>
+    <match>W¬&#22;Yÿ?şÇSáOg„&#26;Í¾M¬åÑØGDè!m&#25;&#x7f;¥¿¿&quot;´‡u4S/&quot;&#26;ÅJ±“ù­¼·h¤åt^ÄãmÑŸ¹z^&#27;Ô=ŒÖĞfsu&#13;NÓbì¢Cô&#14;&#29;cî´&#24;&#8;^+&#14;‘Gœ`?+&#x7f;ğ¡¡¥=LËQ è$Jh‹x‰-–SD”Ò2Gm&quot;[Ş¯&#31;dt?=Ä×£´…J™72XÎñ&#x7f;L;h&#21;] &#13;Ú&#25;šÂüNÚËñ(şüš¹ˆ&amp;jaKÛ´ÁÚlÖÛËÖ6Ñ&amp;±œšh‘Nü)WtJ6iYlu&#7;g@4“6Ë&amp;¹Á¨&#7;Mò&#28;Ï&#16;u°D,®&#24;/gaÔn«Ø%zkãè&#16;¯/§É¸&#13;wã˜X¡{õ%8C5&#26;a:İI&#7;d“ÅE51^ª±Ì&#22;÷éÓÍ«œ­•kKôéb&#27;a›3ñ&#29;Ë&#30;l³™1Ñ&#14;m¢&#28;'ÇqÎ³&#25;ÛlÒš(µ8h?Z¹îk5%Fé#0„ó)×o¢&#13;ô&#12;ÛíÊ•!*E_ö^Jåruô¢m|ùåjÔrEÍjˆ&lt;m0mÖf‹U&#28;m&#11;W³&#20;ùÔŸ}tgi…ØÁqSL&#5;-’M¼U$êAôZŒEêü÷¦l·#¬ùF&#23;†&#3;&#19;‚î}!?û'¢Û&#17;ã&#14;Óøpâ}îÈµkãƒz†&#12;…ef&#24;¾Ø°îóúO“§üÙcÆ&#7;İ&#17;Ñ® ¿ÍlÁô|&#6;'&#5;Ù&#3;ÿ&#12;˜İ&#21;0&#22;&#5;F‡¥&#x7f;£§‡İ³ŠİU*ï *GÑ ?ïÿ²Ç0&#25;&#31;|YˆGB&#17;qmE„ò;¼Î»HÜq;OÇe»İ&#5;sóÃb:&#11;ñÙ&#12;ôğ0—í&#30;Áa˜&#24;ô†ÜUîªÑ…Uî&#17;îâ&#25;…&#28;·9òDQU(‡3˜&#20;œËtrĞ&#19;&#14;„2~`‹B!Ã»Õ°ÃKX½*Ä&#22;îl³À£&#9;å\e¥Äì1î0ºŒ&#15;N&#8;†+ó3ÂüP†Çã.&#8;7Œ&#15;†&#27;ò3&lt;¡&#16;kÙ~ˆ”#®˜›Ö&#22;³c¶õàyGÔ</match>
+    <match>—(&#17;¦PU•asRĞë&#9;WVUeTq&#30;mr„&#26;~&#2;&#8;ú)&#16;h&#3;&quot;dØàJ&#20;ğ÷`&lt;&#27;ãÁëÉ0&#0;¯Çëá8CùìÛiÜš&#2;Ô&#19;òónœŠ¹¯ä^ÎıœÁó³&#24;İçóù‚Ï&#0;SX&#30;Eİşm¿Îğ&#x7f;Ù´&#31;éÁ”t“vágw;&#20;™ü¯/Vµz±ÜÂ§ª&#24;ê´ËÜó&#19;Y„ëU&#17;+—k:å¼u¸¹79&#14;7&#31;nî•ìô8}&#30;§§X§+‹qå&#11;U&#27;cûîüBKwÃ¬0rĞGñ¿ n6N&#21;|osøÖq·:øXô&#30;wæÅqÆX–&lt;êÜc&#24;&#23;,Ç½Ço&#11;CAçná&#30;Ÿ³“£Š¥„¬^½“óØuÓËÔ»²QëŞØxõƒFÙtõ-í†Ö,í›«Nö¯QùµÏø­QN)”IyF&#4;;&#25;t°&#8;iì!“=eæğ;ÏB‰&#12;î¤dJ7G£&#14;†&#23;‘âI±¤æåöëŸb&#19;^79&#29;”—›&#20;ÓSx;[bôéW&gt;‹}ã¥`CÉÜ=SÕeuT¸Ï&#29;¹&#20;¶®}xÅ‹±Zõ&#20;Ë&#23;û&#6;&#12;|-+K&#12;&#20;ÉÂ*&#2;ê“ÇÊ^&#8;Ï7êrë2ÅÒ½vF•È·ØˆÊ¨CÜqHçS&#17;Q&quot;ÅG#q¥^/R¼»ôuzúz´&#3;SC&#31;œyö&#21;õ‘8!Öß¿ôñCoââ&#26;£æ&#26;­äœGqÎ&#9;Ô¼dKu&#18;U[ë“6¦Å%Ùó‘”ò³4Ç…æ+Æ-üüB³ãl/ÑÙ’â2rìÛ§K×Ü$§CóvÖœ$­¸zÍšêÕkÖ¬&gt;s©å«3--8qôHÓ±cMGnVï«OÕ)uHøù³ÓQô4üšíÚRó95N§?n’Å,~~o¦‰Ì&#9;&gt;:Fu,Æ&#11;rä„Éc§ŒÈ&#26;[4&#x7f;^©&#x7f;bÑœÅóf,$ú&#23; -&#6;ä</match>
+    <match>endstream</match>
+    <match>endobj</match>
+    <match>14 0 obj</match>
+    <match>2734</match>
+    <match>endobj</match>
+    <match>15 0 obj</match>
+    <match>(Hello)</match>
+    <match>endobj</match>
+    <match>16 0 obj</match>
+    <match>(Mac OS X 10.12.6 Quartz PDFContext)</match>
+    <match>endobj</match>
+    <match>17 0 obj</match>
+    <match>(TextEdit)</match>
+    <match>endobj</match>
+    <match>18 0 obj</match>
+    <match>(D:20200124010711Z00'00')</match>
+    <match>endobj</match>
+    <match>19 0 obj</match>
+    <match>()</match>
+    <match>endobj</match>
+    <match>20 0 obj</match>
+    <match>[ ]</match>
+    <match>endobj</match>
+    <match>1 0 obj</match>
+    <match>&lt;&lt; /Title 15 0 R /Producer 16 0 R /Creator 17 0 R /CreationDate 18 0 R /ModDate</match>
+    <match>18 0 R /Keywords 19 0 R /AAPL:Keywords 20 0 R &gt;&gt;</match>
+    <match>endobj</match>
+    <match>xref</match>
+    <match>0 21</match>
+    <match>0000000000 65535 f </match>
+    <match>0000005392 00000 n </match>
+    <match>0000000238 00000 n </match>
+    <match>0000001714 00000 n </match>
+    <match>0000000022 00000 n </match>
+    <match>0000000219 00000 n </match>
+    <match>0000000342 00000 n </match>
+    <match>0000001679 00000 n </match>
+    <match>0000001847 00000 n </match>
+    <match>0000000439 00000 n </match>
+    <match>0000001658 00000 n </match>
+    <match>0000001797 00000 n </match>
+    <match>0000002110 00000 n </match>
+    <match>0000002362 00000 n </match>
+    <match>0000005186 00000 n </match>
+    <match>0000005207 00000 n </match>
+    <match>0000005231 00000 n </match>
+    <match>0000005284 00000 n </match>
+    <match>0000005311 00000 n </match>
+    <match>0000005353 00000 n </match>
+    <match>0000005372 00000 n </match>
+    <match>trailer</match>
+    <match>&lt;&lt; /Size 21 /Root 11 0 R /Info 1 0 R /ID [ &lt;8db88d3335070bd9583341583cf769a3&gt;</match>
+    <match>&lt;8db88d3335070bd9583341583cf769a3&gt; ] &gt;&gt;</match>
+    <match>startxref</match>
+    <match>5536</match>
+    <match>%%EOF</match>
+  </file>
+  <file name="Hello.sh">
+    <match>#!/bin/sh</match>
+    <match>echo &quot;Hello World!&quot;</match>
+  </file>
+  <file name="Hello.txt">
+    <match>Hello</match>
+  </file>
+</grep>

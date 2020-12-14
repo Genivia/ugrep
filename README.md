@@ -22,13 +22,25 @@ Search for anything in everything... ultra fast
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-- Interactive [query UI](#query), press F1 or CTRL-Z for help and TAB to navigate to dirs and files
+- Interactive [query UI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
-      ugrep -Q ...                           ugrep -Q -e PATTERN ...
+      ugrep -Q                               ugrep -Q -e PATTERN    
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
       ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
+
+- Search with Google-like [Boolean search queries](#bool) using `AND` (space), `OR` (`|`), `NOT` (`-`), quoting (exact match), and grouping with `( )`
+
+      ugrep --bool 'PATT1 PATT2 PATT3' ...   ugrep -e PATT1 --and PATT2 --and PATT3 ...
+      ugrep --bool 'PATT1|PATT2 PATT3' ...   ugrep -e PATT1 -e PATT2 --and PATT3 ...
+      ugrep --bool 'PATT1 -PATT2 -PATT3' ... ugrep -e PATT1 --andnot PATT2 --andnot PATT3 ...
+      ugrep --bool 'PATT1 -(PATT2|PATT3)'... ugrep -e PATT1 --andnot PATT2 --andnot PATT3 ...
+      ugrep --bool '"PATT1" "PATT2"' ...     ugrep -e '\QPATT1\E' --and '\QPATT2\E' ...
+
+- Fzf-like search with fixed strings and fuzzy matching, e.g. up to 4 extra character with `-Z+4` and words only with `-w`, press TAB and ALT-y to view a file, SHIFT-TAB and Alt-l to go back to view the list of matching files ordered by best match:
+
+      ugrep -Q1 --bool -l -w -F -Z+4 --sort=best
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4)
 
@@ -69,9 +81,9 @@ Search for anything in everything... ultra fast
 
       ugrep --ignore-files PATTERN ...       ugrep --ignore-files=.ignore PATTERN ...
 
-- Search patterns excluding [negative patterns](#not) and excluding lines ("match this but not that")
+- Search patterns excluding [negative patterns](#not) ("match this if it does not match that")
 
-      ugrep PATTERN -N NOTPATTERN ...        ugrep PATTERN --not -e NOTLINESWITHPATTERN ...
+      ugrep PATTERN -N NOTPATTERN ...        ugrep '[0-9]+' -N 123 ...
 
 - Includes [predefined regex patterns](#source) to search source code, javascript, XML, JSON, HTML, PHP, markdown, etc.
 
@@ -119,7 +131,8 @@ Table of contents
   - [Configuration files](#config)
   - [Interactive search with -Q](#query)
   - [Recursively list matching files with -l, -R, -r, --depth, -g, -O, and -t](#recursion)
-  - [Search this but not that with -v, -e, -N, --not, -f, -L, -w, -x](#not)
+  - [Boolean search queries with --bool (-%), --and, --not](#bool)
+  - [Search this but not that with -v, -e, -N, -f, -L, -w, -x](#not)
   - [Search non-Unicode files with --encoding](#encoding)
   - [Matching multiple lines of text](#multiline)
   - [Displaying match context with -A, -B, -C, and -y](#context)
@@ -1192,8 +1205,8 @@ using ugrep query selection mode (press Enter to select lines):
             by a `!' or a `^', excludes files of the specified type.  This
             option may be repeated.
     --stats
-            Display statistics on the number of files and directories searched.
-            Display the inclusion and exclusion constraints applied.
+            Output statistics on the number of files and directories searched,
+            and the inclusion and exclusion constraints applied.
 
 If no FILE arguments are specified and input is read from a terminal, recursive
 searches are performed as if `-R` is specified.  To force reading from standard
@@ -1253,9 +1266,145 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
 
 🔝 [Back to table of contents](#toc)
 
+<a name="bool"/>
+
+### Boolean search queries with --bool (-%), --and, --not
+
+    --bool, -%
+            Specifies Boolean search patterns.  A Boolean search pattern is
+            composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.
+            Spacing between subpatterns is the same as `AND', `|' is the same
+            as `OR', and a `-' is the same as `NOT'.  The `OR' operator binds
+            more tightly than `AND'.  For example, --bool 'A|B C|D' matches
+            lines with (`A' or `B') and (`C' or `D'), --bool 'A -B' matches
+            lines with `A' and not `B'.  Operators `AND', `OR', `NOT' require
+            proper spacing.  For example, --bool 'A OR B AND C OR D' matches
+            lines with (`A' or `B') and (`C' or `D'), --bool 'A AND NOT B'
+            matches lines with `A' without `B'.  Quoted subpatterns are matched
+            literally as strings.  For example, --bool 'A "AND"|"OR"' matches
+            lines with `A' and also either `AND' or `OR'.  Parenthesis are used
+            for grouping.  For example, --bool '(A B)|C' matches lines with `A'
+            and `B', or lines with `C'.  Note that all subpatterns in a Boolean
+            search pattern are regular expressions, unless option -F is used.
+            Options -E, -F, -G, -P, and -Z can be combined with --bool to match
+            subpatterns as strings or regular expressions (-E is the default.)
+            This option does not apply to -f FILE patterns.  Option --stats
+            displays the search patterns applied.  See also options --and,
+            --andnot, and --not.
+    --and [[-e] PATTERN] ... -e PATTERN
+            Specify additional patterns to match.  Patterns must be specified
+            with -e.  Each -e PATTERN following this option is considered an
+            alternative pattern to match, i.e. each -e is interpreted as an OR
+            pattern.  For example, -e A -e B --and -e C -e D matches lines with
+            (`A' or `B') and (`C' or `D').  Note that multiple -e PATTERN are
+            alternations that bind more tightly together than --and.  Option
+            --stats displays the search patterns applied.  See also options
+            --not, --andnot, and --bool.
+    --andnot [[-e] PATTERN] ...
+            Combines --and --not.  See also options --and, --not, and --bool.
+    --not [-e] PATTERN
+            Specifies that PATTERN should not match.  Note that -e A --not -e B
+            matches lines with `A' or lines without a `B'.  To match lines with
+            `A' that have no `B', specify -e A --andnot -e B.  Option --stats
+            displays the search patterns applied.  See also options --and,
+            --andnot, and --bool.
+    --stats
+            Output statistics on the number of files and directories searched,
+            and the inclusion and exclusion constraints applied.
+
+Note that the `--and`, `--not`, and `--andnot` options require `-e PATTERN`.
+
+The `--bool` option makes all patterns Boolean expressions supporting the
+following operations:
+
+operator | alternative | result
+-------- | ----------- | -------
+`x y`    | `x AND y`   | matches lines with both `x` and `y`
+`x\|y`   | `x OR y`    | matches lines with `x` or `y`
+`-x`     | `NOT x`     | inverted match, i.e. matches if `x` does not match
+`( )`    |             | Boolean expression grouping
+`“x”`    |             | match `x` literally and exactly as specified (using the standard regex escapes `\Q` and `\E` for quoting)
+
+- `x` and `y` are subpatterns that do not start with the special symbols `|`,
+  `-`, and `(` (use quotes or a `\` escape to match these);
+
+- `|` and `OR` are the same and take precedence over `AND`, which means that
+  `x y|z` == `x (y|z)` for example;
+
+- `-` and `NOT` are the same and take precedence over `OR`, which means that
+  `-x|y` == `(-x)|y` for example.
+
+The `--stats` option displays the Boolean search query in human-readable form
+converted to CNF (Conjunctive Normal Form), after the search is completed.
+To show the CNF without a search, read from standard input terminated by an
+EOF, like `echo | ugrep --bool '...' --stats`.
+
+Subpatterns are color-highlighted in the output, except those negated with
+`NOT` (a `NOT` subpattern may still show up in a matching line when using an
+OR-NOT pattern like `x|-y`).  Note that subpatterns may overlap.  In that
+case only the first matching subpattern is color-highlighted.
+
+Multiple lines may be matched when subpatterns match newlines.  There is one
+exception however: subpatterns ending with `(?=X)` lookaheads may not match
+when `X` spans multiple lines.
+
+Empty patterns match any line (grep standard).  Therefore, `--bool 'x|""|y'`
+matches everything and `x` and `y` are not color-highlighted.  Option `-y`
+should be used to show every line as context, for example `-y 'x|y'`.
+
+Fzf-like interactive querying (Boolean search with fixed strings with fuzzy
+matching to allow e.g. up to 4 extra characters matched with `-Z+4` in words
+with `-w`), press TAB and ALT-y to view a file with matches.  Press SHIFT-TAB
+and ALT-l to go back to the list of matching files:
+
+    ugrep -Q1 --bool -l -w -F -Z+4 --sort=best
+
+To find lines containing both `hot` and `dog` in `myfile.txt`:
+
+    ugrep --bool 'hot dog' myfile.txt
+    ugrep -e hot --and dog myfile.txt
+
+To find lines containing `place` and then also `hotdog` or `taco` (or both) in
+`myfile.txt`:
+
+    ugrep --bool 'hotdog|taco place' myfile.txt
+    ugrep -e hotdog -e taco --and place myfile.txt
+
+Same, but exclude lines matching `diner`:
+
+    ugrep --bool 'hotdog|taco place -diner' myfile.txt
+    ugrep -e hotdog -e taco --and place --andnot diner myfile.txt
+
+To find lines with `diner` or lines that match both `fast` and `food` but not `bad` in `myfile.txt`:
+
+    ugrep --bool 'diner|(fast food -bad)' myfile.txt
+
+To find lines with `fast food` (exactly) or lines with `diner` but not `bad` or `old` in `myfile.txt`:
+
+    ugrep --bool '"fast food"|diner -bad -old' myfile.txt
+
+Same, but using a different Boolean expression that has the same meaning:
+
+    ugrep --bool '"fast food"|diner -(bad|old)' myfile.txt
+
+To find lines with `diner` implying `good` in `myfile.txt` (that is, show lines
+with `good` without `diner` and show lines with `diner` but only those with
+`good`, which is logically implied!):
+
+    ugrep --bool 'good|-diner' myfile.txt
+    ugrep -e good --not diner myfile.txt
+
+To find lines with `foo` and `-bar` and `"baz"` in `myfile.txt` (not that `-`
+and `"` should be matched using `\` escapes and with `--and -e -bar`):
+
+    ugrep --bool 'foo \-bar \"baz\"' myfile.txt
+    ugrep -e foo --and -e -bar --and '"baz"' myfile.txt
+
+🔝 [Back to table of contents](#toc)
+
 <a name="not"/>
 
-### Search this but not that with -v, -e, -N, --not, -f, -L, -w, -x
+### Search this but not that with -v, -e, -N, -f, -L, -w, -x
 
     -e PATTERN, --regexp=PATTERN
             Specify a PATTERN used during the search of the input: an input
@@ -1283,9 +1432,6 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
             Negative PATTERN matches are essentially removed before any other
             patterns are matched.  Note that longer patterns take precedence
             over shorter patterns.  This option may be repeated.
-    --not   Specifies that the following one or more -e PATTERN should not
-            match selected lines, where --not -e PATTERN specifies the same as
-            -N '.*PATTERN.*' but optimized to improve performance.
     -v, --invert-match
             Selected lines are those not matching any of the specified
             patterns.
@@ -1604,8 +1750,8 @@ instead of a single word:
             by a `!' or a `^', excludes files of the specified type.  This
             option may be repeated.
     --stats
-            Display statistics on the number of files and directories searched.
-            Display the inclusion and exclusion constraints applied.
+            Output statistics on the number of files and directories searched,
+            and the inclusion and exclusion constraints applied.
 
 The file types are listed with `ugrep -tlist`.  The list is based on
 established filename extensions and "magic bytes".  If you have a file type
@@ -1841,8 +1987,8 @@ search the files:
             repeated and may be combined with options -M, -O and -t to expand
             the recursive search.
     --stats
-            Display statistics on the number of files and directories searched.
-            Display the inclusion and exclusion constraints applied.
+            Output statistics on the number of files and directories searched,
+            and the inclusion and exclusion constraints applied.
 
 To recursively list all files that start with `#!` shebangs:
 
@@ -2343,8 +2489,8 @@ implicit:
             --exclude='*.ext'.  This option may be repeated and may be combined
             with options -g, -M and -t to expand the recursive search.
     --stats
-            Display statistics on the number of files and directories searched.
-            Display the inclusion and exclusion constraints applied.
+            Output statistics on the number of files and directories searched,
+            and the inclusion and exclusion constraints applied.
 
 See also [Including or excluding mounted file systems from searches](#fs).
 
@@ -2773,7 +2919,8 @@ To extract a table from an HTML file and put it in C/C++ source code using
     --format=FORMAT
             Output FORMAT-formatted matches.  For example `--format=%f:%n:%O%~'
             outputs matching lines `%O' with filename `%f` and line number `%n'
-            followed by a newline `%~'.
+            followed by a newline `%~'.   Context options -A, -B, -C, and -y are
+            ignored.  See `man ugrep' section FORMAT.
 
 The following output formatting options may be used.  The `FORMAT` string
 `%`-fields are listed in a table further below:
@@ -3294,6 +3441,20 @@ in markdown:
                   garbage to the terminal, which can have problematic consequences
                   if the terminal driver interprets some of it as commands.
 
+           --and [[-e] PATTERN] ... -e PATTERN
+                  Specify additional patterns to match.  Patterns must  be  speci-
+                  fied  with -e.  Each -e PATTERN following this option is consid-
+                  ered an alternative pattern to match, i.e.  each  -e  is  inter-
+                  preted as an OR pattern.  For example, -e A -e B --and -e C -e D
+                  matches lines with (`A' or `B') and (`C'  or  `D').   Note  that
+                  multiple  -e  PATTERN  are  alternations  that bind more tightly
+                  together than --and.  Option --stats displays  the  search  pat-
+                  terns applied.  See also options --not, --andnot, and --bool.
+
+           --andnot [[-e] PATTERN] ...
+                  Combines  --and  --not.   See  also  options  --and,  --not, and
+                  --bool.
+
            -B NUM, --before-context=NUM
                   Print NUM  lines  of  leading  context  before  matching  lines.
                   Places a --group-separator between contiguous groups of matches.
@@ -3319,6 +3480,29 @@ in markdown:
                   in  hexadecimal, leaving text matches alone.  A match is consid-
                   ered binary when matching a zero byte  or  invalid  UTF.   Short
                   options are -a, -I, -U, -W, and -X.
+
+           --bool, -%
+                  Specifies  Boolean search patterns.  A Boolean search pattern is
+                  composed of `AND', `OR', `NOT' operators and grouping  with  `('
+                  `)'.   Spacing  between subpatterns is the same as `AND', `|' is
+                  the same as `OR', and a `-' is the  same  as  `NOT'.   The  `OR'
+                  operator  binds  more  tightly  than `AND'.  For example, --bool
+                  'A|B C|D' matches lines with (`A' or  `B')  and  (`C'  or  `D'),
+                  --bool  'A  -B'  matches  lines with `A' and not `B'.  Operators
+                  `AND', `OR', `NOT' require proper spacing.  For example,  --bool
+                  'A  OR B AND C OR D' matches lines with (`A' or `B') and (`C' or
+                  `D'), --bool 'A AND NOT B' matches lines with `A'  without  `B'.
+                  Quoted  subpatterns are matched literally as strings.  For exam-
+                  ple, --bool 'A "AND"|"OR"'  matches  lines  with  `A'  and  also
+                  either  `AND'  or `OR'.  Parenthesis are used for grouping.  For
+                  example, --bool '(A B)|C' matches lines with  `A'  and  `B',  or
+                  lines  with  `C'.  Note that all subpatterns in a Boolean search
+                  pattern are regular  expressions,  unless  option  -F  is  used.
+                  Options  -E,  -F,  -G, -P, and -Z can be combined with --bool to
+                  match subpatterns as strings or regular expressions (-E  is  the
+                  default.)   This  option  does  not  apply  to -f FILE patterns.
+                  Option --stats displays the search patterns applied.   See  also
+                  options --and, --andnot, and --not.
 
            --break
                   Adds a line break between results from different files.
@@ -3492,8 +3676,9 @@ in markdown:
            --format=FORMAT
                   Output    FORMAT-formatted   matches.    For   example   `--for-
                   mat=%f:%n:%O%~' outputs matching lines `%O' with  filename  `%f`
-                  and line number `%n' followed by a newline `%~'. See `man ugrep'
-                  section FORMAT.
+                  and  line  number  `%n'  followed  by  a  newline `%~'.  Context
+                  options -A, -B, -C, and -y are ignored.  See `man ugrep' section
+                  FORMAT.
 
            --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
@@ -3503,15 +3688,15 @@ in markdown:
                   behave as traditional grep.
 
            -g GLOBS, --glob=GLOBS
-                  Search  only  files whose name matches the specified comma-sepa-
+                  Search only files whose name matches the  specified  comma-sepa-
                   rated list of GLOBS, same as --include='glob' for each `glob' in
-                  GLOBS.   When a `glob' is preceded by a `!' or a `^', skip files
-                  whose name  matches  `glob',  same  as  --exclude='glob'.   When
-                  `glob'  contains  a  `/', full pathnames are matched.  Otherwise
+                  GLOBS.  When a `glob' is preceded by a `!' or a `^', skip  files
+                  whose  name  matches  `glob',  same  as  --exclude='glob'.  When
+                  `glob' contains a `/', full pathnames  are  matched.   Otherwise
                   basenames are matched.  When `glob' ends with a `/', directories
-                  are     matched,     same     as     --include-dir='glob'    and
-                  --exclude-dir='glob'.  This option may be repeated  and  may  be
-                  combined  with  options  -M,  -O  and -t to expand the recursive
+                  are    matched,     same     as     --include-dir='glob'     and
+                  --exclude-dir='glob'.   This  option  may be repeated and may be
+                  combined with options -M, -O and  -t  to  expand  the  recursive
                   search.
 
            --group-separator[=SEP]
@@ -3519,12 +3704,12 @@ in markdown:
                   The default is a double hyphen (`--').
 
            -H, --with-filename
-                  Always  print  the  filename  with  output  lines.   This is the
+                  Always print the  filename  with  output  lines.   This  is  the
                   default when there is more than one file to search.
 
            -h, --no-filename
-                  Never print filenames with output lines.  This  is  the  default
-                  when  there is only one file (or only standard input) to search.
+                  Never  print  filenames  with output lines.  This is the default
+                  when there is only one file (or only standard input) to  search.
 
            --heading, -+
                   Group matches per file.  Adds a heading and a line break between
@@ -3534,76 +3719,76 @@ in markdown:
                   Display a help message, specifically on WHAT when specified.
 
            --hexdump=[1-8][b][c][h]
-                  Output  matches  in 1 to 8 columns of 8 hexadecimal octets.  The
-                  default is 2 columns or 16 octets per line.  Option `b'  removes
-                  all  space  breaks,  `c'  removes  the character column, and `h'
-                  removes the hex spacing.  Enables -X if -W or -X is  not  speci-
+                  Output matches in 1 to 8 columns of 8 hexadecimal  octets.   The
+                  default  is 2 columns or 16 octets per line.  Option `b' removes
+                  all space breaks, `c' removes  the  character  column,  and  `h'
+                  removes  the  hex spacing.  Enables -X if -W or -X is not speci-
                   fied.
 
            --hidden, -.
                   Search hidden files and directories.
 
            -I, --ignore-binary
-                  Ignore  matches  in  binary files.  This option is equivalent to
+                  Ignore matches in binary files.  This option  is  equivalent  to
                   the --binary-files=without-match option.
 
            -i, --ignore-case
-                  Perform case insensitive matching.  By default,  ugrep  is  case
+                  Perform  case  insensitive  matching.  By default, ugrep is case
                   sensitive.  This option applies to ASCII letters only.
 
            --ignore-files[=FILE]
-                  Ignore  files  and  directories  matching the globs in each FILE
-                  that is encountered in recursive searches.  The default FILE  is
-                  `.gitignore'.   Matching  files  and  directories located in the
-                  directory of a FILE's location  and  in  directories  below  are
-                  ignored    by   temporarily   overriding   the   --exclude   and
-                  --exclude-dir globs.  Files and directories that are  explicitly
-                  specified  as  command  line  arguments are never ignored.  This
+                  Ignore files and directories matching the  globs  in  each  FILE
+                  that  is encountered in recursive searches.  The default FILE is
+                  `.gitignore'.  Matching files and  directories  located  in  the
+                  directory  of  a  FILE's  location  and in directories below are
+                  ignored   by   temporarily   overriding   the   --exclude    and
+                  --exclude-dir  globs.  Files and directories that are explicitly
+                  specified as command line arguments  are  never  ignored.   This
                   option may be repeated.
 
            --include=GLOB
-                  Search only files whose name matches GLOB using wildcard  match-
+                  Search  only files whose name matches GLOB using wildcard match-
                   ing, same as -g GLOB.  GLOB can use **, *, ?, and [...] as wild-
-                  cards, and \ to quote a wildcard or backslash  character  liter-
-                  ally.   When  GLOB  contains  a `/', full pathnames are matched.
-                  Otherwise basenames are matched.  When GLOB  ends  with  a  `/',
+                  cards,  and  \ to quote a wildcard or backslash character liter-
+                  ally.  When GLOB contains a `/',  full  pathnames  are  matched.
+                  Otherwise  basenames  are  matched.   When GLOB ends with a `/',
                   directories are included as if --include-dir is specified.  Oth-
-                  erwise files are included.  Note that  --exclude  patterns  take
+                  erwise  files  are  included.  Note that --exclude patterns take
                   priority over --include patterns.  GLOB should be quoted to pre-
                   vent shell globbing.  This option may be repeated.
 
            --include-dir=GLOB
-                  Only directories whose name matches GLOB are included in  recur-
-                  sive  searches.   GLOB can use **, *, ?, and [...] as wildcards,
-                  and \ to quote a  wildcard  or  backslash  character  literally.
+                  Only  directories whose name matches GLOB are included in recur-
+                  sive searches.  GLOB can use **, *, ?, and [...]  as  wildcards,
+                  and  \  to  quote  a  wildcard or backslash character literally.
                   When GLOB contains a `/', full pathnames are matched.  Otherwise
-                  basenames are matched.  Note that  --exclude-dir  patterns  take
-                  priority  over --include-dir patterns.  GLOB should be quoted to
+                  basenames  are  matched.   Note that --exclude-dir patterns take
+                  priority over --include-dir patterns.  GLOB should be quoted  to
                   prevent shell globbing.  This option may be repeated.
 
            --include-from=FILE
-                  Read the globs from FILE and search only files  and  directories
-                  whose  name  matches  one  or  more  globs  (as  if specified by
-                  --include and --include-dir).  Lines starting  with  a  `#'  and
-                  empty  lines  in FILE are ignored.  When FILE is a `-', standard
+                  Read  the  globs from FILE and search only files and directories
+                  whose name matches  one  or  more  globs  (as  if  specified  by
+                  --include  and  --include-dir).   Lines  starting with a `#' and
+                  empty lines in FILE are ignored.  When FILE is a  `-',  standard
                   input is read.  This option may be repeated.
 
            --include-fs=MOUNTS
-                  Only file systems specified by MOUNTS are included in  recursive
-                  searches.   MOUNTS  is a comma-separated list of mount points or
-                  pathnames  of  directories  on  file  systems.    --include-fs=.
-                  restricts  recursive  searches to the file system of the working
-                  directory only.  Note that  --exclude-fs  mounts  take  priority
+                  Only  file systems specified by MOUNTS are included in recursive
+                  searches.  MOUNTS is a comma-separated list of mount  points  or
+                  pathnames   of  directories  on  file  systems.   --include-fs=.
+                  restricts recursive searches to the file system of  the  working
+                  directory  only.   Note  that  --exclude-fs mounts take priority
                   over --include-fs mounts.  This option may be repeated.
 
            -J NUM, --jobs=NUM
-                  Specifies  the  number  of  threads spawned to search files.  By
-                  default an optimum number of threads is spawned to search  files
-                  simultaneously.   -J1  disables threading: files are searched in
+                  Specifies the number of threads spawned  to  search  files.   By
+                  default  an optimum number of threads is spawned to search files
+                  simultaneously.  -J1 disables threading: files are  searched  in
                   the same order as specified.
 
            -j, --smart-case
-                  Perform case insensitive matching unless a pattern  contains  an
+                  Perform  case  insensitive matching unless a pattern contains an
                   upper case letter.  This option applies to ASCII letters only.
 
            --json Output file matches in JSON.  If -H, -n, -k, or -b is specified,
@@ -3613,39 +3798,39 @@ in markdown:
                   Start searching at line FIRST, stop at line LAST when specified.
 
            -k, --column-number
-                  The column number of a matched pattern is displayed in front  of
-                  the  respective  matched  line,  starting at column 1.  Tabs are
+                  The  column number of a matched pattern is displayed in front of
+                  the respective matched line, starting at  column  1.   Tabs  are
                   expanded when columns are counted, see also option --tabs.
 
            -L, --files-without-match
-                  Only the names of files not containing selected lines are  writ-
-                  ten  to  standard  output.   Pathnames  are listed once per file
+                  Only  the names of files not containing selected lines are writ-
+                  ten to standard output.  Pathnames  are  listed  once  per  file
                   searched.   If  the  standard  input  is  searched,  the  string
                   ``(standard input)'' is written.
 
            -l, --files-with-matches
                   Only the names of files containing selected lines are written to
-                  standard output.  ugrep will only search a file  until  a  match
-                  has  been  found,  making  searches  potentially less expensive.
-                  Pathnames are listed once per file searched.   If  the  standard
+                  standard  output.   ugrep  will only search a file until a match
+                  has been found,  making  searches  potentially  less  expensive.
+                  Pathnames  are  listed  once per file searched.  If the standard
                   input is searched, the string ``(standard input)'' is written.
 
            --label=LABEL
-                  Displays  the LABEL value when input is read from standard input
-                  where a file name would normally be printed in the output.   The
+                  Displays the LABEL value when input is read from standard  input
+                  where  a file name would normally be printed in the output.  The
                   default value is `(standard input)'.
 
            --line-buffered
                   Force output to be line buffered instead of block buffered.
 
            -M MAGIC, --file-magic=MAGIC
-                  Only  files  matching  the signature pattern MAGIC are searched.
-                  The signature "magic bytes" at the start of a file are  compared
-                  to  the  MAGIC  regex  pattern.  When matching, the file will be
-                  searched.  When MAGIC is preceded by a `!' or a `^', skip  files
+                  Only files matching the signature pattern  MAGIC  are  searched.
+                  The  signature "magic bytes" at the start of a file are compared
+                  to the MAGIC regex pattern.  When matching,  the  file  will  be
+                  searched.   When MAGIC is preceded by a `!' or a `^', skip files
                   with matching MAGIC signatures.  This option may be repeated and
-                  may be combined with options -O and -t  to  expand  the  search.
-                  Every  file  on  the search path is read, making searches poten-
+                  may  be  combined  with  options -O and -t to expand the search.
+                  Every file on the search path is read,  making  searches  poten-
                   tially more expensive.
 
            -m NUM, --max-count=NUM
@@ -3655,38 +3840,40 @@ in markdown:
                   Match all input.  Same as specifying an empty pattern to search.
 
            --max-files=NUM
-                  Restrict  the  number of files matched to NUM.  Note that --sort
-                  or -J1 may be  specified  to  produce  replicable  results.   If
+                  Restrict the number of files matched to NUM.  Note  that  --sort
+                  or  -J1  may  be  specified  to  produce replicable results.  If
                   --sort is specified, the number of threads spawned is limited to
                   NUM.
 
            --mmap[=MAX]
-                  Use memory maps to search files.  By default,  memory  maps  are
-                  used  under certain conditions to improve performance.  When MAX
+                  Use  memory  maps  to search files.  By default, memory maps are
+                  used under certain conditions to improve performance.  When  MAX
                   is specified, use up to MAX mmap memory per thread.
 
            -N PATTERN, --neg-regexp=PATTERN
-                  Specify a negative PATTERN used during the search of the  input:
-                  an  input  line is selected only if it matches any of the speci-
-                  fied patterns unless  a  subpattern  of  PATTERN.   Same  as  -e
-                  (?^PATTERN).   Negative  PATTERN matches are essentially removed
-                  before any other patterns are matched.  Note  that  longer  pat-
+                  Specify  a negative PATTERN used during the search of the input:
+                  an input line is selected only if it matches any of  the  speci-
+                  fied  patterns  unless  a  subpattern  of  PATTERN.   Same as -e
+                  (?^PATTERN).  Negative PATTERN matches are  essentially  removed
+                  before  any  other  patterns are matched.  Note that longer pat-
                   terns take precedence over shorter patterns.  This option may be
                   repeated.
 
            -n, --line-number
-                  Each output line is preceded by its relative line number in  the
-                  file,  starting at line 1.  The line number counter is reset for
+                  Each  output line is preceded by its relative line number in the
+                  file, starting at line 1.  The line number counter is reset  for
                   each file processed.
-
-           --not  Specifies that the following one or more -e PATTERN  should  not
-                  match  selected  lines,  where  --not  -e PATTERN is the same as
-                  specifying -N '.*PATTERN.*' but  optimized  to  improve  perfor-
-                  mance.
 
            --no-group-separator
                   Removes  the  group  separator  line from the output for context
                   options -A, -B, and -C.
+
+           --not [-e] PATTERN
+                  Specifies that PATTERN should not match.  Note that -e  A  --not
+                  -e  B  matches  lines with `A' or lines without a `B'.  To match
+                  lines with `A' that have no `B', specify -e  A  --andnot  -e  B.
+                  Option  --stats  displays the search patterns applied.  See also
+                  options --and, --andnot, and --bool.
 
            -O EXTENSIONS, --file-extension=EXTENSIONS
                   Search only files whose filename extensions match the  specified
@@ -3792,7 +3979,7 @@ in markdown:
                   improve performance.
 
            --stats
-                  Display  statistics  on  the  number  of  files  and directories
+                  Output  statistics  on  the  number  of  files  and  directories
                   searched, and the inclusion and exclusion constraints applied.
 
            -T, --initial-tab
@@ -4262,8 +4449,8 @@ in markdown:
            --format-end=FORMAT
                   the FORMAT when ending the search.
 
-           The context options -A, -B, -C, -y, and options -v, --break, --heading,
-           --color, -T, and --null have no effect on formatted output.
+           The  context  options  -A,  -B,  -C,  -y,  and display options --break,
+           --heading, --color, -T, and --null have no effect on formatted  output.
 
     EXAMPLES
            Display lines containing the word `patricia' in `myfile.txt':
@@ -4286,6 +4473,14 @@ in markdown:
            Count the number of words `patricia', ignoring case:
 
                   $ ugrep -cowi patricia myfile.txt
+
+           List lines with both `amount' and a decimal number, ignoring case:
+
+                  $ ugrep -wi --bool 'amount +(.+)?' myfile.txt
+
+           Alternative query:
+
+                  $ ugrep -wi -e amount --and '+(.+)?' myfile.txt
 
            List all Unicode words in a file:
 
@@ -4316,7 +4511,7 @@ in markdown:
 
                   $ ugrep -n -f c++/comments myfile.cpp
 
-           List  the  lines that need fixing in a C/C++ source file by looking for
+           List the lines that need fixing in a C/C++ source file by  looking  for
            the word `FIXME' while skipping any `FIXME' in quoted strings:
 
                   $ ugrep -e FIXME -N '"(\\.|\\\r?\n|[^\\\n"])*"' myfile.cpp
@@ -4346,7 +4541,7 @@ in markdown:
 
                   $ ugrep -z -tc++ -n FIXME project.tgz
 
-           Recursively find lines with `FIXME' in C/C++ files, but do  not  search
+           Recursively  find  lines with `FIXME' in C/C++ files, but do not search
            any `bak' and `old' directories:
 
                   $ ugrep -n FIXME -tc++ -g^bak/,^old/
@@ -4356,9 +4551,9 @@ in markdown:
 
                   $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 
-           Match the binary pattern `A3hhhhA3hh' (hex) in a  binary  file  without
-           Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
-           Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
+           Match  the  binary  pattern `A3hhhhA3hh' (hex) in a binary file without
+           Unicode pattern matching -U (which would otherwise match  `\xaf'  as  a
+           Unicode  character  U+00A3  with UTF-8 byte sequence C2 A3) and display
            the results in hex with -X using `less -R' as a pager:
 
                   $ ugrep --pager -UXo '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
@@ -4371,21 +4566,25 @@ in markdown:
 
                   $ ugrep -l '' --ignore-files
 
-           List  all files containing a RPM signature, located in the `rpm' direc-
+           List all files containing a RPM signature, located in the `rpm'  direc-
            tory and recursively below up to two levels deeper (3 levels total):
 
                   $ ugrep -3 -l -tRpm '' rpm/
 
-           Monitor the system log for bug reports and ungroup multiple matches  on
+           Monitor  the system log for bug reports and ungroup multiple matches on
            a line:
 
                   $ tail -f /var/log/system.log | ugrep -u -i -w bug
+
+           Interactive fuzzy search with Boolean search queries:
+
+                  $ ugrep -Q --bool -Z3 --sort=best
 
            Display all words in a MacRoman-encoded file that has CR newlines:
 
                   $ ugrep --encoding=MACROMAN '\w+' mac.txt
 
-           Display options related to "fuzzy" searching:
+           Display all options related to "fuzzy" searching:
 
                   $ ugrep --help fuzzy
 
@@ -4396,8 +4595,8 @@ in markdown:
 
 
     LICENSE
-           ugrep  is  released under the BSD-3 license.  All parts of the software
-           have reasonable copyright terms permitting free  redistribution.   This
+           ugrep is released under the BSD-3 license.  All parts of  the  software
+           have  reasonable  copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
@@ -4405,7 +4604,7 @@ in markdown:
 
 
 
-    ugrep 3.0.5                    November 17, 2020                      UGREP(1)
+    ugrep 3.1.0                    December 14, 2020                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

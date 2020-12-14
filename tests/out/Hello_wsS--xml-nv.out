@@ -1,0 +1,40 @@
+<grep>
+  <file name="Hello.class">
+    <match line="1">Êşº¾&#0;&#0;&#0;4&#0;&#29;</match>
+    <match line="2">&#0;&#6;&#0;&#15;&#9;&#0;&#16;&#0;&#17;&#8;&#0;&#18;</match>
+    <match line="3">&#0;&#19;&#0;&#20;&#7;&#0;&#21;&#7;&#0;&#22;&#1;&#0;&#6;&lt;init&gt;&#1;&#0;&#3;()V&#1;&#0;&#4;Code&#1;&#0;&#15;LineNumberTable&#1;&#0;&#4;main&#1;&#0;&#22;([Ljava/lang/String;)V&#1;&#0;</match>
+    <match line="4">SourceFile&#1;&#0;</match>
+    <match line="6">&#0;&#0;&#0;&#6;&#0;&#1;&#0;&#0;&#0;&#2;&#0;&#9;&#0;&#11;&#0;&#12;&#0;&#1;&#0;&#9;&#0;&#0;&#0;%&#0;&#2;&#0;&#1;&#0;&#0;&#0;&#9;²&#0;&#2;&#18;&#3;¶&#0;&#4;±&#0;&#0;&#0;&#1;&#0;</match>
+    <match line="7">&#0;&#0;&#0;</match>
+    <match line="8">&#0;&#2;&#0;&#0;&#0;&#4;&#0;&#8;&#0;&#5;&#0;&#1;&#0;&#13;&#0;&#0;&#0;&#2;&#0;&#14;</match>
+  </file>
+  <file name="Hello.java">
+    <match line="2"></match>
+    <match line="6">  }</match>
+    <match line="7">}</match>
+  </file>
+  <file name="Hello.pdf">
+    <match line="8">Ÿ‰&#7;o†k÷´Ğ›áâj©Rj²@8ş­í” »¶pQ£DÄ£&#13;ï&#x7f; iÂ&#11;º0¨z¬|²¿Oó¼&#30;Ğ&#23;7µ7ã&#23;Nÿ ¥</match>
+    <match line="16">&gt;&gt;</match>
+    <match line="20">&gt;&gt; &gt;&gt;</match>
+    <match line="28">¾÷äÕ¤&#13;ùgy&#21;ï½¶\=Ê&#11;ÿ“¹Í!F;’ÍAÎ&lt;›Q´qÆ&#27;À!¸©Esö·YL²é¶b´`ÉB”«¸ÿË&#9;óÃ&lt;·±Rs.îğ¼·?c6Í÷Š&#15;‹t¾O»¬­kŸh?j&#x7f;h+ÚÇ@¿K&#31;J_JßJW¤«Ò&#13;R¥kÒ²ôô½ô¹ô5z_@º,]éØIqì&#27;»&#7;~Æ{Öhí0f†³&#20;&#16;óÂÚÌ</match>
+    <match line="29">K&#31;ñw&#6;c›ù3¡Õ^&#3;»&#x7f;c-åˆ²SyF&#25;Vv+Ï)&#19;J¯r@9¬lW&#6;Ğú•Qe/Fvn°dc=Î€…&#x7f;’g‹¦#®â&lt;±Wu°çÃK&#29;ï¦_\ÃÖ†5ØI=&#14;ÙÚ¦&#14;¯&#17;W¿&#21;Uc¼;]œ&#6;:M!b‹Î&quot;r&#31;:œ&#31;'ªşÎÙ\“85Roâ”°Ä.Ñ/ÆZ5˜&#19;&#7;P…ãmõ8ÈUš&#25;É&#12;gr¤fz3C™şÌ1ÆQ¬Ñù’Ù‹Ñ!|G&#18;Ş3Ë1ÿ›5Äg&#24;ï&#29;æ¨&#9;l£‡[+4çqß&#17;å]oÁ·fê¡: i/©9\¯¦:æ&#24;Ù&gt;U·m5&#26;</match>
+    <match line="55">&gt;&gt;</match>
+    <match line="63">ïT`ŸÂÛ</match>
+    <match line="65">¿KÂ6…&#23;·É&#23;rñ¼&#13;ÏmuÊçºa«&#19;ÏnñËg+°Åß*&lt;£ğ´ÂSO¦Ë§</match>
+    <match line="68">TtÄı</match>
+    <match line="69">å6üBa‰Â=</match>
+    <match line="73">İ&#20;º*t±Ã—:Lú</match>
+    <match line="76">Ò&#5;prh…Æ€6&#8;‚&#3;&#16;~&#3;&quot;&quot;</match>
+    <match line="85">(Hello)</match>
+    <match line="91">(TextEdit)</match>
+    <match line="94">(D:20200124010711Z00'00')</match>
+    <match line="97">()</match>
+    <match line="100">[ ]</match>
+    <match line="131">&lt;8db88d3335070bd9583341583cf769a3&gt; ] &gt;&gt;</match>
+    <match line="134">%%EOF</match>
+  </file>
+  <file name="Hello.txt">
+    <match line="1">Hello</match>
+  </file>
+</grep>
