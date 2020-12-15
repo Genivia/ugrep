@@ -1,6 +1,6 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-**ugrep v3 is now available: more features & even faster than before**
+**ugrep v3.1 is now available: more features & even faster than before**
 
 Search for anything in everything... ultra fast
 
@@ -30,7 +30,7 @@ Search for anything in everything... ultra fast
 
       ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
 
-- Search with Google-like [Boolean search queries](#bool) using `AND` (or just space), `OR` (or a `|`), `NOT` (or a `-`), quoting (exact match), and grouping with `( )`
+- Search with Google-like [Boolean search queries](#bool) using `AND` (or just space), `OR` (or a `|`), `NOT` (or a `-`), quote to match exactly, and grouping with `( )`
 
       ugrep --bool 'PATT1 PATT2 PATT3' ...   ugrep -e PATT1 --and PATT2 --and PATT3 ...
       ugrep --bool 'PATT1|PATT2 PATT3' ...   ugrep -e PATT1 -e PATT2 --and PATT3 ...
@@ -1400,6 +1400,11 @@ and `"` should be matched using `\` escapes and with `--and -e -bar`):
     ugrep --bool 'foo \-bar \"baz\"' myfile.txt
     ugrep -e foo --and -e -bar --and '"baz"' myfile.txt
 
+To search `myfile.cpp` for lines with `TODO` or `FIXME` but not both on the
+same line, like XOR:
+
+    ugrep --bool 'TODO|FIXME -(TODO FIXME)' myfile.cpp
+
 🔝 [Back to table of contents](#toc)
 
 <a name="not"/>
@@ -1455,10 +1460,6 @@ To search `myfile.cpp` for lines with `FIXME` and `urgent`, but not `Scotty`:
 
     ugrep FIXME myfile.cpp | ugrep urgent | ugrep -v Scotty
 
-Same, but using a `--not -e Scotty` to skip lines containing `Scotty`:
-
-    ugrep FIXME --not -e Scotty myfile.cpp | ugrep urgent
-
 To search for decimals using pattern `\d+` that do not start with `0` using
 negative pattern `0\d+` and excluding `555`:
 
@@ -1488,11 +1489,6 @@ To recursively list all Python files that do not contain the word `display`,
 allowing the word to occur in strings and comments:
 
     ugrep -RL -tPython -w 'display' -f python/zap_strings -f python/zap_comments
-
-To search `myfile.cpp` for lines with `TODO` or `FIXME` but not both on the
-same line, like XOR:
-
-    ugrep -e TODO -e FIXME --not -e 'TODO.*FIXME' -e 'FIXME.*TODO' myfile.cpp
 
 🔝 [Back to table of contents](#toc)
 
