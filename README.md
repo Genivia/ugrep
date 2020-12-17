@@ -38,9 +38,9 @@ Search for anything in everything... ultra fast
       ugrep --bool 'PATT1 -(PATT2|PATT3)'... ugrep -e PATT1 --andnot PATT2 --andnot PATT3 ...
       ugrep --bool '"PATT1" "PATT2"' ...     ugrep -e '\QPATT1\E' --and '\QPATT2\E' ...
 
-- Fzf-like search with fixed strings and fuzzy matching, e.g. up to 4 extra character with `-Z+4` and words only with `-w`, press TAB and ALT-y to view a file, SHIFT-TAB and Alt-l to go back to view the list of matching files ordered by best match:
+- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra character with `-Z+4`, and words only with `-w`, press TAB and ALT-y to view a file, SHIFT-TAB and Alt-l to go back to view the list of matching files ordered by best match:
 
-      ugrep -Q1 --bool -l -w -F -Z+4 --sort=best
+      ugrep -Q1 --bool -l -w -Z+4 --sort=best
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4)
 
@@ -1404,6 +1404,7 @@ To search `myfile.cpp` for lines with `TODO` or `FIXME` but not both on the
 same line, like XOR:
 
     ugrep --bool 'TODO|FIXME -(TODO FIXME)' myfile.cpp
+    ugrep -e TODO -e FIXME --and --not TODO --not FIXME myfile.cpp
 
 🔝 [Back to table of contents](#toc)
 
