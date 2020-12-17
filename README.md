@@ -38,7 +38,7 @@ Search for anything in everything... ultra fast
       ugrep --bool 'PATT1 -(PATT2|PATT3)'... ugrep -e PATT1 --andnot PATT2 --andnot PATT3 ...
       ugrep --bool '"PATT1" "PATT2"' ...     ugrep -e '\QPATT1\E' --and '\QPATT2\E' ...
 
-- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra character with `-Z+4`, and words only with `-w`, press TAB and ALT-y to view a file, SHIFT-TAB and Alt-l to go back to view the list of matching files ordered by best match:
+- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4`, and words only with `-w`, press TAB and ALT-y to view a file, SHIFT-TAB and Alt-l to go back to view the list of matching files ordered by best match:
 
       ugrep -Q1 --bool -l -w -Z+4 --sort=best
 
