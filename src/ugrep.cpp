@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.0"
+#define UGREP_VERSION "3.1.1"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -6033,11 +6033,17 @@ void ugrep()
     // remove the ending '|' from the |-concatenated regexes in the regex string
     regex.pop_back();
 
+    // -G requires \( \) instead of ( )
+    const char *xleft = flag_basic_regexp ? "^\\(" : "^(";
+    const char *xright = flag_basic_regexp ? "\\)$" : ")$";
+    const char *wleft = flag_basic_regexp ? "\\<\\(" : "\\<(";
+    const char *wright = flag_basic_regexp ? "\\)\\>" : ")\\>";
+
     // -x or -w: if no PATTERN is specified, then apply -x or -w to -f FILE patterns
     if (line_regexp)
-      regex.insert(0, "^(").append(")$"); // make the regex line-anchored
+      regex.insert(0, xleft).append(xright); // make the regex line-anchored
     else if (word_regexp)
-      regex.insert(0, "\\<(").append(")\\>"); // make the regex word-anchored
+      regex.insert(0, wleft).append(wright); // make the regex word-anchored
   }
 
   // --match: adjust color highlighting to show matches as selected lines without color

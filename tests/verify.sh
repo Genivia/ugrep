@@ -217,10 +217,22 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
     $UG -U -G  '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
       | $DIFF "out/$FN-G.out" \
       || ERR "-G '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    $UG -U -Gw '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-Gw.out" \
+      || ERR "-Gw '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    $UG -U -Gx '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-Gx.out" \
+      || ERR "-Gx '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
   else
     $UG -U -G  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
       | $DIFF "out/$FN-G.out" \
       || ERR "-G '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    $UG -U -Gw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-Gw.out" \
+      || ERR "-Gw '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+    $UG -U -Gx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+      | $DIFF "out/$FN-Gx.out" \
+      || ERR "-Gx '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
   fi
   if [ "$have_pcre2" == yes ] || [ "$have_boost_regex" == yes ]; then
     printf .

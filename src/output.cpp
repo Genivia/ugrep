@@ -814,7 +814,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
   }
 }
 
-// output formatted match with options --format, --format-open, --format-close
+// output formatted match with options -v --format
 void Output::format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next)
 {
   size_t len = 0;

@@ -46,6 +46,9 @@
 // max collective length of ANSI CSI escape sequences collected when skipping lead text with skip>0
 #define SCREEN_MAX_CODELEN 256
 
+// enable to interpret backspace (CTRL-H), not recommended because search results may not match what is shown
+// #define WITH_BACKSPACE
+
 // emit ANSI SGR CSI sequence with one numeric parameter
 void Screen::CSI(int code, int num)
 {
@@ -513,6 +516,13 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             ++text;
             break;
 
+#ifdef WITH_BACKSPACE
+          case '\b':
+            ++num;
+            ++text;
+            break;
+#endif
+
           case '\t':
             num -= 1 + (~(cols - num) & 7);
             ++text;
@@ -554,7 +564,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
               num -= width;
               if (num < 0)
               {
-                // cut a double wide character in half?
+                // cut a double wide character that does not fit in half
                 if (width == 2 && num == -1)
                 {
                   put(' ');
@@ -586,6 +596,20 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
       switch (*ptr)
       {
         int tab;
+
+#ifdef WITH_BACKSPACE
+        case '\b':
+          if (ptr > text)
+          {
+            const char *p = ptr;
+            while (p > text && (*--p & 0xc0) == 0x80)
+              continue;
+            put(text, p - text);
+            ++len;
+          }
+          text = ++ptr;
+          break;
+#endif
 
         case '\t':
           put(text, ptr - text);
@@ -693,6 +717,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             }
             else if (wc <= 0x1f)
             {
+              // display CTRL character
               put(text, ptr - text);
               if (*ptr == '\0' && nulls > 0)
               {
@@ -710,6 +735,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             }
             else if (wc == 0x7f)
             {
+              // display control character 0x7f
               put(text, ptr - text);
               invert();
               put("^?", 2);

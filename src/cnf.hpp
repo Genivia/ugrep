@@ -252,14 +252,21 @@ class CNF {
   // anchor a pattern, when specified with -w or -x
   static void anchor(std::string& pattern)
   {
+    // -G requires \( \) instead of ( )
+    const char *xleft = flag_basic_regexp ? "^\\(" : "^(";
+    const char *xright = flag_basic_regexp ? "\\)$" : ")$";
+    const char *wleft = flag_basic_regexp ? "\\<\\(" : "\\<(";
+    const char *wright = flag_basic_regexp ? "\\)\\>" : ")\\>";
+
+    // patterns that start with ^ or end with $ are already anchored
     if (!pattern.empty() && (pattern.front() == '^' || pattern.back() == '$'))
     {
       if (!flag_line_regexp && flag_word_regexp)
       {
         if (pattern.front() != '^')
-          pattern.insert(0, "\\<(");
+          pattern.insert(0, wleft);
         else if (pattern.back() != '$')
-          pattern.append(")\\>");
+          pattern.append(wright);
       }
 
       // enable -Y to match empty
@@ -268,14 +275,14 @@ class CNF {
     else if (flag_line_regexp)
     {
       if (!pattern.empty())
-        pattern.insert(0, "^(").append(")$");
+        pattern.insert(0, xleft).append(xright);
       else
         pattern.assign("^$");
     }
     else if (flag_word_regexp)
     {
       if (!pattern.empty())
-        pattern.insert(0, "\\<(").append(")\\>");
+        pattern.insert(0, wleft).append(wright);
     }
   }
 

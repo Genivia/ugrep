@@ -102,8 +102,12 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   $UG -U -Fx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Fx.out"
   if [ "$PAT" == '\w+\s+\S+' ]; then
     $UG -U -G  '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-G.out"
+    $UG -U -Gw '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gw.out"
+    $UG -U -Gx '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gx.out"
   else
     $UG -U -G  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-G.out"
+    $UG -U -Gw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gw.out"
+    $UG -U -Gx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gx.out"
   fi
   $UG -U -IP  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IP.out"
   $UG -U -IPw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IPw.out"

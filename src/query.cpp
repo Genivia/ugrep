@@ -400,6 +400,7 @@ void Query::draw()
   }
 }
 
+// view one row of text by drawing it on screen
 void Query::view(int row)
 {
   Screen::normal();
