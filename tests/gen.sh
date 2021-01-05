@@ -67,6 +67,8 @@ sit
 amét
 END
 
+echo "GENERATING TEST OUTPUT FILES"
+
 $UG -Fiwco -f lorem lorem.utf8.txt  > out/lorem.utf8.out
 $UG -Fiwco -f lorem lorem.utf16.txt > out/lorem.utf16.out
 $UG -Fiwco -f lorem lorem.utf32.txt > out/lorem.utf32.out
@@ -74,56 +76,56 @@ cat lorem | $UG -Fiwco --encoding=LATIN1 -f - lorem.latin1.txt > out/lorem.latin
 
 $UG -Zio Lorem lorem.utf8.txt > out/lorem_Lorem-Zio.out
 
-$UG -ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ci.out
-$UG -cj hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-cj.out
+$UG -ci hello Hello.{bat,class,java,pdf,sh,txt} > out/Hello_Hello-ci.out
+$UG -cj hello Hello.{bat,class,java,pdf,sh,txt} > out/Hello_Hello-cj.out
 
-$UG -e Hello -e '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ee.out
-$UG -e Hello -N '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-eN.out
-$UG --max-count=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--max-count.out
-$UG --max-files=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--max-files.out
-$UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--range.out
+$UG -e Hello -e '".*?"' Hello.{bat,class,java,pdf,sh,txt} > out/Hello_Hello-ee.out
+$UG -e Hello -N '".*?"' Hello.{bat,class,java,pdf,sh,txt} > out/Hello_Hello-eN.out
+$UG --max-count=1 Hello Hello.{bat,class,java,pdf,sh,txt} > out/Hello_Hello--max-count.out
+$UG --max-files=1 Hello Hello.{bat,class,java,pdf,sh,txt} > out/Hello_Hello--max-files.out
+$UG --range=1,1   Hello Hello.{bat,class,java,pdf,sh,txt} > out/Hello_Hello--range.out
 
 for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
     for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-v' '-nv' '-C2' '-nC2' '-vC2' '-nvC2' '-y' '-ny' '-vy' '-nvy' ; do
-      $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN$OUT$OPS.out"
+      $UG -U $OUT $OPS "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN$OUT$OPS.out"
     done
   done
   for OUT in '--csv' '--json' '--xml' ; do
     for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-v' '-nv' '-nkb' '-unkb' '-o' '-on' '-onkb' '-ounkb' ; do
-      $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN$OUT$OPS.out"
+      $UG -U $OUT $OPS "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN$OUT$OPS.out"
     done
   done
-  $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN--format.out"
-  $UG -U -v --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-v--format.out"
-  $UG -U -Iw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Iw.out"
-  $UG -U -Ix "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Ix.out"
-  $UG -U -F  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-F.out"
-  $UG -U -Fw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Fw.out"
-  $UG -U -Fx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Fx.out"
+  $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN--format.out"
+  $UG -U -v --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-v--format.out"
+  $UG -U -Iw "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-Iw.out"
+  $UG -U -Ix "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-Ix.out"
+  $UG -U -F  "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-F.out"
+  $UG -U -Fw "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-Fw.out"
+  $UG -U -Fx "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-Fx.out"
   if [ "$PAT" == '\w+\s+\S+' ]; then
-    $UG -U -G  '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-G.out"
-    $UG -U -Gw '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gw.out"
-    $UG -U -Gx '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gx.out"
+    $UG -U -G  '\w\+\s\+\S\+' Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-G.out"
+    $UG -U -Gw '\w\+\s\+\S\+' Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-Gw.out"
+    $UG -U -Gx '\w\+\s\+\S\+' Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-Gx.out"
   else
-    $UG -U -G  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-G.out"
-    $UG -U -Gw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gw.out"
-    $UG -U -Gx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gx.out"
+    $UG -U -G  "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-G.out"
+    $UG -U -Gw "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-Gw.out"
+    $UG -U -Gx "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-Gx.out"
   fi
-  $UG -U -IP  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IP.out"
-  $UG -U -IPw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IPw.out"
-  $UG -U -IPx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IPx.out"
+  $UG -U -IP  "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-IP.out"
+  $UG -U -IPw "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-IPw.out"
+  $UG -U -IPx "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN-IPx.out"
 done
 
 for PAT in '' 'Hello World' 'Hello -World' 'Hello -World|greeting' 'Hello -(greeting|World)' '"a Hello" greeting' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_-'`
-  $UG -U --bool "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN--bool.out"
+  $UG -U --bool "$PAT" Hello.{bat,class,java,pdf,sh,txt} > "out/$FN--bool.out"
 done
 
-$UG -U -e 'Hello' --and 'World' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--and.out"
-$UG -U -e 'Hello' --andnot 'World' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--andnot.out"
-$UG -U -e 'Hello' --and --not 'World' -e 'greeting' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--and--not.out"
+$UG -U -e 'Hello' --and 'World' Hello.{bat,class,java,pdf,sh,txt} > "out/Hello--and.out"
+$UG -U -e 'Hello' --andnot 'World' Hello.{bat,class,java,pdf,sh,txt} > "out/Hello--andnot.out"
+$UG -U -e 'Hello' --and --not 'World' -e 'greeting' Hello.{bat,class,java,pdf,sh,txt} > "out/Hello--and--not.out"
 
 $UG -z -c Hello archive.cpio    > out/archive.cpio.out
 $UG -z -c Hello archive.pax     > out/archive.pax.out
