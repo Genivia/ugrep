@@ -20,6 +20,8 @@ esac
 
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
+sh "./gen-test-inputs.sh"
+
 echo "GENERATING TEST DIRECTORIES"
 
 rm -rf out/ dir1/ dir2
@@ -123,22 +125,6 @@ $UG -U -e 'Hello' --and 'World' Hello.bat Hello.class Hello.java Hello.pdf Hello
 $UG -U -e 'Hello' --andnot 'World' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--andnot.out"
 $UG -U -e 'Hello' --and --not 'World' -e 'greeting' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--and--not.out"
 
-echo "GENERATING TEST ARCHIVES"
-
-rm -f archive.*
-
-ls Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt | cpio -o --quiet > archive.cpio
-ls Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt | pax -w -f archive.pax
-tar cf archive.tar Hello.* empty.txt
-compress -c archive.tar > archive.tar.Z
-gzip  -9 -c archive.tar > archive.tgz
-bzip2 -9 -c archive.tar > archive.tbz
-lzma  -9 -c archive.tar > archive.tlz
-xz    -9 -c archive.tar > archive.txz
-lz4   -9 -c archive.tar > archive.tar.lz4
-zip   -9 -q archive.tar.zip archive.tar
-zip   -9 -q archive.zip Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt
-
 $UG -z -c Hello archive.cpio    > out/archive.cpio.out
 $UG -z -c Hello archive.pax     > out/archive.pax.out
 $UG -z -c Hello archive.tar     > out/archive.tar.out
@@ -162,10 +148,6 @@ $UG -z -c -tShell Hello archive.tbz     > out/archive-t.tbz.out
 $UG -z -c -tShell Hello archive.tlz     > out/archive-t.tlz.out
 $UG -z -c -tShell Hello archive.txz     > out/archive-t.txz.out
 $UG -z -c -tShell Hello archive.tar.lz4 > out/archive-t.tar.lz4.out
-
-for (( i = 0 ; i < 100000 ; i++ )) ; do
-  echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit.  Nunc hendrerit at metus sit amet aliquam."
-done | gzip -c > archive.gz
 
 $UG -z -c '' archive.gz > out/archive.gz.out
 
