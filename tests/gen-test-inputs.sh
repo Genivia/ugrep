@@ -1,6 +1,6 @@
 #!/bin/bash
 # requires: tar, compress, pax, cpio, gzip, bzip2, lzma, xz, lz4, zip,
-# iconv
+# iconv, javac
 
 echo "GENERATING SIMPLE FILES"
 
@@ -24,6 +24,10 @@ iconv --from-code latin1 --to-code UTF-16BE >> lorem.utf16.txt lorem.latin1.txt
 # UTF-32 in big-endian including a BOM indicating big-endian
 echo -ne '\x00\x00\xFE\xFF' > lorem.utf32.txt
 iconv --from-code latin1 --to-code UTF-32BE >> lorem.utf32.txt lorem.latin1.txt
+
+
+echo "COMPILING JAVA CODE"
+javac Hello.java
 
 
 
