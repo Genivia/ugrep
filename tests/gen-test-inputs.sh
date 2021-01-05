@@ -1,6 +1,19 @@
 #!/bin/bash
 # requires: tar, compress, pax, cpio, gzip, bzip2, lzma, xz, lz4, zip
 
+echo "GENERATING SIMPLE FILES"
+
+echo -n > empty.txt
+
+cat > lorem << END
+Lorêm
+ïpsûm
+dolor
+sit
+amét
+END
+
+
 
 echo "GENERATING TEST ARCHIVES"
 

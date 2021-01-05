@@ -57,15 +57,6 @@ $UG -Rl --filter='sh:head -n1'           Hello dir1 > out/dir--filter.out
 
 rm -rf dir1 dir2
 
-echo "GENERATING TEST FILES"
-
-cat > lorem << END
-Lorêm
-ïpsûm
-dolor
-sit
-amét
-END
 
 echo "GENERATING TEST OUTPUT FILES"
 
