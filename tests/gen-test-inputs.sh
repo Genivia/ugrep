@@ -1,6 +1,6 @@
 #!/bin/bash
 # requires: tar, compress, pax, cpio, gzip, bzip2, lzma, xz, lz4, zip,
-# iconv, javac
+# iconv, javac, ps2pdf
 
 echo "GENERATING SIMPLE FILES"
 
@@ -29,6 +29,14 @@ iconv --from-code latin1 --to-code UTF-32BE >> lorem.utf32.txt lorem.latin1.txt
 echo "COMPILING JAVA CODE"
 javac Hello.java
 
+
+echo "GENERATING PDF"
+# For the tests the PDF is treated as a binary file. The title is what
+# is matched, not the contained text.
+
+# pdf1.3 for smaller file size (no XML meta-data)
+# printer to include more binary data (font, color profile)
+ps2pdf13 -dPDFSETTINGS=/printer Hello.ps Hello.pdf
 
 
 echo "GENERATING TEST ARCHIVES"
