@@ -48,7 +48,7 @@ else
 fi
 
 ls -f Hello.{bat,class,java,pdf,sh,txt} empty.txt | \
-    cpio -o --quiet > archive.cpio
+    cpio -o --format odc --quiet > archive.cpio
 ls -f Hello.{bat,class,java,pdf,sh,txt} empty.txt | \
     $pax -f archive.pax
 tar cf archive.tar Hello.{bat,class,java,pdf,sh,txt} empty.txt
