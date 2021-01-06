@@ -40,8 +40,10 @@ for (( i = 0 ; i < 100000 ; i++ )) ; do
 done | gzip -c > archive.gz
 
 
-ls Hello.{bat,class,java,pdf,sh,txt} empty.txt | cpio -o --quiet > archive.cpio
-ls Hello.{bat,class,java,pdf,sh,txt} empty.txt | pax -w -f archive.pax
+ls -f Hello.{bat,class,java,pdf,sh,txt} empty.txt | \
+    cpio -o --quiet > archive.cpio
+ls -f Hello.{bat,class,java,pdf,sh,txt} empty.txt | \
+    pax -w -f archive.pax
 tar cf archive.tar Hello.{bat,class,java,pdf,sh,txt} empty.txt
 compress -c archive.tar > archive.tar.Z
 gzip  -9 -c archive.tar > archive.tgz
