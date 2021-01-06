@@ -39,11 +39,18 @@ for (( i = 0 ; i < 100000 ; i++ )) ; do
   echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit.  Nunc hendrerit at metus sit amet aliquam."
 done | gzip -c > archive.gz
 
+# pax by default creates tar archives. Thus if pax is not availalbe,
+# just use tar, passing it required options.
+if which pax >/dev/null 2>&1 ; then
+    pax="pax -w"
+else
+    pax="tar -c --files-from=-"
+fi
 
 ls -f Hello.{bat,class,java,pdf,sh,txt} empty.txt | \
     cpio -o --quiet > archive.cpio
 ls -f Hello.{bat,class,java,pdf,sh,txt} empty.txt | \
-    pax -w -f archive.pax
+    $pax -f archive.pax
 tar cf archive.tar Hello.{bat,class,java,pdf,sh,txt} empty.txt
 compress -c archive.tar > archive.tar.Z
 gzip  -9 -c archive.tar > archive.tgz
