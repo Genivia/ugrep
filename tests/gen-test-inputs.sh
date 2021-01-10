@@ -57,6 +57,10 @@ else
     pax="tar -c --files-from=-"
 fi
 
+# For the tests, the archives need not to be deterministic, since
+# user, groups, mtime, mode, etc. are not output by ugrep and are not
+# relevant for the tests.
+
 ls -f Hello.{bat,class,java,pdf,sh,txt} empty.txt | \
     cpio -o --format odc --quiet > archive.cpio
 ls -f Hello.{bat,class,java,pdf,sh,txt} empty.txt | \
