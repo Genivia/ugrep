@@ -37,6 +37,8 @@ echo "GENERATING PDF"
 # pdf1.3 for smaller file size (no XML meta-data)
 # printer to include more binary data (font, color profile)
 ps2pdf13 -dPDFSETTINGS=/printer Hello.ps Hello.pdf
+sed -e "s!\(/\(Creation\|Mod\)Date\)([^)]*)!\1(D:19700102030405+00'00')!" \
+    -e "s!\(/Producer\)([^)]*)!\1(Some Producer)!" -i Hello.pdf
 
 
 echo "GENERATING TEST ARCHIVES"
