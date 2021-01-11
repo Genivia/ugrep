@@ -197,6 +197,9 @@ search for "Path" in *Find a Setting*.  Select *environment variables* ->
 `ug.exe` executables.
 
 Some notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
+- file and directory globs should be specified with option `-g/GLOB` instead
+  of a `GLOB` command line argument (globbing is disabled, because `*` and `?`
+  in patterns would get replaced).
 - when quoting patterns and arguments on the command line, do not use single
   `'` quotes but use `"` instead; most Windows command utilities consider
   the single `'` quotes part of the command-line argument!

@@ -134,7 +134,7 @@ Configuration Properties
 		General:
 			Additional Library Directories: $(ProjectDir)\..
 		Input:
-			Additional Dependencies: setargv.obj;pcre2-x32.lib;liblzma-x32.lib
+			Additional Dependencies: pcre2-x32.lib;liblzma-x32.lib
 
 Then build ugrep in Visual Studio.
 
@@ -210,6 +210,6 @@ Configuration Properties
 		General:
 			Additional Library Directories: $(ProjectDir)\..
 		Input:
-			Additional Dependencies: setargv.obj;liblzma-x32.lib
+			Additional Dependencies: liblzma-x32.lib
 
 Then build ugrep in Visual Studio.
