@@ -1265,11 +1265,6 @@ void Query::query_ui()
 // start a new search, stop the previous search when still running
 void Query::search()
 {
-  row_ = 0;
-  rows_ = 0;
-  skip_ = 0;
-  dots_ = 6; // to clear screen after 300ms
-
   if (!eof_)
   {
     close(search_pipe_[0]);
@@ -1279,8 +1274,6 @@ void Query::search()
     // graciously shut down ugrep() if still running
     cancel_ugrep();
   }
-
-  error_ = -1;
 
 #ifdef OS_WIN
 
@@ -1310,11 +1303,26 @@ void Query::search()
 
 #endif
 
-  eof_ = false;
-
   if (search_thread_.joinable())
-    search_thread_.join();
+  {
+    if (error_ == -1 && rows_ < row_ + Screen::rows - 1)
+    {
+      Screen::normal();
+      Screen::invert();
+      Screen::put(rows_ - row_ + 1, 0, "Restart");
+      Screen::normal();
+      Screen::erase();
+    }
 
+    search_thread_.join();
+  }
+
+  eof_ = false;
+  row_ = 0;
+  rows_ = 0;
+  skip_ = 0;
+  dots_ = 6; // to clear screen after 300ms
+  error_ = -1;
   arg_pattern = globbing_ ? temp_ : line_;
 
   if (deselect_file_)
@@ -2397,8 +2405,9 @@ bool Query::help()
   Screen::clear();
   redraw();
 
-  bool ctrl_q = false;
-  bool ctrl_o = false;
+  bool ctrl_q  = false; // CTRL-Q is pressed
+  bool ctrl_o  = false; // CTRL-O is pressed
+  bool restart = false; // META key pressed, restart search when exiting the help screen
 
   while (true)
   {
@@ -2435,6 +2444,7 @@ bool Query::help()
     {
       meta(key);
       ctrl_o = false;
+      restart = true;
     }
     else if (key == VKey::CTRL_Q)
     {
@@ -2478,12 +2488,14 @@ bool Query::help()
 
         case VKey::META:
           meta(VKey::get());
+          restart = true;
           break;
 
         default:
           if (key < 0x80)
           {
             meta(key);
+            restart = true;
           }
           else
           {
@@ -2505,7 +2517,12 @@ bool Query::help()
   message_ = false;
 
   Screen::clear();
-  redraw();
+
+  if (restart)
+  {
+    draw();
+    search();
+  }
 
   return ctrl_q;
 }
@@ -2523,7 +2540,11 @@ void Query::meta(int key)
       flags_[17].flag = false;
       flags_[30].flag = false;
 
-      search();
+      // search when in QUERY mode, otherwise refresh HELP display
+      if (mode_ == Mode::QUERY)
+        search();
+      else
+        redraw();
 
       std::string msg;
 
@@ -2846,7 +2867,11 @@ void Query::meta(int key)
           msg.append(fp->flag ? " \033[32;1mon\033[m" : " \033[31;1moff\033[m");
         }
 
-        search();
+        // search when in QUERY mode, otherwise refresh HELP display
+        if (mode_ == Mode::QUERY)
+          search();
+        else
+          redraw();
 
         message(msg);
 

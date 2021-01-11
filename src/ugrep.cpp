@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.1"
+#define UGREP_VERSION "3.1.2"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -848,20 +848,17 @@ struct Grep {
     // get the start of the before context, if present
     void begin_before(reflex::AbstractMatcher& matcher, const char *buf, size_t len, size_t num, const char*& ptr, size_t& size, size_t& offset)
     {
+      ptr = NULL;
+      size = 0;
+      offset = 0;
+
       if (len == 0)
-      {
-        ptr = NULL;
         return;
-      }
 
       size_t current = matcher.lineno();
       size_t between = current - lineno;
 
-      if (between <= 1)
-      {
-        ptr = NULL;
-      }
-      else
+      if (between > 1)
       {
         const char *s = buf + len;
         const char *e = s;
@@ -2966,12 +2963,20 @@ struct Grep {
 #endif
     }
 
-    // -I: do not match binary
+    // -I: do not match binary, check if the initial 16K of the file is binary
     if (flag_binary_without_match)
     {
-      const char *eol = matcher->eol(); // warning: call eol() before bol()
-      const char *bol = matcher->bol();
-      if (is_binary(bol, eol - bol))
+      size_t avail = matcher->avail();
+      if (avail < 16384 && !input.eof())
+      {
+        // less than 16K available and not EOF, e.g. piped input, get until the first EOL to check
+        matcher->eol();
+        avail = matcher->avail();
+      }
+      // limit checking to first 16K of input to improve performance
+      if (avail > 16384)
+        avail = 16384;
+      if (is_binary(matcher->begin(), avail))
         return false;
     }
 
@@ -3528,30 +3533,26 @@ const Type type_table[] = {
   { NULL,           NULL,                                                       NULL }
 };
 
+#ifdef OS_WIN
+// ugrep main() for Windows to support wide string arguments and globbing
+int wmain(int argc, const wchar_t **wargv)
+#else
 // ugrep main()
 int main(int argc, const char **argv)
+#endif
 {
+
 #ifdef OS_WIN
-
-  LPWSTR *argws = CommandLineToArgvW(GetCommandLineW(), &argc);
-
-  if (argws == NULL)
-    error("cannot parse command line arguments", "CommandLineToArgvW failed");
 
   // store UTF-8 arguments for the duration of main() and convert Unicode command line arguments argws[] to UTF-8 arguments argv[]
   std::vector<std::string> args;
   args.resize(argc);
+  const char **argv = new const char *[argc];
   for (int i = 0; i < argc; ++i)
   {
-    args[i] = utf8_encode(argws[i]);
+    args[i] = utf8_encode(wargv[i]);
     argv[i] = args[i].c_str();
   }
-
-  LocalFree(argws);
-
-#endif
-
-#ifdef OS_WIN
 
   // handle CTRL-C
   SetConsoleCtrlHandler(&sigint, TRUE);
@@ -3604,6 +3605,12 @@ int main(int argc, const char **argv)
       abort("error: ", error.what());
     }
   }
+
+#ifdef OS_WIN
+
+  delete argv;
+
+#endif
 
   return warnings == 0 && Stats::found_any_file() ? EXIT_OK : EXIT_FAIL;
 }

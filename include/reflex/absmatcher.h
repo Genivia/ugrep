@@ -1099,6 +1099,13 @@ class AbstractMatcher {
     }
     return buf_ + end_;
   }
+  /// Returns the number of bytes in the buffer available to search from the current begin()/text() position.
+  size_t avail()
+  {
+    if (peek() == EOF)
+      return 0;
+    return end_ - (txt_ - buf_);
+  }
   /// Returns the byte offset of the match from the start of the line.
   size_t border()
     /// @returns border offset

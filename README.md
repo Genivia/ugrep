@@ -172,7 +172,7 @@ Table of contents
 Download and install
 --------------------
 
-### MacOS
+### Homebrew for MacOS (and Linux)
 
 Install the latest **ugrep** with [Homebrew](https://brew.sh):
 
@@ -4601,7 +4601,7 @@ in markdown:
 
 
 
-    ugrep 3.1.1                    December 21, 2020                      UGREP(1)
+    ugrep 3.1.2                    January 08, 2021                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
