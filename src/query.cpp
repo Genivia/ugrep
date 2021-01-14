@@ -2517,12 +2517,10 @@ bool Query::help()
   message_ = false;
 
   Screen::clear();
+  redraw();
 
   if (restart)
-  {
-    draw();
     search();
-  }
 
   return ctrl_q;
 }

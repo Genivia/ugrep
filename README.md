@@ -196,7 +196,7 @@ search for "Path" in *Find a Setting*.  Select *environment variables* ->
 *Path* -> *New* and add the directory where you placed the `ugrep.exe` and
 `ug.exe` executables.
 
-Some notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
+Notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
 - file and directory globs should be specified with option `-g/GLOB` instead
   of a `GLOB` command line argument (globbing is disabled, because `*` and `?`
   in patterns would get replaced).
@@ -4604,7 +4604,7 @@ in markdown:
 
 
 
-    ugrep 3.1.2                    January 08, 2021                       UGREP(1)
+    ugrep 3.1.3                    January 14, 2021                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

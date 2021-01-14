@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.2"
+#define UGREP_VERSION "3.1.3"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -3608,7 +3608,7 @@ int main(int argc, const char **argv)
 
 #ifdef OS_WIN
 
-  delete argv;
+  delete[] argv;
 
 #endif
 
