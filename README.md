@@ -185,11 +185,12 @@ directory or home directory.
 ### Windows
 
 Download the full-featured `ugrep.exe` executable as release artifacts from
-<https://github.com/Genivia/ugrep/releases>
+<https://github.com/Genivia/ugrep/releases> or use [Scoop](https://scoop.sh)
+`scoop install ugrep`.
 
-Copy `ugrep.exe` to `ug.exe` if you also want the `ug` command, which loads the
-.ugrep configuration file when present in the working directory or home
-directory.
+Download release artifact `ugrep.exe`.  Copy `ugrep.exe` to `ug.exe` if you
+also want the `ug` command, which loads the .ugrep configuration file when
+present in the working directory or home directory.
 
 Add `ugrep.exe` and `ug.exe` to your execution path: go to *Settings* and
 search for "Path" in *Find a Setting*.  Select *environment variables* ->
