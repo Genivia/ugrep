@@ -26,12 +26,12 @@ rm -rf out/ dir1/ dir2
 
 mkdir -p out dir1 dir2
 
-cd dir1; ln -s ../Hello.java .; cd ..
-cd dir1; cp ../Hello.sh .; cd ..
-cd dir2; ln -s ../Hello.java .; cd ..
-cd dir2; cp ../Hello.sh .; cd ..
-cd dir1; ln -s ../dir2 .; cd ..
-cd dir2; ln -s ../dir1 .; cd ..
+ln -s ../Hello.java dir1
+cp Hello.sh dir1
+ln -s ../Hello.java dir2
+cp Hello.sh dir2
+ln -s ../dir2 dir1
+ln -s ../dir1 dir2
 cat > dir1/.gitignore << END
 # ignore shells
 *.sh

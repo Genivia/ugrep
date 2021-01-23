@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.3"
+#define UGREP_VERSION "3.1.4"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -512,7 +512,7 @@ std::vector<std::string> flag_all_exclude_dir;
 reflex::Input::file_encoding_type flag_encoding_type = reflex::Input::file_encoding::plain;
 
 // the CNF of Boolean search queries and patterns
-CNF cnf;
+CNF bcnf;
 
 // ugrep command-line arguments pointing to argv[]
 const char *arg_pattern = NULL;
@@ -2459,13 +2459,13 @@ struct Grep {
 
     if (len > HEADERSIZE)
     {
-      // odc format
+      // cpio odc format
       const char odc_magic[6] = { '0', '7', '0', '7', '0', '7' };
 
-      // newc format
+      // cpio newc format
       const char newc_magic[6] = { '0', '7', '0', '7', '0', '1' };
 
-      // newc+crc format
+      // cpio newc+crc format
       const char newc_crc_magic[6] = { '0', '7', '0', '7', '0', '2' };
 
       // is this a cpio archive?
@@ -2486,9 +2486,10 @@ struct Grep {
 
         while (true)
         {
-          // true if odc, false if newc
+          // true if odc format, false if newc format
           bool is_odc = buf[5] == '7';
 
+          // odc header length is 76, newc header length is 110
           int header_len = is_odc ? 76 : 110;
 
           char tmp[16];
@@ -4701,7 +4702,7 @@ void options(int argc, const char **argv)
       // read standard input
       flag_stdin = true;
     }
-    else if (arg_pattern == NULL && !flag_match && !flag_not && !cnf.defined() && flag_file.empty())
+    else if (arg_pattern == NULL && !flag_match && !flag_not && !bcnf.defined() && flag_file.empty())
     {
       // no regex pattern specified yet, so assume it is PATTERN
       arg_pattern = arg;
@@ -4734,7 +4735,7 @@ void option_regexp(const char *arg, bool neg)
     }
   }
 
-  cnf.new_pattern(arg, neg);
+  bcnf.new_pattern(arg, neg);
 }
 
 // parse --and [PATTERN]
@@ -4746,10 +4747,10 @@ void option_and(int& i, int argc, const char **argv)
   if (flag_query)
     usage("option -Q does not support --and");
 
-  cnf.new_term();
+  bcnf.new_term();
 
   if (i + 1 < argc && *argv[i + 1] != '-')
-    cnf.new_pattern(argv[++i]);
+    bcnf.new_pattern(argv[++i]);
 }
 
 // parse --and=PATTERN
@@ -4761,9 +4762,9 @@ void option_and(const char *arg)
   if (flag_query)
     usage("option -Q does not support --and");
 
-  cnf.new_term();
+  bcnf.new_term();
 
-  cnf.new_pattern(arg);
+  bcnf.new_pattern(arg);
 }
 
 // parse --andnot [PATTERN]
@@ -4775,12 +4776,12 @@ void option_andnot(int& i, int argc, const char **argv)
   if (flag_query)
     usage("option -Q does not support --andnot");
 
-  cnf.new_term();
+  bcnf.new_term();
 
   flag_not = true;
 
   if (i + 1 < argc && *argv[i + 1] != '-')
-    cnf.new_pattern(argv[++i]);
+    bcnf.new_pattern(argv[++i]);
 }
 
 // parse --andnot=PATTERN
@@ -4792,11 +4793,11 @@ void option_andnot(const char *arg)
   if (flag_query)
     usage("option -Q does not support --andnot");
 
-  cnf.new_term();
+  bcnf.new_term();
 
   flag_not = true;
 
-  cnf.new_pattern(arg);
+  bcnf.new_pattern(arg);
 }
 
 // parse --not [PATTERN]
@@ -4808,7 +4809,7 @@ void option_not(int& i, int argc, const char **argv)
   flag_not = !flag_not;
 
   if (i + 1 < argc && *argv[i + 1] != '-')
-    cnf.new_pattern(argv[++i]);
+    bcnf.new_pattern(argv[++i]);
 }
 
 // parse --not=PATTERN
@@ -4819,7 +4820,7 @@ void option_not(const char *arg)
 
   flag_not = !flag_not;
 
-  cnf.new_pattern(arg);
+  bcnf.new_pattern(arg);
 }
 
 // parse the command-line options and initialize
@@ -4964,6 +4965,10 @@ void init(int argc, const char **argv)
 #endif
   }
 
+  // --query: override --pager
+  if (flag_query > 0)
+    flag_pager = NULL;
+
   // check TTY info and set colors (warnings and errors may occur from here on)
   terminal();
 
@@ -5040,11 +5045,11 @@ void init(int argc, const char **argv)
     arg_pattern = "";
 
   // if no regex pattern is specified and no -e PATTERN and no -f FILE and not -Q, then exit with usage message
-  if (arg_pattern == NULL && !cnf.defined() && flag_file.empty() && flag_query == 0)
+  if (arg_pattern == NULL && !bcnf.defined() && flag_file.empty() && flag_query == 0)
     usage("no PATTERN specified: specify an empty \"\" pattern to match all input");
 
   // regex PATTERN should be a FILE argument when -Q or -e PATTERN is specified
-  if (!flag_match && arg_pattern != NULL && (flag_query > 0 || cnf.defined()))
+  if (!flag_match && arg_pattern != NULL && (flag_query > 0 || bcnf.defined()))
   {
     arg_files.insert(arg_files.begin(), arg_pattern);
     arg_pattern = NULL;
@@ -5910,23 +5915,23 @@ void ugrep()
 
   // add PATTERN
   if (arg_pattern != NULL)
-    cnf.new_pattern(arg_pattern);
+    bcnf.new_pattern(arg_pattern);
 
   // the regex compiled from PATTERN, -e PATTERN, -N PATTERN, and -f FILE
   std::string regex;
 
-  if (cnf.defined())
+  if (bcnf.defined())
   {
     // prune empty terms from the CNF that match anything
-    cnf.prune();
+    bcnf.prune();
 
     // split the patterns at newlines, standard grep
-    cnf.split();
+    bcnf.split();
 
     if (flag_file.empty())
     {
       // the CNF patterns to search, this matches more than necessary to support multiline matching and to highlight all matches in color
-      regex.assign(cnf.adjoin());
+      regex.assign(bcnf.adjoin());
 
       // an empty pattern specified matches every line with ^.* (using ^ to prevent -o from making an extra empty match), including empty lines
       if (regex.empty())
@@ -5936,14 +5941,14 @@ void ugrep()
       }
 
       // CNF is empty if all patterns are empty, i.e. match anything unless -f FILE specified
-      if (cnf.empty())
+      if (bcnf.empty())
         flag_match = true;
     }
     else
     {
       // -f FILE is combined with -e, --and, --andnot, --not
 
-      if (cnf.first_empty())
+      if (bcnf.first_empty())
       {
         // an empty pattern specified with -e '' matches every line
         regex = flag_hex ? ".*\\n?" : "^.*";
@@ -5952,7 +5957,7 @@ void ugrep()
       else
       {
         // only take the first CNF OR-list terms to search in combination with -f FILE patterns
-        regex.assign(cnf.first());
+        regex.assign(bcnf.first());
       }
     }
   }
@@ -6258,11 +6263,11 @@ void ugrep()
     reflex::PCRE2Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
     Grep::Matchers matchers;
 
-    if (!cnf.singleton_or_undefined())
+    if (!bcnf.singleton_or_undefined())
     {
       std::string subregex;
 
-      for (const auto& i : cnf.lists())
+      for (const auto& i : bcnf.lists())
       {
         matchers.emplace_back();
 
@@ -6285,12 +6290,12 @@ void ugrep()
 
     if (threads > 1)
     {
-      GrepMaster grep(output, &matcher, cnf.singleton_or_undefined() ? NULL : &matchers);
+      GrepMaster grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
       grep.ugrep();
     }
     else
     {
-      Grep grep(output, &matcher, cnf.singleton_or_undefined() ? NULL : &matchers);
+      Grep grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
       set_grep_handle(&grep);
       grep.ugrep();
       clear_grep_handle();
@@ -6303,11 +6308,11 @@ void ugrep()
       reflex::BoostPerlMatcher matcher(pattern, reflex::Input(), matcher_options.c_str());
       Grep::Matchers matchers;
 
-      if (!cnf.singleton_or_undefined())
+      if (!bcnf.singleton_or_undefined())
       {
         std::string subregex;
 
-        for (const auto& i : cnf.lists())
+        for (const auto& i : bcnf.lists())
         {
           matchers.emplace_back();
 
@@ -6330,12 +6335,12 @@ void ugrep()
 
       if (threads > 1)
       {
-        GrepMaster grep(output, &matcher, cnf.singleton_or_undefined() ? NULL : &matchers);
+        GrepMaster grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
         grep.ugrep();
       }
       else
       {
-        Grep grep(output, &matcher, cnf.singleton_or_undefined() ? NULL : &matchers);
+        Grep grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
         set_grep_handle(&grep);
         grep.ugrep();
         clear_grep_handle();
@@ -6406,11 +6411,11 @@ void ugrep()
     {
       reflex::FuzzyMatcher matcher(pattern, static_cast<uint16_t>(flag_fuzzy), reflex::Input(), matcher_options.c_str());
 
-      if (!cnf.singleton_or_undefined())
+      if (!bcnf.singleton_or_undefined())
       {
         std::string subregex;
 
-        for (const auto& i : cnf.lists())
+        for (const auto& i : bcnf.lists())
         {
           matchers.emplace_back();
 
@@ -6434,12 +6439,12 @@ void ugrep()
 
       if (threads > 1)
       {
-        GrepMaster grep(output, &matcher, cnf.singleton_or_undefined() ? NULL : &matchers);
+        GrepMaster grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
         grep.ugrep();
       }
       else
       {
-        Grep grep(output, &matcher, cnf.singleton_or_undefined() ? NULL : &matchers);
+        Grep grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
         set_grep_handle(&grep);
         grep.ugrep();
         clear_grep_handle();
@@ -6449,11 +6454,11 @@ void ugrep()
     {
       reflex::Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
 
-      if (!cnf.singleton_or_undefined())
+      if (!bcnf.singleton_or_undefined())
       {
         std::string subregex;
 
-        for (const auto& i : cnf.lists())
+        for (const auto& i : bcnf.lists())
         {
           matchers.emplace_back();
 
@@ -6477,12 +6482,12 @@ void ugrep()
 
       if (threads > 1)
       {
-        GrepMaster grep(output, &matcher, cnf.singleton_or_undefined() ? NULL : &matchers);
+        GrepMaster grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
         grep.ugrep();
       }
       else
       {
-        Grep grep(output, &matcher, cnf.singleton_or_undefined() ? NULL : &matchers);
+        Grep grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
         set_grep_handle(&grep);
         grep.ugrep();
         clear_grep_handle();
@@ -6506,7 +6511,7 @@ void ugrep()
   {
     Stats::report(output);
 
-    cnf.report(output);
+    bcnf.report(output);
 
     if (strcmp(flag_stats, "vm") == 0 && words > 0)
       fprintf(output, "VM memory: %zu nodes (%zums), %zu edges (%zums), %zu opcode words (%zums)\n", nodes, nodes_time, edges, edges_time, words, words_time);
@@ -10309,9 +10314,10 @@ void help(std::ostream& out)
             matches `glob', same as --exclude='glob'.  When `glob' contains a\n\
             `/', full pathnames are matched.  Otherwise basenames are matched.\n\
             When `glob' ends with a `/', directories are matched, same as\n\
-            --include-dir='glob' and --exclude-dir='glob'.  This option may be\n\
-            repeated and may be combined with options -M, -O and -t to expand\n\
-            the recursive search.\n\
+            --include-dir='glob' and --exclude-dir='glob'.  A leading `/'\n\
+            matches the working directory.  This option may be repeated and may\n\
+            be combined with options -M, -O and -t to expand the recursive\n\
+            search.\n\
     --group-separator[=SEP]\n\
             Use SEP as a group separator for context options -A, -B, and -C.\n\
             The default is a double hyphen (`--').\n\

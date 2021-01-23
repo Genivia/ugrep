@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 14, 2021" "ugrep 3.1.3" "User Commands"
+.TH UGREP "1" "January 23, 2021" "ugrep 3.1.4" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -300,9 +300,10 @@ When a `glob' is preceded by a `!' or a `^', skip files whose name
 matches `glob', same as \fB\-\-exclude\fR='glob'.  When `glob' contains a
 `/', full pathnames are matched.  Otherwise basenames are matched.
 When `glob' ends with a `/', directories are matched, same as
-\fB\-\-include\-dir\fR='glob' and \fB\-\-exclude\-dir\fR='glob'.  This option may be
-repeated and may be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR to expand
-the recursive search.
+\fB\-\-include\-dir\fR='glob' and \fB\-\-exclude\-dir\fR='glob'.  A leading `/'
+matches the working directory.  This option may be repeated and may
+be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR to expand the recursive
+search.
 .TP
 \fB\-\-group\-separator[\fR=\fISEP\fR]
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.

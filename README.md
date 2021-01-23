@@ -1190,9 +1190,10 @@ using ugrep query selection mode (press Enter to select lines):
             matches `glob', same as --exclude='glob'.  When `glob' contains a
             `/', full pathnames are matched.  Otherwise basenames are matched.
             When `glob' ends with a `/', directories are matched, same as
-            --include-dir='glob' and --exclude-dir='glob'.  This option may be
-            repeated and may be combined with options -M, -O and -t to expand
-            the recursive search.
+            --include-dir='glob' and --exclude-dir='glob'.  A leading `/'
+            matches the working directory.  This option may be repeated and may
+            be combined with options -M, -O and -t to expand the recursive
+            search.
     -O EXTENSIONS, --file-extension=EXTENSIONS
             Search only files whose filename extensions match the specified
             comma-separated list of EXTENSIONS, same as --include='*.ext' for
@@ -1327,7 +1328,7 @@ operator | alternative | result
 `x\|y`   | `x OR y`    | matches lines with `x` or `y`
 `-x`     | `NOT x`     | inverted match, i.e. matches if `x` does not match
 `( )`    |             | Boolean expression grouping
-`“x”`    |             | match `x` literally and exactly as specified (using the standard regex escapes `\Q` and `\E` for quoting)
+`"x"`    |             | match `x` literally and exactly as specified (using the standard regex escapes `\Q` and `\E` for quoting)
 
 - `x` and `y` are subpatterns that do not start with the special symbols `|`,
   `-`, and `(` (use quotes or a `\` escape to match these);
@@ -1732,9 +1733,10 @@ instead of a single word:
             matches `glob', same as --exclude='glob'.  When `glob' contains a
             `/', full pathnames are matched.  Otherwise basenames are matched.
             When `glob' ends with a `/', directories are matched, same as
-            --include-dir='glob' and --exclude-dir='glob'.  This option may be
-            repeated and may be combined with options -M, -O and -t to expand
-            the recursive search.
+            --include-dir='glob' and --exclude-dir='glob'.  A leading `/'
+            matches the working directory.  This option may be repeated and may
+            be combined with options -M, -O and -t to expand the recursive
+            search.
     -O EXTENSIONS, --file-extension=EXTENSIONS
             Search only files whose filename extensions match the specified
             comma-separated list of EXTENSIONS, same as --include='*.ext' for
@@ -1984,9 +1986,10 @@ search the files:
             matches `glob', same as --exclude='glob'.  When `glob' contains a
             `/', full pathnames are matched.  Otherwise basenames are matched.
             When `glob' ends with a `/', directories are matched, same as
-            --include-dir='glob' and --exclude-dir='glob'.  This option may be
-            repeated and may be combined with options -M, -O and -t to expand
-            the recursive search.
+            --include-dir='glob' and --exclude-dir='glob'.  A leading `/'
+            matches the working directory.  This option may be repeated and may
+            be combined with options -M, -O and -t to expand the recursive
+            search.
     --stats
             Output statistics on the number of files and directories searched,
             and the inclusion and exclusion constraints applied.
@@ -2423,9 +2426,10 @@ implicit:
             matches `glob', same as --exclude='glob'.  When `glob' contains a
             `/', full pathnames are matched.  Otherwise basenames are matched.
             When `glob' ends with a `/', directories are matched, same as
-            --include-dir='glob' and --exclude-dir='glob'.  This option may be
-            repeated and may be combined with options -M, -O and -t to expand
-            the recursive search.
+            --include-dir='glob' and --exclude-dir='glob'.  A leading `/'
+            matches the working directory.  This option may be repeated and may
+            be combined with options -M, -O and -t to expand the recursive
+            search.
     --exclude=GLOB
             Skip files whose name matches GLOB using wildcard matching, same as
             -g !GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
@@ -2504,7 +2508,7 @@ glob     | matches
 `[a-z]`  | matches one character in the selected range of characters
 `[^a-z]` | matches one character not in the selected range of characters
 `[!a-z]` | matches one character not in the selected range of characters
-`/`      | when used at the begin of a glob, matches root or working directory
+`/`      | when used at the begin of a glob, matches working directory
 `**/`    | matches zero or more directories
 `/**`    | when at the end of a glob, matches everything after the `/`
 `\?`     | matches a `?` (or any character specified after the backslash)
@@ -2512,8 +2516,14 @@ glob     | matches
 When a glob contains a path separator `/`, the pathname is matched.  Otherwise
 the basename of a file or directory is matched.  For example, `*.h` matches
 `foo.h` and `bar/foo.h`. `bar/*.h` matches `bar/foo.h` but not `foo.h` and not
-`bar/bar/foo.h`.  Use a leading `/` to force `/*.h` to match `foo.h` but not
-`bar/foo.h`.
+`bar/bar/foo.h`.
+
+When a glob begins with a `/`, files and directories are matched at the working
+directory, i.e. not recursively.  For example, use a leading `/` to force
+`/*.h` to match `foo.h` but not `bar/foo.h`.
+
+When a glob ends with a `/`, directories are matched instead of files, same as
+`--include-dir`.
 
 When a glob starts with a `!` as specified with `-g!GLOB`, or specified in a
 `FILE` with `--include-from=FILE` or `--exclude-from=FILE`, it is negated.
@@ -3696,9 +3706,9 @@ in markdown:
                   `glob' contains a `/', full pathnames  are  matched.   Otherwise
                   basenames are matched.  When `glob' ends with a `/', directories
                   are    matched,     same     as     --include-dir='glob'     and
-                  --exclude-dir='glob'.   This  option  may be repeated and may be
-                  combined with options -M, -O and  -t  to  expand  the  recursive
-                  search.
+                  --exclude-dir='glob'.   A leading `/' matches the working direc-
+                  tory.  This option may be repeated  and  may  be  combined  with
+                  options -M, -O and -t to expand the recursive search.
 
            --group-separator[=SEP]
                   Use SEP as a group separator for context options -A, -B, and -C.
@@ -4605,7 +4615,7 @@ in markdown:
 
 
 
-    ugrep 3.1.3                    January 14, 2021                       UGREP(1)
+    ugrep 3.1.4                    January 23, 2021                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

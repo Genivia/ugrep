@@ -240,7 +240,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 #define UNDEFINED_SIZE static_cast<size_t>(~0UL)
 
 // the CNF of Boolean search queries and patterns
-extern CNF cnf;
+extern CNF bcnf;
 
 // ugrep command-line arguments pointing to argv[]
 extern const char *arg_pattern;
