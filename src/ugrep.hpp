@@ -128,7 +128,14 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
   *file = NULL;
 
   std::wstring wfilename = utf8_decode(filename);
-  HANDLE hFile = CreateFileW(wfilename.c_str(), GENERIC_READ, FILE_SHARE_READ, SECURITY_ANONYMOUS, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+
+  HANDLE hFile;
+  if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
+    hFile = CreateFileW(wfilename.c_str(), GENERIC_READ, FILE_SHARE_READ, SECURITY_ANONYMOUS, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+  else if (strchr(mode, 'a') == NULL)
+    hFile = CreateFileW(wfilename.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, SECURITY_ANONYMOUS, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  else
+    hFile = CreateFileW(wfilename.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, SECURITY_ANONYMOUS, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
   if (hFile == INVALID_HANDLE_VALUE)
     return errno = (GetLastError() == ERROR_ACCESS_DENIED ? EACCES : ENOENT);

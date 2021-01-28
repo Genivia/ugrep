@@ -1309,7 +1309,7 @@ void Query::search()
     {
       Screen::normal();
       Screen::invert();
-      Screen::put(rows_ - row_ + 1, 0, "Restart");
+      Screen::put(rows_ - row_ + 1, 0, "WAIT");
       Screen::normal();
       Screen::erase();
     }

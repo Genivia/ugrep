@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.4"
+#define UGREP_VERSION "3.1.5"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -432,6 +432,7 @@ Flag flag_break;
 Flag flag_byte_offset;
 Flag flag_column_number;
 Flag flag_empty;
+Flag flag_dotall;
 Flag flag_free_space;
 Flag flag_heading;
 Flag flag_hex;
@@ -3931,10 +3932,12 @@ void options(int argc, const char **argv)
                   flag_devices = arg + 8;
                 else if (strncmp(arg, "directories=", 12) == 0)
                   flag_directories = arg + 12;
+                else if (strcmp(arg, "dotall") == 0)
+                  flag_dotall = true;
                 else if (strcmp(arg, "depth") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--decompress, --depth, --dereference, --dereference-recursive, --devices or --directories");
+                  usage("invalid option --", arg, "--decompress, --depth, --dereference, --dereference-recursive, --devices, --directories or --dotall");
                 break;
 
               case 'e':
@@ -4143,6 +4146,8 @@ void options(int argc, const char **argv)
                   flag_decompress = false;
                 else if (strcmp(arg, "no-dereference") == 0)
                   flag_no_dereference = true;
+                else if (strcmp(arg, "no-dotall") == 0)
+                  flag_dotall = false;
                 else if (strcmp(arg, "no-empty") == 0)
                   flag_empty = false;
                 else if (strcmp(arg, "no-filename") == 0)
@@ -4190,7 +4195,7 @@ void options(int argc, const char **argv)
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup or --null");
                 break;
 
               case 'o':
@@ -6220,6 +6225,10 @@ void ugrep()
   // -i: case insensitive reflex::Pattern option, applies to ASCII only
   if (flag_ignore_case)
     pattern_options.push_back('i');
+
+  // --dotall: dot matches newline
+  if (flag_dotall)
+    pattern_options.push_back('s');
 
   // --free-space: this is needed to check free-space conformance by the converter
   if (flag_free_space)
@@ -10208,6 +10217,8 @@ void help(std::ostream& out)
             where -1 (--depth=1) searches the specified path without recursing\n\
             into subdirectories.  Note that -3 -5, -3-5, or -35 searches 3 to 5\n\
             levels deep.  Enables -R if -R or -r is not specified.\n\
+    --dotall\n\
+            Dot `.' in regular expressions matches anything, including newline.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
@@ -10590,14 +10601,14 @@ void help(std::ostream& out)
             Unicode matching for binary file matching, forcing PATTERN to match\n\
             bytes, not Unicode characters.  For example, -U '\\xa3' matches\n\
             byte A3 (hex) instead of the Unicode code point U+00A3 represented\n\
-            by the two-byte UTF-8 sequence C2 A3.  Note that binary files\n\
-            may appear truncated when searched without this option.\n"
+            by the UTF-8 sequence C2 A3.  Note that binary files may appear\n\
+            truncated when searched without this option.  See also --dotall.\n"
 #else
             "\
             Disables Unicode matching for binary file matching, forcing PATTERN\n\
             to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\
             matches byte A3 (hex) instead of the Unicode code point U+00A3\n\
-            represented by the two-byte UTF-8 sequence C2 A3.\n"
+            represented by the UTF-8 sequence C2 A3.  See also --dotall.\n"
 #endif
             "\
     -u, --ungroup\n\

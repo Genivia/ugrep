@@ -112,6 +112,7 @@ extern Flag flag_break;
 extern Flag flag_byte_offset;
 extern Flag flag_column_number;
 extern Flag flag_empty;
+extern Flag flag_dotall;
 extern Flag flag_free_space;
 extern Flag flag_heading;
 extern Flag flag_hex;

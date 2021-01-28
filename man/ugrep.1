@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 23, 2021" "ugrep 3.1.4" "User Commands"
+.TH UGREP "1" "January 28, 2021" "ugrep 3.1.5" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -184,6 +184,9 @@ Restrict recursive searches from MIN to MAX directory levels deep,
 where \fB\-1\fR (\fB\-\-depth\fR=1) searches the specified path without recursing
 into subdirectories.  Note that \fB\-3\fR \fB\-5\fR, \fB\-3\fR\-5, or \fB\-3\fR5 searches 3 to 5
 levels deep.  Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
+.TP
+\fB\-\-dotall\fR
+Dot `.' in regular expressions matches anything, including newline.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is
@@ -620,7 +623,7 @@ a match if specified, otherwise TAG.  The default is `___'.
 Disables Unicode matching for binary file matching, forcing PATTERN
 to match bytes, not Unicode characters.  For example, \fB\-U\fR '\\xa3'
 matches byte A3 (hex) instead of the Unicode code point U+00A3
-represented by the two\-byte UTF\-8 sequence C2 A3.
+represented by the UTF\-8 sequence C2 A3.  See also \fB\-\-dotall\fR.
 .TP
 \fB\-u\fR, \fB\-\-ungroup\fR
 Do not group multiple pattern matches on the same matched line.
