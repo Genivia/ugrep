@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.5"
+#define UGREP_VERSION "3.1.6"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -3802,7 +3802,11 @@ static void save_config()
 
   fprintf(file, "### OUTPUT ###\n\n");
 
-  fprintf(file, "# Enable/disable sorted output, default: no-sort\n%s\n\n", flag_sort != NULL ? flag_sort : "no-sort");
+  fprintf(file, "# Enable/disable sorted output, default: no-sort\n");
+  if (flag_sort != NULL)
+    fprintf(file, "sort=%s\n\n", flag_sort);
+  else
+    fprintf(file, "no-sort\n\n");
 
   if (ferror(file))
     error("cannot save", flag_save_config);
@@ -5943,11 +5947,15 @@ void ugrep()
       {
         regex = flag_hex ? ".*\\n?" : "^.*";
         flag_empty = true;
+        flag_dotall = false;
       }
 
       // CNF is empty if all patterns are empty, i.e. match anything unless -f FILE specified
       if (bcnf.empty())
+      {
         flag_match = true;
+        flag_dotall = false;
+      }
     }
     else
     {
@@ -5967,9 +5975,12 @@ void ugrep()
     }
   }
 
-  // -x or --match: enable -Y
+  // -x or --match: enable -Y and disable --dotall
   if (flag_line_regexp || flag_match)
+  {
     flag_empty = true;
+    flag_dotall = false;
+  }
 
   // -f: get patterns from file
   if (!flag_file.empty())
@@ -6226,7 +6237,7 @@ void ugrep()
   if (flag_ignore_case)
     pattern_options.push_back('i');
 
-  // --dotall: dot matches newline
+  // --dotall and not --match (or empty pattern): dot matches newline
   if (flag_dotall)
     pattern_options.push_back('s');
 
