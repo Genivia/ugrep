@@ -2283,6 +2283,7 @@ meaning; any name or string that does not contain a `:` or `,` may be used.
             hex spacing.  Enables -X if -W or -X is not specified.
     --dotall
             Dot `.' in regular expressions matches anything, including newline.
+            Beware that `.*' dot greedy repeats match all input, to be avoided.
 
 To search a file for ASCII words, displaying text lines as usual while binary
 content is shown in hex with `-U` and `-W`:
