@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 29, 2021" "ugrep 3.1.6" "User Commands"
+.TH UGREP "1" "February 02, 2021" "ugrep 3.1.7" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -187,6 +187,7 @@ levels deep.  Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
 .TP
 \fB\-\-dotall\fR
 Dot `.' in regular expressions matches anything, including newline.
+Beware that `.*' dot greedy repeats match all input, to be avoided.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is

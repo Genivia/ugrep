@@ -1633,9 +1633,9 @@ void Query::execute(int fd)
       // error position in the pattern
       error_ = static_cast<int>(error.pos());
 
-      // subtract 4 for (?m) or (?mi)
-      if (error_ >= 4 + flag_ignore_case)
-        error_ -= 4 + flag_ignore_case;
+      // subtract 4 for (?m) or (?misx)
+      if (error_ >= 4 + flag_ignore_case + flag_dotall + flag_free_space)
+        error_ -= 4 + flag_ignore_case + flag_dotall + flag_free_space;
 
       // subtract 2 for -F
       if (flag_fixed_strings && error_ >= 2)
@@ -3101,9 +3101,12 @@ void Query::get_flags()
   else if (flag_before_context > 0)
     context_ = flag_before_context;
 
-  // remember the fuzzy max, when specified
+  // remember the --fuzzy max, when specified
   if (flag_fuzzy > 0)
     fuzzy_ = flag_fuzzy;
+
+  // remember --dotall
+  dotall_ = flag_dotall;
 
   // get the -g, -O, and -t globs
   for (auto& glob : flag_glob)
@@ -3180,6 +3183,9 @@ void Query::set_flags()
   flag_match = false;
   flag_binary_files = NULL;
   flag_break = false;
+
+  // restore flags that may have changed by the last search
+  flag_dotall = dotall_;
 
   // suppress warning messages
   flag_no_messages = true;
@@ -3460,6 +3466,7 @@ char                     Query::searching_[16]       = "Searching...";
 int                      Query::dots_                = 3;
 size_t                   Query::context_             = 2;
 size_t                   Query::fuzzy_               = 1;
+bool                     Query::dotall_              = false;
 
 #ifdef OS_WIN
 

@@ -104,7 +104,7 @@ static std::string unicode_class(const char *s, int esc, convert_flag_type flags
   const int *wc = Unicode::range(s + (s[0] == '^'));
   if (wc != NULL)
   {
-    if (s[0] == '^')
+    if (s[0] == '^') // inverted class \P{C} or \p{^C}
     {
       if (wc[0] > 0x00)
       {
@@ -153,7 +153,7 @@ static std::string unicode_class(const char *s, int esc, convert_flag_type flags
         }
       }
       if (!regex.empty())
-        regex.resize(regex.size() - 1);
+        regex.pop_back();
     }
     else
     {
@@ -654,6 +654,60 @@ static const std::string& expand(const std::map<std::string,std::string> *macros
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+static std::string convert_unicode_ranges(const ORanges<int>& ranges, convert_flag_type flags, const char *signature, const char *par)
+{
+  std::string regex;
+  int esc = hex_or_octal_escape(signature);
+  for (ORanges<int>::const_iterator i = ranges.begin(); i != ranges.end(); ++i)
+    regex.append(utf8(i->first, i->second - 1, esc, par, !(flags & convert_flag::permissive))).push_back('|');
+  regex.pop_back();
+  regex.insert(0, par).push_back(')');
+  return regex;
+}
+
+static std::string convert_posix_ranges(const ORanges<int>& ranges, const char *signature)
+{
+  int esc = hex_or_octal_escape(signature);
+  std::string regex;
+  bool negate = ranges.lo() == 0x00 && ranges.hi() >= 0x7F;
+  if (negate && ranges.size() > 1)
+  {
+    ORanges<int> inverse(0x00, 0xFF);
+    inverse -= ranges;
+    regex = "[^";
+    for (ORanges<int>::const_iterator i = inverse.begin(); i != inverse.end(); ++i)
+      regex.append(latin1(i->first, i->second - 1, esc, false));
+  }
+  else
+  {
+    regex = "[";
+    for (ORanges<int>::const_iterator i = ranges.begin(); i != ranges.end(); ++i)
+      regex.append(latin1(i->first, i->second - 1, esc, false));
+  }
+  return regex.append("]");
+}
+
+static void convert_anycase_ranges(ORanges<int>& ranges)
+{
+  ORanges<int> letters;
+  letters.insert('A', 'Z');
+  letters.insert('a', 'z');
+  letters &= ranges;
+  for (ORanges<int>::const_iterator i = letters.begin(); i != letters.end(); ++i)
+    ranges.insert(i->first ^ 0x20, (i->second - 1) ^ 0x20);
+}
+
+static std::string convert_ranges(const char *pattern, size_t pos, ORanges<int>& ranges, const std::map<size_t,std::string>& mod, convert_flag_type flags, const char *signature, const char *par)
+{
+  if (is_modified(mod, 'i'))
+    convert_anycase_ranges(ranges);
+  if (is_modified(mod, 'u') && ranges.hi() > 0x7F)
+    return convert_unicode_ranges(ranges, flags, signature, par);
+  if (ranges.hi() > 0xFF)
+    throw regex_error(regex_error::invalid_class, pattern, pos);
+  return convert_posix_ranges(ranges, signature);
+}
+
 static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, const char *signature, const char *par, const std::map<std::string,std::string> *macros, std::string& regex)
 {
   if (pos + 1 < len && pattern[pos] == '^')
@@ -1082,6 +1136,8 @@ static void extend_list(const char *pattern, size_t len, size_t& pos, convert_fl
 
 static void negate_list(convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
 {
+  if (is_modified(mod, 'i'))
+    convert_anycase_ranges(ranges);
   if (is_modified(mod, 'u'))
   {
     ORanges<int> inverse(0x00, 0x10FFFF);
@@ -1209,60 +1265,6 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
     throw regex_error(regex_error::empty_class, pattern, loc);
 }
 
-static std::string convert_unicode_ranges(const ORanges<int>& ranges, convert_flag_type flags, const char *signature, const char *par)
-{
-  std::string regex;
-  int esc = hex_or_octal_escape(signature);
-  for (ORanges<int>::const_iterator i = ranges.begin(); i != ranges.end(); ++i)
-    regex.append(utf8(i->first, i->second - 1, esc, par, !(flags & convert_flag::permissive))).push_back('|');
-  regex.resize(regex.size() - 1);
-  regex.insert(0, par).push_back(')');
-  return regex;
-}
-
-static std::string convert_posix_ranges(const ORanges<int>& ranges, const char *signature)
-{
-  int esc = hex_or_octal_escape(signature);
-  std::string regex;
-  bool negate = ranges.lo() == 0x00 && ranges.hi() >= 0x7F;
-  if (negate && ranges.size() > 1)
-  {
-    ORanges<int> inverse(0x00, 0xFF);
-    inverse -= ranges;
-    regex = "[^";
-    for (ORanges<int>::const_iterator i = inverse.begin(); i != inverse.end(); ++i)
-      regex.append(latin1(i->first, i->second - 1, esc, false));
-  }
-  else
-  {
-    regex = "[";
-    for (ORanges<int>::const_iterator i = ranges.begin(); i != ranges.end(); ++i)
-      regex.append(latin1(i->first, i->second - 1, esc, false));
-  }
-  return regex.append("]");
-}
-
-static void convert_anycase_ranges(ORanges<int>& ranges)
-{
-  ORanges<int> letters;
-  letters.insert('A', 'Z');
-  letters.insert('a', 'z');
-  letters &= ranges;
-  for (ORanges<int>::const_iterator i = letters.begin(); i != letters.end(); ++i)
-    ranges.insert(i->first ^ 0x20, (i->second - 1) ^ 0x20);
-}
-
-static std::string convert_ranges(const char *pattern, size_t pos, ORanges<int>& ranges, const std::map<size_t,std::string>& mod, convert_flag_type flags, const char *signature, const char *par)
-{
-  if (is_modified(mod, 'i'))
-    convert_anycase_ranges(ranges);
-  if (is_modified(mod, 'u') && ranges.hi() > 0x7F)
-    return convert_unicode_ranges(ranges, flags, signature, par);
-  if (ranges.hi() > 0xFF)
-    throw regex_error(regex_error::invalid_class, pattern, pos);
-  return convert_posix_ranges(ranges, signature);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 //  Regex converter                                                           //
@@ -1311,11 +1313,19 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
       else if (!invert)
       {
         if (supports_modifier(signature, pattern[k]))
+        {
           mods.push_back(pattern[k]);
+          if (pattern[k] == 'i' && (flags & convert_flag::unicode))
+            enable_modifier(pattern[k], pattern, k, mod, lev);
+        }
         else if (pattern[k] == 'm')
+        {
           throw regex_error(regex_error::invalid_modifier, pattern, pos);
+        }
         else
+        {
           enable_modifier(pattern[k], pattern, k, mod, lev);
+        }
       }
       else
       {

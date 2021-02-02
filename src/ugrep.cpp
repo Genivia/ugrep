@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.6"
+#define UGREP_VERSION "3.1.7"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -3806,7 +3806,7 @@ static void save_config()
   if (flag_sort != NULL)
     fprintf(file, "sort=%s\n\n", flag_sort);
   else
-    fprintf(file, "no-sort\n\n");
+    fprintf(file, "# no-sort\n\n");
 
   if (ferror(file))
     error("cannot save", flag_save_config);
@@ -6241,7 +6241,7 @@ void ugrep()
   if (flag_dotall)
     pattern_options.push_back('s');
 
-  // --free-space: this is needed to check free-space conformance by the converter
+  // --free-space: convert_flags is needed to check free-space conformance by the converter
   if (flag_free_space)
   {
     convert_flags |= reflex::convert_flag::freespace;
@@ -10230,6 +10230,7 @@ void help(std::ostream& out)
             levels deep.  Enables -R if -R or -r is not specified.\n\
     --dotall\n\
             Dot `.' in regular expressions matches anything, including newline.\n\
+            Beware that `.*' dot greedy repeats match all input, to be avoided.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\

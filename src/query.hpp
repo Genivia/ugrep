@@ -230,6 +230,7 @@ class Query {
   static int                      dots_;
   static size_t                   context_;
   static size_t                   fuzzy_;
+  static bool                     dotall_;
 
 #ifdef OS_WIN
 
