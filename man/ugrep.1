@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 02, 2021" "ugrep 3.1.7" "User Commands"
+.TH UGREP "1" "February 24, 2021" "ugrep 3.1.8" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -624,7 +624,7 @@ a match if specified, otherwise TAG.  The default is `___'.
 Disables Unicode matching for binary file matching, forcing PATTERN
 to match bytes, not Unicode characters.  For example, \fB\-U\fR '\\xa3'
 matches byte A3 (hex) instead of the Unicode code point U+00A3
-represented by the UTF\-8 sequence C2 A3.  See also \fB\-\-dotall\fR.
+represented by the UTF\-8 sequence C2 A3.  See also option \fB\-\-dotall\fR.
 .TP
 \fB\-u\fR, \fB\-\-ungroup\fR
 Do not group multiple pattern matches on the same matched line.
@@ -666,7 +666,7 @@ additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 \fB\-Y\fR, \fB\-\-empty\fR
 Permits empty matches.  By default, empty matches are disabled,
 unless a pattern begins with `^' or ends with `$'.  With this
-option, empty\-matching pattern, such as x? and x*, match all input,
+option, empty\-matching patterns such as x? and x*, match all input,
 not only lines containing the character `x'.
 .TP
 \fB\-y\fR, \fB\-\-any\-line\fR
@@ -674,7 +674,7 @@ Any matching or non\-matching line is output.  Non\-matching lines
 are output with the `\fB\-'\fR separator as context of the matching lines.
 See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
-\fB\-Z\fR[\fIMAX\fR], \fB\-\-fuzzy[\fR=\fIMAX\fR]
+\fB\-Z\fR[[+\fB\-~\fR]MAX], \fB\-\-fuzzy[\fR=[+\fB\-~\fR]MAX]
 Fuzzy mode: report approximate pattern matches within MAX errors.
 By default, MAX is 1: one deletion, insertion or substitution is
 allowed.  When `+' and/or `\fB\-'\fR precede MAX, only insertions and/or

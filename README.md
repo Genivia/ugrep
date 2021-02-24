@@ -4045,7 +4045,7 @@ in markdown:
                   Disables Unicode matching for binary file matching, forcing PAT-
                   TERN to match bytes, not Unicode characters.   For  example,  -U
                   '\xa3'  matches  byte A3 (hex) instead of the Unicode code point
-                  U+00A3 represented by  the  UTF-8  sequence  C2  A3.   See  also
+                  U+00A3 represented by the UTF-8 sequence C2 A3.  See also option
                   --dotall.
 
            -u, --ungroup
@@ -4088,7 +4088,7 @@ in markdown:
            -Y, --empty
                   Permits empty matches.  By default, empty matches are  disabled,
                   unless  a  pattern  begins with `^' or ends with `$'.  With this
-                  option, empty-matching pattern, such as x?  and  x*,  match  all
+                  option, empty-matching patterns such as x?  and  x*,  match  all
                   input, not only lines containing the character `x'.
 
            -y, --any-line
@@ -4096,7 +4096,7 @@ in markdown:
                   are output with the `-' separator as  context  of  the  matching
                   lines.  See also options -A, -B, and -C.
 
-           -Z[MAX], --fuzzy[=MAX]
+           -Z[[+-~]MAX], --fuzzy[=[+-~]MAX]
                   Fuzzy  mode:  report  approximate  pattern  matches  within  MAX
                   errors.  By default, MAX is 1: one deletion, insertion  or  sub-
                   stitution  is  allowed.   When  `+' and/or `-' precede MAX, only
@@ -4629,7 +4629,7 @@ in markdown:
 
 
 
-    ugrep 3.1.7                    February 02, 2021                      UGREP(1)
+    ugrep 3.1.8                    February 24, 2021                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

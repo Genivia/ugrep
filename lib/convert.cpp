@@ -487,10 +487,10 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     if (std::isalpha(wc) && is_modified(mod, 'i'))
     {
       // anycase: translate A to [Aa]
-      regex.append(&pattern[loc], pos - loc - 1).append("[");
+      regex.append(&pattern[loc], pos - loc - 1).push_back('[');
       regex.push_back(wc);
       regex.push_back(wc ^ 0x20);
-      regex.append("]");
+      regex.push_back(']');
     }
     else
     {
@@ -534,10 +534,10 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
           if (std::isalpha(wc) && is_modified(mod, 'i'))
           {
             // anycase: translate A to [Aa]
-            regex.append(&pattern[loc], pos - loc - 1).append("[");
+            regex.append(&pattern[loc], pos - loc - 1).push_back('[');
             regex.push_back(wc);
             regex.push_back(wc ^ 0x20);
-            regex.append("]");
+            regex.push_back(']');
           }
           else
           {
@@ -553,7 +553,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
           // translate \u{X}, \uXXXX, \uDXXX\uDYYY, and \x{X} to UTF-8 pattern
           char buf[8];
           buf[utf8(wc, buf)] = '\0';
-          regex.append(&pattern[loc], pos - loc - 1).append(par).append(buf).append(")");
+          regex.append(&pattern[loc], pos - loc - 1).append(par).append(buf).push_back(')');
         }
         else
         {
@@ -684,7 +684,8 @@ static std::string convert_posix_ranges(const ORanges<int>& ranges, const char *
     for (ORanges<int>::const_iterator i = ranges.begin(); i != ranges.end(); ++i)
       regex.append(latin1(i->first, i->second - 1, esc, false));
   }
-  return regex.append("]");
+  regex.push_back(']');
+  return regex;
 }
 
 static void convert_anycase_ranges(ORanges<int>& ranges)
@@ -1348,7 +1349,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           regex.append(mods);
         if (!unmods.empty())
           regex.append("-").append(unmods);
-        regex.append(")");
+        regex.push_back(')');
       }
       pos = k + 1;
       loc = pos;
@@ -1365,7 +1366,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
   if ((flags & convert_flag::recap))
   {
     // recap: translate x|y to (x)|(y)
-    regex.append(&pattern[loc], pos - loc).append("(");
+    regex.append(&pattern[loc], pos - loc).push_back('(');
     loc = pos;
   }
   while (pos < len)
@@ -1419,7 +1420,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           if (!is_modified(mod, 'u') || !supports_escape(signature, 'R'))
           {
             // translate \R to match Unicode line break U+000D U+000A | [U+000A - U+000D] | U+0085 | U+2028 | U+2029
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("\\r\\n|[\\x0a-\\x0d]|\\xc2\\x85|\\xe2\\x80[\\xa8\\xa9]").append(")");
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("\\r\\n|[\\x0a-\\x0d]|\\xc2\\x85|\\xe2\\x80[\\xa8\\xa9]").push_back(')');
             loc = pos + 1;
           }
           beg = false;
@@ -1430,10 +1431,10 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           {
 #ifndef WITH_UTF8_UNRESTRICTED
             // translate \X to match any ISO-8859-1 and valid UTF-8
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\xff]|[\\xc2-\\xdf][\\x80-\\xbf]|\\xe0[\\xa0-\\xbf][\\x80-\\xbf]|[\\xe1-\\xec][\\x80-\\xbf][\\x80-\\xbf]|\\xed[\\x80-\\x9f][\\x80-\\xbf]|[\\xee\\xef][\\x80-\\xbf][\\x80-\\xbf]|\\xf0[\\x90-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|[\\xf1-\\xf3][\\x80-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|\\xf4[\\x80-\\x8f][\\x80-\\xbf][\\x80-\\xbf]").append(")");
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\xff]|[\\xc2-\\xdf][\\x80-\\xbf]|\\xe0[\\xa0-\\xbf][\\x80-\\xbf]|[\\xe1-\\xec][\\x80-\\xbf][\\x80-\\xbf]|\\xed[\\x80-\\x9f][\\x80-\\xbf]|[\\xee\\xef][\\x80-\\xbf][\\x80-\\xbf]|\\xf0[\\x90-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|[\\xf1-\\xf3][\\x80-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|\\xf4[\\x80-\\x8f][\\x80-\\xbf][\\x80-\\xbf]").push_back(')');
 #else
             // translate \X to match any ISO-8859-1 and UTF-8 encodings, including malformed UTF-8 with overruns
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\xff]|[\\xc0-\\xff][\\x80-\\xbf]+").append(")");
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\xff]|[\\xc0-\\xff][\\x80-\\xbf]+").push_back(')');
 #endif
             loc = pos + 1;
           }
@@ -1611,7 +1612,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           if (lap == lev)
           {
             // lex lookahead: translate ) to ))
-            regex.append(&pattern[loc], pos - loc).append(")");
+            regex.append(&pattern[loc], pos - loc).push_back(')');
             loc = pos;
             lap = 0;
           }
@@ -1636,7 +1637,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           if (lap == lev)
           {
             // lex lookahead: translate | to )|
-            regex.append(&pattern[loc], pos - loc).append(")");
+            regex.append(&pattern[loc], pos - loc).push_back(')');
             loc = pos;
             lap = 0;
           }
@@ -1730,7 +1731,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
               }
               ++pos;
             }
-            regex.append(&pattern[loc], pos - loc).append(")");
+            regex.append(&pattern[loc], pos - loc).push_back(')');
             if (k < pos)
               beg = false;
           }
@@ -1756,7 +1757,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
               }
               ++pos;
             }
-            regex.append(&pattern[loc], pos - loc).append("\\E").append(")");
+            regex.append(&pattern[loc], pos - loc).append("\\E").push_back(')');
             if (k < pos)
               beg = false;
           }
@@ -1801,7 +1802,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             }
             else
             {
-              regex.append(par).append(subregex).append(")");
+              regex.append(par).append(subregex).push_back(')');
             }
             loc = pos + (pattern[pos] == '\\') + 1;
             anc = false;
@@ -1964,20 +1965,20 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           if (is_modified(mod, 'i'))
           {
             // anycase: translate A to [Aa]
-            regex.append(&pattern[loc], pos - loc).append("[");
+            regex.append(&pattern[loc], pos - loc).push_back('[');
             regex.push_back(c);
             regex.push_back(c ^ 0x20);
-            regex.append("]");
+            regex.push_back(']');
             loc = pos + 1;
           }
         }
         else if ((c & 0xC0) == 0xC0 && is_modified(mod, 'u'))
         {
           // unicode: group UTF-8 sequence
-          regex.append(&pattern[loc], pos - loc).append(par).push_back(c);
+          regex.append(&pattern[loc], pos - loc).append(par);
           while (((c = pattern[++pos]) & 0xC0) == 0x80)
-            regex.push_back(c);
-          regex.append(")");
+            continue;
+          regex.append(pattern + loc, pos - loc).push_back(')');
           loc = pos;
           --pos;
         }
@@ -1994,9 +1995,9 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
     throw regex_error(regex_error::empty_expression, pattern, pos);
   regex.append(&pattern[loc], pos - loc);
   if (lap > 0)
-    regex.append(")");
+    regex.push_back(')');
   if ((flags & convert_flag::recap))
-    regex.append(")");
+    regex.push_back(')');
   return regex;
 }
 

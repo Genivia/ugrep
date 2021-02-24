@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.7"
+#define UGREP_VERSION "3.1.8"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -5969,7 +5969,7 @@ void ugrep()
       }
       else
       {
-        // only take the first CNF OR-list terms to search in combination with -f FILE patterns
+        // for efficiency, take only the first CNF OR-list terms to search in combination with -f FILE patterns
         regex.assign(bcnf.first());
       }
     }
@@ -5990,20 +5990,20 @@ void ugrep()
 
     // -F: make newline-separated lines in regex literal with \Q and \E
     const char *Q = flag_fixed_strings ? "\\Q" : "";
-    const char *E = flag_fixed_strings ? "\\E|" : "|";
+    const char *E = flag_fixed_strings ? "\\E|" : flag_basic_regexp ? "\\|" : "|";
 
-    // PATTERN or -e PATTERN: add an ending '|' to the regex to concatenate sub-expressions
+    // PATTERN or -e PATTERN: add an ending '|' (or BRE '\|') to the regex to concatenate sub-expressions
     if (!regex.empty())
     {
-      regex.push_back('|');
+      // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
+      Q = "";
+      E = flag_basic_regexp ? "\\|" : "|";
 
       // -x and -w do not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
       line_regexp = false;
       word_regexp = false;
 
-      // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
-      Q = "";
-      E = "|";
+      regex.append(E);
     }
 
     // -f: read patterns from the specified file or files
@@ -6058,8 +6058,10 @@ void ugrep()
         fclose(file);
     }
 
-    // remove the ending '|' from the |-concatenated regexes in the regex string
+    // pop unused ending '|' (or BRE '\|') from the |-concatenated regexes in the regex string
     regex.pop_back();
+    if (flag_basic_regexp)
+      regex.pop_back();
 
     // -G requires \( \) instead of ( )
     const char *xleft = flag_basic_regexp ? "^\\(" : "^(";
@@ -10613,14 +10615,14 @@ void help(std::ostream& out)
             Unicode matching for binary file matching, forcing PATTERN to match\n\
             bytes, not Unicode characters.  For example, -U '\\xa3' matches\n\
             byte A3 (hex) instead of the Unicode code point U+00A3 represented\n\
-            by the UTF-8 sequence C2 A3.  Note that binary files may appear\n\
-            truncated when searched without this option.  See also --dotall.\n"
+            by the UTF-8 sequence C2 A3.  Binary files may appear truncated\n\
+            when searched without this option.  See also option --dotall.\n"
 #else
             "\
             Disables Unicode matching for binary file matching, forcing PATTERN\n\
             to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\
             matches byte A3 (hex) instead of the Unicode code point U+00A3\n\
-            represented by the UTF-8 sequence C2 A3.  See also --dotall.\n"
+            represented by the UTF-8 sequence C2 A3.  See also option --dotall.\n"
 #endif
             "\
     -u, --ungroup\n\
@@ -10655,13 +10657,13 @@ void help(std::ostream& out)
     -Y, --empty\n\
             Permits empty matches.  By default, empty matches are disabled,\n\
             unless a pattern begins with `^' or ends with `$'.  With this\n\
-            option, empty-matching pattern, such as x? and x*, match all input,\n\
+            option, empty-matching patterns such as x? and x*, match all input,\n\
             not only lines containing the character `x'.\n\
     -y, --any-line\n\
             Any matching or non-matching line is output.  Non-matching lines\n\
             are output with the `-' separator as context of the matching lines.\n\
             See also options -A, -B, and -C.\n\
-    -Z[MAX], --fuzzy[=MAX]\n\
+    -Z[[+-~]MAX], --fuzzy[=[+-~]MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             By default, MAX is 1: one deletion, insertion or substitution is\n\
             allowed.  When `+' and/or `-' precede MAX, only insertions and/or\n\

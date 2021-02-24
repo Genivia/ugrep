@@ -328,7 +328,12 @@ void CNF::OpTree::convert(Terms& terms)
       }
 
       if (terms.back().empty())
+      {
+        // pop unused ending '|' (or BRE '\|')
         terms.pop_back();
+        if (flag_basic_regexp)
+          terms.pop_back();
+      }
     }
   }
   else if (op == OpTree::OR)
@@ -370,7 +375,7 @@ void CNF::OpTree::add_to(Terms& terms) const
     else if (regex.empty())
       term.front()->clear(); // empty pattern means anything matches
     else
-      term.front()->append("|").append(regex);
+      term.front()->append(flag_basic_regexp ? "\\|" : "|").append(regex);
 
     // empty pattern means anything matches
     if (term.front()->empty())
@@ -448,7 +453,7 @@ void CNF::new_pattern(const char *pattern, bool neg)
       else if (spattern.empty())
         term.front()->clear(); // empty pattern means anything matches
       else
-        term.front()->append("|").append(spattern);
+        term.front()->append(flag_basic_regexp ? "\\|" : "|").append(spattern);
 
       // empty pattern means anything matches
       if (term.front()->empty())
@@ -488,7 +493,7 @@ void CNF::split()
   if (flag_bool)
     return;
 
-  const char *sep = flag_fixed_strings ? "\\E|\\Q" : "|";
+  const char *sep = flag_fixed_strings ? "\\E|\\Q" : flag_basic_regexp ? "\\|" : "|";
 
   for (auto& i : terms)
   {
@@ -547,7 +552,7 @@ void CNF::report(FILE *output) const
     if (terms.front().empty())
       fprintf(output, ", and\n  ");
     else
-      fprintf(output, ", or\n  ");
+      fprintf(output, " or ");
   }
 
   bool and_sep = false;
@@ -583,7 +588,7 @@ void CNF::report(FILE *output) const
   fprintf(output, "\n");
 }
 
-// return all OR-terms of the CNF joined
+// return all OR-terms of the CNF joined together
 std::string CNF::adjoin() const
 {
   std::string adjoined;
@@ -601,12 +606,19 @@ std::string CNF::adjoin() const
 
   if (!allnot)
   {
+    const char *sep = flag_basic_regexp ? "\\|" : "|";
+
     for (const auto& i : terms)
       if (i.front() && !i.front()->empty())
-        adjoined.append(*i.front()).push_back('|');
+        adjoined.append(*i.front()).append(sep);
 
     if (!adjoined.empty())
+    {
+      // pop unused ending '|' (or BRE '\|')
       adjoined.pop_back();
+      if (flag_basic_regexp)
+        adjoined.pop_back();
+    }
   }
 
   return adjoined;
