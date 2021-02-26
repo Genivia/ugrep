@@ -1620,7 +1620,7 @@ void Query::execute(int fd)
   {
     try
     {
-      // clear the CNF, to populate in ugrep() with the contents of arg_pattern
+      // clear the CNF first to populate the CNF in ugrep() with the contents of arg_pattern
       bcnf.clear();
 
       ugrep();

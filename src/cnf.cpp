@@ -387,18 +387,16 @@ void CNF::OpTree::add_to(Terms& terms) const
 }
 
 // add an OR pattern or OR-NOT pattern, optionally negated (option -N)
-void CNF::new_pattern(const char *pattern, bool neg)
+void CNF::new_pattern(PATTERN mask, const char *pattern)
 {
   if (terms.empty())
     terms.emplace_back();
 
-  if (flag_bool && !neg)
+  if (flag_bool && !(mask & PATTERN::NEG))
   {
     // --bool --not
-    if (flag_not)
+    if ((mask & PATTERN::NOT))
     {
-      flag_not = false;
-
       std::string not_pattern;
       not_pattern.assign("-(").append(pattern).append(")");
       compile(not_pattern.c_str());
@@ -424,14 +422,12 @@ void CNF::new_pattern(const char *pattern, bool neg)
     anchor(spattern);
 
     // -N PATTERN
-    if (neg && !spattern.empty())
+    if ((mask & PATTERN::NEG) && !spattern.empty())
       spattern.insert(0, "(?^").append(")");
 
     // --not
-    if (flag_not)
+    if ((mask & PATTERN::NOT))
     {
-      flag_not = false;
-
       if (!spattern.empty())
       {
         if (term.empty())

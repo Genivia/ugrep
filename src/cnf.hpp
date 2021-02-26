@@ -57,6 +57,19 @@ class CNF {
   // a CNF is a collection of terms, an AND-list of OR-term lists of (NOT-)patterns
   typedef std::list<Term> Terms;
 
+  // pattern mask values to indicate the type of regex pattern argument to populate CNF
+  struct PATTERN {
+    enum {
+      NA   = 0, // -e PATTERN
+      NEG  = 1, // -N PATTERN
+      NOT  = 2, // --not [-e] PATTERN
+      TERM = 4, // to create a new AND-term with empty OR-list in the CNF
+    };
+    PATTERN(int mask) : mask(mask) { }
+    operator int() const { return mask; }
+    int mask;
+  };
+
   // clear the CNF
   void clear()
   {
@@ -97,7 +110,7 @@ class CNF {
   }
 
   // add an OR pattern or OR-NOT pattern, optionally negated (option -N)
-  void new_pattern(const char *pattern, bool neg = false);
+  void new_pattern(PATTERN mask, const char *pattern);
 
   // compile --bool search query into operator tree, normalize to CNF, and populate CNF AND-list of OR-term lists
   void compile(const char *pattern)

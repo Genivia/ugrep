@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.8"
+#define UGREP_VERSION "3.1.9"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -520,14 +520,14 @@ const char *arg_pattern = NULL;
 std::vector<const char*> arg_files;
 
 // function protos
-void options(int argc, const char **argv);
-void option_regexp(const char *arg, bool neg = false);
-void option_and(int& i, int argc, const char **argv);
-void option_and(const char *arg);
-void option_andnot(int& i, int argc, const char **argv);
-void option_andnot(const char *arg);
-void option_not(int& i, int argc, const char **argv);
-void option_not(const char *arg);
+void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int argc, const char **argv);
+void option_regexp(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg, bool is_neg = false);
+void option_and(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int& i, int argc, const char **argv);
+void option_and(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg);
+void option_andnot(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int& i, int argc, const char **argv);
+void option_andnot(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg);
+void option_not(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int& i, int argc, const char **argv);
+void option_not(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg);
 void init(int argc, const char **argv);
 void set_color(const char *colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
@@ -3634,7 +3634,7 @@ static void set_depth(const char *arg)
 }
 
 // load config file specified or the default .ugrep, located in the working directory or home directory
-static void load_config()
+static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args)
 {
   // warn about invalid options but do not exit
   flag_usage_warnings = true;
@@ -3680,14 +3680,14 @@ static void load_config()
       // skip empty lines and comments
       if (!line.empty() && line.front() != '#')
       {
-        // construct an option argument and make it persistent (to parse as argv[])
+        // construct an option argument to parse as argv[]
         line.insert(0, "--");
         const char *arg = flag_config_options.insert(line).first->c_str();
         const char *args[2] = { NULL, arg };
 
         warnings = 0;
 
-        options(2, args);
+        options(pattern_args, 2, args);
 
         if (warnings > 0)
         {
@@ -3816,7 +3816,7 @@ static void save_config()
 }
 
 // parse the command-line options
-void options(int argc, const char **argv)
+void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int argc, const char **argv)
 {
   bool options = true;
 
@@ -3854,13 +3854,13 @@ void options(int argc, const char **argv)
                 if (strncmp(arg, "after-context=", 14) == 0)
                   flag_after_context = strtopos(arg + 14, "invalid argument --after-context=");
                 else if (strcmp(arg, "and") == 0)
-                  option_and(i, argc, argv);
+                  option_and(pattern_args, i, argc, argv);
                 else if (strncmp(arg, "and=", 4) == 0)
-                  option_and(arg + 4);
+                  option_and(pattern_args, arg + 4);
                 else if (strcmp(arg, "andnot") == 0)
-                  option_andnot(i, argc, argv);
+                  option_andnot(pattern_args, i, argc, argv);
                 else if (strncmp(arg, "andnot=", 7) == 0)
-                  option_andnot(arg + 7);
+                  option_andnot(pattern_args, arg + 7);
                 else if (strcmp(arg, "any-line") == 0)
                   flag_any_line = true;
                 else if (strcmp(arg, "after-context") == 0)
@@ -3903,10 +3903,8 @@ void options(int argc, const char **argv)
                   flag_colors = arg + 8;
                 else if (strcmp(arg, "column-number") == 0)
                   flag_column_number = true;
-                else if (strcmp(arg, "config") == 0)
-                  ;
-                else if (strncmp(arg, "config=", 7) == 0)
-                  ;
+                else if (strcmp(arg, "config") == 0 || strncmp(arg, "config=", 7) == 0)
+                  ; // --config is pre-parsed before other options are parsed
                 else if (strcmp(arg, "confirm") == 0)
                   flag_confirm = true;
                 else if (strncmp(arg, "context=", 8) == 0)
@@ -4127,11 +4125,11 @@ void options(int argc, const char **argv)
 
               case 'n':
                 if (strncmp(arg, "neg-regexp=", 11) == 0)
-                  option_regexp(arg + 1, true);
+                  option_regexp(pattern_args, arg + 1, true);
                 else if (strcmp(arg, "not") == 0)
-                  option_not(i, argc, argv);
+                  option_not(pattern_args, i, argc, argv);
                 else if (strncmp(arg, "not=", 4) == 0)
-                  option_not(arg + 4);
+                  option_not(pattern_args, arg + 4);
                 else if (strcmp(arg, "no-any-line") == 0)
                   flag_any_line = false;
                 else if (strcmp(arg, "no-binary") == 0)
@@ -4241,7 +4239,7 @@ void options(int argc, const char **argv)
                 else if (strcmp(arg, "recursive") == 0)
                   flag_directories = "recurse";
                 else if (strncmp(arg, "regexp=", 7) == 0)
-                  option_regexp(arg + 7);
+                  option_regexp(pattern_args, arg + 7);
                 else if (strcmp(arg, "range") == 0)
                   usage("missing argument for --", arg);
                 else
@@ -4402,9 +4400,9 @@ void options(int argc, const char **argv)
           case 'e':
             ++arg;
             if (*arg)
-              option_regexp(&arg[*arg == '=']);
+              option_regexp(pattern_args, &arg[*arg == '=']);
             else if (++i < argc)
-              option_regexp(argv[i]);
+              option_regexp(pattern_args, argv[i]);
             else
               usage("missing PATTERN argument for option -e");
             is_grouped = false;
@@ -4519,9 +4517,9 @@ void options(int argc, const char **argv)
           case 'N':
             ++arg;
             if (*arg)
-              option_regexp(&arg[*arg == '='], true);
+              option_regexp(pattern_args, &arg[*arg == '='], true);
             else if (++i < argc)
-              option_regexp(argv[i], true);
+              option_regexp(pattern_args, argv[i], true);
             else
               usage("missing PATTERN argument for option -N");
             is_grouped = false;
@@ -4711,7 +4709,7 @@ void options(int argc, const char **argv)
       // read standard input
       flag_stdin = true;
     }
-    else if (arg_pattern == NULL && !flag_match && !flag_not && !bcnf.defined() && flag_file.empty())
+    else if (arg_pattern == NULL && !flag_match && !flag_not && pattern_args.empty() && flag_file.empty())
     {
       // no regex pattern specified yet, so assume it is PATTERN
       arg_pattern = arg;
@@ -4728,11 +4726,12 @@ void options(int argc, const char **argv)
 }
 
 // parse -e PATTERN and -N PATTERN
-void option_regexp(const char *arg, bool neg)
+void option_regexp(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg, bool is_neg)
 {
   if (flag_query)
   {
-    if (neg)
+    // -Q: pass -e PATTERN and -N PATTERN patterns to the query engine
+    if (is_neg)
     {
       std::string neg_arg(arg);
       neg_arg.insert(0, "(?^").append(")");
@@ -4743,12 +4742,14 @@ void option_regexp(const char *arg, bool neg)
       flag_regexp.emplace_back(arg);
     }
   }
-
-  bcnf.new_pattern(arg, neg);
+  else
+  {
+    pattern_args.emplace_back((flag_not ? CNF::PATTERN::NOT : CNF::PATTERN::NA) | (is_neg ? CNF::PATTERN::NEG : CNF::PATTERN::NA), arg);
+  }
 }
 
 // parse --and [PATTERN]
-void option_and(int& i, int argc, const char **argv)
+void option_and(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int& i, int argc, const char **argv)
 {
   if (flag_not)
     usage("missing PATTERN for --not");
@@ -4756,14 +4757,14 @@ void option_and(int& i, int argc, const char **argv)
   if (flag_query)
     usage("option -Q does not support --and");
 
-  bcnf.new_term();
+  pattern_args.emplace_back(CNF::PATTERN::TERM, "");
 
   if (i + 1 < argc && *argv[i + 1] != '-')
-    bcnf.new_pattern(argv[++i]);
+    pattern_args.emplace_back((flag_not ? CNF::PATTERN::NOT : CNF::PATTERN::NA), argv[++i]);
 }
 
 // parse --and=PATTERN
-void option_and(const char *arg)
+void option_and(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg)
 {
   if (flag_not)
     usage("missing PATTERN for --not");
@@ -4771,13 +4772,12 @@ void option_and(const char *arg)
   if (flag_query)
     usage("option -Q does not support --and");
 
-  bcnf.new_term();
-
-  bcnf.new_pattern(arg);
+  pattern_args.emplace_back(CNF::PATTERN::TERM, "");
+  pattern_args.emplace_back((flag_not ? CNF::PATTERN::NOT : CNF::PATTERN::NA), arg);
 }
 
 // parse --andnot [PATTERN]
-void option_andnot(int& i, int argc, const char **argv)
+void option_andnot(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int& i, int argc, const char **argv)
 {
   if (flag_not)
     usage("missing PATTERN for --not");
@@ -4785,16 +4785,19 @@ void option_andnot(int& i, int argc, const char **argv)
   if (flag_query)
     usage("option -Q does not support --andnot");
 
-  bcnf.new_term();
+  pattern_args.emplace_back(CNF::PATTERN::TERM, "");
 
   flag_not = true;
 
   if (i + 1 < argc && *argv[i + 1] != '-')
-    bcnf.new_pattern(argv[++i]);
+  {
+    pattern_args.emplace_back(CNF::PATTERN::NOT, argv[++i]);
+    flag_not = false;
+  }
 }
 
 // parse --andnot=PATTERN
-void option_andnot(const char *arg)
+void option_andnot(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg)
 {
   if (flag_not)
     usage("missing PATTERN for --not");
@@ -4802,15 +4805,12 @@ void option_andnot(const char *arg)
   if (flag_query)
     usage("option -Q does not support --andnot");
 
-  bcnf.new_term();
-
-  flag_not = true;
-
-  bcnf.new_pattern(arg);
+  pattern_args.emplace_back(CNF::PATTERN::TERM, "");
+  pattern_args.emplace_back(CNF::PATTERN::NOT, arg);
 }
 
 // parse --not [PATTERN]
-void option_not(int& i, int argc, const char **argv)
+void option_not(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int& i, int argc, const char **argv)
 {
   if (flag_query)
     usage("option -Q does not support --not");
@@ -4818,18 +4818,22 @@ void option_not(int& i, int argc, const char **argv)
   flag_not = !flag_not;
 
   if (i + 1 < argc && *argv[i + 1] != '-')
-    bcnf.new_pattern(argv[++i]);
+  {
+    pattern_args.emplace_back((flag_not ? CNF::PATTERN::NOT : CNF::PATTERN::NA), argv[++i]);
+    flag_not = false;
+  }
 }
 
 // parse --not=PATTERN
-void option_not(const char *arg)
+void option_not(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg)
 {
   if (flag_query)
     usage("option -Q does not support --not");
 
   flag_not = !flag_not;
 
-  bcnf.new_pattern(arg);
+  pattern_args.emplace_back((flag_not ? CNF::PATTERN::NOT : CNF::PATTERN::NA), arg);
+  flag_not = false;
 }
 
 // parse the command-line options and initialize
@@ -4868,8 +4872,11 @@ void init(int argc, const char **argv)
     }
   }
 
+  // collect regex pattern arguments -e PATTERN, -N PATTERN, --and PATTERN, --andnot PATTERN
+  std::list<std::pair<CNF::PATTERN,const char*>> pattern_args;
+
   if (flag_config != NULL)
-    load_config();
+    load_config(pattern_args);
 
   // apply the appropriate options when the program is named grep, egrep, fgrep, zgrep, zegrep, zfgrep
 
@@ -4884,7 +4891,7 @@ void init(int argc, const char **argv)
   {
     // the 'ug' command is equivalent to 'ugrep --config' to load custom configuration files, when no --config=FILE is specified
     if (flag_config == NULL)
-      load_config();
+      load_config(pattern_args);
   }
   else if (strcmp(program, "grep") == 0)
   {
@@ -4932,7 +4939,7 @@ void init(int argc, const char **argv)
 
   // parse ugrep command-line options and arguments
 
-  options(argc, argv);
+  options(pattern_args, argc, argv);
 
   if (warnings > 0)
   {
@@ -4962,6 +4969,10 @@ void init(int argc, const char **argv)
     usage("option -z is not available in this build configuration of ugrep");
 #endif
 
+  // -F disables -G (override)
+  if (flag_fixed_strings)
+    flag_basic_regexp = false;
+
   // -P disables -G and -Z
   if (flag_perl_regexp)
   {
@@ -4972,6 +4983,15 @@ void init(int argc, const char **argv)
 #else
     usage("option -P is not available in this build configuration of ugrep");
 #endif
+  }
+
+  // populate the CNF with the collected regex pattern args, each arg points to a persistent command line argv[]
+  for (const auto &arg : pattern_args)
+  {
+    if (arg.first == CNF::PATTERN::TERM)
+      bcnf.new_term();
+    else
+      bcnf.new_pattern(arg.first, arg.second); // relies on options --bool, -F, -G, -w, -x, and -f
   }
 
   // --query: override --pager
@@ -5054,11 +5074,11 @@ void init(int argc, const char **argv)
     arg_pattern = "";
 
   // if no regex pattern is specified and no -e PATTERN and no -f FILE and not -Q, then exit with usage message
-  if (arg_pattern == NULL && !bcnf.defined() && flag_file.empty() && flag_query == 0)
+  if (arg_pattern == NULL && pattern_args.empty() && flag_file.empty() && flag_query == 0)
     usage("no PATTERN specified: specify an empty \"\" pattern to match all input");
 
   // regex PATTERN should be a FILE argument when -Q or -e PATTERN is specified
-  if (!flag_match && arg_pattern != NULL && (flag_query > 0 || bcnf.defined()))
+  if (!flag_match && arg_pattern != NULL && (flag_query > 0 || !pattern_args.empty()))
   {
     arg_files.insert(arg_files.begin(), arg_pattern);
     arg_pattern = NULL;
@@ -5922,9 +5942,9 @@ void ugrep()
       usage("invalid argument --sort=KEY, valid arguments are 'name', 'best', 'size', 'used', 'changed', 'created', 'rname', 'rbest', 'rsize', 'rused', 'rchanged', and 'rcreated'");
   }
 
-  // add PATTERN
+  // add PATTERN to the CNF
   if (arg_pattern != NULL)
-    bcnf.new_pattern(arg_pattern);
+    bcnf.new_pattern(CNF::PATTERN::NA, arg_pattern);
 
   // the regex compiled from PATTERN, -e PATTERN, -N PATTERN, and -f FILE
   std::string regex;
@@ -6276,7 +6296,7 @@ void ugrep()
   size_t edges_time = 0;
   size_t words_time = 0;
 
-  // -P: Perl matching with Boost.Regex
+  // -P: Perl matching with PCRE2 or Boost.Regex
   if (flag_perl_regexp)
   {
 #if defined(HAVE_PCRE2)
