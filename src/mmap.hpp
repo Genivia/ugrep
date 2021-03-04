@@ -37,6 +37,7 @@
 #ifndef MMAP_HPP
 #define MMAP_HPP
 
+#include <limits>
 #include "ugrep.hpp"
 
 // --min-mmap and --max-mmap file size to allocate with mmap(), not greater than 4294967295LL, 0 disables mmap()
