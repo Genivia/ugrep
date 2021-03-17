@@ -74,7 +74,7 @@ function ERR() {
   exit 1
 }
 
-DIFF="diff -C1 -"
+DIFF="diff -U1 -"
 
 rm -rf dir1/ dir2/
 
