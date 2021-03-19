@@ -653,7 +653,7 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   form `(?^X)` that skip all `X` input, thus removing `X` from the search.
   For example, negative patterns can be used to skip strings and comments when
   searching for identifiers in source code and find matches that aren't in
-  strings and comments.  Predefined `zap` patterns use nagative patterns, for
+  strings and comments.  Predefined `zap` patterns use negative patterns, for
   example, use `-f cpp/zap_comments` to ignore pattern matches in C++ comments.
 - **ugrep** option `-f` uses `GREP_PATH` environment variable or the predefined
   patterns installed in `/usr/local/share/ugrep/patterns`.  If `-f` is
