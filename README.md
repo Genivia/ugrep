@@ -18,7 +18,7 @@ Search for anything in everything... ultra fast
 
 - Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
 
-- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, which is the same as `ugrep --config` to load the .ugrep configuration file with your preferences
+- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, a short command for `ugrep --config` to load a .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
@@ -30,7 +30,7 @@ Search for anything in everything... ultra fast
 
       ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
 
-- Search with Google-like [Boolean search queries](#bool) with `--bool` using `AND` (or just space), `OR` (or a `|`), `NOT` (or a `-`), quote to match exactly, and grouping with `( )`, or alternatively with `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
+- Search with Google-like [Boolean search patterns](#bool) with option `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
       ugrep --bool 'PATT1 PATT2 PATT3' ...   ugrep -e PATT1 --and PATT2 --and PATT3 ...
       ugrep --bool 'PATT1|PATT2 PATT3' ...   ugrep -e PATT1 -e PATT2 --and PATT3 ...
@@ -131,7 +131,7 @@ Table of contents
   - [Configuration files](#config)
   - [Interactive search with -Q](#query)
   - [Recursively list matching files with -l, -R, -r, --depth, -g, -O, and -t](#recursion)
-  - [Boolean search queries with --bool (-%), --and, --not](#bool)
+  - [Boolean search patterns with --bool (-%), --and, --not](#bool)
   - [Search this but not that with -v, -e, -N, -f, -L, -w, -x](#not)
   - [Search non-Unicode files with --encoding](#encoding)
   - [Matching multiple lines of text](#multiline)
@@ -653,7 +653,7 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   form `(?^X)` that skip all `X` input, thus removing `X` from the search.
   For example, negative patterns can be used to skip strings and comments when
   searching for identifiers in source code and find matches that aren't in
-  strings and comments.  Predefined `zap` patterns use nagative patterns, for
+  strings and comments.  Predefined `zap` patterns use negative patterns, for
   example, use `-f cpp/zap_comments` to ignore pattern matches in C++ comments.
 - **ugrep** option `-f` uses `GREP_PATH` environment variable or the predefined
   patterns installed in `/usr/local/share/ugrep/patterns`.  If `-f` is
@@ -1273,7 +1273,7 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
 
 <a name="bool"/>
 
-### Boolean search queries with --bool (-%), --and, --not
+### Boolean search patterns with --bool (-%), --and, --not
 
     --bool, -%
             Specifies Boolean search patterns.  A Boolean search pattern is
