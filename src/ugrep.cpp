@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.9"
+#define UGREP_VERSION "3.1.10"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -4969,14 +4969,11 @@ void init(int argc, const char **argv)
     usage("option -z is not available in this build configuration of ugrep");
 #endif
 
-  // -F disables -G (override)
-  if (flag_fixed_strings)
-    flag_basic_regexp = false;
-
-  // -P disables -G and -Z
+  // -P disables -F, -G and -Z (P>F>G>E override)
   if (flag_perl_regexp)
   {
 #if defined(HAVE_PCRE2) || defined(HAVE_BOOST_REGEX)
+    flag_fixed_strings = false;
     flag_basic_regexp = false;
     if (flag_fuzzy > 0)
       usage("options -P and -Z are not compatible");
@@ -4984,6 +4981,10 @@ void init(int argc, const char **argv)
     usage("option -P is not available in this build configuration of ugrep");
 #endif
   }
+
+  // -F disables -G (P>F>G>E override)
+  if (flag_fixed_strings)
+    flag_basic_regexp = false;
 
   // populate the CNF with the collected regex pattern args, each arg points to a persistent command line argv[]
   for (const auto &arg : pattern_args)

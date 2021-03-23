@@ -214,18 +214,20 @@ static bool match(const char *text, const char *glob)
 // pathname or basename matching, returns true or false
 bool glob_match(const char *pathname, const char *basename, const char *glob)
 {
-  // if pathname starts with ./ then remove these pairs
+  // if pathname starts with ./ then skip this
   while (pathname[0] == '.' && pathname[1] == PATHSEP)
     pathname += 2;
-  // if pathname starts with / then remove it
-  if (pathname[0] == PATHSEP)
+  // if pathname starts with / then skip it
+  while (pathname[0] == PATHSEP)
     ++pathname;
 
   // match pathname if glob contains a / or match the basename otherwise
   if (strchr(glob, '/') != NULL)
   {
-    // a leading / in the glob means globbing the pathname after removing the /
-    if (glob[0] == '/')
+    // a leading ./ or / in the glob means globbing the pathname after removing the ./ or /
+    if (glob[0] == '.' && glob[1] == '/')
+      glob += 2;
+    else if (glob[0] == '/')
       ++glob;
     return match(pathname, glob);
   }

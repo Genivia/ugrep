@@ -79,6 +79,7 @@ void CNF::OpTree::parse2(const char *& pattern)
 
 // <parse3> -> [ '-' <space>* | 'NOT' <space>+ ] <parse4>
 // <parse4> -> '(' <parse1> ')' | <pattern>
+// Note: '(' <parse1> ')' is parsed only when followed by spacing, e.g. to prevent (foo|bar)? to be converted to foo|bar AND ?
 void CNF::OpTree::parse3(const char *& pattern)
 {
   if (*pattern == '-' || is_oper(NOT, pattern))
@@ -90,17 +91,74 @@ void CNF::OpTree::parse3(const char *& pattern)
     skip_space(pattern);
   }
 
+  bool parens = false;
+
   if (*pattern == '(')
   {
-    ++pattern;
+    // check if matching ending ) is followed by spacing or EOS, then it is OK to parse '(' <parse1> ')' and convert to CNF
+    int level = 0;
+    const char *lookahead = pattern;
 
-    list.emplace_back(AND);
-    list.back().parse1(pattern);
+    while (*lookahead != '\0')
+    {
+      ++lookahead;
 
-    if (*pattern == ')')
+      if (*lookahead == '(')
+      {
+        ++level;
+      }
+      else if (*lookahead == ')')
+      {
+        if (level == 0)
+        {
+          ++lookahead;
+          parens = *lookahead == '\0' || isspace(*lookahead);
+
+          break;
+        }
+
+        --level;
+      }
+      else if (*lookahead == '[' && !flag_fixed_strings)
+      {
+        // skip [...]
+        ++lookahead;
+
+        while (*lookahead != '\0' && *lookahead != ']')
+          if (*lookahead++ == '\\' && *lookahead != '\0')
+            ++lookahead;
+      }
+      else if (*lookahead == '"')
+      {
+        // skip "..."
+        ++lookahead;
+
+        while (*lookahead != '\0' && *lookahead != '"')
+          if (*lookahead++ == '\\' && *lookahead != '\0')
+            ++lookahead;
+      }
+      else if (*lookahead == '\\')
+      {
+        // skip \Q...\E and escaped characters \x such as \(
+        if (*++lookahead == 'Q')
+          while (*lookahead != '\0' && (*lookahead != '\\' || lookahead[1] != 'E'))
+            ++lookahead;
+      }
+    }
+
+    if (parens)
+    {
       ++pattern;
+
+      list.emplace_back(AND);
+      list.back().parse1(pattern);
+
+      if (*pattern == ')')
+        ++pattern;
+    }
   }
-  else
+
+  if (!parens)
   {
     const char *p;
 
@@ -137,11 +195,25 @@ void CNF::OpTree::parse3(const char *& pattern)
         if (*pattern == '"')
           ++pattern;
       }
+      else if (*pattern == '[' && !flag_fixed_strings)
+      {
+        // skip [...]
+        p = pattern++;
+
+        while (*pattern != '\0' && *pattern != ']')
+          if (*pattern++ == '\\' && *pattern != '\0')
+            ++pattern;
+
+        if (*pattern == ']')
+          ++pattern;
+
+        regex.append(p, pattern - p);
+      }
       else
       {
         p = pattern;
 
-        int n = 0;
+        int level = 0;
 
         while (*pattern != '\0')
         {
@@ -150,12 +222,12 @@ void CNF::OpTree::parse3(const char *& pattern)
               ++pattern;
           else if (*pattern == '\\' && pattern[1] != '\0')
             ++pattern;
-          else if (n == 0 && (*pattern == ')' || *pattern == '|' || *pattern == '"' || isspace(*pattern)))
+          else if (level == 0 && (*pattern == ')' || *pattern == '|' || *pattern == '"' || isspace(*pattern)))
             break;
           else if (*pattern == '(')
-            ++n;
+            ++level;
           else if (*pattern == ')')
-            --n;
+            --level;
 
           ++pattern;
         }

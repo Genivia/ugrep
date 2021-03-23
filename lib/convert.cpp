@@ -153,7 +153,7 @@ static std::string unicode_class(const char *s, int esc, convert_flag_type flags
         }
       }
       if (!regex.empty())
-        regex.pop_back();
+        regex.resize(regex.size() - 1);
     }
     else
     {
@@ -660,7 +660,7 @@ static std::string convert_unicode_ranges(const ORanges<int>& ranges, convert_fl
   int esc = hex_or_octal_escape(signature);
   for (ORanges<int>::const_iterator i = ranges.begin(); i != ranges.end(); ++i)
     regex.append(utf8(i->first, i->second - 1, esc, par, !(flags & convert_flag::permissive))).push_back('|');
-  regex.pop_back();
+  regex.resize(regex.size() - 1);
   regex.insert(0, par).push_back(')');
   return regex;
 }
