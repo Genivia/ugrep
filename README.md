@@ -228,6 +228,12 @@ Check <https://github.com/haikuports/haikuports/tree/master/app-text/ugrep> for
 version info.  To build and try `ugrep` locally, see "All platforms" build
 steps further below.
 
+### Alpine Linux
+
+    # apk add ugrep ugrep-doc
+
+Check <https://pkgs.alpinelinux.org/packages?name=ugrep> for version info.
+
 ### All platforms: step 1 download
 
 Clone `ugrep` with
