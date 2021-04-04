@@ -1,16 +1,10 @@
-[1;35mHello.bat[m[1;36m:[m[32;1m     1[m[1;36m:[m[1;32m  8[m[1;36m:[m[1;32m      7[m[1;36m:[m	[1;4;32msh[m
-[1;35mHello.bat[m[1;36m|[m[32;1m     2[m[1;36m|[m[1;32m  1[m[1;36m|[m[1;32m     10[m[1;36m|[m	[1;4;32mecho[m
-[1;4;32mHello World!"[m
+[1;35mHello.bat[m[1;36m:[m[32;1m     2[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     10[m[1;36m:[m	[1;4;32mecho "Hello[m
 [1;35mHello.java[m[1;36m:[m[32;1m     1[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m      0[m[1;36m:[m	[1;4;32mimport java.lang.*;[m
 [1;35mHello.java[m[1;36m:[m[32;1m     3[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     21[m[1;36m:[m	[1;4;32mpublic class[m
 [1;4;32mHello //[m
 [1;4;32mprints a[m
 [1;4;32mHello World![m
-[1;4;32mgreeting[m
-[1;35mHello.java[m[1;36m|[m[32;1m     4[m[1;36m|[m[1;32m  1[m[1;36m|[m[1;32m     74[m[1;36m|[m	[1;4;32m{[m
-[1;4;32mpublic static[m
+[1;35mHello.java[m[1;36m:[m[32;1m     4[m[1;36m:[m[1;32m  3[m[1;36m:[m[1;32m     76[m[1;36m:[m	[1;4;32mpublic static[m
 [1;4;32mvoid main(String[][m
 [1;35mHello.java[m[1;36m:[m[32;1m     5[m[1;36m:[m[1;32m 25[m[1;36m:[m[1;32m    138[m[1;36m:[m	[1;4;32mHello World!");[m
-[1;35mHello.sh[m[1;36m:[m[32;1m     1[m[1;36m:[m[1;32m  8[m[1;36m:[m[1;32m      7[m[1;36m:[m	[1;4;32msh[m
-[1;35mHello.sh[m[1;36m|[m[32;1m     2[m[1;36m|[m[1;32m  1[m[1;36m|[m[1;32m     10[m[1;36m|[m	[1;4;32mecho[m
-[1;4;32mHello World!"[m
+[1;35mHello.sh[m[1;36m:[m[32;1m     2[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     10[m[1;36m:[m	[1;4;32mecho "Hello[m

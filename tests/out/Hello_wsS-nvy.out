@@ -1,14 +1,15 @@
-[1;35mHello.bat[m[1;36m-[m[32;1m1[m[1;36m-[m[1;34m#!/bin/[m[7;34;107msh[m
-[1;35mHello.bat[m[1;36m|[m[32;1m2[m[1;36m|[m[7;34;107mecho[m[1;34m "[m[7;34;107mHello World!"[m
+[1;35mHello.bat[m[1;36m:[m[32;1m1[m[1;36m:[m#!/bin/sh[m
+[1;35mHello.bat[m[1;36m-[m[32;1m2[m[1;36m-[m[1;34m[m[7;34;107mecho "Hello[m[1;34m World!"[m
 [mBinary file[1;35m Hello.class[m matches
 [1;35mHello.java[m[1;36m-[m[32;1m1[m[1;36m-[m[1;34m[m[7;34;107mimport java.lang.*;[m
 [1;35mHello.java[m[1;36m:[m[32;1m2[m[1;36m:[m
-[1;35mHello.java[m[1;36m-[m[32;1m3[m[1;36m-[m[1;34m[m[7;34;107mpublic class[m[1;34m [m[7;34;107mHello //[m[1;34m [m[7;34;107mprints a[m[1;34m [m[7;34;107mHello World![m[1;34m [m[7;34;107mgreeting[m
-[1;35mHello.java[m[1;36m|[m[32;1m4[m[1;36m|[m[7;34;107m{[m[1;34m [m[7;34;107mpublic static[m[1;34m [m[7;34;107mvoid main(String[][m[1;34m arg)[m
+[1;35mHello.java[m[1;36m-[m[32;1m3[m[1;36m-[m[1;34m[m[7;34;107mpublic class[m[1;34m [m[7;34;107mHello //[m[1;34m [m[7;34;107mprints a[m[1;34m [m[7;34;107mHello World![m[1;34m greeting[m
+[1;35mHello.java[m[1;36m-[m[32;1m4[m[1;36m-[m[1;34m{ [m[7;34;107mpublic static[m[1;34m [m[7;34;107mvoid main(String[][m[1;34m arg)[m
 [1;35mHello.java[m[1;36m-[m[32;1m5[m[1;36m-[m[1;34m  { System.out.println("[m[7;34;107mHello World!");[m
 [1;35mHello.java[m[1;36m:[m[32;1m6[m[1;36m:[m  }[m
 [1;35mHello.java[m[1;36m:[m[32;1m7[m[1;36m:[m}[m
+[1;35mHello.pdf[m[1;36m:[m[32;1m1[m[1;36m:[m%PDF-1.3[m
 [mBinary file[1;35m Hello.pdf[m matches
-[1;35mHello.sh[m[1;36m-[m[32;1m1[m[1;36m-[m[1;34m#!/bin/[m[7;34;107msh[m
-[1;35mHello.sh[m[1;36m|[m[32;1m2[m[1;36m|[m[7;34;107mecho[m[1;34m "[m[7;34;107mHello World!"[m
+[1;35mHello.sh[m[1;36m:[m[32;1m1[m[1;36m:[m#!/bin/sh[m
+[1;35mHello.sh[m[1;36m-[m[32;1m2[m[1;36m-[m[1;34m[m[7;34;107mecho "Hello[m[1;34m World!"[m
 [1;35mHello.txt[m[1;36m:[m[32;1m1[m[1;36m:[mHello[m

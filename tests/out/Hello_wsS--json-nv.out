@@ -1,5 +1,11 @@
 [
   {
+    "file": "Hello.bat",
+    "matches": [
+      { "line": 1, "match": "#!/bin/sh" }
+    ]
+  },
+  {
     "file": "Hello.class",
     "matches": [
       { "line": 1, "match": "Êşº¾\u0000\u0000\u00004\u0000\u001d" },
@@ -22,25 +28,73 @@
   {
     "file": "Hello.pdf",
     "matches": [
+      { "line": 1, "match": "%PDF-1.3" },
+      { "line": 2, "match": "%Äåòåë§ó ĞÄÆ" },
+      { "line": 5, "match": "stream" },
+      { "line": 6, "match": "x\u0001E»" },
       { "line": 8, "match": "Ÿ‰\u0007o†k÷´Ğ›áâj©Rj²@8ş­í” »¶pQ£DÄ£\rï iÂ\u000bº0¨z¬|²¿Oó¼\u001eĞ\u00177µ7ã\u0017Nÿ ¥" },
+      { "line": 9, "match": "endstream" },
+      { "line": 10, "match": "endobj" },
+      { "line": 12, "match": "123" },
+      { "line": 13, "match": "endobj" },
       { "line": 16, "match": ">>" },
+      { "line": 17, "match": "endobj" },
       { "line": 20, "match": ">> >>" },
+      { "line": 21, "match": "endobj" },
+      { "line": 24, "match": "stream" },
       { "line": 28, "match": "¾÷äÕ¤\rùgy\u0015ï½¶\\=Ê\u000bÿ“¹Í!F;’ÍAÎ<›Q´qÆ\u001bÀ!¸©Esö·YL²é¶b´`ÉB”«¸ÿË\tóÃ<·±Rs.îğ¼·?c6Í÷Š\u000f‹t¾O»¬­kŸh?jh+ÚÇ@¿K\u001fJ_JßJW¤«Ò\rR¥kÒ²ôô½ô¹ô5z_@º,]éØIqì\u001b»\u0007~Æ{Öhí0f†³\u0014\u0010óÂÚÌ" },
       { "line": 29, "match": "K\u001fñw\u0006c›ù3¡Õ^\u0003»c-åˆ²SyF\u0019Vv+Ï)\u0013J¯r@9¬lW\u0006Ğú•Qe/Fvn°dc=Î€…’g‹¦#®â<±Wu°çÃK\u001dï¦_\\ÃÖ†5ØI=\u000eÙÚ¦\u000e¯\u0011W¿\u0015Uc¼;]œ\u0006:M!b‹Î\"r\u001f:œ\u001f'ªşÎÙ\\“85Roâ”°Ä.Ñ/ÆZ5˜\u0013\u0007P…ãmõ8ÈUš\u0019É\fgr¤fz3C™şÌ1ÆQ¬Ñù’Ù‹Ñ!|G\u0012Ş3Ë1ÿ›5Äg\u0018ï\u001dæ¨\tl£‡[+4çqß\u0011å]oÁ·fê¡: i/©9\\¯¦:æ\u0018Ù>U·m5\u001a" },
+      { "line": 30, "match": "Tß\fL¿iV³Äw7Ï#úëõèNNm»a4üf,£Tê&Ñ·“4" },
+      { "line": 31, "match": "endstream" },
+      { "line": 32, "match": "endobj" },
+      { "line": 34, "match": "1116" },
+      { "line": 35, "match": "endobj" },
+      { "line": 38, "match": "endobj" },
+      { "line": 41, "match": "endobj" },
+      { "line": 44, "match": "endobj" },
+      { "line": 50, "match": "endobj" },
       { "line": 55, "match": ">>" },
+      { "line": 56, "match": "endobj" },
+      { "line": 59, "match": "stream" },
+      { "line": 62, "match": ">¨À‘Ahb¡i\u0010\u000e+\u001cz?^\u001eRx?\u001e\u0007\u0015ŞS8På”\u00072ñ×TìWx·\u0016«|²Qá/" },
       { "line": 63, "match": "ïT`ŸÂÛ" },
       { "line": 65, "match": "¿KÂ6…\u0017·É\u0017rñ¼\rÏmuÊçºa«\u0013ÏnñËg+°Åß*<£ğ´ÂSO¦Ë§" },
+      { "line": 66, "match": "ñä\u0013\u000eùd:pà7ñØ¬ğ8;y\\aS\"6nè)7*lè‰ÇØÿcµ¨]_'k\u0015Öó³µ¾\u000eë+õuk|rİ4¬\u000bè*üZa-Ëkë°Æ‡\u001a.FÍP<ÂÙ>âÂê\u0004T3P]ˆU\\´U>T9±Ráa…‡\u0014\u001e\\á”\u000f*¬pâW" },
+      { "line": 67, "match": "Ë\u0015\u001ep\u000e“\u000fLÂ/\u0015*ïÅ²¥\u0015r™ÂÒ" },
       { "line": 68, "match": "TtÄı" },
       { "line": 69, "match": "å6üBa‰Â=" },
+      { "line": 70, "match": "‹Ë¬r±\u001d‹#‚\u0002Gõ2+Ê\u001aôEIX\u0014Ğ\u0017*Ü­°@¡tş$YZ‹ù%İäüI(é†y" },
+      { "line": 72, "match": "ƒ9„Á­¸Aáún\u0018¤0\u000b<°\u0010\u0003z·—\u0003Æ ¿B?¿KöSè;\u0006}zµ—}Æ ‡<…\\VÌUèÍÓ½Û£W{ä0—“†q©²g\u001düÙÉÒï‚?¢\u0019n³\u001dN™Œl#ÜZ=«‡Of)ô`Í\u001e>t×\u0006Éî" },
       { "line": 73, "match": "İ\u0014º*t±Ã—:Lú" },
       { "line": 76, "match": "Ò\u0005prh…Æ€6\b‚\u0003\u0010~\u0003\"\"" },
+      { "line": 79, "match": "endstream" },
+      { "line": 80, "match": "endobj" },
+      { "line": 82, "match": "2734" },
+      { "line": 83, "match": "endobj" },
       { "line": 85, "match": "(Hello)" },
+      { "line": 86, "match": "endobj" },
+      { "line": 89, "match": "endobj" },
       { "line": 91, "match": "(TextEdit)" },
+      { "line": 92, "match": "endobj" },
       { "line": 94, "match": "(D:20200124010711Z00'00')" },
+      { "line": 95, "match": "endobj" },
       { "line": 97, "match": "()" },
+      { "line": 98, "match": "endobj" },
       { "line": 100, "match": "[ ]" },
+      { "line": 101, "match": "endobj" },
+      { "line": 105, "match": "endobj" },
+      { "line": 106, "match": "xref" },
+      { "line": 129, "match": "trailer" },
       { "line": 131, "match": "<8db88d3335070bd9583341583cf769a3> ] >>" },
+      { "line": 132, "match": "startxref" },
+      { "line": 133, "match": "5536" },
       { "line": 134, "match": "%%EOF" }
+    ]
+  },
+  {
+    "file": "Hello.sh",
+    "matches": [
+      { "line": 1, "match": "#!/bin/sh" }
     ]
   },
   {

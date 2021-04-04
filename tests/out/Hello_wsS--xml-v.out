@@ -1,4 +1,7 @@
 <grep>
+  <file name="Hello.bat">
+    <match>#!/bin/sh</match>
+  </file>
   <file name="Hello.class">
     <match>Êşº¾&#0;&#0;&#0;4&#0;&#29;</match>
     <match>&#0;&#6;&#0;&#15;&#9;&#0;&#16;&#0;&#17;&#8;&#0;&#18;</match>
@@ -14,25 +17,70 @@
     <match>}</match>
   </file>
   <file name="Hello.pdf">
+    <match>%PDF-1.3</match>
+    <match>%Äåòåë§ó ĞÄÆ</match>
+    <match>stream</match>
+    <match>x&#1;E»</match>
     <match>Ÿ‰&#7;o†k÷´Ğ›áâj©Rj²@8ş­í” »¶pQ£DÄ£&#13;ï&#x7f; iÂ&#11;º0¨z¬|²¿Oó¼&#30;Ğ&#23;7µ7ã&#23;Nÿ ¥</match>
+    <match>endstream</match>
+    <match>endobj</match>
+    <match>123</match>
+    <match>endobj</match>
     <match>&gt;&gt;</match>
+    <match>endobj</match>
     <match>&gt;&gt; &gt;&gt;</match>
+    <match>endobj</match>
+    <match>stream</match>
     <match>¾÷äÕ¤&#13;ùgy&#21;ï½¶\=Ê&#11;ÿ“¹Í!F;’ÍAÎ&lt;›Q´qÆ&#27;À!¸©Esö·YL²é¶b´`ÉB”«¸ÿË&#9;óÃ&lt;·±Rs.îğ¼·?c6Í÷Š&#15;‹t¾O»¬­kŸh?j&#x7f;h+ÚÇ@¿K&#31;J_JßJW¤«Ò&#13;R¥kÒ²ôô½ô¹ô5z_@º,]éØIqì&#27;»&#7;~Æ{Öhí0f†³&#20;&#16;óÂÚÌ</match>
     <match>K&#31;ñw&#6;c›ù3¡Õ^&#3;»&#x7f;c-åˆ²SyF&#25;Vv+Ï)&#19;J¯r@9¬lW&#6;Ğú•Qe/Fvn°dc=Î€…&#x7f;’g‹¦#®â&lt;±Wu°çÃK&#29;ï¦_\ÃÖ†5ØI=&#14;ÙÚ¦&#14;¯&#17;W¿&#21;Uc¼;]œ&#6;:M!b‹Î&quot;r&#31;:œ&#31;'ªşÎÙ\“85Roâ”°Ä.Ñ/ÆZ5˜&#19;&#7;P…ãmõ8ÈUš&#25;É&#12;gr¤fz3C™şÌ1ÆQ¬Ñù’Ù‹Ñ!|G&#18;Ş3Ë1ÿ›5Äg&#24;ï&#29;æ¨&#9;l£‡[+4çqß&#17;å]oÁ·fê¡: i/©9\¯¦:æ&#24;Ù&gt;U·m5&#26;</match>
+    <match>Tß&#12;L¿iV³Äw7Ï#úëõèNNm»a4üf,£Tê&amp;Ñ&#x7f;·“4</match>
+    <match>endstream</match>
+    <match>endobj</match>
+    <match>1116</match>
+    <match>endobj</match>
+    <match>endobj</match>
+    <match>endobj</match>
+    <match>endobj</match>
+    <match>endobj</match>
     <match>&gt;&gt;</match>
+    <match>endobj</match>
+    <match>stream</match>
+    <match>&gt;¨À‘Ahb¡i&#16;&#14;+&#28;z?^&#30;Rx?&#30;&#7;&#21;ŞS8På”&#7;2ñ×TìWx·&#22;«|²Qá/</match>
     <match>ïT`ŸÂÛ</match>
     <match>¿KÂ6…&#23;·É&#23;rñ¼&#13;ÏmuÊçºa«&#19;ÏnñËg+°Åß*&lt;£ğ´ÂSO¦Ë§</match>
+    <match>ñä&#19;&#14;ùd:pà7ñØ¬ğ8;y\aS&quot;6nè)7*lè‰ÇØÿcµ¨]_'k&#21;Öó³µ¾&#14;ë+õuk|rİ4¬&#11;è*üZa-Ëkë°Æ‡&#26;.FÍP&lt;ÂÙ&gt;âÂê&#4;T3P]ˆU\´U&gt;T9±Ráa…‡&#20;&#30;\á”&#15;*¬pâW</match>
+    <match>Ë&#21;&#30;p&#14;“&#15;LÂ/&#21;*ïÅ²¥&#21;r™ÂÒ</match>
     <match>TtÄı</match>
     <match>å6üBa‰Â=</match>
+    <match>‹Ë¬r±&#29;‹#‚&#2;Gõ2+Ê&#26;ôEIX&#20;Ğ&#23;*Ü­°@¡tş$YZ‹ù%İäüI(é†y</match>
+    <match>ƒ9„Á­¸Aáún&#24;¤0&#11;&lt;°&#16;&#3;z·—&#3;Æ ¿B?¿KöSè;&#6;}zµ—}Æ ‡&lt;…\VÌUèÍÓ½Û£W{ä0—“†q©²g&#29;üÙÉÒï‚?¢&#25;n³&#29;N™Œl#ÜZ=«‡Of)ô`Í&#30;&gt;t×&#6;Éî</match>
     <match>İ&#20;º*t±Ã—:Lú</match>
     <match>Ò&#5;prh…Æ€6&#8;‚&#3;&#16;~&#3;&quot;&quot;</match>
+    <match>endstream</match>
+    <match>endobj</match>
+    <match>2734</match>
+    <match>endobj</match>
     <match>(Hello)</match>
+    <match>endobj</match>
+    <match>endobj</match>
     <match>(TextEdit)</match>
+    <match>endobj</match>
     <match>(D:20200124010711Z00'00')</match>
+    <match>endobj</match>
     <match>()</match>
+    <match>endobj</match>
     <match>[ ]</match>
+    <match>endobj</match>
+    <match>endobj</match>
+    <match>xref</match>
+    <match>trailer</match>
     <match>&lt;8db88d3335070bd9583341583cf769a3&gt; ] &gt;&gt;</match>
+    <match>startxref</match>
+    <match>5536</match>
     <match>%%EOF</match>
+  </file>
+  <file name="Hello.sh">
+    <match>#!/bin/sh</match>
   </file>
   <file name="Hello.txt">
     <match>Hello</match>

@@ -2,7 +2,7 @@
   {
     "file": "Hello.bat",
     "matches": [
-      { "match": 2 }
+      { "match": 1 }
     ]
   },
   {
@@ -14,19 +14,19 @@
   {
     "file": "Hello.java",
     "matches": [
-      { "match": 9 }
+      { "match": 8 }
     ]
   },
   {
     "file": "Hello.pdf",
     "matches": [
-      { "match": 210 }
+      { "match": 165 }
     ]
   },
   {
     "file": "Hello.sh",
     "matches": [
-      { "match": 2 }
+      { "match": 1 }
     ]
   },
   {

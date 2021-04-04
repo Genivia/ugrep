@@ -1,6 +1,6 @@
 <grep>
   <file name="Hello.bat">
-    <match>0</match>
+    <match>1</match>
   </file>
   <file name="Hello.class">
     <match>6</match>
@@ -9,10 +9,10 @@
     <match>3</match>
   </file>
   <file name="Hello.pdf">
-    <match>33</match>
+    <match>61</match>
   </file>
   <file name="Hello.sh">
-    <match>0</match>
+    <match>1</match>
   </file>
   <file name="Hello.txt">
     <match>0</match>

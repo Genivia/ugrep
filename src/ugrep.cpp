@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.10"
+#define UGREP_VERSION "3.1.11"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -6242,7 +6242,7 @@ void ugrep()
   else
     threads = std::min(arg_files.size() + flag_stdin, flag_jobs);
 
-  // inverted character classes do not match newlines, e.g. [^x] matches anything except x and \n
+  // inverted character classes and \s do not match newlines, e.g. [^x] matches anything except x and \n
   reflex::convert_flag_type convert_flags = reflex::convert_flag::notnewline;
 
   // not -U: convert regex to Unicode

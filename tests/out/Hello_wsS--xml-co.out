@@ -1,18 +1,18 @@
 <grep>
   <file name="Hello.bat">
-    <match>2</match>
+    <match>1</match>
   </file>
   <file name="Hello.class">
     <match>2</match>
   </file>
   <file name="Hello.java">
-    <match>9</match>
+    <match>8</match>
   </file>
   <file name="Hello.pdf">
-    <match>210</match>
+    <match>165</match>
   </file>
   <file name="Hello.sh">
-    <match>2</match>
+    <match>1</match>
   </file>
   <file name="Hello.txt">
     <match>0</match>

@@ -230,7 +230,7 @@ steps further below.
 
 ### Alpine Linux
 
-    # apk add ugrep ugrep-doc
+    $ apk add ugrep ugrep-doc
 
 Check <https://pkgs.alpinelinux.org/packages?name=ugrep> for version info.
 
@@ -4635,7 +4635,7 @@ in markdown:
 
 
 
-    ugrep 3.1.10                    March 23, 2021                        UGREP(1)
+    ugrep 3.1.11                    April 03, 2021                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
@@ -4749,8 +4749,8 @@ compatibility with traditional grep pattern matching.
 
   POSIX form   | POSIX category    | Matches
   ------------ | ----------------- | ---------------------------------------------
-  `[:ascii:]`  | `\p{ASCII}`       | matches any ASCII character
-  `[:space:]`  | `\p{Space}`       | matches a white space character `[ \t\n\v\f\r]`
+  `[:ascii:]`  | `\p{ASCII}`       | matches an ASCII character U+0000 to U+007F
+  `[:space:]`  |                   | matches a white space character `[ \t\n\v\f\r]`
   `[:xdigit:]` | `\p{Xdigit}`      | matches a hex digit `[0-9A-Fa-f]`
   `[:cntrl:]`  | `\p{Cntrl}`       | matches a control character `[\x00-\0x1f\x7f]`
   `[:print:]`  | `\p{Print}`       | matches a printable character `[\x20-\x7e]`
@@ -4782,13 +4782,14 @@ class that excludes the ASCII character category.
   `.`                                    | matches any single Unicode character except newline
   `\X`                                   | matches any ISO-8859-1 or Unicode character
   `\R`                                   | matches a Unicode line break
-  `\s`, `\p{Zs}`                         | matches a white space character with Unicode sub-property Zs
+  `\s`                                   | matches a white space character `[ \t\v\f\r\p{Zs}]` excluding `\n`
+  `\p{Space}`                            | matches a white space character `[ \t\n\v\f\r\p{Zs}]` including `\n`
   `\l`, `\p{Ll}`                         | matches a lower case letter with Unicode sub-property Ll
   `\u`, `\p{Lu}`                         | matches an upper case letter with Unicode sub-property Lu
   `\w`, `\p{Word}`                       | matches a Unicode word character with property L, Nd, or Pc
-  `\p{Unicode}`                          | matches any Unicode character (U+0000 to U+10FFFF minus U+D800 to U+DFFF)
-  `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F)
-  `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+0080 to U+10FFFF minus U+D800 to U+DFFF)
+  `\p{Unicode}`                          | matches any Unicode character U+0000 to U+10FFFF minus U+D800 to U+DFFF
+  `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F
+  `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+0080 to U+10FFFF minus U+D800 to U+DFFF
   `\p{L&}`                               | matches a character with Unicode property L& (i.e. property Ll, Lu, or Lt)
   `\p{Letter}`,`\p{L}`                   | matches a character with Unicode property Letter
   `\p{Mark}`,`\p{M}`                     | matches a character with Unicode property Mark
