@@ -3040,19 +3040,24 @@ field                   | output
 `%e`                    | the ending byte offset of the match
 `%Z`                    | the edit distance cost of an approximate match with option `-Z`
 `%u`                    | select unique lines only unless option -u is used
-`%1`                    | the first regex group capture of the match, and so on up to group `%9`, requires option `-P`
-`%[NUM]#`               | the regex group capture `NUM`, requires option `-P`
+`%1`,`%2`,...,`%9`      | the first regex group capture of the match, and so on up to group `%9`, requires option `-P`
+`%[NUM]#`               | the regex group capture `NUM`; requires option `-P`
+`%[NUM1\|NUM2\|...]#`   | the first group capture `NUM` that matched; requires option `-P`
+`%[NAME]#`              | the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]#` | the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
 `%G`                    | list of group capture indices/names of the match (see note)
-`%[NAME1\|NAME2\|...]G` | NAMEs corresponding to the group capture indices of the match (see note)
+`%[TEXT1\|TEXT2\|...]G` | list of TEXT indexed by group capture indices that matched; requires option `-P`
 `%g`                    | the group capture index of the match or 1 (see note)
-`%[NAME1\|NAME2\|...]g` | NAME corresponding to the group capture index of the match (see note)
+`%[TEXT1\|TEXT2\|...]g` | the first TEXT indexed by the first group capture index that matched; requires option `-P`
 `%%`                    | the percentage sign
 
 Note:
 
+- Formatted output is written without a terminating newline, unless `%~` or `\n`
+  is explicitly specified in the format string.
 - The `[ARG]` part of a field is optional and may be omitted.  When present,
   the argument must be placed in `[]` brackets, for example `%[,]F` to output a
-  comma, the pathname, and a separator, if option `-H` is used.
+  comma, the pathname, and a separator, when option `-H` is used.
 - Fields `%[SEP]$` and `%u` are switches and do not write anything to the
   output.
 - The separator used by `%F`, `%H`, `%N`, `%K`, `%B`, `%S`, and `%G` may be
@@ -3069,12 +3074,11 @@ Note:
   not used.  For example `foo|bar` matches `foo` with index 1 and `bar` with
   index 2.  With option `-P`, the index corresponds to the number of the group
   captured in the specified pattern.
-- The names or strings specified in the list `%[NAME1|NAME2|...]G` and
-  `%[NAME1|NAME2|...]g` should correspond to the group capture index (see the
-  note above), i.e. `NAME1` is output for index 1, `NAME2` is output for index
-  2, and so on.  If the list of names is too short, the index value is output
-  or the name of a named match is output for named sub-patterns when ugrep is
-  compiled with PCRE2.
+- The strings specified in the list `%[TEXT1|TEXT2|...]G` and
+  `%[TEXT1|TEXT2|...]g` should correspond to the group capture index (see the
+  note above), i.e. `TEXT1` is output for index 1, `TEXT2` is output for index
+  2, and so on.  If the list is too short, the index value is output or the
+  name of a named group capture is output.
 
 To output matching lines faster by omitting the header output and binary match
 checks, using `--format` with field `%O` (output matching line as is) and field
@@ -3696,7 +3700,7 @@ in markdown:
                   ing standard input.  Option --label=.ext may be used to  specify
                   extension `ext' when searching standard input.
 
-           --filter-magic-label=LABEL:MAGIC
+           --filter-magic-label=[+]LABEL:MAGIC
                   Associate  LABEL  with files whose signature "magic bytes" match
                   the MAGIC regex pattern.   Only  files  that  have  no  filename
                   extension  are  labeled, unless +LABEL is specified.  When LABEL
@@ -3704,8 +3708,8 @@ in markdown:
                   sponding command is invoked.  This option may be repeated.
 
            --format=FORMAT
-                  Output    FORMAT-formatted   matches.    For   example   `--for-
-                  mat=%f:%n:%O%~' outputs matching lines `%O' with  filename  `%f`
+                  Output    FORMAT-formatted    matches.    For   example   --for-
+                  mat='%f:%n:%O%~' outputs matching lines `%O' with filename  `%f`
                   and  line  number  `%n'  followed  by  a  newline `%~'.  Context
                   options -A, -B, -C, and -y are ignored.  See `man ugrep' section
                   FORMAT.
@@ -4436,17 +4440,34 @@ in markdown:
            %[NUM]#
                   the regex group capture NUM; requires option -P.
 
-           %G     list of group capture indices/names of the match (option -P).
+           %[NUM1|NUM2|...]#
+                  the first group capture NUM that matched; requires option -P.
 
-           %[NAME1|NAME2|...]G
-                  NAMEs corresponding to the group capture indices of the match.
+           %[NAME]#
+                  the NAMEd group capture; requires option -P and  capturing  pat-
+                  tern `(?<NAME>PATTERN)', see also %G.
 
-           %g     the group capture index/name of the match or 1 (option -P).
+           %[NAME1|NAME2|...]#
+                  the  first  NAMEd group capture that matched; requires option -P
+                  and capturing pattern `(?<NAME>PATTERN)', see also %G.
 
-           %[NAME1|NAME2|...]g
-                  NAME corresponding to the group capture index of the match.
+           %G     list of  group  capture  indices/names  that  matched;  requires
+                  option -P.
+
+           %[TEXT1|TEXT2|...]G
+                  list  of  TEXT  indexed  by  group capture indices that matched;
+                  requires option -P.
+
+           %g     the group capture index/name matched or 1; requires option -P.
+
+           %[TEXT1|TEXT2|...]g
+                  the first TEXT indexed by the first  group  capture  index  that
+                  matched; requires option -P.
 
            %%     the percentage sign.
+
+           Formatted output is written without a terminating newline, unless %~ or
+           `\n' is explicitly specified in the format string.
 
            The [ARG] part of a  field  is  optional  and  may  be  omitted.   When
            present,  the argument must be placed in [] brackets, for example %[,]F
@@ -4454,10 +4475,10 @@ in markdown:
 
            %[SEP]$ and %u are switches and do not send anything to the output.
 
-           The separator used by %F, %H, %N, %K, %B, %S, and %G may be changed  by
-           preceding  the  field  by  %[SEP]$.   When  [SEP] is not provided, this
-           reverts the separator to the default separator or the separator  speci-
-           fied with --separator.
+           The separator used by the %F, %H, %N, %K, %B, %S and %G fields  may  be
+           changed by preceding the field by %[SEP]$.  When [SEP] is not provided,
+           this reverts the separator to the default separator  or  the  separator
+           specified with --separator.
 
            Formatted output is written for each matching pattern, which means that
            a line may be output multiple times when patterns match more than  once
@@ -4635,7 +4656,7 @@ in markdown:
 
 
 
-    ugrep 3.1.11                    April 03, 2021                        UGREP(1)
+    ugrep 3.1.12                    April 25, 2021                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

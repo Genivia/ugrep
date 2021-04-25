@@ -79,7 +79,7 @@ void CNF::OpTree::parse2(const char *& pattern)
 
 // <parse3> -> [ '-' <space>* | 'NOT' <space>+ ] <parse4>
 // <parse4> -> '(' <parse1> ')' | <pattern>
-// Note: '(' <parse1> ')' is parsed only when followed by spacing, e.g. to prevent (foo|bar)? to be converted to foo|bar AND ?
+// Note: '(' <parse1> ')' is parsed only when not (?...) and when followed by spacing or a |, e.g. to prevent (foo|bar)? to be converted to foo|bar AND ?
 void CNF::OpTree::parse3(const char *& pattern)
 {
   if (*pattern == '-' || is_oper(NOT, pattern))
@@ -93,9 +93,9 @@ void CNF::OpTree::parse3(const char *& pattern)
 
   bool parens = false;
 
-  if (*pattern == '(')
+  if (*pattern == '(' && (flag_fixed_strings || pattern[1] != '?'))
   {
-    // check if matching ending ) is followed by spacing or EOS, then it is OK to parse '(' <parse1> ')' and convert to CNF
+    // check if matching ending ) is followed by spacing or EOS or |, then it is OK to parse '(' <parse1> ')' and convert to CNF
     int level = 0;
     const char *lookahead = pattern;
 
@@ -112,7 +112,7 @@ void CNF::OpTree::parse3(const char *& pattern)
         if (level == 0)
         {
           ++lookahead;
-          parens = *lookahead == '\0' || isspace(*lookahead);
+          parens = *lookahead == '\0' || *lookahead == '|' || isspace(*lookahead);
 
           break;
         }

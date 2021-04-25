@@ -73,9 +73,9 @@ src/ugrep --help \
   -e 's/^ \{5,\}//' \
   -e 's/^\.\([A-Za-z]\)/\\\&.\1/g' \
   -e $'s/^    \(.*\)$/.TP\\\n\\1/' \
-  -e 's/\(--[][+0-9A-Za-z_-]*\)/\\fB\1\\fR/g' \
-  -e 's/\([^-0-9A-Za-z_]\)\(-.\) \([A-Z]\{1,\}\)/\1\\fB\2\\fR \\fI\3\\fR/g' \
-  -e 's/\([^-0-9A-Za-z_]\)\(-.\)/\1\\fB\2\\fR/g' \
+  -e 's/\(--[+0-9A-Za-z_-]*\)/\\fB\1\\fR/g' \
+  -e 's/\([^-0-9A-Za-z_]\)\(-[a-zA-Z0-9%.+?]\) \([A-Z]\{1,\}\)/\1\\fB\2\\fR \\fI\3\\fR/g' \
+  -e 's/\([^-0-9A-Za-z_]\)\(-[a-zA-Z0-9%.+?]\)/\1\\fB\2\\fR/g' \
   -e 's/^\(-.\) \([!A-Z]\{1,\}\)/\\fB\1\\fR \\fI\2\\fR/g' \
   -e 's/^\(-.\)/\\fB\1\\fR/g' \
   -e 's/\[\([-A-Z]\{1,\}\),\]\[\([-A-Z]\{1,\}\)\]/[\\fI\1\\fR,][\\fI\2\\fR]/g' \
@@ -360,18 +360,29 @@ select unique lines only, unless option \fB-u\fR is used.
 .IP \fB%1\fR
 the first regex group capture of the match, and so on up to group \fB%9\fR,
 same as \fB%[1]#\fR; requires option \fB-P\fR.
-.IP \fB%[\fINUM\fR\fB]#\fR
+.IP \fB%[\fR\fINUM\fR\fB]#\fR
 the regex group capture \fINUM\fR; requires option \fB-P\fR.
+.IP \fB%[\fR\fINUM1\fR\fB|\fR\fINUM2\fR\fB|\fR...\fB]#\fR
+the first group capture \fINUM\fR that matched; requires option \fB-P\fR.
+.IP \fB%[\fR\fINAME\fR\fB]#\fR
+the \fINAME\fRd group capture; requires option \fB-P\fR and capturing pattern
+`(?<NAME>PATTERN)', see also \fB%G\fR.
+.IP \fB%[\fR\fINAME1\fR\fB|\fR\fINAME2|...\fR\fB]#\fR
+the first \fINAME\fRd group capture that matched; requires option \fB-P\fR
+and capturing pattern `(?<NAME>PATTERN)', see also \fB%G\fR.
 .IP \fB%G\fR
-list of group capture indices/names of the match (option \fB-P\fR).
-.IP \fB%[NAME1|NAME2|...]G\fR
-NAMEs corresponding to the group capture indices of the match.
+list of group capture indices/names that matched; requires option \fB-P\fR.
+.IP \fB%[\fR\fITEXT1\fR\fB|\fR\fITEXT2\fR\fB|...]G\fR
+list of \fITEXT\fR indexed by group capture indices that matched; requires option \fB-P\fR.
 .IP \fB%g\fR
-the group capture index/name of the match or 1 (option \fB-P\fR).
-.IP \fB%[NAME1|NAME2|...]g\fR
-NAME corresponding to the group capture index of the match.
+the group capture index/name matched or 1; requires option \fB-P\fR.
+.IP \fB%[\fR\fITEXT1\fR\fB|\fR\fITEXT2\fR\fB|\fR...\fB]g\fR
+the first \fITEXT\fR indexed by the first group capture index that matched; requires option \fB-P\fR.
 .IP \fB%%\fR
 the percentage sign.
+.PP
+Formatted output is written without a terminating newline, unless \fB%~\fR or
+`\\n' is explicitly specified in the format string.
 .PP
 The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
 When present, the argument must be placed in \fB[]\fR brackets, for example
@@ -380,8 +391,8 @@ When present, the argument must be placed in \fB[]\fR brackets, for example
 \fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not send anything to
 the output.
 .PP
-The separator used by \fB%F\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR,
-\fB%S\fR, and \fB%G\fR may be changed by preceding the field by
+The separator used by the \fB%F\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR,
+\fB%S\fR and \fB%G\fR fields may be changed by preceding the field by
 \fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided, this
 reverts the separator to the default separator or the separator specified with
 \fB--separator\fR.

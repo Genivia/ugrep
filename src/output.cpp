@@ -806,8 +806,77 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case '8':
       case '9':
       case '#':
-        std::pair<const char*,size_t> capture = (*matcher)[c == '#' ? strtoul((a != NULL ? a : "0"), NULL, 10) : c - '0'];
-        str(capture.first, capture.second);
+        if (c == '#')
+        {
+          if (a != NULL)
+          {
+            std::pair<const char*,size_t> capture;
+
+            while (true)
+            {
+              const char *b = strchr(a, '|');
+
+              if (b == NULL)
+              {
+                b = strchr(a, ']');
+
+                if (b == NULL)
+                  break;
+              }
+
+              if (isdigit(*a))
+              {
+                size_t index = strtoul(a, NULL, 10);
+
+                if (index == 0 || *b == ']')
+                {
+                  std::pair<const char*,size_t> capture = (*matcher)[index];
+                  str(capture.first, capture.second);
+                  break;
+                }
+                else
+                {
+                  std::pair<size_t,const char*> id = matcher->group_id();
+
+                  while (id.first != 0 && id.first != index)
+                    id = matcher->group_next_id();
+
+                  if (id.first == index)
+                  {
+                    std::pair<const char*,size_t> capture = (*matcher)[index];
+                    str(capture.first, capture.second);
+                    break;
+                  }
+                }
+              }
+              else
+              {
+                std::pair<size_t,const char*> id = matcher->group_id();
+
+                while (id.first != 0
+                    && (id.second == NULL || strncmp(id.second, a, b - a) != 0 || id.second[b - a] != '\0'))
+                  id = matcher->group_next_id();
+
+                if (id.first != 0)
+                {
+                  std::pair<const char*,size_t> capture = (*matcher)[id.first];
+                  str(capture.first, capture.second);
+                  break;
+                }
+              }
+
+              if (*b == ']')
+                break;
+
+              a = b + 1;
+            }
+          }
+        }
+        else
+        {
+          std::pair<const char*,size_t> capture = (*matcher)[c - '0'];
+          str(capture.first, capture.second);
+        }
         break;
     }
     ++s;

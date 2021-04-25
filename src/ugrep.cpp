@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.11"
+#define UGREP_VERSION "3.1.12"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -10335,7 +10335,7 @@ void help(std::ostream& out)
             --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands\n\
             into a `-' when searching standard input.  Option --label=.ext may\n\
             be used to specify extension `ext' when searching standard input.\n\
-    --filter-magic-label=LABEL:MAGIC\n\
+    --filter-magic-label=[+]LABEL:MAGIC\n\
             Associate LABEL with files whose signature \"magic bytes\" match the\n\
             MAGIC regex pattern.  Only files that have no filename extension\n\
             are labeled, unless +LABEL is specified.  When LABEL matches an\n\
@@ -10344,7 +10344,7 @@ void help(std::ostream& out)
 #endif
             "\
     --format=FORMAT\n\
-            Output FORMAT-formatted matches.  For example `--format=%f:%n:%O%~'\n\
+            Output FORMAT-formatted matches.  For example --format='%f:%n:%O%~'\n\
             outputs matching lines `%O' with filename `%f` and line number `%n'\n\
             followed by a newline `%~'.  Context options -A, -B, -C, and -y are\n\
             ignored.  See `man ugrep' section FORMAT.\n\
