@@ -4891,8 +4891,8 @@ the [man page](#man).  If you can't find it there and it looks like a bug, then
 [report an issue](https://github.com/Genivia/ugrep/issues) on GitHub.  Bug
 reports are quickly addressed.
 
-[travis-image]: https://travis-ci.org/Genivia/ugrep.svg?branch=master
-[travis-url]: https://travis-ci.org/Genivia/ugrep
+[travis-image]: https://travis-ci.com/Genivia/ugrep.svg?branch=master
+[travis-url]: https://travis-ci.com/Genivia/ugrep
 [lgtm-image]: https://img.shields.io/lgtm/grade/cpp/g/Genivia/ugrep.svg?logo=lgtm&logoWidth=18
 [lgtm-url]: https://lgtm.com/projects/g/Genivia/ugrep/context:cpp
 [bsd-3-image]: https://img.shields.io/badge/license-BSD%203--Clause-blue.svg
