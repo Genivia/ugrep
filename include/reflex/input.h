@@ -63,6 +63,8 @@
 
 namespace reflex {
 
+extern const unsigned short codepages[][256];
+
 /// Input character sequence class for unified access to sources of input text.
 /**
 Description

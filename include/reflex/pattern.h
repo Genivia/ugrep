@@ -447,7 +447,7 @@ class Pattern {
     static const value_type NEGATE  = 1ULL << 51; ///< marks negative patterns
     static const value_type TICKED  = 1ULL << 52; ///< marks lookahead ending ) in (?=X)
     static const value_type GREEDY  = 1ULL << 53; ///< force greedy quants
-    static const value_type ANCHOR  = 1ULL << 54; ///< marks begin of word anchors
+    static const value_type ANCHOR  = 1ULL << 54; ///< marks begin of word (\b,\<,\>) and buffer (\A,^) anchors
     static const value_type ACCEPT  = 1ULL << 55; ///< accept, not a regex position
     Position()                   : k(NPOS) { }
     Position(value_type k)       : k(k)    { }
@@ -722,6 +722,7 @@ class Pattern {
       const Positions& pos,
       Positions&       pos1) const;
   void greedy(Positions& pos) const;
+  void trim_anchors(Positions& follow, const Position p) const;
   void trim_lazy(Positions *pos) const;
   void compile_transition(
       DFA::State *state,

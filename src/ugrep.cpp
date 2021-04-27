@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.12"
+#define UGREP_VERSION "3.1.14"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -4704,7 +4704,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
           break;
       }
     }
-    else if (options && strcmp(arg, "-") == 0)
+    else if (strcmp(arg, "-") == 0)
     {
       // read standard input
       flag_stdin = true;

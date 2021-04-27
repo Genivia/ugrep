@@ -366,13 +366,12 @@ void Pattern::parse(
     Location end = loc;
     if (!opt_.q && !opt_.x)
     {
-      // TODO: perhaps allow \< \> and ^ $ anchors with string patterns?
       while (true)
       {
         Char c = at(end);
         if (c == '\0' || c == '|')
           break;
-        if (c == '.' || c == '^' || c == '$' || c == '(' || c == '[' || c == '{' || c == '?' || c == '*' || c == '+')
+        if (c == '.' || c == '^' || c == '$' || c == '(' || c == ')' || c == '[' || c == '{' || c == '?' || c == '*' || c == '+')
         {
           end = loc;
           break;
@@ -480,6 +479,11 @@ void Pattern::parse(
     if (++choice == 0)
       error(regex_error::exceeds_limits, loc); // overflow: too many top-level alternations (should never happen)
   } while (at(loc++) == '|');
+  --loc;
+  if (at(loc) == ')')
+    error(regex_error::mismatched_parens, loc);
+  else if (at(loc) != 0)
+    error(regex_error::invalid_syntax, loc);
   if (opt_.i)
     update_modified('i', modifiers, 0, len - 1);
   if (opt_.m)
@@ -577,6 +581,7 @@ void Pattern::parse2(
 {
   DBGLOG("BEGIN parse2(%u)", loc);
   Positions a_pos;
+  Char      c;
   if (begin)
   {
     while (true)
@@ -603,65 +608,67 @@ void Pattern::parse2(
       }
     }
   }
-  parse3(
-      begin,
-      loc,
-      firstpos,
-      lastpos,
-      nullable,
-      followpos,
-      lazyidx,
-      lazyset,
-      modifiers,
-      lookahead,
-      iter);
-  Positions firstpos1;
-  Positions lastpos1;
-  bool      nullable1;
-  Lazyset   lazyset1;
-  Iter      iter1;
-  Char      c;
-  while ((c = at(loc)) != '\0' && c != '|' && c != ')')
+  if (begin || ((c = at(loc)) != '\0' && c != '|' && c != ')'))
   {
     parse3(
-        false,
+        begin,
         loc,
-        firstpos1,
-        lastpos1,
-        nullable1,
+        firstpos,
+        lastpos,
+        nullable,
         followpos,
         lazyidx,
-        lazyset1,
+        lazyset,
         modifiers,
         lookahead,
-        iter1);
-    if (!lazyset.empty()) // CHECKED this is an extra rule for + only and (may) not be needed for *
+        iter);
+    Positions firstpos1;
+    Positions lastpos1;
+    bool      nullable1;
+    Lazyset   lazyset1;
+    Iter      iter1;
+    while ((c = at(loc)) != '\0' && c != '|' && c != ')')
     {
-      // CHECKED algorithmic options: lazy(lazyset, firstpos1); does not work for (a|b)*?a*b+, below works
-      Positions firstpos2;
-      lazy(lazyset, firstpos1, firstpos2);
-      set_insert(firstpos1, firstpos2);
-      // if (lazyset1.empty())
+      parse3(
+          false,
+          loc,
+          firstpos1,
+          lastpos1,
+          nullable1,
+          followpos,
+          lazyidx,
+          lazyset1,
+          modifiers,
+          lookahead,
+          iter1);
+      if (!lazyset.empty()) // CHECKED this is an extra rule for + only and (may) not be needed for *
+      {
+        // CHECKED algorithmic options: lazy(lazyset, firstpos1); does not work for (a|b)*?a*b+, below works
+        Positions firstpos2;
+        lazy(lazyset, firstpos1, firstpos2);
+        set_insert(firstpos1, firstpos2);
+        // if (lazyset1.empty())
         // greedy(firstpos1); // CHECKED algorithmic options: 8/1 works except fails for ((a|b)*?b){2} and (a|b)??(a|b)??aa
+      }
+      if (nullable)
+        set_insert(firstpos, firstpos1);
+      for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
+        set_insert(followpos[p->pos()], firstpos1);
+      if (nullable1)
+      {
+        set_insert(lastpos, lastpos1);
+        set_insert(lazyset, lazyset1); // CHECKED 10/21
+      }
+      else
+      {
+        lastpos.swap(lastpos1);
+        lazyset.swap(lazyset1); // CHECKED 10/21
+        nullable = false;
+      }
+      // CHECKED 10/21 set_insert(lazyset, lazyset1);
+      if (iter1 > iter)
+        iter = iter1;
     }
-    if (nullable)
-      set_insert(firstpos, firstpos1);
-    for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-      set_insert(followpos[p->pos()], firstpos1);
-    if (nullable1)
-    {
-      set_insert(lastpos, lastpos1);
-      set_insert(lazyset, lazyset1); // CHECKED 10/21
-    }
-    else
-    {
-      lastpos.swap(lastpos1);
-      lazyset.swap(lazyset1); // CHECKED 10/21
-      nullable = false;
-    }
-    // CHECKED 10/21 set_insert(lazyset, lazyset1);
-    if (iter1 > iter)
-      iter = iter1;
   }
   for (Positions::const_iterator p = a_pos.begin(); p != a_pos.end(); ++p)
   {
@@ -672,7 +679,7 @@ void Pattern::parse2(
       followpos[k->pos()].insert(p->anchor(!nullable || k->pos() != p->pos()));
     lastpos.clear();
     lastpos.insert(*p);
-    if (nullable)
+    if (nullable || firstpos.empty())
     {
       firstpos.insert(*p);
       nullable = false;
@@ -1114,7 +1121,10 @@ void Pattern::parse4(
   }
   else if (c == ')')
   {
-    error(regex_error::mismatched_parens, loc++);
+    if (begin)
+      error(regex_error::empty_expression, loc++);
+    else
+      error(regex_error::mismatched_parens, loc++);
   }
   else if (c == '}')
   {
@@ -1521,6 +1531,54 @@ void Pattern::greedy(Positions& pos) const
   pos.swap(pos1);
 }
 
+void Pattern::trim_anchors(Positions& follow, const Position p) const
+{
+#ifdef DEBUG
+  DBGLOG("trim_anchors({");
+  for (Positions::const_iterator q = follow.begin(); q != follow.end(); ++q)
+    DBGLOGPOS(*q);
+  DBGLOGA(" }, %u)", p.loc());
+#endif
+  Positions::iterator q = follow.begin();
+  Positions::iterator end = follow.end();
+  // check if we follow into an accepting state, if so trim follow state to remove back edges and cyclic anchors e.g. (^$)*
+  while (q != end && !q->accept())
+    ++q;
+  if (q != end)
+  {
+    q = follow.begin();
+    if (p.anchor())
+    {
+      while (q != end)
+      {
+        // erase if not accepting and not a begin anchor and not a ) lookahead tail
+        if (!q->accept() && !q->anchor() && at(q->loc()) != ')')
+          follow.erase(q++);
+        else
+          ++q;
+      }
+    }
+    else
+    {
+      Location loc = p.loc();
+      while (q != end)
+      {
+        // erase if not accepting and not a begin anchor and back edge
+        if (!q->accept() && !q->anchor() && q->loc() <= loc)
+          follow.erase(q++);
+        else
+          ++q;
+      }
+    }
+  }
+#ifdef DEBUG
+  DBGLOGA(" = {");
+  for (Positions::const_iterator q = follow.begin(); q != follow.end(); ++q)
+    DBGLOGPOS(*q);
+  DBGLOG(" }");
+#endif
+}
+
 void Pattern::trim_lazy(Positions *pos) const
 {
 #ifdef DEBUG
@@ -1709,7 +1767,7 @@ void Pattern::compile_transition(
             }
             i = j;
           }
-          const Positions &follow = i->second;
+          Positions &follow = i->second;
           Chars chars;
           if (literal)
           {
@@ -1741,9 +1799,11 @@ void Pattern::compile_transition(
                 break;
               case '^':
                 chars.insert(is_modified('m', modifiers, loc) ? META_BOL : META_BOB);
+                trim_anchors(follow, *k);
                 break;
               case '$':
                 chars.insert(is_modified('m', modifiers, loc) ? META_EOL : META_EOB);
+                trim_anchors(follow, *k);
                 break;
               default:
                 if (c == '[')
@@ -1776,24 +1836,30 @@ void Pattern::compile_transition(
                       break;
                     case 'A':
                       chars.insert(META_BOB);
+                      trim_anchors(follow, *k);
                       break;
                     case 'z':
                       chars.insert(META_EOB);
+                      trim_anchors(follow, *k);
                       break;
                     case 'B':
                       chars.insert(k->anchor() ? META_NWB : META_NWE);
+                      trim_anchors(follow, *k);
                       break;
                     case 'b':
                       if (k->anchor())
                         chars.insert(META_BWB, META_EWB);
                       else
                         chars.insert(META_BWE, META_EWE);
+                      trim_anchors(follow, *k);
                       break;
                     case '<':
                       chars.insert(k->anchor() ? META_BWB : META_BWE);
+                      trim_anchors(follow, *k);
                       break;
                     case '>':
                       chars.insert(k->anchor() ? META_EWB : META_EWE);
+                      trim_anchors(follow, *k);
                       break;
                     default:
                       c = parse_esc(loc, &chars);
@@ -2386,7 +2452,9 @@ void Pattern::gencode_dfa(const DFA::State *start) const
                   peek = true;
                 else if (lo == META_EWE || lo == META_BWE || lo == META_NWE)
                   prev = peek = true;
-                check_dfa_closure(i->second.second, 2, peek, prev);
+                if (prev && peek)
+                  break;
+                check_dfa_closure(i->second.second, 1, peek, prev);
               } while (++lo <= hi);
             }
           }
@@ -2608,7 +2676,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
 
 void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, bool& prev) const
 {
-  if (nest > 5)
+  if (nest > 4)
     return;
   for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
   {
@@ -2627,7 +2695,9 @@ void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, b
           peek = true;
         else if (lo == META_EWE || lo == META_BWE || lo == META_NWE)
           prev = peek = true;
-        check_dfa_closure(i->second.second, 2, peek, prev);
+        if (prev && peek)
+          break;
+        check_dfa_closure(i->second.second, nest + 1, peek, prev);
       } while (++lo <= hi);
     }
   }

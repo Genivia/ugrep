@@ -3,7 +3,7 @@ How to build ugrep with Microsoft Visual Studio
 
 The following instructions apply to MSVC++ 2017 or later.
 
-There are two choices for ugreo option -P: PCRE2 or Boost.Regex.
+There are two choices for ugrep option -P: PCRE2 (preferred) or Boost.Regex.
 
 
 When using PCRE2 for option -P (preferred)

@@ -1,4 +1,3 @@
-Microsoft Visual Studio project files
-=====================================
+Microsoft Visual Studio project files.
 
-See vs/ugrep/README.txt for instructions.
+See vs/ugrep/README.txt for detailed instructions.

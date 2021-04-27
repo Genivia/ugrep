@@ -58,7 +58,7 @@
 
 namespace reflex {
 
-static const unsigned short codepages[38][256] =
+const unsigned short codepages[38][256] =
 {
   // DOS CP 437 to Unicode
   {

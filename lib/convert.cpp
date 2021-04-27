@@ -898,8 +898,9 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
       subtract_list(pattern, len, pos, flags, mod, ranges, macros);
       pc = -1;
     }
-    else if (c == '-' && !range && pc != -2)
+    else if (c == '-' && !range && pc != -2 && pattern[pos + 1] != ']')
     {
+      // character class range [a-z]
       if (pc == -1)
         throw regex_error(regex_error::invalid_class_range, pattern, pos);
       range = true;
@@ -1473,7 +1474,8 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         {
           convert_escape(pattern, len, loc, pos, flags, signature, mod, par, regex);
           anc = (std::strchr(regex_anchors, c) != NULL);
-          beg = false;
+          if (!anc || c == 'Z' || c == 'z')
+            beg = false;
         }
         break;
       case '/':
@@ -1617,12 +1619,12 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         }
         break;
       case ')':
+        anc = false;
         if ((flags & convert_flag::basic) && !bre)
         {
           // BRE: translate ) to \)
           regex.append(&pattern[loc], pos - loc).push_back('\\');
           loc = pos;
-          anc = false;
           beg = false;
         }
         else
