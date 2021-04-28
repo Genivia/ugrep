@@ -153,7 +153,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
   if (*file == NULL)
   {
     _close(fd);
-    return errno;
+    return errno ? errno : (errno = EINVAL);
   }
 
   return 0;
@@ -210,10 +210,10 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
     if (fd < 0)
       return errno;
     fcntl(fd, F_RDAHEAD, 1);
-    return (*file = fdopen(fd, mode)) == NULL ? errno : 0;
+    return (*file = fdopen(fd, mode)) == NULL ? errno ? errno : (errno = EINVAL) : 0;
   }
 #endif
-  return (*file = fopen(filename, mode)) == NULL ? errno : 0;
+  return (*file = fopen(filename, mode)) == NULL ? errno ? errno : (errno = EINVAL) : 0;
 }
 
 #endif

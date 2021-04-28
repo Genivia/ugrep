@@ -345,8 +345,7 @@ class Input {
       wstring_(NULL),
       file_(NULL),
       istream_(NULL),
-      size_(0),
-      handler_(NULL)
+      size_(0)
   {
     init();
   }
@@ -361,7 +360,8 @@ class Input {
       uidx_(input.uidx_),
       ulen_(input.ulen_),
       utfx_(input.utfx_),
-      page_(input.page_)
+      page_(input.page_),
+      handler_(input.handler_)
   {
     std::memcpy(utf8_, input.utf8_, sizeof(utf8_));
   }
@@ -505,6 +505,7 @@ class Input {
     ulen_ = input.ulen_;
     utfx_ = input.utfx_;
     page_ = input.page_;
+    handler_ = input.handler_;
     std::memcpy(utf8_, input.utf8_, sizeof(utf8_));
     return *this;
   }
@@ -754,6 +755,7 @@ class Input {
     ulen_ = 0;
     utfx_ = 0;
     page_ = NULL;
+    handler_ = NULL;
     if (file_ != NULL)
       file_init(enc);
   }

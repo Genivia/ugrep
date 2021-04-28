@@ -67,7 +67,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.14"
+#define UGREP_VERSION "3.1.15"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -220,6 +220,11 @@ After this, you may want to test ugrep and install it (optional):
 // limit the total number of threads spawn (i.e. limit spawn overhead), because grepping is practically IO bound
 #ifndef MAX_JOBS
 # define MAX_JOBS 16U
+#endif
+
+// limit the job queue size to wait to give the worker threads some slack
+#ifndef MAX_JOB_QUEUE_SIZE
+# define MAX_JOB_QUEUE_SIZE 65536
 #endif
 
 // a hard limit on the recursive search depth
@@ -1221,7 +1226,7 @@ struct Grep {
       {
         if (hex)
           grep.out.dump.done();
-        
+
         if (flag_group_separator != NULL)
         {
           grep.out.str(color_se);
@@ -1472,7 +1477,7 @@ struct Grep {
       {
         if (hex)
           grep.out.dump.done();
-        
+
         grep.out.str(color_se);
         grep.out.str(flag_group_separator);
         grep.out.str(color_off);
@@ -1806,7 +1811,7 @@ struct Grep {
     return true;
   }
 
-  // open a file for (binary) reading and assign input, decompress the file when -z, --decompress specified
+  // open a file for (binary) reading and assign input, decompress the file when -z, --decompress specified, may throw bad_alloc
   bool open_file(const char *pathname)
   {
     if (pathname == NULL)
@@ -1904,6 +1909,9 @@ struct Grep {
         zstream = new zstreambuf(pathname, file);
       else
         zstream->open(pathname, file);
+
+      if (stream != NULL)
+        delete stream;
 
       stream = new std::istream(zstream);
 
@@ -2802,7 +2810,7 @@ struct Grep {
 
 #endif
 #endif
-  
+
   // close the file and clear input, return true if next file is extracted from an archive to search
   bool close_file(const char *pathname)
   {
@@ -3162,6 +3170,9 @@ struct GrepWorker : public Grep {
   // submit Job::NONE sentinel to this worker
   void submit_job()
   {
+    while (todo >= MAX_JOB_QUEUE_SIZE && !out.eof && !out.cancelled())
+      std::this_thread::sleep_for(std::chrono::milliseconds(100)); // give the worker threads some slack
+
     std::unique_lock<std::mutex> lock(queue_mutex);
 
     jobs.emplace_back();
@@ -3173,6 +3184,9 @@ struct GrepWorker : public Grep {
   // submit a job to this worker
   void submit_job(const char *pathname, size_t slot)
   {
+    while (todo >= MAX_JOB_QUEUE_SIZE && !out.eof && !out.cancelled())
+      std::this_thread::sleep_for(std::chrono::milliseconds(100)); // give the worker threads some slack
+
     std::unique_lock<std::mutex> lock(queue_mutex);
 
     jobs.emplace_back(pathname, slot);
@@ -5065,7 +5079,7 @@ void init(int argc, const char **argv)
     if (!flag_with_hex)
       flag_hex = true;
   }
-  
+
   // --tabs: value should be 1, 2, 4, or 8
   if (flag_tabs && flag_tabs != 1 && flag_tabs != 2 && flag_tabs != 4 && flag_tabs != 8)
     usage("invalid argument --tabs=NUM, valid arguments are 1, 2, 4, or 8");
@@ -6173,7 +6187,7 @@ void ugrep()
   if (flag_invert_match || flag_any_line)
     flag_only_matching = flag_ungroup = false;
 
-  // --depth: if -R or -r is not specified then enable -R 
+  // --depth: if -R or -r is not specified then enable -R
   if ((flag_min_depth > 0 || flag_max_depth > 0) && flag_directories_action != Action::RECURSE)
   {
     flag_directories_action = Action::RECURSE;
@@ -6616,7 +6630,7 @@ void Grep::ugrep()
         break;
 
       // stop when output is blocked or search cancelled
-      if (out.eof)
+      if (out.eof || out.cancelled())
         break;
 
       // search file or directory, get the basename from the file argument first
@@ -7057,6 +7071,10 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 // recurse over directory, searching for pattern matches in files and subdirectories
 void Grep::recurse(size_t level, const char *pathname)
 {
+  // output is closed or cancelled?
+  if (out.eof || out.cancelled())
+    return;
+
 #ifdef OS_WIN
 
   WIN32_FIND_DATAW ffd;
@@ -7071,12 +7089,12 @@ void Grep::recurse(size_t level, const char *pathname)
   std::wstring wglob = utf8_decode(glob);
   HANDLE hFind = FindFirstFileW(wglob.c_str(), &ffd);
 
-  if (hFind == INVALID_HANDLE_VALUE) 
+  if (hFind == INVALID_HANDLE_VALUE)
   {
     if (GetLastError() != ERROR_FILE_NOT_FOUND)
       warning("cannot open directory", pathname);
     return;
-  } 
+  }
 
 #else
 
@@ -7209,7 +7227,7 @@ void Grep::recurse(size_t level, const char *pathname)
         break;
 
       // stop when output is blocked or search cancelled
-      if (out.eof)
+      if (out.eof || out.cancelled())
         break;
     }
   } while (FindNextFileW(hFind, &ffd) != 0);
@@ -7269,7 +7287,7 @@ void Grep::recurse(size_t level, const char *pathname)
         break;
 
       // stop when output is blocked or search cancelled
-      if (out.eof)
+      if (out.eof || out.cancelled())
         break;
     }
   }
@@ -7329,7 +7347,7 @@ void Grep::recurse(size_t level, const char *pathname)
         break;
 
       // stop when output is blocked or search cancelled
-      if (out.eof)
+      if (out.eof || out.cancelled())
         break;
     }
   }
@@ -7361,7 +7379,7 @@ void Grep::recurse(size_t level, const char *pathname)
       break;
 
     // stop when output is blocked or search cancelled
-    if (out.eof)
+    if (out.eof || out.cancelled())
       break;
 
 #ifndef OS_WIN
@@ -7401,9 +7419,20 @@ uint16_t Grep::cost(const char *pathname)
   if (out.eof)
     return 0;
 
-  // open (archive or compressed) file (pathname is NULL to read stdin), return on failure
-  if (!open_file(pathname))
+  try
+  {
+    // open (archive or compressed) file (pathname is NULL to read stdin), return on failure
+    if (!open_file(pathname))
+      return 0;
+  }
+
+  catch (...)
+  {
+    // this should never happen
+    warning("exception while opening", pathname);
+
     return 0;
+  }
 
   // -Z: matcher is a FuzzyMatcher
   reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
@@ -7448,9 +7477,20 @@ void Grep::search(const char *pathname)
   if (out.eof)
     return;
 
-  // open (archive or compressed) file (pathname is NULL to read stdin), return on failure
-  if (!open_file(pathname))
+  try
+  {
+    // open (archive or compressed) file (pathname is NULL to read stdin), return on failure
+    if (!open_file(pathname))
+      return;
+  }
+
+  catch (...)
+  {
+    // this should never happen
+    warning("exception while opening", pathname);
+
     return;
+  }
 
   // pathname is NULL when stdin is searched
   if (pathname == NULL)
@@ -10107,7 +10147,7 @@ size_t strtofuzzy(const char *string, const char *message)
         if (max == 0 || max > 255 || rest == NULL || *rest != '\0')
           usage(message, string);
         string = rest;
-    } 
+    }
   }
   return max | flags;
 }
@@ -10888,7 +10928,7 @@ void warning(const char *message, const char *arg)
   {
     // use safe strerror_s() instead of strerror() when available
 #if defined(__STDC_LIB_EXT1__) || defined(OS_WIN)
-    char errmsg[256]; 
+    char errmsg[256];
     strerror_s(errmsg, sizeof(errmsg), errno);
 #else
     const char *errmsg = strerror(errno);
@@ -10903,7 +10943,7 @@ void error(const char *message, const char *arg)
 {
   // use safe strerror_s() instead of strerror() when available
 #if defined(__STDC_LIB_EXT1__) || defined(OS_WIN)
-  char errmsg[256]; 
+  char errmsg[256];
   strerror_s(errmsg, sizeof(errmsg), errno);
 #else
   const char *errmsg = strerror(errno);

@@ -325,8 +325,7 @@ installed predefined pattern files.
 
 ### Troubleshooting
 
-GCC 8 and greater may produce warnings of the sort *"note: parameter passing
-for argument ... changed in GCC 7.1"*.  These warnings should be ignored.
+#### Git and timestamps
 
 Unfortunately, git clones do not preserve timestamps which means that you may
 run into "WARNING: 'aclocal-1.15' is missing on your system." or that
@@ -336,6 +335,11 @@ To work around this problem, run:
 
     $ autoreconf -fi
     $ ./build.sh
+
+#### Compiler warnings
+
+GCC 8 and greater may produce warnings of the sort *"note: parameter passing
+for argument ... changed in GCC 7.1"*.  These warnings should be ignored.
 
 ### Dockerfile for developers
 
@@ -4656,7 +4660,7 @@ in markdown:
 
 
 
-    ugrep 3.1.14                    April 27, 2021                        UGREP(1)
+    ugrep 3.1.15                    April 28, 2021                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
