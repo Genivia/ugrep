@@ -644,27 +644,29 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 
 ### Notable improvements over grep
 
+- **ugrep** starts an interactive query UI with option `-Q`.
 - **ugrep** matches patterns across multiple lines.
 - **ugrep** matches Unicode by default (disabled with option `-U`).
-- **ugrep** supports fuzzy (approximate) matching (option `-Z`).
+- **ugrep** supports fuzzy (approximate) matching with option `-Z`.
+- **ugrep** supports gitignore with option `--ignore-files`.
+- **ugrep** supports user-defined global and local configuration files.
+- **ugrep** supports Boolean patterns with AND, OR and NOT (option `--bool`).
+- **ugrep** searches compressed files with option `-z`.
+- **ugrep** searches cpio, jar, pax, tar and zip archives with option `-z`.
+- **ugrep** searches pdf, doc, docx, xls, xlsx, epub, and more with `--filter`
+  using third-party format conversion utilities as plugins.
 - **ugrep** regular expression patterns are more expressive than GNU grep and
-  BSD grep POSIX ERE and support Unicode pattern matching and most of the PCRE
-  syntax.  Extended regular expression (ERE) syntax is the default (i.e.
-  option `-E`, as egrep, whereas `-G` enables BRE).
+  BSD grep POSIX ERE and support Unicode pattern matching.  Extended regular
+  expression (ERE) syntax is the default (i.e. option `-E` as egrep, whereas
+  `-G` enables BRE).
 - **ugrep** spawns threads to search files concurrently to improve search
   speed (disabled with option `-J1`).
 - **ugrep** produces hexdumps with `-W` (output binary matches in hex with text
   matches output as usual) and `-X` (output all matches in hex).
-- **ugrep** searches compressed files with option `-z`.
-- **ugrep** searches cpio, jar, pax, tar, and zip archives with option `-z`.
-- **ugrep** searches pdf, doc, docx, xls, xlsx, epub, and more with `--filter`
-  using third-party format conversion utilities as plugins.
-- **ugrep** offers *negative patterns* `-N PATTERN`, which are patterns of the
-  form `(?^X)` that skip all `X` input, thus removing `X` from the search.
-  For example, negative patterns can be used to skip strings and comments when
-  searching for identifiers in source code and find matches that aren't in
-  strings and comments.  Predefined `zap` patterns use negative patterns, for
-  example, use `-f cpp/zap_comments` to ignore pattern matches in C++ comments.
+- **ugrep** does not match hidden files by default like most Unix/Linux
+  utilities (hidden dotfile file matching is enabled with `-.`).
+- **ugrep** can output matches in JSON, XML, CSV and user-defined formats (with
+  option `--format`).
 - **ugrep** option `-f` uses `GREP_PATH` environment variable or the predefined
   patterns installed in `/usr/local/share/ugrep/patterns`.  If `-f` is
   specified and also one or more `-e` patterns are specified, then options
@@ -681,9 +683,9 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 - **ugrep** option `-P` (Perl regular expressions) supports backreferences
   (with `--format`) and lookbehinds, which uses the PCRE2 or Boost.Regex
   library for fast Perl regex matching with a PCRE-like syntax.
-- **ugrep** option `-b` with option `-o` or with option `-u`, **ugrep**
-  displays the exact byte offset of the pattern match instead of the byte
-  offset of the start of the matched line reported by GNU/BSD grep.
+- **ugrep** option `-b` with option `-o` or with option `-u`, ugrep displays
+  the exact byte offset of the pattern match instead of the byte offset of the
+  start of the matched line reported by GNU/BSD grep.
 - **ugrep** option `-u`, `--ungroup` to not group multiple matches per line.
   This option displays a matched input line again for each additional pattern
   match on the line.  This option is particularly useful with option `-c` to
@@ -705,6 +707,12 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 - **ugrep** option `-d, --directories=ACTION` is `skip` by default, instead of
   `read`.  By default, directories specified on the command line are searched,
   but not recursively deeper into subdirectories.
+- **ugrep** offers *negative patterns* `-N PATTERN`, which are patterns of the
+  form `(?^X)` that skip all `X` input, thus removing `X` from the search.
+  For example, negative patterns can be used to skip strings and comments when
+  searching for identifiers in source code and find matches that aren't in
+  strings and comments.  Predefined `zap` patterns use negative patterns, for
+  example, use `-f cpp/zap_comments` to ignore pattern matches in C++ comments.
 - **ugrep** does not the `GREP_OPTIONS` environment variable, because the
   behavior of **ugrep** must be portable and predictable on every system.  Also
   GNU grep abandoned `GREP_OPTIONS` for this reason.  Please use the `ug`
