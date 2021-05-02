@@ -136,6 +136,7 @@ bzip2 -9 -c archive.tar > archive.tbz
 lzma  -9 -c archive.tar > archive.tlz
 xz    -9 -c archive.tar > archive.txz
 lz4   -9 -c archive.tar > archive.tar.lz4
+zstd  -9 -c archive.tar > archive.tar.zst
 zip   -9 -q archive.tar.zip archive.tar
 zip   -9 -q archive.zip Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt
 
@@ -150,6 +151,7 @@ $UG -z -c Hello archive.tbz     > out/archive.tbz.out
 $UG -z -c Hello archive.tlz     > out/archive.tlz.out
 $UG -z -c Hello archive.txz     > out/archive.txz.out
 $UG -z -c Hello archive.tar.lz4 > out/archive.tar.lz4.out
+$UG -z -c Hello archive.tar.zst > out/archive.tar.zst.out
 
 $UG -z -c -tShell Hello archive.cpio    > out/archive-t.cpio.out
 $UG -z -c -tShell Hello archive.pax     > out/archive-t.pax.out
@@ -162,6 +164,7 @@ $UG -z -c -tShell Hello archive.tbz     > out/archive-t.tbz.out
 $UG -z -c -tShell Hello archive.tlz     > out/archive-t.tlz.out
 $UG -z -c -tShell Hello archive.txz     > out/archive-t.txz.out
 $UG -z -c -tShell Hello archive.tar.lz4 > out/archive-t.tar.lz4.out
+$UG -z -c -tShell Hello archive.tar.zst > out/archive-t.tar.zst.out
 
 for (( i = 0 ; i < 100000 ; i++ )) ; do
   echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit.  Nunc hendrerit at metus sit amet aliquam."

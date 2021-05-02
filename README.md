@@ -1,6 +1,6 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-**ugrep v3.1 is now available: more features & even faster than before**
+**ugrep v3.2 is now available: more features & even faster than before**
 
 Search for anything in everything... ultra fast
 
@@ -42,7 +42,7 @@ Search for anything in everything... ultra fast
 
       ugrep -Q1 --bool -l -w -Z+4 --sort=best
 
-- Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4)
+- Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
       ugrep -z PATTERN ...
 
@@ -264,8 +264,10 @@ You can always add these later, when you need these features:
   `sudo apt-get install -y libbz2-dev`.  To search `.lzma` and `.xz` files,
   install the [lzma](https://tukaani.org/xz) library, e.g. with
   `sudo apt-get install -y liblzma-dev`.  To search `.lz4` files, install the
-  [lz4](https://github.com/lz4/lz4/releases/) library, e.g. with
-  `sudo apt-get install -y liblz4-dev`.
+  [lz4](https://github.com/lz4/lz4) library, e.g. with
+  `sudo apt-get install -y liblz4-dev`.  To search `.zst` files, install the
+  [zstd](http://facebook.github.io/zstd) library, e.g. with
+  `sudo apt-get install -y libzstd-dev`
 
 After installing one or more of these libraries, re-execute the commands to
 rebuild `ugrep`:
@@ -1840,12 +1842,12 @@ comments:
             Supported compression formats: gzip (.gz), compress (.Z), zip,
             bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
             lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
-            lz4 (requires suffix .lz4).
+            lz4 (requires suffix .lz4), zstd (requires suffix .zst, .zstd).
 
 Compressed files with gzip (`.gz`), compress (`.Z`), bzip2 (`.bz`, `.bz2`,
-`.bzip2`), lzma (`.lzma`), xz (`.xz`), and lz4 (`.lz4`) are searched with
-option `-z`.  This option does not require files to be compressed.
-Uncompressed files are searched also.
+`.bzip2`), lzma (`.lzma`), xz (`.xz`), lz4 (`.lz4`) and zstd (`.zst`, `.zstd`)
+are searched with option `-z`.  This option does not require files to be
+compressed.  Uncompressed files are searched also.
 
 Archives (cpio, jar, pax, tar, and zip) are searched with option `-z`.  Regular
 files in an archive that match are output with the archive pathnames enclosed
@@ -1858,13 +1860,14 @@ independent of their filename suffix.
 The gzip, compress, and zip formats are automatically detected, which is useful
 when reading gzip-compressed data from standard input, e.g. input redirected
 from a pipe.  Other compression formats require a filename suffix: `.bz`,
-`.bz2`, or `.bzip2` for bzip2, `.lzma` for lzma, `.xz` for xz, and `.lz4` for
-lz4.  Also the compressed tar archive shorthands `.taz`, `.tgz`, and `.tpz` for
-gzip, `.tbz`, `.tbz2`, `.tb2`, and `.tz2` for bzip2, `.tlz` for lzma, and
-`.txz` for xz are recognized.  To decompress these formats from standard input,
-use option `--label='stdin.bz2'` for bzip2, `--label='stdin.lzma'` for lzma,
-`--label='stdin.xz'` for xz, `--label='stdin.lz4` for lz4.  The name `stdin` is
-arbitrary and may be omitted:
+`.bz2`, or `.bzip2` for bzip2, `.lzma` for lzma, `.xz` for xz, `.lz4` for lz4
+and `.zst` or `.zstd` for zstd.  Also the compressed tar archive shorthands
+`.taz`, `.tgz`, and `.tpz` for gzip, `.tbz`, `.tbz2`, `.tb2`, and `.tz2` for
+bzip2, `.tlz` for lzma, and `.txz` for xz are recognized.  To decompress these
+formats from standard input, use option `--label='stdin.bz2'` for bzip2,
+`--label='stdin.lzma'` for lzma, `--label='stdin.xz'` for xz,
+`--label='stdin.lz4` for lz4 and `--label='stdin.zst` for zstd.  The name
+`stdin` is arbitrary and may be omitted:
 
 format    | filename suffix         | tar/pax archive short suffix    | suffix required? | ugrep from stdin | lib required |
 --------- | ----------------------- | ------------------------------- | ---------------- | ---------------- | ------------ |
@@ -1875,9 +1878,10 @@ bzip2     | `.bz`, `.bz2`, `.bzip2` | `.tb2`, `.tbz`, `.tbz2`, `.tz2` | yes     
 lzma      | `.lzma`                 | `.tlz`                          | yes              | `--label=.lzma`  | liblzma      |
 xz        | `.xz`                   | `.txz`                          | yes              | `--label=.xz`    | liblzma      |
 lz4       | `.lz4`                  |                                 | yes              | `--label=.lz4`   | liblz4       |
+zstd      | `.zst`, `.zstd`         |                                 | yes              | `--label=.zst`   | libzstd      |
 
-The gzip, bzip2, xz, and lz4 formats support concatenated compressed files.
-Concatenated compressed files are searched as one file.
+The gzip, bzip2, xz, lz4 and zstd formats support concatenated compressed
+files.  Concatenated compressed files are searched as one file.
 
 Supported zip compression methods are stored (0), deflate (8), bzip2 (12) if
 libbz2 is available, lzma (14) and xz (95) if liblzma is available.  Archives
@@ -1913,10 +1917,10 @@ To recursively search C++ files including compressed files for the word
 
     ugrep -z -r -tc++ -Fw my_function -f cpp/zap_comments
 
-To search bzip2, lzma, xz, and lz4 compressed data on standard input, option
-`--label` may be used to specify the extension corresponding to the compression
-format to force decompression when the bzip2 extension is not available to
-ugrep, for example:
+To search bzip2, lzma, xz, lz4 and zstd compressed data on standard input,
+option `--label` may be used to specify the extension corresponding to the
+compression format to force decompression when the bzip2 extension is not
+available to ugrep, for example:
 
     cat myfile.bz2 | ugrep -z --label='stdin.bz2' 'xyz'
 
@@ -4141,25 +4145,26 @@ in markdown:
                   respectively.   Supported  compression formats: gzip (.gz), com-
                   press (.Z), zip, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz,
                   .tbz2,  .tb2,  .tz2),  lzma and xz (requires suffix .lzma, .tlz,
-                  .xz, .txz), lz4 (requires suffix .lz4).
+                  .xz, .txz), lz4 (requires suffix .lz4),  zstd  (requires  suffix
+                  .zst, .zstd).
 
            -0, --null
-                  Prints a zero-byte (NUL) after the file name.  This  option  can
-                  be  used  with commands such as `find -print0' and `xargs -0' to
+                  Prints  a  zero-byte (NUL) after the file name.  This option can
+                  be used with commands such as `find -print0' and `xargs  -0'  to
                   process arbitrary file names.
 
-           A `--' signals the end of options; the rest of the parameters are  FILE
+           A  `--' signals the end of options; the rest of the parameters are FILE
            arguments, allowing filenames to begin with a `-' character.
 
            Long options may start with `--no-' to disable, when applicable.
 
-           The  regular expression pattern syntax is an extended form of the POSIX
+           The regular expression pattern syntax is an extended form of the  POSIX
            ERE syntax.  For an overview of the syntax see README.md or visit:
 
                   https://github.com/Genivia/ugrep
 
-           Note that `.' matches any non-newline character.  Pattern `\n'  matches
-           a  newline character.  Multiple lines may be matched with patterns that
+           Note  that `.' matches any non-newline character.  Pattern `\n' matches
+           a newline character.  Multiple lines may be matched with patterns  that
            match one or more newline characters.
 
     EXIT STATUS
@@ -4171,53 +4176,53 @@ in markdown:
 
            >1     An error occurred.
 
-           If -q or --quiet or --silent is used and a line is selected,  the  exit
+           If  -q  or --quiet or --silent is used and a line is selected, the exit
            status is 0 even if an error occurred.
 
     CONFIGURATION
-           The  ug command is intended for context-dependent interactive searching
-           and is equivalent to the ugrep --config command  to  load  the  default
+           The ug command is intended for context-dependent interactive  searching
+           and  is  equivalent  to  the ugrep --config command to load the default
            configuration file `.ugrep' when present in the working directory or in
            the home directory.
 
            A configuration file contains `NAME=VALUE' pairs per line, where `NAME`
-           is  the  name  of a long option (without `--') and `=VALUE' is an argu-
-           ment, which is optional and may be omitted  depending  on  the  option.
+           is the name of a long option (without `--') and `=VALUE'  is  an  argu-
+           ment,  which  is  optional  and may be omitted depending on the option.
            Empty lines and lines starting with a `#' are ignored.
 
-           The  --config=FILE  option  and  its  abbreviated form ---FILE load the
-           specified configuration file located in the working directory or,  when
-           not  found,  located  in the home directory.  An error is produced when
+           The --config=FILE option and its  abbreviated  form  ---FILE  load  the
+           specified  configuration file located in the working directory or, when
+           not found, located in the home directory.  An error  is  produced  when
            FILE is not found or cannot be read.
 
-           Command line options are parsed in the following order: the  configura-
-           tion  file is loaded first, followed by the remaining options and argu-
+           Command  line options are parsed in the following order: the configura-
+           tion file is loaded first, followed by the remaining options and  argu-
            ments on the command line.
 
-           The --save-config option saves a `.ugrep'  configuration  file  to  the
-           working  directory  with  a subset of the current options.  The --save-
-           config=FILE option saves the configuration to FILE.  The  configuration
+           The  --save-config  option  saves  a `.ugrep' configuration file to the
+           working directory with a subset of the current  options.   The  --save-
+           config=FILE  option saves the configuration to FILE.  The configuration
            is written to standard output when FILE is a `-'.
 
     GLOBBING
-           Globbing  is  used  by options -g, --include, --include-dir, --include-
-           from, --exclude, --exclude-dir, --exclude-from to match  pathnames  and
-           basenames  in  recursive  searches.   Glob  arguments for these options
+           Globbing is used by options -g,  --include,  --include-dir,  --include-
+           from,  --exclude,  --exclude-dir, --exclude-from to match pathnames and
+           basenames in recursive searches.   Glob  arguments  for  these  options
            should be quoted to prevent shell globbing.
 
-           Globbing supports  gitignore  syntax  and  the  corresponding  matching
-           rules.   When a glob ends in a path separator it matches directories as
+           Globbing  supports  gitignore  syntax  and  the  corresponding matching
+           rules.  When a glob ends in a path separator it matches directories  as
            if --include-dir or --exclude-dir is specified.  When a glob contains a
-           path  separator `/', the full pathname is matched.  Otherwise the base-
+           path separator `/', the full pathname is matched.  Otherwise the  base-
            name of a file or directory is matched.  For example, *.h matches foo.h
-           and  bar/foo.h.   bar/*.h  matches  bar/foo.h  but  not  foo.h  and not
-           bar/bar/foo.h.  Use a leading `/' to force /*.h to match foo.h but  not
+           and bar/foo.h.   bar/*.h  matches  bar/foo.h  but  not  foo.h  and  not
+           bar/bar/foo.h.   Use a leading `/' to force /*.h to match foo.h but not
            bar/foo.h.
 
-           When  a  glob  starts  with  a `^' or a `!' as in -g^GLOB, the match is
+           When a glob starts with a `^' or a `!' as  in  -g^GLOB,  the  match  is
            negated.  Likewise, a `!' (but not a `^') may be used with globs in the
-           files  specified  --include-from, --exclude-from, and --ignore-files to
-           negate the glob match.  Empty lines or lines starting with  a  `#'  are
+           files specified --include-from, --exclude-from, and  --ignore-files  to
+           negate  the  glob  match.  Empty lines or lines starting with a `#' are
            ignored.
 
            Glob Syntax and Conventions
@@ -4232,12 +4237,12 @@ in markdown:
 
            [!a-z] Matches one character not in the selected range of characters.
 
-           /      When  used at the begin of a glob, matches if pathname has no /.
+           /      When used at the begin of a glob, matches if pathname has no  /.
                   When used at the end of a glob, matches directories only.
 
            **/    Matches zero or more directories.
 
-           /**    When used at the end of a glob, matches everything after the  /.
+           /**    When  used at the end of a glob, matches everything after the /.
 
            \?     Matches a ? (or any character specified after the backslash).
 
@@ -4274,51 +4279,51 @@ in markdown:
 
            a\?b   Matches a?b,                 but not a, b, ab, axb, a/b
 
-           Note  that  exclude  glob patterns take priority over include glob pat-
-           terns  when  specified  with  options  -g,  --exclude,   --exclude-dir,
+           Note that exclude glob patterns take priority over  include  glob  pat-
+           terns   when  specified  with  options  -g,  --exclude,  --exclude-dir,
            --include and include-dir.
 
-           Glob  patterns specified with prefix `!' in any of the files associated
-           with --include-from, --exclude-from and --ignore-files  will  negate  a
-           previous  glob match.  That is, any matching file or directory excluded
-           by a previous glob pattern  specified  in  the  files  associated  with
-           --exclude-from  or --ignore-file will become included again.  Likewise,
-           any matching file or directory included  by  a  previous  glob  pattern
-           specified  in  the  files  associated  with  --include-from will become
+           Glob patterns specified with prefix `!' in any of the files  associated
+           with  --include-from,  --exclude-from  and --ignore-files will negate a
+           previous glob match.  That is, any matching file or directory  excluded
+           by  a  previous  glob  pattern  specified  in the files associated with
+           --exclude-from or --ignore-file will become included again.   Likewise,
+           any  matching  file  or  directory  included by a previous glob pattern
+           specified in the  files  associated  with  --include-from  will  become
            excluded again.
 
     ENVIRONMENT
            GREP_PATH
-                  May be used to specify a file path to pattern files.   The  file
-                  path  is used by option -f to open a pattern file, when the pat-
+                  May  be  used to specify a file path to pattern files.  The file
+                  path is used by option -f to open a pattern file, when the  pat-
                   tern file does not exist.
 
            GREP_EDITOR
-                  May be used to specify an editor command to invoke  with  CTRL-Y
-                  while  using  the  query UI with option -Q.  When undefined, the
+                  May  be  used to specify an editor command to invoke with CTRL-Y
+                  while using the query UI with option -Q.   When  undefined,  the
                   command defined by EDITOR is invoked.
 
            GREP_COLOR
-                  May be used to specify ANSI SGR parameters to highlight  matches
-                  when  option --color is used, e.g. 1;35;40 shows pattern matches
+                  May  be used to specify ANSI SGR parameters to highlight matches
+                  when option --color is used, e.g. 1;35;40 shows pattern  matches
                   in bold magenta text on a black background.  Deprecated in favor
                   of GREP_COLORS, but still supported.
 
            GREP_COLORS
-                  May  be used to specify ANSI SGR parameters to highlight matches
-                  and other attributes when option --color is used.  Its value  is
-                  a  colon-separated  list of ANSI SGR parameters that defaults to
+                  May be used to specify ANSI SGR parameters to highlight  matches
+                  and  other attributes when option --color is used.  Its value is
+                  a colon-separated list of ANSI SGR parameters that  defaults  to
                   cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36.   The  mt=,
-                  ms=,  and  mc=  capabilities  of  GREP_COLORS take priority over
+                  ms=, and mc= capabilities  of  GREP_COLORS  take  priority  over
                   GREP_COLOR.  Option --colors takes priority over GREP_COLORS.
 
     GREP_COLORS
-           Colors are specified as string of colon-separated ANSI  SGR  parameters
-           of  the  form  `what=substring', where `substring' is a semicolon-sepa-
-           rated list of ANSI SGR codes or `k' (black), `r'  (red),  `g'  (green),
-           `y'  (yellow),  `b'  (blue),  `m'  (magenta),  `c' (cyan), `w' (white).
-           Upper case specifies background colors.  A `+'  qualifies  a  color  as
-           bright.   A  foreground and a background color may be combined with one
+           Colors  are  specified as string of colon-separated ANSI SGR parameters
+           of the form `what=substring', where `substring'  is  a  semicolon-sepa-
+           rated  list  of  ANSI SGR codes or `k' (black), `r' (red), `g' (green),
+           `y' (yellow), `b' (blue),  `m'  (magenta),  `c'  (cyan),  `w'  (white).
+           Upper  case  specifies  background  colors.  A `+' qualifies a color as
+           bright.  A foreground and a background color may be combined  with  one
            or more font properties `n' (normal), `f' (faint), `h' (highlight), `i'
            (invert), `u' (underline).  Substrings may be specified for:
 
@@ -4330,10 +4335,10 @@ in markdown:
 
            mt=    SGR substring for matching text in any matching line.
 
-           ms=    SGR  substring  for  matching text in a selected line.  The sub-
+           ms=    SGR substring for matching text in a selected  line.   The  sub-
                   string mt= by default.
 
-           mc=    SGR substring for matching text in a  context  line.   The  sub-
+           mc=    SGR  substring  for  matching  text in a context line.  The sub-
                   string mt= by default.
 
            fn=    SGR substring for file names.
@@ -4347,7 +4352,7 @@ in markdown:
            se=    SGR substring for separators.
 
     FORMAT
-           Option  --format=FORMAT  specifies  an  output format for file matches.
+           Option --format=FORMAT specifies an output  format  for  file  matches.
            Fields may be used in FORMAT, which expand into the following values:
 
            %[ARG]F
@@ -4446,7 +4451,7 @@ in markdown:
 
            %u     select unique lines only, unless option -u is used.
 
-           %1     the  first  regex  group  capture  of the match, and so on up to
+           %1     the first regex group capture of the match,  and  so  on  up  to
                   group %9, same as %[1]#; requires option -P.
 
            %[NUM]#
@@ -4456,24 +4461,24 @@ in markdown:
                   the first group capture NUM that matched; requires option -P.
 
            %[NAME]#
-                  the NAMEd group capture; requires option -P and  capturing  pat-
+                  the  NAMEd  group capture; requires option -P and capturing pat-
                   tern `(?<NAME>PATTERN)', see also %G.
 
            %[NAME1|NAME2|...]#
-                  the  first  NAMEd group capture that matched; requires option -P
+                  the first NAMEd group capture that matched; requires  option  -P
                   and capturing pattern `(?<NAME>PATTERN)', see also %G.
 
-           %G     list of  group  capture  indices/names  that  matched;  requires
+           %G     list  of  group  capture  indices/names  that  matched; requires
                   option -P.
 
            %[TEXT1|TEXT2|...]G
-                  list  of  TEXT  indexed  by  group capture indices that matched;
+                  list of TEXT indexed by  group  capture  indices  that  matched;
                   requires option -P.
 
            %g     the group capture index/name matched or 1; requires option -P.
 
            %[TEXT1|TEXT2|...]g
-                  the first TEXT indexed by the first  group  capture  index  that
+                  the  first  TEXT  indexed  by the first group capture index that
                   matched; requires option -P.
 
            %%     the percentage sign.
@@ -4481,22 +4486,22 @@ in markdown:
            Formatted output is written without a terminating newline, unless %~ or
            `\n' is explicitly specified in the format string.
 
-           The [ARG] part of a  field  is  optional  and  may  be  omitted.   When
-           present,  the argument must be placed in [] brackets, for example %[,]F
+           The  [ARG]  part  of  a  field  is  optional  and may be omitted.  When
+           present, the argument must be placed in [] brackets, for example  %[,]F
            to output a comma, the pathname, and a separator.
 
            %[SEP]$ and %u are switches and do not send anything to the output.
 
-           The separator used by the %F, %H, %N, %K, %B, %S and %G fields  may  be
+           The  separator  used by the %F, %H, %N, %K, %B, %S and %G fields may be
            changed by preceding the field by %[SEP]$.  When [SEP] is not provided,
-           this reverts the separator to the default separator  or  the  separator
+           this  reverts  the  separator to the default separator or the separator
            specified with --separator.
 
            Formatted output is written for each matching pattern, which means that
-           a line may be output multiple times when patterns match more than  once
-           on  the  same  line.   If  field  %u  is specified anywhere in a format
+           a  line may be output multiple times when patterns match more than once
+           on the same line.  If field  %u  is  specified  anywhere  in  a  format
            string,  matching  lines  are  output  only  once,  unless  option  -u,
-           --ungroup  is specified or when more than one line of input matched the
+           --ungroup is specified or when more than one line of input matched  the
            search pattern.
 
            Additional formatting options:
@@ -4513,8 +4518,8 @@ in markdown:
            --format-end=FORMAT
                   the FORMAT when ending the search.
 
-           The context options -A,  -B,  -C,  -y,  and  display  options  --break,
-           --heading,  --color, -T, and --null have no effect on formatted output.
+           The  context  options  -A,  -B,  -C,  -y,  and display options --break,
+           --heading, --color, -T, and --null have no effect on formatted  output.
 
     EXAMPLES
            Display lines containing the word `patricia' in `myfile.txt':
@@ -4575,7 +4580,7 @@ in markdown:
 
                   $ ugrep -n -f c++/comments myfile.cpp
 
-           List  the  lines that need fixing in a C/C++ source file by looking for
+           List the lines that need fixing in a C/C++ source file by  looking  for
            the word `FIXME' while skipping any `FIXME' in quoted strings:
 
                   $ ugrep -e FIXME -N '"(\\.|\\\r?\n|[^\\\n"])*"' myfile.cpp
@@ -4605,7 +4610,7 @@ in markdown:
 
                   $ ugrep -z -tc++ -n FIXME project.tgz
 
-           Recursively find lines with `FIXME' in C/C++ files, but do  not  search
+           Recursively  find  lines with `FIXME' in C/C++ files, but do not search
            any `bak' and `old' directories:
 
                   $ ugrep -n FIXME -tc++ -g^bak/,^old/
@@ -4615,9 +4620,9 @@ in markdown:
 
                   $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 
-           Match the binary pattern `A3hhhhA3hh' (hex) in a  binary  file  without
-           Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
-           Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
+           Match  the  binary  pattern `A3hhhhA3hh' (hex) in a binary file without
+           Unicode pattern matching -U (which would otherwise match  `\xaf'  as  a
+           Unicode  character  U+00A3  with UTF-8 byte sequence C2 A3) and display
            the results in hex with -X using `less -R' as a pager:
 
                   $ ugrep --pager -UXo '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
@@ -4630,12 +4635,12 @@ in markdown:
 
                   $ ugrep -l '' --ignore-files
 
-           List  all files containing a RPM signature, located in the `rpm' direc-
+           List all files containing a RPM signature, located in the `rpm'  direc-
            tory and recursively below up to two levels deeper (3 levels total):
 
                   $ ugrep -3 -l -tRpm '' rpm/
 
-           Monitor the system log for bug reports and ungroup multiple matches  on
+           Monitor  the system log for bug reports and ungroup multiple matches on
            a line:
 
                   $ tail -f /var/log/system.log | ugrep -u -i -w bug
@@ -4659,8 +4664,8 @@ in markdown:
 
 
     LICENSE
-           ugrep  is  released under the BSD-3 license.  All parts of the software
-           have reasonable copyright terms permitting free  redistribution.   This
+           ugrep is released under the BSD-3 license.  All parts of  the  software
+           have  reasonable  copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
@@ -4668,7 +4673,7 @@ in markdown:
 
 
 
-    ugrep 3.1.15                    April 28, 2021                        UGREP(1)
+    ugrep 3.2.0                      May 01, 2021                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

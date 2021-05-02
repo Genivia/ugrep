@@ -22,7 +22,8 @@ RUN apt-get install -y \
     libz-dev \
     libbz2-dev \
     liblzma-dev \
-    liblz4-dev
+    liblz4-dev \
+    libzstd-dev
 
 RUN cd / &&\
     git clone https://github.com/Genivia/ugrep

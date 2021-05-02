@@ -1,7 +1,7 @@
 How to build ugrep with Microsoft Visual Studio
 ===============================================
 
-The following instructions apply to MSVC++ 2017 or later.
+The following instructions apply to MSVC++ 2017 or greater.
 
 There are two choices for ugrep option -P: PCRE2 (preferred) or Boost.Regex.
 
@@ -94,7 +94,7 @@ Download bzip2 1.0.5 "Sources" from:
 
 Copy directory bzip2-1.0.5 located under bzip2-1.0.5-src\src\bzip2\1.0.5 here.
 
-Download liblzma 5.2.4 or later from:
+Download liblzma 5.2.4 or greater from:
 
 	https://sourceforge.net/projects/lzmautils/files/
 
@@ -107,24 +107,52 @@ Copy ReleaseMT\x64\liblzma.lib to liblzma-x64.lib here (in the directory of this
 
 Copy directory xz-5.2.4\src\liblzma\api with its contents here.
 
-Clone lz4 1.9.2 or later from:
+Clone lz4 1.9.2 or greater from:
 
 	https://github.com/lz4/lz4
 
 Copy directory lz4-dev\lib with its contents here, although only lz4-dev\lib\lz4.h and lz4-dev\lib\lz4.c are required.
 
+Clone zstd 1.4.9 or greater from:
+
+	https://github.com/facebook/zstd
+
+Copy directory zstd-dev with its contents here.
+
+Follow the instructions to build the Release Win32 and x64 versions of the libzstd static ZSTD library compiled with Visual Studio C++ to libzstd_static.lib:
+
+        https://github.com/facebook/zstd/tree/dev/build
+
+After completing the steps above, this directory should contain the following directories and files (versions may differ):
+
+        api
+        bzip2-1.0.5
+        lz4-dev
+        pcre2-10.34
+        Release
+        ugrep
+        x64
+        zlib-1.2.11
+        zstd-dev
+        liblzma-x32.lib
+        liblzma-x64.lib
+        pcre2-x32.lib
+        pcre2-x64.lib
+        README.txt
+        ugrep.sln
+
 Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
-Edit Visual Studio project properties to make sure these match the following:
+Edit Visual Studio project properties for Release x86 to make sure these match the following:
 
 Configuration Properties
 	General:
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
 		General:
-			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.34\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib
+			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.34\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib
 		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
 			Runtime Library:
 				Multi-threaded (/MT)
@@ -132,9 +160,9 @@ Configuration Properties
 			Precompiled Header: Not Using Precompiled Headers
 	Linker:
 		General:
-			Additional Library Directories: $(ProjectDir)\..
+			Additional Library Directories: $(ProjectDir)\..;$(ProjectDir)\..\zstd-dev\build\VS2010\bin\Win32_Release
 		Input:
-			Additional Dependencies: pcre2-x32.lib;liblzma-x32.lib
+			Additional Dependencies: pcre2-x32.lib;liblzma-x32.lib;libzstd_static.lib
 
 Then build ugrep in Visual Studio.
 
@@ -170,7 +198,7 @@ Download bzip2 1.0.5 "Sources" from:
 
 Copy directory bzip2-1.0.5 located under bzip2-1.0.5-src\src\bzip2\1.0.5 here.
 
-Download liblzma 5.2.4 or later from:
+Download liblzma 5.2.4 or greater from:
 
 	https://sourceforge.net/projects/lzmautils/files/
 
@@ -183,24 +211,52 @@ Copy ReleaseMT\x64\liblzma.lib to liblzma-x64.lib here (in the directory of this
 
 Copy directory xz-5.2.4\src\liblzma\api with its contents here.
 
-Clone lz4 1.9.2 or later from:
+Clone lz4 1.9.2 or greater from:
 
 	https://github.com/lz4/lz4
 
 Copy directory lz4-dev\lib with its contents here, although only lz4-dev\lib\lz4.h and lz4-dev\lib\lz4.c are required.
 
+Clone zstd 1.4.9 or greater from:
+
+	https://github.com/facebook/zstd
+
+Copy directory zstd-dev with its contents here.
+
+Follow the instructions to build the Release Win32 and x64 versions of the libzstd static ZSTD library compiled with Visual Studio C++ to libzstd_static.lib:
+
+        https://github.com/facebook/zstd/tree/dev/build
+
+After completing the steps above, this directory should contain the following directories and files (versions may differ):
+
+        api
+        boost_1_72_0
+        bzip2-1.0.5
+        lz4-dev
+        Release
+        ugrep
+        x64
+        zlib-1.2.11
+        zstd-dev
+        libboost_regex-vc141-mt-s-x32-1_72.lib
+        libboost_regex-vc141-mt-s-x64-1_72.lib
+        liblzma-x32.lib
+        liblzma-x64.lib
+        README.txt
+        ugrep.sln
+
 Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
-Edit Visual Studio project properties to make sure these match the following:
+Edit Visual Studio project properties for Release x86 to make sure these match the following:
 
 Configuration Properties
 	General:
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
 		General:
-			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\boost_1_72_0;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib
+			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\boost_1_72_0;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib
 		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
 			Runtime Library:
 				Multi-threaded (/MT)
@@ -208,8 +264,8 @@ Configuration Properties
 			Precompiled Header: Not Using Precompiled Headers
 	Linker:
 		General:
-			Additional Library Directories: $(ProjectDir)\..
+			Additional Library Directories: $(ProjectDir)\..;$(ProjectDir)\..\zstd-dev\build\VS2010\bin\Win32_Release
 		Input:
-			Additional Dependencies: liblzma-x32.lib
+			Additional Dependencies: liblzma-x32.lib;libzstd_static.lib
 
 Then build ugrep in Visual Studio.

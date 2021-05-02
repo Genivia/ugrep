@@ -67,6 +67,14 @@ fi
 
 echo "Have liblz4?" $have_liblz4
 
+if $UG -Fq 'HAVE_LIBZSTD 1' ../config.h ; then
+  have_libzstd=yes
+else
+  have_libzstd=no
+fi
+
+echo "Have libzstd?" $have_libzstd
+
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
 function ERR() {
@@ -300,6 +308,10 @@ if [ "$have_liblz4" == yes ]; then
 printf .
 $UG -z -c Hello archive.tar.lz4 | $DIFF out/archive.tar.lz4.out || ERR "-z -c Hello archive.tar.lz4"
 fi
+if [ "$have_libzstd" == yes ]; then
+printf .
+$UG -z -c Hello archive.tar.zst | $DIFF out/archive.tar.zst.out || ERR "-z -c Hello archive.tar.zst"
+fi
 fi
 
 if [ "$have_libz" == yes ]; then
@@ -330,6 +342,10 @@ fi
 if [ "$have_liblz4" == yes ]; then
 printf .
 $UG -z -c -tShell Hello archive.tar.lz4 | $DIFF out/archive-t.tar.lz4.out || ERR "-z -c -tShell Hello archive.tar.lz4"
+fi
+if [ "$have_libzstd" == yes ]; then
+printf .
+$UG -z -c -tShell Hello archive.tar.zst | $DIFF out/archive-t.tar.zst.out || ERR "-z -c -tShell Hello archive.tar.zst"
 fi
 fi
 

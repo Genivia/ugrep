@@ -810,8 +810,6 @@ void Output::format(const char *format, const char *pathname, const std::string&
         {
           if (a != NULL)
           {
-            std::pair<const char*,size_t> capture;
-
             while (true)
             {
               const char *b = strchr(a, '|');

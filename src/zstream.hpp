@@ -30,7 +30,7 @@
 @file      zstream.hpp
 @brief     file decompression streams - zstreambuf extends std::streambuf
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2021, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -71,6 +71,13 @@ typedef LZ4_streamDecode_t *lz4_stream;
 #endif
 #else
 struct lz4_stream;
+#endif
+
+// if we have libzstd, otherwise declare incomplete zstd_stream
+#ifdef HAVE_LIBZSTD
+#include <zstd.h>
+#else
+struct zstd_stream;
 #endif
 
 // zip decompression crc check disabled as this is too slow, we should optimize crc32() with a table
@@ -319,7 +326,7 @@ class zstreambuf : public std::streambuf {
 #ifdef HAVE_LIBLZMA
 
         // TODO should we support bit 1 clear, i.e. use the size field to terminate the lzma stream?
-        // if bit 1 is clear, then there is no EOS in the lzma stream that we need to terminate lzma decompression
+        // if bit 1 is clear, then there is no EOS in the lzma stream that we require to terminate lzma decompression
         if (method == Compression::LZMA && (flag & 2) == 0)
         {
           cannot_decompress(pathname_, "unsupported zip compression method lzma without EOS");
@@ -800,6 +807,12 @@ class zstreambuf : public std::streambuf {
     return has_ext(pathname, ".lz4");
   }
 
+  // return true if pathname has a zstd filename extension
+  static bool is_zstd(const char *pathname)
+  {
+    return has_ext(pathname, ".zst.zstd");
+  }
+
   // return true if pathname has a compress (Z) filename extension
   static bool is_Z(const char *pathname)
   {
@@ -849,6 +862,7 @@ class zstreambuf : public std::streambuf {
       bzfile_(NULL),
       xzfile_(NULL),
       lz4file_(NULL),
+      zstdfile_(NULL),
       zipinfo_(NULL),
       cur_(0),
       len_(0)
@@ -864,6 +878,7 @@ class zstreambuf : public std::streambuf {
       bzfile_(NULL),
       xzfile_(NULL),
       lz4file_(NULL),
+      zstdfile_(NULL),
       zipinfo_(NULL),
       cur_(0),
       len_(0)
@@ -954,6 +969,23 @@ class zstreambuf : public std::streambuf {
       try
       {
         lz4file_ = new LZ4();
+      }
+
+      catch (const std::bad_alloc&)
+      {
+        cannot_decompress(pathname_, "out of memory");
+      }
+#else
+      cannot_decompress("unsupported compression format", pathname);
+#endif
+    }
+    else if (is_zstd(pathname))
+    {
+#ifdef HAVE_LIBZSTD
+      // open zstd compressed file
+      try
+      {
+        zstdfile_ = new ZSTD();
       }
 
       catch (const std::bad_alloc&)
@@ -1108,6 +1140,14 @@ class zstreambuf : public std::streambuf {
       lz4file_ = NULL;
     }
 #endif
+#ifdef HAVE_LIBZSTD
+    else if (zstdfile_ != NULL)
+    {
+      // close zstd compressed file
+      delete zstdfile_;
+      zstdfile_ = NULL;
+    }
+#endif
     else if (zipinfo_ != NULL)
     {
       // close zip compressed file
@@ -1163,7 +1203,7 @@ class zstreambuf : public std::streambuf {
 
  protected:
 
-  // zlib deflate data
+  // zlib decompression state data
   struct Z {
 
     Z()
@@ -1192,7 +1232,7 @@ class zstreambuf : public std::streambuf {
 
   };
   
-  // zlib deflate file handle
+  // zlib file handle
   typedef struct Z *zFile;
 
   // compress (Z) file handle
@@ -1200,7 +1240,7 @@ class zstreambuf : public std::streambuf {
 
 #ifdef HAVE_LIBBZ2
 
-  // bzip2 state data
+  // bzip2 decompression state data
   struct BZ {
 
     BZ()
@@ -1241,7 +1281,7 @@ class zstreambuf : public std::streambuf {
 
 #ifdef HAVE_LIBLZMA
 
-  // lzma and xz state data
+  // lzma and xz decompression state data
   struct XZ {
 
     XZ()
@@ -1275,7 +1315,7 @@ class zstreambuf : public std::streambuf {
 
 #ifdef HAVE_LIBLZ4
 
-  // lz4 state data
+  // lz4 decompression state data
   struct LZ4 {
 
     static const size_t MAX_BLOCK_SIZE   = 4194304; // lz4 4MB max block size
@@ -1329,6 +1369,47 @@ class zstreambuf : public std::streambuf {
 
   // unused lz4 file handle
   typedef void *lz4File;
+
+#endif
+
+#ifdef HAVE_LIBZSTD
+
+  // zstd decompression state data
+  struct ZSTD {
+
+    ZSTD()
+      : strm(ZSTD_createDStream()),
+        zbuf(static_cast<unsigned char*>(malloc(ZSTD_DStreamInSize()))),
+        zloc(0),
+        zlen(0),
+        zret(0),
+        zend(false)
+    { }
+
+    ~ZSTD()
+    {
+      if (zbuf != NULL)
+        free(zbuf);
+      if (strm != NULL)
+        ZSTD_freeDStream(strm);
+    }
+
+    ZSTD_DStream  *strm; // zstd decompression stream state
+    unsigned char *zbuf; // compressed data buffer
+    size_t         zloc;
+    size_t         zlen;
+    size_t         zret; // last ZSTD_decompressStream() return
+    bool           zend;
+
+  };
+
+  // zstd file handle
+  typedef struct ZSTD *zstdFile;
+
+#else
+
+  // unused zstd file handle
+  typedef void *zstdFile;
 
 #endif
 
@@ -1827,6 +1908,69 @@ class zstreambuf : public std::streambuf {
       }
     }
 #endif
+#ifdef HAVE_LIBZSTD
+    else if (zstdfile_ != NULL)
+    {
+      if (zstdfile_->strm == NULL || zstdfile_->zbuf == NULL)
+      {
+        // ZSTD instantiation failed to allocate the required structures
+        cannot_decompress(pathname_, "out of memory");
+        delete zstdfile_;
+        zstdfile_ = NULL;
+        file_ = NULL;
+        num = -1;
+      }
+      else
+      {
+        // decompress data into buf[] until buf[] is non-empty and we're not yet at the end of compressed stream
+        while (true)
+        {
+          // if compressed data zstdfile_->zbuf[] is empty then read compressed data into zstdfile_->zbuf[], unless EOF was reached
+          if (zstdfile_->zloc >= zstdfile_->zlen && !zstdfile_->zend)
+          {
+            zstdfile_->zloc = 0;
+            zstdfile_->zlen = fread(zstdfile_->zbuf, 1, ZSTD_DStreamInSize(), file_);
+
+            if (ferror(file_))
+            {
+              warning("cannot read", pathname_);
+              zstdfile_->zend = true;
+            }
+            else
+            {
+              if (feof(file_))
+                zstdfile_->zend = true;
+            }
+          }
+
+          // decompress zstdfile_->zbuf[] into buf[]
+          if (zstdfile_->zloc < zstdfile_->zlen || zstdfile_->zret != 0)
+          {
+            ZSTD_inBuffer in = { zstdfile_->zbuf, zstdfile_->zlen, zstdfile_->zloc };
+            ZSTD_outBuffer out = { buf, len, 0 };
+            zstdfile_->zret = ZSTD_decompressStream(zstdfile_->strm, &out, &in);
+
+            if (ZSTD_isError(zstdfile_->zret))
+            {
+              cannot_decompress(pathname_, "an error was detected in the zstd compressed data");
+              num = -1;
+            }
+            else
+            {
+              zstdfile_->zloc = in.pos;
+              num = static_cast<std::streamsize>(out.pos);
+
+              // if decompressed buf[] is empty, then read zstdfile_->zbuf[] to decompress
+              if (num == 0 && zstdfile_->zret != 0 && zstdfile_->zloc >= zstdfile_->zlen && !zstdfile_->zend)
+                continue;
+            }
+          }
+
+          break;
+        }
+      }
+    }
+#endif
     else if (zipinfo_ != NULL)
     {
       // decompress a zip compressed block into the guven buf[]
@@ -1936,6 +2080,7 @@ class zstreambuf : public std::streambuf {
   bzFile          bzfile_;         // bzip2 file handle
   xzFile          xzfile_;         // xz/lzma file handle
   lz4File         lz4file_;        // lz4 file handle
+  zstdFile        zstdfile_;       // zstd file handle
   ZipInfo        *zipinfo_;        // zip file and zip info handle
   unsigned char   buf_[Z_BUF_LEN]; // buffer with decompressed stream data
   std::streamsize cur_;            // current position in buffer to read the stream data, less or equal to len_

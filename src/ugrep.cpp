@@ -30,7 +30,7 @@
 @file      ugrep.cpp
 @brief     a pattern search utility written in C++11
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2021, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 For download and installation instructions:
@@ -47,6 +47,8 @@ Optional libraries to support options -P and -z:
   -z: zlib (.gz)
   -z: libbz2 (.bz, bz2, .bzip2)
   -z: liblzma (.lzma, .xz)
+  -z: liblz4 (.lz4)
+  -z: libzstd (.zst, .zstd)
 
 Build ugrep as follows:
 
@@ -67,7 +69,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.1.15"
+#define UGREP_VERSION "3.2.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -117,6 +119,9 @@ After this, you may want to test ugrep and install it (optional):
 
 // optionally enable liblz4 for -z
 // #define HAVE_LIBLZ4
+
+// optionally enable libzstd for -z
+// #define HAVE_LIBZSTD
 
 #include <stringapiset.h>
 
@@ -5922,6 +5927,15 @@ void ugrep()
     flag_all_include.emplace_back("*.pax.lz4");
     flag_all_include.emplace_back("*.tar.lz4");
 #endif
+
+#ifdef HAVE_LIBZSTD
+    flag_all_include.emplace_back("*.cpio.zst");
+    flag_all_include.emplace_back("*.pax.zst");
+    flag_all_include.emplace_back("*.tar.zst");
+    flag_all_include.emplace_back("*.cpio.zstd");
+    flag_all_include.emplace_back("*.pax.zstd");
+    flag_all_include.emplace_back("*.tar.zstd");
+#endif
   }
 #endif
 #endif
@@ -10756,9 +10770,18 @@ void help(std::ostream& out)
             ",\n\
             lzma and xz (requires suffix .lzma, .tlz, .xz, .txz)"
 #endif
-#ifdef HAVE_LIBLZ4
+#if defined(HAVE_LIBLZ4) || defined(HAVE_LIBZSTD)
             ",\n\
-            lz4 (requires suffix .lz4)"
+            "
+#ifdef HAVE_LIBLZ4
+            "lz4 (requires suffix .lz4)"
+#ifdef HAVE_LIBZSTD
+            ", "
+#endif
+#endif
+#ifdef HAVE_LIBZSTD
+            "zstd (requires suffix .zst, .zstd)"
+#endif
 #endif
             ".\n"
 #endif
@@ -10895,6 +10918,9 @@ void version()
 #endif
 #ifdef HAVE_LIBLZ4
     " +lz4" <<
+#endif
+#ifdef HAVE_LIBZSTD
+    " +zstd" <<
 #endif
     "\n"
     "License BSD-3-Clause: <https://opensource.org/licenses/BSD-3-Clause>\n"

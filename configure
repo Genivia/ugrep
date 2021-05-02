@@ -747,6 +747,7 @@ with_zlib
 with_bzlib
 with_lzma
 with_lz4
+with_zstd
 with_grep_path
 with_grep_colors
 enable_auto_color
@@ -1431,9 +1432,12 @@ Optional Packages:
   --with-lzma=DIR         root directory path of lzma installation [defaults to
                           /usr/local or /usr if not found in /usr/local]
   --without-lzma          to disable lzma usage completely
-  --with-lz4=DIR         root directory path of lz4 installation [defaults to
+  --with-lz4=DIR          root directory path of lz4 installation [defaults to
                           /usr/local or /usr if not found in /usr/local]
-  --without-lz4          to disable lz4 usage completely
+  --without-lz4           to disable lz4 usage completely
+  --with-zstd=DIR         root directory path of zstd installation [defaults to
+                          /usr/local or /usr if not found in /usr/local]
+  --without-zstd          to disable zstd usage completely
   --with-grep-path=GREP_PATH
                           specifies the GREP_PATH if different than the
                           default DATAROOTDIR/ugrep/patterns
@@ -7696,6 +7700,138 @@ $as_echo "#define HAVE_LIBLZ4 1" >>confdefs.h
     # If either header or library was not found, action-if-not-found
     #
     echo "liblz4 not found: ugrep option -z won't decompress .lz4 files"
+  fi
+fi
+
+
+#
+# Handle user hints
+#
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if zstd is wanted" >&5
+$as_echo_n "checking if zstd is wanted... " >&6; }
+zstd_places="/usr/local /usr /opt/local /sw"
+
+# Check whether --with-zstd was given.
+if test "${with_zstd+set}" = set; then :
+  withval=$with_zstd; if test "$withval" != "no" ; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  if test -d "$withval"
+  then
+    zstd_places="$withval $zstd_places"
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
+$as_echo "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
+  fi
+else
+  zstd_places=""
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+fi
+
+#
+# Locate zstd, if wanted
+#
+if test -n "${zstd_places}"
+then
+  # check the user supplied or any other more or less 'standard' place:
+  #   Most UNIX systems      : /usr/local and /usr
+  #   MacPorts / Fink on OSX : /opt/local respectively /sw
+  for ZSTD_HOME in ${zstd_places} ; do
+    if test -f "${ZSTD_HOME}/include/zstd.h"; then break; fi
+    ZSTD_HOME=""
+  done
+
+  ZSTD_OLD_LDFLAGS=$LDFLAGS
+  ZSTD_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${ZSTD_HOME}"; then
+    LDFLAGS="$LDFLAGS -L${ZSTD_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${ZSTD_HOME}/include"
+  fi
+  ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ZSTD_decompressStream in -lzstd" >&5
+$as_echo_n "checking for ZSTD_decompressStream in -lzstd... " >&6; }
+if ${ac_cv_lib_zstd_ZSTD_decompressStream+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lzstd  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ZSTD_decompressStream ();
+int
+main ()
+{
+return ZSTD_decompressStream ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_zstd_ZSTD_decompressStream=yes
+else
+  ac_cv_lib_zstd_ZSTD_decompressStream=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_zstd_ZSTD_decompressStream" >&5
+$as_echo "$ac_cv_lib_zstd_ZSTD_decompressStream" >&6; }
+if test "x$ac_cv_lib_zstd_ZSTD_decompressStream" = xyes; then :
+  zstd_cv_libzstd=yes
+else
+  zstd_cv_libzstd=no
+fi
+
+  ac_fn_c_check_header_mongrel "$LINENO" "zstd.h" "ac_cv_header_zstd_h" "$ac_includes_default"
+if test "x$ac_cv_header_zstd_h" = xyes; then :
+  zstd_cv_zstd_h=yes
+else
+  zstd_cv_zstd_h=no
+fi
+
+
+  ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+  if test "$zstd_cv_libzstd" = "yes" && test "$zstd_cv_zstd_h" = "yes"
+  then
+    #
+    # If both library and header were found, action-if-found
+    #
+
+                CPPFLAGS="$CPPFLAGS -I${ZSTD_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${ZSTD_HOME}/lib"
+                LIBS="-lzstd $LIBS"
+
+$as_echo "#define HAVE_LIBZSTD 1" >>confdefs.h
+
+
+  else
+    #
+    # If either header or library was not found, action-if-not-found
+    #
+    echo "libzstd not found: ugrep option -z won't decompress .zst files"
   fi
 fi
 

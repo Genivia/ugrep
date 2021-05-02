@@ -126,6 +126,9 @@
     <ClCompile Include="..\lz4-dev\lib\lz4.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\cnf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\glob.hpp">
@@ -231,6 +234,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\lz4-dev\lib\lz4.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cnf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\flag.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

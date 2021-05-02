@@ -74,6 +74,8 @@ AX_CHECK_LZMALIB([], [echo "liblzma not found: ugrep option -z won't decompress 
 
 AX_CHECK_LZ4LIB([], [echo "liblz4 not found: ugrep option -z won't decompress .lz4 files"])
 
+AX_CHECK_ZSTDLIB([], [echo "libzstd not found: ugrep option -z won't decompress .zst files"])
+
 AC_ARG_WITH(grep-path,
   [AC_HELP_STRING([--with-grep-path=GREP_PATH],
                   [specifies the GREP_PATH if different than the default DATAROOTDIR/ugrep/patterns])],
