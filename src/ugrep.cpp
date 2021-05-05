@@ -69,7 +69,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.2.0"
+#define UGREP_VERSION "3.2.1"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -3871,7 +3871,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'a':
                 if (strncmp(arg, "after-context=", 14) == 0)
-                  flag_after_context = strtopos(arg + 14, "invalid argument --after-context=");
+                  flag_after_context = strtonum(arg + 14, "invalid argument --after-context=");
                 else if (strcmp(arg, "and") == 0)
                   option_and(pattern_args, i, argc, argv);
                 else if (strncmp(arg, "and=", 4) == 0)
@@ -3892,7 +3892,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "basic-regexp") == 0)
                   flag_basic_regexp = true;
                 else if (strncmp(arg, "before-context=", 15) == 0)
-                  flag_before_context = strtopos(arg + 15, "invalid argument --before-context=");
+                  flag_before_context = strtonum(arg + 15, "invalid argument --before-context=");
                 else if (strcmp(arg, "binary") == 0)
                   flag_binary = true;
                 else if (strncmp(arg, "binary-files=", 13) == 0)
@@ -3927,7 +3927,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "confirm") == 0)
                   flag_confirm = true;
                 else if (strncmp(arg, "context=", 8) == 0)
-                  flag_after_context = flag_before_context = strtopos(arg + 8, "invalid argument --context=");
+                  flag_after_context = flag_before_context = strtonum(arg + 8, "invalid argument --context=");
                 else if (strcmp(arg, "count") == 0)
                   flag_count = true;
                 else if (strcmp(arg, "cpp") == 0)
@@ -3989,8 +3989,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
               case 'f':
                 if (strncmp(arg, "file=", 5) == 0)
                   flag_file.emplace_back(arg + 5);
-                else if (strncmp(arg, "file-extension=", 16) == 0)
-                  flag_file_extension.emplace_back(arg + 16);
+                else if (strncmp(arg, "file-extension=", 15) == 0)
+                  flag_file_extension.emplace_back(arg + 15);
                 else if (strncmp(arg, "file-magic=", 11) == 0)
                   flag_file_magic.emplace_back(arg + 11);
                 else if (strncmp(arg, "file-type=", 10) == 0)
@@ -4348,9 +4348,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
           case 'A':
             ++arg;
             if (*arg)
-              flag_after_context = strtopos(&arg[*arg == '='], "invalid argument -A=");
+              flag_after_context = strtonum(&arg[*arg == '='], "invalid argument -A=");
             else if (++i < argc)
-              flag_after_context = strtopos(argv[i], "invalid argument -A=");
+              flag_after_context = strtonum(argv[i], "invalid argument -A=");
             else
               usage("missing NUM argument for option -A");
             is_grouped = false;
@@ -4363,9 +4363,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
           case 'B':
             ++arg;
             if (*arg)
-              flag_before_context = strtopos(&arg[*arg == '='], "invalid argument -B=");
+              flag_before_context = strtonum(&arg[*arg == '='], "invalid argument -B=");
             else if (++i < argc)
-              flag_before_context = strtopos(argv[i], "invalid argument -B=");
+              flag_before_context = strtonum(argv[i], "invalid argument -B=");
             else
               usage("missing NUM argument for option -B");
             is_grouped = false;
@@ -4378,9 +4378,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
           case 'C':
             ++arg;
             if (*arg)
-              flag_after_context = flag_before_context = strtopos(&arg[*arg == '='], "invalid argument -C=");
+              flag_after_context = flag_before_context = strtonum(&arg[*arg == '='], "invalid argument -C=");
             else if (++i < argc)
-              flag_after_context = flag_before_context = strtopos(argv[i], "invalid argument -C=");
+              flag_after_context = flag_before_context = strtonum(argv[i], "invalid argument -C=");
             else
               usage("missing NUM argument for option -C");
             is_grouped = false;
@@ -5878,6 +5878,7 @@ void ugrep()
     flag_all_include.emplace_back("*.pax");
     flag_all_include.emplace_back("*.tar");
     flag_all_include.emplace_back("*.zip");
+    flag_all_include.emplace_back("*.zipx");
     flag_all_include.emplace_back("*.ZIP");
 
     flag_all_include.emplace_back("*.cpio.gz");
@@ -5935,6 +5936,7 @@ void ugrep()
     flag_all_include.emplace_back("*.cpio.zstd");
     flag_all_include.emplace_back("*.pax.zstd");
     flag_all_include.emplace_back("*.tar.zstd");
+    flag_all_include.emplace_back("*.tzst");
 #endif
   }
 #endif
@@ -10523,8 +10525,9 @@ void help(std::ostream& out)
             searched, the string ``(standard input)'' is written.\n\
     --label=LABEL\n\
             Displays the LABEL value when input is read from standard input\n\
-            where a file name would normally be printed in the output.  The\n\
-            default value is `(standard input)'.\n\
+            where a file name would normally be printed in the output.\n\
+            Associates a filename extension with standard input when LABEL has\n\
+            a suffix.  The default value is `(standard input)'.\n\
     --line-buffered\n\
             Force output to be line buffered instead of block buffered.\n\
     -M MAGIC, --file-magic=MAGIC\n\
@@ -10750,8 +10753,8 @@ void help(std::ostream& out)
             No whitespace may be given between -Z and its argument.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
-            .pax, .tar, and .zip) and compressed archives (e.g. .taz, .tgz,\n\
-            .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and\n\
+            .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,\n\
+            .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and\n\
             matching pathnames of files in archives are output in braces.  If\n\
             -g, -O, -M, or -t is specified, searches files within archives\n\
             whose name matches globs, matches file name extensions, matches\n\
@@ -10770,18 +10773,13 @@ void help(std::ostream& out)
             ",\n\
             lzma and xz (requires suffix .lzma, .tlz, .xz, .txz)"
 #endif
-#if defined(HAVE_LIBLZ4) || defined(HAVE_LIBZSTD)
-            ",\n\
-            "
 #ifdef HAVE_LIBLZ4
-            "lz4 (requires suffix .lz4)"
-#ifdef HAVE_LIBZSTD
-            ", "
-#endif
+            ",\n\
+            lz4 (requires suffix .lz4)"
 #endif
 #ifdef HAVE_LIBZSTD
-            "zstd (requires suffix .zst, .zstd)"
-#endif
+            ",\n\
+            zstd (requires suffix .zst, .zstd, .tzst)"
 #endif
             ".\n"
 #endif

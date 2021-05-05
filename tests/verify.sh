@@ -289,7 +289,7 @@ $UG -z -c Hello archive.tar     | $DIFF out/archive.tar.out     || ERR "-z -c He
 printf .
 $UG -z -c Hello archive.tgz     | $DIFF out/archive.tgz.out     || ERR "-z -c Hello archive.tgz"
 printf .
-$UG -z -c Hello archive.tar.Z   | $DIFF out/archive.tar.Z.out   || ERR "-z -c Hello archive.tar.Z"
+$UG -z -c Hello archive.tZ      | $DIFF out/archive.tZ.out      || ERR "-z -c Hello archive.tZ"
 printf .
 $UG -z -c Hello archive.tar.zip | $DIFF out/archive.tar.zip.out || ERR "-z -c Hello archive.tar.zip"
 printf .
@@ -310,7 +310,7 @@ $UG -z -c Hello archive.tar.lz4 | $DIFF out/archive.tar.lz4.out || ERR "-z -c He
 fi
 if [ "$have_libzstd" == yes ]; then
 printf .
-$UG -z -c Hello archive.tar.zst | $DIFF out/archive.tar.zst.out || ERR "-z -c Hello archive.tar.zst"
+$UG -z -c Hello archive.tzst    | $DIFF out/archive.tzst.out    || ERR "-z -c Hello archive.tzst"
 fi
 fi
 
@@ -324,7 +324,7 @@ $UG -z -c -tShell Hello archive.tar     | $DIFF out/archive-t.tar.out     || ERR
 printf .
 $UG -z -c -tShell Hello archive.tgz     | $DIFF out/archive-t.tgz.out     || ERR "-z -c -tShell Hello archive.tgz"
 printf .
-$UG -z -c -tShell Hello archive.tar.Z   | $DIFF out/archive-t.tar.Z.out   || ERR "-z -c -tShell Hello archive.tar.Z"
+$UG -z -c -tShell Hello archive.tZ      | $DIFF out/archive-t.tZ.out      || ERR "-z -c -tShell Hello archive.tZ"
 printf .
 $UG -z -c -tShell Hello archive.tar.zip | $DIFF out/archive-t.tar.zip.out || ERR "-z -c -tShell Hello archive.tar.zip"
 printf .
@@ -345,7 +345,7 @@ $UG -z -c -tShell Hello archive.tar.lz4 | $DIFF out/archive-t.tar.lz4.out || ERR
 fi
 if [ "$have_libzstd" == yes ]; then
 printf .
-$UG -z -c -tShell Hello archive.tar.zst | $DIFF out/archive-t.tar.zst.out || ERR "-z -c -tShell Hello archive.tar.zst"
+$UG -z -c -tShell Hello archive.tzst    | $DIFF out/archive-t.tzst.out    || ERR "-z -c -tShell Hello archive.tzst"
 fi
 fi
 

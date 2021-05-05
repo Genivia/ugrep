@@ -76,6 +76,7 @@ struct lz4_stream;
 // if we have libzstd, otherwise declare incomplete zstd_stream
 #ifdef HAVE_LIBZSTD
 #include <zstd.h>
+typedef ZSTD_DStream zstd_stream;
 #else
 struct zstd_stream;
 #endif
@@ -103,8 +104,8 @@ class zstreambuf : public std::streambuf {
 
    public:
 
-    // zip compression methods, STORE and DEFLATE are common
-    enum class Compression : uint16_t { STORE = 0, DEFLATE = 8, BZIP2 = 12, LZMA = 14, XZ = 95 };
+    // zip compression methods, STORE and DEFLATE are common. others are less common and some are specific to WinZip (.zipx)
+    enum class Compression : uint16_t { STORE = 0, DEFLATE = 8, BZIP2 = 12, LZMA = 14, ZSTD = 93, XZ = 95, /* PPMD = 98 not supported */ };
 
     // constructor
     ZipInfo(const char *pathname, FILE *file, const unsigned char *buf = NULL, size_t len = 0)
@@ -114,13 +115,14 @@ class zstreambuf : public std::streambuf {
         z_strm_(NULL),
         bz_strm_(NULL),
         lzma_strm_(NULL),
+        zstd_strm_(NULL),
         zcur_(0),
         zlen_(0),
         zcrc_(0xffffffff),
         znew_(true),
         zend_(false)
     {
-      // copy initial buffer data, when specified
+      // copy initial buffer data into zbuf_[], when specified
       if (buf != NULL && len > 0)
       {
         zlen_ = (len < Z_BUF_LEN ? len : Z_BUF_LEN);
@@ -143,6 +145,10 @@ class zstreambuf : public std::streambuf {
 #ifdef HAVE_LIBLZMA
       if (lzma_strm_ != NULL)
         delete lzma_strm_;
+#endif
+#ifdef HAVE_LIBZSTD
+      if (zstd_strm_ != NULL)
+        ZSTD_freeDStream(zstd_strm_);
 #endif
     }
 
@@ -317,6 +323,34 @@ class zstreambuf : public std::streambuf {
 #else
 
         cannot_decompress(pathname_, "unsupported zip compression method bzip2");
+        return false;
+
+#endif
+      }
+      else if (method == Compression::ZSTD)
+      {
+#ifdef HAVE_LIBZSTD
+
+        // Zip zstd method
+        if (zstd_strm_ == NULL)
+        {
+          zstd_strm_ = ZSTD_createDStream();
+
+          if (zstd_strm_ == NULL)
+          {
+            cannot_decompress(pathname_, "out of memory");
+            return false;
+          }
+        }
+        else
+        {
+          // reinitialize zstd decompress
+          ZSTD_initDStream(zstd_strm_);
+        }
+
+#else
+
+        cannot_decompress(pathname_, "unsupported zip compression method zstd");
         return false;
 
 #endif
@@ -542,6 +576,58 @@ class zstreambuf : public std::streambuf {
           {
             cannot_decompress(pathname_, "a bzip2 decompression error was detected in the zip compressed data");
             num = -1;
+          }
+        }
+      }
+#endif
+#ifdef HAVE_LIBZSTD
+      else if (method == Compression::ZSTD && zstd_strm_ != NULL)
+      {
+        ZSTD_outBuffer out = { buf, len, 0 };
+        size_t ret = 1;
+
+        if (zcur_ < zlen_)
+        {
+          ZSTD_inBuffer in = { zbuf_, zlen_, zcur_ };
+          ret = ZSTD_decompressStream(zstd_strm_, &out, &in);
+
+          if (ZSTD_isError(ret))
+          {
+            cannot_decompress(pathname_, "an error was detected in the zstd compressed data");
+            num = -1;
+            zend_ = true;
+          }
+          else
+          {
+            zcur_ = in.pos;
+            num = static_cast<std::streamsize>(out.pos);
+          }
+        }
+
+        if (ret != 0 && num < static_cast<std::streamsize>(len) && !zend_)
+        {
+          if (read())
+          {
+            ZSTD_inBuffer in = { zbuf_, zlen_, zcur_ };
+            ret = ZSTD_decompressStream(zstd_strm_, &out, &in);
+
+            if (ZSTD_isError(ret))
+            {
+              cannot_decompress(pathname_, "an error was detected in the zstd compressed data");
+              num = -1;
+              zend_ = true;
+            }
+            else
+            {
+              zcur_ = in.pos;
+              num = static_cast<std::streamsize>(out.pos);
+            }
+          }
+          else
+          {
+            cannot_decompress(pathname_, "EOF detected in the zip compressed data");
+            num = -1;
+            zend_ = true;
           }
         }
       }
@@ -780,22 +866,23 @@ class zstreambuf : public std::streambuf {
     z_stream     *z_strm_;         // zlib stream handle
     bz_stream    *bz_strm_;        // bzip2 stream handle
     lzma_stream  *lzma_strm_;      // xz/lzma stream handle
+    zstd_stream  *zstd_strm_;      // zstd stream handle
     unsigned char zbuf_[ZIPBLOCK]; // buffer with compressed zip file data to decompress
-    size_t        zcur_;           // current position in the buffer, less or equal to zlen_
-    size_t        zlen_;           // length of the compressed data in the buffer
+    size_t        zcur_;           // current position in the zbuf_[] buffer, less or equal to zlen_
+    size_t        zlen_;           // length of the compressed data in the zbuf_[] buffer
     uint32_t      zcrc_;           // crc32 of the decompressed data
     bool          znew_;           // true when reached a zip local file header
     bool          zend_;           // true when reached the end of compressed data, a descriptor and/or header follows
 
   };
 
-  // return true if pathname has a bzlib2 filename extension
+  // return true if pathname has a (tar) bzlib2 filename extension
   static bool is_bz(const char *pathname)
   {
     return has_ext(pathname, ".bz.bz2.bzip2.tb2.tbz.tbz2.tz2");
   }
 
-  // return true if pathname has a xz/lzma filename extension
+  // return true if pathname has a (tar) xz/lzma filename extension
   static bool is_xz(const char *pathname)
   {
     return has_ext(pathname, ".lzma.xz.tlz.txz");
@@ -807,22 +894,22 @@ class zstreambuf : public std::streambuf {
     return has_ext(pathname, ".lz4");
   }
 
-  // return true if pathname has a zstd filename extension
+  // return true if pathname has a (tar) zstd filename extension
   static bool is_zstd(const char *pathname)
   {
-    return has_ext(pathname, ".zst.zstd");
+    return has_ext(pathname, ".zst.zstd.tzst");
   }
 
-  // return true if pathname has a compress (Z) filename extension
+  // return true if pathname has a (tar) compress (Z) filename extension
   static bool is_Z(const char *pathname)
   {
-    return has_ext(pathname, ".Z");
+    return has_ext(pathname, ".Z.taZ.tZ");
   }
 
   // return true if pathname has a zip filename extension
   static bool is_zip(const char *pathname)
   {
-    return has_ext(pathname, ".zip.ZIP");
+    return has_ext(pathname, ".zip.zipx.ZIP");
   }
 
   // return true if pathname has a 7z filename extension
@@ -1382,7 +1469,6 @@ class zstreambuf : public std::streambuf {
         zbuf(static_cast<unsigned char*>(malloc(ZSTD_DStreamInSize()))),
         zloc(0),
         zlen(0),
-        zret(0),
         zend(false)
     { }
 
@@ -1398,7 +1484,6 @@ class zstreambuf : public std::streambuf {
     unsigned char *zbuf; // compressed data buffer
     size_t         zloc;
     size_t         zlen;
-    size_t         zret; // last ZSTD_decompressStream() return
     bool           zend;
 
   };
@@ -1922,51 +2007,64 @@ class zstreambuf : public std::streambuf {
       }
       else
       {
-        // decompress data into buf[] until buf[] is non-empty and we're not yet at the end of compressed stream
-        while (true)
+        ZSTD_outBuffer out = { buf, len, 0 };
+
+        // decompress zstdfile_->zbuf[] into buf[]
+        if (zstdfile_->zloc < zstdfile_->zlen)
         {
-          // if compressed data zstdfile_->zbuf[] is empty then read compressed data into zstdfile_->zbuf[], unless EOF was reached
-          if (zstdfile_->zloc >= zstdfile_->zlen && !zstdfile_->zend)
-          {
-            zstdfile_->zloc = 0;
-            zstdfile_->zlen = fread(zstdfile_->zbuf, 1, ZSTD_DStreamInSize(), file_);
+          ZSTD_inBuffer in = { zstdfile_->zbuf, zstdfile_->zlen, zstdfile_->zloc };
+          size_t ret = ZSTD_decompressStream(zstdfile_->strm, &out, &in);
 
-            if (ferror(file_))
-            {
-              warning("cannot read", pathname_);
+          if (ZSTD_isError(ret))
+          {
+            cannot_decompress(pathname_, "an error was detected in the zstd compressed data");
+            num = -1;
+          }
+          else
+          {
+            zstdfile_->zloc = in.pos;
+            num = static_cast<std::streamsize>(out.pos);
+          }
+        }
+
+        // read compressed data into zstdfile_->zbuf[] and decompress zstdfile_->zbuf[] into the given buf[]
+        if (num >= 0 && num < static_cast<std::streamsize>(len) && zstdfile_->zloc >= zstdfile_->zlen && !zstdfile_->zend)
+        {
+          zstdfile_->zloc = 0;
+          zstdfile_->zlen = fread(zstdfile_->zbuf, 1, ZSTD_DStreamInSize(), file_);
+
+          if (ferror(file_))
+          {
+            warning("cannot read", pathname_);
+            zstdfile_->zend = true;
+          }
+          else
+          {
+            if (feof(file_))
               zstdfile_->zend = true;
-            }
-            else
-            {
-              if (feof(file_))
-                zstdfile_->zend = true;
-            }
           }
 
-          // decompress zstdfile_->zbuf[] into buf[]
-          if (zstdfile_->zloc < zstdfile_->zlen || zstdfile_->zret != 0)
+          ZSTD_inBuffer in = { zstdfile_->zbuf, zstdfile_->zlen, zstdfile_->zloc };
+          size_t ret = ZSTD_decompressStream(zstdfile_->strm, &out, &in);
+
+          if (ZSTD_isError(ret))
           {
-            ZSTD_inBuffer in = { zstdfile_->zbuf, zstdfile_->zlen, zstdfile_->zloc };
-            ZSTD_outBuffer out = { buf, len, 0 };
-            zstdfile_->zret = ZSTD_decompressStream(zstdfile_->strm, &out, &in);
-
-            if (ZSTD_isError(zstdfile_->zret))
-            {
-              cannot_decompress(pathname_, "an error was detected in the zstd compressed data");
-              num = -1;
-            }
-            else
-            {
-              zstdfile_->zloc = in.pos;
-              num = static_cast<std::streamsize>(out.pos);
-
-              // if decompressed buf[] is empty, then read zstdfile_->zbuf[] to decompress
-              if (num == 0 && zstdfile_->zret != 0 && zstdfile_->zloc >= zstdfile_->zlen && !zstdfile_->zend)
-                continue;
-            }
+            cannot_decompress(pathname_, "an error was detected in the zstd compressed data");
+            num = -1;
           }
+          else
+          {
+            zstdfile_->zloc = in.pos;
+            num = static_cast<std::streamsize>(out.pos);
+          }
+        }
 
-          break;
+        // decompressed the last block or there was an error?
+        if (num <= 0)
+        {
+          delete zstdfile_;
+          zstdfile_ = NULL;
+          file_ = NULL;
         }
       }
     }
@@ -1986,7 +2084,7 @@ class zstreambuf : public std::streambuf {
     }
     else if (file_ != NULL)
     {
-      // pass through, without decompression
+      // pass through, without decompression, i.e. the STORE method
       num = fread(buf, 1, len, file_);
 
       // end of file or error?

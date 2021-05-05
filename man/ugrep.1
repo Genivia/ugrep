@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 01, 2021" "ugrep 3.2.0" "User Commands"
+.TH UGREP "1" "May 05, 2021" "ugrep 3.2.1" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -426,8 +426,9 @@ searched, the string ``(standard input)'' is written.
 .TP
 \fB\-\-label\fR=\fILABEL\fR
 Displays the LABEL value when input is read from standard input
-where a file name would normally be printed in the output.  The
-default value is `(standard input)'.
+where a file name would normally be printed in the output.
+Associates a filename extension with standard input when LABEL has
+a suffix.  The default value is `(standard input)'.
 .TP
 \fB\-\-line\-buffered\fR
 Force output to be line buffered instead of block buffered.
@@ -687,8 +688,8 @@ No whitespace may be given between \fB\-Z\fR and its argument.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,
-\&.pax, .tar, and .zip) and compressed archives (e.g. .taz, .tgz,
-\&.tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and
+\&.pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,
+\&.tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
 matching pathnames of files in archives are output in braces.  If
 \fB\-g\fR, \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches files within archives
 whose name matches globs, matches file name extensions, matches
@@ -696,7 +697,8 @@ file signature magic bytes, or matches file types, respectively.
 Supported compression formats: gzip (.gz), compress (.Z), zip,
 bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
-lz4 (requires suffix .lz4), zstd (requires suffix .zst, .zstd).
+lz4 (requires suffix .lz4),
+zstd (requires suffix .zst, .zstd, .tzst).
 .TP
 \fB\-0\fR, \fB\-\-null\fR
 Prints a zero\-byte (NUL) after the file name.  This option can be
