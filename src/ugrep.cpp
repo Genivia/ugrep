@@ -69,7 +69,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.2.1"
+#define UGREP_VERSION "3.2.2"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -436,6 +436,10 @@ bool flag_stdin                    = false;
 bool flag_usage_warnings           = false;
 bool flag_word_regexp              = false;
 bool flag_xml                      = false;
+bool flag_hex                      = false;
+bool flag_with_hex                 = false;
+bool flag_no_filename              = false;
+bool flag_with_filename            = false;
 Flag flag_binary;
 Flag flag_binary_without_match;
 Flag flag_break;
@@ -445,16 +449,12 @@ Flag flag_empty;
 Flag flag_dotall;
 Flag flag_free_space;
 Flag flag_heading;
-Flag flag_hex;
 Flag flag_ignore_case;
 Flag flag_initial_tab;
 Flag flag_line_number;
-Flag flag_no_filename;
 Flag flag_smart_case;
 Flag flag_text;
 Flag flag_ungroup;
-Flag flag_with_filename;
-Flag flag_with_hex;
 Sort flag_sort_key                 = Sort::NA;
 Action flag_devices_action         = Action::SKIP;
 Action flag_directories_action     = Action::SKIP;
@@ -1731,7 +1731,7 @@ struct Grep {
 #endif
 #endif
   {
-    restline.reserve(256);
+    restline.reserve(256); // pre-reserve a "rest line" of input to display matches to limit heap allocs
   }
 
   virtual ~Grep()
@@ -3780,10 +3780,52 @@ static void save_config()
 # foreground and a background color may be combined with font properties `n'\n\
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\n");
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
-  fprintf(file, "# Enable/disable query UI confirmation prompts, default: no-confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
-  fprintf(file, "# Enable/disable headings for terminal output, default: no-heading\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
+  fprintf(file, "# Enable/disable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
   fprintf(file, "# Enable/disable or specify a pager for terminal output, default: no-pager\n%s\n\n", flag_pager != NULL ? flag_pager : "no-pager");
   fprintf(file, "# Enable/disable pretty output to the terminal, default: no-pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
+  fprintf(file, "# Enable/disable headings for terminal output, default: no-heading\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
+
+  if (flag_break.is_defined())
+    fprintf(file, "# Enable/disable break for terminal output\n%s\n\n", flag_break ? "break" : "no-break");
+
+  if (flag_line_number.is_defined() && flag_line_number != flag_pretty)
+    fprintf(file, "# Enable/disable line numbers\n%s\n\n", flag_line_number ? "line-number" : "no-line-number");
+
+  if (flag_column_number.is_defined())
+    fprintf(file, "# Enable/disable column numbers\n%s\n\n", flag_column_number ? "column-number" : "no-column-number");
+
+  if (flag_byte_offset.is_defined())
+    fprintf(file, "# Enable/disable byte offsets\n%s\n\n", flag_byte_offset ? "byte-offset" : "no-byte-offset");
+
+  if (flag_initial_tab.is_defined() && flag_line_number != flag_pretty)
+    fprintf(file, "# Enable/disable initial tab\n%s\n\n", flag_initial_tab ? "initial-tab" : "no-initial-tab");
+
+  if (strcmp(flag_binary_files, "hex") == 0)
+    fprintf(file, "# Hex output\nhex\n\n");
+  else if (strcmp(flag_binary_files, "with-hex") == 0)
+    fprintf(file, "# Output with hex for binary matches\nwith-hex\n\n");
+  if (flag_hexdump != NULL)
+    fprintf(file, "# Hex dump (columns, no space breaks, no character column, no hex spacing)\nhexdump=%s\n\n", flag_hexdump);
+
+  if (flag_any_line)
+  {
+    fprintf(file, "# Display any line as context\nany-line\n\n");
+  }
+  else if (flag_after_context > 0 && flag_before_context == flag_after_context)
+  {
+    fprintf(file, "# Display context lines\ncontext=%zu\n\n", flag_after_context);
+  }
+  else
+  {
+    if (flag_after_context > 0)
+      fprintf(file, "# Display lines after context\nafter-context=%zu\n\n", flag_after_context);
+    if (flag_before_context > 0)
+      fprintf(file, "# Display lines before context\nbefore-context=%zu\n\n", flag_before_context);
+  }
+  if (flag_group_separator == NULL)
+    fprintf(file, "# Disable group separator for contexts\nno-group-separator\n\n");
+  else if (strcmp(flag_group_separator, "--") != 0)
+    fprintf(file, "# Group separator for contexts\ngroup-separator=%s\n\n", flag_group_separator);
 
   fprintf(file, "### SEARCH PATTERNS ###\n\n");
 
@@ -4155,6 +4197,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_binary = false;
                 else if (strcmp(arg, "no-bool") == 0)
                   flag_bool = false;
+                else if (strcmp(arg, "no-break") == 0)
+                  flag_break = false;
                 else if (strcmp(arg, "no-byte-offset") == 0)
                   flag_byte_offset = false;
                 else if (strcmp(arg, "no-color") == 0 || strcmp(arg, "no-colour") == 0)
@@ -4216,7 +4260,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup, or --null");
                 break;
 
               case 'o':
@@ -5073,7 +5117,7 @@ void init(int argc, const char **argv)
     {
       flag_hex_columns = 8 * (*flag_hexdump - '0');
       if (flag_hex_columns == 0 || flag_hex_columns > MAX_HEX_COLUMNS)
-        usage("invalid argument --hexdump=[1-8][b][c]");
+        usage("invalid argument --hexdump=[1-8][b][c][h]");
     }
     if (strchr(flag_hexdump, 'b') != NULL)
       flag_hex_hbr = flag_hex_cbr = false;
@@ -7512,6 +7556,7 @@ void Grep::search(const char *pathname)
   if (pathname == NULL)
     pathname = flag_label;
 
+  bool colorize = flag_apply_color || flag_tag != NULL;
   bool matched = false;
 
   // -z: loop over extracted archive parts, when applicable
@@ -8242,7 +8287,7 @@ void Grep::search(const char *pathname)
             {
               size_t lines = matcher->lines();
 
-              if (lines > 1 || flag_apply_color)
+              if (lines > 1 || colorize)
               {
                 size_t first = matcher->first();
                 size_t last = matcher->last();
@@ -8711,7 +8756,7 @@ void Grep::search(const char *pathname)
             {
               size_t lines = matcher->lines();
 
-              if (lines > 1 || flag_apply_color)
+              if (lines > 1 || colorize)
               {
                 size_t first = matcher->first();
                 size_t last = matcher->last();
@@ -9102,7 +9147,7 @@ void Grep::search(const char *pathname)
             {
               size_t lines = matcher->lines();
 
-              if (lines > 1 || flag_apply_color)
+              if (lines > 1 || colorize)
               {
                 size_t first = matcher->first();
                 size_t last = matcher->last();
@@ -9527,7 +9572,7 @@ void Grep::search(const char *pathname)
 
             if (size > 0)
             {
-              if (lines > 1 || flag_apply_color)
+              if (lines > 1 || colorize)
               {
                 size_t first = matcher->first();
                 size_t last = matcher->last();

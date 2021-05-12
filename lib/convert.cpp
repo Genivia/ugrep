@@ -461,7 +461,7 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
     throw regex_error(regex_error::mismatched_brackets, pattern, loc);
 }
 
-static void insert_escape_class(const char *pattern, size_t& pos, const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
+static void insert_escape_class(const char *pattern, size_t pos, const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
 {
   int c = pattern[pos];
   char name[2] = { static_cast<char>(lowercase(c)), '\0' };
@@ -653,6 +653,7 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
     // \s is the same as \p{Space} but without newline \n
     insert_escape_class(pattern, pos, mod, ranges);
     ranges.erase('\n');
+    return -1;
   }
   else if (std::isalpha(c))
   {
@@ -1281,7 +1282,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     ranges.erase('\n');
     regex.append(&pattern[loc], pos - loc - 1);
     regex.append(convert_ranges(pattern, pos, ranges, mod, flags, signature, par));
-    loc = ++pos;
+    loc = pos + 1;
   }
   else
   {

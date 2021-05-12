@@ -193,6 +193,10 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
     done
   done
   printf .
+  $UG -U --tag "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
+    | $DIFF "out/$FN--tag.out" \
+    || ERR "--tag '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+  printf .
   $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
     | $DIFF "out/$FN--format.out" \
     || ERR "--format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
@@ -224,13 +228,13 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   if [ "$PAT" == '\w+\s+\S+' ]; then
     $UG -U -G  '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
       | $DIFF "out/$FN-G.out" \
-      || ERR "-G '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+      || ERR "-G '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
     $UG -U -Gw '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
       | $DIFF "out/$FN-Gw.out" \
-      || ERR "-Gw '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+      || ERR "-Gw '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
     $UG -U -Gx '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
       | $DIFF "out/$FN-Gx.out" \
-      || ERR "-Gx '$PAT' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+      || ERR "-Gx '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
   else
     $UG -U -G  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt \
       | $DIFF "out/$FN-G.out" \

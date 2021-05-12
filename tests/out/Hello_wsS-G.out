@@ -1,0 +1,10 @@
+[1;35mHello.bat[m[1;36m:[m[m[1;4;32mecho "Hello[m World!"[m
+[mBinary file[1;35m Hello.class[m matches
+[1;35mHello.java[m[1;36m:[m[m[1;4;32mimport java.lang.*;[m
+[1;35mHello.java[m[1;36m:[m[m[1;4;32mpublic class[m [m[1;4;32mHello //[m [m[1;4;32mprints a[m [m[1;4;32mHello World![m greeting[m
+[1;35mHello.java[m[1;36m:[m{ [m[1;4;32mpublic static[m [m[1;4;32mvoid main(String[][m arg)[m
+[1;35mHello.java[m[1;36m:[m  { System.out.println("[m[1;4;32mHello World!");[m
+[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m4 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mLength 5[m [m[1;4;32m0 R[m /[m[1;4;32mFilter /FlateDecode[m >>[m
+[mBinary file[1;35m Hello.pdf[m matches
+[1;35mHello.sh[m[1;36m:[m[m[1;4;32mecho "Hello[m World!"[m

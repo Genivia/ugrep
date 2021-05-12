@@ -1,0 +1,15 @@
+Hello.bat:#!/bin/sh
+Hello.bat:echo "Hello World!"
+Binary file Hello.class matches
+Hello.java:import java.lang.*;
+Hello.java:
+Hello.java:public class Hello // prints a Hello World! greeting
+Hello.java:{ public static void main(String[] arg)
+Hello.java:  { System.out.println("Hello World!");
+Hello.java:  }
+Hello.java:}
+Hello.pdf:%PDF-1.3
+Binary file Hello.pdf matches
+Hello.sh:#!/bin/sh
+Hello.sh:echo "Hello World!"
+Hello.txt:Hello

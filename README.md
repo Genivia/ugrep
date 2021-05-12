@@ -657,6 +657,10 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 - **ugrep** searches cpio, jar, pax, tar and zip archives with option `-z`.
 - **ugrep** searches pdf, doc, docx, xls, xlsx, epub, and more with `--filter`
   using third-party format conversion utilities as plugins.
+- **ugrep** searches a directory when the FILE argument is a directory, like
+  most Unix/Linux utilities; option `-r` searches directories recursively.
+- **ugrep** does not match hidden files by default like most Unix/Linux
+  utilities (hidden dotfile file matching is enabled with `-.`).
 - **ugrep** regular expression patterns are more expressive than GNU grep and
   BSD grep POSIX ERE and support Unicode pattern matching.  Extended regular
   expression (ERE) syntax is the default (i.e. option `-E` as egrep, whereas
@@ -665,8 +669,6 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
   speed (disabled with option `-J1`).
 - **ugrep** produces hexdumps with `-W` (output binary matches in hex with text
   matches output as usual) and `-X` (output all matches in hex).
-- **ugrep** does not match hidden files by default like most Unix/Linux
-  utilities (hidden dotfile file matching is enabled with `-.`).
 - **ugrep** can output matches in JSON, XML, CSV and user-defined formats (with
   option `--format`).
 - **ugrep** option `-f` uses `GREP_PATH` environment variable or the predefined
@@ -4679,7 +4681,7 @@ in markdown:
 
 
 
-    ugrep 3.2.1                      May 05, 2021                         UGREP(1)
+    ugrep 3.2.2                      May 12, 2021                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
