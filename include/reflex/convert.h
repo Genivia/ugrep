@@ -77,31 +77,40 @@ namespace convert_flag {
 ///
 /// The optional `"decls:"` part specifies which modifiers and other special `(?...)` constructs are supported:
 /// - non-capturing group `(?:...)` is supported
-/// - one or all of "imsx" specify which (?ismx) modifiers are supported:
+/// - letters and digits specify which modifiers e.g. (?ismx) are supported:
 /// - 'i' specifies that `(?i...)` case-insensitive matching is supported
 /// - 'm' specifies that `(?m...)` multiline mode is supported for the ^ and $ anchors
 /// - 's' specifies that `(?s...)` dotall mode is supported
 /// - 'x' specifies that `(?x...)` freespace mode is supported
+/// - ... any other letter or digit modifier, where digit modifiers support `(?123)` for example
 /// - `#` specifies that `(?#...)` comments are supported
 /// - `=` specifies that `(?=...)` lookahead is supported
-/// - `<` specifies that `(?<...)` lookbehind is supported
+/// - `<` specifies that `(?'...)` 'name' groups are supported
+/// - `<` specifies that `(?<...)` lookbehind and <name> groups are supported
+/// - `>` specifies that `(?>...)` atomic groups are supported
+/// - `>` specifies that `(?|...)` group resets are supported
+/// - `>` specifies that `(?&...)` subroutines are supported
+/// - `>` specifies that `(?(...)` conditionals are supported
 /// - `!` specifies that `(?!=...)` and `(?!<...)` are supported
 /// - `^` specifies that `(?^...)` negative (reflex) patterns are supported
+/// - `*` specifies that `(*VERB)` verbs are supported
 ///
 /// The `"escapes"` characters specify which standard escapes are supported:
 /// - `a` for `\a` (BEL U+0007)
-/// - `b` for `\b` (BS U+0008) in brackets `[\b]` only AND the `\b` word boundary
+/// - `b` for `\b` the `\b` word boundary
 /// - `c` for `\cX` control character specified by `X` modulo 32
-/// - `d` for `\d` ASCII digit `[0-9]`
+/// - `d` for `\d` digit `[0-9]` ASCII or Unicode digit
 /// - `e` for `\e` ESC U+001B
 /// - `f` for `\f` FF U+000C
+/// - `j` for `\g` group capture e.g. \g{1}
 /// - `h` for `\h` ASCII blank `[ \t]` (SP U+0020 or TAB U+0009)
 /// - `i` for `\i` reflex indent anchor
 /// - `j` for `\j` reflex dedent anchor
-/// - `j` for `\k` reflex undent anchor
-/// - `l` for `\l` ASCII lower case letter `[a-z]`
+/// - `j` for `\k` reflex undent anchor or group capture e.g. \k{1}
+/// - `l` for `\l` lower case letter `[a-z]` ASCII or Unicode letter
 /// - `n` for `\n` LF U+000A
-/// - `p` for `\p{C}` Unicode character classes, also implies Unicode \x{X}, \l, \u, \d, \s, \w
+/// - `o` for `\o` octal ASCII or Unicode code
+/// - `p` for `\p{C}` Unicode character classes, also implies Unicode ., \x{X}, \l, \u, \d, \s, \w, and UTF-8 patterns
 /// - `r` for `\r` CR U+000D
 /// - `s` for `\s` space (SP, TAB, LF, VT, FF, or CR)
 /// - `t` for `\t` TAB U+0009
@@ -143,8 +152,11 @@ namespace convert_flag {
 /// - `?` lazy quantifiers for repeats are supported
 /// - `+` possessive quantifiers for repeats are supported
 ///
-/// The optional `"."` (dot) specifies that dot matches any character except newline.
+/// An optional `"."` (dot) specifies that dot matches any character except newline.
 /// A dot is implied by the presence of the 's' modifier, and can be omitted in that case.
+///
+/// An optional `"["` specifies that bracket list union, intersection, and
+/// subtraction are supported, i.e. [\w--[a-z]].
 std::string convert(
     const char                              *pattern,                    ///< regex string pattern to convert
     const char                              *signature,                  ///< regex library signature

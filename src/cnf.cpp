@@ -596,7 +596,10 @@ void CNF::report(FILE *output) const
   if (empty())
     return;
 
-  fprintf(output, "Lines matched if:\n  ");
+  if (flag_fuzzy > 0)
+    fprintf(output, "Lines fuzzy-matched with max edit distance %zu if:\n  ", flag_fuzzy & 255);
+  else
+    fprintf(output, "Lines matched if:\n  ");
 
   if (!flag_file.empty())
   {

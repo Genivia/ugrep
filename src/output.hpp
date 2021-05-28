@@ -341,6 +341,29 @@ class Output {
       chr(*s++);
   }
 
+  // output a URI-encoded string s
+  void uri(const std::string& s)
+  {
+    uri(s.c_str());
+  }
+
+  // output a URI-encoded string s
+  void uri(const char *s)
+  {
+    while (*s != '\0')
+    {
+      if (*s >= 0x20 && *s <= 0x7e && *s != '%' && *s != ';')
+      {
+        chr(*s++);
+      }
+      else
+      {
+        chr('%');
+        hex(static_cast<unsigned char>(*s++), 2);
+      }
+    }
+  }
+
   // output a match
   void mat(reflex::AbstractMatcher *matcher)
   {

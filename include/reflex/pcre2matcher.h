@@ -50,7 +50,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
   template<typename T>
   static std::string convert(T regex, convert_flag_type flags = convert_flag::none)
   {
-    return reflex::convert(regex, "imPRsx!#<=&:abcdefghlnrstuvwxzABDGHKLNQRSUWXZ0123456789?+", flags);
+    return reflex::convert(regex, "imPRsx!#<>=&|'(0123456789*:abcdefghnrstvwxzABCDGHKNQRSVWXZ0123456789?+", flags);
   }
   /// Default constructor.
   PCRE2Matcher()
@@ -411,17 +411,18 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
       }
       if (rc == PCRE2_ERROR_PARTIAL)
       {
+        PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(dat_);
+        cur_ = ovector[0]; // advance to the start of the partial match
         if (method == Const::FIND)
-          txt_ = buf_ + pos_;
-        cur_ = pos_;
+          txt_ = buf_ + cur_;
         pos_ = end_;
-        if (peek_more() == EOF)
+        if (peek_more() == EOF) // read more text into the buffer after end_
         {
           if ((flg & PCRE2_PARTIAL_HARD) == 0)
             return false;
           flg &= ~PCRE2_PARTIAL_HARD;
         }
-        pos_ = cur_;
+        pos_ = cur_; // try again
       }
       else if (rc == PCRE2_ERROR_NOMATCH && (method == Const::FIND || method == Const::SPLIT))
       {
@@ -467,7 +468,7 @@ class PCRE2UTFMatcher : public PCRE2Matcher {
   template<typename T>
   static std::string convert(T regex, convert_flag_type flags = convert_flag::none)
   {
-    return reflex::convert(regex, "imsx!#<=:abcdefghlnprstuvwxzABDGHKLNPQRSUWXZ0123456789?+", flags);
+    return reflex::convert(regex, "imPRsx!#<>=&|'(0123456789*:abcdefghknprstvwxzABCDGHKNPQRSVWXZ0123456789?+", flags);
   }
   /// Default constructor.
   PCRE2UTFMatcher() : PCRE2Matcher()

@@ -132,14 +132,43 @@ $UG -Rl --filter='sh:head -n1'           Hello dir1 | $DIFF out/dir--filter.out 
 
 rm -rf dir1 dir2
 
-printf .
-$UG -Fiwco -f lorem lorem.utf8.txt  | $DIFF out/lorem.utf8.out  || ERR "-Fiwco -f lorem lorem.utf8.txt"
-printf .
-$UG -Fiwco -f lorem lorem.utf16.txt | $DIFF out/lorem.utf16.out || ERR "-Fiwco -f lorem lorem.utf16.txt"
-printf .
-$UG -Fiwco -f lorem lorem.utf32.txt | $DIFF out/lorem.utf32.out || ERR "-Fiwco -f lorem lorem.utf32.txt"
-printf .
-cat lorem | $UG -Fiwco --encoding=LATIN1 -f - lorem.latin1.txt | $DIFF out/lorem.latin1.out || ERR "-Fiwco --encoding=LATIN1 -f lorem lorem.latin1.txt"
+for OPS in '' '-F' '-G' ; do
+  printf .
+  $UG $OPS -iwco -f lorem lorem.utf8.txt \
+    | $DIFF "out/lorem.utf8$OPS-iwco.out" \
+    || ERR "$OPS -iwco -f lorem lorem.utf8.txt"
+  printf .
+  $UG $OPS -iwco -f lorem lorem.utf16.txt \
+    | $DIFF "out/lorem.utf8$OPS-iwco.out" \
+    || ERR "$OPS -iwco -f lorem lorem.utf16.txt"
+  printf .
+  $UG $OPS -iwco -f lorem lorem.utf32.txt \
+    | $DIFF "out/lorem.utf8$OPS-iwco.out" \
+    || ERR "$OPS -iwco -f lorem lorem.utf32.txt"
+  printf .
+  cat lorem | $UG $OPS -iwco --encoding=LATIN1 -f - lorem.latin1.txt \
+    | $DIFF "out/lorem.latin1$OPS-iwco.out" \
+    || ERR "$OPS -iwco -f lorem lorem.latin1.txt"
+done
+
+if [ "$have_pcre2" == yes ]; then
+  printf .
+  $UG -P -iwco -f lorem lorem.utf8.txt \
+    | $DIFF "out/lorem.utf8-P-iwco.out" \
+    || ERR "-P -iwco -f lorem lorem.utf8.txt"
+  printf .
+  $UG -P -iwco -f lorem lorem.utf16.txt \
+    | $DIFF "out/lorem.utf8-P-iwco.out" \
+    || ERR "-P -iwco -f lorem lorem.utf16.txt"
+  printf .
+  $UG -P -iwco -f lorem lorem.utf32.txt \
+    | $DIFF "out/lorem.utf8-P-iwco.out" \
+    || ERR "-P -iwco -f lorem lorem.utf32.txt"
+  printf .
+  cat lorem | $UG -P -iwco --encoding=LATIN1 -f - lorem.latin1.txt \
+    | $DIFF "out/lorem.latin1-P-iwco.out" \
+    || ERR "-P -iwco -f lorem lorem.latin1.txt"
+fi
 
 printf .
 $UG -Zio Lorem lorem.utf8.txt | $DIFF out/lorem_Lorem-Zio.out  || ERR "-Zio Lorem lorem.utf8.txt"

@@ -299,6 +299,7 @@ class FuzzyMatcher : public Matcher {
     reset_text();
     SaveState sst(ded_);
     len_ = 0; // split text length starts with 0
+    anc_ = false; // no word boundary anchor found and applied
 scan:
     txt_ = buf_ + cur_;
 #if !defined(WITH_NO_INDENT)
@@ -308,7 +309,7 @@ scan:
 #endif
 find:
     int c1 = got_;
-    bool bol = at_bol();
+    bool bol = at_bol(); // at begin of line?
 #if !defined(WITH_NO_INDENT)
 redo:
 #endif
@@ -478,6 +479,7 @@ redo:
                     continue;
                   case Pattern::META_EOL - Pattern::META_MIN:
                     DBGLOG("EOL? %d", c1);
+                    anc_ = true;
                     if (jump == Pattern::Const::IMAX && (c1 == EOF || c1 == '\n' || (c1 == '\r' && peek() == '\n')))
                     {
                       jump = Pattern::index_of(opcode);
@@ -488,6 +490,7 @@ redo:
                     continue;
                   case Pattern::META_BOL - Pattern::META_MIN:
                     DBGLOG("BOL? %d", bol);
+                    anc_ = true;
                     if (jump == Pattern::Const::IMAX && bol)
                     {
                       jump = Pattern::index_of(opcode);
@@ -498,7 +501,8 @@ redo:
                     continue;
                   case Pattern::META_EWE - Pattern::META_MIN:
                     DBGLOG("EWE? %d %d %d", c0, c1, isword(c0) && !isword(c1));
-                    if (jump == Pattern::Const::IMAX && isword(c0) && !isword(c1))
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && (isword(c0) || opt_.W) && !isword(c1))
                     {
                       jump = Pattern::index_of(opcode);
                       if (jump == Pattern::Const::LONG)
@@ -508,6 +512,7 @@ redo:
                     continue;
                   case Pattern::META_BWE - Pattern::META_MIN:
                     DBGLOG("BWE? %d %d %d", c0, c1, !isword(c0) && isword(c1));
+                    anc_ = true;
                     if (jump == Pattern::Const::IMAX && !isword(c0) && isword(c1))
                     {
                       jump = Pattern::index_of(opcode);
@@ -518,6 +523,7 @@ redo:
                     continue;
                   case Pattern::META_EWB - Pattern::META_MIN:
                     DBGLOG("EWB? %d", at_eow());
+                    anc_ = true;
                     if (jump == Pattern::Const::IMAX && isword(got_) &&
                         !isword(static_cast<unsigned char>(method == Const::SPLIT ? txt_[len_] : *txt_)))
                     {
@@ -529,8 +535,9 @@ redo:
                     continue;
                   case Pattern::META_BWB - Pattern::META_MIN:
                     DBGLOG("BWB? %d", at_bow());
+                    anc_ = true;
                     if (jump == Pattern::Const::IMAX && !isword(got_) &&
-                        isword(static_cast<unsigned char>(method == Const::SPLIT ? txt_[len_] : *txt_)))
+                        (opt_.W || isword(static_cast<unsigned char>(method == Const::SPLIT ? txt_[len_] : *txt_))))
                     {
                       jump = Pattern::index_of(opcode);
                       if (jump == Pattern::Const::LONG)
@@ -540,6 +547,7 @@ redo:
                     continue;
                   case Pattern::META_NWE - Pattern::META_MIN:
                     DBGLOG("NWE? %d %d %d", c0, c1, isword(c0) == isword(c1));
+                    anc_ = true;
                     if (jump == Pattern::Const::IMAX && isword(c0) == isword(c1))
                     {
                       jump = Pattern::index_of(opcode);
@@ -550,6 +558,7 @@ redo:
                     continue;
                   case Pattern::META_NWB - Pattern::META_MIN:
                     DBGLOG("NWB? %d %d", at_bow(), at_eow());
+                    anc_ = true;
                     if (jump == Pattern::Const::IMAX &&
                         isword(got_) == isword(static_cast<unsigned char>(txt_[len_])))
                     {
@@ -635,8 +644,8 @@ unrolled:
           jump = Pattern::index_of(opcode);
           if (jump == 0)
           {
-            // loop back to start state: failed to match anything so far?
-            if (cap_ == 0)
+            // loop back to start state after only one char matched (one transition) but w/o full match, then optimize
+            if (cap_ == 0 && pos_ == cur_ + 1 && method == Const::FIND)
               cur_ = pos_; // set cur_ to move forward from cur_ + 1 with FIND advance()
           }
           else if (jump >= Pattern::Const::LONG)
@@ -910,6 +919,11 @@ unrolled:
     {
       if (method == Const::FIND && !at_end())
       {
+        if (anc_)
+        {
+          cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
+          anc_ = false;
+        }
         // fuzzy search with find() can safely advance on a single prefix char of the regex
         if (pos_ > cur_)
         {

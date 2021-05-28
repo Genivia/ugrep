@@ -65,10 +65,12 @@ sit
 amét
 END
 
-$UG -Fiwco -f lorem lorem.utf8.txt  > out/lorem.utf8.out
-$UG -Fiwco -f lorem lorem.utf16.txt > out/lorem.utf16.out
-$UG -Fiwco -f lorem lorem.utf32.txt > out/lorem.utf32.out
-cat lorem | $UG -Fiwco --encoding=LATIN1 -f - lorem.latin1.txt > out/lorem.latin1.out
+for OPS in '' '-F' '-G' '-P' ; do
+  $UG $OPS -iwco -f lorem lorem.utf8.txt  > "out/lorem.utf8$OPS-iwco.out"
+  $UG $OPS -iwco -f lorem lorem.utf16.txt > "out/lorem.utf16$OPS-iwco.out"
+  $UG $OPS -iwco -f lorem lorem.utf32.txt > "out/lorem.utf32$OPS-iwco.out"
+  cat lorem | $UG $OPS -iwco --encoding=LATIN1 -f - lorem.latin1.txt > "out/lorem.latin1$OPS-iwco.out"
+done
 
 $UG -Zio Lorem lorem.utf8.txt > out/lorem_Lorem-Zio.out
 

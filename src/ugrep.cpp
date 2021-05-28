@@ -69,7 +69,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.2.2"
+#define UGREP_VERSION "3.3.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -124,6 +124,7 @@ After this, you may want to test ugrep and install it (optional):
 // #define HAVE_LIBZSTD
 
 #include <stringapiset.h>
+#include <direct.h>
 
 #else
 
@@ -352,8 +353,13 @@ char match_ms[COLORLEN];  // --match or --tag: matched text in a selected line
 char match_mc[COLORLEN];  // --match or --tag: matched text in a context line
 char match_off[COLORLEN]; // --match or --tag: off
 
-const char *color_off     = ""; // disable colors
+std::string color_wd; // hyperlink working directory path
+
+const char *color_hl      = NULL; // hyperlink
+const char *color_st      = NULL; // ST
+
 const char *color_del     = ""; // erase line after the cursor
+const char *color_off     = ""; // disable colors
 
 const char *color_high    = ""; // stderr highlighted text
 const char *color_error   = ""; // stderr error text
@@ -4105,8 +4111,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_hexdump = arg + 8;
                 else if (strcmp(arg, "hidden") == 0)
                   flag_hidden = true;
+                else if (strcmp(arg, "hyperlink") == 0)
+                  flag_colors = "hl";
                 else
-                  usage("invalid option --", arg, "--heading, --help, --hex, --hexdump or --hidden");
+                  usage("invalid option --", arg, "--heading, --help, --hex, --hexdump, --hidden or --hyperlink");
                 break;
 
               case 'i':
@@ -5739,35 +5747,35 @@ void terminal()
 
           // if GREP_COLOR is defined, use it to set mt= default value (overridden by GREP_COLORS mt=, ms=, mc=)
           if (env_grep_color != NULL)
-            set_color(std::string("mt=").append(env_grep_color).c_str(), "mt", color_mt);
+            set_color(std::string("mt=").append(env_grep_color).c_str(), "mt=", color_mt);
           else if (grep_colors == NULL)
             grep_colors = DEFAULT_GREP_COLORS;
 
           // parse GREP_COLORS
-          set_color(grep_colors, "sl", color_sl); // selected line
-          set_color(grep_colors, "cx", color_cx); // context line
-          set_color(grep_colors, "mt", color_mt); // matched text in any line
-          set_color(grep_colors, "ms", color_ms); // matched text in selected line
-          set_color(grep_colors, "mc", color_mc); // matched text in a context line
-          set_color(grep_colors, "fn", color_fn); // file name
-          set_color(grep_colors, "ln", color_ln); // line number
-          set_color(grep_colors, "cn", color_cn); // column number
-          set_color(grep_colors, "bn", color_bn); // byte offset
-          set_color(grep_colors, "se", color_se); // separator
+          set_color(grep_colors, "sl=", color_sl); // selected line
+          set_color(grep_colors, "cx=", color_cx); // context line
+          set_color(grep_colors, "mt=", color_mt); // matched text in any line
+          set_color(grep_colors, "ms=", color_ms); // matched text in selected line
+          set_color(grep_colors, "mc=", color_mc); // matched text in a context line
+          set_color(grep_colors, "fn=", color_fn); // file name
+          set_color(grep_colors, "ln=", color_ln); // line number
+          set_color(grep_colors, "cn=", color_cn); // column number
+          set_color(grep_colors, "bn=", color_bn); // byte offset
+          set_color(grep_colors, "se=", color_se); // separator
 
           // parse --colors to override GREP_COLORS
-          set_color(flag_colors, "sl", color_sl); // selected line
-          set_color(flag_colors, "cx", color_cx); // context line
-          set_color(flag_colors, "mt", color_mt); // matched text in any line
-          set_color(flag_colors, "ms", color_ms); // matched text in selected line
-          set_color(flag_colors, "mc", color_mc); // matched text in a context line
-          set_color(flag_colors, "fn", color_fn); // file name
-          set_color(flag_colors, "ln", color_ln); // line number
-          set_color(flag_colors, "cn", color_cn); // column number
-          set_color(flag_colors, "bn", color_bn); // byte offset
-          set_color(flag_colors, "se", color_se); // separator
+          set_color(flag_colors, "sl=", color_sl); // selected line
+          set_color(flag_colors, "cx=", color_cx); // context line
+          set_color(flag_colors, "mt=", color_mt); // matched text in any line
+          set_color(flag_colors, "ms=", color_ms); // matched text in selected line
+          set_color(flag_colors, "mc=", color_mc); // matched text in a context line
+          set_color(flag_colors, "fn=", color_fn); // file name
+          set_color(flag_colors, "ln=", color_ln); // line number
+          set_color(flag_colors, "cn=", color_cn); // column number
+          set_color(flag_colors, "bn=", color_bn); // byte offset
+          set_color(flag_colors, "se=", color_se); // separator
 
-          // -v: if rv in GREP_COLORS then swap the sl and cx colors
+          // -v: if rv in GREP_COLORS then swap the sl and cx colors (note that rv does not match color letters)
           if (flag_invert_match &&
               ((grep_colors != NULL && strstr(grep_colors, "rv") != NULL) ||
                (flag_colors != NULL && strstr(flag_colors, "rv") != NULL)))
@@ -5786,8 +5794,31 @@ void terminal()
           if (*color_mc == '\0')
             copy_color(color_mc, color_mt);
 
+          // if OSC hyperlinks are OK (note that "hl" does not match color letters so strstr can be used)
+          if (strstr(grep_colors, "hl") != NULL || (flag_colors != NULL && strstr(flag_colors, "hl") != NULL))
+          {
+#ifdef OS_WIN
+            char *cwd = _getcwd(NULL, 0);
+#else
+            char *cwd = getcwd(NULL, 0);
+#endif
+            if (cwd != NULL)
+            {
+              char *path = cwd;
+              if (*path == PATHSEPCHR)
+                ++path;
+              color_wd.assign("file://localhost").append(PATHSEPSTR).append(path).push_back(PATHSEPCHR);
+              free(cwd);
+              color_hl = "\033]8;;";
+              color_st = "\033\\";
+            }
+          }
+
+          // if CSI erase line is OK (note that ne does not match color letters so strstr can be used)
+          if (strstr(grep_colors, "ne") == NULL && (flag_colors == NULL || strstr(flag_colors, "ne") == NULL))
+            color_del = "\033[K";
+
           color_off = "\033[m";
-          color_del = "\033[K";
 
           copy_color(match_off, color_off);
 
@@ -6070,11 +6101,12 @@ void ugrep()
     }
   }
 
-  // -x or --match: enable -Y and disable --dotall
+  // -x or --match: enable -Y and disable --dotall and -w
   if (flag_line_regexp || flag_match)
   {
     flag_empty = true;
     flag_dotall = false;
+    flag_word_regexp = false;
   }
 
   // -f: get patterns from file
@@ -6158,11 +6190,16 @@ void ugrep()
     if (flag_basic_regexp)
       regex.pop_back();
 
-    // -G requires \( \) instead of ( )
-    const char *xleft = flag_basic_regexp ? "^\\(" : "^(";
+    // -G requires \( \) instead of ( ) and -P requires (?<!\w) (?!\w) instead of \< and \>
+    const char *xleft = flag_basic_regexp ? "^\\(" : "^(?:";
     const char *xright = flag_basic_regexp ? "\\)$" : ")$";
-    const char *wleft = flag_basic_regexp ? "\\<\\(" : "\\<(";
-    const char *wright = flag_basic_regexp ? "\\)\\>" : ")\\>";
+#if defined(HAVE_PCRE2)
+    const char *wleft = flag_basic_regexp ? "\\<\\(" : flag_perl_regexp ? "(?<!\\w)(?:" : "\\<(";
+    const char *wright = flag_basic_regexp ? "\\)\\>" : flag_perl_regexp ? ")(?!\\w)" : ")\\>";
+#else // Boost.Regex
+    const char *wleft = flag_basic_regexp ? "\\<\\(" : flag_perl_regexp ? "(?<![[:word:]])(?:" : "\\<(";
+    const char *wright = flag_basic_regexp ? "\\)\\>" : flag_perl_regexp ? ")(?![[:word:]])" : ")\\>";
+#endif
 
     // -x or -w: if no PATTERN is specified, then apply -x or -w to -f FILE patterns
     if (line_regexp)
@@ -6356,6 +6393,10 @@ void ugrep()
   if (flag_empty)
     matcher_options.push_back('N');
 
+  // -w: match whole words, i.e. make \< and \> match only left side and right side, respectively
+  if (flag_word_regexp)
+    matcher_options.push_back('W');
+
   // --tabs: set reflex::Matcher option T to NUM (1, 2, 4, or 8) tab size
   if (flag_tabs)
     matcher_options.append("T=").push_back(static_cast<char>(flag_tabs) + '0');
@@ -6376,8 +6417,8 @@ void ugrep()
   {
 #if defined(HAVE_PCRE2)
     // construct the PCRE2 JIT-optimized NFA-based Perl pattern matcher
-    std::string pattern(reflex::PCRE2Matcher::convert(regex, convert_flags));
-    reflex::PCRE2Matcher matcher(pattern, reflex::Input(), matcher_options.c_str());
+    std::string pattern(flag_binary ? reflex::PCRE2Matcher::convert(regex, convert_flags) : reflex::PCRE2UTFMatcher::convert(regex, convert_flags));
+    reflex::PCRE2Matcher matcher(pattern, reflex::Input(), matcher_options.c_str(), flag_binary ? (PCRE2_NEVER_UTF | PCRE2_NEVER_UCP) : (PCRE2_UTF | PCRE2_UCP));
     Grep::Matchers matchers;
 
     if (!bcnf.singleton_or_undefined())
@@ -6395,7 +6436,7 @@ void ugrep()
           if (j)
           {
             subregex.assign(pattern_options).append(*j);
-            submatchers.emplace_back(new reflex::PCRE2Matcher(reflex::PCRE2Matcher::convert(subregex, convert_flags), reflex::Input(), matcher_options.c_str()));
+            submatchers.emplace_back(new reflex::PCRE2Matcher((flag_binary ? reflex::PCRE2Matcher::convert(subregex, convert_flags) : reflex::PCRE2UTFMatcher::convert(subregex, convert_flags)), reflex::Input(), matcher_options.c_str(), flag_binary ? (PCRE2_NEVER_UTF | PCRE2_NEVER_UCP) : (PCRE2_UTF | PCRE2_UCP)));
           }
           else
           {
@@ -6418,10 +6459,11 @@ void ugrep()
       clear_grep_handle();
     }
 #elif defined(HAVE_BOOST_REGEX)
+    std::string pattern;
     try
     {
       // construct the Boost.Regex NFA-based Perl pattern matcher
-      std::string pattern(reflex::BoostPerlMatcher::convert(regex, convert_flags));
+      pattern.assign(reflex::BoostPerlMatcher::convert(regex, convert_flags));
       reflex::BoostPerlMatcher matcher(pattern, reflex::Input(), matcher_options.c_str());
       Grep::Matchers matchers;
 
@@ -6513,7 +6555,7 @@ void ugrep()
           code = reflex::regex_error::invalid_syntax;
       }
 
-      throw reflex::regex_error(code, regex, error.position() + 1);
+      throw reflex::regex_error(code, pattern, error.position() + 1);
     }
 #endif
   }
@@ -7620,7 +7662,19 @@ void Grep::search(const char *pathname)
             else
             {
               out.str(color_fn);
+              if (color_hl != NULL)
+              {
+                out.str(color_hl);
+                out.uri(color_wd);
+                out.uri(pathname);
+                out.str(color_st);
+              }
               out.str(pathname);
+              if (color_hl != NULL)
+              {
+                out.str(color_hl);
+                out.str(color_st);
+              }
               if (!partname.empty())
               {
                 out.chr('{');
@@ -7734,7 +7788,19 @@ void Grep::search(const char *pathname)
           if (flag_with_filename || !partname.empty())
           {
             out.str(color_fn);
+            if (color_hl != NULL)
+            {
+              out.str(color_hl);
+              out.uri(color_wd);
+              out.uri(pathname);
+              out.str(color_st);
+            }
             out.str(pathname);
+            if (color_hl != NULL)
+            {
+              out.str(color_hl);
+              out.str(color_st);
+            }
             if (!partname.empty())
             {
               out.chr('{');
@@ -9991,7 +10057,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
     const char *s = strstr(colors, parameter);
 
     // check if substring parameter is present in colors
-    if (s != NULL && s[2] == '=')
+    if (s != NULL)
     {
       s += 3;
       char *t = color + 2;
@@ -10319,7 +10385,9 @@ void help(std::ostream& out)
             Upper case specifies background colors.  A `+' qualifies a color as\n\
             bright.  A foreground and a background color may be combined with\n\
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'\n\
-            (invert), `u' (underline).  Selectively overrides GREP_COLORS.\n\
+            (invert), `u' (underline).  Parameter `hl' enables file name\n\
+            hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters\n\
+            with option -v.  Selectively overrides GREP_COLORS.\n\
     --config[=FILE], ---[FILE]\n\
             Use configuration FILE.  The default FILE is `.ugrep'.  The working\n\
             directory is checked first for FILE, then the home directory.  The\n\
@@ -10354,7 +10422,7 @@ void help(std::ostream& out)
             levels deep.  Enables -R if -R or -r is not specified.\n\
     --dotall\n\
             Dot `.' in regular expressions matches anything, including newline.\n\
-            Beware that `.*' dot greedy repeats match all input, to be avoided.\n\
+            Note that `.*' matches all input and should not be used.\n\
     -E, --extended-regexp\n\
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
@@ -10408,8 +10476,8 @@ void help(std::ostream& out)
             Interpret pattern as a set of fixed strings, separated by newlines,\n\
             any of which is to be matched.  This makes ugrep behave as fgrep.\n\
             If a PATTERN is specified, or -e PATTERN or -N PATTERN, then this\n\
-            option does not apply to -f FILE patterns to allow -f FILE patterns\n\
-            to narrow or widen the PATTERN search.\n\
+            option has no effect on -f FILE patterns to allow -f FILE patterns\n\
+            to narrow or widen the scope of the PATTERN search.\n\
     -f FILE, --file=FILE\n\
             Read newline-separated patterns from FILE.  White space in patterns\n\
             is significant.  Empty lines in FILE are ignored.  If FILE does not\n\
@@ -10490,12 +10558,16 @@ void help(std::ostream& out)
             "Windows system and "
 #endif
             "hidden files and directories.\n\
+    --hyperlink\n\
+            Hyperlinks are enabled for file names when colors are enabled.\n\
+            Same as --colors=hl.\n\
     -I, --ignore-binary\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\
     -i, --ignore-case\n\
             Perform case insensitive matching.  By default, ugrep is case\n\
-            sensitive.  This option applies to ASCII letters only.\n\
+            sensitive.  By default, this option applies to ASCII letters only.\n\
+            Use options -P and -i for Unicode case insensitive matching.\n\
     --ignore-files[=FILE]\n\
             Ignore files and directories matching the globs in each FILE that\n\
             is encountered in recursive searches.  The default FILE is\n\
@@ -10546,8 +10618,8 @@ void help(std::ostream& out)
             simultaneously.  -J1 disables threading: files are searched in the\n\
             same order as specified.\n\
     -j, --smart-case\n\
-            Perform case insensitive matching unless a pattern contains an\n\
-            upper case letter.  This option applies to ASCII letters only.\n\
+            Perform case insensitive matching like option -i, unless a pattern\n\
+            is specified with a literal ASCII upper case letter.\n\
     --json\n\
             Output file matches in JSON.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
@@ -10761,19 +10833,23 @@ void help(std::ostream& out)
             Output binary matches in hexadecimal, leaving text matches alone.\n\
             This option is equivalent to the --binary-files=with-hex option.\n\
     -w, --word-regexp\n\
-            The PATTERN is searched for as a word (as if surrounded by \\< and\n\
-            \\>).  If a PATTERN is specified, or -e PATTERN or -N PATTERN, then\n\
-            this option does not apply to -f FILE patterns to allow -f FILE\n\
-            patterns to narrow or widen the PATTERN search.\n\
+            The PATTERN is searched for as a word, such that the matching text\n\
+            is preceded by a non-word character and is followed by a non-word\n\
+            character.  Word characters are letters, digits, and the\n\
+            underscore.  With option -P, word characters are Unicode letters,\n\
+            digits, and underscore.  This option has no effect if -x is also\n\
+            specified.  If a PATTERN is specified, or -e PATTERN or -N PATTERN,\n\
+            then this option has no effect on -f FILE patterns to allow -f FILE\n\
+            patterns to narrow or widen the scope of the PATTERN search.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option.  See also option --hexdump.\n\
     -x, --line-regexp\n\
-            Only input lines selected against the entire PATTERN is considered\n\
-            to be matching lines (as if surrounded by ^ and $).  If a PATTERN\n\
-            is specified, or -e PATTERN or -N PATTERN, then this option does\n\
-            not apply to -f FILE patterns to allow -f FILE patterns to narrow\n\
-            or widen the PATTERN search.\n\
+            Select only those matches that exactly match the whole line, as if\n\
+            the patterns are surrounded by ^ and $.  If a PATTERN is specified,\n\
+            or -e PATTERN or -N PATTERN, then this option has no effect on\n\
+            -f FILE patterns to allow -f FILE patterns to narrow or widen the\n\
+            scope of the PATTERN search.\n\
     --xml\n\
             Output file matches in XML.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\

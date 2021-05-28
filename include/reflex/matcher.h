@@ -339,41 +339,49 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// FSM code META EOL.
   inline bool FSM_META_EOL(int c1)
   {
+    anc_ = true;
     return c1 == EOF || c1 == '\n' || (c1 == '\r' && peek() == '\n');
   }
   /// FSM code META BOL.
   inline bool FSM_META_BOL()
   {
+    anc_ = true;
     return fsm_.bol;
   }
   /// FSM code META EWE.
   inline bool FSM_META_EWE(int c0, int c1)
   {
-    return isword(c0) && !isword(c1);
+    anc_ = true;
+    return (isword(c0) || opt_.W) && !isword(c1);
   }
   /// FSM code META BWE.
   inline bool FSM_META_BWE(int c0, int c1)
   {
+    anc_ = true;
     return !isword(c0) && isword(c1);
   }
   /// FSM code META EWB.
   inline bool FSM_META_EWB()
   {
+    anc_ = true;
     return isword(got_) && !isword(static_cast<unsigned char>(txt_[len_]));
   }
   /// FSM code META BWB.
   inline bool FSM_META_BWB()
   {
-    return !isword(got_) && isword(static_cast<unsigned char>(txt_[len_]));
+    anc_ = true;
+    return !isword(got_) && (opt_.W || isword(static_cast<unsigned char>(txt_[len_])));
   }
   /// FSM code META NWE.
   inline bool FSM_META_NWE(int c0, int c1)
   {
+    anc_ = true;
     return isword(c0) == isword(c1);
   }
   /// FSM code META NWB.
   inline bool FSM_META_NWB()
   {
+    anc_ = true;
     return isword(got_) == isword(static_cast<unsigned char>(txt_[len_]));
   }
  protected:
@@ -391,7 +399,8 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   {
     DBGLOG("BEGIN Matcher::match()");
     reset_text();
-    len_ = 0; // split text length starts with 0
+    len_ = 0;     // split text length starts with 0
+    anc_ = false; // no word boundary anchor found and applied
 scan:
     txt_ = buf_ + cur_;
 #if !defined(WITH_NO_INDENT)
@@ -401,7 +410,7 @@ scan:
 #endif
 find:
     int c1 = got_;
-    bool bol = at_bol();
+    bool bol = at_bol(); // at begin of line?
     if (pat_->fsm_ != NULL)
       fsm_.c1 = c1;
 #if !defined(WITH_NO_INDENT)
@@ -573,6 +582,7 @@ redo:
                   continue;
                 case Pattern::META_EOL - Pattern::META_MIN:
                   DBGLOG("EOL? %d", c1);
+                  anc_ = true;
                   if (jump == Pattern::Const::IMAX && (c1 == EOF || c1 == '\n' || (c1 == '\r' && peek() == '\n')))
                   {
                     jump = Pattern::index_of(opcode);
@@ -583,6 +593,7 @@ redo:
                   continue;
                 case Pattern::META_BOL - Pattern::META_MIN:
                   DBGLOG("BOL? %d", bol);
+                  anc_ = true;
                   if (jump == Pattern::Const::IMAX && bol)
                   {
                     jump = Pattern::index_of(opcode);
@@ -593,7 +604,8 @@ redo:
                   continue;
                 case Pattern::META_EWE - Pattern::META_MIN:
                   DBGLOG("EWE? %d %d %d", c0, c1, isword(c0) && !isword(c1));
-                  if (jump == Pattern::Const::IMAX && isword(c0) && !isword(c1))
+                  anc_ = true;
+                  if (jump == Pattern::Const::IMAX && (isword(c0) || opt_.W) && !isword(c1))
                   {
                     jump = Pattern::index_of(opcode);
                     if (jump == Pattern::Const::LONG)
@@ -603,6 +615,7 @@ redo:
                   continue;
                 case Pattern::META_BWE - Pattern::META_MIN:
                   DBGLOG("BWE? %d %d %d", c0, c1, !isword(c0) && isword(c1));
+                  anc_ = true;
                   if (jump == Pattern::Const::IMAX && !isword(c0) && isword(c1))
                   {
                     jump = Pattern::index_of(opcode);
@@ -613,6 +626,7 @@ redo:
                   continue;
                 case Pattern::META_EWB - Pattern::META_MIN:
                   DBGLOG("EWB? %d", at_eow());
+                  anc_ = true;
                   if (jump == Pattern::Const::IMAX && isword(got_) &&
                       !isword(static_cast<unsigned char>(txt_[len_])))
                   {
@@ -624,8 +638,9 @@ redo:
                   continue;
                 case Pattern::META_BWB - Pattern::META_MIN:
                   DBGLOG("BWB? %d", at_bow());
+                  anc_ = true;
                   if (jump == Pattern::Const::IMAX && !isword(got_) &&
-                      isword(static_cast<unsigned char>(txt_[len_])))
+                      (opt_.W || isword(static_cast<unsigned char>(txt_[len_]))))
                   {
                     jump = Pattern::index_of(opcode);
                     if (jump == Pattern::Const::LONG)
@@ -635,6 +650,7 @@ redo:
                   continue;
                 case Pattern::META_NWE - Pattern::META_MIN:
                   DBGLOG("NWE? %d %d %d", c0, c1, isword(c0) == isword(c1));
+                  anc_ = true;
                   if (jump == Pattern::Const::IMAX && isword(c0) == isword(c1))
                   {
                     jump = Pattern::index_of(opcode);
@@ -645,6 +661,7 @@ redo:
                   continue;
                 case Pattern::META_NWB - Pattern::META_MIN:
                   DBGLOG("NWB? %d %d", at_bow(), at_eow());
+                  anc_ = true;
                   if (jump == Pattern::Const::IMAX &&
                       isword(got_) == isword(static_cast<unsigned char>(txt_[len_])))
                   {
@@ -728,8 +745,8 @@ unrolled:
         Pattern::Index jump = Pattern::index_of(opcode);
         if (jump == 0)
         {
-          // loop back to start state: failed to match anything so far?
-          if (cap_ == 0)
+          // loop back to start state after only one char matched (one transition) but w/o full match, then optimize
+          if (cap_ == 0 && pos_ == cur_ + 1 && method == Const::FIND)
             cur_ = pos_; // set cur_ to move forward from cur_ + 1 with FIND advance()
         }
         else if (jump >= Pattern::Const::LONG)
@@ -758,7 +775,7 @@ unrolled:
         ded_ += tab_.size() - n;
         DBGLOG("Dedents: ded = %zu tab_ = %zu", ded_, tab_.size());
         tab_.resize(n);
-        // adjust stop when indents are not aligned (Python would give an error)
+        // adjust stop when indents are not aligned (Python would give an error though)
         if (n > 0)
           tab_.back() = col_;
       }
@@ -818,21 +835,12 @@ unrolled:
     {
       if (method == Const::FIND && !at_end())
       {
-        if (pos_ == cur_ + 1)
+        if (anc_)
         {
-          // early fail after one non-matching char, i.e. no META executed
-          if (advance())
-          {
-            txt_ = buf_ + cur_;
-            if (!pat_->one_)
-              goto find;
-            len_ = pat_->len_;
-            txt_ = buf_ + cur_;
-            set_current(cur_ + len_);
-            return cap_ = 1;
-          }
+          cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
+          anc_ = false;
         }
-        else if (pos_ > cur_)
+        if (pos_ > cur_)
         {
           // we didn't fail on META alone
           if (advance())
@@ -954,6 +962,7 @@ unrolled:
   size_t            bmd_;      ///< Boyer-Moore jump distance on mismatch, B-M is enabled when bmd_ > 0
   uint8_t           bms_[256]; ///< Boyer-Moore skip array
   bool              mrk_;      ///< indent \i or dedent \j in pattern found: should check and update indent stops
+  bool              anc_;      ///< match is anchored, advance slowly to retry when searching
 };
 
 } // namespace reflex

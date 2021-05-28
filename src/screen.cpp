@@ -543,18 +543,47 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             break;
 
           default:
-            if (*text == '\033' && text + 1 < end && text[1] == '[')
+            if (*text == '\033')
             {
-              next = text;
-              next += 2;
-              while (next < end && !isalpha(*next))
-                ++next;
-              if (next < end)
-                ++next;
-              if (!mono && codeptr + (next - text) < codebuf + SCREEN_MAX_CODELEN)
+              if (text + 1 < end && text[1] == '[')
               {
-                memcpy(codeptr, text, next - text);
-                codeptr += next - text;
+                // CSI \e[... sequence
+                next = text;
+                next += 2;
+                while (next < end && (*next < 0x40 || *next > 0x7e))
+                  ++next;
+                if (next < end)
+                  ++next;
+                if (!mono && codeptr + (next - text) < codebuf + SCREEN_MAX_CODELEN)
+                {
+                  memcpy(codeptr, text, next - text);
+                  codeptr += next - text;
+                }
+              }
+              else if (text + 1 < end && text[1] == ']')
+              {
+                // OSC \e]...BEL|ST sequence
+                next = text;
+                next += 2;
+                while (next < end && *next != '\a' && (*next != '\033' || (next + 1 < end && next[1] != '\\')))
+                  ++next;
+                if (*next == '\033')
+                  ++next;
+                if (next < end)
+                  ++next;
+                if (!mono && codeptr + (next - text) < codebuf + SCREEN_MAX_CODELEN)
+                {
+                  memcpy(codeptr, text, next - text);
+                  codeptr += next - text;
+                }
+              }
+              else
+              {
+                // ESC x sequence
+                next = text;
+                ++next;
+                if (next < end)
+                  ++next;
               }
             }
             else
@@ -659,23 +688,58 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
           break;
 
         default:
-          if (*ptr == '\033' && ptr + 1 < end && ptr[1] == '[')
+          if (*ptr == '\033')
           {
-            if (mono)
-              put(text, ptr - text);
-            ptr += 2;
-            while (ptr < end && !isalpha(*ptr))
-              ++ptr;
-            if (ptr < end)
-              ++ptr;
-            if (mono)
+            if (ptr + 1 < end && ptr[1] == '[')
             {
-              text = ptr;
+              // CSI \e[... sequence
+              if (mono)
+                put(text, ptr - text);
+              ptr += 2;
+              while (ptr < end && (*ptr < 0x40 || *ptr > 0x7e))
+                ++ptr;
+              if (ptr < end)
+                ++ptr;
+              if (mono)
+              {
+                text = ptr;
+              }
+              else if (sel)
+              {
+                put(text, ptr - text);
+                invert();
+                text = ptr;
+              }
             }
-            else if (sel)
+            else if (ptr + 1 < end && ptr[1] == ']')
             {
-              put(text, ptr - text);
-              invert();
+              // OSC \e]...BEL|ST sequence
+              if (mono)
+                put(text, ptr - text);
+              ptr += 2;
+              while (ptr < end && *ptr != '\a' && (*ptr != '\033' || (ptr + 1 < end && ptr[1] != '\\')))
+                ++ptr;
+              if (*ptr == '\033')
+                ++ptr;
+              if (ptr < end)
+                ++ptr;
+              if (mono)
+              {
+                text = ptr;
+              }
+              else if (sel)
+              {
+                put(text, ptr - text);
+                invert();
+                text = ptr;
+              }
+            }
+            else
+            {
+              // ESC x sequence
+              ++ptr;
+              if (ptr < end)
+                ++ptr;
               text = ptr;
             }
           }

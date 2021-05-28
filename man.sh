@@ -52,7 +52,8 @@ searches.
 .PP
 A query interface is opened with \fB-Q\fR (\fB--query\fR) to interactively
 specify search patterns and view search results.  Note that a \fIPATTERN\fR
-argument should not be specified in this case.
+argument cannot be specified in this case.  To specify one or more patterns
+with \fB-Q\fR, use \fB-e PATTERN\fR.
 .PP
 For help, \fB--help \fIWHAT\fR displays help on options related to \fIWHAT\fR.
 .PP
@@ -259,7 +260,7 @@ default.
 SGR substring for matching text in a context line.  The substring \fBmt=\fR by
 default.
 .IP \fBfn=\fR
-SGR substring for file names.
+SGR substring for filenames.
 .IP \fBln=\fR
 SGR substring for line numbers.
 .IP \fBcn=\fR
@@ -268,6 +269,12 @@ SGR substring for column numbers.
 SGR substring for byte offsets.
 .IP \fBse=\fR
 SGR substring for separators.
+.IP \fBrv\fR
+a Boolean parameter, switches \fBsl=\fR and \fBcx=\fR with option \fB-v\fR.
+.IP \fBhl\fR
+a Boolean parameter, enables filename hyperlinks (\fB\\33]8;;link\fR).
+.IP \fBne\fR
+a Boolean parameter, disables ``erase in line'' \fB\\33[K\fR.
 .SH FORMAT
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:

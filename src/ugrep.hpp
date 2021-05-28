@@ -282,6 +282,11 @@ extern char match_ms[COLORLEN];  // --match or --tag: matched text in a selected
 extern char match_mc[COLORLEN];  // --match or --tag: matched text in a context line
 extern char match_off[COLORLEN]; // --match or --tag: off
 
+extern std::string color_wd; // hyperlink working directory path
+
+extern const char *color_hl; // hyperlink
+extern const char *color_st; // ST
+
 extern const char *color_off; // disable colors
 extern const char *color_del; // erase line after the cursor
 

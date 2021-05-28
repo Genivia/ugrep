@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 12, 2021" "ugrep 3.2.2" "User Commands"
+.TH UGREP "1" "May 28, 2021" "ugrep 3.3.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -37,7 +37,8 @@ searches.
 .PP
 A query interface is opened with \fB-Q\fR (\fB--query\fR) to interactively
 specify search patterns and view search results.  Note that a \fIPATTERN\fR
-argument should not be specified in this case.
+argument cannot be specified in this case.  To specify one or more patterns
+with \fB-Q\fR, use \fB-e PATTERN\fR.
 .PP
 For help, \fB--help \fIWHAT\fR displays help on options related to \fIWHAT\fR.
 .PP
@@ -144,7 +145,9 @@ are ANSI SGR color codes or `k' (black), `r' (red), `g' (green),
 Upper case specifies background colors.  A `+' qualifies a color as
 bright.  A foreground and a background color may be combined with
 font properties `n' (normal), `f' (faint), `h' (highlight), `i'
-(invert), `u' (underline).  Selectively overrides GREP_COLORS.
+(invert), `u' (underline).  Parameter `hl' enables file name
+hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters
+with option \fB\-v\fR.  Selectively overrides GREP_COLORS.
 .TP
 \fB\-\-config\fR[=\fIFILE\fR], \fB\-\-\-\fR[\fIFILE\fR]
 Use configuration FILE.  The default FILE is `.ugrep'.  The working
@@ -187,7 +190,7 @@ levels deep.  Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
 .TP
 \fB\-\-dotall\fR
 Dot `.' in regular expressions matches anything, including newline.
-Beware that `.*' dot greedy repeats match all input, to be avoided.
+Note that `.*' matches all input and should not be used.
 .TP
 \fB\-E\fR, \fB\-\-extended\-regexp\fR
 Interpret patterns as extended regular expressions (EREs). This is
@@ -252,8 +255,8 @@ priority over \fB\-\-include\-fs\fR mounts.  This option may be repeated.
 Interpret pattern as a set of fixed strings, separated by newlines,
 any of which is to be matched.  This makes ugrep behave as fgrep.
 If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this
-option does not apply to \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR patterns
-to narrow or widen the PATTERN search.
+option has no effect on \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR patterns
+to narrow or widen the scope of the PATTERN search.
 .TP
 \fB\-f\fR \fIFILE\fR, \fB\-\-file\fR=\fIFILE\fR
 Read newline\-separated patterns from FILE.  White space in patterns
@@ -337,13 +340,18 @@ hex spacing.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
 \fB\-\-hidden\fR, \fB\-.\fR
 Search hidden files and directories.
 .TP
+\fB\-\-hyperlink\fR
+Hyperlinks are enabled for file names when colors are enabled.
+Same as \fB\-\-colors\fR=hl.
+.TP
 \fB\-I\fR, \fB\-\-ignore\-binary\fR
 Ignore matches in binary files.  This option is equivalent to the
 \fB\-\-binary\-files\fR=without\-match option.
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
 Perform case insensitive matching.  By default, ugrep is case
-sensitive.  This option applies to ASCII letters only.
+sensitive.  By default, this option applies to ASCII letters only.
+Use options \fB\-P\fR and \fB\-i\fR for Unicode case insensitive matching.
 .TP
 \fB\-\-ignore\-files\fR[=\fIFILE\fR]
 Ignore files and directories matching the globs in each FILE that
@@ -396,8 +404,8 @@ simultaneously.  \fB\-J\fR1 disables threading: files are searched in the
 same order as specified.
 .TP
 \fB\-j\fR, \fB\-\-smart\-case\fR
-Perform case insensitive matching unless a pattern contains an
-upper case letter.  This option applies to ASCII letters only.
+Perform case insensitive matching like option \fB\-i\fR, unless a pattern
+is specified with a literal ASCII upper case letter.
 .TP
 \fB\-\-json\fR
 Output file matches in JSON.  If \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is specified,
@@ -644,21 +652,25 @@ Output binary matches in hexadecimal, leaving text matches alone.
 This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex option.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
-The PATTERN is searched for as a word (as if surrounded by \\< and
-\\>).  If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then
-this option does not apply to \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR
-patterns to narrow or widen the PATTERN search.
+The PATTERN is searched for as a word, such that the matching text
+is preceded by a non\-word character and is followed by a non\-word
+character.  Word characters are letters, digits, and the
+underscore.  With option \fB\-P\fR, word characters are Unicode letters,
+digits, and underscore.  This option has no effect if \fB\-x\fR is also
+specified.  If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR,
+then this option has no effect on \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR
+patterns to narrow or widen the scope of the PATTERN search.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
 \fB\-\-binary\-files\fR=hex option.  See also option \fB\-\-hexdump\fR.
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
-Only input lines selected against the entire PATTERN is considered
-to be matching lines (as if surrounded by ^ and $).  If a PATTERN
-is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this option does
-not apply to \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR patterns to narrow
-or widen the PATTERN search.
+Select only those matches that exactly match the whole line, as if
+the patterns are surrounded by ^ and $.  If a PATTERN is specified,
+or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this option has no effect on
+\fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR patterns to narrow or widen the
+scope of the PATTERN search.
 .TP
 \fB\-\-xml\fR
 Output file matches in XML.  If \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is specified,
@@ -878,7 +890,7 @@ default.
 SGR substring for matching text in a context line.  The substring \fBmt=\fR by
 default.
 .IP \fBfn=\fR
-SGR substring for file names.
+SGR substring for filenames.
 .IP \fBln=\fR
 SGR substring for line numbers.
 .IP \fBcn=\fR
@@ -887,6 +899,12 @@ SGR substring for column numbers.
 SGR substring for byte offsets.
 .IP \fBse=\fR
 SGR substring for separators.
+.IP \fBrv\fR
+a Boolean parameter, switches \fBsl=\fR and \fBcx=\fR with option \fB-v\fR.
+.IP \fBhl\fR
+a Boolean parameter, enables filename hyperlinks (\fB\\33]8;;link\fR).
+.IP \fBne\fR
+a Boolean parameter, disables ``erase in line'' \fB\\33[K\fR.
 .SH FORMAT
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:

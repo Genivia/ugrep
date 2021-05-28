@@ -202,6 +202,13 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
       chr('\0');
 
     str(color_fn);
+    if (color_hl != NULL)
+    {
+      str(color_hl);
+      uri(color_wd);
+      uri(pathname);
+      str(color_st);
+    }
 
     if (nul)
       chr('\0');
@@ -211,6 +218,11 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     if (nul)
       chr('\0');
 
+    if (color_hl != NULL)
+    {
+      str(color_hl);
+      str(color_st);
+    }
     str(color_off);
 
     if (flag_null)
@@ -325,7 +337,19 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
   if (pathname != NULL)
   {
     chr(' ');
+    if (color_hl != NULL)
+    {
+      str(color_hl);
+      uri(color_wd);
+      uri(pathname);
+      str(color_st);
+    }
     str(pathname);
+    if (color_hl != NULL)
+    {
+      str(color_hl);
+      str(color_st);
+    }
   }
   if (!partname.empty())
   {

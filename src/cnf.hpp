@@ -43,6 +43,10 @@
 #include <list>
 #include <memory>
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 // normalize Boolean search queries to CNF
 class CNF {
 
@@ -265,11 +269,16 @@ class CNF {
   // anchor a pattern, when specified with -w or -x
   static void anchor(std::string& pattern)
   {
-    // -G requires \( \) instead of ( )
-    const char *xleft = flag_basic_regexp ? "^\\(" : "^(";
+    // -G requires \( \) instead of ( ) and -P requires (?<!\w) (?!\w) instead of \< and \>
+    const char *xleft = flag_basic_regexp ? "^\\(" : "^(?:";
     const char *xright = flag_basic_regexp ? "\\)$" : ")$";
-    const char *wleft = flag_basic_regexp ? "\\<\\(" : "\\<(";
-    const char *wright = flag_basic_regexp ? "\\)\\>" : ")\\>";
+#if defined(HAVE_PCRE2)
+    const char *wleft = flag_basic_regexp ? "\\<\\(" : flag_perl_regexp ? "(?<!\\w)(?:" : "\\<(";
+    const char *wright = flag_basic_regexp ? "\\)\\>" : flag_perl_regexp ? ")(?!\\w)" : ")\\>";
+#else // Boost.Regex
+    const char *wleft = flag_basic_regexp ? "\\<\\(" : flag_perl_regexp ? "(?<![[:word:]])(?:" : "\\<(";
+    const char *wright = flag_basic_regexp ? "\\)\\>" : flag_perl_regexp ? ")(?![[:word:]])" : ")\\>";
+#endif
 
     // patterns that start with ^ or end with $ are already anchored
     if (!pattern.empty() && (pattern.front() == '^' || pattern.back() == '$'))
