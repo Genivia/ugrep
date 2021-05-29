@@ -715,7 +715,7 @@ void Input::file_init(file_encoding_type enc)
               {
                 size_ = 0;
                 uidx_ = 2;
-                ulen_ = 4;
+                ulen_ = 1;
                 utfx_ = file_encoding::utf16le;
               }
             }
