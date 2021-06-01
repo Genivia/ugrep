@@ -275,6 +275,8 @@ static int convert_hex(const char *pattern, size_t len, size_t& pos, convert_fla
     while (++k < len && s < hex + sizeof(hex) - 1 && (c = pattern[k]) != '}')
       *s++ = c;
     *s = '\0';
+    if (pattern[k] != '}')
+      throw regex_error(regex_error::mismatched_braces, pattern, pos + 1);
   }
   else if (c == 'x' || (c == 'u' && (flags & convert_flag::u4)))
   {
@@ -311,6 +313,8 @@ static int convert_oct(const char *pattern, size_t len, size_t& pos)
     while (++k < len && s < oct + sizeof(oct) - 1 && (c = pattern[k]) != '}')
       *s++ = c;
     *s = '\0';
+    if (pattern[k] != '}')
+      throw regex_error(regex_error::mismatched_braces, pattern, pos + 1);
   }
   if (oct[0] != '\0')
   {
@@ -336,10 +340,9 @@ static const std::string& expand(const std::map<std::string,std::string> *macros
   size_t k = pos++;
   while (pos < len && (std::isalnum(pattern[pos]) || pattern[pos] == '_' || (pattern[pos] & 0x80) == 0x80))
     ++pos;
-  std::string name;
-  name.append(&pattern[k], pos - k);
-  if (pos >= len && (pattern[pos] != '\\' || pattern[pos + 1] != '}') && pattern[pos] != '}')
+  if (pos >= len || (pattern[pos] == '\\' ? pattern[pos + 1] != '}' : pattern[pos] != '}'))
     throw regex_error(regex_error::undefined_name, pattern, pos);
+  std::string name(&pattern[k], pos - k);
   std::map<std::string,std::string>::const_iterator i = macros->find(name);
   if (i == macros->end())
     throw regex_error(regex_error::undefined_name, pattern, k);
@@ -437,6 +440,8 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
           k = j;
           while (k < len && pattern[k] != '}')
             ++k;
+          if (k >= len)
+            throw regex_error(regex_error::mismatched_braces, pattern, pos);
           name.append(pattern, j, k - j);
         }
         else
@@ -499,9 +504,7 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
       expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex);
     }
     ++pos;
-    if (pos >= len)
-      break;
-    if (pattern[pos] == ']')
+    if (pos >= len || pattern[pos] == ']')
       break;
   }
   if (pos >= len || pattern[pos] != ']')
@@ -604,7 +607,7 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
   {
     size_t k = pos + 3 + (pattern[pos] == '0');
     int wc = c - '0';
-    while (++pos < k && (c = pattern[pos]) >= '0' && c <= '7')
+    while (++pos < k && pos < len && (c = pattern[pos]) >= '0' && c <= '7')
       wc = 8 * wc + c - '0';
     c = wc;
     --pos;
@@ -635,6 +638,8 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
       k = j;
       while (k < len && pattern[k] != '}')
         ++k;
+      if (k >= len)
+        throw regex_error(regex_error::mismatched_braces, pattern, pos);
       name.assign(&pattern[j], k - j);
     }
     else
@@ -728,6 +733,8 @@ static void insert_posix_class(const char *pattern, size_t len, size_t& pos, ORa
   char *name = buf;
   while (pos + 1 < len && name < buf + sizeof(buf) - 1 && (pattern[pos] != ':' || pattern[pos + 1] != ']'))
     *name++ = pattern[pos++];
+  if (pos + 1 >= len)
+    throw regex_error(regex_error::invalid_class, pattern, pos);
   *name = '\0';
   name = buf + (*buf == '^');
   if (name[1] != '\0')
@@ -1006,7 +1013,7 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void convert_escape_char(const char *pattern, size_t& loc, size_t& pos, convert_flag_type flags, const char *signature, const std::map<size_t,std::string>& mod, const char *par, std::string& regex)
+static void convert_escape_char(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const char *signature, const std::map<size_t,std::string>& mod, const char *par, std::string& regex)
 {
   int c = pattern[pos];
   if (std::strchr(regex_unescapes, c) != NULL)
@@ -1129,10 +1136,12 @@ static void convert_escape_char(const char *pattern, size_t& loc, size_t& pos, c
         loc = pos + 1;
       }
     }
-    else if ((c == 'g' || c == 'k') && pattern[pos + 1] == '{')
+    else if ((c == 'g' || c == 'k') && pos + 2 < len && pattern[pos + 1] == '{')
     {
-      while (pattern[pos + 1] != '\0' && pattern[++pos] != '}')
+      while (pos + 1 < len && pattern[pos + 1] != '\0' && pattern[++pos] != '}')
         continue;
+      if (pos >= len)
+        throw regex_error(regex_error::mismatched_braces, pattern, pos);
     }
   }
 }
@@ -1197,7 +1206,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     size_t k = pos;
     size_t n = k + 3 + (pattern[k] == '0');
     int wc = 0;
-    while (k < n && (c = pattern[k]) >= '0' && c <= '7')
+    while (k < n && k < len && (c = pattern[k]) >= '0' && c <= '7')
     {
       wc = 8 * wc + c - '0';
       ++k;
@@ -1285,7 +1294,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     }
     else
     {
-      convert_escape_char(pattern, loc, pos, flags, signature, mod, par, regex);
+      convert_escape_char(pattern, len, loc, pos, flags, signature, mod, par, regex);
     }
   }
   else if (c == 'p' || c == 'P')
@@ -1303,6 +1312,8 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
       k = j;
       while (k < len && pattern[k] != '}')
         ++k;
+      if (k >= len)
+        throw regex_error(regex_error::mismatched_braces, pattern, pos);
       name.append(pattern, j, k - j);
     }
     else
@@ -1371,7 +1382,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
   }
   else
   {
-    convert_escape_char(pattern, loc, pos, flags, signature, mod, par, regex);
+    convert_escape_char(pattern, len, loc, pos, flags, signature, mod, par, regex);
   }
 }
 
@@ -1942,7 +1953,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             char *s;
             size_t n = static_cast<size_t>(std::strtoul(&pattern[pos], &s, 10));
             pos = s - pattern;
-            if (pattern[pos] == ',')
+            if (pos + 1 < len && pattern[pos] == ',')
             {
               ++pos;
               if (pattern[pos] != '\\' && pattern[pos] != '}')
@@ -2106,12 +2117,13 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           // unicode: group UTF-8 sequence
           regex.append(&pattern[loc], pos - loc);
           loc = pos;
-          while (((c = pattern[++pos]) & 0xC0) == 0x80)
+          while (pos + 1 < len && ((c = pattern[++pos]) & 0xC0) == 0x80)
             continue;
-          if (pattern[pos] == '*' ||
-              ((flags & convert_flag::basic) ?
-               (pattern[pos] == '\\' && (pattern[pos + 1] == '?' || pattern[pos + 1] == '+' || pattern[pos + 1] == '{')) :
-               (pattern[pos] == '?' || pattern[pos] == '+' || pattern[pos] == '{')))
+          if (pos < len &&
+              (pattern[pos] == '*' ||
+               ((flags & convert_flag::basic) && pos + 1 < len ?
+                (pattern[pos] == '\\' && (pattern[pos + 1] == '?' || pattern[pos + 1] == '+' || pattern[pos + 1] == '{')) :
+                (pattern[pos] == '?' || pattern[pos] == '+' || pattern[pos] == '{'))))
           {
             regex.append(par).append(&pattern[loc], pos - loc).push_back(')');
             loc = pos;
