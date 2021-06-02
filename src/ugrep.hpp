@@ -54,6 +54,7 @@
 #include <strsafe.h>
 #include <string.h>
 #include <fcntl.h>
+#include <direct.h>
 #include <errno.h>
 #include <string>
 
@@ -122,6 +123,23 @@ inline std::wstring utf8_decode(const std::string &str)
   return wstr;
 }
 
+// POSIX chdir()
+inline int chdir(const char *path)
+{
+  std::wstring wpath = utf8_decode(path);
+
+  return _wchdir(wpath.c_str());
+}
+
+// POSIX getcwd() - but without buffer argument
+inline char *getcwd0()
+{
+  wchar_t *wcwd = _wgetcwd(NULL, 0);
+  std::string cwd = utf8_encode(wcwd);
+  free(wcwd);
+  return strdup(cwd.c_str());
+}
+
 // Open Unicode wide string UTF-8 encoded filename
 inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 {
@@ -165,6 +183,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 
 #define _FILE_OFFSET_BITS 64
 
+#include <unistd.h>
 #include <cerrno>
 #include <cstdlib>
 #include <cstdio>
@@ -214,6 +233,12 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
   }
 #endif
   return (*file = fopen(filename, mode)) == NULL ? errno ? errno : (errno = EINVAL) : 0;
+}
+
+// POSIX getcwd() - but without buffer argument
+inline char *getcwd0()
+{
+  return getcwd(NULL, 0);
 }
 
 #endif

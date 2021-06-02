@@ -69,7 +69,7 @@ After this, you may want to test ugrep and install it (optional):
 */
 
 // ugrep version
-#define UGREP_VERSION "3.3.0"
+#define UGREP_VERSION "3.3.1"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -5797,11 +5797,7 @@ void terminal()
           // if OSC hyperlinks are OK (note that "hl" does not match color letters so strstr can be used)
           if (strstr(grep_colors, "hl") != NULL || (flag_colors != NULL && strstr(flag_colors, "hl") != NULL))
           {
-#ifdef OS_WIN
-            char *cwd = _getcwd(NULL, 0);
-#else
-            char *cwd = getcwd(NULL, 0);
-#endif
+            char *cwd = getcwd0();
             if (cwd != NULL)
             {
               char *path = cwd;
@@ -10734,13 +10730,15 @@ void help(std::ostream& out)
             -Q and its argument DELAY.  Initial patterns may be specified with\n\
             -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1\n\
             or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke an\n\
-            editor to edit the file shown on screen.  The editor is taken from\n\
-            the environment variable GREP_EDIT if defined, or EDITOR.  Press\n\
-            Tab and Shift-Tab to navigate directories and to select a file to\n\
-            search.  Press Enter to select lines to output.  Press ALT-l for\n\
-            option -l to list files, ALT-n for -n, etc.  Non-option commands\n\
-            include ALT-] to increase fuzziness and ALT-} to increase context.\n\
-            Press F1 or CTRL-Z for more information.  Enables --heading.\n\
+            editor to edit the file shown at the top of the screen.  The editor\n\
+            is taken from the environment variable GREP_EDITOR if defined, or\n\
+            EDITOR.  Note that a file viewer such as `less' can be assigned to\n\
+            GREP_EDITOR to view files.  Press Tab and Shift-Tab to navigate\n\
+            directories and to select a file to search.  Press Enter to select\n\
+            lines to output.  Press ALT-l for option -l to list files, ALT-n\n\
+            for -n, etc.  Non-option commands include ALT-] to increase\n\
+            fuzziness and ALT-} to increase context.  Press F1 or CTRL-Z for\n\
+            more information.  Enables --heading.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found.\n\

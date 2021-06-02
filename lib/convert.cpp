@@ -275,7 +275,7 @@ static int convert_hex(const char *pattern, size_t len, size_t& pos, convert_fla
     while (++k < len && s < hex + sizeof(hex) - 1 && (c = pattern[k]) != '}')
       *s++ = c;
     *s = '\0';
-    if (pattern[k] != '}')
+    if (k >= len || pattern[k] != '}')
       throw regex_error(regex_error::mismatched_braces, pattern, pos + 1);
   }
   else if (c == 'x' || (c == 'u' && (flags & convert_flag::u4)))
@@ -313,7 +313,7 @@ static int convert_oct(const char *pattern, size_t len, size_t& pos)
     while (++k < len && s < oct + sizeof(oct) - 1 && (c = pattern[k]) != '}')
       *s++ = c;
     *s = '\0';
-    if (pattern[k] != '}')
+    if (k >= len || pattern[k] != '}')
       throw regex_error(regex_error::mismatched_braces, pattern, pos + 1);
   }
   if (oct[0] != '\0')

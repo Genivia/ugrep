@@ -44,6 +44,7 @@
 #include <cerrno>
 #include <thread>
 #include <list>
+#include <stack>
 
 // max length of the query line to edit
 #ifndef QUERY_MAX_LEN
@@ -75,10 +76,40 @@ class Query {
 
   enum class Mode { QUERY, LIST, EDIT, HELP };
 
+  typedef char Line[QUERY_MAX_LEN];
+
   struct Flags {
     bool        flag;
     int         key;
     const char *text;
+  };
+
+  struct History {
+
+    void save(const Line& line_, int col_, int row_, const Flags flags_[])
+    {
+      memcpy(line, line_, sizeof(Line));
+      col = col_;
+      row = row_;
+      set.clear();
+      for (int i = 0; flags_[i].text != NULL; ++i)
+        set.push_back(flags_[i].flag);
+    }
+
+    void restore(Line& line_, int& col_, int& row_, Flags flags_[])
+    {
+      memcpy(line_, line, sizeof(Line));
+      col_ = col;
+      row_ = row;
+      for (int i = 0; flags_[i].text != NULL; ++i)
+        flags_[i].flag = set[i];
+    }
+
+    Line              line;
+    int               col;
+    int               row;
+    std::vector<bool> set;
+
   };
 
   static void query_ui();
@@ -192,8 +223,8 @@ class Query {
   static Mode                     mode_;
   static bool                     updated_;
   static bool                     message_;
-  static char                     line_[QUERY_MAX_LEN];
-  static char                     temp_[QUERY_MAX_LEN];
+  static Line                     line_;
+  static Line                     temp_;
   static std::string              prompt_;
   static int                      start_;
   static int                      col_;
@@ -214,6 +245,7 @@ class Query {
   static std::string              wdir_;
   static bool                     deselect_file_;
   static std::string              selected_file_;
+  static std::stack<History>      history_;
   static std::vector<std::string> view_;
   static std::list<std::string>   saved_;
   static std::vector<bool>        selected_;

@@ -1156,7 +1156,10 @@ void Query::query_ui()
 
         case VKey::CTRL_R: // CTRL-R: jump to bookmark
         case VKey::FN(4):
-          jump(mark_);
+          if (mark_ >= 0)
+            jump(mark_);
+          else
+            Screen::alert();
           break;
 
         case VKey::CTRL_Q: // CTRL-Q: immediately quit and output lines
@@ -1202,7 +1205,10 @@ void Query::query_ui()
 
         case VKey::CTRL_Y: // CTRL-Y: edit file
         case VKey::FN(2):
-          edit();
+          if (select_ == -1)
+            edit();
+          else
+            Screen::alert();
           break;
 
         case VKey::CTRL_Z: // CTRL-Z: help
@@ -1971,9 +1977,6 @@ void Query::next()
 // jump to the specified row
 void Query::jump(int row)
 {
-  if (rows_ <= 0)
-    return;
-
   if (row < 0)
     row = 0;
 
@@ -1997,6 +2000,7 @@ void Query::jump(int row)
         while (row_ < row && row_ + 1 < rows_)
           ++row_;
 
+        // exit if at the desired row or if the desired row is beyond the end of the search results
         if (row_ == row || (eof_ && buflen_ == 0))
           break;
 
@@ -2038,6 +2042,7 @@ void Query::jump(int row)
         while (select_ < row && select_ + 1 < rows_)
           ++select_;
 
+        // exit if at the desired row or if the desired row is beyond the end of the search results
         if (select_ == row || (eof_ && buflen_ == 0))
           break;
 
@@ -2063,7 +2068,7 @@ void Query::jump(int row)
   redraw();
 }
 
-// edit the file located under the cursor or just above in the screen
+// edit the file located under the cursor or just above in the screen (when not in selection mode)
 void Query::edit()
 {
   if (row_ >= rows_ || flag_text || flag_format != NULL)
@@ -2073,10 +2078,14 @@ void Query::edit()
     return;
   }
 
-  const char *editor = getenv("GREP_EDIT");
+  const char *editor = getenv("GREP_EDITOR");
 
   if (editor == NULL)
-    editor = getenv("EDITOR");
+  {
+    editor = getenv("GREP_EDIT");
+    if (editor == NULL)
+      editor = getenv("EDITOR");
+  }
 
   if (editor == NULL)
   {
@@ -2087,8 +2096,9 @@ void Query::edit()
 
   std::string filename;
   bool found = false;
+  int row;
 
-  for (int i = select_ >= 0 ? select_ : row_; i >= 0 && !(found = is_filename(view_[i], filename)); --i)
+  for (row = row_; row >= 0 && !(found = is_filename(view_[row], filename)); --row)
     continue;
 
   if (!found && arg_files.size() == 1)
@@ -2100,36 +2110,72 @@ void Query::edit()
   if (found)
   {
 #ifdef OS_WIN
-    DWORD attr = GetFileAttributesA(filename.c_str());
-    found = attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY) && !(attr & FILE_ATTRIBUTE_SYSTEM);
+    std::wstring wpathname = utf8_decode(filename);
+    _WIN32_FILE_ATTRIBUTE_DATA attr_before;
+    found = GetFileAttributesExW(wpathname.c_str(), GetFileExInfoStandard, &attr_before);
 #else
     struct stat buf;
     found = stat(filename.c_str(), &buf) == 0 && S_ISREG(buf.st_mode);
+#if defined(HAVE_STAT_ST_ATIM) && defined(HAVE_STAT_ST_MTIM) && defined(HAVE_STAT_ST_CTIM)
+    uint64_t mtime = static_cast<uint64_t>(buf.st_mtim.tv_sec) * 1000000 + buf.st_mtim.tv_nsec / 1000;
+#elif defined(HAVE_STAT_ST_ATIMESPEC) && defined(HAVE_STAT_ST_MTIMESPEC) && defined(HAVE_STAT_ST_CTIMESPEC)
+    uint64_t mtime = static_cast<uint64_t>(buf.st_mtimespec.tv_sec) * 1000000 + buf.st_mtimespec.tv_nsec / 1000;
+#else
+    uint64_t mtime = static_cast<uint64_t>(buf.st_mtime);
 #endif
-  }
+#endif
 
-  if (found)
-  {
-    std::string command;
-    command.assign(editor).append(" \"").append(filename).append("\"");
-
-    Screen::put(0, 0, command.c_str());
-
-    if (system(command.c_str()) == 0)
+    if (found)
     {
-      mark_ = select_ >= 0 ? select_ : row_;
+      std::string command(editor);
+
+      command.append(" \"").append(filename).append("\"");
+
       Screen::clear();
-      search();
-    }
-    else
-    {
-      Screen::alert();
+
+      if (system(command.c_str()) == 0)
+      {
+        Screen::clear();
+
+        bool changed;
+
+#ifdef OS_WIN
+        std::wstring wpathname = utf8_decode(filename);
+        _WIN32_FILE_ATTRIBUTE_DATA attr_after;
+        changed = GetFileAttributesExW(wpathname.c_str(), GetFileExInfoStandard, &attr_after) == 0 ||
+          attr_before.ftLastWriteTime.dwLowDateTime != attr_after.ftLastWriteTime.dwLowDateTime ||
+          attr_before.ftLastWriteTime.dwHighDateTime != attr_after.ftLastWriteTime.dwHighDateTime;
+#else
+        stat(filename.c_str(), &buf);
+#if defined(HAVE_STAT_ST_ATIM) && defined(HAVE_STAT_ST_MTIM) && defined(HAVE_STAT_ST_CTIM)
+        changed = (mtime != static_cast<uint64_t>(buf.st_mtim.tv_sec) * 1000000 + buf.st_mtim.tv_nsec / 1000);
+#elif defined(HAVE_STAT_ST_ATIMESPEC) && defined(HAVE_STAT_ST_MTIMESPEC) && defined(HAVE_STAT_ST_CTIMESPEC)
+        changed = (mtime != static_cast<uint64_t>(buf.st_mtimespec.tv_sec) * 1000000 + buf.st_mtimespec.tv_nsec / 1000);
+#else
+        changed = (mtime != static_cast<uint64_t>(buf.st_mtime));
+#endif
+#endif
+
+        if (changed)
+        {
+          // file is changed, update the search results
+          search();
+          jump(row);
+        }
+        else
+        {
+          redraw();
+        }
+      }
+      else
+      {
+        Screen::put(0, 0, command.c_str());
+        Screen::alert();
+      }
     }
   }
-  else
-  {
+  if (!found)
     message(std::string("cannot edit file ").append(filename));
-  }
 }
 
 // chdir one level down into the directory of the file located under the cursor or just above the screen
@@ -2157,27 +2203,34 @@ void Query::select()
 
   if (found)
   {
+    if (globbing_)
+    {
+      globbing_ = false;
+
+      memcpy(line_, temp_, sizeof(Line));
+      len_ = line_len();
+      move(len_);
+
+      set_prompt();
+    }
+
+    mark_ = -1;
+
+    history_.emplace();
+    history_.top().save(line_, col_, row_, flags_);
+
     size_t n = pathname.find(PATHSEPCHR);
     size_t b = pathname.find('{'); // do not cd into archives
     if (n != std::string::npos && (b == std::string::npos || n < b))
     {
       pathname.resize(n);
 
-#ifdef OS_WIN
-      if (_chdir(pathname.c_str()) < 0)
-      {
-        message("cannot chdir: operation denied");
-
-        return;
-      }
-#else
       if (chdir(pathname.c_str()) < 0)
       {
         message("cannot chdir: operation denied");
 
         return;
       }
-#endif
 
       dirs_.append(pathname).append(PATHSEPSTR);
 
@@ -2228,13 +2281,11 @@ void Query::deselect()
       return;
 #endif
 
+    mark_ = -1;
+
     if (dirs_.empty())
     {
-#ifdef OS_WIN
-      char *cwd = _getcwd(NULL, 0);
-#else
-      char *cwd = getcwd(NULL, 0);
-#endif
+      char *cwd = getcwd0();
       if (cwd != NULL)
       {
         size_t n = strlen(cwd);
@@ -2246,13 +2297,8 @@ void Query::deselect()
       }
     }
 
-#ifdef OS_WIN
-    if (_chdir("..") < 0)
-      return;
-#else
     if (chdir("..") < 0)
       return;
-#endif
 
     if (dirs_.empty())
     {
@@ -2281,7 +2327,21 @@ void Query::deselect()
       }
     }
 
-    search();
+    if (!history_.empty())
+    {
+      int row;
+      history_.top().restore(line_, col_, row, flags_);
+      history_.pop();
+      globbing_ = false;
+      set_prompt();
+      len_ = line_len();
+      search();
+      jump(row);
+    }
+    else
+    {
+      search();
+    }
   }
   else
   {
@@ -2303,20 +2363,8 @@ void Query::unselect()
 {
   if (!wdir_.empty())
   {
-#ifdef OS_WIN
-    if (_chdir(wdir_.c_str()) < 0)
-      return;
-#else
     if (chdir(wdir_.c_str()) < 0)
       return;
-#endif
-
-    dirs_.clear();
-    wdir_.clear();
-
-    deselect_file_ = true;
-
-    search();
   }
   else if (!dirs_.empty())
   {
@@ -2335,7 +2383,7 @@ void Query::unselect()
       while (true)
       {
 #ifdef OS_WIN
-        if ((dirs_.size() == 3 && dirs_.at(1) == ':' && dirs_.at(2) == PATHSEPCHR) || _chdir("..") < 0)
+        if ((dirs_.size() == 3 && dirs_.at(1) == ':' && dirs_.at(2) == PATHSEPCHR) || chdir("..") < 0)
           break;
 #else
         if (dirs_ == PATHSEPSTR || chdir("..") < 0)
@@ -2351,12 +2399,26 @@ void Query::unselect()
 
         dirs_.resize(n + 1);
       }
-
-      dirs_.clear();
     }
+  }
 
-    deselect_file_ = true;
+  dirs_.clear();
+  wdir_.clear();
+  deselect_file_ = true;
 
+  if (!history_.empty())
+  {
+    int row;
+    history_.top().restore(line_, col_, row, flags_);
+    history_.pop();
+    globbing_ = false;
+    set_prompt();
+    len_ = line_len();
+    search();
+    jump(row);
+  }
+  else
+  {
     search();
   }
 }
@@ -2773,7 +2835,7 @@ void Query::meta(int key)
           {
             globbing_ = true;
 
-            memcpy(temp_, line_, QUERY_MAX_LEN);
+            memcpy(temp_, line_, sizeof(Line));
             size_t num = globs_.size();
             if (num >= QUERY_MAX_LEN)
               num = QUERY_MAX_LEN - 1;
@@ -2789,7 +2851,7 @@ void Query::meta(int key)
           {
             globbing_ = false;
 
-            memcpy(line_, temp_, QUERY_MAX_LEN);
+            memcpy(line_, temp_, sizeof(Line));
             len_ = line_len();
             move(len_);
 
@@ -3349,7 +3411,7 @@ ssize_t Query::stdin_sender(int fd)
   return nwritten;
 }
 
-// true if line starts with a valid filename/filepath identified by three \0 markers
+// true if line starts with a valid filename/filepath identified by three \0 markers and differs from the given filename, then assigns filename
 bool Query::is_filename(const std::string& line, std::string& filename, bool compare_dir)
 {
   size_t start = 0;
@@ -3425,55 +3487,56 @@ bool Query::is_filename(const std::string& line, std::string& filename, bool com
   return true;
 }
 
-Query::Mode              Query::mode_                = Query::Mode::QUERY;
-bool                     Query::updated_             = false;
-bool                     Query::message_             = false;
-char                     Query::line_[QUERY_MAX_LEN] = { '\0' };
-char                     Query::temp_[QUERY_MAX_LEN] = { '\0' };
-std::string              Query::prompt_;
-int                      Query::start_               = 0;
-int                      Query::col_                 = 0;
-int                      Query::len_                 = 0;
-int                      Query::offset_              = 0;
-int                      Query::shift_               = 8;
-std::atomic_int          Query::error_;
-std::string              Query::what_;
-int                      Query::row_                 = 0;
-int                      Query::rows_                = 0;
-int                      Query::mark_                = 0;
-int                      Query::select_              = -1;
-bool                     Query::select_all_          = false;
-bool                     Query::globbing_            = false;
-std::string              Query::globs_;
-std::string              Query::dirs_;
-std::string              Query::wdir_;
-bool                     Query::deselect_file_;
-std::string              Query::selected_file_;
-int                      Query::skip_                = 0;
-std::vector<std::string> Query::view_;
-std::list<std::string>   Query::saved_;
-std::vector<bool>        Query::selected_;
-bool                     Query::eof_                 = true;
-bool                     Query::append_              = false;
-size_t                   Query::buflen_              = 0;
-char                     Query::buffer_[QUERY_BUFFER_SIZE];
-int                      Query::search_pipe_[2];
-std::thread              Query::search_thread_;
-std::string              Query::stdin_buffer_;
-int                      Query::stdin_pipe_[2];
-std::thread              Query::stdin_thread_;
-char                     Query::searching_[16]       = "Searching...";
-int                      Query::dots_                = 3;
-size_t                   Query::context_             = 2;
-size_t                   Query::fuzzy_               = 1;
-bool                     Query::dotall_              = false;
+Query::Mode                Query::mode_                = Query::Mode::QUERY;
+bool                       Query::updated_             = false;
+bool                       Query::message_             = false;
+Query::Line                Query::line_                = { '\0' };
+Query::Line                Query::temp_                = { '\0' };
+std::string                Query::prompt_;
+int                        Query::start_               = 0;
+int                        Query::col_                 = 0;
+int                        Query::len_                 = 0;
+int                        Query::offset_              = 0;
+int                        Query::shift_               = 8;
+std::atomic_int            Query::error_;
+std::string                Query::what_;
+int                        Query::row_                 = 0;
+int                        Query::rows_                = 0;
+int                        Query::mark_                = -1;
+int                        Query::select_              = -1;
+bool                       Query::select_all_          = false;
+bool                       Query::globbing_            = false;
+std::string                Query::globs_;
+std::string                Query::dirs_;
+std::string                Query::wdir_;
+bool                       Query::deselect_file_;
+std::string                Query::selected_file_;
+std::stack<Query::History> Query::history_;
+int                        Query::skip_                = 0;
+std::vector<std::string>   Query::view_;
+std::list<std::string>     Query::saved_;
+std::vector<bool>          Query::selected_;
+bool                       Query::eof_                 = true;
+bool                       Query::append_              = false;
+size_t                     Query::buflen_              = 0;
+char                       Query::buffer_[QUERY_BUFFER_SIZE];
+int                        Query::search_pipe_[2];
+std::thread                Query::search_thread_;
+std::string                Query::stdin_buffer_;
+int                        Query::stdin_pipe_[2];
+std::thread                Query::stdin_thread_;
+char                       Query::searching_[16]       = "Searching...";
+int                        Query::dots_                = 3;
+size_t                     Query::context_             = 2;
+size_t                     Query::fuzzy_               = 1;
+bool                       Query::dotall_              = false;
 
 #ifdef OS_WIN
 
-HANDLE                   Query::hPipe_;
-OVERLAPPED               Query::overlapped_;
-bool                     Query::blocking_;
-bool                     Query::pending_;
+HANDLE                     Query::hPipe_;
+OVERLAPPED                 Query::overlapped_;
+bool                       Query::blocking_;
+bool                       Query::pending_;
 
 #endif
 
