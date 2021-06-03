@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 29, 2021" "ugrep 3.3.1" "User Commands"
+.TH UGREP "1" "June 03, 2021" "ugrep 3.3.1" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -534,14 +534,16 @@ searches after the last key press, in increments of 100ms, where
 the default is 5 (0.5s delay).  No whitespace may be given between
 \fB\-Q\fR and its argument DELAY.  Initial patterns may be specified with
 \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press F1
-or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke an
-editor to edit the file shown on screen.  The editor is taken from
-the environment variable GREP_EDIT if defined, or EDITOR.  Press
-Tab and Shift\-Tab to navigate directories and to select a file to
-search.  Press Enter to select lines to output.  Press ALT\-l for
-option \fB\-l\fR to list files, ALT\-n for \fB\-n\fR, etc.  Non\-option commands
-include ALT\-] to increase fuzziness and ALT\-} to increase context.
-Press F1 or CTRL\-Z for more information.  Enables \fB\-\-heading\fR.
+or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke a
+command to view or edit the file shown at the top of the screen.
+The command can be specified with option \fB\-\-view\fR, or defaults to
+environment variable PAGER if defined, or EDITOR.  Press Tab and
+Shift\-Tab to navigate directories and to select a file to search.
+Press Enter to select lines to output.  Press ALT\-l for option \fB\-l\fR
+to list files, ALT\-n for \fB\-n\fR, etc.  Non\-option commands include
+ALT\-] to increase fuzziness and ALT\-} to increase context.  Press
+F1 or CTRL\-Z for help.  Enables \fB\-\-heading\fR.  See also options
+\fB\-\-confirm\fR and \fB\-\-view\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  ugrep will only search until a
@@ -646,6 +648,9 @@ Display version information and exit.
 \fB\-v\fR, \fB\-\-invert\-match\fR
 Selected lines are those not matching any of the specified
 patterns.
+.TP
+\fB\-\-view\fR[=\fICOMMAND\fR]
+Use COMMAND to view/edit a file in query mode when pressing CTRL\-Y.
 .TP
 \fB\-W\fR, \fB\-\-with\-hex\fR
 Output binary matches in hexadecimal, leaving text matches alone.
@@ -851,10 +856,6 @@ by a previous glob pattern specified in the files associated with
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
 option \fB-f\fR to open a pattern file, when the pattern file does not exist.
-.IP \fBGREP_EDITOR\fR
-May be used to specify an editor command to invoke with CTRL-Y while using the
-query UI with option \fB-Q\fR.  When undefined, the command defined by
-\fBEDITOR\fR is invoked.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
