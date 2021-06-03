@@ -5198,8 +5198,7 @@ void init(int argc, const char **argv)
   {
 #ifdef OS_WIN
 
-    std::wstring wpathname = utf8_decode(*file);
-    DWORD attr = GetFileAttributesW(wpathname.c_str());
+    DWORD attr = GetFileAttributesW(utf8_decode(*file).c_str());
 
     if (attr == INVALID_FILE_ATTRIBUTES)
     {
@@ -6777,8 +6776,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
 #ifdef OS_WIN
 
-  std::wstring wpathname = utf8_decode(pathname);
-  DWORD attr = GetFileAttributesW(wpathname.c_str());
+  DWORD attr = GetFileAttributesW(utf8_decode(pathname).c_str());
 
   if (attr == INVALID_FILE_ATTRIBUTES)
   {

@@ -2110,9 +2110,8 @@ void Query::edit()
   if (found)
   {
 #ifdef OS_WIN
-    std::wstring wpathname = utf8_decode(filename);
     _WIN32_FILE_ATTRIBUTE_DATA attr_before;
-    found = GetFileAttributesExW(wpathname.c_str(), GetFileExInfoStandard, &attr_before);
+    found = GetFileAttributesExW(utf8_decode(filename).c_str(), GetFileExInfoStandard, &attr_before);
 #else
     struct stat buf;
     found = stat(filename.c_str(), &buf) == 0 && S_ISREG(buf.st_mode);
@@ -2140,9 +2139,8 @@ void Query::edit()
         bool changed;
 
 #ifdef OS_WIN
-        std::wstring wpathname = utf8_decode(filename);
         _WIN32_FILE_ATTRIBUTE_DATA attr_after;
-        changed = GetFileAttributesExW(wpathname.c_str(), GetFileExInfoStandard, &attr_after) == 0 ||
+        changed = GetFileAttributesExW(utf8_decode(filename).c_str(), GetFileExInfoStandard, &attr_after) == 0 ||
           attr_before.ftLastWriteTime.dwLowDateTime != attr_after.ftLastWriteTime.dwLowDateTime ||
           attr_before.ftLastWriteTime.dwHighDateTime != attr_after.ftLastWriteTime.dwHighDateTime;
 #else
@@ -2326,22 +2324,6 @@ void Query::deselect()
         dirs_.resize(n + 1);
       }
     }
-
-    if (!history_.empty())
-    {
-      int row;
-      history_.top().restore(line_, col_, row, flags_);
-      history_.pop();
-      globbing_ = false;
-      set_prompt();
-      len_ = line_len();
-      search();
-      jump(row);
-    }
-    else
-    {
-      search();
-    }
   }
   else
   {
@@ -2353,7 +2335,21 @@ void Query::deselect()
       dirs_.clear();
 
     deselect_file_ = true;
+  }
 
+  if (!history_.empty())
+  {
+    int row;
+    history_.top().restore(line_, col_, row, flags_);
+    history_.pop();
+    globbing_ = false;
+    set_prompt();
+    len_ = line_len();
+    search();
+    jump(row);
+  }
+  else
+  {
     search();
   }
 }
@@ -2408,6 +2404,8 @@ void Query::unselect()
 
   if (!history_.empty())
   {
+    while (history_.size() > 1)
+      history_.pop();
     int row;
     history_.top().restore(line_, col_, row, flags_);
     history_.pop();

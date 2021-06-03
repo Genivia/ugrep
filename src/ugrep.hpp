@@ -126,9 +126,7 @@ inline std::wstring utf8_decode(const std::string &str)
 // POSIX chdir()
 inline int chdir(const char *path)
 {
-  std::wstring wpath = utf8_decode(path);
-
-  return _wchdir(wpath.c_str());
+  return _wchdir(utf8_decode(path).c_str());
 }
 
 // POSIX getcwd() - but without buffer argument
