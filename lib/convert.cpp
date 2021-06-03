@@ -1937,7 +1937,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             {
               regex.append(par).append(subregex).push_back(')');
             }
-            loc = pos + (pattern[pos] == '\\') + 1;
+            loc = pos + (pos < len && pattern[pos] == '\\') + 1;
             anc = false;
             beg = false;
           }

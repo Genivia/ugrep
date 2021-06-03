@@ -78,13 +78,27 @@ class Query {
 
   typedef char Line[QUERY_MAX_LEN];
 
+  // interactive flags correspond to the command-line options
   struct Flags {
-    bool        flag;
-    int         key;
-    const char *text;
+    bool        flag; // on/off
+    int         key;  // key press to toggle this flag
+    const char *text; // description to show with CTRL-Z
   };
 
-  struct History {
+  // bookmark state saved with CTRL-X to restore with CTRL-R
+  struct State {
+
+    State()
+    {
+      unset();
+    }
+
+    void unset()
+    {
+      *line = '\0';
+      col = 0;
+      row = -1;
+    }
 
     void save(const Line& line_, int col_, int row_, const Flags flags_[])
     {
@@ -96,19 +110,51 @@ class Query {
         set.push_back(flags_[i].flag);
     }
 
-    void restore(Line& line_, int& col_, int& row_, Flags flags_[])
+    bool restore(Line& line_, int& col_, int& row_, Flags flags_[])
     {
+      if (row < 0)
+        return false;
+
+      bool changed = (strcmp(line, line_) != 0);
+
       memcpy(line_, line, sizeof(Line));
       col_ = col;
       row_ = row;
       for (int i = 0; flags_[i].text != NULL; ++i)
-        flags_[i].flag = set[i];
+      {
+        if (flags_[i].flag != set[i])
+        {
+          flags_[i].flag = set[i];
+          changed = true;
+        }
+      }
+
+      return changed;
     }
 
-    Line              line;
-    int               col;
-    int               row;
-    std::vector<bool> set;
+    Line              line; // saved line_[]
+    int               col;  // saved col_
+    int               row;  // saved row_
+    std::vector<bool> set;  // vector of bool flags to save and restore flags_[]
+
+  };
+
+  // history to restore pattern, bookmark and option upon SHIFT-TAB
+  struct History : public State {
+
+    void save(const Line& line_, int col_, int row_, const Flags flags_[], const State& mark_)
+    {
+      State::save(line_, col_, row_, flags_);
+      mark = mark_;
+    }
+
+    void restore(Line& line_, int& col_, int& row_, Flags flags_[], State& mark_)
+    {
+      State::restore(line_, col_, row_, flags_);
+      mark_ = mark;
+    }
+
+    State mark; // saved bookmark state
 
   };
 
@@ -182,7 +228,7 @@ class Query {
 
   static void jump(int row);
 
-  static void edit();
+  static void view();
 
   static void select();
 
@@ -235,7 +281,7 @@ class Query {
   static std::string              what_;
   static int                      row_;
   static int                      rows_;
-  static int                      mark_;
+  static State                    mark_;
   static int                      skip_;
   static int                      select_;
   static bool                     select_all_;

@@ -499,6 +499,7 @@ const char *flag_group_separator   = "--";
 const char *flag_hexdump           = NULL;
 const char *flag_label             = "(standard input)";
 const char *flag_pager             = DEFAULT_PAGER;
+const char *flag_view              = "";
 const char *flag_save_config       = NULL;
 const char *flag_separator         = ":";
 const char *flag_sort              = NULL;
@@ -3787,7 +3788,18 @@ static void save_config()
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\n");
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   fprintf(file, "# Enable/disable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
-  fprintf(file, "# Enable/disable or specify a pager for terminal output, default: no-pager\n%s\n\n", flag_pager != NULL ? flag_pager : "no-pager");
+  fprintf(file, "# Enable/disable query UI file viewing, default: view\n");
+  if (flag_view != NULL && *flag_view == '\0')
+    fprintf(file, "view\n\n");
+  else if (flag_view != NULL)
+    fprintf(file, "view=%s\n\n", flag_view);
+  else
+    fprintf(file, "no-view\n\n");
+  fprintf(file, "# Enable/disable or specify a pager for terminal output, default: no-pager\n");
+  if (flag_pager != NULL)
+    fprintf(file, "pager=%s\n\n", flag_pager);
+  else
+    fprintf(file, "no-pager\n\n");
   fprintf(file, "# Enable/disable pretty output to the terminal, default: no-pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
   fprintf(file, "# Enable/disable headings for terminal output, default: no-heading\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
 
@@ -4263,12 +4275,14 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_stats = NULL;
                 else if (strcmp(arg, "no-ungroup") == 0)
                   flag_ungroup = false;
+                else if (strcmp(arg, "no-view") == 0)
+                  flag_view = NULL;
                 else if (strcmp(arg, "null") == 0)
                   flag_null = true;
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup, or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -4367,8 +4381,12 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
               case 'v':
                 if (strcmp(arg, "version") == 0)
                   version();
+                else if (strncmp(arg, "view=", 5) == 0)
+                  flag_view = arg + 5;
+                else if (strcmp(arg, "view") == 0)
+                  flag_view = "";
                 else
-                  usage("invalid option --", arg, "--version");
+                  usage("invalid option --", arg, "--view or --version");
                 break;
 
               case 'w':
@@ -5658,7 +5676,7 @@ void terminal()
         // enable --line-buffered to flush output immediately
         flag_line_buffered = true;
       }
-      else if (flag_pager != NULL)
+      else if (flag_pager != NULL && *flag_pager != '\0')
       {
         // --pager: if output is to a TTY then page through the results
 
@@ -10727,16 +10745,16 @@ void help(std::ostream& out)
             the default is 5 (0.5s delay).  No whitespace may be given between\n\
             -Q and its argument DELAY.  Initial patterns may be specified with\n\
             -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1\n\
-            or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke an\n\
-            editor to edit the file shown at the top of the screen.  The editor\n\
-            is taken from the environment variable GREP_EDITOR if defined, or\n\
-            EDITOR.  Note that a file viewer such as `less' can be assigned to\n\
-            GREP_EDITOR to view files.  Press Tab and Shift-Tab to navigate\n\
-            directories and to select a file to search.  Press Enter to select\n\
-            lines to output.  Press ALT-l for option -l to list files, ALT-n\n\
-            for -n, etc.  Non-option commands include ALT-] to increase\n\
-            fuzziness and ALT-} to increase context.  Press F1 or CTRL-Z for\n\
-            more information.  Enables --heading.\n\
+            or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke a\n\
+            command to view or edit the file shown at the top of the screen.\n\
+            The command can be specified with option --view, or defaults to\n\
+            environment variable PAGER if defined, or EDITOR.  Press Tab and\n\
+            Shift-Tab to navigate directories and to select a file to search.\n\
+            Press Enter to select lines to output.  Press ALT-l for option -l\n\
+            to list files, ALT-n for -n, etc.  Non-option commands include\n\
+            ALT-] to increase fuzziness and ALT-} to increase context.  Press\n\
+            F1 or CTRL-Z for help.  Enables --heading.  See also options\n\
+            --confirm and --view.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  ugrep will only search until a\n\
             match has been found.\n\
@@ -10825,6 +10843,8 @@ void help(std::ostream& out)
     -v, --invert-match\n\
             Selected lines are those not matching any of the specified\n\
             patterns.\n\
+    --view[=COMMAND]\n\
+            Use COMMAND to view/edit a file in query mode when pressing CTRL-Y.\n\
     -W, --with-hex\n\
             Output binary matches in hexadecimal, leaving text matches alone.\n\
             This option is equivalent to the --binary-files=with-hex option.\n\

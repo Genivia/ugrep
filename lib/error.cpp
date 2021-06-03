@@ -68,7 +68,10 @@ std::string regex_error::regex_error_message_code(regex_error_type code, const c
 
 std::string regex_error::regex_error_message(const char *message, const char *pattern, size_t pos)
 {
-  size_t l = strlen(message);
+  size_t l = strlen(pattern);
+  if (pos > l)
+    pos = l;
+  l = strlen(message);
   size_t n = pos / 40;
   size_t k = pos % 40 + (n == 0 ? 0 : 20);
   const char *p = n == 0 ? pattern : pattern + 40 * n - 20;
@@ -144,7 +147,7 @@ const char *regex_error::disppos(const char *s, size_t k)
         // U+1F18E (UTF-8 F0 9F 86 8E) and higher is usually double width
         if (k < 4)
           break;
-        s += 3;
+        s += ((s[0] != '\0') && (s[1] != '\0') && (s[2] != '\0'));
         k -= 3;
       }
       else

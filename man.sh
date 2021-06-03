@@ -221,10 +221,6 @@ by a previous glob pattern specified in the files associated with
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
 option \fB-f\fR to open a pattern file, when the pattern file does not exist.
-.IP \fBGREP_EDITOR\fR
-May be used to specify a command to edit or view a file when CTRL-Y is pressed
-in the query UI opened with option \fB-Q\fR.  When undefined, the command
-defined by \fBEDITOR\fR is invoked on the file shown at the top of the screen.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text

@@ -440,14 +440,14 @@ void Query::redraw()
     Screen::put(13, 0, "\033[7m^K\033[m delete after cursor");
     Screen::put(14, 0, "\033[7m^L\033[m refresh screen");
     Screen::put(15, 0, "\033[7m^Q\033[m quick exit and output");
-    Screen::put(16, 0, "\033[7m^R\033[m or \033[7mF4\033[m jump to bookmark");
+    Screen::put(16, 0, "\033[7m^R\033[m or \033[7mF4\033[m restore bookmark");
     Screen::put(17, 0, "\033[7m^S\033[m scroll to next file/dir");
     Screen::put(18, 0, "\033[7m^T\033[m toggle colors on/off");
     Screen::put(19, 0, "\033[7m^U\033[m delete before cursor");
     Screen::put(20, 0, "\033[7m^V\033[m verbatim character");
     Screen::put(21, 0, "\033[7m^W\033[m scroll back one file/dir");
     Screen::put(22, 0, "\033[7m^X\033[m or \033[7mF3\033[m set bookmark");
-    Screen::put(23, 0, "\033[7m^Y\033[m or \033[7mF2\033[m edit file");
+    Screen::put(23, 0, "\033[7m^Y\033[m or \033[7mF2\033[m view or edit file");
     Screen::put(24, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
     Screen::put(25, 0, "\033[7m^^\033[m chdir to starting dir");
     Screen::put(26, 0, "\033[7m^\\\033[m terminate process");
@@ -584,9 +584,9 @@ void Query::move(int col)
 void Query::insert(const char *text, size_t size)
 {
   char *end = line_end();
-  if (end + size >= line_ + QUERY_MAX_LEN)
+  if (end + size >= line_ + sizeof(Line))
   {
-    size = line_ + QUERY_MAX_LEN - end - 1;
+    size = line_ + sizeof(Line) - end - 1;
     Screen::alert();
   }
   if (size > 0)
@@ -754,8 +754,8 @@ void Query::query_ui()
     flag_regexp.clear();
 
     size_t num = pattern.size();
-    if (num >= QUERY_MAX_LEN)
-      num = QUERY_MAX_LEN - 1;
+    if (num >= sizeof(Line))
+      num = sizeof(Line) - 1;
 
     pattern.copy(line_, num);
     line_[num] = '\0';
@@ -880,7 +880,7 @@ void Query::query_ui()
             {
               globbing_ = false;
 
-              memcpy(line_, temp_, QUERY_MAX_LEN);
+              memcpy(line_, temp_, sizeof(Line));
               len_ = line_len();
               move(len_);
 
@@ -1156,10 +1156,22 @@ void Query::query_ui()
 
         case VKey::CTRL_R: // CTRL-R: jump to bookmark
         case VKey::FN(4):
-          if (mark_ >= 0)
-            jump(mark_);
+          if (mark_.row >= 0)
+          {
+            int row;
+            if (mark_.restore(line_, col_, row, flags_))
+            {
+              globbing_ = false;
+              set_prompt();
+              len_ = line_len();
+              search();
+            }
+            jump(row);
+          }
           else
+          {
             Screen::alert();
+          }
           break;
 
         case VKey::CTRL_Q: // CTRL-Q: immediately quit and output lines
@@ -1198,15 +1210,15 @@ void Query::query_ui()
           back();
           break;
 
-        case VKey::CTRL_X: // CTRL-X: set bookmark
+        case VKey::CTRL_X: // CTRL-X: set bookmark and save state
         case VKey::FN(3):
-          mark_ = select_ >= 0 ? select_ : row_;
+          mark_.save(line_, col_, (select_ >= 0 ? select_ : row_), flags_);
           break;
 
         case VKey::CTRL_Y: // CTRL-Y: edit file
         case VKey::FN(2):
           if (select_ == -1)
-            edit();
+            view();
           else
             Screen::alert();
           break;
@@ -1680,8 +1692,8 @@ void Query::load_line()
     if (static_cast<size_t>(select_) < view_.size())
     {
       size_t size = view_[select_].size();
-      if (size >= QUERY_MAX_LEN)
-        size = QUERY_MAX_LEN - 1;
+      if (size >= sizeof(Line))
+        size = sizeof(Line) - 1;
       view_[select_].copy(line_, size);
       line_[size] = '\0';
       len_ = line_len();
@@ -2068,8 +2080,8 @@ void Query::jump(int row)
   redraw();
 }
 
-// edit the file located under the cursor or just above in the screen (when not in selection mode)
-void Query::edit()
+// view or edit the file located under the cursor or just above in the screen (when not in selection mode)
+void Query::view()
 {
   if (row_ >= rows_ || flag_text || flag_format != NULL)
   {
@@ -2078,16 +2090,17 @@ void Query::edit()
     return;
   }
 
-  const char *editor = getenv("GREP_EDITOR");
+  const char *pager = flag_view;
 
-  if (editor == NULL)
+  if (pager != NULL && *pager == '\0')
   {
-    editor = getenv("GREP_EDIT");
-    if (editor == NULL)
-      editor = getenv("EDITOR");
+    pager = getenv("PAGER");
+
+    if (pager == NULL)
+      pager = getenv("EDITOR");
   }
 
-  if (editor == NULL)
+  if (pager == NULL || *pager == '\0')
   {
     Screen::alert();
 
@@ -2126,7 +2139,7 @@ void Query::edit()
 
     if (found)
     {
-      std::string command(editor);
+      std::string command(pager);
 
       command.append(" \"").append(filename).append("\"");
 
@@ -2212,10 +2225,10 @@ void Query::select()
       set_prompt();
     }
 
-    mark_ = -1;
-
     history_.emplace();
-    history_.top().save(line_, col_, row_, flags_);
+    history_.top().save(line_, col_, row_, flags_, mark_);
+
+    mark_.unset();
 
     size_t n = pathname.find(PATHSEPCHR);
     size_t b = pathname.find('{'); // do not cd into archives
@@ -2279,8 +2292,6 @@ void Query::deselect()
       return;
 #endif
 
-    mark_ = -1;
-
     if (dirs_.empty())
     {
       char *cwd = getcwd0();
@@ -2337,10 +2348,12 @@ void Query::deselect()
     deselect_file_ = true;
   }
 
+  mark_.unset();
+
   if (!history_.empty())
   {
     int row;
-    history_.top().restore(line_, col_, row, flags_);
+    history_.top().restore(line_, col_, row, flags_, mark_);
     history_.pop();
     globbing_ = false;
     set_prompt();
@@ -2402,12 +2415,14 @@ void Query::unselect()
   wdir_.clear();
   deselect_file_ = true;
 
+  mark_.unset();
+
   if (!history_.empty())
   {
     while (history_.size() > 1)
       history_.pop();
     int row;
-    history_.top().restore(line_, col_, row, flags_);
+    history_.top().restore(line_, col_, row, flags_, mark_);
     history_.pop();
     globbing_ = false;
     set_prompt();
@@ -2425,7 +2440,7 @@ void Query::unselect()
 void Query::message(const std::string& message)
 {
   if (!Screen::mono)
-   Screen::put(PROMPT);
+    Screen::put(PROMPT);
   Screen::put(0, 0, "-> ");
   if (!Screen::mono)
     Screen::normal();
@@ -2835,8 +2850,8 @@ void Query::meta(int key)
 
             memcpy(temp_, line_, sizeof(Line));
             size_t num = globs_.size();
-            if (num >= QUERY_MAX_LEN)
-              num = QUERY_MAX_LEN - 1;
+            if (num >= sizeof(Line))
+              num = sizeof(Line) - 1;
             memcpy(line_, globs_.c_str(), num);
             line_[num] = '\0';
 
@@ -3500,7 +3515,7 @@ std::atomic_int            Query::error_;
 std::string                Query::what_;
 int                        Query::row_                 = 0;
 int                        Query::rows_                = 0;
-int                        Query::mark_                = -1;
+Query::State               Query::mark_;
 int                        Query::select_              = -1;
 bool                       Query::select_all_          = false;
 bool                       Query::globbing_            = false;

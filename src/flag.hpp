@@ -163,6 +163,7 @@ extern const char *flag_group_separator;
 extern const char *flag_hexdump;
 extern const char *flag_label;
 extern const char *flag_pager;
+extern const char *flag_view;
 extern const char *flag_save_config;
 extern const char *flag_separator;
 extern const char *flag_sort;
