@@ -226,16 +226,29 @@ void Query::draw()
   {
     if (select_ == -1)
     {
+      start_ = 0;
       Screen::home();
 
-      start_ = static_cast<int>(prompt_.size());
+      if (row_ > 0)
+      {
+        char down[16];
+
+        snprintf(down, sizeof(down), "%3d ", row_);
+
+        if (!Screen::mono)
+          Screen::put(PROMPT);
+        Screen::put(down);
+
+        start_ = strlen(down);
+      }
 
       if (!dirs_.empty())
       {
         int width = Screen::mbstring_width(dirs_.c_str());
         int offset = 0;
-        if (width + 2 > Screen::cols/2)
-          offset = width + 2 - Screen::cols/2;
+        int split = Screen::cols/2 - start_;
+        if (width + 2 > split)
+          offset = width + 2 - split;
 
         Screen::normal();
         if (offset > 0)
@@ -260,6 +273,8 @@ void Query::draw()
       Screen::put(prompt_.c_str());
 
       Screen::normal();
+
+      start_ += static_cast<int>(prompt_.size());
 
       int pos;
       if (len_ - col_ < shift_)
@@ -401,7 +416,7 @@ void Query::draw()
 }
 
 // view one row of text by drawing it on screen
-void Query::view(int row)
+void Query::disp(int row)
 {
   Screen::normal();
   if (selected_[row])
@@ -509,7 +524,7 @@ void Query::redraw()
     if (end > row_ + Screen::rows - 1)
       end = row_ + Screen::rows - 1;
     for (int i = row_; i < end; ++i)
-      view(i);
+      disp(i);
     if (!message_)
       draw();
   }
@@ -920,7 +935,7 @@ void Query::query_ui()
             else
             {
               selected_[select_] = !selected_[select_];
-              view(select_);
+              disp(select_);
               down();
             }
           }
@@ -1036,7 +1051,7 @@ void Query::query_ui()
             {
               up();
               selected_[select_] = !selected_[select_];
-              view(select_);
+              disp(select_);
             }
           }
           else if (mode_ == Mode::EDIT)
@@ -1063,7 +1078,7 @@ void Query::query_ui()
           {
             up();
             selected_[select_] = !selected_[select_];
-            view(select_);
+            disp(select_);
           }
           break;
 
@@ -1395,7 +1410,7 @@ bool Query::update()
       begin = row_;
 
     for (int i = begin; i < end; ++i)
-      view(i);
+      disp(i);
   }
 
   // display final status line if in view
@@ -1733,7 +1748,7 @@ void Query::up()
   }
   if (row_ > 0)
   {
-    view(row_ - 1);
+    disp(row_ - 1);
     --row_;
     Screen::pan_down();
     draw();
@@ -1758,7 +1773,7 @@ void Query::down()
     Screen::normal();
     Screen::pan_up();
     if (row_ + Screen::rows - 2 < rows_)
-      view(row_ + Screen::rows - 2);
+      disp(row_ + Screen::rows - 2);
     draw();
   }
 }
@@ -1780,7 +1795,7 @@ void Query::pgup(bool half_page)
   }
   if (row_ > 0)
   {
-    view(row_ - 1);
+    disp(row_ - 1);
     int oldrow = row_;
     if (half_page)
       row_ -= Screen::rows / 2;
@@ -1790,7 +1805,7 @@ void Query::pgup(bool half_page)
       row_ = 0;
     Screen::pan_down(oldrow - row_);
     for (int i = row_; i < oldrow - 1; ++i)
-      view(i);
+      disp(i);
     draw();
   }
 }
@@ -1830,7 +1845,7 @@ void Query::pgdn(bool half_page)
       Screen::pan_up(diff);
       for (int i = row_ + Screen::rows - diff - 1; i < row_ + Screen::rows - 1; ++i)
         if (i < rows_)
-          view(i);
+          disp(i);
       draw();
     }
   }
@@ -2090,6 +2105,12 @@ void Query::view()
     return;
   }
 
+  if (flag_stdin)
+  {
+    message("cannot view or edit standard input");
+    return;
+  }
+
   const char *pager = flag_view;
 
   if (pager != NULL && *pager == '\0')
@@ -2098,6 +2119,9 @@ void Query::view()
 
     if (pager == NULL)
       pager = getenv("EDITOR");
+
+    if (pager == NULL)
+      pager = DEFAULT_VIEW_COMMAND;
   }
 
   if (pager == NULL || *pager == '\0')
@@ -2185,6 +2209,7 @@ void Query::view()
       }
     }
   }
+
   if (!found)
     message(std::string("cannot edit file ").append(filename));
 }

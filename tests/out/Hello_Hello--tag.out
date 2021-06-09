@@ -2,6 +2,6 @@ Hello.bat:echo "___Hello___ World!"
 Binary file Hello.class matches
 Hello.java:public class ___Hello___ // prints a ___Hello___ World! greeting
 Hello.java:  { System.out.println("___Hello___ World!");
-Hello.pdf:(___Hello___)
+Binary file Hello.pdf matches
 Hello.sh:echo "___Hello___ World!"
 Hello.txt:___Hello___

@@ -112,6 +112,8 @@ class Query {
 
     bool restore(Line& line_, int& col_, int& row_, Flags flags_[])
     {
+      row_ = 0;
+
       if (row < 0)
         return false;
 
@@ -176,7 +178,7 @@ class Query {
 
   static void draw();
 
-  static void view(int row);
+  static void disp(int row);
 
   static void redraw();
 

@@ -12,10 +12,9 @@ echo
 echo "Building ugrep..."
 
 # configure with the specified command arguments
-OPTIONS=$@
 
 echo
-echo "./configure $OPTIONS"
+echo "./configure $@"
 echo
 
 # appease automake when the original timestamps are lost, when using git clone
@@ -25,7 +24,11 @@ touch config.h.in Makefile.in lib/Makefile.in src/Makefile.in
 sleep 1
 touch configure
 
-./configure $OPTIONS
+if ! ./configure "$@" ; then
+echo "Failed to complete ./configure $@"
+echo "See config.log for more details"
+exit 1
+fi
 
 echo
 echo "make -j clean all"

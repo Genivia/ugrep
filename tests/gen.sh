@@ -2,6 +2,8 @@
 
 UG="../src/ugrep --color=always --sort"
 
+FILES="Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+
 if [ ! -x "../src/ugrep" ] ; then
   echo "../src/ugrep not found, exiting"
   exit 1
@@ -28,8 +30,10 @@ mkdir -p out dir1 dir2
 
 ln -s ../Hello.java dir1
 cp Hello.sh dir1
+cp Hello.bat dir1
 ln -s ../Hello.java dir2
 cp Hello.sh dir2
+cp Hello.bat dir2
 ln -s ../dir2 dir1
 ln -s ../dir1 dir2
 cat > dir1/.gitignore << END
@@ -41,6 +45,8 @@ END
 
 $UG -rl                                  Hello dir1 > out/dir.out
 $UG -Rl                                  Hello dir1 > out/dir-S.out
+$UG -Rl -Osh                             Hello dir1 > out/dir-O.out
+$UG -Rl -M'#!/bin/sh'                    Hello dir1 > out/dir-M.out
 $UG -Rl -tShell                          Hello dir1 > out/dir-t.out
 $UG -1l                                  Hello dir1 > out/dir-1.out
 $UG -2l                                  Hello dir1 > out/dir-2.out
@@ -74,64 +80,64 @@ done
 
 $UG -Zio Lorem lorem.utf8.txt > out/lorem_Lorem-Zio.out
 
-$UG -ci hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ci.out
-$UG -cj hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-cj.out
+$UG -ci hello $FILES > out/Hello_Hello-ci.out
+$UG -cj hello $FILES > out/Hello_Hello-cj.out
 
-$UG -e Hello -e '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-ee.out
-$UG -e Hello -N '".*?"' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello-eN.out
-$UG --max-count=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--max-count.out
-$UG --max-files=1 Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--max-files.out
-$UG --range=1,1   Hello Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > out/Hello_Hello--range.out
+$UG -e Hello -e '".*?"' $FILES > out/Hello_Hello-ee.out
+$UG -e Hello -N '".*?"' $FILES > out/Hello_Hello-eN.out
+$UG --max-count=1 Hello $FILES > out/Hello_Hello--max-count.out
+$UG --max-files=1 Hello $FILES > out/Hello_Hello--max-files.out
+$UG --range=1,1   Hello $FILES > out/Hello_Hello--range.out
 
 for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
     for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-v' '-nv' '-C2' '-nC2' '-vC2' '-nvC2' '-y' '-ny' '-vy' '-nvy' ; do
-      $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN$OUT$OPS.out"
+      $UG -U $OUT $OPS "$PAT" $FILES > "out/$FN$OUT$OPS.out"
     done
   done
   for OUT in '--csv' '--json' '--xml' ; do
     for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-v' '-nv' '-nkb' '-unkb' '-o' '-on' '-onkb' '-ounkb' ; do
-      $UG -U $OUT $OPS "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN$OUT$OPS.out"
+      $UG -U $OUT $OPS "$PAT" $FILES > "out/$FN$OUT$OPS.out"
     done
   done
-  $UG -U --tag "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN--tag.out"
-  $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN--format.out"
-  $UG -U -v --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-v--format.out"
-  $UG -U -Iw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Iw.out"
-  $UG -U -Ix "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Ix.out"
-  $UG -U -F  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-F.out"
-  $UG -U -Fw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Fw.out"
-  $UG -U -Fx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Fx.out"
+  $UG -U --tag "$PAT" $FILES > "out/$FN--tag.out"
+  $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" $FILES > "out/$FN--format.out"
+  $UG -U -v --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" $FILES > "out/$FN-v--format.out"
+  $UG -U -Iw "$PAT" $FILES > "out/$FN-Iw.out"
+  $UG -U -Ix "$PAT" $FILES > "out/$FN-Ix.out"
+  $UG -U -F  "$PAT" $FILES > "out/$FN-F.out"
+  $UG -U -Fw "$PAT" $FILES > "out/$FN-Fw.out"
+  $UG -U -Fx "$PAT" $FILES > "out/$FN-Fx.out"
   if [ "$PAT" == '\w+\s+\S+' ]; then
-    $UG -U -G  '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-G.out"
-    $UG -U -Gw '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gw.out"
-    $UG -U -Gx '\w\+\s\+\S\+' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gx.out"
+    $UG -U -G  '\w\+\s\+\S\+' $FILES > "out/$FN-G.out"
+    $UG -U -Gw '\w\+\s\+\S\+' $FILES > "out/$FN-Gw.out"
+    $UG -U -Gx '\w\+\s\+\S\+' $FILES > "out/$FN-Gx.out"
   else
-    $UG -U -G  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-G.out"
-    $UG -U -Gw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gw.out"
-    $UG -U -Gx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-Gx.out"
+    $UG -U -G  "$PAT" $FILES > "out/$FN-G.out"
+    $UG -U -Gw "$PAT" $FILES > "out/$FN-Gw.out"
+    $UG -U -Gx "$PAT" $FILES > "out/$FN-Gx.out"
   fi
-  $UG -U -IP  "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IP.out"
-  $UG -U -IPw "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IPw.out"
-  $UG -U -IPx "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN-IPx.out"
+  $UG -U -IP  "$PAT" $FILES > "out/$FN-IP.out"
+  $UG -U -IPw "$PAT" $FILES > "out/$FN-IPw.out"
+  $UG -U -IPx "$PAT" $FILES > "out/$FN-IPx.out"
 done
 
 for PAT in '' 'Hello World' 'Hello -World' 'Hello -World|greeting' 'Hello -(greeting|World)' '"a Hello" greeting' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_-'`
-  $UG -U --bool "$PAT" Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/$FN--bool.out"
+  $UG -U --bool "$PAT" $FILES > "out/$FN--bool.out"
 done
 
-$UG -U -e 'Hello' --and 'World' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--and.out"
-$UG -U -e 'Hello' --andnot 'World' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--andnot.out"
-$UG -U -e 'Hello' --and --not 'World' -e 'greeting' Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt > "out/Hello--and--not.out"
+$UG -U -e 'Hello' --and 'World' $FILES > "out/Hello--and.out"
+$UG -U -e 'Hello' --andnot 'World' $FILES > "out/Hello--andnot.out"
+$UG -U -e 'Hello' --and --not 'World' -e 'greeting' $FILES > "out/Hello--and--not.out"
 
 echo "GENERATING TEST ARCHIVES"
 
 rm -f archive.*
 
-ls Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt | cpio -o --quiet > archive.cpio
-ls Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt | pax -w -f archive.pax
+ls $FILES empty.txt | cpio -o --quiet > archive.cpio
+ls $FILES empty.txt | pax -w -f archive.pax
 tar cf archive.tar Hello.* empty.txt
 compress -c archive.tar > archive.tZ
 gzip  -9 -c archive.tar > archive.tgz
@@ -141,7 +147,7 @@ xz    -9 -c archive.tar > archive.txz
 lz4   -9 -c archive.tar > archive.tar.lz4
 zstd  -9 -c archive.tar > archive.tzst
 zip   -9 -q archive.tar.zip archive.tar
-zip   -9 -q archive.zip Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt
+zip   -9 -q archive.zip $FILES empty.txt
 
 $UG -z -c Hello archive.cpio    > out/archive.cpio.out
 $UG -z -c Hello archive.pax     > out/archive.pax.out

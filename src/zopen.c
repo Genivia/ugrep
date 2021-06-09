@@ -523,13 +523,13 @@ z_read(void *handle, unsigned char *rbp, int num)
 	}
 
 	/* Check the magic number */
-	if (fread(header,
+	if ((char)fread(header,
 	    sizeof(char), zmagic + 1, fp) != zmagic + 1 ||
 	    memcmp(header, magic_header, zmagic) != 0) {
 		errno = EINVAL;
 		return (-1);
 	}
-	maxbits = header[zmagic];	/* Set -b from file. */
+	maxbits = header[(int)zmagic];	/* Set -b from file. */
 	block_compress = maxbits & BLOCK_MASK;
 	maxbits &= BIT_MASK;
 	maxmaxcode = 1L << maxbits;

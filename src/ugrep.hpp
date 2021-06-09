@@ -37,6 +37,26 @@
 #ifndef UGREP_HPP
 #define UGREP_HPP
 
+// ugrep version
+#define UGREP_VERSION "3.3.2"
+
+// disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
+#define WITH_NO_MMAP
+
+// use a task-parallel thread to decompress the stream into a pipe to search, handles archives and increases decompression speed for larger files
+#define WITH_DECOMPRESSION_THREAD
+
+// drain stdin until eof - this is disabled for speed, almost all utilities handle SIGPIPE these days anyway
+// #define WITH_STDIN_DRAIN
+
+// enable easy-to-use abbreviated ANSI SGR color codes with WITH_EASY_GREP_COLORS
+// semicolons are not required and abbreviations can be mixed with numeric ANSI SGR codes
+// foreground colors: k=black, r=red, g=green, y=yellow b=blue, m=magenta, c=cyan, w=white
+// background colors: K=black, R=red, G=green, Y=yellow B=blue, M=magenta, C=cyan, W=white
+// bright colors: +k, +r, +g, +y, +b, +m, +c, +w, +K, +R, +G, +Y, +B, +M, +C, +W
+// modifiers: h=highlight, u=underline, i=invert, f=faint, n=normal, H=highlight off, U=underline off, I=invert off
+#define WITH_EASY_GREP_COLORS
+
 // check if we are compiling for a windows OS, but not Cygwin or MinGW
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # define OS_WIN
@@ -254,6 +274,93 @@ inline char *getcwd0()
 # else
 #  define PLATFORM ""
 # endif
+#endif
+
+// the default GREP_COLORS
+#ifndef DEFAULT_GREP_COLORS
+# ifdef OS_WIN
+#  define DEFAULT_GREP_COLORS "sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
+# else
+#  define DEFAULT_GREP_COLORS "cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
+# endif
+#endif
+
+// the default --tabs
+#ifndef DEFAULT_TABS
+# define DEFAULT_TABS 8
+#endif
+
+// the default --tag
+#ifndef DEFAULT_TAG
+# define DEFAULT_TAG "___"
+#endif
+
+// the default pager command when --pager is used
+#ifndef DEFAULT_PAGER_COMMAND
+# ifdef OS_WIN
+#  define DEFAULT_PAGER_COMMAND "more"
+# else
+#  define DEFAULT_PAGER_COMMAND "less -R"
+# endif
+#endif
+
+// the default -Q UI view command when --view is used and PAGER or EDITOR are not set
+#ifndef DEFAULT_VIEW_COMMAND
+# ifdef OS_WIN
+#  define DEFAULT_VIEW_COMMAND "ugrep"
+# else
+#  define DEFAULT_VIEW_COMMAND "less"
+# endif
+#endif
+
+// the default ignore file
+#ifndef DEFAULT_IGNORE_FILE
+# define DEFAULT_IGNORE_FILE ".gitignore"
+#endif
+
+// color is disabled by default, unless enabled with WITH_COLOR
+#ifdef WITH_COLOR
+# define DEFAULT_COLOR "auto"
+#else
+# define DEFAULT_COLOR NULL
+#endif
+
+// pager is disabled by default, unless enabled with WITH_PAGER
+#ifdef WITH_PAGER
+# define DEFAULT_PAGER DEFAULT_PAGER_COMMAND
+#else
+# define DEFAULT_PAGER NULL
+#endif
+
+// default --mmap
+#define DEFAULT_MIN_MMAP_SIZE MIN_MMAP_SIZE
+
+// default --max-mmap: mmap is disabled by default with WITH_NO_MMAP
+#ifdef WITH_NO_MMAP
+# define DEFAULT_MAX_MMAP_SIZE 0
+#else
+# define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
+#endif
+
+// pretty is disabled by default, unless enabled with WITH_PRETTY
+#ifdef WITH_PRETTY
+# define DEFAULT_PRETTY true
+#else
+# define DEFAULT_PRETTY false
+#endif
+
+// hidden file and directory search is enabled by default, unless disabled with WITH_HIDDEN
+#ifdef WITH_HIDDEN
+# define DEFAULT_HIDDEN true
+#else
+# define DEFAULT_HIDDEN false
+#endif
+
+// do not confirm query UI actions
+#ifdef WITH_NO_CONFIRM
+# define DEFAULT_CONFIRM false
+#else
+# define DEFAULT_CONFIRM true
 #endif
 
 #include "flag.hpp"

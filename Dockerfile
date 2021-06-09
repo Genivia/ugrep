@@ -15,7 +15,7 @@ RUN apt-get install -y \
     make \
     vim \
     git \
-    g\+\+ \
+    clang \
     wget \
     unzip \
     libpcre2-dev \

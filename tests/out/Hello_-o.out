@@ -8,7 +8,6 @@
 [1;35mHello.java[m[1;36m:[m  { System.out.println("Hello World!");[m
 [1;35mHello.java[m[1;36m:[m  }[m
 [1;35mHello.java[m[1;36m:[m}[m
-[1;35mHello.pdf[m[1;36m:[m%PDF-1.3[m
 [mBinary file[1;35m Hello.pdf[m matches
 [1;35mHello.sh[m[1;36m:[m#!/bin/sh[m
 [1;35mHello.sh[m[1;36m:[mecho "Hello World!"[m

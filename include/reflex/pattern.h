@@ -869,7 +869,7 @@ class Pattern {
       Char  hi,
       Index index)
   {
-    return is_meta(lo) ? (lo << 24) | index : (lo << 24) | (hi << 16) | index;
+    return is_meta(lo) ? (static_cast<Opcode>(lo) << 24) | index : (static_cast<Opcode>(lo) << 24) | (hi << 16) | index;
   }
   static inline Opcode opcode_halt()
   {

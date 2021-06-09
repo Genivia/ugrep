@@ -1,4 +1,4 @@
-AC_INIT(ugrep,3.0)
+AC_INIT(ugrep,3.3)
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER(config.h)
 AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
@@ -7,6 +7,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 # if CXXFLAGS is undefined, set it to our preferred default flags
 : ${CXXFLAGS="-Wall -Wextra -Wunused -O2"}
+: ${CFLAGS="-Wall -Wextra -Wunused -O2"}
 
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])
@@ -62,9 +63,14 @@ AC_TRY_COMPILE([
 ], AC_MSG_RESULT(no)
 )
 
-AX_CHECK_PCRE2([8], [], [echo "checking for Boost.Regex because PCRE2 is not usable"])
+AX_CHECK_PCRE2([8],
+[],
+[echo "checking for Boost.Regex because PCRE2 is not usable"]
+)
 
-AX_BOOST_REGEX
+if test "x$pcre2_cv_libpcre2" != "xyes" || test "x$pcre2_cv_pcre2_h" != "xyes"; then
+  AX_BOOST_REGEX
+fi
 
 AX_CHECK_ZLIB([], [echo "zlib not found: ugrep option -z is not available"])
 

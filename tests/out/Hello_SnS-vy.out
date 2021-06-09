@@ -1,6 +1,5 @@
 [1;35mHello.bat[m[1;36m-[m[1;34m#!/bin/s[m[7;34;107mh[m
 [1;35mHello.bat[m[1;36m|[m[7;34;107me[m[1;34mcho "Hello World!"[m
-[mBinary file[1;35m Hello.class[m matches
 [1;35mHello.java[m[1;36m:[mimport java.lang.*;[m
 [1;35mHello.java[m[1;36m:[m
 [1;35mHello.java[m[1;36m-[m[1;34mpublic class Hello // prints a Hello World! greetin[m[7;34;107mg[m

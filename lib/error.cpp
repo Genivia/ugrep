@@ -111,7 +111,7 @@ size_t regex_error::displen(const char *s, size_t k)
         ++n;
         if (k < 4)
           break;
-        s += 3;
+        s += (s[0] != '\0') + (s[1] != '\0') + (s[2] != 0);
         k -= 3;
       }
       else
@@ -147,7 +147,7 @@ const char *regex_error::disppos(const char *s, size_t k)
         // U+1F18E (UTF-8 F0 9F 86 8E) and higher is usually double width
         if (k < 4)
           break;
-        s += ((s[0] != '\0') && (s[1] != '\0') && (s[2] != '\0'));
+        s += (s[0] != '\0') + (s[1] != '\0') + (s[2] != 0);
         k -= 3;
       }
       else
