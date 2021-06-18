@@ -833,31 +833,33 @@ unrolled:
     }
     if (cap_ == 0)
     {
-      if (method == Const::FIND && !at_end())
+      if (method == Const::FIND)
       {
-        if (anc_)
+        if (!at_end())
         {
-          cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
-          anc_ = false;
-        }
-        if (pos_ > cur_)
-        {
-          // we didn't fail on META alone
-          if (advance())
+          if (anc_)
           {
-            if (!pat_->one_)
-              goto scan;
-            len_ = pat_->len_;
-            txt_ = buf_ + cur_;
-            set_current(cur_ + len_);
-            return cap_ = 1;
+            cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
+            anc_ = false;
           }
+          if (pos_ > cur_) // if we didn't fail on META alone
+          {
+            if (advance())
+            {
+              if (!pat_->one_)
+                goto scan;
+              txt_ = buf_ + cur_;
+              len_ = pat_->len_;
+              set_current(cur_ + len_);
+              return cap_ = 1;
+            }
+          }
+          txt_ = buf_ + cur_;
         }
-        txt_ = buf_ + cur_;
       }
       else
       {
-        // no match: backup to begin of unmatched text
+        // SCAN and MATCH: no match: backup to begin of unmatched text to report as error
         cur_ = txt_ - buf_;
       }
     }
