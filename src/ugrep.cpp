@@ -3317,7 +3317,7 @@ void GrepWorker::execute()
   }
 }
 
-// table of RE/flex file encodings for option --encoding
+// table of RE/flex file encodings for option --encoding (may be specified in any case)
 const Encoding encoding_table[] = {
   { "binary",      reflex::Input::file_encoding::plain      },
   { "ASCII",       reflex::Input::file_encoding::utf8       },
@@ -3695,7 +3695,7 @@ static void save_config()
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\n");
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   fprintf(file, "# Enable/disable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
-  fprintf(file, "# Enable/disable query UI file viewing, default: view\n");
+  fprintf(file, "# Enable/disable query UI file viewing with CTRL-Y, default: view\n");
   if (flag_view != NULL && *flag_view == '\0')
     fprintf(file, "view\n\n");
   else if (flag_view != NULL)
@@ -5009,12 +5009,18 @@ void init(int argc, const char **argv)
   // --encoding: parse ENCODING value
   if (flag_encoding != NULL)
   {
-    int i;
+    int i, j;
 
-    // scan the encoding_table[] for a matching encoding
+    // scan the encoding_table[] for a matching encoding, case insensitive ASCII
     for (i = 0; encoding_table[i].format != NULL; ++i)
-      if (strcmp(flag_encoding, encoding_table[i].format) == 0)
+    {
+      for (j = 0; flag_encoding[j] != '\0' && encoding_table[i].format[j] != '\0'; ++j)
+        if (toupper(flag_encoding[j]) != toupper(encoding_table[i].format[j]))
+          break;
+
+      if (flag_encoding[j] == '\0' && encoding_table[i].format[j] == '\0')
         break;
+    }
 
     if (encoding_table[i].format == NULL)
     {
@@ -10407,12 +10413,12 @@ void help(std::ostream& out)
             be repeated.\n\
     --exclude-dir=GLOB\n\
             Exclude directories whose name matches GLOB from recursive\n\
-            searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
-            quote a wildcard or backslash character literally.  When GLOB\n\
-            contains a `/', full pathnames are matched.  Otherwise basenames\n\
-            are matched.  Note that --exclude-dir patterns take priority over\n\
-            --include-dir patterns.  GLOB should be quoted to prevent shell\n\
-            globbing.  This option may be repeated.\n\
+            searches, same as -g ^GLOB/.  GLOB can use **, *, ?, and [...] as\n\
+            wildcards, and \\ to quote a wildcard or backslash character\n\
+            literally.  When GLOB contains a `/', full pathnames are matched.\n\
+            Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
+            take priority over --include-dir patterns.  GLOB should be quoted\n\
+            to prevent shell globbing.  This option may be repeated.\n\
     --exclude-from=FILE\n\
             Read the globs from FILE and skip files and directories whose name\n\
             matches one or more globs (as if specified by --exclude and\n\
@@ -10545,12 +10551,12 @@ void help(std::ostream& out)
             globbing.  This option may be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose name matches GLOB are included in recursive\n\
-            searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
-            quote a wildcard or backslash character literally.  When GLOB\n\
-            contains a `/', full pathnames are matched.  Otherwise basenames\n\
-            are matched.  Note that --exclude-dir patterns take priority over\n\
-            --include-dir patterns.  GLOB should be quoted to prevent shell\n\
-            globbing.  This option may be repeated.\n\
+            searches, same as -g GLOB/.  GLOB can use **, *, ?, and [...] as\n\
+            wildcards, and \\ to quote a wildcard or backslash character\n\
+            literally.  When GLOB contains a `/', full pathnames are matched.\n\
+            Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
+            take priority over --include-dir patterns.  GLOB should be quoted\n\
+            to prevent shell globbing.  This option may be repeated.\n\
     --include-from=FILE\n\
             Read the globs from FILE and search only files and directories\n\
             whose name matches one or more globs (as if specified by --include\n\

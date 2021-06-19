@@ -1,4 +1,4 @@
-.TH UGREP "1" "June 09, 2021" "ugrep 3.3.2" "User Commands"
+.TH UGREP "1" "June 19, 2021" "ugrep 3.3.3" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -231,12 +231,12 @@ be repeated.
 .TP
 \fB\-\-exclude\-dir\fR=\fIGLOB\fR
 Exclude directories whose name matches GLOB from recursive
-searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
-quote a wildcard or backslash character literally.  When GLOB
-contains a `/', full pathnames are matched.  Otherwise basenames
-are matched.  Note that \fB\-\-exclude\-dir\fR patterns take priority over
-\fB\-\-include\-dir\fR patterns.  GLOB should be quoted to prevent shell
-globbing.  This option may be repeated.
+searches, same as \fB\-g\fR ^GLOB/.  GLOB can use **, *, ?, and [...] as
+wildcards, and \\ to quote a wildcard or backslash character
+literally.  When GLOB contains a `/', full pathnames are matched.
+Otherwise basenames are matched.  Note that \fB\-\-exclude\-dir\fR patterns
+take priority over \fB\-\-include\-dir\fR patterns.  GLOB should be quoted
+to prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-exclude\-from\fR=\fIFILE\fR
 Read the globs from FILE and skip files and directories whose name
@@ -375,12 +375,12 @@ globbing.  This option may be repeated.
 .TP
 \fB\-\-include\-dir\fR=\fIGLOB\fR
 Only directories whose name matches GLOB are included in recursive
-searches.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to
-quote a wildcard or backslash character literally.  When GLOB
-contains a `/', full pathnames are matched.  Otherwise basenames
-are matched.  Note that \fB\-\-exclude\-dir\fR patterns take priority over
-\fB\-\-include\-dir\fR patterns.  GLOB should be quoted to prevent shell
-globbing.  This option may be repeated.
+searches, same as \fB\-g\fR \fIGLOB\fR/.  GLOB can use **, *, ?, and [...] as
+wildcards, and \\ to quote a wildcard or backslash character
+literally.  When GLOB contains a `/', full pathnames are matched.
+Otherwise basenames are matched.  Note that \fB\-\-exclude\-dir\fR patterns
+take priority over \fB\-\-include\-dir\fR patterns.  GLOB should be quoted
+to prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-include\-from\fR=\fIFILE\fR
 Read the globs from FILE and search only files and directories
