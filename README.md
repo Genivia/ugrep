@@ -3049,7 +3049,7 @@ field                   | output
 `%,`                    | if not the first match: a comma, same as `%[,]>`
 `%:`                    | if not the first match: a colon, same as `%[:]>`
 `%;`                    | if not the first match: a semicolon, same as `%[;]>`
-`%│`                    | if not the first match: a verical bar, same as `%[│]>`
+`%│`                    | if not the first match: a vertical bar, same as `%[│]>`
 `%[ARG]S`               | if not the first match: `ARG` and separator, see also `%$`
 `%s`                    | the separator, see also `%S` and `%$`
 `%~`                    | a newline character, same as `\n`
@@ -4445,7 +4445,7 @@ in markdown:
 
            %;     if not the first match: a semicolon, same as %[;]>.
 
-           %|     if not the first match: a verical bar, same as %[|]>.
+           %|     if not the first match: a vertical bar, same as %[|]>.
 
            %[ARG]S
                   if not the first match: ARG and separator, see also %$.
