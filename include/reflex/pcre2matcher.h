@@ -114,9 +114,9 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     cop_ = matcher.cop_;
     flg_ = matcher.flg_;
 #ifdef pcre2_code_copy_with_tables
-    opc_ = pcre2_code_copy_with_tables(matcher.opc_);
+    opc_ = pcre2_code_copy(matcher.opc_);
     dat_ = pcre2_match_data_create_from_pattern(opc_, NULL);
-    jit_ = matcher.jit_ && pcre2_jit_compile(opc_, PCRE2_JIT_PARTIAL_HARD) == 0 && pcre2_pattern_info(opc_, PCRE2_INFO_JITSIZE, NULL) != 0;
+    jit_ = pcre2_jit_compile(opc_, PCRE2_JIT_COMPLETE | PCRE2_JIT_PARTIAL_HARD) == 0 && pcre2_pattern_info(opc_, PCRE2_INFO_JITSIZE, NULL) != 0;
 #else
     compile();
 #endif
@@ -181,7 +181,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     }
     opc_ = pcre2_code_copy_with_tables(matcher.opc_);
     dat_ = pcre2_match_data_create_from_pattern(opc_, NULL);
-    jit_ = matcher.jit_ && pcre2_jit_compile(opc_, PCRE2_JIT_PARTIAL_HARD) == 0 && pcre2_pattern_info(opc_, PCRE2_INFO_JITSIZE, NULL) != 0;
+    jit_ = pcre2_jit_compile(opc_, PCRE2_JIT_COMPLETE | PCRE2_JIT_PARTIAL_HARD) == 0 && pcre2_pattern_info(opc_, PCRE2_INFO_JITSIZE, NULL) != 0;
 #else
     compile();
 #endif
@@ -299,7 +299,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
       pcre2_get_error_message(err, message, sizeof(message));
       throw regex_error(reinterpret_cast<char*>(message), *pat_, pos);
     }
-    jit_ = pcre2_jit_compile(opc_, PCRE2_JIT_PARTIAL_HARD) == 0 && pcre2_pattern_info(opc_, PCRE2_INFO_JITSIZE, NULL) != 0;
+    jit_ = pcre2_jit_compile(opc_, PCRE2_JIT_COMPLETE | PCRE2_JIT_PARTIAL_HARD) == 0 && pcre2_pattern_info(opc_, PCRE2_INFO_JITSIZE, NULL) != 0;
     dat_ = pcre2_match_data_create_from_pattern(opc_, NULL);
     DBGLOGN("jit=%d", jit_);
   }
@@ -378,21 +378,9 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     {
       DBGLOGN("pcre2_match() pos = %zu end = %zu", pos_, end_);
       int rc;
-      /* TODO this may be a bug in PCRE2? If JIT is used to compile the
-         pattern for complete and partial matching (these are not exclusive):
-         pcre2_jit_compile(opc_, PCRE2_JIT_COMPLETE | PCRE2_JIT_PARTIAL_HARD);
-         then pcre2_jit_match() without option PCRE2_PARTIAL_HARD always
-         returns error PCRE2_ERROR_JIT_BADOPTION when we actually want the
-         complete match when the end of the input is reached.  A final complete
-         match is required, because we cannot tell whether the final partial
-         match is also a complete match.  Therefore, pcre2_jit_match() is
-         unusable and disabled below in favor of pcre2_match().
-         */
-#if 0
       if (jit_ && !(flg & PCRE2_ANCHORED))
         rc = pcre2_jit_match(opc_, reinterpret_cast<PCRE2_SPTR>(buf_), end_, pos_, flg, dat_, ctx_);
       else
-#endif
         rc = pcre2_match(opc_, reinterpret_cast<PCRE2_SPTR>(buf_), end_, pos_, flg, dat_, ctx_);
       if (rc > 0)
       {
@@ -416,12 +404,8 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
         if (method == Const::FIND)
           txt_ = buf_ + cur_;
         pos_ = end_;
-        if (peek_more() == EOF) // read more text into the buffer after end_
-        {
-          if ((flg & PCRE2_PARTIAL_HARD) == 0)
-            return false;
-          flg &= ~PCRE2_PARTIAL_HARD;
-        }
+        if (peek_more() == EOF && (flg & PCRE2_PARTIAL_HARD) == 0) // read more text into the buffer after end_
+          return false;
         pos_ = cur_; // try again
       }
       else if (rc == PCRE2_ERROR_NOMATCH && (method == Const::FIND || method == Const::SPLIT))
@@ -437,7 +421,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
         if (method == Const::FIND)
           txt_ = buf_ + end_;
         pos_ = end_;
-        if (peek_more() == EOF)
+        if (peek_more() == EOF) // read more text into the buffer after end_
           return false;
       }
       else
@@ -449,11 +433,13 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
 #endif
         return false;
       }
+      if (eof_)
+        flg &= ~PCRE2_PARTIAL_HARD; // all remaining data read into the buffer, no more partial matching
     }
   }
   uint32_t             cop_; ///< PCRE2 compiled options
   uint32_t             flg_; ///< PCRE2 match flags
-  pcre2_code          *opc_; ///< compiled PCRE2 code
+  pcre2_code          *opc_; ///< PCRE2 opcode
   pcre2_match_data    *dat_; ///< PCRE2 match data
   pcre2_match_context *ctx_; ///< PCRE2 match context;
   pcre2_jit_stack     *stk_; ///< PCRE2 jit match stack
