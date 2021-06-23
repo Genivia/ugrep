@@ -15,21 +15,21 @@ Download the latest version of PCRE2 from:
 
 	ftp://ftp.pcre.org/pub/pcre/
 
-Below we assume PCRE2 version 10.34 is used.
+Below we assume PCRE2 version 10.37 is used.
 
-Copy the downloaded pcre2-10.34 directory here.
+Copy the downloaded pcre2-10.37 directory here.
 
-Rename pcre2-10.34\src\config.h.generic as pcre2-10.34\src\config.h
+Rename pcre2-10.37\src\config.h.generic as pcre2-10.37\src\config.h
 
-Rename pcre2-10.34\src\pcre2.h as pcre2-10.34\src\pcre2.h
+Rename pcre2-10.37\src\pcre2.h.generic as pcre2-10.37\src\pcre2.h
 
-Rename pcre2-10.34\src\pcre2_chartables.c.dist as pcre2-10.34\src\pcre2_chartables.c
+Rename pcre2-10.37\src\pcre2_chartables.c.dist as pcre2-10.37\src\pcre2_chartables.c
 
 Create a new C++ Static Library project in Visual Studio named "pcre2".  This
 should be an empty project (remove the .h and .cpp files when present).
 
 Add all of the .h files and a select set of .c files in directory
-pcre2-10.34/src to the project sources:
+pcre2-10.37/src to the project sources:
 
 	pcre2_auto_possess.c
 	pcre2_chartables.c
@@ -65,11 +65,11 @@ Select Release/x86 then Project Configuration Properties:
 		Use of MFC: Use Standard Windows Libraries
 	C/C++:
 		General:
-			Additional Include Directories: C:\Users\<YOUR-PATH-HERE>\ugrep\vs\ugrep\pcre2-10.34\src
+			Additional Include Directories: C:\Users\<YOUR-PATH-HERE>\ugrep\vs\ugrep\pcre2-10.37\src
 		Precompiled Headers:
 			Precompiled Header: Not Using Precompiled Headers
 		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_LIB;HAVE_CONFIG_H;PCRE2_STATIC;PCRE2_CODE_UNIT_WIDTH=8;SUPPORT_JIT
+			Preprocessor Definitions: WIN32;NDEBUG;_LIB;HAVE_CONFIG_H;PCRE2_STATIC;PCRE2_CODE_UNIT_WIDTH=8;SUPPORT_JIT;SUPPORT_UNICODE
 		Code Generation:
 			Runtime Library:
 				Multi-threaded (/MT)
@@ -128,7 +128,7 @@ After completing the steps above, this directory should contain the following di
         api
         bzip2-1.0.5
         lz4-dev
-        pcre2-10.34
+        pcre2-10.37
         Release
         ugrep
         x64
@@ -150,7 +150,7 @@ Configuration Properties
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
 		General:
-			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.34\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib
+			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.37\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib
 		Preprocessor: 
 			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:

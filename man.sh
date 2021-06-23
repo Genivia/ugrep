@@ -317,7 +317,7 @@ if not the first match: a colon, same as \fB%[:]>\fR.
 .IP \fB%;\fR
 if not the first match: a semicolon, same as \fB%[;]>\fR.
 .IP \fB%|\fR
-if not the first match: a verical bar, same as \fB%[|]>\fR.
+if not the first match: a vertical bar, same as \fB%[|]>\fR.
 .IP \fB%[\fR\fIARG\fR\fB]S\fR
 if not the first match: \fIARG\fR and separator, see also \fB%$\fR.
 .IP \fB%s\fR

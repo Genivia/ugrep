@@ -114,7 +114,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     cop_ = matcher.cop_;
     flg_ = matcher.flg_;
 #ifdef pcre2_code_copy_with_tables
-    opc_ = pcre2_code_copy(matcher.opc_);
+    opc_ = pcre2_code_copy_with_tables(matcher.opc_);
     dat_ = pcre2_match_data_create_from_pattern(opc_, NULL);
     jit_ = pcre2_jit_compile(opc_, PCRE2_JIT_COMPLETE | PCRE2_JIT_PARTIAL_HARD) == 0 && pcre2_pattern_info(opc_, PCRE2_INFO_JITSIZE, NULL) != 0;
 #else

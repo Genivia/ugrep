@@ -168,7 +168,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
   len_ = 0;
   min_ = 0;
   one_ = false;
-  if (opc_ || fsm_)
+  if (opc_ != NULL || fsm_ != NULL )
   {
     if (pred != NULL)
     {
