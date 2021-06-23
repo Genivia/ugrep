@@ -136,7 +136,6 @@ class Pattern {
       const uint8_t *pred = NULL)
     :
       opc_(code),
-      nop_(0),
       fsm_(NULL)
   {
     init(NULL, pred);
@@ -147,7 +146,6 @@ class Pattern {
       const uint8_t *pred = NULL)
     :
       opc_(NULL),
-      nop_(0),
       fsm_(fsm)
   {
     init(NULL, pred);

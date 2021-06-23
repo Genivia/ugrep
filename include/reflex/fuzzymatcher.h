@@ -917,30 +917,54 @@ unrolled:
     }
     if (cap_ == 0)
     {
-      if (method == Const::FIND && !at_end())
+      if (method == Const::FIND)
       {
-        if (anc_)
+        if (!at_end())
         {
-          cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
-          anc_ = false;
-        }
-        // fuzzy search with find() can safely advance on a single prefix char of the regex
-        if (pos_ > cur_)
-        {
-          // this part is based on advance() in matcher.cpp, limited to advancing ahead till the one of the first pattern char(s) match
-          size_t loc = cur_ + 1;
-          if (pat_->len_ == 0)
+          if (anc_)
           {
-            if (pat_->min_ > 0)
+            cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
+            anc_ = false;
+          }
+          // fuzzy search with find() can safely advance on a single prefix char of the regex
+          if (pos_ > cur_)
+          {
+            // this part is based on advance() in matcher.cpp, limited to advancing ahead till the one of the first pattern char(s) match
+            size_t loc = cur_ + 1;
+            if (pat_->len_ == 0)
             {
-              const Pattern::Pred *pma = pat_->pma_;
+              if (pat_->min_ > 0)
+              {
+                const Pattern::Pred *pma = pat_->pma_;
+                while (true)
+                {
+                  const char *s = buf_ + loc;
+                  const char *e = buf_ + end_;
+                  while (s < e && (pma[static_cast<uint8_t>(*s)] & 0xc0) == 0xc0)
+                    ++s;
+                  if (s < e)
+                  {
+                    loc = s - buf_;
+                    set_current(loc);
+                    goto scan;
+                  }
+                  loc = e - buf_;
+                  set_current_match(loc - 1);
+                  peek_more();
+                  loc = cur_ + 1;
+                  if (loc >= end_)
+                    break;
+                }
+              }
+            }
+            else
+            {
               while (true)
               {
                 const char *s = buf_ + loc;
                 const char *e = buf_ + end_;
-                while (s < e && (pma[static_cast<uint8_t>(*s)] & 0xc0) == 0xc0)
-                  ++s;
-                if (s < e)
+                s = static_cast<const char*>(std::memchr(s, *pat_->pre_, e - s));
+                if (s != NULL)
                 {
                   loc = s - buf_;
                   set_current(loc);
@@ -950,38 +974,17 @@ unrolled:
                 set_current_match(loc - 1);
                 peek_more();
                 loc = cur_ + 1;
-                if (loc >= end_)
+                if (loc + pat_->len_ > end_)
                   break;
               }
             }
           }
-          else
-          {
-            while (true)
-            {
-              const char *s = buf_ + loc;
-              const char *e = buf_ + end_;
-              s = static_cast<const char*>(std::memchr(s, *pat_->pre_, e - s));
-              if (s != NULL)
-              {
-                loc = s - buf_;
-                set_current(loc);
-                goto scan;
-              }
-              loc = e - buf_;
-              set_current_match(loc - 1);
-              peek_more();
-              loc = cur_ + 1;
-              if (loc + pat_->len_ > end_)
-                break;
-            }
-          }
+          txt_ = buf_ + cur_;
         }
-        txt_ = buf_ + cur_;
       }
       else
       {
-        // no match: backup to begin of unmatched text
+        // SCAN and MATCH: no match: backup to begin of unmatched text to report as error
         cur_ = txt_ - buf_;
       }
     }
