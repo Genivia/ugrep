@@ -917,6 +917,9 @@ unrolled:
   bool advance()
     /// @returns true if possible match found
     ;
+  // string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+  bool simd_advance_avx2(const char*& b, const char *e, size_t &loc, size_t min, const char *pre, size_t len);
+  bool simd_advance_avx512bw(const char*& b, const char *e, size_t &loc, size_t min, const char *pre, size_t len);
 #if !defined(WITH_NO_INDENT)
   /// Update indentation column counter for indent() and dedent().
   inline void newline()

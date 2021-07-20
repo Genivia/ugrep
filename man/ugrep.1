@@ -1,4 +1,4 @@
-.TH UGREP "1" "June 22, 2021" "ugrep 3.3.4" "User Commands"
+.TH UGREP "1" "July 20, 2021" "ugrep 3.3.5" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -240,10 +240,15 @@ to prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-exclude\-from\fR=\fIFILE\fR
 Read the globs from FILE and skip files and directories whose name
-matches one or more globs (as if specified by \fB\-\-exclude\fR and
-\fB\-\-exclude\-dir\fR).  Lines starting with a `#' and empty lines in FILE
-are ignored.  When FILE is a `\-', standard input is read.  This
-option may be repeated.
+matches one or more globs.  A glob can use **, *, ?, and [...] as
+wildcards, and \\ to quote a wildcard or backslash character
+literally.  When a glob contains a `/', full pathnames are matched.
+Otherwise basenames are matched.  When a glob ends with a `/',
+directories are excluded as if \fB\-\-exclude\-dir\fR is specified.
+Otherwise files are excluded.  A glob starting with a `!' overrides
+previously\-specified exclusions by including matching files.  Lines
+starting with a `#' and empty lines in FILE are ignored.  When FILE
+is a `\-', standard input is read.  This option may be repeated.
 .TP
 \fB\-\-exclude\-fs\fR=\fIMOUNTS\fR
 Exclude file systems specified by MOUNTS from recursive searches,
@@ -331,11 +336,12 @@ results from different files.
 \fB\-\-help\fR [\fIWHAT\fR], \fB\-?\fR [\fIWHAT\fR]
 Display a help message, specifically on WHAT when specified.
 .TP
-\fB\-\-hexdump\fR=[1\-8][b][c][h]
+\fB\-\-hexdump\fR=[1\-8][a][b][c][h]
 Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
-default is 2 columns or 16 octets per line.  Option `b' removes all
-space breaks, `c' removes the character column, and `h' removes the
-hex spacing.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
+default is 2 columns or 16 octets per line.  Option `a' outputs a
+`*' for all hex lines that are identical to the previous hex line,
+`b' removes all space breaks, `c' removes the character column and
+`h' removes hex spacing.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
 .TP
 \fB\-\-hidden\fR, \fB\-.\fR
 Search hidden files and directories.
@@ -358,8 +364,12 @@ Ignore files and directories matching the globs in each FILE that
 is encountered in recursive searches.  The default FILE is
 `.gitignore'.  Matching files and directories located in the
 directory of a FILE's location and in directories below are ignored
-by temporarily overriding the \fB\-\-exclude\fR and \fB\-\-exclude\-dir\fR globs.
-Files and directories that are explicitly specified as command line
+by temporarily overriding the \fB\-\-exclude\fR and \fB\-\-exclude\-dir\fR globs,
+as if \fB\-\-exclude\-from\fR=\fIFILE\fR is locally enforced.  Globbing is the
+same as \fB\-\-exclude\-from\fR=\fIFILE\fR and supports gitignore syntax, but
+directories are not automatically excluded from searches (use a
+glob ending with a `/' to identify directories to ignore, same as
+git).  Files and directories explicitly specified as command line
 arguments are never ignored.  This option may be repeated.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
@@ -384,10 +394,16 @@ to prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-include\-from\fR=\fIFILE\fR
 Read the globs from FILE and search only files and directories
-whose name matches one or more globs (as if specified by \fB\-\-include\fR
-and \fB\-\-include\-dir\fR).  Lines starting with a `#' and empty lines in
-FILE are ignored.  When FILE is a `\-', standard input is read.
-This option may be repeated.
+whose name matches one or more globs.  A glob can use **, *, ?, and
+[...] as wildcards, and \\ to quote a wildcard or backslash
+character literally.  When a glob contains a `/', full pathnames
+are matched.  Otherwise basenames are matched.  When a glob ends
+with a `/', directories are included as if \fB\-\-include\-dir\fR is
+specified.  Otherwise files are included.  A glob starting with a
+`!' overrides previously\-specified inclusions by excluding matching
+files.  Lines starting with a `#' and empty lines in FILE are
+ignored.  When FILE is a `\-', standard input is read.  This option
+may be repeated.
 .TP
 \fB\-\-include\-fs\fR=\fIMOUNTS\fR
 Only file systems specified by MOUNTS are included in recursive
@@ -772,11 +788,13 @@ The configuration is written to standard output when \fIFILE\fR is a `-'.
 .SH GLOBBING
 Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
-\fB--exclude-from\fR to match pathnames and basenames in recursive searches.
-Glob arguments for these options should be quoted to prevent shell globbing.
+\fB--exclude-from\fR and \fB--ignore-files\fR to match pathnames and basenames
+in recursive searches.  Glob arguments for these options should be quoted to
+prevent shell globbing.
 .PP
-Globbing supports gitignore syntax and the corresponding matching rules.  When
-a glob ends in a path separator it matches directories as if
+Globbing supports gitignore syntax and the corresponding matching rules, except
+that a glob normally matches files but not directories.  If a glob ends in a
+path separator `/', then it matches directories but not files, as if
 \fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
 a path separator `/', the full pathname is matched.  Otherwise the basename of
 a file or directory is matched.  For example, \fB*.h\fR matches foo.h and

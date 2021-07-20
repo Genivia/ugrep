@@ -71,25 +71,31 @@ void Matcher::boyer_moore_init(const char *pat, size_t len)
     if (pat[j - 1] == pat[i])
       break;
   bmd_ = i - j + 1;
-#if !defined(HAVE_NEON)
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2) || defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
   size_t score = 0;
   for (i = 0; i < n; ++i)
     score += bms_[static_cast<uint8_t>(pat[i])];
   score /= n;
   uint8_t fch = freq[static_cast<uint8_t>(pat[lcp_])];
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
   if (!have_HW_SSE2() && !have_HW_AVX2() && !have_HW_AVX512BW())
   {
     // if scoring is high and freq is high, then use our improved Boyer-Moore instead of memchr()
 #if defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
-    // SSE2 is available, expect fast memchr()
+    // SSE2 is available, expect fast memchr() to use instead of BM
     if (score > 1 && fch > 35 && (score > 3 || fch > 50) && fch + score > 52)
       lcs_ = 0xffff;
 #else
-    // no SSE2 available, expect slow memchr()
+    // no SSE2 available, expect slow memchr() and use BM unless score or frequency are too low
     if (fch > 37 || (fch > 8 && score > 0))
       lcs_ = 0xffff;
 #endif
   }
+#elif defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
+  // SSE2 is available, expect fast memchr() to use instead of BM
+  if (score > 1 && fch > 35 && (score > 3 || fch > 50) && fch + score > 52)
+    lcs_ = 0xffff;
+#endif
 #endif
 }
 
@@ -288,77 +294,15 @@ bool Matcher::advance()
       const char *s = buf_ + loc + lcp_;
       const char *e = buf_ + end_ + lcp_ - len + 1;
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
-      if (have_HW_AVX512BW())
+      if (s + 64 > e && have_HW_AVX512BW())
       {
-        // implements AVX512 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
-        __m512i vlcp = _mm512_set1_epi8(pre[lcp_]);
-        __m512i vlcs = _mm512_set1_epi8(pre[lcs_]);
-        while (s + 64 <= e)
-        {
-          __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
-          __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs_ - lcp_));
-          uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
-          while (mask != 0)
-          {
-            uint32_t offset = ctzl(mask);
-            if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
-            {
-              loc = s - lcp_ + offset - buf_;
-              set_current(loc);
-              if (min == 0)
-                return true;
-              if (min >= 4)
-              {
-                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
-                  return true;
-              }
-              else
-              {
-                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
-                  return true;
-              }
-            }
-            mask &= mask - 1;
-          }
-          s += 64;
-        }
+        if (simd_advance_avx512bw(s, e, loc, min, pre, len))
+          return true;
       }
-      else if (have_HW_AVX2())
+      else if (s + 32 > e && have_HW_AVX2())
       {
-        // implements AVX2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
-        __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
-        __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
-        while (s + 32 <= e)
-        {
-          __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs_ - lcp_));
-          __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
-          __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
-            {
-              loc = s - lcp_ + offset - buf_;
-              set_current(loc);
-              if (min == 0)
-                return true;
-              if (min >= 4)
-              {
-                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
-                  return true;
-              }
-              else
-              {
-                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
-                  return true;
-              }
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
+        if (simd_advance_avx2(s, e, loc, min, pre, len))
+          return true;
       }
       else if (have_HW_SSE2())
       {
@@ -398,42 +342,10 @@ bool Matcher::advance()
         }
       }
 #elif defined(HAVE_AVX2)
-      if (have_HW_AVX2())
+      if (s + 32 > e && have_HW_AVX2())
       {
-        // implements AVX2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
-        __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
-        __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
-        while (s + 32 <= e)
-        {
-          __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs_ - lcp_));
-          __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
-          __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
-            {
-              loc = s - lcp_ + offset - buf_;
-              set_current(loc);
-              if (min == 0)
-                return true;
-              if (min >= 4)
-              {
-                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
-                  return true;
-              }
-              else
-              {
-                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
-                  return true;
-              }
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
+        if (simd_advance_avx2(s, e, loc, min, pre, len))
+          return true;
       }
       else if (have_HW_SSE2())
       {

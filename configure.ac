@@ -189,41 +189,9 @@ fi
 
 AC_SUBST(EXTRA_CFLAGS)
 
-AC_ARG_ENABLE(avx,
-  [AC_HELP_STRING([--disable-avx],
-                  [disable AVX optimizations])],
-  [with_no_avx="yes"],
-  [with_no_avx="no"])
-AC_MSG_CHECKING(for --disable-avx)
-if test "x$with_no_avx" = "xno"; then
-  AC_MSG_RESULT(no)
-  AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
-  save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-march=native"
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m512 n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);]])],
-                    [mavx_ok=yes],
-                    [mavx_ok=no])
-  if test "x$mavx_ok" = "xyes"; then
-    SIMD_FLAGS="-mavx512bw -DHAVE_AVX512BW"
-  else
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42); (void)_mm256_movemask_epi8(_mm256_and_si256(n, n));]])],
-                      [mavx_ok=yes],
-                      [mavx_ok=no])
-    if test "x$mavx_ok" = "xyes"; then
-      SIMD_FLAGS="-mavx2 -DHAVE_AVX2"
-    fi
-  fi
-  CXXFLAGS=$save_CXXFLAGS
-  AC_MSG_RESULT($mavx_ok)
-else
-  AC_MSG_RESULT(yes)
-  SIMD_FLAGS=
-fi
-
-if test "x$SIMD_FLAGS" = "x"; then
 AC_ARG_ENABLE(sse2,
   [AC_HELP_STRING([--disable-sse2],
-                  [disable SSE2 optimizations])],
+                  [disable SSE2 and AVX optimizations])],
   [with_no_sse2="yes"],
   [with_no_sse2="no"])
 AC_MSG_CHECKING(for --disable-sse2)
@@ -239,11 +207,42 @@ if test "x$with_no_sse2" = "xno"; then
   AC_MSG_RESULT($msse2_ok)
   if test "x$msse2_ok" = "xyes"; then
     SIMD_FLAGS="-msse2 -DHAVE_SSE2"
+    AC_ARG_ENABLE(avx,
+      [AC_HELP_STRING([--disable-avx],
+                      [disable AVX optimizations])],
+      [with_no_avx="yes"],
+      [with_no_avx="no"])
+    AC_MSG_CHECKING(for --disable-avx)
+    if test "x$with_no_avx" = "xno"; then
+      AC_MSG_RESULT(no)
+      AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
+      save_CXXFLAGS=$CXXFLAGS
+      CXXFLAGS="-march=native"
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m512 n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);]])],
+                        [mavx_ok=yes],
+                        [mavx_ok=no])
+      if test "x$mavx_ok" = "xyes"; then
+        SIMD_FLAGS="-msse2 -DHAVE_AVX512BW"
+        SIMD_AVX2_FLAGS="-mavx2"
+        SIMD_AVX512BW_FLAGS="-mavx512bw"
+      else
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42); (void)_mm256_movemask_epi8(_mm256_and_si256(n, n));]])],
+                          [mavx_ok=yes],
+                          [mavx_ok=no])
+        if test "x$mavx_ok" = "xyes"; then
+          SIMD_FLAGS="-msse2 -DHAVE_AVX2"
+          SIMD_AVX2_FLAGS="-mavx2"
+        fi
+      fi
+      CXXFLAGS=$save_CXXFLAGS
+      AC_MSG_RESULT($mavx_ok)
+    else
+      AC_MSG_RESULT(yes)
+    fi
   fi
 else
   AC_MSG_RESULT(yes)
   SIMD_FLAGS=
-fi
 fi
 
 if test "x$SIMD_FLAGS" = "x"; then
@@ -293,6 +292,8 @@ fi
 fi
 
 AC_SUBST(SIMD_FLAGS)
+AC_SUBST(SIMD_AVX2_FLAGS)
+AC_SUBST(SIMD_AVX512BW_FLAGS)
 
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])

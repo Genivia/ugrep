@@ -28,7 +28,7 @@
 
 /**
 @file      input.cpp
-@brief     RE/flex input character sequence class
+@brief     RE/flex input character sequence class and simd.h CPUID check
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -1366,14 +1366,9 @@ void Input::file_encoding(unsigned short enc, const unsigned short *page)
 
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
 
-#ifdef _MSC_VER
-# include <intrin.h>
-# define cpuidex __cpuidex
-#else
-# include <cpuid.h>
-# define cpuidex(CPUInfo, id, subid) __cpuid_count(id, subid, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3])
-#endif
+#include <reflex/simd.h>
 
+// simd.h get_HW()
 static uint64_t get_HW()
 {
   int CPUInfo1[4] = { 0, 0, 0, 0 };
@@ -1388,15 +1383,8 @@ static uint64_t get_HW()
   return static_cast<uint32_t>(CPUInfo1[2]) | (static_cast<uint64_t>(static_cast<uint32_t>(CPUInfo7[1])) << 32);
 }
 
-#else
-
-static uint64_t get_HW()
-{
-  return 0ULL;
-}
+uint64_t HW = get_HW();
 
 #endif
-
-uint64_t HW = get_HW();
 
 } // namespace reflex

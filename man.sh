@@ -138,11 +138,13 @@ The configuration is written to standard output when \fIFILE\fR is a `-'.
 .SH GLOBBING
 Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
-\fB--exclude-from\fR to match pathnames and basenames in recursive searches.
-Glob arguments for these options should be quoted to prevent shell globbing.
+\fB--exclude-from\fR and \fB--ignore-files\fR to match pathnames and basenames
+in recursive searches.  Glob arguments for these options should be quoted to
+prevent shell globbing.
 .PP
-Globbing supports gitignore syntax and the corresponding matching rules.  When
-a glob ends in a path separator it matches directories as if
+Globbing supports gitignore syntax and the corresponding matching rules, except
+that a glob normally matches files but not directories.  If a glob ends in a
+path separator `/', then it matches directories but not files, as if
 \fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
 a path separator `/', the full pathname is matched.  Otherwise the basename of
 a file or directory is matched.  For example, \fB*.h\fR matches foo.h and

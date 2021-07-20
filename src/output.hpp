@@ -244,8 +244,7 @@ class Output {
         out(out),
         offset(0)
     {
-      for (int i = 0; i < MAX_HEX_COLUMNS; ++i)
-        bytes[i] = -1;
+      done();
     }
 
     // dump matching data in hex, mode is
@@ -274,20 +273,24 @@ class Output {
     // done dumping hex
     inline void done()
     {
-      if (offset % flag_hex_columns != 0)
+      if (incomplete())
       {
         line();
         offset += flag_hex_columns - 1;
         offset -= offset % flag_hex_columns;
       }
+      for (int i = 0; i < MAX_HEX_COLUMNS; ++i)
+        prevb[i] = bytes[i] = -1;
     }
 
     // dump one line of hex
     void line();
 
-    Output& out;                 // reference to the output state of this hex dump state
-    size_t  offset;              // current byte offset in the hex dump
+    Output& out;                    // reference to the output state of this hex dump state
+    size_t  offset;                 // current byte offset in the hex dump
     short   bytes[MAX_HEX_COLUMNS]; // one line of hex dump bytes with their mode bits for color highlighting
+    short   prevb[MAX_HEX_COLUMNS]; // previously displayed bytes[], to produce line with *
+    bool    pstar;                  // previously output a *
 
   };
 

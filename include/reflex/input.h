@@ -28,7 +28,7 @@
 
 /**
 @file      input.h
-@brief     RE/flex input character sequence class and HW accelleration
+@brief     RE/flex input character sequence class
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -42,24 +42,7 @@
 #include <cstring>
 #include <iostream>
 #include <string>
-
 #include <stdint.h>
-
-#if defined(HAVE_AVX512BW)
-# include <immintrin.h>
-#elif defined(HAVE_AVX2)
-# include <immintrin.h>
-#elif defined(HAVE_SSE2)
-# include <emmintrin.h>
-#elif defined(HAVE_NEON)
-# include <arm_neon.h>
-#endif
-
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-# ifdef _MSC_VER
-#  include <intrin.h>
-# endif
-#endif
 
 namespace reflex {
 
@@ -700,7 +683,7 @@ class Input {
           if (k < l)
           {
             uidx_ = static_cast<unsigned short>(k);
-            ulen_ = static_cast<unsigned short>(l);
+            ulen_ = static_cast<unsigned short>(l - k);
             std::memcpy(s, utf8_, k);
             s += k;
             k = 0;
@@ -785,7 +768,7 @@ class Input {
   size_t                size_;    ///< size of the remaining input in bytes (size_ == 0 may indicate size is not set)
   char                  utf8_[8]; ///< UTF-8 normalization buffer, >=8 bytes
   unsigned short        uidx_;    ///< index in utf8_[]
-  unsigned short        ulen_;    ///< length of data in utf8_[] or 0 if no data
+  unsigned short        ulen_;    ///< length of data (remaining after uidx_) in utf8_[] or 0 if no data
   file_encoding_type    utfx_;    ///< file_encoding
   const unsigned short *page_;    ///< custom code page
   Handler              *handler_; ///< to handle FILE* errors and non-blocking FILE* reads
@@ -1173,71 +1156,6 @@ class BufferedInput::dos_streambuf : public std::streambuf {
   int ch1_;
   int ch2_;
 };
-
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-
-#ifdef _MSC_VER
-#pragma intrinsic(_BitScanForward)
-inline uint32_t ctz(uint32_t x)
-{
-  unsigned long r;
-  _BitScanForward(&r, x);
-  return r;
-}
-inline uint32_t popcount(uint32_t x)
-{
-  return __popcnt(x);
-}
-#ifdef _WIN64
-#pragma intrinsic(_BitScanForward64)
-inline uint32_t ctzl(uint64_t x)
-{
-  unsigned long r;
-  _BitScanForward64(&r, x);
-  return r;
-}
-inline uint32_t popcountl(uint64_t x)
-{
-  return static_cast<uint32_t>(__popcnt64(x));
-}
-#endif
-#else
-inline uint32_t ctz(uint32_t x)
-{
-  return __builtin_ctz(x);
-}
-inline uint32_t ctzl(uint64_t x)
-{
-  return __builtin_ctzl(x);
-}
-inline uint32_t popcount(uint32_t x)
-{
-  return __builtin_popcount(x);
-}
-inline uint32_t popcountl(uint64_t x)
-{
-  return __builtin_popcountl(x);
-}
-#endif
-
-#endif
-
-extern uint64_t HW;
-
-inline bool have_HW_AVX512BW()
-{
-  return HW & (1ULL << 62);
-}
-
-inline bool have_HW_AVX2()
-{
-  return HW & (1ULL << 37);
-}
-
-inline bool have_HW_SSE2()
-{
-  return HW & (1ULL << 26);
-}
 
 } // namespace reflex
 

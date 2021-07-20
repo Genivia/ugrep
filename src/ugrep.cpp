@@ -320,6 +320,7 @@ bool flag_dereference              = false;
 bool flag_files_with_matches       = false;
 bool flag_files_without_match      = false;
 bool flag_fixed_strings            = false;
+bool flag_hex_ast                  = false;
 bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
 bool flag_hex_hbr                  = true;
@@ -728,13 +729,17 @@ struct Grep {
       while (true)
       {
         struct timeval tv;
-        fd_set fds;
-        FD_ZERO(&fds);
-        FD_SET(0, &fds);
+        fd_set rfds, efds;
+        FD_ZERO(&rfds);
+        FD_ZERO(&efds);
+        FD_SET(0, &rfds);
+        FD_SET(0, &efds);
         tv.tv_sec = 1;
         tv.tv_usec = 0;
-        int r = ::select(1, &fds, NULL, &fds, &tv);
+        int r = ::select(1, &rfds, NULL, &efds, &tv);
         if (r < 0 && errno != EINTR)
+          return 0;
+        if (r > 0 && FD_ISSET(0, &efds))
           return 0;
         if (r > 0)
           return 1;
@@ -2821,13 +2826,17 @@ struct Grep {
             if (!(fcntl(0, F_GETFL) & O_NONBLOCK))
               break;
             struct timeval tv;
-            fd_set fds;
-            FD_ZERO(&fds);
-            FD_SET(0, &fds);
+            fd_set rfds, efds;
+            FD_ZERO(&rfds);
+            FD_ZERO(&efds);
+            FD_SET(0, &rfds);
+            FD_SET(0, &efds);
             tv.tv_sec = 1;
             tv.tv_usec = 0;
-            int r = ::select(1, &fds, NULL, &fds, &tv);
+            int r = ::select(1, &rfds, NULL, &efds, &tv);
             if (r < 0 && errno != EINTR)
+              break;
+            if (r > 0 && FD_ISSET(0, &efds))
               break;
           }
           else if (errno != EINTR)
@@ -5064,8 +5073,10 @@ void init(int argc, const char **argv)
     {
       flag_hex_columns = 8 * (*flag_hexdump - '0');
       if (flag_hex_columns == 0 || flag_hex_columns > MAX_HEX_COLUMNS)
-        usage("invalid argument --hexdump=[1-8][b][c][h]");
+        usage("invalid argument --hexdump=[1-8][a][b][c][h]");
     }
+    if (strchr(flag_hexdump, 'a') != NULL)
+      flag_hex_ast = true;
     if (strchr(flag_hexdump, 'b') != NULL)
       flag_hex_hbr = flag_hex_cbr = false;
     if (strchr(flag_hexdump, 'c') != NULL)
@@ -10421,10 +10432,15 @@ void help(std::ostream& out)
             to prevent shell globbing.  This option may be repeated.\n\
     --exclude-from=FILE\n\
             Read the globs from FILE and skip files and directories whose name\n\
-            matches one or more globs (as if specified by --exclude and\n\
-            --exclude-dir).  Lines starting with a `#' and empty lines in FILE\n\
-            are ignored.  When FILE is a `-', standard input is read.  This\n\
-            option may be repeated.\n\
+            matches one or more globs.  A glob can use **, *, ?, and [...] as\n\
+            wildcards, and \\ to quote a wildcard or backslash character\n\
+            literally.  When a glob contains a `/', full pathnames are matched.\n\
+            Otherwise basenames are matched.  When a glob ends with a `/',\n\
+            directories are excluded as if --exclude-dir is specified.\n\
+            Otherwise files are excluded.  A glob starting with a `!' overrides\n\
+            previously-specified exclusions by including matching files.  Lines\n\
+            starting with a `#' and empty lines in FILE are ignored.  When FILE\n\
+            is a `-', standard input is read.  This option may be repeated.\n\
     --exclude-fs=MOUNTS\n\
             Exclude file systems specified by MOUNTS from recursive searches,\n\
             MOUNTS is a comma-separated list of mount points or pathnames of\n\
@@ -10510,11 +10526,12 @@ void help(std::ostream& out)
             results from different files.\n\
     --help [WHAT], -? [WHAT]\n\
             Display a help message, specifically on WHAT when specified.\n\
-    --hexdump=[1-8][b][c][h]\n\
+    --hexdump=[1-8][a][b][c][h]\n\
             Output matches in 1 to 8 columns of 8 hexadecimal octets.  The\n\
-            default is 2 columns or 16 octets per line.  Option `b' removes all\n\
-            space breaks, `c' removes the character column, and `h' removes the\n\
-            hex spacing.  Enables -X if -W or -X is not specified.\n\
+            default is 2 columns or 16 octets per line.  Option `a' outputs a\n\
+            `*' for all hex lines that are identical to the previous hex line,\n\
+            `b' removes all space breaks, `c' removes the character column and\n\
+            `h' removes hex spacing.  Enables -X if -W or -X is not specified.\n\
     --hidden, -.\n\
             Search "
 #ifdef OS_WIN
@@ -10536,8 +10553,12 @@ void help(std::ostream& out)
             is encountered in recursive searches.  The default FILE is\n\
             `" DEFAULT_IGNORE_FILE "'.  Matching files and directories located in the\n\
             directory of a FILE's location and in directories below are ignored\n\
-            by temporarily overriding the --exclude and --exclude-dir globs.\n\
-            Files and directories that are explicitly specified as command line\n\
+            by temporarily overriding the --exclude and --exclude-dir globs,\n\
+            as if --exclude-from=FILE is locally enforced.  Globbing is the\n\
+            same as --exclude-from=FILE and supports gitignore syntax, but\n\
+            directories are not automatically excluded from searches (use a\n\
+            glob ending with a `/' to identify directories to ignore, same as\n\
+            git).  Files and directories explicitly specified as command line\n\
             arguments are never ignored.  This option may be repeated.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB using wildcard matching,\n\
@@ -10559,10 +10580,16 @@ void help(std::ostream& out)
             to prevent shell globbing.  This option may be repeated.\n\
     --include-from=FILE\n\
             Read the globs from FILE and search only files and directories\n\
-            whose name matches one or more globs (as if specified by --include\n\
-            and --include-dir).  Lines starting with a `#' and empty lines in\n\
-            FILE are ignored.  When FILE is a `-', standard input is read.\n\
-            This option may be repeated.\n\
+            whose name matches one or more globs.  A glob can use **, *, ?, and\n\
+            [...] as wildcards, and \\ to quote a wildcard or backslash\n\
+            character literally.  When a glob contains a `/', full pathnames\n\
+            are matched.  Otherwise basenames are matched.  When a glob ends\n\
+            with a `/', directories are included as if --include-dir is\n\
+            specified.  Otherwise files are included.  A glob starting with a\n\
+            `!' overrides previously-specified inclusions by excluding matching\n\
+            files.  Lines starting with a `#' and empty lines in FILE are\n\
+            ignored.  When FILE is a `-', standard input is read.  This option\n\
+            may be repeated.\n\
     --include-fs=MOUNTS\n\
             Only file systems specified by MOUNTS are included in recursive\n\
             searches.  MOUNTS is a comma-separated list of mount points or\n\
@@ -10979,11 +11006,11 @@ void version()
 #endif
   std::cout << "ugrep " UGREP_VERSION " " PLATFORM <<
 #if defined(HAVE_AVX512BW)
-    (reflex::have_HW_AVX512BW() ? " +avx512" : (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (-avx512)")) <<
+    (reflex::have_HW_AVX512BW() ? " +avx512" : (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)")) <<
 #elif defined(HAVE_AVX2)
-    (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (-avx2)") <<
+    (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)") <<
 #elif defined(HAVE_SSE2)
-    (reflex::have_HW_SSE2() ?  " +sse2" : " (-sse2)") <<
+    (reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)") <<
 #elif defined(HAVE_NEON)
     " +neon" <<
 #endif

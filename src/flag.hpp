@@ -82,6 +82,7 @@ extern bool flag_dereference;
 extern bool flag_files_with_matches;
 extern bool flag_files_without_match;
 extern bool flag_fixed_strings;
+extern bool flag_hex_ast;
 extern bool flag_hex_cbr;
 extern bool flag_hex_chr;
 extern bool flag_hex_hbr;

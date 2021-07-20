@@ -52,6 +52,33 @@ void Output::Dump::hex(short mode, size_t byte_offset, const char *data, size_t 
 // dump one line of hex
 void Output::Dump::line()
 {
+  if (flag_hex_ast)
+  {
+    // if the previous hex line was the same as this hex line, output a * (but only once)
+    size_t i;
+
+    for (i = 0; i < flag_hex_columns; ++i)
+      if (prevb[i] < 0 || bytes[i] != prevb[i])
+        break;
+
+    if (i >= flag_hex_columns)
+    {
+      if (!pstar)
+      {
+        out.str(color_se);
+        out.chr('*');
+        out.nl();
+
+        pstar = true;
+      }
+
+      for (i = 0; i < MAX_HEX_COLUMNS; ++i)
+        bytes[i] = -1;
+
+      return;
+    }
+  }
+
   out.str(color_bn);
   out.hex((offset - 1) - (offset - 1) % flag_hex_columns, 8);
   out.str(color_off);
@@ -175,8 +202,13 @@ void Output::Dump::line()
 
   out.nl();
 
-  for (size_t i = 0; i < MAX_HEX_COLUMNS; ++i)
+  for (int i = 0; i < MAX_HEX_COLUMNS; ++i)
+  {
+    prevb[i] = bytes[i];
     bytes[i] = -1;
+  }
+
+  pstar = false;
 }
 
 // output the header part of the match, preceding the matched line

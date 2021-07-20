@@ -650,7 +650,7 @@ void Query::query()
   get_stdin();
 
   if (!VKey::setup(VKey::TTYRAW))
-    abort("no keyboard detected");
+    abort("no ANSI terminal keyboard detected");
 
   if (!Screen::setup("ugrep --query"))
   {

@@ -50,6 +50,7 @@
 #include <reflex/debug.h>
 #include <reflex/input.h>
 #include <reflex/traits.h>
+#include <reflex/simd.h>
 #include <cstdlib>
 #include <cctype>
 #include <iterator>
@@ -614,8 +615,8 @@ class AbstractMatcher {
 #if defined(WITH_SPAN)
     if (lpb_ < txt_)
     {
-      char *s = bol_;
-      char *t = txt_;
+      const char *s = bol_;
+      const char *t = txt_;
       // clang/gcc 4-way vectorizable loop
       while (t - 4 >= s)
       {
@@ -628,32 +629,18 @@ class AbstractMatcher {
         if (--t >= s && *t != '\n')
           if (--t >= s && *t != '\n')
             --t;
-      bol_ = t + 1;
+      bol_ = const_cast<char*>(t + 1);
       lpb_ = txt_;
       size_t n = lno_;
+
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
-      if (have_HW_AVX512BW())
+      if (s + 63 > t && have_HW_AVX512BW())
       {
-        __m512i vlcn = _mm512_set1_epi8('\n');
-        while (s + 63 <= t)
-        {
-          __m512i vlcm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
-          uint64_t mask = _mm512_cmpeq_epi8_mask(vlcm, vlcn);
-          n += popcountl(mask);
-          s += 64;
-        }
+        n += simd_nlcount_avx512bw(s, t);
       }
-      else if (have_HW_AVX2())
+      else if (s + 31 > t && have_HW_AVX2())
       {
-        __m256i vlcn = _mm256_set1_epi8('\n');
-        while (s + 31 <= t)
-        {
-          __m256i vlcm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vlceq = _mm256_cmpeq_epi8(vlcm, vlcn);
-          uint32_t mask = _mm256_movemask_epi8(vlceq);
-          n += popcount(mask);
-          s += 32;
-        }
+        n += simd_nlcount_avx2(s, t);
       }
       else if (have_HW_SSE2())
       {
@@ -668,17 +655,9 @@ class AbstractMatcher {
         }
       }
 #elif defined(HAVE_AVX2)
-      if (have_HW_AVX2())
+      if (s + 31 > t && have_HW_AVX2())
       {
-        __m256i vlcn = _mm256_set1_epi8('\n');
-        while (s + 31 <= t)
-        {
-          __m256i vlcm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vlceq = _mm256_cmpeq_epi8(vlcm, vlcn);
-          uint32_t mask = _mm256_movemask_epi8(vlceq);
-          n += popcount(mask);
-          s += 32;
-        }
+        n += simd_nlcount_avx2(s, t);
       }
       else if (have_HW_SSE2())
       {
@@ -707,11 +686,11 @@ class AbstractMatcher {
       }
 #elif defined(HAVE_NEON)
       {
-        // ARM AArch64/NEON SIMD optimized loop? - no code found yet that runs faster than the code below
+        // ARM AArch64/NEON SIMD optimized loop? - no code that runs faster than the code below?
       }
 #endif
       uint32_t n0 = 0, n1 = 0, n2 = 0, n3 = 0;
-      // clang/gcc 4-way vectorizable loop
+      // clang/gcc 4-way auto-vectorizable loop
       while (s + 3 <= t)
       {
         n0 += s[0] == '\n';
