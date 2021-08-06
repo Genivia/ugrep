@@ -121,25 +121,26 @@ Copy directory zstd-dev with its contents here.
 
 Follow the instructions to build the Release Win32 and x64 versions of the libzstd static ZSTD library compiled with Visual Studio C++ to libzstd_static.lib:
 
-        https://github.com/facebook/zstd/tree/dev/build
+	https://github.com/facebook/zstd/tree/dev/build
 
 After completing the steps above, this directory should contain the following directories and files (versions may differ):
 
-        api
-        bzip2-1.0.5
-        lz4-dev
-        pcre2-10.37
-        Release
-        ugrep
-        x64
-        zlib-1.2.11
-        zstd-dev
-        liblzma-x32.lib
-        liblzma-x64.lib
-        pcre2-x32.lib
-        pcre2-x64.lib
-        README.txt
-        ugrep.sln
+	api
+	bzip2-1.0.5
+	lz4-dev
+	pcre2-10.37
+	Release
+	ugrep
+	x64
+	zlib-1.2.11
+	zstd-dev
+	liblzma-x32.lib
+	liblzma-x64.lib
+	pcre2-x32.lib
+	pcre2-x64.lib
+	README.txt
+	ugrep.sln
+	manifest.xml
 
 Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
@@ -163,6 +164,9 @@ Configuration Properties
 			Additional Library Directories: $(ProjectDir)\..;$(ProjectDir)\..\zstd-dev\build\VS2010\bin\Win32_Release
 		Input:
 			Additional Dependencies: pcre2-x32.lib;liblzma-x32.lib;libzstd_static.lib
+	Manifest Tool:
+		Input and Output:
+			Additional Manifest Files: $(ProjectDir)\..\manifest.xml
 
 Then build ugrep in Visual Studio.
 
@@ -225,25 +229,26 @@ Copy directory zstd-dev with its contents here.
 
 Follow the instructions to build the Release Win32 and x64 versions of the libzstd static ZSTD library compiled with Visual Studio C++ to libzstd_static.lib:
 
-        https://github.com/facebook/zstd/tree/dev/build
+	https://github.com/facebook/zstd/tree/dev/build
 
 After completing the steps above, this directory should contain the following directories and files (versions may differ):
 
-        api
-        boost_1_72_0
-        bzip2-1.0.5
-        lz4-dev
-        Release
-        ugrep
-        x64
-        zlib-1.2.11
-        zstd-dev
-        libboost_regex-vc141-mt-s-x32-1_72.lib
-        libboost_regex-vc141-mt-s-x64-1_72.lib
-        liblzma-x32.lib
-        liblzma-x64.lib
-        README.txt
-        ugrep.sln
+	api
+	boost_1_72_0
+	bzip2-1.0.5
+	lz4-dev
+	Release
+	ugrep
+	x64
+	zlib-1.2.11
+	zstd-dev
+	libboost_regex-vc141-mt-s-x32-1_72.lib
+	libboost_regex-vc141-mt-s-x64-1_72.lib
+	liblzma-x32.lib
+	liblzma-x64.lib
+	README.txt
+	ugrep.sln
+	manifest.xml
 
 Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
@@ -267,5 +272,8 @@ Configuration Properties
 			Additional Library Directories: $(ProjectDir)\..;$(ProjectDir)\..\zstd-dev\build\VS2010\bin\Win32_Release
 		Input:
 			Additional Dependencies: liblzma-x32.lib;libzstd_static.lib
+	Manifest Tool:
+		Input and Output:
+			Additional Manifest Files: $(ProjectDir)\..\manifest.xml
 
 Then build ugrep in Visual Studio.

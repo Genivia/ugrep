@@ -5694,8 +5694,8 @@ void terminal()
           dupenv_s(&env_grep_colors, "GREP_COLORS");
           const char *grep_colors = env_grep_colors;
 
-          // if GREP_COLOR is defined, use it to set mt= default value (overridden by GREP_COLORS mt=, ms=, mc=)
-          if (env_grep_color != NULL)
+          // if GREP_COLOR is defined but not GREP_COLORS, use it to set mt= default value (overridden by GREP_COLORS mt=, ms=, mc=)
+          if (env_grep_colors == NULL && env_grep_color != NULL)
             set_color(std::string("mt=").append(env_grep_color).c_str(), "mt=", color_mt);
           else if (grep_colors == NULL)
             grep_colors = DEFAULT_GREP_COLORS;
@@ -5744,7 +5744,7 @@ void terminal()
             copy_color(color_mc, color_mt);
 
           // if OSC hyperlinks are OK (note that "hl" does not match color letters so strstr can be used)
-          if (strstr(grep_colors, "hl") != NULL || (flag_colors != NULL && strstr(flag_colors, "hl") != NULL))
+          if ((grep_colors != NULL && strstr(grep_colors, "hl") != NULL) || (flag_colors != NULL && strstr(flag_colors, "hl") != NULL))
           {
             char *cwd = getcwd0();
             if (cwd != NULL)
@@ -5760,7 +5760,7 @@ void terminal()
           }
 
           // if CSI erase line is OK (note that ne does not match color letters so strstr can be used)
-          if (strstr(grep_colors, "ne") == NULL && (flag_colors == NULL || strstr(flag_colors, "ne") == NULL))
+          if ((grep_colors == NULL || strstr(grep_colors, "ne") == NULL) && (flag_colors == NULL || strstr(flag_colors, "ne") == NULL))
             color_del = "\033[K";
 
           color_off = "\033[m";

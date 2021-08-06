@@ -3059,9 +3059,9 @@ field                   | output
 `%a`                    | the file basename without directory path
 `%p`                    | the directory path to the file
 `%z`                    | the pathname in a (compressed) archive, without `{` and `}`
-`%H    `                | if option `-H` is used: the quoted pathname and separator
-`%[ARG]H`               | if option `-H` is used: `ARG`, the quoted pathname and separator
-`%h`                    | the quoted file pathname
+`%H`                    | if option `-H` is used: the quoted pathname and separator, `\"` and `\\` replace `"` and `\`
+`%[ARG]H`               | if option `-H` is used: `ARG`, the quoted pathname and separator, `\"` and `\\` replace `"` and `\`
+`%h`                    | the quoted file pathname, `\"` and `\\` replace `"` and `\`
 `%N`                    | if option `-n` is used: the line number and separator
 `%[ARG]N`               | if option `-n` is used: `ARG`, the line number and separator
 `%n`                    | the line number of the match
@@ -4455,9 +4455,10 @@ in markdown:
            %z     the file pathname in a (compressed) archive.
 
            %[ARG]H
-                  if option -H is used: ARG, the quoted pathname and separator.
+                  if option -H is used: ARG, the quoted pathname and separator, \"
+                  and \\ replace " and \.
 
-           %h     the quoted file pathname.
+           %h     the quoted file pathname, \" and \\ replace " and \.
 
            %[ARG]N
                   if option -n is used: ARG, the line number and separator.
@@ -4539,7 +4540,7 @@ in markdown:
 
            %u     select unique lines only, unless option -u is used.
 
-           %1     the first regex group capture of the match,  and  so  on  up  to
+           %1     the  first  regex  group  capture  of the match, and so on up to
                   group %9, same as %[1]#; requires option -P.
 
            %[NUM]#
@@ -4549,24 +4550,24 @@ in markdown:
                   the first group capture NUM that matched; requires option -P.
 
            %[NAME]#
-                  the  NAMEd  group capture; requires option -P and capturing pat-
+                  the NAMEd group capture; requires option -P and  capturing  pat-
                   tern `(?<NAME>PATTERN)', see also %G.
 
            %[NAME1|NAME2|...]#
-                  the first NAMEd group capture that matched; requires  option  -P
+                  the  first  NAMEd group capture that matched; requires option -P
                   and capturing pattern `(?<NAME>PATTERN)', see also %G.
 
-           %G     list  of  group  capture  indices/names  that  matched; requires
+           %G     list of  group  capture  indices/names  that  matched;  requires
                   option -P.
 
            %[TEXT1|TEXT2|...]G
-                  list of TEXT indexed by  group  capture  indices  that  matched;
+                  list  of  TEXT  indexed  by  group capture indices that matched;
                   requires option -P.
 
            %g     the group capture index/name matched or 1; requires option -P.
 
            %[TEXT1|TEXT2|...]g
-                  the  first  TEXT  indexed  by the first group capture index that
+                  the first TEXT indexed by the first  group  capture  index  that
                   matched; requires option -P.
 
            %%     the percentage sign.
@@ -4574,22 +4575,22 @@ in markdown:
            Formatted output is written without a terminating newline, unless %~ or
            `\n' is explicitly specified in the format string.
 
-           The  [ARG]  part  of  a  field  is  optional  and may be omitted.  When
-           present, the argument must be placed in [] brackets, for example  %[,]F
+           The [ARG] part of a  field  is  optional  and  may  be  omitted.   When
+           present,  the argument must be placed in [] brackets, for example %[,]F
            to output a comma, the pathname, and a separator.
 
            %[SEP]$ and %u are switches and do not send anything to the output.
 
-           The  separator  used by the %F, %H, %N, %K, %B, %S and %G fields may be
+           The separator used by the %F, %H, %N, %K, %B, %S and %G fields  may  be
            changed by preceding the field by %[SEP]$.  When [SEP] is not provided,
-           this  reverts  the  separator to the default separator or the separator
+           this reverts the separator to the default separator  or  the  separator
            specified with --separator.
 
            Formatted output is written for each matching pattern, which means that
-           a  line may be output multiple times when patterns match more than once
-           on the same line.  If field  %u  is  specified  anywhere  in  a  format
+           a line may be output multiple times when patterns match more than  once
+           on  the  same  line.   If  field  %u  is specified anywhere in a format
            string,  matching  lines  are  output  only  once,  unless  option  -u,
-           --ungroup is specified or when more than one line of input matched  the
+           --ungroup  is specified or when more than one line of input matched the
            search pattern.
 
            Additional formatting options:
@@ -4606,8 +4607,8 @@ in markdown:
            --format-end=FORMAT
                   the FORMAT when ending the search.
 
-           The  context  options  -A,  -B,  -C,  -y,  and display options --break,
-           --heading, --color, -T, and --null have no effect on formatted  output.
+           The context options -A,  -B,  -C,  -y,  and  display  options  --break,
+           --heading,  --color, -T, and --null have no effect on formatted output.
 
     EXAMPLES
            Display lines containing the word `patricia' in `myfile.txt':
@@ -4668,7 +4669,7 @@ in markdown:
 
                   $ ugrep -n -f c++/comments myfile.cpp
 
-           List the lines that need fixing in a C/C++ source file by  looking  for
+           List  the  lines that need fixing in a C/C++ source file by looking for
            the word `FIXME' while skipping any `FIXME' in quoted strings:
 
                   $ ugrep -e FIXME -N '"(\\.|\\\r?\n|[^\\\n"])*"' myfile.cpp
@@ -4698,7 +4699,7 @@ in markdown:
 
                   $ ugrep -z -tc++ -n FIXME project.tgz
 
-           Recursively  find  lines with `FIXME' in C/C++ files, but do not search
+           Recursively find lines with `FIXME' in C/C++ files, but do  not  search
            any `bak' and `old' directories:
 
                   $ ugrep -n FIXME -tc++ -g^bak/,^old/
@@ -4708,9 +4709,9 @@ in markdown:
 
                   $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 
-           Match  the  binary  pattern `A3hhhhA3hh' (hex) in a binary file without
-           Unicode pattern matching -U (which would otherwise match  `\xaf'  as  a
-           Unicode  character  U+00A3  with UTF-8 byte sequence C2 A3) and display
+           Match the binary pattern `A3hhhhA3hh' (hex) in a  binary  file  without
+           Unicode  pattern  matching  -U (which would otherwise match `\xaf' as a
+           Unicode character U+00A3 with UTF-8 byte sequence C2  A3)  and  display
            the results in hex with -X using `less -R' as a pager:
 
                   $ ugrep --pager -UXo '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
@@ -4723,12 +4724,12 @@ in markdown:
 
                   $ ugrep -l '' --ignore-files
 
-           List all files containing a RPM signature, located in the `rpm'  direc-
+           List  all files containing a RPM signature, located in the `rpm' direc-
            tory and recursively below up to two levels deeper (3 levels total):
 
                   $ ugrep -3 -l -tRpm '' rpm/
 
-           Monitor  the system log for bug reports and ungroup multiple matches on
+           Monitor the system log for bug reports and ungroup multiple matches  on
            a line:
 
                   $ tail -f /var/log/system.log | ugrep -u -i -w bug
@@ -4752,8 +4753,8 @@ in markdown:
 
 
     LICENSE
-           ugrep is released under the BSD-3 license.  All parts of  the  software
-           have  reasonable  copyright terms permitting free redistribution.  This
+           ugrep  is  released under the BSD-3 license.  All parts of the software
+           have reasonable copyright terms permitting free  redistribution.   This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
@@ -4761,7 +4762,7 @@ in markdown:
 
 
 
-    ugrep 3.3.6                      July 26, 2021                        UGREP(1)
+    ugrep 3.3.7                     August 06, 2021                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

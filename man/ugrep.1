@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 26, 2021" "ugrep 3.3.6" "User Commands"
+.TH UGREP "1" "August 06, 2021" "ugrep 3.3.7" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -937,9 +937,10 @@ the directory path to the file.
 .IP \fB%z\fR
 the file pathname in a (compressed) archive.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
-if option \fB-H\fR is used: \fIARG\fR, the quoted pathname and separator.
+if option \fB-H\fR is used: \fIARG\fR, the quoted pathname and separator, \\"
+and \\\\ replace " and \\.
 .IP \fB%h\fR
-the quoted file pathname.
+the quoted file pathname, \\" and \\\\ replace " and \\.
 .IP \fB%[\fR\fIARG\fR\fB]N\fR
 if option \fB-n\fR is used: \fIARG\fR, the line number and separator.
 .IP \fB%n\fR

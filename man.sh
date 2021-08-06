@@ -287,9 +287,10 @@ the directory path to the file.
 .IP \fB%z\fR
 the file pathname in a (compressed) archive.
 .IP \fB%[\fR\fIARG\fR\fB]H\fR
-if option \fB-H\fR is used: \fIARG\fR, the quoted pathname and separator.
+if option \fB-H\fR is used: \fIARG\fR, the quoted pathname and separator, \\"
+and \\\\ replace " and \\.
 .IP \fB%h\fR
-the quoted file pathname.
+the quoted file pathname, \\" and \\\\ replace " and \\.
 .IP \fB%[\fR\fIARG\fR\fB]N\fR
 if option \fB-n\fR is used: \fIARG\fR, the line number and separator.
 .IP \fB%n\fR
