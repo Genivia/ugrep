@@ -542,13 +542,12 @@ CtrlP uses **ugrep** by adding the following lines to your `.vimrc`:
     if executable('ugrep')
         set runtimepath^=~/.vim/bundle/ctrlp.vim
         let g:ctrlp_match_window='bottom,order:ttb'
-        let g:ctrlp_user_command='ugrep %s -Rl -I --ignore-files -3'
+        let g:ctrlp_user_command='ugrep "" %s -Rl -I --ignore-files -3'
     endif
 
-These options are optional and may be omitted: `-I` skips binary files,
-option `--ignore-files` skips files specified in `.gitignore` files, when
-present, and option `-3` restricts searching directories to three levels (the
-working directory and up to two levels below).  
+where `-I` skips binary files, option `--ignore-files` skips files specified in
+`.gitignore` files, when present, and option `-3` restricts searching
+directories to three levels (the working directory and up to two levels below). 
 
 Start Vim then enter the command:
 
