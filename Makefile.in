@@ -357,6 +357,7 @@ top_srcdir = @top_srcdir@
 SUBDIRS = lib src
 man1_MANS = man/ugrep.1
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
+UGREP = $(shell pwd)/$(top_builddir)/bin/ugrep$(EXEEXT)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -953,15 +954,15 @@ uninstall-hook:
 
 .PHONY:		test
 
-test:		$(top_builddir)/src/ugrep
+test:		${UGREP}
 		@echo
 		@echo "*** SINGLE-THREADED TESTS ***"
 		@echo
-		cd tests && ./verify.sh -J1
+		cd $(top_srcdir)/tests && env UGREP_TEST_BIN=${UGREP} ./verify.sh -J1
 		@echo
 		@echo "*** MULTI-THREADED TESTS ***"
 		@echo
-		cd tests && ./verify.sh
+		cd $(top_srcdir)/tests && env UGREP_TEST_BIN=${UGREP} ./verify.sh
 		@echo
 		@echo "OK"
 		@echo

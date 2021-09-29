@@ -1,11 +1,13 @@
 #!/bin/bash
 
-UG="../src/ugrep --color=always --sort $@"
+UGREP=${UGREP_TEST_BIN:-../src/ugrep}
+
+UG="$UGREP --color=always --sort $@"
 
 FILES="Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
 
-if test ! -x "../src/ugrep" ; then
-  echo "../src/ugrep not found, exiting"
+if test ! -x "$UGREP" ; then
+  echo "$UGREP not found, exiting"
   exit 1
 fi
 
@@ -15,7 +17,7 @@ if test ! -e ../config.h ; then
 fi
 
 if ! $UG --version | head -n1 ; then
-  echo "../src/ugrep failed to execute, exiting"
+  echo "$UGREP failed to execute, exiting"
   exit 1
 fi
 
