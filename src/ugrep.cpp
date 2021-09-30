@@ -5664,12 +5664,13 @@ void terminal()
         // check whether we have a color terminal
         if (tty_term)
         {
-          const char *term = getenv("TERM");
-          if (term &&
-              (strstr(term, "ansi") != NULL ||
-               strstr(term, "xterm") != NULL ||
-               strstr(term, "screen") != NULL ||
-               strstr(term, "color") != NULL))
+          const char *term;
+          if (getenv("COLORTERM") ||
+              ((term = getenv("TERM")) &&
+               (strstr(term, "ansi") != NULL ||
+                strstr(term, "xterm") != NULL ||
+                strstr(term, "screen") != NULL ||
+                strstr(term, "color") != NULL)))
             color_term = true;
         }
 
