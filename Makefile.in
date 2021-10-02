@@ -358,6 +358,7 @@ SUBDIRS = lib src
 man1_MANS = man/ugrep.1
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 UGREP = $(shell pwd)/$(top_builddir)/bin/ugrep$(EXEEXT)
+CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -958,11 +959,11 @@ test:		${UGREP}
 		@echo
 		@echo "*** SINGLE-THREADED TESTS ***"
 		@echo
-		cd $(top_srcdir)/tests && env UGREP_TEST_BIN=${UGREP} ./verify.sh -J1
+		cd $(top_srcdir)/tests && env UGREP_ABS_PATH=${UGREP} CONFIGH_ABS_PATH=${CONFIGH} ./verify.sh -J1
 		@echo
 		@echo "*** MULTI-THREADED TESTS ***"
 		@echo
-		cd $(top_srcdir)/tests && env UGREP_TEST_BIN=${UGREP} ./verify.sh
+		cd $(top_srcdir)/tests && env UGREP_ABS_PATH=${UGREP} CONFIGH_ABS_PATH=${CONFIGH} ./verify.sh
 		@echo
 		@echo "OK"
 		@echo

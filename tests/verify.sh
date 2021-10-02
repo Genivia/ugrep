@@ -1,6 +1,7 @@
 #!/bin/bash
 
-UGREP=${UGREP_TEST_BIN:-../src/ugrep}
+UGREP=${UGREP_ABS_PATH:-../src/ugrep}
+CONFIGH=${CONFIGH_ABS_PATH:-../config.h}
 
 UG="$UGREP --color=always --sort $@"
 
@@ -11,8 +12,8 @@ if test ! -x "$UGREP" ; then
   exit 1
 fi
 
-if test ! -e ../config.h ; then
-  echo "../config.h not found, exiting"
+if test ! -e "$CONFIGH" ; then
+  echo "$CONFIGH not found, exiting"
   exit 1
 fi
 
@@ -21,7 +22,7 @@ if ! $UG --version | head -n1 ; then
   exit 1
 fi
 
-if $UG -Fq 'HAVE_PCRE2 1' ../config.h ; then
+if $UG -Fq 'HAVE_PCRE2 1' "$CONFIGH" ; then
   have_pcre2=yes
 else
   have_pcre2=no
@@ -30,7 +31,7 @@ fi
 echo "Have libpcre2?" $have_pcre2
 
 if test "$have_pcre2" = "no" ; then
-  if $UG -Fq 'HAVE_BOOST_REGEX 1' ../config.h ; then
+  if $UG -Fq 'HAVE_BOOST_REGEX 1' "$CONFIGH" ; then
     have_boost_regex=yes
   else
     have_boost_regex=no
@@ -39,7 +40,7 @@ if test "$have_pcre2" = "no" ; then
   echo "Have libboost_regex?" $have_boost_regex
 fi
 
-if $UG -Fq 'HAVE_LIBZ 1' ../config.h ; then
+if $UG -Fq 'HAVE_LIBZ 1' "$CONFIGH" ; then
   have_libz=yes
 else
   have_libz=no
@@ -47,7 +48,7 @@ fi
 
 echo "Have libz?" $have_libz
 
-if $UG -Fq 'HAVE_LIBBZ2 1' ../config.h ; then
+if $UG -Fq 'HAVE_LIBBZ2 1' "$CONFIGH" ; then
   have_libbz2=yes
 else
   have_libbz2=no
@@ -55,7 +56,7 @@ fi
 
 echo "Have libbz2?" $have_libbz2
 
-if $UG -Fq 'HAVE_LIBLZMA 1' ../config.h ; then
+if $UG -Fq 'HAVE_LIBLZMA 1' "$CONFIGH" ; then
   have_liblzma=yes
 else
   have_liblzma=no
@@ -63,7 +64,7 @@ fi
 
 echo "Have liblzma?" $have_liblzma
 
-if $UG -Fq 'HAVE_LIBLZ4 1' ../config.h ; then
+if $UG -Fq 'HAVE_LIBLZ4 1' "$CONFIGH" ; then
   have_liblz4=yes
 else
   have_liblz4=no
@@ -71,7 +72,7 @@ fi
 
 echo "Have liblz4?" $have_liblz4
 
-if $UG -Fq 'HAVE_LIBZSTD 1' ../config.h ; then
+if $UG -Fq 'HAVE_LIBZSTD 1' "$CONFIGH" ; then
   have_libzstd=yes
 else
   have_libzstd=no
