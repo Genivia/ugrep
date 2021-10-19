@@ -1274,9 +1274,9 @@ symbolic links (except when on the command line such as `mydir`):
 
     ugrep -rl '' mydir
 
-To recursively list all `Makefile` matching the text `CPP`:
+To recursively list all Makefiles matching the text `CPP`:
 
-    ugrep -l -gMakefile 'CPP'
+    ugrep -l -tmake 'CPP'
 
 To recursively list all `Makefile.*` matching `bin_PROGRAMS`:
 

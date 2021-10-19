@@ -617,11 +617,11 @@ number, and byte offset with the matched line.
 \fB\-t\fR \fITYPES\fR, \fB\-\-file\-type\fR=\fITYPES\fR
 Search only files associated with TYPES, a comma\-separated list of
 file types.  Each file type corresponds to a set of filename
-extensions passed to option \fB\-O\fR.  For capitalized file types, the
-search is expanded to include files with matching file signature
-magic bytes, as if passed to option \fB\-M\fR.  When a type is preceded
-by a `!' or a `^', excludes files of the specified type.  This
-option may be repeated.  The possible file types can be (where
+extensions passed to option \fB\-O\fR and filenames passed to option \fB\-g\fR.
+For capitalized file types, the search is expanded to include files with
+matching file signature magic bytes, as if passed to option \fB\-M\fR.
+When a type is preceded by a `!' or a `^', excludes files of the specified
+type.  This option may be repeated.  The possible file types can be (where
 \fB\-t\fRlist displays a detailed list):
 `actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
 `awk', `Awk', `basic', `batch', `bison', `c', `c++',

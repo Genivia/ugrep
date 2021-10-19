@@ -3376,105 +3376,105 @@ const Encoding encoding_table[] = {
 
 // table of file types for option -t, --file-type
 const Type type_table[] = {
-  { "actionscript", "as,mxml",                                                  NULL },
-  { "ada",          "ada,adb,ads",                                              NULL },
-  { "asm",          "asm,s,S",                                                  NULL },
-  { "asp",          "asp",                                                      NULL },
-  { "aspx",         "master,ascx,asmx,aspx,svc",                                NULL },
-  { "autoconf",     "ac,in",                                                    NULL },
-  { "automake",     "am,in",                                                    NULL },
-  { "awk",          "awk",                                                      NULL },
-  { "Awk",          "awk",                                                      "#!\\h*/.*\\Wg?awk(\\W.*)?\\n" },
-  { "basic",        "bas,BAS,cls,frm,ctl,vb,resx",                              NULL },
-  { "batch",        "bat,BAT,cmd,CMD",                                          NULL },
-  { "bison",        "y,yy,yxx",                                                 NULL },
-  { "c",            "c,h,H,hdl,xs",                                             NULL },
-  { "c++",          "cpp,CPP,cc,cxx,CXX,h,hh,H,hpp,hxx,Hxx,HXX",                NULL },
-  { "clojure",      "clj",                                                      NULL },
-  { "csharp",       "cs",                                                       NULL },
-  { "css",          "css",                                                      NULL },
-  { "csv",          "csv",                                                      NULL },
-  { "dart",         "dart",                                                     NULL },
-  { "Dart",         "dart",                                                     "#!\\h*/.*\\Wdart(\\W.*)?\\n" },
-  { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL },
-  { "elisp",        "el",                                                       NULL },
-  { "elixir",       "ex,exs",                                                   NULL },
-  { "erlang",       "erl,hrl",                                                  NULL },
-  { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95,f03,F03",          NULL },
-  { "gif",          "gif",                                                      NULL },
-  { "Gif",          "gif",                                                      "GIF87a|GIF89a" },
-  { "go",           "go",                                                       NULL },
-  { "groovy",       "groovy,gtmpl,gpp,grunit,gradle",                           NULL },
-  { "gsp",          "gsp",                                                      NULL },
-  { "haskell",      "hs,lhs",                                                   NULL },
-  { "html",         "htm,html,xhtml",                                           NULL },
-  { "jade",         "jade",                                                     NULL },
-  { "java",         "java,properties",                                          NULL },
-  { "jpeg",         "jpg,jpeg",                                                 NULL },
-  { "Jpeg",         "jpg,jpeg",                                                 "\\xff\\xd8\\xff[\\xdb\\xe0\\xe1\\xee]" },
-  { "js",           "js",                                                       NULL },
-  { "json",         "json",                                                     NULL },
-  { "jsp",          "jsp,jspx,jthm,jhtml",                                      NULL },
-  { "julia",        "jl",                                                       NULL },
-  { "kotlin",       "kt,kts",                                                   NULL },
-  { "less",         "less",                                                     NULL },
-  { "lex",          "l,ll,lxx",                                                 NULL },
-  { "lisp",         "lisp,lsp",                                                 NULL },
-  { "lua",          "lua",                                                      NULL },
-  { "m4",           "m4",                                                       NULL },
-  { "make",         "mk,mak,makefile,Makefile,Makefile.Debug,Makefile.Release", NULL },
-  { "markdown",     "md",                                                       NULL },
-  { "matlab",       "m",                                                        NULL },
-  { "node",         "js",                                                       NULL },
-  { "Node",         "js",                                                       "#!\\h*/.*\\Wnode(\\W.*)?\\n" },
-  { "objc",         "m,h",                                                      NULL },
-  { "objc++",       "mm,h",                                                     NULL },
-  { "ocaml",        "ml,mli,mll,mly",                                           NULL },
-  { "parrot",       "pir,pasm,pmc,ops,pod,pg,tg",                               NULL },
-  { "pascal",       "pas,pp",                                                   NULL },
-  { "pdf",          "pdf",                                                      NULL },
-  { "Pdf",          "pdf",                                                      "\\x25\\x50\\x44\\x46\\x2d" },
-  { "perl",         "pl,PL,pm,pod,t,psgi",                                      NULL },
-  { "Perl",         "pl,PL,pm,pod,t,psgi",                                      "#!\\h*/.*\\Wperl(\\W.*)?\\n" },
-  { "php",          "php,php3,php4,phtml",                                      NULL },
-  { "Php",          "php,php3,php4,phtml",                                      "#!\\h*/.*\\Wphp(\\W.*)?\\n" },
-  { "png",          "png",                                                      NULL },
-  { "Png",          "png",                                                      "\\x89png\\x0d\\x0a\\x1a\\x0a" },
-  { "prolog",       "pl,pro",                                                   NULL },
-  { "python",       "py",                                                       NULL },
-  { "Python",       "py",                                                       "#!\\h*/.*\\Wpython(\\W.*)?\\n" },
-  { "r",            "R",                                                        NULL },
-  { "rpm",          "rpm",                                                      NULL },
-  { "Rpm",          "rpm",                                                      "\\xed\\xab\\xee\\xdb" },
-  { "rst",          "rst",                                                      NULL },
-  { "rtf",          "rtf",                                                      NULL },
-  { "Rtf",          "rtf",                                                      "\\{\\rtf1" },
-  { "ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec,Rakefile",                 NULL },
-  { "Ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec,Rakefile",                 "#!\\h*/.*\\Wruby(\\W.*)?\\n" },
-  { "rust",         "rs",                                                       NULL },
-  { "scala",        "scala",                                                    NULL },
-  { "scheme",       "scm,ss",                                                   NULL },
-  { "shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish",                       NULL },
-  { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish",                       "#!\\h*/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
-  { "smalltalk",    "st",                                                       NULL },
-  { "sql",          "sql,ctl",                                                  NULL },
-  { "svg",          "svg",                                                      NULL },
-  { "swift",        "swift",                                                    NULL },
-  { "tcl",          "tcl,itcl,itk",                                             NULL },
-  { "tex",          "tex,cls,sty,bib",                                          NULL },
-  { "text",         "text,txt,TXT,md,rst",                                      NULL },
-  { "tiff",         "tif,tiff",                                                 NULL },
-  { "Tiff",         "tif,tiff",                                                 "\\x49\\x49\\x2a\\x00|\\x4d\\x4d\\x00\\x2a" },
-  { "tt",           "tt,tt2,ttml",                                              NULL },
-  { "typescript",   "ts,tsx",                                                   NULL },
-  { "verilog",      "v,vh,sv",                                                  NULL },
-  { "vhdl",         "vhd,vhdl",                                                 NULL },
-  { "vim",          "vim",                                                      NULL },
-  { "xml",          "xml,xsd,xsl,xslt,wsdl,rss,svg,ent,plist",                  NULL },
-  { "Xml",          "xml,xsd,xsl,xslt,wsdl,rss,svg,ent,plist",                  "<\\?xml " },
-  { "yacc",         "y",                                                        NULL },
-  { "yaml",         "yaml,yml",                                                 NULL },
-  { NULL,           NULL,                                                       NULL }
+  { "actionscript", "as,mxml", NULL,                                                  NULL },
+  { "ada",          "ada,adb,ads", NULL,                                              NULL },
+  { "asm",          "asm,s,S", NULL,                                                  NULL },
+  { "asp",          "asp", NULL,                                                      NULL },
+  { "aspx",         "master,ascx,asmx,aspx,svc", NULL,                                NULL },
+  { "autoconf",     "ac,in", NULL,                                                    NULL },
+  { "automake",     "am,in", NULL,                                                    NULL },
+  { "awk",          "awk", NULL,                                                      NULL },
+  { "Awk",          "awk", NULL,                                                      "#!\\h*/.*\\Wg?awk(\\W.*)?\\n" },
+  { "basic",        "bas,BAS,cls,frm,ctl,vb,resx", NULL,                              NULL },
+  { "batch",        "bat,BAT,cmd,CMD", NULL,                                          NULL },
+  { "bison",        "y,yy,yxx", NULL,                                                 NULL },
+  { "c",            "c,h,H,hdl,xs", NULL,                                             NULL },
+  { "c++",          "cpp,CPP,cc,cxx,CXX,h,hh,H,hpp,hxx,Hxx,HXX", NULL,                NULL },
+  { "clojure",      "clj", NULL,                                                      NULL },
+  { "csharp",       "cs", NULL,                                                       NULL },
+  { "css",          "css", NULL,                                                      NULL },
+  { "csv",          "csv", NULL,                                                      NULL },
+  { "dart",         "dart", NULL,                                                     NULL },
+  { "Dart",         "dart", NULL,                                                     "#!\\h*/.*\\Wdart(\\W.*)?\\n" },
+  { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL, NULL },
+  { "elisp",        "el", NULL,                                                       NULL },
+  { "elixir",       "ex,exs", NULL,                                                   NULL },
+  { "erlang",       "erl,hrl", NULL,                                                  NULL },
+  { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95,f03,F03", NULL,          NULL },
+  { "gif",          "gif", NULL,                                                      NULL },
+  { "Gif",          "gif", NULL,                                                      "GIF87a|GIF89a" },
+  { "go",           "go", NULL,                                                       NULL },
+  { "groovy",       "groovy,gtmpl,gpp,grunit,gradle", NULL,                           NULL },
+  { "gsp",          "gsp", NULL,                                                      NULL },
+  { "haskell",      "hs,lhs", NULL,                                                   NULL },
+  { "html",         "htm,html,xhtml", NULL,                                           NULL },
+  { "jade",         "jade", NULL,                                                     NULL },
+  { "java",         "java,properties", NULL,                                          NULL },
+  { "jpeg",         "jpg,jpeg", NULL,                                                 NULL },
+  { "Jpeg",         "jpg,jpeg", NULL,                                                 "\\xff\\xd8\\xff[\\xdb\\xe0\\xe1\\xee]" },
+  { "js",           "js", NULL,                                                       NULL },
+  { "json",         "json", NULL,                                                     NULL },
+  { "jsp",          "jsp,jspx,jthm,jhtml", NULL,                                      NULL },
+  { "julia",        "jl", NULL,                                                       NULL },
+  { "kotlin",       "kt,kts", NULL,                                                   NULL },
+  { "less",         "less", NULL,                                                     NULL },
+  { "lex",          "l,ll,lxx", NULL,                                                 NULL },
+  { "lisp",         "lisp,lsp", NULL,                                                 NULL },
+  { "lua",          "lua", NULL,                                                      NULL },
+  { "m4",           "m4", NULL,                                                       NULL },
+  { "make",         "mk,mak", "makefile,Makefile,Makefile.Debug,Makefile.Release",    NULL },
+  { "markdown",     "md", NULL,                                                       NULL },
+  { "matlab",       "m", NULL,                                                        NULL },
+  { "node",         "js", NULL,                                                       NULL },
+  { "Node",         "js", NULL,                                                       "#!\\h*/.*\\Wnode(\\W.*)?\\n" },
+  { "objc",         "m,h", NULL,                                                      NULL },
+  { "objc++",       "mm,h", NULL,                                                     NULL },
+  { "ocaml",        "ml,mli,mll,mly", NULL,                                           NULL },
+  { "parrot",       "pir,pasm,pmc,ops,pod,pg,tg", NULL,                               NULL },
+  { "pascal",       "pas,pp", NULL,                                                   NULL },
+  { "pdf",          "pdf", NULL,                                                      NULL },
+  { "Pdf",          "pdf", NULL,                                                      "\\x25\\x50\\x44\\x46\\x2d" },
+  { "perl",         "pl,PL,pm,pod,t,psgi", NULL,                                      NULL },
+  { "Perl",         "pl,PL,pm,pod,t,psgi", NULL,                                      "#!\\h*/.*\\Wperl(\\W.*)?\\n" },
+  { "php",          "php,php3,php4,phtml", NULL,                                      NULL },
+  { "Php",          "php,php3,php4,phtml", NULL,                                      "#!\\h*/.*\\Wphp(\\W.*)?\\n" },
+  { "png",          "png", NULL,                                                      NULL },
+  { "Png",          "png", NULL,                                                      "\\x89png\\x0d\\x0a\\x1a\\x0a" },
+  { "prolog",       "pl,pro", NULL,                                                   NULL },
+  { "python",       "py", NULL,                                                       NULL },
+  { "Python",       "py", NULL,                                                       "#!\\h*/.*\\Wpython(\\W.*)?\\n" },
+  { "r",            "R", NULL,                                                        NULL },
+  { "rpm",          "rpm", NULL,                                                      NULL },
+  { "Rpm",          "rpm", NULL,                                                      "\\xed\\xab\\xee\\xdb" },
+  { "rst",          "rst", NULL,                                                      NULL },
+  { "rtf",          "rtf", NULL,                                                      NULL },
+  { "Rtf",          "rtf", NULL,                                                      "\\{\\rtf1" },
+  { "ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec", "Rakefile",                    NULL },
+  { "Ruby",         "rb,rhtml,rjs,rxml,erb,rake,spec", "Rakefile",                    "#!\\h*/.*\\Wruby(\\W.*)?\\n" },
+  { "rust",         "rs", NULL,                                                       NULL },
+  { "scala",        "scala", NULL,                                                    NULL },
+  { "scheme",       "scm,ss", NULL,                                                   NULL },
+  { "shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", NULL,                       NULL },
+  { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", NULL,                       "#!\\h*/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
+  { "smalltalk",    "st", NULL,                                                       NULL },
+  { "sql",          "sql,ctl", NULL,                                                  NULL },
+  { "svg",          "svg", NULL,                                                      NULL },
+  { "swift",        "swift", NULL,                                                    NULL },
+  { "tcl",          "tcl,itcl,itk", NULL,                                             NULL },
+  { "tex",          "tex,cls,sty,bib", NULL,                                          NULL },
+  { "text",         "text,txt,TXT,md,rst", NULL,                                      NULL },
+  { "tiff",         "tif,tiff", NULL,                                                 NULL },
+  { "Tiff",         "tif,tiff", NULL,                                                 "\\x49\\x49\\x2a\\x00|\\x4d\\x4d\\x00\\x2a" },
+  { "tt",           "tt,tt2,ttml", NULL,                                              NULL },
+  { "typescript",   "ts,tsx", NULL,                                                   NULL },
+  { "verilog",      "v,vh,sv", NULL,                                                  NULL },
+  { "vhdl",         "vhd,vhdl", NULL,                                                 NULL },
+  { "vim",          "vim", NULL,                                                      NULL },
+  { "xml",          "xml,xsd,xsl,xslt,wsdl,rss,svg,ent,plist", NULL,                  NULL },
+  { "Xml",          "xml,xsd,xsl,xslt,wsdl,rss,svg,ent,plist", NULL,                  "<\\?xml " },
+  { "yacc",         "y", NULL,                                                        NULL },
+  { "yaml",         "yaml,yml", NULL,                                                 NULL },
+  { NULL,           NULL, NULL,                                                       NULL }
 };
 
 #ifdef OS_WIN
@@ -4956,11 +4956,13 @@ void init(int argc, const char **argv)
   // -t list: list table of types and exit
   if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
   {
-    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME -O EXTENSIONS AND FILE SIGNATURE -M 'MAGIC BYTES'\n";
+    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME -O EXTENSIONS, FILE NAMES -g AND FILE SIGNATURE -M 'MAGIC BYTES'\n";
 
     for (int i = 0; type_table[i].type != NULL; ++i)
     {
       std::cerr << std::setw(12) << type_table[i].type << " = -O " << type_table[i].extensions << '\n';
+      if (type_table[i].filenames)
+        std::cerr << std::setw(18) << "-g " << type_table[i].filenames << "\n";
       if (type_table[i].magic)
         std::cerr << std::setw(19) << "-M '" << type_table[i].magic << "'\n";
     }
@@ -5334,7 +5336,7 @@ void init(int argc, const char **argv)
     }
   }
 
-  // -t: parse TYPES and access type table to add -O (--file-extension) and -M (--file-magic) values
+  // -t: parse TYPES and access type table to add -O (--file-extension), -g (--glob) and -M (--file-magic) values
   for (const auto& types : flag_file_type)
   {
     size_t from = 0;
@@ -5385,6 +5387,21 @@ void init(int argc, const char **argv)
         }
 
         flag_file_extension.emplace_back(extensions);
+
+        if (type_table[i].filenames != NULL)
+        {
+          std::string filenames(type_table[i].filenames);
+          size_t start = 0;
+          while (true)
+          {
+            size_t end = filenames.find(',', start);
+            size_t len = (end == std::string::npos ? filenames.size() : end) - start;
+            flag_glob.emplace_back((negate ? "^" : "") + filenames.substr(start, len));
+            if (end == std::string::npos)
+              break;
+            start = end + 1;
+          }
+        }
 
         if (type_table[i].magic != NULL)
         {
@@ -10780,12 +10797,12 @@ void help(std::ostream& out)
     -t TYPES, --file-type=TYPES\n\
             Search only files associated with TYPES, a comma-separated list of\n\
             file types.  Each file type corresponds to a set of filename\n\
-            extensions passed to option -O.  For capitalized file types, the\n\
-            search is expanded to include files with matching file signature\n\
-            magic bytes, as if passed to option -M.  When a type is preceded\n\
-            by a `!' or a `^', excludes files of the specified type.  This\n\
-            option may be repeated.  The possible file types can be (where\n\
-            -tlist displays a detailed list):";
+            extensions passed to option -O and filenames passed to option -g.\n\
+            For capitalized file types, the search is expanded to include\n\
+            files with matching file signature magic bytes, as if passed to\n\
+            option -M.  When a type is preceded by a `!' or a `^', excludes\n\
+            files of the specified type.  This option may be repeated.  The\n\
+            possible file types can be (where -tlist displays a detailed list):";
   for (int i = 0; type_table[i].type != NULL; ++i)
     out << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";
   out << ".\n\

@@ -96,6 +96,7 @@ mkdir -p dir1 dir2
 ln -s ../Hello.java dir1
 cp Hello.sh dir1
 cp Hello.bat dir1
+cp makefile dir1
 ln -s ../Hello.java dir2
 cp Hello.sh dir2
 cp Hello.bat dir2
@@ -117,7 +118,7 @@ $UG -Rl -Osh                             Hello dir1 | $DIFF out/dir-O.out       
 printf .
 $UG -Rl -M'#!/bin/sh'                    Hello dir1 | $DIFF out/dir-M.out             || ERR "-Rl -M'#!/bin/sh' Hello dir1"
 printf .
-$UG -Rl -tShell                          Hello dir1 | $DIFF out/dir-t.out             || ERR "-Rl -tShell Hello dir1"
+$UG -Rl -tShell,make                     Hello dir1 | $DIFF out/dir-t.out             || ERR "-Rl -tShell,make Hello dir1"
 printf .
 $UG -1l                                  Hello dir1 | $DIFF out/dir-1.out             || ERR "-1l Hello dir1"
 printf .
