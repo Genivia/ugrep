@@ -5146,8 +5146,25 @@ void init(int argc, const char **argv)
         continue;
       }
 
+      bool pattern_starts_with_dot = file[base_name_pos] == L'.';
+
       do
       {
+        if (find_data.cFileName[0] == L'.')
+        {
+          // Don't expand directories "." or "..".
+          if (find_data.cFileName[1] == 0 ||
+              (find_data.cFileName[1] == L'.' && find_data.cFileName[2] == 0))
+          {
+            continue;
+          }
+
+          // Don't expand hidden files unless "--hidden" or the pattern started with '.'.
+          if (!flag_hidden && !pattern_starts_with_dot)
+            continue;
+        }
+
+        printf("XXX %ls\n", find_data.cFileName);
         file.erase(base_name_pos); // Chop off base name.
         file += find_data.cFileName; // Append the matched file name.
         arg_strings.push_back(utf8_encode(file)); // Store utf8 copy of name.
