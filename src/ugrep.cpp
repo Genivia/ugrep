@@ -439,6 +439,11 @@ CNF bcnf;
 const char *arg_pattern = NULL;
 std::vector<const char*> arg_files;
 
+#ifdef OS_WIN
+// store UTF-8 arguments
+std::list<std::string> arg_strings;
+#endif
+
 // function protos
 void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int argc, const char **argv);
 void option_regexp(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg, bool is_neg = false);
@@ -3488,14 +3493,12 @@ int main(int argc, const char **argv)
 
 #ifdef OS_WIN
 
-  // store UTF-8 arguments for the duration of main() and convert Unicode command line arguments argws[] to UTF-8 arguments argv[]
-  std::vector<std::string> args;
-  args.resize(argc);
+  // store UTF-8 arguments and convert Unicode command line arguments argws[] to UTF-8 arguments argv[]
   const char **argv = new const char *[argc];
   for (int i = 0; i < argc; ++i)
   {
-    args[i] = utf8_encode(wargv[i]);
-    argv[i] = args[i].c_str();
+    arg_strings.push_back(utf8_encode(wargv[i]));
+    argv[i] = arg_strings.back().c_str();
   }
 
   // handle CTRL-C
@@ -5105,6 +5108,60 @@ void init(int argc, const char **argv)
     arg_files.insert(arg_files.begin(), arg_pattern);
     arg_pattern = NULL;
   }
+
+#ifdef OS_WIN
+
+  // Windows shell does not expand wildcards in arguments. Do that now.
+  if (!arg_files.empty())
+  {
+    std::vector<const char*> expanded_arg_files;
+    for (auto arg_file = arg_files.begin(); arg_file != arg_files.end(); ++arg_file)
+    {
+      std::wstring file = utf8_decode(*arg_file);
+      bool has_wildcard_char = false;
+
+      size_t base_name_pos;
+      for (base_name_pos = file.size(); base_name_pos != 0; base_name_pos -= 1)
+      {
+        wchar_t ch = file[base_name_pos - 1];
+        if (ch == '*' || ch == '?')
+          has_wildcard_char = true;
+        else if (ch == '\\' || ch == '/' || ch == ':')
+          break;
+      }
+
+      if (!has_wildcard_char)
+      {
+        // No wildcard chars. Use argument as-is.
+        expanded_arg_files.push_back(*arg_file);
+        continue;
+      }
+
+      WIN32_FIND_DATAW find_data;
+      HANDLE find_handle = FindFirstFileExW(file.c_str(), FindExInfoBasic, &find_data, FindExSearchNameMatch, NULL, 0);
+      if (find_handle == INVALID_HANDLE_VALUE)
+      {
+        // Pattern didn't match any files. Use argument as-is (will trigger a warning later).
+        expanded_arg_files.push_back(*arg_file);
+        continue;
+      }
+
+      do
+      {
+        file.erase(base_name_pos); // Chop off base name.
+        file += find_data.cFileName; // Append the matched file name.
+        arg_strings.push_back(utf8_encode(file)); // Store utf8 copy of name.
+        expanded_arg_files.push_back(arg_strings.back().c_str()); // Add to filename list.
+      }
+      while (FindNextFileW(find_handle, &find_data));
+
+      FindClose(find_handle);
+    }
+
+    // Replace the original list with the expanded list.
+    std::swap(arg_files, expanded_arg_files);
+  }
+#endif // OS_WIN
 
   // -D: check ACTION value
   if (strcmp(flag_devices, "skip") == 0)
