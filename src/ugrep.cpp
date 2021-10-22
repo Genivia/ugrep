@@ -5164,7 +5164,6 @@ void init(int argc, const char **argv)
             continue;
         }
 
-        printf("XXX %ls\n", find_data.cFileName);
         file.erase(base_name_pos); // Chop off base name.
         file += find_data.cFileName; // Append the matched file name.
         arg_strings.push_back(utf8_encode(file)); // Store utf8 copy of name.
