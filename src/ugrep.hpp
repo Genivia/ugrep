@@ -433,7 +433,8 @@ extern const Encoding encoding_table[];
 struct Type {
   const char *type;
   const char *extensions;
-  const char *magic; 
+  const char *filenames;
+  const char *magic;
 };
 
 // table of file types for option -t, --file-type
