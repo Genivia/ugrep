@@ -671,6 +671,9 @@ class Output {
     cur_ = buf_->data;
   }
 
+  // get a group capture's string pointer and size specified by %[ARG] as arg, if any
+  std::pair<const char*,size_t> capture(reflex::AbstractMatcher *matcher, const char *arg);
+
  public:
 
   FILE            *file; // output stream

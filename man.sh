@@ -55,6 +55,10 @@ specify search patterns and view search results.  Note that a \fIPATTERN\fR
 argument cannot be specified in this case.  To specify one or more patterns
 with \fB-Q\fR, use \fB-e PATTERN\fR.
 .PP
+Option \fB-f FILE\fR matches patterns specified in \fBFILE\fR.  If \fBFILE\fR
+is large and defines complex regular expression patterns, then option \fB-P\fR
+(Perl matching) may improve performance (this omits POSIX DFA construction.)
+.PP
 For help, \fB--help \fIWHAT\fR displays help on options related to \fIWHAT\fR.
 .PP
 The following options are available:
@@ -322,9 +326,9 @@ if not the first match: a semicolon, same as \fB%[;]>\fR.
 .IP \fB%|\fR
 if not the first match: a vertical bar, same as \fB%[|]>\fR.
 .IP \fB%[\fR\fIARG\fR\fB]S\fR
-if not the first match: \fIARG\fR and separator, see also \fB%$\fR.
+if not the first match: \fIARG\fR and separator, see also \fB%[\fR\fISEP\fR\fB]$.
 .IP \fB%s\fR
-the separator, see also \fB%S\fR and \fB%$\fR.
+the separator, see also \fB%[\fR\fIARG\fR\fB]S\fR and \fB%[\fR\fISEP\fR\fB]$.
 .IP \fB%~\fR
 a newline character.
 .IP \fB%m\fR
@@ -368,14 +372,29 @@ the first regex group capture of the match, and so on up to group \fB%9\fR,
 same as \fB%[1]#\fR; requires option \fB-P\fR.
 .IP \fB%[\fR\fINUM\fR\fB]#\fR
 the regex group capture \fINUM\fR; requires option \fB-P\fR.
+.IP \fB%[\fR\fINUM\fR\fB]b\fR
+the byte offset of the group capture \fINUM\fR; requires option \fB-P\fR.  Use
+\fBe\fR for the ending byte offset and \fBd\fR for the byte length.
 .IP \fB%[\fR\fINUM1\fR\fB|\fR\fINUM2\fR\fB|\fR...\fB]#\fR
 the first group capture \fINUM\fR that matched; requires option \fB-P\fR.
+.IP \fB%[\fR\fINUM1\fR\fB|\fR\fINUM2\fR\fB|\fR...\fB]b\fR
+the byte offset of the first group capture \fINUM\fR that matched; requires
+option \fB-P\fR.  Use \fBe\fR for the ending byte offset and \fBd\fR for the
+byte length.
 .IP \fB%[\fR\fINAME\fR\fB]#\fR
 the \fINAME\fRd group capture; requires option \fB-P\fR and capturing pattern
 `(?<NAME>PATTERN)', see also \fB%G\fR.
+.IP \fB%[\fR\fINAME\fR\fB]b\fR
+the byte offset of the \fINAME\fRd group capture; requires option \fB-P\fR and
+capturing pattern `(?<NAME>PATTERN)'.  Use \fBe\fR for the ending byte offset
+and \fBd\fR for the byte length.
 .IP \fB%[\fR\fINAME1\fR\fB|\fR\fINAME2|...\fR\fB]#\fR
 the first \fINAME\fRd group capture that matched; requires option \fB-P\fR
 and capturing pattern `(?<NAME>PATTERN)', see also \fB%G\fR.
+.IP \fB%[\fR\fINAME1\fR\fB|\fR\fINAME2|...\fR\fB]b\fR
+the byte offset of the first \fINAME\fRd group capture that matched; requires
+option \fB-P\fR and capturing pattern `(?<NAME>PATTERN)'.  Use \fBe\fR for the
+ending byte offset and \fBd\fR for the byte length.
 .IP \fB%G\fR
 list of group capture indices/names that matched; requires option \fB-P\fR.
 .IP \fB%[\fR\fITEXT1\fR\fB|\fR\fITEXT2\fR\fB|...]G\fR

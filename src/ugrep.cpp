@@ -440,7 +440,7 @@ const char *arg_pattern = NULL;
 std::vector<const char*> arg_files;
 
 #ifdef OS_WIN
-// store UTF-8 arguments
+// store UTF-8 arguments decoded from wargv[] in strings to re-populate argv[] with pointers
 std::list<std::string> arg_strings;
 #endif
 
@@ -3493,11 +3493,11 @@ int main(int argc, const char **argv)
 
 #ifdef OS_WIN
 
-  // store UTF-8 arguments and convert Unicode command line arguments argws[] to UTF-8 arguments argv[]
+  // store UTF-8 arguments for the duration of main() and convert Unicode command line arguments wargv[] to UTF-8 arguments argv[]
   const char **argv = new const char *[argc];
   for (int i = 0; i < argc; ++i)
   {
-    arg_strings.push_back(utf8_encode(wargv[i]));
+    arg_strings.emplace_back(utf8_encode(wargv[i]));
     argv[i] = arg_strings.back().c_str();
   }
 
@@ -4959,7 +4959,7 @@ void init(int argc, const char **argv)
   // -t list: list table of types and exit
   if (flag_file_type.size() == 1 && flag_file_type[0] == "list")
   {
-    std::cerr << std::setw(12) << "FILE TYPE" << "   FILE NAME -O EXTENSIONS, FILE NAMES -g AND FILE SIGNATURE -M 'MAGIC BYTES'\n";
+    std::cerr << std::setw(12) << "FILE TYPE" << "   -O EXTENSIONS, -g FILENAMES AND FILE SIGNATURE -M 'MAGIC BYTES'\n";
 
     for (int i = 0; type_table[i].type != NULL; ++i)
     {
@@ -5113,73 +5113,75 @@ void init(int argc, const char **argv)
 
 #ifdef OS_WIN
 
-  // Windows shell does not expand wildcards in arguments. Do that now.
+  // Windows shell does not expand wildcards in arguments, do that now (basename part only)
   if (!arg_files.empty())
   {
     std::vector<const char*> expanded_arg_files;
-    for (auto arg_file = arg_files.begin(); arg_file != arg_files.end(); ++arg_file)
+
+    for (const auto& arg_file : arg_files)
     {
-      std::wstring file = utf8_decode(*arg_file);
+      std::wstring filename = utf8_decode(arg_file);
       bool has_wildcard_char = false;
 
-      size_t base_name_pos;
-      for (base_name_pos = file.size(); base_name_pos != 0; base_name_pos -= 1)
+      size_t basename_pos;
+      for (basename_pos = filename.size(); basename_pos > 0; --basename_pos)
       {
-        wchar_t ch = file[base_name_pos - 1];
-        if (ch == '*' || ch == '?')
+        wchar_t ch = filename[basename_pos - 1];
+
+        if (ch == L'*' || ch == L'?')
           has_wildcard_char = true;
-        else if (ch == '\\' || ch == '/' || ch == ':')
+        else if (ch == L'\\' || ch == L'/' || ch == L':')
           break;
       }
 
       if (!has_wildcard_char)
       {
-        // No wildcard chars. Use argument as-is.
-        expanded_arg_files.push_back(*arg_file);
+        // no wildcard chars, use argument as-is
+        expanded_arg_files.push_back(arg_file);
         continue;
       }
 
       WIN32_FIND_DATAW find_data;
-      HANDLE find_handle = FindFirstFileExW(file.c_str(), FindExInfoBasic, &find_data, FindExSearchNameMatch, NULL, 0);
-      if (find_handle == INVALID_HANDLE_VALUE)
+
+      HANDLE hFile = FindFirstFileExW(filename.c_str(), FindExInfoBasic, &find_data, FindExSearchNameMatch, NULL, 0);
+      if (hFile == INVALID_HANDLE_VALUE)
       {
-        // Pattern didn't match any files. Use argument as-is (will trigger a warning later).
-        expanded_arg_files.push_back(*arg_file);
+        // glob pattern didn't match any files, use argument as-is which will trigger a warning later
+        expanded_arg_files.push_back(arg_file);
         continue;
       }
 
-      bool pattern_starts_with_dot = file[base_name_pos] == L'.';
+      bool glob_starts_with_dot = filename[basename_pos] == L'.';
 
       do
       {
         if (find_data.cFileName[0] == L'.')
         {
-          // Don't expand directories "." or "..".
+          // don't expand directories "." or ".."
           if (find_data.cFileName[1] == 0 ||
               (find_data.cFileName[1] == L'.' && find_data.cFileName[2] == 0))
-          {
             continue;
-          }
 
-          // Don't expand hidden files unless "--hidden" or the pattern started with '.'.
-          if (!flag_hidden && !pattern_starts_with_dot)
+          // don't expand hidden files unless --hidden or the pattern started with '.'
+          if (!flag_hidden && !glob_starts_with_dot)
             continue;
         }
 
-        file.erase(base_name_pos); // Chop off base name.
-        file += find_data.cFileName; // Append the matched file name.
-        arg_strings.push_back(utf8_encode(file)); // Store utf8 copy of name.
-        expanded_arg_files.push_back(arg_strings.back().c_str()); // Add to filename list.
-      }
-      while (FindNextFileW(find_handle, &find_data));
+        // replace glob pattern with matching filename converted to UTF-8, then add to expanded filename list
+        filename.erase(basename_pos);
+        filename += find_data.cFileName;
+        arg_strings.emplace_back(utf8_encode(filename));
+        expanded_arg_files.push_back(arg_strings.back().c_str());
+      } while (FindNextFileW(hFile, &find_data));
 
-      FindClose(find_handle);
+      FindClose(hFile);
     }
 
-    // Replace the original list with the expanded list.
-    std::swap(arg_files, expanded_arg_files);
+    // replace the original filenames list with the expanded list
+    arg_files.swap(expanded_arg_files);
   }
-#endif // OS_WIN
+
+#endif
 
   // -D: check ACTION value
   if (strcmp(flag_devices, "skip") == 0)
@@ -5449,31 +5451,31 @@ void init(int argc, const char **argv)
           usage(msg.c_str());
         }
 
-        std::string extensions(type_table[i].extensions);
+        std::string temp(type_table[i].extensions);
 
         if (negate)
         {
-          extensions.insert(0, "!");
+          temp.insert(0, "!");
           size_t j = 0;
-          while ((j = extensions.find(',', j)) != std::string::npos)
-            extensions.insert(++j, "!");
+          while ((j = temp.find(',', j)) != std::string::npos)
+            temp.insert(++j, "!");
         }
 
-        flag_file_extension.emplace_back(extensions);
+        flag_file_extension.emplace_back(temp);
 
         if (type_table[i].filenames != NULL)
         {
-          std::string filenames(type_table[i].filenames);
-          size_t start = 0;
-          while (true)
+          temp.assign(type_table[i].filenames);
+
+          if (negate)
           {
-            size_t end = filenames.find(',', start);
-            size_t len = (end == std::string::npos ? filenames.size() : end) - start;
-            flag_glob.emplace_back((negate ? "^" : "") + filenames.substr(start, len));
-            if (end == std::string::npos)
-              break;
-            start = end + 1;
+            temp.insert(0, "!");
+            size_t j = 0;
+            while ((j = temp.find(',', j)) != std::string::npos)
+              temp.insert(++j, "!");
           }
+
+          flag_glob.emplace_back(temp);
         }
 
         if (type_table[i].magic != NULL)
@@ -5755,8 +5757,8 @@ void terminal()
         if (tty_term)
         {
           const char *term;
-          if (getenv("COLORTERM") ||
-              ((term = getenv("TERM")) &&
+          if (getenv("COLORTERM") != NULL ||
+              ((term = getenv("TERM")) != NULL &&
                (strstr(term, "ansi") != NULL ||
                 strstr(term, "xterm") != NULL ||
                 strstr(term, "screen") != NULL ||
@@ -10796,6 +10798,8 @@ void help(std::ostream& out)
             This option is not available in this build configuration of ugrep.\n"
 #endif
             "\
+            Note that Perl pattern matching differs from the default grep POSIX\n\
+            pattern matching.\n\
     -p, --no-dereference\n\
             If -R or -r is specified, no symbolic links are followed, even when\n\
             they are specified on the command line.\n\
@@ -10871,11 +10875,11 @@ void help(std::ostream& out)
             Search only files associated with TYPES, a comma-separated list of\n\
             file types.  Each file type corresponds to a set of filename\n\
             extensions passed to option -O and filenames passed to option -g.\n\
-            For capitalized file types, the search is expanded to include\n\
-            files with matching file signature magic bytes, as if passed to\n\
-            option -M.  When a type is preceded by a `!' or a `^', excludes\n\
-            files of the specified type.  This option may be repeated.  The\n\
-            possible file types can be (where -tlist displays a detailed list):";
+            For capitalized file types, the search is expanded to include files\n\
+            with matching file signature magic bytes, as if passed to option\n\
+            -M.  When a type is preceded by a `!' or a `^', excludes files of\n\
+            the specified type.  This option may be repeated.  The possible\n\
+            file types can be (where -tlist displays a detailed list):";
   for (int i = 0; type_table[i].type != NULL; ++i)
     out << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";
   out << ".\n\

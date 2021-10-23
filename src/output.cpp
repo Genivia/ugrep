@@ -396,6 +396,60 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
   nl();
 }
 
+// get a group capture's string pointer and size specified by %[ARG] as arg, if any
+std::pair<const char*,size_t> Output::capture(reflex::AbstractMatcher *matcher, const char *arg)
+{
+  if (arg != NULL)
+  {
+    while (true)
+    {
+      const char *bar = strchr(arg, '|');
+
+      if (bar == NULL)
+      {
+        bar = strchr(arg, ']');
+
+        if (bar == NULL)
+          break;
+      }
+
+      if (isdigit(*arg))
+      {
+        size_t index = strtoul(arg, NULL, 10);
+
+        if (index == 0 || *bar == ']')
+          return (*matcher)[index];
+
+        std::pair<size_t,const char*> id = matcher->group_id();
+
+        while (id.first != 0 && id.first != index)
+          id = matcher->group_next_id();
+
+        if (id.first == index)
+          return (*matcher)[index];
+      }
+      else
+      {
+        std::pair<size_t,const char*> id = matcher->group_id();
+
+        while (id.first != 0
+            && (id.second == NULL || strncmp(id.second, arg, bar - arg) != 0 || id.second[bar - arg] != '\0'))
+          id = matcher->group_next_id();
+
+        if (id.first != 0)
+          return (*matcher)[id.first];
+      }
+
+      if (*bar == ']')
+        break;
+
+      arg = bar + 1;
+    }
+  }
+
+  return std::pair<const char*,size_t>(NULL, 0);
+}
+
 // output formatted match with options --format, --format-open, --format-close
 void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next)
 {
@@ -410,7 +464,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
 
   while (*s != '\0')
   {
-    const char *a = NULL;
+    const char *arg = NULL;
     const char *t = s;
 
     while (*s != '\0' && *s != '%')
@@ -421,7 +475,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
     ++s;
     if (*s == '[')
     {
-      a = ++s;
+      arg = ++s;
       while (*s != '\0' && *s != ']')
         ++s;
       if (*s == '\0' || *(s + 1) == '\0')
@@ -436,8 +490,8 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'F':
         if (flag_with_filename && pathname != NULL)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           str(pathname);
           if (!partname.empty())
           {
@@ -492,8 +546,8 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'H':
         if (flag_with_filename)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           if (!partname.empty())
           {
             std::string name(pathname);
@@ -531,8 +585,8 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'N':
         if (flag_line_number)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           num(matcher->lineno());
           if (sep != NULL)
             str(sep, len);
@@ -548,8 +602,8 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'K':
         if (flag_column_number)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           num(matcher->columno() + 1);
           if (sep != NULL)
             str(sep, len);
@@ -565,8 +619,8 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'B':
         if (flag_byte_offset)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           num(matcher->first());
           if (sep != NULL)
             str(sep, len);
@@ -576,14 +630,23 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'b':
-        num(matcher->first());
+        if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            num(cap.first - matcher->text() + matcher->first());
+        }
+        else
+        {
+          num(matcher->first());
+        }
         break;
 
       case 'T':
         if (flag_initial_tab)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           chr('\t');
         }
         break;
@@ -595,8 +658,8 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'S':
         if (next)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           if (sep != NULL)
             str(sep, len);
           else
@@ -616,11 +679,29 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'd':
-        num(matcher->size());
+        if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            num(cap.second);
+        }
+        else
+        {
+          num(matcher->size());
+        }
         break;
 
       case 'e':
-        num(matcher->last());
+        if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            num(cap.first + cap.second - matcher->text() + matcher->first());
+        }
+        else
+        {
+          num(matcher->last());
+        }
         break;
 
       case 'G':
@@ -640,26 +721,26 @@ void Output::format(const char *format, const char *pathname, const std::string&
 
           colon = true;
 
-          if (a != NULL)
+          if (arg != NULL)
           {
             size_t n = id.first;
-            const char *b;
+            const char *bar;
 
             while (true)
             {
-              b = strchr(a, '|');
+              bar = strchr(arg, '|');
 
-              if (--n == 0 || b == NULL)
+              if (--n == 0 || bar == NULL)
                 break;
 
-              a = b + 1;
+              arg = bar + 1;
             }
 
-            if (b == NULL)
-              b = strchr(a, ']');
+            if (bar == NULL)
+              bar = strchr(arg, ']');
 
-            if (n == 0 && b != NULL)
-              str(a, b - a);
+            if (n == 0 && bar != NULL)
+              str(arg, bar - arg);
             else if (id.second != NULL)
               str(id.second);
             else
@@ -679,30 +760,30 @@ void Output::format(const char *format, const char *pathname, const std::string&
       }
 
       case 'g':
-        if (a != NULL)
+        if (arg != NULL)
         {
           std::pair<size_t,const char*> id = matcher->group_id();
           size_t n = id.first;
 
           if (n > 0)
           {
-            const char *b;
+            const char *bar;
 
             while (true)
             {
-              b = strchr(a, '|');
+              bar = strchr(arg, '|');
 
-              if (--n == 0 || b == NULL)
+              if (--n == 0 || bar == NULL)
                 break;
 
-              a = b + 1;
+              arg = bar + 1;
             }
 
-            if (b == NULL)
-              b = strchr(a, ']');
+            if (bar == NULL)
+              bar = strchr(arg, ']');
 
-            if (n == 0 && b != NULL)
-              str(a, b - a);
+            if (n == 0 && bar != NULL)
+              str(arg, bar - arg);
             else if (id.second != NULL)
               str(id.second);
             else
@@ -821,8 +902,8 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case '$':
-        sep = a;
-        len = s - a - 1;
+        sep = arg;
+        len = s - arg - 1;
         break;
 
       case '~':
@@ -830,13 +911,13 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case '<':
-        if (!next && a != NULL)
-          str(a, s - a - 1);
+        if (!next && arg != NULL)
+          str(arg, s - arg - 1);
         break;
 
       case '>':
-        if (next && a != NULL)
-          str(a, s - a - 1);
+        if (next && arg != NULL)
+          str(arg, s - arg - 1);
         break;
 
       case ',':
@@ -846,6 +927,14 @@ void Output::format(const char *format, const char *pathname, const std::string&
         if (next)
           chr(c);
         break;
+
+      case '#':
+      {
+        std::pair<const char*,size_t> cap = capture(matcher, arg);
+        if (cap.first != NULL)
+          str(cap.first, cap.second);
+        break;
+      }
 
       default:
         chr(c);
@@ -861,76 +950,8 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case '7':
       case '8':
       case '9':
-      case '#':
-        if (c == '#')
-        {
-          if (a != NULL)
-          {
-            while (true)
-            {
-              const char *b = strchr(a, '|');
-
-              if (b == NULL)
-              {
-                b = strchr(a, ']');
-
-                if (b == NULL)
-                  break;
-              }
-
-              if (isdigit(*a))
-              {
-                size_t index = strtoul(a, NULL, 10);
-
-                if (index == 0 || *b == ']')
-                {
-                  std::pair<const char*,size_t> capture = (*matcher)[index];
-                  str(capture.first, capture.second);
-                  break;
-                }
-                else
-                {
-                  std::pair<size_t,const char*> id = matcher->group_id();
-
-                  while (id.first != 0 && id.first != index)
-                    id = matcher->group_next_id();
-
-                  if (id.first == index)
-                  {
-                    std::pair<const char*,size_t> capture = (*matcher)[index];
-                    str(capture.first, capture.second);
-                    break;
-                  }
-                }
-              }
-              else
-              {
-                std::pair<size_t,const char*> id = matcher->group_id();
-
-                while (id.first != 0
-                    && (id.second == NULL || strncmp(id.second, a, b - a) != 0 || id.second[b - a] != '\0'))
-                  id = matcher->group_next_id();
-
-                if (id.first != 0)
-                {
-                  std::pair<const char*,size_t> capture = (*matcher)[id.first];
-                  str(capture.first, capture.second);
-                  break;
-                }
-              }
-
-              if (*b == ']')
-                break;
-
-              a = b + 1;
-            }
-          }
-        }
-        else
-        {
-          std::pair<const char*,size_t> capture = (*matcher)[c - '0'];
-          str(capture.first, capture.second);
-        }
+        std::pair<const char*,size_t> capture = (*matcher)[c - '0'];
+        str(capture.first, capture.second);
         break;
     }
     ++s;
@@ -946,7 +967,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
 
   while (*s != '\0')
   {
-    const char *a = NULL;
+    const char *arg = NULL;
     const char *t = s;
 
     while (*s != '\0' && *s != '%')
@@ -957,7 +978,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
     ++s;
     if (*s == '[')
     {
-      a = ++s;
+      arg = ++s;
       while (*s != '\0' && *s != ']')
         ++s;
       if (*s == '\0' || *(s + 1) == '\0')
@@ -972,8 +993,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'F':
         if (flag_with_filename && pathname != NULL)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           str(pathname);
           if (!partname.empty())
           {
@@ -1028,8 +1049,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'H':
         if (flag_with_filename)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           if (!partname.empty())
           {
             std::string name(pathname);
@@ -1067,8 +1088,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'N':
         if (flag_line_number)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           num(lineno);
           if (sep != NULL)
             str(sep, len);
@@ -1084,8 +1105,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'K':
         if (flag_column_number)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           chr('1');
           if (sep != NULL)
             str(sep, len);
@@ -1101,8 +1122,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'B':
         if (flag_byte_offset)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           num(offset);
           if (sep != NULL)
             str(sep, len);
@@ -1118,8 +1139,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'T':
         if (flag_initial_tab)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           chr('\t');
         }
         break;
@@ -1131,8 +1152,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'S':
         if (next)
         {
-          if (a != NULL)
-            str(a, s - a - 1);
+          if (arg != NULL)
+            str(arg, s - arg - 1);
           if (sep != NULL)
             str(sep, len);
           else
@@ -1150,8 +1171,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'w':
       {
         size_t n = 0;
-        for (const char *s = ptr; s < ptr + size; ++s)
-          n += (*s & 0xC0) != 0x80;
+        for (const char *p = ptr; p < ptr + size; ++p)
+          n += (*p & 0xC0) != 0x80;
         num(n);
         break;
       }
@@ -1229,8 +1250,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case '$':
-        sep = a;
-        len = s - a - 1;
+        sep = arg;
+        len = s - arg - 1;
         break;
 
       case '~':
@@ -1238,13 +1259,13 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case '<':
-        if (!next && a != NULL)
-          str(a, s - a - 1);
+        if (!next && arg != NULL)
+          str(arg, s - arg - 1);
         break;
 
       case '>':
-        if (next && a != NULL)
-          str(a, s - a - 1);
+        if (next && arg != NULL)
+          str(arg, s - arg - 1);
         break;
 
       case ',':
@@ -1255,10 +1276,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
           chr(c);
         break;
 
-      default:
-        chr(c);
-        break;
-
+      case '#':
       case '0':
       case '1':
       case '2':
@@ -1269,12 +1287,16 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case '7':
       case '8':
       case '9':
-      case '#':
+        break;
+
+      default:
+        chr(c);
         break;
     }
     ++s;
   }
 }
+
 // output a quoted string with escapes for \ and "
 void Output::quote(const char *data, size_t size)
 {

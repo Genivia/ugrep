@@ -102,7 +102,11 @@ class AbstractMatcher {
     static const int UNK      = 256;        ///< unknown/undefined character meta-char marker
     static const int BOB      = 257;        ///< begin of buffer meta-char marker
     static const int EOB      = EOF;        ///< end of buffer meta-char marker
+#ifndef REFLEX_BLOCK_SIZE
     static const size_t BLOCK = (256*1024); ///< buffer size and growth, buffer is initially 2*BLOCK size, at least 4096 bytes
+#else
+    static const size_t BLOCK = REFLEX_BLOCK_SIZE;
+#endif
     static const size_t REDO  = 0x7FFFFFFF; ///< reflex::Matcher::accept() returns "redo" with reflex::Matcher option "A"
     static const size_t EMPTY = 0xFFFFFFFF; ///< accept() returns "empty" last split at end of input
   };
@@ -1373,7 +1377,7 @@ class AbstractMatcher {
     if (bol_ + Const::BLOCK < txt_ && evh_ == NULL)
     {
       // this line is very long, likely a binary file, so shift a block size away from the match instead
-      DBGLOG("Line in buffer to long to shift, moving bol position to text match position minus %zu", Const::BLOCK);
+      DBGLOG("Line in buffer is too long to shift, moving bol position to text match position minus %zu", Const::BLOCK);
       bol_ = txt_ - Const::BLOCK;
     }
     size_t gap = bol_ - buf_;

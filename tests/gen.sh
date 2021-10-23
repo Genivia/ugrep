@@ -31,6 +31,7 @@ mkdir -p out dir1 dir2
 ln -s ../Hello.java dir1
 cp Hello.sh dir1
 cp Hello.bat dir1
+cp makefile dir1
 ln -s ../Hello.java dir2
 cp Hello.sh dir2
 cp Hello.bat dir2
@@ -47,7 +48,7 @@ $UG -rl                                  Hello dir1 > out/dir.out
 $UG -Rl                                  Hello dir1 > out/dir-S.out
 $UG -Rl -Osh                             Hello dir1 > out/dir-O.out
 $UG -Rl -M'#!/bin/sh'                    Hello dir1 > out/dir-M.out
-$UG -Rl -tShell                          Hello dir1 > out/dir-t.out
+$UG -Rl -tShell,make                     Hello dir1 > out/dir-t.out
 $UG -1l                                  Hello dir1 > out/dir-1.out
 $UG -2l                                  Hello dir1 > out/dir-2.out
 $UG -Rl --include='*.sh'                 Hello dir1 > out/dir--include.out

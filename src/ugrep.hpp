@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "3.3.7"
+#define UGREP_VERSION "3.3.8"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -114,14 +114,14 @@ inline int pclose(FILE *stream)
   return _pclose(stream);
 }
 
-// Wrap Windows _dupenv_s()
+// wrap Windows _dupenv_s()
 inline int dupenv_s(char **ptr, const char *name)
 {
   size_t len;
   return _dupenv_s(ptr, &len, name);
 }
 
-// Convert a wide Unicode string to an UTF-8 string
+// convert a wide Unicode string to an UTF-8 string
 inline std::string utf8_encode(const std::wstring &wstr)
 {
   if (wstr.empty())
@@ -132,7 +132,7 @@ inline std::string utf8_encode(const std::wstring &wstr)
   return str;
 }
 
-// Convert a UTF-8 string to a wide Unicode String
+// convert a UTF-8 string to a wide Unicode String
 inline std::wstring utf8_decode(const std::string &str)
 {
   if (str.empty())
@@ -158,7 +158,7 @@ inline char *getcwd0()
   return strdup(cwd.c_str());
 }
 
-// Open Unicode wide string UTF-8 encoded filename
+// open Unicode wide string UTF-8 encoded filename
 inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 {
   *file = NULL;
@@ -434,7 +434,7 @@ struct Type {
   const char *type;
   const char *extensions;
   const char *filenames;
-  const char *magic;
+  const char *magic; 
 };
 
 // table of file types for option -t, --file-type

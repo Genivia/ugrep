@@ -3080,8 +3080,8 @@ field                   | output
 `%:`                    | if not the first match: a colon, same as `%[:]>`
 `%;`                    | if not the first match: a semicolon, same as `%[;]>`
 `%│`                    | if not the first match: a vertical bar, same as `%[│]>`
-`%[ARG]S`               | if not the first match: `ARG` and separator, see also `%$`
-`%s`                    | the separator, see also `%S` and `%$`
+`%[ARG]S`               | if not the first match: `ARG` and separator, see also `%[SEP]$`
+`%s`                    | the separator, see also `%[ARG]S` and `%[SEP]$`
 `%~`                    | a newline character, same as `\n`
 `%m`                    | the number of matches or matched files
 `%O`                    | the matching line is output as is (a raw string of bytes)
@@ -3103,9 +3103,21 @@ field                   | output
 `%u`                    | select unique lines only unless option -u is used
 `%1`,`%2`,...,`%9`      | the first regex group capture of the match, and so on up to group `%9`, requires option `-P`
 `%[NUM]#`               | the regex group capture `NUM`; requires option `-P`
+`%[NUM]b`               | the byte offset of the group capture `NUM`; requires option `-P`
+`%[NUM]e`               | the ending byte offset of the group capture `NUM`; requires option `-P`
+`%[NUM]d`               | the byte length of the group capture `NUM`; requires option `-P`
 `%[NUM1\|NUM2\|...]#`   | the first group capture `NUM` that matched; requires option `-P`
+`%[NUM1\|NUM2\|...]b`   | the byte offset of the first group capture `NUM` that matched; requires option `-P`.
+`%[NUM1\|NUM2\|...]e`   | the ending byte offset of the first group capture `NUM` that matched; requires option `-P`.
+`%[NUM1\|NUM2\|...]d`   | the byte length of the first group capture `NUM` that matched; requires option `-P`.
 `%[NAME]#`              | the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME]b`              | the byte offset of the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`.
+`%[NAME]e`              | the ending byte offset of the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`.
+`%[NAME]d`              | the byte length of the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`.
 `%[NAME1\|NAME2\|...]#` | the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]b` | the byte offset of the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]e` | the ending byte offset of the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]d` | the byte length of the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
 `%G`                    | list of group capture indices/names of the match (see note)
 `%[TEXT1\|TEXT2\|...]G` | list of TEXT indexed by group capture indices that matched; requires option `-P`
 `%g`                    | the group capture index of the match or 1 (see note)
@@ -3133,8 +3145,8 @@ Note:
 - The group capture index value output by `%g` corresponds to the index of the
   sub-pattern matched among the alternations in the pattern when option `-P` is
   not used.  For example `foo|bar` matches `foo` with index 1 and `bar` with
-  index 2.  With option `-P`, the index corresponds to the number of the group
-  captured in the specified pattern.
+  index 2.  With option `-P`, the index corresponds to the number of the first
+  group captured in the specified pattern.
 - The strings specified in the list `%[TEXT1|TEXT2|...]G` and
   `%[TEXT1|TEXT2|...]g` should correspond to the group capture index (see the
   note above), i.e. `TEXT1` is output for index 1, `TEXT2` is output for index

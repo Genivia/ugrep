@@ -76,11 +76,15 @@ Select Release/x86 then Project Configuration Properties:
 		Advanced:
 			Disable Specific Warnings: 4146;4703
 
+Note: to increase the PCRE2 link size from 2 to 3 to support very large regex
+patterns, add LINK_SIZE=3 to the Preprocessor Definitions.
+
 Then build the pcre2.lib static library in Visual Studio.
 
-Copy pcre2.lib to ugrep\vs\ugrep\pcre2-x32.lib.
+Copy Release\pcre2.lib to ugrep\vs\ugrep\pcre2-x32.lib.
 
-To build pcre2-x64.lib, repeat the last three steps, selecting Release/x64.
+To build pcre2-x64.lib, repeat the last three steps, copy Release\x64\pcre2.lib
+to ugrep\vs\ugrep\pcre2-x64.lib.
 
 Download zlib 1.2.11 source code from:
 
