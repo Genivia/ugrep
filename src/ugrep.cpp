@@ -1749,11 +1749,10 @@ struct Grep {
       file = source;
 
 #ifdef OS_WIN
-      if (flag_binary || flag_decompress)
-        _setmode(fileno(source), _O_BINARY);
+      _setmode(fileno(source), _O_BINARY);
 #endif
     }
-    else if (fopenw_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+    else if (fopenw_s(&file, pathname, "rb") != 0)
     {
       warning("cannot read", pathname);
 
@@ -1775,7 +1774,7 @@ struct Grep {
       FILE *pipe_in = NULL;
 
       // open pipe between worker and decompression thread, then start decompression thread
-      if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "r")) != NULL)
+      if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "rb")) != NULL)
       {
         // create or open a new zstreambuf to (re)start the decompression thread
         if (zstream == NULL)
@@ -2773,7 +2772,7 @@ struct Grep {
           FILE *pipe_in = NULL;
 
           // open pipe between worker and decompression thread, then start decompression thread
-          if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "r")) != NULL)
+          if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "rb")) != NULL)
           {
             // notify the decompression filter thread of the new pipe
             pipe_ready.notify_one();
@@ -6932,7 +6931,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     {
       FILE *file;
 
-      if (fopenw_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+      if (fopenw_s(&file, pathname, "rb") != 0)
       {
         warning("cannot read", pathname);
         return Type::SKIP;
@@ -7120,7 +7119,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           {
             FILE *file;
 
-            if (fopenw_s(&file, pathname, (flag_binary || flag_decompress ? "rb" : "r")) != 0)
+            if (fopenw_s(&file, pathname, "rb") != 0)
             {
               warning("cannot read", pathname);
               return Type::SKIP;
@@ -10889,23 +10888,11 @@ void help(std::ostream& out)
     --tag[=TAG[,END]]\n\
             Disables colors to mark up matches with TAG.  END marks the end of\n\
             a match if specified, otherwise TAG.  The default is `___'.\n\
-    -U, --binary\n"
-#ifdef OS_WIN
-            "\
-            Opens files in binary mode (mode specific to Windows) and disables\n\
-            Unicode matching for binary file matching, forcing PATTERN to match\n\
-            bytes, not Unicode characters.  For example, -U '\\xa3' matches\n\
-            byte A3 (hex) instead of the Unicode code point U+00A3 represented\n\
-            by the UTF-8 sequence C2 A3.  Binary files may appear truncated\n\
-            when searched without this option.  See also option --dotall.\n"
-#else
-            "\
+    -U, --binary\n\
             Disables Unicode matching for binary file matching, forcing PATTERN\n\
             to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\
             matches byte A3 (hex) instead of the Unicode code point U+00A3\n\
-            represented by the UTF-8 sequence C2 A3.  See also option --dotall.\n"
-#endif
-            "\
+            represented by the UTF-8 sequence C2 A3.  See also option --dotall.\n\
     -u, --ungroup\n\
             Do not group multiple pattern matches on the same matched line.\n\
             Output the matched line again for each additional pattern match,\n\
