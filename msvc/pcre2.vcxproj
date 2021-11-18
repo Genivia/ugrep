@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="None|Win32">
+      <Configuration>None</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="None|x64">
+      <Configuration>None</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{5af584ca-c0a0-4109-8529-29fe39483a38}</ProjectGuid>
+    <RootNamespace>pcre2</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='None|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='None|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='None|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='None|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='None|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='None|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='None|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./include_pcre2;../../pcre2/src</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DisableSpecificWarnings>4146;4703</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='None|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./include_pcre2;../../pcre2/src</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DisableSpecificWarnings>4146;4703</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./include_pcre2;../../pcre2/src</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <DisableSpecificWarnings>4146;4703</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./include_pcre2;../../pcre2/src</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <DisableSpecificWarnings>4146;4703</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./include_pcre2;../../pcre2/src</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DisableSpecificWarnings>4146;4703</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./include_pcre2;../../pcre2/src</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DisableSpecificWarnings>4146;4703</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="..\..\pcre2\src\config.h.generic">
+      <FileType>CppHeader</FileType>
+    </None>
+    <None Include="..\..\pcre2\src\pcre2.h.generic">
+      <FileType>CppHeader</FileType>
+    </None>
+    <None Include="..\..\pcre2\src\pcre2_chartables.c.dist">
+      <FileType>CppCode</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\pcre2\src\pcre2_auto_possess.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_compile.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_config.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_context.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_convert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_dfa_match.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_error.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_extuni.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_find_bracket.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_jit_compile.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_maketables.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_match.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_match_data.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_newline.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_ord2utf.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_pattern_info.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_script_run.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_serialize.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_string_utils.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_study.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_substitute.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_substring.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_tables.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_ucd.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_valid_utf.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\pcre2\src\pcre2_xclass.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="include_common\empty.c" />
+    <ClCompile Include="include_pcre2\pcre2_chartables.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\pcre2\src\pcre2_internal.h" />
+    <ClInclude Include="..\..\pcre2\src\pcre2_intmodedep.h" />
+    <ClInclude Include="..\..\pcre2\src\pcre2_jit_neon_inc.h" />
+    <ClInclude Include="..\..\pcre2\src\pcre2_jit_simd_inc.h" />
+    <ClInclude Include="..\..\pcre2\src\pcre2_ucp.h" />
+    <ClInclude Include="include_pcre2\config.h" />
+    <ClInclude Include="include_pcre2\pcre2.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

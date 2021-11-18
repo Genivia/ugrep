@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="None|Win32">
+      <Configuration>None</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="None|x64">
+      <Configuration>None</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{ca95dc5d-2549-4b15-ad80-6f52ba094872}</ProjectGuid>
+    <RootNamespace>xz</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='None|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='None|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='None|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='None|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='None|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='None|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)bin\$(Configuration)-$(Platform)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='None|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>../../xz/windows/vs2019;../../xz/src/liblzma/common;../../xz/src/common;../../xz/src/liblzma/api;../../xz/src/liblzma/check;../../xz/src/liblzma/delta;../../xz/src/liblzma/lz;../../xz/src/liblzma/lzma;../../xz/src/liblzma/rangecoder;../../xz/src/liblzma/simple;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='None|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>../../xz/windows/vs2019;../../xz/src/liblzma/common;../../xz/src/common;../../xz/src/liblzma/api;../../xz/src/liblzma/check;../../xz/src/liblzma/delta;../../xz/src/liblzma/lz;../../xz/src/liblzma/lzma;../../xz/src/liblzma/rangecoder;../../xz/src/liblzma/simple;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>../../xz/windows/vs2019;../../xz/src/liblzma/common;../../xz/src/common;../../xz/src/liblzma/api;../../xz/src/liblzma/check;../../xz/src/liblzma/delta;../../xz/src/liblzma/lz;../../xz/src/liblzma/lzma;../../xz/src/liblzma/rangecoder;../../xz/src/liblzma/simple;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>../../xz/windows/vs2019;../../xz/src/liblzma/common;../../xz/src/common;../../xz/src/liblzma/api;../../xz/src/liblzma/check;../../xz/src/liblzma/delta;../../xz/src/liblzma/lz;../../xz/src/liblzma/lzma;../../xz/src/liblzma/rangecoder;../../xz/src/liblzma/simple;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>../../xz/windows/vs2019;../../xz/src/liblzma/common;../../xz/src/common;../../xz/src/liblzma/api;../../xz/src/liblzma/check;../../xz/src/liblzma/delta;../../xz/src/liblzma/lz;../../xz/src/liblzma/lzma;../../xz/src/liblzma/rangecoder;../../xz/src/liblzma/simple;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HAVE_CONFIG_H;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>../../xz/windows/vs2019;../../xz/src/liblzma/common;../../xz/src/common;../../xz/src/liblzma/api;../../xz/src/liblzma/check;../../xz/src/liblzma/delta;../../xz/src/liblzma/lz;../../xz/src/liblzma/lzma;../../xz/src/liblzma/rangecoder;../../xz/src/liblzma/simple;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\xz\src\common\tuklib_cpucores.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\common\tuklib_physmem.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\check\check.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\check\crc32_fast.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\check\crc32_table.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\check\crc64_fast.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\check\crc64_table.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\check\sha256.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\alone_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\alone_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\auto_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\block_buffer_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\block_buffer_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\block_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\block_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\block_header_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\block_header_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\block_util.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\common.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\easy_buffer_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\easy_decoder_memusage.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\easy_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\easy_encoder_memusage.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\easy_preset.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\filter_buffer_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\filter_buffer_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\filter_common.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\filter_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\filter_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\filter_flags_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\filter_flags_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\hardware_cputhreads.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\hardware_physmem.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\index.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\index_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\index_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\index_hash.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\outqueue.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\stream_buffer_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\stream_buffer_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\stream_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\stream_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\stream_encoder_mt.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\stream_flags_common.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\stream_flags_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\stream_flags_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\vli_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\vli_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\common\vli_size.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\delta\delta_common.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\delta\delta_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\delta\delta_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lzma\fastpos_table.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lzma\lzma2_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lzma\lzma2_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lzma\lzma_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lzma\lzma_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lzma\lzma_encoder_optimum_fast.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lzma\lzma_encoder_optimum_normal.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lzma\lzma_encoder_presets.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lz\lz_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lz\lz_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\lz\lz_encoder_mf.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\rangecoder\price_table.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\arm.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\armthumb.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\ia64.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\powerpc.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\simple_coder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\simple_decoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\simple_encoder.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\sparc.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\xz\src\liblzma\simple\x86.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='None|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="include_common\empty.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\xz\src\common\mythread.h" />
+    <ClInclude Include="..\..\xz\src\common\sysdefs.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_common.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_config.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_cpucores.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_exit.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_gettext.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_integer.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_mbstr.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_physmem.h" />
+    <ClInclude Include="..\..\xz\src\common\tuklib_progname.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\check\check.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\check\crc32_table_be.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\check\crc32_table_le.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\check\crc64_table_be.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\check\crc64_table_le.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\check\crc_macros.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\alone_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\block_buffer_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\block_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\block_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\common.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\easy_preset.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\filter_common.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\filter_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\filter_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\index.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\index_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\memcmplen.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\outqueue.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\stream_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\common\stream_flags_common.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\delta\delta_common.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\delta\delta_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\delta\delta_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\delta\delta_private.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lzma\fastpos.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lzma\lzma2_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lzma\lzma2_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lzma\lzma_common.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lzma\lzma_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lzma\lzma_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lzma\lzma_encoder_private.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lz\lz_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lz\lz_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lz\lz_encoder_hash.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\lz\lz_encoder_hash_table.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\rangecoder\price.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\rangecoder\range_common.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\rangecoder\range_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\rangecoder\range_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\simple\simple_coder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\simple\simple_decoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\simple\simple_encoder.h" />
+    <ClInclude Include="..\..\xz\src\liblzma\simple\simple_private.h" />
+    <ClInclude Include="..\..\xz\windows\vs2019\config.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
