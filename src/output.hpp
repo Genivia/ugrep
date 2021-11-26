@@ -553,12 +553,10 @@ class Output {
         // if multi-threaded and lock is not owned already, then lock on master's mutex
         acquire();
 
-        bool block_ended_with_cr = false;
-
         // flush the buffers container to the designated output file, pipe, or stream
         for (Buffers::iterator i = buffers_.begin(); i != buf_; ++i)
         {
-          size_t num = normalize_crlf(i->data, SIZE, &block_ended_with_cr);
+          size_t num = remove_cr(i->data, SIZE);
 
           size_t nwritten = fwrite(i->data, 1, num, file);
 
@@ -575,7 +573,7 @@ class Output {
 
           if (num > 0)
           {
-            num = normalize_crlf(buf_->data, num, &block_ended_with_cr);
+            num = remove_cr(buf_->data, num);
 
             if (num > 0)
             {
@@ -680,41 +678,16 @@ class Output {
     cur_ = buf_->data;
   }
 
-  // In-place conversion of "\r\n", "\r", and "\n" to "\n".
+  // In-place removal of '\r' before writing output.
   // Returns the updated buffer size.
-  static size_t normalize_crlf(char* data, size_t data_len, bool* block_ended_with_cr)
+  static size_t remove_cr(char* data, size_t data_len)
   {
-    size_t input_pos = 0;
     size_t output_pos = 0;
-
-    // If the previous normalize_crlf ended on a '\r' then we should skip a leading '\n'.
-    if (*block_ended_with_cr && data[0] == '\n')
-      input_pos += 1;
-
-    *block_ended_with_cr = false;
-
-    for (; input_pos != data_len; input_pos += 1)
+    for (size_t input_pos = 0; input_pos != data_len; input_pos += 1)
     {
       char c = data[input_pos];
-
-      // Special treatment needed only for '\r'.
-      if (c == '\r')
-      {
-        if (input_pos + 1 == data_len)
-        {
-          // '\r' at end of block: convert to '\n' and carry over to next block.
-          *block_ended_with_cr = true;
-        }
-        else if (data[input_pos + 1] == '\n')
-        {
-          // "\r\n": convert to '\n'.
-          input_pos += 1;
-        }
-
-        c = '\n';
-      }
-
-      data[output_pos++] = c;
+      data[output_pos] = c;
+      output_pos += (c != '\r');
     }
 
     return output_pos;
