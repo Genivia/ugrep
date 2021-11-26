@@ -40,6 +40,11 @@ config.status
 config.log
 stamp-h1
 
+# Visual Studio
+msvc/.vs/
+msvc/bin/
+msvc/*.vcxproj.user
+
 # Other
 .DS_Store/
 *.dSYM/
