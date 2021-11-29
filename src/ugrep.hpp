@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "3.3.8"
+#define UGREP_VERSION "3.3.9"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -434,7 +434,7 @@ struct Type {
   const char *type;
   const char *extensions;
   const char *filenames;
-  const char *magic; 
+  const char *magic;
 };
 
 // table of file types for option -t, --file-type

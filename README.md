@@ -583,10 +583,11 @@ where:
 - `--sort` specifies output sorted by pathname, showing sorted matching files
   first followed by sorted recursive matches in subdirectories.  Otherwise,
   matching files are reported in no particular order to improve performance;
-- `-U` disables Unicode pattern matching, so for example the pattern `\xa3`
-  matches byte A3 instead of the Unicode code point U+00A3 represented by the
-  UTF-8 sequence C2 A3.  By default in ugrep, `\xa3` matches U+00A3.  We do not
-  recommend to use `-U` for text pattern searches, only for binary searches.
+- `-U` disables Unicode wide-character pattern matching, so for example the
+  pattern `\xa3` matches byte A3 instead of the Unicode code point U+00A3
+  represented by the UTF-8 sequence C2 A3.  By default in ugrep, `\xa3` matches
+  U+00A3.  We do not recommend to use `-U` for text pattern searches, only for
+  binary searches.
 - `-Y` enables empty matches, so for example the pattern `a*` matches every
   line instead of a sequence of `a`'s.  By default in ugrep, the pattern `a*`
   matches a sequence of `a`'s.  Moreover, in ugrep the pattern `a*b*c*` matches
@@ -599,8 +600,8 @@ where:
 When the `ugrep` (or `ugrep.exe`) executable is renamed to `grep` (`grep.exe`),
 `egrep` (`egrep.exe`), `fgrep` (`fgrep.exe`) and so on, then a subset of the
 options shown above are automatically in effect except for `--sort`, `-Dread`,
-`-dread`, and `-U` to permit Unicode matching.  For example, when `ugrep` is
-renamed to `egrep`, options `-E`, `-Y`, and `-.` are automatically enabled.
+`-dread`, and `-U`.  For example, when `ugrep` is renamed to `egrep`, options
+`-E`, `-Y`, and `-.` are automatically enabled.
 
 Note that the defaults of some grep options may differ to make **ugrep** more
 user friendly, see [notable improvements over grep](#improvements).
@@ -650,7 +651,7 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 
 - **ugrep** starts an interactive query UI with option `-Q`.
 - **ugrep** matches patterns across multiple lines.
-- **ugrep** matches Unicode by default (disabled with option `-U`).
+- **ugrep** matches full Unicode by default (disabled with option `-U`).
 - **ugrep** supports fuzzy (approximate) matching with option `-Z`.
 - **ugrep** supports gitignore with option `--ignore-files`.
 - **ugrep** supports user-defined global and local configuration files.
@@ -1725,7 +1726,7 @@ To display a hexdump of a matching line with one line of hexdump context:
 Context within a line is displayed by simply adjusting the pattern and using
 option `-o`, for example to show the word (when present) before and after a
 match of `pattern` (`\w+` matches a word and `\h+` matches spacing), where `-U`
-matches ASCII words instead of Unicode:
+matches ASCII words instead of full Unicode:
 
     ugrep -o -U '(\w+\h+)?pattern(\h+\w+)?' myfile.cpp
 
@@ -4799,7 +4800,7 @@ in markdown:
 
 
 
-    ugrep 3.3.8                    October 23, 2021                       UGREP(1)
+    ugrep 3.3.9                    November 29, 2021                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
@@ -4921,6 +4922,14 @@ compatibility with traditional grep pattern matching.
 
 ### POSIX and Unicode character categories
 
+The POSIX form can only be used in bracket lists, for example
+`[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  
+
+You can also use the `\p{C}` form for class `C` and upper case `\P{C}` form
+that has the same meaning as `\p{^C}`, which matches any character except
+characters in the class `C`.  For example, `\P{ASCII}` is the same as
+`\p{^ASCII}` which is the same as `[[:^ascii]]`.
+
   POSIX form   | POSIX category    | Matches
   ------------ | ----------------- | ---------------------------------------------
   `[:ascii:]`  | `\p{ASCII}`       | matches an ASCII character U+0000 to U+007F
@@ -4940,16 +4949,22 @@ compatibility with traditional grep pattern matching.
   `[:^blank:]` | `\P{Blank}`, `\H` | matches a non-blank character including newline `\n`
   `[:^digit:]` | `\P{Digit}`       | matches a non-digit including newline `\n`
 
-The POSIX form can only be used in bracket lists, for example
-`[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  
-
-You can also use the upper case `\P{C}` form that has the same meaning as
-`\p{^C}`, which matches any character except characters in the class `C`.
-For example, `\P{ASCII}` is the same as `\p{^ASCII}`.
-
-Because POSIX character categories only cover ASCII, `[[:^ascii]]` is empty and
+POSIX character categories only cover ASCII, `[[:^ascii]]` is empty and
 therefore invalid to use.  By contrast, `[^[:ascii]]` is a Unicode character
 class that excludes the ASCII character category.
+
+Note that the patterns `[[:ascii:]]`, `[[:ctnrl:]]` and `[[:space:]]` and most
+of the negated classes such as `[[:^blank:]]` and `[[:digit:]]` match newlines,
+which is the official definition of these POSIX categories.  By contrast,
+GNU/BSD grep never match newlines.  As a consequence, more patterns may match.
+
+Negated character classes of the form `[^...]` match any Unicode character
+except the given characters and does not match newlines either.  For example
+`[^[:digit:]]` matches non-digits (including Unicode) and does not match
+newlines.  By contrast, `[[:^digit:]]` matches ASCII non-digits, including
+newlines.
+
+Option `-U` disables Unicode wide-character matching, i.e. ASCII matching.
 
   Unicode category                       | Matches
   -------------------------------------- | ------------------------------------
