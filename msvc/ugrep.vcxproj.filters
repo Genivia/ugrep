@@ -1,0 +1,209 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="reflex">
+      <UniqueIdentifier>{81299ae0-a73f-4b05-b618-50644804350b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{e395409c-5406-42ba-b36e-006158915671}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="config">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="lib">
+      <UniqueIdentifier>{b2bece10-8ad8-45c6-872a-3051a1aa6923}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\reflex\abslexer.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\absmatcher.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\bits.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\boostmatcher.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\convert.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\debug.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\error.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\flexlexer.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\fuzzymatcher.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\input.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\matcher.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\pattern.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\pcre2matcher.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\posix.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\ranges.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\setop.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\simd.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\stdmatcher.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\timer.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\traits.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\unicode.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\reflex\utf8.h">
+      <Filter>reflex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\cnf.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\zstream.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\zopen.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vkey.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ugrep.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\stats.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\screen.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\query.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\output.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\mmap.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\glob.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\flag.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="include_ugrep\config.h">
+      <Filter>config</Filter>
+    </ClInclude>
+    <ClInclude Include="include_ugrep\pcre2.h">
+      <Filter>config</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\lib\block_scripts.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\convert.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\cnf.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\debug.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\error.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\glob.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\input.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\language_scripts.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\matcher.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\letter_scripts.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\output.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\posix.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\pattern.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ugrep.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\stats.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\screen.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\query.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\unicode.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\utf8.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vkey.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\zopen.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\simd_avx2.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lib\simd_avx512bw.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md">
+      <Filter>config</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="include_ugrep\manifest.xml">
+      <Filter>config</Filter>
+    </Xml>
+  </ItemGroup>
+</Project>
