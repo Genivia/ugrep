@@ -417,9 +417,9 @@ The corpora used in the tests are available for
 ### Performance results
 
 The following performance tests were conducted with a new and common MacBook
-Pro using clang 9.0.0 -O2 on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3 Mac
-OS 10.12.6 machine.  The best times of 30 runs is shown under minimal machine
-load.  When comparing tools, the same match counts were produced.
+Pro using clang 12.0.0 -O2 on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3
+MacOS 10.15.7 machine.  The best times of 30 runs is shown under minimal
+machine load.  When comparing tools, the same match counts were produced.
 
 Results are shown in real time (wall clock time) seconds elapsed.  Best times
 are shown in **boldface** and *n/a* means that the running time exceeded 1
@@ -4800,7 +4800,7 @@ in markdown:
 
 
 
-    ugrep 3.3.9                    November 29, 2021                      UGREP(1)
+    ugrep 3.3.10                   December 02, 2021                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

@@ -574,6 +574,9 @@ inline bool getline(const char*& here, size_t& left, reflex::BufferedInput& buff
 // return true if s[0..n-1] contains a NUL or is non-displayable invalid UTF-8
 inline bool is_binary(const char *s, size_t n)
 {
+  if (n == 1)
+    return *s == '\0' || (*s & 0xc0) == 0x80;
+
   if (memchr(s, '\0', n) != NULL)
     return true;
 
@@ -2918,16 +2921,10 @@ struct Grep {
   // after opening a file with init_read, check if it is binary
   bool init_is_binary()
   {
+    // limit checking to first buffer filled with input up to 4K, which should suffice, to improve performance
     size_t avail = matcher->avail();
-    if (avail < 16384 && !input.eof())
-    {
-      // less than 16K available and not EOF, e.g. piped input, get until the first EOL to check
-      matcher->eol();
-      avail = matcher->avail();
-    }
-    // limit checking to first 16K of input, which should suffice, to improve performance
-    if (avail > 16384)
-      avail = 16384;
+    if (avail > 4096)
+      avail = 4096;
     return is_binary(matcher->begin(), avail);
   }
 
@@ -7652,6 +7649,10 @@ void Grep::search(const char *pathname)
         if (!init_read())
           goto exit_search;
 
+        // discard bol-match margin buffer data if keeping the entire line is not required
+        if (matchers == NULL)
+          matcher->set_margin(0);
+
         while (true)
         {
           matches = matcher->find() != 0;
@@ -7730,6 +7731,10 @@ void Grep::search(const char *pathname)
 
         if (init_read())
         {
+          // discard bol-match margin buffer data if keeping the entire line is not required
+          if (matchers == NULL)
+            matcher->set_margin(0);
+
           if (flag_ungroup || flag_only_matching)
           {
             // -co or -cu: count the number of patterns matched in the file
@@ -7992,6 +7997,10 @@ void Grep::search(const char *pathname)
         if (!init_read())
           goto exit_search;
 
+        // discard bol-match margin buffer data if keeping the entire line is not required
+        if (matchers == NULL)
+          matcher->set_margin(0);
+
         size_t lineno = 0;
         const char *separator = flag_separator;
 
@@ -8043,6 +8052,10 @@ void Grep::search(const char *pathname)
 
         if (!init_read())
           goto exit_search;
+
+        // discard bol-match margin buffer data if keeping the entire line is not required
+        if (matchers == NULL)
+          matcher->set_margin(0);
 
         size_t lineno = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();

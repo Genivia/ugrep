@@ -66,7 +66,7 @@ inline int isword(int c) ///< Character to check
 
 /// The abstract matcher base class template defines an interface for all pattern matcher engines.
 /**
-The buffer expands when matches do not fit.  The buffer size is initially 2*BLOCK size.
+The buffer expands when matches do not fit.  The buffer size is initially BUFSZ.
 
 ```
       _________________
@@ -103,10 +103,11 @@ class AbstractMatcher {
     static const int BOB      = 257;        ///< begin of buffer meta-char marker
     static const int EOB      = EOF;        ///< end of buffer meta-char marker
 #ifndef REFLEX_BLOCK_SIZE
-    static const size_t BLOCK = (256*1024); ///< buffer size and growth, buffer is initially 2*BLOCK size, at least 4096 bytes
+    static const size_t BUFSZ = (64*1024);  ///< initial buffer size, at least 4096 bytes
 #else
-    static const size_t BLOCK = REFLEX_BLOCK_SIZE;
+    static const size_t BUFSZ = REFLEX_BUFSZ;
 #endif
+    static const size_t BLOCK = 4096;       ///< minimum remaining unused space in the buffer, to prevent excessive shifting
     static const size_t REDO  = 0x7FFFFFFF; ///< reflex::Matcher::accept() returns "redo" with reflex::Matcher option "A"
     static const size_t EMPTY = 0xFFFFFFFF; ///< accept() returns "empty" last split at end of input
   };
@@ -352,7 +353,7 @@ class AbstractMatcher {
     }
     if (!own_)
     {
-      max_ = 2 * Const::BLOCK;
+      max_ = Const::BUFSZ;
 #if defined(WITH_REALLOC)
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
       buf_ = static_cast<char*>(_aligned_malloc(max_, 4096));
@@ -376,6 +377,7 @@ class AbstractMatcher {
     end_ = 0;
     ind_ = 0;
     blk_ = 0;
+    mgn_ = Const::BUFSZ;
     got_ = Const::BOB;
     chr_ = '\0';
 #if defined(WITH_SPAN)
@@ -416,6 +418,11 @@ class AbstractMatcher {
     if (end_ == max_)
       (void)grow(1); // make sure we have room for a final \0
     return in.eof();
+  }
+  /// Set maximum margin between the begin of a line and a match, to retain buffer data in the margin or no data when zero
+  void set_margin(size_t margin) ///< max margin
+  {
+    mgn_ = margin;
   }
 #if defined(WITH_SPAN)
   /// Set event handler functor to invoke when the buffer contents are shifted out, e.g. for logging the data searched.
@@ -509,6 +516,7 @@ class AbstractMatcher {
       max_ = size;
       ind_ = 0;
       blk_ = 0;
+      mgn_ = 0;
       got_ = Const::BOB;
       chr_ = '\0';
 #if defined(WITH_SPAN)
@@ -619,24 +627,9 @@ class AbstractMatcher {
 #if defined(WITH_SPAN)
     if (lpb_ < txt_)
     {
-      const char *s = bol_;
+      const char *s = lpb_;
       const char *t = txt_;
-      // clang/gcc 4-way vectorizable loop
-      while (t - 4 >= s)
-      {
-        if ((t[-1] == '\n') | (t[-2] == '\n') | (t[-3] == '\n') | (t[-4] == '\n'))
-          break;
-        t -= 4;
-      }
-      // epilogue
-      if (--t >= s && *t != '\n')
-        if (--t >= s && *t != '\n')
-          if (--t >= s && *t != '\n')
-            --t;
-      bol_ = const_cast<char*>(t + 1);
-      lpb_ = txt_;
-      size_t n = lno_;
-
+      size_t n = 0;
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
       if (s + 63 > t && have_HW_AVX512BW())
       {
@@ -695,7 +688,7 @@ class AbstractMatcher {
 #endif
       uint32_t n0 = 0, n1 = 0, n2 = 0, n3 = 0;
       // clang/gcc 4-way auto-vectorizable loop
-      while (s + 3 <= t)
+      while (s + 3 < t)
       {
         n0 += s[0] == '\n';
         n1 += s[1] == '\n';
@@ -705,17 +698,36 @@ class AbstractMatcher {
       }
       n += n0 + n1 + n2 + n3;
       // epilogue
-      if (s <= t)
+      if (s < t)
       {
         n += *s == '\n';
-        if (++s <= t)
+        if (++s < t)
         {
           n += *s == '\n';
-          if (++s <= t)
+          if (++s < t)
             n += *s == '\n';
         }
       }
-      lno_ = n;
+      // if newlines are detected, then find begin of the last line to adjust bol
+      if (n > 0)
+      {
+        lno_ += n;
+        s = lpb_;
+        // clang/gcc 4-way auto-vectorizable loop
+        while (t - 4 >= s)
+        {
+          if ((t[-1] == '\n') | (t[-2] == '\n') | (t[-3] == '\n') | (t[-4] == '\n'))
+            break;
+          t -= 4;
+        }
+        // epilogue
+        if (--t >= s && *t != '\n')
+          if (--t >= s && *t != '\n')
+            if (--t >= s && *t != '\n')
+              --t;
+        bol_ = const_cast<char*>(t + 1);
+      }
+      lpb_ = txt_;
     }
 #else
     size_t n = lno_;
@@ -1374,24 +1386,27 @@ class AbstractMatcher {
       return false;
 #if defined(WITH_SPAN)
     (void)lineno();
-    if (bol_ + Const::BLOCK < txt_ && evh_ == NULL)
+    if (bol_ + mgn_ < txt_ && evh_ == NULL)
     {
       // this line is very long, likely a binary file, so shift a block size away from the match instead
-      DBGLOG("Line in buffer is too long to shift, moving bol position to text match position minus %zu", Const::BLOCK);
-      bol_ = txt_ - Const::BLOCK;
+      DBGLOG("Line in buffer is too long to shift, moving bol position to text match position");
+      bol_ = txt_;
     }
     size_t gap = bol_ - buf_;
-    if (gap > 0 && evh_ != NULL)
-      (*evh_)(*this, buf_, gap, num_);
-    cur_ -= gap;
-    ind_ -= gap;
-    pos_ -= gap;
-    end_ -= gap;
-    txt_ -= gap;
-    bol_ -= gap;
-    lpb_ -= gap;
-    num_ += gap;
-    std::memmove(buf_, buf_ + gap, end_);
+    if (gap > 0)
+    {
+      if (evh_ != NULL)
+        (*evh_)(*this, buf_, gap, num_);
+      cur_ -= gap;
+      ind_ -= gap;
+      pos_ -= gap;
+      end_ -= gap;
+      txt_ -= gap;
+      bol_ -= gap;
+      lpb_ -= gap;
+      num_ += gap;
+      std::memmove(buf_, buf_ + gap, end_);
+    }
     if (max_ - end_ >= need)
     {
       DBGLOG("Shift buffer to close gap of %zu bytes", gap);
@@ -1582,6 +1597,7 @@ class AbstractMatcher {
   size_t    max_; ///< total buffer size and max position + 1 to fill
   size_t    ind_; ///< current indent position
   size_t    blk_; ///< block size for block-based input reading, as set by AbstractMatcher::buffer
+  size_t    mgn_; ///< maximum margin to retain bufer data between the begin of line to the match
   int       got_; ///< last unsigned character we looked at (to determine anchors and boundaries)
   int       chr_; ///< the character located at AbstractMatcher::txt_[AbstractMatcher::len_]
 #if defined(WITH_SPAN)

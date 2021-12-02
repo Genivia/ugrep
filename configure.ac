@@ -1,7 +1,7 @@
 AC_INIT([ugrep],[3.3])
 AM_INIT_AUTOMAKE([foreign])
-AC_CONFIG_HEADERS(config.h)
-AC_COPYRIGHT([Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.])
+AC_CONFIG_HEADERS([config.h])
+AC_COPYRIGHT([Copyright (C) 2019-2021 Robert van Engelen, Genivia Inc.])
 
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -79,7 +79,8 @@ AX_CHECK_LZ4LIB([], [echo "liblz4 not found: ugrep option -z won't decompress .l
 AX_CHECK_ZSTDLIB([], [echo "libzstd not found: ugrep option -z won't decompress .zst files"])
 
 AC_ARG_WITH(grep-path,
-  [AS_HELP_STRING([--with-grep-path=GREP_PATH],[specifies the GREP_PATH if different than the default DATAROOTDIR/ugrep/patterns])],
+  [AS_HELP_STRING([--with-grep-path=GREP_PATH],
+                  [specifies the GREP_PATH if different than the default DATAROOTDIR/ugrep/patterns])],
   [with_grep_path="$withval"],
   [with_grep_path=""])
 AC_MSG_CHECKING(for --with-grep-path)
@@ -93,7 +94,8 @@ fi
 AC_SUBST(GREP_PATH)
 
 AC_ARG_WITH(grep-colors,
-  [AS_HELP_STRING([--with-grep-colors="GREP_COLORS"],[specifies the default ANSI SGR color parameters when variable GREP_COLORS is undefined])],
+  [AS_HELP_STRING([--with-grep-colors="GREP_COLORS"],
+                  [specifies the default ANSI SGR color parameters when variable GREP_COLORS is undefined])],
   [with_grep_colors="$withval"],
   [with_grep_colors=""])
 AC_MSG_CHECKING(for --with-grep-colors)
@@ -105,7 +107,8 @@ else
 fi
 
 AC_ARG_ENABLE(auto-color,
-  [AS_HELP_STRING([--disable-auto-color],[disable automatic colors, otherwise colors are enabled by default])],
+  [AS_HELP_STRING([--disable-auto-color],
+                  [disable automatic colors, otherwise colors are enabled by default])],
   [with_no_auto_color="yes"],
   [with_no_auto_color="no"])
 AC_MSG_CHECKING(for --disable-auto-color)
@@ -117,7 +120,8 @@ else
 fi
 
 AC_ARG_ENABLE(color,
-  [AS_HELP_STRING([--enable-color],[deprecated, use --disable-auto-color])],
+  [AS_HELP_STRING([--enable-color],
+                  [deprecated, use --disable-auto-color])],
   [],
   [])
 AC_MSG_CHECKING(for --enable-color)
@@ -128,7 +132,8 @@ else
 fi
 
 AC_ARG_ENABLE(pretty,
-  [AS_HELP_STRING([--enable-pretty],[enable pretty output by default without requiring ugrep flag --pretty])],
+  [AS_HELP_STRING([--enable-pretty],
+                  [enable pretty output by default without requiring ugrep flag --pretty])],
   [with_pretty="$enable_pretty"],
   [with_pretty="no"])
 AC_MSG_CHECKING(for --enable-pretty)
@@ -140,7 +145,8 @@ else
 fi
 
 AC_ARG_ENABLE(pager,
-  [AS_HELP_STRING([--enable-pager],[enable the pager by default without requiring ugrep flag --pager])],
+  [AS_HELP_STRING([--enable-pager],
+                  [enable the pager by default without requiring ugrep flag --pager])],
   [with_pager="$enable_pager"],
   [with_pager="no"])
 AC_MSG_CHECKING(for --enable-pager)
@@ -152,7 +158,8 @@ else
 fi
 
 AC_ARG_ENABLE(hidden,
-  [AS_HELP_STRING([--enable-hidden],[enable searching hidden files and directories by default unless explicitly disabled with ugrep flag --no-hidden])],
+  [AS_HELP_STRING([--enable-hidden],
+                  [enable searching hidden files and directories by default unless explicitly disabled with ugrep flag --no-hidden])],
   [with_hidden="yes"],
   [with_hidden="no"])
 AC_MSG_CHECKING(for --enable-hidden)
@@ -164,7 +171,8 @@ else
 fi
 
 AC_ARG_ENABLE(mmap,
-  [AS_HELP_STRING([--disable-mmap],[disable memory mapped files unless explicitly enabled with --mmap])],
+  [AS_HELP_STRING([--disable-mmap],
+                  [disable memory mapped files unless explicitly enabled with --mmap])],
   [with_no_mmap="yes"],
   [with_no_mmap="no"])
 AC_MSG_CHECKING(for --disable-mmap)
@@ -178,7 +186,8 @@ fi
 AC_SUBST(EXTRA_CFLAGS)
 
 AC_ARG_ENABLE(sse2,
-  [AS_HELP_STRING([--disable-sse2],[disable SSE2 and AVX optimizations])],
+  [AS_HELP_STRING([--disable-sse2],
+                  [disable SSE2 and AVX optimizations])],
   [with_no_sse2="yes"],
   [with_no_sse2="no"])
 AC_MSG_CHECKING(for --disable-sse2)
@@ -195,7 +204,8 @@ if test "x$with_no_sse2" = "xno"; then
   if test "x$msse2_ok" = "xyes"; then
     SIMD_FLAGS="-msse2 -DHAVE_SSE2"
     AC_ARG_ENABLE(avx,
-      [AS_HELP_STRING([--disable-avx],[disable AVX optimizations])],
+      [AS_HELP_STRING([--disable-avx],
+                      [disable AVX optimizations])],
       [with_no_avx="yes"],
       [with_no_avx="no"])
     AC_MSG_CHECKING(for --disable-avx)
@@ -233,7 +243,8 @@ fi
 
 if test "x$SIMD_FLAGS" = "x"; then
 AC_ARG_ENABLE(neon,
-  [AS_HELP_STRING([--disable-neon],[disable ARM NEON/AArch64 optimizations])],
+  [AS_HELP_STRING([--disable-neon],
+                  [disable ARM NEON/AArch64 optimizations])],
   [with_no_neon="yes"],
   [with_no_neon="no"])
 AC_MSG_CHECKING(for --disable-neon)

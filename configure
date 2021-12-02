@@ -10,7 +10,7 @@
 # This configure script is free software; the Free Software Foundation
 # gives unlimited permission to copy, distribute and modify it.
 #
-# Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.
+# Copyright (C) 2019-2021 Robert van Engelen, Genivia Inc.
 ## -------------------- ##
 ## M4sh Initialization. ##
 ## -------------------- ##
@@ -1566,7 +1566,7 @@ Copyright (C) 2021 Free Software Foundation, Inc.
 This configure script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it.
 
-Copyright (C) 2019-2020 Robert van Engelen, Genivia Inc.
+Copyright (C) 2019-2021 Robert van Engelen, Genivia Inc.
 _ACEOF
   exit
 fi
@@ -8898,6 +8898,7 @@ DEFS=-DHAVE_CONFIG_H
 
 ac_libobjs=
 ac_ltlibobjs=
+U=
 for ac_i in : $LIBOBJS; do test "x$ac_i" = x: && continue
   # 1. Remove the extension, and $U if already installed.
   ac_script='s/\$U\././;s/\.o$//;s/\.obj$//'
