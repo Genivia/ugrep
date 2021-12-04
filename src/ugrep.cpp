@@ -909,9 +909,11 @@ struct Grep {
         }
         else
         {
+          bool lf_only = false;
           if (size > 0)
           {
-            size_t sizen = size - (ptr[size - 1] == '\n');
+            lf_only = ptr[size - 1] == '\n';
+            size_t sizen = size - lf_only;
             if (sizen > 0)
             {
               grep.out.str(color_sl);
@@ -920,7 +922,7 @@ struct Grep {
             }
           }
 
-          grep.out.nl();
+          grep.out.nl_or_lf(lf_only);
         }
 
         next_before(buf, len, num, ptr, size, offset);
@@ -1017,9 +1019,11 @@ struct Grep {
         }
         else
         {
+          bool lf_only = false;
           if (rest_line_size > 0)
           {
-            rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
+            lf_only = rest_line_data[rest_line_size - 1] == '\n';
+            rest_line_size -= lf_only;
             if (rest_line_size > 0)
             {
               grep.out.str(flag_invert_match ? color_cx : color_sl);
@@ -1027,7 +1031,8 @@ struct Grep {
               grep.out.str(color_off);
             }
           }
-          grep.out.nl();
+
+          grep.out.nl_or_lf(lf_only);
         }
 
         rest_line_data = NULL;
@@ -1087,9 +1092,11 @@ struct Grep {
         }
         else
         {
+          bool lf_only = false;
           if (size > 0)
           {
-            size_t sizen = size - (ptr[size - 1] == '\n');
+            lf_only = ptr[size - 1] == '\n';
+            size_t sizen = size - lf_only;
             if (sizen > 0)
             {
               grep.out.str(v_color_cx);
@@ -1098,7 +1105,7 @@ struct Grep {
             }
           }
 
-          grep.out.nl();
+          grep.out.nl_or_lf(lf_only);
         }
 
         next_before(buf, len, num, ptr, size, offset);
@@ -1189,9 +1196,11 @@ struct Grep {
           }
           else
           {
+            bool lf_only = false;
             if (size > 0)
             {
-              size -= ptr[size - 1] == '\n';
+              lf_only = ptr[size - 1] == '\n';
+              size -= lf_only;
               if (size > 0)
               {
                 grep.out.str(color_cx);
@@ -1200,7 +1209,7 @@ struct Grep {
               }
             }
 
-            grep.out.nl();
+            grep.out.nl_or_lf(lf_only);
           }
         }
       }
@@ -1236,9 +1245,11 @@ struct Grep {
         }
         else
         {
+          bool lf_only = false;
           if (rest_line_size > 0)
           {
-            rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
+            lf_only = rest_line_data[rest_line_size - 1] == '\n';
+            rest_line_size -= lf_only;
             if (rest_line_size > 0)
             {
               grep.out.str(flag_invert_match ? color_cx : color_sl);
@@ -1247,7 +1258,7 @@ struct Grep {
             }
           }
 
-          grep.out.nl();
+          grep.out.nl_or_lf(lf_only);
         }
 
         rest_line_data = NULL;
@@ -1306,9 +1317,11 @@ struct Grep {
           }
           else
           {
+            bool lf_only = false;
             if (size > 0)
             {
-              size_t sizen = size - (ptr[size - 1] == '\n');
+              lf_only = ptr[size - 1] == '\n';
+              size_t sizen = size - lf_only;
               if (sizen > 0)
               {
                 grep.out.str(color_cx);
@@ -1317,7 +1330,7 @@ struct Grep {
               }
             }
 
-            grep.out.nl();
+            grep.out.nl_or_lf(lf_only);
           }
         }
         else if (flag_before_context > 0)
@@ -1470,9 +1483,11 @@ struct Grep {
           }
           else
           {
+            bool lf_only = false;
             if (size > pos)
             {
-              size -= ptr[size - 1] == '\n';
+              lf_only = ptr[size - 1] == '\n';
+              size -= lf_only;
               if (size > pos)
               {
                 grep.out.str(color_cx);
@@ -1481,7 +1496,7 @@ struct Grep {
               }
             }
 
-            grep.out.nl();
+            grep.out.nl_or_lf(lf_only);
           }
         }
       }
@@ -1541,9 +1556,11 @@ struct Grep {
         }
         else
         {
+          bool lf_only = false;
           if (rest_line_size > 0)
           {
-            rest_line_size -= rest_line_data[rest_line_size - 1] == '\n';
+            lf_only = rest_line_data[rest_line_size - 1] == '\n';
+            rest_line_size -= lf_only;
             if (rest_line_size > 0)
             {
               grep.out.str(color_cx);
@@ -1552,7 +1569,7 @@ struct Grep {
             }
           }
 
-          grep.out.nl();
+          grep.out.nl_or_lf(lf_only);
         }
 
         rest_line_data = NULL;
@@ -1611,9 +1628,11 @@ struct Grep {
         }
         else
         {
+          bool lf_only = false;
           if (size > 0)
           {
-            size_t sizen = size - (ptr[size - 1] == '\n');
+            lf_only = ptr[size - 1] == '\n';
+            size_t sizen = size - lf_only;
             if (sizen > 0)
             {
               grep.out.str(color_sl);
@@ -1622,7 +1641,7 @@ struct Grep {
             }
           }
 
-          grep.out.nl();
+          grep.out.nl_or_lf(lf_only);
         }
 
         next_before(buf, len, num, ptr, size, offset);
@@ -5019,6 +5038,12 @@ void init(int argc, const char **argv)
     exit(EXIT_ERROR);
   }
 
+#ifdef OS_WIN
+  // save_config() and help() assume text mode, so switch to
+  // binary after we're no longer going to call them.
+  (void)_setmode(fileno(stdout), _O_BINARY);
+#endif
+
   // --encoding: parse ENCODING value
   if (flag_encoding != NULL)
   {
@@ -5704,7 +5729,7 @@ void terminal()
         // --pager: if output is to a TTY then page through the results
 
         // open a pipe to a forked pager
-        output = popen(flag_pager, "w");
+        output = popen(flag_pager, "wb");
         if (output == NULL)
           error("cannot open pipe to pager", flag_pager);
 
@@ -6710,7 +6735,7 @@ void ugrep()
     bcnf.report(output);
 
     if (strcmp(flag_stats, "vm") == 0 && words > 0)
-      fprintf(output, "VM memory: %zu nodes (%zums), %zu edges (%zums), %zu opcode words (%zums)\n", nodes, nodes_time, edges, edges_time, words, words_time);
+      fprintf(output, "VM memory: %zu nodes (%zums), %zu edges (%zums), %zu opcode words (%zums)" NEWLINESTR, nodes, nodes_time, edges, edges_time, words, words_time);
   }
 
   // close the pipe to the forked pager
@@ -7718,7 +7743,11 @@ void Grep::search(const char *pathname)
                 out.chr('}');
               }
               out.str(color_off);
-              out.chr(flag_null ? '\0' : '\n');
+
+              if (flag_null)
+                out.chr('\0');
+              else
+                out.nl_no_flush();
             }
           }
         }
@@ -7857,7 +7886,7 @@ void Grep::search(const char *pathname)
             }
           }
           out.num(matches);
-          out.chr('\n');
+          out.nl_no_flush();
         }
       }
       else if (flag_format != NULL)
@@ -8175,14 +8204,15 @@ void Grep::search(const char *pathname)
 
             if (size > 0)
             {
-              size -= from[size - 1] == '\n';
+              bool lf_only = from[size - 1] == '\n';
+              size -= lf_only;
               if (size > 0)
               {
                 out.str(match_ms);
                 out.str(from, size);
                 out.str(match_off);
               }
-              out.nl();
+              out.nl_or_lf(lf_only);
             }
             else
             {
@@ -8226,9 +8256,11 @@ void Grep::search(const char *pathname)
               }
               else
               {
+                bool lf_only = false;
                 if (restline_size > 0)
                 {
-                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  lf_only = restline_data[restline_size - 1] == '\n';
+                  restline_size -= lf_only;
                   if (restline_size > 0)
                   {
                     out.str(color_sl);
@@ -8236,7 +8268,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl();
+                out.nl_or_lf(lf_only);
               }
 
               restline_data = NULL;
@@ -8357,14 +8389,15 @@ void Grep::search(const char *pathname)
               {
                 if (eol > end)
                 {
-                  eol -= end[eol - end - 1] == '\n';
+                  bool lf_only = end[eol - end - 1] == '\n';
+                  eol -= lf_only;
                   if (eol > end)
                   {
                     out.str(color_sl);
                     out.str(end, eol - end);
                     out.str(color_off);
                   }
-                  out.nl();
+                  out.nl_or_lf(lf_only);
                 }
                 else if (matcher->hit_end())
                 {
@@ -8473,14 +8506,15 @@ void Grep::search(const char *pathname)
                     {
                       if (eol > end)
                       {
-                        eol -= end[eol - end - 1] == '\n';
+                        bool lf_only = end[eol - end - 1] == '\n';
+                        eol -= lf_only;
                         if (eol > end)
                         {
                           out.str(color_sl);
                           out.str(end, eol - end);
                           out.str(color_off);
                         }
-                        out.nl();
+                        out.nl_or_lf(lf_only);
                       }
                       else if (matcher->hit_end())
                       {
@@ -8515,9 +8549,11 @@ void Grep::search(const char *pathname)
           }
           else
           {
+            bool lf_only = false;
             if (restline_size > 0)
             {
-              restline_size -= restline_data[restline_size - 1] == '\n';
+              lf_only = restline_data[restline_size - 1] == '\n';
+              restline_size -= lf_only;
               if (restline_size > 0)
               {
                 out.str(color_sl);
@@ -8525,7 +8561,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
               }
             }
-            out.nl();
+            out.nl_or_lf(lf_only);
           }
 
           restline_data = NULL;
@@ -8671,9 +8707,11 @@ void Grep::search(const char *pathname)
               }
               else
               {
+                bool lf_only = false;
                 if (restline_size > 0)
                 {
-                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  lf_only = restline_data[restline_size - 1] == '\n';
+                  restline_size -= lf_only;
                   if (restline_size > 0)
                   {
                     out.str(v_color_sl);
@@ -8681,7 +8719,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl();
+                out.nl_or_lf(lf_only);
               }
 
               restline_data = NULL;
@@ -8835,6 +8873,7 @@ void Grep::search(const char *pathname)
               {
                 if (eol > end)
                 {
+                  bool lf_only = end[eol - end - 1] == '\n';
                   eol -= end[eol - end - 1] == '\n';
                   if (eol > end)
                   {
@@ -8842,7 +8881,7 @@ void Grep::search(const char *pathname)
                     out.str(end, eol - end);
                     out.str(color_off);
                   }
-                  out.nl();
+                  out.nl_or_lf(lf_only);
                 }
                 else if (matcher->hit_end())
                 {
@@ -8951,14 +8990,15 @@ void Grep::search(const char *pathname)
                     {
                       if (eol > end)
                       {
-                        eol -= end[eol - end - 1] == '\n';
+                        bool lf_only = end[eol - end - 1] == '\n';
+                        eol -= lf_only;
                         if (eol > end)
                         {
                           out.str(v_color_sl);
                           out.str(end, eol - end);
                           out.str(color_off);
                         }
-                        out.nl();
+                        out.nl_or_lf(lf_only);
                       }
                       else if (matcher->hit_end())
                       {
@@ -8993,9 +9033,11 @@ void Grep::search(const char *pathname)
           }
           else
           {
+            bool lf_only = false;
             if (restline_size > 0)
             {
-              restline_size -= restline_data[restline_size - 1] == '\n';
+              lf_only = restline_data[restline_size - 1] == '\n';
+              restline_size -= lf_only;
               if (restline_size > 0)
               {
                 out.str(v_color_sl);
@@ -9003,7 +9045,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
               }
             }
-            out.nl();
+            out.nl_or_lf(lf_only);
           }
 
           restline_data = NULL;
@@ -9068,9 +9110,11 @@ void Grep::search(const char *pathname)
               }
               else
               {
+                bool lf_only = false;
                 if (restline_size > 0)
                 {
-                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  lf_only = restline_data[restline_size - 1] == '\n';
+                  restline_size -= lf_only;
                   if (restline_size > 0)
                   {
                     out.str(color_sl);
@@ -9078,7 +9122,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl();
+                out.nl_or_lf(lf_only);
               }
 
               restline_data = NULL;
@@ -9227,14 +9271,15 @@ void Grep::search(const char *pathname)
               {
                 if (eol > end)
                 {
-                  eol -= end[eol - end - 1] == '\n';
+                  bool lf_only = end[eol - end - 1] == '\n';
+                  eol -= lf_only;
                   if (eol > end)
                   {
                     out.str(color_sl);
                     out.str(end, eol - end);
                     out.str(color_off);
                   }
-                  out.nl();
+                  out.nl_or_lf(lf_only);
                 }
                 else if (matcher->hit_end())
                 {
@@ -9343,14 +9388,15 @@ void Grep::search(const char *pathname)
                     {
                       if (eol > end)
                       {
-                        eol -= end[eol - end - 1] == '\n';
+                        bool lf_only = end[eol - end - 1] == '\n';
+                        eol -= lf_only;
                         if (eol > end)
                         {
                           out.str(color_sl);
                           out.str(end, eol - end);
                           out.str(color_off);
                         }
-                        out.nl();
+                        out.nl_or_lf(lf_only);
                       }
                       else if (matcher->hit_end())
                       {
@@ -9387,9 +9433,11 @@ void Grep::search(const char *pathname)
           }
           else
           {
+            bool lf_only = false;
             if (restline_size > 0)
             {
-              restline_size -= restline_data[restline_size - 1] == '\n';
+              lf_only = restline_data[restline_size - 1] == '\n';
+              restline_size -= lf_only;
               if (restline_size > 0)
               {
                 out.str(color_sl);
@@ -9397,7 +9445,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
               }
             }
-            out.nl();
+            out.nl_or_lf(lf_only);
           }
 
           restline_data = NULL;
@@ -9470,9 +9518,11 @@ void Grep::search(const char *pathname)
               }
               else
               {
+                bool lf_only = false;
                 if (restline_size > 0)
                 {
-                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  lf_only = restline_data[restline_size - 1] == '\n';
+                  restline_size -= lf_only;
                   if (restline_size > 0)
                   {
                     out.str(color_cx);
@@ -9480,7 +9530,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl();
+                out.nl_or_lf(lf_only);
               }
 
               restline_data = NULL;
@@ -9788,9 +9838,11 @@ void Grep::search(const char *pathname)
               }
               else
               {
+                bool lf_only = false;
                 if (restline_size > 0)
                 {
-                  restline_size -= restline_data[restline_size - 1] == '\n';
+                  lf_only = restline_data[restline_size - 1] == '\n';
+                  restline_size -= lf_only;
                   if (restline_size > 0)
                   {
                     out.str(color_cx);
@@ -9798,7 +9850,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl();
+                out.nl_or_lf(lf_only);
               }
 
               restline_data = NULL;
@@ -9882,9 +9934,11 @@ void Grep::search(const char *pathname)
           }
           else
           {
+            bool lf_only = false;
             if (restline_size > 0)
             {
-              restline_size -= restline_data[restline_size - 1] == '\n';
+              lf_only = restline_data[restline_size - 1] == '\n';
+              restline_size -= lf_only;
               if (restline_size > 0)
               {
                 out.str(color_cx);
@@ -9892,7 +9946,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
               }
             }
-            out.nl();
+            out.nl_or_lf(lf_only);
           }
 
           restline_data = NULL;
@@ -9924,7 +9978,7 @@ done_search:
 
       // --break: add a line break when applicable
       if (flag_break && (matches > 0 || flag_any_line) && !flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL)
-        out.chr('\n');
+        out.nl_no_flush();
     }
 
     catch (...)

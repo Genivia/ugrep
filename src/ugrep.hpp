@@ -84,6 +84,7 @@
 
 #define PATHSEPCHR '\\'
 #define PATHSEPSTR "\\"
+#define NEWLINESTR "\r\n" // Note: Also hard-coded into Output class.
 
 // POSIX read() and write() return type is ssize_t
 typedef int ssize_t;
@@ -224,6 +225,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 
 #define PATHSEPCHR '/'
 #define PATHSEPSTR "/"
+#define NEWLINESTR "\n" // Note: Also hard-coded into Output class.
 
 // Windows-like dupenv_s()
 inline int dupenv_s(char **ptr, const char *name)

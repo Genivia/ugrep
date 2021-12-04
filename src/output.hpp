@@ -500,13 +500,27 @@ class Output {
     chr('0' + (b & 7));
   }
 
-  // output a new line and flush if --line-buffered
+  // output a newline (platform-specific "\r\n" or "\n"); does not flush.
+  void nl_no_flush()
+  {
+#ifdef OS_WIN
+    chr('\r');
+#endif
+    chr('\n');
+  }
+
+  // output a newline (platform-specific "\r\n" or "\n"); flush if --line-buffered.
   void nl()
   {
+#ifdef OS_WIN
+    chr('\r');
+#endif
     chr('\n');
-
     check_flush();
   }
+
+  // output either newline (platform-specific) or '\n'; flush if --line-buffered.
+  void nl_or_lf(bool lf_only);
 
   // enable line buffered mode to flush each line to output
   void set_flush()
@@ -556,11 +570,9 @@ class Output {
         // flush the buffers container to the designated output file, pipe, or stream
         for (Buffers::iterator i = buffers_.begin(); i != buf_; ++i)
         {
-          size_t num = remove_cr(i->data, SIZE);
+          size_t nwritten = fwrite(i->data, 1, SIZE, file);
 
-          size_t nwritten = fwrite(i->data, 1, num, file);
-
-          if (nwritten < num)
+          if (nwritten < SIZE)
           {
             cancel();
             break;
@@ -569,7 +581,7 @@ class Output {
 
         if (!eof)
         {
-          size_t num = remove_cr(buf_->data, cur_ - buf_->data);
+          size_t num = cur_ - buf_->data;
 
           if (num > 0)
           {
@@ -671,46 +683,6 @@ class Output {
   {
     buf_ = buffers_.emplace(buffers_.end());
     cur_ = buf_->data;
-  }
-
-  // In-place removal of '\r' before writing output.
-  // Returns the updated buffer size.
-  static size_t remove_cr(char* data, size_t data_len)
-  {
-    size_t output_len;
-
-    // First iteration unrolled because first iteration's memmove is a no-op.
-    char* cr_pos = (char*)memchr(data, '\r', data_len);
-    if (!cr_pos)
-    {
-      // If there are no CR bytes in the data, the entire operation is a no-op.
-      output_len = data_len;
-    }
-    else
-    {
-      char* output_pos = cr_pos;
-
-      char* const data_end = data + data_len;
-      for (char* input_pos = cr_pos + 1; data_end - input_pos != 0; input_pos = cr_pos + 1)
-      {
-        cr_pos = (char*)memchr(input_pos, '\r', data_end - input_pos);
-        if (!cr_pos)
-        {
-          size_t const chunk_len = data_end - input_pos;
-          memmove(output_pos, input_pos, chunk_len);
-          output_pos += chunk_len;
-          break;
-        }
-
-        size_t const chunk_len = cr_pos - input_pos;
-        memmove(output_pos, input_pos, chunk_len);
-        output_pos += chunk_len;
-      }
-
-      output_len = output_pos - data;
-    }
-
-    return output_len;
   }
 
   // get a group capture's string pointer and size specified by %[ARG] as arg, if any

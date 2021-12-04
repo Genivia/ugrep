@@ -1647,7 +1647,7 @@ void Query::fetch_all()
 // execute the search in a new thread
 void Query::execute(int fd)
 {
-  output = fdopen(fd, "w");
+  output = fdopen(fd, "wb");
 
   if (output != NULL)
   {
