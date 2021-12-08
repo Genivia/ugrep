@@ -7649,10 +7649,6 @@ void Grep::search(const char *pathname)
         if (!init_read())
           goto exit_search;
 
-        // discard bol-match margin buffer data if keeping the entire line is not required
-        if (matchers == NULL)
-          matcher->set_margin(0);
-
         while (true)
         {
           matches = matcher->find() != 0;
@@ -7731,10 +7727,6 @@ void Grep::search(const char *pathname)
 
         if (init_read())
         {
-          // discard bol-match margin buffer data if keeping the entire line is not required
-          if (matchers == NULL)
-            matcher->set_margin(0);
-
           if (flag_ungroup || flag_only_matching)
           {
             // -co or -cu: count the number of patterns matched in the file
@@ -7997,10 +7989,6 @@ void Grep::search(const char *pathname)
         if (!init_read())
           goto exit_search;
 
-        // discard bol-match margin buffer data if keeping the entire line is not required
-        if (matchers == NULL)
-          matcher->set_margin(0);
-
         size_t lineno = 0;
         const char *separator = flag_separator;
 
@@ -8052,10 +8040,6 @@ void Grep::search(const char *pathname)
 
         if (!init_read())
           goto exit_search;
-
-        // discard bol-match margin buffer data if keeping the entire line is not required
-        if (matchers == NULL)
-          matcher->set_margin(0);
 
         size_t lineno = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();

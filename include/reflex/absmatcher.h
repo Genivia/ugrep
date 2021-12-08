@@ -43,7 +43,7 @@
 /// This compile-time option speeds up matching, but slows input().
 #define WITH_FAST_GET
 
-/// This compile-time option adds span(), line(), wline(), speeds up buffer shifting and lineno().
+/// This compile-time option adds span(), line(), wline(), bol(), eol()
 #define WITH_SPAN
 
 #include <reflex/convert.h>
@@ -102,7 +102,7 @@ class AbstractMatcher {
     static const int UNK      = 256;        ///< unknown/undefined character meta-char marker
     static const int BOB      = 257;        ///< begin of buffer meta-char marker
     static const int EOB      = EOF;        ///< end of buffer meta-char marker
-#ifndef REFLEX_BLOCK_SIZE
+#ifndef REFLEX_BUFSZ
     static const size_t BUFSZ = (64*1024);  ///< initial buffer size, at least 4096 bytes
 #else
     static const size_t BUFSZ = REFLEX_BUFSZ;
@@ -377,7 +377,6 @@ class AbstractMatcher {
     end_ = 0;
     ind_ = 0;
     blk_ = 0;
-    mgn_ = Const::BUFSZ;
     got_ = Const::BOB;
     chr_ = '\0';
 #if defined(WITH_SPAN)
@@ -386,9 +385,10 @@ class AbstractMatcher {
 #endif
     lpb_ = buf_;
     lno_ = 1;
-#if !defined(WITH_SPAN)
-    cno_ = 0;
+#if defined(WITH_SPAN)
+    cpb_ = buf_;
 #endif
+    cno_ = 0;
     num_ = 0;
     own_ = true;
     eof_ = false;
@@ -418,11 +418,6 @@ class AbstractMatcher {
     if (end_ == max_)
       (void)grow(1); // make sure we have room for a final \0
     return in.eof();
-  }
-  /// Set maximum margin between the begin of a line and a match, to retain buffer data in the margin or no data when zero
-  void set_margin(size_t margin) ///< max margin
-  {
-    mgn_ = margin;
   }
 #if defined(WITH_SPAN)
   /// Set event handler functor to invoke when the buffer contents are shifted out, e.g. for logging the data searched.
@@ -516,7 +511,6 @@ class AbstractMatcher {
       max_ = size;
       ind_ = 0;
       blk_ = 0;
-      mgn_ = 0;
       got_ = Const::BOB;
       chr_ = '\0';
 #if defined(WITH_SPAN)
@@ -525,9 +519,10 @@ class AbstractMatcher {
 #endif
       lpb_ = buf_;
       lno_ = 1;
-#if !defined(WITH_SPAN)
-      cno_ = 0;
+#if defined(WITH_SPAN)
+      cpb_ = buf_;
 #endif
+      cno_ = 0;
       num_ = 0;
       own_ = false;
       eof_ = true;
@@ -725,15 +720,17 @@ class AbstractMatcher {
           if (--t >= s && *t != '\n')
             if (--t >= s && *t != '\n')
               --t;
-        bol_ = const_cast<char*>(t + 1);
+        bol_ = t + 1;
+        cpb_ = bol_;
+        cno_ = 0;
       }
       lpb_ = txt_;
     }
 #else
     size_t n = lno_;
     size_t k = cno_;
-    char *s = lpb_;
-    char *e = txt_;
+    const char *s = lpb_;
+    const char *e = txt_;
     while (s < e)
     {
       if (*s == '\n')
@@ -781,21 +778,22 @@ class AbstractMatcher {
   {
     (void)lineno();
 #if defined(WITH_SPAN)
-    const char *s = bol_;
+    const char *s = cpb_;
     const char *e = txt_;
-    size_t k = 0;
+    size_t k = cno_;
+    size_t m = opt_.T - 1;
     while (s < e)
     {
       if (*s == '\t')
-        k += 1 + (~k & (opt_.T - 1)); // count tab spacing
+        k += 1 + (~k & m); // count tab spacing
       else
         k += ((*s & 0xC0) != 0x80); // count column offset in UTF-8 chars
       ++s;
     }
-    return k;
-#else
-    return cno_;
+    cpb_ = txt_;
+    cno_ = k;
 #endif
+    return cno_;
   }
   /// Returns the number of columns of the matched text, taking tab spacing into account and counting wide characters as one character each.
   inline size_t columns()
@@ -1120,7 +1118,7 @@ class AbstractMatcher {
     DBGLOG("AbstractMatcher::span()");
     (void)lineno();
     len_ += txt_ - bol_;
-    txt_ = bol_;
+    txt_ = const_cast<char*>(bol_); // requires ugly cast
     if (chr_ == '\n')
       return txt_;
     reset_text();
@@ -1386,10 +1384,12 @@ class AbstractMatcher {
       return false;
 #if defined(WITH_SPAN)
     (void)lineno();
-    if (bol_ + mgn_ < txt_ && evh_ == NULL)
+    cno_ = 0;
+    if (bol_ + Const::BUFSZ - buf_ < txt_ - bol_ && evh_ == NULL)
     {
-      // this line is very long, likely a binary file, so shift a block size away from the match instead
+      // this line is very long, so shift all the way to the match instead of to the begin of the last line
       DBGLOG("Line in buffer is too long to shift, moving bol position to text match position");
+      (void)columno();
       bol_ = txt_;
     }
     size_t gap = bol_ - buf_;
@@ -1435,6 +1435,7 @@ class AbstractMatcher {
       buf_ = newbuf;
     }
     bol_ = buf_;
+    cpb_ = buf_;
 #else
     size_t gap = txt_ - buf_;
     if (max_ - end_ + gap >= need)
@@ -1586,33 +1587,33 @@ class AbstractMatcher {
       }
     }
   }
-  Option    opt_; ///< options for matcher engines
-  char     *buf_; ///< input character sequence buffer
-  char     *txt_; ///< points to the matched text in buffer AbstractMatcher::buf_
-  size_t    len_; ///< size of the matched text
-  size_t    cap_; ///< nonzero capture index of an accepted match or zero
-  size_t    cur_; ///< next position in AbstractMatcher::buf_ to assign to AbstractMatcher::txt_
-  size_t    pos_; ///< position in AbstractMatcher::buf_ after AbstractMatcher::txt_
-  size_t    end_; ///< ending position of the input buffered in AbstractMatcher::buf_
-  size_t    max_; ///< total buffer size and max position + 1 to fill
-  size_t    ind_; ///< current indent position
-  size_t    blk_; ///< block size for block-based input reading, as set by AbstractMatcher::buffer
-  size_t    mgn_; ///< maximum margin to retain bufer data between the begin of line to the match
-  int       got_; ///< last unsigned character we looked at (to determine anchors and boundaries)
-  int       chr_; ///< the character located at AbstractMatcher::txt_[AbstractMatcher::len_]
+  Option      opt_; ///< options for matcher engines
+  char       *buf_; ///< input character sequence buffer
+  char       *txt_; ///< points to the matched text in buffer AbstractMatcher::buf_
+  size_t      len_; ///< size of the matched text
+  size_t      cap_; ///< nonzero capture index of an accepted match or zero
+  size_t      cur_; ///< next position in AbstractMatcher::buf_ to assign to AbstractMatcher::txt_
+  size_t      pos_; ///< position in AbstractMatcher::buf_ after AbstractMatcher::txt_
+  size_t      end_; ///< ending position of the input buffered in AbstractMatcher::buf_
+  size_t      max_; ///< total buffer size and max position + 1 to fill
+  size_t      ind_; ///< current indent position
+  size_t      blk_; ///< block size for block-based input reading, as set by AbstractMatcher::buffer
+  int         got_; ///< last unsigned character we looked at (to determine anchors and boundaries)
+  int         chr_; ///< the character located at AbstractMatcher::txt_[AbstractMatcher::len_]
 #if defined(WITH_SPAN)
-  char     *bol_; ///< begin of line pointer in buffer
-  Handler  *evh_; ///< event handler functor to invoke when buffer contents are shifted out
+  const char *bol_; ///< begin of line pointer in buffer
+  Handler    *evh_; ///< event handler functor to invoke when buffer contents are shifted out
 #endif
-  char     *lpb_; ///< line pointer in buffer, updated when counting line numbers with lineno()
-  size_t    lno_; ///< line number count (cached)
-#if !defined(WITH_SPAN)
-  size_t    cno_; ///< column number count (cached)
+  const char *lpb_; ///< line pointer in buffer, updated when counting line numbers with lineno()
+  size_t      lno_; ///< line number count (cached)
+#if defined(WITH_SPAN)
+  const char *cpb_; ///< column pointer in buffer, updated when counting column numbers with columno()
 #endif
-  size_t    num_; ///< character count of the input till bol_
-  bool      own_; ///< true if AbstractMatcher::buf_ was allocated and should be deleted
-  bool      eof_; ///< input has reached EOF
-  bool      mat_; ///< true if AbstractMatcher::matches() was successful
+  size_t      cno_; ///< column number count (cached)
+  size_t      num_; ///< character count of the input till bol_
+  bool        own_; ///< true if AbstractMatcher::buf_ was allocated and should be deleted
+  bool        eof_; ///< input has reached EOF
+  bool        mat_; ///< true if AbstractMatcher::matches() was successful
 };
 
 /// The pattern matcher class template extends abstract matcher base class.

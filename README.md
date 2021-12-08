@@ -456,6 +456,12 @@ Note T10+T11: [silver searcher 2.2.0](https://github.com/ggreer/the_silver_searc
 runs slower with multiple threads (T10 0.45s) than single-threaded (T11 0.32s),
 which was reported as an issue to the maintainers.
 
+Note: ugrep option `-c` does not shortcut the search by skipping over the rest
+of the line after a first match, by contrast to other grep to speed up
+matching.  The reason is that ugrep supports multi-line matches by default,
+which means that the remainder of the line should always be searched to produce
+accurate results.
+
 Output is sent to a `null` utility to eliminate terminal display overhead
 (`> /dev/null` cannot be used as some greps detect it to remove all output).
 The `null` utility source code:
@@ -4800,7 +4806,7 @@ in markdown:
 
 
 
-    ugrep 3.3.10                   December 02, 2021                      UGREP(1)
+    ugrep 3.3.11                   December 08, 2021                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
