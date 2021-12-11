@@ -35,7 +35,7 @@
 */
 
 #include "cnf.hpp"
-#include "ugrep.hpp" // NEWLINESTR
+#include "ugrep.hpp"
 
 // parse a pattern into an operator tree using a recursive descent parser
 void CNF::OpTree::parse(const char *& pattern)

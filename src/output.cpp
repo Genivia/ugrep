@@ -211,20 +211,6 @@ void Output::Dump::line()
   pstar = false;
 }
 
-void Output::nl_or_lf(bool
-#ifdef OS_WIN
-    lf_only // Parameter only used for Windows "\r\n" newline.
-#endif
-    )
-{
-#ifdef OS_WIN
-    if (!lf_only)
-      chr('\r');
-#endif
-    chr('\n');
-    check_flush();
-}
-
 // output the header part of the match, preceding the matched line
 void Output::header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *separator, bool newline)
 {
@@ -279,7 +265,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
       str(color_fn);
       str(color_del);
       str(color_off);
-      nl_no_flush();
+      nl();
       pathname = NULL;
     }
     else
@@ -921,6 +907,9 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case '~':
+#ifdef OS_WIN
+        chr('\r');
+#endif
         chr('\n');
         break;
 
@@ -1269,6 +1258,9 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case '~':
+#ifdef OS_WIN
+        chr('\r');
+#endif
         chr('\n');
         break;
 

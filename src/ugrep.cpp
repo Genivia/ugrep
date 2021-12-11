@@ -924,8 +924,7 @@ struct Grep {
               grep.out.str(color_off);
             }
           }
-
-          grep.out.nl_or_lf(lf_only);
+          grep.out.nl(lf_only);
         }
 
         next_before(buf, len, num, ptr, size, offset);
@@ -1034,8 +1033,7 @@ struct Grep {
               grep.out.str(color_off);
             }
           }
-
-          grep.out.nl_or_lf(lf_only);
+          grep.out.nl(lf_only);
         }
 
         rest_line_data = NULL;
@@ -1107,8 +1105,7 @@ struct Grep {
               grep.out.str(color_off);
             }
           }
-
-          grep.out.nl_or_lf(lf_only);
+          grep.out.nl(lf_only);
         }
 
         next_before(buf, len, num, ptr, size, offset);
@@ -1211,8 +1208,7 @@ struct Grep {
                 grep.out.str(color_off);
               }
             }
-
-            grep.out.nl_or_lf(lf_only);
+            grep.out.nl(lf_only);
           }
         }
       }
@@ -1260,8 +1256,7 @@ struct Grep {
               grep.out.str(color_off);
             }
           }
-
-          grep.out.nl_or_lf(lf_only);
+          grep.out.nl(lf_only);
         }
 
         rest_line_data = NULL;
@@ -1332,8 +1327,7 @@ struct Grep {
                 grep.out.str(color_off);
               }
             }
-
-            grep.out.nl_or_lf(lf_only);
+            grep.out.nl(lf_only);
           }
         }
         else if (flag_before_context > 0)
@@ -1498,8 +1492,7 @@ struct Grep {
                 grep.out.str(color_off);
               }
             }
-
-            grep.out.nl_or_lf(lf_only);
+            grep.out.nl(lf_only);
           }
         }
       }
@@ -1571,8 +1564,7 @@ struct Grep {
               grep.out.str(color_off);
             }
           }
-
-          grep.out.nl_or_lf(lf_only);
+          grep.out.nl(lf_only);
         }
 
         rest_line_data = NULL;
@@ -1643,8 +1635,7 @@ struct Grep {
               grep.out.str(color_off);
             }
           }
-
-          grep.out.nl_or_lf(lf_only);
+          grep.out.nl(lf_only);
         }
 
         next_before(buf, len, num, ptr, size, offset);
@@ -7744,7 +7735,7 @@ void Grep::search(const char *pathname)
               if (flag_null)
                 out.chr('\0');
               else
-                out.nl_no_flush();
+                out.nl();
             }
           }
         }
@@ -7883,7 +7874,7 @@ void Grep::search(const char *pathname)
             }
           }
           out.num(matches);
-          out.nl_no_flush();
+          out.nl();
         }
       }
       else if (flag_format != NULL)
@@ -8209,7 +8200,7 @@ void Grep::search(const char *pathname)
                 out.str(from, size);
                 out.str(match_off);
               }
-              out.nl_or_lf(lf_only);
+              out.nl(lf_only);
             }
             else
             {
@@ -8265,7 +8256,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl_or_lf(lf_only);
+                out.nl(lf_only);
               }
 
               restline_data = NULL;
@@ -8394,7 +8385,7 @@ void Grep::search(const char *pathname)
                     out.str(end, eol - end);
                     out.str(color_off);
                   }
-                  out.nl_or_lf(lf_only);
+                  out.nl(lf_only);
                 }
                 else if (matcher->hit_end())
                 {
@@ -8511,7 +8502,7 @@ void Grep::search(const char *pathname)
                           out.str(end, eol - end);
                           out.str(color_off);
                         }
-                        out.nl_or_lf(lf_only);
+                        out.nl(lf_only);
                       }
                       else if (matcher->hit_end())
                       {
@@ -8558,7 +8549,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
               }
             }
-            out.nl_or_lf(lf_only);
+            out.nl(lf_only);
           }
 
           restline_data = NULL;
@@ -8716,7 +8707,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl_or_lf(lf_only);
+                out.nl(lf_only);
               }
 
               restline_data = NULL;
@@ -8878,7 +8869,7 @@ void Grep::search(const char *pathname)
                     out.str(end, eol - end);
                     out.str(color_off);
                   }
-                  out.nl_or_lf(lf_only);
+                  out.nl(lf_only);
                 }
                 else if (matcher->hit_end())
                 {
@@ -8995,7 +8986,7 @@ void Grep::search(const char *pathname)
                           out.str(end, eol - end);
                           out.str(color_off);
                         }
-                        out.nl_or_lf(lf_only);
+                        out.nl(lf_only);
                       }
                       else if (matcher->hit_end())
                       {
@@ -9042,7 +9033,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
               }
             }
-            out.nl_or_lf(lf_only);
+            out.nl(lf_only);
           }
 
           restline_data = NULL;
@@ -9119,7 +9110,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl_or_lf(lf_only);
+                out.nl(lf_only);
               }
 
               restline_data = NULL;
@@ -9276,7 +9267,7 @@ void Grep::search(const char *pathname)
                     out.str(end, eol - end);
                     out.str(color_off);
                   }
-                  out.nl_or_lf(lf_only);
+                  out.nl(lf_only);
                 }
                 else if (matcher->hit_end())
                 {
@@ -9393,7 +9384,7 @@ void Grep::search(const char *pathname)
                           out.str(end, eol - end);
                           out.str(color_off);
                         }
-                        out.nl_or_lf(lf_only);
+                        out.nl(lf_only);
                       }
                       else if (matcher->hit_end())
                       {
@@ -9442,7 +9433,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
               }
             }
-            out.nl_or_lf(lf_only);
+            out.nl(lf_only);
           }
 
           restline_data = NULL;
@@ -9527,7 +9518,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl_or_lf(lf_only);
+                out.nl(lf_only);
               }
 
               restline_data = NULL;
@@ -9847,7 +9838,7 @@ void Grep::search(const char *pathname)
                     out.str(color_off);
                   }
                 }
-                out.nl_or_lf(lf_only);
+                out.nl(lf_only);
               }
 
               restline_data = NULL;
@@ -9943,7 +9934,7 @@ void Grep::search(const char *pathname)
                 out.str(color_off);
               }
             }
-            out.nl_or_lf(lf_only);
+            out.nl(lf_only);
           }
 
           restline_data = NULL;
@@ -9975,7 +9966,7 @@ done_search:
 
       // --break: add a line break when applicable
       if (flag_break && (matches > 0 || flag_any_line) && !flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL)
-        out.nl_no_flush();
+        out.nl();
     }
 
     catch (...)
@@ -10099,6 +10090,9 @@ void format(const char *format, size_t matches)
         break;
 
       case '~':
+#ifdef OS_WIN
+        fputc('\r', output);
+#endif
         fputc('\n', output);
         break;
 

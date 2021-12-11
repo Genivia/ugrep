@@ -500,27 +500,18 @@ class Output {
     chr('0' + (b & 7));
   }
 
-  // output a newline (platform-specific "\r\n" or "\n"); does not flush.
-  void nl_no_flush()
+  // output a newline (platform-specific conditional "\r\n" or "\n"); flush if --line-buffered.
+  void nl(bool lf_only = false)
   {
+    if (!lf_only)
 #ifdef OS_WIN
-    chr('\r');
-#endif
-    chr('\n');
-  }
-
-  // output a newline (platform-specific "\r\n" or "\n"); flush if --line-buffered.
-  void nl()
-  {
-#ifdef OS_WIN
-    chr('\r');
+      chr('\r');
+#else
+      ;
 #endif
     chr('\n');
     check_flush();
   }
-
-  // output either newline (platform-specific) or '\n'; flush if --line-buffered.
-  void nl_or_lf(bool lf_only);
 
   // enable line buffered mode to flush each line to output
   void set_flush()

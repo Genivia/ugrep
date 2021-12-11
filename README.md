@@ -110,7 +110,7 @@ Search for anything in everything... ultra fast
 
       ugrep --encoding=LATIN1 PATTERN ...
 
-- Search patterns that match multiple lines (by default), i.e. patterns may contain one or more `\n` newlines
+- Search patterns that match multiple lines (by default), i.e. patterns may contain one or more newlines
 
 <a name="toc"/>
 
@@ -207,6 +207,8 @@ Notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
 - when specifying an empty pattern `""` to match all input, this may be ignored
   by some Windows command interpreters such as Powershell, in that case use
   option `--match` instead.
+- to match newlines in patterns, you may want to use `\R` instead of `\n` to
+  match any Unicode newlines, such as `\r\n` pairs and single `\r` and `\n`.
 
 ### Debian
 
@@ -1661,10 +1663,13 @@ To search file `spanish-iso.txt` encoded in ISO-8859-1:
             If -u is specified, ungroups multiple matches on the same line.
             This option cannot be combined with options -A, -B, -C, -v, and -y.
 
-Multiple lines may be matched by patterns that match newline `\n` characters,
-unless one or more context options `-A`, `-B`, `-C`, `-y` is used, or `-v` that
-apply to lines.  Use option `-o` to output the match only, not the full
-lines(s) that match.
+Multiple lines may be matched by patterns that match newline characters.  Use
+option `-o` to output the match only, not the full lines(s) that match.
+
+To match a `\n` line break, include `\n` in the pattern to match the LF
+character.  If you want to match `\r\n` and `\n` line breaks, use `\r?\n` or
+simply use `\R` to match any Unicode line break `\r\n`, `\r`, `\v`, `\f`, `\n`,
+U+0085, U+2028 and U+2029.
 
 To match C/C++ `/*...*/` multi-line comments:
 
@@ -2091,7 +2096,7 @@ short patterns.  This also greatly improves search speed.  Make the first
 character optional to optionally match it, e.g. `p?attern` or use a dot as
 the start of the pattern to match any wide character (but this is slow).
 
-Newlines (`\n`) and NUL (`\0`) characters are never deleted or substituted to
+Line feed (`\n`) and NUL (`\0`) characters are never deleted or substituted to
 ensure that fuzzy matches do not extend the pattern match beyond the number of
 lines specified by the regex pattern.
 
@@ -3089,7 +3094,7 @@ field                   | output
 `%│`                    | if not the first match: a vertical bar, same as `%[│]>`
 `%[ARG]S`               | if not the first match: `ARG` and separator, see also `%[SEP]$`
 `%s`                    | the separator, see also `%[ARG]S` and `%[SEP]$`
-`%~`                    | a newline character, same as `\n`
+`%~`                    | a newline character
 `%m`                    | the number of matches or matched files
 `%O`                    | the matching line is output as is (a raw string of bytes)
 `%o`                    | the match is output as is (a raw string of bytes)
@@ -4806,7 +4811,7 @@ in markdown:
 
 
 
-    ugrep 3.3.11                   December 08, 2021                      UGREP(1)
+    ugrep 3.3.12                   December 11, 2021                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
@@ -4984,7 +4989,7 @@ Option `-U` disables Unicode wide-character matching, i.e. ASCII matching.
   `\n`                                   | matches LF U+000a
   `\N`                                   | matches a non-LF character
   `\r`                                   | matches CR U+000d
-  `\R`                                   | matches a Unicode line break
+  `\R`                                   | matches a Unicode line break (`\r\n`, `\r`, `\v`, `\f`, `\n`, U+0085, U+2028 and U+2029)
   `\s`                                   | matches a white space character `[ \t\v\f\r\x85\p{Z}]` excluding `\n`
   `\S`                                   | matches a non-white space character
   `\t`                                   | matches TAB U+0009

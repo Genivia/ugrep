@@ -18,7 +18,7 @@ AC_STRUCT_DIRENT_D_TYPE
 
 AC_FUNC_MMAP
 
-AC_CHECK_HEADERS([sys/statvfs.h])
+AC_CHECK_HEADERS([sys/statvfs.h sys/time.h])
 
 AC_CHECK_FUNCS([statvfs])
 
