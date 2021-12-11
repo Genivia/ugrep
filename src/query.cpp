@@ -1647,7 +1647,7 @@ void Query::fetch_all()
 // execute the search in a new thread
 void Query::execute(int fd)
 {
-  output = fdopen(fd, "w");
+  output = fdopen(fd, "wb");
 
   if (output != NULL)
   {
@@ -3432,7 +3432,7 @@ void Query::set_stdin()
       return;
     }
 
-    source = fdopen(stdin_pipe_[0], "r");
+    source = fdopen(stdin_pipe_[0], "rb");
 
     stdin_thread_ = std::thread(Query::stdin_sender, stdin_pipe_[1]);
   }

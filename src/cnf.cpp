@@ -35,6 +35,7 @@
 */
 
 #include "cnf.hpp"
+#include "ugrep.hpp" // NEWLINESTR
 
 // parse a pattern into an operator tree using a recursive descent parser
 void CNF::OpTree::parse(const char *& pattern)
@@ -597,9 +598,9 @@ void CNF::report(FILE *output) const
     return;
 
   if (flag_fuzzy > 0)
-    fprintf(output, "Lines fuzzy-matched with max edit distance %zu if:\n  ", flag_fuzzy & 255);
+    fprintf(output, "Lines fuzzy-matched with max edit distance %zu if:" NEWLINESTR "  ", flag_fuzzy & 255);
   else
-    fprintf(output, "Lines matched if:\n  ");
+    fprintf(output, "Lines matched if:" NEWLINESTR "  ");
 
   if (!flag_file.empty())
   {
@@ -621,7 +622,7 @@ void CNF::report(FILE *output) const
 
     // if the first CNF term is left empty then we match -f FILE with additional constraints, i.e. not as an alternation
     if (terms.front().empty())
-      fprintf(output, ", and\n  ");
+      fprintf(output, ", and" NEWLINESTR "  ");
     else
       fprintf(output, " or ");
   }
@@ -631,7 +632,7 @@ void CNF::report(FILE *output) const
   for (auto i = terms.begin(); i != terms.end(); ++i)
   {
     if (and_sep)
-      fprintf(output, ", and\n  ");
+      fprintf(output, ", and" NEWLINESTR "  ");
 
     bool or_sep = false;
 
@@ -656,7 +657,7 @@ void CNF::report(FILE *output) const
     }
   }
 
-  fprintf(output, "\n");
+  fprintf(output, NEWLINESTR);
 }
 
 // return all OR-terms of the CNF joined together
