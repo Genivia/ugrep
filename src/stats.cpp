@@ -63,6 +63,14 @@ void Stats::report(FILE *output)
   fprintf(output, "The following pathname selections and restrictions were applied:" NEWLINESTR);
   if (flag_config != NULL)
     fprintf(output, "  --config=%s" NEWLINESTR, flag_config_file.c_str());
+  if (flag_min_depth > 0 && flag_max_depth > 0)
+    fprintf(output, "  --depth=%zu,%zu" NEWLINESTR, flag_min_depth, flag_max_depth);
+  else if (flag_min_depth > 0)
+    fprintf(output, "  --depth=%zu," NEWLINESTR, flag_min_depth);
+  else if (flag_max_depth > 0)
+    fprintf(output, "  --depth=%zu" NEWLINESTR, flag_max_depth);
+  if (flag_files)
+    fprintf(output, "  --files" NEWLINESTR);
 #ifdef WITH_HIDDEN
   if (flag_hidden)
     fprintf(output, "  --hidden (default)" NEWLINESTR);
@@ -74,12 +82,6 @@ void Stats::report(FILE *output)
   else
     fprintf(output, "  --no-hidden (default)" NEWLINESTR);
 #endif
-  if (flag_min_depth > 0 && flag_max_depth > 0)
-    fprintf(output, "  --depth=%zu,%zu" NEWLINESTR, flag_min_depth, flag_max_depth);
-  else if (flag_min_depth > 0)
-    fprintf(output, "  --depth=%zu," NEWLINESTR, flag_min_depth);
-  else if (flag_max_depth > 0)
-    fprintf(output, "  --depth=%zu" NEWLINESTR, flag_max_depth);
   for (auto& i : flag_ignore_files)
     fprintf(output, "  --ignore-files='%s'" NEWLINESTR, i.c_str());
   for (auto& i : ignore)

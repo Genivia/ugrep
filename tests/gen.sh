@@ -124,9 +124,12 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   $UG -U -IPx "$PAT" $FILES > "out/$FN-IPx.out"
 done
 
-for PAT in '' 'Hello World' 'Hello -World' 'Hello -World|greeting' 'Hello -(greeting|World)' '"a Hello" greeting' ; do
+for PAT in '' 'Hello World' 'Hello -World' 'Hello -bin' 'bin -Hello' 'bin -greeting' 'Hello -World|greeting' 'Hello -bin|greeting' 'Hello -(greeting|World)' '"a Hello" greeting' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_-'`
-  $UG -U --bool "$PAT" $FILES > "out/$FN--bool.out"
+  for OPS in '' '-l' '-c' '-co' '-o' '-C2' '-y' '--json' ; do
+    $UG -U --bool $OPS "$PAT" $FILES > "out/$FN--bool$OPS.out"
+    $UG -U --files --bool $OPS "$PAT" $FILES > "out/$FN--files--bool$OPS.out"
+  done
 done
 
 $UG -U -e 'Hello' --and 'World' $FILES > "out/Hello--and.out"

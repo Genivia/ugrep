@@ -1,0 +1,27 @@
+[
+  {
+    "file": "Hello.class",
+    "matches": [
+      { "match": "Hello.java\f\u0000\u0007\u0000\b\u0007\u0000\u0017\f\u0000\u0018\u0000\u0019\u0001\u0000\fHello World!\u0007\u0000\u001a\f\u0000\u001b\u0000\u001c\u0001\u0000\u0005Hello\u0001\u0000\u0010java/lang/Object\u0001\u0000\u0010java/lang/System\u0001\u0000\u0003out\u0001\u0000\u0015Ljava/io/PrintStream;\u0001\u0000\u0013java/io/PrintStream\u0001\u0000\u0007println\u0001\u0000\u0015(Ljava/lang/String;)V\u0000!\u0000\u0005\u0000\u0006\u0000\u0000\u0000\u0000\u0000\u0002\u0000\u0001\u0000\u0007\u0000\b\u0000\u0001\u0000\t\u0000\u0000\u0000\u001d\u0000\u0001\u0000\u0001\u0000\u0000\u0000\u0005*·\u0000\u0001±\u0000\u0000\u0000\u0001\u0000" }
+    ]
+  },
+  {
+    "file": "Hello.java",
+    "matches": [
+      { "match": "public class Hello // prints a Hello World! greeting" },
+      { "match": "  { System.out.println(\"Hello World!\");" }
+    ]
+  },
+  {
+    "file": "Hello.pdf",
+    "matches": [
+      { "match": "(Hello)" }
+    ]
+  },
+  {
+    "file": "Hello.txt",
+    "matches": [
+      { "match": "Hello" }
+    ]
+  }
+]

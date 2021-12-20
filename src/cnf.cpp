@@ -285,7 +285,7 @@ void CNF::OpTree::normalize(bool invert)
       else if (op == OR)
         op = AND;
     }
-    
+
     // P&(Q&R) => P&Q&R
     // P|(Q|R) => P|Q|R
     auto i = list.begin();
@@ -534,7 +534,7 @@ void CNF::new_pattern(PATTERN mask, const char *pattern)
   }
 }
 
-// prune empty OR-terms and OR-terms with empty patterns that match anything
+// prune empty OR terms and OR terms with empty patterns that match anything
 void CNF::prune()
 {
   // -x: empty patterns match empty lines
@@ -547,7 +547,7 @@ void CNF::prune()
 
   while (i != e)
   {
-    // erase empty term and erase NULL term without NOT-OR terms, unless the first term and -f FILE is specified
+    // erase empty term and erase NULL term without OR NOT terms, unless the first term and -f FILE is specified
     if ((i->empty() || (i->size() == 1 && (!i->front() || i->front()->empty()))) && (i != s || flag_file.empty()))
       terms.erase(i++);
     else
@@ -597,10 +597,12 @@ void CNF::report(FILE *output) const
   if (empty())
     return;
 
+  fprintf(output, flag_files ? "Files " : "Lines ");
+
   if (flag_fuzzy > 0)
-    fprintf(output, "Lines fuzzy-matched with max edit distance %zu if:" NEWLINESTR "  ", flag_fuzzy & 255);
+    fprintf(output, "fuzzy-matched with max edit distance %zu if:" NEWLINESTR "  ", flag_fuzzy & 255);
   else
-    fprintf(output, "Lines matched if:" NEWLINESTR "  ");
+    fprintf(output, "matched if:" NEWLINESTR "  ");
 
   if (!flag_file.empty())
   {
@@ -614,11 +616,13 @@ void CNF::report(FILE *output) const
       if (or_sep)
         fprintf(output, " or ");
 
-      fprintf(output, "%s", filename.c_str()); 
+      fprintf(output, "%s", filename.c_str());
 
       or_sep = true;
     }
     fprintf(output, " matches");
+    if (flag_files)
+      fprintf(output, " a line");
 
     // if the first CNF term is left empty then we match -f FILE with additional constraints, i.e. not as an alternation
     if (terms.front().empty())
@@ -647,9 +651,17 @@ void CNF::report(FILE *output) const
         else
           fprintf(output, "\"%s\"", (*j)->c_str());
         if (j != i->begin())
+        {
           fprintf(output, " does not match");
+          if (flag_files)
+            fprintf(output, " any line");
+        }
         else
+        {
           fprintf(output, " matches");
+          if (flag_files)
+            fprintf(output, " a line");
+        }
 
         or_sep = true;
         and_sep = true;
@@ -660,43 +672,52 @@ void CNF::report(FILE *output) const
   fprintf(output, NEWLINESTR);
 }
 
-// return all OR-terms of the CNF joined together
+// return all OR terms of the CNF joined together
 std::string CNF::adjoin() const
 {
   std::string adjoined;
+  const char *sep = flag_basic_regexp ? "\\|" : "|";
 
-  bool allnot = true;
-
-  for (const auto& i : terms)
+  if (flag_files)
   {
-    if (i.size() <= 1)
-    {
-      allnot = false;
-      break;
-    }
+    // --files: join all OR and OR NOT terms
+    for (const auto& i : terms)
+      for (const auto& j : i)
+        if (j && !j->empty())
+          adjoined.append(*j).append(sep);
   }
-
-  if (!allnot)
+  else
   {
-    const char *sep = flag_basic_regexp ? "\\|" : "|";
+    bool allnot = true;
 
     for (const auto& i : terms)
-      if (i.front() && !i.front()->empty())
-        adjoined.append(*i.front()).append(sep);
-
-    if (!adjoined.empty())
     {
-      // pop unused ending '|' (or BRE '\|')
-      adjoined.pop_back();
-      if (flag_basic_regexp)
-        adjoined.pop_back();
+      if (i.size() <= 1)
+      {
+        allnot = false;
+        break;
+      }
     }
+
+    // --lines: join all OR terms unless all of them are paired with OR NOT terms
+    if (!allnot)
+      for (const auto& i : terms)
+        if (i.front() && !i.front()->empty())
+          adjoined.append(*i.front()).append(sep);
+  }
+
+  if (!adjoined.empty())
+  {
+    // pop unused ending '|' (or BRE '\|')
+    adjoined.pop_back();
+    if (flag_basic_regexp)
+      adjoined.pop_back();
   }
 
   return adjoined;
 }
 
-// return the first OR-terms of the CNF
+// return the first OR terms of the CNF
 std::string CNF::first() const
 {
   if (!terms.empty() && terms.front().front())

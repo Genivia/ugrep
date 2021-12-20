@@ -1,0 +1,14 @@
+[1;35mHello.bat[m[1;36m:[m#!/bin/sh[m
+[1;35mHello.bat[m[1;36m:[mecho "Hello World!"[m
+[mBinary file[1;35m Hello.class[m matches
+[1;35mHello.java[m[1;36m:[mimport java.lang.*;[m
+[1;35mHello.java[m[1;36m:[m
+[1;35mHello.java[m[1;36m:[mpublic class Hello // prints a Hello World! greeting[m
+[1;35mHello.java[m[1;36m:[m{ public static void main(String[] arg)[m
+[1;35mHello.java[m[1;36m:[m  { System.out.println("Hello World!");[m
+[1;35mHello.java[m[1;36m:[m  }[m
+[1;35mHello.java[m[1;36m:[m}[m
+[mBinary file[1;35m Hello.pdf[m matches
+[1;35mHello.sh[m[1;36m:[m#!/bin/sh[m
+[1;35mHello.sh[m[1;36m:[mecho "Hello World!"[m
+[1;35mHello.txt[m[1;36m:[mHello[m

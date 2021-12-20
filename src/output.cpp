@@ -363,6 +363,8 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
 // output "Binary file ... matches"
 void Output::binary_file_matches(const char *pathname, const std::string& partname)
 {
+  if ((mode_ & BINARY) != 0)
+    return;
   str(color_off);
   str("Binary file");
   str(color_fn);
@@ -394,6 +396,7 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
   str(color_off);
   str(" matches");
   nl();
+  mode_ |= BINARY;
 }
 
 // get a group capture's string pointer and size specified by %[ARG] as arg, if any

@@ -317,6 +317,7 @@ bool flag_cpp                      = false;
 bool flag_csv                      = false;
 bool flag_decompress               = false;
 bool flag_dereference              = false;
+bool flag_files                    = false;
 bool flag_files_with_matches       = false;
 bool flag_files_without_match      = false;
 bool flag_fixed_strings            = false;
@@ -647,6 +648,9 @@ struct Grep {
 
   // CNF of AND/OR/NOT matchers
   typedef std::list<std::list<std::unique_ptr<reflex::AbstractMatcher>>> Matchers;
+
+  // exit search exception
+  struct EXIT_SEARCH : public std::exception { };
 
   // entry type
   enum class Type { SKIP, DIRECTORY, OTHER };
@@ -1050,11 +1054,14 @@ struct Grep {
         if (flag_max_line > 0 && lineno > flag_max_line)
           break;
 
-        // --max-files: max reached?
-        if (flag_invert_match && matches == 0 && !Stats::found_part())
+        if (matches == 0 && flag_invert_match)
         {
-          stop = true;
-          break;
+          // --max-files: max reached?
+          if (!Stats::found_part())
+          {
+            stop = true;
+            break;
+          }
         }
 
         // -m: max number of matches reached?
@@ -1268,11 +1275,14 @@ struct Grep {
         if (flag_max_line > 0 && lineno > flag_max_line)
           break;
 
-        // --max-files: max reached?
-        if (flag_invert_match && matches == 0 && !Stats::found_part())
+        if (matches == 0 && flag_invert_match)
         {
-          stop = true;
-          break;
+          // --max-files: max reached?
+          if (!Stats::found_part())
+          {
+            stop = true;
+            break;
+          }
         }
 
         // -m: max number of matches reached?
@@ -1581,11 +1591,14 @@ struct Grep {
         if (flag_max_line > 0 && lineno > flag_max_line)
           break;
 
-        // --max-files: max reached?
-        if (matches == 0 && !Stats::found_part())
+        if (matches == 0)
         {
-          stop = true;
-          break;
+          // --max-files: max reached?
+          if (!Stats::found_part())
+          {
+            stop = true;
+            break;
+          }
         }
 
         // -m: max number of matches reached?
@@ -1723,28 +1736,153 @@ struct Grep {
   virtual void search(const char *pathname);
 
   // check CNF AND/OR/NOT conditions are met for the line(s) spanning bol to eol
-  bool cnf_matching(const char *bol, const char *eol)
+  bool cnf_matching(const char *bol, const char *eol, bool acquire = false)
   {
-    // for each AND term
-    for (const auto& i : *matchers)
+    if (flag_files)
     {
-      auto j = i.begin();
-      auto e = i.end();
-
-      if (j != e)
+      if (out.holding())
       {
-        // check OR terms
-        if (*j && (*j)->buffer(const_cast<char*>(bol), eol - bol + 1).find() != 0)
-          continue;
+        size_t k = 0;    // iterate over matching[] bitmask
+        bool all = true; // all terms matched
 
-        // check OR NOT terms
-        while (++j != e)
-          if (*j && (*j)->buffer(const_cast<char*>(bol), eol - bol + 1).find() == 0)
-            break;
+        // for each AND term check if the AND term was matched before or has a match this time
+        for (const auto& i : *matchers)
+        {
+          // an OR term hasn't matched before
+          if (!matching[k])
+          {
+            auto j = i.begin();
+            auto e = i.end();
 
-        if (j == e)
-          return false;
+            if (j != e)
+            {
+              // check OR terms
+              if (*j && (*j)->buffer(const_cast<char*>(bol), eol - bol + 1).find() != 0)
+              {
+                matching[k] = true;
+                ++j;
+              }
+              else
+              {
+                // check OR NOT terms
+                size_t l = 0;     // iterate over notmaching[k] bitmask
+                bool none = true; // all not-terms matched
+
+                while (++j != e)
+                {
+                  if (*j && !notmatching[k][l])
+                  {
+                    if ((*j)->buffer(const_cast<char*>(bol), eol - bol + 1).find() != 0)
+                      notmatching[k][l] = true;
+                    else
+                      all = none = false;
+                  }
+
+                  ++l;
+                }
+
+                if (none)
+                {
+                  // when all not-terms matched and we don't have a positive alternative then stop searching this file
+                  if (!*i.begin())
+                    throw EXIT_SEARCH();
+
+                  all = false;
+                }
+              }
+            }
+          }
+          ++k;
+        }
+
+        // if all terms matched globally per file then remove the hold to launch output
+        if (all)
+        {
+          if (acquire)
+            out.acquire();
+
+          // --max-files: max reached?
+          if (!Stats::found_part())
+            throw EXIT_SEARCH();
+
+          out.launch();
+        }
       }
+    }
+    else
+    {
+      // for each AND term check if the line has a match
+      for (const auto& i : *matchers)
+      {
+        auto j = i.begin();
+        auto e = i.end();
+
+        if (j != e)
+        {
+          // check OR terms
+          if (*j && (*j)->buffer(const_cast<char*>(bol), eol - bol + 1).find() != 0)
+            continue;
+
+          // check OR NOT terms
+          while (++j != e)
+            if (*j && (*j)->buffer(const_cast<char*>(bol), eol - bol + 1).find() == 0)
+              break;
+
+          if (j == e)
+            return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  // if CNF AND/OR/NOT conditions are met globally then launch output after searching a file with --files
+  bool cnf_satisfied(bool acquire = false)
+  {
+    if (out.holding())
+    {
+      size_t k = 0; // iterate over matching[] bitmask
+
+      // for each AND term check if the term was matched before
+      for (const auto& i : *matchers)
+      {
+        // an OR term hasn't matched
+        if (!matching[k])
+        {
+          // return if there are no OR NOT terms to check
+          if (i.size() <= 1)
+            return false;
+
+          auto j = i.begin();
+          auto e = i.end();
+
+          // check if not all of the OR NOT terms matched
+          if (j != e)
+          {
+            size_t l = 0; // iterate over notmaching[k] bitmask
+            while (++j != e)
+            {
+              if (*j && !notmatching[k][l])
+                break;
+              ++l;
+            }
+            // return if all OR NOT terms matched
+            if (j == e)
+              return false;
+          }
+        }
+        ++k;
+      }
+
+      if (acquire)
+        out.acquire();
+
+      // --max-files: max reached?
+      if (!Stats::found_part())
+        throw EXIT_SEARCH();
+
+      out.launch();
     }
 
     return true;
@@ -2930,38 +3068,38 @@ struct Grep {
   // after opening a file with init_read, check if it is binary
   bool init_is_binary()
   {
-    // limit checking to first buffer filled with input up to 4K, which should suffice, to improve performance
+    // limit checking to first buffer filled with input up to 16K, which should suffice, to improve performance
     size_t avail = matcher->avail();
-    if (avail > 4096)
-      avail = 4096;
-    return is_binary(matcher->begin(), avail);
+    return is_binary(matcher->begin(), avail < 16384 ? avail : 16384);
   }
 
-  const char              *filename;      // the name of the file being searched
-  std::string              partname;      // the name of an extracted file from an archive
-  std::string              restline;      // a buffer to store the rest of a line to search
-  Output                   out;           // asynchronous output
-  reflex::AbstractMatcher *matcher;       // the pattern matcher we're using, never NULL
-  Matchers                *matchers;      // the CNF of AND/OR/NOT matchers or NULL
-  MMap                     mmap;          // mmap state
-  reflex::Input            input;         // input to the matcher
-  FILE                    *file;          // the current input file
+  const char                    *filename;      // the name of the file being searched
+  std::string                    partname;      // the name of an extracted file from an archive
+  std::string                    restline;      // a buffer to store the rest of a line to search
+  Output                         out;           // asynchronous output
+  reflex::AbstractMatcher       *matcher;       // the pattern matcher we're using, never NULL
+  Matchers                      *matchers;      // the CNF of AND/OR/NOT matchers or NULL
+  std::vector<bool>              matching;      // bitmap to keep track of globally matching CNF terms
+  std::vector<std::vector<bool>> notmatching;   // bitmap to keep track of globally matching OR NOT CNF terms
+  MMap                           mmap;          // mmap state
+  reflex::Input                  input;         // input to the matcher
+  FILE                          *file;          // the current input file
 #ifndef OS_WIN
-  StdInHandler             stdin_handler; // a handler to handle non-blocking stdin from a TTY or a slow pipe
+  StdInHandler                   stdin_handler; // a handler to handle non-blocking stdin from a TTY or a slow pipe
 #endif
 #ifdef HAVE_LIBZ
-  zstreambuf              *zstream;       // the decompressed stream from the current input file
-  std::istream            *stream;        // input stream layered on the decompressed stream
+  zstreambuf                    *zstream;       // the decompressed stream from the current input file
+  std::istream                  *stream;        // input stream layered on the decompressed stream
 #ifdef WITH_DECOMPRESSION_THREAD
-  std::thread              thread;        // decompression thread
-  std::atomic_bool         thread_end;    // true if decompression thread should terminate
-  int                      pipe_fd[2];    // decompressed stream pipe
-  std::mutex               pipe_mutex;    // mutex to extract files in thread
-  std::condition_variable  pipe_zstrm;    // cv to control new pipe creation
-  std::condition_variable  pipe_ready;    // cv to control new pipe creation
-  std::condition_variable  pipe_close;    // cv to control new pipe creation
-  volatile bool            extracting;    // true if extracting files from TAR or ZIP archive
-  volatile bool            waiting;       // true if decompression thread is waiting
+  std::thread                    thread;        // decompression thread
+  std::atomic_bool               thread_end;    // true if decompression thread should terminate
+  int                            pipe_fd[2];    // decompressed stream pipe
+  std::mutex                     pipe_mutex;    // mutex to extract files in thread
+  std::condition_variable        pipe_zstrm;    // cv to control new pipe creation
+  std::condition_variable        pipe_ready;    // cv to control new pipe creation
+  std::condition_variable        pipe_close;    // cv to control new pipe creation
+  volatile bool                  extracting;    // true if extracting files from TAR or ZIP archive
+  volatile bool                  waiting;       // true if decompression thread is waiting
 #endif
 #endif
 
@@ -3980,6 +4118,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_file_magic.emplace_back(arg + 11);
                 else if (strncmp(arg, "file-type=", 10) == 0)
                   flag_file_type.emplace_back(arg + 10);
+                else if (strcmp(arg, "files") == 0)
+                  flag_files = true;
                 else if (strcmp(arg, "files-with-matches") == 0)
                   flag_files_with_matches = true;
                 else if (strcmp(arg, "files-without-match") == 0)
@@ -4019,7 +4159,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "format-open") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--file, --file-extension, --file-magic, --file-type, --files-with-matches, --files-without-match, --fixed-strings, --filter, --filter-magic-label, --format, --format-begin, --format-close, --format-end, --format-open, --fuzzy or --free-space");
+                  usage("invalid option --", arg, "--file, --file-extension, --file-magic, --file-type, --files, --files-with-matches, --files-without-match, --fixed-strings, --filter, --filter-magic-label, --format, --format-begin, --format-close, --format-end, --format-open, --fuzzy or --free-space");
                 break;
 
               case 'g':
@@ -4104,8 +4244,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_line_number = true;
                 else if (strcmp(arg, "line-regexp") == 0)
                   flag_line_regexp = true;
+                else if (strcmp(arg, "lines") == 0)
+                  flag_files = false;
                 else
-                  usage("invalid option --", arg, "--label, --line-buffered, --line-number or --line-regexp");
+                  usage("invalid option --", arg, "--label, --line-buffered, --line-number, --line-regexp or --lines");
                 break;
 
               case 'm':
@@ -5717,7 +5859,11 @@ void terminal()
         // --pager: if output is to a TTY then page through the results
 
         // open a pipe to a forked pager
+#ifdef OS_WIN
+        output = popen(flag_pager, "wb");
+#else
         output = popen(flag_pager, "w");
+#endif
         if (output == NULL)
           error("cannot open pipe to pager", flag_pager);
 
@@ -6110,7 +6256,7 @@ void ugrep()
     // prune empty terms from the CNF that match anything
     bcnf.prune();
 
-    // split the patterns at newlines, standard grep
+    // split the patterns at newlines, standard grep behavior
     bcnf.split();
 
     if (flag_file.empty())
@@ -6149,6 +6295,13 @@ void ugrep()
         regex.assign(bcnf.first());
       }
     }
+  }
+
+  // -v with --files is not permitted
+  if (flag_files && flag_invert_match)
+  {
+    abort("-v is not permitted with --files, invert the Boolean query instead");
+    flag_invert_match = false;
   }
 
   // -x or --match: enable -Y and disable --dotall and -w
@@ -6365,6 +6518,13 @@ void ugrep()
     // -q overrides -l and -L
     flag_files_with_matches = false;
     flag_files_without_match = false;
+
+    // disable --format options
+    flag_format_begin = NULL;
+    flag_format_open = NULL;
+    flag_format = NULL;
+    flag_format_close = NULL;
+    flag_format_end = NULL;
   }
 
   // -L: enable -l and flip -v i.e. -L=-lv and -l=-Lv
@@ -6452,7 +6612,7 @@ void ugrep()
     matcher_options.append("T=").push_back(static_cast<char>(flag_tabs) + '0');
 
   // --format-begin
-  if (!flag_quiet && flag_format_begin != NULL)
+  if (flag_format_begin != NULL)
     format(flag_format_begin, 0);
 
   size_t nodes = 0;
@@ -6712,7 +6872,7 @@ void ugrep()
   }
 
   // --format-end
-  if (!flag_quiet && flag_format_end != NULL)
+  if (flag_format_end != NULL)
     format(flag_format_end, Stats::found_parts());
 
   // --stats: display stats when we're done
@@ -7657,6 +7817,28 @@ void Grep::search(const char *pathname)
     {
       size_t matches = 0;
 
+      // --files: reset the matching[] bitmask used in cnf_matching() for each matcher in matchers
+      if (flag_files && matchers != NULL)
+      {
+        // hold the output
+        out.hold();
+
+        // reset the bit corresponding to each matcher in matchers
+        size_t n = matchers->size();
+        matching.resize(0);
+        matching.resize(n);
+
+        // reset the bit corresponding to the OR NOT terms of each matcher in matchers
+        notmatching.resize(n);
+        size_t j = 0;
+        for (auto& i : *matchers)
+        {
+          notmatching[j].resize(0);
+          notmatching[j].resize(i.size() > 0 ? i.size() - 1 : 0);
+          ++j;
+        }
+      }
+
       if (flag_quiet || flag_files_with_matches)
       {
         // option -q, -l, or -L
@@ -7664,24 +7846,37 @@ void Grep::search(const char *pathname)
         if (!init_read())
           goto exit_search;
 
-        while (true)
+        // --format: whether to out.acquire() early before Stats::found_part()
+        bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
+
+        while (matcher->find())
         {
-          matches = matcher->find() != 0;
-
-          if (matches == 0 || matchers == NULL)
+          // --range: max line exceeded?
+          if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
             break;
 
-          const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
-          const char *bol = matcher->bol();
+          if (matchers != NULL)
+          {
+            const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
+            const char *bol = matcher->bol();
 
-          // check CNF AND/OR/NOT matching
-          if (cnf_matching(bol, eol))
-            break;
+            // check CNF AND/OR/NOT matching
+            if (!cnf_matching(bol, eol, acquire) || out.holding())
+              continue;
+          }
+
+          matches = 1;
+          break;
         }
 
-        // --range: max line exceeded?
-        if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
-          matches = 0;
+        // --files: if we are still holding the output and CNF is finally satisfyable then a match was made
+        if (flag_files && matchers != NULL)
+        {
+          if (!cnf_satisfied(acquire))
+            goto exit_search;
+
+          matches = 1;
+        }
 
         // -v: invert
         if (flag_invert_match)
@@ -7690,12 +7885,15 @@ void Grep::search(const char *pathname)
         if (matches > 0)
         {
           // --format-open or format-close: we must acquire lock early before Stats::found_part()
-          if (flag_files_with_matches && (flag_format_open != NULL || flag_format_close != NULL))
+          if (acquire)
             out.acquire();
 
-          // --max-files: max reached?
-          if (!Stats::found_part())
-            goto exit_search;
+          if (!flag_files || matchers == NULL)
+          {
+            // --max-files: max reached?
+            if (!Stats::found_part())
+              goto exit_search;
+          }
 
           // -l or -L
           if (flag_files_with_matches)
@@ -7744,16 +7942,53 @@ void Grep::search(const char *pathname)
       {
         // option -c
 
-        if (init_read())
-        {
-          if (flag_ungroup || flag_only_matching)
-          {
-            // -co or -cu: count the number of patterns matched in the file
+        if (!init_read())
+          goto exit_search;
 
-            while (matcher->find())
+        // --format: whether to out.acquire() early before Stats::found_part()
+        bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
+
+        if (flag_ungroup || flag_only_matching)
+        {
+          // -co or -cu: count the number of patterns matched in the file
+
+          while (matcher->find())
+          {
+            // --range: max line exceeded?
+            if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
+              break;
+
+            if (matchers != NULL)
+            {
+              const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
+              const char *bol = matcher->bol();
+
+              // check CNF AND/OR/NOT matching, with --files acquire lock before Stats::found_part()
+              if (!cnf_matching(bol, eol, acquire))
+                continue;
+            }
+
+            ++matches;
+
+            // -m: max number of matches reached?
+            if (flag_max_count > 0 && matches >= flag_max_count)
+              break;
+          }
+        }
+        else
+        {
+          // -c without -o/-u: count the number of matching lines
+
+          size_t lineno = 0;
+
+          while (matcher->find())
+          {
+            size_t current_lineno = matcher->lineno();
+
+            if (lineno != current_lineno)
             {
               // --range: max line exceeded?
-              if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
+              if (flag_max_line > 0 && current_lineno > flag_max_line)
                 break;
 
               if (matchers != NULL)
@@ -7761,8 +7996,8 @@ void Grep::search(const char *pathname)
                 const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
                 const char *bol = matcher->bol();
 
-                // check CNF AND/OR/NOT matching
-                if (!cnf_matching(bol, eol))
+                // check CNF AND/OR/NOT matching, with --files acquire lock before Stats::found_part()
+                if (!cnf_matching(bol, eol, acquire))
                   continue;
               }
 
@@ -7771,62 +8006,39 @@ void Grep::search(const char *pathname)
               // -m: max number of matches reached?
               if (flag_max_count > 0 && matches >= flag_max_count)
                 break;
+
+              lineno = current_lineno;
             }
           }
-          else
+
+          // -c with -v: count non-matching lines
+          if (flag_invert_match)
           {
-            // -c without -o/-u: count the number of matching lines
-
-            size_t lineno = 0;
-
-            while (matcher->find())
-            {
-              size_t current_lineno = matcher->lineno();
-
-              if (lineno != current_lineno)
-              {
-                // --range: max line exceeded?
-                if (flag_max_line > 0 && current_lineno > flag_max_line)
-                  break;
-
-                if (matchers != NULL)
-                {
-                  const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
-                  const char *bol = matcher->bol();
-
-                  // check CNF AND/OR/NOT matching
-                  if (!cnf_matching(bol, eol))
-                    continue;
-                }
-
-                ++matches;
-
-                // -m: max number of matches reached?
-                if (flag_max_count > 0 && matches >= flag_max_count)
-                  break;
-
-                lineno = current_lineno;
-              }
-            }
-
-            // -c with -v: count non-matching lines
-            if (flag_invert_match)
-            {
-              matches = matcher->lineno() - matches;
-              if (matches > 0)
-                --matches;
-            }
+            matches = matcher->lineno() - matches;
+            if (matches > 0)
+              --matches;
           }
         }
 
-        // --format-open or --format-close: we must acquire lock early before Stats::found_part()
-        if (flag_format_open != NULL || flag_format_close != NULL)
-          out.acquire();
+        // --files: if we are still holding the output and CNF is not satisfyable then no global matches were made
+        if (flag_files && matchers != NULL)
+        {
+          if (!cnf_satisfied(acquire))
+            goto exit_search; // we cannot report 0 matches and ensure accurate output
+        }
+        else
+        {
+          // --format-open or --format-close: we must acquire lock early before Stats::found_part()
+          if (acquire)
+            out.acquire();
 
-        // --max-files: max reached?
-        if (matches > 0 || flag_format_open != NULL || flag_format_close != NULL)
-          if (!Stats::found_part())
-            goto exit_search;
+          // --max-files: max reached?
+          // unfortunately, allowing 'acquire' below produces "x matching + y in archives"
+          // but without this we cannot produce correct format-open and format-close outputs
+          if (matches > 0 || acquire)
+            if (!Stats::found_part())
+              goto exit_search;
+        }
 
         if (flag_format != NULL)
         {
@@ -7883,6 +8095,9 @@ void Grep::search(const char *pathname)
 
         if (!init_read())
           goto exit_search;
+
+        // whether to out.acquire() early before Stats::found_part()
+        bool acquire = flag_format_open != NULL || flag_format_close != NULL;
 
         if (flag_invert_match)
         {
@@ -7965,23 +8180,44 @@ void Grep::search(const char *pathname)
               const char *bol = matcher->bol();
 
               // check CNF AND/OR/NOT matching
-              if (!cnf_matching(bol, eol))
+              if (!cnf_matching(bol, eol, acquire))
                 continue;
             }
 
             // output --format-open
             if (matches == 0)
             {
-              // --format-open or --format-close: we must acquire lock early before Stats::found_part()
-              if (flag_format_open != NULL || flag_format_close != NULL)
-                out.acquire();
+              if (flag_files && matchers != NULL)
+              {
+                // --format-open: we must acquire lock early before Stats::found_part()
+                if (acquire && out.holding())
+                {
+                  out.acquire();
 
-              // --max-files: max reached?
-              if (!Stats::found_part())
-                goto exit_search;
+                  // --max-files: max reached?
+                  if (!Stats::found_part())
+                    goto exit_search;
+                }
+              }
+              else
+              {
+                // --format-open: we must acquire lock early before Stats::found_part()
+                if (acquire)
+                  out.acquire();
+
+                // --max-files: max reached?
+                if (!Stats::found_part())
+                  goto exit_search;
+              }
 
               if (flag_format_open != NULL)
+              {
                 out.format(flag_format_open, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
+
+                // --files: undo files count
+                if (flag_files && matchers != NULL && out.holding())
+                  Stats::undo_found_part();
+              }
             }
 
             ++matches;
@@ -7996,6 +8232,11 @@ void Grep::search(const char *pathname)
             out.check_flush();
           }
         }
+
+        // --files: if we are still holding the output and CNF is not satisfyable then no global matches were made
+        if (flag_files && matchers != NULL)
+          if (!cnf_satisfied(true))
+            goto exit_search;
 
         // output --format-close
         if (matches > 0 && flag_format_close != NULL)
@@ -8033,9 +8274,12 @@ void Grep::search(const char *pathname)
                 continue;
             }
 
-            // --max-files: max reached?
-            if (matches == 0 && !Stats::found_part())
-              goto exit_search;
+            if (matches == 0 && (!flag_files || matchers == NULL))
+            {
+              // --max-files: max reached?
+              if (!Stats::found_part())
+                goto exit_search;
+            }
 
             ++matches;
 
@@ -8113,9 +8357,12 @@ void Grep::search(const char *pathname)
                 continue;
             }
 
-            // --max-files: max reached?
-            if (matches == 0 && !Stats::found_part())
-              goto exit_search;
+            if (matches == 0 && (!flag_files || matchers == NULL))
+            {
+              // --max-files: max reached?
+              if (!Stats::found_part())
+                goto exit_search;
+            }
 
             if (binfile || (binary && !flag_hex && !flag_with_hex))
             {
@@ -8128,6 +8375,9 @@ void Grep::search(const char *pathname)
                 out.binary_file_matches(pathname, partname);
                 matches = 1;
               }
+
+              if (flag_files && matchers != NULL && out.holding())
+                continue;
 
               goto done_search;
             }
@@ -8163,6 +8413,9 @@ void Grep::search(const char *pathname)
                 out.binary_file_matches(pathname, partname);
                 matches = 1;
               }
+
+              if (flag_files && matchers != NULL && out.holding())
+                continue;
 
               goto done_search;
             }
@@ -8281,9 +8534,12 @@ void Grep::search(const char *pathname)
             if (matchers != NULL && !cnf_matching(bol, eol))
               continue;
 
-            // --max-files: max reached?
-            if (matches == 0 && !Stats::found_part())
-              goto exit_search;
+            if (matches == 0 && (!flag_files || matchers == NULL))
+            {
+              // --max-files: max reached?
+              if (!Stats::found_part())
+                goto exit_search;
+            }
 
             binary = flag_hex || (!flag_text && is_binary(bol, eol - bol));
 
@@ -8298,6 +8554,9 @@ void Grep::search(const char *pathname)
                 out.binary_file_matches(pathname, partname);
                 matches = 1;
               }
+
+              if (flag_files && matchers != NULL && out.holding())
+                continue;
 
               goto done_search;
             }
@@ -8739,12 +8998,12 @@ void Grep::search(const char *pathname)
                   matches = 1;
                 }
 
+                if (flag_files && matchers != NULL && out.holding())
+                  continue;
+
                 goto done_search;
               }
             }
-
-            if (!flag_invert_match)
-              ++matches;
 
             // --range: max line exceeded?
             if (flag_max_line > 0 && current_lineno > flag_max_line)
@@ -8754,9 +9013,17 @@ void Grep::search(const char *pathname)
             if (stop)
               goto exit_search;
 
-            // --max-files: max reached?
-            if (!flag_invert_match && matches == 0 && !Stats::found_part())
-              goto exit_search;
+            if (!flag_invert_match)
+            {
+              if (matches == 0 && (!flag_files || matchers == NULL))
+              {
+                // --max-files: max reached?
+                if (!Stats::found_part())
+                  goto exit_search;
+              }
+
+              ++matches;
+            }
 
             // -m: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
@@ -8784,6 +9051,9 @@ void Grep::search(const char *pathname)
                 out.binary_file_matches(pathname, partname);
                 matches = 1;
               }
+
+              if (flag_files && matchers != NULL && out.holding())
+                continue;
 
               goto done_search;
             }
@@ -9141,6 +9411,9 @@ void Grep::search(const char *pathname)
                 matches = 1;
               }
 
+              if (flag_files && matchers != NULL && out.holding())
+                continue;
+
               goto done_search;
             }
 
@@ -9154,9 +9427,14 @@ void Grep::search(const char *pathname)
             if (stop)
               goto exit_search;
 
-            // --max-files: max reached?
-            if (!flag_invert_match && matches == 0 && !Stats::found_part())
-              goto exit_search;
+            if (matches == 0 && (!flag_files || matchers == NULL))
+            {
+              // --max-files: max reached?
+              if (!Stats::found_part())
+                goto exit_search;
+            }
+
+            ++matches;
 
             // -m: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
@@ -9180,11 +9458,11 @@ void Grep::search(const char *pathname)
                 matches = 1;
               }
 
+              if (flag_files && matchers != NULL && out.holding())
+                continue;
+
               goto done_search;
             }
-
-            if (!flag_invert_match)
-              ++matches;
 
             size_t border = matcher->border();
             size_t first = matcher->first();
@@ -9564,9 +9842,14 @@ void Grep::search(const char *pathname)
             if (stop)
               goto exit_search;
 
-            // --max-files: max reached?
-            if (!flag_invert_match && matches == 0 && !Stats::found_part())
-              goto exit_search;
+            /* logically OK but dead code because -v
+            if (matches == 0 && !flag_invert_match && (!flag_files || matchers == NULL))
+            {
+              // --max-files: max reached?
+              if (!Stats::found_part())
+                goto exit_search;
+            }
+            */
 
             // -m: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
@@ -9586,16 +9869,18 @@ void Grep::search(const char *pathname)
                 {
                   matches = 0;
                 }
-                else if (flag_invert_match)
+                else // if (flag_invert_match) is true
                 {
                   lineno = last_lineno = current_lineno + matcher->lines() - 1;
                   continue;
                 }
+                /* logically OK but dead code because -v
                 else
                 {
                   out.binary_file_matches(pathname, partname);
                   matches = 1;
                 }
+                */
 
                 goto done_search;
               }
@@ -9678,16 +9963,18 @@ void Grep::search(const char *pathname)
                 {
                   matches = 0;
                 }
-                else if (flag_invert_match)
+                else // if (flag_invert_match) is true
                 {
                   lineno = last_lineno = current_lineno + matcher->lines() - 1;
                   continue;
                 }
+                /* logically OK but dead code because -v
                 else
                 {
                   out.binary_file_matches(pathname, partname);
                   matches = 1;
                 }
+                */
 
                 goto done_search;
               }
@@ -9870,16 +10157,18 @@ void Grep::search(const char *pathname)
                   {
                     matches = 0;
                   }
-                  else if (flag_invert_match)
+                  else // if (flag_invert_match) is true
                   {
                     lineno = last_lineno = current_lineno + matcher->lines() - 1;
                     continue;
                   }
+                  /* logically OK but dead code because -v
                   else
                   {
                     out.binary_file_matches(pathname, partname);
                     matches = 1;
                   }
+                  */
 
                   goto done_search;
                 }
@@ -9960,6 +10249,11 @@ void Grep::search(const char *pathname)
 
 done_search:
 
+      // --files: check if all CNF conditions are met globally to launch output or reset matches
+      if (flag_files && matchers != NULL)
+        if (!cnf_satisfied())
+          matches = 0;
+
       // any matches in this file or archive?
       if (matches > 0)
         matched = true;
@@ -9967,6 +10261,11 @@ done_search:
       // --break: add a line break when applicable
       if (flag_break && (matches > 0 || flag_any_line) && !flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL)
         out.nl();
+    }
+
+    catch (EXIT_SEARCH&)
+    {
+      // --files: cnf_matching() rejected a file, no need to search this file any further
     }
 
     catch (...)
@@ -10424,7 +10723,7 @@ void help(std::ostream& out)
             (`A' or `B') and (`C' or `D').  Note that multiple -e PATTERN are\n\
             alternations that bind more tightly together than --and.  Option\n\
             --stats displays the search patterns applied.  See also options\n\
-            --not, --andnot, and --bool.\n\
+            --not, --andnot, --bool, --files, and --lines.\n\
     --andnot [[-e] PATTERN] ...\n\
             Combines --and --not.  See also options --and, --not, and --bool.\n\
     -B NUM, --before-context=NUM\n\
@@ -10450,7 +10749,7 @@ void help(std::ostream& out)
             matches alone.  A match is considered binary when matching a zero\n\
             byte or invalid UTF.  Short options are -a, -I, -U, -W, and -X.\n\
     --bool, -%\n\
-            Specifies Boolean search patterns.  A Boolean search pattern is\n\
+            Specifies Boolean query patterns.  A Boolean query pattern is\n\
             composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.\n\
             Spacing between subpatterns is the same as `AND', `|' is the same\n\
             as `OR', and a `-' is the same as `NOT'.  The `OR' operator binds\n\
@@ -10464,12 +10763,12 @@ void help(std::ostream& out)
             lines with `A' and also either `AND' or `OR'.  Parenthesis are used\n\
             for grouping.  For example, --bool '(A B)|C' matches lines with `A'\n\
             and `B', or lines with `C'.  Note that all subpatterns in a Boolean\n\
-            search pattern are regular expressions, unless option -F is used.\n\
+            query pattern are regular expressions, unless option -F is used.\n\
             Options -E, -F, -G, -P, and -Z can be combined with --bool to match\n\
             subpatterns as strings or regular expressions (-E is the default.)\n\
             This option does not apply to -f FILE patterns.  Option --stats\n\
             displays the search patterns applied.  See also options --and,\n\
-            --andnot, and --not.\n\
+            --andnot, --not, --files, and --lines.\n\
     --break\n\
             Adds a line break between results from different files.\n\
     -C NUM, --context=NUM\n\
@@ -10774,6 +11073,9 @@ void help(std::ostream& out)
             a suffix.  The default value is `(standard input)'.\n\
     --line-buffered\n\
             Force output to be line buffered instead of block buffered.\n\
+    --lines\n\
+            Apply Boolean queries to match lines, the opposite of --files.\n\
+            This is the default Boolean query mode to match specific lines.\n\
     -M MAGIC, --file-magic=MAGIC\n\
             Only files matching the signature pattern MAGIC are searched.  The\n\
             signature \"magic bytes\" at the start of a file are compared to\n\
@@ -10813,7 +11115,7 @@ void help(std::ostream& out)
             matches lines with `A' or lines without a `B'.  To match lines with\n\
             `A' that have no `B', specify -e A --andnot -e B.  Option --stats\n\
             displays the search patterns applied.  See also options --and,\n\
-            --andnot, and --bool.\n\
+            --andnot, --bool, --files, and --lines.\n\
     -O EXTENSIONS, --file-extension=EXTENSIONS\n\
             Search only files whose filename extensions match the specified\n\
             comma-separated list of EXTENSIONS, same as --include='*.ext' for\n\
@@ -10831,6 +11133,15 @@ void help(std::ostream& out)
             The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
             file processed.\n\
+    --files\n\
+            Apply Boolean queries to match files, the opposite of --lines.  A\n\
+            file matches if all Boolean conditions are satisfied by the lines\n\
+            matched in the file.  For example, --files -e A --and -e B -e C\n\
+            --andnot -e D matches a file if some lines match `A' and some lines\n\
+            match (`B' or `C') and no line in the file matches `D'.  May also\n\
+            be specified as --files --bool 'A B|C -D'.  Option -v cannot be\n\
+            specified with --files.  See also options --and, --andnot, --not,\n\
+            --bool and --lines.\n\
     -P, --perl-regexp\n\
             Interpret PATTERN as a Perl regular expression"
 #if defined(HAVE_PCRE2)

@@ -1,0 +1,14 @@
+[
+  {
+    "file": "Hello.pdf",
+    "matches": [
+      { "match": "(Hello)" }
+    ]
+  },
+  {
+    "file": "Hello.txt",
+    "matches": [
+      { "match": "Hello" }
+    ]
+  }
+]

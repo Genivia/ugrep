@@ -57,6 +57,9 @@ class Output {
 
   static constexpr size_t SIZE = 16384;          // size of each buffer in the buffers container
   static constexpr size_t STOP = UNDEFINED_SIZE; // if last == STOP, cancel output
+  static constexpr int FLUSH  = 1;               // mode bit: flush each line of output
+  static constexpr int HOLD   = 2;               // mode bit: hold output
+  static constexpr int BINARY = 4;               // mode bit: binary file found
 
   struct Buffer { char data[SIZE]; }; // data buffer in the buffers container
 
@@ -304,7 +307,7 @@ class Output {
       lock_(NULL),
       slot_(0),
       lineno_(0),
-      flush_(flag_line_buffered)
+      mode_(flag_line_buffered ? FLUSH : 0)
   {
     grow();
   }
@@ -507,7 +510,7 @@ class Output {
 #ifdef OS_WIN
       chr('\r');
 #else
-      ;
+      { }
 #endif
     chr('\n');
     check_flush();
@@ -516,14 +519,36 @@ class Output {
   // enable line buffered mode to flush each line to output
   void set_flush()
   {
-    flush_ = true;
+    mode_ |= FLUSH;
   }
 
-  // flush if output is line buffered
+  // flush if output is line buffered to flush each line
   void check_flush()
   {
-    if (flush_)
+    if (mode_ == FLUSH)
       flush();
+  }
+
+  // hold the output and do not flush, buffer all output until further notice
+  void hold()
+  {
+    mode_ |= HOLD;
+  }
+
+  // launch output when held back
+  void launch()
+  {
+    if ((mode_ & HOLD) != 0)
+    {
+      mode_ &= ~HOLD;
+      check_flush();
+    }
+  }
+
+  // return true when holding the output
+  bool holding()
+  {
+    return mode_ & HOLD;
   }
 
   // synchronize output by threads on the given sync object
@@ -548,7 +573,7 @@ class Output {
       sync->acquire(lock_, slot_);
   }
 
-  // flush the buffers and acquire lock
+  // acquire lock and flush the buffers, if not held back
   void flush()
   {
     if (buf_ != buffers_.begin() || cur_ > buf_->data)
@@ -592,10 +617,22 @@ class Output {
     }
   }
 
+  // discard buffered output
+  void discard()
+  {
+    buf_ = buffers_.begin();
+    cur_ = buf_->data;
+  }
+
   // flush output and release sync slot, if one was assigned with sync_on()
   void release()
   {
-    flush();
+    if ((mode_ & HOLD) == 0)
+      flush();
+    else
+      discard();
+
+    mode_ = flag_line_buffered ? FLUSH : 0;
 
     if (sync != NULL)
       sync->release(lock_);
@@ -655,7 +692,7 @@ class Output {
   // next buffer, allocate one if needed (when multi-threaded and lock is owned by another thread)
   void next()
   {
-    if (sync == NULL || sync->try_acquire(lock_))
+    if ((mode_ & HOLD) == 0 && (sync == NULL || sync->try_acquire(lock_)))
     {
       flush();
     }
@@ -694,7 +731,7 @@ class Output {
   Buffers                       buffers_; // buffers container
   Buffers::iterator             buf_;     // current buffer in the container
   char                         *cur_;     // current position in the current buffer
-  bool                          flush_;   // true if output is line buffered
+  int                           mode_;    // bitmask 1 if line buffered 2 if hold
 
 };
 

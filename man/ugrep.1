@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 11, 2021" "ugrep 3.3.12" "User Commands"
+.TH UGREP "1" "December 20, 2021" "ugrep 3.4.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -67,7 +67,7 @@ pattern.  For example, \fB\-e\fR \fIA\fR \fB\-e\fR \fIB\fR \fB\-\-and\fR \fB\-e\
 (`A' or `B') and (`C' or `D').  Note that multiple \fB\-e\fR \fIPATTERN\fR are
 alternations that bind more tightly together than \fB\-\-and\fR.  Option
 \fB\-\-stats\fR displays the search patterns applied.  See also options
-\fB\-\-not\fR, \fB\-\-andnot\fR, and \fB\-\-bool\fR.
+\fB\-\-not\fR, \fB\-\-andnot\fR, \fB\-\-bool\fR, \fB\-\-files\fR, and \fB\-\-lines\fR.
 .TP
 \fB\-\-andnot\fR [[\fB\-e\fR] PATTERN] ...
 Combines \fB\-\-and\fR \fB\-\-not\fR.  See also options \fB\-\-and\fR, \fB\-\-not\fR, and \fB\-\-bool\fR.
@@ -98,7 +98,7 @@ matches alone.  A match is considered binary when matching a zero
 byte or invalid UTF.  Short options are \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\fR, and \fB\-X\fR.
 .TP
 \fB\-\-bool\fR, \fB\-%\fR
-Specifies Boolean search patterns.  A Boolean search pattern is
+Specifies Boolean query patterns.  A Boolean query pattern is
 composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.
 Spacing between subpatterns is the same as `AND', `|' is the same
 as `OR', and a `\-' is the same as `NOT'.  The `OR' operator binds
@@ -112,12 +112,12 @@ literally as strings.  For example, \fB\-\-bool\fR 'A "AND"|"OR"' matches
 lines with `A' and also either `AND' or `OR'.  Parenthesis are used
 for grouping.  For example, \fB\-\-bool\fR '(A B)|C' matches lines with `A'
 and `B', or lines with `C'.  Note that all subpatterns in a Boolean
-search pattern are regular expressions, unless option \fB\-F\fR is used.
+query pattern are regular expressions, unless option \fB\-F\fR is used.
 Options \fB\-E\fR, \fB\-F\fR, \fB\-G\fR, \fB\-P\fR, and \fB\-Z\fR can be combined with \fB\-\-bool\fR to match
 subpatterns as strings or regular expressions (\fB\-E\fR is the default.)
 This option does not apply to \fB\-f\fR \fIFILE\fR patterns.  Option \fB\-\-stats\fR
 displays the search patterns applied.  See also options \fB\-\-and\fR,
-\fB\-\-andnot\fR, and \fB\-\-not\fR.
+\fB\-\-andnot\fR, \fB\-\-not\fR, \fB\-\-files\fR, and \fB\-\-lines\fR.
 .TP
 \fB\-\-break\fR
 Adds a line break between results from different files.
@@ -461,6 +461,10 @@ a suffix.  The default value is `(standard input)'.
 \fB\-\-line\-buffered\fR
 Force output to be line buffered instead of block buffered.
 .TP
+\fB\-\-lines\fR
+Apply Boolean queries to match lines, the opposite of \fB\-\-files\fR.
+This is the default Boolean query mode to match specific lines.
+.TP
 \fB\-M\fR \fIMAGIC\fR, \fB\-\-file\-magic\fR=\fIMAGIC\fR
 Only files matching the signature pattern MAGIC are searched.  The
 signature "magic bytes" at the start of a file are compared to
@@ -508,7 +512,7 @@ Specifies that PATTERN should not match.  Note that \fB\-e\fR \fIA\fR \fB\-\-not
 matches lines with `A' or lines without a `B'.  To match lines with
 `A' that have no `B', specify \fB\-e\fR \fIA\fR \fB\-\-andnot\fR \fB\-e\fR \fIB\fR.  Option \fB\-\-stats\fR
 displays the search patterns applied.  See also options \fB\-\-and\fR,
-\fB\-\-andnot\fR, and \fB\-\-bool\fR.
+\fB\-\-andnot\fR, \fB\-\-bool\fR, \fB\-\-files\fR, and \fB\-\-lines\fR.
 .TP
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extension\fR=\fIEXTENSIONS\fR
 Search only files whose filename extensions match the specified
@@ -529,6 +533,16 @@ This option cannot be combined with options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR, \fB
 The line number of the matching line in the file is output without
 displaying the match.  The line number counter is reset for each
 file processed.
+.TP
+\fB\-\-files\fR
+Apply Boolean queries to match files, the opposite of \fB\-\-lines\fR.  A
+file matches if all Boolean conditions are satisfied by the lines
+matched in the file.  For example, \fB\-\-files\fR \fB\-e\fR \fIA\fR \fB\-\-and\fR \fB\-e\fR \fIB\fR \fB\-e\fR \fIC\fR
+\fB\-\-andnot\fR \fB\-e\fR \fID\fR matches a file if some lines match `A' and some lines
+match (`B' or `C') and no line in the file matches `D'.  May also
+be specified as \fB\-\-files\fR \fB\-\-bool\fR 'A B|C \fB\-D\fR'.  Option \fB\-v\fR cannot be
+specified with \fB\-\-files\fR.  See also options \fB\-\-and\fR, \fB\-\-andnot\fR, \fB\-\-not\fR,
+\fB\-\-bool\fR and \fB\-\-lines\fR.
 .TP
 \fB\-P\fR, \fB\-\-perl\-regexp\fR
 Interpret PATTERN as a Perl regular expression using PCRE2.

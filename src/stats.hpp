@@ -90,19 +90,21 @@ class Stats {
   // atomically update the number of matching files found, excluding files in archives returns true if max file matches (+ number of threads-1 when sorting) is not reached yet
   static bool found_file()
   {
-    if (flag_max_files > 0)
-      return fileno.fetch_add(1, std::memory_order_relaxed) < flag_max_files;
-    fileno.fetch_add(1, std::memory_order_relaxed);
-    return true;
+    size_t n = fileno.fetch_add(1, std::memory_order_relaxed);
+    return flag_max_files > 0 ? n < flag_max_files : true;
   }
 
   // atomically update the number of matching files found, including files in archives, returns true if max file matches (+ number of threads-1 when sorting) is not reached yet
   static bool found_part()
   {
-    if (flag_max_files > 0)
-      return partno.fetch_add(1, std::memory_order_relaxed) < flag_max_files;
-    partno.fetch_add(1, std::memory_order_relaxed);
-    return true;
+    size_t n = partno.fetch_add(1, std::memory_order_relaxed);
+    return flag_max_files > 0 ? n < flag_max_files : true;
+  }
+
+  // undo found_part
+  static void undo_found_part()
+  {
+    partno.fetch_sub(1, std::memory_order_relaxed);
   }
 
   // the number of matching files found, excluding files in archives

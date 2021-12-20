@@ -303,12 +303,17 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   fi
 done
 
-for PAT in '' 'Hello World' 'Hello -World' 'Hello -World|greeting' 'Hello -(greeting|World)' '"a Hello" greeting' ; do
+for PAT in '' 'Hello World' 'Hello -World' 'Hello -bin' 'bin -Hello' 'bin -greeting' 'Hello -World|greeting' 'Hello -bin|greeting' 'Hello -(greeting|World)' '"a Hello" greeting' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_-'`
-  printf .
-  $UG -U --bool "$PAT" $FILES \
-    | $DIFF "out/$FN--bool.out" \
-    || ERR "--bool '$PAT' $FILES"
+  for OPS in '' '-l' '-c' '-co' '-o' '-C2' '-y' '--json' ; do
+    printf .
+    $UG -U --bool $OPS "$PAT" $FILES \
+      | $DIFF "out/$FN--bool$OPS.out" \
+      || ERR "--bool $OPS '$PAT' $FILES"
+    $UG -U --files --bool $OPS "$PAT" $FILES \
+      | $DIFF "out/$FN--files--bool$OPS.out" \
+      || ERR "--files --bool $OPS '$PAT' $FILES"
+  done
 done
 
 printf .

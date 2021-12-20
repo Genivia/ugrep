@@ -1,0 +1,14 @@
+[
+  {
+    "file": "Hello.bat",
+    "matches": [
+      { "match": "#!/bin/sh" }
+    ]
+  },
+  {
+    "file": "Hello.sh",
+    "matches": [
+      { "match": "#!/bin/sh" }
+    ]
+  }
+]

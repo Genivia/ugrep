@@ -1,0 +1,5 @@
+[mBinary file[1;35m Hello.class[m matches
+[1;35mHello.java[m[1;36m:[mpublic class [m[1;4;32mHello[m // prints a [m[1;4;32mHello[m World! greeting[m
+[1;35mHello.java[m[1;36m:[m  { System.out.println("[m[1;4;32mHello[m World!");[m
+[mBinary file[1;35m Hello.pdf[m matches
+[1;35mHello.txt[m[1;36m:[m[m[1;4;32mHello[m

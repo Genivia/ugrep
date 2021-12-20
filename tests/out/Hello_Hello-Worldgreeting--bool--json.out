@@ -1,0 +1,20 @@
+[
+  {
+    "file": "Hello.java",
+    "matches": [
+      { "match": "public class Hello // prints a Hello World! greeting" }
+    ]
+  },
+  {
+    "file": "Hello.pdf",
+    "matches": [
+      { "match": "(Hello)" }
+    ]
+  },
+  {
+    "file": "Hello.txt",
+    "matches": [
+      { "match": "Hello" }
+    ]
+  }
+]
