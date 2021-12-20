@@ -2222,7 +2222,7 @@ struct Grep {
         if (!flag_no_filename)
           flag_no_header = false;
 
-        // inform the main grep thread we are extracing an archive
+        // inform the main grep thread we are extracting an archive
         extracting = true;
 
         // to hold the path (prefix + name) extracted from the header
@@ -2422,7 +2422,7 @@ struct Grep {
         if (!flag_no_filename)
           flag_no_header = false;
 
-        // inform the main grep thread we are extracing an archive
+        // inform the main grep thread we are extracting an archive
         extracting = true;
 
         // to hold the path (prefix + name) extracted from the header
