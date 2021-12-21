@@ -26,7 +26,7 @@ Search for anything in everything... ultra fast
 
       ugrep -Q                               ugrep -Q -e PATTERN    
 
-  **Pro tip:** `-Q` replaces a PATTERN on the command line to specify patterns interactively; use `-e PATTERN` to search and edit a PATTERN in the UI.
+  > **Pro tip:** `-Q` replaces a PATTERN on the command line to specify patterns interactively; use `-e PATTERN` to search and edit a PATTERN in the UI.
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
@@ -39,15 +39,17 @@ Search for anything in everything... ultra fast
       ugrep --bool 'A -B -C' ...             ugrep -e 'A' --andnot 'B' --andnot 'C' ...
       ugrep --bool 'A -(B|C)'...             ugrep -e 'A' --andnot 'B' --andnot 'C' ...
       ugrep --bool '"abc" "def"' ...         ugrep -e '\Qabc\E' --and '\Qdef\E' ...
-  where `A`, `B` and `C` are arbitrary regex patterns, use option `-F` to search strings.
 
-  **Pro tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.  Otherwise, Boolean query conditions apply to lines by default, since grep is generally a line-based pattern matcher.
+  > where `A`, `B` and `C` are arbitrary regex patterns, use option `-F` to search strings.
+
+  > **Pro tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.  Otherwise, Boolean query conditions apply to lines by default, since grep is generally a line-based pattern matcher.
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4`, and words only with `-w`, press TAB and ALT-y to view a file, SHIFT-TAB and Alt-l to go back to view the list of matching files ordered by best match
 
       ugrep -Q1 --bool -l -w -Z+4 --sort=best
       ugrep -Q1 --files --bool -l -w -Z+4 --sort=best
-  **Pro tip:** `-l` lists the matching files in the UI, toggle the view with `ALT-l` to view the matches.
+
+  > **Pro tip:** `-l` lists the matching files in the UI, toggle the view with `ALT-l` to view the matches.
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
@@ -59,7 +61,8 @@ Search for anything in everything... ultra fast
       ugrep --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
       ugrep --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
       ugrep --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
-  **Pro tip:** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
+
+  > **Pro tip:** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or raw byte patterns)
 
