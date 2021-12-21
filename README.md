@@ -22,7 +22,7 @@ Search for anything in everything... ultra fast
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-- Interactive [query UI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
+- Interactive [query UI](#query) with option `-Q` instead of a PATTERN on the command line, press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
       ugrep -Q                               ugrep -Q -e PATTERN    
 
@@ -38,7 +38,7 @@ Search for anything in everything... ultra fast
       ugrep --bool 'PATT1 -(PATT2|PATT3)'... ugrep -e PATT1 --andnot PATT2 --andnot PATT3 ...
       ugrep --bool '"PATT1" "PATT2"' ...     ugrep -e '\QPATT1\E' --and '\QPATT2\E' ...
 
-  Boolean query conditions apply to lines by default (grep is a line matching tool!)  Specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.
+  Boolean query conditions apply to lines by default, because grep is generally a line-based pattern matcher.  Specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4`, and words only with `-w`, press TAB and ALT-y to view a file, SHIFT-TAB and Alt-l to go back to view the list of matching files ordered by best match
 
