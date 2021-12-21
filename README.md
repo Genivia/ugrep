@@ -46,12 +46,12 @@ Search for anything in everything... ultra fast
 
   > **Pro tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.  Otherwise, Boolean query conditions apply to lines by default, since grep is generally a line-based pattern matcher.
 
-- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4`, and words only with `-w`, press TAB and ALT-y to view a file, SHIFT-TAB and Alt-l to go back to view the list of matching files ordered by best match
+- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`
 
       ugrep -Q1 --bool -l -w -Z+4 --sort=best
       ugrep -Q1 --files --bool -l -w -Z+4 --sort=best
 
-  > **Pro tip:** `-l` lists the matching files in the UI, toggle the view with `ALT-l` to view the matches.
+  > **Pro tip:** `-l` lists the matching files in the UI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
