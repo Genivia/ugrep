@@ -228,8 +228,8 @@ Notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
 
     $ apt-get install ugrep
 
-Check <https://packages.debian.org/sid/main/ugrep> for version info.  To build
-and try `ugrep` locally, see "All platforms" build steps further below.
+Check <https://packages.debian.org/ugrep> for version info.  To build and try
+`ugrep` locally, see "All platforms" build steps further below.
 
 ### NetBSD
 
