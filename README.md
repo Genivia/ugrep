@@ -42,7 +42,7 @@ Search for anything in everything... ultra fast
       ugrep --bool 'A -(B|C)'...             ugrep -e 'A' --andnot 'B' --andnot 'C' ...
       ugrep --bool '"abc" "def"' ...         ugrep -e '\Qabc\E' --and '\Qdef\E' ...
 
-  > where `A`, `B` and `C` are arbitrary regex patterns, use option `-F` to search strings.
+  where `A`, `B` and `C` are arbitrary regex patterns, use option `-F` to search strings.
 
   > **Pro tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.  Otherwise, Boolean query conditions apply to lines by default, since grep is generally a line-based pattern matcher.
 
@@ -95,7 +95,7 @@ Search for anything in everything... ultra fast
 
       ugrep --ignore-files PATTERN ...       ugrep --ignore-files=.ignore PATTERN ...
 
-- Search patterns excluding [negative patterns](#not) ("match this if it does not match that")
+- Search patterns excluding [negative patterns](#not) ("match this but not that")
 
       ugrep PATTERN -N NOTPATTERN ...        ugrep '[0-9]+' -N 123 ...
 
@@ -124,7 +124,7 @@ Search for anything in everything... ultra fast
 
       ugrep --encoding=LATIN1 PATTERN ...
 
-- Search patterns that match multiple lines (by default), i.e. patterns may contain one or more newlines
+- Search patterns that match multiple lines; patterns may contain `\n` to match newlines and Unicode `\R` to match any `\n`, `\r\n`,`\r`, `\v`, `\f`, U+0085, U+2028 and U+2029 line breaks.
 
 <a name="toc"/>
 
