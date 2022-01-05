@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 20, 2021" "ugrep 3.4.0" "User Commands"
+.TH UGREP "1" "January 05, 2022" "ugrep 3.5.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -723,9 +723,8 @@ option, empty\-matching patterns such as x? and x*, match all input,
 not only lines containing the character `x'.
 .TP
 \fB\-y\fR, \fB\-\-any\-line\fR
-Any matching or non\-matching line is output.  Non\-matching lines
-are output with the `\-' separator as context of the matching lines.
-See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
+Any line is output (passthru).  Non\-matching lines are output as
+context with a `\-' separator.  See also options \fB\-A\fR, \fB\-B\fR, and \fB\-C\fR.
 .TP
 \fB\-Z\fR[[+\-~]MAX], \fB\-\-fuzzy\fR[=[+\-~]MAX]
 Fuzzy mode: report approximate pattern matches within MAX errors.
@@ -743,14 +742,25 @@ Decompress files to search, when compressed.  Archives (.cpio,
 \&.pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,
 \&.tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
 matching pathnames of files in archives are output in braces.  If
-\fB\-g\fR, \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches files within archives
-whose name matches globs, matches file name extensions, matches
-file signature magic bytes, or matches file types, respectively.
+\fB\-g\fR, \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is specified, searches files stored in archives
+whose filenames match globs, match filename extensions, match file
+signature magic bytes, or match file types, respectively.
 Supported compression formats: gzip (.gz), compress (.Z), zip,
 bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
 lz4 (requires suffix .lz4),
 zstd (requires suffix .zst, .zstd, .tzst).
+.TP
+\fB\-\-zmax\fR=\fINUM\fR
+When used with option \fB\-z\fR (\fB\-\-decompress\fR), searches the contents of
+compressed files and archives stored within archives for up to NUM
+recursive levels deep.  The default \fB\-\-zmax\fR=1 only permits searching
+uncompressed files stored in cpio, pax, tar and zip archives;
+compressed files and archives are detected as binary files and are
+effectively ignored.  Specify \fB\-\-zmax\fR=2 to search compressed files
+and archives stored in cpio, pax, tar and zip archives.  NUM may
+range from 1 to 99 for up to 99 decompression and de\-archiving
+steps.  Larger NUM values gradually degrade performance.
 .TP
 \fB\-0\fR, \fB\-\-null\fR
 Prints a zero\-byte (NUL) after the file name.  This option can be
