@@ -147,6 +147,7 @@ extern size_t flag_min_steal;
 extern size_t flag_not_magic;
 extern size_t flag_query;
 extern size_t flag_tabs;
+extern size_t flag_zmax;
 extern const char *flag_apply_color;
 extern const char *flag_binary_files;
 extern const char *flag_color;

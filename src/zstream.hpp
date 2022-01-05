@@ -280,7 +280,7 @@ class zstreambuf : public std::streambuf {
         // initialize zlib inflate
         if (inflateInit2(z_strm_, -MAX_WBITS) != Z_OK)
         {
-          cannot_decompress(pathname_, z_strm_->msg ? z_strm_->msg : "inflateInit2 failed");
+          cannot_decompress(pathname_, z_strm_->msg != NULL ? z_strm_->msg : "inflateInit2 failed");
           return false;
         }
       }
@@ -1085,10 +1085,12 @@ class zstreambuf : public std::streambuf {
     }
     else if (is_7z(pathname))
     {
+      // perhaps 7zip can be supported sometime in the future?
       cannot_decompress("unsupported compression format", pathname);
     }
     else if (is_rar(pathname))
     {
+      // perhaps RAR can be supported sometime in the future?
       cannot_decompress("unsupported compression format", pathname);
     }
     else
@@ -1115,7 +1117,7 @@ class zstreambuf : public std::streambuf {
             // inflate gzip compressed data starting with a gzip header
             if (inflateInit2(&zfile_->strm, 16 + MAX_WBITS) != Z_OK)
             {
-              cannot_decompress(pathname_, zfile_->strm.msg ? zfile_->strm.msg : "inflateInit2 failed");
+              cannot_decompress(pathname_, zfile_->strm.msg != NULL ? zfile_->strm.msg : "inflateInit2 failed");
 
               delete zfile_;
               zfile_ = NULL;
@@ -1126,7 +1128,7 @@ class zstreambuf : public std::streambuf {
           catch (const std::bad_alloc&)
           {
             errno = ENOMEM;
-            warning("zlib open error", pathname);
+            warning("out of memory", pathname);
           }
         }
         else if (u16(buf_) == ZipInfo::COMPRESS_HEADER_MAGIC)
@@ -1159,7 +1161,7 @@ class zstreambuf : public std::streambuf {
             catch (const std::bad_alloc&)
             {
               errno = ENOMEM;
-              warning("zip open error", pathname);
+              warning("out of memory", pathname);
             }
           }
           else if (num >= 0)
@@ -1305,6 +1307,7 @@ class zstreambuf : public std::streambuf {
       strm.avail_in  = 0;
       strm.next_out  = Z_NULL;
       strm.avail_out = 0;
+      strm.msg       = NULL;
     }
 
     ~Z()

@@ -1,6 +1,6 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-**ugrep v3.4 is now available: more features & even faster than before**
+**ugrep v3.5 is now available: more features & even faster than before**
 
 Search for anything in everything... ultra fast
 
@@ -8,7 +8,7 @@ Search for anything in everything... ultra fast
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-- Supports all GNU/BSD grep standard options; a compatible replacement for GNU/BSD grep
+- Supports all GNU/BSD grep standard options; a compatible replacement for GNU/BSD grep, [see how](#grep)
 
 - Matches Unicode patterns by default in UTF-8, UTF-16, UTF-32 encoded files
 
@@ -26,13 +26,13 @@ Search for anything in everything... ultra fast
 
       ugrep -Q                               ugrep -Q -e PATTERN    
 
-  > **Pro tip:** `-Q` replaces a PATTERN on the command line to specify patterns interactively; use `-e PATTERN` to search and edit a PATTERN in the UI.
+  > **Pro Tip:** `-Q` replaces a PATTERN on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the UI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
       ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
 
-  > **Pro tip:** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches up to `n` missing characters and `-Z~n` matches up to `n` replacements.  `-Z` defaults to `-Z1`.
+  > **Pro Tip:** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches up to `n` missing characters and `-Z~n` matches up to `n` replacements.  `-Z` defaults to `-Z1`.
 
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
@@ -44,18 +44,20 @@ Search for anything in everything... ultra fast
 
   where `A`, `B` and `C` are arbitrary regex patterns, use option `-F` to search strings.
 
-  > **Pro tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.  Otherwise, Boolean query conditions apply to lines by default, since grep is generally a line-based pattern matcher.
+  > **Pro Tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.  Otherwise, Boolean query conditions apply to lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`
 
       ugrep -Q1 --bool -l -w -Z+4 --sort=best
       ugrep -Q1 --files --bool -l -w -Z+4 --sort=best
 
-  > **Pro tip:** `-l` lists the matching files in the UI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
+  > **Pro Tip:** `-l` lists the matching files in the UI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
-      ugrep -z PATTERN ...
+      ugrep -z PATTERN ...                   ugrep -z --zmax=2 PATTERN ...
+
+  > **Pro Tip:** specify `-z --zmax=2` to search compressed files and archives recursively stored within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps, but larger `--zmax` slows searching.
 
 - Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
 
@@ -64,7 +66,7 @@ Search for anything in everything... ultra fast
       ugrep --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
       ugrep --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
 
-  > **Pro tip:** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
+  > **Pro Tip:** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or raw byte patterns)
 
@@ -586,6 +588,34 @@ To view the CtrlP documentation in Vim, enter the command:
 Using ugrep to replace GNU/BSD grep
 -----------------------------------
 
+Executing `ugrep` with options `-U`, `-Y` and `-.` makes it behave like
+`egrep` by matching ASCII/LATIN1 non-UTF Unicode patterns, permitting empty
+patterns to match and searching hidden files, respectively.  See the full list
+of [grep equivalence options](#equivalence).
+
+The defaults of **ugrep** options may slightly differ from GNU/BSD grep to make
+**ugrep** more user friendly, for details see [notable improvements over
+grep](#improvements).
+
+You can create [convenient grep aliases](#aliases) for ugrep with or without
+options `-U`, `-Y` and `-.` or include other options as desired, or create
+additional `grep`, `egrep` and `fgrep` executables.
+
+When the `ugrep` (or `ugrep.exe`) executable is copied as `grep` (`grep.exe`),
+`egrep` (`egrep.exe`), `fgrep` (`fgrep.exe`), then option `-U`, `-Y` and `-.`
+are automatically enabled together with either `-G` for `grep`, `-E` for
+`egrep` and `-F` for `fgrep`.  In addition, when copied as `zgrep`, `zegrep`
+and `zfgrep`, option `-z` is enabled.  For example, when `ugrep` is copied as
+`zegrep`, options `-z`, `-E`, `-Y` and `-.` are enabled.
+
+Instead of copying files, symlinks and hard links to `ugrep` work fine too.
+For example, to create a symlink `egrep`:
+
+    sudo ln -s `which ugrep` /opt/local/bin/egrep
+
+The `/opt/local/bin` is just an example and may or may not be in your `$path`
+and may or may not be found when executing `egrep` depending on your `$path`.
+
 <a name="equivalence"/>
 
 ### Equivalence to GNU/BSD grep
@@ -596,9 +626,9 @@ Using ugrep to replace GNU/BSD grep
     egrep  = ugrep --sort -E -U -Y -. -Dread -dread
     fgrep  = ugrep --sort -F -U -Y -. -Dread -dread
 
-    zgrep  = ugrep --sort -G -U -Y -z -. -Dread -dread
-    zegrep = ugrep --sort -E -U -Y -z -. -Dread -dread
-    zfgrep = ugrep --sort -F -U -Y -z -. -Dread -dread
+    zgrep  = ugrep --sort -z -G -U -Y -. -Dread -dread
+    zegrep = ugrep --sort -z -E -U -Y -. -Dread -dread
+    zfgrep = ugrep --sort -z -F -U -Y -. -Dread -dread
 
 where:
 
@@ -609,7 +639,8 @@ where:
   pattern `\xa3` matches byte A3 instead of the Unicode code point U+00A3
   represented by the UTF-8 sequence C2 A3.  By default in ugrep, `\xa3` matches
   U+00A3.  We do not recommend to use `-U` for text pattern searches, only for
-  binary searches.
+  binary searches or to search latin-1 (iso-8859-1) files without reporting
+  these files as binary (since ugrep v3.5.0).
 - `-Y` enables empty matches, so for example the pattern `a*` matches every
   line instead of a sequence of `a`'s.  By default in ugrep, the pattern `a*`
   matches a sequence of `a`'s.  Moreover, in ugrep the pattern `a*b*c*` matches
@@ -618,15 +649,6 @@ where:
   like most Unix utilities.
 - `-Dread` and `-dread` are the GNU/BSD grep defaults but are not recommended,
   see [improvements](#improvements) for an explanation.
-
-When the `ugrep` (or `ugrep.exe`) executable is renamed to `grep` (`grep.exe`),
-`egrep` (`egrep.exe`), `fgrep` (`fgrep.exe`) and so on, then a subset of the
-options shown above are automatically in effect except for `--sort`, `-Dread`,
-`-dread`, and `-U`.  For example, when `ugrep` is renamed to `egrep`, options
-`-E`, `-Y`, and `-.` are automatically enabled.
-
-Note that the defaults of some grep options may differ to make **ugrep** more
-user friendly, see [notable improvements over grep](#improvements).
 
 🔝 [Back to table of contents](#toc)
 
@@ -680,6 +702,8 @@ and [`soffice`](https://www.libreoffice.org) to be installed.  See
 - **ugrep** supports Boolean patterns with AND, OR and NOT (option `--bool`).
 - **ugrep** searches compressed files with option `-z`.
 - **ugrep** searches cpio, jar, pax, tar and zip archives with option `-z`.
+- **ugrep** searches cpio, jar, pax, tar and zip archives recursively stored
+  within archives with `-z` and `--zmax=NUM` for `NUM` recursive levels deep.
 - **ugrep** searches pdf, doc, docx, xls, xlsx, epub, and more with `--filter`
   using third-party format conversion utilities as plugins.
 - **ugrep** searches a directory when the FILE argument is a directory, like
@@ -1739,9 +1763,8 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
             match.  Places a --group-separator between contiguous groups of
             matches. See also options -A, -B, and -y.
     -y, --any-line
-            Any matching or non-matching line is output.  Non-matching lines
-            are output with the `-' separator as context of the matching lines.
-            See also options -A, -B, and -C.
+            Any line is output (passthru).  Non-matching lines are output as
+            context with a `-' separator.  See also options -A, -B, and -C.
 
 To display two lines of context before and after a matching line:
 
@@ -1895,18 +1918,28 @@ comments:
     -z, --decompress
             Decompress files to search, when compressed.  Archives (.cpio,
             .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,
-            .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, and .txz) are searched and
+            .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
             matching pathnames of files in archives are output in braces.  If
-            -g, -O, -M, or -t is specified, searches files within archives
-            whose name matches globs, matches file name extensions, matches
-            file signature magic bytes, or matches file types, respectively.
+            -g, -O, -M, or -t is specified, searches files stored in archives
+            whose filenames match globs, match filename extensions, match file
+            signature magic bytes, or match file types, respectively.
             Supported compression formats: gzip (.gz), compress (.Z), zip,
             bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
             lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
             lz4 (requires suffix .lz4),
             zstd (requires suffix .zst, .zstd, .tzst).
+    --zmax=NUM
+            When used with option -z (--decompress), searches the contents of
+            compressed files and archives stored within archives for up to NUM
+            recursion levels deep.  The default --zmax=1 only permits searching
+            uncompressed files stored in cpio, pax, tar and zip archives;
+            compressed files and archives are detected as binary files and are
+            effectively ignored.  Specify --zmax=2 to search compressed files
+            and archives stored in cpio, pax, tar and zip archives.  NUM may
+            range from 1 to 99 for up to 99 decompression and de-archiving
+            steps.  Larger NUM values gradually degrade performance.
 
-Compressed files with gzip (`.gz`), compress (`.Z`), bzip2 (`.bz`, `.bz2`,
+Files compressed with gzip (`.gz`), compress (`.Z`), bzip2 (`.bz`, `.bz2`,
 `.bzip2`), lzma (`.lzma`), xz (`.xz`), lz4 (`.lz4`) and zstd (`.zst`, `.zstd`)
 are searched with option `-z`.  This option does not require files to be
 compressed.  Uncompressed files are searched also.
@@ -1918,6 +1951,35 @@ pax.  Supported cpio formats are odc, newc, and crc.  Not supported is the
 obsolete non-portable old binary cpio format.  Archive formats cpio, tar, and
 pax are automatically recognized with option `-z` based on their content,
 independent of their filename suffix.
+
+By default, uncompressed archives stored within zip archives are also searched:
+all cpio, pax, and tar files in zip archives are automatically recognized and
+searched.  However, by default compressed files stored within archives are not
+recognized, e.g. zip files stored within tar files are not searched but rather
+all compressed files and archives are searched as if they are binary files
+without decompressing them.
+
+Specify `--zmax=NUM` to search archives that contain compressed files and
+archives for up to `NUM` levels deep.  The value of `NUM` may range from 1 to
+99 for up to 99 decompression and de-archiving steps to expand up to 99 nested
+archives.  Larger `--zmax=NUM` values degrade performance.  It is unlikely you
+will ever need 99 as `--zmax=2` suffices for most practical use cases, such as
+searching zip files stored in tar files.
+
+When option `-z` is used with options `-g`, `-O`, `-M`, or `-t`, archives and
+compressed and uncompressed files that match the filename selection criteria
+(glob, extension, magic bytes, or file type) are searched only.  For example,
+`ugrep -r -z -tc++` searches C++ files such as `main.cpp` and zip and tar
+archives that contain C++ files such as `main.cpp`.  Also included in the
+search are compressed C++ files such as `main.cpp.gz` and `main.cpp.xz` when
+present.  Also any cpio, pax, tar, and zip archives when present are searched
+for C++ files that they contain, such as `main.cpp`.  Use option `--stats` to
+see a list of the glob patterns applied to filter file pathnames in the
+recursive search and when searching archive contents.
+
+When option `-z` is used with options `-g`, `-O`, `-M`, or `-t` to search cpio,
+jar, pax, tar, and zip archives, archived files that match the filename selection
+criteria are searched only.
 
 The gzip, compress, and zip formats are automatically detected, which is useful
 when reading gzip-compressed data from standard input, e.g. input redirected
@@ -1950,33 +2012,28 @@ Supported zip compression methods are stored (0), deflate (8), bzip2 (12), lzma
 (14), xz (95) and zstd (93).  The bzip2, lzma, xz and zstd methods require
 ugrep to be compiled with the corresponding compression libraries.
 
-Archives compressed and stored within zip archives are also searched:  all
-cpio, pax, and tar files in zip archives are automatically recognized and
-searched.  However, compressed files stored within archives are not recognized,
-e.g. zip files stored within zip files or stored within tar files are not
-searched.  Any such compressed files are searched as if they are binary files
-without decompressing them.
-
 Searching encrypted zip archives is not supported (perhaps in future releases,
 depending on requests for enhancements).
 
-When option `-z` is used with options `-g`, `-O`, `-M`, or `-t`, archives and
-compressed and uncompressed files that match the filename selection criteria
-(glob, extension, magic bytes, or file type) are searched only.  For example,
-`ugrep -r -z -tc++` searches C++ files such as `main.cpp` and zip and tar
-archives that contain C++ files such as `main.cpp`.  Also included in the
-search are compressed C++ files such as `main.cpp.gz` and `main.cpp.xz` when
-present.  Also any cpio, pax, tar, and zip archives when present are searched
-for C++ files that they contain, such as `main.cpp`.  Use option `--stats` to
-see a list of the glob patterns applied to filter file pathnames in the
-recursive search and when searching archive contents.
+Option `-z` uses threads for task parallelism to speed up searching larger
+files by running the decompressor concurrently with a search of the
+decompressed stream.
 
-When option `-z` is used with options `-g`, `-O`, `-M`, or `-t` to search cpio,
-jar, pax, tar, and zip archives, archived files that match the filename selection
-criteria are searched only.
+To list all non-empty files stored in a `package.zip` archive, including the
+contents of all cpio, pax, tar and zip files that are stored in it:
 
-Option `-z` uses thread task parallelism to speed up searching larger files by
-running the decompressor concurrently with a search of the decompressed stream.
+    ugrep --zmax=2 -z -l '' package.zip
+
+Same, but only list the Python source code files, including scripts that invoke
+Python, with option `-tPython` (`ugrep -tlist` for details):
+
+    ugrep --zmax=2 -z -l -tPython '' package.zip
+
+To search Python applications distributed as a tar file with their dependencies
+includes as wheels (zip files with Python code), searching for the word
+`my_class` in `app.tgz`:
+
+    ugrep --zmax=2 -z -tPython -w my_class app.tgz
 
 To recursively search C++ files including compressed files for the word
 `my_function`, while skipping C and C++ comments:

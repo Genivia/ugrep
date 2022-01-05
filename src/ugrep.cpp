@@ -385,6 +385,7 @@ size_t flag_min_steal              = MIN_STEAL;
 size_t flag_not_magic              = 0;
 size_t flag_query                  = 0;
 size_t flag_tabs                   = DEFAULT_TABS;
+size_t flag_zmax                   = 1;
 const char *flag_apply_color       = NULL;
 const char *flag_binary_files      = "binary";
 const char *flag_color             = DEFAULT_COLOR;
@@ -572,35 +573,40 @@ inline bool getline(const char*& here, size_t& left, reflex::BufferedInput& buff
   return ch == EOF && line.empty();
 }
 
-// return true if s[0..n-1] contains a NUL or is non-displayable invalid UTF-8
+// return true if s[0..n-1] contains a \0 (NUL) or is non-displayable invalid UTF-8, which depends on -U and -W
 inline bool is_binary(const char *s, size_t n)
 {
-  if (n == 1)
-    return *s == '\0' || (*s & 0xc0) == 0x80;
-
+  // file is binary if it contains a \0 (NUL)
   if (memchr(s, '\0', n) != NULL)
     return true;
 
-  const char *e = s + n;
-
-  while (s < e)
+  // not -U or -W with -U: file is binary if it has UTF-8
+  if (!flag_binary || flag_with_hex)
   {
-    do
+    if (n == 1)
+      return (*s & 0xc0) == 0x80;
+
+    const char *e = s + n;
+
+    while (s < e)
     {
-      if ((*s & 0xc0) == 0x80)
+      do
+      {
+        if ((*s & 0xc0) == 0x80)
+          return true;
+      } while ((*s & 0xc0) != 0xc0 && ++s < e);
+
+      if (s >= e)
+        return false;
+
+      if (++s >= e || (*s & 0xc0) != 0x80)
         return true;
-    } while ((*s & 0xc0) != 0xc0 && ++s < e);
 
-    if (s >= e)
-      return false;
-
-    if (++s >= e || (*s & 0xc0) != 0x80)
-      return true;
-
-    if (++s < e && (*s & 0xc0) == 0x80)
       if (++s < e && (*s & 0xc0) == 0x80)
         if (++s < e && (*s & 0xc0) == 0x80)
-          ++s;
+          if (++s < e && (*s & 0xc0) == 0x80)
+            ++s;
+    }
   }
 
   return false;
@@ -642,6 +648,1035 @@ inline void copy_color(char to[COLORLEN], const char from[COLORLEN])
   if (comma != NULL)
     *comma = '\0';
 }
+
+#ifdef HAVE_LIBZ
+#ifdef WITH_DECOMPRESSION_THREAD
+
+// decompression thread state with shared objects
+struct Zthread {
+
+  Zthread(bool chained, std::string& partname) :
+      ztchain(NULL),
+      zstream(NULL),
+      zpipe_in(NULL),
+      chained(chained),
+      quit(false),
+      stop(false),
+      extracting(false),
+      waiting(false),
+      assigned(false),
+      partnameref(partname)
+  {
+    pipe_fd[0] = -1;
+    pipe_fd[1] = -1;
+  }
+
+  ~Zthread()
+  {
+    if (ztchain != NULL)
+    {
+      delete ztchain;
+      ztchain = NULL;
+    }
+  }
+
+  // start decompression thread and open new pipe, returns pipe or NULL on failure, this function is called by the main Grep thread
+  FILE *start(int ztstage, const char *pathname, FILE *file_in)
+  {
+    // return pipe
+    FILE *pipe_in = NULL;
+
+    // reset pipe descriptors, pipe is closed
+    pipe_fd[0] = -1;
+    pipe_fd[1] = -1;
+
+    // partnameref is not assigned yet, used only when this decompression thread is chained
+    assigned = false;
+
+    // open pipe between Grep (or previous decompression) thread and this (new) decompression thread
+    if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "rb")) != NULL)
+    {
+      // recursively add decompression stages to decompress multi-compressed files
+      if (ztstage > 1)
+      {
+        // create a new decompression chain if not already created
+        if (ztchain == NULL)
+          ztchain = new Zthread(true, partname);
+
+        // close the input pipe from the next decompression stage in the chain, if still open
+        if (zpipe_in != NULL)
+        {
+          fclose(zpipe_in);
+          zpipe_in = NULL;
+        }
+
+        // start the next stage in the decompression chain, return NULL if failed
+        zpipe_in = ztchain->start(ztstage - 1, pathname, file_in);
+        if (zpipe_in == NULL)
+          return NULL;
+
+        // wait for the partname to be assigned by the next decompression thread in the decompression chain
+        std::unique_lock<std::mutex> lock(ztchain->pipe_mutex);
+        if (!ztchain->assigned)
+          ztchain->part_ready.wait(lock);
+        lock.unlock();
+
+        // create or open a zstreambuf to (re)start the decompression thread, reading from zpipe_in from the next stage in the chain
+        if (zstream == NULL)
+          zstream = new zstreambuf(partname.c_str(), zpipe_in);
+        else
+          zstream->open(partname.c_str(), zpipe_in);
+      }
+      else
+      {
+        // create or open a zstreambuf to (re)start the decompression thread, reading from the source input
+        if (zstream == NULL)
+          zstream = new zstreambuf(pathname, file_in);
+        else
+          zstream->open(pathname, file_in);
+      }
+
+      if (thread.joinable())
+      {
+        // wake decompression thread in close_wait_zstream_open()
+        pipe_zstrm.notify_one();
+      }
+      else
+      {
+        // start a new decompression thread
+        try
+        {
+          // reset flags
+          quit = false;
+          stop = false;
+          extracting = false;
+          waiting = false;
+
+          thread = std::thread(&Zthread::decompress, this);
+        }
+
+        catch (std::system_error&)
+        {
+          // thread creation failed
+          fclose(pipe_in);
+          close(pipe_fd[1]);
+          pipe_fd[0] = -1;
+          pipe_fd[1] = -1;
+
+          warning("cannot create thread to decompress",  pathname);
+
+          return NULL;
+        }
+      }
+    }
+    else
+    {
+      // pipe failed
+      if (pipe_fd[0] != -1)
+      {
+        close(pipe_fd[0]);
+        close(pipe_fd[1]);
+        pipe_fd[0] = -1;
+        pipe_fd[1] = -1;
+      }
+
+      warning("cannot create pipe to decompress",  pathname);
+
+      return NULL;
+    }
+
+    return pipe_in;
+  }
+
+  // open pipe to the next file in the archive or return NULL, this function is called by the main Grep thread
+  FILE *open_next(const char *pathname)
+  {
+    if (pipe_fd[0] != -1)
+    {
+      // our end of the pipe was closed earlier, before open_next() was called
+      pipe_fd[0] = -1;
+
+      // if extracting and the decompression filter thread is not yet waiting, then wait until decompression thread closed its end of the pipe
+      std::unique_lock<std::mutex> lock(pipe_mutex);
+      if (!waiting)
+        pipe_close.wait(lock);
+      lock.unlock();
+
+      // partnameref is not assigned yet, used only when this decompression thread is chained
+      assigned = false;
+
+      // extract the next file from the archive when applicable, e.g. zip format
+      if (extracting)
+      {
+        FILE *pipe_in = NULL;
+
+        // open pipe between worker and decompression thread, then start decompression thread
+        if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "rb")) != NULL)
+        {
+          if (chained)
+          {
+            // use lock and wait for partname ready
+            std::unique_lock<std::mutex> lock(pipe_mutex);
+            // notify the decompression filter thread of the new pipe
+            pipe_ready.notify_one();
+            // wait for the partname to be set by the next decompression thread in the ztchain
+            if (!assigned)
+              part_ready.wait(lock);
+            lock.unlock();
+          }
+          else
+          {
+            // notify the decompression filter thread of the new pipe
+            pipe_ready.notify_one();
+          }
+
+          return pipe_in;
+        }
+
+        // failed to create a new pipe
+        warning("cannot create pipe to decompress", chained ? NULL : pathname);
+
+        if (pipe_fd[0] != -1)
+        {
+          close(pipe_fd[0]);
+          close(pipe_fd[1]);
+        }
+
+        // reset pipe descriptors, pipe was closed
+        pipe_fd[0] = -1;
+        pipe_fd[1] = -1;
+
+        // notify the decompression thread filter_tar/filter_cpio of the closed pipe
+        pipe_ready.notify_one();
+
+        // when an error occurred, we may still need to notify the receiver in case it is waiting on the partname
+        std::unique_lock<std::mutex> lock(pipe_mutex);
+        assigned = true;
+        part_ready.notify_one();
+        lock.unlock();
+      }
+    }
+
+    return NULL;
+  }
+
+  // cancel decompression
+  void cancel()
+  {
+    stop = true;
+
+    // recursively cancel decompression threads in the chain
+    if (ztchain != NULL)
+      ztchain->cancel();
+  }
+
+  // join this thread, this function is called by the main Grep thread
+  void join()
+  {
+    // --zmax: when quitting, recursively join all stages of the decompression thread chain
+    if (ztchain != NULL)
+      ztchain->join();
+
+    if (thread.joinable())
+    {
+      // decompression thread should terminate, notify decompression thread when it is waiting in close_wait_zstream_open()
+      std::unique_lock<std::mutex> lock(pipe_mutex);
+      quit = true;
+      pipe_zstrm.notify_one();
+      lock.unlock();
+
+      // now wait for the decomprssion thread to join
+      thread.join();
+    }
+
+    if (zstream != NULL)
+    {
+      delete zstream;
+      zstream = NULL;
+    }
+  }
+
+  // if the pipe was closed, then wait until the Grep thread opens a new pipe to search the next part in an archive
+  bool wait_pipe_ready()
+  {
+    if (pipe_fd[1] == -1)
+    {
+      // signal close and wait until a new zstream pipe is ready
+      std::unique_lock<std::mutex> lock(pipe_mutex);
+      pipe_close.notify_one();
+      waiting = true;
+      pipe_ready.wait(lock);
+      waiting = false;
+      lock.unlock();
+
+      // the receiver did not create a new pipe in close_file()
+      if (pipe_fd[1] == -1)
+        return false;
+    }
+
+    return true;
+  }
+
+  // close the pipe and wait until the Grep thread opens a new zstream and pipe for the next decompression job, unless quitting
+  void close_wait_zstream_open()
+  {
+    if (pipe_fd[1] != -1)
+    {
+      // close our end of the pipe
+      close(pipe_fd[1]);
+      pipe_fd[1] = -1;
+    }
+
+    // signal close and wait until zstream is open
+    std::unique_lock<std::mutex> lock(pipe_mutex);
+    pipe_close.notify_one();
+    if (!quit)
+    {
+      waiting = true;
+      pipe_zstrm.wait(lock);
+      waiting = false;
+    }
+    lock.unlock();
+  }
+
+  // decompression thread execution
+  void decompress()
+  {
+    while (!quit)
+    {
+      // use the zstreambuf internal buffer to hold decompressed data
+      unsigned char *buf;
+      size_t maxlen;
+      zstream->get_buffer(buf, maxlen);
+
+      // reset flags
+      extracting = false;
+      waiting = false;
+
+      // extract the parts of a zip file, one by one, if zip file detected
+      while (!stop)
+      {
+        // to hold the path (prefix + name) extracted from a zip file
+        std::string path;
+
+        // a regular file, may be reset when unzipping a directory
+        bool is_regular = true;
+
+        const zstreambuf::ZipInfo *zipinfo = zstream->zipinfo();
+
+        if (zipinfo != NULL)
+        {
+          // extracting a zip file
+          extracting = true;
+
+          if (!zipinfo->name.empty() && zipinfo->name.back() == '/')
+          {
+            // skip zip directories
+            is_regular = false;
+          }
+          else
+          {
+            // save the zip path (prefix + name), since zipinfo will become invalid
+            path.assign(zipinfo->name);
+
+            // produce headers with zip file pathnames for each archived part (Grep::partname)
+            if (!flag_no_filename)
+              flag_no_header = false;
+          }
+        }
+
+        // decompress a block of data into the buffer
+        std::streamsize len = zstream->decompress(buf, maxlen);
+        if (len < 0)
+          break;
+
+        bool is_selected = true;
+
+        if (!filter_tar(path, buf, maxlen, len) && !filter_cpio(path, buf, maxlen, len))
+        {
+          // not a tar/cpio file, decompress the data into pipe, if not unzipping or if zipped file meets selection criteria
+          is_selected = is_regular && (zipinfo == NULL || select_matching(path.c_str(), buf, static_cast<size_t>(len), true));
+
+          if (is_selected)
+          {
+            // if pipe is closed, then wait until receiver reopens it, break if failed
+            if (!wait_pipe_ready())
+            {
+              // close the input pipe from the next decompression chain stage
+              if (ztchain != NULL && zpipe_in != NULL)
+              {
+                fclose(zpipe_in);
+                zpipe_in = NULL;
+              }
+              break;
+            }
+
+            // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the new pipe
+            if (ztchain == NULL)
+              partnameref.assign(std::move(path));
+            else if (path.empty())
+              partnameref.assign(partname);
+            else
+              partnameref.assign(partname).append(":").append(std::move(path));
+
+            // notify the receiver of the new partname
+            if (chained)
+            {
+              std::unique_lock<std::mutex> lock(pipe_mutex);
+              assigned = true;
+              part_ready.notify_one();
+              lock.unlock();
+            }
+          }
+
+          // push decompressed data into pipe
+          while (len > 0 && !stop)
+          {
+            // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
+            if (is_selected && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
+              break;
+
+            // decompress the next block of data into the buffer
+            len = zstream->decompress(buf, maxlen);
+          }
+        }
+
+        // break if not unzipping or if no more files to unzip
+        if (zstream->zipinfo() == NULL)
+        {
+          // no decompression chain
+          if (ztchain == NULL)
+            break;
+
+          // close the input pipe from the next decompression chain stage
+          if (zpipe_in != NULL)
+          {
+            fclose(zpipe_in);
+            zpipe_in = NULL;
+          }
+
+          // open pipe to the next file in an archive if there is a next file to extract
+          zpipe_in = ztchain->open_next(partname.c_str());
+          if (zpipe_in == NULL)
+            break;
+
+          // open a zstreambuf to (re)start the decompression thread
+          zstream->open(partname.c_str(), zpipe_in);
+        }
+
+        // extracting a file
+        extracting = true;
+
+        // after extracting files from an archive, close our end of the pipe and loop for the next file
+        if (is_selected && pipe_fd[1] != -1)
+        {
+          close(pipe_fd[1]);
+          pipe_fd[1] = -1;
+        }
+      }
+
+      extracting = false;
+
+      // when an error occurred, we may still need to notify the receiver in case it is waiting on the partname
+      if (chained)
+        part_ready.notify_one();
+
+      // close the pipe and wait until zstream pipe is open, unless quitting
+      close_wait_zstream_open();
+    }
+  }
+
+  // if tar file, extract regular file contents and push into pipes one by one, return true when done
+  bool filter_tar(const std::string& partprefix, unsigned char *buf, size_t maxlen, std::streamsize len)
+  {
+    const int BLOCKSIZE = 512;
+
+    if (len > BLOCKSIZE)
+    {
+      // v7 and ustar formats
+      const char ustar_magic[8] = { 'u', 's', 't', 'a', 'r', 0, '0', '0' };
+
+      // gnu and oldgnu formats
+      const char gnutar_magic[8] = { 'u', 's', 't', 'a', 'r', ' ', ' ', 0 };
+
+      // is this a tar archive?
+      if (*buf != '\0' && (memcmp(buf + 257, ustar_magic, 8) == 0 || memcmp(buf + 257, gnutar_magic, 8) == 0))
+      {
+        // produce headers with tar file pathnames for each archived part (Grep::partname)
+        if (!flag_no_filename)
+          flag_no_header = false;
+
+        // inform the main grep thread we are extracting an archive
+        extracting = true;
+
+        // to hold the path (prefix + name) extracted from the header
+        std::string path;
+
+        // to hold long path extracted from the previous header block that is marked with typeflag 'x' or 'L'
+        std::string long_path;
+
+        while (!stop)
+        {
+          // extract tar header fields (name and prefix strings are not \0-terminated!!)
+          const char *name = reinterpret_cast<const char*>(buf);
+          const char *prefix = reinterpret_cast<const char*>(buf + 345);
+          size_t size = strtoul(reinterpret_cast<const char*>(buf + 124), NULL, 8);
+          int padding = (BLOCKSIZE - size % BLOCKSIZE) % BLOCKSIZE;
+          unsigned char typeflag = buf[156];
+
+          // header types
+          bool is_regular = typeflag == '0' || typeflag == '\0';
+          bool is_xhd = typeflag == 'x';
+          bool is_extended = typeflag == 'L';
+
+          // assign the (long) tar pathname
+          path.clear();
+          if (long_path.empty())
+          {
+            if (*prefix != '\0')
+            {
+              if (prefix[154] == '\0')
+                path.assign(prefix);
+              else
+                path.assign(prefix, 155);
+              path.push_back('/');
+            }
+            if (name[99] == '\0')
+              path.append(name);
+            else
+              path.append(name, 100);
+          }
+          else
+          {
+            path.assign(std::move(long_path));
+          }
+
+          // remove header to advance to the body
+          len -= BLOCKSIZE;
+          memmove(buf, buf + BLOCKSIZE, static_cast<size_t>(len));
+
+          // check if archived file meets selection criteria
+          size_t minlen = std::min(static_cast<size_t>(len), size);
+          bool is_selected = select_matching(path.c_str(), buf, minlen, is_regular);
+
+          // if extended headers are present
+          if (is_xhd)
+          {
+            // typeflag 'x': extract the long path from the pax extended header block in the body
+            const char *b = reinterpret_cast<const char*>(buf);
+            const char *e = b + minlen;
+            const char *t = "path=";
+            const char *s = std::search(b, e, t, t + 5);
+            if (s != NULL)
+            {
+              e = static_cast<const char*>(memchr(s, '\n', e - s));
+              if (e != NULL)
+                long_path.assign(s + 5, e - s - 5);
+            }
+          }
+          else if (is_extended)
+          {
+            // typeflag 'L': get long name from the body
+            long_path.assign(reinterpret_cast<const char*>(buf), minlen);
+          }
+
+          // if the pipe is closed, then get a new pipe to search the next part in the archive
+          if (is_selected)
+          {
+            // if pipe is closed, then wait until receiver reopens it, break if failed
+            if (!wait_pipe_ready())
+              break;
+
+            // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
+            if (ztchain != NULL)
+            {
+              if (!partprefix.empty())
+                partnameref.assign(partname).append(":").append(partprefix).append(":").append(std::move(path));
+              else
+                partnameref.assign(partname).append(":").append(std::move(path));
+            }
+            else
+            {
+              if (!partprefix.empty())
+                partnameref.assign(partprefix).append(":").append(std::move(path));
+              else
+                partnameref.assign(std::move(path));
+            }
+
+            // notify the receiver of the new partname after wait_pipe_ready()
+            if (chained)
+            {
+              std::unique_lock<std::mutex> lock(pipe_mutex);
+              assigned = true;
+              part_ready.notify_one();
+              lock.unlock();
+            }
+          }
+
+          // it is ok to push the body into the pipe for the main thread to search
+          bool ok = is_selected;
+
+          while (len > 0 && !stop)
+          {
+            size_t len_out = std::min(static_cast<size_t>(len), size);
+
+            if (ok)
+            {
+              // write decompressed data to the pipe, if the pipe is broken then stop pushing more data into this pipe
+              if (write(pipe_fd[1], buf, len_out) < static_cast<ssize_t>(len_out))
+                ok = false;
+            }
+
+            size -= len_out;
+
+            // reached the end of the tar body?
+            if (size == 0)
+            {
+              len -= len_out;
+              memmove(buf, buf + len_out, static_cast<size_t>(len));
+
+              break;
+            }
+
+            // decompress the next block of data into the buffer
+            len = zstream->decompress(buf, maxlen);
+          }
+
+          // error?
+          if (len < 0 || stop)
+            break;
+
+          // fill the rest of the buffer with decompressed data
+          if (static_cast<size_t>(len) < maxlen)
+          {
+            std::streamsize len_in = zstream->decompress(buf + len, maxlen - static_cast<size_t>(len));
+
+            // error?
+            if (len_in < 0)
+              break;
+
+            len += len_in;
+          }
+
+          // skip padding
+          if (len > padding)
+          {
+            len -= padding;
+            memmove(buf, buf + padding, static_cast<size_t>(len));
+          }
+
+          // rest of the file is too short, something is wrong
+          if (len <= BLOCKSIZE)
+            break;
+
+          // no more parts to extract?
+          if (*buf == '\0' || (memcmp(buf + 257, ustar_magic, 8) != 0 && memcmp(buf + 257, gnutar_magic, 8) != 0))
+            break;
+
+          // get a new pipe to search the next part in the archive, if the previous part was a regular file
+          if (is_selected)
+          {
+            // close our end of the pipe
+            close(pipe_fd[1]);
+            pipe_fd[1] = -1;
+          }
+        }
+
+        // if we're stopping we still need to notify the receiver in case it is waiting on the partname
+        if (chained)
+          part_ready.notify_one();
+
+        // done extracting the tar file
+        return true;
+      }
+    }
+
+    // not a tar file
+    return false;
+  }
+
+  // if cpio file, extract regular file contents and push into pipes one by one, return true when done
+  bool filter_cpio(const std::string& partprefix, unsigned char *buf, size_t maxlen, std::streamsize len)
+  {
+    const int HEADERSIZE = 110;
+
+    if (len > HEADERSIZE)
+    {
+      // cpio odc format
+      const char odc_magic[6] = { '0', '7', '0', '7', '0', '7' };
+
+      // cpio newc format
+      const char newc_magic[6] = { '0', '7', '0', '7', '0', '1' };
+
+      // cpio newc+crc format
+      const char newc_crc_magic[6] = { '0', '7', '0', '7', '0', '2' };
+
+      // is this a cpio archive?
+      if (memcmp(buf, odc_magic, 6) == 0 || memcmp(buf, newc_magic, 6) == 0 || memcmp(buf, newc_crc_magic, 6) == 0)
+      {
+        // produce headers with cpio file pathnames for each archived part (Grep::partname)
+        if (!flag_no_filename)
+          flag_no_header = false;
+
+        // inform the main grep thread we are extracting an archive
+        extracting = true;
+
+        // to hold the path (prefix + name) extracted from the header
+        std::string path;
+
+        // need a new pipe, close current pipe first to create a new pipe
+        bool in_progress = false;
+
+        while (!stop)
+        {
+          // true if odc format, false if newc format
+          bool is_odc = buf[5] == '7';
+
+          // odc header length is 76, newc header length is 110
+          int header_len = is_odc ? 76 : 110;
+
+          char tmp[16];
+          char *rest;
+
+          // get the namesize
+          size_t namesize;
+          if (is_odc)
+          {
+            memcpy(tmp, buf + 59, 6);
+            tmp[6] = '\0';
+            namesize = strtoul(tmp, &rest, 8);
+          }
+          else
+          {
+            memcpy(tmp, buf + 94, 8);
+            tmp[8] = '\0';
+            namesize = strtoul(tmp, &rest, 16);
+          }
+
+          // if not a valid mode value, then something is wrong
+          if (rest == NULL || *rest != '\0')
+          {
+            // data was read, stop reading more
+            if (in_progress)
+              break;
+
+            // assume this is not a cpio file and return false
+            return false;
+          }
+
+          // pathnames with trailing \0 cannot be empty or too large
+          if (namesize <= 1 || namesize >= 65536)
+            break;
+
+          // get the filesize
+          size_t filesize;
+          if (is_odc)
+          {
+            memcpy(tmp, buf + 65, 11);
+            tmp[11] = '\0';
+            filesize = strtoul(tmp, &rest, 8);
+          }
+          else
+          {
+            memcpy(tmp, buf + 54, 8);
+            tmp[8] = '\0';
+            filesize = strtoul(tmp, &rest, 16);
+          }
+
+          // if not a valid mode value, then something is wrong
+          if (rest == NULL || *rest != '\0')
+          {
+            // data was read, stop reading more
+            if (in_progress)
+              break;
+
+            // assume this is not a cpio file and return false
+            return false;
+          }
+
+          // true if this is a regular file when (mode & 0170000) == 0100000
+          bool is_regular;
+          if (is_odc)
+          {
+            memcpy(tmp, buf + 18, 6);
+            tmp[6] = '\0';
+            is_regular = (strtoul(tmp, &rest, 8) & 0170000) == 0100000;
+          }
+          else
+          {
+            memcpy(tmp, buf + 14, 8);
+            tmp[8] = '\0';
+            is_regular = (strtoul(tmp, &rest, 16) & 0170000) == 0100000;
+          }
+
+          // if not a valid mode value, then something is wrong
+          if (rest == NULL || *rest != '\0')
+          {
+            // data was read, stop reading more
+            if (in_progress)
+              break;
+
+            // assume this is not a cpio file and return false
+            return false;
+          }
+
+          // remove header to advance to the body
+          len -= header_len;
+          memmove(buf, buf + header_len, static_cast<size_t>(len));
+
+          // assign the cpio pathname
+          path.clear();
+
+          size_t size = namesize;
+
+          while (len > 0 && !stop)
+          {
+            size_t n = std::min(static_cast<size_t>(len), size);
+            char *b = reinterpret_cast<char*>(buf);
+
+            path.append(b, n);
+            size -= n;
+
+            if (size == 0)
+            {
+              // remove pathname to advance to the body
+              len -= n;
+              memmove(buf, buf + n, static_cast<size_t>(len));
+
+              break;
+            }
+
+            // decompress the next block of data into the buffer
+            len = zstream->decompress(buf, maxlen);
+          }
+
+          // error?
+          if (len < 0 || stop)
+            break;
+
+          // remove trailing \0
+          if (path.back() == '\0')
+            path.pop_back();
+
+          // reached the end of the cpio archive?
+          if (path == "TRAILER!!!")
+            break;
+
+          // fill the rest of the buffer with decompressed data
+          if (static_cast<size_t>(len) < maxlen)
+          {
+            std::streamsize len_in = zstream->decompress(buf + len, maxlen - static_cast<size_t>(len));
+
+            // error?
+            if (len_in < 0)
+              break;
+
+            len += len_in;
+          }
+
+          // skip newc format \0 padding after the pathname
+          if (!is_odc && len > 3)
+          {
+            size_t n = 4 - (110 + namesize) % 4;
+            len -= n;
+            memmove(buf, buf + n, static_cast<size_t>(len));
+          }
+
+          // check if archived file meets selection criteria
+          size_t minlen = std::min(static_cast<size_t>(len), filesize);
+          bool is_selected = select_matching(path.c_str(), buf, minlen, is_regular);
+
+          // if the pipe is closed, then get a new pipe to search the next part in the archive
+          if (is_selected)
+          {
+            // if pipe is closed, then wait until receiver reopens it, break if failed
+            if (!wait_pipe_ready())
+              break;
+
+            // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
+            if (ztchain != NULL)
+            {
+              if (!partprefix.empty())
+                partnameref.assign(partname).append(":").append(partprefix).append(":").append(std::move(path));
+              else
+                partnameref.assign(partname).append(":").append(std::move(path));
+            }
+            else
+            {
+              if (!partprefix.empty())
+                partnameref.assign(partprefix).append(":").append(std::move(path));
+              else
+                partnameref.assign(std::move(path));
+            }
+
+            // notify the receiver of the new partname
+            if (chained)
+            {
+              std::unique_lock<std::mutex> lock(pipe_mutex);
+              assigned = true;
+              part_ready.notify_one();
+              lock.unlock();
+            }
+          }
+
+          // it is ok to push the body into the pipe for the main thread to search
+          bool ok = is_selected;
+
+          size = filesize;
+
+          while (len > 0 && !stop)
+          {
+            size_t len_out = std::min(static_cast<size_t>(len), size);
+
+            if (ok)
+            {
+              // write decompressed data to the pipe, if the pipe is broken then stop pushing more data into this pipe
+              if (write(pipe_fd[1], buf, len_out) < static_cast<ssize_t>(len_out))
+                ok = false;
+            }
+
+            size -= len_out;
+
+            // reached the end of the cpio body?
+            if (size == 0)
+            {
+              len -= len_out;
+              memmove(buf, buf + len_out, static_cast<size_t>(len));
+
+              break;
+            }
+
+            // decompress the next block of data into the buffer
+            len = zstream->decompress(buf, maxlen);
+          }
+
+          // error?
+          if (len < 0 || stop)
+            break;
+
+          if (static_cast<size_t>(len) < maxlen)
+          {
+            // fill the rest of the buffer with decompressed data
+            std::streamsize len_in = zstream->decompress(buf + len, maxlen - static_cast<size_t>(len));
+
+            // error?
+            if (len_in < 0)
+              break;
+
+            len += len_in;
+          }
+
+          // skip newc format \0 padding
+          if (!is_odc && len > 2)
+          {
+            size_t n = (4 - filesize % 4) % 4;
+            len -= n;
+            memmove(buf, buf + n, static_cast<size_t>(len));
+          }
+
+          // rest of the file is too short, something is wrong
+          if (len <= HEADERSIZE)
+            break;
+
+          // quit if this is not valid cpio header magic
+          if (memcmp(buf, odc_magic, 6) != 0 && memcmp(buf, newc_magic, 6) != 0 && memcmp(buf, newc_crc_magic, 6) != 0)
+            break;
+
+          // get a new pipe to search the next part in the archive, if the previous part was a regular file
+          if (is_selected)
+          {
+            // close our end of the pipe
+            close(pipe_fd[1]);
+            pipe_fd[1] = -1;
+
+            in_progress = true;
+          }
+        }
+
+        // if we're stopping we still need to notify the receiver in case it is waiting on the partname
+        if (chained)
+          part_ready.notify_one();
+
+        // done extracting the cpio file
+        return true;
+      }
+    }
+
+    // not a cpio file
+    return false;
+  }
+
+  // true if path matches search constraints or buf contains magic bytes
+  bool select_matching(const char *path, const unsigned char *buf, size_t len, bool is_regular)
+  {
+    bool is_selected = is_regular;
+
+    if (is_selected)
+    {
+      const char *basename = strrchr(path, '/');
+      if (basename == NULL)
+        basename = path;
+      else
+        ++basename;
+
+      if (*basename == '.' && !flag_hidden)
+        return false;
+
+      // -O, -t, and -g (--include and --exclude): check if pathname or basename matches globs, is_selected = false if not
+      if (!flag_all_exclude.empty() || !flag_all_include.empty())
+      {
+        // exclude files whose basename matches any one of the --exclude globs
+        for (const auto& glob : flag_all_exclude)
+          if (!(is_selected = !glob_match(path, basename, glob.c_str())))
+            break;
+
+        // include only if not excluded
+        if (is_selected)
+        {
+          // include files whose basename matches any one of the --include globs
+          for (const auto& glob : flag_all_include)
+            if ((is_selected = glob_match(path, basename, glob.c_str())))
+              break;
+        }
+      }
+
+      // -M: check magic bytes, requires sufficiently large len of buf[] to match patterns, which is fine when Z_BUF_LEN is large e.g. 64K
+      if (buf != NULL && !flag_file_magic.empty() && (flag_all_include.empty() || !is_selected))
+      {
+        // create a matcher to match the magic pattern, we cannot use magic_matcher because it is not thread safe
+        reflex::Matcher magic(magic_pattern);
+        magic.buffer(const_cast<char*>(reinterpret_cast<const char*>(buf)), len + 1);
+        size_t match = magic.scan();
+        is_selected = match == flag_not_magic || match >= flag_min_magic;
+      }
+    }
+
+    return is_selected;
+  }
+
+  Zthread                *ztchain;     // chain of Zthread decompression threads to decompress multi-compressed/archived files
+  zstreambuf             *zstream;     // the decompressed stream buffer from compressed input
+  FILE                   *zpipe_in;    // input pipe from the next ztchain stage, if any
+  std::thread             thread;      // decompression thread handle
+  bool                    chained;     // true if decompression thread is chained before another decompression thread
+  std::atomic_bool        quit;        // true if decompression thread should terminate to exit the program
+  std::atomic_bool        stop;        // true if decompression thread should stop (cancel search)
+  volatile bool           extracting;  // true if extracting files from TAR or ZIP archive (no concurrent r/w)
+  volatile bool           waiting;     // true if decompression thread is waiting (no concurrent r/w)
+  volatile bool           assigned;    // true when partnameref was assigned
+  int                     pipe_fd[2];  // decompressed stream pipe
+  std::mutex              pipe_mutex;  // mutex to extract files in thread
+  std::condition_variable pipe_zstrm;  // cv to control new pipe creation
+  std::condition_variable pipe_ready;  // cv to control new pipe creation
+  std::condition_variable pipe_close;  // cv to control new pipe creation
+  std::condition_variable part_ready;  // cv to control new partname creation to pass along decompression chains
+  std::string             partname;    // name of the archive part extracted by the next decompressor in the ztchain
+  std::string&            partnameref; // reference to the partname of Grep or of the previous decompressor
+
+};
+
+#endif
+#endif
 
 // grep manages output, matcher, input, and decompression
 struct Grep {
@@ -1664,17 +2699,16 @@ struct Grep {
       out(file),
       matcher(matcher),
       matchers(matchers),
-      file(NULL)
+      file_in(NULL)
 #ifndef OS_WIN
     , stdin_handler(this)
 #endif
 #ifdef HAVE_LIBZ
-    , zstream(NULL),
-      stream(NULL)
 #ifdef WITH_DECOMPRESSION_THREAD
-    , thread_end(false),
-      extracting(false),
-      waiting(false)
+    , zthread(false, partname)
+#else
+    , zstream(NULL)
+    , stream(NULL)
 #endif
 #endif
   {
@@ -1684,32 +2718,20 @@ struct Grep {
   virtual ~Grep()
   {
 #ifdef HAVE_LIBZ
-
 #ifdef WITH_DECOMPRESSION_THREAD
-    if (thread.joinable())
-    {
-      thread_end = true;
-
-      std::unique_lock<std::mutex> lock(pipe_mutex);
-      if (waiting)
-        pipe_zstrm.notify_one();
-      lock.unlock();
-
-      thread.join();
-    }
-#endif
-
+    zthread.join();
+#else
     if (stream != NULL)
     {
       delete stream;
       stream = NULL;
     }
-
     if (zstream != NULL)
     {
       delete zstream;
       zstream = NULL;
     }
+#endif
 #endif
   }
 
@@ -1718,6 +2740,14 @@ struct Grep {
   {
     // global cancellation is forced by cancelling the shared output
     out.cancel();
+
+#ifdef HAVE_LIBZ
+#ifdef WITH_DECOMPRESSION_THREAD
+    // -z: cancel decompression thread's decompression loop
+    if (flag_decompress)
+      zthread.cancel();
+#endif
+#endif
   }
 
   // search the specified files or standard input for pattern matches
@@ -1897,13 +2927,13 @@ struct Grep {
         return false;
 
       pathname = flag_label;
-      file = source;
+      file_in = source;
 
 #ifdef OS_WIN
       _setmode(fileno(source), _O_BINARY);
 #endif
     }
-    else if (fopenw_s(&file, pathname, "rb") != 0)
+    else if (fopenw_s(&file_in, pathname, "rb") != 0)
     {
       warning("cannot read", pathname);
 
@@ -1911,7 +2941,7 @@ struct Grep {
     }
 
     // --filter: fork process to filter file, when applicable
-    if (!filter(file, pathname))
+    if (!filter(file_in, pathname))
       return false;
 
 #ifdef HAVE_LIBZ
@@ -1919,62 +2949,10 @@ struct Grep {
     {
 #ifdef WITH_DECOMPRESSION_THREAD
 
-      pipe_fd[0] = -1;
-      pipe_fd[1] = -1;
-
-      FILE *pipe_in = NULL;
-
-      // open pipe between worker and decompression thread, then start decompression thread
-      if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "rb")) != NULL)
-      {
-        // create or open a new zstreambuf to (re)start the decompression thread
-        if (zstream == NULL)
-          zstream = new zstreambuf(pathname, file);
-        else
-          zstream->open(pathname, file);
-
-        if (thread.joinable())
-        {
-          pipe_zstrm.notify_one();
-        }
-        else
-        {
-          try
-          {
-            thread_end = false;
-            extracting = false;
-            waiting = false;
-
-            thread = std::thread(&Grep::decompress, this);
-          }
-
-          catch (std::system_error&)
-          {
-            fclose(pipe_in);
-            close(pipe_fd[1]);
-            pipe_fd[0] = -1;
-            pipe_fd[1] = -1;
-
-            warning("cannot create thread to decompress",  pathname);
-
-            return false;
-          }
-        }
-      }
-      else
-      {
-        if (pipe_fd[0] != -1)
-        {
-          close(pipe_fd[0]);
-          close(pipe_fd[1]);
-          pipe_fd[0] = -1;
-          pipe_fd[1] = -1;
-        }
-
-        warning("cannot create pipe to decompress",  pathname);
-
+      // start decompression thread to read the current input file, get pipe with decompressed input
+      FILE *pipe_in = zthread.start(flag_zmax, pathname, file_in);
+      if (pipe_in == NULL)
         return false;
-      }
 
       input = reflex::Input(pipe_in, flag_encoding_type);
 
@@ -1982,9 +2960,9 @@ struct Grep {
 
       // create or open a new zstreambuf
       if (zstream == NULL)
-        zstream = new zstreambuf(pathname, file);
+        zstream = new zstreambuf(pathname, file_in);
       else
-        zstream->open(pathname, file);
+        zstream->open(pathname, file_in);
 
       if (stream != NULL)
         delete stream;
@@ -1998,7 +2976,7 @@ struct Grep {
     else
 #endif
     {
-      input = reflex::Input(file, flag_encoding_type);
+      input = reflex::Input(file_in, flag_encoding_type);
     }
 
     return true;
@@ -2209,750 +3187,42 @@ struct Grep {
     return true;
   }
 
-#ifdef HAVE_LIBZ
-#ifdef WITH_DECOMPRESSION_THREAD
-
-  // decompression thread
-  void decompress()
-  {
-    while (!thread_end)
-    {
-      // use the zstreambuf internal buffer to hold decompressed data
-      unsigned char *buf;
-      size_t maxlen;
-      zstream->get_buffer(buf, maxlen);
-
-      // to hold the path (prefix + name) extracted from the zip file
-      std::string path;
-
-      // reset flags
-      extracting = false;
-      waiting = false;
-
-      // extract the parts of a zip file, one by one, if zip file detected
-      while (!thread_end)
-      {
-        // a regular file, may be reset when unzipping a directory
-        bool is_regular = true;
-
-        const zstreambuf::ZipInfo *zipinfo = zstream->zipinfo();
-
-        if (zipinfo != NULL)
-        {
-          // extracting a zip file
-          extracting = true;
-
-          if (!zipinfo->name.empty() && zipinfo->name.back() == '/')
-          {
-            // skip zip directories
-            is_regular = false;
-          }
-          else
-          {
-            path.assign(zipinfo->name);
-
-            // produce headers with zip file pathnames for each archived part (Grep::partname)
-            if (!flag_no_filename)
-              flag_no_header = false;
-          }
-        }
-
-        // decompress a block of data into the buffer
-        std::streamsize len = zstream->decompress(buf, maxlen);
-        if (len < 0)
-          break;
-
-        bool is_selected = true;
-
-        if (!filter_tar(*zstream, path, buf, maxlen, len) && !filter_cpio(*zstream, path, buf, maxlen, len))
-        {
-          // not a tar/cpio file, decompress the data into pipe, if not unzipping or if zipped file meets selection criteria
-          is_selected = is_regular && (zipinfo == NULL || select_matching(path.c_str(), buf, static_cast<size_t>(len), true));
-
-          if (is_selected)
-          {
-            // if pipe is closed, then reopen it
-            if (pipe_fd[1] == -1)
-            {
-              // signal close and wait until the main grep thread created a new pipe in close_file()
-              std::unique_lock<std::mutex> lock(pipe_mutex);
-              pipe_close.notify_one();
-              waiting = true;
-              pipe_ready.wait(lock);
-              waiting = false;
-              lock.unlock();
-
-              // failed to create a pipe in close_file()
-              if (pipe_fd[1] == -1)
-                break;
-            }
-
-            // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
-            partname.swap(path);
-          }
-
-          // push decompressed data into pipe
-          while (len > 0)
-          {
-            // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-            if (is_selected && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
-              break;
-
-            // decompress the next block of data into the buffer
-            len = zstream->decompress(buf, maxlen);
-          }
-        }
-
-        // break if not unzipping or if no more files to unzip
-        if (zstream->zipinfo() == NULL)
-          break;
-
-        // extracting a zip file
-        extracting = true;
-
-        // after unzipping the selected zip file, close our end of the pipe and loop for the next file
-        if (is_selected && pipe_fd[1] != -1)
-        {
-          close(pipe_fd[1]);
-          pipe_fd[1] = -1;
-        }
-      }
-
-      extracting = false;
-
-      if (pipe_fd[1] != -1)
-      {
-        // close our end of the pipe
-        close(pipe_fd[1]);
-        pipe_fd[1] = -1;
-      }
-
-      if (!thread_end)
-      {
-        // wait until a new zstream is ready
-        std::unique_lock<std::mutex> lock(pipe_mutex);
-        pipe_close.notify_one();
-        waiting = true;
-        pipe_zstrm.wait(lock);
-        waiting = false;
-        lock.unlock();
-      }
-    }
-  }
-
-  // if tar file, extract regular file contents and push into pipes one by one, return true when done
-  bool filter_tar(zstreambuf& zstream, const std::string& partprefix, unsigned char *buf, size_t maxlen, std::streamsize len)
-  {
-    const int BLOCKSIZE = 512;
-
-    if (len > BLOCKSIZE)
-    {
-      // v7 and ustar formats
-      const char ustar_magic[8] = { 'u', 's', 't', 'a', 'r', 0, '0', '0' };
-
-      // gnu and oldgnu formats
-      const char gnutar_magic[8] = { 'u', 's', 't', 'a', 'r', ' ', ' ', 0 };
-
-      // is this a tar archive?
-      if (*buf != '\0' && (memcmp(buf + 257, ustar_magic, 8) == 0 || memcmp(buf + 257, gnutar_magic, 8) == 0))
-      {
-        // produce headers with tar file pathnames for each archived part (Grep::partname)
-        if (!flag_no_filename)
-          flag_no_header = false;
-
-        // inform the main grep thread we are extracting an archive
-        extracting = true;
-
-        // to hold the path (prefix + name) extracted from the header
-        std::string path;
-
-        // to hold long path extracted from the previous header block that is marked with typeflag 'x' or 'L'
-        std::string long_path;
-
-        while (true)
-        {
-          // extract tar header fields (name and prefix strings are not \0-terminated!!)
-          const char *name = reinterpret_cast<const char*>(buf);
-          const char *prefix = reinterpret_cast<const char*>(buf + 345);
-          size_t size = strtoul(reinterpret_cast<const char*>(buf + 124), NULL, 8);
-          int padding = (BLOCKSIZE - size % BLOCKSIZE) % BLOCKSIZE;
-          unsigned char typeflag = buf[156];
-
-          // header types
-          bool is_regular = typeflag == '0' || typeflag == '\0';
-          bool is_xhd = typeflag == 'x';
-          bool is_extended = typeflag == 'L';
-
-          // assign the (long) tar pathname
-          path.clear();
-          if (long_path.empty())
-          {
-            if (*prefix != '\0')
-            {
-              if (prefix[154] == '\0')
-                path.assign(prefix);
-              else
-                path.assign(prefix, 155);
-              path.push_back('/');
-            }
-            if (name[99] == '\0')
-              path.append(name);
-            else
-              path.append(name, 100);
-          }
-          else
-          {
-            path.swap(long_path);
-          }
-
-          // remove header to advance to the body
-          len -= BLOCKSIZE;
-          memmove(buf, buf + BLOCKSIZE, static_cast<size_t>(len));
-
-          // check if archived file meets selection criteria
-          size_t minlen = std::min(static_cast<size_t>(len), size);
-          bool is_selected = select_matching(path.c_str(), buf, minlen, is_regular);
-
-          // if extended headers are present
-          if (is_xhd)
-          {
-            // typeflag 'x': extract the long path from the pax extended header block in the body
-            const char *b = reinterpret_cast<const char*>(buf);
-            const char *e = b + minlen;
-            const char *t = "path=";
-            const char *s = std::search(b, e, t, t + 5);
-            if (s != NULL)
-            {
-              e = static_cast<const char*>(memchr(s, '\n', e - s));
-              if (e != NULL)
-                long_path.assign(s + 5, e - s - 5);
-            }
-          }
-          else if (is_extended)
-          {
-            // typeflag 'L': get long name from the body
-            long_path.assign(reinterpret_cast<const char*>(buf), minlen);
-          }
-
-          // if the pipe is closed, then get a new pipe to search the next part in the archive
-          if (is_selected && pipe_fd[1] == -1)
-          {
-            // signal close and wait until the main grep thread created a new pipe in close_file()
-            std::unique_lock<std::mutex> lock(pipe_mutex);
-            pipe_close.notify_one();
-            waiting = true;
-            pipe_ready.wait(lock);
-            waiting = false;
-            lock.unlock();
-
-            // failed to create a pipe in close_file()
-            if (pipe_fd[1] == -1)
-              break;
-          }
-
-          // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
-          if (is_selected)
-          {
-            if (!partprefix.empty())
-              partname.assign(partprefix).append(":").append(path);
-            else
-              partname.swap(path);
-          }
-
-          // it is ok to push the body into the pipe for the main thread to search
-          bool ok = is_selected;
-
-          while (len > 0)
-          {
-            size_t len_out = std::min(static_cast<size_t>(len), size);
-
-            if (ok)
-            {
-              // write decompressed data to the pipe, if the pipe is broken then stop pushing more data into this pipe
-              if (write(pipe_fd[1], buf, len_out) < static_cast<ssize_t>(len_out))
-                ok = false;
-            }
-
-            size -= len_out;
-
-            // reached the end of the tar body?
-            if (size == 0)
-            {
-              len -= len_out;
-              memmove(buf, buf + len_out, static_cast<size_t>(len));
-
-              break;
-            }
-
-            // decompress the next block of data into the buffer
-            len = zstream.decompress(buf, maxlen);
-          }
-
-          // error?
-          if (len < 0)
-            break;
-
-          // fill the rest of the buffer with decompressed data
-          if (static_cast<size_t>(len) < maxlen)
-          {
-            std::streamsize len_in = zstream.decompress(buf + len, maxlen - static_cast<size_t>(len));
-
-            // error?
-            if (len_in < 0)
-              break;
-
-            len += len_in;
-          }
-
-          // skip padding
-          if (len > padding)
-          {
-            len -= padding;
-            memmove(buf, buf + padding, static_cast<size_t>(len));
-          }
-
-          // rest of the file is too short, something is wrong
-          if (len <= BLOCKSIZE)
-            break;
-
-          // no more parts to extract?
-          if (*buf == '\0' || (memcmp(buf + 257, ustar_magic, 8) != 0 && memcmp(buf + 257, gnutar_magic, 8) != 0))
-            break;
-
-          // get a new pipe to search the next part in the archive, if the previous part was a regular file
-          if (is_selected)
-          {
-            // close our end of the pipe
-            close(pipe_fd[1]);
-            pipe_fd[1] = -1;
-          }
-        }
-
-        // done extracting the tar file
-        return true;
-      }
-    }
-
-    // not a tar file
-    return false;
-  }
-
-  // if cpio file, extract regular file contents and push into pipes one by one, return true when done
-  bool filter_cpio(zstreambuf& zstream, const std::string& partprefix, unsigned char *buf, size_t maxlen, std::streamsize len)
-  {
-    const int HEADERSIZE = 110;
-
-    if (len > HEADERSIZE)
-    {
-      // cpio odc format
-      const char odc_magic[6] = { '0', '7', '0', '7', '0', '7' };
-
-      // cpio newc format
-      const char newc_magic[6] = { '0', '7', '0', '7', '0', '1' };
-
-      // cpio newc+crc format
-      const char newc_crc_magic[6] = { '0', '7', '0', '7', '0', '2' };
-
-      // is this a cpio archive?
-      if (memcmp(buf, odc_magic, 6) == 0 || memcmp(buf, newc_magic, 6) == 0 || memcmp(buf, newc_crc_magic, 6) == 0)
-      {
-        // produce headers with cpio file pathnames for each archived part (Grep::partname)
-        if (!flag_no_filename)
-          flag_no_header = false;
-
-        // inform the main grep thread we are extracting an archive
-        extracting = true;
-
-        // to hold the path (prefix + name) extracted from the header
-        std::string path;
-
-        // need a new pipe, close current pipe first to create a new pipe
-        bool in_progress = false;
-
-        while (true)
-        {
-          // true if odc format, false if newc format
-          bool is_odc = buf[5] == '7';
-
-          // odc header length is 76, newc header length is 110
-          int header_len = is_odc ? 76 : 110;
-
-          char tmp[16];
-          char *rest;
-
-          // get the namesize
-          size_t namesize;
-          if (is_odc)
-          {
-            memcpy(tmp, buf + 59, 6);
-            tmp[6] = '\0';
-            namesize = strtoul(tmp, &rest, 8);
-          }
-          else
-          {
-            memcpy(tmp, buf + 94, 8);
-            tmp[8] = '\0';
-            namesize = strtoul(tmp, &rest, 16);
-          }
-
-          // if not a valid mode value, then something is wrong
-          if (rest == NULL || *rest != '\0')
-          {
-            // data was read, stop reading more
-            if (in_progress)
-              break;
-
-            // assume this is not a cpio file and return false
-            return false;
-          }
-
-          // pathnames with trailing \0 cannot be empty or too large
-          if (namesize <= 1 || namesize >= 65536)
-            break;
-
-          // get the filesize
-          size_t filesize;
-          if (is_odc)
-          {
-            memcpy(tmp, buf + 65, 11);
-            tmp[11] = '\0';
-            filesize = strtoul(tmp, &rest, 8);
-          }
-          else
-          {
-            memcpy(tmp, buf + 54, 8);
-            tmp[8] = '\0';
-            filesize = strtoul(tmp, &rest, 16);
-          }
-
-          // if not a valid mode value, then something is wrong
-          if (rest == NULL || *rest != '\0')
-          {
-            // data was read, stop reading more
-            if (in_progress)
-              break;
-
-            // assume this is not a cpio file and return false
-            return false;
-          }
-
-          // true if this is a regular file when (mode & 0170000) == 0100000
-          bool is_regular;
-          if (is_odc)
-          {
-            memcpy(tmp, buf + 18, 6);
-            tmp[6] = '\0';
-            is_regular = (strtoul(tmp, &rest, 8) & 0170000) == 0100000;
-          }
-          else
-          {
-            memcpy(tmp, buf + 14, 8);
-            tmp[8] = '\0';
-            is_regular = (strtoul(tmp, &rest, 16) & 0170000) == 0100000;
-          }
-
-          // if not a valid mode value, then something is wrong
-          if (rest == NULL || *rest != '\0')
-          {
-            // data was read, stop reading more
-            if (in_progress)
-              break;
-
-            // assume this is not a cpio file and return false
-            return false;
-          }
-
-          // remove header to advance to the body
-          len -= header_len;
-          memmove(buf, buf + header_len, static_cast<size_t>(len));
-
-          // assign the cpio pathname
-          path.clear();
-
-          size_t size = namesize;
-
-          while (len > 0)
-          {
-            size_t n = std::min(static_cast<size_t>(len), size);
-            char *b = reinterpret_cast<char*>(buf);
-
-            path.append(b, n);
-            size -= n;
-
-            if (size == 0)
-            {
-              // remove pathname to advance to the body
-              len -= n;
-              memmove(buf, buf + n, static_cast<size_t>(len));
-
-              break;
-            }
-
-            // decompress the next block of data into the buffer
-            len = zstream.decompress(buf, maxlen);
-          }
-
-          // error?
-          if (len < 0)
-            break;
-
-          // remove trailing \0
-          if (path.back() == '\0')
-            path.pop_back();
-
-          // reached the end of the cpio archive?
-          if (path == "TRAILER!!!")
-            break;
-
-          // fill the rest of the buffer with decompressed data
-          if (static_cast<size_t>(len) < maxlen)
-          {
-            std::streamsize len_in = zstream.decompress(buf + len, maxlen - static_cast<size_t>(len));
-
-            // error?
-            if (len_in < 0)
-              break;
-
-            len += len_in;
-          }
-
-          // skip newc format \0 padding after the pathname
-          if (!is_odc && len > 3)
-          {
-            size_t n = 4 - (110 + namesize) % 4;
-            len -= n;
-            memmove(buf, buf + n, static_cast<size_t>(len));
-          }
-
-          // check if archived file meets selection criteria
-          size_t minlen = std::min(static_cast<size_t>(len), filesize);
-          bool is_selected = select_matching(path.c_str(), buf, minlen, is_regular);
-
-          // if the pipe is closed, then get a new pipe to search the next part in the archive
-          if (is_selected && pipe_fd[1] == -1)
-          {
-            // signal close and wait until the main grep thread created a new pipe in close_file()
-            std::unique_lock<std::mutex> lock(pipe_mutex);
-            pipe_close.notify_one();
-            waiting = true;
-            pipe_ready.wait(lock);
-            waiting = false;
-            lock.unlock();
-
-            // failed to create a pipe in close_file()
-            if (pipe_fd[1] == -1)
-              break;
-          }
-
-          // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the (new) pipe
-          if (is_selected)
-          {
-            if (!partprefix.empty())
-              partname.assign(partprefix).append(":").append(path);
-            else
-              partname.swap(path);
-          }
-
-          // it is ok to push the body into the pipe for the main thread to search
-          bool ok = is_selected;
-
-          size = filesize;
-
-          while (len > 0)
-          {
-            size_t len_out = std::min(static_cast<size_t>(len), size);
-
-            if (ok)
-            {
-              // write decompressed data to the pipe, if the pipe is broken then stop pushing more data into this pipe
-              if (write(pipe_fd[1], buf, len_out) < static_cast<ssize_t>(len_out))
-                ok = false;
-            }
-
-            size -= len_out;
-
-            // reached the end of the cpio body?
-            if (size == 0)
-            {
-              len -= len_out;
-              memmove(buf, buf + len_out, static_cast<size_t>(len));
-
-              break;
-            }
-
-            // decompress the next block of data into the buffer
-            len = zstream.decompress(buf, maxlen);
-          }
-
-          // error?
-          if (len < 0)
-            break;
-
-          if (static_cast<size_t>(len) < maxlen)
-          {
-            // fill the rest of the buffer with decompressed data
-            std::streamsize len_in = zstream.decompress(buf + len, maxlen - static_cast<size_t>(len));
-
-            // error?
-            if (len_in < 0)
-              break;
-
-            len += len_in;
-          }
-
-          // skip newc format \0 padding
-          if (!is_odc && len > 2)
-          {
-            size_t n = (4 - filesize % 4) % 4;
-            len -= n;
-            memmove(buf, buf + n, static_cast<size_t>(len));
-          }
-
-          // rest of the file is too short, something is wrong
-          if (len <= HEADERSIZE)
-            break;
-
-          // quit if this is not valid cpio header magic
-          if (memcmp(buf, odc_magic, 6) != 0 && memcmp(buf, newc_magic, 6) != 0 && memcmp(buf, newc_crc_magic, 6) != 0)
-            break;
-
-          // get a new pipe to search the next part in the archive, if the previous part was a regular file
-          if (is_selected)
-          {
-            // close our end of the pipe
-            close(pipe_fd[1]);
-            pipe_fd[1] = -1;
-
-            in_progress = true;
-          }
-        }
-
-        // done extracting the cpio file
-        return true;
-      }
-    }
-
-    // not a cpio file
-    return false;
-  }
-
-  // true if path matches search constraints or buf contains magic bytes
-  bool select_matching(const char *path, const unsigned char *buf, size_t len, bool is_regular)
-  {
-    bool is_selected = is_regular;
-
-    if (is_selected)
-    {
-      const char *basename = strrchr(path, '/');
-      if (basename == NULL)
-        basename = path;
-      else
-        ++basename;
-
-      if (*basename == '.' && !flag_hidden)
-        return false;
-
-      // -O, -t, and -g (--include and --exclude): check if pathname or basename matches globs, is_selected = false if not
-      if (!flag_all_exclude.empty() || !flag_all_include.empty())
-      {
-        // exclude files whose basename matches any one of the --exclude globs
-        for (const auto& glob : flag_all_exclude)
-          if (!(is_selected = !glob_match(path, basename, glob.c_str())))
-            break;
-
-        // include only if not excluded
-        if (is_selected)
-        {
-          // include files whose basename matches any one of the --include globs
-          for (const auto& glob : flag_all_include)
-            if ((is_selected = glob_match(path, basename, glob.c_str())))
-              break;
-        }
-      }
-
-      // -M: check magic bytes, requires sufficiently large len of buf[] to match patterns, which is fine when Z_BUF_LEN is large e.g. 64K
-      if (buf != NULL && !flag_file_magic.empty() && (flag_all_include.empty() || !is_selected))
-      {
-        // create a matcher to match the magic pattern, we cannot use magic_matcher because it is not thread safe
-        reflex::Matcher magic(magic_pattern);
-        magic.buffer(const_cast<char*>(reinterpret_cast<const char*>(buf)), len + 1);
-        size_t match = magic.scan();
-        is_selected = match == flag_not_magic || match >= flag_min_magic;
-      }
-    }
-
-    return is_selected;
-  }
-
-#endif
-#endif
-
   // close the file and clear input, return true if next file is extracted from an archive to search
   bool close_file(const char *pathname)
   {
     (void)pathname; // appease -Wunused-parameter
 
 #ifdef HAVE_LIBZ
-
 #ifdef WITH_DECOMPRESSION_THREAD
 
-    if (flag_decompress && pipe_fd[0] != -1)
+    // -z: open next archived file if any or close the compressed file/archive
+    if (flag_decompress)
     {
-      // close the FILE* and its underlying pipe created with pipe() and fdopen()
+      // close the input FILE* and its underlying pipe previously created with pipe() and fdopen()
       if (input.file() != NULL)
       {
+        // close and unassign input, i.e. input.file() == NULL, also closes pipe_fd[0] per fdopen()
         fclose(input.file());
-        input = static_cast<FILE*>(NULL);
+        input.clear();
       }
 
-      // our end of the pipe is now closed
-      pipe_fd[0] = -1;
-
-      // if extracting and the decompression filter thread is not yet waiting, then wait until the other end closed the pipe
-      std::unique_lock<std::mutex> lock(pipe_mutex);
-      if (!waiting)
-        pipe_close.wait(lock);
-      lock.unlock();
-
-      // extract the next file from the archive when applicable, e.g. zip format
-      if (extracting)
+      // if output is blocked, then cancel decompression threads
+      if (out.eof)
+        zthread.cancel();
+      
+      // open pipe to the next file in an archive if there is a next file to extract
+      FILE *pipe_in = zthread.open_next(pathname);
+      if (pipe_in != NULL)
       {
-        // output is not blocked or cancelled
-        if (!out.eof && !out.cancelled())
-        {
-          FILE *pipe_in = NULL;
+        // assign the next extracted file as input to search
+        input = reflex::Input(pipe_in, flag_encoding_type);
 
-          // open pipe between worker and decompression thread, then start decompression thread
-          if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "rb")) != NULL)
-          {
-            // notify the decompression filter thread of the new pipe
-            pipe_ready.notify_one();
-
-            input = reflex::Input(pipe_in, flag_encoding_type);
-
-            // loop back in search() to start searching the next file in the archive
-            return true;
-          }
-
-          // failed to create a new pipe
-          warning("cannot open decompression pipe while reading", pathname);
-
-          if (pipe_fd[0] != -1)
-          {
-            close(pipe_fd[0]);
-            close(pipe_fd[1]);
-          }
-        }
-
-        pipe_fd[0] = -1;
-        pipe_fd[1] = -1;
-
-        // notify the decompression thread filter_tar/filter_cpio
-        pipe_ready.notify_one();
+        // loop back in search() to start searching the next file in the archive
+        return true;
       }
     }
 
-#endif
+#else
 
     if (stream != NULL)
     {
@@ -2961,10 +3231,11 @@ struct Grep {
     }
 
 #endif
+#endif
 
 #ifdef WITH_STDIN_DRAIN
     // drain stdin until eof
-    if (file == stdin && !feof(stdin))
+    if (file_in == stdin && !feof(stdin))
     {
       if (fseek(stdin, 0, SEEK_END) != 0)
       {
@@ -3003,11 +3274,11 @@ struct Grep {
     }
 #endif
 
-    // close the file
-    if (file != NULL && file != stdin && file != source)
+    // close the current input file
+    if (file_in != NULL && file_in != stdin && file_in != source)
     {
-      fclose(file);
-      file = NULL;
+      fclose(file_in);
+      file_in = NULL;
     }
 
     input.clear();
@@ -3021,7 +3292,7 @@ struct Grep {
     const char *base;
     size_t size;
 
-    // attempt to mmap the input file
+    // attempt to mmap the input file, if mmap is supported and enabled (disabled by default)
     if (mmap.file(input, base, size))
     {
       // matcher reads directly from protected mmap memory (cast is safe: base[0..size] is not modified!)
@@ -3083,23 +3354,16 @@ struct Grep {
   std::vector<std::vector<bool>> notmatching;   // bitmap to keep track of globally matching OR NOT CNF terms
   MMap                           mmap;          // mmap state
   reflex::Input                  input;         // input to the matcher
-  FILE                          *file;          // the current input file
+  FILE                          *file_in;       // the current input file
 #ifndef OS_WIN
   StdInHandler                   stdin_handler; // a handler to handle non-blocking stdin from a TTY or a slow pipe
 #endif
 #ifdef HAVE_LIBZ
-  zstreambuf                    *zstream;       // the decompressed stream from the current input file
-  std::istream                  *stream;        // input stream layered on the decompressed stream
 #ifdef WITH_DECOMPRESSION_THREAD
-  std::thread                    thread;        // decompression thread
-  std::atomic_bool               thread_end;    // true if decompression thread should terminate
-  int                            pipe_fd[2];    // decompressed stream pipe
-  std::mutex                     pipe_mutex;    // mutex to extract files in thread
-  std::condition_variable        pipe_zstrm;    // cv to control new pipe creation
-  std::condition_variable        pipe_ready;    // cv to control new pipe creation
-  std::condition_variable        pipe_close;    // cv to control new pipe creation
-  volatile bool                  extracting;    // true if extracting files from TAR or ZIP archive
-  volatile bool                  waiting;       // true if decompression thread is waiting
+  Zthread                        zthread;
+#else
+  zstreambuf                    *zstream;       // the decompressed stream buffer from compressed input
+  std::istream                  *stream;        // input stream is the decompressed zstream
 #endif
 #endif
 
@@ -3851,7 +4115,7 @@ static void save_config()
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\n");
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   fprintf(file, "# Enable/disable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
-  fprintf(file, "# Enable/disable query UI file viewing with CTRL-Y, default: view\n");
+  fprintf(file, "# Enable/disable query UI file viewing command with CTRL-Y, default: view\n");
   if (flag_view != NULL && *flag_view == '\0')
     fprintf(file, "view\n\n");
   else if (flag_view != NULL)
@@ -3919,6 +4183,7 @@ static void save_config()
   fprintf(file, "# Enable/disable searching hidden files and directories, default: no-hidden\n%s\n\n", flag_hidden ? "hidden" : "no-hidden");
   fprintf(file, "# Enable/disable binary files, default: no-ignore-binary\n%s\n\n", strcmp(flag_binary_files, "without-match") == 0 ? "ignore-binary" : "no-ignore-binary");
   fprintf(file, "# Enable/disable decompression and archive search, default: no-decompress\n%s\n\n", flag_decompress ? "decompress" : "no-decompress");
+  fprintf(file, "# Maximum decompression and de-archiving levels of recursion, default: 1\nzmax=%zu\n\n", flag_zmax);
   if (flag_ignore_files.empty())
   {
     fprintf(file, "# Enable/disable ignore files, default: no-ignore-files\nno-ignore-files\n\n");
@@ -4246,6 +4511,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_line_regexp = true;
                 else if (strcmp(arg, "lines") == 0)
                   flag_files = false;
+                else if (strcmp(arg, "label") == 0)
+                  usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--label, --line-buffered, --line-number, --line-regexp or --lines");
                 break;
@@ -4472,6 +4739,15 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_xml = true;
                 else
                   usage("invalid option --", arg, "--xml");
+                break;
+
+              case 'z':
+                if (strncmp(arg, "zmax=", 5) == 0)
+                  flag_zmax = strtopos(arg + 5, "invalid argument --zmax=");
+                else if (strcmp(arg, "zmax") == 0)
+                  usage("missing argument for --", arg);
+                else
+                  usage("invalid option --", arg, "--zmax=");
                 break;
 
               default:
@@ -5127,6 +5403,10 @@ void init(int argc, const char **argv)
     usage("option -z is not available in this build configuration of ugrep");
 #endif
 
+  // --zmax: NUM argument exceeds limit?
+  if (flag_zmax > 99)
+    usage("option --zmax argument exceeds upper limit");
+
   // -P disables -F, -G and -Z (P>F>G>E override)
   if (flag_perl_regexp)
   {
@@ -5256,7 +5536,7 @@ void init(int argc, const char **argv)
 
   // if no regex pattern is specified and no -e PATTERN and no -f FILE and not -Q, then exit with usage message
   if (arg_pattern == NULL && pattern_args.empty() && flag_file.empty() && flag_query == 0)
-    usage("no PATTERN specified: specify an empty \"\" pattern to match all input");
+    usage("no PATTERN specified: specify --match or an empty \"\" pattern to match all input");
 
   // regex PATTERN should be a FILE argument when -Q or -e PATTERN is specified
   if (!flag_match && arg_pattern != NULL && (flag_query > 0 || !pattern_args.empty()))
@@ -5373,7 +5653,7 @@ void init(int argc, const char **argv)
   if (arg_files.empty() && flag_min_depth == 0 && flag_max_depth == 0 && flag_directories_action != Action::RECURSE)
     flag_stdin = true;
 
-  // check FILE arguments, warn about non-existing FILE
+  // check FILE arguments, warn about non-existing and non-readable files and directories
   auto file = arg_files.begin();
   while (file != arg_files.end())
   {
@@ -5408,10 +5688,16 @@ void init(int argc, const char **argv)
 #else
 
     struct stat buf;
+    int ret;
 
-    if (stat(*file, &buf) != 0)
+    if (flag_no_dereference)
+      ret = lstat(*file, &buf);
+    else
+      ret = stat(*file, &buf);
+
+    if (ret != 0)
     {
-      // FILE does not exist
+      // the specified file or directory does not exist
       warning(NULL, *file);
 
       file = arg_files.erase(file);
@@ -5420,16 +5706,36 @@ void init(int argc, const char **argv)
     }
     else
     {
-      // use threads to recurse into a directory
-      if (S_ISDIR(buf.st_mode))
+      if (flag_no_dereference && S_ISLNK(buf.st_mode))
       {
-        flag_all_threads = true;
-
-        // remove trailing path separators, if any (*file points to argv[])
-        trim_pathname_arg(*file);
+        // -p: skip symlinks
+        file = arg_files.erase(file);
+        if (arg_files.empty())
+          exit(EXIT_ERROR);
       }
+      else if ((buf.st_mode & S_IRUSR) == 0)
+      {
+        // the specified file or directory is not readable
+        errno = EACCES;
+        warning("cannot read", *file);
 
-      ++file;
+        file = arg_files.erase(file);
+        if (arg_files.empty())
+          exit(EXIT_ERROR);
+      }
+      else
+      {
+        // use threads to recurse into a directory
+        if (S_ISDIR(buf.st_mode))
+        {
+          flag_all_threads = true;
+
+          // remove trailing path separators, if any (*file points to argv[])
+          trim_pathname_arg(*file);
+        }
+
+        ++file;
+      }
     }
 
 #endif
@@ -6955,7 +7261,7 @@ void Grep::ugrep()
       ino_t inode = 0;
       uint64_t info;
 
-      // search file, unless searchable directory into which we should recurse
+      // search file or recursively search directory based on selection criteria
       switch (select(1, pathname, basename, DIRENT_TYPE_UNKNOWN, inode, info, true))
       {
         case Type::DIRECTORY:
@@ -6983,7 +7289,7 @@ void Grep::ugrep()
   }
 }
 
-// search file or directory for pattern matches
+// select file or directory to search for pattern matches, return SKIP, DIRECTORY or OTHER
 Grep::Type Grep::select(size_t level, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument)
 {
   if (*basename == '.' && !flag_hidden && !is_argument)
@@ -7371,7 +7677,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
   }
   else
   {
-    warning(NULL, pathname);
+    warning("lstat", pathname);
   }
 
 #endif
@@ -7440,7 +7746,6 @@ void Grep::recurse(size_t level, const char *pathname)
 #endif
 
   // --ignore-files: check if one or more are present to read and extend the file and dir exclusions
-  // std::vector<std::string> *save_exclude = NULL, *save_exclude_dir = NULL, *save_not_exclude = NULL, *save_not_exclude_dir = NULL;
   std::unique_ptr<std::vector<std::string>> save_all_exclude, save_all_exclude_dir;
   bool saved = false;
 
@@ -7615,7 +7920,7 @@ void Grep::recurse(size_t level, const char *pathname)
     {
       entry->cost = cost(entry->pathname.c_str());
 
-      // if a file has no match, remove it
+      // if a file has no match or cannot be opened, remove it
       if (entry->cost == 65535)
         entry = content.erase(entry);
       else
@@ -7726,15 +8031,18 @@ void Grep::recurse(size_t level, const char *pathname)
 // -Z and --sort=best: perform a presearch to determine edit distance cost, returns 65535 when no match is found
 uint16_t Grep::cost(const char *pathname)
 {
+  // default cost is max, which erases pathname from the sorted list
+  uint16_t cost = 65535;
+
   // stop when output is blocked
   if (out.eof)
-    return 0;
+    return cost;
 
   try
   {
     // open (archive or compressed) file (pathname is NULL to read stdin), return on failure
     if (!open_file(pathname))
-      return 0;
+      return cost;
   }
 
   catch (...)
@@ -7742,15 +8050,13 @@ uint16_t Grep::cost(const char *pathname)
     // this should never happen
     warning("exception while opening", pathname);
 
-    return 0;
+    return cost;
   }
 
   // -Z: matcher is a FuzzyMatcher
   reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
 
-  uint16_t cost = 65535;
-
-  // -z: loop over extracted archive parts, when applicable
+  // search file to compute minimum cost
   do
   {
     try
@@ -7774,6 +8080,13 @@ uint16_t Grep::cost(const char *pathname)
       // this should never happen
       warning("exception while searching", pathname);
     }
+
+#ifdef HAVE_LIBZ
+#ifdef WITH_DECOMPRESSION_THREAD
+    if (flag_decompress && cost == 0)
+      zthread.cancel();
+#endif
+#endif
 
     // close file or -z: loop over next extracted archive parts, when applicable
   } while (close_file(pathname));
@@ -7813,6 +8126,9 @@ void Grep::search(const char *pathname)
   // -z: loop over extracted archive parts, when applicable
   do
   {
+    if (!init_read())
+      goto exit_search;
+
     try
     {
       size_t matches = 0;
@@ -7842,9 +8158,6 @@ void Grep::search(const char *pathname)
       if (flag_quiet || flag_files_with_matches)
       {
         // option -q, -l, or -L
-
-        if (!init_read())
-          goto exit_search;
 
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
@@ -7941,9 +8254,6 @@ void Grep::search(const char *pathname)
       else if (flag_count)
       {
         // option -c
-
-        if (!init_read())
-          goto exit_search;
 
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
@@ -8092,9 +8402,6 @@ void Grep::search(const char *pathname)
       else if (flag_format != NULL)
       {
         // option --format
-
-        if (!init_read())
-          goto exit_search;
 
         // whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format_open != NULL || flag_format_close != NULL;
@@ -8246,9 +8553,6 @@ void Grep::search(const char *pathname)
       {
         // option --only-line-number
 
-        if (!init_read())
-          goto exit_search;
-
         size_t lineno = 0;
         const char *separator = flag_separator;
 
@@ -8300,9 +8604,6 @@ void Grep::search(const char *pathname)
       else if (flag_only_matching)
       {
         // option -o
-
-        if (!init_read())
-          goto exit_search;
 
         size_t lineno = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
@@ -8471,9 +8772,6 @@ void Grep::search(const char *pathname)
       else if (flag_before_context == 0 && flag_after_context == 0 && !flag_any_line && !flag_invert_match)
       {
         // options -A, -B, -C, -y, -v are not specified
-
-        if (!init_read())
-          goto exit_search;
 
         size_t lineno = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
@@ -8821,9 +9119,6 @@ void Grep::search(const char *pathname)
       {
         // option -v without -A, -B, -C, -y
 
-        if (!init_read())
-          goto exit_search;
-
         // InvertMatchHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
@@ -8909,9 +9204,6 @@ void Grep::search(const char *pathname)
       else if (flag_any_line)
       {
         // option -y
-
-        if (!init_read())
-          goto exit_search;
 
         // AnyLineGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
@@ -9330,9 +9622,6 @@ void Grep::search(const char *pathname)
       {
         // options -A, -B, -C without -v
 
-        if (!init_read())
-          goto exit_search;
-
         // ContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
@@ -9737,9 +10026,6 @@ void Grep::search(const char *pathname)
       else
       {
         // options -A, -B, -C with -v
-
-        if (!init_read())
-          goto exit_search;
 
         // InvertContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
@@ -11290,9 +11576,8 @@ void help(std::ostream& out)
             option, empty-matching patterns such as x? and x*, match all input,\n\
             not only lines containing the character `x'.\n\
     -y, --any-line\n\
-            Any matching or non-matching line is output.  Non-matching lines\n\
-            are output with the `-' separator as context of the matching lines.\n\
-            See also options -A, -B, and -C.\n\
+            Any line is output (passthru).  Non-matching lines are output as\n\
+            context with a `-' separator.  See also options -A, -B, and -C.\n\
     -Z[[+-~]MAX], --fuzzy[=[+-~]MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             By default, MAX is 1: one deletion, insertion or substitution is\n\
@@ -11308,9 +11593,9 @@ void help(std::ostream& out)
             .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,\n\
             .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and\n\
             matching pathnames of files in archives are output in braces.  If\n\
-            -g, -O, -M, or -t is specified, searches files within archives\n\
-            whose name matches globs, matches file name extensions, matches\n\
-            file signature magic bytes, or matches file types, respectively.\n"
+            -g, -O, -M, or -t is specified, searches files stored in archives\n\
+            whose filenames match globs, match filename extensions, match file\n\
+            signature magic bytes, or match file types, respectively.\n"
 #ifndef HAVE_LIBZ
             "\
             This option is not available in this build configuration of ugrep.\n"
@@ -11334,6 +11619,21 @@ void help(std::ostream& out)
             zstd (requires suffix .zst, .zstd, .tzst)"
 #endif
             ".\n"
+#endif
+            "\
+    --zmax=NUM\n\
+            When used with option -z (--decompress), searches the contents of\n\
+            compressed files and archives stored within archives for up to NUM\n\
+            recursive levels deep.  The default --zmax=1 only permits searching\n\
+            uncompressed files stored in cpio, pax, tar and zip archives;\n\
+            compressed files and archives are detected as binary files and are\n\
+            effectively ignored.  Specify --zmax=2 to search compressed files\n\
+            and archives stored in cpio, pax, tar and zip archives.  NUM may\n\
+            range from 1 to 99 for up to 99 decompression and de-archiving\n\
+            steps.  Larger NUM values gradually degrade performance.\n"
+#ifndef WITH_DECOMPRESSION_THREAD
+            "\
+            This option is not available in this build configuration of ugrep.\n"
 #endif
             "\
     -0, --null\n\
@@ -11459,7 +11759,6 @@ void version()
 #endif
 #ifdef HAVE_LIBZ
     " +zlib" <<
-#endif
 #ifdef HAVE_LIBBZ2
     " +bzip2" <<
 #endif
@@ -11471,6 +11770,7 @@ void version()
 #endif
 #ifdef HAVE_LIBZSTD
     " +zstd" <<
+#endif
 #endif
     "\n"
     "License BSD-3-Clause: <https://opensource.org/licenses/BSD-3-Clause>\n"
@@ -11491,7 +11791,7 @@ void cannot_decompress(const char *pathname, const char *message)
 {
   if (!flag_no_messages)
   {
-    fprintf(stderr, "%sugrep: %swarning:%s %scannot decompress %s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, pathname, color_off, color_message, message ? message : "", color_off);
+    fprintf(stderr, "%sugrep: %swarning:%s %scannot decompress %s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, pathname, color_off, color_message, message != NULL ? message : "", color_off);
     ++warnings;
   }
 }
@@ -11509,7 +11809,7 @@ void warning(const char *message, const char *arg)
 #else
     const char *errmsg = strerror(errno);
 #endif
-    fprintf(stderr, "%sugrep: %swarning:%s %s%s%s%s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, message ? message : "", message ? " " : "", arg ? arg : "", color_off, color_message, errmsg, color_off);
+    fprintf(stderr, "%sugrep: %swarning:%s %s%s%s%s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", color_off, color_message, errmsg, color_off);
     ++warnings;
   }
 }
@@ -11524,7 +11824,7 @@ void error(const char *message, const char *arg)
 #else
   const char *errmsg = strerror(errno);
 #endif
-  fprintf(stderr, "%sugrep: %serror:%s %s%s%s%s:%s %s%s%s\n\n", color_off, color_error, color_off, color_high, message ? message : "", message ? " " : "", arg ? arg : "", color_off, color_message, errmsg, color_off);
+  fprintf(stderr, "%sugrep: %serror:%s %s%s%s%s:%s %s%s%s\n\n", color_off, color_error, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", color_off, color_message, errmsg, color_off);
   exit(EXIT_ERROR);
 }
 
@@ -11538,6 +11838,6 @@ void abort(const char *message)
 // print to standard error: abort message with exception details, then exit
 void abort(const char *message, const std::string& what)
 {
-  fprintf(stderr, "%sugrep: %s%s%s%s%s%s\n\n", color_off, color_error, message ? message : "", color_off, color_high, what.c_str(), color_off);
+  fprintf(stderr, "%sugrep: %s%s%s%s%s%s\n\n", color_off, color_error, message != NULL ? message : "", color_off, color_high, what.c_str(), color_off);
   exit(EXIT_ERROR);
 }

@@ -399,6 +399,18 @@ $UG -z -c -tShell Hello archive.tzst    | $DIFF out/archive-t.tzst.out    || ERR
 fi
 fi
 
+# --zmax has shown to be stable unless we can find a counter example
+#if [ "$have_libz" == yes ]; then
+#printf .
+#$UG --zmax=2 -z -c Hello archive2.tgz         | $DIFF out/archive2.tgz.out   || ERR "-zmax=2 -z -c Hello archive2.tgz"
+#printf .
+#$UG --zmax=3 -z -c Hello archive3.tgz         | $DIFF out/archive3.tgz.out   || ERR "-zmax=3 -z -c Hello archive3.tgz"
+#printf .
+#$UG --zmax=2 -z -c -tShell Hello archive2.tgz | $DIFF out/archive2-t.tgz.out || ERR "-zmax=2 -z -c -tShell Hello archive2.tgz"
+#printf .
+#$UG --zmax=3 -z -c -tShell Hello archive3.tgz | $DIFF out/archive3-t.tgz.out || ERR "-zmax=3 -z -c -tShell Hello archive3.tgz"
+#fi
+
 if [ "$have_libz" == yes ]; then
 printf .
 $UG -z -c '' archive.gz | $DIFF out/archive.gz.out || ERR "-z -c '' archive.gz"

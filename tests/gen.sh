@@ -142,7 +142,7 @@ rm -f archive.*
 
 ls $FILES empty.txt | cpio -o --quiet > archive.cpio
 ls $FILES empty.txt | pax -w -f archive.pax
-tar cf archive.tar Hello.* empty.txt
+tar cf archive.tar $FILES empty.txt
 compress -c archive.tar > archive.tZ
 gzip  -9 -c archive.tar > archive.tgz
 bzip2 -9 -c archive.tar > archive.tbz
@@ -152,6 +152,9 @@ lz4   -9 -c archive.tar > archive.tar.lz4
 zstd  -9 -c archive.tar > archive.tzst
 zip   -9 -q archive.tar.zip archive.tar
 zip   -9 -q archive.zip $FILES empty.txt
+
+tar cfz archive2.tgz archive.tar $FILES archive.tgz
+tar cfz archive3.tgz archive.tgz $FILES archive2.tgz
 
 $UG -z -c Hello archive.cpio    > out/archive.cpio.out
 $UG -z -c Hello archive.pax     > out/archive.pax.out
@@ -178,6 +181,11 @@ $UG -z -c -tShell Hello archive.tlz     > out/archive-t.tlz.out
 $UG -z -c -tShell Hello archive.txz     > out/archive-t.txz.out
 $UG -z -c -tShell Hello archive.tar.lz4 > out/archive-t.tar.lz4.out
 $UG -z -c -tShell Hello archive.tzst    > out/archive-t.tzst.out
+
+$UG --zmax=2 -z -c Hello archive2.tgz         > out/archive2.tgz.out
+$UG --zmax=3 -z -c Hello archive3.tgz         > out/archive3.tgz.out
+$UG --zmax=2 -z -c -tShell Hello archive2.tgz > out/archive2-t.tgz.out
+$UG --zmax=3 -z -c -tShell Hello archive3.tgz > out/archive3-t.tgz.out
 
 for (( i = 0 ; i < 100000 ; i++ )) ; do
   echo "Lorem ipsum dolor sit amet, consectetur adipiscing elit.  Nunc hendrerit at metus sit amet aliquam."

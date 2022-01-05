@@ -1338,11 +1338,10 @@ void Query::search()
 
   if (search_thread_.joinable())
   {
+    // clear "Searching..." or "(END)", if displayed
     if (error_ == -1 && rows_ < row_ + Screen::rows - 1)
     {
-      Screen::normal();
-      Screen::invert();
-      Screen::put(rows_ - row_ + 1, 0, "WAIT");
+      Screen::setpos(rows_ - row_ + 1, 0);
       Screen::normal();
       Screen::erase();
     }
