@@ -287,14 +287,18 @@ You can always add these later, when you need these features:
   [zstd](http://facebook.github.io/zstd) library, e.g. with
   `sudo apt-get install -y libzstd-dev`
 
+**Note:** even if your system has command line utilities, such as `bzip2`, that
+does not necessarily mean that the development libraries such as `libbz2` are
+installed.  The *development libraries* should be installed.
+
 After installing one or more of these libraries, re-execute the commands to
 rebuild `ugrep`:
 
     $ cd ugrep
     $ ./build.sh
 
-Some Linux systems may not be configured to load dynamic libraries from
-`/usr/local/lib`, causing a library load error when running `ugrep`.  To
+**Note:** some Linux systems may not be configured to load dynamic libraries
+from `/usr/local/lib`, causing a library load error when running `ugrep`.  To
 correct this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to
 your `~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
 
@@ -588,18 +592,21 @@ To view the CtrlP documentation in Vim, enter the command:
 Using ugrep to replace GNU/BSD grep
 -----------------------------------
 
-Executing `ugrep` with options `-U`, `-Y` and `-.` makes it behave like
-`egrep` by matching only ASCII/LATIN1 non-UTF Unicode patterns, permitting
-empty patterns to match and search hidden files instead of ignoring them,
-respectively.  See the full list of [grep equivalence options](#equivalence).
+Out-of-the-box **ugrep** supports all standard GNU/BSD grep command-line
+options and improves upon many of them.  For details see [notable improvements
+over grep](#improvements).
 
-The defaults of **ugrep** options may slightly differ from GNU/BSD grep to make
-**ugrep** more user friendly, for details see [notable improvements over
-grep](#improvements).
+If you want to stick exactly to GNU/BSD grep ASCII/LATIN1 non-UTF Unicode
+patterns, use `ugrep -U` to disable full Unicode pattern matching.
 
-You can create [convenient grep aliases](#aliases) for ugrep with or without
-options `-U`, `-Y` and `-.` or include other options as desired, or create
-additional `grep`, `egrep` and `fgrep` executables.
+In fact, executing `ugrep` with options `-U`, `-Y` and `-.` makes it behave
+exactly like `egrep`, matching only ASCII/LATIN1 non-UTF Unicode patterns,
+permitting empty patterns to match and search hidden files instead of ignoring
+them, respectively.  See [grep equivalence](#equivalence).
+
+You can create [convenient grep aliases](#aliases) for **ugrep** with or
+without options `-U`, `-Y` and `-.` or include other options as desired, or
+create additional `grep`, `egrep` and `fgrep` executables.
 
 When the `ugrep` (or `ugrep.exe`) executable is copied as `grep` (`grep.exe`),
 `egrep` (`egrep.exe`), `fgrep` (`fgrep.exe`), then option `-U`, `-Y` and `-.`
