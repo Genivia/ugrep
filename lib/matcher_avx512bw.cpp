@@ -39,7 +39,7 @@
 // appease ranlib "has no symbols"
 void matcher_not_compiled_with_avx512bw() { }
 
-#elif defined(COMPILE_AVX2) && !defined(HAVE_AVX2)
+#elif defined(COMPILE_AVX2) && !defined(HAVE_AVX2) && !defined(HAVE_AVX512BW)
 
 // appease ranlib "has no symbols"
 void matcher_not_compiled_with_avx2() { }
