@@ -30,7 +30,7 @@
 @file      ugrep.cpp
 @brief     a pattern search utility written in C++11
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2021, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 For download and installation instructions:
@@ -404,12 +404,13 @@ const char *flag_group_separator   = "--";
 const char *flag_hexdump           = NULL;
 const char *flag_label             = "(standard input)";
 const char *flag_pager             = DEFAULT_PAGER;
-const char *flag_view              = "";
+const char *flag_replace           = NULL;
 const char *flag_save_config       = NULL;
 const char *flag_separator         = ":";
 const char *flag_sort              = NULL;
 const char *flag_stats             = NULL;
 const char *flag_tag               = NULL;
+const char *flag_view              = "";
 std::string              flag_config_file;
 std::set<std::string>    flag_config_options;
 std::vector<std::string> flag_regexp;
@@ -2160,7 +2161,7 @@ struct Grep {
 
   };
 
-  // extend event AnyLineGrepHandler to output specific context lines for -A, -B, and -C
+  // extend event AnyLineGrepHandler to output specific context lines for -A, -B and -C
   struct ContextGrepHandler : public AnyLineGrepHandler {
 
     // context state to track context lines before and after a match
@@ -2398,7 +2399,7 @@ struct Grep {
 
   };
 
-  // extend event AnyLineGrepHandler to output specific context lines for -A, -B, and -C with -v
+  // extend event AnyLineGrepHandler to output specific context lines for -A, -B and -C with -v
   struct InvertContextGrepHandler : public AnyLineGrepHandler {
 
     struct InvertContextMatch {
@@ -3336,12 +3337,10 @@ struct Grep {
     return true;
   }
 
-  // after opening a file with init_read, check if it is binary
+  // after opening a file with init_read, check if its initial part (64K or what could be read) is binary
   bool init_is_binary()
   {
-    // limit checking to first buffer filled with input up to 16K, which should suffice, to improve performance
-    size_t avail = matcher->avail();
-    return is_binary(matcher->begin(), avail < 16384 ? avail : 16384);
+    return is_binary(matcher->begin(), matcher->avail());
   }
 
   const char                    *filename;      // the name of the file being searched
@@ -4061,7 +4060,7 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
 
     if (errors)
     {
-      std::cerr << "Try 'ugrep --help [WHAT]' for more information\n";
+      std::cerr << "Try `ugrep --help' or `ugrep --help WHAT' for more information\n";
 
       exit(EXIT_ERROR);
     }
@@ -4098,7 +4097,7 @@ static void save_config()
 # A long option is defined per line with an optional `=' and its argument,\n\
 # when applicable. Empty lines and lines starting with a `#' are ignored.\n\
 #\n\
-# Try `ugrep --help [WHAT]' for more information.\n\n");
+# Try `ugrep --help' or `ugrep --help WHAT' for more information.\n\n");
 
   fprintf(file, "### TERMINAL DISPLAY ###\n\n");
 
@@ -4659,10 +4658,12 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_directories = "recurse";
                 else if (strncmp(arg, "regexp=", 7) == 0)
                   option_regexp(pattern_args, arg + 7);
-                else if (strcmp(arg, "range") == 0)
+                else if (strncmp(arg, "replace=", 8) == 0)
+                  flag_replace = arg + 8;
+                else if (strcmp(arg, "range") == 0 || strcmp(arg, "regexp") == 0 || strcmp(arg, "replace") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--range, --recursive or --regexp");
+                  usage("invalid option --", arg, "--range, --recursive, --regexp or --replace");
                 break;
 
               case 's':
@@ -5376,7 +5377,7 @@ void init(int argc, const char **argv)
   if (warnings > 0)
   {
     std::cerr << "Usage: ugrep [OPTIONS] [PATTERN] [-f FILE] [-e PATTERN] [FILE ...]\n";
-    std::cerr << "Try 'ugrep --help [WHAT]' for more information\n";
+    std::cerr << "Try `ugrep --help' or `ugrep --help WHAT' for more information\n";
     exit(EXIT_ERROR);
   }
 
@@ -5430,7 +5431,7 @@ void init(int argc, const char **argv)
     if (arg.first == CNF::PATTERN::TERM)
       bcnf.new_term();
     else
-      bcnf.new_pattern(arg.first, arg.second); // relies on options --bool, -F, -G, -w, -x, and -f
+      bcnf.new_pattern(arg.first, arg.second); // relies on options --bool, -F, -G, -w, -x and -f
   }
 
   // --query: override --pager
@@ -5495,7 +5496,7 @@ void init(int argc, const char **argv)
   else if (strcmp(flag_binary_files, "with-hex") == 0)
     flag_with_hex = true;
   else if (strcmp(flag_binary_files, "binary") != 0)
-    usage("invalid argument --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex', and 'with-hex'");
+    usage("invalid argument --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex' and 'with-hex'");
 
   // --hex takes priority over --with-hex takes priority over -I takes priority over -a
   if (flag_hex)
@@ -5640,7 +5641,7 @@ void init(int argc, const char **argv)
   else if (strcmp(flag_directories, "recurse") == 0)
     flag_directories_action = Action::RECURSE;
   else
-    usage("invalid argument -d ACTION, valid arguments are 'skip', 'read', 'recurse', and 'dereference-recurse'");
+    usage("invalid argument -d ACTION, valid arguments are 'skip', 'read', 'recurse' and 'dereference-recurse'");
 
   // if no FILE specified and no -r or -R specified, when reading standard input from a TTY then enable -R
   if (!flag_stdin && arg_files.empty() && flag_directories_action != Action::RECURSE && isatty(STDIN_FILENO))
@@ -5770,6 +5771,14 @@ void init(int argc, const char **argv)
     flag_format_close = "  </file>\n";
     flag_format_end   = "</grep>\n";
   }
+
+  // --replace clashes with --format
+  if (flag_replace != NULL && flag_format != NULL)
+    abort("--format is not permitted with --replace");
+
+  // -v with --files is not permitted
+  if (flag_files && flag_invert_match)
+    abort("-v is not permitted with --files, invert the Boolean query instead");
 
 #ifdef HAVE_STATVFS
 
@@ -6239,7 +6248,7 @@ void terminal()
         }
         else if (strcmp(flag_apply_color, "always") != 0 && strcmp(flag_apply_color, "yes") != 0 && strcmp(flag_apply_color, "force") != 0)
         {
-          usage("invalid argument --color=WHEN, valid arguments are 'never', 'always', and 'auto'");
+          usage("invalid argument --color=WHEN, valid arguments are 'never', 'always' and 'auto'");
         }
 
         if (flag_apply_color != NULL)
@@ -6547,7 +6556,7 @@ void ugrep()
     else if (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "rcreated") == 0)
       flag_sort_key = Sort::CREATED;
     else
-      usage("invalid argument --sort=KEY, valid arguments are 'name', 'best', 'size', 'used', 'changed', 'created', 'rname', 'rbest', 'rsize', 'rused', 'rchanged', and 'rcreated'");
+      usage("invalid argument --sort=KEY, valid arguments are 'name', 'best', 'size', 'used', 'changed', 'created', 'rname', 'rbest', 'rsize', 'rused', 'rchanged' and 'rcreated'");
   }
 
   // add PATTERN to the CNF
@@ -6601,13 +6610,6 @@ void ugrep()
         regex.assign(bcnf.first());
       }
     }
-  }
-
-  // -v with --files is not permitted
-  if (flag_files && flag_invert_match)
-  {
-    abort("-v is not permitted with --files, invert the Boolean query instead");
-    flag_invert_match = false;
   }
 
   // -x or --match: enable -Y and disable --dotall and -w
@@ -6781,7 +6783,7 @@ void ugrep()
     }
   }
 
-  // -y: disable -A, -B, and -C
+  // -y: disable -A, -B and -C
   if (flag_any_line)
     flag_after_context = flag_before_context = 0;
 
@@ -8491,7 +8493,7 @@ void Grep::search(const char *pathname)
                 continue;
             }
 
-            // output --format-open
+            // --format-open
             if (matches == 0)
             {
               if (flag_files && matchers != NULL)
@@ -8519,6 +8521,7 @@ void Grep::search(const char *pathname)
 
               if (flag_format_open != NULL)
               {
+                // output --format-open=FORMAT
                 out.format(flag_format_open, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
 
                 // --files: undo files count
@@ -8529,7 +8532,7 @@ void Grep::search(const char *pathname)
 
             ++matches;
 
-            // output --format
+            // output --format=FORMAT
             out.format(flag_format, pathname, partname, matches, matcher, matches > 1, matches > 1);
 
             // -m: max number of matches reached?
@@ -8545,7 +8548,7 @@ void Grep::search(const char *pathname)
           if (!cnf_satisfied(true))
             goto exit_search;
 
-        // output --format-close
+        // output --format-close=FORMAT
         if (matches > 0 && flag_format_close != NULL)
           out.format(flag_format_close, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
       }
@@ -8606,7 +8609,7 @@ void Grep::search(const char *pathname)
         // option -o
 
         size_t lineno = 0;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
+        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool nl = false;
 
@@ -8723,6 +8726,13 @@ void Grep::search(const char *pathname)
 
             lineno += matcher->lines() - 1;
           }
+          else if (flag_replace != NULL)
+          {
+            // output --replace=FORMAT
+            out.str(match_ms);
+            out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+            out.str(match_off);
+          }
           else
           {
             // echo multi-line matches line-by-line
@@ -8774,7 +8784,7 @@ void Grep::search(const char *pathname)
         // options -A, -B, -C, -y, -v are not specified
 
         size_t lineno = 0;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
+        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
         const char *restline_data = NULL;
@@ -8906,29 +8916,39 @@ void Grep::search(const char *pathname)
               out.str(bol, border);
               out.str(color_off);
 
-              // echo multi-line matches line-by-line
-
-              const char *from = begin;
-              const char *to;
-
-              while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+              if (flag_replace != NULL)
               {
+                // output --replace=FORMAT
                 out.str(match_ms);
-                out.str(from, to - from);
+                out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
                 out.str(match_off);
-                out.chr('\n');
-
-                out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
-
-                from = to + 1;
               }
+              else
+              {
+                // echo multi-line matches line-by-line
 
-              size -= from - begin;
-              begin = from;
+                const char *from = begin;
+                const char *to;
 
-              out.str(match_ms);
-              out.str(begin, size);
-              out.str(match_off);
+                while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                {
+                  out.str(match_ms);
+                  out.str(from, to - from);
+                  out.str(match_off);
+                  out.chr('\n');
+
+                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
+
+                  from = to + 1;
+                }
+
+                size -= from - begin;
+                begin = from;
+
+                out.str(match_ms);
+                out.str(begin, size);
+                out.str(match_off);
+              }
 
               if (flag_ungroup)
               {
@@ -8987,34 +9007,44 @@ void Grep::search(const char *pathname)
                   out.str(restline_data, first - restline_last);
                   out.str(color_off);
 
-                  if (lines > 1)
+                  if (flag_replace != NULL)
                   {
-                    // echo multi-line matches line-by-line
-
-                    const char *from = begin;
-                    const char *to;
-                    size_t num = 1;
-
-                    while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                    // output --replace=FORMAT
+                    out.str(match_ms);
+                    out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                    out.str(match_off);
+                  }
+                  else
+                  {
+                    if (lines > 1)
                     {
-                      out.str(match_ms);
-                      out.str(from, to - from);
-                      out.str(match_off);
-                      out.chr('\n');
+                      // echo multi-line matches line-by-line
 
-                      out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+                      const char *from = begin;
+                      const char *to;
+                      size_t num = 1;
 
-                      from = to + 1;
-                      ++num;
+                      while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                      {
+                        out.str(match_ms);
+                        out.str(from, to - from);
+                        out.str(match_off);
+                        out.chr('\n');
+
+                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+
+                        from = to + 1;
+                        ++num;
+                      }
+
+                      size -= from - begin;
+                      begin = from;
                     }
 
-                    size -= from - begin;
-                    begin = from;
+                    out.str(match_ms);
+                    out.str(begin, size);
+                    out.str(match_off);
                   }
-
-                  out.str(match_ms);
-                  out.str(begin, size);
-                  out.str(match_off);
                 }
 
                 if (lines == 1)
@@ -9121,7 +9151,7 @@ void Grep::search(const char *pathname)
 
         // InvertMatchHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
+        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
         bool stop = false;
@@ -9207,7 +9237,7 @@ void Grep::search(const char *pathname)
 
         // AnyLineGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
+        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
         bool stop = false;
@@ -9395,29 +9425,39 @@ void Grep::search(const char *pathname)
               out.str(bol, border);
               out.str(color_off);
 
-              // echo multi-line matches line-by-line
-
-              const char *from = begin;
-              const char *to;
-
-              while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+              if (flag_replace != NULL)
               {
+                // output --replace=FORMAT
                 out.str(v_match_ms);
-                out.str(from, to - from);
+                out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
                 out.str(match_off);
-                out.chr('\n');
-
-                out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
-
-                from = to + 1;
               }
+              else
+              {
+                // echo multi-line matches line-by-line
 
-              size -= from - begin;
-              begin = from;
+                const char *from = begin;
+                const char *to;
 
-              out.str(v_match_ms);
-              out.str(begin, size);
-              out.str(match_off);
+                while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                {
+                  out.str(v_match_ms);
+                  out.str(from, to - from);
+                  out.str(match_off);
+                  out.chr('\n');
+
+                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
+
+                  from = to + 1;
+                }
+
+                size -= from - begin;
+                begin = from;
+
+                out.str(v_match_ms);
+                out.str(begin, size);
+                out.str(match_off);
+              }
 
               if (flag_ungroup)
               {
@@ -9476,34 +9516,44 @@ void Grep::search(const char *pathname)
                   out.str(restline_data, first - restline_last);
                   out.str(color_off);
 
-                  if (lines > 1)
+                  if (flag_replace != NULL)
                   {
-                    // echo multi-line matches line-by-line
-
-                    const char *from = begin;
-                    const char *to;
-                    size_t num = 1;
-
-                    while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                    // output --replace=FORMAT
+                    out.str(v_match_ms);
+                    out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                    out.str(match_off);
+                  }
+                  else
+                  {
+                    if (lines > 1)
                     {
-                      out.str(v_match_ms);
-                      out.str(from, to - from);
-                      out.str(match_off);
-                      out.chr('\n');
+                      // echo multi-line matches line-by-line
 
-                      out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+                      const char *from = begin;
+                      const char *to;
+                      size_t num = 1;
 
-                      from = to + 1;
-                      ++num;
+                      while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                      {
+                        out.str(v_match_ms);
+                        out.str(from, to - from);
+                        out.str(match_off);
+                        out.chr('\n');
+
+                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+
+                        from = to + 1;
+                        ++num;
+                      }
+
+                      size -= from - begin;
+                      begin = from;
                     }
 
-                    size -= from - begin;
-                    begin = from;
+                    out.str(v_match_ms);
+                    out.str(begin, size);
+                    out.str(match_off);
                   }
-
-                  out.str(v_match_ms);
-                  out.str(begin, size);
-                  out.str(match_off);
                 }
 
                 if (lines == 1)
@@ -9624,7 +9674,7 @@ void Grep::search(const char *pathname)
 
         // ContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
+        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
         bool stop = false;
@@ -9798,29 +9848,39 @@ void Grep::search(const char *pathname)
               out.str(bol, border);
               out.str(color_off);
 
-              // echo multi-line matches line-by-line
-
-              const char *from = begin;
-              const char *to;
-
-              while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+              if (flag_replace != NULL)
               {
+                // output --replace=FORMAT
                 out.str(match_ms);
-                out.str(from, to - from);
+                out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
                 out.str(match_off);
-                out.chr('\n');
-
-                out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
-
-                from = to + 1;
               }
+              else
+              {
+                // echo multi-line matches line-by-line
 
-              size -= from - begin;
-              begin = from;
+                const char *from = begin;
+                const char *to;
 
-              out.str(match_ms);
-              out.str(begin, size);
-              out.str(match_off);
+                while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                {
+                  out.str(match_ms);
+                  out.str(from, to - from);
+                  out.str(match_off);
+                  out.chr('\n');
+
+                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
+
+                  from = to + 1;
+                }
+
+                size -= from - begin;
+                begin = from;
+
+                out.str(match_ms);
+                out.str(begin, size);
+                out.str(match_off);
+              }
 
               if (flag_ungroup)
               {
@@ -9879,34 +9939,44 @@ void Grep::search(const char *pathname)
                   out.str(restline_data, first - restline_last);
                   out.str(color_off);
 
-                  if (lines > 1)
+                  if (flag_replace != NULL)
                   {
-                    // echo multi-line matches line-by-line
-
-                    const char *from = begin;
-                    const char *to;
-                    size_t num = 1;
-
-                    while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                    // output --replace=FORMAT
+                    out.str(match_ms);
+                    out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                    out.str(match_off);
+                  }
+                  else
+                  {
+                    if (lines > 1)
                     {
-                      out.str(match_ms);
-                      out.str(from, to - from);
-                      out.str(match_off);
-                      out.chr('\n');
+                      // echo multi-line matches line-by-line
 
-                      out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+                      const char *from = begin;
+                      const char *to;
+                      size_t num = 1;
 
-                      from = to + 1;
-                      ++num;
+                      while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                      {
+                        out.str(match_ms);
+                        out.str(from, to - from);
+                        out.str(match_off);
+                        out.chr('\n');
+
+                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+
+                        from = to + 1;
+                        ++num;
+                      }
+
+                      size -= from - begin;
+                      begin = from;
                     }
 
-                    size -= from - begin;
-                    begin = from;
+                    out.str(match_ms);
+                    out.str(begin, size);
+                    out.str(match_off);
                   }
-
-                  out.str(match_ms);
-                  out.str(begin, size);
-                  out.str(match_off);
                 }
 
                 if (lines == 1)
@@ -10031,7 +10101,7 @@ void Grep::search(const char *pathname)
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
         size_t last_lineno = 0;
         size_t after = flag_after_context;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && init_is_binary();
+        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
         bool stop = false;
@@ -10204,34 +10274,44 @@ void Grep::search(const char *pathname)
                 out.str(bol, border);
                 out.str(color_off);
 
-                if (lines > 1)
+                if (flag_replace != NULL)
                 {
-                  // echo multi-line matches line-by-line
-
-                  const char *from = begin;
-                  const char *to;
-                  size_t num = 1;
-
-                  while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                  // output --replace=FORMAT
+                  out.str(match_mc);
+                  out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                  out.str(match_off);
+                }
+                else
+                {
+                  if (lines > 1)
                   {
-                    out.str(match_mc);
-                    out.str(from, to - from);
-                    out.str(match_off);
-                    out.chr('\n');
+                    // echo multi-line matches line-by-line
 
-                    out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "-", false);
+                    const char *from = begin;
+                    const char *to;
+                    size_t num = 1;
 
-                    from = to + 1;
-                    ++num;
+                    while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                    {
+                      out.str(match_mc);
+                      out.str(from, to - from);
+                      out.str(match_off);
+                      out.chr('\n');
+
+                      out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "-", false);
+
+                      from = to + 1;
+                      ++num;
+                    }
+
+                    size -= from - begin;
+                    begin = from;
                   }
 
-                  size -= from - begin;
-                  begin = from;
+                  out.str(match_mc);
+                  out.str(begin, size);
+                  out.str(match_off);
                 }
-
-                out.str(match_mc);
-                out.str(begin, size);
-                out.str(match_off);
 
                 restline.assign(end, eol - end);
                 restline_data = restline.c_str();
@@ -10328,34 +10408,44 @@ void Grep::search(const char *pathname)
                   out.str(restline_data, first - restline_last);
                   out.str(color_off);
 
-                  if (lines > 1)
+                  if (flag_replace != NULL)
                   {
-                    // echo multi-line matches line-by-line
-
-                    const char *from = begin;
-                    const char *to;
-                    size_t num = 1;
-
-                    while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                    // output --replace=FORMAT
+                    out.str(match_mc);
+                    out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                    out.str(match_off);
+                  }
+                  else
+                  {
+                    if (lines > 1)
                     {
-                      out.str(match_mc);
-                      out.str(from, to - from);
-                      out.str(match_off);
-                      out.chr('\n');
+                      // echo multi-line matches line-by-line
 
-                      out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "-", false);
+                      const char *from = begin;
+                      const char *to;
+                      size_t num = 1;
 
-                      from = to + 1;
-                      ++num;
+                      while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                      {
+                        out.str(match_mc);
+                        out.str(from, to - from);
+                        out.str(match_off);
+                        out.chr('\n');
+
+                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "-", false);
+
+                        from = to + 1;
+                        ++num;
+                      }
+
+                      size -= from - begin;
+                      begin = from;
                     }
 
-                    size -= from - begin;
-                    begin = from;
+                    out.str(match_mc);
+                    out.str(begin, size);
+                    out.str(match_off);
                   }
-
-                  out.str(match_mc);
-                  out.str(begin, size);
-                  out.str(match_off);
                 }
 
                 if (lines == 1)
@@ -10981,9 +11071,12 @@ void usage(const char *message, const char *arg, const char *valid)
   std::cerr << "ugrep: " << message << (arg != NULL ? arg : "");
   if (valid != NULL)
     std::cerr << ", did you mean " << valid << "?";
-  std::cerr << std::endl;
+  std::cerr << " For more help on options, try `ugrep --help' or `ugrep --help " << arg << "'" << std::endl;
+
+  // do not exit when reading a config file
   if (!flag_usage_warnings)
     exit(EXIT_ERROR);
+
   ++warnings;
 }
 
@@ -10995,7 +11088,7 @@ void help(std::ostream& out)
     -A NUM, --after-context=NUM\n\
             Print NUM lines of trailing context after matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
-            options -B, -C, and -y.\n\
+            options -B, -C and -y.\n\
     -a, --text\n\
             Process a binary file as if it were text.  This is equivalent to\n\
             the --binary-files=text option.  This option might output binary\n\
@@ -11009,22 +11102,22 @@ void help(std::ostream& out)
             (`A' or `B') and (`C' or `D').  Note that multiple -e PATTERN are\n\
             alternations that bind more tightly together than --and.  Option\n\
             --stats displays the search patterns applied.  See also options\n\
-            --not, --andnot, --bool, --files, and --lines.\n\
+            --not, --andnot, --bool, --files and --lines.\n\
     --andnot [[-e] PATTERN] ...\n\
-            Combines --and --not.  See also options --and, --not, and --bool.\n\
+            Combines --and --not.  See also options --and, --not and --bool.\n\
     -B NUM, --before-context=NUM\n\
             Print NUM lines of leading context before matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  See also\n\
-            options -A, -C, and -y.\n\
+            options -A, -C and -y.\n\
     -b, --byte-offset\n\
             The offset in bytes of a matched line is displayed in front of the\n\
             respective matched line.  If -u is specified, displays the offset\n\
             for each pattern matched on the same line.  Byte offsets are exact\n\
-            for ASCII, UTF-8, and raw binary input.  Otherwise, the byte offset\n\
+            for ASCII, UTF-8 and raw binary input.  Otherwise, the byte offset\n\
             in the UTF-8 normalized input is displayed.\n\
     --binary-files=TYPE\n\
             Controls searching and reporting pattern matches in binary files.\n\
-            TYPE can be `binary', `without-match`, `text`, `hex`, and\n\
+            TYPE can be `binary', `without-match`, `text`, `hex` and\n\
             `with-hex'.  The default is `binary' to search binary files and to\n\
             report a match without displaying the match.  `without-match'\n\
             ignores binary matches.  `text' treats all binary files as text,\n\
@@ -11033,12 +11126,12 @@ void help(std::ostream& out)
             it as commands.  `hex' reports all matches in hexadecimal.\n\
             `with-hex' only reports binary matches in hexadecimal, leaving text\n\
             matches alone.  A match is considered binary when matching a zero\n\
-            byte or invalid UTF.  Short options are -a, -I, -U, -W, and -X.\n\
+            byte or invalid UTF.  Short options are -a, -I, -U, -W and -X.\n\
     --bool, -%\n\
             Specifies Boolean query patterns.  A Boolean query pattern is\n\
             composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.\n\
             Spacing between subpatterns is the same as `AND', `|' is the same\n\
-            as `OR', and a `-' is the same as `NOT'.  The `OR' operator binds\n\
+            as `OR' and a `-' is the same as `NOT'.  The `OR' operator binds\n\
             more tightly than `AND'.  For example, --bool 'A|B C|D' matches\n\
             lines with (`A' or `B') and (`C' or `D'), --bool 'A -B' matches\n\
             lines with `A' and not `B'.  Operators `AND', `OR', `NOT' require\n\
@@ -11050,17 +11143,17 @@ void help(std::ostream& out)
             for grouping.  For example, --bool '(A B)|C' matches lines with `A'\n\
             and `B', or lines with `C'.  Note that all subpatterns in a Boolean\n\
             query pattern are regular expressions, unless option -F is used.\n\
-            Options -E, -F, -G, -P, and -Z can be combined with --bool to match\n\
+            Options -E, -F, -G, -P and -Z can be combined with --bool to match\n\
             subpatterns as strings or regular expressions (-E is the default.)\n\
             This option does not apply to -f FILE patterns.  Option --stats\n\
             displays the search patterns applied.  See also options --and,\n\
-            --andnot, --not, --files, and --lines.\n\
+            --andnot, --not, --files and --lines.\n\
     --break\n\
             Adds a line break between results from different files.\n\
     -C NUM, --context=NUM\n\
             Print NUM lines of leading and trailing context surrounding each\n\
             match.  Places a --group-separator between contiguous groups of\n\
-            matches.  See also options -A, -B, and -y.\n\
+            matches.  See also options -A, -B and -y.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
             If -o or -u is specified, counts the number of patterns matched.\n\
@@ -11136,7 +11229,7 @@ void help(std::ostream& out)
   out << ".\n\
     --exclude=GLOB\n\
             Skip files whose name matches GLOB using wildcard matching, same as\n\
-            -g ^GLOB.  GLOB can use **, *, ?, and [...] as wildcards, and \\ to\n\
+            -g ^GLOB.  GLOB can use **, *, ?, and [...] as wildcards and \\ to\n\
             quote a wildcard or backslash character literally.  When GLOB\n\
             contains a `/', full pathnames are matched.  Otherwise basenames\n\
             are matched.  When GLOB ends with a `/', directories are excluded\n\
@@ -11147,7 +11240,7 @@ void help(std::ostream& out)
     --exclude-dir=GLOB\n\
             Exclude directories whose name matches GLOB from recursive\n\
             searches, same as -g ^GLOB/.  GLOB can use **, *, ?, and [...] as\n\
-            wildcards, and \\ to quote a wildcard or backslash character\n\
+            wildcards and \\ to quote a wildcard or backslash character\n\
             literally.  When GLOB contains a `/', full pathnames are matched.\n\
             Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
             take priority over --include-dir patterns.  GLOB should be quoted\n\
@@ -11155,7 +11248,7 @@ void help(std::ostream& out)
     --exclude-from=FILE\n\
             Read the globs from FILE and skip files and directories whose name\n\
             matches one or more globs.  A glob can use **, *, ?, and [...] as\n\
-            wildcards, and \\ to quote a wildcard or backslash character\n\
+            wildcards and \\ to quote a wildcard or backslash character\n\
             literally.  When a glob contains a `/', full pathnames are matched.\n\
             Otherwise basenames are matched.  When a glob ends with a `/',\n\
             directories are excluded as if --exclude-dir is specified.\n\
@@ -11216,8 +11309,11 @@ void help(std::ostream& out)
     --format=FORMAT\n\
             Output FORMAT-formatted matches.  For example --format='%f:%n:%O%~'\n\
             outputs matching lines `%O' with filename `%f` and line number `%n'\n\
-            followed by a newline `%~'.  Context options -A, -B, -C, and -y are\n\
-            ignored.  See `man ugrep' section FORMAT.\n\
+            followed by a newline `%~'.  When option -P is used, FORMAT may\n\
+            include `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group\n\
+            captures.  A `%%' outputs `%'.  See `ugrep --help format' and `man\n\
+            ugrep' section FORMAT for details.  Context options -A, -B, -C and\n\
+            -y are ignored.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -11235,7 +11331,7 @@ void help(std::ostream& out)
             be combined with options -M, -O and -t to expand the recursive\n\
             search.\n\
     --group-separator[=SEP]\n\
-            Use SEP as a group separator for context options -A, -B, and -C.\n\
+            Use SEP as a group separator for context options -A, -B and -C.\n\
             The default is a double hyphen (`--').\n\
     -H, --with-filename\n\
             Always print the filename with output lines.  This is the default\n\
@@ -11248,6 +11344,9 @@ void help(std::ostream& out)
             results from different files.\n\
     --help [WHAT], -? [WHAT]\n\
             Display a help message, specifically on WHAT when specified.\n\
+            In addition, `--help format' displays an overview of FORMAT fields,\n\
+            `--help regex' displays an overview of regular expressions and\n\
+            `--help globs' displays an overview of glob syntax and conventions.\n\
     --hexdump=[1-8][a][b][c][h]\n\
             Output matches in 1 to 8 columns of 8 hexadecimal octets.  The\n\
             default is 2 columns or 16 octets per line.  Option `a' outputs a\n\
@@ -11284,18 +11383,18 @@ void help(std::ostream& out)
             arguments are never ignored.  This option may be repeated.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB using wildcard matching,\n\
-            same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,\n\
-            and \\ to quote a wildcard or backslash character literally.  When\n\
-            GLOB contains a `/', full pathnames are matched.  Otherwise\n\
-            basenames are matched.  When GLOB ends with a `/', directories are\n\
-            included as if --include-dir is specified.  Otherwise files are\n\
-            included.  Note that --exclude patterns take priority over\n\
-            --include patterns.  GLOB should be quoted to prevent shell\n\
-            globbing.  This option may be repeated.\n\
+            same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards and\n\
+            \\ to quote a wildcard or backslash character literally.  When GLOB\n\
+            contains a `/', full pathnames are matched.  Otherwise basenames\n\
+            are matched.  When GLOB ends with a `/', directories are included\n\
+            as if --include-dir is specified.  Otherwise files are included.\n\
+            Note that --exclude patterns take priority over --include patterns.\n\
+            GLOB should be quoted to prevent shell globbing.  This option may\n\
+            be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose name matches GLOB are included in recursive\n\
             searches, same as -g GLOB/.  GLOB can use **, *, ?, and [...] as\n\
-            wildcards, and \\ to quote a wildcard or backslash character\n\
+            wildcards and \\ to quote a wildcard or backslash character\n\
             literally.  When GLOB contains a `/', full pathnames are matched.\n\
             Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
             take priority over --include-dir patterns.  GLOB should be quoted\n\
@@ -11303,7 +11402,7 @@ void help(std::ostream& out)
     --include-from=FILE\n\
             Read the globs from FILE and search only files and directories\n\
             whose name matches one or more globs.  A glob can use **, *, ?, and\n\
-            [...] as wildcards, and \\ to quote a wildcard or backslash\n\
+            [...] as wildcards and \\ to quote a wildcard or backslash\n\
             character literally.  When a glob contains a `/', full pathnames\n\
             are matched.  Otherwise basenames are matched.  When a glob ends\n\
             with a `/', directories are included as if --include-dir is\n\
@@ -11395,13 +11494,13 @@ void help(std::ostream& out)
             each file processed.\n\
     --no-group-separator\n\
             Removes the group separator line from the output for context\n\
-            options -A, -B, and -C.\n\
+            options -A, -B and -C.\n\
     --not [-e] PATTERN\n\
             Specifies that PATTERN should not match.  Note that -e A --not -e B\n\
             matches lines with `A' or lines without a `B'.  To match lines with\n\
             `A' that have no `B', specify -e A --andnot -e B.  Option --stats\n\
             displays the search patterns applied.  See also options --and,\n\
-            --andnot, --bool, --files, and --lines.\n\
+            --andnot, --bool, --files and --lines.\n\
     -O EXTENSIONS, --file-extension=EXTENSIONS\n\
             Search only files whose filename extensions match the specified\n\
             comma-separated list of EXTENSIONS, same as --include='*.ext' for\n\
@@ -11414,7 +11513,7 @@ void help(std::ostream& out)
             the line numbers with option -n are displayed using `|' as the\n\
             field separator for each additional line matched by the pattern.\n\
             If -u is specified, ungroups multiple matches on the same line.\n\
-            This option cannot be combined with options -A, -B, -C, -v, and -y.\n\
+            This option cannot be combined with options -A, -B, -C, -v and -y.\n\
     --only-line-number\n\
             The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
@@ -11481,6 +11580,12 @@ void help(std::ostream& out)
             Recursively read all files under each directory, following symbolic\n\
             links only if they are on the command line.  When -J1 is specified,\n\
             files are searched in the same order as specified.\n\
+    --replace=FORMAT\n\
+            Replace matching patterns in the output by the specified FORMAT\n\
+            with `%' fields.  When option -P is used, FORMAT may include `%1'\n\
+            to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'\n\
+            outputs `%' and `%~' outputs a newline.  See option --format,\n\
+            `ugrep --help format' and `man ugrep' section FORMAT for details.\n\
     -S, --dereference\n\
             If -r is specified, all symbolic links are followed, like -R.  The\n\
             default is not to follow symbolic links.\n\
@@ -11492,7 +11597,7 @@ void help(std::ostream& out)
             a `-', write the configuration to standard output.\n\
     --separator[=SEP]\n\
             Use SEP as field separator between file name, line number, column\n\
-            number, byte offset, and the matched line.  The default is a colon\n\
+            number, byte offset and the matched line.  The default is a colon\n\
             (`:').\n\
     --sort[=KEY]\n\
             Displays matching files in the order specified by KEY in recursive\n\
@@ -11500,18 +11605,18 @@ void help(std::ostream& out)
             to sort by best match with option -Z (sort by best match requires\n\
             two passes over the input files), `size' to sort by file size,\n\
             `used' to sort by last access time, `changed' to sort by last\n\
-            modification time, and `created' to sort by creation time.  Sorting\n\
+            modification time and `created' to sort by creation time.  Sorting\n\
             is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or\n\
             `rcreated'.  Archive contents are not sorted.  Subdirectories are\n\
             sorted and displayed after matching files.  FILE arguments are\n\
             searched in the same order as specified.  Normally ugrep displays\n\
             matches in no particular order to improve performance.\n\
     --stats\n\
-            Output statistics on the number of files and directories searched,\n\
+            Output statistics on the number of files and directories searched\n\
             and the inclusion and exclusion constraints applied.\n\
     -T, --initial-tab\n\
             Add a tab space to separate the file name, line number, column\n\
-            number, and byte offset with the matched line.\n\
+            number and byte offset with the matched line.\n\
     -t TYPES, --file-type=TYPES\n\
             Search only files associated with TYPES, a comma-separated list of\n\
             file types.  Each file type corresponds to a set of filename\n\
@@ -11540,7 +11645,7 @@ void help(std::ostream& out)
             Output the matched line again for each additional pattern match,\n\
             using `+' as the field separator.\n\
     -V, --version\n\
-            Display version information and exit.\n\
+            Display version with linked libraries and exit.\n\
     -v, --invert-match\n\
             Selected lines are those not matching any of the specified\n\
             patterns.\n\
@@ -11552,9 +11657,9 @@ void help(std::ostream& out)
     -w, --word-regexp\n\
             The PATTERN is searched for as a word, such that the matching text\n\
             is preceded by a non-word character and is followed by a non-word\n\
-            character.  Word characters are letters, digits, and the\n\
+            character.  Word characters are letters, digits and the\n\
             underscore.  With option -P, word characters are Unicode letters,\n\
-            digits, and underscore.  This option has no effect if -x is also\n\
+            digits and underscore.  This option has no effect if -x is also\n\
             specified.  If a PATTERN is specified, or -e PATTERN or -N PATTERN,\n\
             then this option has no effect on -f FILE patterns to allow -f FILE\n\
             patterns to narrow or widen the scope of the PATTERN search.\n\
@@ -11577,7 +11682,7 @@ void help(std::ostream& out)
             not only lines containing the character `x'.\n\
     -y, --any-line\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
-            context with a `-' separator.  See also options -A, -B, and -C.\n\
+            context with a `-' separator.  See also options -A, -B and -C.\n\
     -Z[[+-~]MAX], --fuzzy[=[+-~]MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             By default, MAX is 1: one deletion, insertion or substitution is\n\
@@ -11623,14 +11728,14 @@ void help(std::ostream& out)
             "\
     --zmax=NUM\n\
             When used with option -z (--decompress), searches the contents of\n\
-            compressed files and archives stored within archives for up to NUM\n\
-            recursive levels deep.  The default --zmax=1 only permits searching\n\
+            compressed files and archives stored within archives by up to NUM\n\
+            recursive expansions.  The default --zmax=1 only permits searching\n\
             uncompressed files stored in cpio, pax, tar and zip archives;\n\
             compressed files and archives are detected as binary files and are\n\
             effectively ignored.  Specify --zmax=2 to search compressed files\n\
             and archives stored in cpio, pax, tar and zip archives.  NUM may\n\
             range from 1 to 99 for up to 99 decompression and de-archiving\n\
-            steps.  Larger NUM values gradually degrade performance.\n"
+            steps.  Increasing NUM values gradually degrades performance.\n"
 #ifndef WITH_DECOMPRESSION_THREAD
             "\
             This option is not available in this build configuration of ugrep.\n"
@@ -11655,82 +11760,223 @@ void help(std::ostream& out)
 // display helpful information for WHAT, if specified, and exit
 void help(const char *what)
 {
-  if (what == NULL)
+  if (what != NULL && *what == '=')
+    ++what;
+
+  if (what != NULL && strncmp(what, "--no", 4) == 0)
+    what += 4;
+
+  if (what == NULL || *what == '\0')
   {
     help(std::cout);
   }
   else
   {
-    if (*what == '=')
-      ++what;
+    std::stringstream text;
+    help(text);
+    const std::string& str = text.str();
 
-    if (strncmp(what, "--no", 4) == 0)
-      what += 4;
+    int found = 0;
 
-    if (*what == '\0')
+    for (int pass = 0; pass < 2; ++pass)
     {
-      help(std::cout);
-    }
-    else
-    {
-      std::stringstream text;
-      help(text);
-      const std::string& str = text.str();
+      size_t pos = 0;
 
-      int found = 0;
-
-      for (int pass = 0; pass < 2; ++pass)
+      while (true)
       {
-        size_t pos = 0;
+        size_t end = str.find("\n    -", pos + 1);
 
-        while (true)
+        if (end == std::string::npos)
+          end = str.find("\n\n", pos + 1);
+
+        if (end == std::string::npos)
+          break;
+
+        size_t nl = str.find('\n', pos + 1);
+
+        // roughly find a case-independent match of WHAT
+        for (size_t i = pos + 5; i < (pass == 0 ? nl : end); ++i)
         {
-          size_t end = str.find("\n    -", pos + 1);
+          size_t j = 0;
 
-          if (end == std::string::npos)
-            end = str.find("\n\n", pos + 1);
-
-          if (end == std::string::npos)
-            break;
-
-          size_t nl = str.find('\n', pos + 1);
-
-          // roughly find a case-independent match of WHAT
-          for (size_t i = pos + 5; i < (pass == 0 ? nl : end); ++i)
-          {
-            size_t j = 0;
-
-            for (j = 0; what[j] != '\0'; ++j)
-              if (((what[j] ^ str.at(i + j)) & ~0x20) != 0)
-                break;
-
-            if (what[j] == '\0')
-            {
-              if (pass == 0 ? i < nl: i > nl)
-              {
-                if (found == 0 && pass == 0)
-                  std::cout << "\nOptions and arguments:\n";
-                else if (found == 1 && pass == 1)
-                  std::cout << "\n\nOther options:\n";
-                else if (found == 0)
-                  std::cout << "\nNo matching option, other relevant options:\n";
-
-                std::cout << str.substr(pos, end - pos);
-                found = pass + 1;
-              }
+          for (j = 0; what[j] != '\0'; ++j)
+            if (((what[j] ^ str.at(i + j)) & ~0x20) != 0)
               break;
+
+          if (what[j] == '\0')
+          {
+            if (pass == 0 ? i < nl: i > nl)
+            {
+              if (found == 0 && pass == 0)
+                std::cout << "\nOptions and arguments:\n";
+              else if (found == 1 && pass == 1)
+                std::cout << "\n\nOther options:\n";
+              else if (found == 0)
+                std::cout << "\nNo matching option, other relevant options:\n";
+
+              std::cout << str.substr(pos, end - pos);
+              found = pass + 1;
             }
+            break;
           }
-
-          pos = end;
         }
+
+        pos = end;
       }
-
-      if (found == 0)
-        std::cout << "ugrep --help: nothing appropriate for " << what;
-
-      std::cout << "\n\n";
     }
+
+    if (found == 0)
+      std::cout << "ugrep --help: nothing appropriate for " << what;
+
+    std::cout << "\n\n";
+
+    if (strcmp(what, "format") == 0)
+    {
+      std::cout <<
+"FORMAT fields for --format and --replace:\n\
+\n\
+ field       output                      field       output\n\
+ ----------  --------------------------  ----------  --------------------------\n\
+ %a          basename                    %%          %\n\
+ %b          byte offset                 %~          newline\n\
+ %B %[...]B  ... + byte offset, if -b    %[...]<     ..., if %m = 1\n\
+ %c          matching pattern, as C++    %[...]>     ..., if %m > 1\n\
+ %C          matching line, as C++       %,          same as %[,]>\n\
+ %d          byte size                   %:          same as %[:]>\n\
+ %e          end offset                  %;          same as %[;]>\n\
+ %f          pathname                    %|          same as %[|]>\n\
+ %F %[...]F  ... + pathname, if -H       %[...]$     assign ... to separator\n\
+ %h          pathname                    --------------------------------------\n\
+ %H %[...]H  ... + \"pathname\", if -H\n\
+ %j          matching pattern, as JSON   Fields that require -P for captures:\n\
+ %J          matching line, as JSON\n\
+ %k          line number                 field       output\n\
+ %K %[...]K  ... + column number, if -k  ----------  --------------------------\n\
+ %m          match number                %1 %2...%9  group capture\n\
+ %n          line number                 %[n]#       nth group capture\n\
+ %N %[...]N  ... + line number, if -n    %[n]b       nth capture byte offset\n\
+ %o          matching pattern            %[n]d       nth capture byte size\n\
+ %O          matching line               %[n]e       nth capture end offset\n\
+ %p          path                        %[name]#    named group capture\n\
+ %q          quoted matching pattern     %[name]b    named capture byte offset\n\
+ %Q          quoted matching line        %[name]d    named capture byte size\n\
+ %s          separator                   %[name]e    named capture end offset\n\
+ %S %[...]S  ... + separator, if %m > 1  %[n|...]#   capture n,... that matched\n\
+ %t          tab                         %[n|...]b   cpature n,... byte offset\n\
+ %T %[...]T  ... + tab, if -T            %[n|...]d   cpature n,... byte size\n\
+ %u          unique lines, unless -u     %[n|...]e   cpature n,... end offset\n\
+ %v          matching pattern, as CSV    %[t|...]g   text t indexed by capture\n\
+ %V          matching line, as CSV       %[t|...]G   all t indexed by captures\n\
+ %w          match width in wide chars   --------------------------------------\n\
+ %x          matching pattern, as XML\n\
+ %X          matching line, as XML\n\
+ %z          path in archive\n\
+ %Z          edit distance cost, if -Z\n\
+ --------------------------------------\n\
+\n\
+";
+    }
+    else if (strcmp(what, "regex") == 0)
+    {
+      std::cout <<
+"Extended regular expression syntax overview (excludes some advanced patterns):\n\
+\n\
+ pattern     matches                     pattern     special characters\n\
+ ----------  --------------------------  ----------  --------------------------\n\
+ .           any char except newline     \\f          form feed\n\
+ a           the character a             \\n          newline\n\
+ ab          the string ab               \\r          carriage return\n\
+ a|b         a or b                      \\R          any Unicode newline\n\
+ a*          zero or more a's            \\t          tab\n\
+ a+          one or more a's             \\v          vertical tab\n\
+ a?          zero or one a               \\0          NUL\n\
+ a{3}        3 a's                       \\cZ         control character Z\n\
+ a{3,}       3 or more a's               \\xHH        hex character code HH\n\
+ a{3,7}      3 to 7 a's                  \\x{HHHH}    hex character code HHHH\n\
+ a*?         zero or more a's lazily     \\u{HHHH}    hex character code HHHH\n\
+ a+?         one or more a's lazily      --------------------------------------\n\
+ a??         zero or one a lazily\n\
+ a{3}?       3 a's lazily                pattern     anchors and boundaries\n\
+ a{3,}?      3 or more a's lazily        ----------  --------------------------\n\
+ a{3,7}?     3 to 7 a's lazily           ^           begin of line anchor\n\
+ --------------------------------------  $           end of line anchor\n\
+                                         \\b          word boundary (-P)\n\
+ pattern     character classes           \\B          non-word boundary (-P)\n\
+ ----------  --------------------------  \\<          start word boundary (-P)\n\
+ [abc-e]     one character a,b,c,d,e     \\>          end word boundary (-P)\n\
+ [^abc-e]    one char not a,b,c,d,e,\\n   (?=...)     lookahead (-P)\n\
+ [[:name:]]  one char in POSIX class:    (?!...)     negative lookahead (-P)\n\
+      alnum  a-z,A-Z,0-9                 (?<=...)    lookbehind (-P)\n\
+      alpha  a-z,A-Z                     (?<!...)    negative lookbehind (-P)\n\
+      ascii  ASCII char \\x00-\\x7f        --------------------------------------\n\
+      blank  space or tab\n\
+      cntrl  control characters          pattern     grouping\n\
+      digit  0-9                         ----------  --------------------------\n\
+      graph  visible characters          (...)       capturing group (-P)\n\
+      lower  a-z                         (...)       non-capturing group\n\
+      print  visible chars and space     (?:...)     non-capturing group\n\
+      punct  punctuation characters      (?<X>...)   capturing, named X (-P)\n\
+      space  space,\\t,\\n,\\v,\\f,\\r        \\1          matches group 1 (-P)\n\
+      upper  A-Z                         \\g{10}      matches group 10 (-P)\n\
+       word  a-z,A-Z,0-9,_               \\g{X}       matches group X (-P)\n\
+     xdigit  0-9,a-f,A-F                 (?#...)     comments ... are ignored\n\
+ \\p{class}   one char in class           --------------------------------------\n\
+ \\P{class}   one non-char in class\n\
+ \\d          a digit                     pattern     removes special meaning\n\
+ \\D          a non-digit                 ----------  --------------------------\n\
+ \\h          a space or tab              \\.          escapes . and other chars\n\
+ \\H          not a space or tab          \\Q...\\E     the literal string ...\n\
+ \\s          a whitespace except \\n      --------------------------------------\n\
+ \\S          a non-whitespace\n\
+ \\w          a word character\n\
+ \\W          a non-word character\n\
+ -------------------------------------- \n\
+\n\
+Option -P is required by certain regex patterns as indicated by (-P).\n\
+\n\
+Option -U disables full Unicode pattern matching.  Non-POSIX Unicode character\n\
+classes \\p{class} are disabled.  Only ASCII, LATIN1 or binary regex patterns\n\
+may be specified.\n\
+\n\
+Option --bool adds the following syntax and conventions to patterns, listed\n\
+from the lowest to the highest level of precedence:\n\
+\n\
+ pattern     operation                   pattern     operation\n\
+ ----------  --------------------------  ----------  --------------------------\n\
+ space       logical AND                 AND         locical AND\n\
+ |           logical OR                  OR          logical OR\n\
+ -           logical NOT                 NOT         locical NOT\n\
+ (...)       grouping                    \"...\"       the literal string ...\n\
+ --------------------------------------  --------------------------------------\n\
+\n\
+";
+    }
+    else if (strcmp(what, "globs") == 0)
+    {
+      std::cout <<
+"Glob syntax and conventions:\n\
+\n\
+    *       anything except a /\n\
+    ?       any one character except a /\n\
+    [a-z]   one character in the selected range of characters\n\
+    [^a-z]  one character not in the selected range of characters\n\
+    [!a-z]  one character not in the selected range of characters\n\
+    /       when used at the begin of a glob, matches working directory\n\
+    **/     zero or more directories\n\
+    /**     when at the end of a glob, matches everything after the /\n\
+    \\?      a ? (or any character specified after the backslash)\n\
+\n\
+When a glob contains a /, the full pathname is matched.  Otherwise, the\n\
+basename of a file or directory is matched in recursive searches.\n\
+\n\
+When a glob begins with a /, files and directories are matched at the working\n\
+directory, not recursively.\n\
+\n\
+When a glob ends with a /, directories are matched instead of files.\n\
+\n\
+";
+    }
+
   }
 
   exit(EXIT_ERROR);

@@ -30,7 +30,7 @@
 @file      output.cpp
 @brief     Output management
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -407,14 +407,13 @@ std::pair<const char*,size_t> Output::capture(reflex::AbstractMatcher *matcher, 
     while (true)
     {
       const char *bar = strchr(arg, '|');
+      const char *end = strchr(arg, ']');
 
-      if (bar == NULL)
-      {
-        bar = strchr(arg, ']');
+      if (end == NULL)
+        break;
 
-        if (bar == NULL)
-          break;
-      }
+      if (bar == NULL || bar > end)
+        bar = end;
 
       if (isdigit(*arg))
       {
@@ -728,19 +727,24 @@ void Output::format(const char *format, const char *pathname, const std::string&
           {
             size_t n = id.first;
             const char *bar;
+            const char *end;
 
             while (true)
             {
               bar = strchr(arg, '|');
+              end = strchr(arg, ']');
 
-              if (--n == 0 || bar == NULL)
+              if (bar == NULL || (end != NULL && bar > end))
+              {
+                bar = end;
+                break;
+              }
+
+              if (--n == 0)
                 break;
 
               arg = bar + 1;
             }
-
-            if (bar == NULL)
-              bar = strchr(arg, ']');
 
             if (n == 0 && bar != NULL)
               str(arg, bar - arg);
@@ -771,19 +775,24 @@ void Output::format(const char *format, const char *pathname, const std::string&
           if (n > 0)
           {
             const char *bar;
+            const char *end;
 
             while (true)
             {
               bar = strchr(arg, '|');
+              end = strchr(arg, ']');
 
-              if (--n == 0 || bar == NULL)
+              if (bar == NULL || (end != NULL && bar > end))
+              {
+                bar = end;
+                break;
+              }
+
+              if (--n == 0)
                 break;
 
               arg = bar + 1;
             }
-
-            if (bar == NULL)
-              bar = strchr(arg, ']');
 
             if (n == 0 && bar != NULL)
               str(arg, bar - arg);

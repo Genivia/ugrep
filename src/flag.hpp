@@ -30,7 +30,7 @@
 @file      flag.hpp
 @brief     Tri-state Flag class and global flags set by options
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -166,12 +166,13 @@ extern const char *flag_group_separator;
 extern const char *flag_hexdump;
 extern const char *flag_label;
 extern const char *flag_pager;
-extern const char *flag_view;
+extern const char *flag_replace;
 extern const char *flag_save_config;
 extern const char *flag_separator;
 extern const char *flag_sort;
 extern const char *flag_stats;
 extern const char *flag_tag;
+extern const char *flag_view;
 extern std::string flag_config_file;
 extern std::set<std::string> flag_config_options;
 extern std::vector<std::string> flag_regexp;

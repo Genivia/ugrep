@@ -150,7 +150,7 @@ Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
 Edit Visual Studio project properties for Release x86 to make sure these match the following:
 
-Configuration Properties
+Project Configuration Properties
 	General:
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
@@ -171,6 +171,18 @@ Configuration Properties
 	Manifest Tool:
 		Input and Output:
 			Additional Manifest Files: $(ProjectDir)\..\manifest.xml
+
+Right-click on the matcher_avx2.cpp file to set the C++ preprocessor properties specifically for this file by adding COMPILE_AVX2 to the list of preprocessor definitions, and enable AVX2:
+
+	C/C++
+		Preprocessor: 
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;COMPILE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+		Code Generation:
+			Enable Enhanced Instruction Set: Advanced Vector Extensions 2 (/arch:AVX2) 
+
+If the general C++ preprocessor properties and the C++ preprocessor properties for matcher_avx2.cpp are the same, then linkage fails with duplicate definition errors.
+
+Remove matcher_avx512bw.cpp from the list of source files.
 
 Then build ugrep in Visual Studio.
 
@@ -258,7 +270,7 @@ Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
 Edit Visual Studio project properties for Release x86 to make sure these match the following:
 
-Configuration Properties
+Project Configuration Properties
 	General:
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
@@ -279,5 +291,17 @@ Configuration Properties
 	Manifest Tool:
 		Input and Output:
 			Additional Manifest Files: $(ProjectDir)\..\manifest.xml
+
+Right-click on the matcher_avx2.cpp file to set the C++ preprocessor properties specifically for this file by adding COMPILE_AVX2 to the list of preprocessor definitions, and enable AVX2:
+
+	C/C++
+		Preprocessor: 
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;COMPILE_AVX2;HAVE_AVX2;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+		Code Generation:
+			Enable Enhanced Instruction Set: Advanced Vector Extensions 2 (/arch:AVX2) 
+
+If the general C++ preprocessor properties and the C++ preprocessor properties for matcher_avx2.cpp are the same, then linkage fails with duplicate definition errors.
+
+Remove matcher_avx512bw.cpp from the list of source files.
 
 Then build ugrep in Visual Studio.

@@ -30,7 +30,7 @@
 @file      query.cpp
 @brief     Query engine and UI
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -1341,7 +1341,9 @@ void Query::search()
     // clear "Searching..." or "(END)", if displayed
     if (error_ == -1 && rows_ < row_ + Screen::rows - 1)
     {
-      Screen::setpos(rows_ - row_ + 1, 0);
+      Screen::normal();
+      Screen::invert();
+      Screen::put(rows_ - row_ + 1, 0, "Restarting search...");
       Screen::normal();
       Screen::erase();
     }
@@ -2924,19 +2926,19 @@ void Query::meta(int key)
         {
           flags_[30].flag = true;
 
-          if (fuzzy_ > 1)
+          if ((fuzzy_ & 0xff) > 1)
             --fuzzy_;
 
-          msg.append(" to ").append(std::to_string(fuzzy_));
+          msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
         }
         else if (key == ']')
         {
-          if (flags_[30].flag)
+          if (flags_[30].flag && (fuzzy_ & 0xff) < 0xff)
             ++fuzzy_;
           else
             flags_[30].flag = true;
 
-          msg.append(" to ").append(std::to_string(fuzzy_));
+          msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
         }
         else if (key == '{')
         {

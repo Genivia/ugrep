@@ -30,11 +30,11 @@
 @file      simd_avx2.cpp
 @brief     RE/flex SIMD intrinsics compiled with -mavx2
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2021, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2022, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#include <reflex/matcher.h>
+#include <reflex/absmatcher.h>
 
 namespace reflex {
 
@@ -58,51 +58,6 @@ size_t simd_nlcount_avx2(const char*& b, const char *e)
 #endif
   b = s;
   return n;
-}
-
-// string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
-bool Matcher::simd_advance_avx2(const char*& b, const char *e, size_t &loc, size_t min, const char *pre, size_t len)
-{
-  const char *s = b;
-#if defined(HAVE_AVX2)
-  __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
-  __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
-  while (s + 32 <= e)
-  {
-    __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-    __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs_ - lcp_));
-    __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
-    __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
-    uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-    while (mask != 0)
-    {
-      uint32_t offset = ctz(mask);
-      if (std::memcmp(s - lcp_ + offset, pre, len) == 0)
-      {
-        loc = s - lcp_ + offset - buf_;
-        set_current(loc);
-        if (min == 0)
-          return true;
-        if (min >= 4)
-        {
-          if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
-            return true;
-        }
-        else
-        {
-          if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
-            return true;
-        }
-      }
-      mask &= mask - 1;
-    }
-    s += 32;
-  }
-#else
-  (void)e, (void)loc, (void)min, (void)pre, (void)len;
-#endif
-  b = s;
-  return false;
 }
 
 } // namespace reflex

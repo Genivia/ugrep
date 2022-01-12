@@ -59,7 +59,10 @@ Option \fB-f FILE\fR matches patterns specified in \fBFILE\fR.  If \fBFILE\fR
 is large and defines complex regular expression patterns, then option \fB-P\fR
 (Perl matching) may improve performance (this omits POSIX DFA construction.)
 .PP
-For help, \fB--help \fIWHAT\fR displays help on options related to \fIWHAT\fR.
+\fBugrep --help \fIWHAT\fR displays help on options related to \fIWHAT\fR;
+\fB--help format\fR displays help on \fB--format\fR and \fB--replace\fR
+formatting; \fB--help regex\fR displays help on regular expression syntax and
+conventions; \fB--help globs\fR displays help on glob patterns.
 .PP
 The following options are available:
 END

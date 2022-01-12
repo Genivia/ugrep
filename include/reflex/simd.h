@@ -30,7 +30,7 @@
 @file      simd.h
 @brief     RE/flex SIMD intrinsics
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2022, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 

@@ -246,6 +246,10 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
     | $DIFF "out/$FN-v--format.out" \
     || ERR "-v --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' '$PAT' $FILES"
   printf .
+  $UG -U --replace='(%m:%o)' "$PAT" $FILES \
+    | $DIFF "out/$FN--replace.out" \
+    || ERR "--replace='(%m:%o)' '$PAT' $FILES"
+  printf .
   $UG -U -Iw "$PAT" $FILES \
     | $DIFF "out/$FN-Iw.out" \
     || ERR "-Iw '$PAT' $FILES"

@@ -118,6 +118,8 @@ libreflex_a_LIBADD =
 am_libreflex_a_OBJECTS = libreflex_a-convert.$(OBJEXT) \
 	libreflex_a-debug.$(OBJEXT) libreflex_a-error.$(OBJEXT) \
 	libreflex_a-input.$(OBJEXT) libreflex_a-matcher.$(OBJEXT) \
+	libreflex_a-matcher_avx2.$(OBJEXT) \
+	libreflex_a-matcher_avx512bw.$(OBJEXT) \
 	libreflex_a-pattern.$(OBJEXT) libreflex_a-posix.$(OBJEXT) \
 	libreflex_a-simd_avx2.$(OBJEXT) \
 	libreflex_a-simd_avx512bw.$(OBJEXT) \
@@ -149,6 +151,8 @@ am__depfiles_remade = ./$(DEPDIR)/libreflex_a-block_scripts.Po \
 	./$(DEPDIR)/libreflex_a-language_scripts.Po \
 	./$(DEPDIR)/libreflex_a-letter_scripts.Po \
 	./$(DEPDIR)/libreflex_a-matcher.Po \
+	./$(DEPDIR)/libreflex_a-matcher_avx2.Po \
+	./$(DEPDIR)/libreflex_a-matcher_avx512bw.Po \
 	./$(DEPDIR)/libreflex_a-pattern.Po \
 	./$(DEPDIR)/libreflex_a-posix.Po \
 	./$(DEPDIR)/libreflex_a-simd_avx2.Po \
@@ -327,7 +331,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libreflex.a
 libreflex_a_CPPFLAGS = -I$(top_srcdir)/include $(SIMD_FLAGS)
-libreflex_a_SOURCES = $(top_srcdir)/include/reflex/abslexer.h $(top_srcdir)/include/reflex/absmatcher.h $(top_srcdir)/include/reflex/bits.h $(top_srcdir)/include/reflex/boostmatcher.h $(top_srcdir)/include/reflex/convert.h $(top_srcdir)/include/reflex/debug.h $(top_srcdir)/include/reflex/error.h $(top_srcdir)/include/reflex/flexlexer.h $(top_srcdir)/include/reflex/input.h $(top_srcdir)/include/reflex/matcher.h $(top_srcdir)/include/reflex/pattern.h $(top_srcdir)/include/reflex/posix.h $(top_srcdir)/include/reflex/ranges.h $(top_srcdir)/include/reflex/setop.h $(top_srcdir)/include/reflex/simd.h $(top_srcdir)/include/reflex/stdmatcher.h $(top_srcdir)/include/reflex/timer.h $(top_srcdir)/include/reflex/traits.h $(top_srcdir)/include/reflex/unicode.h $(top_srcdir)/include/reflex/utf8.h convert.cpp debug.cpp error.cpp input.cpp matcher.cpp pattern.cpp posix.cpp simd_avx2.cpp simd_avx512bw.cpp unicode.cpp utf8.cpp block_scripts.cpp language_scripts.cpp letter_scripts.cpp
+libreflex_a_SOURCES = $(top_srcdir)/include/reflex/abslexer.h $(top_srcdir)/include/reflex/absmatcher.h $(top_srcdir)/include/reflex/bits.h $(top_srcdir)/include/reflex/boostmatcher.h $(top_srcdir)/include/reflex/convert.h $(top_srcdir)/include/reflex/debug.h $(top_srcdir)/include/reflex/error.h $(top_srcdir)/include/reflex/flexlexer.h $(top_srcdir)/include/reflex/input.h $(top_srcdir)/include/reflex/matcher.h $(top_srcdir)/include/reflex/pattern.h $(top_srcdir)/include/reflex/posix.h $(top_srcdir)/include/reflex/ranges.h $(top_srcdir)/include/reflex/setop.h $(top_srcdir)/include/reflex/simd.h $(top_srcdir)/include/reflex/stdmatcher.h $(top_srcdir)/include/reflex/timer.h $(top_srcdir)/include/reflex/traits.h $(top_srcdir)/include/reflex/unicode.h $(top_srcdir)/include/reflex/utf8.h convert.cpp debug.cpp error.cpp input.cpp matcher.cpp matcher_avx2.cpp matcher_avx512bw.cpp pattern.cpp posix.cpp simd_avx2.cpp simd_avx512bw.cpp unicode.cpp utf8.cpp block_scripts.cpp language_scripts.cpp letter_scripts.cpp
 all: all-am
 
 .SUFFIXES:
@@ -384,6 +388,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-language_scripts.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-letter_scripts.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-matcher.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-matcher_avx2.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-matcher_avx512bw.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-pattern.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-posix.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-simd_avx2.Po@am__quote@ # am--include-marker
@@ -480,6 +486,34 @@ libreflex_a-matcher.obj: matcher.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='matcher.cpp' object='libreflex_a-matcher.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-matcher.obj `if test -f 'matcher.cpp'; then $(CYGPATH_W) 'matcher.cpp'; else $(CYGPATH_W) '$(srcdir)/matcher.cpp'; fi`
+
+libreflex_a-matcher_avx2.o: matcher_avx2.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-matcher_avx2.o -MD -MP -MF $(DEPDIR)/libreflex_a-matcher_avx2.Tpo -c -o libreflex_a-matcher_avx2.o `test -f 'matcher_avx2.cpp' || echo '$(srcdir)/'`matcher_avx2.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-matcher_avx2.Tpo $(DEPDIR)/libreflex_a-matcher_avx2.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='matcher_avx2.cpp' object='libreflex_a-matcher_avx2.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-matcher_avx2.o `test -f 'matcher_avx2.cpp' || echo '$(srcdir)/'`matcher_avx2.cpp
+
+libreflex_a-matcher_avx2.obj: matcher_avx2.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-matcher_avx2.obj -MD -MP -MF $(DEPDIR)/libreflex_a-matcher_avx2.Tpo -c -o libreflex_a-matcher_avx2.obj `if test -f 'matcher_avx2.cpp'; then $(CYGPATH_W) 'matcher_avx2.cpp'; else $(CYGPATH_W) '$(srcdir)/matcher_avx2.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-matcher_avx2.Tpo $(DEPDIR)/libreflex_a-matcher_avx2.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='matcher_avx2.cpp' object='libreflex_a-matcher_avx2.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-matcher_avx2.obj `if test -f 'matcher_avx2.cpp'; then $(CYGPATH_W) 'matcher_avx2.cpp'; else $(CYGPATH_W) '$(srcdir)/matcher_avx2.cpp'; fi`
+
+libreflex_a-matcher_avx512bw.o: matcher_avx512bw.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-matcher_avx512bw.o -MD -MP -MF $(DEPDIR)/libreflex_a-matcher_avx512bw.Tpo -c -o libreflex_a-matcher_avx512bw.o `test -f 'matcher_avx512bw.cpp' || echo '$(srcdir)/'`matcher_avx512bw.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-matcher_avx512bw.Tpo $(DEPDIR)/libreflex_a-matcher_avx512bw.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='matcher_avx512bw.cpp' object='libreflex_a-matcher_avx512bw.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-matcher_avx512bw.o `test -f 'matcher_avx512bw.cpp' || echo '$(srcdir)/'`matcher_avx512bw.cpp
+
+libreflex_a-matcher_avx512bw.obj: matcher_avx512bw.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-matcher_avx512bw.obj -MD -MP -MF $(DEPDIR)/libreflex_a-matcher_avx512bw.Tpo -c -o libreflex_a-matcher_avx512bw.obj `if test -f 'matcher_avx512bw.cpp'; then $(CYGPATH_W) 'matcher_avx512bw.cpp'; else $(CYGPATH_W) '$(srcdir)/matcher_avx512bw.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-matcher_avx512bw.Tpo $(DEPDIR)/libreflex_a-matcher_avx512bw.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='matcher_avx512bw.cpp' object='libreflex_a-matcher_avx512bw.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-matcher_avx512bw.obj `if test -f 'matcher_avx512bw.cpp'; then $(CYGPATH_W) 'matcher_avx512bw.cpp'; else $(CYGPATH_W) '$(srcdir)/matcher_avx512bw.cpp'; fi`
 
 libreflex_a-pattern.o: pattern.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-pattern.o -MD -MP -MF $(DEPDIR)/libreflex_a-pattern.Tpo -c -o libreflex_a-pattern.o `test -f 'pattern.cpp' || echo '$(srcdir)/'`pattern.cpp
@@ -738,6 +772,8 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libreflex_a-language_scripts.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-letter_scripts.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-matcher.Po
+	-rm -f ./$(DEPDIR)/libreflex_a-matcher_avx2.Po
+	-rm -f ./$(DEPDIR)/libreflex_a-matcher_avx512bw.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-pattern.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-posix.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-simd_avx2.Po
@@ -797,6 +833,8 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libreflex_a-language_scripts.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-letter_scripts.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-matcher.Po
+	-rm -f ./$(DEPDIR)/libreflex_a-matcher_avx2.Po
+	-rm -f ./$(DEPDIR)/libreflex_a-matcher_avx512bw.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-pattern.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-posix.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-simd_avx2.Po
@@ -838,8 +876,13 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-libreflex_a-simd_avx2.$(OBJEXT) : CXXFLAGS += $(SIMD_AVX2_FLAGS)
-libreflex_a-simd_avx512bw.$(OBJEXT) : CXXFLAGS += $(SIMD_AVX512BW_FLAGS)
+# separately compile matcher_avx2.cpp and matcher_avx512bw (with the same content as matcher.cpp) with AVX optimizations enabled
+libreflex_a-matcher_avx2.$(OBJEXT)     : CXXFLAGS += -DCOMPILE_AVX2 $(SIMD_AVX2_FLAGS)
+libreflex_a-matcher_avx512bw.$(OBJEXT) : CXXFLAGS += -DCOMPILE_AVX512BW $(SIMD_AVX512BW_FLAGS)
+
+# separately compile simd_avx2.cpp and simd_avx512bw.cpp with AVX optimizations enabled
+libreflex_a-simd_avx2.$(OBJEXT)     : CXXFLAGS += -DCOMPILE_AVX2 $(SIMD_AVX2_FLAGS)
+libreflex_a-simd_avx512bw.$(OBJEXT) : CXXFLAGS += -DCOMPILE_AVX512BW $(SIMD_AVX512BW_FLAGS)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

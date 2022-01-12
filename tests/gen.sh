@@ -105,6 +105,7 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   $UG -U --tag "$PAT" $FILES > "out/$FN--tag.out"
   $UG -U --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" $FILES > "out/$FN--format.out"
   $UG -U -v --format-open='%m) %f:%~' --format='  %m) %n,%k %w-%d%~' --format-close='%~' "$PAT" $FILES > "out/$FN-v--format.out"
+  $UG -U --replace='(%m:%o)' "$PAT" $FILES > "out/$FN--replace.out"
   $UG -U -Iw "$PAT" $FILES > "out/$FN-Iw.out"
   $UG -U -Ix "$PAT" $FILES > "out/$FN-Ix.out"
   $UG -U -F  "$PAT" $FILES > "out/$FN-F.out"

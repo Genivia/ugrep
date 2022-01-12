@@ -1,7 +1,7 @@
-AC_INIT([ugrep],[3.4])
+AC_INIT([ugrep],[3.6])
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_HEADERS([config.h])
-AC_COPYRIGHT([Copyright (C) 2019-2021 Robert van Engelen, Genivia Inc.])
+AC_COPYRIGHT([Copyright (C) 2019-2022 Robert van Engelen, Genivia Inc.])
 
 AC_CONFIG_MACRO_DIR([m4])
 
