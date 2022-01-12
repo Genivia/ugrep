@@ -3803,6 +3803,7 @@ const Type type_table[] = {
   { "c",            "c,h,H,hdl,xs", NULL,                                             NULL },
   { "c++",          "cpp,CPP,cc,cxx,CXX,h,hh,H,hpp,hxx,Hxx,HXX", NULL,                NULL },
   { "clojure",      "clj", NULL,                                                      NULL },
+  { "cpp",          "cpp,CPP,cc,cxx,CXX,h,hh,H,hpp,hxx,Hxx,HXX", NULL,                NULL },
   { "csharp",       "cs", NULL,                                                       NULL },
   { "css",          "css", NULL,                                                      NULL },
   { "csv",          "csv", NULL,                                                      NULL },
