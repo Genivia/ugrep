@@ -195,6 +195,12 @@
     <ClCompile Include="..\lib\simd_avx512bw.cpp">
       <Filter>lib</Filter>
     </ClCompile>
+    <ClCompile Include="include_ugrep\matcher_avx2.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+    <ClCompile Include="include_ugrep\matcher_avx512bw.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md">

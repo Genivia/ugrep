@@ -14,6 +14,7 @@
 
 // UGREP options:
 #define HAVE_AVX2
+#define HAVE_AVX512BW
 #define WITH_COLOR
 #define WITH_NO_INDENT
 
