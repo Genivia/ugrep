@@ -674,6 +674,11 @@ struct Zthread {
 
   ~Zthread()
   {
+    if (zstream != NULL)
+    {
+      delete zstream;
+      zstream = NULL;
+    }
     if (ztchain != NULL)
     {
       delete ztchain;
@@ -890,6 +895,7 @@ struct Zthread {
       thread.join();
     }
 
+    // we can release the zstream that is no longer needed
     if (zstream != NULL)
     {
       delete zstream;

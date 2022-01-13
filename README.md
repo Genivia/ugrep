@@ -34,7 +34,7 @@ Search for anything in everything... ultra fast
 
       ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
 
-  > **Pro Tip:** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches up to `n` missing characters and `-Z~n` matches up to `n` replacements.  `-Z` defaults to `-Z1`.
+  > **Pro Tip:** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
 
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 

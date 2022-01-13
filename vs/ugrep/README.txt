@@ -172,17 +172,19 @@ Project Configuration Properties
 		Input and Output:
 			Additional Manifest Files: $(ProjectDir)\..\manifest.xml
 
-Right-click on the matcher_avx2.cpp file to set the C++ preprocessor properties specifically for this file by adding COMPILE_AVX2 to the list of preprocessor definitions, and enable AVX2:
+Right-click on the matcher_avx2.cpp file to enable AVX2:
 
 	C/C++
-		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;COMPILE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
 			Enable Enhanced Instruction Set: Advanced Vector Extensions 2 (/arch:AVX2) 
 
-If the general C++ preprocessor properties and the C++ preprocessor properties for matcher_avx2.cpp are the same, then linkage fails with duplicate definition errors.
+Optionally, right-click on the matcher_avx512bw.cpp file to enable AVX512 when available and add HAVE_AVX512BW to the preprocessor definitions:
 
-Remove matcher_avx512bw.cpp from the list of source files.
+	C/C++
+		Preprocessor: 
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_AVX512BW;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+		Code Generation:
+			Enable Enhanced Instruction Set: Advanced Vector Extensions 512 (/arch:AVX512) 
 
 Then build ugrep in Visual Studio.
 
@@ -292,16 +294,24 @@ Project Configuration Properties
 		Input and Output:
 			Additional Manifest Files: $(ProjectDir)\..\manifest.xml
 
-Right-click on the matcher_avx2.cpp file to set the C++ preprocessor properties specifically for this file by adding COMPILE_AVX2 to the list of preprocessor definitions, and enable AVX2:
+Right-click on the matcher_avx2.cpp file to set the C++ preprocessor properties specifically for this file to enable AVX2:
 
 	C/C++
-		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;COMPILE_AVX2;HAVE_AVX2;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
 			Enable Enhanced Instruction Set: Advanced Vector Extensions 2 (/arch:AVX2) 
 
-If the general C++ preprocessor properties and the C++ preprocessor properties for matcher_avx2.cpp are the same, then linkage fails with duplicate definition errors.
+Right-click on the matcher_avx2.cpp file to enable AVX2:
 
-Remove matcher_avx512bw.cpp from the list of source files.
+	C/C++
+		Code Generation:
+			Enable Enhanced Instruction Set: Advanced Vector Extensions 2 (/arch:AVX2) 
+
+Optionally, right-click on the matcher_avx512bw.cpp file to enable AVX512 when available and add HAVE_AVX512BW to the preprocessor definitions:
+
+	C/C++
+		Preprocessor: 
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;HAVE_AVX2;HAVE_AVX512BW;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+		Code Generation:
+			Enable Enhanced Instruction Set: Advanced Vector Extensions 512 (/arch:AVX512) 
 
 Then build ugrep in Visual Studio.

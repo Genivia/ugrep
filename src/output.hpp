@@ -510,7 +510,7 @@ class Output {
 #ifdef OS_WIN
       chr('\r');
 #else
-      { }
+      { /* do not emit \r */ }
 #endif
     chr('\n');
     check_flush();

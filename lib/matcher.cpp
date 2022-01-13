@@ -27,7 +27,7 @@
 \******************************************************************************/
 
 /**
-@file      matcher.cpp, matcher_avx2.cpp, matcher_avx512bw.cpp (same file)
+@file      matcher.cpp, matcher_avx2.cpp, matcher_avx512bw.cpp
 @brief     RE/flex matcher engine
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2022, Robert van Engelen, Genivia Inc. All rights reserved.
