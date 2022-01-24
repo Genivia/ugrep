@@ -457,7 +457,8 @@ The corpora used in the tests are available for
 
 The following performance tests were conducted with a new and common MacBook
 Pro using clang 12.0.0 -O2 on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3
-MacOS 10.15.7 machine.  The best times of 30 runs is shown under minimal
+MacOS 10.15.7 machine with the grep tools listed in the table installed (e.g.
+MacOS BSD grep 2.5.1).  The best times of 30 runs is shown under minimal
 machine load.  When comparing tools, the same match counts were produced.
 
 Results are shown in real time (wall clock time) seconds elapsed.  Best times
