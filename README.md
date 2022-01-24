@@ -244,6 +244,12 @@ Notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
 Check <https://packages.debian.org/ugrep> for version info.  To build and try
 `ugrep` locally, see "All platforms" build steps further below.
 
+### FreeBSD
+
+    $ pkg install ugrep
+
+Check <https://www.freshports.org/textproc/ugrep/> for version info.
+
 ### NetBSD
 
 You can use the standard NetBSD package installer (pkgsrc):
