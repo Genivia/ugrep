@@ -157,7 +157,19 @@ inline void set_insert(
     S1& s1,
     const S2& s2)
 {
-  s1.insert(s2.begin(), s2.end());
+  if (s1.empty())
+    s1 = s2;
+  else
+    s1.insert(s2.begin(), s2.end());
+}
+
+/// Insert element `e` into set `s`.
+template<typename S, typename E>
+inline void set_add(
+    S& s,
+    const E& e)
+{
+  s.insert(e);
 }
 
 /// Delete elements of set `s2` from set `s1`.
@@ -187,6 +199,19 @@ void set_delete(
       i2++;
     }
   }
+}
+
+/// Remove element `e` from set `s` when present.
+template<typename S, typename E>
+void set_erase(
+    S& s,
+    const E& e)
+{
+  if (s.empty())
+    return;
+  typename S::const_iterator i = s.find(e);
+  if (i != s.end())
+    s.erase(i);
 }
 
 /// Intersection of two ordered sets, with an iterator to get elements lazely.

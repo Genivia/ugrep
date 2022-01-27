@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 12, 2022" "ugrep 3.6.0" "User Commands"
+.TH UGREP "1" "January 26, 2022" "ugrep 3.7.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -312,8 +312,8 @@ ugrep' section FORMAT for details.  Context options \fB\-A\fR, \fB\-B\fR, \fB\-C
 Spacing (blanks and tabs) in regular expressions are ignored.
 .TP
 \fB\-G\fR, \fB\-\-basic\-regexp\fR
-Interpret pattern as a basic regular expression, i.e. make ugrep
-behave as traditional grep.
+Interpret patterns as basic regular expressions (BREs), i.e. make
+ugrep behave as traditional grep.
 .TP
 \fB\-g\fR \fIGLOBS\fR, \fB\-\-glob\fR=\fIGLOBS\fR
 Search only files whose name matches the specified comma\-separated
@@ -324,8 +324,8 @@ matches `glob', same as \fB\-\-exclude\fR='glob'.  When `glob' contains a
 When `glob' ends with a `/', directories are matched, same as
 \fB\-\-include\-dir\fR='glob' and \fB\-\-exclude\-dir\fR='glob'.  A leading `/'
 matches the working directory.  This option may be repeated and may
-be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR to expand the recursive
-search.
+be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR to expand searches.  See
+`ugrep \fB\-\-help\fR globs' and `man ugrep' section GLOBBING for details.
 .TP
 \fB\-\-group\-separator\fR[=\fISEP\fR]
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR and \fB\-C\fR.
@@ -503,7 +503,7 @@ specified, use up to MAX mmap memory per thread.
 Specify a negative PATTERN used during the search of the input:
 an input line is selected only if it matches any of the specified
 patterns unless a subpattern of PATTERN.  Same as \fB\-e\fR (?^PATTERN).
-Negative PATTERN matches are essentially removed before any other
+Negative pattern matches are essentially removed before any other
 patterns are matched.  Note that longer patterns take precedence
 over shorter patterns.  This option may be repeated.
 .TP
@@ -661,18 +661,19 @@ the specified type.  This option may be repeated.  The possible
 file types can be (where \fB\-t\fRlist displays a detailed list):
 `actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
 `awk', `Awk', `basic', `batch', `bison', `c', `c++',
-`clojure', `csharp', `css', `csv', `dart', `Dart', `delphi',
-`elisp', `elixir', `erlang', `fortran', `gif', `Gif', `go',
-`groovy', `gsp', `haskell', `html', `jade', `java', `jpeg',
-`Jpeg', `js', `json', `jsp', `julia', `kotlin', `less',
-`lex', `lisp', `lua', `m4', `make', `markdown', `matlab',
-`node', `Node', `objc', `objc++', `ocaml', `parrot', `pascal',
-`pdf', `Pdf', `perl', `Perl', `php', `Php', `png',
-`Png', `prolog', `python', `Python', `r', `rpm', `Rpm',
-`rst', `rtf', `Rtf', `ruby', `Ruby', `rust', `scala',
-`scheme', `shell', `Shell', `smalltalk', `sql', `svg', `swift',
-`tcl', `tex', `text', `tiff', `Tiff', `tt', `typescript',
-`verilog', `vhdl', `vim', `xml', `Xml', `yacc', `yaml'.
+`clojure', `cpp', `csharp', `css', `csv', `dart', `Dart',
+`delphi', `elisp', `elixir', `erlang', `fortran', `gif', `Gif',
+`go', `groovy', `gsp', `haskell', `html', `jade', `java',
+`jpeg', `Jpeg', `js', `json', `jsp', `julia', `kotlin',
+`less', `lex', `lisp', `lua', `m4', `make', `markdown',
+`matlab', `node', `Node', `objc', `objc++', `ocaml', `parrot',
+`pascal', `pdf', `Pdf', `perl', `Perl', `php', `Php',
+`png', `Png', `prolog', `python', `Python', `r', `rpm',
+`Rpm', `rst', `rtf', `Rtf', `ruby', `Ruby', `rust',
+`scala', `scheme', `shell', `Shell', `smalltalk', `sql', `svg',
+`swift', `tcl', `tex', `text', `tiff', `Tiff', `tt',
+`typescript', `verilog', `vhdl', `vim', `xml', `Xml', `yacc',
+`yaml'.
 .TP
 \fB\-\-tabs\fR[=\fINUM\fR]
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
@@ -690,8 +691,8 @@ represented by the UTF\-8 sequence C2 A3.  See also option \fB\-\-dotall\fR.
 .TP
 \fB\-u\fR, \fB\-\-ungroup\fR
 Do not group multiple pattern matches on the same matched line.
-Output the matched line again for each additional pattern match,
-using `+' as the field separator.
+Output the matched line again for each additional pattern match
+with a `+' separator.
 .TP
 \fB\-V\fR, \fB\-\-version\fR
 Display version with linked libraries and exit.
@@ -856,15 +857,15 @@ ignored.
 .PP
 \fBGlob Syntax and Conventions\fR
 .IP \fB*\fR
-Matches anything except a /.
+Matches anything except /.
 .IP \fB?\fR
-Matches any one character except a /.
-.IP \fB[a-z]\fR
-Matches one character in the selected range of characters.
-.IP \fB[^a-z]\fR
-Matches one character not in the selected range of characters.
-.IP \fB[!a-z]\fR
-Matches one character not in the selected range of characters.
+Matches any one character except /.
+.IP \fB[abc-e]\fR
+Matches one character a,b,c,d,e.
+.IP \fB[^abc-e]\fR
+Matches one character not a,b,c,d,e,/.
+.IP \fB[!abc-e]\fR
+Matches one character not a,b,c,d,e,/.
 .IP \fB/\fR
 When used at the begin of a glob, matches if pathname has no /.
 When used at the end of a glob, matches directories only.
@@ -873,7 +874,7 @@ Matches zero or more directories.
 .IP \fB/**\fR
 When used at the end of a glob, matches everything after the /.
 .IP \fB\\\\?\fR
-Matches a ? (or any character specified after the backslash).
+Matches a ? or any other character specified after the backslash.
 .PP
 \fBGlob Matching Examples\fR
 .IP \fB*\fR

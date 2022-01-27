@@ -52,6 +52,14 @@
 #include <set>
 #include <vector>
 
+// ugrep 3.7: use vectors instead of sets to store positions to compile DFAs
+#define WITH_VECTOR
+
+// ugrep 3.7.0a: use a map to construct fixed string pattern trees
+// #define WITH_TREE_MAP
+// ugrep 3.7.0b: use a DFA as a tree to bypass DFA construction step when possible
+#define WITH_TREE_DFA
+
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # pragma warning( disable : 4290 )
 #endif
@@ -388,6 +396,7 @@ class Pattern {
       size_t           pos = 0) ///< optional location of the error in regex string Pattern::rex_
     const;
  private:
+  typedef uint8_t                 Mod;
   typedef uint16_t                Char; // 8 bit char and meta chars up to META_MAX-1
   typedef uint8_t                 Lazy;
   typedef uint16_t                Iter;
@@ -396,18 +405,32 @@ class Pattern {
   typedef uint32_t                Location;
   typedef ORanges<Location>       Locations;
   typedef std::map<int,Locations> Map;
+  typedef Locations               Mods[10];
+  /// Modifiers 'i', 'm', 'q', 's', 'u' (enable) 'I', 'M', 'Q', 'S', 'U' (disable)
+  struct ModConst {
+    static const Mod i = 0;
+    static const Mod I = 1;
+    static const Mod m = 2;
+    static const Mod M = 3;
+    static const Mod q = 4;
+    static const Mod Q = 5;
+    static const Mod s = 6;
+    static const Mod S = 7;
+    static const Mod u = 8;
+    static const Mod U = 9;
+  };
   /// Set of chars and meta chars
   struct Chars {
     Chars()                                 { clear(); }
     Chars(const Chars& c)                   { b[0] = c.b[0]; b[1] = c.b[1]; b[2] = c.b[2]; b[3] = c.b[3]; b[4] = c.b[4]; }
     Chars(const uint64_t c[5])              { b[0] = c[0]; b[1] = c[1]; b[2] = c[2]; b[3] = c[3]; b[4] = c[4]; }
     void   clear()                          { b[0] = b[1] = b[2] = b[3] = b[4] = 0ULL; }
-    bool   any()                      const { return b[0] || b[1] || b[2] || b[3] || b[4]; }
-    bool   intersects(const Chars& c) const { return (b[0] & c.b[0]) || (b[1] & c.b[1]) || (b[2] & c.b[2]) || (b[3] & c.b[3]) || (b[4] & c.b[4]); }
+    bool   any()                      const { return b[0] | b[1] | b[2] | b[3] | b[4]; }
+    bool   intersects(const Chars& c) const { return (b[0] & c.b[0]) | (b[1] & c.b[1]) | (b[2] & c.b[2]) | (b[3] & c.b[3]) | (b[4] & c.b[4]); }
     bool   contains(const Chars& c)   const { return !(c - *this).any(); }
     bool   contains(Char c)           const { return b[c >> 6] & (1ULL << (c & 0x3F)); }
-    Chars& insert(Char c)                   { b[c >> 6] |= 1ULL << (c & 0x3F); return *this; }
-    Chars& insert(Char lo, Char hi)         { while (lo <= hi) insert(lo++); return *this; }
+    Chars& add(Char c)                      { b[c >> 6] |= 1ULL << (c & 0x3F); return *this; }
+    Chars& add(Char lo, Char hi)            { while (lo <= hi) add(lo++); return *this; }
     Chars& flip()                           { b[0] = ~b[0]; b[1] = ~b[1]; b[2] = ~b[2]; b[3] = ~b[3]; b[4] = ~b[4]; return *this; }
     Chars& flip256()                        { b[0] = ~b[0]; b[1] = ~b[1]; b[2] = ~b[2]; b[3] = ~b[3]; return *this; }
     Chars& swap(Chars& c)                   { Chars t = c; c = *this; return *this = t; }
@@ -424,7 +447,8 @@ class Pattern {
     Chars  operator~()                const { return Chars(*this).flip(); }
            operator bool()            const { return any(); }
     Chars& operator=(const Chars& c)        { b[0] = c.b[0]; b[1] = c.b[1]; b[2] = c.b[2]; b[3] = c.b[3]; b[4] = c.b[4]; return *this; }
-    bool   operator==(const Chars& c) const { return b[0] == c.b[0] && b[1] == c.b[1] && b[2] == c.b[2] && b[3] == c.b[3] && b[4] == c.b[4]; }
+    bool   operator!=(const Chars& c) const { return (b[0] ^ c.b[0]) | (b[1] ^ c.b[1]) | (b[2] ^ c.b[2]) | (b[3] ^ c.b[3]) | (b[4] ^ c.b[4]); }
+    bool   operator==(const Chars& c) const { return !(c != *this); }
     bool   operator<(const Chars& c)  const { return b[0] < c.b[0] || (b[0] == c.b[0] && (b[1] < c.b[1] || (b[1] == c.b[1] && (b[2] < c.b[2] || (b[2] == c.b[2] && (b[3] < c.b[3] || (b[3] == c.b[3] && b[4] < c.b[4]))))))); }
     bool   operator>(const Chars& c)  const { return c < *this; }
     bool   operator<=(const Chars& c) const { return !(c < *this); }
@@ -471,27 +495,82 @@ class Pattern {
     Lazy     lazy()                  const { return static_cast<Lazy>(k >> 56); }
     value_type k;
   };
-  typedef std::set<Lazy>               Lazyset;
+  typedef std::vector<Lazy>            Lazyset;
+#ifdef WITH_VECTOR
+  typedef std::vector<Position>        Positions;
+#else
   typedef std::set<Position>           Positions;
+#endif
   typedef std::map<Position,Positions> Follow;
   typedef std::pair<Chars,Positions>   Move;
   typedef std::list<Move>              Moves;
+#ifdef WITH_VECTOR
+  inline static void pos_insert(Positions& s1, const Positions& s2) { s1.insert(s1.end(), s2.begin(), s2.end()); }
+  inline static void pos_add(Positions& s, const Position& e) { s.insert(s.end(), e); }
+#else
+  inline static void pos_insert(Positions& s1, const Positions& s2) { s1.insert(s2.begin(), s2.end()); }
+  inline static void pos_add(Positions& s, const Position& e) { s.insert(e); }
+#endif
+  inline static void lazy_insert(Lazyset& s1, const Lazyset& s2) { s1.insert(s1.end(), s2.begin(), s2.end()); }
+  inline static void lazy_add(Lazyset& s, const Lazy& e) { s.insert(s.end(), e); }
+#ifndef WITH_TREE_DFA
   /// Tree DFA constructed from string patterns.
-  struct Tree
-  {
+  struct Tree {
+#ifdef WITH_TREE_MAP
+    struct Node {
+      Node()
+        :
+          accept(0)
+      { }
+      std::map<Char,Node> edges;  ///< edges to next tree nodes
+      Accept              accept; ///< nonzero if final state, the index of an accepted/captured subpattern
+    };
+    Tree()
+      :
+        tree(NULL)
+    { }
+    ~Tree()
+    {
+      clear();
+    }
+    /// delete the tree and all subnodes.
+    void clear()
+    {
+      if (tree != NULL)
+        delete tree;
+      tree = NULL;
+    }
+    /// return the root of the tree.
+    Node *root()
+    {
+      return tree != NULL ? tree : (tree = new Node);
+    }
+    /// create an edge from a tree node to a target tree node, return the target tree node.
+    Node *edge(Node *node, Char c)
+    {
+      return &node->edges[c];
+    }
+    Node *tree; ///< root of the tree or NULL
+#else
     struct Node {
       Node()
         :
           accept(0)
       {
-        for (int i = 0; i < 256; ++i)
+        for (int i = 0; i < 16; ++i)
           edge[i] = NULL;
       }
-      Node  *edge[256]; ///< 256 edges, one per 8-bit char
-      Accept accept;    ///< nonzero if final state, the index of an accepted/captured subpattern
+      ~Node()
+      {
+        for (int i = 0; i < 16; ++i)
+          if (edge[i] != NULL)
+            delete[] edge[i];
+      }
+      Node **edge[16]; ///< 16x16 edges, one per 8-bit char
+      Accept accept;   ///< nonzero if final state, the index of an accepted/captured subpattern
     };
     typedef std::list<Node*> List;
-    static const uint16_t ALLOC = 64; ///< allocate 64 nodes at a time, to improve performance
+    static const uint16_t ALLOC = 1024; ///< allocate 1024 nodes at a time, to improve performance
     Tree()
       :
         tree(NULL),
@@ -516,7 +595,13 @@ class Pattern {
     /// create an edge from a tree node to a target tree node, return the target tree node.
     Node *edge(Node *node, Char c)
     {
-      return node->edge[c] != NULL ? node->edge[c] : (node->edge[c] = leaf());
+      Node **p = node->edge[c >> 4];
+      if (p != NULL)
+        return p[c & 0xf] != NULL ?  p[c & 0xf] : (p[c & 0xf]  = leaf());
+      p = node->edge[c >> 4] = new Node*[16];
+      for (int i = 0; i < 16; ++i)
+        p[i] = NULL;
+      return p[c & 0xf] = leaf();
     }
     /// create a new leaf node.
     Node *leaf()
@@ -531,7 +616,9 @@ class Pattern {
     Node    *tree; ///< root of the tree or NULL
     List     list; ///< block allocation list
     uint16_t next; ///< block allocation, next available slot in last block
+#endif
   };
+#endif
   /// DFA created by subset construction from regex patterns.
   struct DFA {
     struct State : Positions {
@@ -547,6 +634,7 @@ class Pattern {
           accept(0),
           redo(false)
       { }
+#ifndef WITH_TREE_DFA
       State *assign(Tree::Node *node)
       {
         tnode = node;
@@ -558,10 +646,15 @@ class Pattern {
         this->swap(pos);
         return this;
       }
+#endif
       State      *next;   ///< points to next state in the list of states allocated depth-first by subset construction
       State      *left;   ///< left pointer for O(log N) node insertion in the hash table overflow tree
       State      *right;  ///< right pointer for O(log N) node insertion in the hash table overflow tree
+#ifdef WITH_TREE_DFA
+      State      *tnode;  ///< the corresponding tree DFA node, when applicable
+#else
       Tree::Node *tnode;  ///< the corresponding tree DFA node, when applicable
+#endif
       Edges       edges;  ///< state transitions
       Index       first;  ///< index of this state in the opcode table, determined by the first assembly pass
       Index       index;  ///< index of this state in the opcode table
@@ -571,7 +664,7 @@ class Pattern {
       bool        redo;   ///< true if this is a final state of a negative pattern
     };
     typedef std::list<State*> List;
-    static const uint16_t ALLOC = 256; ///< allocate 256 states at a time, to improve performance.
+    static const uint16_t ALLOC = 1024; ///< allocate 1024 DFA states at a time, to improve performance.
     DFA()
       :
         next(ALLOC)
@@ -587,6 +680,49 @@ class Pattern {
         delete[] *i;
       list.clear();
     }
+#ifdef WITH_TREE_DFA
+    /// new DFA state.
+    State *state()
+    {
+      if (next >= ALLOC)
+      {
+        list.push_back(new State[ALLOC]);
+        next = 0;
+      }
+      return &list.back()[next++];
+    }
+    /// new DFA state with positions, destroys pos.
+    State *state(Positions& pos)
+    {
+      State *s = state();
+      s->swap(pos);
+      return s;
+    }
+    /// new DFA state with optional tree DFA node and positions, destroys pos.
+    State *state(State *tnode)
+    {
+      State *s = state();
+      s->tnode = tnode;
+      return s;
+    }
+    /// new DFA state with optional tree DFA node and positions, destroys pos.
+    State *state(State *tnode, Positions& pos)
+    {
+      State *s = state(tnode);
+      s->swap(pos);
+      return s;
+    }
+    /// root of the DFA is the first state created or NULL.
+    State *root()
+    {
+      return list.empty() ? NULL : list.front();
+    }
+    /// start state the DFA is the first state created.
+    State *start()
+    {
+      return list.empty() ? state() : list.front();
+    }
+#else
     /// new DFA state with optional tree DFA node.
     State *state(Tree::Node *node)
     {
@@ -607,6 +743,7 @@ class Pattern {
       }
       return list.back()[next++].assign(node, pos);
     }
+#endif
     List     list; ///< block allocation list
     uint16_t next; ///< block allocation, next available slot in last block
   };
@@ -654,7 +791,7 @@ class Pattern {
   void parse(
       Positions& startpos,
       Follow&    followpos,
-      Map&       modifiers,
+      Mods       modifiers,
       Map&       lookahead);
   void parse1(
       bool       begin,
@@ -665,7 +802,7 @@ class Pattern {
       Follow&    followpos,
       Lazy&      lazyidx,
       Lazyset&   lazyset,
-      Map&       modifiers,
+      Mods       modifiers,
       Locations& lookahead,
       Iter&      iter);
   void parse2(
@@ -677,7 +814,7 @@ class Pattern {
       Follow&    followpos,
       Lazy&      lazyidx,
       Lazyset&   lazyset,
-      Map&       modifiers,
+      Mods       modifiers,
       Locations& lookahead,
       Iter&      iter);
   void parse3(
@@ -689,7 +826,7 @@ class Pattern {
       Follow&    followpos,
       Lazy&      lazyidx,
       Lazyset&   lazyset,
-      Map&       modifiers,
+      Mods       modifiers,
       Locations& lookahead,
       Iter&      iter);
   void parse4(
@@ -701,7 +838,7 @@ class Pattern {
       Follow&    followpos,
       Lazy&      lazyidx,
       Lazyset&   lazyset,
-      Map&       modifiers,
+      Mods       modifiers,
       Locations& lookahead,
       Iter&      iter);
   Char parse_esc(
@@ -710,7 +847,7 @@ class Pattern {
   void compile(
       DFA::State *start,
       Follow&     followpos,
-      const Map&  modifiers,
+      const Mods  modifiers,
       const Map&  lookahead);
   void lazy(
       const Lazyset& lazyset,
@@ -725,7 +862,7 @@ class Pattern {
   void compile_transition(
       DFA::State *state,
       Follow&     followpos,
-      const Map&  modifiers,
+      const Mods  modifiers,
       const Map&  lookahead,
       Moves&      moves) const;
   void transition(
@@ -733,9 +870,9 @@ class Pattern {
       Chars&           chars,
       const Positions& follow) const;
   void compile_list(
-      Location   loc,
-      Chars&     chars,
-      const Map& modifiers) const;
+      Location    loc,
+      Chars&      chars,
+      const Mods  modifiers) const;
   void posix(
       size_t index,
       Chars& chars) const;
@@ -794,36 +931,28 @@ class Pattern {
     return '\0';
   }
   static inline bool is_modified(
-      Char       mode,
-      const Map& modifiers,
+      Mod        mod,
+      const Mods modifiers,
       Location   loc)
   {
-    Map::const_iterator i = modifiers.find(mode);
-    return i != modifiers.end() && i->second.find(loc) != i->second.end();
+    return modifiers[mod].find(loc) != modifiers[mod].end();
   }
   static inline void update_modified(
-      Char     mode,
-      Map&     modifiers,
+      Mod      mod,
+      Mods     modifiers,
       Location from,
       Location to)
   {
-    // mode modifiers i, m, s (enabled) I, M, S (disabled)
-    if (modifiers.find(reversecase(mode)) != modifiers.end())
-    {
-      Locations modified(from, to);
-      modified -= modifiers[reversecase(mode)];
-      modifiers[mode] += modified;
-    }
-    else
-    {
-      modifiers[mode].insert(from, to);
-    }
+    // modifiers i, m, s, u
+    Locations modified(from, to);
+    modified -= modifiers[mod ^ 1];
+    modifiers[mod] += modified;
   }
   static inline uint16_t hash_pos(const Positions *pos)
   {
     uint16_t h = 0;
     for (Positions::const_iterator i = pos->begin(); i != pos->end(); ++i)
-      h += static_cast<uint16_t>(*i ^ (*i >> 24)); // (Position(*i).iter() << 4) unique hash for up to 16 chars iterated (abc...p){iter}
+      h += h + static_cast<uint16_t>(*i ^ (*i >> 24));
     return h;
   }
   static inline bool valid_goto_index(Index index)
@@ -956,7 +1085,11 @@ class Pattern {
     return h & ((Const::HASH - 1) >> 3);
   }
   Option                opt_; ///< pattern compiler options
-  Tree                  tfa_; ///< tree DFA constructed from strings (regex uses firstpos/lastpos/followpos)
+#ifdef WITH_TREE_DFA
+  DFA                   tfa_; ///< tree DFA constructed from strings
+#else
+  Tree                  tfa_; ///< tree DFA constructed from strings
+#endif
   DFA                   dfa_; ///< DFA constructed from regex with subset construction using firstpos/lastpos/followpos
   std::string           rex_; ///< regular expression string
   std::vector<Location> end_; ///< entries point to the subpattern's ending '|' or '\0'

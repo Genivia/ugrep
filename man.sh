@@ -167,15 +167,15 @@ ignored.
 .PP
 \fBGlob Syntax and Conventions\fR
 .IP \fB*\fR
-Matches anything except a /.
+Matches anything except /.
 .IP \fB?\fR
-Matches any one character except a /.
-.IP \fB[a-z]\fR
-Matches one character in the selected range of characters.
-.IP \fB[^a-z]\fR
-Matches one character not in the selected range of characters.
-.IP \fB[!a-z]\fR
-Matches one character not in the selected range of characters.
+Matches any one character except /.
+.IP \fB[abc-e]\fR
+Matches one character a,b,c,d,e.
+.IP \fB[^abc-e]\fR
+Matches one character not a,b,c,d,e,/.
+.IP \fB[!abc-e]\fR
+Matches one character not a,b,c,d,e,/.
 .IP \fB/\fR
 When used at the begin of a glob, matches if pathname has no /.
 When used at the end of a glob, matches directories only.
@@ -184,7 +184,7 @@ Matches zero or more directories.
 .IP \fB/**\fR
 When used at the end of a glob, matches everything after the /.
 .IP \fB\\\\?\fR
-Matches a ? (or any character specified after the backslash).
+Matches a ? or any other character specified after the backslash.
 .PP
 \fBGlob Matching Examples\fR
 .IP \fB*\fR

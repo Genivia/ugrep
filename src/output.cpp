@@ -227,7 +227,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
   bool nul = false; // -Q: mark pathname with three NUL bytes unless -a
 
   if (flag_with_filename && pathname != NULL)
-  { 
+  {
     nul = flag_query > 0 && !flag_text;
 
     if (nul)
@@ -277,7 +277,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
   if (!flag_no_filename && !partname.empty())
   {
     nul = flag_query > 0 && !flag_text && (flag_heading || !nul);
-    
+
     if (nul)
       chr('\0');
 
@@ -734,13 +734,15 @@ void Output::format(const char *format, const char *pathname, const std::string&
               bar = strchr(arg, '|');
               end = strchr(arg, ']');
 
+              --n;
+
               if (bar == NULL || (end != NULL && bar > end))
               {
                 bar = end;
                 break;
               }
 
-              if (--n == 0)
+              if (n == 0)
                 break;
 
               arg = bar + 1;
@@ -782,13 +784,15 @@ void Output::format(const char *format, const char *pathname, const std::string&
               bar = strchr(arg, '|');
               end = strchr(arg, ']');
 
+              --n;
+
               if (bar == NULL || (end != NULL && bar > end))
               {
                 bar = end;
                 break;
               }
 
-              if (--n == 0)
+              if (n == 0)
                 break;
 
               arg = bar + 1;
@@ -903,6 +907,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'Z':
         if (flag_fuzzy > 0)
         {
+          // --Z: we used the fuzzy matcher to search, so a dynamic cast is fine
           reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
           num(fuzzy_matcher->edits());
         }

@@ -3216,7 +3216,7 @@ struct Grep {
       // if output is blocked, then cancel decompression threads
       if (out.eof)
         zthread.cancel();
-      
+
       // open pipe to the next file in an archive if there is a next file to extract
       FILE *pipe_in = zthread.open_next(pathname);
       if (pipe_in != NULL)
@@ -7198,7 +7198,7 @@ void ugrep()
     bcnf.report(output);
 
     if (strcmp(flag_stats, "vm") == 0 && words > 0)
-      fprintf(output, "VM memory: %zu nodes (%zums), %zu edges (%zums), %zu opcode words (%zums)" NEWLINESTR, nodes, nodes_time, edges, edges_time, words, words_time);
+      fprintf(output, "VM: %zu nodes (%zums), %zu edges (%zums), %zu opcode words (%zums)" NEWLINESTR, nodes, nodes_time, edges, edges_time, words, words_time);
   }
 
   // close the pipe to the forked pager
@@ -11324,8 +11324,8 @@ void help(std::ostream& out)
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
-            Interpret pattern as a basic regular expression, i.e. make ugrep\n\
-            behave as traditional grep.\n\
+            Interpret patterns as basic regular expressions (BREs), i.e. make\n\
+            ugrep behave as traditional grep.\n\
     -g GLOBS, --glob=GLOBS\n\
             Search only files whose name matches the specified comma-separated\n\
             list of GLOBS, same as --include='glob' for each `glob' in GLOBS.\n\
@@ -11335,8 +11335,8 @@ void help(std::ostream& out)
             When `glob' ends with a `/', directories are matched, same as\n\
             --include-dir='glob' and --exclude-dir='glob'.  A leading `/'\n\
             matches the working directory.  This option may be repeated and may\n\
-            be combined with options -M, -O and -t to expand the recursive\n\
-            search.\n\
+            be combined with options -M, -O and -t to expand searches.  See\n\
+            `ugrep --help globs' and `man ugrep' section GLOBBING for details.\n\
     --group-separator[=SEP]\n\
             Use SEP as a group separator for context options -A, -B and -C.\n\
             The default is a double hyphen (`--').\n\
@@ -11492,7 +11492,7 @@ void help(std::ostream& out)
             Specify a negative PATTERN used during the search of the input:\n\
             an input line is selected only if it matches any of the specified\n\
             patterns unless a subpattern of PATTERN.  Same as -e (?^PATTERN).\n\
-            Negative PATTERN matches are essentially removed before any other\n\
+            Negative pattern matches are essentially removed before any other\n\
             patterns are matched.  Note that longer patterns take precedence\n\
             over shorter patterns.  This option may be repeated.\n\
     -n, --line-number\n\
@@ -11649,8 +11649,8 @@ void help(std::ostream& out)
             represented by the UTF-8 sequence C2 A3.  See also option --dotall.\n\
     -u, --ungroup\n\
             Do not group multiple pattern matches on the same matched line.\n\
-            Output the matched line again for each additional pattern match,\n\
-            using `+' as the field separator.\n\
+            Output the matched line again for each additional pattern match\n\
+            with a `+' separator.\n\
     -V, --version\n\
             Display version with linked libraries and exit.\n\
     -v, --invert-match\n\
@@ -11846,14 +11846,14 @@ void help(const char *what)
  ----------  --------------------------  ----------  --------------------------\n\
  %a          basename                    %%          %\n\
  %b          byte offset                 %~          newline\n\
- %B %[...]B  ... + byte offset, if -b    %[...]<     ..., if %m = 1\n\
- %c          matching pattern, as C++    %[...]>     ..., if %m > 1\n\
- %C          matching line, as C++       %,          same as %[,]>\n\
- %d          byte size                   %:          same as %[:]>\n\
- %e          end offset                  %;          same as %[;]>\n\
- %f          pathname                    %|          same as %[|]>\n\
+ %B %[...]B  ... + byte offset, if -b    %[...]<     ... if %m = 1\n\
+ %c          matching pattern, as C/C++  %[...]>     ... if %m > 1\n\
+ %C          matching line, as C/C++     %,          , if %m > 1, same as %[,]>\n\
+ %d          byte size                   %:          : if %m > 1, same as %[:]>\n\
+ %e          end offset                  %;          ; if %m > 1, same as %[;]>\n\
+ %f          pathname                    %|          | if %m > 1, same as %[|]>\n\
  %F %[...]F  ... + pathname, if -H       %[...]$     assign ... to separator\n\
- %h          pathname                    --------------------------------------\n\
+ %h          \"pathname\"                  --------------------------------------\n\
  %H %[...]H  ... + \"pathname\", if -H\n\
  %j          matching pattern, as JSON   Fields that require -P for captures:\n\
  %J          matching line, as JSON\n\
@@ -11867,16 +11867,16 @@ void help(const char *what)
  %p          path                        %[name]#    named group capture\n\
  %q          quoted matching pattern     %[name]b    named capture byte offset\n\
  %Q          quoted matching line        %[name]d    named capture byte size\n\
- %s          separator                   %[name]e    named capture end offset\n\
+ %s          separator, : by default     %[name]e    named capture end offset\n\
  %S %[...]S  ... + separator, if %m > 1  %[n|...]#   capture n,... that matched\n\
  %t          tab                         %[n|...]b   cpature n,... byte offset\n\
  %T %[...]T  ... + tab, if -T            %[n|...]d   cpature n,... byte size\n\
  %u          unique lines, unless -u     %[n|...]e   cpature n,... end offset\n\
- %v          matching pattern, as CSV    %[t|...]g   text t indexed by capture\n\
- %V          matching line, as CSV       %[t|...]G   all t indexed by captures\n\
- %w          match width in wide chars   --------------------------------------\n\
- %x          matching pattern, as XML\n\
- %X          matching line, as XML\n\
+ %v          matching pattern, as CSV    %g          capture number or name\n\
+ %V          matching line, as CSV       %G          all capture numbers/names\n\
+ %w          match width in wide chars   %[t|...]g   text t indexed by capture\n\
+ %x          matching pattern, as XML    %[t|...]G   all t indexed by captures\n\
+ %X          matching line, as XML       --------------------------------------\n\
  %z          path in archive\n\
  %Z          edit distance cost, if -Z\n\
  --------------------------------------\n\
@@ -11927,34 +11927,33 @@ void help(const char *what)
       upper  A-Z                         \\g{10}      matches group 10 (-P)\n\
        word  a-z,A-Z,0-9,_               \\g{X}       matches group X (-P)\n\
      xdigit  0-9,a-f,A-F                 (?#...)     comments ... are ignored\n\
- \\p{class}   one char in class           --------------------------------------\n\
- \\P{class}   one non-char in class\n\
+ \\p{class}   one character in class      --------------------------------------\n\
+ \\P{class}   one char not in class\n\
  \\d          a digit                     pattern     removes special meaning\n\
  \\D          a non-digit                 ----------  --------------------------\n\
  \\h          a space or tab              \\.          escapes . and other chars\n\
  \\H          not a space or tab          \\Q...\\E     the literal string ...\n\
  \\s          a whitespace except \\n      --------------------------------------\n\
  \\S          a non-whitespace\n\
- \\w          a word character\n\
+ \\w          a word character            (-P): ugrep option -P is required\n\
  \\W          a non-word character\n\
  -------------------------------------- \n\
 \n\
-Option -P is required by certain regex patterns as indicated by (-P).\n\
-\n\
 Option -U disables full Unicode pattern matching.  Non-POSIX Unicode character\n\
-classes \\p{class} are disabled.  Only ASCII, LATIN1 or binary regex patterns\n\
-may be specified.\n\
+classes \\p{class} are disabled.  ASCII, LATIN1 and binary regex patterns only.\n\
 \n\
-Option --bool adds the following syntax and conventions to patterns, listed\n\
-from the lowest to the highest level of precedence:\n\
+Option --bool adds the following operations to regex patterns `a' and `b':\n\
 \n\
  pattern     operation                   pattern     operation\n\
  ----------  --------------------------  ----------  --------------------------\n\
- space       logical AND                 AND         locical AND\n\
- |           logical OR                  OR          logical OR\n\
- -           logical NOT                 NOT         locical NOT\n\
  (...)       grouping                    \"...\"       the literal string ...\n\
+ -a          logical not a               NOT a       locical not a\n\
+ a|b         logical a or b              a OR b      logical a or b\n\
+ a b         logical a and b             a AND b     locical a and b\n\
  --------------------------------------  --------------------------------------\n\
+\n\
+Listed from the highest level of precedence to the lowest, NOT is performed\n\
+before OR and OR is performed before AND.  Thus, `-x|y z' is `((-x)|y) z'.\n\
 \n\
 ";
     }
@@ -11963,23 +11962,25 @@ from the lowest to the highest level of precedence:\n\
       std::cout <<
 "Glob syntax and conventions:\n\
 \n\
-    *       anything except a /\n\
-    ?       any one character except a /\n\
-    [a-z]   one character in the selected range of characters\n\
-    [^a-z]  one character not in the selected range of characters\n\
-    [!a-z]  one character not in the selected range of characters\n\
-    /       when used at the begin of a glob, matches working directory\n\
-    **/     zero or more directories\n\
-    /**     when at the end of a glob, matches everything after the /\n\
-    \\?      a ? (or any character specified after the backslash)\n\
+ pattern     matches\n\
+ ----------  -----------------------------------------------------------\n\
+ *           anything except /\n\
+ ?           any one character except /\n\
+ [abc-e]     one character a,b,c,d,e\n\
+ [^abc-e]    one character not a,b,c,d,e,/\n\
+ [!abc-e]    one character not a,b,c,d,e,/\n\
+ /           when used at the begin of a glob, matches working directory\n\
+ **/         zero or more directories\n\
+ /**         when at the end of a glob, matches everything after the /\n\
+ \\?          a ? or any other character specified after the backslash\n\
 \n\
-When a glob contains a /, the full pathname is matched.  Otherwise, the\n\
+When a glob pattern contains a /, the full pathname is matched.  Otherwise, the\n\
 basename of a file or directory is matched in recursive searches.\n\
 \n\
-When a glob begins with a /, files and directories are matched at the working\n\
-directory, not recursively.\n\
+When a glob pattern begins with a /, files and directories are matched at the\n\
+working directory, not recursively.\n\
 \n\
-When a glob ends with a /, directories are matched instead of files.\n\
+When a glob pattern ends with a /, directories are matched instead of files.\n\
 \n\
 ";
     }
