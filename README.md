@@ -10,9 +10,9 @@ Search for anything in everything... ultra fast
 
 - Supports all GNU/BSD grep standard options; a compatible replacement for GNU/BSD grep, [see how](#grep)
 
-- Built-in help facility: `ugrep --help WHAT` displays options related to `WHAT` you specified
-
 - Matches Unicode patterns by default in UTF-8, UTF-16, UTF-32 encoded files
+
+- Built-in help facility: `ugrep --help WHAT` displays options related to `WHAT` you need
 
 - Ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.
 
@@ -5060,7 +5060,7 @@ in markdown:
 
 
 
-    ugrep 3.7.0                    January 26, 2022                       UGREP(1)
+    ugrep 3.7.1                    January 27, 2022                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

@@ -6590,6 +6590,8 @@ void ugrep()
       if (regex.empty())
       {
         regex = flag_hex ? ".*\\n?" : "^.*";
+
+        // an empty pattern matches every line
         flag_empty = true;
         flag_dotall = false;
       }
@@ -6597,6 +6599,7 @@ void ugrep()
       // CNF is empty if all patterns are empty, i.e. match anything unless -f FILE specified
       if (bcnf.empty())
       {
+        // match every line
         flag_match = true;
         flag_dotall = false;
       }
@@ -6607,8 +6610,9 @@ void ugrep()
 
       if (bcnf.first_empty())
       {
-        // an empty pattern specified with -e '' matches every line
         regex = flag_hex ? ".*\\n?" : "^.*";
+
+        // an empty pattern specified with -e '' matches every line
         flag_empty = true;
       }
       else
@@ -11075,10 +11079,16 @@ size_t strtofuzzy(const char *string, const char *message)
 // display diagnostic message
 void usage(const char *message, const char *arg, const char *valid)
 {
-  std::cerr << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
+  std::cerr << "ugrep: " << message << (arg != NULL ? arg : "");
   if (valid != NULL)
-    std::cerr << ", did you mean " << valid << "?";
-  std::cerr << " For more help on options, try `ugrep --help' or `ugrep --help " << (arg != NULL ? arg : "") << "'" << std::endl;
+    std::cerr << ", did you mean " << valid << "?" << std::endl;
+  else
+    std::cerr << std::endl;
+  std::cerr << "For more help on options, try `ugrep --help'";
+  if (arg != NULL)
+    std::cerr << " or `ugrep --help " << arg << "'" << std::endl;
+  else
+    std::cerr << std::endl;
 
   // do not exit when reading a config file
   if (!flag_usage_warnings)
