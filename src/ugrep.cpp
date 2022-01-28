@@ -11075,10 +11075,10 @@ size_t strtofuzzy(const char *string, const char *message)
 // display diagnostic message
 void usage(const char *message, const char *arg, const char *valid)
 {
-  std::cerr << "ugrep: " << message << (arg != NULL ? arg : "");
+  std::cerr << "ugrep: " << message << (arg != NULL ? arg : "") << std::endl;
   if (valid != NULL)
     std::cerr << ", did you mean " << valid << "?";
-  std::cerr << " For more help on options, try `ugrep --help' or `ugrep --help " << arg << "'" << std::endl;
+  std::cerr << " For more help on options, try `ugrep --help' or `ugrep --help " << (arg != NULL ? arg : "") << "'" << std::endl;
 
   // do not exit when reading a config file
   if (!flag_usage_warnings)
