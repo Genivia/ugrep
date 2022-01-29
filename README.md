@@ -12,23 +12,29 @@ Search for anything in everything... ultra fast
 
 - Matches Unicode patterns by default in UTF-8, UTF-16, UTF-32 encoded files
 
-- Built-in help facility: `ugrep --help WHAT` displays options related to `WHAT` you need
-
 - Ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.
 
 - Written in clean and efficient C++11 for advanced features and speed, thoroughly tested
 
-- Portable (Linux, Unix, MacOS, Windows, etc), includes x86 and x64 binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
+- Portable (Linux, Unix, MacOS, Windows, etc), includes binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
+
+- Matches multiple lines with `\n` and `\R` patterns (Unicode line breaks: `\n`, `\r\n`,`\r`, `\v`, `\f`, U+0085, U+2028 and U+2029)
+
+- Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you need
+
+  > **Pro Tip:** `--help regex` displays the regex syntax, `--help globs` displays the Gitignore-style globbing syntax for option `-g` (`--glob`)
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, a short command for `ugrep --config` to load a .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
+  > **Pro Tip:** `ug --save-config` saves a new `.ugrep` config file in the working directory (overwriting an old one).
+
 - Interactive [query UI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
       ugrep -Q                               ugrep -Q -e PATTERN    
 
-  > **Pro Tip:** `-Q` replaces a PATTERN on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the UI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
+  > **Pro Tip:** `-Q` replaces `PATTERN` on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the UI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
@@ -44,13 +50,12 @@ Search for anything in everything... ultra fast
       ugrep --bool 'A -(B|C)'...             ugrep -e 'A' --andnot 'B' --andnot 'C' ...
       ugrep --bool '"abc" "def"' ...         ugrep -e '\Qabc\E' --and '\Qdef\E' ...
 
-  where `A`, `B` and `C` are arbitrary regex patterns, use option `-F` to search strings.
+  where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
-  > **Pro Tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns anywhere in the file.  Otherwise, Boolean query conditions apply to lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
+  > **Pro Tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
 
-- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`
+- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
 
-      ugrep -Q1 --bool -l -w -Z+4 --sort=best
       ugrep -Q1 --files --bool -l -w -Z+4 --sort=best
 
   > **Pro Tip:** `-l` lists the matching files in the UI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
@@ -59,7 +64,7 @@ Search for anything in everything... ultra fast
 
       ugrep -z PATTERN ...                   ugrep -z --zmax=2 PATTERN ...
 
-  > **Pro Tip:** specify `-z --zmax=2` to search compressed files and archives recursively stored within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps, but larger `--zmax` slows searching.
+  > **Pro Tip:** specify `-z --zmax=2` to search compressed files and archives nested within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps (far more than you will ever need!)  Larger `--zmax` slows searching.
 
 - Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
 
@@ -136,8 +141,6 @@ Search for anything in everything... ultra fast
 - Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
       ugrep --encoding=LATIN1 PATTERN ...
-
-- Search patterns that match multiple lines; patterns may contain `\n` to match newlines and Unicode `\R` to match any `\n`, `\r\n`,`\r`, `\v`, `\f`, U+0085, U+2028 and U+2029 line breaks.
 
 <a name="toc"/>
 
@@ -460,6 +463,7 @@ Pro using clang 12.0.0 -O2 on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3
 MacOS 10.15.7 machine with the grep tools listed in the table installed (e.g.
 MacOS BSD grep 2.5.1).  The best times of 30 runs is shown under minimal
 machine load.  When comparing tools, the same match counts were produced.
+These results are reproducible on similar machines.
 
 Results are shown in real time (wall clock time) seconds elapsed.  Best times
 are shown in **boldface** and *n/a* means that the running time exceeded 1
