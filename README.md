@@ -18,7 +18,7 @@ Search for anything in everything... ultra fast
 
 - Portable (Linux, Unix, MacOS, Windows, etc), includes binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
 
-- Matches multiple lines with `\n` and `\R` patterns (Unicode line breaks: `\n`, `\r\n`,`\r`, `\v`, `\f`, U+0085, U+2028 and U+2029)
+- Matches multiple lines with `\n` and `\R` patterns (`\n`, `\r\n`,`\r`, `\v`, `\f`, U+0085, U+2028 and U+2029)
 
 - Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you need
 
