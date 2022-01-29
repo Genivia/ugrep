@@ -22,25 +22,25 @@ Search for anything in everything... ultra fast
 
 - Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you need
 
-  > **Pro Tip:** try `--help help`.  Try `--help regex` and `--help globs`.
+  > 💡 **Pro Tip:** try `--help help`.  Try `--help regex` and `--help globs`.
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, a short command for `ugrep --config` to load a .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-  > **Pro Tip:** `ug --save-config` saves a new `.ugrep` config file in the working directory (overwriting an old one).
+  > 💡 **Pro Tip:** `ug --save-config` saves a new `.ugrep` config file in the working directory (overwriting an old one).
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
       ugrep -Q                               ugrep -Q -e PATTERN    
 
-  > **Pro Tip:** `-Q` replaces `PATTERN` on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the UI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
+  > 💡 **Pro Tip:** `-Q` replaces `PATTERN` on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the UI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
       ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
 
-  > **Pro Tip:** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
+  > 💡 **Pro Tip:** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
 
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
@@ -52,19 +52,19 @@ Search for anything in everything... ultra fast
 
   where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
-  > **Pro Tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
+  > 💡 **Pro Tip:** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
 
       ugrep -Q1 --files --bool -l -w -Z+4 --sort=best
 
-  > **Pro Tip:** `-l` lists the matching files in the UI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
+  > 💡 **Pro Tip:** `-l` lists the matching files in the UI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
       ugrep -z PATTERN ...                   ugrep -z --zmax=2 PATTERN ...
 
-  > **Pro Tip:** specify `-z --zmax=2` to search compressed files and archives nested within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps (far more than you will ever need!)  Larger `--zmax` slows searching.
+  > 💡 **Pro Tip:** specify `-z --zmax=2` to search compressed files and archives nested within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps (far more than you will ever need!)  Larger `--zmax` slows searching.
 
 - Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
 
@@ -73,7 +73,7 @@ Search for anything in everything... ultra fast
       ugrep --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
       ugrep --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
 
-  > **Pro Tip:** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
+  > 💡 **Pro Tip:** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or raw byte patterns)
 
@@ -125,7 +125,7 @@ Search for anything in everything... ultra fast
       ugrep --csv PATTERN ...                ugrep --json PATTERN ...
       ugrep --xml PATTERN ...                ugrep --format='file=%f line=%n match=%O%~' PATTERN ...
 
-  > **Pro Tip:** `ugrep --help format` displays help on format `%` fields.
+  > 💡 **Pro Tip:** `ugrep --help format` displays help on format `%` fields.
 
 - Search with PCRE's Perl-compatible regex patterns and display or replace [subpattern matches](#replace)
 
@@ -136,7 +136,7 @@ Search for anything in everything... ultra fast
       ugrep --replace='(%m:%o)' PATTERN ...  ugrep -y --replace='(%m:%o)' PATTERN ...
       ugrep -P --replace='%1' PATTERN ...    ugrep -y -P --replace='%1' PATTERN ...
 
-  > **Pro Tip:** `ugrep --help format` displays help on format `%` fields.
+  > 💡 **Pro Tip:** `ugrep --help format` displays help on format `%` fields.
 
 - Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
