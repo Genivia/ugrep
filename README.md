@@ -22,7 +22,7 @@ Search for anything in everything... ultra fast
 
 - Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you need
 
-  > **Pro Tip:** `--help regex` displays the regex syntax, `--help globs` displays the Gitignore-style globbing syntax for option `-g` (`--glob`)
+  > **Pro Tip:** try `--help help`.  Try `--help regex` and `--help globs`.
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, a short command for `ugrep --config` to load a .ugrep configuration file with your preferences
 
