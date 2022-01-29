@@ -28,7 +28,7 @@ Search for anything in everything... ultra fast
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-  > 💡 **Pro Tip:** `ug --save-config` saves a .ugrep config file in the working directory (overwriting an old one).
+  > 💡 **Pro Tip:** `ug --save-config` saves a .ugrep config file in the working directory, overwriting an old.
 
 - Interactive [query UI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
