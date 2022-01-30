@@ -125,7 +125,7 @@ Search for anything in everything... ultra fast
       ugrep --csv PATTERN ...                ugrep --json PATTERN ...
       ugrep --xml PATTERN ...                ugrep --format='file=%f line=%n match=%O%~' PATTERN ...
 
-  > 💡 **Pro Tip:** `ugrep --help format` displays help on format `%` fields.
+  > 💡 **Pro Tip:** `--help format` displays help on format `%` fields.
 
 - Search with PCRE's Perl-compatible regex patterns and display or replace [subpattern matches](#replace)
 
@@ -136,7 +136,7 @@ Search for anything in everything... ultra fast
       ugrep --replace='(%m:%o)' PATTERN ...  ugrep -y --replace='(%m:%o)' PATTERN ...
       ugrep -P --replace='%1' PATTERN ...    ugrep -y -P --replace='%1' PATTERN ...
 
-  > 💡 **Pro Tip:** `ugrep --help format` displays help on format `%` fields.
+  > 💡 **Pro Tip:** `--help format` displays help on format `%` fields.
 
 - Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
