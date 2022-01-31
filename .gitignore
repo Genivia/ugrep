@@ -28,6 +28,9 @@
 
 # Executables
 a.out
+bin/ug
+bin/ugrep
+src/ugrep
 
 # Autotools
 .deps/
