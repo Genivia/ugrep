@@ -1220,7 +1220,7 @@ key(s)                  | function
 `Alt-Down`              | move display down by 1/2 page (MacOS `Shift-Down`)
 `Alt-Left`              | move display left by 1/2 page (MacOS `Shift-Left`)
 `Alt-Right`             | move display right by 1/2 page (MacOS `Shift-Right`)
-`Home` `Ctrl-A`         | move cursor to the begin of line
+`Home` `Ctrl-A`         | move cursor to the beginning of line
 `End` `Ctrl-E`          | move cursor to the end of line
 `Ctrl-K`                | delete after cursor
 `Ctrl-L`                | refresh screen
@@ -2227,11 +2227,11 @@ import statements, including hidden files with `-.`:
             deletions are allowed.  When `~' precedes MAX, substitution counts
             as one error.  For example, -Z+~3 allows up to three insertions or
             substitutions, but no deletions.  The first character of an
-            approximate match always matches the begin of a pattern.  Option
+            approximate match always matches the beginning of a pattern.  Option
             --sort=best orders matching files by best match.  No whitespace may
             be given between -Z and its argument.
 
-The begin of a pattern always matches the first character of an approximate
+The beginning of a pattern always matches the first character of an approximate
 match as a practical strategy to prevent many false "randomized" matches for
 short patterns.  This also greatly improves search speed.  Make the first
 character optional to optionally match it, e.g. `p?attern` or use a dot as
@@ -2742,7 +2742,7 @@ pattern    | matches
 `[abc-e]`  | one character `a`,`b`,`c`,`d`,`e`
 `[^abc-e]` | one character not `a`,`b`,`c`,`d`,`e`,`/`
 `[!abc-e]` | one character not `a`,`b`,`c`,`d`,`e`,`/`
-`/`        | when used at the begin of a glob, matches working directory
+`/`        | when used at the beginning of a glob, matches working directory
 `**/`      | zero or more directories
 `/**`      | when at the end of a glob, matches everything after the `/`
 `\?`       | a `?` or any other character specified after the backslash
@@ -4483,7 +4483,7 @@ in markdown:
                   precedes  MAX,  substitution  counts as one error.  For example,
                   -Z+~3 allows up to three insertions  or  substitutions,  but  no
                   deletions.   The  first character of an approximate match always
-                  matches the begin  of  a  pattern.   Option  --sort=best  orders
+                  matches the beginning  of  a  pattern. Option --sort=best orders
                   matching  files  by  best  match.   No  whitespace  may be given
                   between -Z and its argument.
 
@@ -4606,7 +4606,7 @@ in markdown:
            [!abc-e]
                   Matches one character not a,b,c,d,e,/.
 
-           /      When used at the begin of a glob, matches if pathname has no  /.
+           /      When used at the beginning of a glob, matches if pathname has no  /.
                   When used at the end of a glob, matches directories only.
 
            **/    Matches zero or more directories.
@@ -5126,9 +5126,9 @@ sub-expression patterns `φ` and `ψ`:
   `(?:φ)`   | matches `φ` as a group without capture
   `(?=φ)`   | matches `φ` without consuming it, i.e. lookahead (without option `-P`: nothing may occur after `(?=φ)`)
   `(?^φ)`   | matches `φ` and ignores it, marking everything in the pattern as a non-match
-  `^φ`      | matches `φ` at the begin of input or begin of a line (nothing may occur before `^`)
+  `^φ`      | matches `φ` at the beginning of input or beginning of a line (nothing may occur before `^`)
   `φ$`      | matches `φ` at the end of input or end of a line (nothing may occur after `$`)
-  `\Aφ`     | matches `φ` at the begin of input (nothing may occur before `\A`)
+  `\Aφ`     | matches `φ` at the beginning of input (nothing may occur before `\A`)
   `φ\z`     | matches `φ` at the end of input (nothing may occur after `\z`)
   `\bφ`     | matches `φ` starting at a word boundary (without option `-P`: nothing may occur before `\b`)
   `φ\b`     | matches `φ` ending at a word boundary (without option `-P`: nothing may occur after `\b`)
