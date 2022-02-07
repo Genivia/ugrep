@@ -5,12 +5,15 @@
 [1;35marchive3.tgz{archive.tgz:Hello.sh}[m[1;36m:[m1
 [1;35marchive3.tgz{archive.tgz:Hello.txt}[m[1;36m:[m1
 [1;35marchive3.tgz{archive.tgz:empty.txt}[m[1;36m:[m0
+[1;35marchive3.tgz{archive.tgz:emptyline.txt}[m[1;36m:[m0
 [1;35marchive3.tgz{Hello.bat}[m[1;36m:[m1
 [1;35marchive3.tgz{Hello.class}[m[1;36m:[m1
 [1;35marchive3.tgz{Hello.java}[m[1;36m:[m2
 [1;35marchive3.tgz{Hello.pdf}[m[1;36m:[m1
 [1;35marchive3.tgz{Hello.sh}[m[1;36m:[m1
 [1;35marchive3.tgz{Hello.txt}[m[1;36m:[m1
+[1;35marchive3.tgz{empty.txt}[m[1;36m:[m0
+[1;35marchive3.tgz{emptyline.txt}[m[1;36m:[m0
 [1;35marchive3.tgz{archive2.tgz:archive.tar:Hello.bat}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:archive.tar:Hello.class}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:archive.tar:Hello.java}[m[1;36m:[m2
@@ -18,12 +21,15 @@
 [1;35marchive3.tgz{archive2.tgz:archive.tar:Hello.sh}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:archive.tar:Hello.txt}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:archive.tar:empty.txt}[m[1;36m:[m0
+[1;35marchive3.tgz{archive2.tgz:archive.tar:emptyline.txt}[m[1;36m:[m0
 [1;35marchive3.tgz{archive2.tgz:Hello.bat}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:Hello.class}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:Hello.java}[m[1;36m:[m2
 [1;35marchive3.tgz{archive2.tgz:Hello.pdf}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:Hello.sh}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:Hello.txt}[m[1;36m:[m1
+[1;35marchive3.tgz{archive2.tgz:empty.txt}[m[1;36m:[m0
+[1;35marchive3.tgz{archive2.tgz:emptyline.txt}[m[1;36m:[m0
 [1;35marchive3.tgz{archive2.tgz:archive.tgz:Hello.bat}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:archive.tgz:Hello.class}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:archive.tgz:Hello.java}[m[1;36m:[m2
@@ -31,3 +37,4 @@
 [1;35marchive3.tgz{archive2.tgz:archive.tgz:Hello.sh}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:archive.tgz:Hello.txt}[m[1;36m:[m1
 [1;35marchive3.tgz{archive2.tgz:archive.tgz:empty.txt}[m[1;36m:[m0
+[1;35marchive3.tgz{archive2.tgz:archive.tgz:emptyline.txt}[m[1;36m:[m0

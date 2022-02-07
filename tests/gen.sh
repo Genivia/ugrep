@@ -2,7 +2,7 @@
 
 UG="../src/ugrep --color=always --sort"
 
-FILES="Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+FILES="Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt emptyline.txt"
 
 if [ ! -x "../src/ugrep" ] ; then
   echo "../src/ugrep not found, exiting"
@@ -141,9 +141,9 @@ echo "GENERATING TEST ARCHIVES"
 
 rm -f archive.*
 
-ls $FILES empty.txt | cpio -o --quiet > archive.cpio
-ls $FILES empty.txt | pax -w -f archive.pax
-tar cf archive.tar $FILES empty.txt
+ls $FILES | cpio -o --quiet > archive.cpio
+ls $FILES | pax -w -f archive.pax
+tar cf archive.tar $FILES
 compress -c archive.tar > archive.tZ
 gzip  -9 -c archive.tar > archive.tgz
 bzip2 -9 -c archive.tar > archive.tbz
@@ -152,7 +152,7 @@ xz    -9 -c archive.tar > archive.txz
 lz4   -9 -c archive.tar > archive.tar.lz4
 zstd  -9 -c archive.tar > archive.tzst
 zip   -9 -q archive.tar.zip archive.tar
-zip   -9 -q archive.zip $FILES empty.txt
+zip   -9 -q archive.zip $FILES
 
 tar cfz archive2.tgz archive.tar $FILES archive.tgz
 tar cfz archive3.tgz archive.tgz $FILES archive2.tgz

@@ -85,7 +85,7 @@ void Stats::report(FILE *output)
   for (auto& i : flag_ignore_files)
     fprintf(output, "  --ignore-files='%s'" NEWLINESTR, i.c_str());
   for (auto& i : ignore)
-    fprintf(output, "    %s exclusions were applied to %s" NEWLINESTR, i.c_str(), i.substr(0, i.find_last_of(PATHSEPCHR)).c_str());
+    fprintf(output, "    %s exclusions were applied to %s and its subdirectories" NEWLINESTR, i.c_str(), i.substr(0, i.find_last_of(PATHSEPCHR)).c_str());
   for (auto& i : flag_file_magic)
   {
     if (!i.empty() && (i.front() == '!' || i.front() == '^'))

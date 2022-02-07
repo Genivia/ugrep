@@ -2942,8 +2942,9 @@ void Query::meta(int key)
         }
         else if (key == '{')
         {
-          if (!flags_[0].flag && !flags_[1].flag)
-            flags_[3].flag = true;
+          if (!flags_[26].flag || flag_hexdump == NULL)
+            if (!flags_[0].flag && !flags_[1].flag)
+              flags_[3].flag = true;
 
           if (context_ > 1)
             --context_;
@@ -2952,10 +2953,12 @@ void Query::meta(int key)
         }
         else if (key == '}')
         {
-          if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
+          if (flags_[26].flag && flag_hexdump != NULL)
+            ++context_;
+          else if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
             ++context_;
           else if (!flags_[0].flag && !flags_[1].flag)
-             flags_[3].flag = true;
+            flags_[3].flag = true;
 
           msg.append(" to ").append(std::to_string(context_));
         }
@@ -3202,6 +3205,16 @@ void Query::get_flags()
   else if (flag_before_context > 0)
     context_ = flag_before_context;
 
+  if (flag_hexdump != NULL)
+  {
+    if (flag_hex_after > 0)
+      context_ = flag_hex_after;
+    else if (flag_hex_before > 0)
+      context_ = flag_hex_before;
+    else
+      context_ = 0;
+  }
+
   // remember the --fuzzy max, when specified
   if (flag_fuzzy > 0)
     fuzzy_ = flag_fuzzy;
@@ -3292,8 +3305,21 @@ void Query::set_flags()
   flag_no_messages = true;
 
   // set ugrep flags to the interactive flags
-  flag_after_context = context_ * (flags_[0].flag || flags_[3].flag);
-  flag_before_context = context_ * (flags_[1].flag || flags_[3].flag);
+  if (flags_[26].flag && flag_hexdump != NULL)
+  {
+    flag_hex_after = flag_hex_before = context_;
+    flag_after_context = flag_before_context = 0;
+  }
+  else
+  {
+    flag_after_context = context_ * (flags_[0].flag || flags_[3].flag);
+    flag_before_context = context_ * (flags_[1].flag || flags_[3].flag);
+    if (flag_hexdump != NULL)
+    {
+      flag_hex_after = (flag_after_context == 0);
+      flag_hex_before = (flag_before_context == 0);
+    }
+  }
   flag_byte_offset = flags_[2].flag;
   flag_count = flags_[4].flag;
   flag_fixed_strings = flags_[5].flag;

@@ -11,7 +11,7 @@ C++ with Unicode identifiers.
 - `enums` matches enumerations
 - `functions` matches function definitions
 - `includes` matches `#include` lines
-- `names` matches identifiers (and keywords)
+- `names` matches identifiers (and keywords) not inside strings and comments
 - `namespaces` matches namespace scopes
 - `strings` matches strings
 - `structs` matches struct definitions

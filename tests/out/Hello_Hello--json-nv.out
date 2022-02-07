@@ -170,5 +170,11 @@
     "matches": [
       { "line": 1, "match": "#!/bin/sh" }
     ]
+  },
+  {
+    "file": "emptyline.txt",
+    "matches": [
+      { "line": 1, "match": "" }
+    ]
   }
 ]

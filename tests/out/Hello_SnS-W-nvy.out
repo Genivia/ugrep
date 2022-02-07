@@ -402,3 +402,4 @@
 [1;35mHello.sh[m[1;36m-[m[32;1m1[m[1;36m-[m[1;34m#!/bin/s[m[7;34;107mh[m
 [1;35mHello.sh[m[1;36m|[m[32;1m2[m[1;36m|[m[7;34;107me[m[1;34mcho "Hello World!"[m
 [1;35mHello.txt[m[1;36m:[m[32;1m1[m[1;36m:[mHello[m
+[1;35memptyline.txt[m[1;36m:[m[32;1m1[m[1;36m:[m

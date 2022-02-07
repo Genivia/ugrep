@@ -930,18 +930,19 @@ install-data-hook:
 		 echo "|                                                      |"; \
 		 echo "| Aliases to consider:                                 |"; \
 		 echo "|   alias uq     = 'ug -Q'                             |"; \
-		 echo "|   alias ux     = 'ug -UX'                            |"; \
+		 echo "|   alias ux     = 'ug -U --hexdump'                   |"; \
 		 echo "|   alias uz     = 'ug -z'                             |"; \
+		 echo "|   alias ugit   = 'ug --ignore-files'                 |"; \
 		 echo "|   alias grep   = 'ugrep -G'                          |"; \
 		 echo "|   alias egrep  = 'ugrep -E'                          |"; \
 		 echo "|   alias fgrep  = 'ugrep -F'                          |"; \
 		 echo "|   alias pgrep  = 'ugrep -P'                          |"; \
-		 echo "|   alias xgrep  = 'ugrep -UX'                         |"; \
+		 echo "|   alias xgrep  = 'ugrep -U --hexdump'                |"; \
 		 echo "|   alias zgrep  = 'ugrep -zG'                         |"; \
 		 echo "|   alias zegrep = 'ugrep -zE'                         |"; \
 		 echo "|   alias zfgrep = 'ugrep -zF'                         |"; \
 		 echo "|   alias zpgrep = 'ugrep -zP'                         |"; \
-		 echo "|   alias zxgrep = 'ugrep -zUX'                        |"; \
+		 echo "|   alias zxgrep = 'ugrep -zU --hexdump'               |"; \
 		 echo "|   alias xdump  = 'ugrep -X \"\"'                       |"; \
 		 echo "|                                                      |"; \
 		 echo "| Thank you for using ugrep!                           |"; \

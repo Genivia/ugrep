@@ -34,5 +34,11 @@
     "matches": [
       { "match": true }
     ]
+  },
+  {
+    "file": "emptyline.txt",
+    "matches": [
+      { "match": true }
+    ]
   }
 ]

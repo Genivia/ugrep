@@ -321,7 +321,7 @@ bool flag_files                    = false;
 bool flag_files_with_matches       = false;
 bool flag_files_without_match      = false;
 bool flag_fixed_strings            = false;
-bool flag_hex_ast                  = false;
+bool flag_hex_star                 = false;
 bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
 bool flag_hex_hbr                  = true;
@@ -371,6 +371,8 @@ Action flag_directories_action     = Action::SKIP;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_fuzzy                  = 0;
+size_t flag_hex_after              = 0;
+size_t flag_hex_before             = 0;
 size_t flag_hex_columns            = 16;
 size_t flag_jobs                   = 0;
 size_t flag_max_count              = 0;
@@ -465,7 +467,7 @@ size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message, bool optional_first = false);
 size_t strtofuzzy(const char *string, const char *message);
-void split_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs);
+void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs);
 void format(const char *format, size_t matches);
 void usage(const char *message, const char *arg = NULL, const char *valid = NULL);
 void help(std::ostream& out);
@@ -4189,7 +4191,7 @@ static void save_config()
   fprintf(file, "# Enable/disable searching hidden files and directories, default: no-hidden\n%s\n\n", flag_hidden ? "hidden" : "no-hidden");
   fprintf(file, "# Enable/disable binary files, default: no-ignore-binary\n%s\n\n", strcmp(flag_binary_files, "without-match") == 0 ? "ignore-binary" : "no-ignore-binary");
   fprintf(file, "# Enable/disable decompression and archive search, default: no-decompress\n%s\n\n", flag_decompress ? "decompress" : "no-decompress");
-  fprintf(file, "# Maximum decompression and de-archiving levels of recursion, default: 1\nzmax=%zu\n\n", flag_zmax);
+  fprintf(file, "# Maximum decompression and de-archiving nesting levels, default: 1\nzmax=%zu\n\n", flag_zmax);
   if (flag_ignore_files.empty())
   {
     fprintf(file, "# Enable/disable ignore files, default: no-ignore-files\nno-ignore-files\n\n");
@@ -5516,20 +5518,80 @@ void init(int argc, const char **argv)
   // --hexdump: normalize by assigning flags
   if (flag_hexdump != NULL)
   {
-    if (isdigit(*flag_hexdump))
+    int context = 0;
+
+    flag_hex_after = (flag_after_context == 0);
+    flag_hex_before = (flag_before_context == 0);
+
+    for (const char *s = flag_hexdump; *s != '\0'; ++s)
     {
-      flag_hex_columns = 8 * (*flag_hexdump - '0');
-      if (flag_hex_columns == 0 || flag_hex_columns > MAX_HEX_COLUMNS)
-        usage("invalid argument --hexdump=[1-8][a][b][c][h]");
+      switch (*s)
+      {
+        case 'a':
+          flag_hex_star = true;
+          context = 0;
+          break;
+
+        case 'b':
+          flag_hex_hbr = flag_hex_cbr = false;
+          context = 0;
+          break;
+
+        case 'c':
+          flag_hex_chr = false;
+          context = 0;
+          break;
+
+        case 'h':
+          flag_hex_hbr = false;
+          context = 0;
+          break;
+
+        case 'A':
+          flag_hex_after = 0;
+          context = 1;
+          break;
+
+        case 'B':
+          flag_hex_before = 0;
+          context = 2;
+          break;
+
+        case 'C':
+          flag_hex_after = flag_hex_before = 0;
+          context = 3;
+          break;
+
+        default:
+          char *r = NULL;
+          size_t num = static_cast<size_t>(strtoull(s, &r, 10));
+          if (r == NULL)
+            usage("invalid argument --hexdump=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]");
+          s = r - 1;
+          switch (context)
+          {
+            case 0:
+              flag_hex_columns = 8 * num;
+              if (flag_hex_columns == 0 || flag_hex_columns > MAX_HEX_COLUMNS)
+                usage("invalid argument --hexdump=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]");
+              break;
+
+            case 1:
+              flag_hex_after = num + 1;
+              break;
+
+            case 2:
+              flag_hex_before = num + 1;
+              break;
+
+            case 3:
+              flag_hex_after = flag_hex_before = num + 1;
+              break;
+          }
+      }
     }
-    if (strchr(flag_hexdump, 'a') != NULL)
-      flag_hex_ast = true;
-    if (strchr(flag_hexdump, 'b') != NULL)
-      flag_hex_hbr = flag_hex_cbr = false;
-    if (strchr(flag_hexdump, 'c') != NULL)
-      flag_hex_chr = false;
-    if (strchr(flag_hexdump, 'h') != NULL)
-      flag_hex_hbr = false;
+
+    // enable option -X if -W is not enabled
     if (!flag_with_hex)
       flag_hex = true;
   }
@@ -5863,7 +5925,7 @@ void init(int argc, const char **argv)
       if (fopen_smart(&file, from.c_str(), "r") != 0)
         error("option --exclude-from: cannot read", from.c_str());
 
-      split_globs(file, flag_exclude, flag_exclude_dir);
+      import_globs(file, flag_exclude, flag_exclude_dir);
 
       if (file != stdin)
         fclose(file);
@@ -5880,7 +5942,7 @@ void init(int argc, const char **argv)
       if (fopen_smart(&file, from.c_str(), "r") != 0)
         error("option --include-from: cannot read", from.c_str());
 
-      split_globs(file, flag_include, flag_include_dir);
+      import_globs(file, flag_include, flag_include_dir);
 
       if (file != stdin)
         fclose(file);
@@ -6586,10 +6648,28 @@ void ugrep()
       // the CNF patterns to search, this matches more than necessary to support multiline matching and to highlight all matches in color
       regex.assign(bcnf.adjoin());
 
-      // an empty pattern specified matches every line with ^.* (using ^ to prevent -o from making an extra empty match), including empty lines
+      // an empty pattern specified matches every line, including empty lines
       if (regex.empty())
       {
-        regex = flag_hex ? ".*\\n?" : "^.*";
+        if (flag_quiet || flag_files_with_matches || flag_files_without_match)
+        {
+          // regex optimized for speed to match any non-empty file
+          regex = "(?s:.)";
+        }
+        else if (flag_count)
+        {
+          // regex optimized for speed, but match count needs adjustment later when last line has no \n
+          regex = "\\n";
+        }
+        else if (flag_hex)
+        {
+          regex = ".*\\n?";
+        }
+        else
+        {
+          // use ^.* to prevent -o from making an extra empty match
+          regex = "^.*";
+        }
 
         // an empty pattern matches every line
         flag_empty = true;
@@ -6610,7 +6690,25 @@ void ugrep()
 
       if (bcnf.first_empty())
       {
-        regex = flag_hex ? ".*\\n?" : "^.*";
+        if (flag_quiet || flag_files_with_matches || flag_files_without_match)
+        {
+          // regex optimized for speed to match any non-empty file
+          regex = "(?s:.)";
+        }
+        else if (flag_count)
+        {
+          // regex optimized for speed, but match count needs adjustment later when last line has no \n
+          regex = "\\n";
+        }
+        else if (flag_hex)
+        {
+          regex = ".*\\n?";
+        }
+        else
+        {
+          // use ^.* to prevent -o from making an extra empty match
+          regex = "^.*";
+        }
 
         // an empty pattern specified with -e '' matches every line
         flag_empty = true;
@@ -7775,16 +7873,17 @@ void Grep::recurse(size_t level, const char *pathname)
       {
         if (!saved)
         {
-          save_all_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
+          save_all_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>(flag_all_exclude));
           save_all_exclude->swap(flag_all_exclude);
-          save_all_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>);
+
+          save_all_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>(flag_all_exclude_dir));
           save_all_exclude_dir->swap(flag_all_exclude_dir);
 
           saved = true;
         }
 
         Stats::ignore_file(filename);
-        split_globs(file, flag_all_exclude, flag_all_exclude_dir);
+        import_globs(file, flag_all_exclude, flag_all_exclude_dir);
         fclose(file);
       }
     }
@@ -7804,7 +7903,7 @@ void Grep::recurse(size_t level, const char *pathname)
   {
     cFileName.assign(utf8_encode(ffd.cFileName));
 
-    // search directory entries that aren't . or .. or hidden when --no-hidden is enabled
+    // search directory entries that aren't . or .. or hidden
     if (cFileName[0] != '.' || (flag_hidden && cFileName[1] != '\0' && cFileName[1] != '.'))
     {
       size_t len = strlen(pathname);
@@ -7869,7 +7968,7 @@ void Grep::recurse(size_t level, const char *pathname)
 
   while ((dirent = readdir(dir)) != NULL)
   {
-    // search directory entries that aren't . or .. or hidden when --no-hidden is enabled
+    // search directory entries that aren't . or .. or hidden
     if (dirent->d_name[0] != '.' || (flag_hidden && dirent->d_name[1] != '\0' && dirent->d_name[1] != '.'))
     {
       size_t len = strlen(pathname);
@@ -8172,6 +8271,10 @@ void Grep::search(const char *pathname)
       {
         // option -q, -l, or -L
 
+        // -v with empty pattern matches nothing
+        if (flag_empty && flag_invert_match)
+          goto exit_search;
+
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
 
@@ -8203,6 +8306,10 @@ void Grep::search(const char *pathname)
 
           matches = 1;
         }
+
+        // --match: adjust for non-empty files that have no \n line ending
+        // if (matches == 0 && flag_empty && matcher->last() > 0)
+          // matches = 1;
 
         // -v: invert
         if (flag_invert_match)
@@ -8271,47 +8378,16 @@ void Grep::search(const char *pathname)
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
 
-        if (flag_ungroup || flag_only_matching)
+        if (!flag_empty || !flag_invert_match)
         {
-          // -co or -cu: count the number of patterns matched in the file
-
-          while (matcher->find())
+          if (flag_ungroup || flag_only_matching)
           {
-            // --range: max line exceeded?
-            if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
-              break;
+            // -co or -cu: count the number of patterns matched in the file
 
-            if (matchers != NULL)
-            {
-              const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
-              const char *bol = matcher->bol();
-
-              // check CNF AND/OR/NOT matching, with --files acquire lock before Stats::found_part()
-              if (!cnf_matching(bol, eol, acquire))
-                continue;
-            }
-
-            ++matches;
-
-            // -m: max number of matches reached?
-            if (flag_max_count > 0 && matches >= flag_max_count)
-              break;
-          }
-        }
-        else
-        {
-          // -c without -o/-u: count the number of matching lines
-
-          size_t lineno = 0;
-
-          while (matcher->find())
-          {
-            size_t current_lineno = matcher->lineno();
-
-            if (lineno != current_lineno)
+            while (matcher->find())
             {
               // --range: max line exceeded?
-              if (flag_max_line > 0 && current_lineno > flag_max_line)
+              if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
                 break;
 
               if (matchers != NULL)
@@ -8329,18 +8405,56 @@ void Grep::search(const char *pathname)
               // -m: max number of matches reached?
               if (flag_max_count > 0 && matches >= flag_max_count)
                 break;
+            }
+          }
+          else
+          {
+            // -c without -o/-u: count the number of matching lines
 
-              lineno = current_lineno;
+            size_t lineno = 0;
+
+            while (matcher->find())
+            {
+              size_t current_lineno = matcher->lineno();
+
+              if (lineno != current_lineno)
+              {
+                // --range: max line exceeded?
+                if (flag_max_line > 0 && current_lineno > flag_max_line)
+                  break;
+
+                if (matchers != NULL)
+                {
+                  const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
+                  const char *bol = matcher->bol();
+
+                  // check CNF AND/OR/NOT matching, with --files acquire lock before Stats::found_part()
+                  if (!cnf_matching(bol, eol, acquire))
+                    continue;
+                }
+
+                ++matches;
+
+                // -m: max number of matches reached?
+                if (flag_max_count > 0 && matches >= flag_max_count)
+                  break;
+
+                lineno = current_lineno;
+              }
+            }
+
+            // -c with -v: count non-matching lines
+            if (flag_invert_match)
+            {
+              matches = matcher->lineno() - matches;
+              if (matches > 0)
+                --matches;
             }
           }
 
-          // -c with -v: count non-matching lines
-          if (flag_invert_match)
-          {
-            matches = matcher->lineno() - matches;
-            if (matches > 0)
-              --matches;
-          }
+          // --match: adjust match count when the last line has no \n line ending
+          if (flag_empty && matcher->last() > 0 && *(matcher->eol(true) - 1) != '\n')
+            ++matches;
         }
 
         // --files: if we are still holding the output and CNF is not satisfyable then no global matches were made
@@ -8812,6 +8926,13 @@ void Grep::search(const char *pathname)
             {
               if (binary)
               {
+                if (flag_hex_after > 0)
+                {
+                  size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
+                  if (right < restline_size)
+                    restline_size = right;
+                }
+
                 out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
               }
               else
@@ -8903,6 +9024,16 @@ void Grep::search(const char *pathname)
 
             if (binary)
             {
+              if (flag_hex_before > 0)
+              {
+                size_t left = (flag_hex_before - 1) * flag_hex_columns + (first % flag_hex_columns);
+                if (begin > bol + left)
+                {
+                  bol = begin - left;
+                  border = left;
+                }
+              }
+
               out.dump.hex(Output::Dump::HEX_LINE, first - border, bol, border);
               out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size);
 
@@ -9009,6 +9140,33 @@ void Grep::search(const char *pathname)
 
                 if (binary)
                 {
+                  if (flag_hex_after > 0 && flag_hex_before > 0)
+                  {
+                    size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
+                    if (right < first - restline_last)
+                    {
+                      out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, right);
+
+                      restline_data += right;
+                      restline_size -= right;
+                      restline_last += right;
+
+                      size_t left = (flag_hex_before - 1) * flag_hex_columns + (first % flag_hex_columns);
+
+                      if (left < first - restline_last)
+                      {
+                        if (!flag_no_header)
+                          out.header(pathname, partname, current_lineno, matcher, first, "+", binary);
+
+                        left = first - restline_last - left;
+
+                        restline_data += left;
+                        restline_size -= left;
+                        restline_last += left;
+                      }
+                    }
+                  }
+
                   out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, first - restline_last);
                   out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size);
                 }
@@ -9131,6 +9289,13 @@ void Grep::search(const char *pathname)
         {
           if (binary)
           {
+            if (flag_hex_after > 0)
+            {
+              size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
+              if (right < restline_size)
+                restline_size = right;
+            }
+
             out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
           }
           else
@@ -9714,6 +9879,13 @@ void Grep::search(const char *pathname)
             {
               if (binary)
               {
+                if (flag_hex_after > 0)
+                {
+                  size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
+                  if (right < restline_size)
+                    restline_size = right;
+                }
+
                 out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
               }
               else
@@ -9835,6 +10007,16 @@ void Grep::search(const char *pathname)
 
             if (binary)
             {
+              if (flag_hex_before > 0)
+              {
+                size_t left = (flag_hex_before - 1) * flag_hex_columns + (first % flag_hex_columns);
+                if (begin > bol + left)
+                {
+                  bol = begin - left;
+                  border = left;
+                }
+              }
+
               out.dump.hex(Output::Dump::HEX_LINE, first - border, bol, border);
               out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size);
 
@@ -10065,6 +10247,13 @@ void Grep::search(const char *pathname)
         {
           if (binary)
           {
+            if (flag_hex_after > 0)
+            {
+              size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
+              if (right < restline_size)
+                restline_size = right;
+            }
+
             out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
           }
           else
@@ -10675,7 +10864,7 @@ exit_search:
 }
 
 // read globs from a file and split them into files or dirs to include or exclude
-void split_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs)
+void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs)
 {
   // read globs from the specified file or files
   reflex::BufferedInput input(file);
@@ -11364,12 +11553,15 @@ void help(std::ostream& out)
             In addition, `--help format' displays an overview of FORMAT fields,\n\
             `--help regex' displays an overview of regular expressions and\n\
             `--help globs' displays an overview of glob syntax and conventions.\n\
-    --hexdump=[1-8][a][b][c][h]\n\
+    --hexdump=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]\n\
             Output matches in 1 to 8 columns of 8 hexadecimal octets.  The\n\
             default is 2 columns or 16 octets per line.  Option `a' outputs a\n\
             `*' for all hex lines that are identical to the previous hex line,\n\
-            `b' removes all space breaks, `c' removes the character column and\n\
-            `h' removes hex spacing.  Enables -X if -W or -X is not specified.\n\
+            `b' removes all space breaks, `c' removes the character column, `h'\n\
+            removes hex spacing, `A' includes up to NUM hex lines after the\n\
+            match, `B' includes up to NUM hex lines before the match and `C'\n\
+            includes up to NUM hex lines.  When NUM is omitted, the matching\n\
+            line is included in the output.  See also options -U, -W and -X.\n\
     --hidden, -.\n\
             Search "
 #ifdef OS_WIN
@@ -11391,13 +11583,12 @@ void help(std::ostream& out)
             is encountered in recursive searches.  The default FILE is\n\
             `" DEFAULT_IGNORE_FILE "'.  Matching files and directories located in the\n\
             directory of a FILE's location and in directories below are ignored\n\
-            by temporarily overriding the --exclude and --exclude-dir globs,\n\
-            as if --exclude-from=FILE is locally enforced.  Globbing is the\n\
-            same as --exclude-from=FILE and supports gitignore syntax, but\n\
-            directories are not automatically excluded from searches (use a\n\
-            glob ending with a `/' to identify directories to ignore, same as\n\
-            git).  Files and directories explicitly specified as command line\n\
-            arguments are never ignored.  This option may be repeated.\n\
+            by temporarily extending the --exclude and --exclude-dir globs, as\n\
+            if --exclude-from=FILE is locally enforced.  Globbing syntax is the\n\
+            same as the --exclude-from=FILE gitignore syntax; directories are\n\
+            excluded when the glob ends in a `/', same as git.  Files and\n\
+            directories explicitly specified as command line arguments are\n\
+            never ignored.  This option may be repeated with additional files.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB using wildcard matching,\n\
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards and\n\
@@ -11670,7 +11861,9 @@ void help(std::ostream& out)
             Use COMMAND to view/edit a file in query mode when pressing CTRL-Y.\n\
     -W, --with-hex\n\
             Output binary matches in hexadecimal, leaving text matches alone.\n\
-            This option is equivalent to the --binary-files=with-hex option.\n\
+            This option is equivalent to the --binary-files=with-hex option\n\
+            with --hexdump=2C.  To omit the matching line from the hex output,\n\
+            combine option --hexdump with option -W.  See also option -U.\n\
     -w, --word-regexp\n\
             The PATTERN is searched for as a word, such that the matching text\n\
             is preceded by a non-word character and is followed by a non-word\n\
@@ -11682,7 +11875,9 @@ void help(std::ostream& out)
             patterns to narrow or widen the scope of the PATTERN search.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
-            --binary-files=hex option.  See also option --hexdump.\n\
+            --binary-files=hex option with --hexdump=2C.  To omit the matching\n\
+            line from the hex output, use option --hexdump instead of -X.  See\n\
+            also option -U.\n\
     -x, --line-regexp\n\
             Select only those matches that exactly match the whole line, as if\n\
             the patterns are surrounded by ^ and $.  If a PATTERN is specified,\n\
@@ -11700,16 +11895,16 @@ void help(std::ostream& out)
     -y, --any-line\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
             context with a `-' separator.  See also options -A, -B and -C.\n\
-    -Z[[+-~]MAX], --fuzzy[=[+-~]MAX]\n\
+    -Z[+-~][MAX], --fuzzy=[+-~][MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
-            By default, MAX is 1: one deletion, insertion or substitution is\n\
-            allowed.  When `+' and/or `-' precede MAX, only insertions and/or\n\
-            deletions are allowed, respectively.  When `~' precedes MAX,\n\
-            substitution counts as one error.  For example, -Z+~3 allows up to\n\
-            three insertions or substitutions, but no deletions.  The first\n\
-            character of an approximate match always matches the begin of a\n\
-            pattern.  Option --sort=best orders matching files by best match.\n\
-            No whitespace may be given between -Z and its argument.\n\
+            The default is -Z1: one deletion, insertion or substitution is\n\
+            allowed.  If `+`, `-' and/or `~' is specified, then `+' allows\n\
+            insertions, `-' allows deletions and `~' allows substitutions.  For\n\
+            example, -Z+~3 allows up to three insertions or substitutions, but\n\
+            no deletions.  The first character of an approximate match always\n\
+            matches the start of a pattern.  Option --sort=best orders matching\n\
+            files by best match.  No whitespace may be given between -Z and its\n\
+            argument.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
             .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,\n\
@@ -11898,59 +12093,59 @@ void help(const char *what)
       std::cout <<
 "Extended regular expression syntax overview (excludes some advanced patterns):\n\
 \n\
- pattern     matches                     pattern     special characters\n\
+ pattern     matches                     pattern     removes special meaning   \n\
  ----------  --------------------------  ----------  --------------------------\n\
- .           any char except newline     \\f          form feed\n\
- a           the character a             \\n          newline\n\
- ab          the string ab               \\r          carriage return\n\
- a|b         a or b                      \\R          any Unicode newline\n\
- a*          zero or more a's            \\t          tab\n\
- a+          one or more a's             \\v          vertical tab\n\
- a?          zero or one a               \\0          NUL\n\
- a{3}        3 a's                       \\cZ         control character Z\n\
- a{3,}       3 or more a's               \\xHH        hex character code HH\n\
- a{3,7}      3 to 7 a's                  \\x{HHHH}    hex character code HHHH\n\
- a*?         zero or more a's lazily     \\u{HHHH}    hex character code HHHH\n\
- a+?         one or more a's lazily      --------------------------------------\n\
- a??         zero or one a lazily\n\
- a{3}?       3 a's lazily                pattern     anchors and boundaries\n\
- a{3,}?      3 or more a's lazily        ----------  --------------------------\n\
- a{3,7}?     3 to 7 a's lazily           ^           begin of line anchor\n\
- --------------------------------------  $           end of line anchor\n\
-                                         \\b          word boundary (-P)\n\
- pattern     character classes           \\B          non-word boundary (-P)\n\
- ----------  --------------------------  \\<          start word boundary (-P)\n\
- [abc-e]     one character a,b,c,d,e     \\>          end word boundary (-P)\n\
- [^abc-e]    one char not a,b,c,d,e,\\n   (?=...)     lookahead (-P)\n\
- [[:name:]]  one char in POSIX class:    (?!...)     negative lookahead (-P)\n\
-      alnum  a-z,A-Z,0-9                 (?<=...)    lookbehind (-P)\n\
-      alpha  a-z,A-Z                     (?<!...)    negative lookbehind (-P)\n\
-      ascii  ASCII char \\x00-\\x7f        --------------------------------------\n\
-      blank  space or tab\n\
-      cntrl  control characters          pattern     grouping\n\
-      digit  0-9                         ----------  --------------------------\n\
-      graph  visible characters          (...)       capturing group (-P)\n\
-      lower  a-z                         (...)       non-capturing group\n\
-      print  visible chars and space     (?:...)     non-capturing group\n\
-      punct  punctuation characters      (?<X>...)   capturing, named X (-P)\n\
-      space  space,\\t,\\n,\\v,\\f,\\r        \\1          matches group 1 (-P)\n\
-      upper  A-Z                         \\g{10}      matches group 10 (-P)\n\
-       word  a-z,A-Z,0-9,_               \\g{X}       matches group X (-P)\n\
-     xdigit  0-9,a-f,A-F                 (?#...)     comments ... are ignored\n\
- \\p{class}   one character in class      --------------------------------------\n\
- \\P{class}   one char not in class\n\
- \\d          a digit                     pattern     removes special meaning\n\
- \\D          a non-digit                 ----------  --------------------------\n\
- \\h          a space or tab              \\.          escapes . and other chars\n\
- \\H          not a space or tab          \\Q...\\E     the literal string ...\n\
- \\s          a whitespace except \\n      --------------------------------------\n\
- \\S          a non-whitespace\n\
- \\w          a word character            (-P): ugrep option -P is required\n\
- \\W          a non-word character\n\
- -------------------------------------- \n\
+ .           any character except \\n     \\.          escapes . to match .\n\
+ a           the character a             \\Q...\\E     the literal string ...\n\
+ ab          the string ab               --------------------------------------\n\
+ a|b         a or b                      \n\
+ a*          zero or more a's            pattern     special characters\n\
+ a+          one or more a's             ----------  --------------------------\n\
+ a?          zero or one a               \\f          form feed\n\
+ a{3}        3 a's                       \\n          newline\n\
+ a{3,}       3 or more a's               \\r          carriage return\n\
+ a{3,7}      3 to 7 a's                  \\R          any Unicode line break\n\
+ a*?         zero or more a's lazily     \\t          tab\n\
+ a+?         one or more a's lazily      \\v          vertical tab\n\
+ a??         zero or one a lazily        \\X          any character and \\n\n\
+ a{3}?       3 a's lazily                \\cZ         control character ^Z\n\
+ a{3,}?      3 or more a's lazily        \\0          NUL\n\
+ a{3,7}?     3 to 7 a's lazily           \\0ddd       octal character code ddd\n\
+ --------------------------------------  \\xhh        hex character code hh\n\
+                                         \\x{hex}     hex Unicode code point\n\
+ pattern     character classes           \\u{hex}     hex Unicode code point\n\
+ ----------  --------------------------  --------------------------------------\n\
+ [abc-e]     one character a,b,c,d,e     \n\
+ [^abc-e]    one char not a,b,c,d,e,\\n   pattern     anchors and boundaries\n\
+ [[:name:]]  one char in POSIX class:    ----------  --------------------------\n\
+      alnum  a-z,A-Z,0-9                 ^           begin of line anchor\n\
+      alpha  a-z,A-Z                     $           end of line anchor\n\
+      ascii  ASCII char \\x00-\\x7f        \\b          word boundary (-P)\n\
+      blank  space or tab                \\B          non-word boundary (-P)\n\
+      cntrl  control characters          \\<          start word boundary (-P)\n\
+      digit  0-9                         \\>          end word boundary (-P)\n\
+      graph  visible characters          (?=...)     lookahead (-P)\n\
+      lower  a-z                         (?!...)     negative lookahead (-P)\n\
+      print  visible chars and space     (?<=...)    lookbehind (-P)\n\
+      punct  punctuation characters      (?<!...)    negative lookbehind (-P)\n\
+      space  space,\\t,\\n,\\v,\\f,\\r        --------------------------------------\n\
+      upper  A-Z                         \n\
+       word  a-z,A-Z,0-9,_               pattern     grouping\n\
+     xdigit  0-9,a-f,A-F                 ----------  --------------------------\n\
+ \\p{class}   one character in class      (...)       capturing group (-P)\n\
+ \\P{class}   one char not in class       (...)       non-capturing group\n\
+ \\d          a digit                     (?:...)     non-capturing group\n\
+ \\D          a non-digit                 (?<X>...)   capturing, named X (-P)\n\
+ \\h          a space or tab              \\1          matches group 1 (-P)\n\
+ \\H          not a space or tab          \\g{10}      matches group 10 (-P)\n\
+ \\s          a whitespace except \\n      \\g{X}       matches group name X (-P)\n\
+ \\S          a non-whitespace            (?#...)     comments ... are ignored\n\
+ \\w          a word character            --------------------------------------\n\
+ \\W          a non-word character        \n\
+ --------------------------------------      (-P): pattern requires option -P\n\
 \n\
-Option -U disables full Unicode pattern matching.  Non-POSIX Unicode character\n\
-classes \\p{class} are disabled.  ASCII, LATIN1 and binary regex patterns only.\n\
+Option -U disables full Unicode pattern matching: non-POSIX Unicode character\n\
+classes \\p{class} are disabled, ASCII, LATIN1 and binary regex patterns only.\n\
 \n\
 Option --bool adds the following operations to regex patterns `a' and `b':\n\
 \n\
@@ -11972,6 +12167,9 @@ before OR and OR is performed before AND.  Thus, `-x|y z' is `((-x)|y) z'.\n\
       std::cout <<
 "Glob syntax and conventions:\n\
 \n\
+Gitignore-style globbing is performed by -g (--glob), --include, --exclude,\n\
+--include-dir, --exclude-dir, --include-from, --exclude-from, --ignore-files.\n\
+\n\
  pattern     matches\n\
  ----------  -----------------------------------------------------------\n\
  *           anything except /\n\
@@ -11979,7 +12177,7 @@ before OR and OR is performed before AND.  Thus, `-x|y z' is `((-x)|y) z'.\n\
  [abc-e]     one character a,b,c,d,e\n\
  [^abc-e]    one character not a,b,c,d,e,/\n\
  [!abc-e]    one character not a,b,c,d,e,/\n\
- /           when used at the begin of a glob, matches working directory\n\
+ /           when used at the start of a glob, matches working directory\n\
  **/         zero or more directories\n\
  /**         when at the end of a glob, matches everything after the /\n\
  \\?          a ? or any other character specified after the backslash\n\

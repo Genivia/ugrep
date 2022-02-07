@@ -8,7 +8,7 @@ Rust patterns
 - `impls` matches implementation definitions
 - `macros` matches `macro_rules!` definitions
 - `mods` matches module definitions
-- `names` matches identifiers (and keywords)
+- `names` matches identifiers (and keywords) not inside strings and comments
 - `strings` matches strings
 - `structs` matches struct definitions
 - `traits` matches trait definitions

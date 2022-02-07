@@ -12,3 +12,4 @@ Binary file Hello.pdf matches
 Hello.sh:#!/bin/sh
 Hello.sh:echo "Hello World!"
 Hello.txt:Hello
+emptyline.txt:

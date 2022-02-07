@@ -32,6 +32,9 @@ bin/ug
 bin/ugrep
 src/ugrep
 
+# Git
+.git/
+
 # Autotools
 .deps/
 .dirstamp
@@ -52,4 +55,3 @@ msvc/*.vcxproj.user
 .DS_Store/
 *.dSYM/
 *.swp
-

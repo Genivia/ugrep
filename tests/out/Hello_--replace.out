@@ -12,3 +12,4 @@
 [1;35mHello.sh[m[1;36m:[m[m(1:#!/bin/sh)[m
 [1;35mHello.sh[m[1;36m:[m[m(2:echo "Hello World!")[m
 [1;35mHello.txt[m[1;36m:[m[m(1:Hello)[m
+[1;35memptyline.txt[m[1;36m:[m[m(1:)[m

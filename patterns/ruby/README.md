@@ -10,7 +10,7 @@ using back references (not yet supported) and lazy quantifiers, using regex
 - `comments` matches comments
 - `defs` matches function definition lines
 - `modules` matches module lines
-- `names` matches identifiers (and keywords)
+- `names` matches identifiers (and keywords) not inside strings and comments
 - `strings` matches strings
 - `zap_comments` removes comments from matches
 - `zap_strings` removes strings from matches

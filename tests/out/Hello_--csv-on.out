@@ -152,3 +152,4 @@
 "Hello.sh",1,"#!/bin/sh"
 "Hello.sh",2,"echo ""Hello World!"""
 "Hello.txt",1,"Hello"
+"emptyline.txt",1,""

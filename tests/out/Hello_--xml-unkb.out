@@ -165,4 +165,7 @@
   <file name="Hello.txt">
     <match line="1" column="1" offset="0">Hello</match>
   </file>
+  <file name="emptyline.txt">
+    <match line="1" column="1" offset="0"></match>
+  </file>
 </grep>

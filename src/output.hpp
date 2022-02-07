@@ -45,7 +45,7 @@
 #include <mutex>
 #include <condition_variable>
 
-// max hexadecimal columns of bytes per line
+// max hexadecimal columns of bytes per line = 8*8
 #ifndef MAX_HEX_COLUMNS
 # define MAX_HEX_COLUMNS 64
 #endif

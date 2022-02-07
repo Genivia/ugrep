@@ -1,2 +1,8 @@
 <grep>
+  <file name="empty.txt">
+    <match>false</match>
+  </file>
+  <file name="emptyline.txt">
+    <match>false</match>
+  </file>
 </grep>

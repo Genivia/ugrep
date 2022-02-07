@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 27, 2022" "ugrep 3.7.1" "User Commands"
+.TH UGREP "1" "February 07, 2022" "ugrep 3.7.2" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -349,12 +349,15 @@ In addition, `\fB\-\-help\fR format' displays an overview of FORMAT fields,
 `\fB\-\-help\fR regex' displays an overview of regular expressions and
 `\fB\-\-help\fR globs' displays an overview of glob syntax and conventions.
 .TP
-\fB\-\-hexdump\fR=[1\-8][a][b][c][h]
+\fB\-\-hexdump\fR=[1\-8][a][bch][A[\fINUM\fR]][B[\fINUM\fR]][C[\fINUM\fR]]
 Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
 default is 2 columns or 16 octets per line.  Option `a' outputs a
 `*' for all hex lines that are identical to the previous hex line,
-`b' removes all space breaks, `c' removes the character column and
-`h' removes hex spacing.  Enables \fB\-X\fR if \fB\-W\fR or \fB\-X\fR is not specified.
+`b' removes all space breaks, `c' removes the character column, `h'
+removes hex spacing, `A' includes up to NUM hex lines after the
+match, `B' includes up to NUM hex lines before the match and `C'
+includes up to NUM hex lines.  When NUM is omitted, the matching
+line is included in the output.  See also options \fB\-U\fR, \fB\-W\fR and \fB\-X\fR.
 .TP
 \fB\-\-hidden\fR, \fB\-.\fR
 Search hidden files and directories.
@@ -377,13 +380,12 @@ Ignore files and directories matching the globs in each FILE that
 is encountered in recursive searches.  The default FILE is
 `.gitignore'.  Matching files and directories located in the
 directory of a FILE's location and in directories below are ignored
-by temporarily overriding the \fB\-\-exclude\fR and \fB\-\-exclude\-dir\fR globs,
-as if \fB\-\-exclude\-from\fR=\fIFILE\fR is locally enforced.  Globbing is the
-same as \fB\-\-exclude\-from\fR=\fIFILE\fR and supports gitignore syntax, but
-directories are not automatically excluded from searches (use a
-glob ending with a `/' to identify directories to ignore, same as
-git).  Files and directories explicitly specified as command line
-arguments are never ignored.  This option may be repeated.
+by temporarily extending the \fB\-\-exclude\fR and \fB\-\-exclude\-dir\fR globs, as
+if \fB\-\-exclude\-from\fR=\fIFILE\fR is locally enforced.  Globbing syntax is the
+same as the \fB\-\-exclude\-from\fR=\fIFILE\fR gitignore syntax; directories are
+excluded when the glob ends in a `/', same as git.  Files and
+directories explicitly specified as command line arguments are
+never ignored.  This option may be repeated with additional files.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Search only files whose name matches GLOB using wildcard matching,
@@ -706,7 +708,9 @@ Use COMMAND to view/edit a file in query mode when pressing CTRL\-Y.
 .TP
 \fB\-W\fR, \fB\-\-with\-hex\fR
 Output binary matches in hexadecimal, leaving text matches alone.
-This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex option.
+This option is equivalent to the \fB\-\-binary\-files\fR=with\-hex option
+with \fB\-\-hexdump\fR=2C.  To omit the matching line from the hex output,
+combine option \fB\-\-hexdump\fR with option \fB\-W\fR.  See also option \fB\-U\fR.
 .TP
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The PATTERN is searched for as a word, such that the matching text
@@ -720,7 +724,9 @@ patterns to narrow or widen the scope of the PATTERN search.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
-\fB\-\-binary\-files\fR=hex option.  See also option \fB\-\-hexdump\fR.
+\fB\-\-binary\-files\fR=hex option with \fB\-\-hexdump\fR=2C.  To omit the matching
+line from the hex output, use option \fB\-\-hexdump\fR instead of \fB\-X\fR.  See
+also option \fB\-U\fR.
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Select only those matches that exactly match the whole line, as if
@@ -743,16 +749,16 @@ not only lines containing the character `x'.
 Any line is output (passthru).  Non\-matching lines are output as
 context with a `\-' separator.  See also options \fB\-A\fR, \fB\-B\fR and \fB\-C\fR.
 .TP
-\fB\-Z\fR[[+\-~]MAX], \fB\-\-fuzzy\fR[=[+\-~]MAX]
+\fB\-Z\fR[+\-~][\fIMAX\fR], \fB\-\-fuzzy\fR=[+\-~][\fIMAX\fR]
 Fuzzy mode: report approximate pattern matches within MAX errors.
-By default, MAX is 1: one deletion, insertion or substitution is
-allowed.  When `+' and/or `\-' precede MAX, only insertions and/or
-deletions are allowed, respectively.  When `~' precedes MAX,
-substitution counts as one error.  For example, \fB\-Z\fR+~3 allows up to
-three insertions or substitutions, but no deletions.  The first
-character of an approximate match always matches the begin of a
-pattern.  Option \fB\-\-sort\fR=best orders matching files by best match.
-No whitespace may be given between \fB\-Z\fR and its argument.
+The default is \fB\-Z\fR1: one deletion, insertion or substitution is
+allowed.  If `+`, `\-' and/or `~' is specified, then `+' allows
+insertions, `\-' allows deletions and `~' allows substitutions.  For
+example, \fB\-Z\fR+~3 allows up to three insertions or substitutions, but
+no deletions.  The first character of an approximate match always
+matches the start of a pattern.  Option \fB\-\-sort\fR=best orders matching
+files by best match.  No whitespace may be given between \fB\-Z\fR and its
+argument.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,
@@ -867,7 +873,7 @@ Matches one character not a,b,c,d,e,/.
 .IP \fB[!abc-e]\fR
 Matches one character not a,b,c,d,e,/.
 .IP \fB/\fR
-When used at the beginning of a glob, matches if pathname has no /.
+When used at the start of a glob, matches if pathname has no /.
 When used at the end of a glob, matches directories only.
 .IP \fB**/\fR
 Matches zero or more directories.
@@ -1233,16 +1239,17 @@ compressed and regular files, and in PDFs using a PDF filter:
 .IP
 $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 .PP
-Match the binary pattern `A3hhhhA3hh' (hex) in a binary file without Unicode
-pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a
-Unicode character U+00A3 with UTF-8 byte sequence C2 A3) and display the
-results in hex with \fB-X\fR using `less -R' as a pager:
+Match the binary pattern `A3hhhhA3' (hex) in a binary file without Unicode
+pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a Unicode
+character U+00A3 with UTF-8 byte sequence C2 A3) and display the results in hex
+with \fB--hexdump\fR with \fBC1\fR to output one hex line before and after each
+match:
 .IP
-$ ugrep --pager -UXo '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out
+$ ugrep -U --hexdump=C1 '\\xa3[\\x00-\\xff]{2}\\xa3' a.out
 .PP
-Hexdump an entire file:
+Hexdump an entire file using a pager for viewing:
 .IP
-$ ugrep -X '' a.out
+$ ugrep -X --pager '' a.out
 .PP
 List all files that are not ignored by one or more `.gitignore':
 .IP

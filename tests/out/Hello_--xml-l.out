@@ -17,4 +17,7 @@
   <file name="Hello.txt">
     <match>true</match>
   </file>
+  <file name="emptyline.txt">
+    <match>true</match>
+  </file>
 </grep>

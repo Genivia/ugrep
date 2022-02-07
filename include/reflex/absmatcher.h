@@ -1073,7 +1073,7 @@ class AbstractMatcher {
     return bol_;
   }
   /// Returns pointer to the end of the line (last char + 1) in the buffer containing the matched text, DANGER: invalidates previous bol() and text() pointers, use eol() before bol(), text(), begin(), and end() when those are used.
-  inline const char *eol(bool inclusive = false) ///< true if inclusive, i.e. point after \n
+  inline const char *eol(bool inclusive = false) ///< true if inclusive, i.e. point after \n instead of at \n
     /// @returns pointer to the end of line
   {
     if (chr_ == '\n' || (txt_ + len_ < buf_ + end_ && txt_[len_] == '\n'))

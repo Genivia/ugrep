@@ -594,7 +594,7 @@ void CNF::split()
 // report the CNF in readable form
 void CNF::report(FILE *output) const
 {
-  if (empty())
+  if (empty() && flag_file.empty())
     return;
 
   fprintf(output, flag_files ? "Files " : "Lines ");
@@ -624,11 +624,14 @@ void CNF::report(FILE *output) const
     if (flag_files)
       fprintf(output, " a line");
 
-    // if the first CNF term is left empty then we match -f FILE with additional constraints, i.e. not as an alternation
-    if (terms.front().empty())
-      fprintf(output, ", and" NEWLINESTR "  ");
-    else
-      fprintf(output, " or ");
+    if (!terms.empty())
+    {
+      // if the first CNF term is left empty then we match -f FILE with additional constraints, i.e. not as an alternation
+      if (terms.front().empty())
+        fprintf(output, ", and" NEWLINESTR "  ");
+      else
+        fprintf(output, " or ");
+    }
   }
 
   bool and_sep = false;

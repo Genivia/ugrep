@@ -29,4 +29,7 @@
   <file name="Hello.txt">
     <match line="1">Hello</match>
   </file>
+  <file name="emptyline.txt">
+    <match line="1"></match>
+  </file>
 </grep>

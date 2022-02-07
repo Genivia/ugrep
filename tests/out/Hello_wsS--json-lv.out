@@ -4,5 +4,17 @@
     "matches": [
       { "match": false }
     ]
+  },
+  {
+    "file": "empty.txt",
+    "matches": [
+      { "match": false }
+    ]
+  },
+  {
+    "file": "emptyline.txt",
+    "matches": [
+      { "match": false }
+    ]
   }
 ]

@@ -85,4 +85,7 @@
   <file name="Hello.txt">
     <match>Hello</match>
   </file>
+  <file name="emptyline.txt">
+    <match></match>
+  </file>
 </grep>

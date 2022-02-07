@@ -34,5 +34,17 @@
     "matches": [
       { "match": 0 }
     ]
+  },
+  {
+    "file": "empty.txt",
+    "matches": [
+      { "match": 0 }
+    ]
+  },
+  {
+    "file": "emptyline.txt",
+    "matches": [
+      { "match": 0 }
+    ]
   }
 ]

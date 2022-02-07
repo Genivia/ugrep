@@ -177,7 +177,7 @@ Matches one character not a,b,c,d,e,/.
 .IP \fB[!abc-e]\fR
 Matches one character not a,b,c,d,e,/.
 .IP \fB/\fR
-When used at the begin of a glob, matches if pathname has no /.
+When used at the start of a glob, matches if pathname has no /.
 When used at the end of a glob, matches directories only.
 .IP \fB**/\fR
 Matches zero or more directories.
@@ -543,16 +543,17 @@ compressed and regular files, and in PDFs using a PDF filter:
 .IP
 $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 .PP
-Match the binary pattern `A3hhhhA3hh' (hex) in a binary file without Unicode
-pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a
-Unicode character U+00A3 with UTF-8 byte sequence C2 A3) and display the
-results in hex with \fB-X\fR using `less -R' as a pager:
+Match the binary pattern `A3hhhhA3' (hex) in a binary file without Unicode
+pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a Unicode
+character U+00A3 with UTF-8 byte sequence C2 A3) and display the results in hex
+with \fB--hexdump\fR with \fBC1\fR to output one hex line before and after each
+match:
 .IP
-$ ugrep --pager -UXo '\\xa3[\\x00-\\xff]{2}\\xa3[\\x00-\\xff]' a.out
+$ ugrep -U --hexdump=C1 '\\xa3[\\x00-\\xff]{2}\\xa3' a.out
 .PP
-Hexdump an entire file:
+Hexdump an entire file using a pager for viewing:
 .IP
-$ ugrep -X '' a.out
+$ ugrep -X --pager '' a.out
 .PP
 List all files that are not ignored by one or more `.gitignore':
 .IP

@@ -52,7 +52,7 @@ void Output::Dump::hex(short mode, size_t byte_offset, const char *data, size_t 
 // dump one line of hex
 void Output::Dump::line()
 {
-  if (flag_hex_ast)
+  if (flag_hex_star)
   {
     // if the previous hex line was the same as this hex line, output a * (but only once)
     size_t i;

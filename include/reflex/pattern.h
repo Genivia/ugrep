@@ -891,7 +891,7 @@ class Pattern {
       const DFA::State *start,
       int               nest,
       bool              peek) const;
-  void export_dfa(const DFA::State *start) const;
+  void graph_dfa(const DFA::State *start) const;
   void export_code() const;
   void predict_match_dfa(DFA::State *start);
   void gen_predict_match(DFA::State *state);

@@ -5,7 +5,7 @@ CONFIGH=${CONFIGH_ABS_PATH:-../config.h}
 
 UG="$UGREP --color=always --sort $@"
 
-FILES="Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt"
+FILES="Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt emptyline.txt"
 
 if test ! -x "$UGREP" ; then
   echo "$UGREP not found, exiting"

@@ -1188,10 +1188,7 @@ void Pattern::parse4(
   }
   else if (c == ')')
   {
-    if (begin)
-      error(regex_error::empty_expression, loc++);
-    else
-      error(regex_error::mismatched_parens, loc++);
+    error(begin ? regex_error::empty_expression : regex_error::mismatched_parens, loc++);
   }
   else if (c == '}')
   {
@@ -2454,14 +2451,17 @@ void Pattern::assemble(DFA::State *start)
   timer_type t;
   timer_start(t);
   predict_match_dfa(start);
-  export_dfa(start);
+  graph_dfa(start);
   compact_dfa(start);
   encode_dfa(start);
   wms_ = timer_elapsed(t);
-  if (opt_.o)
-    gencode_dfa(start);
-  else
-    export_code();
+  if (!opt_.f.empty())
+  {
+    if (opt_.o)
+      gencode_dfa(start);
+    else
+      export_code();
+  }
   DBGLOG("END assemble()");
 }
 
@@ -2529,6 +2529,7 @@ void Pattern::encode_dfa(DFA::State *start)
   nop_ = 0;
   for (DFA::State *state = start; state; state = state->next)
   {
+    // clamp max accept
     if (state->accept > Const::AMAX)
       state->accept = Const::AMAX;
     state->first = state->index = nop_;
@@ -2672,23 +2673,7 @@ void Pattern::encode_dfa(DFA::State *start)
       Char hi = i->second.first;
       Index target_first = i->second.second != NULL ? i->second.second->first : Const::IMAX;
       Index target_index = i->second.second != NULL ? i->second.second->index : Const::IMAX;
-      if (!is_meta(lo))
-      {
-        if (target_index == Const::IMAX)
-        {
-          opcode[pc++] = opcode_goto(lo, hi, Const::HALT);
-        }
-        else if (nop_ > Const::LONG && ((target_first > state->first && target_first >= Const::LONG / 2) || target_index >= Const::LONG))
-        {
-          opcode[pc++] = opcode_goto(lo, hi, Const::LONG);
-          opcode[pc++] = opcode_long(target_index);
-        }
-        else
-        {
-          opcode[pc++] = opcode_goto(lo, hi, target_index);
-        }
-      }
-      else
+      if (is_meta(lo))
       {
         do
         {
@@ -2706,6 +2691,22 @@ void Pattern::encode_dfa(DFA::State *start)
             opcode[pc++] = opcode_goto(lo, lo, target_index);
           }
         } while (++lo <= hi);
+      }
+      else
+      {
+        if (target_index == Const::IMAX)
+        {
+          opcode[pc++] = opcode_goto(lo, hi, Const::HALT);
+        }
+        else if (nop_ > Const::LONG && ((target_first > state->first && target_first >= Const::LONG / 2) || target_index >= Const::LONG))
+        {
+          opcode[pc++] = opcode_goto(lo, hi, Const::LONG);
+          opcode[pc++] = opcode_long(target_index);
+        }
+        else
+        {
+          opcode[pc++] = opcode_goto(lo, hi, target_index);
+        }
       }
     }
 #else
@@ -2829,17 +2830,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
             Char hi = i->first;
             Char lo = i->second.first;
 #endif
-            if (!is_meta(lo))
-            {
-              Index target_index = Const::IMAX;
-              if (i->second.second != NULL)
-                target_index = i->second.second->index;
-              DFA::State::Edges::const_reverse_iterator j = i;
-              if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
-                break;
-              peek = true;
-            }
-            else
+            if (is_meta(lo))
             {
               do
               {
@@ -2851,6 +2842,16 @@ void Pattern::gencode_dfa(const DFA::State *start) const
                   break;
                 check_dfa_closure(i->second.second, 1, peek, prev);
               } while (++lo <= hi);
+            }
+            else
+            {
+              Index target_index = Const::IMAX;
+              if (i->second.second != NULL)
+                target_index = i->second.second->index;
+              DFA::State::Edges::const_reverse_iterator j = i;
+              if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
+                break;
+              peek = true;
             }
           }
           bool read = peek;
@@ -2871,44 +2872,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
                 ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
               read = false;
             }
-            if (!is_meta(lo))
-            {
-              DFA::State::Edges::const_reverse_iterator j = i;
-              if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
-                break;
-              if (lo == hi)
-              {
-                ::fprintf(file, "  if (c1 == ");
-                print_char(file, lo);
-                ::fprintf(file, ")");
-              }
-              else if (hi == 0xFF)
-              {
-                ::fprintf(file, "  if (");
-                print_char(file, lo);
-                ::fprintf(file, " <= c1)");
-              }
-              else
-              {
-                ::fprintf(file, "  if (");
-                print_char(file, lo);
-                ::fprintf(file, " <= c1 && c1 <= ");
-                print_char(file, hi);
-                ::fprintf(file, ")");
-              }
-              if (target_index == Const::IMAX)
-              {
-                if (peek)
-                  ::fprintf(file, " return m.FSM_HALT(c1);\n");
-                else
-                  ::fprintf(file, " return m.FSM_HALT();\n");
-              }
-              else
-              {
-                ::fprintf(file, " goto S%u;\n", target_index);
-              }
-            }
-            else
+            if (is_meta(lo))
             {
               do
               {
@@ -2945,6 +2909,43 @@ void Pattern::gencode_dfa(const DFA::State *start) const
                     elif = true;
                 }
               } while (++lo <= hi);
+            }
+            else
+            {
+              DFA::State::Edges::const_reverse_iterator j = i;
+              if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
+                break;
+              if (lo == hi)
+              {
+                ::fprintf(file, "  if (c1 == ");
+                print_char(file, lo);
+                ::fprintf(file, ")");
+              }
+              else if (hi == 0xFF)
+              {
+                ::fprintf(file, "  if (");
+                print_char(file, lo);
+                ::fprintf(file, " <= c1)");
+              }
+              else
+              {
+                ::fprintf(file, "  if (");
+                print_char(file, lo);
+                ::fprintf(file, " <= c1 && c1 <= ");
+                print_char(file, hi);
+                ::fprintf(file, ")");
+              }
+              if (target_index == Const::IMAX)
+              {
+                if (peek)
+                  ::fprintf(file, " return m.FSM_HALT(c1);\n");
+                else
+                  ::fprintf(file, " return m.FSM_HALT();\n");
+              }
+              else
+              {
+                ::fprintf(file, " goto S%u;\n", target_index);
+              }
             }
           }
 #else
@@ -3169,7 +3170,7 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
   }
 }
 
-void Pattern::export_dfa(const DFA::State *start) const
+void Pattern::graph_dfa(const DFA::State *start) const
 {
   for (std::vector<std::string>::const_iterator i = opt_.f.begin(); i != opt_.f.end(); ++i)
   {

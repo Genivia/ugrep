@@ -72,3 +72,4 @@
 "Hello.pdf","%%EOF"
 "Hello.sh","#!/bin/sh"
 "Hello.txt","Hello"
+"emptyline.txt",""

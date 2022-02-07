@@ -156,4 +156,7 @@
   <file name="Hello.sh">
     <match>#!/bin/sh</match>
   </file>
+  <file name="emptyline.txt">
+    <match></match>
+  </file>
 </grep>

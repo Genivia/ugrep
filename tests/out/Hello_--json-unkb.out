@@ -182,5 +182,11 @@
     "matches": [
       { "line": 1, "column": 1, "offset": 0, "match": "Hello" }
     ]
+  },
+  {
+    "file": "emptyline.txt",
+    "matches": [
+      { "line": 1, "column": 1, "offset": 0, "match": "" }
+    ]
   }
 ]

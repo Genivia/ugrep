@@ -102,5 +102,11 @@
     "matches": [
       { "match": "Hello" }
     ]
+  },
+  {
+    "file": "emptyline.txt",
+    "matches": [
+      { "match": "" }
+    ]
   }
 ]
