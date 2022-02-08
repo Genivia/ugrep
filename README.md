@@ -8,7 +8,7 @@ Search for anything in everything... ultra fast
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-- Supports all GNU/BSD grep standard options; a compatible replacement for GNU/BSD grep, [see how](#grep)
+- Supports all GNU/BSD grep standard options; ugrep is a faster compatible replacement for GNU/BSD grep
 
 - Ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.
 
@@ -1996,6 +1996,8 @@ Files compressed with gzip (`.gz`), compress (`.Z`), bzip2 (`.bz`, `.bz2`,
 are searched with option `-z`.  This option does not require files to be
 compressed.  Uncompressed files are searched also.
 
+Other compression formats can be searched with **ugrep** [filters](#filter).
+
 Archives (cpio, jar, pax, tar, and zip) are searched with option `-z`.  Regular
 files in an archive that match are output with the archive pathnames enclosed
 in `{` and `}` braces.  Supported tar formats are v7, ustar, gnu, oldgnu, and
@@ -2351,9 +2353,17 @@ advanced document conversion utilities such as:
   embedded in image and video media formats.
 
 Also decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
-`bunzip2`, `unlzma`, and `unxz` that decompress files to standard output when
-option `--stdout` is specified.  However, **ugrep** option `-z` is typically
-faster to search compressed files.
+`bunzip2`, `unlzma`, `unxz` and `lzop` that decompress files to standard output
+when option `--stdout` is specified.  For example:
+
+    ugrep --filter='lzo:lzop -d --stdout -' ...
+
+The `--filter='lzo:lzop -d --stdout -' option decompresses files with extension
+`lzo` to standard output with `--stdout` with the compressed stream being read
+from standard input with `-`.
+
+Note that **ugrep** option `-z` is typically faster to search compressed files
+compared to `--filter`.
 
 The `--filter` option may also be used to run a user-defined shell script to
 filter files.  For example, to invoke an action depending on the filename
