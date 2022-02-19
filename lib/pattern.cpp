@@ -311,7 +311,7 @@ void Pattern::init_options(const char *options)
         case 'n':
           for (const char *t = s += (s[1] == '='); *s != ';' && *s != '\0'; ++t)
           {
-            if (*t == ',' || std::isspace(*t) || *t == ';' || *t == '\0')
+            if (*t == ',' || *t == ';' || *t == '\0')
             {
               if (t > s + 1)
               {
@@ -2785,287 +2785,286 @@ void Pattern::gencode_dfa(const DFA::State *start) const
         err = reflex::fopen_s(&file, filename.c_str() + 1, "a");
       else
         err = reflex::fopen_s(&file, filename.c_str(), "w");
-      if (!err && file)
+      if (err || file == NULL)
+        throw regex_error(regex_error::cannot_save_tables, filename);
+      ::fprintf(file,
+          "#include <reflex/matcher.h>\n\n"
+          "#if defined(OS_WIN)\n"
+          "#pragma warning(disable:4101 4102)\n"
+          "#elif defined(__GNUC__)\n"
+          "#pragma GCC diagnostic ignored \"-Wunused-variable\"\n"
+          "#pragma GCC diagnostic ignored \"-Wunused-label\"\n"
+          "#elif defined(__clang__)\n"
+          "#pragma clang diagnostic ignored \"-Wunused-variable\"\n"
+          "#pragma clang diagnostic ignored \"-Wunused-label\"\n"
+          "#endif\n\n");
+      write_namespace_open(file);
+      ::fprintf(file,
+          "void reflex_code_%s(reflex::Matcher& m)\n"
+          "{\n"
+          "  int c0 = 0, c1 = 0;\n"
+          "  m.FSM_INIT(c1);\n", opt_.n.empty() ? "FSM" : opt_.n.c_str());
+      for (const DFA::State *state = start; state; state = state->next)
       {
-        ::fprintf(file,
-            "#include <reflex/matcher.h>\n\n"
-            "#if defined(OS_WIN)\n"
-            "#pragma warning(disable:4101 4102)\n"
-            "#elif defined(__GNUC__)\n"
-            "#pragma GCC diagnostic ignored \"-Wunused-variable\"\n"
-            "#pragma GCC diagnostic ignored \"-Wunused-label\"\n"
-            "#elif defined(__clang__)\n"
-            "#pragma clang diagnostic ignored \"-Wunused-variable\"\n"
-            "#pragma clang diagnostic ignored \"-Wunused-label\"\n"
-            "#endif\n\n");
-        write_namespace_open(file);
-        ::fprintf(file,
-            "void reflex_code_%s(reflex::Matcher& m)\n"
-            "{\n"
-            "  int c0 = 0, c1 = 0;\n"
-            "  m.FSM_INIT(c1);\n", opt_.n.empty() ? "FSM" : opt_.n.c_str());
-        for (const DFA::State *state = start; state; state = state->next)
+        ::fprintf(file, "\nS%u:\n", state->index);
+        if (state == start)
+          ::fprintf(file, "  m.FSM_FIND();\n");
+        if (state->redo)
+          ::fprintf(file, "  m.FSM_REDO();\n");
+        else if (state->accept > 0)
+          ::fprintf(file, "  m.FSM_TAKE(%u);\n", state->accept);
+        for (Lookaheads::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
+          ::fprintf(file, "  m.FSM_TAIL(%u);\n", *i);
+        for (Lookaheads::const_iterator i = state->heads.begin(); i != state->heads.end(); ++i)
+          ::fprintf(file, "  m.FSM_HEAD(%u);\n", *i);
+        if (state->edges.rbegin() != state->edges.rend() && state->edges.rbegin()->first == META_DED)
+          ::fprintf(file, "  if (m.FSM_DENT()) goto S%u;\n", state->edges.rbegin()->second.second->index);
+        bool peek = false; // if we need to read a character into c1
+        bool prev = false; // if we need to keep the previous character in c0
+        for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
         {
-          ::fprintf(file, "\nS%u:\n", state->index);
-          if (state == start)
-            ::fprintf(file, "  m.FSM_FIND();\n");
-          if (state->redo)
-            ::fprintf(file, "  m.FSM_REDO();\n");
-          else if (state->accept > 0)
-            ::fprintf(file, "  m.FSM_TAKE(%u);\n", state->accept);
-          for (Lookaheads::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
-            ::fprintf(file, "  m.FSM_TAIL(%u);\n", *i);
-          for (Lookaheads::const_iterator i = state->heads.begin(); i != state->heads.end(); ++i)
-            ::fprintf(file, "  m.FSM_HEAD(%u);\n", *i);
-          if (state->edges.rbegin() != state->edges.rend() && state->edges.rbegin()->first == META_DED)
-            ::fprintf(file, "  if (m.FSM_DENT()) goto S%u;\n", state->edges.rbegin()->second.second->index);
-          bool peek = false; // if we need to read a character into c1
-          bool prev = false; // if we need to keep the previous character in c0
-          for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
-          {
 #if WITH_COMPACT_DFA == -1
-            Char lo = i->first;
-            Char hi = i->second.first;
+          Char lo = i->first;
+          Char hi = i->second.first;
 #else
-            Char hi = i->first;
-            Char lo = i->second.first;
+          Char hi = i->first;
+          Char lo = i->second.first;
 #endif
-            if (is_meta(lo))
-            {
-              do
-              {
-                if (lo == META_EOB || lo == META_EOL)
-                  peek = true;
-                else if (lo == META_EWE || lo == META_BWE || lo == META_NWE)
-                  prev = peek = true;
-                if (prev && peek)
-                  break;
-                check_dfa_closure(i->second.second, 1, peek, prev);
-              } while (++lo <= hi);
-            }
-            else
-            {
-              Index target_index = Const::IMAX;
-              if (i->second.second != NULL)
-                target_index = i->second.second->index;
-              DFA::State::Edges::const_reverse_iterator j = i;
-              if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
-                break;
-              peek = true;
-            }
-          }
-          bool read = peek;
-          bool elif = false;
-#if WITH_COMPACT_DFA == -1
-          for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+          if (is_meta(lo))
           {
-            Char lo = i->first;
-            Char hi = i->second.first;
-            Index target_index = Const::IMAX;
-            if (i->second.second != NULL)
-              target_index = i->second.second->index;
-            if (read)
+            do
             {
-              if (prev)
-                ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
-              else
-                ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
-              read = false;
-            }
-            if (is_meta(lo))
-            {
-              do
-              {
-                switch (lo)
-                {
-                  case META_EOB:
-                  case META_EOL:
-                    ::fprintf(file, "  ");
-                    if (elif)
-                      ::fprintf(file, "else ");
-                    ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(file, i->second.second, 2, peek);
-                    ::fprintf(file, "  }\n");
-                    elif = true;
-                    break;
-                  case META_EWE:
-                  case META_BWE:
-                  case META_NWE:
-                    ::fprintf(file, "  ");
-                    if (elif)
-                      ::fprintf(file, "else ");
-                    ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(file, i->second.second, 2, peek);
-                    ::fprintf(file, "  }\n");
-                    elif = true;
-                    break;
-                  default:
-                    ::fprintf(file, "  ");
-                    if (elif)
-                      ::fprintf(file, "else ");
-                    ::fprintf(file, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(file, i->second.second, 2, peek);
-                    ::fprintf(file, "  }\n");
-                    elif = true;
-                }
-              } while (++lo <= hi);
-            }
-            else
-            {
-              DFA::State::Edges::const_reverse_iterator j = i;
-              if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
+              if (lo == META_EOB || lo == META_EOL)
+                peek = true;
+              else if (lo == META_EWE || lo == META_BWE || lo == META_NWE)
+                prev = peek = true;
+              if (prev && peek)
                 break;
-              if (lo == hi)
-              {
-                ::fprintf(file, "  if (c1 == ");
-                print_char(file, lo);
-                ::fprintf(file, ")");
-              }
-              else if (hi == 0xFF)
-              {
-                ::fprintf(file, "  if (");
-                print_char(file, lo);
-                ::fprintf(file, " <= c1)");
-              }
-              else
-              {
-                ::fprintf(file, "  if (");
-                print_char(file, lo);
-                ::fprintf(file, " <= c1 && c1 <= ");
-                print_char(file, hi);
-                ::fprintf(file, ")");
-              }
-              if (target_index == Const::IMAX)
-              {
-                if (peek)
-                  ::fprintf(file, " return m.FSM_HALT(c1);\n");
-                else
-                  ::fprintf(file, " return m.FSM_HALT();\n");
-              }
-              else
-              {
-                ::fprintf(file, " goto S%u;\n", target_index);
-              }
-            }
+              check_dfa_closure(i->second.second, 1, peek, prev);
+            } while (++lo <= hi);
           }
-#else
-          for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
-          {
-            Char hi = i->first;
-            Char lo = i->second.first;
-            if (is_meta(lo))
-            {
-              if (read)
-              {
-                if (prev)
-                  ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
-                else
-                  ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
-                read = false;
-              }
-              do
-              {
-                switch (lo)
-                {
-                  case META_EOB:
-                  case META_EOL:
-                    ::fprintf(file, "  ");
-                    if (elif)
-                      ::fprintf(file, "else ");
-                    ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(file, i->second.second, 2, peek);
-                    ::fprintf(file, "  }\n");
-                    elif = true;
-                    break;
-                  case META_EWE:
-                  case META_BWE:
-                  case META_NWE:
-                    ::fprintf(file, "  ");
-                    if (elif)
-                      ::fprintf(file, "else ");
-                    ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(file, i->second.second, 2, peek);
-                    ::fprintf(file, "  }\n");
-                    elif = true;
-                    break;
-                  default:
-                    ::fprintf(file, "  ");
-                    if (elif)
-                      ::fprintf(file, "else ");
-                    ::fprintf(file, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
-                    gencode_dfa_closure(file, i->second.second, 2, peek);
-                    ::fprintf(file, "  }\n");
-                    elif = true;
-                }
-              } while (++lo <= hi);
-            }
-          }
-          for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
-          {
-            Char hi = i->first;
-            Char lo = i->second.first;
-            Index target_index = Const::IMAX;
-            if (i->second.second != NULL)
-              target_index = i->second.second->index;
-            if (read)
-            {
-              if (prev)
-                ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
-              else
-                ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
-              read = false;
-            }
-            if (!is_meta(lo))
-            {
-              DFA::State::Edges::const_iterator j = i;
-              if (target_index == Const::IMAX && (++j == state->edges.end() || is_meta(j->second.first)))
-                break;
-              if (lo == hi)
-              {
-                ::fprintf(file, "  if (c1 == ");
-                print_char(file, lo);
-                ::fprintf(file, ")");
-              }
-              else if (hi == 0xFF)
-              {
-                ::fprintf(file, "  if (");
-                print_char(file, lo);
-                ::fprintf(file, " <= c1)");
-              }
-              else
-              {
-                ::fprintf(file, "  if (");
-                print_char(file, lo);
-                ::fprintf(file, " <= c1 && c1 <= ");
-                print_char(file, hi);
-                ::fprintf(file, ")");
-              }
-              if (target_index == Const::IMAX)
-              {
-                if (peek)
-                  ::fprintf(file, " return m.FSM_HALT(c1);\n");
-                else
-                  ::fprintf(file, " return m.FSM_HALT();\n");
-              }
-              else
-              {
-                ::fprintf(file, " goto S%u;\n", target_index);
-              }
-            }
-          }
-#endif
-          if (peek)
-            ::fprintf(file, "  return m.FSM_HALT(c1);\n");
           else
-            ::fprintf(file, "  return m.FSM_HALT();\n");
+          {
+            Index target_index = Const::IMAX;
+            if (i->second.second != NULL)
+              target_index = i->second.second->index;
+            DFA::State::Edges::const_reverse_iterator j = i;
+            if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
+              break;
+            peek = true;
+          }
         }
-        ::fprintf(file, "}\n\n");
-        if (opt_.p)
-          write_predictor(file);
-        write_namespace_close(file);
-        if (file != stdout)
-          ::fclose(file);
+        bool read = peek;
+        bool elif = false;
+#if WITH_COMPACT_DFA == -1
+        for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+        {
+          Char lo = i->first;
+          Char hi = i->second.first;
+          Index target_index = Const::IMAX;
+          if (i->second.second != NULL)
+            target_index = i->second.second->index;
+          if (read)
+          {
+            if (prev)
+              ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
+            else
+              ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
+            read = false;
+          }
+          if (is_meta(lo))
+          {
+            do
+            {
+              switch (lo)
+              {
+                case META_EOB:
+                case META_EOL:
+                  ::fprintf(file, "  ");
+                  if (elif)
+                    ::fprintf(file, "else ");
+                  ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
+                  gencode_dfa_closure(file, i->second.second, 2, peek);
+                  ::fprintf(file, "  }\n");
+                  elif = true;
+                  break;
+                case META_EWE:
+                case META_BWE:
+                case META_NWE:
+                  ::fprintf(file, "  ");
+                  if (elif)
+                    ::fprintf(file, "else ");
+                  ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
+                  gencode_dfa_closure(file, i->second.second, 2, peek);
+                  ::fprintf(file, "  }\n");
+                  elif = true;
+                  break;
+                default:
+                  ::fprintf(file, "  ");
+                  if (elif)
+                    ::fprintf(file, "else ");
+                  ::fprintf(file, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
+                  gencode_dfa_closure(file, i->second.second, 2, peek);
+                  ::fprintf(file, "  }\n");
+                  elif = true;
+              }
+            } while (++lo <= hi);
+          }
+          else
+          {
+            DFA::State::Edges::const_reverse_iterator j = i;
+            if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
+              break;
+            if (lo == hi)
+            {
+              ::fprintf(file, "  if (c1 == ");
+              print_char(file, lo);
+              ::fprintf(file, ")");
+            }
+            else if (hi == 0xFF)
+            {
+              ::fprintf(file, "  if (");
+              print_char(file, lo);
+              ::fprintf(file, " <= c1)");
+            }
+            else
+            {
+              ::fprintf(file, "  if (");
+              print_char(file, lo);
+              ::fprintf(file, " <= c1 && c1 <= ");
+              print_char(file, hi);
+              ::fprintf(file, ")");
+            }
+            if (target_index == Const::IMAX)
+            {
+              if (peek)
+                ::fprintf(file, " return m.FSM_HALT(c1);\n");
+              else
+                ::fprintf(file, " return m.FSM_HALT();\n");
+            }
+            else
+            {
+              ::fprintf(file, " goto S%u;\n", target_index);
+            }
+          }
+        }
+#else
+        for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
+        {
+          Char hi = i->first;
+          Char lo = i->second.first;
+          if (is_meta(lo))
+          {
+            if (read)
+            {
+              if (prev)
+                ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
+              else
+                ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
+              read = false;
+            }
+            do
+            {
+              switch (lo)
+              {
+                case META_EOB:
+                case META_EOL:
+                  ::fprintf(file, "  ");
+                  if (elif)
+                    ::fprintf(file, "else ");
+                  ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
+                  gencode_dfa_closure(file, i->second.second, 2, peek);
+                  ::fprintf(file, "  }\n");
+                  elif = true;
+                  break;
+                case META_EWE:
+                case META_BWE:
+                case META_NWE:
+                  ::fprintf(file, "  ");
+                  if (elif)
+                    ::fprintf(file, "else ");
+                  ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
+                  gencode_dfa_closure(file, i->second.second, 2, peek);
+                  ::fprintf(file, "  }\n");
+                  elif = true;
+                  break;
+                default:
+                  ::fprintf(file, "  ");
+                  if (elif)
+                    ::fprintf(file, "else ");
+                  ::fprintf(file, "if (m.FSM_META_%s()) {\n", meta_label[lo - META_MIN]);
+                  gencode_dfa_closure(file, i->second.second, 2, peek);
+                  ::fprintf(file, "  }\n");
+                  elif = true;
+              }
+            } while (++lo <= hi);
+          }
+        }
+        for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
+        {
+          Char hi = i->first;
+          Char lo = i->second.first;
+          Index target_index = Const::IMAX;
+          if (i->second.second != NULL)
+            target_index = i->second.second->index;
+          if (read)
+          {
+            if (prev)
+              ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
+            else
+              ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
+            read = false;
+          }
+          if (!is_meta(lo))
+          {
+            DFA::State::Edges::const_iterator j = i;
+            if (target_index == Const::IMAX && (++j == state->edges.end() || is_meta(j->second.first)))
+              break;
+            if (lo == hi)
+            {
+              ::fprintf(file, "  if (c1 == ");
+              print_char(file, lo);
+              ::fprintf(file, ")");
+            }
+            else if (hi == 0xFF)
+            {
+              ::fprintf(file, "  if (");
+              print_char(file, lo);
+              ::fprintf(file, " <= c1)");
+            }
+            else
+            {
+              ::fprintf(file, "  if (");
+              print_char(file, lo);
+              ::fprintf(file, " <= c1 && c1 <= ");
+              print_char(file, hi);
+              ::fprintf(file, ")");
+            }
+            if (target_index == Const::IMAX)
+            {
+              if (peek)
+                ::fprintf(file, " return m.FSM_HALT(c1);\n");
+              else
+                ::fprintf(file, " return m.FSM_HALT();\n");
+            }
+            else
+            {
+              ::fprintf(file, " goto S%u;\n", target_index);
+            }
+          }
+        }
+#endif
+        if (peek)
+          ::fprintf(file, "  return m.FSM_HALT(c1);\n");
+        else
+          ::fprintf(file, "  return m.FSM_HALT();\n");
       }
+      ::fprintf(file, "}\n\n");
+      if (opt_.p)
+        write_predictor(file);
+      write_namespace_close(file);
+      if (file != stdout)
+        ::fclose(file);
     }
   }
 }

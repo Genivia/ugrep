@@ -135,7 +135,10 @@ class AbstractMatcher {
     size_t      num; ///< number of bytes shifted out so far, when buffer shifted
   };
   /// Event handler functor base class to invoke when the buffer contents are shifted out, e.g. for logging the data searched.
-  struct Handler { virtual void operator()(AbstractMatcher&, const char*, size_t, size_t) = 0; };
+  struct Handler {
+    virtual void operator()(AbstractMatcher&, const char*, size_t, size_t) = 0;
+    virtual ~Handler() { };
+  };
  protected:
   /// AbstractMatcher::Options for matcher engines.
   struct Option {

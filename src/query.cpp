@@ -755,12 +755,14 @@ void Query::query_ui()
     }
     else
     {
+      int sep = flag_fixed_strings && !flag_bool ? '\n' : '|';
+
       for (auto& regex : flag_regexp)
       {
         if (!regex.empty())
         {
           if (!pattern.empty())
-            pattern.push_back('|');
+            pattern.push_back(sep);
           pattern.append(regex);
         }
       }

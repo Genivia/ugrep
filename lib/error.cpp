@@ -62,6 +62,7 @@ std::string regex_error::regex_error_message_code(regex_error_type code, const c
     "exceeds length limit",
     "exceeds complexity limits",
     "undefined name",
+    "cannot save tables file",
   };
   return regex_error_message(messages[code], pattern, pos);
 }
@@ -82,7 +83,7 @@ std::string regex_error::regex_error_message(const char *message, const char *pa
   }
   size_t m = disppos(p, 79) - p;
   size_t r = displen(p, k);
-  std::string what("error in regex at position ");
+  std::string what("error at position ");
   what.append(ztoa(pos)).append("\n").append(p, m).append("\n");
   if (r >= l + 4)
     what.append(r - l - 4, ' ').append(message).append("___/\n");

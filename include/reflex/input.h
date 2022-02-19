@@ -316,7 +316,10 @@ class Input {
     static const file_encoding_type custom     = 38; ///< custom code page
   };
   /// FILE* handler functor base class to handle FILE* errors and non-blocking FILE* reads
-  struct Handler { virtual int operator()() = 0; };
+  struct Handler {
+    virtual int operator()() = 0;
+    virtual ~Handler() { };
+  };
   /// Stream buffer for reflex::Input, derived from std::streambuf.
   class streambuf;
   /// Stream buffer for reflex::Input to read DOS files, replaces CRLF by LF, derived from std::streambuf.

@@ -79,6 +79,7 @@ class regex_error : public std::runtime_error {
   static const regex_error_type exceeds_length        = 16; ///< regex exceeds length limit (reflex::Pattern class only)
   static const regex_error_type exceeds_limits        = 17; ///< regex exceeds complexity limits (reflex::Pattern class only)
   static const regex_error_type undefined_name        = 18; ///< undefined macro name (reflex tool only)
+  static const regex_error_type cannot_save_tables    = 19; ///< cannot save tables file (reflex tool only)
   /// Construct regex error info.
   regex_error(
       regex_error_type   code,

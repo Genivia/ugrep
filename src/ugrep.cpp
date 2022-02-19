@@ -3807,7 +3807,7 @@ const Type type_table[] = {
   { "Awk",          "awk", NULL,                                                      "#!\\h*/.*\\Wg?awk(\\W.*)?\\n" },
   { "basic",        "bas,BAS,cls,frm,ctl,vb,resx", NULL,                              NULL },
   { "batch",        "bat,BAT,cmd,CMD", NULL,                                          NULL },
-  { "bison",        "y,yy,yxx", NULL,                                                 NULL },
+  { "bison",        "y,yy,ymm,ypp,yxx", NULL,                                         NULL },
   { "c",            "c,h,H,hdl,xs", NULL,                                             NULL },
   { "c++",          "cpp,CPP,cc,cxx,CXX,h,hh,H,hpp,hxx,Hxx,HXX", NULL,                NULL },
   { "clojure",      "clj", NULL,                                                      NULL },
@@ -3839,7 +3839,7 @@ const Type type_table[] = {
   { "julia",        "jl", NULL,                                                       NULL },
   { "kotlin",       "kt,kts", NULL,                                                   NULL },
   { "less",         "less", NULL,                                                     NULL },
-  { "lex",          "l,ll,lxx", NULL,                                                 NULL },
+  { "lex",          "l,ll,lmm,lpp,lxx", NULL,                                         NULL },
   { "lisp",         "lisp,lsp", NULL,                                                 NULL },
   { "lua",          "lua", NULL,                                                      NULL },
   { "m4",           "m4", NULL,                                                       NULL },
@@ -4641,12 +4641,14 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_pager = DEFAULT_PAGER_COMMAND;
                 else if (strncmp(arg, "pager=", 6) == 0)
                   flag_pager = arg + 6;
+                else if (strcmp(arg, "passthru") == 0)
+                  flag_any_line = true;
                 else if (strcmp(arg, "perl-regexp") == 0)
                   flag_perl_regexp = true;
                 else if (strcmp(arg, "pretty") == 0)
                   flag_pretty = true;
                 else
-                  usage("invalid option --", arg, "--pager, --perl-regexp or --pretty");
+                  usage("invalid option --", arg, "--pager, --passthru, --perl-regexp or --pretty");
                 break;
 
               case 'q':
@@ -5337,46 +5339,52 @@ void init(int argc, const char **argv)
   }
   else if (strcmp(program, "grep") == 0)
   {
-    // the 'grep' command is equivalent to 'ugrep -GY.'
+    // the 'grep' command is equivalent to 'ugrep -GY. --sort'
     flag_basic_regexp = true;
     flag_hidden = true;
     flag_empty = true;
+    flag_sort = "name";
   }
   else if (strcmp(program, "egrep") == 0)
   {
-    // the 'egrep' command is equivalent to 'ugrep -Y.'
+    // the 'egrep' command is equivalent to 'ugrep -Y. --sort'
     flag_hidden = true;
     flag_empty = true;
+    flag_sort = "name";
   }
   else if (strcmp(program, "fgrep") == 0)
   {
-    // the 'fgrep' command is equivalent to 'ugrep -FY.'
+    // the 'fgrep' command is equivalent to 'ugrep -FY. --sort'
     flag_fixed_strings = true;
     flag_hidden = true;
     flag_empty = true;
+    flag_sort = "name";
   }
   else if (strcmp(program, "zgrep") == 0)
   {
-    // the 'zgrep' command is equivalent to 'ugrep -zGY.'
+    // the 'zgrep' command is equivalent to 'ugrep -zGY. --sort'
     flag_decompress = true;
     flag_basic_regexp = true;
     flag_hidden = true;
     flag_empty = true;
+    flag_sort = "name";
   }
   else if (strcmp(program, "zegrep") == 0)
   {
-    // the 'zegrep' command is equivalent to 'ugrep -zY.'
+    // the 'zegrep' command is equivalent to 'ugrep -zY. --sort'
     flag_decompress = true;
     flag_hidden = true;
     flag_empty = true;
+    flag_sort = "name";
   }
   else if (strcmp(program, "zfgrep") == 0)
   {
-    // the 'zfgrep' command is equivalent to 'ugrep -zFY.'
+    // the 'zfgrep' command is equivalent to 'ugrep -zFY. --sort'
     flag_decompress = true;
     flag_fixed_strings = true;
     flag_hidden = true;
     flag_empty = true;
+    flag_sort = "name";
   }
 
   // parse ugrep command-line options and arguments
@@ -6610,22 +6618,26 @@ void ugrep()
   // --sort: check sort KEY and set flags
   if (flag_sort != NULL)
   {
-    flag_sort_rev = *flag_sort == 'r';
+    flag_sort_rev = *flag_sort == 'r' || *flag_sort == '^';
 
-    if (strcmp(flag_sort, "name") == 0 || strcmp(flag_sort, "rname") == 0)
+    const char *sort_by = flag_sort + flag_sort_rev;
+
+    if (strcmp(sort_by, "name") == 0)
       flag_sort_key = Sort::NAME;
-    else if (strcmp(flag_sort, "best") == 0 || strcmp(flag_sort, "rbest") == 0)
+    else if (strcmp(sort_by, "best") == 0)
       flag_sort_key = Sort::BEST;
-    else if (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0)
+    else if (strcmp(sort_by, "size") == 0)
       flag_sort_key = Sort::SIZE;
-    else if (strcmp(flag_sort, "used") == 0 || strcmp(flag_sort, "rused") == 0)
+    else if (strcmp(sort_by, "used") == 0)
       flag_sort_key = Sort::USED;
-    else if (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "rchanged") == 0)
+    else if (strcmp(sort_by, "changed") == 0)
       flag_sort_key = Sort::CHANGED;
-    else if (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "rcreated") == 0)
+    else if (strcmp(sort_by, "created") == 0)
       flag_sort_key = Sort::CREATED;
+    else if (strcmp(sort_by, "list") == 0)
+      flag_sort_key = Sort::LIST;
     else
-      usage("invalid argument --sort=KEY, valid arguments are 'name', 'best', 'size', 'used', 'changed', 'created', 'rname', 'rbest', 'rsize', 'rused', 'rchanged' and 'rcreated'");
+      usage("invalid argument --sort=KEY, valid arguments are 'name', 'best', 'size', 'used', 'changed', 'created', 'list', 'rname', 'rbest', 'rsize', 'rused', 'rchanged', 'rcreated' and 'rlist'");
   }
 
   // add PATTERN to the CNF
@@ -7898,6 +7910,7 @@ void Grep::recurse(size_t level, const char *pathname)
 #ifdef OS_WIN
 
   std::string cFileName;
+  uint64_t index = 0;
 
   do
   {
@@ -7924,6 +7937,10 @@ void Grep::recurse(size_t level, const char *pathname)
         if (flag_sort_key == Sort::SIZE)
         {
           info = static_cast<uint64_t>(ffd.nFileSizeLow) | (static_cast<uint64_t>(ffd.nFileSizeHigh) << 32);
+        }
+        else if (flag_sort_key == Sort::LIST)
+        {
+          info = index++;
         }
         else
         {
@@ -7965,6 +7982,7 @@ void Grep::recurse(size_t level, const char *pathname)
 #else
 
   struct dirent *dirent = NULL;
+  uint64_t index = 0;
 
   while ((dirent = readdir(dir)) != NULL)
   {
@@ -7992,6 +8010,9 @@ void Grep::recurse(size_t level, const char *pathname)
       inode = 0;
       type = select(level + 1, dirpathname.c_str(), dirent->d_name, DIRENT_TYPE_UNKNOWN, inode, info);
 #endif
+
+      if (flag_sort_key == Sort::LIST)
+        info = index++;
 
       switch (type)
       {
@@ -8934,6 +8955,9 @@ void Grep::search(const char *pathname)
                 }
 
                 out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
+
+                if (lineno + 1 < current_lineno)
+                  out.dump.done();
               }
               else
               {
@@ -9039,6 +9063,13 @@ void Grep::search(const char *pathname)
 
               if (flag_ungroup)
               {
+                if (flag_hex_after > 0)
+                {
+                  size_t right = flag_hex_after * flag_hex_columns - ((matcher->last() - 1) % flag_hex_columns) - 1;
+                  if (end + right < eol)
+                    eol = end + right;
+                }
+
                 out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end);
                 out.dump.done();
               }
@@ -9243,6 +9274,13 @@ void Grep::search(const char *pathname)
                   {
                     if (binary)
                     {
+                      if (flag_hex_after > 0)
+                      {
+                        size_t right = flag_hex_after * flag_hex_columns - ((matcher->last() - 1) % flag_hex_columns) - 1;
+                        if (end + right < eol)
+                          eol = end + right;
+                      }
+
                       out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end);
                       out.dump.done();
                     }
@@ -9442,7 +9480,7 @@ void Grep::search(const char *pathname)
         {
           size_t current_lineno = matcher->lineno();
 
-          if (lineno != current_lineno || flag_ungroup)
+          if (lineno != current_lineno) /* || flag_ungroup) // logically OK but dead code because -y */
           {
             if (restline_data != NULL)
             {
@@ -9580,7 +9618,7 @@ void Grep::search(const char *pathname)
               out.dump.hex(v_hex_line, first - border, bol, border);
               out.dump.hex(v_hex_match, first, begin, size);
 
-              if (flag_ungroup)
+              if (false) /* flag_ungroup) // logically OK but dead code because -y */
               {
                 out.dump.hex(v_hex_line, matcher->last(), end, eol - end);
                 out.dump.done();
@@ -9635,7 +9673,7 @@ void Grep::search(const char *pathname)
                 out.str(match_off);
               }
 
-              if (flag_ungroup)
+              if (false) /* flag_ungroup) // logically OK but dead code because -y */
               {
                 if (eol > end)
                 {
@@ -9755,7 +9793,7 @@ void Grep::search(const char *pathname)
 
                   hex = binary;
 
-                  if (flag_ungroup)
+                  if (false) /* flag_ungroup) // logically OK but dead code because -y */
                   {
                     if (binary)
                     {
@@ -11850,8 +11888,8 @@ void help(std::ostream& out)
             represented by the UTF-8 sequence C2 A3.  See also option --dotall.\n\
     -u, --ungroup\n\
             Do not group multiple pattern matches on the same matched line.\n\
-            Output the matched line again for each additional pattern match\n\
-            with a `+' separator.\n\
+            Output the matched line again for each additional pattern match,\n\
+            using `+' as a separator.\n\
     -V, --version\n\
             Display version with linked libraries and exit.\n\
     -v, --invert-match\n\
@@ -11892,7 +11930,7 @@ void help(std::ostream& out)
             unless a pattern begins with `^' or ends with `$'.  With this\n\
             option, empty-matching patterns such as x? and x*, match all input,\n\
             not only lines containing the character `x'.\n\
-    -y, --any-line\n\
+    -y, --any-line, --passthru\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
             context with a `-' separator.  See also options -A, -B and -C.\n\
     -Z[+-~][MAX], --fuzzy=[+-~][MAX]\n\
@@ -12143,6 +12181,9 @@ void help(const char *what)
  \\w          a word character            --------------------------------------\n\
  \\W          a non-word character        \n\
  --------------------------------------      (-P): pattern requires option -P\n\
+\n\
+Option -P enables Perl regex matching, supporting Unicode patterns, Unicode\n\
+word boundary matching (\\b, \\B, \\<, \\>), lookaheads and capturing groups.\n\
 \n\
 Option -U disables full Unicode pattern matching: non-POSIX Unicode character\n\
 classes \\p{class} are disabled, ASCII, LATIN1 and binary regex patterns only.\n\

@@ -62,8 +62,8 @@ class Flag {
 
 };
 
-// --sort=KEY is n/a or by name, score, size, used time, changed time, created time
-enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED };
+// --sort=KEY is n/a or by list, name, score, size, used time, changed time, created time
+enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED, LIST };
 
 // -D, --devices and -d, --directories
 enum class Action { SKIP, READ, RECURSE };

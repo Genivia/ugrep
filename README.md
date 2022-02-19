@@ -8,13 +8,13 @@ Search for anything in everything... ultra fast
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-- Supports all GNU/BSD grep standard options; ugrep is a faster compatible replacement for GNU/BSD grep
-
 - Ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.
 
 - Written in clean and efficient C++11 for advanced features and speed, thoroughly tested
 
 - Portable (Linux, Unix, MacOS, Windows, etc), includes binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
+
+- Supports all GNU/BSD grep standard options; ugrep is a faster [compatible replacement](#grep) for GNU/BSD grep
 
 - Matches Unicode patterns by default in UTF-8, UTF-16, UTF-32 encoded files
 
@@ -624,13 +624,13 @@ over grep](#improvements).
 If you want to stick exactly to GNU/BSD grep ASCII/LATIN1 non-UTF Unicode
 patterns, use `ugrep -U` to disable full Unicode pattern matching.
 
-In fact, executing `ugrep` with options `-U`, `-Y` and `-.` makes it behave
-exactly like `egrep`, matching only ASCII/LATIN1 non-UTF Unicode patterns,
-permitting empty patterns to match and search hidden files instead of ignoring
-them, respectively.  See [grep equivalence](#equivalence).
+In fact, executing `ugrep` with options `-U`, `-Y`, `-.` and `--sort` makes it
+behave exactly like `egrep`, matching only ASCII/LATIN1 non-UTF Unicode
+patterns, permitting empty patterns to match and search hidden files instead of
+ignoring them, respectively.  See [grep equivalence](#equivalence).
 
 - You can create [convenient grep aliases](#aliases) with or without options
-  `-U`, `-Y` and `-.` or include other options as desired.
+  `-U`, `-Y`, `-.` and `--sort` or include other options as desired.
 
 - Or you can create `grep`, `egrep` and `fgrep` executables by copying `ugrep`
   to those names.  When the `ugrep` (or `ugrep.exe`) executable is copied as
@@ -638,8 +638,8 @@ them, respectively.  See [grep equivalence](#equivalence).
   option `-U`, `-Y` and `-.` are automatically enabled together with either
   `-G` for `grep`, `-E` for `egrep` and `-F` for `fgrep`.  In addition, when
   copied as `zgrep`, `zegrep` and `zfgrep`, option `-z` is enabled.  For
-  example, when `ugrep` is copied as `zegrep`, options `-z`, `-E`, `-Y` and
-  `-.` are enabled.
+  example, when `ugrep` is copied as `zegrep`, options `-z`, `-E`, `-Y`, `-.`
+  and `--sort` are enabled.
 
 - Likewise, symlinks and hard links to `ugrep` work fine too to create `grep`,
   `egrep` and `fgrep` replacements.  For example, to create a symlink `egrep`:
@@ -655,19 +655,16 @@ them, respectively.  See [grep equivalence](#equivalence).
 
 **ugrep** is equivalent to GNU/BSD grep when the following options are used:
 
-    grep   = ugrep --sort -G -U -Y -. -Dread -dread
-    egrep  = ugrep --sort -E -U -Y -. -Dread -dread
-    fgrep  = ugrep --sort -F -U -Y -. -Dread -dread
+    grep   = ugrep -G -U -Y -. --sort -Dread -dread
+    egrep  = ugrep -E -U -Y -. --sort -Dread -dread
+    fgrep  = ugrep -F -U -Y -. --sort -Dread -dread
 
-    zgrep  = ugrep --sort -z -G -U -Y -. -Dread -dread
-    zegrep = ugrep --sort -z -E -U -Y -. -Dread -dread
-    zfgrep = ugrep --sort -z -F -U -Y -. -Dread -dread
+    zgrep  = ugrep -z -G -U -Y -. --sort -Dread -dread
+    zegrep = ugrep -z -E -U -Y -. --sort -Dread -dread
+    zfgrep = ugrep -z -F -U -Y -. --sort -Dread -dread
 
 where:
 
-- `--sort` specifies output sorted by pathname, showing sorted matching files
-  first followed by sorted recursive matches in subdirectories.  Otherwise,
-  matching files are reported in no particular order to improve performance;
 - `-U` disables Unicode wide-character pattern matching, so for example the
   pattern `\xa3` matches byte A3 instead of the Unicode code point U+00A3
   represented by the UTF-8 sequence C2 A3.  By default in ugrep, `\xa3` matches
@@ -680,6 +677,9 @@ where:
   what it is supposed to match by default.  See [improvements](#improvements).
 - `-.` searches hidden files (dotfiles).  By default, hidden files are ignored,
   like most Unix utilities.
+- `--sort` specifies output sorted by pathname, showing sorted matching files
+  first followed by sorted recursive matches in subdirectories.  Otherwise,
+  matching files are reported in no particular order to improve performance;
 - `-Dread` and `-dread` are the GNU/BSD grep defaults but are not recommended,
   see [improvements](#improvements) for an explanation.
 
@@ -4446,8 +4446,8 @@ in markdown:
 
            -u, --ungroup
                   Do not group multiple pattern matches on the same matched  line.
-                  Output  the matched line again for each additional pattern match
-                  with a `+' separator.
+                  Output the matched line again for each additional pattern match,
+                  using `+' as a separator.
 
            -V, --version
                   Display version with linked libraries and exit.
@@ -4500,7 +4500,7 @@ in markdown:
                   option,  empty-matching  patterns  such  as x? and x*, match all
                   input, not only lines containing the character `x'.
 
-           -y, --any-line
+           -y, --any-line, --passthru
                   Any line is output (passthru).  Non-matching lines are output as
                   context with a `-' separator.  See also options -A, -B and -C.
 
@@ -5093,7 +5093,7 @@ in markdown:
 
 
 
-    ugrep 3.7.2                    February 07, 2022                      UGREP(1)
+    ugrep 3.7.3                    February 19, 2022                      UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 07, 2022" "ugrep 3.7.2" "User Commands"
+.TH UGREP "1" "February 19, 2022" "ugrep 3.7.3" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -693,8 +693,8 @@ represented by the UTF\-8 sequence C2 A3.  See also option \fB\-\-dotall\fR.
 .TP
 \fB\-u\fR, \fB\-\-ungroup\fR
 Do not group multiple pattern matches on the same matched line.
-Output the matched line again for each additional pattern match
-with a `+' separator.
+Output the matched line again for each additional pattern match,
+using `+' as a separator.
 .TP
 \fB\-V\fR, \fB\-\-version\fR
 Display version with linked libraries and exit.
@@ -745,7 +745,7 @@ unless a pattern begins with `^' or ends with `$'.  With this
 option, empty\-matching patterns such as x? and x*, match all input,
 not only lines containing the character `x'.
 .TP
-\fB\-y\fR, \fB\-\-any\-line\fR
+\fB\-y\fR, \fB\-\-any\-line\fR, \fB\-\-passthru\fR
 Any line is output (passthru).  Non\-matching lines are output as
 context with a `\-' separator.  See also options \fB\-A\fR, \fB\-B\fR and \fB\-C\fR.
 .TP

@@ -555,7 +555,7 @@ void CNF::prune()
   }
 }
 
-// split the patterns at newlines, when present
+// split the patterns at \n and \r newlines, when present
 void CNF::split()
 {
   // --bool: spacing means AND
@@ -576,12 +576,25 @@ void CNF::split()
         size_t to;
 
         // split pattern at newlines, for -F add \Q \E to each string, separate by |
-        while ((to = pattern.find('\n', from)) != std::string::npos)
+        while ((to = pattern.find_first_of("\n\r", from)) != std::string::npos)
         {
           if (from < to)
           {
-            size_t len = 1 + (pattern[to - 1] == '\r');
-            pattern.replace(to + 1 - len, len, sep);
+            size_t next = pattern.find_first_not_of("\n\r", to + 1);
+
+            if (next == std::string::npos)
+            {
+              pattern.resize(to);
+              break;
+            }
+
+            if (pattern.compare(next, std::string::npos, "\\E") == 0)
+            {
+              pattern.replace(to, std::string::npos, "\\E");
+              break;
+            }
+
+            pattern.replace(to, next - to, sep);
           }
 
           from = to + 1;
@@ -600,9 +613,12 @@ void CNF::report(FILE *output) const
   fprintf(output, flag_files ? "Files " : "Lines ");
 
   if (flag_fuzzy > 0)
-    fprintf(output, "fuzzy-matched with max edit distance %zu if:" NEWLINESTR "  ", flag_fuzzy & 255);
+    fprintf(output, "fuzzy-matched with max edit distance %zu", flag_fuzzy & 255);
   else
-    fprintf(output, "matched if:" NEWLINESTR "  ");
+    fprintf(output, "matched");
+  if (flag_ignore_case)
+    fprintf(output, " ignoring case");
+  fprintf(output, " if:" NEWLINESTR "  ");
 
   if (!flag_file.empty())
   {
@@ -610,7 +626,11 @@ void CNF::report(FILE *output) const
 
     bool or_sep = false;
 
-    fprintf(output, "a pattern in ");
+    if (flag_fixed_strings)
+      fprintf(output, "a string in ");
+    else
+      fprintf(output, "a pattern in ");
+
     for (const auto& filename : flag_file)
     {
       if (or_sep)
