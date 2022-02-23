@@ -2288,24 +2288,21 @@ void Pattern::transition(
     Chars&           chars,
     const Positions& follow) const
 {
-  Moves::iterator i;
+  Moves::iterator i = moves.begin();
   Moves::iterator end = moves.end();
-  for (i = moves.begin(); i != end; ++i)
+  while (i != end)
   {
     if (i->second == follow)
     {
-      i->first += chars;
-      return;
+      chars += i->first;
+      moves.erase(i++);
     }
-#ifndef WITH_VECTOR
-    if (is_subset(follow, i->second))
+    else
     {
-      chars -= i->first;
-      if (!chars.any())
-        return;
+      ++i;
     }
-#endif
   }
+#ifdef WITH_VECTOR
   Chars common;
   for (i = moves.begin(); i != end; ++i)
   {
@@ -2329,6 +2326,36 @@ void Pattern::transition(
         return;
     }
   }
+#else
+  for (i = moves.begin(); i != end; ++i)
+  {
+    if (chars.intersects(i->first))
+    {
+      if (is_subset(follow, i->second))
+      {
+        chars -= i->first;
+      }
+      else
+      {
+        if (chars.contains(i->first))
+        {
+          chars -= i->first;
+          pos_insert(i->second, follow);
+        }
+        else
+        {
+          Move back(chars & i->first, i->second);
+          pos_insert(back.second, follow);
+          chars -= back.first;
+          i->first -= back.first;
+          moves.push_back(back);
+        }
+      }
+      if (!chars.any())
+        return;
+    }
+  }
+#endif
   if (chars.any())
     moves.push_back(Move(chars, follow));
 }
