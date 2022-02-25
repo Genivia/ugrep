@@ -217,31 +217,33 @@ directory or home directory.
 
 ### Windows
 
-Download the full-featured `ugrep.exe` executable as release artifacts from
-<https://github.com/Genivia/ugrep/releases> or use [Scoop](https://scoop.sh)
-`scoop install ugrep`.
+Practical hints on using `ugrep.exe` and `ug.exe` from the Windows command line:
+- when quoting patterns and arguments on the command line, do not use single
+  `'` quotes but use `"` instead; most Windows command utilities consider
+  the single `'` quotes part of the command-line argument!
+- file and directory globs specified with option `-g/GLOB` may behave more
+  intuitively than a `GLOB` command line argument, especially when directory
+  recursion is enabled;
+- when specifying an empty pattern `""` to match all input, this may be ignored
+  by some Windows command interpreters such as Powershell, in that case use
+  option `--match` instead;
+- to match newlines in patterns, you may want to use `\R` instead of `\n` to
+  match any Unicode newlines, such as `\r\n` pairs and single `\r` and `\n`.
 
-Download release artifact `ugrep.exe`.  Copy `ugrep.exe` to `ug.exe` if you
-also want the `ug` command, which loads the .ugrep configuration file when
-present in the working directory or home directory.
+Install with [Chocolatey](https://community.chocolatey.org/packages/ugrep)
+`choco install ugrep`
+
+Or install with [Scoop](https://scoop.sh) `scoop install ugrep`
+
+Or download the full-featured `ugrep.exe` executable as release artifacts from
+<https://github.com/Genivia/ugrep/releases>.  Then copy `ugrep.exe` to `ug.exe`
+if you also want the `ug` command, which loads the .ugrep configuration file
+when present in the working directory or home directory.
 
 Add `ugrep.exe` and `ug.exe` to your execution path: go to *Settings* and
 search for "Path" in *Find a Setting*.  Select *environment variables* ->
 *Path* -> *New* and add the directory where you placed the `ugrep.exe` and
 `ug.exe` executables.
-
-Notes on using `ugrep.exe` and `ug.exe` from the Windows command line:
-- file and directory globs specified with option `-g/GLOB` may behave more
-  intuitively than a `GLOB` command line argument, especially when directory
-  recursion is enabled.
-- when quoting patterns and arguments on the command line, do not use single
-  `'` quotes but use `"` instead; most Windows command utilities consider
-  the single `'` quotes part of the command-line argument!
-- when specifying an empty pattern `""` to match all input, this may be ignored
-  by some Windows command interpreters such as Powershell, in that case use
-  option `--match` instead.
-- to match newlines in patterns, you may want to use `\R` instead of `\n` to
-  match any Unicode newlines, such as `\r\n` pairs and single `\r` and `\n`.
 
 ### Debian
 
