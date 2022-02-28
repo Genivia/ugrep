@@ -134,12 +134,13 @@ Search for anything in everything... ultra fast
 
       ugrep -P PATTERN ...                   ugrep -P --format='%1 and %2%~' 'PATTERN(SUB1)(SUB2)' ...
 
-- Replace patterns in the output with [-P and --replace](#replace) text with `%` [formatting fields](#format), optionally use `-y` to pass the rest of the file through:
+- Replace patterns in the output with [-P and --replace](#replace) replacement text, optionally containing `%` [formatting fields](#format), using `-y` to pass the rest of the file through:
 
+      ugrep --replace='TEXT' PATTERN ...     ugrep -y --replace='TEXT' PATTERN ...
       ugrep --replace='(%m:%o)' PATTERN ...  ugrep -y --replace='(%m:%o)' PATTERN ...
       ugrep -P --replace='%1' PATTERN ...    ugrep -y -P --replace='%1' PATTERN ...
 
-  > 💡**ProTip** `--help format` displays help on format `%` fields.
+  > 💡**ProTip** `--help format` displays help on format `%` fields to optionally use with `--replace`.
 
 - Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
@@ -235,7 +236,7 @@ Install with [Chocolatey](https://community.chocolatey.org/packages/ugrep)
 
 Or install with [Scoop](https://scoop.sh) `scoop install ugrep`
 
-Or download the full-featured `ugrep.exe` executable as release artifacts from
+Or download the full-featured `ugrep.exe` executable as release artifact from
 <https://github.com/Genivia/ugrep/releases>.  Then copy `ugrep.exe` to `ug.exe`
 if you also want the `ug` command, which loads the .ugrep configuration file
 when present in the working directory or home directory.
