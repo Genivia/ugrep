@@ -640,7 +640,10 @@ void CNF::report(FILE *output) const
 
       or_sep = true;
     }
-    fprintf(output, " matches");
+    if (flag_invert_match)
+      fprintf(output, " does not match");
+    else
+      fprintf(output, " matches");
     if (flag_files)
       fprintf(output, " a line");
 
@@ -681,7 +684,10 @@ void CNF::report(FILE *output) const
         }
         else
         {
-          fprintf(output, " matches");
+          if (flag_invert_match)
+            fprintf(output, " does not match");
+          else
+            fprintf(output, " matches");
           if (flag_files)
             fprintf(output, " a line");
         }

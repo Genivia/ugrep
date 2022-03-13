@@ -541,10 +541,14 @@ class AbstractMatcher {
   
   /// Returns nonzero capture index (i.e. true) if the entire input matches this matcher's pattern (and internally caches the true/false result to permit repeat invocations).
   inline size_t matches()
-    /// @returns nonzero capture index (i.e. true) if the entire input matched this matcher's pattern, zero (i.e. false) otherwise
+    /// @returns nonzero capture index if the entire input matched this matcher's pattern, zero (i.e. false) otherwise
   {
     if (!mat_ && at_bob())
-      mat_ = match(Const::MATCH) && at_end();
+    {
+      mat_ = match(Const::MATCH);
+      if (!at_end())
+        mat_ = 0;
+    }
     return mat_;
   }
   /// Returns a positive integer (true) indicating the capture index of the matched text in the pattern or zero (false) for a mismatch.

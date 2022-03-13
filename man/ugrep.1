@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 23, 2022" "ugrep 3.7.4" "User Commands"
+.TH UGREP "1" "March 13, 2022" "ugrep 3.7.5" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -597,15 +597,14 @@ match has been found.
 .TP
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
 Recursively read all files under each directory.  Follow all
-symbolic links, unlike \fB\-r\fR.  When \fB\-J\fR1 is specified, files are
-searched in the same order as specified.  Note that when no FILE
-arguments are specified and input is read from a terminal,
-recursive searches are performed as if \fB\-R\fR is specified.
+symbolic links, unlike \fB\-r\fR.  Note that when no FILE arguments are
+specified and input is read from a terminal, recursive searches are
+performed as if \fB\-R\fR is specified.  See also option \fB\-\-sort\fR.
 .TP
 \fB\-r\fR, \fB\-\-recursive\fR
 Recursively read all files under each directory, following symbolic
-links only if they are on the command line.  When \fB\-J\fR1 is specified,
-files are searched in the same order as specified.
+links only if they are specified on the command line.  See also
+option \fB\-\-sort\fR.
 .TP
 \fB\-\-replace\fR=\fIFORMAT\fR
 Replace matching patterns in the output by the specified FORMAT

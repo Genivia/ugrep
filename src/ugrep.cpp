@@ -2949,6 +2949,24 @@ struct Grep {
       return false;
     }
 
+#ifndef OS_WIN
+    // skip empty regular files that are not readable; this skips sysfd files e.g. in /proc and /sys
+    struct stat buf;
+    if (fstat(fileno(file_in), &buf) == 0 && S_ISREG(buf.st_mode) && buf.st_size == 0)
+    {
+      char data[1];
+      if (read(fileno(file_in), data, 1) < 0 || fseek(file_in, 0, SEEK_SET) != 0)
+      {
+        errno = EAGAIN; // override the confusing "Invalid argument" (22) and "Input/output error" (5) ...
+        warning("cannot read", pathname);
+        fclose(file_in);
+        file_in = NULL;
+
+        return false;
+      }
+    }
+#endif
+
     // --filter: fork process to filter file, when applicable
     if (!filter(file_in, pathname))
       return false;
@@ -2961,7 +2979,12 @@ struct Grep {
       // start decompression thread to read the current input file, get pipe with decompressed input
       FILE *pipe_in = zthread.start(flag_zmax, pathname, file_in);
       if (pipe_in == NULL)
+      {
+        fclose(file_in);
+        file_in = NULL;
+
         return false;
+      }
 
       input = reflex::Input(pipe_in, flag_encoding_type);
 
@@ -3014,8 +3037,8 @@ struct Grep {
       else if (suffix != NULL)
         ++suffix;
 
-      // --filter-magic-label: if the file is seekable, then check for a magic pattern match
-      if (!flag_filter_magic_label.empty() && fseek(in, 0, SEEK_CUR) == 0)
+      // --filter-magic-label: if the file is seekable (to rewind later), then check for a magic pattern match
+      if (!flag_filter_magic_label.empty() && fseek(in, 0, SEEK_SET) == 0)
       {
         bool is_plus = false;
 
@@ -6663,24 +6686,17 @@ void ugrep()
       // an empty pattern specified matches every line, including empty lines
       if (regex.empty())
       {
-        if (flag_quiet || flag_files_with_matches || flag_files_without_match)
-        {
-          // regex optimized for speed to match any non-empty file
-          regex = "(?s:.)";
-        }
-        else if (flag_count)
+        if (flag_count)
         {
           // regex optimized for speed, but match count needs adjustment later when last line has no \n
           regex = "\\n";
         }
-        else if (flag_hex)
+        else if (!flag_quiet && !flag_files_with_matches && !flag_files_without_match)
         {
-          regex = ".*\\n?";
-        }
-        else
-        {
-          // use ^.* to prevent -o from making an extra empty match
-          regex = "^.*";
+          if (flag_hex)
+            regex = ".*\\n?";
+          else
+            regex = "^.*"; // use ^.* to prevent -o from reporting an extra empty match
         }
 
         // an empty pattern matches every line
@@ -6702,24 +6718,17 @@ void ugrep()
 
       if (bcnf.first_empty())
       {
-        if (flag_quiet || flag_files_with_matches || flag_files_without_match)
-        {
-          // regex optimized for speed to match any non-empty file
-          regex = "(?s:.)";
-        }
-        else if (flag_count)
+        if (flag_count)
         {
           // regex optimized for speed, but match count needs adjustment later when last line has no \n
           regex = "\\n";
         }
-        else if (flag_hex)
+        else if (!flag_quiet && !flag_files_with_matches && !flag_files_without_match)
         {
-          regex = ".*\\n?";
-        }
-        else
-        {
-          // use ^.* to prevent -o from making an extra empty match
-          regex = "^.*";
+          if (flag_hex)
+            regex = ".*\\n?";
+          else
+            regex = "^.*"; // use ^.* to prevent -o from reporting an extra empty match
         }
 
         // an empty pattern specified with -e '' matches every line
@@ -8327,10 +8336,6 @@ void Grep::search(const char *pathname)
 
           matches = 1;
         }
-
-        // --match: adjust for non-empty files that have no \n line ending
-        // if (matches == 0 && flag_empty && matcher->last() > 0)
-          // matches = 1;
 
         // -v: invert
         if (flag_invert_match)
@@ -11818,14 +11823,13 @@ void help(std::ostream& out)
             match has been found.\n\
     -R, --dereference-recursive\n\
             Recursively read all files under each directory.  Follow all\n\
-            symbolic links, unlike -r.  When -J1 is specified, files are\n\
-            searched in the same order as specified.  Note that when no FILE\n\
-            arguments are specified and input is read from a terminal,\n\
-            recursive searches are performed as if -R is specified.\n\
+            symbolic links, unlike -r.  Note that when no FILE arguments are\n\
+            specified and input is read from a terminal, recursive searches are\n\
+            performed as if -R is specified.  See also option --sort.\n\
     -r, --recursive\n\
             Recursively read all files under each directory, following symbolic\n\
-            links only if they are on the command line.  When -J1 is specified,\n\
-            files are searched in the same order as specified.\n\
+            links only if they are specified on the command line.  See also\n\
+            option --sort.\n\
     --replace=FORMAT\n\
             Replace matching patterns in the output by the specified FORMAT\n\
             with `%' fields.  When option -P is used, FORMAT may include `%1'\n\
