@@ -3516,8 +3516,10 @@ Same, but in this case select `<script>` `src` URLs when referencing `http` and
             levels deep.  Enables -R if -R or -r is not specified.
     -K FIRST[,LAST], --range=FIRST[,LAST]
             Start searching at line FIRST, stop at line LAST when specified.
-    -m NUM, --max-count=NUM
-            Stop reading the input after NUM matches for each file processed.
+    -m [MIN,][MAX], --min-count=MIN, --max-count=MAX
+            Stop reading the input after MAX matches in each input file when
+            specified.  Require at least MIN matches when specified, for
+            options -c, -l, -L and -q.
     --max-files=NUM
             Restrict the number of files matched to NUM.  Note that --sort or
             -J1 may be specified to produce replicable results.  If --sort is
@@ -4233,8 +4235,10 @@ in markdown:
                   Every  file  on  the search path is read, making searches poten-
                   tially more expensive.
 
-           -m NUM, --max-count=NUM
-                  Stop reading the input after NUM matches in each input file.
+           -m [MIN,][MAX], --min-count=MIN, --max-count=MAX
+                  Stop reading the input after MAX matches in each input file when
+                  specified.   Require  at  least  MIN matches when specified, for
+                  options -c, -l, -L and -q.
 
            --match
                   Match all input.  Same as specifying an empty pattern to search.
@@ -5094,7 +5098,7 @@ in markdown:
 
 
 
-    ugrep 3.7.5                     March 13, 2022                        UGREP(1)
+    ugrep 3.7.6                     March 15, 2022                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

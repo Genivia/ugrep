@@ -380,6 +380,7 @@ size_t flag_max_depth              = 0;
 size_t flag_max_files              = 0;
 size_t flag_max_line               = 0;
 size_t flag_max_mmap               = DEFAULT_MAX_MMAP_SIZE;
+size_t flag_min_count              = 0;
 size_t flag_min_depth              = 0;
 size_t flag_min_line               = 0;
 size_t flag_min_magic              = 1;
@@ -4555,6 +4556,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_max_count = strtopos(arg + 10, "invalid argument --max-count=");
                 else if (strncmp(arg, "max-files=", 10) == 0)
                   flag_max_files = strtopos(arg + 10, "invalid argument --max-files=");
+                else if (strncmp(arg, "min-count=", 10) == 0)
+                  flag_min_count = strtopos(arg + 10, "invalid argument --min-count=");
                 else if (strncmp(arg, "min-steal=", 10) == 0)
                   flag_min_steal = strtopos(arg + 10, "invalid argument --min-steal=");
                 else if (strcmp(arg, "mmap") == 0)
@@ -4566,7 +4569,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "max-count") == 0 || strcmp(arg, "max-files") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--match, --max-count, --max-files, --mmap or --messages");
+                  usage("invalid option --", arg, "--match, --max-count, --max-files, --min-count, --mmap or --messages");
                 break;
 
               case 'n':
@@ -4973,9 +4976,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
           case 'm':
             ++arg;
             if (*arg)
-              flag_max_count = strtopos(&arg[*arg == '='], "invalid argument -m=");
+              strtopos2(&arg[*arg == '='], flag_min_count, flag_max_count, "invalid argument -m=", true);
             else if (++i < argc)
-              flag_max_count = strtopos(argv[i], "invalid argument -m=");
+              strtopos2(argv[i], flag_min_count, flag_max_count, "invalid argument -m=", true);
             else
               usage("missing NUM argument for option -m");
             is_grouped = false;
@@ -5879,6 +5882,10 @@ void init(int argc, const char **argv)
   // -v with --files is not permitted
   if (flag_files && flag_invert_match)
     abort("-v is not permitted with --files, invert the Boolean query instead");
+
+  // --min-count is not permitted with options other than -q, -l, -L and -c
+  if (flag_min_count > 0 && !flag_quiet && !flag_files_with_matches && !flag_files_without_match && !flag_count)
+    abort("--min-count is not permitted without -c, -l, -L or -q");
 
 #ifdef HAVE_STATVFS
 
@@ -8301,17 +8308,21 @@ void Grep::search(const char *pathname)
       {
         // option -q, -l, or -L
 
-        // -v with empty pattern matches nothing
-        if (flag_empty && flag_invert_match)
+        // --match and -v matches nothing
+        if (flag_match && flag_invert_match)
           goto exit_search;
 
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
 
+        size_t lineno = 0;
+
         while (matcher->find())
         {
+          size_t current_lineno = matcher->lineno();
+
           // --range: max line exceeded?
-          if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
+          if (flag_max_line > 0 && current_lineno > flag_max_line)
             break;
 
           if (matchers != NULL)
@@ -8324,9 +8335,19 @@ void Grep::search(const char *pathname)
               continue;
           }
 
-          matches = 1;
-          break;
+          if (flag_min_count == 0 || flag_ungroup || flag_only_matching || lineno != current_lineno)
+            ++matches;
+
+          // --min-count: require at least min-count matches, otherwise stop searching
+          if (flag_min_count == 0 || matches >= flag_min_count)
+            break;
+
+          lineno = current_lineno;
         }
+
+        // --min-count: require at least min-count matches
+        if (flag_min_count > 0 && matches < flag_min_count)
+          matches = 0;
 
         // --files: if we are still holding the output and CNF is finally satisfyable then a match was made
         if (flag_files && matchers != NULL)
@@ -8404,7 +8425,7 @@ void Grep::search(const char *pathname)
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
 
-        if (!flag_empty || !flag_invert_match)
+        if (!flag_match || !flag_invert_match)
         {
           if (flag_ungroup || flag_only_matching)
           {
@@ -8479,9 +8500,13 @@ void Grep::search(const char *pathname)
           }
 
           // --match: adjust match count when the last line has no \n line ending
-          if (flag_empty && matcher->last() > 0 && *(matcher->eol(true) - 1) != '\n')
+          if (flag_match && matcher->last() > 0 && *(matcher->eol(true) - 1) != '\n')
             ++matches;
         }
+
+        // --min-count: require at least min-count matches
+        if (flag_min_count > 0 && matches < flag_min_count)
+          goto exit_search;
 
         // --files: if we are still holding the output and CNF is not satisfyable then no global matches were made
         if (flag_files && matchers != NULL)
@@ -11259,20 +11284,20 @@ size_t strtopos(const char *string, const char *message)
 }
 
 // convert one or two comma-separated unsigned decimals specifying a range to positive size_t, produce error when conversion fails or when the range is invalid
-void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message, bool optional_first)
+void strtopos2(const char *string, size_t& min, size_t& max, const char *message, bool optional_first)
 {
   char *rest = const_cast<char*>(string);
   if (*string != ',')
-    pos1 = static_cast<size_t>(strtoull(string, &rest, 10));
+    min = static_cast<size_t>(strtoull(string, &rest, 10));
   else
-    pos1 = 0;
+    min = 0;
   if (*rest == ',')
-    pos2 = static_cast<size_t>(strtoull(rest + 1, &rest, 10));
+    max = static_cast<size_t>(strtoull(rest + 1, &rest, 10));
   else if (optional_first)
-    pos2 = pos1, pos1 = 0;
+    max = min, min = 0;
   else
-    pos2 = 0;
-  if (rest == NULL || *rest != '\0' || (pos2 > 0 && pos1 > pos2))
+    max = 0;
+  if (rest == NULL || *rest != '\0' || (max > 0 && min > max))
     usage(message, string);
 }
 
@@ -11720,8 +11745,10 @@ void help(std::ostream& out)
             MAGIC signatures.  This option may be repeated and may be combined\n\
             with options -O and -t to expand the search.  Every file on the\n\
             search path is read, making searches potentially more expensive.\n\
-    -m NUM, --max-count=NUM\n\
-            Stop reading the input after NUM matches in each input file.\n\
+    -m [MIN,][MAX], --min-count=MIN, --max-count=MAX\n\
+            Stop reading the input after MAX matches in each input file when\n\
+            specified.  Require at least MIN matches when specified, for\n\
+            options -c, -l, -L and -q.\n\
     --match\n\
             Match all input.  Same as specifying an empty pattern to search.\n\
     --max-files=NUM\n\

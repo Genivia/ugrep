@@ -142,6 +142,7 @@ extern size_t flag_max_depth;
 extern size_t flag_max_files;
 extern size_t flag_max_line;
 extern size_t flag_max_mmap;
+extern size_t flag_min_count;
 extern size_t flag_min_depth;
 extern size_t flag_min_line;
 extern size_t flag_min_magic;

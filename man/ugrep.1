@@ -1,4 +1,4 @@
-.TH UGREP "1" "March 13, 2022" "ugrep 3.7.5" "User Commands"
+.TH UGREP "1" "March 15, 2022" "ugrep 3.7.6" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -485,8 +485,10 @@ MAGIC signatures.  This option may be repeated and may be combined
 with options \fB\-O\fR and \fB\-t\fR to expand the search.  Every file on the
 search path is read, making searches potentially more expensive.
 .TP
-\fB\-m\fR \fINUM\fR, \fB\-\-max\-count\fR=\fINUM\fR
-Stop reading the input after NUM matches in each input file.
+\fB\-m\fR [\fIMIN\fR,][\fIMAX\fR], \fB\-\-min\-count\fR=\fIMIN\fR, \fB\-\-max\-count\fR=\fIMAX\fR
+Stop reading the input after MAX matches in each input file when
+specified.  Require at least MIN matches when specified, for
+options \fB\-c\fR, \fB\-l\fR, \fB\-L\fR and \fB\-q\fR.
 .TP
 \fB\-\-match\fR
 Match all input.  Same as specifying an empty pattern to search.
