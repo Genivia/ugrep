@@ -3,7 +3,7 @@
 [mBinary file[1;35m Hello.class[m matches
 [1;35mHello.java[m[1;36m-[m[7;34;107mimport java.lang.*;[m
 [1;35mHello.java[m[1;36m:[m
-[1;35mHello.java[m[1;36m-[m[1;34m[m[7;34;107mpublic class[m[1;34m [m[7;34;107mHello //[m[1;34m prints a Hello World! greeting[m
+[1;35mHello.java[m[1;36m-[m[1;34m[m[7;34;107mpublic class[m[1;34m [m[7;34;107mHello //[m[1;34m [m[7;34;107mprints a[m[1;34m [m[7;34;107mHello World![m[1;34m greeting[m
 [1;35mHello.java[m[1;36m-[m[1;34m{ [m[7;34;107mpublic static[m[1;34m [m[7;34;107mvoid main(String[][m[1;34m arg)[m
 [1;35mHello.java[m[1;36m-[m[1;34m  { System.out.println("[m[7;34;107mHello World!");[m
 [1;35mHello.java[m[1;36m:[m  }[m

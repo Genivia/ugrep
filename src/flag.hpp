@@ -66,7 +66,7 @@ class Flag {
 enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED, LIST };
 
 // -D, --devices and -d, --directories
-enum class Action { SKIP, READ, RECURSE };
+enum class Action { UNSP, SKIP, READ, RECURSE };
 
 // ugrep command-line options
 extern bool flag_all_threads;

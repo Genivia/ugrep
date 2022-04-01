@@ -1126,9 +1126,9 @@ void Pattern::parse4(
       c = at(++loc);
     while (c != '\0')
     {
-      if (c == '[' && at(loc + 1) == ':')
+      if (c == '[' && (at(loc + 1) == ':' || at(loc + 1) == '.' || at(loc + 1) == '='))
       {
-        size_t c_loc = find_at(loc + 2, ':');
+        size_t c_loc = find_at(loc + 2, at(loc + 1));
         if (c_loc != std::string::npos && at(static_cast<Location>(c_loc + 1)) == ']')
           loc = static_cast<Location>(c_loc + 1);
       }
@@ -1483,7 +1483,7 @@ void Pattern::compile(
         if (opt_.i)
         {
           // normalize by removing upper case if option i (case insensitivem matching) is enabled
-          static const uint64_t upper[5] = { 0x0000000000000000, 0x0000000007FFFFFE, 0, 0, 0 };
+          static const uint64_t upper[5] = { 0x0000000000000000ULL, 0x0000000007FFFFFEULL, 0ULL, 0ULL, 0ULL };
           chars -= Chars(upper);
         }
         if (chars.any())
@@ -1609,8 +1609,8 @@ void Pattern::compile(
         }
         if (opt_.i)
         {
-          // normalize by removing upper case if option i (case insensitivem matching) is enabled
-          static const uint64_t upper[5] = { 0x0000000000000000, 0x0000000007FFFFFE, 0, 0, 0 };
+          // normalize by removing upper case if option i (case insensitive matching) is enabled
+          static const uint64_t upper[5] = { 0x0000000000000000ULL, 0x0000000007FFFFFEULL, 0ULL, 0ULL, 0ULL };
           chars -= Chars(upper);
         }
         if (chars.any())
@@ -1756,8 +1756,8 @@ void Pattern::compile(
         }
         if (opt_.i)
         {
-          // normalize by removing upper case if option i (case insensitivem matching) is enabled
-          static const uint64_t upper[5] = { 0x0000000000000000, 0x0000000007FFFFFE, 0, 0, 0 };
+          // normalize by removing upper case if option i (case insensitive matching) is enabled
+          static const uint64_t upper[5] = { 0x0000000000000000ULL, 0x0000000007FFFFFEULL, 0ULL, 0ULL, 0ULL };
           chars -= Chars(upper);
         }
         if (chars.any())
@@ -2182,12 +2182,12 @@ void Pattern::compile_transition(
               case '.':
                 if (is_modified(ModConst::s, modifiers, loc))
                 {
-                  static const uint64_t dot[5] = { 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0 };
+                  static const uint64_t dot[5] = { 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0ULL };
                   chars |= Chars(dot);
                 }
                 else
                 {
-                  static const uint64_t dot[5] = { 0xFFFFFFFFFFFFFBFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0 };
+                  static const uint64_t dot[5] = { 0xFFFFFFFFFFFFFBFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0ULL };
                   chars |= Chars(dot);
                 }
                 break;
@@ -2396,6 +2396,13 @@ void Pattern::compile_list(Location loc, Chars& chars, const Mods modifiers) con
           c = META_EOL;
         }
         loc = static_cast<Location>(c_loc + 1);
+      }
+      else if (c == '[' && (at(loc + 1) == '.' || at(loc + 1) == '='))
+      {
+        c = at(loc + 2);
+        if (c == '\0' || at(loc + 3) != at(loc + 1) || at(loc + 4) != ']')
+          error(regex_error::invalid_collating, loc);
+        loc += 4;
       }
       else if (c == opt_.e && !opt_.b)
       {

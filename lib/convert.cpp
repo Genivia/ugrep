@@ -931,6 +931,17 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
       insert_posix_class(pattern, len, pos, ranges);
       pc = -1;
     }
+    else if (c == '[' && (pattern[pos + 1] == '.' || pattern[pos + 1] == '='))
+    {
+      // POSIX collating
+      if (range)
+        throw regex_error(regex_error::invalid_class_range, pattern, pos);
+      if (pos + 4 >= len || pattern[pos + 3] != pattern[pos + 1] || pattern[pos + 4] != ']')
+        throw regex_error(regex_error::invalid_collating, pattern, pos);
+      ranges.insert(pattern[pos + 2]);
+      pos += 4;
+      pc = -1;
+    }
     else if (c == '|' && pattern[pos + 1] == '|' && pos + 3 < len && (pattern[pos + 2] == '[' || (pattern[pos + 2] == '{' && macros != NULL)))
     {
       // character class union [abc||[def]]

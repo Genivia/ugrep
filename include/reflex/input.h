@@ -317,7 +317,7 @@ class Input {
   };
   /// FILE* handler functor base class to handle FILE* errors and non-blocking FILE* reads
   struct Handler {
-    virtual int operator()() = 0;
+    virtual int operator()(FILE*) = 0;
     virtual ~Handler() { };
   };
   /// Stream buffer for reflex::Input, derived from std::streambuf.
@@ -709,7 +709,7 @@ class Input {
       while (true)
       {
         size_t k = file_get(s, n);
-        if (k > 0 || feof(file_) || handler_ == NULL || (*handler_)() == 0)
+        if (k > 0 || feof(file_) || handler_ == NULL || (*handler_)(file_) == 0)
           return k;
       }
     }

@@ -1,4 +1,4 @@
-.TH UGREP "1" "March 15, 2022" "ugrep 3.7.6" "User Commands"
+.TH UGREP "1" "April 01, 2022" "ugrep 3.7.7" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -189,10 +189,10 @@ option.  If ACTION is `dereference\-recurse', read all files under
 each directory, recursively, following symbolic links.  This is
 equivalent to the \fB\-R\fR option.
 .TP
-\fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR ... \fB\-9\fR, \fB\-\-10\fR, \fB\-\-11\fR ...
+\fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, ... \fB\-9\fR, \fB\-\-10\fR, \fB\-\-11\fR, \fB\-\-12\fR, ...
 Restrict recursive searches from MIN to MAX directory levels deep,
 where \fB\-1\fR (\fB\-\-depth\fR=1) searches the specified path without recursing
-into subdirectories.  Note that \fB\-3\fR \fB\-5\fR, \fB\-3\fR\-5, or \fB\-3\fR5 searches 3 to 5
+into subdirectories.  Note that \fB\-3\fR \fB\-5\fR, \fB\-3\fR\-5, and \fB\-3\fR5 search 3 to 5
 levels deep.  Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
 .TP
 \fB\-\-dotall\fR
@@ -442,8 +442,8 @@ is specified with a literal ASCII upper case letter.
 Output file matches in JSON.  If \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is specified,
 additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
-\fB\-K\fR \fIFIRST\fR[,\fILAST\fR], \fB\-\-range\fR=\fIFIRST\fR[,\fILAST\fR]
-Start searching at line FIRST, stop at line LAST when specified.
+\fB\-K\fR [\fIMIN\fR,][\fIMAX\fR], \fB\-\-range\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-\-min\-line\fR=\fIMIN\fR, \fB\-\-max\-line\fR=\fIMAX\fR
+Start searching at line MIN, stop at line MAX when specified.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a matched pattern is displayed in front of the
@@ -486,9 +486,9 @@ with options \fB\-O\fR and \fB\-t\fR to expand the search.  Every file on the
 search path is read, making searches potentially more expensive.
 .TP
 \fB\-m\fR [\fIMIN\fR,][\fIMAX\fR], \fB\-\-min\-count\fR=\fIMIN\fR, \fB\-\-max\-count\fR=\fIMAX\fR
-Stop reading the input after MAX matches in each input file when
-specified.  Require at least MIN matches when specified, for
-options \fB\-c\fR, \fB\-l\fR, \fB\-L\fR and \fB\-q\fR.
+Require MIN matches, stop after MAX matches when specified.  Output
+MIN to MAX matches.  For example, \fB\-m\fR1 outputs the first match and
+\fB\-c\fRm1, (with a comma) counts non\-zero matches.  See also option \fB\-K\fR.
 .TP
 \fB\-\-match\fR
 Match all input.  Same as specifying an empty pattern to search.
@@ -621,7 +621,7 @@ default is not to follow symbolic links.
 .TP
 \fB\-s\fR, \fB\-\-no\-messages\fR
 Silent mode: nonexistent and unreadable files are ignored, i.e.
-their error messages are suppressed.
+their error messages and warnings are suppressed.
 .TP
 \fB\-\-save\-config\fR[=\fIFILE\fR]
 Save configuration FILE.  By default `.ugrep' is saved.  If FILE is

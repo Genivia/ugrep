@@ -742,7 +742,7 @@ void Input::file_init()
       }
       break;
     }
-    if (handler_ == NULL || feof(file_) || (*handler_)() == 0)
+    if (handler_ == NULL || feof(file_) || (*handler_)(file_) == 0)
       break;
   }
 }

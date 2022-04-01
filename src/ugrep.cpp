@@ -366,8 +366,8 @@ Flag flag_smart_case;
 Flag flag_text;
 Flag flag_ungroup;
 Sort flag_sort_key                 = Sort::NA;
-Action flag_devices_action         = Action::SKIP;
-Action flag_directories_action     = Action::SKIP;
+Action flag_devices_action         = Action::UNSP;
+Action flag_directories_action     = Action::UNSP;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_fuzzy                  = 0;
@@ -394,8 +394,8 @@ const char *flag_binary_files      = "binary";
 const char *flag_color             = DEFAULT_COLOR;
 const char *flag_colors            = NULL;
 const char *flag_config            = NULL;
-const char *flag_devices           = "skip";
-const char *flag_directories       = "skip";
+const char *flag_devices           = NULL;
+const char *flag_directories       = NULL;
 const char *flag_encoding          = NULL;
 const char *flag_filter            = NULL;
 const char *flag_format            = NULL;
@@ -466,7 +466,7 @@ void trim_pathname_arg(const char *arg);
 bool is_output(ino_t inode);
 size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
-void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message, bool optional_first = false);
+void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message);
 size_t strtofuzzy(const char *string, const char *message);
 void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs);
 void format(const char *format, size_t matches);
@@ -1769,7 +1769,7 @@ struct Grep {
   };
 
 #ifndef OS_WIN
-  // extend the reflex::Input::Handler to handle stdin from a TTY or a slow pipe
+  // extend the reflex::Input::Handler to handle stdin from a TTY or from a slow pipe
   struct StdInHandler : public reflex::Input::Handler {
 
     StdInHandler(Grep *grep)
@@ -1779,10 +1779,10 @@ struct Grep {
 
     Grep *grep;
 
-    int operator()()
+    int operator()(FILE *file)
     {
       grep->out.flush();
-
+      
       while (true)
       {
         struct timeval tv;
@@ -1793,14 +1793,20 @@ struct Grep {
         FD_SET(0, &efds);
         tv.tv_sec = 1;
         tv.tv_usec = 0;
-        int r = ::select(1, &rfds, NULL, &efds, &tv);
+        int r = ::select(fileno(file) + 1, &rfds, NULL, &efds, &tv);
         if (r < 0 && errno != EINTR)
           return 0;
-        if (r > 0 && FD_ISSET(0, &efds))
+        if (r > 0 && FD_ISSET(fileno(file), &efds))
           return 0;
         if (r > 0)
-          return 1;
+          break;
       }
+
+      // clear EAGAIN and EINTR error on the nonblocking stdin
+      clearerr(file);
+
+      // no error
+      return 1;
     }
   };
 #endif
@@ -1929,7 +1935,7 @@ struct Grep {
           break;
         }
 
-        // -m: max number of matches reached?
+        // --max-count: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
 
@@ -2022,7 +2028,7 @@ struct Grep {
             grep.out.format(flag_format_open, pathname, grep.partname, Stats::found_parts(), &matcher, false, Stats::found_parts() > 1);
         }
 
-        // -m: max number of matches reached?
+        // --max-count: max number of matches reached?
         if (flag_max_count > 0 && matches >= flag_max_count)
           break;
 
@@ -2109,7 +2115,7 @@ struct Grep {
           }
         }
 
-        // -m: max number of matches reached?
+        // --max-count: max number of matches reached?
         if (flag_invert_match && flag_max_count > 0 && matches >= flag_max_count)
         {
           stop = true;
@@ -2330,7 +2336,7 @@ struct Grep {
           }
         }
 
-        // -m: max number of matches reached?
+        // --max-count: max number of matches reached?
         if (flag_invert_match && flag_max_count > 0 && matches >= flag_max_count)
         {
           stop = true;
@@ -2646,7 +2652,7 @@ struct Grep {
           }
         }
 
-        // -m: max number of matches reached?
+        // --max-count: max number of matches reached?
         if (flag_invert_match && flag_max_count > 0 && matches >= flag_max_count)
         {
           stop = true;
@@ -2931,7 +2937,7 @@ struct Grep {
   // open a file for (binary) reading and assign input, decompress the file when -z, --decompress specified, may throw bad_alloc
   bool open_file(const char *pathname)
   {
-    if (pathname == NULL)
+    if (pathname == NULL || *pathname == '\0')
     {
       if (source == NULL)
         return false;
@@ -2951,14 +2957,18 @@ struct Grep {
     }
 
 #ifndef OS_WIN
-    // skip empty regular files that are not readable; this skips sysfd files e.g. in /proc and /sys
+    // check if a regular file is special and recursive searching files should not block
     struct stat buf;
-    if (fstat(fileno(file_in), &buf) == 0 && S_ISREG(buf.st_mode) && buf.st_size == 0)
+    if (file_in != stdin && file_in != source && fstat(fileno(file_in), &buf) == 0 && S_ISREG(buf.st_mode))
     {
+      // recursive searches should not block on special regular files like in /proc and /sys
+      if (flag_directories_action == Action::RECURSE)
+        fcntl(fileno(file_in), F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
+
+      // check if an empty file is readable e.g. not a special sysfd file like in /proc and /sys
       char data[1];
-      if (read(fileno(file_in), data, 1) < 0 || fseek(file_in, 0, SEEK_SET) != 0)
+      if (buf.st_size == 0 && (read(fileno(file_in), data, 1) < 0 || fseek(file_in, 0, SEEK_SET) != 0))
       {
-        errno = EAGAIN; // override the confusing "Invalid argument" (22) and "Input/output error" (5) ...
         warning("cannot read", pathname);
         fclose(file_in);
         file_in = NULL;
@@ -3223,7 +3233,35 @@ struct Grep {
   // close the file and clear input, return true if next file is extracted from an archive to search
   bool close_file(const char *pathname)
   {
-    (void)pathname; // appease -Wunused-parameter
+    // check if the input has no error conditions, but do not check stdin which is nonblocking and handled differently
+    if (file_in != NULL && file_in != stdin && file_in != source && ferror(file_in))
+    {
+      warning("cannot read", pathname);
+
+#ifdef HAVE_LIBZ
+#ifdef WITH_DECOMPRESSION_THREAD
+      if (flag_decompress)
+        zthread.cancel();
+#else
+      if (stream != NULL)
+      {
+        delete stream;
+        stream = NULL;
+      }
+#endif
+#endif
+
+      // close the current input file
+      if (file_in != NULL && file_in != stdin && file_in != source)
+      {
+        fclose(file_in);
+        file_in = NULL;
+      }
+
+      input.clear();
+
+      return false;
+    }
 
 #ifdef HAVE_LIBZ
 #ifdef WITH_DECOMPRESSION_THREAD
@@ -3387,7 +3425,7 @@ struct Grep {
   reflex::Input                  input;         // input to the matcher
   FILE                          *file_in;       // the current input file
 #ifndef OS_WIN
-  StdInHandler                   stdin_handler; // a handler to handle non-blocking stdin from a TTY or a slow pipe
+  StdInHandler                   stdin_handler; // a handler to handle nonblocking stdin from a TTY or a slow pipe
 #endif
 #ifdef HAVE_LIBZ
 #ifdef WITH_DECOMPRESSION_THREAD
@@ -3414,7 +3452,7 @@ struct Job {
 
   Job(const char *pathname, size_t slot)
     :
-      pathname(pathname),
+      pathname(pathname != NULL ? pathname : ""),
       slot(slot)
   { }
 
@@ -4014,7 +4052,7 @@ static void set_depth(const char *arg)
   }
   else
   {
-    strtopos2(arg, flag_min_depth, flag_max_depth, "invalid argument --", true);
+    strtopos2(arg, flag_min_depth, flag_max_depth, "invalid argument --");
   }
 }
 
@@ -4364,7 +4402,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "decompress") == 0)
                   flag_decompress = true;
                 else if (strncmp(arg, "depth=", 6) == 0)
-                  strtopos2(arg + 6, flag_min_depth, flag_max_depth, "invalid argument --depth=", true);
+                  strtopos2(arg + 6, flag_min_depth, flag_max_depth, "invalid argument --depth=");
                 else if (strcmp(arg, "dereference") == 0)
                   flag_dereference = true;
                 else if (strcmp(arg, "dereference-recursive") == 0)
@@ -4554,10 +4592,18 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_match = true;
                 else if (strncmp(arg, "max-count=", 10) == 0)
                   flag_max_count = strtopos(arg + 10, "invalid argument --max-count=");
+                else if (strncmp(arg, "max-depth=", 10) == 0)
+                  flag_max_depth = strtopos(arg + 10, "invalid argument --max-depth=");
                 else if (strncmp(arg, "max-files=", 10) == 0)
                   flag_max_files = strtopos(arg + 10, "invalid argument --max-files=");
+                else if (strncmp(arg, "max-line=", 9) == 0)
+                  flag_max_line = strtopos(arg + 9, "invalid argument --max-line=");
                 else if (strncmp(arg, "min-count=", 10) == 0)
                   flag_min_count = strtopos(arg + 10, "invalid argument --min-count=");
+                else if (strncmp(arg, "min-depth=", 10) == 0)
+                  flag_min_depth = strtopos(arg + 10, "invalid argument --min-depth=");
+                else if (strncmp(arg, "min-line=", 9) == 0)
+                  flag_min_line = strtopos(arg + 9, "invalid argument --min-line=");
                 else if (strncmp(arg, "min-steal=", 10) == 0)
                   flag_min_steal = strtopos(arg + 10, "invalid argument --min-steal=");
                 else if (strcmp(arg, "mmap") == 0)
@@ -4566,10 +4612,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_max_mmap = strtopos(arg + 5, "invalid argument --mmap=");
                 else if (strcmp(arg, "messages") == 0)
                   flag_no_messages = false;
-                else if (strcmp(arg, "max-count") == 0 || strcmp(arg, "max-files") == 0)
+                else if (strcmp(arg, "max-count") == 0 || strcmp(arg, "max-depth") == 0 || strcmp(arg, "max-files") == 0 || strcmp(arg, "max-line") == 0 || strcmp(arg, "min-count") == 0 || strcmp(arg, "min-depth") == 0 || strcmp(arg, "min-line") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--match, --max-count, --max-files, --min-count, --mmap or --messages");
+                  usage("invalid option --", arg, "--match, --max-count, --max-depth, --max-files, --max-line, --min-count, --min-depth, --min-line, --mmap or --messages");
                 break;
 
               case 'n':
@@ -4976,11 +5022,11 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
           case 'm':
             ++arg;
             if (*arg)
-              strtopos2(&arg[*arg == '='], flag_min_count, flag_max_count, "invalid argument -m=", true);
+              strtopos2(&arg[*arg == '='], flag_min_count, flag_max_count, "invalid argument -m=");
             else if (++i < argc)
-              strtopos2(argv[i], flag_min_count, flag_max_count, "invalid argument -m=", true);
+              strtopos2(argv[i], flag_min_count, flag_max_count, "invalid argument -m=");
             else
-              usage("missing NUM argument for option -m");
+              usage("missing MAX argument for option -m");
             is_grouped = false;
             break;
 
@@ -5721,41 +5767,56 @@ void init(int argc, const char **argv)
 
 #endif
 
-  // -D: check ACTION value
-  if (strcmp(flag_devices, "skip") == 0)
-    flag_devices_action = Action::SKIP;
-  else if (strcmp(flag_devices, "read") == 0)
-    flag_devices_action = Action::READ;
-  else
-    usage("invalid argument -D ACTION, valid arguments are 'skip' and 'read'");
-
-  // normalize -R (--dereference-recurse) option
-  if (strcmp(flag_directories, "dereference-recurse") == 0)
+  if (flag_devices != NULL)
   {
-    flag_directories = "recurse";
-    flag_dereference = true;
+    // -D: check ACTION value
+    if (strcmp(flag_devices, "skip") == 0)
+      flag_devices_action = Action::SKIP;
+    else if (strcmp(flag_devices, "read") == 0)
+      flag_devices_action = Action::READ;
+    else
+      usage("invalid argument -D ACTION, valid arguments are 'skip' and 'read'");
   }
 
-  // -d: check ACTION value and set flags
-  if (strcmp(flag_directories, "skip") == 0)
-    flag_directories_action = Action::SKIP;
-  else if (strcmp(flag_directories, "read") == 0)
-    flag_directories_action = Action::READ;
-  else if (strcmp(flag_directories, "recurse") == 0)
-    flag_directories_action = Action::RECURSE;
-  else
-    usage("invalid argument -d ACTION, valid arguments are 'skip', 'read', 'recurse' and 'dereference-recurse'");
-
-  // if no FILE specified and no -r or -R specified, when reading standard input from a TTY then enable -R
-  if (!flag_stdin && arg_files.empty() && flag_directories_action != Action::RECURSE && isatty(STDIN_FILENO))
+  if (flag_directories != NULL)
   {
-    flag_directories_action = Action::RECURSE;
-    flag_dereference = true;
+    // normalize -R (--dereference-recurse) option
+    if (strcmp(flag_directories, "dereference-recurse") == 0)
+    {
+      flag_directories = "recurse";
+      flag_dereference = true;
+    }
+
+    // -d: check ACTION value and set flags
+    if (strcmp(flag_directories, "skip") == 0)
+      flag_directories_action = Action::SKIP;
+    else if (strcmp(flag_directories, "read") == 0)
+      flag_directories_action = Action::READ;
+    else if (strcmp(flag_directories, "recurse") == 0)
+      flag_directories_action = Action::RECURSE;
+    else
+      usage("invalid argument -d ACTION, valid arguments are 'skip', 'read', 'recurse' and 'dereference-recurse'");
   }
 
-  // if no FILE specified then read standard input, unless recursive searches are specified
-  if (arg_files.empty() && flag_min_depth == 0 && flag_max_depth == 0 && flag_directories_action != Action::RECURSE)
-    flag_stdin = true;
+  if (!flag_stdin && arg_files.empty())
+  {
+    // if no FILE specified when reading standard input from a TTY then enable -R if not already -r or -R
+    if (isatty(STDIN_FILENO) && (flag_directories_action == Action::UNSP || flag_directories_action == Action::RECURSE))
+    {
+      if (flag_directories_action == Action::UNSP)
+      {
+        flag_directories_action = Action::RECURSE;
+        flag_dereference = true;
+      }
+
+      flag_all_threads = true;
+    }
+    else
+    {
+      // if no FILE specified then read standard input
+      flag_stdin = true;
+    }
+  }
 
   // check FILE arguments, warn about non-existing and non-readable files and directories
   auto file = arg_files.begin();
@@ -5780,7 +5841,8 @@ void init(int argc, const char **argv)
       // use threads to recurse into a directory
       if ((attr & FILE_ATTRIBUTE_DIRECTORY))
       {
-        flag_all_threads = true;
+        if (flag_directories_action == Action::UNSP)
+          flag_all_threads = true;
 
         // remove trailing path separators, if any (*file points to argv[])
         trim_pathname_arg(*file);
@@ -5832,7 +5894,8 @@ void init(int argc, const char **argv)
         // use threads to recurse into a directory
         if (S_ISDIR(buf.st_mode))
         {
-          flag_all_threads = true;
+          if (flag_directories_action == Action::UNSP)
+            flag_all_threads = true;
 
           // remove trailing path separators, if any (*file points to argv[])
           trim_pathname_arg(*file);
@@ -5879,13 +5942,21 @@ void init(int argc, const char **argv)
   if (flag_replace != NULL && flag_format != NULL)
     abort("--format is not permitted with --replace");
 
-  // -v with --files is not permitted
-  if (flag_files && flag_invert_match)
-    abort("-v is not permitted with --files, invert the Boolean query instead");
+  // -v with --only-line-number is not permitted
+  if (flag_invert_match && flag_only_line_number)
+    abort("--invert-match is not permitted with --only-line-number");
 
-  // --min-count is not permitted with options other than -q, -l, -L and -c
-  if (flag_min_count > 0 && !flag_quiet && !flag_files_with_matches && !flag_files_without_match && !flag_count)
-    abort("--min-count is not permitted without -c, -l, -L or -q");
+  // -v with --files is not permitted
+  if (flag_invert_match && flag_files)
+    abort("--invert-match is not permitted with --files, invert the Boolean query instead");
+
+  // --min-count is not permitted with --files
+  if (flag_min_count > 0 && flag_files)
+    abort("--min-count is not permitted with --files");
+
+  // --min-count is not permitted with -v when not combined with -q, -l, -L or -c
+  if (flag_min_count > 0 && flag_invert_match && !flag_quiet && !flag_files_with_matches && !flag_files_without_match && !flag_count)
+    abort("--min-count is not permitted with --invert-match");
 
 #ifdef HAVE_STATVFS
 
@@ -6933,7 +7004,7 @@ void ugrep()
     flag_only_matching = flag_ungroup = false;
 
   // --depth: if -R or -r is not specified then enable -R
-  if ((flag_min_depth > 0 || flag_max_depth > 0) && flag_directories_action != Action::RECURSE)
+  if ((flag_min_depth > 0 || flag_max_depth > 0) && flag_directories_action == Action::UNSP)
   {
     flag_directories_action = Action::RECURSE;
     flag_dereference = true;
@@ -7361,21 +7432,22 @@ void clear_grep_handle()
 // search the specified files or standard input for pattern matches
 void Grep::ugrep()
 {
-  if (!flag_stdin && arg_files.empty())
+  // read each input file to find pattern matches
+  if (flag_stdin)
   {
-    recurse(1, ".");
+    Stats::score_file();
+
+    // search standard input
+    search(NULL);
+  }
+
+  if (arg_files.empty())
+  {
+    if (flag_directories_action == Action::RECURSE)
+      recurse(1, ".");
   }
   else
   {
-    // read each input file to find pattern matches
-    if (flag_stdin)
-    {
-      Stats::score_file();
-
-      // search standard input
-      search(NULL);
-    }
-
 #ifndef OS_WIN
     std::pair<std::set<ino_t>::iterator,bool> vino;
 #endif
@@ -7404,17 +7476,20 @@ void Grep::ugrep()
       switch (select(1, pathname, basename, DIRENT_TYPE_UNKNOWN, inode, info, true))
       {
         case Type::DIRECTORY:
+          if (flag_directories_action != Action::SKIP)
+          {
 #ifndef OS_WIN
-          if (flag_dereference)
-            vino = visited.insert(inode);
+            if (flag_dereference)
+              vino = visited.insert(inode);
 #endif
 
-          recurse(1, pathname);
+            recurse(1, pathname);
 
 #ifndef OS_WIN
-          if (flag_dereference)
-            visited.erase(vino.first);
+            if (flag_dereference)
+              visited.erase(vino.first);
 #endif
+          }
           break;
 
         case Type::OTHER:
@@ -8202,7 +8277,7 @@ uint16_t Grep::cost(const char *pathname)
     return cost;
   }
 
-  // -Z: matcher is a FuzzyMatcher
+  // -Z: matcher is a FuzzyMatcher for sure
   reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
 
   // search file to compute minimum cost
@@ -8260,13 +8335,13 @@ void Grep::search(const char *pathname)
   catch (...)
   {
     // this should never happen
-    warning("exception while opening", pathname);
+    warning("exception while opening", pathname != NULL && *pathname != '\0' ? pathname : flag_label);
 
     return;
   }
 
   // pathname is NULL when stdin is searched
-  if (pathname == NULL)
+  if (pathname == NULL || *pathname == '\0')
     pathname = flag_label;
 
   bool colorize = flag_apply_color || flag_tag != NULL;
@@ -8669,8 +8744,14 @@ void Grep::search(const char *pathname)
                 continue;
             }
 
-            // --format-open
-            if (matches == 0)
+            ++matches;
+
+            // --min-count: require at least min-count matches
+            if (flag_min_count > 0 && matches < flag_min_count)
+              continue;
+
+            // output --format-open=FORMAT for the first (or --min-count) match found
+            if (matches == flag_min_count + (flag_min_count == 0))
             {
               if (flag_files && matchers != NULL)
               {
@@ -8706,18 +8787,20 @@ void Grep::search(const char *pathname)
               }
             }
 
-            ++matches;
-
             // output --format=FORMAT
             out.format(flag_format, pathname, partname, matches, matcher, matches > 1, matches > 1);
 
-            // -m: max number of matches reached?
+            // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
               break;
 
             out.check_flush();
           }
         }
+
+        // --min-count: require at least min-count matches
+        if (flag_min_count > 0 && matches < flag_min_count)
+          goto exit_search;
 
         // --files: if we are still holding the output and CNF is not satisfyable then no global matches were made
         if (flag_files && matchers != NULL)
@@ -8757,18 +8840,25 @@ void Grep::search(const char *pathname)
                 continue;
             }
 
-            if (matches == 0 && (!flag_files || matchers == NULL))
+            ++matches;
+
+            // --min-count: require at least min-count matches
+            if (flag_min_count > 0 && matches < flag_min_count)
+            {
+              lineno = current_lineno;
+              continue;
+            }
+
+            if (matches == flag_min_count + (flag_min_count == 0) && (!flag_files || matchers == NULL))
             {
               // --max-files: max reached?
               if (!Stats::found_part())
                 goto exit_search;
             }
 
-            ++matches;
-
             out.header(pathname, partname, current_lineno, matcher, matcher->first(), separator, true);
 
-            // -m: max number of matches reached?
+            // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
               break;
 
@@ -8779,6 +8869,10 @@ void Grep::search(const char *pathname)
             lineno = current_lineno;
           }
         }
+
+        // --min-count: require at least min-count matches
+        if (flag_min_count > 0 && matches < flag_min_count)
+          goto exit_search;
       }
       else if (flag_only_matching)
       {
@@ -8819,7 +8913,7 @@ void Grep::search(const char *pathname)
             if (flag_max_line > 0 && current_lineno > flag_max_line)
               break;
 
-            // -m: max number of matches reached?
+            // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
               break;
 
@@ -8837,7 +8931,16 @@ void Grep::search(const char *pathname)
                 continue;
             }
 
-            if (matches == 0 && (!flag_files || matchers == NULL))
+            ++matches;
+
+            // --min-count: require at least min-count matches
+            if (flag_min_count > 0 && matches < flag_min_count)
+            {
+              lineno = current_lineno;
+              continue;
+            }
+
+            if (matches == flag_min_count + (flag_min_count == 0) && (!flag_files || matchers == NULL))
             {
               // --max-files: max reached?
               if (!Stats::found_part())
@@ -8862,8 +8965,6 @@ void Grep::search(const char *pathname)
               goto done_search;
             }
 
-            ++matches;
-
             if (!flag_no_header)
             {
               const char *separator = lineno != current_lineno ? flag_separator : "+";
@@ -8872,6 +8973,10 @@ void Grep::search(const char *pathname)
 
             lineno = current_lineno;
           }
+
+          // --min-count: require at least min-count matches
+          if (flag_min_count > 0 && matches < flag_min_count)
+            continue;
 
           hex = binary;
 
@@ -8949,6 +9054,10 @@ void Grep::search(const char *pathname)
           }
         }
 
+        // --min-count: require at least min-count matches
+        if (flag_min_count > 0 && matches < flag_min_count)
+          goto exit_search;
+
         if (nl)
           out.nl();
 
@@ -9013,7 +9122,7 @@ void Grep::search(const char *pathname)
             if (flag_max_line > 0 && current_lineno > flag_max_line)
               break;
 
-            // -m: max number of matches reached?
+            // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
               break;
 
@@ -9028,7 +9137,16 @@ void Grep::search(const char *pathname)
             if (matchers != NULL && !cnf_matching(bol, eol))
               continue;
 
-            if (matches == 0 && (!flag_files || matchers == NULL))
+            ++matches;
+
+            // --min-count: require at least min-count matches
+            if (flag_min_count > 0 && matches < flag_min_count)
+            {
+              lineno = current_lineno;
+              continue;
+            }
+
+            if (matches == flag_min_count + (flag_min_count == 0) && (!flag_files || matchers == NULL))
             {
               // --max-files: max reached?
               if (!Stats::found_part())
@@ -9054,8 +9172,6 @@ void Grep::search(const char *pathname)
 
               goto done_search;
             }
-
-            ++matches;
 
             size_t border = matcher->border();
             size_t first = matcher->first();
@@ -9187,6 +9303,10 @@ void Grep::search(const char *pathname)
           }
           else
           {
+            // --min-count: require at least min-count matches
+            if (flag_min_count > 0 && matches < flag_min_count)
+              continue;
+
             size_t size = matcher->size();
 
             if (size > 0)
@@ -9353,6 +9473,10 @@ void Grep::search(const char *pathname)
           }
         }
 
+        // --min-count: require at least min-count matches
+        if (flag_min_count > 0 && matches < flag_min_count)
+          goto exit_search;
+
         if (restline_data != NULL)
         {
           if (binary)
@@ -9446,7 +9570,7 @@ void Grep::search(const char *pathname)
             if (stop)
               goto exit_search;
 
-            // -m: max number of matches reached?
+            // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
               goto done_search;
 
@@ -9545,6 +9669,33 @@ void Grep::search(const char *pathname)
             if (matchers != NULL && !cnf_matching(bol, eol))
               continue;
 
+            if (!flag_invert_match)
+            {
+              ++matches;
+
+              // --min-count: require at least min-count matches
+              if (flag_min_count > 0 && matches < flag_min_count)
+              {
+                lineno = current_lineno;
+                continue;
+              }
+
+              if (matches == flag_min_count + (flag_min_count == 0) && (!flag_files || matchers == NULL))
+              {
+                // --max-files: max reached?
+                if (!Stats::found_part())
+                  goto exit_search;
+              }
+            }
+
+            // --range: max line exceeded?
+            if (flag_max_line > 0 && current_lineno > flag_max_line)
+              break;
+
+            // --max-files: max reached?
+            if (stop)
+              goto exit_search;
+
             // get the lines before the matched line
             context = matcher->before();
 
@@ -9571,28 +9722,8 @@ void Grep::search(const char *pathname)
               }
             }
 
-            // --range: max line exceeded?
-            if (flag_max_line > 0 && current_lineno > flag_max_line)
-              break;
-
-            // --max-files: max reached?
-            if (stop)
-              goto exit_search;
-
-            if (!flag_invert_match)
-            {
-              if (matches == 0 && (!flag_files || matchers == NULL))
-              {
-                // --max-files: max reached?
-                if (!Stats::found_part())
-                  goto exit_search;
-              }
-
-              ++matches;
-            }
-
-            // -m: max number of matches reached?
-            if (flag_max_count > 0 && matches >= flag_max_count)
+            // --max-count: max number of matches reached?
+            if (flag_max_count > 0 && matches > flag_max_count)
               break;
 
             // output blocked?
@@ -9737,6 +9868,10 @@ void Grep::search(const char *pathname)
           }
           else if (!binfile && (!binary || flag_hex || flag_with_hex))
           {
+            // --min-count: require at least min-count matches
+            if (flag_min_count > 0 && matches < flag_min_count)
+              continue;
+
             size_t size = matcher->size();
 
             if (size > 0)
@@ -9869,6 +10004,10 @@ void Grep::search(const char *pathname)
           }
         }
 
+        // --min-count: require at least min-count matches
+        if (flag_min_count > 0 && matches < flag_min_count)
+          matches = 0;
+
         if (restline_data != NULL)
         {
           if (binary)
@@ -9983,6 +10122,15 @@ void Grep::search(const char *pathname)
             if (matchers != NULL && !cnf_matching(bol, eol))
               continue;
 
+            ++matches;
+
+            // --min-count: require at least min-count matches
+            if (flag_min_count > 0 && matches < flag_min_count)
+            {
+              lineno = current_lineno;
+              continue;
+            }
+
             // get the lines before the matched line
             context = matcher->before();
 
@@ -10017,17 +10165,15 @@ void Grep::search(const char *pathname)
             if (stop)
               goto exit_search;
 
-            if (matches == 0 && (!flag_files || matchers == NULL))
+            if (matches == 1 && (!flag_files || matchers == NULL))
             {
               // --max-files: max reached?
               if (!Stats::found_part())
                 goto exit_search;
             }
 
-            ++matches;
-
-            // -m: max number of matches reached?
-            if (flag_max_count > 0 && matches >= flag_max_count)
+            // --max-count: max number of matches reached?
+            if (flag_max_count > 0 && matches > flag_max_count)
               break;
 
             // output blocked?
@@ -10177,6 +10323,10 @@ void Grep::search(const char *pathname)
           }
           else
           {
+            // --min-count: require at least min-count matches
+            if (flag_min_count > 0 && matches < flag_min_count)
+              continue;
+
             size_t size = matcher->size();
 
             if (size > 0)
@@ -10367,7 +10517,7 @@ void Grep::search(const char *pathname)
 
         // InvertContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-        size_t last_lineno = 0;
+        size_t last_lineno = lineno;
         size_t after = flag_after_context;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
@@ -10385,7 +10535,7 @@ void Grep::search(const char *pathname)
         // register an event handler functor to display non-matching lines
         matcher->set_handler(&invert_context_handler);
 
-        // to get the context from the any_line handler explicitly
+        // to get the context from the handler explicitly
         reflex::AbstractMatcher::Context context;
 
         while (matcher->find())
@@ -10393,12 +10543,15 @@ void Grep::search(const char *pathname)
           size_t current_lineno = matcher->lineno();
           size_t lines = matcher->lines();
 
-          if (last_lineno + 1 >= current_lineno)
-            after += lines;
-          else if (last_lineno != current_lineno)
-            after = 0;
-
           if (last_lineno != current_lineno)
+          {
+            if (lineno + 1 >= current_lineno)
+              after += lines;
+            else
+              after = 0;
+          }
+
+          if (lineno != current_lineno)
           {
             if (restline_data != NULL)
             {
@@ -10475,7 +10628,7 @@ void Grep::search(const char *pathname)
             }
             */
 
-            // -m: max number of matches reached?
+            // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
               break;
 
@@ -10844,7 +10997,8 @@ void Grep::search(const char *pathname)
             }
           }
 
-          lineno = last_lineno = current_lineno + lines - 1;
+          last_lineno = current_lineno;
+          lineno = current_lineno + lines - 1;
         }
 
         if (restline_data != NULL)
@@ -11284,7 +11438,7 @@ size_t strtopos(const char *string, const char *message)
 }
 
 // convert one or two comma-separated unsigned decimals specifying a range to positive size_t, produce error when conversion fails or when the range is invalid
-void strtopos2(const char *string, size_t& min, size_t& max, const char *message, bool optional_first)
+void strtopos2(const char *string, size_t& min, size_t& max, const char *message)
 {
   char *rest = const_cast<char*>(string);
   if (*string != ',')
@@ -11293,10 +11447,8 @@ void strtopos2(const char *string, size_t& min, size_t& max, const char *message
     min = 0;
   if (*rest == ',')
     max = static_cast<size_t>(strtoull(rest + 1, &rest, 10));
-  else if (optional_first)
-    max = min, min = 0;
   else
-    max = 0;
+    max = min, min = 0;
   if (rest == NULL || *rest != '\0' || (max > 0 && min > max))
     usage(message, string);
 }
@@ -11338,14 +11490,41 @@ void usage(const char *message, const char *arg, const char *valid)
 {
   std::cerr << "ugrep: " << message << (arg != NULL ? arg : "");
   if (valid != NULL)
+  {
     std::cerr << ", did you mean " << valid << "?" << std::endl;
+    std::cerr << "For more help on options, try `ugrep --help' or `ugrep --help WHAT'" << std::endl;
+  }
   else
+  {
+    const char *s = message;
+    while (*s != '\0' && *s != '-')
+      ++s;
     std::cerr << std::endl;
-  std::cerr << "For more help on options, try `ugrep --help'";
-  if (arg != NULL)
-    std::cerr << " or `ugrep --help " << arg << "'" << std::endl;
-  else
-    std::cerr << std::endl;
+    std::cerr << "For more help on options, try `ugrep --help' or `ugrep --help ";
+    if (*s == '\0')
+    {
+      std::cerr << "WHAT'" << std::endl;
+    }
+    else
+    {
+      const char *e = s;
+      while (*e == '-')
+        ++e;
+      if (*e == '\0')
+      {
+        if (arg != NULL)
+          std::cerr << std::string(s, e - s) << arg << "'" << std::endl;
+        else
+          std::cerr << "WHAT'" << std::endl;
+      }
+      else
+      {
+        while (*e != '\0' && (*e == '-' || isalpha(*e)))
+          ++e;
+        std::cerr << std::string(s, e - s) << "'" << std::endl;
+      }
+    }
+  }
 
   // do not exit when reading a config file
   if (!flag_usage_warnings)
@@ -11478,10 +11657,10 @@ void help(std::ostream& out)
             option.  If ACTION is `dereference-recurse', read all files under\n\
             each directory, recursively, following symbolic links.  This is\n\
             equivalent to the -R option.\n\
-    --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...\n\
+    --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...\n\
             Restrict recursive searches from MIN to MAX directory levels deep,\n\
             where -1 (--depth=1) searches the specified path without recursing\n\
-            into subdirectories.  Note that -3 -5, -3-5, or -35 searches 3 to 5\n\
+            into subdirectories.  Note that -3 -5, -3-5, and -35 search 3 to 5\n\
             levels deep.  Enables -R if -R or -r is not specified.\n\
     --dotall\n\
             Dot `.' in regular expressions matches anything, including newline.\n\
@@ -11710,8 +11889,8 @@ void help(std::ostream& out)
     --json\n\
             Output file matches in JSON.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
-    -K FIRST[,LAST], --range=FIRST[,LAST]\n\
-            Start searching at line FIRST, stop at line LAST when specified.\n\
+    -K [MIN,][MAX], --range=[MIN,][MAX], --min-line=MIN, --max-line=MAX\n\
+            Start searching at line MIN, stop at line MAX when specified.\n\
     -k, --column-number\n\
             The column number of a matched pattern is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
@@ -11746,9 +11925,9 @@ void help(std::ostream& out)
             with options -O and -t to expand the search.  Every file on the\n\
             search path is read, making searches potentially more expensive.\n\
     -m [MIN,][MAX], --min-count=MIN, --max-count=MAX\n\
-            Stop reading the input after MAX matches in each input file when\n\
-            specified.  Require at least MIN matches when specified, for\n\
-            options -c, -l, -L and -q.\n\
+            Require MIN matches, stop after MAX matches when specified.  Output\n\
+            MIN to MAX matches.  For example, -m1 outputs the first match and\n\
+            -cm1, (with a comma) counts non-zero matches.  See also option -K.\n\
     --match\n\
             Match all input.  Same as specifying an empty pattern to search.\n\
     --max-files=NUM\n\
@@ -11868,7 +12047,7 @@ void help(std::ostream& out)
             default is not to follow symbolic links.\n\
     -s, --no-messages\n\
             Silent mode: nonexistent and unreadable files are ignored, i.e.\n\
-            their error messages are suppressed.\n\
+            their error messages and warnings are suppressed.\n\
     --save-config[=FILE]\n\
             Save configuration FILE.  By default `.ugrep' is saved.  If FILE is\n\
             a `-', write the configuration to standard output.\n\

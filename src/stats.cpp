@@ -60,7 +60,7 @@ void Stats::report(FILE *output)
   if (warnings > 0)
     fprintf(output, "Received %zu warning%s" NEWLINESTR, ws, ws == 1 ? "" : "s");
 
-  fprintf(output, "The following pathname selections and restrictions were applied:" NEWLINESTR);
+  fprintf(output, "The following pathname selections and search restrictions were applied:" NEWLINESTR);
   if (flag_config != NULL)
     fprintf(output, "  --config=%s" NEWLINESTR, flag_config_file.c_str());
   if (flag_min_depth > 0 && flag_max_depth > 0)
@@ -69,6 +69,35 @@ void Stats::report(FILE *output)
     fprintf(output, "  --depth=%zu," NEWLINESTR, flag_min_depth);
   else if (flag_max_depth > 0)
     fprintf(output, "  --depth=%zu" NEWLINESTR, flag_max_depth);
+  if (flag_dereference)
+    fprintf(output, "  --dereference" NEWLINESTR);
+  else if (flag_no_dereference)
+    fprintf(output, "  --no-dereference" NEWLINESTR);
+  switch (flag_devices_action)
+  {
+    case Action::SKIP:
+      fprintf(output, "  --devices=skip" NEWLINESTR);
+      break;
+    case Action::READ:
+      fprintf(output, "  --devices=read" NEWLINESTR);
+      break;
+    default:
+      break;
+  }
+  switch (flag_directories_action)
+  {
+    case Action::SKIP:
+      fprintf(output, "  --directories=skip" NEWLINESTR);
+      break;
+    case Action::READ:
+      fprintf(output, "  --directories=read" NEWLINESTR);
+      break;
+    case Action::RECURSE:
+      fprintf(output, "  --directories=recurse" NEWLINESTR);
+      break;
+    default:
+      break;
+  }
   if (flag_files)
     fprintf(output, "  --files" NEWLINESTR);
 #ifdef WITH_HIDDEN
@@ -84,6 +113,10 @@ void Stats::report(FILE *output)
 #endif
   for (auto& i : flag_ignore_files)
     fprintf(output, "  --ignore-files='%s'" NEWLINESTR, i.c_str());
+  if (flag_min_count > 0)
+    fprintf(output, "  --min-count=%zu" NEWLINESTR, flag_min_count);
+  if (flag_max_count > 0)
+    fprintf(output, "  --max-count=%zu" NEWLINESTR, flag_max_count);
   if (flag_sort != NULL)
     fprintf(output, "  --sort=%s" NEWLINESTR, flag_sort);
   for (auto& i : ignore)

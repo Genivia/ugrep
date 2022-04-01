@@ -3347,7 +3347,7 @@ void Query::set_flags()
   else if (flags_[19].flag)
     flag_directories_action = Action::RECURSE, flag_dereference = false;
   else
-    flag_directories_action = Action::SKIP;
+    flag_directories_action = Action::UNSP;
   flag_initial_tab = flags_[20].flag;
   flag_binary = flags_[21].flag;
   flag_ungroup = flags_[22].flag;

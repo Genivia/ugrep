@@ -1306,10 +1306,10 @@ using ugrep query selection mode (press Enter to select lines):
             Recursively read all files under each directory, following symbolic
             links only if they are specified on the command line.  See also
             option --sort.
-    --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...
+    --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
             Restrict recursive searches from MIN to MAX directory levels deep,
             where -1 (--depth=1) searches the specified path without recursing
-            into subdirectories.  Note that -3 -5, -3-5, or -35 searches 3 to 5
+            into subdirectories.  Note that -3 -5, -3-5, and -35 search 3 to 5
             levels deep.  Enables -R if -R or -r is not specified.
     -g GLOBS, --glob=GLOBS
             Search only files whose name matches the specified comma-separated
@@ -3509,17 +3509,17 @@ Same, but in this case select `<script>` `src` URLs when referencing `http` and
 
 ### Limiting the number of matches with -1,-2...-9, -K, -m, and --max-files
 
-    --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...
+    --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
             Restrict recursive searches from MIN to MAX directory levels deep,
             where -1 (--depth=1) searches the specified path without recursing
-            into subdirectories.  Note that -3 -5, -3-5, or -35 searches 3 to 5
+            into subdirectories.  Note that -3 -5, -3-5, and -35 search 3 to 5
             levels deep.  Enables -R if -R or -r is not specified.
-    -K FIRST[,LAST], --range=FIRST[,LAST]
-            Start searching at line FIRST, stop at line LAST when specified.
+    -K [MIN,][MAX], --range=[MIN,][MAX], --min-line=MIN, --max-line=MAX
+            Start searching at line MIN, stop at line MAX when specified.
     -m [MIN,][MAX], --min-count=MIN, --max-count=MAX
-            Stop reading the input after MAX matches in each input file when
-            specified.  Require at least MIN matches when specified, for
-            options -c, -l, -L and -q.
+            Require MIN matches, stop after MAX matches when specified.  Output
+            MIN to MAX matches.  For example, -m1 outputs the first match and
+            -cm1, (with comma) counts non-zero matches.  See also option -K.
     --max-files=NUM
             Restrict the number of files matched to NUM.  Note that --sort or
             -J1 may be specified to produce replicable results.  If --sort is
@@ -3927,12 +3927,12 @@ in markdown:
                   ence-recurse', read all files under each directory, recursively,
                   following symbolic links.  This is equivalent to the -R  option.
 
-           --depth=[MIN,][MAX], -1, -2 ... -9, --10, --11 ...
+           --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
                   Restrict  recursive  searches  from  MIN to MAX directory levels
                   deep, where -1 (--depth=1) searches the specified  path  without
-                  recursing  into  subdirectories.   Note that -3 -5, -3-5, or -35
-                  searches 3 to 5 levels deep.  Enables -R if  -R  or  -r  is  not
-                  specified.
+                  recursing  into  subdirectories.  Note that -3 -5, -3-5, and -35
+                  search 3 to 5 levels deep.  Enables -R if -R or -r is not speci-
+                  fied.
 
            --dotall
                   Dot  `.' in regular expressions matches anything, including new-
@@ -4191,30 +4191,30 @@ in markdown:
            --json Output file matches in JSON.  If -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
 
-           -K FIRST[,LAST], --range=FIRST[,LAST]
-                  Start searching at line FIRST, stop at line LAST when specified.
+           -K [MIN,][MAX], --range=[MIN,][MAX], --min-line=MIN, --max-line=MAX
+                  Start searching at line MIN, stop at line MAX when specified.
 
            -k, --column-number
-                  The  column number of a matched pattern is displayed in front of
-                  the respective matched line, starting at  column  1.   Tabs  are
+                  The column number of a matched pattern is displayed in front  of
+                  the  respective  matched  line,  starting at column 1.  Tabs are
                   expanded when columns are counted, see also option --tabs.
 
            -L, --files-without-match
-                  Only  the names of files not containing selected lines are writ-
-                  ten to standard output.  Pathnames  are  listed  once  per  file
+                  Only the names of files not containing selected lines are  writ-
+                  ten  to  standard  output.   Pathnames  are listed once per file
                   searched.   If  the  standard  input  is  searched,  the  string
                   ``(standard input)'' is written.
 
            -l, --files-with-matches
                   Only the names of files containing selected lines are written to
-                  standard  output.   ugrep  will only search a file until a match
-                  has been found,  making  searches  potentially  less  expensive.
-                  Pathnames  are  listed  once per file searched.  If the standard
+                  standard output.  ugrep will only search a file  until  a  match
+                  has  been  found,  making  searches  potentially less expensive.
+                  Pathnames are listed once per file searched.   If  the  standard
                   input is searched, the string ``(standard input)'' is written.
 
            --label=LABEL
-                  Displays the LABEL value when input is read from standard  input
-                  where  a file name would normally be printed in the output.  As-
+                  Displays  the LABEL value when input is read from standard input
+                  where a file name would normally be printed in the output.   As-
                   sociates a filename extension with standard input when LABEL has
                   a suffix.  The default value is `(standard input)'.
 
@@ -4222,23 +4222,24 @@ in markdown:
                   Force output to be line buffered instead of block buffered.
 
            --lines
-                  Apply  Boolean  queries to match lines, the opposite of --files.
-                  This is the default Boolean query mode to match specific  lines.
+                  Apply Boolean queries to match lines, the opposite  of  --files.
+                  This  is the default Boolean query mode to match specific lines.
 
            -M MAGIC, --file-magic=MAGIC
-                  Only  files  matching  the signature pattern MAGIC are searched.
-                  The signature "magic bytes" at the start of a file are  compared
-                  to  the  MAGIC  regex  pattern.  When matching, the file will be
-                  searched.  When MAGIC is preceded by a `!' or a `^', skip  files
+                  Only files matching the signature pattern  MAGIC  are  searched.
+                  The  signature "magic bytes" at the start of a file are compared
+                  to the MAGIC regex pattern.  When matching,  the  file  will  be
+                  searched.   When MAGIC is preceded by a `!' or a `^', skip files
                   with matching MAGIC signatures.  This option may be repeated and
-                  may be combined with options -O and -t  to  expand  the  search.
-                  Every  file  on  the search path is read, making searches poten-
+                  may  be  combined  with  options -O and -t to expand the search.
+                  Every file on the search path is read,  making  searches  poten-
                   tially more expensive.
 
            -m [MIN,][MAX], --min-count=MIN, --max-count=MAX
-                  Stop reading the input after MAX matches in each input file when
-                  specified.   Require  at  least  MIN matches when specified, for
-                  options -c, -l, -L and -q.
+                  Require  MIN  matches,  stop  after  MAX matches when specified.
+                  Output MIN to MAX matches.  For example, -m1 outputs  the  first
+                  match  and  -cm1,  (with  a comma) counts non-zero matches.  See
+                  also option -K.
 
            --match
                   Match all input.  Same as specifying an empty pattern to search.
@@ -4377,7 +4378,7 @@ in markdown:
 
            -s, --no-messages
                   Silent  mode: nonexistent and unreadable files are ignored, i.e.
-                  their error messages are suppressed.
+                  their error messages and warnings are suppressed.
 
            --save-config[=FILE]
                   Save configuration FILE.  By default `.ugrep' is saved.  If FILE
@@ -5098,7 +5099,7 @@ in markdown:
 
 
 
-    ugrep 3.7.6                     March 15, 2022                        UGREP(1)
+    ugrep 3.7.7                     April 01, 2022                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

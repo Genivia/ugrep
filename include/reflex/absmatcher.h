@@ -156,11 +156,21 @@ class AbstractMatcher {
   };
   /// AbstractMatcher::Iterator class for scanning, searching, and splitting input character sequences.
   template<typename T> /// @tparam <T> AbstractMatcher or const AbstractMatcher
-  class Iterator : public std::iterator<std::input_iterator_tag,T> {
+  class Iterator {
     friend class AbstractMatcher;
     friend class Iterator<typename reflex::TypeOp<T>::ConstType>;
     friend class Iterator<typename reflex::TypeOp<T>::NonConstType>;
    public:
+    /// Iterator iterator_category trait.
+    typedef std::output_iterator_tag iterator_category;
+    /// Iterator value_type trait.
+    typedef T value_type;
+    /// Iterator difference_type trait.
+    typedef std::ptrdiff_t difference_type;
+    /// Iterator pointer trait.
+    typedef T* pointer;
+    /// Iterator reference trait.
+    typedef T& reference;
     /// Construct an AbstractMatcher::Iterator such that Iterator() == AbstractMatcher::Operation(*this, method).end().
     Iterator()
       :

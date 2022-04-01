@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "3.7.6"
+#define UGREP_VERSION "3.7.7"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -46,7 +46,7 @@
 // use a task-parallel thread to decompress the stream into a pipe to search, handles archives and increases decompression speed for larger files
 #define WITH_DECOMPRESSION_THREAD
 
-// drain stdin until eof - this is disabled for speed, almost all utilities handle SIGPIPE these days anyway
+// drain stdin until eof to prevent broken pipe signal
 // #define WITH_STDIN_DRAIN
 
 // enable easy-to-use abbreviated ANSI SGR color codes with WITH_EASY_GREP_COLORS
@@ -245,7 +245,12 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 #if defined(HAVE_F_RDAHEAD)
   if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
   {
-    int fd = open(filename, O_RDONLY); // removed O_NOATIME which may fail
+    // removed O_NOATIME which may fail
+#if defined(O_NOCTTY)
+    int fd = open(filename, O_RDONLY | O_NOCTTY);
+#else
+    int fd = open(filename, O_RDONLY);
+#endif
     if (fd < 0)
       return errno;
     fcntl(fd, F_RDAHEAD, 1);
