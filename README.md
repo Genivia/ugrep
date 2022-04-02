@@ -154,6 +154,7 @@ Table of contents
 - [Download and install](#install)
 - [Performance comparisons](#speed)
 - [Using ugrep within Vim](#vim)
+- [Using ugrep within Emacs](#emacs)
 - [Using ugrep to replace GNU/BSD grep](#grep)
   - [Equivalence to GNU/BSD grep](#equivalence)
   - [Short and quick command aliases](#aliases)
@@ -540,11 +541,11 @@ do so, add the following lines to your `.vimrc` located in the root directory:
         set grepformat=%f:%l:%c:%m,%f+%l+%c+%m,%-G%f\\\|%l\\\|%c\\\|%m
     endif
 
-This specifies case insensitive searches with the Vim `:grep` command.  For
-case sensitive searches, remove `\ -j` from `grepprg`.  Multiple matches on the
-same line are listed in the quickfix window separately.  If this is not
-desired, remove `\ -u` from `grepprg`.  With this change, only the first match
-on a line is shown.  Option `--ignore-files` skips files specified in
+This specifies `-j` [case insensitive searches](#case) with the Vim `:grep`
+command.  For case sensitive searches, remove `\ -j` from `grepprg`.  Multiple
+matches on the same line are listed in the quickfix window separately.  If this
+is not desired, remove `\ -u` from `grepprg`.  With this change, only the first
+match on a line is shown.  Option `--ignore-files` skips files specified in
 `.gitignore` files, when present.  To limit the depth of recursive searches to
 the current directory only, append `\ -1` to `grepprg`.
 
@@ -612,6 +613,33 @@ Start Vim then enter the command:
 To view the CtrlP documentation in Vim, enter the command:
 
     :help ctrlp.txt
+
+🔝 [Back to table of contents](#toc)
+
+<a name="emacs"/>
+
+Using ugrep within Emacs
+------------------------
+
+Thanks to [Manuel Uberti](https://github.com/emacs-mirror/emacs/commits?author=manuel-uberti),
+you can now use **ugrep** in Emacs version 29 or greater (or download and build
+Emacs from the [Emacs master branch](https://github.com/emacs-mirror/emacs).
+
+To use **ugrep** instead of GNU grep within Emacs, add the following line to
+your `.emacs.d/init.el` file:
+
+    (setq-default xref-search-program ‘ugrep)
+
+This means that Emacs commands such as `project-find-regexp` that rely on
+[Xref](https://www.gnu.org/software/emacs/manual/html_node/emacs/Xref.html) can
+now leverage the power of **ugrep**.
+
+Furthermore, it is possible to use `grep` in the [Emacs grep
+commands](https://www.gnu.org/software/emacs/manual/html_node/emacs/Grep-Searching.html).
+For instance, you can run `lgrep` with `ugrep` by customizing `grep-template`
+to something like the following:
+
+    (setq-default grep-template "ugrep --color=always -0Iinr -e <R>")
 
 🔝 [Back to table of contents](#toc)
 
