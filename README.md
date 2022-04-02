@@ -622,7 +622,7 @@ Using ugrep within Emacs
 ------------------------
 
 Thanks to [Manuel Uberti](https://github.com/emacs-mirror/emacs/commits?author=manuel-uberti),
-you can now use **ugrep** in Emacs version 29 or greater (or download and build
+you can now use **ugrep** in Emacs version 29 or greater or download and build
 Emacs from the [Emacs master branch](https://github.com/emacs-mirror/emacs).
 
 To use **ugrep** instead of GNU grep within Emacs, add the following line to
