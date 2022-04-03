@@ -622,11 +622,8 @@ Using ugrep within Emacs
 ------------------------
 
 Thanks to [Manuel Uberti](https://github.com/emacs-mirror/emacs/commits?author=manuel-uberti),
-you can now use **ugrep** in Emacs version 29 or greater or download and build
-Emacs from the [Emacs master branch](https://github.com/emacs-mirror/emacs).
-
-To use **ugrep** instead of GNU grep within Emacs, add the following line to
-your `.emacs.d/init.el` file:
+you can now use **ugrep** in Emacs.  To use **ugrep** instead of GNU grep
+within Emacs, add the following line to your `.emacs.d/init.el` file:
 
     (setq-default xref-search-program ‘ugrep)
 
@@ -640,6 +637,15 @@ For instance, you can run `lgrep` with `ugrep` by customizing `grep-template`
 to something like the following:
 
     (setq-default grep-template "ugrep --color=always -0Iinr -e <R>")
+
+If you do not have Emacs version 29 (or greater) you can download and build
+Emacs from the [Emacs master branch](https://github.com/emacs-mirror/emacs),
+or enable Xref integration with **ugrep** manually:
+
+    (with-eval-after-load 'xref
+     (push '(ugrep . "xargs -0 ugrep <C> --null -ns -e <R>")
+           xref-search-program-alist)
+     (setq-default xref-search-program 'ugrep))
 
 🔝 [Back to table of contents](#toc)
 
