@@ -479,7 +479,7 @@ input file is too large (T3: 13GB file) resulting in an error.
 
 GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      | T11      | T12      |
 --------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-ugrep           | **0.03** | **0.04** | **6.05** | **0.07** | **0.02** | **0.98** | **0.97** | **0.87** | **0.26** | **0.10** | **0.19** | **0.02** |
+ugrep           | **0.02** | **0.03** | **6.05** | **0.07** | **0.02** | **0.98** | **0.97** | **0.87** | **0.26** | **0.10** | **0.19** | **0.02** |
 hyperscan grep  | 0.09     | 0.10     | **4.35** | 0.11     | 0.04     | 7.78     | 3.39     | 1.41     | 1.17     | *n/a*    | *n/a*    | *n/a*    |
 ripgrep         | 0.06     | 0.10     | 7.50     | 0.19     | 0.06     | 2.20     | 2.07     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
 silver searcher | 0.10     | 0.11     | *n/a*    | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
@@ -3986,16 +3986,18 @@ in markdown:
                   arguments.
 
            --encoding=ENCODING
-                  The encoding  format  of  the  input,  where  ENCODING  can  be:
-                  `binary',  `ASCII',  `UTF-8',  `UTF-16', `UTF-16BE', `UTF-16LE',
-                  `UTF-32',  `UTF-32BE',   `UTF-32LE',   `LATIN1',   `ISO-8859-1',
-                  `ISO-8859-2',    `ISO-8859-3',    `ISO-8859-4',    `ISO-8859-5',
-                  `ISO-8859-6',    `ISO-8859-7',    `ISO-8859-8',    `ISO-8859-9',
-                  `ISO-8859-10',   `ISO-8859-11',   `ISO-8859-13',  `ISO-8859-14',
-                  `ISO-8859-15',  `ISO-8859-16',  `MAC',   `MACROMAN',   `EBCDIC',
-                  `CP437',   `CP850',   `CP858',   `CP1250',  `CP1251',  `CP1252',
-                  `CP1253',  `CP1254',  `CP1255',  `CP1256',  `CP1257',  `CP1258',
-                  `KOI8-R', `KOI8-U', `KOI8-RU'.
+                  The encoding format of  the  input.   The  default  ENCODING  is
+                  binary and UTF-8 which are the same.  Note that option -U speci-
+                  fies binary PATTERN matching (text  matching  is  the  default.)
+                  ENCODING   can   be:   `binary',   `ASCII',  `UTF-8',  `UTF-16',
+                  `UTF-16BE',  `UTF-16LE',   `UTF-32',   `UTF-32BE',   `UTF-32LE',
+                  `LATIN1',      `ISO-8859-1',     `ISO-8859-2',     `ISO-8859-3',
+                  `ISO-8859-4',    `ISO-8859-5',    `ISO-8859-6',    `ISO-8859-7',
+                  `ISO-8859-8',    `ISO-8859-9',   `ISO-8859-10',   `ISO-8859-11',
+                  `ISO-8859-13',  `ISO-8859-14',   `ISO-8859-15',   `ISO-8859-16',
+                  `MAC',   `MACROMAN',   `EBCDIC',   `CP437',   `CP850',  `CP858',
+                  `CP1250',  `CP1251',  `CP1252',  `CP1253',  `CP1254',  `CP1255',
+                  `CP1256', `CP1257', `CP1258', `KOI8-R', `KOI8-U', `KOI8-RU'.
 
            --exclude=GLOB
                   Skip files whose name matches GLOB using wildcard matching, same
@@ -5133,7 +5135,7 @@ in markdown:
 
 
 
-    ugrep 3.7.7                     April 01, 2022                        UGREP(1)
+    ugrep 3.7.8                     April 05, 2022                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

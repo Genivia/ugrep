@@ -236,6 +236,9 @@ static void sigint(int sig)
 
 #endif
 
+// unique identifier (address) for standard input path
+static const char *LABEL_STANDARD_INPUT = "(standard input)";
+
 // full home directory path
 const char *home_dir = NULL;
 
@@ -405,7 +408,7 @@ const char *flag_format_end        = NULL;
 const char *flag_format_open       = NULL;
 const char *flag_group_separator   = "--";
 const char *flag_hexdump           = NULL;
-const char *flag_label             = "(standard input)";
+const char *flag_label             = LABEL_STANDARD_INPUT;
 const char *flag_pager             = DEFAULT_PAGER;
 const char *flag_replace           = NULL;
 const char *flag_save_config       = NULL;
@@ -2937,7 +2940,7 @@ struct Grep {
   // open a file for (binary) reading and assign input, decompress the file when -z, --decompress specified, may throw bad_alloc
   bool open_file(const char *pathname)
   {
-    if (pathname == NULL || *pathname == '\0')
+    if (pathname == LABEL_STANDARD_INPUT)
     {
       if (source == NULL)
         return false;
@@ -7438,7 +7441,7 @@ void Grep::ugrep()
     Stats::score_file();
 
     // search standard input
-    search(NULL);
+    search(LABEL_STANDARD_INPUT);
   }
 
   if (arg_files.empty())
@@ -8341,7 +8344,7 @@ void Grep::search(const char *pathname)
   }
 
   // pathname is NULL when stdin is searched
-  if (pathname == NULL || *pathname == '\0')
+  if (pathname == LABEL_STANDARD_INPUT)
     pathname = flag_label;
 
   bool colorize = flag_apply_color || flag_tag != NULL;
@@ -11676,7 +11679,9 @@ void help(std::ostream& out)
             specify multiple patterns, when a pattern begins with a dash (`-'),\n\
             to specify a pattern after option -f or after the FILE arguments.\n\
     --encoding=ENCODING\n\
-            The encoding format of the input, where ENCODING can be:";
+            The encoding format of the input.  The default ENCODING is binary\n\
+            and UTF-8 which are the same.  Note that option -U specifies binary\n\
+            PATTERN matching (text matching is the default.)  ENCODING can be:";
   for (int i = 0; encoding_table[i].format != NULL; ++i)
     out << (i == 0 ? "" : ",") << (i % 4 ? " " : "\n            ") << "`" << encoding_table[i].format << "'";
   out << ".\n\

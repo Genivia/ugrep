@@ -812,8 +812,30 @@ bool Matcher::advance()
   if (bmd_ == 0)
   {
     // Boyer-Moore preprocessing of the given pattern pat of length len, generates bmd_ > 0 and bms_[] shifts.
-    // relative frequency table of English letters, source code, and UTF-8 bytes
-    static unsigned char freq[256] = "\0\0\0\0\0\0\0\0\0\73\4\0\0\4\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\73\70\70\1\1\2\2\70\70\70\2\2\70\70\70\2\3\3\3\3\3\3\3\3\3\3\70\70\70\70\70\70\2\35\14\24\26\37\20\17\30\33\11\12\25\22\32\34\15\7\27\31\36\23\13\21\10\16\6\70\1\70\2\70\1\67\46\56\60\72\52\51\62\65\43\44\57\54\64\66\47\41\61\63\71\55\45\53\42\50\40\70\2\70\2\0\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\0\0\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\46\56\56\56\56\56\56\56\56\56\56\56\56\46\56\56\73\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    // updated relative frequency table of English letters (with upper/lower-case ratio = 0.0563), punctuation and UTF-8 bytes
+    static unsigned char freq[256] =
+      // x64 binary ugrep.exe frequencies combined with ASCII TAB/LF/CR control code frequencies
+      "\377\101\14\22\15\21\10\10\24\73\41\10\11\41\6\51"
+      "\16\4\3\3\3\3\3\3\6\3\3\2\3\4\4\12"
+      // TAB/LF/CR control code frequencies in text
+      // "\0\0\0\0\0\0\0\0\0\73\41\0\0\41\0\0"
+      // "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+      // ASCII frequencies
+      "\377\0\1\1\0\0\16\33\6\6\7\0\27\11\27\14"
+      "\13\14\10\5\4\5\4\4\4\7\12\21\10\14\10\0"
+      "\0\11\2\3\5\16\2\2\7\10\0\1\4\3\7\10"
+      "\2\0\6\7\12\3\1\3\0\2\0\70\1\70\0\1"
+      "\0\237\35\64\133\373\53\47\170\205\3\20\115\64\202\227"
+      "\45\2\162\170\272\64\23\56\3\47\2\3\15\3\0\0"
+      // upper half with UTF-8 multibyte frequencies (synthesized)
+      "\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47"
+      "\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45"
+      "\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45"
+      "\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44"
+      "\0\0\5\5\5\5\5\5\5\5\5\5\5\5\5\5"
+      "\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5"
+      "\46\56\56\56\56\56\56\56\56\56\56\56\56\46\56\56"
+      "\73\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
     uint8_t n = static_cast<uint8_t>(len); // okay to cast: actually never more than 255
     uint16_t i;
     for (i = 0; i < 256; ++i)
@@ -826,12 +848,15 @@ bool Matcher::advance()
       bms_[pch] = static_cast<uint8_t>(n - i - 1);
       if (i > 0)
       {
-        if (freq[static_cast<uint8_t>(pre[lcp_])] > freq[pch])
+        unsigned char freqpch = freq[pch];
+        uint8_t lcpch = static_cast<uint8_t>(pre[lcp_]);
+        uint8_t lcsch = static_cast<uint8_t>(pre[lcs_]);
+        if (freq[lcpch] > freqpch)
         {
           lcs_ = lcp_;
           lcp_ = i;
         }
-        else if (freq[static_cast<uint8_t>(pre[lcs_])] > freq[pch])
+        else if (lcpch != pch && freq[lcsch] > freqpch)
         {
           lcs_ = i;
         }
@@ -842,7 +867,7 @@ bool Matcher::advance()
       if (pre[j - 1] == pre[i])
         break;
     bmd_ = i - j + 1;
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2) || defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2) || defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2 || defined(HAVE_NEON)
     size_t score = 0;
     for (i = 0; i < n; ++i)
       score += bms_[static_cast<uint8_t>(pre[i])];
@@ -851,19 +876,19 @@ bool Matcher::advance()
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
     if (!have_HW_SSE2() && !have_HW_AVX2() && !have_HW_AVX512BW())
     {
-      // if scoring is high and freq is high, then use our improved Boyer-Moore instead of memchr()
+      // if scoring is high and freq is high, then use our improved Boyer-Moore instead
 #if defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
-      // SSE2 is available, expect fast memchr() to use instead of BM
+      // SSE2 is available, expect fast memchr()
       if (score > 1 && fch > 35 && (score > 3 || fch > 50) && fch + score > 52)
         lcs_ = 0xffff;
 #else
-      // no SSE2 available, expect slow memchr() and use BM unless score or frequency are too low
+      // no SSE2 available, expect slow memchr()
       if (fch > 37 || (fch > 8 && score > 0))
         lcs_ = 0xffff;
 #endif
     }
-#elif defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
-    // SSE2 is available, expect fast memchr() to use instead of BM
+#elif defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2 || defined(HAVE_NEON)
+    // SIMD is available, if scoring is high and freq is high, then use our improved Boyer-Moore
     if (score > 1 && fch > 35 && (score > 3 || fch > 50) && fch + score > 52)
       lcs_ = 0xffff;
 #endif
@@ -876,7 +901,7 @@ bool Matcher::advance()
       const char *s = buf_ + loc + lcp_;
       const char *e = buf_ + end_ + lcp_ - len + 1;
 #if defined(COMPILE_AVX512BW)
-      // implements AVX512BW string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+      // implements AVX512BW string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
       __m512i vlcp = _mm512_set1_epi8(pre[lcp_]);
       __m512i vlcs = _mm512_set1_epi8(pre[lcs_]);
       while (s + 64 <= e)
@@ -909,7 +934,7 @@ bool Matcher::advance()
         s += 64;
       }
 #elif defined(COMPILE_AVX2)
-      // implements AVX2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+      // implements AVX2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
       __m256i vlcp = _mm256_set1_epi8(pre[lcp_]);
       __m256i vlcs = _mm256_set1_epi8(pre[lcs_]);
       while (s + 32 <= e)
@@ -944,7 +969,7 @@ bool Matcher::advance()
         s += 32;
       }
 #elif defined(HAVE_SSE2)
-      // implements SSE2 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html
+      // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
       __m128i vlcp = _mm_set1_epi8(pre[lcp_]);
       __m128i vlcs = _mm_set1_epi8(pre[lcs_]);
       while (s + 16 <= e)
@@ -979,7 +1004,7 @@ bool Matcher::advance()
         s += 16;
       }
 #elif defined(HAVE_NEON)
-      // implements NEON/AArch64 string search scheme based on in http://0x80.pl/articles/simd-friendly-karp-rabin.html but 64 bit optimized
+      // implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html but 64 bit optimized
       uint8x16_t vlcp = vdupq_n_u8(pre[lcp_]);
       uint8x16_t vlcs = vdupq_n_u8(pre[lcs_]);
       while (s + 16 <= e)

@@ -1,4 +1,4 @@
-.TH UGREP "1" "April 01, 2022" "ugrep 3.7.7" "User Commands"
+.TH UGREP "1" "April 05, 2022" "ugrep 3.7.8" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -212,7 +212,9 @@ specify multiple patterns, when a pattern begins with a dash (`\-'),
 to specify a pattern after option \fB\-f\fR or after the FILE arguments.
 .TP
 \fB\-\-encoding\fR=\fIENCODING\fR
-The encoding format of the input, where ENCODING can be:
+The encoding format of the input.  The default ENCODING is binary
+and UTF\-8 which are the same.  Note that option \fB\-U\fR specifies binary
+PATTERN matching (text matching is the default.)  ENCODING can be:
 `binary', `ASCII', `UTF\-8', `UTF\-16',
 `UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE',
 `UTF\-32LE', `LATIN1', `ISO\-8859\-1', `ISO\-8859\-2',
