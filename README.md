@@ -1690,9 +1690,12 @@ allowing the word to occur in strings and comments:
 ### Search non-Unicode files with --encoding
 
     --encoding=ENCODING
-            The input file encoding.
+            The encoding format of the input.  The default ENCODING is binary
+            and UTF-8 which are the same.  Note that option -U specifies binary
+            PATTERN matching (text matching is the default.)
 
-ASCII, UTF-8, UTF-16, and UTF-32 files do not require this option, assuming
+Binary, ASCII and UTF-8 files do not require this option to search them.  Also
+UTF-16 and UTF-32 files do not require this option to search them, assuming
 that UTF-16 and UTF-32 files start with a UTF BOM
 ([byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)) as usual.
 Other file encodings require option `--encoding=ENCODING`:
