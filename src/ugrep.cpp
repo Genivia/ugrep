@@ -11062,6 +11062,8 @@ done_search:
       // --break: add a line break when applicable
       if (flag_break && (matches > 0 || flag_any_line) && !flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL)
         out.nl();
+
+      Stats::score_matches(matches, matcher->lineno() > 0 ? matcher->lineno() - 1 : 0);
     }
 
     catch (EXIT_SEARCH&)

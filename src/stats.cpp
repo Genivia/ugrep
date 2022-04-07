@@ -43,20 +43,31 @@ void Stats::report(FILE *output)
 {
   size_t sf = searched_files();
   size_t sd = searched_dirs();
+  size_t sl = searched_lines();
   size_t ff = found_files();
   size_t fp = found_parts();
+  size_t fm = found_matches();
   size_t ws = warnings;
 
-  fprintf(output, "Searched %zu file%s", sf, (sf == 1 ? "" : "s"));
-  if (threads > 1)
-    fprintf(output, " with %zu threads", threads);
+  fprintf(output, NEWLINESTR "Searched %zu file%s", sf, (sf == 1 ? "" : "s"));
   if (sd > 0)
     fprintf(output, " in %zu director%s", sd, (sd == 1 ? "y" : "ies"));
-  fprintf(output, ": %zu matching", ff);
+  fprintf(output, " in %.3g seconds", 0.001 * reflex::timer_elapsed(timer));
+  if (threads > 1)
+    fprintf(output, " with %zu threads", threads);
+  fprintf(output, ": %zu matching (%.4g%%)", ff, 100.0 * ff / sf);
   if (fp > ff)
-    fprintf(output, " + %zu in archives" NEWLINESTR, fp - ff);
-  else
-    fprintf(output, NEWLINESTR);
+    fprintf(output, " + %zu in archives", fp - ff);
+  fprintf(output, NEWLINESTR);
+
+  if (fm > 0 && !flag_quiet && !flag_files_with_matches && !flag_files_without_match)
+  {
+    if (flag_ungroup || (flag_count && flag_only_matching))
+      fprintf(output, "Searched %zu line%s and found %zu matches (ungrouped)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm);
+    else
+      fprintf(output, "Searched %zu line%s: %zu matching (%.4g%%)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm, 100.0 * fm / sl);
+  }
+
   if (warnings > 0)
     fprintf(output, "Received %zu warning%s" NEWLINESTR, ws, ws == 1 ? "" : "s");
 
@@ -142,8 +153,11 @@ void Stats::report(FILE *output)
     fprintf(output, "  --exclude-dir='%s'%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
 }
 
+reflex::timer_type       Stats::timer;
 size_t                   Stats::files  = 0;
 size_t                   Stats::dirs   = 0;
 std::atomic_size_t       Stats::fileno;
 std::atomic_size_t       Stats::partno;
+std::atomic_size_t       Stats::matchno;
+std::atomic_size_t       Stats::lineno;
 std::vector<std::string> Stats::ignore;

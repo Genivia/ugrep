@@ -435,11 +435,15 @@ class AbstractMatcher {
     while (in.good()) // there is more to get while good(), e.g. via wrap()
     {
       (void)grow();
-      end_ += get(buf_ + end_, max_ - end_);
+      size_t len = get(buf_ + end_, max_ - end_);
+      if (len == 0)
+        break;
+      end_ += len;
     }
     if (end_ == max_)
       (void)grow(1); // make sure we have room for a final \0
-    return in.eof();
+    eof_ = in.eof();
+    return eof_;
   }
 #if defined(WITH_SPAN)
   /// Set event handler functor to invoke when the buffer contents are shifted out, e.g. for logging the data searched.
@@ -637,8 +641,7 @@ class AbstractMatcher {
   /// Set or change the starting line number of the last match.
   inline void lineno(size_t n) ///< new line number
   {
-    if (lpb_ < txt_)
-      (void)lineno(); // update lno_ and bol_ (or cno_) before overriding lno_
+    (void)lineno(); // update lno_ and bol_ (or cno_) before overriding lno_
     lno_ = n;
   }
   /// Updates and returns the starting line number of the match in the input character sequence.
@@ -663,7 +666,7 @@ class AbstractMatcher {
       else
       {
         __m128i vlcn = _mm_set1_epi8('\n');
-        while (s + 15 <= t)
+        while (s + 16 <= t)
         {
           __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
           __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
@@ -680,7 +683,7 @@ class AbstractMatcher {
       else
       {
         __m128i vlcn = _mm_set1_epi8('\n');
-        while (s + 15 <= t)
+        while (s + 16 <= t)
         {
           __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
           __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
@@ -691,7 +694,7 @@ class AbstractMatcher {
       }
 #elif defined(HAVE_SSE2)
       __m128i vlcn = _mm_set1_epi8('\n');
-      while (s + 15 <= t)
+      while (s + 16 <= t)
       {
         __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
         __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
@@ -794,6 +797,17 @@ class AbstractMatcher {
     /// @returns line number
   {
     return lineno() + lines() - 1;
+  }
+  /// Set or change the starting column number of the last match.
+  inline void columno(size_t n) ///< new column number
+  {
+    (void)lineno(); // update lno_ and bol_ (or cno_) before overriding lno_
+#if defined(WITH_SPAN)
+    cpb_ = txt_;
+#else
+    lpb_ = txt_;
+#endif
+    cno_ = n;
   }
   /// Updates and returns the starting column number of the matched text, taking tab spacing into account and counting wide characters as one character each
   inline size_t columno()

@@ -47,6 +47,7 @@ Stats::found_any_file()
 #define STATS_HPP
 
 #include "ugrep.hpp"
+#include <reflex/timer.h>
 
 // static class to collect global statistics
 class Stats {
@@ -56,10 +57,13 @@ class Stats {
   // reset stats
   static void reset()
   {
+    reflex::timer_start(timer);
     files = 0;
     dirs = 0;
     fileno = 0;
     partno = 0;
+    lineno = 0;
+    matchno = 0;
     ignore.clear();
   }
 
@@ -75,6 +79,13 @@ class Stats {
     ++dirs;
   }
 
+  // score matches
+  static void score_matches(size_t matches, size_t lines)
+  {
+    matchno += matches;
+    lineno += lines;
+  }
+
   // number of files searched
   static size_t searched_files()
   {
@@ -85,6 +96,12 @@ class Stats {
   static size_t searched_dirs()
   {
     return dirs;
+  }
+
+  // number of lines searched
+  static size_t searched_lines()
+  {
+    return lineno;
   }
 
   // atomically update the number of matching files found, excluding files in archives returns true if max file matches (+ number of threads-1 when sorting) is not reached yet
@@ -127,6 +144,12 @@ class Stats {
     return fileno > 0;
   }
 
+  // found matches
+  static size_t found_matches()
+  {
+    return matchno;
+  }
+
   // a .gitignore or similar file was encountered
   static void ignore_file(const std::string& filename)
   {
@@ -138,11 +161,14 @@ class Stats {
 
  protected:
 
-  static size_t                   files;  // number of files searched, excluding files in archives
-  static size_t                   dirs;   // number of directories searched
-  static std::atomic_size_t       fileno; // number of matching files, excluding files in archives, atomic for GrepWorker::search() update
-  static std::atomic_size_t       partno; // number of matching files, including files in archives, atomic for GrepWorker::search() update
-  static std::vector<std::string> ignore; // the .gitignore files encountered in the recursive search with --ignore-files
+  static reflex::timer_type       timer;   // elapsed wall-clock time in milli seconds (ms)
+  static size_t                   files;   // number of files searched, excluding files in archives
+  static size_t                   dirs;    // number of directories searched
+  static std::atomic_size_t       fileno;  // number of matching files, excluding files in archives, atomic for GrepWorker::search() update
+  static std::atomic_size_t       partno;  // number of matching files, including files in archives, atomic for GrepWorker::search() update
+  static std::atomic_size_t       lineno;  // number of lines searched cummulatively
+  static std::atomic_size_t       matchno; // number of matches found cummulatively
+  static std::vector<std::string> ignore;  // the .gitignore files encountered in the recursive search with --ignore-files
 
 };
 

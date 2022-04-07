@@ -45,7 +45,7 @@ size_t simd_nlcount_avx512bw(const char*& b, const char *e)
   size_t n = 0;
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
   __m512i vlcn = _mm512_set1_epi8('\n');
-  while (s + 63 <= e)
+  while (s + 64 <= e)
   {
     __m512i vlcm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
     uint64_t mask = _mm512_cmpeq_epi8_mask(vlcm, vlcn);

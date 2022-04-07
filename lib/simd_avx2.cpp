@@ -45,7 +45,7 @@ size_t simd_nlcount_avx2(const char*& b, const char *e)
   size_t n = 0;
 #if defined(HAVE_AVX2)
   __m256i vlcn = _mm256_set1_epi8('\n');
-  while (s + 31 <= e)
+  while (s + 32 <= e)
   {
     __m256i vlcm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
     __m256i vlceq = _mm256_cmpeq_epi8(vlcm, vlcn);
