@@ -1703,7 +1703,7 @@ struct Grep {
   // entry type
   enum class Type { SKIP, DIRECTORY, OTHER };
 
-  // entry data extracted from directory contents
+  // entry data extracted from directory contents, moves pathname to this entry
   struct Entry {
     Entry(std::string& pathname, ino_t inode, uint64_t info)
       :
@@ -3805,7 +3805,7 @@ void GrepWorker::execute()
     // end output in ORDERED mode (--sort) for this job slot
     out.end();
 
-    // if only one job is left to do, try stealing another job from a co-worker
+    // if only one job is left to do or nothing to do, then try stealing another job from a co-worker
     if (todo <= 1)
       master->steal(this);
   }
@@ -7297,7 +7297,9 @@ void ugrep()
 
     if (flag_fuzzy > 0)
     {
-      reflex::FuzzyMatcher matcher(pattern, static_cast<uint16_t>(flag_fuzzy), reflex::Input(), matcher_options.c_str());
+      // -U: disable fuzzy Unicode matching, ASCII/binary only with -Z MAX edit distance
+      uint16_t max = static_cast<uint16_t>(flag_fuzzy) | (flag_binary ? reflex::FuzzyMatcher::BIN : 0);
+      reflex::FuzzyMatcher matcher(pattern, max, reflex::Input(), matcher_options.c_str());
 
       if (!bcnf.singleton_or_undefined())
       {
@@ -7963,7 +7965,7 @@ void Grep::recurse(size_t level, const char *pathname)
 #endif
 
   // --ignore-files: check if one or more are present to read and extend the file and dir exclusions
-  std::unique_ptr<std::vector<std::string>> save_all_exclude, save_all_exclude_dir;
+  std::vector<std::string> save_all_exclude, save_all_exclude_dir;
   bool saved = false;
 
   if (!flag_ignore_files.empty())
@@ -7979,12 +7981,8 @@ void Grep::recurse(size_t level, const char *pathname)
       {
         if (!saved)
         {
-          save_all_exclude = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>(flag_all_exclude));
-          save_all_exclude->swap(flag_all_exclude);
-
-          save_all_exclude_dir = std::unique_ptr<std::vector<std::string>>(new std::vector<std::string>(flag_all_exclude_dir));
-          save_all_exclude_dir->swap(flag_all_exclude_dir);
-
+          save_all_exclude = flag_all_exclude;
+          save_all_exclude_dir = flag_all_exclude_dir;
           saved = true;
         }
 
@@ -7997,8 +7995,8 @@ void Grep::recurse(size_t level, const char *pathname)
 
   Stats::score_dir();
 
-  std::vector<Entry> content;
-  std::vector<Entry> subdirs;
+  std::vector<Entry> file_entries;
+  std::vector<Entry> dir_entries;
   std::string dirpathname;
 
 #ifdef OS_WIN
@@ -8047,14 +8045,14 @@ void Grep::recurse(size_t level, const char *pathname)
       switch (select(level + 1, dirpathname.c_str(), cFileName.c_str(), DIRENT_TYPE_UNKNOWN, inode, info))
       {
         case Type::DIRECTORY:
-          subdirs.emplace_back(dirpathname, 0, info);
+          dir_entries.emplace_back(dirpathname, 0, info);
           break;
 
         case Type::OTHER:
           if (flag_sort_key == Sort::NA)
             search(dirpathname.c_str());
           else
-            content.emplace_back(dirpathname, 0, info);
+            file_entries.emplace_back(dirpathname, 0, info);
           break;
 
         case Type::SKIP:
@@ -8111,14 +8109,14 @@ void Grep::recurse(size_t level, const char *pathname)
       switch (type)
       {
         case Type::DIRECTORY:
-          subdirs.emplace_back(dirpathname, inode, info);
+          dir_entries.emplace_back(dirpathname, inode, info);
           break;
 
         case Type::OTHER:
           if (flag_sort_key == Sort::NA)
             search(dirpathname.c_str());
           else
-            content.emplace_back(dirpathname, inode, info);
+            file_entries.emplace_back(dirpathname, inode, info);
           break;
 
         case Type::SKIP:
@@ -8142,14 +8140,14 @@ void Grep::recurse(size_t level, const char *pathname)
   // -Z and --sort=best: presearch the selected files to determine edit distance cost
   if (flag_fuzzy > 0 && flag_sort_key == Sort::BEST)
   {
-    auto entry = content.begin();
-    while (entry != content.end())
+    auto entry = file_entries.begin();
+    while (entry != file_entries.end())
     {
       entry->cost = cost(entry->pathname.c_str());
 
       // if a file has no match or cannot be opened, remove it
       if (entry->cost == 65535)
-        entry = content.erase(entry);
+        entry = file_entries.erase(entry);
       else
         ++entry;
     }
@@ -8161,27 +8159,27 @@ void Grep::recurse(size_t level, const char *pathname)
     if (flag_sort_key == Sort::NAME)
     {
       if (flag_sort_rev)
-        std::sort(content.begin(), content.end(), Entry::rev_comp_by_path);
+        std::sort(file_entries.begin(), file_entries.end(), Entry::rev_comp_by_path);
       else
-        std::sort(content.begin(), content.end(), Entry::comp_by_path);
+        std::sort(file_entries.begin(), file_entries.end(), Entry::comp_by_path);
     }
     else if (flag_sort_key == Sort::BEST)
     {
       if (flag_sort_rev)
-        std::sort(content.begin(), content.end(), Entry::rev_comp_by_best);
+        std::sort(file_entries.begin(), file_entries.end(), Entry::rev_comp_by_best);
       else
-        std::sort(content.begin(), content.end(), Entry::comp_by_best);
+        std::sort(file_entries.begin(), file_entries.end(), Entry::comp_by_best);
     }
     else
     {
       if (flag_sort_rev)
-        std::sort(content.begin(), content.end(), Entry::rev_comp_by_info);
+        std::sort(file_entries.begin(), file_entries.end(), Entry::rev_comp_by_info);
       else
-        std::sort(content.begin(), content.end(), Entry::comp_by_info);
+        std::sort(file_entries.begin(), file_entries.end(), Entry::comp_by_info);
     }
 
     // search the select sorted non-directory entries
-    for (const auto& entry : content)
+    for (const auto& entry : file_entries)
     {
       search(entry.pathname.c_str());
 
@@ -8201,21 +8199,21 @@ void Grep::recurse(size_t level, const char *pathname)
     if (flag_sort_key == Sort::NAME || flag_sort_key == Sort::BEST)
     {
       if (flag_sort_rev)
-        std::sort(subdirs.begin(), subdirs.end(), Entry::rev_comp_by_path);
+        std::sort(dir_entries.begin(), dir_entries.end(), Entry::rev_comp_by_path);
       else
-        std::sort(subdirs.begin(), subdirs.end(), Entry::comp_by_path);
+        std::sort(dir_entries.begin(), dir_entries.end(), Entry::comp_by_path);
     }
     else
     {
       if (flag_sort_rev)
-        std::sort(subdirs.begin(), subdirs.end(), Entry::rev_comp_by_info);
+        std::sort(dir_entries.begin(), dir_entries.end(), Entry::rev_comp_by_info);
       else
-        std::sort(subdirs.begin(), subdirs.end(), Entry::comp_by_info);
+        std::sort(dir_entries.begin(), dir_entries.end(), Entry::comp_by_info);
     }
   }
 
   // recurse into the selected subdirectories
-  for (const auto& entry : subdirs)
+  for (const auto& entry : dir_entries)
   {
     // stop after finding max-files matching files
     if (flag_max_files > 0 && Stats::found_parts() >= flag_max_files)
@@ -8247,11 +8245,11 @@ void Grep::recurse(size_t level, const char *pathname)
 #endif
   }
 
-  // --ignore-files: restore if changed
+  // --ignore-files: restore all exclusions when saved
   if (saved)
   {
-    save_all_exclude->swap(flag_all_exclude);
-    save_all_exclude_dir->swap(flag_all_exclude_dir);
+    save_all_exclude.swap(flag_all_exclude);
+    save_all_exclude_dir.swap(flag_all_exclude_dir);
   }
 }
 
@@ -11683,9 +11681,21 @@ void help(std::ostream& out)
     --encoding=ENCODING\n\
             The encoding format of the input.  The default ENCODING is binary\n\
             and UTF-8 which are the same.  Note that option -U specifies binary\n\
-            PATTERN matching (text matching is the default.)  ENCODING can be:";
+            PATTERN matching (text matching is the default.)  ENCODING can be:\n\
+           ";
+  size_t k = 10;
   for (int i = 0; encoding_table[i].format != NULL; ++i)
-    out << (i == 0 ? "" : ",") << (i % 4 ? " " : "\n            ") << "`" << encoding_table[i].format << "'";
+  {
+    size_t n = strlen(encoding_table[i].format);
+    k += n + 4;
+    out << (i == 0 ? "" : ",");
+    if (k > 79)
+    {
+      out << "\n           ";
+      k = 14 + n;
+    }
+    out << " `" << encoding_table[i].format << "'";
+  }
   out << ".\n\
     --exclude=GLOB\n\
             Skip files whose name matches GLOB using wildcard matching, same as\n\
@@ -12157,9 +12167,9 @@ void help(std::ostream& out)
             insertions, `-' allows deletions and `~' allows substitutions.  For\n\
             example, -Z+~3 allows up to three insertions or substitutions, but\n\
             no deletions.  The first character of an approximate match always\n\
-            matches the start of a pattern.  Option --sort=best orders matching\n\
-            files by best match.  No whitespace may be given between -Z and its\n\
-            argument.\n\
+            matches the start of a pattern.  Option -U applies fuzzy matching\n\
+            to bytes.  Option --sort=best orders matching files by best match.\n\
+            No whitespace may be given between -Z and its argument.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
             .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,\n\

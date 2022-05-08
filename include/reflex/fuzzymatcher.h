@@ -47,20 +47,16 @@ namespace reflex {
 class FuzzyMatcher : public Matcher {
  public:
   /// Optional flags for the max parameter to constrain fuzzy matching, otherwise no constraints
-  static const uint16_t INS = 0x1000; ///< fuzzy match allows character insertions
-  static const uint16_t DEL = 0x2000; ///< fuzzy match allows character deletions
-  static const uint16_t SUB = 0x4000; ///< character substitutions count as one edit, not two (insert+delete)
+  static const uint16_t INS = 0x1000; ///< fuzzy match allows character insertions (default)
+  static const uint16_t DEL = 0x2000; ///< fuzzy match allows character deletions (default)
+  static const uint16_t SUB = 0x4000; ///< character substitutions count as one edit, not two (insert+delete) (default)
+  static const uint16_t BIN = 0x8000; ///< binary matching without UTF-8 multibyte encodings
   /// Default constructor.
   FuzzyMatcher()
     :
-      Matcher(),
-      max_(1),
-      err_(0),
-      ins_(true),
-      del_(true),
-      sub_(true)
+      Matcher()
   {
-    bpt_.resize(max_);
+    distance(1);
   }
   /// Construct matcher engine from a pattern or a string regex, and an input character sequence.
   template<typename P> /// @tparam <P> a reflex::Pattern or a string regex 
@@ -69,14 +65,9 @@ class FuzzyMatcher : public Matcher {
       const Input& input = Input(), ///< input character sequence for this matcher
       const char  *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      Matcher(pattern, input, opt),
-      max_(1),
-      err_(0),
-      ins_(true),
-      del_(true),
-      sub_(true)
+      Matcher(pattern, input, opt)
   {
-    bpt_.resize(max_);
+    distance(1);
   }
   /// Construct matcher engine from a pattern or a string regex, and an input character sequence.
   template<typename P> /// @tparam <P> a reflex::Pattern or a string regex 
@@ -86,14 +77,9 @@ class FuzzyMatcher : public Matcher {
       const Input& input = Input(), ///< input character sequence for this matcher
       const char  *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      Matcher(pattern, input, opt),
-      max_(static_cast<uint8_t>(max)),
-      err_(0),
-      ins_(max <= 0xFF || (max & INS)),
-      del_(max <= 0xFF || (max & DEL)),
-      sub_(max <= 0xFF || (max & SUB))
+      Matcher(pattern, input, opt)
   {
-    bpt_.resize(max_);
+    distance(max);
   }
   /// Construct matcher engine from a pattern or a string regex, and an input character sequence.
   template<typename P> /// @tparam <P> a reflex::Pattern or a string regex 
@@ -102,14 +88,9 @@ class FuzzyMatcher : public Matcher {
       const Input& input = Input(), ///< input character sequence for this matcher
       const char  *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      Matcher(pattern, input, opt),
-      max_(1),
-      err_(0),
-      ins_(true),
-      del_(true),
-      sub_(true)
+      Matcher(pattern, input, opt)
   {
-    bpt_.resize(max_);
+    distance(1);
   }
   /// Construct matcher engine from a pattern or a string regex, and an input character sequence.
   template<typename P> /// @tparam <P> a reflex::Pattern or a string regex 
@@ -119,14 +100,9 @@ class FuzzyMatcher : public Matcher {
       const Input& input = Input(), ///< input character sequence for this matcher
       const char  *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      Matcher(pattern, input, opt),
-      max_(static_cast<uint8_t>(max)),
-      err_(0),
-      ins_(max <= 0xFF || (max & INS)),
-      del_(max <= 0xFF || (max & DEL)),
-      sub_(max <= 0xFF || (max & SUB))
+      Matcher(pattern, input, opt)
   {
-    bpt_.resize(max_);
+    distance(max);
   }
   /// Copy constructor.
   FuzzyMatcher(const FuzzyMatcher& matcher) ///< matcher to copy with pattern (pattern may be shared)
@@ -134,9 +110,10 @@ class FuzzyMatcher : public Matcher {
       Matcher(matcher),
       max_(matcher.max_),
       err_(0),
-      ins_(true),
-      del_(true),
-      sub_(true)
+      ins_(matcher.ins_),
+      del_(matcher.del_),
+      sub_(matcher.sub_),
+      bin_(matcher.bin_)
   {
     DBGLOG("FuzzyMatcher::FuzzyMatcher(matcher)");
     bpt_.resize(max_);
@@ -150,6 +127,8 @@ class FuzzyMatcher : public Matcher {
     ins_ = matcher.ins_;
     del_ = matcher.del_;
     sub_ = matcher.sub_;
+    bin_ = matcher.bin_;
+    bpt_.resize(max_);
     return *this;
   }
   /// Polymorphic cloning.
@@ -163,6 +142,17 @@ class FuzzyMatcher : public Matcher {
     const
   {
     return err_;
+  }
+  /// Set or update fuzzy distance parameters
+  void distance(uint16_t max) ///< max errors, INS, DEL, SUB
+  {
+    max_ = static_cast<uint8_t>(max);
+    err_ = 0;
+    ins_ = ((max & (INS | DEL | SUB)) == 0 || (max & INS));
+    del_ = ((max & (INS | DEL | SUB)) == 0 || (max & DEL));
+    sub_ = ((max & (INS | DEL | SUB)) == 0 || (max & SUB));
+    bin_ = (max & BIN);
+    bpt_.resize(max_);
   }
  protected:
   /// Save state to restore fuzzy matcher state after a second pass
@@ -208,14 +198,14 @@ class FuzzyMatcher : public Matcher {
     bool                   sub; ///< flag alternates between pattern char substitution (true) and insertion (false)
   };
   /// Set backtrack point.
-  void point(BacktrackPoint& bpt, const Pattern::Opcode *pc, bool alternate = true, bool eof = false)
+  void point(BacktrackPoint& bpt, const Pattern::Opcode *pc, size_t len, bool alternate = true, bool eof = false)
   {
-    // advance to the first goto opcode
+    // advance to a goto opcode
     while (!Pattern::is_opcode_goto(*pc))
       ++pc;
     bpt.pc0 = pc;
     bpt.pc1 = pc;
-    bpt.len = pos_ - (txt_ - buf_) - !eof;
+    bpt.len = len - !eof;
     bpt.err = err_;
     bpt.alt = sub_ && alternate;
     bpt.sub = bpt.alt;
@@ -227,13 +217,13 @@ class FuzzyMatcher : public Matcher {
     if (bpt.pc1 == NULL)
       return NULL;
     // done when no more goto opcodes on characters remain
-    if (!Pattern::is_opcode_goto(*bpt.pc1) || Pattern::is_meta(Pattern::lo_of(*bpt.pc1)))
+    if (!Pattern::is_opcode_goto(*bpt.pc1))
       return bpt.pc1 = NULL;
     Pattern::Index jump = Pattern::index_of(*bpt.pc1);
     // last opcode is a HALT?
     if (jump == Pattern::Const::HALT)
     {
-      if (!Pattern::is_opcode_goto(*bpt.pc0) || (Pattern::lo_of(*bpt.pc0) & 0xC0) != 0xC0)
+      if (bin_ || !Pattern::is_opcode_goto(*bpt.pc0) || (Pattern::lo_of(*bpt.pc0) & 0x80) != 0x80)
         return bpt.pc1 = NULL;
       // loop over UTF-8 multibytes, checking linear case only (i.e. one wide char or a short range)
       for (int i = 0; i < 3; ++i)
@@ -247,17 +237,23 @@ class FuzzyMatcher : public Matcher {
         const Pattern::Opcode *pc1 = pc0;
         while (!Pattern::is_opcode_goto(*pc1))
           ++pc1;
-        if (!Pattern::is_opcode_goto(*pc1) || Pattern::is_meta(Pattern::lo_of(*pc1)) || (Pattern::lo_of(*pc1) & 0x80) != 0x80)
+        if (Pattern::is_meta(Pattern::lo_of(*pc1)) || ((Pattern::lo_of(*pc1) & 0xC0) != 0x80 && (Pattern::hi_of(*pc1) & 0xC0) != 0x80))
           break;
         bpt.pc0 = pc0;
         bpt.pc1 = pc1;
       }
       jump = Pattern::index_of(*bpt.pc1);
+      if (jump == Pattern::Const::HALT)
+        return bpt.pc1 = NULL;
+      if (jump == Pattern::Const::LONG)
+        jump = Pattern::long_index_of(*++bpt.pc1);
       bpt.sub = bpt.alt;
       DBGLOG("Multibyte jump to %u", jump);
     }
-    if (jump == Pattern::Const::LONG)
-      jump = Pattern::long_index_of(bpt.pc1[1]);
+    else if (jump == Pattern::Const::LONG)
+    {
+      jump = Pattern::long_index_of(*++bpt.pc1);
+    }
     // restore errors
     err_ = bpt.err;
     // restore pos in the input
@@ -270,22 +266,31 @@ class FuzzyMatcher : public Matcher {
     // substitute or insert a pattern char in the text?
     if (bpt.sub)
     {
-      DBGLOG("Substitute, jump to %u at pos %zu", jump, pos_);
-      // skip UTF-8 multibytes
+      DBGLOG("Substitute, jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
       int c = get();
-      if (c >= 0xC0)
+      if (!bin_ && c != EOF)
       {
-        int n = (c >= 0xE0) + (c >= 0xF0);
-        while (n-- >= 0)
-          if ((c = get()) == EOF)
-            break;
+        // skip UTF-8 multibytes
+        if (c >= 0xC0)
+        {
+          int n = (c >= 0xE0) + (c >= 0xF0);
+          while (n-- >= 0)
+            if ((c = get()) == EOF)
+              break;
+        }
+        else
+        {
+          while ((peek() & 0xC0) == 0x80)
+            if ((c = get()) == EOF)
+              break;
+        }
       }
       bpt.sub = false;
       bpt.pc1 += !bpt.alt;
     }
     else
     {
-      DBGLOG("Insert, jump to %u at pos %zu", jump, pos_);
+      DBGLOG("Insert, jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
       bpt.sub = bpt.alt;
       ++bpt.pc1;
     }
@@ -321,17 +326,21 @@ redo:
       err_ = 0;
       uint8_t stack = 0;
       const Pattern::Opcode *pc = pat_->opc_;
+      // backtrack point (DFA and relative position in the match)
+      const Pattern::Opcode *pc0 = pc;
+      size_t len0 = pos_ - (txt_ - buf_);
       while (true)
       {
-        const Pattern::Opcode *pc0;
         while (true)
         {
           Pattern::Opcode opcode = *pc;
           Pattern::Index jump;
           DBGLOG("Fetch: code[%zu] = 0x%08X", pc - pat_->opc_, opcode);
-          pc0 = pc;
           if (!Pattern::is_opcode_goto(opcode))
           {
+            // save backtrack point (DFA and relative position in the match)
+            pc0 = pc;
+            len0 = pos_ - (txt_ - buf_);
             switch (opcode >> 24)
             {
               case 0xFE: // TAKE
@@ -383,7 +392,7 @@ redo:
               break;
             int c0 = c1;
             c1 = get();
-            DBGLOG("Get: c1 = %d", c1);
+            DBGLOG("Get: c1 = %d (0x%x)", c1, c1);
             // where to jump back to (backtrack on meta transitions)
             Pattern::Index back = Pattern::Const::IMAX;
             // to jump to longest sequence of matching metas
@@ -599,7 +608,13 @@ redo:
             if (c1 == EOF)
               break;
             c1 = get();
-            DBGLOG("Get: c1 = %d", c1);
+            DBGLOG("Get: c1 = %d (0x%x) at pos %zu", c1, c1, pos_ - 1);
+            if (bin_ || (c1 & 0xC0) != 0x80 || c1 == EOF)
+            {
+              // save backtrack point (DFA and relative position in the match)
+              pc0 = pc;
+              len0 = pos_ - (txt_ - buf_);
+            }
             if (c1 == EOF)
               break;
           }
@@ -673,7 +688,7 @@ unrolled:
               if (c1 == EOF)
                 break;
               // skip one (multibyte) char
-              if (c1 >= 0xC0)
+              if (!bin_ && c1 >= 0xC0)
               {
                 int n = (c1 >= 0xE0) + (c1 >= 0xF0);
                 while (n-- >= 0)
@@ -684,7 +699,7 @@ unrolled:
             }
             if (at_end())
             {
-              DBGLOG("match pos = %zu", pos_);
+              DBGLOG("Match pos = %zu", pos_);
               set_current(pos_);
               break;
             }
@@ -700,26 +715,33 @@ unrolled:
         if (c1 == '\0' || c1 == '\n' || c1 == EOF)
         {
           // do not try to fuzzy match NUL, LF, or EOF
-          if (err_ < max_ && del_)
+          if (err_ < max_)
           {
             ++err_;
-            // set backtrack point to insert pattern char only, not substitute, if pc0 os a different point than the last
-            if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
+            if (del_)
             {
-              point(bpt_[stack++], pc0, false, c1 == EOF);
-              DBGLOG("point[%u] at %zu EOF", stack - 1, pc0 - pat_->opc_);
+              // set backtrack point to insert pattern char only, not substitute, if pc0 os a different point than the last
+              if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
+              {
+                point(bpt_[stack++], pc0, len0, false, c1 == EOF);
+                DBGLOG("Point[%u] at %zu EOF", stack - 1, pc0 - pat_->opc_);
+              }
             }
           }
-          pc = NULL;
-          while (stack > 0 && pc == NULL)
+          else
           {
-            pc = backtrack(bpt_[stack - 1], c1);
+            // backtrack to try insertion or substitution of pattern char
+            pc = NULL;
+            while (stack > 0 && pc == NULL)
+            {
+              pc = backtrack(bpt_[stack - 1], c1);
+              if (pc == NULL)
+                --stack;
+            }
+            // exhausted all backtracking points?
             if (pc == NULL)
-              --stack;
+              break;
           }
-          // exhausted all backtracking points?
-          if (pc == NULL)
-            break;
         }
         else
         {
@@ -731,27 +753,36 @@ unrolled:
               // set backtrack point if pc0 is a different point than the last
               if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
               {
-                point(bpt_[stack++], pc0);
-                DBGLOG("point[%u] at %zu pos %zu", stack - 1, pc0 - pat_->opc_, pos_ - 1);
+                point(bpt_[stack++], pc0, len0);
+                DBGLOG("Point[%u] at %zu pos %zu", stack - 1, pc0 - pat_->opc_, pos_ - 1);
               }
             }
             if (ins_)
             {
-              // try pattern char deletion (text insertion): skip one (multibyte) char then rerun opcode at pc0
-              if (c1 >= 0xC0)
+              if (!bin_)
               {
-                int n = (c1 >= 0xE0) + (c1 >= 0xF0);
-                while (n-- >= 0)
-                  if ((c1 = get()) == EOF)
-                    break;
+                // try pattern char deletion (text insertion): skip one (multibyte) char then rerun opcode at pc0
+                if (c1 >= 0xC0)
+                {
+                  int n = (c1 >= 0xE0) + (c1 >= 0xF0);
+                  while (n-- >= 0)
+                    if ((c1 = get()) == EOF)
+                      break;
+                }
+                else
+                {
+                  while ((peek() & 0xC0) == 0x80)
+                    if ((c1 = get()) == EOF)
+                      break;
+                }
               }
               pc = pc0;
-              DBGLOG("delete %c at pos %zu", c1, pos_ - 1);
+              DBGLOG("Delete: %d (0x%x) at pos %zu", c1, c1, pos_ - 1);
             }
           }
           else
           {
-            // try insertion or substitution of pattern char
+            // backtrack to try insertion or substitution of pattern char
             pc = NULL;
             while (stack > 0 && pc == NULL)
             {
@@ -1041,9 +1072,10 @@ unrolled:
   std::vector<BacktrackPoint> bpt_; ///< vector of backtrack points, max_ size
   uint8_t max_;                     ///< max errors
   uint8_t err_;                     ///< accumulated edit distance (not guaranteed minimal)
-  bool ins_;                        ///< fuzzy match inserted chars (extra chars)
-  bool del_;                        ///< fuzzy match deleted chars (missing chars)
-  bool sub_;                        ///< fuzzy match substituted chars
+  bool ins_;                        ///< fuzzy match permits inserted chars (extra chars)
+  bool del_;                        ///< fuzzy match permits deleted chars (missing chars)
+  bool sub_;                        ///< fuzzy match permits substituted chars
+  bool bin_;                        ///< fuzzy match bytes, not UTF-8 multibyte encodings
 };
 
 } // namespace reflex

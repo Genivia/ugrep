@@ -393,7 +393,7 @@ redo:
         if (c1 == EOF)
           break;
         c1 = get();
-        DBGLOG("Get: c1 = %d", c1);
+        DBGLOG("Get: c1 = %d (0x%x) at pos %zu", c1, c1, pos_ - 1);
         if (c1 == EOF)
           break;
       }

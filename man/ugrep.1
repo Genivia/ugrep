@@ -1,4 +1,4 @@
-.TH UGREP "1" "April 07, 2022" "ugrep 3.7.9" "User Commands"
+.TH UGREP "1" "May 08, 2022" "ugrep 3.7.10" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -215,17 +215,15 @@ to specify a pattern after option \fB\-f\fR or after the FILE arguments.
 The encoding format of the input.  The default ENCODING is binary
 and UTF\-8 which are the same.  Note that option \fB\-U\fR specifies binary
 PATTERN matching (text matching is the default.)  ENCODING can be:
-`binary', `ASCII', `UTF\-8', `UTF\-16',
-`UTF\-16BE', `UTF\-16LE', `UTF\-32', `UTF\-32BE',
-`UTF\-32LE', `LATIN1', `ISO\-8859\-1', `ISO\-8859\-2',
-`ISO\-8859\-3', `ISO\-8859\-4', `ISO\-8859\-5', `ISO\-8859\-6',
-`ISO\-8859\-7', `ISO\-8859\-8', `ISO\-8859\-9', `ISO\-8859\-10',
-`ISO\-8859\-11', `ISO\-8859\-13', `ISO\-8859\-14', `ISO\-8859\-15',
-`ISO\-8859\-16', `MAC', `MACROMAN', `EBCDIC',
-`CP437', `CP850', `CP858', `CP1250',
-`CP1251', `CP1252', `CP1253', `CP1254',
-`CP1255', `CP1256', `CP1257', `CP1258',
-`KOI8\-R', `KOI8\-U', `KOI8\-RU'.
+`binary', `ASCII', `UTF\-8', `UTF\-16', `UTF\-16BE', `UTF\-16LE',
+`UTF\-32', `UTF\-32BE', `UTF\-32LE', `LATIN1', `ISO\-8859\-1',
+`ISO\-8859\-2', `ISO\-8859\-3', `ISO\-8859\-4', `ISO\-8859\-5',
+`ISO\-8859\-6', `ISO\-8859\-7', `ISO\-8859\-8', `ISO\-8859\-9',
+`ISO\-8859\-10', `ISO\-8859\-11', `ISO\-8859\-13', `ISO\-8859\-14',
+`ISO\-8859\-15', `ISO\-8859\-16', `MAC', `MACROMAN', `EBCDIC', `CP437',
+`CP850', `CP858', `CP1250', `CP1251', `CP1252', `CP1253', `CP1254',
+`CP1255', `CP1256', `CP1257', `CP1258', `KOI8\-R', `KOI8\-U',
+`KOI8\-RU'.
 .TP
 \fB\-\-exclude\fR=\fIGLOB\fR
 Skip files whose name matches GLOB using wildcard matching, same as
@@ -759,9 +757,9 @@ allowed.  If `+`, `\-' and/or `~' is specified, then `+' allows
 insertions, `\-' allows deletions and `~' allows substitutions.  For
 example, \fB\-Z\fR+~3 allows up to three insertions or substitutions, but
 no deletions.  The first character of an approximate match always
-matches the start of a pattern.  Option \fB\-\-sort\fR=best orders matching
-files by best match.  No whitespace may be given between \fB\-Z\fR and its
-argument.
+matches the start of a pattern.  Option \fB\-U\fR applies fuzzy matching
+to bytes.  Option \fB\-\-sort\fR=best orders matching files by best match.
+No whitespace may be given between \fB\-Z\fR and its argument.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,

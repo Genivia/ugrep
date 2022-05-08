@@ -52,7 +52,8 @@ void Stats::report(FILE *output)
   fprintf(output, NEWLINESTR "Searched %zu file%s", sf, (sf == 1 ? "" : "s"));
   if (sd > 0)
     fprintf(output, " in %zu director%s", sd, (sd == 1 ? "y" : "ies"));
-  fprintf(output, " in %.3g seconds", 0.001 * reflex::timer_elapsed(timer));
+  if (flag_query == 0 && flag_pager == NULL)
+    fprintf(output, " in %.3g seconds", 0.001 * reflex::timer_elapsed(timer));
   if (threads > 1)
     fprintf(output, " with %zu threads", threads);
   fprintf(output, ": %zu matching (%.4g%%)", ff, 100.0 * ff / sf);

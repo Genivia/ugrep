@@ -102,17 +102,17 @@ class AbstractMatcher {
     static const int UNK      = 256;        ///< unknown/undefined character meta-char marker
     static const int BOB      = 257;        ///< begin of buffer meta-char marker
     static const int EOB      = EOF;        ///< end of buffer meta-char marker
+    static const size_t BLOCK = 4096;       ///< minimum remaining unused space in the buffer, to prevent excessive shifting
 #ifndef REFLEX_BUFSZ
     static const size_t BUFSZ = (64*1024);  ///< initial buffer size, at least 4096 bytes
 #else
     static const size_t BUFSZ = REFLEX_BUFSZ;
 #endif
 #ifndef REFLEX_BOLSZ
-    static const size_t BOLSZ = (256*1024); ///< max begin of line size till match to retain in memory by growing the buffer
+    static const size_t BOLSZ = (3*BUFSZ);  ///< max begin of line size till match to retain in memory by growing the buffer
 #else
     static const size_t BOLSZ = REFLEX_BOLSZ;
 #endif
-    static const size_t BLOCK = 4096;       ///< minimum remaining unused space in the buffer, to prevent excessive shifting
     static const size_t REDO  = 0x7FFFFFFF; ///< reflex::Matcher::accept() returns "redo" with reflex::Matcher option "A"
     static const size_t EMPTY = 0xFFFFFFFF; ///< accept() returns "empty" last split at end of input
   };

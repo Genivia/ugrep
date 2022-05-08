@@ -1128,7 +1128,7 @@ void Pattern::parse4(
     {
       if (c == '[' && (at(loc + 1) == ':' || at(loc + 1) == '.' || at(loc + 1) == '='))
       {
-        size_t c_loc = find_at(loc + 2, at(loc + 1));
+        size_t c_loc = find_at(loc + 2, static_cast<char>(at(loc + 1)));
         if (c_loc != std::string::npos && at(static_cast<Location>(c_loc + 1)) == ']')
           loc = static_cast<Location>(c_loc + 1);
       }
