@@ -72,6 +72,7 @@ enum class Action { UNSP, SKIP, READ, RECURSE };
 extern bool flag_all_threads;
 extern bool flag_any_line;
 extern bool flag_basic_regexp;
+extern bool flag_best_match;
 extern bool flag_bool;
 extern bool flag_confirm;
 extern bool flag_count;

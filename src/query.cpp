@@ -2929,14 +2929,14 @@ void Query::meta(int key)
           flags_[30].flag = true;
 
           if ((fuzzy_ & 0xff) > 1)
-            --fuzzy_;
+            fuzzy_ = ((fuzzy_ & 0xff) - 1) | (fuzzy_ & 0xff00);
 
           msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
         }
         else if (key == ']')
         {
           if (flags_[30].flag && (fuzzy_ & 0xff) < 0xff)
-            ++fuzzy_;
+            fuzzy_ = ((fuzzy_ & 0xff) + 1) | (fuzzy_ & 0xff00);
           else
             flags_[30].flag = true;
 

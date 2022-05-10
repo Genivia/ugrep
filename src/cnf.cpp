@@ -34,8 +34,8 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#include "cnf.hpp"
 #include "ugrep.hpp"
+#include <reflex/fuzzymatcher.h>
 
 // parse a pattern into an operator tree using a recursive descent parser
 void CNF::OpTree::parse(const char *& pattern)
@@ -612,10 +612,25 @@ void CNF::report(FILE *output) const
 
   fprintf(output, flag_files ? "Files " : "Lines ");
 
+
   if (flag_fuzzy > 0)
-    fprintf(output, "fuzzy-matched with max edit distance %zu", flag_fuzzy & 255);
+  {
+    fprintf(output, "fuzzy-matched ");
+    if (flag_best_match)
+      fprintf(output, "as best matching ");
+    fprintf(output, "with max edit distance ");
+    if ((flag_fuzzy & reflex::FuzzyMatcher::INS))
+      fprintf(output, "+");
+    if ((flag_fuzzy & reflex::FuzzyMatcher::DEL))
+      fprintf(output, "-");
+    if ((flag_fuzzy & reflex::FuzzyMatcher::SUB))
+      fprintf(output, "~");
+    fprintf(output, "%zu", (flag_fuzzy & 0xff));
+  }
   else
+  {
     fprintf(output, "matched");
+  }
   if (flag_ignore_case)
     fprintf(output, " ignoring case");
   fprintf(output, " if:" NEWLINESTR "  ");

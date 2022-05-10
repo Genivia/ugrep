@@ -313,6 +313,7 @@ std::set<uint64_t> exclude_fs_ids, include_fs_ids;
 bool flag_all_threads              = false;
 bool flag_any_line                 = false;
 bool flag_basic_regexp             = false;
+bool flag_best_match               = false;
 bool flag_bool                     = false;
 bool flag_confirm                  = DEFAULT_CONFIRM;
 bool flag_count                    = false;
@@ -1705,12 +1706,17 @@ struct Grep {
 
   // entry data extracted from directory contents, moves pathname to this entry
   struct Entry {
+
+    static const uint16_t MIN_COST       = 0;
+    static const uint16_t UNDEFINED_COST = 65534;
+    static const uint16_t MAX_COST       = 65535;
+
     Entry(std::string& pathname, ino_t inode, uint64_t info)
       :
         pathname(std::move(pathname)),
         inode(inode),
         info(info),
-        cost(0)
+        cost(UNDEFINED_COST)
     { }
 
     std::string pathname;
@@ -1769,6 +1775,36 @@ struct Grep {
     {
       return a.cost > b.cost || (a.cost == b.cost && a.pathname > b.pathname);
     }
+  };
+
+  // a job in the job queue
+  struct Job {
+
+    // sentinel job NONE
+    static const size_t NONE = UNDEFINED_SIZE;
+
+    Job()
+      :
+        pathname(),
+        cost(Entry::UNDEFINED_COST),
+        slot(NONE)
+    { }
+
+    Job(const char *pathname, uint16_t cost, size_t slot)
+      :
+        pathname(pathname != NULL ? pathname : ""),
+        cost(cost),
+        slot(slot)
+    { }
+
+    bool none()
+    {
+      return slot == NONE;
+    }
+
+    std::string pathname;
+    uint16_t    cost;
+    size_t      slot;
   };
 
 #ifndef OS_WIN
@@ -2778,11 +2814,11 @@ struct Grep {
   // recurse a directory
   virtual void recurse(size_t level, const char *pathname);
 
-  // -Z and --sort=best: perform a presearch to determine edit distance cost, return cost of pathname file, 65535 when no match is found
-  uint16_t cost(const char *pathname);
+  // -Z and --sort=best: perform a presearch to determine edit distance cost, return cost of pathname file, MAX_COST when no match is found
+  uint16_t compute_cost(const char *pathname);
 
   // search a file
-  virtual void search(const char *pathname);
+  virtual void search(const char *pathname, uint16_t cost);
 
   // check CNF AND/OR/NOT conditions are met for the line(s) spanning bol to eol
   bool cnf_matching(const char *bol, const char *eol, bool acquire = false)
@@ -3441,33 +3477,6 @@ struct Grep {
 
 };
 
-// a job in the job queue
-struct Job {
-
-  // sentinel job NONE
-  static const size_t NONE = UNDEFINED_SIZE;
-
-  Job()
-    :
-      pathname(),
-      slot(NONE)
-  { }
-
-  Job(const char *pathname, size_t slot)
-    :
-      pathname(pathname != NULL ? pathname : ""),
-      slot(slot)
-  { }
-
-  bool none()
-  {
-    return slot == NONE;
-  }
-
-  std::string pathname;
-  size_t      slot;
-};
-
 struct GrepWorker;
 
 // master submits jobs to workers and implements operations to support lock-free job stealing
@@ -3528,9 +3537,9 @@ struct GrepMaster : public Grep {
   }
 
   // search a file by submitting it as a job to a worker
-  void search(const char *pathname) override
+  void search(const char *pathname, uint16_t cost) override
   {
-    submit(pathname);
+    submit(pathname, cost);
   }
 
   // start worker threads
@@ -3540,7 +3549,7 @@ struct GrepMaster : public Grep {
   void stop_workers();
 
   // submit a job with a pathname to a worker, workers are visited round-robin
-  void submit(const char *pathname);
+  void submit(const char *pathname, uint16_t cost);
 
   // lock-free job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
   bool steal(GrepWorker *worker);
@@ -3595,14 +3604,14 @@ struct GrepWorker : public Grep {
   }
 
   // submit a job to this worker
-  void submit_job(const char *pathname, size_t slot)
+  void submit_job(const char *pathname, uint16_t cost, size_t slot)
   {
     while (todo >= MAX_JOB_QUEUE_SIZE && !out.eof && !out.cancelled())
       std::this_thread::sleep_for(std::chrono::milliseconds(100)); // give the worker threads some slack
 
     std::unique_lock<std::mutex> lock(queue_mutex);
 
-    jobs.emplace_back(pathname, slot);
+    jobs.emplace_back(pathname, cost, slot);
     ++todo;
 
     queue_work.notify_one();
@@ -3730,9 +3739,9 @@ void GrepMaster::stop_workers()
 }
 
 // submit a job with a pathname to a worker, workers are visited round-robin
-void GrepMaster::submit(const char *pathname)
+void GrepMaster::submit(const char *pathname, uint16_t cost)
 {
-  iworker->submit_job(pathname, sync.next++);
+  iworker->submit_job(pathname, cost, sync.next++);
 
   // around we go
   ++iworker;
@@ -3800,7 +3809,7 @@ void GrepWorker::execute()
     out.begin(job.slot);
 
     // search the file for this job
-    search(job.pathname.c_str());
+    search(job.pathname.c_str(), job.cost);
 
     // end output in ORDERED mode (--sort) for this job slot
     out.end();
@@ -4354,6 +4363,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_basic_regexp = true;
                 else if (strncmp(arg, "before-context=", 15) == 0)
                   flag_before_context = strtonum(arg + 15, "invalid argument --before-context=");
+                else if (strcmp(arg, "best-match") == 0)
+                  flag_best_match = true;
                 else if (strcmp(arg, "binary") == 0)
                   flag_binary = true;
                 else if (strncmp(arg, "binary-files=", 13) == 0)
@@ -5162,7 +5173,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
           case 'Z':
             ++arg;
-            if (*arg == '=' || isdigit(*arg) || strchr("+-~", *arg) != NULL)
+            if (*arg == '=' || strncmp(arg, "best", 4) == 0 || isdigit(*arg) || strchr("+-~", *arg) != NULL)
             {
               flag_fuzzy = strtofuzzy(&arg[*arg == '='], "invalid argument -Z=");
               is_grouped = false;
@@ -7443,7 +7454,7 @@ void Grep::ugrep()
     Stats::score_file();
 
     // search standard input
-    search(LABEL_STANDARD_INPUT);
+    search(LABEL_STANDARD_INPUT, static_cast<uint16_t>(flag_fuzzy));
   }
 
   if (arg_files.empty())
@@ -7498,7 +7509,7 @@ void Grep::ugrep()
           break;
 
         case Type::OTHER:
-          search(pathname);
+          search(pathname, Entry::UNDEFINED_COST);
           break;
 
         case Type::SKIP:
@@ -8050,7 +8061,7 @@ void Grep::recurse(size_t level, const char *pathname)
 
         case Type::OTHER:
           if (flag_sort_key == Sort::NA)
-            search(dirpathname.c_str());
+            search(dirpathname.c_str(), Entry::UNDEFINED_COST);
           else
             file_entries.emplace_back(dirpathname, 0, info);
           break;
@@ -8114,7 +8125,7 @@ void Grep::recurse(size_t level, const char *pathname)
 
         case Type::OTHER:
           if (flag_sort_key == Sort::NA)
-            search(dirpathname.c_str());
+            search(dirpathname.c_str(), Entry::UNDEFINED_COST);
           else
             file_entries.emplace_back(dirpathname, inode, info);
           break;
@@ -8143,10 +8154,10 @@ void Grep::recurse(size_t level, const char *pathname)
     auto entry = file_entries.begin();
     while (entry != file_entries.end())
     {
-      entry->cost = cost(entry->pathname.c_str());
+      entry->cost = compute_cost(entry->pathname.c_str());
 
-      // if a file has no match or cannot be opened, remove it
-      if (entry->cost == 65535)
+      // if a file cannot be opened, then remove it
+      if (entry->cost == Entry::UNDEFINED_COST)
         entry = file_entries.erase(entry);
       else
         ++entry;
@@ -8181,7 +8192,7 @@ void Grep::recurse(size_t level, const char *pathname)
     // search the select sorted non-directory entries
     for (const auto& entry : file_entries)
     {
-      search(entry.pathname.c_str());
+      search(entry.pathname.c_str(), entry.cost);
 
       // stop after finding max-files matching files
       if (flag_max_files > 0 && Stats::found_parts() >= flag_max_files)
@@ -8253,11 +8264,11 @@ void Grep::recurse(size_t level, const char *pathname)
   }
 }
 
-// -Z and --sort=best: perform a presearch to determine edit distance cost, returns 65535 when no match is found
-uint16_t Grep::cost(const char *pathname)
+// -Z and --sort=best: perform a presearch to determine edit distance cost, returns MAX_COST when no match is found
+uint16_t Grep::compute_cost(const char *pathname)
 {
-  // default cost is max, which erases pathname from the sorted list
-  uint16_t cost = 65535;
+  // default cost is undefined, which erases pathname from the sorted list
+  uint16_t cost = Entry::UNDEFINED_COST;
 
   // stop when output is blocked
   if (out.eof)
@@ -8278,8 +8289,11 @@ uint16_t Grep::cost(const char *pathname)
     return cost;
   }
 
+  cost = Entry::MAX_COST;
+
   // -Z: matcher is a FuzzyMatcher for sure
   reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
+  fuzzy_matcher->distance(static_cast<uint16_t>(flag_fuzzy));
 
   // search file to compute minimum cost
   do
@@ -8320,8 +8334,43 @@ uint16_t Grep::cost(const char *pathname)
 }
 
 // search input and display pattern matches
-void Grep::search(const char *pathname)
+void Grep::search(const char *pathname, uint16_t cost)
 {
+  // -Zbest (or pseudo --best-match): compute cost if not yet computed by --sort=best
+  if (flag_best_match && flag_fuzzy > 0 && !flag_quiet && !flag_files_with_matches && matchers == NULL)
+  {
+    // -Z: matcher is a FuzzyMatcher for sure
+    reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
+    fuzzy_matcher->distance(static_cast<uint16_t>(flag_fuzzy));
+
+    if (pathname != LABEL_STANDARD_INPUT)
+    {
+      // compute distance cost if not yet computed by --sort=best
+      if (cost == Entry::UNDEFINED_COST)
+      {
+        cost = compute_cost(pathname);
+
+        // if no match, then stop searching this file
+        if (cost == Entry::UNDEFINED_COST)
+          return;
+      }
+
+      // no match found?
+      if (cost == Entry::MAX_COST)
+      {
+        if (!flag_invert_match)
+          return;
+
+        // -v: invert match when no match was found, zero cost since we don't expect any matches
+        cost = 0;
+      }
+
+      // combine max distance cost (lower byte) with INS, DEL, SUB and BIN fuzzy flags (upper byte)
+      cost = (cost & 0xff) | (flag_fuzzy & 0xff00);
+      fuzzy_matcher->distance(cost);
+    }
+  }
+
   // stop when output is blocked
   if (out.eof)
     return;
@@ -11466,6 +11515,12 @@ size_t strtofuzzy(const char *string, const char *message)
   {
     switch (*string)
     {
+      case 'b':
+        if (strncmp(string, "best", 4) != 0)
+          usage(message, string);
+        flag_best_match = true;
+        string += 4;
+        break;
       case '+':
         flags |= reflex::FuzzyMatcher::INS;
         ++string;
@@ -11480,7 +11535,7 @@ size_t strtofuzzy(const char *string, const char *message)
         break;
       default:
         max = static_cast<size_t>(strtoull(string, &rest, 10));
-        if (max == 0 || max > 255 || rest == NULL || *rest != '\0')
+        if (max == 0 || max > 0xff || rest == NULL || *rest != '\0')
           usage(message, string);
         string = rest;
     }
@@ -11956,9 +12011,9 @@ void help(std::ostream& out)
             under certain conditions to improve performance.  When MAX is\n\
             specified, use up to MAX mmap memory per thread.\n\
     -N PATTERN, --neg-regexp=PATTERN\n\
-            Specify a negative PATTERN used during the search of the input:\n\
-            an input line is selected only if it matches any of the specified\n\
-            patterns unless a subpattern of PATTERN.  Same as -e (?^PATTERN).\n\
+            Specify a negative PATTERN used during the search of the input: an\n\
+            input line is selected only if it matches the specified patterns\n\
+            unless it matches the negative PATTERN.  Same as -e (?^PATTERN).\n\
             Negative pattern matches are essentially removed before any other\n\
             patterns are matched.  Note that longer patterns take precedence\n\
             over shorter patterns.  This option may be repeated.\n\
@@ -12076,8 +12131,8 @@ void help(std::ostream& out)
             Displays matching files in the order specified by KEY in recursive\n\
             searches.  KEY can be `name' to sort by pathname (default), `best'\n\
             to sort by best match with option -Z (sort by best match requires\n\
-            two passes over the input files), `size' to sort by file size,\n\
-            `used' to sort by last access time, `changed' to sort by last\n\
+            two passes over files, which is expensive), `size' to sort by file\n\
+            size, `used' to sort by last access time, `changed' to sort by last\n\
             modification time and `created' to sort by creation time.  Sorting\n\
             is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or\n\
             `rcreated'.  Archive contents are not sorted.  Subdirectories are\n\
@@ -12160,16 +12215,19 @@ void help(std::ostream& out)
     -y, --any-line, --passthru\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
             context with a `-' separator.  See also options -A, -B and -C.\n\
-    -Z[+-~][MAX], --fuzzy=[+-~][MAX]\n\
+    -Z[best][+-~][MAX], --fuzzy=[best][+-~][MAX]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             The default is -Z1: one deletion, insertion or substitution is\n\
             allowed.  If `+`, `-' and/or `~' is specified, then `+' allows\n\
             insertions, `-' allows deletions and `~' allows substitutions.  For\n\
             example, -Z+~3 allows up to three insertions or substitutions, but\n\
-            no deletions.  The first character of an approximate match always\n\
+            no deletions.  If `best' is specified, then only the best matching\n\
+            lines are output with the lowest cost per file.  Option -Zbest\n\
+            requires two passes over a file and cannot be used with standard\n\
+            input or Boolean queries.  Option --sort=best orders matching files\n\
+            by best match.  The first character of an approximate match always\n\
             matches the start of a pattern.  Option -U applies fuzzy matching\n\
-            to bytes.  Option --sort=best orders matching files by best match.\n\
-            No whitespace may be given between -Z and its argument.\n\
+            to bytes.  No whitespace may be given between -Z and its argument.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
             .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,\n\

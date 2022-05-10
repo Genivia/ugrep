@@ -223,13 +223,13 @@ class FuzzyMatcher : public Matcher {
     // last opcode is a HALT?
     if (jump == Pattern::Const::HALT)
     {
-      if (bin_ || !Pattern::is_opcode_goto(*bpt.pc0) || (Pattern::lo_of(*bpt.pc0) & 0x80) != 0x80)
+      if (bin_ || !Pattern::is_opcode_goto(*bpt.pc0) || (Pattern::lo_of(*bpt.pc0) & 0xC0) != 0xC0 || (Pattern::hi_of(*bpt.pc0) & 0xC0) != 0xC0)
         return bpt.pc1 = NULL;
       // loop over UTF-8 multibytes, checking linear case only (i.e. one wide char or a short range)
       for (int i = 0; i < 3; ++i)
       {
         jump = Pattern::index_of(*bpt.pc0);
-        if (jump == Pattern::Const::HALT)
+        if (jump == Pattern::Const::HALT || pat_->opc_ + jump == bpt.pc0)
           return bpt.pc1 = NULL;
         if (jump == Pattern::Const::LONG)
           jump = Pattern::long_index_of(bpt.pc0[1]);
@@ -266,7 +266,7 @@ class FuzzyMatcher : public Matcher {
     // substitute or insert a pattern char in the text?
     if (bpt.sub)
     {
-      DBGLOG("Substitute, jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
+      DBGLOG("Substitute: jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
       int c = get();
       if (!bin_ && c != EOF)
       {
@@ -290,7 +290,7 @@ class FuzzyMatcher : public Matcher {
     }
     else
     {
-      DBGLOG("Insert, jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
+      DBGLOG("Delete: jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
       bpt.sub = bpt.alt;
       ++bpt.pc1;
     }
@@ -715,17 +715,14 @@ unrolled:
         if (c1 == '\0' || c1 == '\n' || c1 == EOF)
         {
           // do not try to fuzzy match NUL, LF, or EOF
-          if (err_ < max_)
+          if (err_ < max_ && del_)
           {
             ++err_;
-            if (del_)
+            // set backtrack point to insert pattern char only, not substitute, if pc0 os a different point than the last
+            if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
             {
-              // set backtrack point to insert pattern char only, not substitute, if pc0 os a different point than the last
-              if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
-              {
-                point(bpt_[stack++], pc0, len0, false, c1 == EOF);
-                DBGLOG("Point[%u] at %zu EOF", stack - 1, pc0 - pat_->opc_);
-              }
+              point(bpt_[stack++], pc0, len0, false, c1 == EOF);
+              DBGLOG("Point[%u] at %zu EOF", stack - 1, pc0 - pat_->opc_);
             }
           }
           else
@@ -777,7 +774,7 @@ unrolled:
                 }
               }
               pc = pc0;
-              DBGLOG("Delete: %d (0x%x) at pos %zu", c1, c1, pos_ - 1);
+              DBGLOG("Insert: %d (0x%x) at pos %zu", c1, c1, pos_ - 1);
             }
           }
           else

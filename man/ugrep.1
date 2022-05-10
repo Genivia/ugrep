@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 08, 2022" "ugrep 3.7.10" "User Commands"
+.TH UGREP "1" "May 10, 2022" "ugrep 3.7.11" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -504,9 +504,9 @@ under certain conditions to improve performance.  When MAX is
 specified, use up to MAX mmap memory per thread.
 .TP
 \fB\-N\fR \fIPATTERN\fR, \fB\-\-neg\-regexp\fR=\fIPATTERN\fR
-Specify a negative PATTERN used during the search of the input:
-an input line is selected only if it matches any of the specified
-patterns unless a subpattern of PATTERN.  Same as \fB\-e\fR (?^PATTERN).
+Specify a negative PATTERN used during the search of the input: an
+input line is selected only if it matches the specified patterns
+unless it matches the negative PATTERN.  Same as \fB\-e\fR (?^PATTERN).
 Negative pattern matches are essentially removed before any other
 patterns are matched.  Note that longer patterns take precedence
 over shorter patterns.  This option may be repeated.
@@ -636,8 +636,8 @@ number, byte offset and the matched line.  The default is a colon
 Displays matching files in the order specified by KEY in recursive
 searches.  KEY can be `name' to sort by pathname (default), `best'
 to sort by best match with option \fB\-Z\fR (sort by best match requires
-two passes over the input files), `size' to sort by file size,
-`used' to sort by last access time, `changed' to sort by last
+two passes over files, which is expensive), `size' to sort by file
+size, `used' to sort by last access time, `changed' to sort by last
 modification time and `created' to sort by creation time.  Sorting
 is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or
 `rcreated'.  Archive contents are not sorted.  Subdirectories are
@@ -750,16 +750,19 @@ not only lines containing the character `x'.
 Any line is output (passthru).  Non\-matching lines are output as
 context with a `\-' separator.  See also options \fB\-A\fR, \fB\-B\fR and \fB\-C\fR.
 .TP
-\fB\-Z\fR[+\-~][\fIMAX\fR], \fB\-\-fuzzy\fR=[+\-~][\fIMAX\fR]
+\fB\-Z\fR[best][+\-~][\fIMAX\fR], \fB\-\-fuzzy\fR=[best][+\-~][\fIMAX\fR]
 Fuzzy mode: report approximate pattern matches within MAX errors.
 The default is \fB\-Z\fR1: one deletion, insertion or substitution is
 allowed.  If `+`, `\-' and/or `~' is specified, then `+' allows
 insertions, `\-' allows deletions and `~' allows substitutions.  For
 example, \fB\-Z\fR+~3 allows up to three insertions or substitutions, but
-no deletions.  The first character of an approximate match always
+no deletions.  If `best' is specified, then only the best matching
+lines are output with the lowest cost per file.  Option \fB\-Z\fRbest
+requires two passes over a file and cannot be used with standard
+input or Boolean queries.  Option \fB\-\-sort\fR=best orders matching files
+by best match.  The first character of an approximate match always
 matches the start of a pattern.  Option \fB\-U\fR applies fuzzy matching
-to bytes.  Option \fB\-\-sort\fR=best orders matching files by best match.
-No whitespace may be given between \fB\-Z\fR and its argument.
+to bytes.  No whitespace may be given between \fB\-Z\fR and its argument.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Decompress files to search, when compressed.  Archives (.cpio,
