@@ -247,6 +247,12 @@ search for "Path" in *Find a Setting*.  Select *environment variables* ->
 *Path* -> *New* and add the directory where you placed the `ugrep.exe` and
 `ug.exe` executables.
 
+### Arch Linux
+
+    $ pacman -S ugrep
+
+Check <https://archlinux.org/packages/community/x86_64/ugrep/> for version info.
+
 ### Debian
 
     $ apt-get install ugrep
