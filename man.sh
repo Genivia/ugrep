@@ -29,14 +29,16 @@ input lines if the RE in the pattern matches one or more newlines in the input.
 An empty pattern matches every line.  Each input line that matches at least one
 of the patterns is written to the standard output.
 .PP
+The \fBug\fR command is intended for interactive searching, using a .ugrep
+configuration file located in the working directory or home directory, see
+CONFIGURATION.  \fBug\fR is equivalent to \fBugrep --config\fR and sorts files
+by name by default.
+.PP
 \fBugrep\fR accepts input of various encoding formats and normalizes the output
 to UTF-8.  When a UTF byte order mark is present in the input, the input is
 automatically normalized; otherwise, \fBugrep\fR assumes the input is ASCII,
 UTF-8, or raw binary.  An input encoding format may be specified with option
 \fB--encoding\fR.
-.PP
-The \fBug\fR command is equivalent to \fBugrep --config\fR to load the default
-configuration file, which allows for customization, see CONFIGURATION.
 .PP
 If no \fIFILE\fR arguments are specified and standard input is read from a
 terminal, recursive searches are performed as if \fB-R\fR is specified.  To
@@ -44,7 +46,7 @@ force reading from standard input, specify `-' as a \fIFILE\fR argument.
 .PP
 Directories specified as \fIFILE\fR arguments are searched without recursing
 into subdirectories, unless \fB-R\fR, \fB-r\fR, or \fB-2\fR...\fB-9\fR is
-specified.
+specified to search subdirectories.
 .PP
 Hidden files and directories are ignored in recursive searches.  Option
 \fB-.\fR (\fB--hidden\fR) includes hidden files and directories in recursive
@@ -53,7 +55,7 @@ searches.
 A query interface is opened with \fB-Q\fR (\fB--query\fR) to interactively
 specify search patterns and view search results.  Note that a \fIPATTERN\fR
 argument cannot be specified in this case.  To specify one or more patterns
-with \fB-Q\fR, use \fB-e PATTERN\fR.
+with \fB-Q\fR to start searching, use \fB-e PATTERN\fR.
 .PP
 Option \fB-f FILE\fR matches patterns specified in \fBFILE\fR.  If \fBFILE\fR
 is large and defines complex regular expression patterns, then option \fB-P\fR
@@ -62,7 +64,8 @@ is large and defines complex regular expression patterns, then option \fB-P\fR
 \fBugrep --help \fIWHAT\fR displays help on options related to \fIWHAT\fR;
 \fB--help format\fR displays help on \fB--format\fR and \fB--replace\fR
 formatting; \fB--help regex\fR displays help on regular expression syntax and
-conventions; \fB--help globs\fR displays help on glob patterns.
+conventions; \fB--help globs\fR displays help on glob patterns to select files
+to search; \fB--help fuzzy\fR displays help on fuzzy (approximate) searching.
 .PP
 The following options are available:
 END
@@ -466,9 +469,9 @@ Count the number of words `patricia', ignoring case:
 .IP
 $ ugrep -cowi patricia myfile.txt
 .PP
-List lines with both `amount' and a decimal number, ignoring case:
+List lines with `amount' and a decimal, ignoring case (space is AND):
 .IP
-$ ugrep -wi --bool 'amount \d+(\.\d+)?' myfile.txt
+$ ugrep -i --bool 'amount \d+(\.\d+)?' myfile.txt
 .PP
 Alternative query:
 .IP
@@ -495,6 +498,12 @@ search, with one line of context before and after a matched line:
 .IP
 $ ugrep -C1 -R -n -k -tc++ FIXME
 .PP
+Display the line and column number of `FIXME' in long Javascript files using
+recursive search, showing only matches with up to 10 characters of context
+before and after:
+.IP
+$ ugrep -o -C20 -R -n -k -tjs FIXME
+.PP
 List the C/C++ comments in a file with line numbers:
 .IP
 $ ugrep -n -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile.cpp
@@ -512,22 +521,34 @@ The same, but using predefined pattern cpp/zap_strings:
 .IP
 $ ugrep -e FIXME -f cpp/zap_strings myfile.cpp
 .PP
-Find lines with `FIXME' or `TODO':
+Find lines with `FIXME' or `TODO', showing line numberes:
 .IP
 $ ugrep -n -e FIXME -e TODO myfile.cpp
 .PP
-Find lines with `FIXME' that also contain the word `urgent':
+Find lines with `FIXME' that also contain `urgent':
 .IP
-$ ugrep -n FIXME myfile.cpp | ugrep -w urgent
+$ ugrep -n -e FIXME --and urgent myfile.cpp
 .PP
-Find lines with `FIXME' but not the word `later':
+The same, but with a Boolean query pattern (a space is AND):
 .IP
-$ ugrep -n FIXME myfile.cpp | ugrep -v -w later
+$ ugrep -n --bool 'FIXME urgent' myfile.cpp
+.PP
+Find lines with `FIXME' that do not also contain `later':
+.IP
+$ ugrep -n -e FIXME --andnot later myfile.cpp
+.PP
+The same, but with a Boolean query pattern (a space is AND, - is NOT):
+.IP
+$ ugrep -n --bool 'FIXME -later' myfile.cpp
 .PP
 Output a list of line numbers of lines with `FIXME' but not `later':
 .IP
-$ ugrep -n FIXME myfile.cpp | ugrep -vw later | 
-  ugrep -P '^(\\d+)' --format='%,%n'
+$ ugrep -e FIXME --andnot later --format='%,%n' myfile.cpp
+.PP
+Recursively list all files with both `FIXME' and `LICENSE' anywhere in the
+file, not necessarily on the same line:
+.IP
+$ ugrep -l --files --bool 'FIXME LICENSE'
 .PP
 Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
@@ -576,7 +597,7 @@ Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
 $ ugrep --encoding=MACROMAN '\\w+' mac.txt
 .PP
-Display all options related to "fuzzy" searching:
+Display options related to "fuzzy" searching:
 .IP
 $ ugrep --help fuzzy
 .SH BUGS

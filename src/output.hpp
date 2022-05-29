@@ -57,11 +57,13 @@ class Output {
 
   static constexpr size_t SIZE = 16384;          // size of each buffer in the buffers container
   static constexpr size_t STOP = UNDEFINED_SIZE; // if last == STOP, cancel output
-  static constexpr int FLUSH  = 1;               // mode bit: flush each line of output
-  static constexpr int HOLD   = 2;               // mode bit: hold output
-  static constexpr int BINARY = 4;               // mode bit: binary file found
+  static constexpr int FLUSH   = 1;              // mode bit: flush each line of output
+  static constexpr int HOLD    = 2;              // mode bit: hold output
+  static constexpr int BINARY  = 4;              // mode bit: binary file found
 
   struct Buffer { char data[SIZE]; }; // data buffer in the buffers container
+
+  enum class ANSI { NA, ESC, CSI, OSC, OSC_ESC };
 
   typedef std::list<Buffer> Buffers; // buffers container
 
@@ -307,7 +309,10 @@ class Output {
       lock_(NULL),
       slot_(0),
       lineno_(0),
-      mode_(flag_line_buffered ? FLUSH : 0)
+      mode_(flag_line_buffered ? FLUSH : 0),
+      cols_(0),
+      ansi_(ANSI::NA),
+      skip_(false)
   {
     grow();
   }
@@ -340,11 +345,33 @@ class Output {
       chr(*s++);
   }
 
-  // output a string s up to n characters
+  // output a string s up to n single byte characters
   void str(const char *s, size_t n)
   {
     while (n-- > 0)
       chr(*s++);
+  }
+
+  // output a UTF-8 multibyte string s of byte length n for up to k UTF-8-encoded characters
+  void utf8strn(const char *s, size_t n, size_t k)
+  {
+    while (n-- > 0 && k-- > 0)
+    {
+      do
+        chr(*s++);
+      while ((*s & 0xc0) == 0x80 && n-- > 0);
+    }
+  }
+
+  // output a UTF-8 multibyte string s (\0-terminated) for up to k Unicode characters
+  void utf8str(const char *s, size_t k)
+  {
+    while (*s != '\0' && k-- > 0)
+    {
+      do
+        chr(*s++);
+      while ((*s & 0xc0) == 0x80);
+    }
   }
 
   // output a URI-encoded string s
@@ -586,12 +613,22 @@ class Output {
         // flush the buffers container to the designated output file, pipe, or stream
         for (Buffers::iterator i = buffers_.begin(); i != buf_; ++i)
         {
-          size_t nwritten = fwrite(i->data, 1, SIZE, file);
-
-          if (nwritten < SIZE)
+          if (flag_width == 0)
           {
-            cancel();
-            break;
+            size_t nwritten = fwrite(i->data, 1, SIZE, file);
+            if (nwritten < SIZE)
+            {
+              cancel();
+              break;
+            }
+          }
+          else
+          {
+            if (flush_truncated_lines(i->data, SIZE))
+            {
+              cancel();
+              break;
+            }
           }
         }
 
@@ -601,10 +638,17 @@ class Output {
 
           if (num > 0)
           {
-            size_t nwritten = fwrite(buf_->data, 1, num, file);
-
-            if (nwritten < num)
-              cancel();
+            if (flag_width == 0)
+            {
+              size_t nwritten = fwrite(buf_->data, 1, num, file);
+              if (nwritten < num)
+                cancel();
+            }
+            else
+            {
+              if (flush_truncated_lines(buf_->data, num))
+                cancel();
+            }
           }
 
           if (!eof && fflush(file) != 0)
@@ -616,6 +660,9 @@ class Output {
       cur_ = buf_->data;
     }
   }
+
+  // flush a block of data as truncated lines limited to --width columns
+  bool flush_truncated_lines(const char *data, size_t size);
 
   // discard buffered output
   void discard()
@@ -667,10 +714,10 @@ class Output {
   void binary_file_matches(const char *pathname, const std::string& partname);
 
   // output formatted match with options --format, --format-open, --format-close
-  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next);
+  void format(const char *format, const char *& pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next);
 
   // output formatted inverted match with options -v --format, --format-open, --format-close
-  void format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next);
+  void format_invert(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next);
 
   // output a quoted string with escapes for \ and "
   void quote(const char *data, size_t size);
@@ -732,6 +779,9 @@ class Output {
   Buffers::iterator             buf_;     // current buffer in the container
   char                         *cur_;     // current position in the current buffer
   int                           mode_;    // bitmask 1 if line buffered 2 if hold
+  size_t                        cols_;    // number of columns output so far, if --width
+  ANSI                          ansi_;    // ANSI escape sequence
+  bool                          skip_;    // skip until next newline in buffers, if --width
 
 };
 

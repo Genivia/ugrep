@@ -308,7 +308,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     }
 
     str(color_ln);
-    num(lineno, flag_initial_tab ? 6 : 1);
+    num(lineno, (flag_initial_tab ? 6 : 1));
     str(color_off);
 
     sep = true;
@@ -340,7 +340,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     }
 
     str(color_bn);
-    num(byte_offset, flag_initial_tab ? 7 : 1);
+    num(byte_offset, (flag_initial_tab ? 7 : 1));
     str(color_off);
 
     sep = true;
@@ -453,7 +453,7 @@ std::pair<const char*,size_t> Output::capture(reflex::AbstractMatcher *matcher, 
 }
 
 // output formatted match with options --format, --format-open, --format-close
-void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next)
+void Output::format(const char *format, const char *& pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next)
 {
   if (!body)
     lineno_ = 0;
@@ -489,19 +489,44 @@ void Output::format(const char *format, const char *pathname, const std::string&
 
     switch (c)
     {
+      case '+':
+        if (flag_heading)
+        {
+          if (flag_with_filename)
+          {
+            if (pathname != NULL)
+            {
+              if (arg != NULL)
+                str(arg, s - arg - 1);
+              str(pathname);
+              if (flag_null)
+                chr('\0');
+              nl();
+            }
+            else if (flag_break)
+            {
+              nl();
+            }
+          }
+        }
+        break;
+
       case 'F':
-        if (flag_with_filename && pathname != NULL)
+        if (flag_with_filename && (pathname != NULL || !partname.empty()))
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          str(pathname);
+          if (pathname != NULL)
+            str(pathname);
           if (!partname.empty())
           {
             chr('{');
             str(partname);
             chr('}');
           }
-          if (sep != NULL)
+          if (flag_null)
+            chr('\0');
+          else if (sep != NULL)
             str(sep, len);
           else
             str(flag_separator);
@@ -546,19 +571,21 @@ void Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'H':
-        if (flag_with_filename)
+        if (flag_with_filename && (pathname != NULL || !partname.empty()))
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
           if (!partname.empty())
           {
-            std::string name(pathname);
+            std::string name;
+            if (pathname != NULL)
+              name = pathname;
             name.push_back('{');
             name.append(partname);
             name.push_back('}');
             quote(name.c_str(), name.size());
           }
-          else
+          else if (pathname != NULL)
           {
             quote(pathname, strlen(pathname));
           }
@@ -572,13 +599,15 @@ void Output::format(const char *format, const char *pathname, const std::string&
       case 'h':
         if (!partname.empty())
         {
-          std::string name(pathname);
+          std::string name;
+          if (pathname != NULL)
+            name = pathname;
           name.push_back('{');
           name.append(partname);
           name.push_back('}');
           quote(name.c_str(), name.size());
         }
-        else
+        else if (pathname != NULL)
         {
           quote(pathname, strlen(pathname));
         }
@@ -589,7 +618,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          num(matcher->lineno());
+          num(matcher->lineno(), (arg == NULL && flag_initial_tab ? 6 : 1));
           if (sep != NULL)
             str(sep, len);
           else
@@ -606,7 +635,7 @@ void Output::format(const char *format, const char *pathname, const std::string&
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          num(matcher->columno() + 1);
+          num(matcher->columno() + 1, (arg == NULL && flag_initial_tab ? 3 : 1));
           if (sep != NULL)
             str(sep, len);
           else
@@ -976,10 +1005,14 @@ void Output::format(const char *format, const char *pathname, const std::string&
     }
     ++s;
   }
+
+  // only output the pathname once
+  if (flag_heading)
+    pathname = NULL;
 }
 
 // output formatted match with options -v --format
-void Output::format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next)
+void Output::format_invert(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next)
 {
   size_t len = 0;
   const char *sep = NULL;
@@ -1010,19 +1043,44 @@ void Output::format_invert(const char *format, const char *pathname, const std::
 
     switch (c)
     {
+      case '+':
+        if (flag_heading)
+        {
+          if (flag_with_filename)
+          {
+            if (pathname != NULL)
+            {
+              if (arg != NULL)
+                str(arg, s - arg - 1);
+              str(pathname);
+              if (flag_null)
+                chr('\0');
+              nl();
+            }
+            else if (flag_break)
+            {
+              nl();
+            }
+          }
+        }
+        break;
+
       case 'F':
-        if (flag_with_filename && pathname != NULL)
+        if (flag_with_filename && (pathname != NULL || !partname.empty()))
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          str(pathname);
+          if (pathname != NULL)
+            str(pathname);
           if (!partname.empty())
           {
             chr('{');
             str(partname);
             chr('}');
           }
-          if (sep != NULL)
+          if (flag_null)
+            chr('\0');
+          else if (sep != NULL)
             str(sep, len);
           else
             str(flag_separator);
@@ -1067,19 +1125,21 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case 'H':
-        if (flag_with_filename)
+        if (flag_with_filename && (pathname != NULL || !partname.empty()))
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
           if (!partname.empty())
           {
-            std::string name(pathname);
+            std::string name;
+            if (pathname != NULL)
+              name = pathname;
             name.push_back('{');
             name.append(partname);
             name.push_back('}');
             quote(name.c_str(), name.size());
           }
-          else
+          else if (pathname != NULL)
           {
             quote(pathname, strlen(pathname));
           }
@@ -1093,13 +1153,15 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'h':
         if (!partname.empty())
         {
-          std::string name(pathname);
+          std::string name;
+          if (pathname != NULL)
+            name = pathname;
           name.push_back('{');
           name.append(partname);
           name.push_back('}');
           quote(name.c_str(), name.size());
         }
-        else
+        else if (pathname != NULL)
         {
           quote(pathname, strlen(pathname));
         }
@@ -1110,7 +1172,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          num(lineno);
+          num(lineno, (arg == NULL && flag_initial_tab ? 6 : 1));
           if (sep != NULL)
             str(sep, len);
           else
@@ -1318,6 +1380,10 @@ void Output::format_invert(const char *format, const char *pathname, const std::
     }
     ++s;
   }
+
+  // only output the pathname once
+  if (flag_heading)
+    pathname = NULL;
 }
 
 // output a quoted string with escapes for \ and "
@@ -1591,6 +1657,182 @@ void Output::xml(const char *data, size_t size)
     ++s;
   }
   str(t, s - t);
+}
+
+// flush a block of data as truncated lines limited to --width columns, taking into account tabs, UTF-8, ANSI
+bool Output::flush_truncated_lines(const char *data, size_t size)
+{
+  if (skip_)
+  {
+    const char *end = static_cast<const char*>(memchr(data, '\n', size));
+
+    if (end == NULL)
+      return false;
+
+    size_t num = end - data + 1;
+
+    data += num;
+    size -= num;
+
+    skip_ = false;
+  }
+
+  while (size > 0)
+  {
+    // search for \n or cols_ + width Unicode characters, whichever comes first
+    const char *end = data + size;
+    const char *esc = end;
+    const char *scan;
+
+    for (scan = data; scan < end && cols_ <= flag_width && *scan != '\n'; ++scan)
+    {
+      if (ansi_ != ANSI::NA)
+      {
+        // skip ANSI escape sequence state machine
+        switch (ansi_)
+        {
+          case ANSI::ESC:
+            switch (*scan)
+            {
+              case '[':
+                // CSI \e[... sequence
+                ansi_ = ANSI::CSI;
+                break;
+
+              case ']':
+                // OSC \e]...BEL|ST sequence
+                ansi_ = ANSI::OSC;
+                break;
+
+              default:
+                ansi_ = ANSI::NA;
+            }
+            break;
+
+          case ANSI::CSI:
+            if (*scan >= 0x40 && *scan <= 0x7e)
+              ansi_ = ANSI::NA;
+            break;
+
+          case ANSI::OSC:
+            if (*scan == '\a')
+              ansi_ = ANSI::NA;
+            else if (*scan == '\033')
+              ansi_ = ANSI::OSC_ESC;
+            break;
+
+          case ANSI::OSC_ESC:
+            if (*scan == '\\')
+              ansi_ = ANSI::NA;
+            else
+              ansi_ = ANSI::OSC;
+            break;
+
+          default:
+            ansi_ = ANSI::NA;
+        }
+      }
+      else if (*scan == '\t')
+      {
+        cols_ += 1 + (~cols_ & 7);
+      }
+      else if (*scan == '\033')
+      {
+        esc = scan;
+        ansi_ = ANSI::ESC;
+      }
+      else if (static_cast<unsigned char>(*scan) < 0x80)
+      {
+        cols_ += (*scan >= ' ');
+      }
+      else
+      {
+        cols_ += (*scan & 0xc0) != 0x80;
+      }
+    }
+
+    if (scan < end && *scan == '\n')
+    {
+      // write data with newline
+      size_t num = scan - data + 1;
+      size_t nwritten = fwrite(data, 1, num, file);
+      if (nwritten < num)
+        return true;
+
+      data += num;
+      size -= num;
+
+      cols_ = 0;
+    }
+    else if (cols_ <= flag_width)
+    {
+      // write data
+      size_t num = scan - data;
+      size_t nwritten = fwrite(data, 1, num, file);
+      if (nwritten < num)
+        return true;
+
+      data += num;
+      size -= num;
+    }
+    else
+    {
+      // counted one column over, back up to ensure UTF-8 multibyte sequence is complete
+      --scan;
+
+      size_t num = scan - data;
+
+      if (ansi_ != ANSI::NA)
+      {
+        // write data up to but not including ANSI ESC
+        size_t len = esc - data;
+        size_t nwritten = fwrite(data, 1, len, file);
+        if (nwritten < len)
+          return true;
+      }
+      else
+      {
+        // write data
+        size_t nwritten = fwrite(data, 1, num, file);
+        if (nwritten < num)
+          return true;
+      }
+
+      data += num;
+      size -= num;
+
+      // disable CSI when line was truncated
+      if (flag_apply_color)
+        if (fwrite("\033[m", 1, 3, file) < 3)
+          return true;
+
+      // write newline
+#ifdef OS_WIN
+      if (fwrite("\r\n", 1, 2, file) < 2)
+        return true;
+#else
+      if (fwrite("\n", 1, 1, file) < 1)
+        return true;
+#endif
+
+      cols_ = 0;
+
+      // look for newline to reach next line
+      scan = static_cast<const char*>(memchr(data, '\n', size));
+      if (scan == NULL)
+      {
+        skip_ = true;
+        break;
+      }
+
+      // move to next line
+      num = scan - data + 1;
+      data += num;
+      size -= num;
+    }
+  }
+
+  return false;
 }
 
 const char *Output::Dump::color_hex[4] = { match_ms, color_sl, match_mc, color_cx };

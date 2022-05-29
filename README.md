@@ -1,6 +1,6 @@
 [![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
 
-**ugrep v3.7 is now available: more features & even faster than before**
+**ugrep v3.8 is now available: more features & even faster than before**
 
 Search for anything in everything... ultra fast
 
@@ -20,7 +20,7 @@ Search for anything in everything... ultra fast
 
 - Matches multiple lines with `\n` and `\R` regex patterns
 
-- Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you need
+- Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you are looking for
 
   > 💡**ProTip** try `--help help`.  Try `--help regex` and `--help globs`.
 
@@ -32,23 +32,23 @@ Search for anything in everything... ultra fast
 
 - Interactive [query TUI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
-      ugrep -Q                               ugrep -Q -e PATTERN    
+      ug -Q                                  ug -Q -e PATTERN    
 
   > 💡**ProTip** `-Q` replaces `PATTERN` on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
-      ugrep -Z PATTERN ...                   ugrep -Z3 PATTTERN ...
+      ug -Z PATTERN ...                      ug -Z3 PATTTERN ...
 
   > 💡**ProTip** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
 
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
-      ugrep --bool 'A B C' ...               ugrep -e 'A' --and 'B' --and 'C' ...
-      ugrep --bool 'A|B C' ...               ugrep -e 'A' -e 'B' --and 'C' ...
-      ugrep --bool 'A -B -C' ...             ugrep -e 'A' --andnot 'B' --andnot 'C' ...
-      ugrep --bool 'A -(B|C)'...             ugrep -e 'A' --andnot 'B' --andnot 'C' ...
-      ugrep --bool '"abc" "def"' ...         ugrep -e '\Qabc\E' --and '\Qdef\E' ...
+      ug --bool 'A B C' ...                  ug -e 'A' --and 'B' --and 'C' ...
+      ug --bool 'A|B C' ...                  ug -e 'A' -e 'B' --and 'C' ...
+      ug --bool 'A -B -C' ...                ug -e 'A' --andnot 'B' --andnot 'C' ...
+      ug --bool 'A -(B|C)'...                ug -e 'A' --andnot 'B' --andnot 'C' ...
+      ug --bool '"abc" "def"' ...            ug -e '\Qabc\E' --and '\Qdef\E' ...
 
   where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
@@ -56,95 +56,95 @@ Search for anything in everything... ultra fast
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
 
-      ugrep -Q1 --files --bool -l -w -Z+4 --sort=best
+      ug -Q1 --files --bool -l -w -Z+4 --sort=best
 
   > 💡**ProTip** `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
-      ugrep -z PATTERN ...                   ugrep -z --zmax=2 PATTERN ...
+      ug -z PATTERN ...                      ug -z --zmax=2 PATTERN ...
 
   > 💡**ProTip** specify `-z --zmax=2` to search compressed files and archives nested within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps, far more than you will ever need!  Larger `--zmax` slows searching.
 
 - Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
 
-      ugrep --filter='pdf:pdftotext % -' PATTERN ...
-      ugrep --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
-      ugrep --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
-      ugrep --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
+      ug --filter='pdf:pdftotext % -' PATTERN ...
+      ug --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
+      ug --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
+      ug --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
 
   > 💡**ProTip** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or `-U` for byte patterns)
 
-      ugrep --hexdump -U BYTEPATTERN ...     ugrep --hexdump TEXTPATTERN ...
-      ugrep -X -U BYTEPATTERN ...            ugrep -X TEXTPATTERN ...
-      ugrep -W -U BYTEPATTERN ...            ugrep -W TEXTPATTERN ...
+      ug --hexdump -U BYTEPATTERN ...        ug --hexdump TEXTPATTERN ...
+      ug -X -U BYTEPATTERN ...               ug -X TEXTPATTERN ...
+      ug -W -U BYTEPATTERN ...               ug -W TEXTPATTERN ...
 
   > 💡**ProTip** `--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.  Option `-X` is the same as `--hexdump=2C` with `2` columns of hex and the whole matching line as `C` context in hex.
 
 - Include files to search by [filename extensions](#magic) or exclude them with `^`
 
-      ugrep -O EXT PATTERN ...               ugrep -O ^EXT PATTERN ...
+      ug -O EXT PATTERN ...                  ug -O ^EXT PATTERN ...
 
 - Include files to search by [file types or file "magic bytes"](#magic) or exclude them with `^`
 
-      ugrep -t TYPE PATTERN ...              ugrep -t ^TYPE PATTERN ...
-      ugrep -M 'MAGIC' PATTERN ...           ugrep -M '^MAGIC' PATTERN ...
+      ug -t TYPE PATTERN ...                 ug -t ^TYPE PATTERN ...
+      ug -M 'MAGIC' PATTERN ...              ug -M '^MAGIC' PATTERN ...
 
 - Include files and directories to search that match [gitignore-style globs](#globs) or exclude them with `^`
 
-      ugrep -g 'FILEGLOB' PATTERN ...        ugrep -g '^FILEGLOB' PATTERN ...
-      ugrep -g 'DIRGLOB/' PATTERN ...        ugrep -g '^DIRGLOB/' PATTERN ...
-      ugrep -g 'PATH/FILEGLOB' PATTERN ...   ugrep -g '^PATH/FILEGLOB' PATTERN ...
-      ugrep -g 'PATH/DIRGLOB/' PATTERN ...   ugrep -g '^PATH/DIRGLOB/' PATTERN ...
+      ug -g 'FILEGLOB' PATTERN ...           ug -g '^FILEGLOB' PATTERN ...
+      ug -g 'DIRGLOB/' PATTERN ...           ug -g '^DIRGLOB/' PATTERN ...
+      ug -g 'PATH/FILEGLOB' PATTERN ...      ug -g '^PATH/FILEGLOB' PATTERN ...
+      ug -g 'PATH/DIRGLOB/' PATTERN ...      ug -g '^PATH/DIRGLOB/' PATTERN ...
 
 - Include [hidden files (dotfiles) and directories](#hidden) to search (omitted by default)
 
-      ugrep -. PATTERN ...                   ugrep -g'.*,.*/' PATTERN ...
+      ug -. PATTERN ...                      ug -g'.*,.*/' PATTERN ...
 
 - Exclude files specified by [.gitignore](#ignore) etc.
 
-      ugrep --ignore-files PATTERN ...       ugrep --ignore-files=.ignore PATTERN ...
+      ug --ignore-files PATTERN ...          ug --ignore-files=.ignore PATTERN ...
 
 - Search patterns excluding [negative patterns](#not) ("match this but not that")
 
-      ugrep PATTERN -N NOTPATTERN ...        ugrep '[0-9]+' -N 123 ...
+      ug PATTERN -N NOTPATTERN ...           ug '[0-9]+' -N 123 ...
 
 - Use [predefined regex patterns](#source) to search source code, javascript, XML, JSON, HTML, PHP, markdown, etc.
 
-      ugrep PATTERN -f c++/zap_comments -f c++/zap_strings ...
-      ugrep PATTERN -f php/zap_html ...
-      ugrep -f js/functions ... | ugrep PATTERN ...
+      ug PATTERN -f c++/zap_comments -f c++/zap_strings ...
+      ug PATTERN -f php/zap_html ...
+      ug -f js/functions ... | ug PATTERN ...
 
 - Sort matching files by [name, best match, size, and time](#sort)
 
-      ugrep --sort PATTERN ...               ugrep --sort=size PATTERN ...
-      ugrep --sort=changed PATTERN ...       ugrep --sort=created PATTERN ...
-      ugrep -Z --sort=best PATTERN ...
+      ug --sort PATTERN ...                  ug --sort=size PATTERN ...
+      ug --sort=changed PATTERN ...          ug --sort=created PATTERN ...
+      ug -Z --sort=best PATTERN ...
 
 - Output results in [CSV, JSON, XML](#json), and [user-specified formats](#format)
 
-      ugrep --csv PATTERN ...                ugrep --json PATTERN ...
-      ugrep --xml PATTERN ...                ugrep --format='file=%f line=%n match=%O%~' PATTERN ...
+      ug --csv PATTERN ...                   ug --json PATTERN ...
+      ug --xml PATTERN ...                   ug --format='file=%f line=%n match=%O%~' PATTERN ...
 
-  > 💡**ProTip** `--help format` displays help on format `%` fields.
+  > 💡**ProTip** `ug --help format` displays help on format `%` fields.
 
 - Search with PCRE's Perl-compatible regex patterns and display or replace [subpattern matches](#replace)
 
-      ugrep -P PATTERN ...                   ugrep -P --format='%1 and %2%~' 'PATTERN(SUB1)(SUB2)' ...
+      ug -P PATTERN ...                      ug -P --format='%1 and %2%~' 'PATTERN(SUB1)(SUB2)' ...
 
 - Replace patterns in the output with [-P and --replace](#replace) replacement text, optionally containing `%` [formatting fields](#format), using `-y` to pass the rest of the file through:
 
-      ugrep --replace='TEXT' PATTERN ...     ugrep -y --replace='TEXT' PATTERN ...
-      ugrep --replace='(%m:%o)' PATTERN ...  ugrep -y --replace='(%m:%o)' PATTERN ...
-      ugrep -P --replace='%1' PATTERN ...    ugrep -y -P --replace='%1' PATTERN ...
+      ug --replace='TEXT' PATTERN ...        ug -y --replace='TEXT' PATTERN ...
+      ug --replace='(%m:%o)' PATTERN ...     ug -y --replace='(%m:%o)' PATTERN ...
+      ug -P --replace='%1' PATTERN ...       ug -y -P --replace='%1' PATTERN ...
 
-  > 💡**ProTip** `--help format` displays help on format `%` fields to optionally use with `--replace`.
+  > 💡**ProTip** `ug --help format` displays help on format `%` fields to optionally use with `--replace`.
 
 - Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
-      ugrep --encoding=LATIN1 PATTERN ...
+      ug --encoding=LATIN1 PATTERN ...
 
 <a name="toc"/>
 
@@ -219,7 +219,8 @@ directory or home directory.
 
 ### Windows
 
-Practical hints on using `ugrep.exe` and `ug.exe` from the Windows command line:
+Practical hints on using `ugrep.exe` and `ug.exe` for interactive use on the
+Windows command line:
 - when quoting patterns and arguments on the command line, do not use single
   `'` quotes but use `"` instead; most Windows command utilities consider
   the single `'` quotes part of the command-line argument!
@@ -239,19 +240,26 @@ Or install with [Scoop](https://scoop.sh) `scoop install ugrep`
 
 Or download the full-featured `ugrep.exe` executable as release artifact from
 <https://github.com/Genivia/ugrep/releases>.  Then copy `ugrep.exe` to `ug.exe`
-if you also want the `ug` command, which loads the .ugrep configuration file
-when present in the working directory or home directory.
+if you also want the `ug` command intended for interactive use, which loads the
+.ugrep configuration file when present in the working directory or home
+directory.
 
 Add `ugrep.exe` and `ug.exe` to your execution path: go to *Settings* and
 search for "Path" in *Find a Setting*.  Select *environment variables* ->
 *Path* -> *New* and add the directory where you placed the `ugrep.exe` and
 `ug.exe` executables.
 
+### Alpine Linux
+
+    $ apk add ugrep ugrep-doc
+
+Check <https://pkgs.alpinelinux.org/packages?name=ugrep> for version info.
+
 ### Arch Linux
 
     $ pacman -S ugrep
 
-Check <https://archlinux.org/packages/community/x86_64/ugrep/> for version info.
+Check <https://archlinux.org/packages/community/x86_64/ugrep> for version info.
 
 ### Debian
 
@@ -264,12 +272,7 @@ Check <https://packages.debian.org/ugrep> for version info.  To build and try
 
     $ pkg install ugrep
 
-Check <https://www.freshports.org/textproc/ugrep/> for version info.
-
-### NetBSD
-
-You can use the standard NetBSD package installer (pkgsrc):
-<http://cdn.netbsd.org/pub/pkgsrc/current/pkgsrc/textproc/ugrep/README.html>
+Check <https://www.freshports.org/textproc/ugrep> for version info.
 
 ### Haiku
 
@@ -279,13 +282,12 @@ Check <https://github.com/haikuports/haikuports/tree/master/app-text/ugrep> for
 version info.  To build and try `ugrep` locally, see "All platforms" build
 steps further below.
 
-### Alpine Linux
+### NetBSD
 
-    $ apk add ugrep ugrep-doc
+You can use the standard NetBSD package installer (pkgsrc):
+<http://cdn.netbsd.org/pub/pkgsrc/current/pkgsrc/textproc/ugrep/README.html>
 
-Check <https://pkgs.alpinelinux.org/packages?name=ugrep> for version info.
-
-### All platforms: step 1 download
+### Other platforms: step 1 download
 
 Clone `ugrep` with
 
@@ -294,7 +296,7 @@ Clone `ugrep` with
 Or visit <https://github.com/Genivia/ugrep/releases> to download a specific
 release.
 
-### All platforms: step 2 consider optional dependencies
+### Other platforms: step 2 consider optional dependencies
 
 You can always add these later, when you need these features:
 
@@ -335,7 +337,7 @@ from `/usr/local/lib`, causing a library load error when running `ugrep`.  To
 correct this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to
 your `~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
 
-### All platforms: step 3 build
+### Other platforms: step 3 build
 
 Build `ugrep` on Unix-like systems with colors enabled by default:
 
@@ -874,70 +876,70 @@ To search the working directory and recursively deeper for `main` (note that
 `-R` recurse symlinks is enabled by default if no file arguments are
 specified):
 
-    ugrep main
+    ug main
 
 Same, but only search C++ source code files recursively, ignoring all other
 files:
 
-    ugrep -tc++ main
+    ug -tc++ main
 
 Same, using the interactive query TUI, starting with the initial search pattern
 `main` (note that `-Q` with an initial pattern requires option `-e` because
 patterns are normally specified interactively and all command line arguments
 are considered files/directories):
 
-    ugrep -Q -tc++ -e main
+    ug -Q -tc++ -e main
 
 To search for `#define` (and `# define` etc) using a regex pattern in C++ files
 (note that patterns should be quoted to prevent shell globbing of `*` and `?`):
 
-    ugrep -tc++ '#[\t ]*define'
+    ug -tc++ '#[\t ]*define'
 
 To search for `main` as a word (`-w`) recursively without following symlinks
 (`-r`) in directory `myproject`, showing the matching line (`-n`) and column
 (`-k`) numbers next to the lines matched:
 
-    ugrep -r -nkw main myproject
+    ug -r -nkw main myproject
 
 Same, but only search `myproject` without recursing deeper (note that directory
 arguments are searched at one level by default):
 
-    ugrep -nkw main myproject
+    ug -nkw main myproject
 
 Same, but search `myproject` and one subdirectory level deeper (two levels)
 with `-2`:
 
-    ugrep -2 -nkw main myproject
+    ug -2 -nkw main myproject
 
 Same, but only search C++ files in `myproject` and its subdirectories with
 `-tc++`:
 
-    ugrep -tc++ -2 -nkw main myproject
+    ug -tc++ -2 -nkw main myproject
 
 Same, but also search inside archives (e.g. zip and tar files) and compressed
 files with `-z`:
 
-    ugrep -z -tc++ -2 -nkw main myproject
+    ug -z -tc++ -2 -nkw main myproject
 
 Search recursively the working directory for `main` while ignoring gitignored
 files (e.g.  assuming `.gitignore` is in the working directory or below):
 
-    ugrep --ignore-files -tc++ -nkw main
+    ug --ignore-files -tc++ -nkw main
 
 To list all files in the working directory and deeper that are not ignored by
 `.gitignore` file(s):
 
-    ugrep --ignore-files -l ''
+    ug --ignore-files -l ''
 
 To display the list of file name extensions and "magic bytes" (shebangs)
 that are searched corresponding to `-t` arguments:
 
-    ugrep -tlist
+    ug -tlist
 
 To list all shell files recursively, based on extensions and shebangs with `-l`
 (note that `''` matches any non-empty file):
 
-    ugrep -l -tShell ''
+    ug -l -tShell ''
 
 🔝 [Back to table of contents](#toc)
 
@@ -949,27 +951,27 @@ To search for `main` in source code while ignoring strings and comment blocks
 we can use *negative patterns* with option `-N` to skip unwanted matches in
 C/C++ quoted strings and comment blocks:
 
-    ugrep -r -nkw 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
+    ug -r -nkw 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
 
 This is a lot of work to type in correctly!  If you are like me, I don't want
 to spend time fiddling with regex patterns when I am working on something more
 important.  There is an easier way by using **ugrep**'s predefined patterns
 (`-f`) that are installed with the `ugrep` tool:
 
-    ugrep -r -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
+    ug -r -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
 This query also searches through other files than C/C++ source code, like
 READMEs, Makefiles, and so on.  We're also skipping symlinks with `-r`.  So
 let's refine this query by selecting C/C++ files only using option `-tc,c++`
 and include symlinks to files and directories with `-R`:
 
-    ugrep -R -tc,c++ -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
+    ug -R -tc,c++ -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
 What if we are only looking for the identifier `main` but not as a function
 `main(`?  We can use a negative pattern for this to skip unwanted `main\h*(`
 pattern matches:
 
-    ugrep -R -tc,c++ -nkw -e 'main' -N 'main\h*\(' -f c/zap_strings -f c/zap_comments myproject
+    ug -R -tc,c++ -nkw -e 'main' -N 'main\h*\(' -f c/zap_strings -f c/zap_comments myproject
 
 This uses the `-e` and `-N` options to explicitly specify a pattern and a
 negative pattern, respectively, which is essentially forming the pattern
@@ -981,7 +983,7 @@ blocks.  To do so we can first select the comment blocks with **ugrep**'s
 predefined `c/comments` pattern AND THEN select lines with `FIXME` using a
 pipe:
 
-    ugrep -R -tc,c++ -nk -f c/comments myproject | ugrep -w 'FIXME'
+    ug -R -tc,c++ -nk -f c/comments myproject | ug -w 'FIXME'
 
 Filtering results with pipes is generally easier than using AND-OR logic that
 some search tools use.  This approach follows the Unix spirit to keep utilities
@@ -990,7 +992,7 @@ simple and use them in combination for more complex tasks.
 Say we want to produce a sorted list of all identifiers found in Java source
 code while skipping strings and comments:
 
-    ugrep -R -tjava -f java/names myproject | sort -u
+    ug -R -tjava -f java/names myproject | sort -u
 
 This matches Java Unicode identifiers using the regex
 `\p{JavaIdentifierStart}\p{JavaIdentifierPart}*` defined in
@@ -1000,14 +1002,14 @@ With traditional grep and grep-like tools it takes great effort to recursively
 search for the C/C++ source file that defines function `qsort`, requiring
 something like this:
 
-    ugrep -R --include='*.c' --include='*.cpp' '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
+    ug -R --include='*.c' --include='*.cpp' '^([ \t]*[[:word:]:*&]+)+[ \t]+qsort[ \t]*\([^;\n]+$' myproject
 
 Fortunately, with **ugrep** we can simply select all function definitions in
 files with extension `.c` or `.cpp` by using option `-Oc,cpp` and by using a
 predefined pattern `functions` that is installed with the tool to produce
 all function definitions.  Then we select the one we want:
 
-    ugrep -R -Oc,cpp -nk -f c/functions | ugrep 'qsort'
+    ug -R -Oc,cpp -nk -f c/functions | ug 'qsort'
 
 Note that we could have used `-tc,c++` to select C/C++ files, but this also
 includes header files when we want to only search `.c` and `.cpp` files.
@@ -1017,7 +1019,7 @@ We can also skip files and directories from being searched that are defined in
 directories from recursive searches that match the globs in `.gitignore`, when
 one ore more`.gitignore` files are found:
 
-    ugrep -R -tc++ --ignore-files -f c++/defines
+    ug -R -tc++ --ignore-files -f c++/defines
 
 This searches C++ files (`-tc++`) in the working directory for `#define`
 lines (`-f c++/defines`), while skipping files and directories declared in
@@ -1077,19 +1079,19 @@ The ugrep man page:
 
 To show a help page:
 
-    ugrep --help
+    ug --help
 
 To show options that mention `WHAT`:
 
-    ugrep --help WHAT
+    ug --help WHAT
 
 To show a list of `-t TYPES` option values:
 
-    ugrep -tlist
+    ug -tlist
 
 In the interactive query TUI, press F1 or CTRL-Z for help and options:
 
-    ugrep -Q
+    ug -Q
 
 🔝 [Back to table of contents](#toc)
 
@@ -1110,13 +1112,14 @@ In the interactive query TUI, press F1 or CTRL-Z for help and options:
 
 The `ug` command is intended for context-dependent interactive searching and is
 equivalent to the `ugrep --config` command to load the configuration file
-`.ugrep`, when present in the working directory or, when not found, in the home
+`.ugrep` when present in the working directory or, when not found, in the home
 directory:
 
     ug PATTERN ...
     ugrep --config PATTERN ...
 
-A configuration file contains `NAME=VALUE` pairs per line, where `NAME` is the
+The `ug` command also sorts files by name per directory searched.  A
+configuration file contains `NAME=VALUE` pairs per line, where `NAME` is the
 name of a long option (without `--`) and `=VALUE` is an argument, which is
 optional and may be omitted depending on the option.  Empty lines and lines
 starting with a `#` are ignored:
@@ -1286,34 +1289,34 @@ key(s)                  | function
 
 To interactively search the files in the working directory and below:
 
-    ugrep -Q
+    ug -Q
 
 Same, but restricted to C++ files only and ignoring `.gitignore` files:
 
-    ugrep -Q -tc++ --ignore-files
+    ug -Q -tc++ --ignore-files
 
 To interactively search all makefiles in the working directory and below:
 
-    ugrep -Q -g 'Makefile*' -g 'makefile*'
+    ug -Q -g 'Makefile*' -g 'makefile*'
 
 Same, but for up to 2 directory levels (working and one subdirectory level):
 
-    ugrep -Q -2 -g 'Makefile*' -g 'makefile*'
+    ug -Q -2 -g 'Makefile*' -g 'makefile*'
 
 To interactively view the contents of `main.cpp` and search it, where `-y`
 shows any nonmatching lines as context:
 
-    ugrep -Q -y main.cpp
+    ug -Q -y main.cpp
 
 To interactively search `main.cpp`, starting with the search pattern `TODO` and
 a match context of 5 lines (context can be interactively enabled and disabled,
 this also overrides the default context size of 2 lines):
 
-    ugrep -Q -C5 -e TODO main.cpp
+    ug -Q -C5 -e TODO main.cpp
 
 To view and search the contents of an archive (e.g. zip, tarball):
 
-    ugrep -Q -z archive.tar.gz
+    ug -Q -z archive.tar.gz
 
 To interactively select files from `project.zip` to decompress with `unzip`,
 using ugrep query selection mode (press Enter to select lines):
@@ -1388,54 +1391,54 @@ input, specify `-` as the FILE argument.
 To recursively list all non-empty files in the working directory, following
 symbolic links (note that `-R` is redundant as no FILE arguments are given):
 
-    ugrep -R -l ''
+    ug -R -l ''
 
 To list all non-empty files in the working directory but not deeper (since a
 FILE argument is given, in this case `.` for the working directory):
 
-    ugrep -l '' .
+    ug -l '' .
 
 To list all non-empty files in directory `mydir` but not deeper (since a FILE
 argument is given):
 
-    ugrep -l '' mydir
+    ug -l '' mydir
 
 To list all non-empty files in directory `mydir` and deeper:
 
-    ugrep -R -l '' mydir
+    ug -R -l '' mydir
 
 To recursively list all non-empty files on the path specified, while visiting
 subdirectories only, i.e. directories `mydir/` and subdirectories at one
 level deeper `mydir/*/` are visited (note that `-2 -l` can be abbreviated to
 `-l2`):
 
-    ugrep -2 -l '' mydir
+    ug -2 -l '' mydir
 
 To recursively list all non-empty files in directory `mydir`, not following any
 symbolic links (except when on the command line such as `mydir`):
 
-    ugrep -rl '' mydir
+    ug -rl '' mydir
 
 To recursively list all Makefiles matching the text `CPP`:
 
-    ugrep -l -tmake 'CPP'
+    ug -l -tmake 'CPP'
 
 To recursively list all `Makefile.*` matching `bin_PROGRAMS`:
 
-    ugrep -l -g'Makefile.*' 'bin_PROGRAMS'
+    ug -l -g'Makefile.*' 'bin_PROGRAMS'
 
 To recursively list all non-empty files with extension .sh, with `-Osh`:
 
-    ugrep -l -Osh ''
+    ug -l -Osh ''
 
 To recursively list all shell scripts based on extensions and shebangs with
 `-tShell`:
 
-    ugrep -l -tShell ''
+    ug -l -tShell ''
 
 To recursively list all shell scripts based on extensions only with `-tshell`:
 
-    ugrep -l -tshell ''
+    ug -l -tshell ''
 
 🔝 [Back to table of contents](#toc)
 
@@ -1447,7 +1450,7 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
             Specifies Boolean query patterns.  A Boolean query pattern is
             composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.
             Spacing between subpatterns is the same as `AND', `|' is the same
-            as `OR', and a `-' is the same as `NOT'.  The `OR' operator binds
+            as `OR' and a `-' is the same as `NOT'.  The `OR' operator binds
             more tightly than `AND'.  For example, --bool 'A|B C|D' matches
             lines with (`A' or `B') and (`C' or `D'), --bool 'A -B' matches
             lines with `A' and not `B'.  Operators `AND', `OR', `NOT' require
@@ -1458,12 +1461,12 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
             lines with `A' and also either `AND' or `OR'.  Parenthesis are used
             for grouping.  For example, --bool '(A B)|C' matches lines with `A'
             and `B', or lines with `C'.  Note that all subpatterns in a Boolean
-            query pattern are regular expressions, unless option -F is used.
-            Options -E, -F, -G, -P, and -Z can be combined with --bool to match
+            query pattern are regular expressions, unless -F is specified.
+            Options -E, -F, -G, -P and -Z can be combined with --bool to match
             subpatterns as strings or regular expressions (-E is the default.)
             This option does not apply to -f FILE patterns.  Option --stats
             displays the search patterns applied.  See also options --and,
-            --andnot, --not, --files, and --lines.
+            --andnot, --not, --files and --lines.
     --files
             Apply Boolean queries to match files, the opposite of --lines.  A
             file matches if all Boolean conditions are satisfied by the lines
@@ -1542,60 +1545,60 @@ matching to allow e.g. up to 4 extra characters matched with `-Z+4` in words
 with `-w`), press TAB and ALT-y to view a file with matches.  Press SHIFT-TAB
 and ALT-l to go back to the list of matching files:
 
-    ugrep -Q1 --bool -l -w -F -Z+4 --sort=best
+    ug -Q1 --bool -l -w -F -Z+4 --sort=best
 
 To recursively find all files containing both `hot` and `dog` anywhere in the
 file with option `--files`:
 
-    ugrep --files --bool 'hot dog'
-    ugrep --files -e hot --and dog
+    ug --files --bool 'hot dog'
+    ug --files -e hot --and dog
 
 To find lines containing both `hot` and `dog` in `myfile.txt`:
 
-    ugrep --bool 'hot dog' myfile.txt
-    ugrep -e hot --and dog myfile.txt
+    ug --bool 'hot dog' myfile.txt
+    ug -e hot --and dog myfile.txt
 
 To find lines containing `place` and then also `hotdog` or `taco` (or both) in
 `myfile.txt`:
 
-    ugrep --bool 'hotdog|taco place' myfile.txt
-    ugrep -e hotdog -e taco --and place myfile.txt
+    ug --bool 'hotdog|taco place' myfile.txt
+    ug -e hotdog -e taco --and place myfile.txt
 
 Same, but exclude lines matching `diner`:
 
-    ugrep --bool 'hotdog|taco place -diner' myfile.txt
-    ugrep -e hotdog -e taco --and place --andnot diner myfile.txt
+    ug --bool 'hotdog|taco place -diner' myfile.txt
+    ug -e hotdog -e taco --and place --andnot diner myfile.txt
 
 To find lines with `diner` or lines that match both `fast` and `food` but not `bad` in `myfile.txt`:
 
-    ugrep --bool 'diner|(fast food -bad)' myfile.txt
+    ug --bool 'diner|(fast food -bad)' myfile.txt
 
 To find lines with `fast food` (exactly) or lines with `diner` but not `bad` or `old` in `myfile.txt`:
 
-    ugrep --bool '"fast food"|diner -bad -old' myfile.txt
+    ug --bool '"fast food"|diner -bad -old' myfile.txt
 
 Same, but using a different Boolean expression that has the same meaning:
 
-    ugrep --bool '"fast food"|diner -(bad|old)' myfile.txt
+    ug --bool '"fast food"|diner -(bad|old)' myfile.txt
 
 To find lines with `diner` implying `good` in `myfile.txt` (that is, show lines
 with `good` without `diner` and show lines with `diner` but only those with
 `good`, which is logically implied!):
 
-    ugrep --bool 'good|-diner' myfile.txt
-    ugrep -e good --not diner myfile.txt
+    ug --bool 'good|-diner' myfile.txt
+    ug -e good --not diner myfile.txt
 
 To find lines with `foo` and `-bar` and `"baz"` in `myfile.txt` (not that `-`
 and `"` should be matched using `\` escapes and with `--and -e -bar`):
 
-    ugrep --bool 'foo \-bar \"baz\"' myfile.txt
-    ugrep -e foo --and -e -bar --and '"baz"' myfile.txt
+    ug --bool 'foo \-bar \"baz\"' myfile.txt
+    ug -e foo --and -e -bar --and '"baz"' myfile.txt
 
 To search `myfile.cpp` for lines with `TODO` or `FIXME` but not both on the
 same line, like XOR:
 
-    ugrep --bool 'TODO|FIXME -(TODO FIXME)' myfile.cpp
-    ugrep -e TODO -e FIXME --and --not TODO --not FIXME myfile.cpp
+    ug --bool 'TODO|FIXME -(TODO FIXME)' myfile.cpp
+    ug -e TODO -e FIXME --and --not TODO --not FIXME myfile.cpp
 
 🔝 [Back to table of contents](#toc)
 
@@ -1653,41 +1656,45 @@ more powerful Boolean query options than the traditional GNU/BSD grep options.
 
 To display lines in file `myfile.sh` but not lines matching `^[ \t]*#`:
 
-    ugrep -v '^[ \t]*#' myfile.sh
+    ug -v '^[ \t]*#' myfile.sh
 
 To search `myfile.cpp` for lines with `FIXME` and `urgent`, but not `Scotty`:
 
     ugrep FIXME myfile.cpp | ugrep urgent | ugrep -v Scotty
 
+Same, but using `--bool` for Boolean queries:
+
+    ug --bool 'FIXME urgent -Scotty' myfile.cpp
+
 To search for decimals using pattern `\d+` that do not start with `0` using
 negative pattern `0\d+` and excluding `555`:
 
-    ugrep '\d+' -N '0\d+' -N 555 myfile.cpp
+    ug '\d+' -N '0\d+' -N 555 myfile.cpp
 
 To search for words starting with `disp` without matching `display` in file
 `myfile.py` by using a "negative pattern" `-N '/<display\>'` where `-N`
 specifies an additional negative pattern to skip matches:
 
-    ugrep '\<disp' -N '\<display\>' myfile.py
+    ug '\<disp' -N '\<display\>' myfile.py
 
 To search for lines with the word `display` in file `myfile.py` skipping this
 word in strings and comments, where `-f` specifies patterns in files which are
 predefined patterns in this case:
 
-    ugrep -n -w 'display' -f python/zap_strings -f python/zap_comments myfile.py
+    ug -n -w 'display' -f python/zap_strings -f python/zap_comments myfile.py
 
 To display lines that are not blank lines:
 
-    ugrep -x '.*' -N '\h*' myfile.py
+    ug -x '.*' -N '\h*' myfile.py
 
 Same, but using `-v` and `-x` with `\h*`, i.e. pattern `^\h*$`:
 
-    ugrep -v -x '\h*' myfile.py
+    ug -v -x '\h*' myfile.py
 
 To recursively list all Python files that do not contain the word `display`,
 allowing the word to occur in strings and comments:
 
-    ugrep -RL -tPython -w 'display' -f python/zap_strings -f python/zap_comments
+    ug -RL -tPython -w 'display' -f python/zap_strings -f python/zap_comments
 
 🔝 [Back to table of contents](#toc)
 
@@ -1757,55 +1764,55 @@ search binary files with binary patterns, see
 
 To recursively list all files that are ASCII (i.e. 7-bit):
 
-    ugrep -RL '[^[:ascii:]]'
+    ug -RL '[^[:ascii:]]'
 
 To recursively list all files that are non-ASCII, i.e. UTF-8, UTF-16, and
 UTF-32 files with non-ASCII Unicode characters (U+0080 and up):
 
-    ugrep -Rl '[^[:ascii:]]'
+    ug -Rl '[^[:ascii:]]'
 
 To check if a file contains non-ASCII Unicode (U+0080 and up):
 
-    ugrep -q '[^[:ascii:]]' myfile && echo "contains Unicode"
+    ug -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
 To remove invalid Unicode characters from a file (note that `-o` does not work
 because binary data is detected and rejected and newlines are added, but
 `--format="%o%` does not check for binary and copies the match "as is"):
 
-    ugrep "\p{Unicode}" --format="%o" badfile.txt
+    ug "\p{Unicode}" --format="%o" badfile.txt
 
 To recursively list files with invalid UTF content (i.e. invalid UTF-8 byte
 sequences or files that contain any UTF-8/16/32 code points that are outside
 the valid Unicode range) by matching any code point with `.` and by using a
 negative pattern `-N '\p{Unicode}'`:
 
-    ugrep -Rl '.' -N '\p{Unicode}'
+    ug -Rl '.' -N '\p{Unicode}'
 
 To display lines containing laughing face emojis:
 
-    ugrep '[😀-😏]' emojis.txt
+    ug '[😀-😏]' emojis.txt
 
 The same results are obtained using `\x{hhhh}` to select a Unicode character
 range:
 
-    ugrep '[\x{1F600}-\x{1F60F}]' emojis.txt
+    ug '[\x{1F600}-\x{1F60F}]' emojis.txt
 
 To display lines containing the names Gödel (or Goedel), Escher, or Bach:
 
-    ugrep 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
+    ug 'G(ö|oe)del|Escher|Bach' GEB.txt wiki.txt
 
 To search for `lorem` in lower or upper case in a UTF-16 file that is marked
 with a UTF-16 BOM:
 
-    ugrep -iw 'lorem' utf16lorem.txt
+    ug -iw 'lorem' utf16lorem.txt
 
 To search utf16lorem.txt when this file has no UTF-16 BOM, using `--encoding`:
 
-    ugrep --encoding=UTF-16 -iw 'lorem' utf16lorem.txt
+    ug --encoding=UTF-16 -iw 'lorem' utf16lorem.txt
 
 To search file `spanish-iso.txt` encoded in ISO-8859-1:
 
-    ugrep --encoding=ISO-8859-1 -w 'año' spanish-iso.txt
+    ug --encoding=ISO-8859-1 -w 'año' spanish-iso.txt
 
 🔝 [Back to table of contents](#toc)
 
@@ -1830,17 +1837,17 @@ U+0085, U+2028 and U+2029.
 
 To match C/C++ `/*...*/` multi-line comments:
 
-    ugrep '/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myfile.cpp
+    ug '/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myfile.cpp
 
 To match C/C++ comments using the predefined `c/comments` patterns with
 `-f c/comments`, restricted to the matching part only with option `-o`:
 
-    ugrep -of c/comments myfile.cpp
+    ug -of c/comments myfile.cpp
 
 Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
 `begin` and the first line after that containing `end`, using lazy repetition:
 
-    ugrep -o '.*begin(.|\n)*?end.*' myfile.txt
+    ug -o '.*begin(.|\n)*?end.*' myfile.txt
 
 🔝 [Back to table of contents](#toc)
 
@@ -1849,59 +1856,65 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
 ### Displaying match context with -A, -B, -C, and -y
 
     -A NUM, --after-context=NUM
-            Print NUM lines of trailing context after matching lines.  Places
-            a --group-separator between contiguous groups of matches.  See also
-            options -B, -C, and -y.
+            Output NUM lines of trailing context after matching lines.  Places
+            a --group-separator between contiguous groups of matches.  If -o is
+            specified, output the match with context to fit NUM columns after
+            the match or shortening the match.  See also options -B, -C and -y.
     -B NUM, --before-context=NUM
-            Print NUM lines of leading context before matching lines.  Places
-            a --group-separator between contiguous groups of matches.  See also
-            options -A, -C, and -y.
+            Output NUM lines of leading context before matching lines.  Places
+            a --group-separator between contiguous groups of matches.  If -o is
+            specified, output the match with context to fit NUM columns before
+            the match or shortening the match.  See also options -A, -C and -y.
     -C NUM, --context=NUM
-            Print NUM lines of leading and trailing context surrounding each
-            match.  Places a --group-separator between contiguous groups of
-            matches. See also options -A, -B, and -y.
+            Output NUM lines of leading and trailing context surrounding each
+            matching line.  Places a --group-separator between contiguous
+            groups of matches.  If -o is specified, output the match with
+            context to fit NUM columns before and after the match or shortening
+            the match.  See also options -A, -B and -y.
     -y, --any-line
             Any line is output (passthru).  Non-matching lines are output as
             context with a `-' separator.  See also options -A, -B, and -C.
+    -o, --only-matching
+            Output only the matching part of lines.  If -b, -k or -u is
+            specified, output each match on a separate line.  When multiple
+            lines match a pattern, output the matching lines with `|' as the
+            field separator.  If -A, -B or -C is specified, fits the match and
+            its context on a line within the specified number of columns.
 
 To display two lines of context before and after a matching line:
 
-    ugrep -C2 'FIXME' myfile.cpp
+    ug -C2 'FIXME' myfile.cpp
 
 To show three lines of context after a matched line:
 
-    ugrep -A3 'FIXME.*' myfile.cpp:
+    ug -A3 'FIXME.*' myfile.cpp:
 
 To display one line of context before each matching line with a C function
 definition (C names are non-Unicode):
 
-    ugrep -B1 -f c/functions myfile.c
+    ug -B1 -f c/functions myfile.c
 
 To display one line of context before each matching line with a C++ function
 definition (C++ names may be Unicode):
 
-    ugrep -B1 -f c++/functions myfile.cpp
+    ug -B1 -f c++/functions myfile.cpp
 
 To display any non-matching lines as context for matching lines with `-y`:
 
-    ugrep -y -f c++/functions myfile.cpp
+    ug -y -f c++/functions myfile.cpp
 
 To display a hexdump of a matching line with one line of hexdump context:
 
-    ugrep -C1 -UX '\xaa\xbb\xcc' a.out
+    ug -C1 -UX '\xaa\xbb\xcc' a.out
 
-Context within a line is displayed by simply adjusting the pattern and using
-option `-o`, for example to show the word (when present) before and after a
-match of `pattern` (`\w+` matches a word and `\h+` matches spacing), where `-U`
-matches ASCII words instead of full Unicode:
+Context within a line is displayed with option `-o` with a context option:
 
-    ugrep -o -U '(\w+\h+)?pattern(\h+\w+)?' myfile.cpp
+    ug -o -C20 'pattern' myfile.cpp
 
-Same, but with line numbers (`-n`), column numbers (`-k`), tab spacing (`-T`)
-for all matches separately (`-u`), and showing up to 8 characters of context
-instead of a single word:
+Same, but with pretty output with headings, line numbers and column numbers
+(`-k`) and showing context:
 
-    ugrep -onkTg -U '.{0,8}pattern.{0,8}' myfile.cpp | ugrep 'pattern'
+    ug --pretty -oC20 'pattern' myfile.cpp
 
 🔝 [Back to table of contents](#toc)
 
@@ -1966,36 +1979,36 @@ filename suffix `.ft`.
 To recursively display function definitions in C/C++ files (`.h`, `.hpp`, `.c`,
 `.cpp` etc.) with line numbers with `-tc++`, `-o`, `-n`, and `-f c++/functions`:
 
-    ugrep -on -tc++ -f c++/functions
+    ug -on -tc++ -f c++/functions
 
 To recursively display function definitions in `.c` and `.cpp` files with line
 numbers with `-Oc,cpp`, `-o`, `-n`, and `-f c++/functions`:
 
-    ugrep -on -Oc,cpp -f c++/functions
+    ug -on -Oc,cpp -f c++/functions
 
 To recursively list all shell files with `-tShell` to match filename extensions
 and files with shell shebangs, except files with suffix `.sh`:
 
-    ugrep -l -tShell -O^sh ''
+    ug -l -tShell -O^sh ''
 
 To recursively list all non-shell files with `-t^Shell`:
 
-    ugrep -l -t^Shell ''
+    ug -l -t^Shell ''
 
 To recursively list all shell files with shell shebangs that have no shell
 filename extensions:
 
-    ugrep -l -tShell -t^shell ''
+    ug -l -tShell -t^shell ''
 
 To search for lines with `FIXME` in C/C++ comments, excluding `FIXME` in
 multi-line strings:
 
-    ugrep -n 'FIXME' -f c++/zap_strings myfile.cpp
+    ug -n 'FIXME' -f c++/zap_strings myfile.cpp
 
 To read patterns `TODO` and `FIXME` from standard input to match lines in the
 input, while excluding matches in C++ strings:
 
-    ugrep -on -f - -f c++/zap_strings myfile.cpp <<END
+    ug -on -f - -f c++/zap_strings myfile.cpp <<END
     TODO
     FIXME
     END
@@ -2004,7 +2017,7 @@ To display XML element and attribute tags in an XML file, restricted to the
 matching part with `-o`, excluding tags that are placed in (multi-line)
 comments:
 
-    ugrep -o -f xml/tags -f xml/zap_comments myfile.xml
+    ug -o -f xml/tags -f xml/zap_comments myfile.xml
 
 🔝 [Back to table of contents](#toc)
 
@@ -2121,23 +2134,23 @@ decompressed stream.
 To list all non-empty files stored in a `package.zip` archive, including the
 contents of all cpio, pax, tar and zip files that are stored in it:
 
-    ugrep --zmax=2 -z -l '' package.zip
+    ug --zmax=2 -z -l '' package.zip
 
 Same, but only list the Python source code files, including scripts that invoke
 Python, with option `-tPython` (`ugrep -tlist` for details):
 
-    ugrep --zmax=2 -z -l -tPython '' package.zip
+    ug --zmax=2 -z -l -tPython '' package.zip
 
 To search Python applications distributed as a tar file with their dependencies
 includes as wheels (zip files with Python code), searching for the word
 `my_class` in `app.tgz`:
 
-    ugrep --zmax=2 -z -tPython -w my_class app.tgz
+    ug --zmax=2 -z -tPython -w my_class app.tgz
 
 To recursively search C++ files including compressed files for the word
 `my_function`, while skipping C and C++ comments:
 
-    ugrep -z -r -tc++ -Fw my_function -f cpp/zap_comments
+    ug -z -r -tc++ -Fw my_function -f cpp/zap_comments
 
 To search bzip2, lzma, xz, lz4 and zstd compressed data on standard input,
 option `--label` may be used to specify the extension corresponding to the
@@ -2148,32 +2161,32 @@ available to ugrep, for example:
 
 To search file `main.cpp` in `project.zip` for `TODO` and `FIXME` lines:
 
-    ugrep -z -g main.cpp -w -e 'TODO' -e 'FIXME' project.zip
+    ug -z -g main.cpp -w -e 'TODO' -e 'FIXME' project.zip
 
 To search tarball `project.tar.gz` for C++ files with `TODO` and `FIXME` lines:
 
-    ugrep -z -tc++ -w -e 'TODO' -e 'FIXME' project.tar.gz
+    ug -z -tc++ -w -e 'TODO' -e 'FIXME' project.tar.gz
 
 To search files matching the glob `*.txt` in `project.zip` for the word
 `license` in any case (note that the `-g` glob argument must be quoted):
 
-    ugrep -z -g '*.txt' -w -i 'license' project.zip
+    ug -z -g '*.txt' -w -i 'license' project.zip
 
 To display and page through all C++ files in tarball `project.tgz`:
 
-    ugrep --pager -z -tc++ '' project.tgz
+    ug --pager -z -tc++ '' project.tgz
 
 To list the files matching the gitignore-style glob `/**/projects/project1.*`
 in `projects.tgz`, by selecting files containing in the archive the text
 `December 12`:
 
-    ugrep -z -l -g '/**/projects/project1.*' -F 'December 12' projects.tgz
+    ug -z -l -g '/**/projects/project1.*' -F 'December 12' projects.tgz
 
 To view the META-INF/MANIFEST.MF data in a jar file with `-Ojar` and `-OMF` to
 select the jar file and the MF file therein (`-Ojar` is required, otherwise the
 jar file will be skipped though we could read it from standard input instead):
 
-    ugrep -z -h -OMF,jar '' my.jar
+    ug -z -h -OMF,jar '' my.jar
 
 To extract C++ files that contain `FIXME` from `project.tgz`, we use `-m1`
 with `--format="'%z '"` to generate a space-separated list of pathnames of file
@@ -2243,25 +2256,25 @@ search the files:
 
 To recursively list all files that start with `#!` shebangs:
 
-    ugrep -l -M'#!' ''
+    ug -l -M'#!' ''
 
 To recursively list all files that start with `#` but not with `#!` shebangs:
 
-    ugrep -l -M'#' -M'^#!' ''
+    ug -l -M'#' -M'^#!' ''
 
 To recursively list all Python files (extension `.py` or a shebang) with
 `-tPython`:
 
-    ugrep -l -tPython ''
+    ug -l -tPython ''
 
 To recursively list all non-shell files with `-t^Shell`:
 
-    ugrep -l -t^Shell ''
+    ug -l -t^Shell ''
 
 To recursively list Python files (extension `.py` or a shebang) that have
 import statements, including hidden files with `-.`:
 
-    ugrep -l. -tPython -f python/imports
+    ug -l. -tPython -f python/imports
  
 🔝 [Back to table of contents](#toc)
 
@@ -2280,8 +2293,10 @@ import statements, including hidden files with `-.`:
             requires two passes over a file and cannot be used with standard
             input or Boolean queries.  Option --sort=best orders matching files
             by best match.  The first character of an approximate match always
-            matches the start of a pattern.  Option -U applies fuzzy matching
-            to bytes.  No whitespace may be given between -Z and its argument.
+            matches a character at the beginning of the pattern.  To fuzzy
+            match the first character, replace it with a `.' or `.?'.  Option
+            -U applies fuzzy matching to ASCII and bytes instead of Unicode
+            text.  No whitespace may be given between -Z and its argument.
 
 The beginning of a pattern always matches the first character of an approximate
 match as a practical strategy to prevent many false "randomized" matches for
@@ -2307,22 +2322,22 @@ To recursively search for approximate matches of the word `foobar` with `-Z`,
 i.e.  approximate matching with one error, e.g. `Foobar`, `foo_bar`, `foo bar`,
 `fobar`:
 
-    ugrep -Z 'foobar'
+    ug -Z 'foobar'
 
 Same, but matching words only with `-w` and ignoring case with `-i`:
 
-    ugrep -Z -wi 'foobar'
+    ug -Z -wi 'foobar'
 
 Same, but permit up to 2 insertions with `-Z+2`, no deletions/substitutions
 (matches up to 2 extra characters, such as `foos bar`), insertions-only offers
 the fastest fuzzy matching method:
 
-    ugrep -Z+3 -wi 'foobar'
+    ug -Z+3 -wi 'foobar'
 
 Same, but sort matches from best (at least one exact match or fewest fuzzy
 match errors) to worst:
 
-    ugrep -Z+3 -wi --sort=best 'foobar'
+    ug -Z+3 -wi --sort=best 'foobar'
 
 **Note:** because sorting by best match requires two passes over the input
 files, the efficiency of concurrent searching is significantly reduced.
@@ -2330,12 +2345,12 @@ files, the efficiency of concurrent searching is significantly reduced.
 Same, but with customized formatting to show the edit distance "cost" of the
 approximate matches with format field `%Z` and `%F` to show the pathname:
 
-    ugrep -Z+3 -wi --format='%F%Z:%O%~' --sort=best 'foobar'
+    ug -Z+3 -wi --format='%F%Z:%O%~' --sort=best 'foobar'
 
 Same, but this time count the matches with option `-c` and display them with a
 custom format using `%m`, where `%Z` is the *average* cost per match:
 
-    ugrep -c -Z+3 -wi --format='%F%Z:%m%~' --sort=best 'foobar'
+    ug -c -Z+3 -wi --format='%F%Z:%m%~' --sort=best 'foobar'
 
 **Note:** options `-c` and `-l` do not report a meaningful `%Z` value in the
 `--format` output, because `%Z` is the edit distance cost of a single match.
@@ -2352,7 +2367,7 @@ custom format using `%m`, where `%Z` is the *average* cost per match:
 To recursively search the working directory, including hidden files and
 directories, for the word `login` in shell scripts:
 
-    ugrep -. -tShell 'login'
+    ug -. -tShell 'login'
 
 🔝 [Back to table of contents](#toc)
 
@@ -2409,7 +2424,7 @@ Also decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
 `bunzip2`, `unlzma`, `unxz` and `lzop` that decompress files to standard output
 when option `--stdout` is specified.  For example:
 
-    ugrep --filter='lzo:lzop -d --stdout -' ...
+    ug --filter='lzo:lzop -d --stdout -' ...
 
 The `--filter='lzo:lzop -d --stdout -' option decompresses files with extension
 `lzo` to standard output with `--stdout` with the compressed stream being read
@@ -2447,25 +2462,25 @@ without recursing into subdirectories (with `-1`), for matches of `drink me`
 using the `pdftotext` filter to convert PDF to text without preserving page
 breaks:
 
-    ugrep -r -1 --filter='pdf:pdftotext -nopgbrk % -' 'drink me'
+    ug -r -1 --filter='pdf:pdftotext -nopgbrk % -' 'drink me'
 
 To recursively search text files for `eat me` while converting non-printable
 characters in .txt and .md files using the `cat -v` filter:
 
-    ugrep -r -ttext --filter='txt,md:cat -v' 'eat me'
+    ug -r -ttext --filter='txt,md:cat -v' 'eat me'
 
 The same, but specifying the .txt and .md filters separately:
 
-    ugrep -r -ttext --filter='txt:cat -v, md:cat -v' 'eat me'
+    ug -r -ttext --filter='txt:cat -v, md:cat -v' 'eat me'
 
 To search the first 8K of a text file:
 
-    ugrep --filter='txt:head -c 8192' 'eat me' wonderland.txt
+    ug --filter='txt:head -c 8192' 'eat me' wonderland.txt
 
 To recursively search and list the files that contain the word `Alice`,
 including .docx and .epub documents using the `pandoc` filter:
 
-    ugrep -rl -w --filter='docx,epub:pandoc --wrap=preserve -t markdown % -o -' 'Alice'
+    ug -rl -w --filter='docx,epub:pandoc --wrap=preserve -t markdown % -o -' 'Alice'
 
 **Important:** the `pandoc` utility requires an input file and will not read
 standard input.  Option `%` expands into the full pathname of the file to
@@ -2476,7 +2491,7 @@ To recursively search and list the files that contain the word `Alice`,
 including .odt, .doc, .docx, .rtf, .xls, .xlsx, .ppt, .pptx documents using the
 `soffice` filter:
 
-    ugrep -rl -w --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' 'Alice'
+    ug -rl -w --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' 'Alice'
 
 **Important:** the `soffice` utility will not output any text when one or more
 LibreOffice GUIs are open.  Make sure to quit all LibreOffice apps first.  This
@@ -2486,18 +2501,18 @@ any time soon (unless perhaps more people complain.)
 To recursively search and display rows of .csv, .xls, and .xlsx spreadsheets
 that contain `10/6` using the `in2csv` filter of csvkit:
 
-    ugrep -r -Ocsv,xls,xlsx --filter='xls,xlsx:in2csv %' '10/6'
+    ug -r -Ocsv,xls,xlsx --filter='xls,xlsx:in2csv %' '10/6'
 
 To search .docx, .xlsx, and .pptx files converted to XML for a match with
 `10/6` using `unzip` as a filter:
 
-    ugrep -lr -Odocx,xlsx,pptx --filter='docx,xlsx,pptx:unzip -p %' '10/6'
+    ug -lr -Odocx,xlsx,pptx --filter='docx,xlsx,pptx:unzip -p %' '10/6'
 
 **Important:** unzipping docx, xlxs, pptx files produces extensive XML output
 containing meta information and binary data such as images.  By contrast,
 **ugrep** option `-z` with `-Oxml` selects the XML components only:
 
-    ugrep -z -lr -Odocx,xlsx,pptx,xml '10/6'
+    ug -z -lr -Odocx,xlsx,pptx,xml '10/6'
 
 **Note:** docx, xlsx, and pptx are zip files containing multiple components.
 When selecting the XML components with option `-Oxml` in docx, xlsx, and pptx
@@ -2507,7 +2522,7 @@ files, otherwise these files will be ignored.
 To recurssively search X509 certificate files for lines with `Not After` (e.g.
 to find expired certificates), using `openssl` as a filter:
 
-    ugrep -r 'Not After' -Ocer,der,pem --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der'
+    ug -r 'Not After' -Ocer,der,pem --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der'
 
 Note that `openssl` warning messages are displayed on standard error.  If
 a file cannot be converted it is probably in a different format.  This can
@@ -2516,13 +2531,13 @@ based on the file content.  Then write a script with `ugrep --filter`.
 
 To search PNG files by filename extension with `-tpng` using `exiftool`:
 
-    ugrep -r -i 'copyright' -tpng --filter='*:exiftool %'
+    ug -r -i 'copyright' -tpng --filter='*:exiftool %'
 
 Same, but also include files matching PNG "magic bytes" with `-tPng` and
 `--filter-magic-label='+png:\x89png\x0d\x0a\x1a\x0a'` to select the `png`
 filter:
 
-    ugrep -r -i 'copyright' -tPng --filter='png:exiftool %' --filter-magic-label='+png:\x89png\x0d\x0a\x1a\x0a'
+    ug -r -i 'copyright' -tPng --filter='png:exiftool %' --filter-magic-label='+png:\x89png\x0d\x0a\x1a\x0a'
 
 Note that `+png` overrides any filename extension match for `--filter`.
 Otherwise, without a `+`, the filename extension, when present, takes priority
@@ -2572,48 +2587,48 @@ as hex `C` context.
 To search a file for ASCII words, displaying text lines as usual while binary
 content is shown in hex with `-U` and `-W`:
 
-    ugrep -UW '\w+' myfile
+    ug -UW '\w+' myfile
 
 To hexdump an entire file as a match with `-X`:
 
-    ugrep -X '' myfile
+    ug -X '' myfile
 
 To hexdump an entire file with `-X`, displaying line numbers and byte offsets
 with `-nb` (here with `-y` to display all line numbers):
 
-    ugrep -Xynb '' myfile
+    ug -Xynb '' myfile
 
 To hexdump lines containing one or more \0 in a (binary) file using a
 non-Unicode pattern with `-U` and `-X`:
 
-    ugrep -UX '\x00+' myfile
+    ug -UX '\x00+' myfile
 
 Same, but hexdump the entire file as context with `-y` (note that this
 line-based option does not permit matching patterns with newlines):
 
-    ugrep -UX -y '\x00+' myfile
+    ug -UX -y '\x00+' myfile
 
 Same, compacted to 32 bytes per line without the character column:
 
-    ugrep -UX -y '\x00+' myfile
+    ug -UX -y '\x00+' myfile
 
 To match the binary pattern `A3..A3.` (hex) in a binary file without
 Unicode pattern matching (which would otherwise match `\xaf` as a Unicode
 character U+00A3 with UTF-8 byte sequence C2 A3) and display the results
 in compact hex with `--hexdump` with pager `less -R`:
 
-    ugrep --pager --hexdump -U '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
+    ug --pager --hexdump -U '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
 
 Same, but using option `--dotall` to let `.` match any byte, including
 newline that is not matched by dot (the default as required by grep):
 
-    ugrep --dotall --pager --hexdump -U '\xa3.{2}\xa3.' a.out
+    ug --dotall --pager --hexdump -U '\xa3.{2}\xa3.' a.out
 
 To list all files containing a RPM signature, located in the `rpm` directory and
 recursively below (see for example
 [list of file signatures](https://en.wikipedia.org/wiki/List_of_file_signatures)):
 
-    ugrep -RlU '\A\xed\xab\xee\xdb' rpm
+    ug -RlU '\A\xed\xab\xee\xdb' rpm
 
 🔝 [Back to table of contents](#toc)
 
@@ -2626,12 +2641,12 @@ recursively below (see for example
 
 To recursively search without following symlinks and ignoring binary files:
 
-    ugrep -rl -I 'xyz'
+    ug -rl -I 'xyz'
 
 To ignore specific binary files with extensions such as .exe, .bin, .out, .a,
 use `--exclude` or `--exclude-from`:
 
-    ugrep -rl --exclude-from=ignore_binaries 'xyz'
+    ug -rl --exclude-from=ignore_binaries 'xyz'
 
 where `ignore_binaries` is a file containing a glob on each line to ignore
 matching files, e.g.  `*.exe`, `*.bin`, `*.out`, `*.a`.  Because the command is
@@ -2681,32 +2696,32 @@ See also [Using gitignore-style globs to select directories and files to search]
 To recursively search without following symlinks, while ignoring files and
 directories ignored by .gitignore (when present), use option `--ignore-files`:
 
-    ugrep -rl --ignore-files 'xyz'
+    ug -rl --ignore-files 'xyz'
 
 Same, but includes hidden files with `-.` rather than ignoring them:
 
-    ugrep -rl. --ignore-files 'xyz'
+    ug -rl. --ignore-files 'xyz'
 
 To recursively list all files that are not ignored by .gitignore (when present)
 with `--ignore-files` (note that `-R` is redundant, since no FILE arguments are
 given):
 
-    ugrep -Rl '' --ignore-files
+    ug -Rl '' --ignore-files
 
 Same, but list shell scripts that are not ignored by .gitignore, when present:
 
-    ugrep -Rl -tShell '' --ignore-files
+    ug -Rl -tShell '' --ignore-files
 
 To recursively list all files that are not ignored by .gitignore and are also
 not excluded by `.git/info/exclude`:
 
-    ugrep -Rl '' --ignore-files --exclude-from=.git/info/exclude
+    ug -Rl '' --ignore-files --exclude-from=.git/info/exclude
 
 Same, but by creating a symlink to `.git/info/exclude` to make the exclusions
 implicit:
 
     ln -s .git/info/exclude .ignore
-    ugrep -Rl '' --ignore-files --ignore-files=.ignore
+    ug -Rl '' --ignore-files --ignore-files=.ignore
 
 🔝 [Back to table of contents](#toc)
 
@@ -2845,64 +2860,64 @@ To list only readable files with names starting with `foo` in the working
 directory, that contain `xyz`, without producing warning messages with `-s` and
 `-l`:
 
-    ugrep -sl 'xyz' foo*
+    ug -sl 'xyz' foo*
 
 The same, but using deep recursion with inclusion constraints (note that
 `-g'/foo*` is the same as `--include='/foo*'` and `-g'/foo*/'` is the same as
 `--include-dir='/foo*'`, i.e.  immediate subdirectories matching `/foo*` only):
 
-    ugrep -Rl 'xyz' -g'/foo*' -g'/foo*/'
+    ug -Rl 'xyz' -g'/foo*' -g'/foo*/'
 
 Note that `-R` is the default, we use it here to make the examples easier to
 follow.
 
 To exclude directory `bak` located in the working directory:
 
-    ugrep -Rl 'xyz' -g'^/bak/'
+    ug -Rl 'xyz' -g'^/bak/'
 
 To exclude all directoies `bak` at any directory level deep:
 
-    ugrep -Rl 'xyz' -g'^bak/'
+    ug -Rl 'xyz' -g'^bak/'
 
 To only list files in the working directory and its subdirectory `doc`,
 that contain `xyz` (note that `-g'/doc/'` is the same as
 `--include-dir='/doc'`, i.e. immediate subdirectory `doc` only):
 
-    ugrep -Rl 'xyz' -g'/doc/'
+    ug -Rl 'xyz' -g'/doc/'
 
 To only list files that are on a subdirectory path `doc` that includes
 subdirectory `html` anywhere, that contain `xyz`:
 
-    ugrep -Rl 'xyz' -g'doc/**/html/'
+    ug -Rl 'xyz' -g'doc/**/html/'
 
 To only list files in the working directory and in the subdirectories `doc`
 and `doc/latest` but not below, that contain `xyz`:
 
-    ugrep -Rl 'xyz' -g'/doc/' -g'/doc/latest/'
+    ug -Rl 'xyz' -g'/doc/' -g'/doc/latest/'
 
 To recursively list .cpp files in the working directory and any subdirectory
 at any depth, that contain `xyz`:
 
-    ugrep -Rl 'xyz' -g'*.cpp'
+    ug -Rl 'xyz' -g'*.cpp'
 
 The same, but using a .gitignore-style glob that matches pathnames (globs with
 `/`) instead of matching basenames (globs without `/`) in the recursive search:
 
-    ugrep -Rl 'xyz' -g'**/*.cpp'
+    ug -Rl 'xyz' -g'**/*.cpp'
 
 Same, but using option `-Ocpp` to match file name extensions:
 
-    ugrep -Rl -Ocpp 'xyz'
+    ug -Rl -Ocpp 'xyz'
 
 To recursively list all files in the working directory and below that are not
 ignored by a specific .gitignore file:
 
-    ugrep -Rl '' --exclude-from=.gitignore
+    ug -Rl '' --exclude-from=.gitignore
 
 To recursively list all files in the working directory and below that are not
 ignored by one or more .gitignore files, when any are present:
 
-    ugrep -Rl '' --ignore-files
+    ug -Rl '' --ignore-files
 
 🔝 [Back to table of contents](#toc)
 
@@ -2934,22 +2949,22 @@ Note that a list of mounted file systems is typically stored in `/etc/mtab`.
 To restrict recursive searches to the file system of the working directory
 only, without crossing into other file systems (similar to `find` option `-x`):
 
-    ugrep -Rl --include-fs=. 'xyz' 
+    ug -Rl --include-fs=. 'xyz' 
 
 To exclude the file systems mounted at `/dev` and `/proc` from recursive
 searches:
 
-    ugrep -Rl --exclude-fs=/dev,/proc 'xyz' 
+    ug -Rl --exclude-fs=/dev,/proc 'xyz' 
 
 To only include the file system associated with drive `d:` in recursive
 searches:
 
-    ugrep -Rl --include-fs=d:/ 'xyz' 
+    ug -Rl --include-fs=d:/ 'xyz' 
 
 To exclude `fuse` and `tmpfs` type file systems from recursive searches:
 
     exfs=`ugrep -w -e fuse -e tmpfs /etc/mtab | ugrep -P '^\S+ (\S+)' --format='%,%1'`
-    ugrep -Rl --exclude-fs="$exfs" 'xyz'
+    ug -Rl --exclude-fs="$exfs" 'xyz'
 
 🔝 [Back to table of contents](#toc)
 
@@ -2964,31 +2979,31 @@ To exclude `fuse` and `tmpfs` type file systems from recursive searches:
 
 To count the number of lines in a file:
 
-    ugrep -c '' myfile.txt
+    ug -c '' myfile.txt
 
 To count the number of lines with `TODO`:
 
-    ugrep -c -w 'TODO' myfile.cpp
+    ug -c -w 'TODO' myfile.cpp
 
 To count the total number of `TODO` in a file, use `-c` and `-o`:
 
-    ugrep -co -w 'TODO' myfile.cpp
+    ug -co -w 'TODO' myfile.cpp
 
 To count the number of ASCII words in a file:
 
-    ugrep -co '[[:word:]]+' myfile.txt
+    ug -co '[[:word:]]+' myfile.txt
 
 To count the number of ASCII and Unicode words in a file:
 
-    ugrep -co '\w+' myfile.txt
+    ug -co '\w+' myfile.txt
 
 To count the number of Unicode characters in a file:
 
-    ugrep -co '\p{Unicode}' myfile.txt
+    ug -co '\p{Unicode}' myfile.txt
 
 To count the number of zero bytes in a file:
 
-    ugrep -UX -co '\x00' image.jpg
+    ug -UX -co '\x00' image.jpg
 
 🔝 [Back to table of contents](#toc)
 
@@ -3020,28 +3035,28 @@ To count the number of zero bytes in a file:
 To display the file name `-H`, line `-n`, and column `-k` numbers of matches in
 `myfile.cpp`, with spaces and tabs to space the columns apart with `-T`:
 
-    ugrep -THnk 'main' myfile.cpp
+    ug -THnk 'main' myfile.cpp
 
 To display the line with `-n` of word `main` in `myfile.cpp`:
 
-    ugrep -nw 'main' myfile.cpp
+    ug -nw 'main' myfile.cpp
 
 To display the entire file `myfile.cpp` with line `-n` numbers:
 
-    ugrep -n '' myfile.cpp
+    ug -n '' myfile.cpp
 
 To recursively search for C++ files with `main`, showing the line and column
 numbers of matches with `-n` and `-k`:
 
-    ugrep -r -nk -tc++ 'main'
+    ug -r -nk -tc++ 'main'
 
 To display the byte offset of matches with `-b`:
 
-    ugrep -r -b -tc++ 'main'
+    ug -r -b -tc++ 'main'
 
 To display the line and column numbers of matches in XML with `--xml`:
 
-    ugrep -r -nk --xml -tc++ 'main'
+    ug -r -nk --xml -tc++ 'main'
 
 🔝 [Back to table of contents](#toc)
 
@@ -3166,34 +3181,34 @@ To copy silver searcher's color palette:
 To produce color-highlighted results (`--color` is redundance since it is the
 default):
 
-    ugrep --color -R -n -k -tc++ 'FIXME.*'
+    ug --color -R -n -k -tc++ 'FIXME.*'
 
 To page through the results with pager (`less -R` by default):
 
-    ugrep --pager -R -n -k -tc++ 'FIXME'
+    ug --pager -R -n -k -tc++ 'FIXME'
 
 To display a hexdump of a zip file itself (i.e. without decompressing), with
 color-highlighted matches of the zip magic bytes `PK\x03\x04` (`--color` is
 redundant since it is the default):
 
-    ugrep --color -y -UX 'PK\x03\x04' some.zip
+    ug --color -y -UX 'PK\x03\x04' some.zip
 
 To use predefined patterns to list all `#include` and `#define` in C++ files:
 
-    ugrep --pretty -R -n -tc++ -f c++/includes -f c++/defines
+    ug --pretty -R -n -tc++ -f c++/includes -f c++/defines
 
 Same, but overriding the color of matches as inverted yellow (reverse video)
 and headings with yellow on blue using `--pretty`:
 
-    ugrep --pretty --colors="ms=yi:fn=hyB" -R -n -tc++ -f c++/includes -f c++/defines
+    ug --pretty --colors="ms=yi:fn=hyB" -R -n -tc++ -f c++/includes -f c++/defines
 
 To list all `#define FOO...` macros in C++ files, color-highlighted:
 
-    ugrep --color=always -R -n -tc++ -f c++/defines | ugrep 'FOO.*'
+    ug --color=always -R -n -tc++ -f c++/defines | ug 'FOO.*'
 
 Same, but restricted to `.cpp` files only:
 
-    ugrep --color=always -R -n -Ocpp -f c++/defines | ugrep 'FOO.*'
+    ug --color=always -R -n -Ocpp -f c++/defines | ug 'FOO.*'
 
 To search tarballs for matching names of PDF files (assuming bash is our shell):
 
@@ -3216,22 +3231,22 @@ To search tarballs for matching names of PDF files (assuming bash is our shell):
 To recursively search for lines with `TODO` and display C++ file matches in
 JSON with line number properties:
 
-    ugrep -tc++ -n --json 'TODO'
+    ug -tc++ -n --json 'TODO'
 
 To recursively search for lines with `TODO` and display C++ file matches in
 XML with line and column number attributes:
 
-    ugrep -tc++ -nk --xml 'TODO'
+    ug -tc++ -nk --xml 'TODO'
 
 To recursively search for lines with `TODO` and display C++ file matches in CSV
 format with file pathname, line number, and column number fields:
 
-    ugrep -tc++ --csv -Hnk 'TODO'
+    ug -tc++ --csv -Hnk 'TODO'
 
 To extract a table from an HTML file and put it in C/C++ source code using
 `-o`:
 
-    ugrep -o --cpp '<tr>.*</tr>' index.html > table.cpp
+    ug -o --cpp '<tr>.*</tr>' index.html > table.cpp
 
 🔝 [Back to table of contents](#toc)
 
@@ -3242,11 +3257,11 @@ To extract a table from an HTML file and put it in C/C++ source code using
     --format=FORMAT
             Output FORMAT-formatted matches.  For example --format='%f:%n:%O%~'
             outputs matching lines `%O' with filename `%f` and line number `%n'
-            followed by a newline `%~'.  When option -P is used, FORMAT may
-            include `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group
-            captures.  A `%%' outputs `%'.  See `ugrep --help format' and `man
-            ugrep' section FORMAT for details.  Context options -A, -B, -C and
-            -y are ignored.
+            followed by a newline `%~'.  If -P is specified, FORMAT may include
+            `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A
+            `%%' outputs `%'.  See `ugrep --help format' and `man ugrep'
+            section FORMAT for details.  Context options -A, -B, -C and -y are
+            ignored.
     -P, --perl-regexp
             Interpret PATTERN as a Perl regular expression.
 
@@ -3274,6 +3289,7 @@ The following tables show the formatting options corresponding to `--csv`,
 
 option           | format string (within quotes)
 ---------------- | -----------------------------
+`--format-open`  | `'%+'`
 `--format`       | `'%[,]$%H%N%K%B%V%~%u'`
 
 #### `--json`
@@ -3295,6 +3311,13 @@ option           | format string (within quotes)
 `--format`       | `'    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%X</match>%~%u'`
 `--format-close` | `'  </file>%~'`
 `--format-end`   | `'</grep>%~'`
+
+### `--only-line-number`
+
+option           | format string (within quotes)
+---------------- | -----------------------------
+`--format-open`  | `'%+'`
+`--format`       | `'%F%n%s%K%B%~%u'`
 
 The following fields may be used in the `FORMAT` string:
 
@@ -3332,6 +3355,7 @@ field                   | output
 `%[ARG]S`               | if not the first match: `ARG` and separator, see also `%[SEP]$`
 `%s`                    | the separator, see also `%[ARG]S` and `%[SEP]$`
 `%~`                    | a newline character
+`%+`                    | if option `--heading` is used: `%F` and a newline character, suppress all `%F` afterward
 `%m`                    | the number of matches or matched files
 `%O`                    | the matching line is output as is (a raw string of bytes)
 `%o`                    | the match is output as is (a raw string of bytes)
@@ -3401,76 +3425,81 @@ Note:
   note above), i.e. `TEXT1` is output for index 1, `TEXT2` is output for index
   2, and so on.  If the list is too short, the index value is output or the
   name of a named group capture is output.
+- Option `-T` and `--pretty` add right-justifying spacing to fields `%N` and
+  `%K` if no leading `[ARG]` part is specified.
+- Field `%+` may be used in `--format-open` to output the pathname heading and
+   a newline break, respectively.  Field `%+` suppresses `%a`, `%F`, `%f`,
+   `%H`, `%h` and `%p` output.
 
 To output matching lines faster by omitting the header output and binary match
 checks, using `--format` with field `%O` (output matching line as is) and field
 `%~` (output newline):
 
-    ugrep --format='%O%~' 'href=' index.html
+    ug --format='%O%~' 'href=' index.html
 
 Same, but also displaying the line and column numbers:
 
-    ugrep --format='%n%k: %O%~' 'href=' index.html
+    ug --format='%n%k: %O%~' 'href=' index.html
 
 Same, but display a line at most once when matching multiple patterns, unless
 option `-u` is used:
 
-    ugrep --format='%u%n%k: %O%~' 'href=' index.html
+    ug --format='%u%n%k: %O%~' 'href=' index.html
 
 To string together a list of unique line numbers of matches, separated by
 commas with field `%,`:
 
-    ugrep --format='%u%,%n' 'href=' index.html
+    ug --format='%u%,%n' 'href=' index.html
 
 To output the matching part of a line only with field `%o` (or option `-o` with
 field `%O`):
 
-    ugrep --format='%o%~' "href=[\"'][^\"'][\"']" index.html
+    ug --format='%o%~' "href=[\"'][^\"'][\"']" index.html
 
 To string together the pattern matches as CSV-formatted strings with field `%v`
 separated by commas with field `%,`:
 
-    ugrep --format='%,%v' "href=[\"'][^\"'][\"']" index.html
+    ug --format='%,%v' "href=[\"'][^\"'][\"']" index.html
 
 To output matches in CSV (comma-separated values), the same as option `--csv`
 (works with options `-H`, `-n`, `-k`, `-b` to add CSV values):
 
-    ugrep --format='"%[,]$%H%N%K%B%V%~%u"' 'href=' index.html
+    ug --format='"%[,]$%H%N%K%B%V%~%u"' 'href=' index.html
 
 To output matches in AckMate format:
 
-    ugrep --format=":%f%~%n;%k %w:%O%~" 'href=' index.html
+    ug --format=":%f%~%n;%k %w:%O%~" 'href=' index.html
 
 To output the sub-pattern indices 1, 2, and 3 on the left to the match for the
 three patterns `foo`, `bar`, and `baz` in file `foobar.txt`:
 
-    ugrep --format='%g: %o%~' 'foo|bar|baz' foobar.txt
+    ug --format='%g: %o%~' 'foo|bar|baz' foobar.txt
 
 Same, but using a file `foos` containing three lines with `foo`, `bar`, and
 `baz`, where option `-F` is used to match strings instead of regex:
 
-    ugrep -F -f foos --format='%g: %o%~' foobar.txt
+    ug -F -f foos --format='%g: %o%~' foobar.txt
 
 To output `one`, `two`, and `a word` for the sub-patterns `[fF]oo`, `[bB]ar`,
 and any other word `\w+`, respectively, using argument `[one|two|a word]` with
 field `%g` indexed by sub-pattern (or group captures with option `-P`):
 
-    ugrep --format='%[one|two|a word]g%~' '([fF]oo)|([bB]ar)|(\w+)' foobar.txt
+    ug --format='%[one|two|a word]g%~' '([fF]oo)|([bB]ar)|(\w+)' foobar.txt
 
 To output a list of group capture indices with `%G` separated by the word `and`
 instead of the default colons with `%[ and ]$`, followed by the matching line:
 
-    ugrep -P --format='%[ and ]$%G%$%s%O%~' '(foo)|(ba((r)|(z)))' foobar.txt
+    ug -P --format='%[ and ]$%G%$%s%O%~' '(foo)|(ba((r)|(z)))' foobar.txt
 
 Same, but showing names instead of numbers:
 
-    ugrep -P --format='%[ and ]$%[foo|ba|r|z]G%$%s%O%~' '(foo)|(ba(?:(r)|(z)))' foobar.txt
+    ug -P --format='%[ and ]$%[foo|ba|r|z]G%$%s%O%~' '(foo)|(ba(?:(r)|(z)))' foobar.txt
 
 Note that option `-P` is required for general use of group captures for
 sub-patterns.  Named sub-pattern matches may be used with PCRE2 and shown in
 the output:
 
-    ugrep -P --format='%[ and ]$%G%$%s%O%~' '(?P<foo>foo)|(?P<ba>ba(?:(?P<r>r)|(?P<z>z)))' foobar.txt
+    ug -P --format='%[ and ]$%G%$%s%O%~' '(?P<foo>foo)|(?P<ba>ba(?:(?P<r>r)|(?P<z>z)))' foobar.txt
 
 🔝 [Back to table of contents](#toc)
 
@@ -3480,10 +3509,10 @@ the output:
 
     --replace=FORMAT
             Replace matching patterns in the output by the specified FORMAT
-            with `%' fields.  When option -P is used, FORMAT may include `%1'
-            to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'
+            with `%' fields.  If -P is specified, FORMAT may include `%1' to
+            `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'
             outputs `%' and `%~' outputs a newline.  See option --format,
-            `ugrep --help format' and `man ugrep' section FORMAT for details
+            `ugrep --help format' and `man ugrep' section FORMAT for details.
     -y, --any-line
             Any line is output (passthru).  Non-matching lines are output as
             context with a `-' separator.  See also options -A, -B, and -C.
@@ -3492,11 +3521,11 @@ the output:
     --format=FORMAT
             Output FORMAT-formatted matches.  For example --format='%f:%n:%O%~'
             outputs matching lines `%O' with filename `%f` and line number `%n'
-            followed by a newline `%~'.  When option -P is used, FORMAT may
-            include `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group
-            captures.  A `%%' outputs `%'.  See `ugrep --help format' and `man
-            ugrep' section FORMAT for details.  Context options -A, -B, -C and
-            -y are ignored.
+            followed by a newline `%~'.  If -P is specified, FORMAT may include
+            `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A
+            `%%' outputs `%'.  See `ugrep --help format' and `man ugrep'
+            section FORMAT for details.  Context options -A, -B, -C and -y are
+            ignored.
 
 See [customized output with --format](#format) for details on the `FORMAT`
 fields.
@@ -3515,44 +3544,44 @@ To display pattern matches with their sequential match number using
 `--replace='%m:%o'` where `%m` is the sequential match number and `%o` is the
 pattern matched:
 
-    ugrep --replace='%m:%o' pattern myfile.txt
+    ug --replace='%m:%o' pattern myfile.txt
 
 Same, but passing the file through with option `-y`, while applying the
 replacements to the output:
 
-    ugrep -y --replace='%m:%o' pattern myfile.txt
+    ug -y --replace='%m:%o' pattern myfile.txt
 
 To extract table cells from an HTML file using Perl matching (`-P`) to support
 group captures with lazy quantifier `(.*?)`, and translate the matches to a
 comma-separated list with format `%,%1` (conditional comma and group capture):
 
-    ugrep -P -o '<td>(.*?)</td>' --replace='%,%1' index.html
+    ug -P -o '<td>(.*?)</td>' --replace='%,%1' index.html
 
 Same, but using `--format='%,%1'` instead and we do not need `-o` (note that
 `--replace` color-highlights matches shown on a terminal but `--format` does
 not):
 
-    ugrep -P '<td>(.*?)</td>' --format='%,%1' index.html
+    ug -P '<td>(.*?)</td>' --format='%,%1' index.html
 
 Same, but displaying the formatted matches line-by-line, with `--replace` or
 with `--format`:
 
-    ugrep -P -o '<td>(.*?)</td>' --replace='%,%1' index.html
-    ugrep -P '<td>(.*?)</td>' --format='%1%~' index.html
+    ug -P -o '<td>(.*?)</td>' --replace='%,%1' index.html
+    ug -P '<td>(.*?)</td>' --format='%1%~' index.html
 
 To collect all `href` URLs from all HTML and PHP files down the working
 directory, then sort them:
 
-    ugrep -R -thtml,php -P '<[^<>]+href\h*=\h*.([^\x27"]+).' --format='%1%~' | sort -u
+    ug -R -thtml,php -P '<[^<>]+href\h*=\h*.([^\x27"]+).' --format='%1%~' | sort -u
 
 Same, but much easier by using the predefined `html/href` pattern:
 
-    ugrep -R -thtml,php -P -f html/href --format='%1%~' | sort -u
+    ug -R -thtml,php -P -f html/href --format='%1%~' | sort -u
 
 Same, but in this case select `<script>` `src` URLs when referencing `http` and
 `https` sites:
 
-    ugrep -R -thtml,php -P '<script.*src\h*=\h*.(https?:[^\x27"]+).' --format='%1%~' | sort -u
+    ug -R -thtml,php -P '<script.*src\h*=\h*.(https?:[^\x27"]+).' --format='%1%~' | sort -u
 
 🔝 [Back to table of contents](#toc)
 
@@ -3577,50 +3606,51 @@ Same, but in this case select `<script>` `src` URLs when referencing `http` and
             specified, the number of threads spawned is limited to NUM.
     --sort[=KEY]
             Displays matching files in the order specified by KEY in recursive
-            searches.  KEY can be `name' to sort by pathname (default), `best'
-            to sort by best match with option -Z (sort by best match requires
-            two passes over the input files), `size' to sort by file size,
-            `used' to sort by last access time, `changed' to sort by last
-            modification time, and `created' to sort by creation time.  Sorting
-            is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or
-            `rcreated'.  Archive contents are not sorted.  Subdirectories are
-            sorted and displayed after matching files.  FILE arguments are
-            searched in the same order as specified.  Normally ugrep displays
-            matches in no particular order to improve performance.
+            searches.  Normally the ug command sorts by name whereas the ugrep
+            batch command displays matches in no particular order to improve
+            performance.  The sort KEY can be `name' to sort by pathname
+            (default), `best' to sort by best match with option -Z (sort by
+            best match requires two passes over files, which is expensive),
+            `size' to sort by file size, `used' to sort by last access time,
+            `changed' to sort by last modification time and `created' to sort
+            by creation time.  Sorting is reversed with `rname', `rbest',
+            `rsize', `rused', `rchanged', or `rcreated'.  Archive contents are
+            not sorted.  Subdirectories are sorted and displayed after matching
+            files.  FILE arguments are searched in the same order as specified.
 
 To show only the first 10 matches of `FIXME` in C++ files in the working
 directory and all subdirectories below:
 
-    ugrep -R -m10 -tc++ FIXME
+    ug -R -m10 -tc++ FIXME
 
 Same, but recursively search up to two directory levels, meaning that `./` and
 `./sub/` are visited but not deeper:
 
-    ugrep -2 -m10 -tc++ FIXME
+    ug -2 -m10 -tc++ FIXME
 
 To show only the first two files that have one or more matches of `FIXME` in
 the list of files sorted by pathname, using `--max-files=2`:
 
-    ugrep --sort -R --max-files=2 -tc++ FIXME
+    ug --sort -R --max-files=2 -tc++ FIXME
 
 To search file `install.sh` for the occurrences of the word `make` after the
 first line, we use `-K` with line number 2 to start searching, where `-n` shows
 the line numbers in the output:
 
-    ugrep -n -K2 -w make install.sh
+    ug -n -K2 -w make install.sh
 
 Same, but restricting the search to lines 2 to 40 (inclusive):
 
-    ugrep -n -K2,40 -w make install.sh
+    ug -n -K2,40 -w make install.sh
 
 Same, but showing all lines 2 to 40 with `-y`:
 
-    ugrep -y -n -K2,40 -w make install.sh
+    ug -y -n -K2,40 -w make install.sh
 
 Same, but showing only the first four matching lines after line 2, with one
 line of context:
 
-    ugrep -n -C1 -K2 -m4 -w make install.sh
+    ug -n -C1 -K2 -m4 -w make install.sh
 
 🔝 [Back to table of contents](#toc)
 
@@ -3648,7 +3678,7 @@ To recursively list files in the working directory with blank lines, i.e. lines
 with white space only, including empty lines (note that option `-Y` is
 implicitly enabled since the pattern starts with `^` and ends with `$`):
 
-    ugrep -l '^\h*$'
+    ug -l '^\h*$'
 
 🔝 [Back to table of contents](#toc)
 
@@ -3666,12 +3696,12 @@ implicitly enabled since the pattern starts with `^` and ends with `$`):
 
 To match `todo` in `myfile.cpp` regardless of case:
 
-     ugrep -i 'todo' myfile.txt
+     ug -i 'todo' myfile.txt
 
 To match `todo XXX` with `todo` in any case but `XXX` as given, with pattern
 `(?i:todo)` to match `todo` ignoring case:
 
-     ugrep '(?i:todo) XXX' myfile.cpp
+     ug '(?i:todo) XXX' myfile.cpp
 
 🔝 [Back to table of contents](#toc)
 
@@ -3681,32 +3711,35 @@ To match `todo XXX` with `todo` in any case but `XXX` as given, with pattern
 
     --sort[=KEY]
             Displays matching files in the order specified by KEY in recursive
-            searches.  KEY can be `name' to sort by pathname (default), `best'
-            to sort by best match with option -Z (sort by best match requires
-            two passes over the input files), `size' to sort by file size,
-            `used' to sort by last access time, `changed' to sort by last
-            modification time, and `created' to sort by creation time.  Sorting
-            is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or
-            `rcreated'.  Archive contents are not sorted.  Subdirectories are
-            sorted and displayed after matching files.  FILE arguments are
-            searched in the same order as specified.  Normally ugrep displays
-            matches in no particular order to improve performance.
+            searches.  Normally the ug command sorts by name whereas the ugrep
+            batch command displays matches in no particular order to improve
+            performance.  The sort KEY can be `name' to sort by pathname
+            (default), `best' to sort by best match with option -Z (sort by
+            best match requires two passes over files, which is expensive),
+            `size' to sort by file size, `used' to sort by last access time,
+            `changed' to sort by last modification time and `created' to sort
+            by creation time.  Sorting is reversed with `rname', `rbest',
+            `rsize', `rused', `rchanged', or `rcreated'.  Archive contents are
+            not sorted.  Subdirectories are sorted and displayed after matching
+            files.  FILE arguments are searched in the same order as specified.
 
-The matching files are displayed in the order specified by `--sort`.  By
-default, the output is not sorted to improve performance, unless option `-Q` is
-used which sorts files by name by default.  An optimized sorting method and
-strategy are implemented in the asynchronous output class to keep the overhead
-of sorting very low.  Directories are displayed after files are displayed
-first, when recursing, which visually aids the user in finding the "closest"
-matching files first at the top of the displayed results.
+Matching files are displayed in the order specified by `--sort` per directory
+searched.  By default, the `ug` command sorts by name whereas the output of the
+`ugrep` command is not sorted to improve performance, unless option `-Q` is
+used which sorts files by name.  An optimized sorting method and strategy are
+implemented in the asynchronous output class to keep the overhead of sorting
+very low.  Directories are displayed after files are displayed first, when
+recursing, which visually aids the user in finding the "closest" matching files
+first at the top of the displayed results.
 
-To recursively search for C++ files that match `main` and sort them by name:
+To recursively search for C++ files that match `main` and sort them by date
+created:
 
-    ugrep --sort -tc++ 'main'
+    ug --sort=created -tc++ 'main'
 
 Same, but sorted by time changed from most recent to oldest:
 
-    ugrep --sort=rchanged -tc++ 'main'
+    ug --sort=rchanged -tc++ 'main'
 
 🔝 [Back to table of contents](#toc)
 
@@ -3718,12 +3751,12 @@ When searching non-binary files only, the binary content check is disabled with
 option `-a` (`--text`) to speed up searching and displaying pattern matches.
 For example, searching for lines with `int` in C++ source code:
 
-    ugrep -r -a -Ocpp -w 'int'
+    ug -r -a -Ocpp -w 'int'
 
 If a file has potentially many pattern matches, but each match is only one a
 single line, then option `-u` (`--ungroup`) can speed this up:
 
-    ugrep -r -a -u -Opython -w 'def'
+    ug -r -a -u -Opython -w 'def'
 
 Even greater speeds can be achieved with `--format` when searching files with
 many matches.  For example, `--format='%O%~'` displays matching lines for each
@@ -3738,7 +3771,7 @@ For example, to match all words recursively in the working directory with line
 and column numbers, where `%n` is the line number, `%k` is the column number,
 `%o` is the match (only matching), and `%~` is a newline:
 
-    ugrep -r --format='%n,%k:%o%~' '\w+'
+    ug -r --format='%n,%k:%o%~' '\w+'
 
 🔝 [Back to table of contents](#toc)
 
@@ -3749,30 +3782,30 @@ and column numbers, where `%n` is the line number, `%k` is the column number,
 To search for pattern `-o` in `script.sh` using `-e` to explicitly specify a
 pattern to prevent pattern `-o` from being interpreted as an option:
 
-    ugrep -n -e '-o' script.sh
+    ug -n -e '-o' script.sh
 
 Alternatively, using `--` to end the list of command arguments:
 
-    ugrep -n -- '-o' script.sh
+    ug -n -- '-o' script.sh
 
 To recursively list all text files (.txt and .md) that do not properly end with
 a `\n` (`-o` is required to match `\n` or `\z`):
 
-    ugrep -L -o -Otext '\n\z'
+    ug -L -o -Otext '\n\z'
 
 To list all markdown sections in text files (.text, .txt, .TXT, and .md):
 
-    ugrep -o -ttext -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*'
+    ug -o -ttext -e '^.*(?=\r?\n(===|---))' -e '^#{1,6}\h+.*'
 
 To display multi-line backtick and indented code blocks in markdown files with
 their line numbers, using a lazy quantifier `*?` to make the pattern compact:
 
-    ugrep -n -ttext -e '^```(.|\n)*?\n```' -e '^(\t|[ ]{4}).*'
+    ug -n -ttext -e '^```(.|\n)*?\n```' -e '^(\t|[ ]{4}).*'
 
 To find mismatched code (a backtick without matching backtick on the same line)
 in markdown:
 
-    ugrep -n -ttext -e '`[^`]+' -N '`[^`]*`'
+    ug -n -ttext -e '`[^`]+' -N '`[^`]*`'
 
 🔝 [Back to table of contents](#toc)
 
@@ -3801,46 +3834,52 @@ in markdown:
            input line that matches at least one of the patterns is written to  the
            standard output.
 
+           The  ug  command  is intended for interactive searching, using a .ugrep
+           configuration file located in the working directory or home  directory,
+           see  CONFIGURATION.  ug is equivalent to ugrep --config and sorts files
+           by name by default.
+
            ugrep accepts input of various encoding formats and normalizes the out-
-           put to UTF-8.  When a UTF byte order mark is present in the input,  the
-           input  is  automatically normalized; otherwise, ugrep assumes the input
+           put  to UTF-8.  When a UTF byte order mark is present in the input, the
+           input is automatically normalized; otherwise, ugrep assumes  the  input
            is ASCII, UTF-8, or raw binary.  An input encoding format may be speci-
            fied with option --encoding.
-
-           The ug command is equivalent to ugrep --config to load the default con-
-           figuration file, which allows for customization, see CONFIGURATION.
 
            If no FILE arguments are specified and standard input is  read  from  a
            terminal,  recursive  searches are performed as if -R is specified.  To
            force reading from standard input, specify `-' as a FILE argument.
 
            Directories specified as FILE arguments are searched without  recursing
-           into subdirectories, unless -R, -r, or -2...-9 is specified.
+           into  subdirectories,  unless -R, -r, or -2...-9 is specified to search
+           subdirectories.
 
            Hidden files and directories are ignored in recursive searches.  Option
-           -. (--hidden)  includes  hidden  files  and  directories  in  recursive
+           -.  (--hidden)  includes  hidden  files  and  directories  in recursive
            searches.
 
-           A  query interface is opened with -Q (--query) to interactively specify
-           search patterns and view search results.  Note that a PATTERN  argument
+           A query interface is opened with -Q (--query) to interactively  specify
+           search  patterns and view search results.  Note that a PATTERN argument
            cannot be specified in this case.  To specify one or more patterns with
-           -Q, use -e PATTERN.
+           -Q to start searching, use -e PATTERN.
 
-           Option -f FILE matches patterns specified in FILE.  If  FILE  is  large
-           and  defines  complex regular expression patterns, then option -P (Perl
-           matching) may improve performance (this omits POSIX DFA  construction.)
+           Option  -f  FILE  matches patterns specified in FILE.  If FILE is large
+           and defines complex regular expression patterns, then option  -P  (Perl
+           matching)  may improve performance (this omits POSIX DFA construction.)
 
            ugrep --help WHAT displays help on options related to WHAT; --help for-
-           mat displays help on --format and --replace  formatting;  --help  regex
-           displays  help  on  regular  expression  syntax and conventions; --help
-           globs displays help on glob patterns.
+           mat  displays  help  on --format and --replace formatting; --help regex
+           displays help on regular  expression  syntax  and  conventions;  --help
+           globs  displays help on glob patterns to select files to search; --help
+           fuzzy displays help on fuzzy (approximate) searching.
 
            The following options are available:
 
            -A NUM, --after-context=NUM
-                  Print NUM  lines  of  trailing  context  after  matching  lines.
+                  Output NUM lines  of  trailing  context  after  matching  lines.
                   Places a --group-separator between contiguous groups of matches.
-                  See also options -B, -C and -y.
+                  If -o is specified, output the match with  context  to  fit  NUM
+                  columns  after  the  match  or  shortening  the match.  See also
+                  options -B, -C and -y.
 
            -a, --text
                   Process a binary file as if it were text.  This is equivalent to
@@ -3848,7 +3887,7 @@ in markdown:
                   garbage to the terminal, which can have problematic consequences
                   if the terminal driver interprets some of it as commands.
 
-           --and [[-e] PATTERN] ... -e PATTERN
+           --and [-e] PATTERN ... -e PATTERN
                   Specify  additional  patterns to match.  Patterns must be speci-
                   fied with -e.  Each -e PATTERN following this option is  consid-
                   ered  an  alternative  pattern  to match, i.e. each -e is inter-
@@ -3859,13 +3898,15 @@ in markdown:
                   terns  applied.   See  also  options  --not,  --andnot,  --bool,
                   --files and --lines.
 
-           --andnot [[-e] PATTERN] ...
+           --andnot [-e] PATTERN
                   Combines --and --not.  See also options --and, --not and --bool.
 
            -B NUM, --before-context=NUM
-                  Print NUM  lines  of  leading  context  before  matching  lines.
+                  Output NUM lines  of  leading  context  before  matching  lines.
                   Places a --group-separator between contiguous groups of matches.
-                  See also options -A, -C and -y.
+                  If -o is specified, output the match with  context  to  fit  NUM
+                  columns  before  the  match  or  shortening the match.  See also
+                  options -A, -C and -y.
 
            -b, --byte-offset
                   The offset in bytes of a matched line is displayed in  front  of
@@ -3904,10 +3945,10 @@ in markdown:
                   `OR'.   Parenthesis  are used for grouping.  For example, --bool
                   '(A B)|C' matches lines with `A' and `B',  or  lines  with  `C'.
                   Note that all subpatterns in a Boolean query pattern are regular
-                  expressions, unless option -F is used.  Options -E, -F,  -G,  -P
-                  and  -Z  can  be  combined  with  --bool to match subpatterns as
-                  strings or regular expressions (-E is the default.)  This option
-                  does not apply to -f FILE patterns.  Option --stats displays the
+                  expressions, unless -F is specified.  Options -E, -F, -G, -P and
+                  -Z  can  be combined with --bool to match subpatterns as strings
+                  or regular expressions (-E is the default.)   This  option  does
+                  not  apply  to  -f  FILE  patterns.  Option --stats displays the
                   search patterns applied.   See  also  options  --and,  --andnot,
                   --not, --files and --lines.
 
@@ -3915,9 +3956,11 @@ in markdown:
                   Adds a line break between results from different files.
 
            -C NUM, --context=NUM
-                  Print NUM lines of leading and trailing context surrounding each
-                  match.  Places a --group-separator between contiguous groups  of
-                  matches.  See also options -A, -B and -y.
+                  Output  NUM  lines  of  leading and trailing context surrounding
+                  each matching line.  Places a --group-separator between contigu-
+                  ous  groups  of  matches.   If -o is specified, output the match
+                  with context to fit NUM columns before and after  the  match  or
+                  shortening the match.  See also options -A, -B and -y.
 
            -c, --count
                   Only  a  count  of selected lines is written to standard output.
@@ -4099,11 +4142,11 @@ in markdown:
            --format=FORMAT
                   Output    FORMAT-formatted    matches.    For   example   --for-
                   mat='%f:%n:%O%~' outputs matching lines `%O' with filename  `%f`
-                  and line number `%n' followed by a newline `%~'.  When option -P
-                  is  used,  FORMAT  may  include  `%1'  to  `%9',  `%[NUM]#'  and
-                  `%[NAME]#'  to  output group captures.  A `%%' outputs `%'.  See
-                  `ugrep  --help  format'  and  `man  ugrep'  section  FORMAT  for
-                  details.  Context options -A, -B, -C and -y are ignored.
+                  and line number `%n' followed by a newline `%~'.  If -P is spec-
+                  ified, FORMAT may include `%1' to `%9', `%[NUM]#' and `%[NAME]#'
+                  to  output  group  captures.   A  `%%'  outputs `%'.  See `ugrep
+                  --help format' and `man ugrep' section FORMAT for details.  Con-
+                  text options -A, -B, -C and -y are ignored.
 
            --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
@@ -4343,12 +4386,12 @@ in markdown:
                   recursive search.
 
            -o, --only-matching
-                  Print  only  the  matching  part  of lines.  When multiple lines
-                  match, the line numbers with option -n are displayed  using  `|'
-                  as  the  field separator for each additional line matched by the
-                  pattern.  If -u is specified, ungroups multiple matches  on  the
-                  same  line.  This option cannot be combined with options -A, -B,
-                  -C, -v and -y.
+                  Output  only  the  matching  part  of lines.  If -b, -k or -u is
+                  specified, output each match on a separate line.  When  multiple
+                  lines match a pattern, output the matching lines with `|' as the
+                  field separator.  If -A, -B or -C is specified, fits  the  match
+                  and  its  context  on a line within the specified number of col-
+                  umns.
 
            --only-line-number
                   The line number of the matching line in the file is output with-
@@ -4419,11 +4462,11 @@ in markdown:
 
            --replace=FORMAT
                   Replace  matching patterns in the output by the specified FORMAT
-                  with `%' fields.  When option -P is  used,  FORMAT  may  include
-                  `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.
-                  A `%%' outputs `%' and  `%~'  outputs  a  newline.   See  option
-                  --format,  `ugrep  --help format' and `man ugrep' section FORMAT
-                  for details.
+                  with `%' fields.  If -P is specified, FORMAT may include `%1' to
+                  `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'
+                  outputs `%' and `%~' outputs a newline.   See  option  --format,
+                  `ugrep  --help  format'  and  `man  ugrep'  section  FORMAT  for
+                  details.
 
            -S, --dereference
                   If -r is specified, all symbolic links are  followed,  like  -R.
@@ -4444,48 +4487,49 @@ in markdown:
 
            --sort[=KEY]
                   Displays  matching files in the order specified by KEY in recur-
-                  sive searches.  KEY can be `name' to sort by pathname (default),
-                  `best'  to sort by best match with option -Z (sort by best match
-                  requires two passes over files, which is expensive),  `size'  to
-                  sort by file size, `used' to sort by last access time, `changed'
-                  to sort by last modification time and `created' to sort by  cre-
-                  ation time.  Sorting is reversed with `rname', `rbest', `rsize',
-                  `rused', `rchanged', or `rcreated'.  Archive  contents  are  not
-                  sorted.   Subdirectories are sorted and displayed after matching
-                  files.  FILE arguments are searched in the same order as  speci-
-                  fied.  Normally ugrep displays matches in no particular order to
-                  improve performance.
+                  sive searches.  Normally the ug command sorts  by  name  whereas
+                  the  ugrep batch command displays matches in no particular order
+                  to improve performance.  The sort KEY can be `name' to  sort  by
+                  pathname  (default), `best' to sort by best match with option -Z
+                  (sort by best match requires two passes  over  files,  which  is
+                  expensive),  `size' to sort by file size, `used' to sort by last
+                  access time, `changed' to sort by  last  modification  time  and
+                  `created'  to  sort  by creation time.  Sorting is reversed with
+                  `rname', `rbest', `rsize', `rused', `rchanged',  or  `rcreated'.
+                  Archive  contents are not sorted.  Subdirectories are sorted and
+                  displayed after matching files.  FILE arguments are searched  in
+                  the same order as specified.
 
            --stats
                   Output  statistics  on  the  number  of  files  and  directories
                   searched and the inclusion and exclusion constraints applied.
 
            -T, --initial-tab
-                  Add  a  tab space to separate the file name, line number, column
+                  Add a tab space to separate the file name, line  number,  column
                   number and byte offset with the matched line.
 
            -t TYPES, --file-type=TYPES
-                  Search only files associated with TYPES, a comma-separated  list
-                  of  file types.  Each file type corresponds to a set of filename
-                  extensions passed to option -O and filenames  passed  to  option
-                  -g.   For  capitalized  file  types,  the  search is expanded to
-                  include files with matching file signature magic  bytes,  as  if
+                  Search  only files associated with TYPES, a comma-separated list
+                  of file types.  Each file type corresponds to a set of  filename
+                  extensions  passed  to  option -O and filenames passed to option
+                  -g.  For capitalized file  types,  the  search  is  expanded  to
+                  include  files  with  matching file signature magic bytes, as if
                   passed to option -M.  When a type is preceded by a `!' or a `^',
-                  excludes files of  the  specified  type.   This  option  may  be
+                  excludes  files  of  the  specified  type.   This  option may be
                   repeated.  The possible file types can be (where -tlist displays
-                  a detailed list): `actionscript', `ada', `asm',  `asp',  `aspx',
+                  a  detailed  list): `actionscript', `ada', `asm', `asp', `aspx',
                   `autoconf', `automake', `awk', `Awk', `basic', `batch', `bison',
-                  `c', `c++', `clojure', `cpp', `csharp',  `css',  `csv',  `dart',
+                  `c',  `c++',  `clojure',  `cpp', `csharp', `css', `csv', `dart',
                   `Dart', `delphi', `elisp', `elixir', `erlang', `fortran', `gif',
                   `Gif', `go', `groovy', `gsp', `haskell', `html', `jade', `java',
-                  `jpeg',  `Jpeg', `js', `json', `jsp', `julia', `kotlin', `less',
-                  `lex',  `lisp',  `lua',  `m4',  `make',  `markdown',   `matlab',
-                  `node',  `Node',  `objc', `objc++', `ocaml', `parrot', `pascal',
-                  `pdf', `Pdf', `perl', `Perl', `php', `Php', `png', `Png',  `pro-
-                  log',  `python',  `Python',  `r',  `rpm',  `Rpm',  `rst', `rtf',
+                  `jpeg', `Jpeg', `js', `json', `jsp', `julia', `kotlin',  `less',
+                  `lex',   `lisp',  `lua',  `m4',  `make',  `markdown',  `matlab',
+                  `node', `Node', `objc', `objc++', `ocaml',  `parrot',  `pascal',
+                  `pdf',  `Pdf', `perl', `Perl', `php', `Php', `png', `Png', `pro-
+                  log', `python',  `Python',  `r',  `rpm',  `Rpm',  `rst',  `rtf',
                   `Rtf',  `ruby',  `Ruby',  `rust',  `scala',  `scheme',  `shell',
                   `Shell',  `smalltalk',  `sql',  `svg',  `swift',  `tcl',  `tex',
-                  `text', `tiff', `Tiff', `tt', `typescript',  `verilog',  `vhdl',
+                  `text',  `tiff',  `Tiff', `tt', `typescript', `verilog', `vhdl',
                   `vim', `xml', `Xml', `yacc', `yaml'.
 
            --tabs[=NUM]
@@ -4493,18 +4537,18 @@ in markdown:
                   of NUM may be 1, 2, 4, or 8.  The default tab size is 8.
 
            --tag[=TAG[,END]]
-                  Disables colors to mark up matches with TAG.  END marks the  end
+                  Disables  colors to mark up matches with TAG.  END marks the end
                   of a match if specified, otherwise TAG.  The default is `___'.
 
            -U, --binary
                   Disables Unicode matching for binary file matching, forcing PAT-
-                  TERN to match bytes, not Unicode characters.   For  example,  -U
-                  '\xa3'  matches  byte A3 (hex) instead of the Unicode code point
+                  TERN  to  match  bytes, not Unicode characters.  For example, -U
+                  '\xa3' matches byte A3 (hex) instead of the Unicode  code  point
                   U+00A3 represented by the UTF-8 sequence C2 A3.  See also option
                   --dotall.
 
            -u, --ungroup
-                  Do  not group multiple pattern matches on the same matched line.
+                  Do not group multiple pattern matches on the same matched  line.
                   Output the matched line again for each additional pattern match,
                   using `+' as a separator.
 
@@ -4512,30 +4556,36 @@ in markdown:
                   Display version with linked libraries and exit.
 
            -v, --invert-match
-                  Selected  lines are those not matching any of the specified pat-
+                  Selected lines are those not matching any of the specified  pat-
                   terns.
 
            --view[=COMMAND]
-                  Use COMMAND to view/edit a file  in  query  mode  when  pressing
+                  Use  COMMAND  to  view/edit  a  file in query mode when pressing
                   CTRL-Y.
 
            -W, --with-hex
-                  Output  binary  matches  in  hexadecimal,  leaving  text matches
+                  Output binary  matches  in  hexadecimal,  leaving  text  matches
                   alone.  This option is equivalent to the --binary-files=with-hex
-                  option  with  --hexdump=2C.   To omit the matching line from the
-                  hex output, combine option --hexdump with option -W.   See  also
+                  option with --hexdump=2C.  To omit the matching  line  from  the
+                  hex  output,  combine option --hexdump with option -W.  See also
                   option -U.
 
            -w, --word-regexp
-                  The  PATTERN  is  searched for as a word, such that the matching
-                  text is preceded by a non-word character and is  followed  by  a
+                  The PATTERN is searched for as a word, such  that  the  matching
+                  text  is  preceded  by a non-word character and is followed by a
                   non-word character.  Word characters are letters, digits and the
-                  underscore.  With option -P, word characters  are  Unicode  let-
+                  underscore.   With  option  -P, word characters are Unicode let-
                   ters, digits and underscore.  This option has no effect if -x is
-                  also specified.  If a PATTERN is specified, or -e PATTERN or  -N
-                  PATTERN,  then  this option has no effect on -f FILE patterns to
-                  allow -f FILE patterns to narrow or widen the scope of the  PAT-
+                  also  specified.  If a PATTERN is specified, or -e PATTERN or -N
+                  PATTERN, then this option has no effect on -f FILE  patterns  to
+                  allow  -f FILE patterns to narrow or widen the scope of the PAT-
                   TERN search.
+
+           --width[=NUM]
+                  Truncate the output to NUM visible  characters  per  line.   The
+                  width  of  the  terminal window is used if NUM is not specified.
+                  Note that double wide characters in  the  input  may  result  in
+                  wider lines.
 
            -X, --hex
                   Output matches in hexadecimal.  This option is equivalent to the
@@ -4574,8 +4624,10 @@ in markdown:
                   file.   Option -Zbest requires two passes over a file and cannot
                   be  used  with  standard  input  or  Boolean  queries.    Option
                   --sort=best  orders  matching  files  by  best match.  The first
-                  character of an approximate match always matches the start of  a
-                  pattern.   Option -U applies fuzzy matching to bytes.  No white-
+                  character of an approximate match always matches a character  at
+                  the  beginning of the pattern.  To fuzzy match the first charac-
+                  ter, replace it with a `.' or `.?'.   Option  -U  applies  fuzzy
+                  matching  to ASCII and bytes instead of Unicode text.  No white-
                   space may be given between -Z and its argument.
 
            -z, --decompress
@@ -4605,7 +4657,7 @@ in markdown:
                   degrades performance.
 
            -0, --null
-                  Prints a zero-byte (NUL) after the file name.  This  option  can
+                  Output a zero-byte (NUL) after the file name.  This  option  can
                   be  used  with commands such as `find -print0' and `xargs -0' to
                   process arbitrary file names.
 
@@ -5025,9 +5077,9 @@ in markdown:
 
                   $ ugrep -cowi patricia myfile.txt
 
-           List lines with both `amount' and a decimal number, ignoring case:
+           List lines with `amount' and a decimal, ignoring case (space is AND):
 
-                  $ ugrep -wi --bool 'amount +(.+)?' myfile.txt
+                  $ ugrep -i --bool 'amount +(.+)?' myfile.txt
 
            Alternative query:
 
@@ -5054,6 +5106,12 @@ in markdown:
 
                   $ ugrep -C1 -R -n -k -tc++ FIXME
 
+           Display the line and column number of `FIXME' in long Javascript  files
+           using  recursive  search, showing only matches with up to 10 characters
+           of context before and after:
+
+                  $ ugrep -o -C20 -R -n -k -tjs FIXME
+
            List the C/C++ comments in a file with line numbers:
 
                   $ ugrep -n -e '//.*' -e '/\*([^*]|(\*+[^*/]))*\*+\/' myfile.cpp
@@ -5071,28 +5129,40 @@ in markdown:
 
                   $ ugrep -e FIXME -f cpp/zap_strings myfile.cpp
 
-           Find lines with `FIXME' or `TODO':
+           Find lines with `FIXME' or `TODO', showing line numberes:
 
                   $ ugrep -n -e FIXME -e TODO myfile.cpp
 
-           Find lines with `FIXME' that also contain the word `urgent':
+           Find lines with `FIXME' that also contain `urgent':
 
-                  $ ugrep -n FIXME myfile.cpp | ugrep -w urgent
+                  $ ugrep -n -e FIXME --and urgent myfile.cpp
 
-           Find lines with `FIXME' but not the word `later':
+           The same, but with a Boolean query pattern (a space is AND):
 
-                  $ ugrep -n FIXME myfile.cpp | ugrep -v -w later
+                  $ ugrep -n --bool 'FIXME urgent' myfile.cpp
+
+           Find lines with `FIXME' that do not also contain `later':
+
+                  $ ugrep -n -e FIXME --andnot later myfile.cpp
+
+           The same, but with a Boolean query pattern (a space is AND, - is NOT):
+
+                  $ ugrep -n --bool 'FIXME -later' myfile.cpp
 
            Output a list of line numbers of lines with `FIXME' but not `later':
 
-                  $ ugrep -n FIXME myfile.cpp | ugrep -vw later |
-                    ugrep -P '^(\d+)' --format='%,%n'
+                  $ ugrep -e FIXME --andnot later --format='%,%n' myfile.cpp
+
+           Recursively  list all files with both `FIXME' and `LICENSE' anywhere in
+           the file, not necessarily on the same line:
+
+                  $ ugrep -l --files --bool 'FIXME LICENSE'
 
            Find lines with `FIXME' in the C/C++ files stored in a tarball:
 
                   $ ugrep -z -tc++ -n FIXME project.tgz
 
-           Recursively  find  lines with `FIXME' in C/C++ files, but do not search
+           Recursively find lines with `FIXME' in C/C++ files, but do  not  search
            any `bak' and `old' directories:
 
                   $ ugrep -n FIXME -tc++ -g^bak/,^old/
@@ -5103,8 +5173,8 @@ in markdown:
                   $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 
            Match the binary pattern `A3hhhhA3' (hex) in a binary file without Uni-
-           code pattern matching -U (which would otherwise match `\xaf' as a  Uni-
-           code  character  U+00A3 with UTF-8 byte sequence C2 A3) and display the
+           code  pattern matching -U (which would otherwise match `\xaf' as a Uni-
+           code character U+00A3 with UTF-8 byte sequence C2 A3) and  display  the
            results in hex with --hexdump with C1 to output one hex line before and
            after each match:
 
@@ -5118,12 +5188,12 @@ in markdown:
 
                   $ ugrep -l '' --ignore-files
 
-           List  all files containing a RPM signature, located in the `rpm' direc-
+           List all files containing a RPM signature, located in the `rpm'  direc-
            tory and recursively below up to two levels deeper (3 levels total):
 
                   $ ugrep -3 -l -tRpm '' rpm/
 
-           Monitor the system log for bug reports and ungroup multiple matches  on
+           Monitor  the system log for bug reports and ungroup multiple matches on
            a line:
 
                   $ tail -f /var/log/system.log | ugrep -u -i -w bug
@@ -5136,7 +5206,7 @@ in markdown:
 
                   $ ugrep --encoding=MACROMAN '\w+' mac.txt
 
-           Display all options related to "fuzzy" searching:
+           Display options related to "fuzzy" searching:
 
                   $ ugrep --help fuzzy
 
@@ -5147,8 +5217,8 @@ in markdown:
 
 
     LICENSE
-           ugrep  is  released under the BSD-3 license.  All parts of the software
-           have reasonable copyright terms permitting free  redistribution.   This
+           ugrep is released under the BSD-3 license.  All parts of  the  software
+           have  reasonable  copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
 
     SEE ALSO
@@ -5156,7 +5226,7 @@ in markdown:
 
 
 
-    ugrep 3.7.11                     May 10, 2022                         UGREP(1)
+    ugrep 3.8.0                      May 29, 2022                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

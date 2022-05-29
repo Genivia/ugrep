@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "3.7.11"
+#define UGREP_VERSION "3.8.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -267,6 +267,40 @@ inline char *getcwd0()
 }
 
 #endif
+
+// UTF-8 multibyte string length (number of UTF-8-encoded Unicode characters) without validity checking
+inline size_t utf8len(const char *s)
+{
+  size_t k = 0;
+  while (*s != '\0')
+    k += ((*s++ & 0xc0) != 0x80);
+  return k;
+}
+
+// UTF-8 multibyte string length (number of UTF-8-encoded Unicode characters) without validity checking
+inline size_t utf8nlen(const char *s, size_t n)
+{
+  size_t k = 0;
+  while (n-- > 0)
+    k += ((*s++ & 0xc0) != 0x80);
+  return k;
+}
+
+// UTF-8 multibyte string advance k UTF-8-encoded characters or until \0
+inline const char *utf8skip(const char *s, size_t k)
+{
+  while (*s != '\0' && k > 0)
+    k -= ((*++s & 0xc0) != 0x80);
+  return s;
+}
+
+// UTF-8 multibyte string of length n advance k UTF-8-encoded characters
+inline const char *utf8skipn(const char *s, size_t n, size_t k)
+{
+  while (n-- > 0 && k > 0)
+    k -= ((*++s & 0xc0) != 0x80);
+  return s;
+}
 
 // platform -- see configure.ac
 #if !defined(PLATFORM)

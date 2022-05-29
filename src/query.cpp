@@ -2672,7 +2672,6 @@ void Query::meta(int key)
             flags_[3].flag = false;
             flags_[4].flag = false;
             flags_[14].flag = false;
-            flags_[16].flag = false;
             flags_[29].flag = false;
             break;
 
@@ -2681,7 +2680,6 @@ void Query::meta(int key)
             flags_[3].flag = false;
             flags_[4].flag = false;
             flags_[14].flag = false;
-            flags_[16].flag = false;
             flags_[29].flag = false;
             break;
 
@@ -2697,7 +2695,6 @@ void Query::meta(int key)
             flags_[1].flag = false;
             flags_[4].flag = false;
             flags_[14].flag = false;
-            flags_[16].flag = false;
             flags_[29].flag = false;
             break;
 
@@ -2758,9 +2755,6 @@ void Query::meta(int key)
             break;
 
           case 'o':
-            flags_[0].flag = false;
-            flags_[1].flag = false;
-            flags_[3].flag = false;
             flags_[4].flag = false;
             flags_[14].flag = false;
             flags_[29].flag = false;
@@ -2926,6 +2920,49 @@ void Query::meta(int key)
 
         if (key == '[')
         {
+          if (!flags_[26].flag || flag_hexdump == NULL)
+            if (!flags_[0].flag && !flags_[1].flag)
+              flags_[3].flag = true;
+
+          if (flags_[16].flag)
+          {
+            if (only_context_ > 1)
+              --only_context_;
+            msg.append(" to ").append(std::to_string(only_context_));
+          }
+          else
+          {
+            if (context_ > 1)
+              --context_;
+            msg.append(" to ").append(std::to_string(context_));
+          }
+        }
+        else if (key == ']')
+        {
+          if (flags_[26].flag && flag_hexdump != NULL)
+          {
+            ++context_;
+            msg.append(" to ").append(std::to_string(context_));
+          }
+          else if (flags_[16].flag)
+          {
+            if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
+              ++only_context_;
+            else if (!flags_[0].flag && !flags_[1].flag)
+              flags_[3].flag = true;
+            msg.append(" to ").append(std::to_string(only_context_));
+          }
+          else
+          {
+            if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
+              ++context_;
+            else if (!flags_[0].flag && !flags_[1].flag)
+              flags_[3].flag = true;
+            msg.append(" to ").append(std::to_string(context_));
+          }
+        }
+        else if (key == '{')
+        {
           flags_[30].flag = true;
 
           if ((fuzzy_ & 0xff) > 1)
@@ -2933,7 +2970,7 @@ void Query::meta(int key)
 
           msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
         }
-        else if (key == ']')
+        else if (key == '}')
         {
           if (flags_[30].flag && (fuzzy_ & 0xff) < 0xff)
             fuzzy_ = ((fuzzy_ & 0xff) + 1) | (fuzzy_ & 0xff00);
@@ -2941,28 +2978,6 @@ void Query::meta(int key)
             flags_[30].flag = true;
 
           msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
-        }
-        else if (key == '{')
-        {
-          if (!flags_[26].flag || flag_hexdump == NULL)
-            if (!flags_[0].flag && !flags_[1].flag)
-              flags_[3].flag = true;
-
-          if (context_ > 1)
-            --context_;
-
-          msg.append(" to ").append(std::to_string(context_));
-        }
-        else if (key == '}')
-        {
-          if (flags_[26].flag && flag_hexdump != NULL)
-            ++context_;
-          else if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
-            ++context_;
-          else if (!flags_[0].flag && !flags_[1].flag)
-            flags_[3].flag = true;
-
-          msg.append(" to ").append(std::to_string(context_));
         }
         else
         {
@@ -3202,11 +3217,6 @@ bool Query::print(const std::string& line)
 void Query::get_flags()
 {
   // remember the context size, when specified
-  if (flag_after_context > 0)
-    context_ = flag_after_context;
-  else if (flag_before_context > 0)
-    context_ = flag_before_context;
-
   if (flag_hexdump != NULL)
   {
     if (flag_hex_after > 0)
@@ -3215,6 +3225,20 @@ void Query::get_flags()
       context_ = flag_hex_before;
     else
       context_ = 0;
+  }
+  else if (flag_only_matching)
+  {
+    if (flag_after_context > 0)
+      only_context_ = flag_after_context;
+    else if (flag_before_context > 0)
+      only_context_ = flag_before_context;
+  }
+  else
+  {
+    if (flag_after_context > 0)
+      context_ = flag_after_context;
+    else if (flag_before_context > 0)
+      context_ = flag_before_context;
   }
 
   // remember the --fuzzy max, when specified
@@ -3314,8 +3338,16 @@ void Query::set_flags()
   }
   else
   {
-    flag_after_context = context_ * (flags_[0].flag || flags_[3].flag);
-    flag_before_context = context_ * (flags_[1].flag || flags_[3].flag);
+    if (flags_[16].flag)
+    {
+      flag_after_context = only_context_ * (flags_[0].flag || flags_[3].flag);
+      flag_before_context = only_context_ * (flags_[1].flag || flags_[3].flag);
+    }
+    else
+    {
+      flag_after_context = context_ * (flags_[0].flag || flags_[3].flag);
+      flag_before_context = context_ * (flags_[1].flag || flags_[3].flag);
+    }
     if (flag_hexdump != NULL)
     {
       flag_hex_after = (flag_after_context == 0);
@@ -3595,6 +3627,7 @@ std::thread                Query::stdin_thread_;
 char                       Query::searching_[16]       = "Searching...";
 int                        Query::dots_                = 3;
 size_t                     Query::context_             = 2;
+size_t                     Query::only_context_        = 20;
 size_t                     Query::fuzzy_               = 1;
 bool                       Query::dotall_              = false;
 
@@ -3658,9 +3691,9 @@ Query::Flags Query::flags_[] = {
   { false, '$', "sort by changed" },
   { false, '@', "sort by created" },
   { false, '^', "reverse sort" },
-  { false, '[', "decrease fuzziness" },
-  { false, ']', "increase fuzziness" },
-  { false, '{', "decrease context" },
-  { false, '}', "increase context" },
+  { false, '[', "decrease context" },
+  { false, ']', "increase context" },
+  { false, '{', "decrease fuzziness" },
+  { false, '}', "increase fuzziness" },
   { false, 0, NULL, }
 };

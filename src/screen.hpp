@@ -195,8 +195,8 @@ class Screen {
   // get the cursor position
   static void getpos(int *row, int *col);
 
-  // get the screen size Screen::rows and Screen::cols
-  static void getsize();
+  // get the screen size Screen::rows and Screen::cols, returns Screen::cols
+  static size_t getsize();
 
   // setup screen using an alternative screen buffer and optional title
   static bool setup(const char *title = NULL);

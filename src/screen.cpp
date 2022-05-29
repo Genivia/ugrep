@@ -153,8 +153,8 @@ retry:
 #endif
 }
 
-// get the screen size Screen::rows and Screen::cols
-void Screen::getsize()
+// get the screen size Screen::rows and Screen::cols, returns Screen::cols
+size_t Screen::getsize()
 {
   // get current window size from ioctl
 #if defined(OS_WIN)
@@ -201,11 +201,31 @@ void Screen::getsize()
     {
       rows = 24;
       cols = 80;
+
+#ifndef OS_WIN
+      const char *env;
+      env = getenv("LINES");
+      if (env != NULL)
+      {
+        rows = atoi(env);
+        if (row <= 1)
+          rows = 24;
+      }
+      env = getenv("COLUMNS");
+      if (env != NULL)
+      {
+        cols = atoi(env);
+        if (cols <= 1)
+          cols = 80;
+      }
+#endif
     }
 
     // restore cursor position
     put("\0338");
   }
+
+  return cols;
 }
 
 // setup screen using an alternative screen buffer and optional title, returns true on success

@@ -392,6 +392,7 @@ size_t flag_min_steal              = MIN_STEAL;
 size_t flag_not_magic              = 0;
 size_t flag_query                  = 0;
 size_t flag_tabs                   = DEFAULT_TABS;
+size_t flag_width                  = 0;
 size_t flag_zmax                   = 1;
 const char *flag_apply_color       = NULL;
 const char *flag_binary_files      = "binary";
@@ -4822,14 +4823,18 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 break;
 
               case 'w':
-                if (strcmp(arg, "with-filename") == 0)
+                if (strncmp(arg, "width=", 6) == 0)
+                  flag_width = strtopos(arg + 6, "invalid argument --width=");
+                else if (strcmp(arg, "width") == 0)
+                  flag_width = Screen::getsize();
+                else if (strcmp(arg, "with-filename") == 0)
                   flag_with_filename = true;
                 else if (strcmp(arg, "with-hex") == 0)
                   flag_binary_files = "with-hex";
                 else if (strcmp(arg, "word-regexp") == 0)
                   flag_word_regexp = true;
                 else
-                  usage("invalid option --", arg, "--with-filename, --with-hex or --word-regexp");
+                  usage("invalid option --", arg, "--width, --with-filename, --with-hex or --word-regexp");
                 break;
 
               case 'x':
@@ -5417,13 +5422,23 @@ void init(int argc, const char **argv)
   else
     ++program;
 
-  if (strcmp(program, "ug") == 0)
+  size_t len = strlen(program);
+
+#ifdef OS_WIN
+  // Windows: compare executable name up to a dot when present, e.g. "ug.exe" compares as "ug"
+  const char *dot = strchr(program, '.');
+  if (dot != NULL)
+    len = dot - program;
+#endif
+
+  if (strncmp(program, "ug", len) == 0)
   {
-    // the 'ug' command is equivalent to 'ugrep --config' to load custom configuration files, when no --config=FILE is specified
+    // the 'ug' command is equivalent to 'ugrep --sort --config' to sort output by default and load custom configuration files, when no --config=FILE is specified
+    flag_sort = "name";
     if (flag_config == NULL)
       load_config(pattern_args);
   }
-  else if (strcmp(program, "grep") == 0)
+  else if (strncmp(program, "grep", len) == 0)
   {
     // the 'grep' command is equivalent to 'ugrep -GY. --sort'
     flag_basic_regexp = true;
@@ -5431,14 +5446,14 @@ void init(int argc, const char **argv)
     flag_empty = true;
     flag_sort = "name";
   }
-  else if (strcmp(program, "egrep") == 0)
+  else if (strncmp(program, "egrep", len) == 0)
   {
     // the 'egrep' command is equivalent to 'ugrep -Y. --sort'
     flag_hidden = true;
     flag_empty = true;
     flag_sort = "name";
   }
-  else if (strcmp(program, "fgrep") == 0)
+  else if (strncmp(program, "fgrep", len) == 0)
   {
     // the 'fgrep' command is equivalent to 'ugrep -FY. --sort'
     flag_fixed_strings = true;
@@ -5446,7 +5461,7 @@ void init(int argc, const char **argv)
     flag_empty = true;
     flag_sort = "name";
   }
-  else if (strcmp(program, "zgrep") == 0)
+  else if (strncmp(program, "zgrep", len) == 0)
   {
     // the 'zgrep' command is equivalent to 'ugrep -zGY. --sort'
     flag_decompress = true;
@@ -5455,7 +5470,7 @@ void init(int argc, const char **argv)
     flag_empty = true;
     flag_sort = "name";
   }
-  else if (strcmp(program, "zegrep") == 0)
+  else if (strncmp(program, "zegrep", len) == 0)
   {
     // the 'zegrep' command is equivalent to 'ugrep -zY. --sort'
     flag_decompress = true;
@@ -5463,7 +5478,7 @@ void init(int argc, const char **argv)
     flag_empty = true;
     flag_sort = "name";
   }
-  else if (strcmp(program, "zfgrep") == 0)
+  else if (strncmp(program, "zfgrep", len) == 0)
   {
     // the 'zfgrep' command is equivalent to 'ugrep -zFY. --sort'
     flag_decompress = true;
@@ -5820,7 +5835,9 @@ void init(int argc, const char **argv)
       if (flag_directories_action == Action::UNSP)
       {
         flag_directories_action = Action::RECURSE;
-        flag_dereference = true;
+
+        if (!flag_no_dereference)
+          flag_dereference = true;
       }
 
       flag_all_threads = true;
@@ -5830,6 +5847,11 @@ void init(int argc, const char **argv)
       // if no FILE specified then read standard input
       flag_stdin = true;
     }
+  }
+  else if (flag_directories_action == Action::UNSP && !flag_no_dereference)
+  {
+    // if FILE arguments are specified without -r, -R and -1... and no -p, then enable dereference of FILE argument directory contents
+    flag_dereference = true;
   }
 
   // check FILE arguments, warn about non-existing and non-readable files and directories
@@ -5933,6 +5955,7 @@ void init(int argc, const char **argv)
   }
   else if (flag_csv)
   {
+    flag_format_open  = "%+";
     flag_format       = "%[,]$%H%N%K%B%V\n%u";
   }
   else if (flag_json)
@@ -5951,14 +5974,15 @@ void init(int argc, const char **argv)
     flag_format_close = "  </file>\n";
     flag_format_end   = "</grep>\n";
   }
+  else if (flag_only_line_number)
+  {
+    flag_format_open  = "%+";
+    flag_format       = "%F%n%s%K%B\n%u";
+  }
 
   // --replace clashes with --format
   if (flag_replace != NULL && flag_format != NULL)
     abort("--format is not permitted with --replace");
-
-  // -v with --only-line-number is not permitted
-  if (flag_invert_match && flag_only_line_number)
-    abort("--invert-match is not permitted with --only-line-number");
 
   // -v with --files is not permitted
   if (flag_invert_match && flag_files)
@@ -7009,10 +7033,6 @@ void ugrep()
   if (flag_any_line)
     flag_after_context = flag_before_context = 0;
 
-  // -A, -B, or -C: disable -o
-  if (flag_after_context > 0 || flag_before_context > 0)
-    flag_only_matching = false;
-
   // -v or -y: disable -o and -u
   if (flag_invert_match || flag_any_line)
     flag_only_matching = flag_ungroup = false;
@@ -7031,10 +7051,6 @@ void ugrep()
   // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
   if (!flag_no_filename && (flag_all_threads || flag_directories_action == Action::RECURSE || arg_files.size() > 1 || (flag_stdin && !arg_files.empty())))
     flag_with_filename = true;
-
-  // --only-line-number implies -n
-  if (flag_only_line_number)
-    flag_line_number = true;
 
   // if no display options -H, -n, -k, -b are set, enable --no-header to suppress headers for speed
   if (!flag_with_filename && !flag_line_number && !flag_column_number && !flag_byte_offset)
@@ -8861,77 +8877,20 @@ void Grep::search(const char *pathname, uint16_t cost)
         if (matches > 0 && flag_format_close != NULL)
           out.format(flag_format_close, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
       }
-      else if (flag_only_line_number)
-      {
-        // option --only-line-number
-
-        size_t lineno = 0;
-        const char *separator = flag_separator;
-
-        while (matcher->find())
-        {
-          size_t current_lineno = matcher->lineno();
-
-          separator = lineno != current_lineno ? flag_separator : "+";
-
-          if (lineno != current_lineno || flag_ungroup)
-          {
-            // --range: max line exceeded?
-            if (flag_max_line > 0 && current_lineno > flag_max_line)
-              break;
-
-            if (matchers != NULL)
-            {
-              const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
-              const char *bol = matcher->bol();
-
-              // check CNF AND/OR/NOT matching
-              if (!cnf_matching(bol, eol))
-                continue;
-            }
-
-            ++matches;
-
-            // --min-count: require at least min-count matches
-            if (flag_min_count > 0 && matches < flag_min_count)
-            {
-              lineno = current_lineno;
-              continue;
-            }
-
-            if (matches == flag_min_count + (flag_min_count == 0) && (!flag_files || matchers == NULL))
-            {
-              // --max-files: max reached?
-              if (!Stats::found_part())
-                goto exit_search;
-            }
-
-            out.header(pathname, partname, current_lineno, matcher, matcher->first(), separator, true);
-
-            // --max-count: max number of matches reached?
-            if (flag_max_count > 0 && matches >= flag_max_count)
-              break;
-
-            // output blocked?
-            if (out.eof)
-              goto exit_search;
-
-            lineno = current_lineno;
-          }
-        }
-
-        // --min-count: require at least min-count matches
-        if (flag_min_count > 0 && matches < flag_min_count)
-          goto exit_search;
-      }
       else if (flag_only_matching)
       {
         // option -o
 
+        size_t count = 0;
+        size_t width = flag_before_context + flag_after_context;
         size_t lineno = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool nl = false;
+        bool ungroup = flag_ungroup || flag_column_number || flag_byte_offset;
+        const char *restline_data = NULL;
+        size_t restline_size = 0;
+        size_t restline_last = 0;
 
         while (matcher->find())
         {
@@ -8951,11 +8910,44 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           size_t current_lineno = matcher->lineno();
 
-          if (lineno != current_lineno || flag_ungroup)
+          if (lineno != current_lineno || ungroup)
           {
             if (nl)
             {
+              if (restline_size > 0)
+              {
+                out.str(color_cx);
+                if (utf8nlen(restline_data, restline_size) > width)
+                {
+                  out.utf8strn(restline_data, restline_size, width);
+                  out.str(color_off);
+                  out.str(color_se);
+                  out.str("...");
+                }
+                else
+                {
+                  out.str(restline_data, restline_size);
+                }
+                out.str(color_off);
+                restline_size = 0;
+              }
+
+              if (count > 0)
+              {
+                out.str(color_se);
+                out.str("...");
+                out.str(color_off);
+                out.str(color_cn);
+                out.str("[+");
+                out.num(count);
+                out.str(" more]");
+                out.str(color_off);
+              }
+
               out.nl();
+
+              count = 0;
+              width = flag_before_context + flag_after_context;
               nl = false;
             }
 
@@ -9064,6 +9056,111 @@ void Grep::search(const char *pathname, uint16_t cost)
             out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
             out.str(match_off);
           }
+          else if (flag_before_context + flag_after_context > 0)
+          {
+            if (restline_size > 0)
+            {
+              size_t first = matcher->first();
+              if (first - restline_last < restline_size)
+                restline_size = first - restline_last;
+
+              size_t after = utf8nlen(restline_data, restline_size);
+              if (after > width)
+                after = width;
+
+              width -= after;
+
+              if (after > 0)
+              {
+                out.str(color_cx);
+                out.utf8strn(restline_data, restline_size, after);
+                out.str(color_off);
+              }
+              restline_size = 0;
+            }
+
+            if (width == 0)
+            {
+              ++count;
+            }
+            else
+            {
+              // do not include additional lines in the match output
+              const char *to = static_cast<const char*>(memchr(begin, '\n', size));
+              if (to != NULL)
+                size = to - begin;
+
+              // length of the match is the number of UTF-8-encoded Unicode characters
+              size_t length = utf8nlen(begin, size);
+              size_t fit_length = length;
+
+              if (fit_length > width)
+              {
+                if (fit_length > width + 4)
+                  fit_length = width;
+                width = 0;
+              }
+              else
+              {
+                width -= fit_length;
+              }
+
+              if (!nl)
+              {
+                const char *bol = matcher->bol();
+                size_t border = matcher->border();
+                size_t margin = utf8nlen(bol, border);
+                size_t before = flag_before_context * fit_length / (flag_before_context + flag_after_context);
+
+                if (before < flag_before_context)
+                  before = flag_before_context - before;
+                else
+                  before = 0;
+
+                if (margin > before)
+                {
+                  out.str(color_se);
+                  out.str("...");
+                  out.str(color_off);
+                  out.str(color_cx);
+                  out.utf8strn(utf8skipn(bol, border, margin - before), border, before);
+                  out.str(color_off);
+                  width -= before;
+                }
+                else
+                {
+                  out.str(color_cx);
+                  out.str(bol, border);
+                  out.str(color_off);
+                  width -= margin;
+                }
+              }
+
+              out.str(match_ms);
+              if (fit_length == length)
+              {
+                out.str(begin, size);
+              }
+              else
+              {
+                out.utf8strn(begin, size, fit_length);
+                out.str("[+");
+                out.num(length - fit_length);
+                out.str("]");
+              }
+              out.str(match_off);
+
+              const char *eol = matcher->eol(); // warning: call eol() before bol() and end()
+              const char *end = matcher->end();
+
+              restline.assign(end, eol - end);
+              restline_data = restline.c_str();
+              restline_size = restline.size();
+              restline_last = matcher->last();
+            }
+
+            nl = true;
+          }
           else
           {
             // echo multi-line matches line-by-line
@@ -9109,7 +9206,39 @@ void Grep::search(const char *pathname, uint16_t cost)
           goto exit_search;
 
         if (nl)
+        {
+          if (restline_size > 0)
+          {
+            out.str(color_cx);
+            if (utf8nlen(restline_data, restline_size) > width)
+            {
+              out.utf8strn(restline_data, restline_size, width);
+              out.str(color_off);
+              out.str(color_se);
+              out.str("...");
+            }
+            else
+            {
+              out.str(restline_data, restline_size);
+            }
+            out.str(color_off);
+            restline_size = 0;
+          }
+
+          if (count > 0)
+          {
+            out.str(color_se);
+            out.str("...");
+            out.str(color_off);
+            out.str(color_cn);
+            out.str("[+");
+            out.num(count);
+            out.str(" more]");
+            out.str(color_off);
+          }
+
           out.nl();
+        }
 
         if (hex)
           out.dump.done();
@@ -11597,15 +11726,16 @@ void help(std::ostream& out)
   out <<
     "Usage: ugrep [OPTIONS] [PATTERN] [-f FILE] [-e PATTERN] [FILE ...]\n\n\
     -A NUM, --after-context=NUM\n\
-            Print NUM lines of trailing context after matching lines.  Places\n\
-            a --group-separator between contiguous groups of matches.  See also\n\
-            options -B, -C and -y.\n\
+            Output NUM lines of trailing context after matching lines.  Places\n\
+            a --group-separator between contiguous groups of matches.  If -o is\n\
+            specified, output the match with context to fit NUM columns after\n\
+            the match or shortening the match.  See also options -B, -C and -y.\n\
     -a, --text\n\
             Process a binary file as if it were text.  This is equivalent to\n\
             the --binary-files=text option.  This option might output binary\n\
             garbage to the terminal, which can have problematic consequences if\n\
             the terminal driver interprets some of it as commands.\n\
-    --and [[-e] PATTERN] ... -e PATTERN\n\
+    --and [-e] PATTERN ... -e PATTERN\n\
             Specify additional patterns to match.  Patterns must be specified\n\
             with -e.  Each -e PATTERN following this option is considered an\n\
             alternative pattern to match, i.e. each -e is interpreted as an OR\n\
@@ -11614,12 +11744,13 @@ void help(std::ostream& out)
             alternations that bind more tightly together than --and.  Option\n\
             --stats displays the search patterns applied.  See also options\n\
             --not, --andnot, --bool, --files and --lines.\n\
-    --andnot [[-e] PATTERN] ...\n\
+    --andnot [-e] PATTERN\n\
             Combines --and --not.  See also options --and, --not and --bool.\n\
     -B NUM, --before-context=NUM\n\
-            Print NUM lines of leading context before matching lines.  Places\n\
-            a --group-separator between contiguous groups of matches.  See also\n\
-            options -A, -C and -y.\n\
+            Output NUM lines of leading context before matching lines.  Places\n\
+            a --group-separator between contiguous groups of matches.  If -o is\n\
+            specified, output the match with context to fit NUM columns before\n\
+            the match or shortening the match.  See also options -A, -C and -y.\n\
     -b, --byte-offset\n\
             The offset in bytes of a matched line is displayed in front of the\n\
             respective matched line.  If -u is specified, displays the offset\n\
@@ -11653,7 +11784,7 @@ void help(std::ostream& out)
             lines with `A' and also either `AND' or `OR'.  Parenthesis are used\n\
             for grouping.  For example, --bool '(A B)|C' matches lines with `A'\n\
             and `B', or lines with `C'.  Note that all subpatterns in a Boolean\n\
-            query pattern are regular expressions, unless option -F is used.\n\
+            query pattern are regular expressions, unless -F is specified.\n\
             Options -E, -F, -G, -P and -Z can be combined with --bool to match\n\
             subpatterns as strings or regular expressions (-E is the default.)\n\
             This option does not apply to -f FILE patterns.  Option --stats\n\
@@ -11662,9 +11793,11 @@ void help(std::ostream& out)
     --break\n\
             Adds a line break between results from different files.\n\
     -C NUM, --context=NUM\n\
-            Print NUM lines of leading and trailing context surrounding each\n\
-            match.  Places a --group-separator between contiguous groups of\n\
-            matches.  See also options -A, -B and -y.\n\
+            Output NUM lines of leading and trailing context surrounding each\n\
+            matching line.  Places a --group-separator between contiguous\n\
+            groups of matches.  If -o is specified, output the match with\n\
+            context to fit NUM columns before and after the match or shortening\n\
+            the match.  See also options -A, -B and -y.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
             If -o or -u is specified, counts the number of patterns matched.\n\
@@ -11834,11 +11967,11 @@ void help(std::ostream& out)
     --format=FORMAT\n\
             Output FORMAT-formatted matches.  For example --format='%f:%n:%O%~'\n\
             outputs matching lines `%O' with filename `%f` and line number `%n'\n\
-            followed by a newline `%~'.  When option -P is used, FORMAT may\n\
-            include `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group\n\
-            captures.  A `%%' outputs `%'.  See `ugrep --help format' and `man\n\
-            ugrep' section FORMAT for details.  Context options -A, -B, -C and\n\
-            -y are ignored.\n\
+            followed by a newline `%~'.  If -P is specified, FORMAT may include\n\
+            `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A\n\
+            `%%' outputs `%'.  See `ugrep --help format' and `man ugrep'\n\
+            section FORMAT for details.  Context options -A, -B, -C and -y are\n\
+            ignored.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -12038,11 +12171,11 @@ void help(std::ostream& out)
             --exclude='*.ext'.  This option may be repeated and may be combined\n\
             with options -g, -M and -t to expand the recursive search.\n\
     -o, --only-matching\n\
-            Print only the matching part of lines.  When multiple lines match,\n\
-            the line numbers with option -n are displayed using `|' as the\n\
-            field separator for each additional line matched by the pattern.\n\
-            If -u is specified, ungroups multiple matches on the same line.\n\
-            This option cannot be combined with options -A, -B, -C, -v and -y.\n\
+            Output only the matching part of lines.  If -b, -k or -u is\n\
+            specified, output each match on a separate line.  When multiple\n\
+            lines match a pattern, output the matching lines with `|' as the\n\
+            field separator.  If -A, -B or -C is specified, fits the match and\n\
+            its context on a line within the specified number of columns.\n\
     --only-line-number\n\
             The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
@@ -12110,8 +12243,8 @@ void help(std::ostream& out)
             option --sort.\n\
     --replace=FORMAT\n\
             Replace matching patterns in the output by the specified FORMAT\n\
-            with `%' fields.  When option -P is used, FORMAT may include `%1'\n\
-            to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'\n\
+            with `%' fields.  If -P is specified, FORMAT may include `%1' to\n\
+            `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'\n\
             outputs `%' and `%~' outputs a newline.  See option --format,\n\
             `ugrep --help format' and `man ugrep' section FORMAT for details.\n\
     -S, --dereference\n\
@@ -12129,16 +12262,17 @@ void help(std::ostream& out)
             (`:').\n\
     --sort[=KEY]\n\
             Displays matching files in the order specified by KEY in recursive\n\
-            searches.  KEY can be `name' to sort by pathname (default), `best'\n\
-            to sort by best match with option -Z (sort by best match requires\n\
-            two passes over files, which is expensive), `size' to sort by file\n\
-            size, `used' to sort by last access time, `changed' to sort by last\n\
-            modification time and `created' to sort by creation time.  Sorting\n\
-            is reversed with `rname', `rbest', `rsize', `rused', `rchanged', or\n\
-            `rcreated'.  Archive contents are not sorted.  Subdirectories are\n\
-            sorted and displayed after matching files.  FILE arguments are\n\
-            searched in the same order as specified.  Normally ugrep displays\n\
-            matches in no particular order to improve performance.\n\
+            searches.  Normally the ug command sorts by name whereas the ugrep\n\
+            batch command displays matches in no particular order to improve\n\
+            performance.  The sort KEY can be `name' to sort by pathname\n\
+            (default), `best' to sort by best match with option -Z (sort by\n\
+            best match requires two passes over files, which is expensive),\n\
+            `size' to sort by file size, `used' to sort by last access time,\n\
+            `changed' to sort by last modification time and `created' to sort\n\
+            by creation time.  Sorting is reversed with `rname', `rbest',\n\
+            `rsize', `rused', `rchanged', or `rcreated'.  Archive contents are\n\
+            not sorted.  Subdirectories are sorted and displayed after matching\n\
+            files.  FILE arguments are searched in the same order as specified.\n\
     --stats\n\
             Output statistics on the number of files and directories searched\n\
             and the inclusion and exclusion constraints applied.\n\
@@ -12193,6 +12327,10 @@ void help(std::ostream& out)
             specified.  If a PATTERN is specified, or -e PATTERN or -N PATTERN,\n\
             then this option has no effect on -f FILE patterns to allow -f FILE\n\
             patterns to narrow or widen the scope of the PATTERN search.\n\
+    --width[=NUM]\n\
+            Truncate the output to NUM visible characters per line.  The width\n\
+            of the terminal window is used if NUM is not specified.  Note that\n\
+            double wide characters in the input may result in wider lines.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option with --hexdump=2C.  To omit the matching\n\
@@ -12226,8 +12364,10 @@ void help(std::ostream& out)
             requires two passes over a file and cannot be used with standard\n\
             input or Boolean queries.  Option --sort=best orders matching files\n\
             by best match.  The first character of an approximate match always\n\
-            matches the start of a pattern.  Option -U applies fuzzy matching\n\
-            to bytes.  No whitespace may be given between -Z and its argument.\n\
+            matches a character at the beginning of the pattern.  To fuzzy\n\
+            match the first character, replace it with a `.' or `.?'.  Option\n\
+            -U applies fuzzy matching to ASCII and bytes instead of Unicode\n\
+            text.  No whitespace may be given between -Z and its argument.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
             .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,\n\
@@ -12277,7 +12417,7 @@ void help(std::ostream& out)
 #endif
             "\
     -0, --null\n\
-            Prints a zero-byte (NUL) after the file name.  This option can be\n\
+            Output a zero-byte (NUL) after the file name.  This option can be\n\
             used with commands such as `find -print0' and `xargs -0' to process\n\
             arbitrary file names.\n\
 \n\
@@ -12345,7 +12485,7 @@ void help(const char *what)
               if (found == 0 && pass == 0)
                 std::cout << "\nOptions and arguments:\n";
               else if (found == 1 && pass == 1)
-                std::cout << "\n\nOther options:\n";
+                std::cout << "\n\nRelated options:\n";
               else if (found == 0)
                 std::cout << "\nNo matching option, other relevant options:\n";
 
@@ -12374,40 +12514,40 @@ void help(const char *what)
  ----------  --------------------------  ----------  --------------------------\n\
  %a          basename                    %%          %\n\
  %b          byte offset                 %~          newline\n\
- %B %[...]B  ... + byte offset, if -b    %[...]<     ... if %m = 1\n\
- %c          matching pattern, as C/C++  %[...]>     ... if %m > 1\n\
- %C          matching line, as C/C++     %,          , if %m > 1, same as %[,]>\n\
- %d          byte size                   %:          : if %m > 1, same as %[:]>\n\
- %e          end offset                  %;          ; if %m > 1, same as %[;]>\n\
- %f          pathname                    %|          | if %m > 1, same as %[|]>\n\
- %F %[...]F  ... + pathname, if -H       %[...]$     assign ... to separator\n\
- %h          \"pathname\"                  --------------------------------------\n\
- %H %[...]H  ... + \"pathname\", if -H\n\
- %j          matching pattern, as JSON   Fields that require -P for captures:\n\
- %J          matching line, as JSON\n\
- %k          line number                 field       output\n\
- %K %[...]K  ... + column number, if -k  ----------  --------------------------\n\
- %m          match number                %1 %2...%9  group capture\n\
- %n          line number                 %[n]#       nth group capture\n\
- %N %[...]N  ... + line number, if -n    %[n]b       nth capture byte offset\n\
- %o          matching pattern            %[n]d       nth capture byte size\n\
- %O          matching line               %[n]e       nth capture end offset\n\
- %p          path                        %[name]#    named group capture\n\
- %q          quoted matching pattern     %[name]b    named capture byte offset\n\
- %Q          quoted matching line        %[name]d    named capture byte size\n\
- %s          separator, : by default     %[name]e    named capture end offset\n\
- %S %[...]S  ... + separator, if %m > 1  %[n|...]#   capture n,... that matched\n\
- %t          tab                         %[n|...]b   cpature n,... byte offset\n\
- %T %[...]T  ... + tab, if -T            %[n|...]d   cpature n,... byte size\n\
- %u          unique lines, unless -u     %[n|...]e   cpature n,... end offset\n\
- %v          matching pattern, as CSV    %g          capture number or name\n\
- %V          matching line, as CSV       %G          all capture numbers/names\n\
- %w          match width in wide chars   %[t|...]g   text t indexed by capture\n\
- %x          matching pattern, as XML    %[t|...]G   all t indexed by captures\n\
- %X          matching line, as XML       --------------------------------------\n\
- %z          path in archive\n\
- %Z          edit distance cost, if -Z\n\
- --------------------------------------\n\
+ %B %[...]B  ... + byte offset, if -b    %+          %F as heading/break, if -+\n\
+ %c          matching pattern, as C/C++  %[...]<     ... if %m = 1\n\
+ %C          matching line, as C/C++     %[...]>     ... if %m > 1\n\
+ %d          byte size                   %,          , if %m > 1, same as %[,]>\n\
+ %e          end offset                  %:          : if %m > 1, same as %[:]>\n\
+ %f          pathname                    %;          ; if %m > 1, same as %[;]>\n\
+ %F %[...]F  ... + pathname, if -H       %|          | if %m > 1, same as %[|]>\n\
+ %h          \"pathname\"                  %[...]$     assign ... to separator\n\
+ %H %[...]H  ... + \"pathname\", if -H     --------------------------------------\n\
+ %j          matching pattern, as JSON   \n\
+ %J          matching line, as JSON      \n\
+ %k          line number                 \n\
+ %K %[...]K  ... + column number, if -k  Fields that require -P for captures:\n\
+ %m          match number                \n\
+ %n          line number                 field       output\n\
+ %N %[...]N  ... + line number, if -n    ----------  --------------------------\n\
+ %o          matching pattern            %1 %2...%9  group capture\n\
+ %O          matching line               %[n]#       nth group capture\n\
+ %p          path                        %[n]b       nth capture byte offset\n\
+ %q          quoted matching pattern     %[n]d       nth capture byte size\n\
+ %Q          quoted matching line        %[n]e       nth capture end offset\n\
+ %s          separator, : by default     %[name]#    named group capture\n\
+ %S %[...]S  ... + separator, if %m > 1  %[name]b    named capture byte offset\n\
+ %t          tab                         %[name]d    named capture byte size\n\
+ %T %[...]T  ... + tab, if -T            %[name]e    named capture end offset\n\
+ %u          unique lines, unless -u     %[n|...]#   capture n,... that matched\n\
+ %v          matching pattern, as CSV    %[n|...]b   cpature n,... byte offset\n\
+ %V          matching line, as CSV       %[n|...]d   cpature n,... byte size\n\
+ %w          match width in wide chars   %[n|...]e   cpature n,... end offset\n\
+ %x          matching pattern, as XML    %g          capture number or name\n\
+ %X          matching line, as XML       %G          all capture numbers/names\n\
+ %z          path in archive             %[t|...]g   text t indexed by capture\n\
+ %Z          edit distance cost, if -Z   %[t|...]G   all t indexed by captures\n\
+ --------------------------------------  --------------------------------------\n\
 \n\
 ";
     }
@@ -12518,7 +12658,48 @@ When a glob pattern ends with a /, directories are matched instead of files.\n\
 \n\
 ";
     }
-
+    else if (strcmp(what, "fuzzy") == 0)
+    {
+      std::cout <<
+"Fuzzy (approximate) search is performed with option -Z (no whitespace may be\n\
+given between -Z and its argument when specified):\n\
+\n\
+ -Z    fuzzy match\n\
+ ----  ------------------------------------------------------------------\n\
+       allow 1 character insertion, deletion or substitution (-Z default)\n\
+ 2     allow 2 character insertions, deletions or substitutions\n\
+ +2    allow 2 character insertions\n\
+ -2    allow 2 character deletions\n\
+ ~2    allow 2 character substitutions\n\
+ +-2   allow 2 character insertions or deletions\n\
+ +~2   allow 2 character insertions or substitutions\n\
+ -~2   allow 2 character deletions or substitutions\n\
+ best  when prefixed to the above, output the best matches only\n\
+\n\
+Insertions, deletions and/or substitutions are applied to Unicode characters,\n\
+except when option -U is specified for binary/ASCII pattern search.\n\
+\n\
+The best matches are those that minimize the difference with the specified\n\
+pattern.  This requires two passes over an input file, which reduces\n\
+performance significantly.\n\
+\n\
+When multiple files are searched, option --sort=best sorts the files in a\n\
+directory such that files with minimum differences with the specified pattern\n\
+are listed first.  This requires two passes over each input file, which reduces\n\
+performance significantly.\n\
+\n\
+Important:\n\
+\n\
+Fuzzy search anchors matches at the beginning character or characters of the\n\
+specified regex pattern.  This significantly improves search performance and\n\
+prevents overmatching.  For example, the regex pattern `[1-9]buzz' begins with\n\
+a nonzero digit at which all matches are anchored.  Replace the beginning of a\n\
+regex pattern with a wildcard to match any character, for example `.buzz', or\n\
+make the first characters of the regex pattern optional, for example\n\
+`[1-9]?buzz' or `.?buzz'.\n\
+\n\
+";
+    }
   }
 
   exit(EXIT_ERROR);
