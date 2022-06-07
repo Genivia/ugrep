@@ -22,13 +22,13 @@ Search for anything in everything... ultra fast
 
 - Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you are looking for
 
-  > 💡**ProTip** try `--help help`.  Try `--help regex` and `--help globs`.
+  > 💡**ProTip** try `--help help`, `--help regex` and `--help globs`.
 
-- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command, a short command for `ugrep --config` to load a .ugrep configuration file with your preferences
+- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command intended for interactive use that loads a .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-  > 💡**ProTip** `ug --save-config` saves a .ugrep config file in the working directory, overwriting an old.
+  > 💡**ProTip** `ug --save-config ...options...` saves a .ugrep config file in the working directory.
 
 - Interactive [query TUI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
@@ -3093,7 +3093,7 @@ To display the line and column numbers of matches in XML with `--xml`:
             and --line-buffered.
     --pretty
             When output is sent to a terminal, enables --color, --heading, -n,
-            --sort and -T when not explicitly disabled or set.
+            --sort and -T when not explicitly disabled.
 
 To change the color palette, set the `GREP_COLORS` environment variable or use
 `--colors=COLORS`.  The value is a colon-separated list of ANSI SGR parameters
@@ -4424,7 +4424,7 @@ in markdown:
 
            --pretty
                   When output is sent to a terminal, enables  --color,  --heading,
-                  -n, --sort and -T when not explicitly disabled or set.
+                  -n, --sort and -T when not explicitly disabled.
 
            -Q[DELAY], --query[=DELAY]
                   Query  mode:  user  interface  to  perform interactive searches.
@@ -5226,7 +5226,7 @@ in markdown:
 
 
 
-    ugrep 3.8.0                      May 29, 2022                         UGREP(1)
+    ugrep 3.8.1                      June 06, 2022                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

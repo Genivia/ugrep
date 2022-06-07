@@ -430,44 +430,15 @@ class zstreambuf : public std::streambuf {
 
       if (method == Compression::DEFLATE && z_strm_ != NULL)
       {
-        int ret = Z_OK;
-
-        // decompress non-empty zbuf_[] into the given buf[]
-        if (z_strm_->avail_in > 0 && z_strm_->avail_out == 0)
+        while (true)
         {
-          z_strm_->next_out  = buf;
-          z_strm_->avail_out = len;
+          int ret = Z_OK;
 
-          ret = inflate(z_strm_, Z_NO_FLUSH);
-
-          zcur_ = zlen_ - z_strm_->avail_in;
-
-          if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR)
+          // decompress non-empty zbuf_[] into the given buf[]
+          if (z_strm_->avail_in > 0 && z_strm_->avail_out == 0)
           {
-            cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
-            num = -1;
-            zend_ = true;
-          }
-          else
-          {
-            num = len - z_strm_->avail_out;
-            zend_ = ret == Z_STREAM_END;
-          }
-        }
-
-        // read compressed data into zbuf_[] and decompress zbuf_[] into the given buf[]
-        if (ret == Z_OK && z_strm_->avail_in == 0 && num < static_cast<int>(len))
-        {
-          if (read())
-          {
-            z_strm_->next_in  = zbuf_;
-            z_strm_->avail_in = zlen_;
-
-            if (num == 0)
-            {
-              z_strm_->next_out  = buf;
-              z_strm_->avail_out = len;
-            }
+            z_strm_->next_out  = buf;
+            z_strm_->avail_out = len;
 
             ret = inflate(z_strm_, Z_NO_FLUSH);
 
@@ -485,65 +456,74 @@ class zstreambuf : public std::streambuf {
               zend_ = ret == Z_STREAM_END;
             }
           }
-          else
-          {
-            cannot_decompress(pathname_, "EOF detected in the zip compressed data");
-            num = -1;
-            zend_ = true;
-          }
-        }
 
-        if (zend_)
-        {
-          ret = inflateEnd(z_strm_);
-          if (ret != Z_OK)
+          // read compressed data into zbuf_[] and decompress zbuf_[] into the given buf[]
+          if (ret == Z_OK && z_strm_->avail_in == 0 && num < static_cast<int>(len))
           {
-            cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
-            num = -1;
+            if (read())
+            {
+              z_strm_->next_in  = zbuf_;
+              z_strm_->avail_in = zlen_;
+
+              if (num == 0)
+              {
+                z_strm_->next_out  = buf;
+                z_strm_->avail_out = len;
+              }
+
+              ret = inflate(z_strm_, Z_NO_FLUSH);
+
+              zcur_ = zlen_ - z_strm_->avail_in;
+
+              if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR)
+              {
+                cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
+                num = -1;
+                zend_ = true;
+              }
+              else
+              {
+                num = len - z_strm_->avail_out;
+
+                if (num == 0 && ret == BZ_OK)
+                  continue;
+
+                zend_ = ret == Z_STREAM_END;
+              }
+            }
+            else
+            {
+              cannot_decompress(pathname_, "EOF detected in the zip compressed data");
+              num = -1;
+              zend_ = true;
+            }
           }
+
+          if (zend_)
+          {
+            ret = inflateEnd(z_strm_);
+            if (ret != Z_OK)
+            {
+              cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
+              num = -1;
+            }
+          }
+
+          break;
         }
       }
 #ifdef HAVE_LIBBZ2
       else if (method == Compression::BZIP2 && bz_strm_ != NULL)
       {
-        int ret = BZ_OK;
-
-        // decompress non-empty zbuf_[] into the given buf[]
-        if (bz_strm_->avail_in > 0 && bz_strm_->avail_out == 0)
+        while (true)
         {
-          bz_strm_->next_out  = reinterpret_cast<char*>(buf);
-          bz_strm_->avail_out = len;
+          int ret = BZ_OK;
 
-          ret = BZ2_bzDecompress(bz_strm_);
-
-          zcur_ = zlen_ - bz_strm_->avail_in;
-
-          if (ret != BZ_OK && ret != BZ_STREAM_END)
+          // decompress non-empty zbuf_[] into the given buf[]
+          if (bz_strm_->avail_in > 0 && bz_strm_->avail_out == 0)
           {
-            cannot_decompress(pathname_, "a bzip2 decompression error was detected in the zip compressed data");
-            num = -1;
-            zend_ = true;
-          }
-          else
-          {
-            num = len - bz_strm_->avail_out;
-            zend_ = ret == BZ_STREAM_END;
-          }
-        }
-
-        // read compressed data into zbuf_[] and decompress zbuf_[] into the given buf[]
-        if (ret == BZ_OK && bz_strm_->avail_in == 0 && num < static_cast<int>(len))
-        {
-          if (read())
-          {
-            bz_strm_->next_in  = reinterpret_cast<char*>(zbuf_);
-            bz_strm_->avail_in = zlen_;
-
-            if (num == 0)
-            {
-              bz_strm_->next_out  = reinterpret_cast<char*>(buf);
-              bz_strm_->avail_out = len;
-            }
+            bz_strm_->next_out  = reinterpret_cast<char*>(buf);
+            bz_strm_->avail_out = len;
 
             ret = BZ2_bzDecompress(bz_strm_);
 
@@ -561,22 +541,60 @@ class zstreambuf : public std::streambuf {
               zend_ = ret == BZ_STREAM_END;
             }
           }
-          else
-          {
-            cannot_decompress(pathname_, "EOF detected in the zip compressed data");
-            num = -1;
-            zend_ = true;
-          }
-        }
 
-        if (zend_)
-        {
-          ret = BZ2_bzDecompressEnd(bz_strm_);
-          if (ret != BZ_OK)
+          // read compressed data into zbuf_[] and decompress zbuf_[] into the given buf[]
+          if (ret == BZ_OK && bz_strm_->avail_in == 0 && num < static_cast<int>(len))
           {
-            cannot_decompress(pathname_, "a bzip2 decompression error was detected in the zip compressed data");
-            num = -1;
+            if (read())
+            {
+              bz_strm_->next_in  = reinterpret_cast<char*>(zbuf_);
+              bz_strm_->avail_in = zlen_;
+
+              if (num == 0)
+              {
+                bz_strm_->next_out  = reinterpret_cast<char*>(buf);
+                bz_strm_->avail_out = len;
+              }
+
+              ret = BZ2_bzDecompress(bz_strm_);
+
+              zcur_ = zlen_ - bz_strm_->avail_in;
+
+              if (ret != BZ_OK && ret != BZ_STREAM_END)
+              {
+                cannot_decompress(pathname_, "a bzip2 decompression error was detected in the zip compressed data");
+                num = -1;
+                zend_ = true;
+              }
+              else
+              {
+                num = len - bz_strm_->avail_out;
+
+                if (num == 0 && ret == BZ_OK)
+                  continue;
+
+                zend_ = ret == BZ_STREAM_END;
+              }
+            }
+            else
+            {
+              cannot_decompress(pathname_, "EOF detected in the zip compressed data");
+              num = -1;
+              zend_ = true;
+            }
           }
+
+          if (zend_)
+          {
+            ret = BZ2_bzDecompressEnd(bz_strm_);
+            if (ret != BZ_OK)
+            {
+              cannot_decompress(pathname_, "a bzip2 decompression error was detected in the zip compressed data");
+              num = -1;
+            }
+          }
+
+          break;
         }
       }
 #endif
@@ -1565,6 +1583,9 @@ class zstreambuf : public std::streambuf {
             else
             {
               num = len - zfile_->strm.avail_out;
+
+              if (num == 0 && ret == Z_OK)
+                continue;
             }
           }
         }
@@ -1672,6 +1693,9 @@ class zstreambuf : public std::streambuf {
             else
             {
               num = len - bzfile_->strm.avail_out;
+
+              if (num == 0 && ret == BZ_OK)
+                continue;
             }
           }
         }

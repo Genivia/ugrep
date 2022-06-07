@@ -1262,12 +1262,12 @@ struct Zthread {
             break;
 
           // fill the rest of the buffer with decompressed data
-          if (static_cast<size_t>(len) < maxlen)
+          while (len < BLOCKSIZE || static_cast<size_t>(len) < maxlen)
           {
             std::streamsize len_in = zstream->decompress(buf + len, maxlen - static_cast<size_t>(len));
 
-            // error?
-            if (len_in < 0)
+            // error or EOF?
+            if (len_in <= 0)
               break;
 
             len += len_in;
@@ -3935,7 +3935,7 @@ const Type type_table[] = {
   { "php",          "php,php3,php4,phtml", NULL,                                      NULL },
   { "Php",          "php,php3,php4,phtml", NULL,                                      "#!\\h*/.*\\Wphp(\\W.*)?\\n" },
   { "png",          "png", NULL,                                                      NULL },
-  { "Png",          "png", NULL,                                                      "\\x89png\\x0d\\x0a\\x1a\\x0a" },
+  { "Png",          "png", NULL,                                                      "\\x89PNG\\x0d\\x0a\\x1a\\x0a" },
   { "prolog",       "pl,pro", NULL,                                                   NULL },
   { "python",       "py", NULL,                                                       NULL },
   { "Python",       "py", NULL,                                                       "#!\\h*/.*\\Wpython[23]?(\\W.*)?\\n" },
@@ -12211,7 +12211,7 @@ void help(std::ostream& out)
             and --line-buffered.\n\
     --pretty\n\
             When output is sent to a terminal, enables --color, --heading, -n,\n\
-            --sort and -T when not explicitly disabled or set.\n\
+            --sort and -T when not explicitly disabled.\n\
     -Q[DELAY], --query[=DELAY]\n\
             Query mode: user interface to perform interactive searches.  This\n\
             mode requires an ANSI capable terminal.  An optional DELAY argument\n\
