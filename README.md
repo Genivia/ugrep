@@ -5226,7 +5226,7 @@ in markdown:
 
 
 
-    ugrep 3.8.1                      June 06, 2022                        UGREP(1)
+    ugrep 3.8.2                      June 10, 2022                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

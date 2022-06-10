@@ -485,7 +485,7 @@ class zstreambuf : public std::streambuf {
               {
                 num = len - z_strm_->avail_out;
 
-                if (num == 0 && ret == BZ_OK)
+                if (num == 0 && ret == Z_OK)
                   continue;
 
                 zend_ = ret == Z_STREAM_END;
