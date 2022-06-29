@@ -169,6 +169,7 @@ class zstreambuf : public std::streambuf {
     static const uint16_t COMPRESS_HEADER_MAGIC = 0x9d1f;     // compress header magic
     static const uint16_t DEFLATE_HEADER_MAGIC  = 0x8b1f;     // zlib deflate header magic
     static const uint32_t ZIP_HEADER_MAGIC      = 0x04034b50; // zip local file header magic
+    static const uint32_t ZIP_EMPTY_MAGIC       = 0x06054b50; // zip empty archive header magic
     static const uint32_t ZIP_DESCRIPTOR_MAGIC  = 0x08074b50; // zip descriptor magic
 
     // read zip local file header if we are at a header, read the header, file name, and extra field
@@ -1036,9 +1037,11 @@ class zstreambuf : public std::streambuf {
       catch (const std::bad_alloc&)
       {
         cannot_decompress(pathname_, "out of memory");
+        file_ = NULL;
       }
 #else
       cannot_decompress("unsupported compression format", pathname);
+      file_ = NULL;
 #endif
     }
     else if (is_xz(pathname))
@@ -1062,9 +1065,11 @@ class zstreambuf : public std::streambuf {
       catch (const std::bad_alloc&)
       {
         cannot_decompress(pathname_, "out of memory");
+        file_ = NULL;
       }
 #else
       cannot_decompress("unsupported compression format", pathname);
+      file_ = NULL;
 #endif
     }
     else if (is_lz4(pathname))
@@ -1079,9 +1084,11 @@ class zstreambuf : public std::streambuf {
       catch (const std::bad_alloc&)
       {
         cannot_decompress(pathname_, "out of memory");
+        file_ = NULL;
       }
 #else
       cannot_decompress("unsupported compression format", pathname);
+      file_ = NULL;
 #endif
     }
     else if (is_zstd(pathname))
@@ -1096,20 +1103,24 @@ class zstreambuf : public std::streambuf {
       catch (const std::bad_alloc&)
       {
         cannot_decompress(pathname_, "out of memory");
+        file_ = NULL;
       }
 #else
       cannot_decompress("unsupported compression format", pathname);
+      file_ = NULL;
 #endif
     }
     else if (is_7z(pathname))
     {
       // perhaps 7zip can be supported sometime in the future?
       cannot_decompress("unsupported compression format", pathname);
+      file_ = NULL;
     }
     else if (is_rar(pathname))
     {
       // perhaps RAR can be supported sometime in the future?
       cannot_decompress("unsupported compression format", pathname);
+      file_ = NULL;
     }
     else
     {
@@ -1147,17 +1158,21 @@ class zstreambuf : public std::streambuf {
           {
             errno = ENOMEM;
             warning("out of memory", pathname);
+            file_ = NULL;
           }
         }
         else if (u16(buf_) == ZipInfo::COMPRESS_HEADER_MAGIC)
         {
           // open compress (Z) compressed file
           if ((zzfile_ = z_open(file, "r", 0, 1)) == NULL)
+          {
             warning("zopen error", pathname);
+            file_ = NULL;
+          }
         }
         else
         {
-          // read two more bytes of the compression format's magic bytes
+          // read two more bytes of the compression format's magic bytes to check for zip
           num = fread(buf_ + 2, 1, 2, file);
 
           if (num == 2 && u32(buf_) == ZipInfo::ZIP_HEADER_MAGIC)
@@ -1180,11 +1195,23 @@ class zstreambuf : public std::streambuf {
             {
               errno = ENOMEM;
               warning("out of memory", pathname);
+              file_ = NULL;
             }
+          }
+          else if (num == 2 && u32(buf_) == ZipInfo::ZIP_EMPTY_MAGIC)
+          {
+            // skip empty zip file without warning
+            file_ = NULL;
+          }
+          else if (num == 2 && u32(buf_) == ZipInfo::ZIP_DESCRIPTOR_MAGIC)
+          {
+            // cannot decompress split zip files
+            cannot_decompress(pathname, "spanned zip fragment of a split zip archive");
+            file_ = NULL;
           }
           else if (num >= 0)
           {
-            // no compression
+            // assume no compression
             len_ = num + 2;
             num = fread(buf_ + 4, 1, Z_BUF_LEN - 4, file);
             if (num >= 0)
@@ -1861,7 +1888,7 @@ class zstreambuf : public std::streambuf {
               }
 
               // skip this skippable frame, then continue with next frame
-              size_t size = u32(lz4file_->zbuf + 4);
+              uint32_t size = u32(lz4file_->zbuf + 4);
               lz4file_->zloc = 8;
               if (lz4file_->zloc + size > lz4file_->zlen)
               {
@@ -1937,7 +1964,7 @@ class zstreambuf : public std::streambuf {
           }
 
           // get the block size
-          size_t size = u32(lz4file_->zbuf);
+          uint32_t size = u32(lz4file_->zbuf);
           lz4file_->zloc = 4;
 
           if (size == 0)
@@ -1953,6 +1980,11 @@ class zstreambuf : public std::streambuf {
             lz4file_->zflg = 0;
             continue;
           }
+
+          // if MSB(size) is set then data is uncompressed
+          bool compressed = !(size & 0x80000000);
+          if (!compressed)
+            size &= 0x7fffffff;
 
           // block cannot be larger than the documented max block size of 4MB
           if (size > LZ4::MAX_BLOCK_SIZE)
@@ -1977,20 +2009,32 @@ class zstreambuf : public std::streambuf {
             break;
           }
 
-          // decompress lz4file_->zbuf[] block into lz4file_->buf[]
-          if (lz4file_->loc >= LZ4::RING_BUFFER_SIZE - LZ4::MAX_BLOCK_SIZE)
-            lz4file_->loc = 0;
-          int ret = LZ4_decompress_safe_continue(lz4file_->strm, reinterpret_cast<char*>(lz4file_->zbuf + lz4file_->zloc), reinterpret_cast<char*>(lz4file_->buf + lz4file_->loc), size, LZ4::MAX_BLOCK_SIZE);
-          lz4file_->zloc += size;
-          if (ret <= 0)
+          if (compressed)
           {
-            cannot_decompress(pathname_, "an error was detected in the lz4 compressed data");
-            num = -1;
-            break;
+            // decompress lz4file_->zbuf[] block into lz4file_->buf[]
+            if (lz4file_->loc >= LZ4::RING_BUFFER_SIZE - LZ4::MAX_BLOCK_SIZE)
+              lz4file_->loc = 0;
+            int ret = LZ4_decompress_safe_continue(lz4file_->strm, reinterpret_cast<char*>(lz4file_->zbuf + lz4file_->zloc), reinterpret_cast<char*>(lz4file_->buf + lz4file_->loc), size, LZ4::MAX_BLOCK_SIZE);
+            if (ret <= 0)
+            {
+              cannot_decompress(pathname_, "an error was detected in the lz4 compressed data");
+              num = -1;
+              break;
+            }
+
+            lz4file_->len = lz4file_->loc + ret;
+          }
+          else
+          {
+            // copy uncompressed data into lz4file_->buf[]
+            memcpy(lz4file_->buf + lz4file_->loc, lz4file_->zbuf + lz4file_->zloc, size);
+            lz4file_->len = lz4file_->loc + size;
           }
 
-          // copy decompressed data from lz4file_->buf[] into the given buf[]
-          lz4file_->len = lz4file_->loc + ret;
+          // move over processed data
+          lz4file_->zloc += size;
+
+          // copy data from lz4file_->buf[] into the given buf[]
           if (lz4file_->loc + len > lz4file_->len)
             len = lz4file_->len - lz4file_->loc;
           memcpy(buf, lz4file_->buf + lz4file_->loc, len);

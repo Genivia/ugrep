@@ -63,8 +63,8 @@ void Stats::report(FILE *output)
 
   if (fm > 0 && !flag_quiet && !flag_files_with_matches && !flag_files_without_match)
   {
-    if (flag_ungroup || (flag_count && flag_only_matching))
-      fprintf(output, "Searched %zu line%s and found %zu matches (ungrouped)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm);
+    if (flag_ungroup || (flag_count && flag_only_matching) || (!flag_count && flag_format != NULL))
+      fprintf(output, "Searched %zu line%s: found %zu matches (ungrouped)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm);
     else
       fprintf(output, "Searched %zu line%s: %zu matching (%.4g%%)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm, 100.0 * fm / sl);
   }

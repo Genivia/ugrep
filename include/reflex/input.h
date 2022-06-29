@@ -60,6 +60,10 @@ sequence of characters:
   a `char*` string, a `wchar_t*` wide string, a `std::string`, a
   `std::wstring`, a `FILE*` descriptor, or a `std::istream` object.
 
+- Strings specified as input must be persistent and cannot be temporary.  The
+  input string contents are incrementally extracted and converted as necessary,
+  when specified with an encoding format `reflex::Input::file_encoding`.
+
 - When assigned a wide string source as input, the wide character content is
   automatically converted to an UTF-8 character sequence when reading with
   get().  Wide strings are UCS-2/UCS-4 and may contain UTF-16 surrogate pairs.
