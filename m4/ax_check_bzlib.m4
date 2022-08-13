@@ -64,7 +64,7 @@ AC_DEFUN([AX_CHECK_BZLIB],
 # Handle user hints
 #
 [AC_MSG_CHECKING(if bzlib is wanted)
-bzlib_places="/usr/local /usr /opt/local /sw"
+bzlib_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 AC_ARG_WITH([bzlib],
 [  --with-bzlib=DIR        root directory path of bzlib installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@

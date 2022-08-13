@@ -1,4 +1,4 @@
-.TH UGREP "1" "June 10, 2022" "ugrep 3.8.2" "User Commands"
+.TH UGREP "1" "August 12, 2022" "ugrep 3.9.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -26,12 +26,12 @@ UTF-8, or raw binary.  An input encoding format may be specified with option
 \fB--encoding\fR.
 .PP
 If no \fIFILE\fR arguments are specified and standard input is read from a
-terminal, recursive searches are performed as if \fB-R\fR is specified.  To
+terminal, recursive searches are performed as if \fB-r\fR is specified.  To
 force reading from standard input, specify `-' as a \fIFILE\fR argument.
 .PP
 Directories specified as \fIFILE\fR arguments are searched without recursing
-into subdirectories, unless \fB-R\fR, \fB-r\fR, or \fB-2\fR...\fB-9\fR is
-specified to search subdirectories.
+deeper into subdirectories, unless \fB-r\fR, \fB-r\fR, or \fB-2\fR...\fB-9\fR
+is specified to search subdirectories.
 .PP
 Hidden files and directories are ignored in recursive searches.  Option
 \fB-.\fR (\fB--hidden\fR) includes hidden files and directories in recursive
@@ -200,7 +200,7 @@ equivalent to the \fB\-R\fR option.
 Restrict recursive searches from MIN to MAX directory levels deep,
 where \fB\-1\fR (\fB\-\-depth\fR=1) searches the specified path without recursing
 into subdirectories.  Note that \fB\-3\fR \fB\-5\fR, \fB\-3\fR\-5, and \fB\-3\fR5 search 3 to 5
-levels deep.  Enables \fB\-R\fR if \fB\-R\fR or \fB\-r\fR is not specified.
+levels deep.  Enables \fB\-r\fR if \fB\-R\fR or \fB\-r\fR is not specified.
 .TP
 \fB\-\-dotall\fR
 Dot `.' in regular expressions matches anything, including newline.
@@ -606,14 +606,14 @@ match has been found.
 .TP
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
 Recursively read all files under each directory.  Follow all
-symbolic links, unlike \fB\-r\fR.  Note that when no FILE arguments are
-specified and input is read from a terminal, recursive searches are
-performed as if \fB\-R\fR is specified.  See also option \fB\-\-sort\fR.
+symbolic links, unlike \fB\-r\fR.  See also option \fB\-\-sort\fR.
 .TP
 \fB\-r\fR, \fB\-\-recursive\fR
 Recursively read all files under each directory, following symbolic
-links only if they are specified on the command line.  See also
-option \fB\-\-sort\fR.
+links only if they are specified on the command line.  Note that
+when no FILE arguments are specified and input is read from a
+terminal, recursive searches are performed as if \fB\-r\fR is specified.
+See also option \fB\-\-sort\fR.
 .TP
 \fB\-\-replace\fR=\fIFORMAT\fR
 Replace matching patterns in the output by the specified FORMAT
@@ -624,7 +624,7 @@ outputs `%' and `%~' outputs a newline.  See option \fB\-\-format\fR,
 .TP
 \fB\-S\fR, \fB\-\-dereference\fR
 If \fB\-r\fR is specified, all symbolic links are followed, like \fB\-R\fR.  The
-default is not to follow symbolic links.
+default is not to follow symbolic links to directories.
 .TP
 \fB\-s\fR, \fB\-\-no\-messages\fR
 Silent mode: nonexistent and unreadable files are ignored, i.e.
@@ -898,7 +898,7 @@ When used at the end of a glob, matches directories only.
 Matches zero or more directories.
 .IP \fB/**\fR
 When used at the end of a glob, matches everything after the /.
-.IP \fB\\\\?\fR
+.IP \fB\e?\fR
 Matches a ? or any other character specified after the backslash.
 .PP
 \fBGlob Matching Examples\fR
@@ -928,7 +928,7 @@ Matches a, x/a, x/y/a,       but not b, x/b.
 Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
 .IP \fBa/**\fR
 Matches a/x, a/y, a/x/y,     but not a, b/x
-.IP \fBa\\\\?b\fR
+.IP \fBa\e?b\fR
 Matches a?b,                 but not a, b, ab, axb, a/b
 .PP
 Note that exclude glob patterns take priority over include glob patterns when

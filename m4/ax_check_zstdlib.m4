@@ -64,7 +64,7 @@ AC_DEFUN([AX_CHECK_ZSTDLIB],
 # Handle user hints
 #
 [AC_MSG_CHECKING(if zstd is wanted)
-zstd_places="/usr/local /usr /opt/local /sw"
+zstd_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 AC_ARG_WITH([zstd],
 [  --with-zstd=DIR         root directory path of zstd installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@

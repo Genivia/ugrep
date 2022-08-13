@@ -41,12 +41,12 @@ UTF-8, or raw binary.  An input encoding format may be specified with option
 \fB--encoding\fR.
 .PP
 If no \fIFILE\fR arguments are specified and standard input is read from a
-terminal, recursive searches are performed as if \fB-R\fR is specified.  To
+terminal, recursive searches are performed as if \fB-r\fR is specified.  To
 force reading from standard input, specify `-' as a \fIFILE\fR argument.
 .PP
 Directories specified as \fIFILE\fR arguments are searched without recursing
-into subdirectories, unless \fB-R\fR, \fB-r\fR, or \fB-2\fR...\fB-9\fR is
-specified to search subdirectories.
+deeper into subdirectories, unless \fB-r\fR, \fB-r\fR, or \fB-2\fR...\fB-9\fR
+is specified to search subdirectories.
 .PP
 Hidden files and directories are ignored in recursive searches.  Option
 \fB-.\fR (\fB--hidden\fR) includes hidden files and directories in recursive
@@ -186,7 +186,7 @@ When used at the end of a glob, matches directories only.
 Matches zero or more directories.
 .IP \fB/**\fR
 When used at the end of a glob, matches everything after the /.
-.IP \fB\\\\?\fR
+.IP \fB\e?\fR
 Matches a ? or any other character specified after the backslash.
 .PP
 \fBGlob Matching Examples\fR
@@ -216,7 +216,7 @@ Matches a, x/a, x/y/a,       but not b, x/b.
 Matches a/b, a/x/b, a/x/y/b, but not x/a/b, a/b/x
 .IP \fBa/**\fR
 Matches a/x, a/y, a/x/y,     but not a, b/x
-.IP \fBa\\\\?b\fR
+.IP \fBa\e?b\fR
 Matches a?b,                 but not a, b, ab, axb, a/b
 .PP
 Note that exclude glob patterns take priority over include glob patterns when

@@ -4575,8 +4575,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 break;
 
               case 'j':
-                if (strncmp(arg, "jobs=", 4) == 0)
-                  flag_jobs = strtonum(arg + 4, "invalid argument --jobs=");
+                if (strncmp(arg, "jobs=", 5) == 0)
+                  flag_jobs = strtonum(arg + 5, "invalid argument --jobs=");
                 else if (strcmp(arg, "json") == 0)
                   flag_json = true;
                 else if (strcmp(arg, "jobs") == 0)
@@ -5833,12 +5833,7 @@ void init(int argc, const char **argv)
     if (isatty(STDIN_FILENO) && (flag_directories_action == Action::UNSP || flag_directories_action == Action::RECURSE))
     {
       if (flag_directories_action == Action::UNSP)
-      {
         flag_directories_action = Action::RECURSE;
-
-        if (!flag_no_dereference)
-          flag_dereference = true;
-      }
 
       flag_all_threads = true;
     }
@@ -5847,11 +5842,6 @@ void init(int argc, const char **argv)
       // if no FILE specified then read standard input
       flag_stdin = true;
     }
-  }
-  else if (flag_directories_action == Action::UNSP && !flag_no_dereference)
-  {
-    // if FILE arguments are specified without -r, -R and -1... and no -p, then enable dereference of FILE argument directory contents
-    flag_dereference = true;
   }
 
   // check FILE arguments, warn about non-existing and non-readable files and directories
@@ -7037,12 +7027,9 @@ void ugrep()
   if (flag_invert_match || flag_any_line)
     flag_only_matching = flag_ungroup = false;
 
-  // --depth: if -R or -r is not specified then enable -R
+  // --depth: if -R or -r is not specified then enable -r
   if ((flag_min_depth > 0 || flag_max_depth > 0) && flag_directories_action == Action::UNSP)
-  {
     flag_directories_action = Action::RECURSE;
-    flag_dereference = true;
-  }
 
   // -p (--no-dereference) and -S (--dereference): -p takes priority over -S and -R
   if (flag_no_dereference)
@@ -7728,17 +7715,22 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
   struct stat buf;
 
-  // if dir entry is unknown, use lstat() to check if pathname is a symlink
-  if (type != DIRENT_TYPE_UNKNOWN || lstat(pathname, &buf) == 0)
+  // always follow symlinks?
+  bool follow = flag_dereference || is_argument;
+
+  // if dir entry is unknown and not -S, then use lstat() to check if pathname is a symlink
+  if (type != DIRENT_TYPE_UNKNOWN || follow || lstat(pathname, &buf) == 0)
   {
     // symlinks are followed when specified on the command line (unless option -p) or with options -R, -S, --dereference
-    if ((is_argument && !flag_no_dereference) || flag_dereference || (type != DIRENT_TYPE_UNKNOWN ? type != DIRENT_TYPE_LNK : !S_ISLNK(buf.st_mode)))
+    bool symlink = type != DIRENT_TYPE_UNKNOWN ? type == DIRENT_TYPE_LNK : follow ? false : S_ISLNK(buf.st_mode);
+    // if we got a symlink, use stat() to check if pathname is a directory or a regular file, we also stat when sorting by stat info
+    if (((flag_sort_key == Sort::NA || flag_sort_key == Sort::NAME) && type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) || stat(pathname, &buf) == 0)
     {
-      // if we got a symlink, use stat() to check if pathname is a directory or a regular file, we also stat when sorting by stat info
-      if (((flag_sort_key == Sort::NA || flag_sort_key == Sort::NAME) && type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) || stat(pathname, &buf) == 0)
+      // check if directory
+      if (type == DIRENT_TYPE_DIR || ((type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISDIR(buf.st_mode)))
       {
-        // check if directory
-        if (type == DIRENT_TYPE_DIR || ((type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISDIR(buf.st_mode)))
+        // if symlinked then follow into directory?
+        if (follow || !symlink)
         {
           if (flag_directories_action == Action::READ)
           {
@@ -7813,7 +7805,11 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
             return Type::DIRECTORY;
           }
         }
-        else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == Action::READ)
+      }
+      else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == Action::READ)
+      {
+        // if not -p or if follow or if not symlinked then search file
+        if (!flag_no_dereference || follow || !symlink)
         {
           // --depth: recursion level not deep enough?
           if (flag_min_depth > 0 && level <= flag_min_depth)
@@ -11852,7 +11848,7 @@ void help(std::ostream& out)
             Restrict recursive searches from MIN to MAX directory levels deep,\n\
             where -1 (--depth=1) searches the specified path without recursing\n\
             into subdirectories.  Note that -3 -5, -3-5, and -35 search 3 to 5\n\
-            levels deep.  Enables -R if -R or -r is not specified.\n\
+            levels deep.  Enables -r if -R or -r is not specified.\n\
     --dotall\n\
             Dot `.' in regular expressions matches anything, including newline.\n\
             Note that `.*' matches all input and should not be used.\n\
@@ -12234,13 +12230,13 @@ void help(std::ostream& out)
             match has been found.\n\
     -R, --dereference-recursive\n\
             Recursively read all files under each directory.  Follow all\n\
-            symbolic links, unlike -r.  Note that when no FILE arguments are\n\
-            specified and input is read from a terminal, recursive searches are\n\
-            performed as if -R is specified.  See also option --sort.\n\
+            symbolic links, unlike -r.  See also option --sort.\n\
     -r, --recursive\n\
             Recursively read all files under each directory, following symbolic\n\
-            links only if they are specified on the command line.  See also\n\
-            option --sort.\n\
+            links only if they are specified on the command line.  Note that\n\
+            when no FILE arguments are specified and input is read from a\n\
+            terminal, recursive searches are performed as if -r is specified.\n\
+            See also option --sort.\n\
     --replace=FORMAT\n\
             Replace matching patterns in the output by the specified FORMAT\n\
             with `%' fields.  If -P is specified, FORMAT may include `%1' to\n\
@@ -12249,7 +12245,7 @@ void help(std::ostream& out)
             `ugrep --help format' and `man ugrep' section FORMAT for details.\n\
     -S, --dereference\n\
             If -r is specified, all symbolic links are followed, like -R.  The\n\
-            default is not to follow symbolic links.\n\
+            default is not to follow symbolic links to directories.\n\
     -s, --no-messages\n\
             Silent mode: nonexistent and unreadable files are ignored, i.e.\n\
             their error messages and warnings are suppressed.\n\
@@ -12719,10 +12715,10 @@ void version()
 #elif defined(HAVE_SSE2)
     (reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)") <<
 #elif defined(HAVE_NEON)
-    " +neon" <<
+    " +neon/AArch64" <<
 #endif
 #if defined(HAVE_PCRE2)
-    (pcre2_config(PCRE2_CONFIG_JIT, &tmp) >= 0 && tmp != 0 ? " +pcre2_jit" : " +pcre2") <<
+    (pcre2_config(PCRE2_CONFIG_JIT, &tmp) >= 0 && tmp != 0 ? " +pcre2jit" : " +pcre2") <<
 #elif defined(HAVE_BOOST_REGEX)
     " +boost_regex" <<
 #endif

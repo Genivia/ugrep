@@ -72,7 +72,7 @@ AC_DEFUN([AX_CHECK_PCRE2],
 # Handle user hints
 #
 [AC_MSG_CHECKING(if PCRE2 is wanted)
-pcre2_places="/usr/local /usr /opt/local /sw"
+pcre2_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 AC_ARG_WITH([pcre2],
 [  --with-pcre2=DIR        root directory path of PCRE2 installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@

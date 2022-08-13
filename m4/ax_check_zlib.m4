@@ -70,7 +70,7 @@ AC_DEFUN([AX_CHECK_ZLIB],
 # Handle user hints
 #
 [AC_MSG_CHECKING(if zlib is wanted)
-zlib_places="/usr/local /usr /opt/local /sw"
+zlib_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 AC_ARG_WITH([zlib],
 [  --with-zlib=DIR         root directory path of zlib installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@

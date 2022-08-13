@@ -28,7 +28,7 @@ install-exec-hook:
 
 install-data-hook:
 		mkdir -p $(DESTDIR)$(datadir)/ugrep && \
-		  cp -rf patterns $(DESTDIR)$(datadir)/ugrep/
+		  cp -rf $(top_srcdir)/patterns $(DESTDIR)$(datadir)/ugrep/
 		cd $(DESTDIR)$(mandir)/man1; \
 		  rm -f ug.1; \
 		  $(LN_S) ugrep.1 ug.1

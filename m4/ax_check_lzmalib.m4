@@ -64,7 +64,7 @@ AC_DEFUN([AX_CHECK_LZMALIB],
 # Handle user hints
 #
 [AC_MSG_CHECKING(if lzma is wanted)
-lzma_places="/usr/local /usr /opt/local /sw"
+lzma_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 AC_ARG_WITH([lzma],
 [  --with-lzma=DIR         root directory path of lzma installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@

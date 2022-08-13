@@ -64,7 +64,7 @@ AC_DEFUN([AX_CHECK_LZ4LIB],
 # Handle user hints
 #
 [AC_MSG_CHECKING(if lz4 is wanted)
-lz4_places="/usr/local /usr /opt/local /sw"
+lz4_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 AC_ARG_WITH([lz4],
 [  --with-lz4=DIR          root directory path of lz4 installation @<:@defaults to
                           /usr/local or /usr if not found in /usr/local@:>@

@@ -7301,7 +7301,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 #
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if PCRE2 is wanted" >&5
 printf %s "checking if PCRE2 is wanted... " >&6; }
-pcre2_places="/usr/local /usr /opt/local /sw"
+pcre2_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 
 # Check whether --with-pcre2 was given.
 if test ${with_pcre2+y}
@@ -7640,7 +7640,7 @@ fi
 #
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if zlib is wanted" >&5
 printf %s "checking if zlib is wanted... " >&6; }
-zlib_places="/usr/local /usr /opt/local /sw"
+zlib_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 
 # Check whether --with-zlib was given.
 if test ${with_zlib+y}
@@ -7773,7 +7773,7 @@ fi
 #
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if bzlib is wanted" >&5
 printf %s "checking if bzlib is wanted... " >&6; }
-bzlib_places="/usr/local /usr /opt/local /sw"
+bzlib_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 
 # Check whether --with-bzlib was given.
 if test ${with_bzlib+y}
@@ -7906,7 +7906,7 @@ fi
 #
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if lzma is wanted" >&5
 printf %s "checking if lzma is wanted... " >&6; }
-lzma_places="/usr/local /usr /opt/local /sw"
+lzma_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 
 # Check whether --with-lzma was given.
 if test ${with_lzma+y}
@@ -8039,7 +8039,7 @@ fi
 #
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if lz4 is wanted" >&5
 printf %s "checking if lz4 is wanted... " >&6; }
-lz4_places="/usr/local /usr /opt/local /sw"
+lz4_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 
 # Check whether --with-lz4 was given.
 if test ${with_lz4+y}
@@ -8172,7 +8172,7 @@ fi
 #
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if zstd is wanted" >&5
 printf %s "checking if zstd is wanted... " >&6; }
-zstd_places="/usr/local /usr /opt/local /sw"
+zstd_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 
 # Check whether --with-zstd was given.
 if test ${with_zstd+y}
