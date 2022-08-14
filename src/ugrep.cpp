@@ -3345,6 +3345,7 @@ struct Grep {
 #endif
 
 #ifdef WITH_STDIN_DRAIN
+#ifndef OS_WIN
     // drain stdin until eof
     if (file_in == stdin && !feof(stdin))
     {
@@ -3358,31 +3359,27 @@ struct Grep {
             continue;
           if (feof(stdin))
             break;
-          if (r >= 0)
-          {
-            if (!(fcntl(0, F_GETFL) & O_NONBLOCK))
-              break;
-            struct timeval tv;
-            fd_set rfds, efds;
-            FD_ZERO(&rfds);
-            FD_ZERO(&efds);
-            FD_SET(0, &rfds);
-            FD_SET(0, &efds);
-            tv.tv_sec = 1;
-            tv.tv_usec = 0;
-            int r = ::select(1, &rfds, NULL, &efds, &tv);
-            if (r < 0 && errno != EINTR)
-              break;
-            if (r > 0 && FD_ISSET(0, &efds))
-              break;
-          }
-          else if (errno != EINTR)
-          {
+          if (errno != EINTR)
             break;
-          }
+          if (!(fcntl(0, F_GETFL) & O_NONBLOCK))
+            break;
+          struct timeval tv;
+          fd_set rfds, efds;
+          FD_ZERO(&rfds);
+          FD_ZERO(&efds);
+          FD_SET(0, &rfds);
+          FD_SET(0, &efds);
+          tv.tv_sec = 1;
+          tv.tv_usec = 0;
+          int r = ::select(1, &rfds, NULL, &efds, &tv);
+          if (r < 0 && errno != EINTR)
+            break;
+          if (r > 0 && FD_ISSET(0, &efds))
+            break;
         }
       }
     }
+#endif
 #endif
 
     // close the current input file
@@ -7715,16 +7712,21 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
   struct stat buf;
 
-  // always follow symlinks?
+  // -R or -S or command line argument FILE to search: follow symlinks
   bool follow = flag_dereference || is_argument;
 
-  // if dir entry is unknown and not -S, then use lstat() to check if pathname is a symlink
+  // if dir entry is unknown and not following, then use lstat() to check if pathname is a symlink
   if (type != DIRENT_TYPE_UNKNOWN || follow || lstat(pathname, &buf) == 0)
   {
-    // symlinks are followed when specified on the command line (unless option -p) or with options -R, -S, --dereference
-    bool symlink = type != DIRENT_TYPE_UNKNOWN ? type == DIRENT_TYPE_LNK : follow ? false : S_ISLNK(buf.st_mode);
-    // if we got a symlink, use stat() to check if pathname is a directory or a regular file, we also stat when sorting by stat info
-    if (((flag_sort_key == Sort::NA || flag_sort_key == Sort::NAME) && type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) || stat(pathname, &buf) == 0)
+    // is it a symlink? If dir entry unknown and following then set to symlink = true to call stat() below
+    bool symlink = type != DIRENT_TYPE_UNKNOWN ? type == DIRENT_TYPE_LNK : follow ? true : S_ISLNK(buf.st_mode);
+    // if we got a symlink, use stat() to check if pathname is a directory or a regular file, we also stat when following and when sorting by stat info such as modification time
+    if (( ( (type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) ||         /* type is known and not symlink */
+            (!follow && !symlink)                                               /* or not following and not symlink */
+          ) &&
+          (flag_sort_key == Sort::NA || flag_sort_key == Sort::NAME)            /* and we're not sorting or by name */
+        ) ||
+        stat(pathname, &buf) == 0)
     {
       // check if directory
       if (type == DIRENT_TYPE_DIR || ((type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISDIR(buf.st_mode)))
@@ -12622,6 +12624,16 @@ Option --bool adds the following operations to regex patterns `a' and `b':\n\
 Listed from the highest level of precedence to the lowest, NOT is performed\n\
 before OR and OR is performed before AND.  Thus, `-x|y z' is `((-x)|y) z'.\n\
 \n\
+Spacing with --bool logical operators and grouping is recommended.  Parenthesis\n\
+become part of the regex sub-patterns when nested and when regex operators are\n\
+directly applied to a parenthesized sub-expression.  For example, `((x y)z)'\n\
+matches `x yz' and likewise `((x y){3} z)' match three `x y' and a `z'.\n\
+\n\
+The default is to match lines satisfying the --bool query.  To match files,\n\
+use option --files with --bool.  See also options --and, --andnot, --not.\n\
+\n\
+Option --stats displays the options and patterns applied to the matching files.\n\
+\n\
 ";
     }
     else if (strcmp(what, "globs") == 0)
@@ -12651,6 +12663,8 @@ When a glob pattern begins with a /, files and directories are matched at the\n\
 working directory, not recursively.\n\
 \n\
 When a glob pattern ends with a /, directories are matched instead of files.\n\
+\n\
+Option --stats displays the search path globs applied to the matching files.\n\
 \n\
 ";
     }

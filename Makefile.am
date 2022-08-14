@@ -13,6 +13,7 @@ all-local:	cp2bin
 
 # to copy the ugrep binary to the local ugrep/bin/ugrep and link ugrep/bin/ug
 cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
+		rm -f $(top_builddir)/bin/ugrep$(EXEEXT)
 		mkdir -p $(top_builddir)/bin; \
 		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT); \
 		  cd $(top_builddir)/bin; \

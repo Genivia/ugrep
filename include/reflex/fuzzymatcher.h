@@ -266,6 +266,7 @@ class FuzzyMatcher : public Matcher {
     // substitute or insert a pattern char in the text?
     if (bpt.sub)
     {
+      // try substituting a pattern char for a mismatching char in the text
       DBGLOG("Substitute: jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
       int c = get();
       if (!bin_ && c != EOF)
@@ -288,11 +289,17 @@ class FuzzyMatcher : public Matcher {
       bpt.sub = false;
       bpt.pc1 += !bpt.alt;
     }
-    else
+    else if (ins_)
     {
+      // try inserting a pattern char that should have matched a deleted char in the text
       DBGLOG("Delete: jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
       bpt.sub = bpt.alt;
       ++bpt.pc1;
+    }
+    else
+    {
+      // no more alternatives
+      return NULL;
     }
     return pat_->opc_ + jump;
   }
