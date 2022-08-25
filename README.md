@@ -261,12 +261,27 @@ Check <https://pkgs.alpinelinux.org/packages?name=ugrep> for version info.
 
 Check <https://archlinux.org/packages/community/x86_64/ugrep> for version info.
 
+### CentOS
+
+First enable the [EPEL repository](https://docs.fedoraproject.org/en-US/epel/),
+then you can install ugrep.
+
+    $ dnf install ugrep
+
+Check <https://packages.fedoraproject.org/pkgs/ugrep/ugrep/> for version info.
+
 ### Debian
 
     $ apt-get install ugrep
 
 Check <https://packages.debian.org/ugrep> for version info.  To build and try
 `ugrep` locally, see "All platforms" build steps further below.
+
+### Fedora
+
+    $ dnf install ugrep
+
+Check <https://packages.fedoraproject.org/pkgs/ugrep/ugrep/> for version info.
 
 ### FreeBSD
 
@@ -286,6 +301,15 @@ steps further below.
 
 You can use the standard NetBSD package installer (pkgsrc):
 <http://cdn.netbsd.org/pub/pkgsrc/current/pkgsrc/textproc/ugrep/README.html>
+
+### RHEL
+
+First enable the [EPEL repository](https://docs.fedoraproject.org/en-US/epel/),
+then you can install ugrep.
+
+    $ dnf install ugrep
+
+Check <https://packages.fedoraproject.org/pkgs/ugrep/ugrep/> for version info.
 
 ### Other platforms: step 1 download
 
