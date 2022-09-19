@@ -72,6 +72,7 @@ Search for anything in everything... ultra fast
       ug --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
       ug --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
       ug --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
+      ug --filter='7z:7z x -so -si' PATTERN ...
 
   > 💡**ProTip** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
 
@@ -109,7 +110,7 @@ Search for anything in everything... ultra fast
 
 - Search patterns excluding [negative patterns](#not) ("match this but not that")
 
-      ug PATTERN -N NOTPATTERN ...           ug '[0-9]+' -N 123 ...
+      ug -e PATTERN -N NOTPATTERN ...        ug -e '[0-9]+' -N 123 ...
 
 - Use [predefined regex patterns](#source) to search source code, javascript, XML, JSON, HTML, PHP, markdown, etc.
 
@@ -975,7 +976,7 @@ To search for `main` in source code while ignoring strings and comment blocks
 we can use *negative patterns* with option `-N` to skip unwanted matches in
 C/C++ quoted strings and comment blocks:
 
-    ug -r -nkw 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
+    ug -r -nkw -e 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
 
 This is a lot of work to type in correctly!  If you are like me, I don't want
 to spend time fiddling with regex patterns when I am working on something more
@@ -1694,13 +1695,13 @@ Same, but using `--bool` for Boolean queries:
 To search for decimals using pattern `\d+` that do not start with `0` using
 negative pattern `0\d+` and excluding `555`:
 
-    ug '\d+' -N '0\d+' -N 555 myfile.cpp
+    ug -e '\d+' -N '0\d+' -N 555 myfile.cpp
 
 To search for words starting with `disp` without matching `display` in file
 `myfile.py` by using a "negative pattern" `-N '/<display\>'` where `-N`
 specifies an additional negative pattern to skip matches:
 
-    ug '\<disp' -N '\<display\>' myfile.py
+    ug -e '\<disp' -N '\<display\>' myfile.py
 
 To search for lines with the word `display` in file `myfile.py` skipping this
 word in strings and comments, where `-f` specifies patterns in files which are
@@ -1710,7 +1711,7 @@ predefined patterns in this case:
 
 To display lines that are not blank lines:
 
-    ug -x '.*' -N '\h*' myfile.py
+    ug -x -e '.*' -N '\h*' myfile.py
 
 Same, but using `-v` and `-x` with `\h*`, i.e. pattern `^\h*$`:
 
@@ -1811,7 +1812,7 @@ sequences or files that contain any UTF-8/16/32 code points that are outside
 the valid Unicode range) by matching any code point with `.` and by using a
 negative pattern `-N '\p{Unicode}'`:
 
-    ug -Rl '.' -N '\p{Unicode}'
+    ug -Rl -e '.' -N '\p{Unicode}'
 
 To display lines containing laughing face emojis:
 
@@ -2433,7 +2434,7 @@ options for the utility are invalid, the search is silently skipped.
 
 Common filter utilities are `cat` (concat, pass through), `head` (select first
 lines or bytes) `tr` (translate), `iconv` and `uconv` (convert), and more
-advanced document conversion utilities such as:
+advanced utilities such as:
 
 - [`pdftotext`](https://pypi.org/project/pdftotext) to convert PDF to text
 - [`pandoc`](https://pandoc.org) to convert .docx, .epub, and other document
@@ -2446,14 +2447,18 @@ advanced document conversion utilities such as:
   embedded in image and video media formats.
 
 Also decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
-`bunzip2`, `unlzma`, `unxz` and `lzop` that decompress files to standard output
-when option `--stdout` is specified.  For example:
+`bunzip2`, `unlzma`, `unxz`, `lzop` and `7z` that decompress files to standard
+output when option `--stdout` is specified.  For example:
 
     ug --filter='lzo:lzop -d --stdout -' ...
+    ug --filter='gz:gunzip -d --stdout -' ...
+    ug --filter='7z:7z x -so %' ...
 
 The `--filter='lzo:lzop -d --stdout -' option decompresses files with extension
 `lzo` to standard output with `--stdout` with the compressed stream being read
-from standard input with `-`.
+from standard input with `-`.  The `--filter='7z:7z x -so -si` option
+decompresses files with extension `7z` to standard output `-so` while reading
+standard input `-si` with the compressed file contents.
 
 Note that **ugrep** option `-z` is typically faster to search compressed files
 compared to `--filter`.
