@@ -3881,7 +3881,7 @@ in markdown:
            force reading from standard input, specify `-' as a FILE argument.
 
            Directories specified as FILE arguments are searched without recursing
-           deeper into subdirectories, unless -r, -r, or -2...-9 is specified to
+           deeper into subdirectories, unless -R, -r, or -2...-9 is specified to
            search subdirectories.
 
            Hidden files and directories are ignored in recursive searches.  Option
