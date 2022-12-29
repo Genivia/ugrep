@@ -4404,7 +4404,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_cpp = true;
                 else if (strcmp(arg, "csv") == 0)
                   flag_csv = true;
-                else if (strcmp(arg, "colors") == 0 || strcmp(arg, "colours") == 0)
+                else if (strcmp(arg, "colors") == 0 ||
+                    strcmp(arg, "colours") == 0 ||
+                    strcmp(arg, "context") == 0)
                   usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--color, --colors, --column-number, --config, --confirm, --context, --count, --cpp or --csv");
@@ -4425,7 +4427,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_directories = arg + 12;
                 else if (strcmp(arg, "dotall") == 0)
                   flag_dotall = true;
-                else if (strcmp(arg, "depth") == 0)
+                else if (strcmp(arg, "depth") == 0 ||
+                    strcmp(arg, "devices") == 0 ||
+                    strcmp(arg, "directories") == 0)
                   usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--decompress, --depth, --dereference, --dereference-recursive, --devices, --directories or --dotall");
@@ -4624,7 +4628,13 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_max_mmap = strtopos(arg + 5, "invalid argument --mmap=");
                 else if (strcmp(arg, "messages") == 0)
                   flag_no_messages = false;
-                else if (strcmp(arg, "max-count") == 0 || strcmp(arg, "max-depth") == 0 || strcmp(arg, "max-files") == 0 || strcmp(arg, "max-line") == 0 || strcmp(arg, "min-count") == 0 || strcmp(arg, "min-depth") == 0 || strcmp(arg, "min-line") == 0)
+                else if (strcmp(arg, "max-count") == 0 ||
+                    strcmp(arg, "max-depth") == 0 ||
+                    strcmp(arg, "max-files") == 0 ||
+                    strcmp(arg, "max-line") == 0 ||
+                    strcmp(arg, "min-count") == 0 ||
+                    strcmp(arg, "min-depth") == 0 ||
+                    strcmp(arg, "min-line") == 0)
                   usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--match, --max-count, --max-depth, --max-files, --max-line, --min-count, --min-depth, --min-line, --mmap or --messages");
