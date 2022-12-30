@@ -38,6 +38,8 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
         with:
+          upload: false # disable the upload here - we will upload in a different action
+          output: sarif-results
           category: "/language:${{ matrix.language }}"
 
       - name: filter-sarif
