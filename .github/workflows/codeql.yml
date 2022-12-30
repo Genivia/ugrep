@@ -31,6 +31,13 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: +security-and-quality
+          query-filters:
+          - exclude:
+              id: cpp/path-injection
+              id: cpp/uncontrolled-process-operation
+              problem.severity:
+              - warning
+              - recommendation
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v2
