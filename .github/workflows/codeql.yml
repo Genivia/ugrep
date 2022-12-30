@@ -30,7 +30,7 @@ jobs:
         uses: github/codeql-action/init@v2
         with:
           languages: ${{ matrix.language }}
-          queries: +security
+          queries: +security-and-quality
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v2
@@ -39,3 +39,16 @@ jobs:
         uses: github/codeql-action/analyze@v2
         with:
           category: "/language:${{ matrix.language }}"
+
+      - name: filter-sarif
+        uses: zbazztian/filter-sarif@master
+        with:
+          # filter out all test files, debugging, and automake checking files
+          patterns: |
+            -**/tests/**
+            -**/lib/debug.cpp
+            -**/conftest.c
+            -**/conftest.cpp
+          input: sarif-results/${{ matrix.language }}.sarif
+          output: sarif-results/${{ matrix.language }}.sarif
+          
