@@ -1,0 +1,12 @@
+name: "Code scanning CodeQL config"
+
+queries:
+  - uses: security-and-quality
+
+query-filters:
+  - exclude:
+      id: cpp/path-injection
+      id: cpp/uncontrolled-process-operation
+      problem.severity:
+        - warning
+        - recommendation
