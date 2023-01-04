@@ -292,8 +292,10 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     int err;
     PCRE2_SIZE pos;
     ASSERT(pat_ != NULL);
+#ifdef PCRE2_MATCH_INVALID_UTF
     if (cop_ & PCRE2_UTF)
       cop_ |= PCRE2_MATCH_INVALID_UTF; // recommended in the PCRE2 docs when using UTF-8
+#endif
     opc_ = pcre2_compile(reinterpret_cast<PCRE2_SPTR>(pat_->c_str()), static_cast<PCRE2_SIZE>(pat_->size()), cop_, &err, &pos, NULL);
     if (opc_ == NULL)
     {
@@ -380,9 +382,11 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     {
       DBGLOGN("pcre2_match() pos = %zu end = %zu", pos_, end_);
       int rc;
+#ifdef PCRE2_MATCH_INVALID_UTF
       if (jit_ && !(flg & PCRE2_ANCHORED))
         rc = pcre2_jit_match(opc_, reinterpret_cast<PCRE2_SPTR>(buf_), end_, pos_, flg, dat_, ctx_);
       else
+#endif
         rc = pcre2_match(opc_, reinterpret_cast<PCRE2_SPTR>(buf_), end_, pos_, flg, dat_, ctx_);
       if (rc > 0)
       {

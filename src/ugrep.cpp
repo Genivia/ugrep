@@ -1110,12 +1110,14 @@ struct Zthread {
     {
       // v7 and ustar formats
       const char ustar_magic[8] = { 'u', 's', 't', 'a', 'r', 0, '0', '0' };
+      bool is_ustar = *buf != '\0' && memcmp(buf + 257, ustar_magic, 8) == 0;
 
       // gnu and oldgnu formats
       const char gnutar_magic[8] = { 'u', 's', 't', 'a', 'r', ' ', ' ', 0 };
+      bool is_gnutar = *buf != '\0' && memcmp(buf + 257, gnutar_magic, 8) == 0;
 
       // is this a tar archive?
-      if (*buf != '\0' && (memcmp(buf + 257, ustar_magic, 8) == 0 || memcmp(buf + 257, gnutar_magic, 8) == 0))
+      if (is_ustar || is_gnutar)
       {
         // produce headers with tar file pathnames for each archived part (Grep::partname)
         if (!flag_no_filename)
@@ -1144,22 +1146,16 @@ struct Zthread {
           bool is_xhd = typeflag == 'x';
           bool is_extended = typeflag == 'L';
 
-          // assign the (long) tar pathname
+          // assign the (long) tar pathname, path prefix is 155 bytes (ustar) or 131 bytes (gnutar)
           path.clear();
           if (long_path.empty())
           {
             if (*prefix != '\0')
             {
-              if (prefix[154] == '\0')
-                path.assign(prefix);
-              else
-                path.assign(prefix, 155);
+              path.assign(prefix, strnlen(prefix, is_ustar ? 155 : 131));
               path.push_back('/');
             }
-            if (name[99] == '\0')
-              path.append(name);
-            else
-              path.append(name, 100);
+            path.append(name, strnlen(name, 100));
           }
           else
           {
@@ -1178,21 +1174,22 @@ struct Zthread {
           if (is_xhd)
           {
             // typeflag 'x': extract the long path from the pax extended header block in the body
-            const char *b = reinterpret_cast<const char*>(buf);
-            const char *e = b + minlen;
-            const char *t = "path=";
-            const char *s = std::search(b, e, t, t + 5);
-            if (s != NULL)
+            const char *body = reinterpret_cast<const char*>(buf);
+            const char *end = body + minlen;
+            const char *key = "path=";
+            const char *str = std::search(body, end, key, key + 5);
+            if (str != NULL)
             {
-              e = static_cast<const char*>(memchr(s, '\n', e - s));
-              if (e != NULL)
-                long_path.assign(s + 5, e - s - 5);
+              end = static_cast<const char*>(memchr(str, '\n', end - str));
+              if (end != NULL)
+                long_path.assign(str + 5, end - str - 5);
             }
           }
           else if (is_extended)
           {
             // typeflag 'L': get long name from the body
-            long_path.assign(reinterpret_cast<const char*>(buf), minlen);
+            const char *body = reinterpret_cast<const char*>(buf);
+            long_path.assign(body, strnlen(body, minlen));
           }
 
           // if the pipe is closed, then get a new pipe to search the next part in the archive

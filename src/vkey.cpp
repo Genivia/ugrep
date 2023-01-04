@@ -802,9 +802,21 @@ bool VKey::setup(int mode)
   tcgetattr(tty, &newterm);
 
   if (mode == VKey::TTYRAW)
+  {
+#ifdef __sun // no cfmakeraw on SunOS/Solaris https://www.perkin.org.uk/posts/solaris-portability-cfmakeraw.html
+    newterm.c_iflag &= ~(IMAXBEL|IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
+    newterm.c_oflag &= ~OPOST;
+    newterm.c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
+    newterm.c_cflag &= ~(CSIZE|PARENB);
+    newterm.c_cflag |= CS8;
+#else
     cfmakeraw(&newterm);
+#endif
+  }
   else
+  {
     newterm.c_lflag &= ~(ECHO | ICANON);
+  }
 
   tcsetattr(tty, TCSADRAIN, &newterm);
 

@@ -2328,9 +2328,9 @@ void Query::deselect()
         size_t n = strlen(cwd);
         dirs_.assign(cwd);
         wdir_.assign(cwd);
-        free(cwd);
         if (n == 0 || cwd[n-1] != PATHSEPCHR)
           dirs_.append(PATHSEPSTR);
+        free(cwd);
       }
     }
 

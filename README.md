@@ -1,4 +1,4 @@
-[![build status][travis-image]][travis-url] [![Language grade: C/C++][lgtm-image]][lgtm-url] [![license][bsd-3-image]][bsd-3-url]
+[![build status][travis-image]][travis-url] [![license][bsd-3-image]][bsd-3-url]
 
 **ugrep v3.9 is now available: more features & even faster than before**
 
