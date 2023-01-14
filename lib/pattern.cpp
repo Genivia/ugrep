@@ -2061,8 +2061,12 @@ void Pattern::compile_transition(
         state->accept = accept;
       if (k->negate())
         state->redo = true;
+      DBGLOG("ACCEPT %u STATE %u REDO %d", accept, state->accept, state->redo);
     }
-    else
+  }
+  for (Positions::const_iterator k = state->begin(); k != end; ++k)
+  {
+    if (!k->accept())
     {
       Location loc = k->loc();
       Char c = at(loc);
@@ -2091,9 +2095,7 @@ void Pattern::compile_transition(
       }
       else if (c == ')' && !literal)
       {
-        /* CHECKED algorithmic options: 7/18 do no longer check for accept state, assume we are at an accept state
         if (state->accept > 0)
-        */
         {
           Lookahead n = 0;
           DBGLOG("LOOKAHEAD TAIL");
@@ -2101,7 +2103,8 @@ void Pattern::compile_transition(
           {
             Locations::const_iterator j = i->second.find(loc);
             DBGLOGN("%d %d (%d) %u", state->accept, i->first, j != i->second.end(), n);
-            if (j != i->second.end() /* CHECKED algorithmic options: 7/18 && state->accept == i->first */ ) // only add lookstop when part of the proper accept state
+            // only add lookstop when part of the proper accept state
+            if (j != i->second.end() && static_cast<int>(state->accept) == i->first)
             {
               Lookahead l = n + static_cast<Lookahead>(std::distance(i->second.begin(), j));
               if (l < n)

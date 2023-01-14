@@ -38,13 +38,19 @@
 #define REFLEX_ABSMATCHER_H
 
 /// This compile-time option may speed up buffer reallocation with realloc() instead of new and delete.
-#define WITH_REALLOC
+#ifndef WITH_REALLOC
+#define WITH_REALLOC 1
+#endif
 
 /// This compile-time option speeds up matching, but slows input().
-#define WITH_FAST_GET
+#ifndef WITH_FAST_GET
+#define WITH_FAST_GET 1
+#endif
 
 /// This compile-time option adds span(), line(), wline(), bol(), eol()
-#define WITH_SPAN
+#ifndef WITH_SPAN
+#define WITH_SPAN 1
+#endif
 
 #include <reflex/convert.h>
 #include <reflex/debug.h>
@@ -328,8 +334,8 @@ class AbstractMatcher {
     DBGLOG("AbstractMatcher::~AbstractMatcher()");
     if (own_)
     {
-#if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
+#if WITH_REALLOC
+#if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)
       _aligned_free(static_cast<void*>(buf_));
 #else
       std::free(static_cast<void*>(buf_));
@@ -376,8 +382,8 @@ class AbstractMatcher {
     if (!own_)
     {
       max_ = Const::BUFSZ;
-#if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
+#if WITH_REALLOC
+#if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)
       buf_ = static_cast<char*>(_aligned_malloc(max_, 4096));
       if (buf_ == NULL)
         throw std::bad_alloc();
@@ -401,13 +407,13 @@ class AbstractMatcher {
     blk_ = 0;
     got_ = Const::BOB;
     chr_ = '\0';
-#if defined(WITH_SPAN)
+#if WITH_SPAN
     bol_ = buf_;
     evh_ = NULL;
 #endif
     lpb_ = buf_;
     lno_ = 1;
-#if defined(WITH_SPAN)
+#if WITH_SPAN
     cpb_ = buf_;
 #endif
     cno_ = 0;
@@ -445,7 +451,7 @@ class AbstractMatcher {
     eof_ = in.eof();
     return eof_;
   }
-#if defined(WITH_SPAN)
+#if WITH_SPAN
   /// Set event handler functor to invoke when the buffer contents are shifted out, e.g. for logging the data searched.
   void set_handler(Handler *handler)
   {
@@ -517,8 +523,8 @@ class AbstractMatcher {
     {
       if (own_)
       {
-#if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
+#if WITH_REALLOC
+#if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)
         _aligned_free(static_cast<void*>(buf_));
 #else
         std::free(static_cast<void*>(buf_));
@@ -539,13 +545,13 @@ class AbstractMatcher {
       blk_ = 0;
       got_ = Const::BOB;
       chr_ = '\0';
-#if defined(WITH_SPAN)
+#if WITH_SPAN
       bol_ = buf_;
       evh_ = NULL;
 #endif
       lpb_ = buf_;
       lno_ = 1;
-#if defined(WITH_SPAN)
+#if WITH_SPAN
       cpb_ = buf_;
 #endif
       cno_ = 0;
@@ -648,7 +654,7 @@ class AbstractMatcher {
   inline size_t lineno()
     /// @returns line number
   {
-#if defined(WITH_SPAN)
+#if WITH_SPAN
     if (lpb_ < txt_)
     {
       const char *s = lpb_;
@@ -802,7 +808,7 @@ class AbstractMatcher {
   inline void columno(size_t n) ///< new column number
   {
     (void)lineno(); // update lno_ and bol_ (or cno_) before overriding lno_
-#if defined(WITH_SPAN)
+#if WITH_SPAN
     cpb_ = txt_;
 #else
     lpb_ = txt_;
@@ -814,7 +820,7 @@ class AbstractMatcher {
     /// @returns column number
   {
     (void)lineno();
-#if defined(WITH_SPAN)
+#if WITH_SPAN
     const char *s = cpb_;
     const char *e = txt_;
     size_t k = cno_;
@@ -837,7 +843,7 @@ class AbstractMatcher {
     /// @returns number of columns
   {
     // count columns in tabs and UTF-8 chars
-#if defined(WITH_SPAN)
+#if WITH_SPAN
     const char *s = txt_;
     const char *e = txt_ + len_;
     size_t n = columno();
@@ -878,7 +884,7 @@ class AbstractMatcher {
     return n - m;
 #endif
   }
-#if defined(WITH_SPAN)
+#if WITH_SPAN
   /// Returns the inclusive ending column number of the matched text on the ending matching line, taking tab spacing into account and counting wide characters as one character each
   inline size_t columno_end()
     /// @returns column number
@@ -1002,7 +1008,7 @@ class AbstractMatcher {
     }
     else
     {
-#if defined(WITH_FAST_GET)
+#if WITH_FAST_GET
       got_ = get_more();
 #else
       got_ = get();
@@ -1076,7 +1082,7 @@ class AbstractMatcher {
     /// @returns the character (unsigned char 0..255) or EOF (-1)
   {
     DBGLOG("AbstractMatcher::peek()");
-#if defined(WITH_FAST_GET)
+#if WITH_FAST_GET
     return pos_ < end_ ? static_cast<unsigned char>(buf_[pos_]) : peek_more();
 #else
     if (pos_ < end_)
@@ -1099,7 +1105,7 @@ class AbstractMatcher {
     }
 #endif
   }
-#if defined(WITH_SPAN)
+#if WITH_SPAN
   /// Returns pointer to the begin of the line in the buffer containing the matched text.
   inline const char *bol()
     /// @returns pointer to the begin of line
@@ -1419,7 +1425,7 @@ class AbstractMatcher {
   {
     if (max_ - end_ >= need + 1)
       return false;
-#if defined(WITH_SPAN)
+#if WITH_SPAN
     (void)lineno();
     cno_ = 0;
     if (bol_ + Const::BOLSZ - buf_ < txt_ - bol_ && evh_ == NULL)
@@ -1454,8 +1460,8 @@ class AbstractMatcher {
       while (max_ < newmax)
         max_ *= 2;
       DBGLOG("Expand buffer to %zu bytes", max_);
-#if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
+#if WITH_REALLOC
+#if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)
       char *newbuf = static_cast<char*>(_aligned_realloc(static_cast<void*>(buf_), max_, 4096));
 #else
       char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
@@ -1504,9 +1510,9 @@ class AbstractMatcher {
         pos_ -= gap;
         end_ -= gap;
         num_ += gap;
-#if defined(WITH_REALLOC)
+#if WITH_REALLOC
         std::memmove(buf_, txt_, end_);
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
+#if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)
         char *newbuf = static_cast<char*>(_aligned_realloc(static_cast<void*>(buf_), max_, 4096));
 #else
         char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
@@ -1531,7 +1537,7 @@ class AbstractMatcher {
     /// @returns the character read (unsigned char 0..255) or EOF (-1)
   {
     DBGLOG("AbstractMatcher::get()");
-#if defined(WITH_FAST_GET)
+#if WITH_FAST_GET
     return pos_ < end_ ? static_cast<unsigned char>(buf_[pos_++]) : get_more();
 #else
     if (pos_ < end_)
@@ -1568,7 +1574,7 @@ class AbstractMatcher {
   {
     DBGCHK(loc <= end_);
     pos_ = cur_ = loc;
-#if defined(WITH_SPAN)
+#if WITH_SPAN
     got_ = loc > 0 ? static_cast<unsigned char>(buf_[loc - 1]) : '\n';
 #else
     got_ = loc > 0 ? static_cast<unsigned char>(buf_[loc - 1]) : Const::UNK;
@@ -1637,13 +1643,13 @@ class AbstractMatcher {
   size_t      blk_; ///< block size for block-based input reading, as set by AbstractMatcher::buffer
   int         got_; ///< last unsigned character we looked at (to determine anchors and boundaries)
   int         chr_; ///< the character located at AbstractMatcher::txt_[AbstractMatcher::len_]
-#if defined(WITH_SPAN)
+#if WITH_SPAN
   const char *bol_; ///< begin of line pointer in buffer
   Handler    *evh_; ///< event handler functor to invoke when buffer contents are shifted out
 #endif
   const char *lpb_; ///< line pointer in buffer, updated when counting line numbers with lineno()
   size_t      lno_; ///< line number count (cached)
-#if defined(WITH_SPAN)
+#if WITH_SPAN
   const char *cpb_; ///< column pointer in buffer, updated when counting column numbers with columno()
 #endif
   size_t      cno_; ///< column number count (cached)

@@ -5510,7 +5510,5 @@ reports are quickly addressed.
 
 [travis-image]: https://travis-ci.com/Genivia/ugrep.svg?branch=master
 [travis-url]: https://app.travis-ci.com/github/Genivia/ugrep
-[lgtm-image]: https://img.shields.io/lgtm/grade/cpp/g/Genivia/ugrep.svg?logo=lgtm&logoWidth=18
-[lgtm-url]: https://lgtm.com/projects/g/Genivia/ugrep/context:cpp
 [bsd-3-image]: https://img.shields.io/badge/license-BSD%203--Clause-blue.svg
 [bsd-3-url]: https://opensource.org/licenses/BSD-3-Clause

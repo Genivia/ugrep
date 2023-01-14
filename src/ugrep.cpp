@@ -1045,11 +1045,12 @@ struct Zthread {
           }
 
           // push decompressed data into pipe
+          bool drain = false;
           while (len > 0 && !stop)
           {
-            // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join
-            if (is_selected && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
-              break;
+            // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join so we drain the rest of the decompressed data
+            if (is_selected && !drain && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
+              drain = true;
 
             // decompress the next block of data into the buffer
             len = zstream->decompress(buf, maxlen);
@@ -7087,6 +7088,8 @@ void ugrep()
   {
     unsigned int cores = std::thread::hardware_concurrency();
     unsigned int concurrency = cores > 2 ? cores : 2;
+    // reduce concurrency by one for 8+ core CPUs
+    concurrency -= concurrency / 9;
     flag_jobs = std::min(concurrency, MAX_JOBS);
   }
 
