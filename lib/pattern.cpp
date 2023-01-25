@@ -2810,9 +2810,12 @@ void Pattern::gencode_dfa(const DFA::State *start) const
     const std::string& filename = *i;
     size_t len = filename.length();
     if ((len > 2 && filename.compare(len - 2, 2, ".h"  ) == 0)
+     || (len > 3 && filename.compare(len - 3, 3, ".hh" ) == 0)
      || (len > 4 && filename.compare(len - 4, 4, ".hpp") == 0)
+     || (len > 4 && filename.compare(len - 4, 4, ".hxx") == 0)
+     || (len > 3 && filename.compare(len - 3, 3, ".cc" ) == 0)
      || (len > 4 && filename.compare(len - 4, 4, ".cpp") == 0)
-     || (len > 3 && filename.compare(len - 3, 3, ".cc" ) == 0))
+     || (len > 4 && filename.compare(len - 4, 4, ".cxx") == 0))
     {
       FILE *file = NULL;
       int err = 0;
@@ -3212,7 +3215,8 @@ void Pattern::graph_dfa(const DFA::State *start) const
   {
     const std::string& filename = *i;
     size_t len = filename.length();
-    if (len > 3 && filename.compare(len - 3, 3, ".gv") == 0)
+    if ((len > 3 && filename.compare(len - 3, 3, ".gv") == 0)
+     || (len > 4 && filename.compare(len - 4, 4, ".dot") == 0))
     {
       FILE *file = NULL;
       int err = 0;
@@ -3359,9 +3363,12 @@ void Pattern::export_code() const
     const std::string& filename = *i;
     size_t len = filename.length();
     if ((len > 2 && filename.compare(len - 2, 2, ".h"  ) == 0)
+     || (len > 3 && filename.compare(len - 3, 3, ".hh" ) == 0)
      || (len > 4 && filename.compare(len - 4, 4, ".hpp") == 0)
+     || (len > 4 && filename.compare(len - 4, 4, ".hxx") == 0)
+     || (len > 3 && filename.compare(len - 3, 3, ".cc" ) == 0)
      || (len > 4 && filename.compare(len - 4, 4, ".cpp") == 0)
-     || (len > 3 && filename.compare(len - 3, 3, ".cc" ) == 0))
+     || (len > 4 && filename.compare(len - 4, 4, ".cxx") == 0))
     {
       FILE *file = NULL;
       int err = 0;

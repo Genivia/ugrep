@@ -1028,7 +1028,7 @@ class AbstractMatcher {
       return EOF;
     if (static_cast<unsigned char>(*s++ = c) >= 0x80)
     {
-      while (((++*s = get()) & 0xC0) == 0x80)
+      while (((*s++ = get()) & 0xC0) == 0x80)
         continue;
       got_ = static_cast<unsigned char>(buf_[cur_ = --pos_]);
     }
