@@ -1135,28 +1135,52 @@ struct Zthread {
 
         while (!stop)
         {
-          // extract tar header fields (name and prefix strings are not \0-terminated!!)
+          // tar header fields name, size and prefix and make them \0-terminated by overwriting fields we do not use
+          buf[100] = '\0';
           const char *name = reinterpret_cast<const char*>(buf);
+          // path prefix is up to 155 bytes (ustar) or up to 131 bytes (gnutar)
+          buf[345 + (is_ustar ? 155 : 131)] = '\0';
           const char *prefix = reinterpret_cast<const char*>(buf + 345);
-          size_t size = strtoul(reinterpret_cast<const char*>(buf + 124), NULL, 8);
-          int padding = (BLOCKSIZE - size % BLOCKSIZE) % BLOCKSIZE;
-          unsigned char typeflag = buf[156];
+
+          // check GNU tar extension with leading byte 0x80 (unsigned positive) or leading byte 0xff (negative)
+          size_t size = 0;
+          if (buf[124] == 0x80)
+          {
+            // 11 byte big-endian size field without the leading 0x80
+            for (short i = 125; i < 136; ++i)
+              size = (size << 8) + buf[i];
+          }
+          else if (buf[124] == 0xff)
+          {
+            // a negative size makes no sense, but let's not ignore it and cast to unsigned
+            for (short i = 124; i < 136; ++i)
+              size = (size << 8) + buf[i];
+          }
+          else
+          {
+            buf[136] = '\0';
+            size = strtoul(reinterpret_cast<const char*>(buf + 124), NULL, 8);
+          }
 
           // header types
+          unsigned char typeflag = buf[156];
           bool is_regular = typeflag == '0' || typeflag == '\0';
           bool is_xhd = typeflag == 'x';
           bool is_extended = typeflag == 'L';
 
-          // assign the (long) tar pathname, path prefix is 155 bytes (ustar) or 131 bytes (gnutar)
+          // padding size
+          int padding = (BLOCKSIZE - size % BLOCKSIZE) % BLOCKSIZE;
+
+          // assign the (long) tar pathname, name and prefix are now \0-terminated
           path.clear();
           if (long_path.empty())
           {
             if (*prefix != '\0')
             {
-              path.assign(prefix, strnlen(prefix, is_ustar ? 155 : 131));
+              path.assign(prefix);
               path.push_back('/');
             }
-            path.append(name, strnlen(name, 100));
+            path.append(name);
           }
           else
           {
