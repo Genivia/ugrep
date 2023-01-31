@@ -1159,7 +1159,7 @@ struct Zthread {
           else
           {
             buf[136] = '\0';
-            size = strtoul(reinterpret_cast<const char*>(buf + 124), NULL, 8);
+            size = strtoull(reinterpret_cast<const char*>(buf + 124), NULL, 8);
           }
 
           // header types
