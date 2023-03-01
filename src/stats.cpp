@@ -124,7 +124,7 @@ void Stats::report(FILE *output)
     fprintf(output, "  --no-hidden (default)" NEWLINESTR);
 #endif
   for (auto& i : flag_ignore_files)
-    fprintf(output, "  --ignore-files='%s'" NEWLINESTR, i.c_str());
+    fprintf(output, "  --ignore-files=\"%s\"" NEWLINESTR, i.c_str());
   if (flag_min_count > 0)
     fprintf(output, "  --min-count=%zu" NEWLINESTR, flag_min_count);
   if (flag_max_count > 0)
@@ -136,22 +136,22 @@ void Stats::report(FILE *output)
   for (auto& i : flag_file_magic)
   {
     if (!i.empty() && (i.front() == '!' || i.front() == '^'))
-      fprintf(output, "  --file-magic='!%s' (negation)" NEWLINESTR, i.c_str() + 1);
+      fprintf(output, "  --file-magic=\"!%s\" (negated)" NEWLINESTR, i.c_str() + 1);
     else
-      fprintf(output, "  --file-magic='%s'" NEWLINESTR, i.c_str());
+      fprintf(output, "  --file-magic=\"%s\"" NEWLINESTR, i.c_str());
   }
   for (auto& i : flag_include_fs)
-    fprintf(output, "  --include-fs='%s'" NEWLINESTR, i.c_str());
+    fprintf(output, "  --include-fs=\"%s\"" NEWLINESTR, i.c_str());
   for (auto& i : flag_exclude_fs)
-    fprintf(output, "  --exclude-fs='%s'" NEWLINESTR, i.c_str());
+    fprintf(output, "  --exclude-fs=\"%s\"" NEWLINESTR, i.c_str());
   for (auto& i : flag_all_include)
-    fprintf(output, "  --include='%s'%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
+    fprintf(output, "  --include=\"%s\"%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
   for (auto& i : flag_all_exclude)
-    fprintf(output, "  --exclude='%s'%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
+    fprintf(output, "  --exclude=\"%s\"%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
   for (auto& i : flag_all_include_dir)
-    fprintf(output, "  --include-dir='%s'%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
+    fprintf(output, "  --include-dir=\"%s\"%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
   for (auto& i : flag_all_exclude_dir)
-    fprintf(output, "  --exclude-dir='%s'%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
+    fprintf(output, "  --exclude-dir=\"%s\"%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
 }
 
 reflex::timer_type       Stats::timer;

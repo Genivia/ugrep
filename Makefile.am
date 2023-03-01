@@ -18,14 +18,14 @@ cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT); \
 		  cd $(top_builddir)/bin; \
 		  rm -f ug$(EXEEXT); \
-		  $(LN_S) ugrep$(EXEEXT) ug$(EXEEXT)
+		  cp -f ugrep$(EXEEXT) ug$(EXEEXT)
 		@echo
 		@echo "OK"
 		@echo
 
 install-exec-hook:
 		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
-		cd $(DESTDIR)$(bindir) && $(LN_S) ugrep$(EXEEXT) ug$(EXEEXT)
+		cd $(DESTDIR)$(bindir) && cp -f ugrep$(EXEEXT) ug$(EXEEXT)
 
 install-data-hook:
 		mkdir -p $(DESTDIR)$(datadir)/ugrep && \

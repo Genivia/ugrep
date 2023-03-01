@@ -70,9 +70,7 @@ class Output {
  public:
 
   // sync state to synchronize output produced by multiple threads, UNORDERED or ORDERED by slot number
-  class Sync {
-
-   public:
+  struct Sync {
 
     enum class Mode { UNORDERED, ORDERED };
 
@@ -229,9 +227,7 @@ class Output {
   };
 
   // hex dump state
-  class Dump {
-
-   public:
+  struct Dump {
 
     // hex dump mode for color highlighting
     static constexpr short HEX_MATCH         = 0;
@@ -299,6 +295,18 @@ class Output {
 
   };
 
+  // global directory tree state for output, protected by acquire()
+  struct Tree {
+
+    static const char  *bar;    // fixed string to display a vertical line
+    static const char  *ptr;    // fixed string to display a vertical line and connector
+    static const char  *end;    // fixed string to display a vertical line ending
+
+    static std::string  path;   // tree directory path buffer
+    static int          depth;  // tree directory depth
+
+  };
+
   // constructor
   Output(FILE *file)
     :
@@ -320,6 +328,7 @@ class Output {
   // destructor
   ~Output()
   {
+    flush();
     if (lock_ != NULL)
       delete lock_;
   }
@@ -710,8 +719,14 @@ class Output {
   // output the header part of the match, preceding the matched line
   void header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *sep, bool newline);
 
+  // output the pathname header for --files_with_matches and --count
+  void header(const char *pathname, const std::string& partname);
+
   // output "Binary file ... matches"
   void binary_file_matches(const char *pathname, const std::string& partname);
+
+  // output format with option --format-begin and --format-end
+  void format(const char *format, size_t matches);
 
   // output formatted match with options --format, --format-open, --format-close
   void format(const char *format, const char *& pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next);

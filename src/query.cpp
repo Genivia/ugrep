@@ -3513,54 +3513,26 @@ ssize_t Query::stdin_sender(int fd)
 // true if line starts with a valid filename/filepath identified by three \0 markers and differs from the given filename, then assigns filename
 bool Query::is_filename(const std::string& line, std::string& filename, bool compare_dir)
 {
-  size_t start = 0;
-  size_t pos = 0;
   size_t end = line.size();
 
-  if (flag_files_with_matches || flag_count)
-  {
-    while (pos < end)
-    {
-      unsigned char c = line.at(pos);
+  if (end < 4 || line.front() != '\0')
+    return false;
 
-      if (c != '\033')
-        break;
+  size_t pos = 1;
 
-      while (++pos < end && !isalpha(line.at(pos)))
-        continue;
+  while (pos < end && line.at(pos) != '\0')
+    ++pos;
 
-      ++pos;
-    }
+  if (++pos >= end)
+    return false;
 
-    if (pos >= end)
-      return false;
+  size_t start = pos;
 
-    start = pos;
+  while (pos < end && line.at(pos) != '\0')
+    ++pos;
 
-    while (pos < end && line.at(pos) != '\033')
-      ++pos;
-  }
-  else
-  {
-    if (end < 4 || line.front() != '\0')
-      return false;
-
-    pos = 1;
-
-    while (pos < end && line.at(pos) != '\0')
-      ++pos;
-
-    if (++pos >= end)
-      return false;
-
-    start = pos;
-
-    while (pos < end && line.at(pos) != '\0')
-      ++pos;
-
-    if (pos == start || pos >= end)
-      return false;
-  }
+  if (pos == start || pos >= end)
+    return false;
 
   if (compare_dir)
   {

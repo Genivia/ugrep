@@ -127,6 +127,7 @@ extern Flag flag_initial_tab;
 extern Flag flag_line_number;
 extern Flag flag_smart_case;
 extern Flag flag_text;
+extern Flag flag_tree;
 extern Flag flag_ungroup;
 extern Sort flag_sort_key;
 extern Action flag_devices_action;

@@ -1,6 +1,6 @@
 [![build status][travis-image]][travis-url] [![license][bsd-3-image]][bsd-3-url]
 
-**ugrep v3.9 is now available: more features & even faster than before**
+**ugrep v3.10 is now available: more features & even faster than before**
 
 Search for anything in everything... ultra fast
 
@@ -398,9 +398,8 @@ Options to select defaults for builds include:
 - `--help` display build options
 
 After the build completes, copy `ugrep/bin/ugrep` and `ugrep/bin/ug` to a
-convenient location, for example in your `~/bin` directory.
-
-You may want to install the `ugrep` and `ug` commands and man pages with:
+convenient location, for example in your `~/bin` directory. Or, if you may want
+to install the `ugrep` and `ug` commands and man pages:
 
     $ sudo make install
 
@@ -1358,13 +1357,15 @@ using ugrep query selection mode (press Enter to select lines):
             Only the names of files not containing selected lines are written
             to standard output.  Pathnames are listed once per file searched.
             If the standard input is searched, the string ``(standard input)''
-            is written.
+            is written.  If --tree is specified, outputs directories in a
+            tree-like format.
     -l, --files-with-matches
             Only the names of files containing selected lines are written to
             standard output.  ugrep will only search a file until a match has
             been found, making searches potentially less expensive.  Pathnames
             are listed once per file searched.  If the standard input is
-            searched, the string ``(standard input)'' is written.
+            searched, the string ``(standard input)'' is written.  If --tree is
+            specified, outputs directories in a tree-like format.
     -R, --dereference-recursive
             Recursively read all files under each directory.  Follow all
             symbolic links, unlike -r.  See also option --sort.
@@ -3004,9 +3005,10 @@ To exclude `fuse` and `tmpfs` type file systems from recursive searches:
 ### Counting the number of matches with -c and -co
 
     -c, --count
-            Only a count of selected lines is written to standard output.
-            If -o or -u is specified, counts the number of patterns matched.
-            If -v is specified, counts the number of non-matching lines.
+            Only a count of selected lines is written to standard output.  If
+            -o or -u is specified, counts the number of patterns matched.  If
+            -v is specified, counts the number of non-matching lines.  If
+            --tree is specified, outputs directories in a tree-like format.
 
 To count the number of lines in a file:
 
@@ -3124,7 +3126,7 @@ To display the line and column numbers of matches in XML with `--xml`:
             and --line-buffered.
     --pretty
             When output is sent to a terminal, enables --color, --heading, -n,
-            --sort and -T when not explicitly disabled.
+            --sort, --tree and -T when not explicitly disabled.
 
 To change the color palette, set the `GREP_COLORS` environment variable or use
 `--colors=COLORS`.  The value is a colon-separated list of ANSI SGR parameters
@@ -3983,7 +3985,9 @@ in markdown:
                   --lines.
 
            --break
-                  Adds a line break between results from different files.
+                  Adds a line break between results from different files.  This
+                  option is enabled by --pretty when the output is sent to a
+                  terminal.
 
            -C NUM, --context=NUM
                   Output NUM lines of leading and trailing context surrounding each
@@ -3995,7 +3999,8 @@ in markdown:
            -c, --count
                   Only a count of selected lines is written to standard output.  If
                   -o or -u is specified, counts the number of patterns matched.  If
-                  -v is specified, counts the number of non-matching lines.
+                  -v is specified, counts the number of non-matching lines.  If
+                  --tree is specified, outputs directories in a tree-like format.
 
            --color[=WHEN], --colour[=WHEN]
                   Mark up the matching text with the expression stored in the
@@ -4207,7 +4212,8 @@ in markdown:
 
            --heading, -+
                   Group matches per file.  Adds a heading and a line break between
-                  results from different files.
+                  results from different files.  This option is enabled by --pretty
+                  when the output is sent to a terminal.
 
            --help [WHAT], -? [WHAT]
                   Display a help message, specifically on WHAT when specified.  In
@@ -4322,14 +4328,16 @@ in markdown:
                   Only the names of files not containing selected lines are written
                   to standard output.  Pathnames are listed once per file searched.
                   If the standard input is searched, the string ``(standard input)''
-                  is written.
+                  is written.  If --tree is specified, outputs directories in a
+                  tree-like format.
 
            -l, --files-with-matches
                   Only the names of files containing selected lines are written to
                   standard output.  ugrep will only search a file until a match has
                   been found, making searches potentially less expensive.  Pathnames
                   are listed once per file searched.  If the standard input is
-                  searched, the string ``(standard input)'' is written.
+                  searched, the string ``(standard input)'' is written.  If --tree
+                  is specified, outputs directories in a tree-like format.
 
            --label=LABEL
                   Displays the LABEL value when input is read from standard input
@@ -4443,7 +4451,7 @@ in markdown:
 
            --pretty
                   When output is sent to a terminal, enables --color, --heading, -n,
-                  --sort and -T when not explicitly disabled.
+                  --sort, --tree and -T when not explicitly disabled.
 
            -Q[DELAY], --query[=DELAY]
                   Query mode: user interface to perform interactive searches.  This
@@ -4557,6 +4565,11 @@ in markdown:
            --tag[=TAG[,END]]
                   Disables colors to mark up matches with TAG.  END marks the end of
                   a match if specified, otherwise TAG.  The default is `___'.
+
+           --tree, -^
+                  Output directories with matching files in a tree-like format when
+                  options -c, -l or -L are used.  This option is enabled by --pretty
+                  when the output is sent to a terminal.
 
            -U, --binary
                   Disables Unicode matching for binary file matching, forcing
@@ -5237,7 +5250,7 @@ in markdown:
 
 
 
-    ugrep 3.9.3                     December 29, 2022                       UGREP(1)
+    ugrep 3.10.0                    February 28, 2023                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
@@ -5251,8 +5264,9 @@ For PCRE regex patterns with option `-P`, please see the PCRE documentation
 has more features than the pattern syntax described below.  For the patterns in
 common the syntax and meaning are the same.
 
-Note that `\s` and inverted bracket lists `[^...]` are modified to prevent
-matching newlines `\n` to replicate the behavior of grep.
+Note that `\s` and inverted bracket lists `[^...]` are modified in **ugrep** to
+prevent matching newlines `\n`.  This modification is done to replicate the
+behavior of grep.
 
 <a name="posix-syntax"/>
 

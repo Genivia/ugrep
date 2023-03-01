@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 29, 2022" "ugrep 3.9.3" "User Commands"
+.TH UGREP "1" "February 28, 2023" "ugrep 3.10.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -128,7 +128,9 @@ displays the search patterns applied.  See also options \fB\-\-and\fR,
 \fB\-\-andnot\fR, \fB\-\-not\fR, \fB\-\-files\fR and \fB\-\-lines\fR.
 .TP
 \fB\-\-break\fR
-Adds a line break between results from different files.
+Adds a line break between results from different files.  This
+option is enabled by \fB\-\-pretty\fR when the output is sent to a
+terminal.
 .TP
 \fB\-C\fR \fINUM\fR, \fB\-\-context\fR=\fINUM\fR
 Output NUM lines of leading and trailing context surrounding each
@@ -140,7 +142,8 @@ the match.  See also options \fB\-A\fR, \fB\-B\fR and \fB\-y\fR.
 \fB\-c\fR, \fB\-\-count\fR
 Only a count of selected lines is written to standard output.
 If \fB\-o\fR or \fB\-u\fR is specified, counts the number of patterns matched.
-If \fB\-v\fR is specified, counts the number of non\-matching lines.
+If \fB\-v\fR is specified, counts the number of non\-matching lines.  If
+\fB\-\-tree\fR is specified, outputs directories in a tree\-like format.
 .TP
 \fB\-\-color\fR[=\fIWHEN\fR], \fB\-\-colour\fR[=\fIWHEN\fR]
 Mark up the matching text with the expression stored in the
@@ -348,7 +351,8 @@ when there is only one file (or only standard input) to search.
 .TP
 \fB\-\-heading\fR, \fB\-+\fR
 Group matches per file.  Adds a heading and a line break between
-results from different files.
+results from different files.  This option is enabled by \fB\-\-pretty\fR
+when the output is sent to a terminal.
 .TP
 \fB\-\-help\fR [\fIWHAT\fR], \fB\-?\fR [\fIWHAT\fR]
 Display a help message, specifically on WHAT when specified.
@@ -461,14 +465,16 @@ when columns are counted, see also option \fB\-\-tabs\fR.
 Only the names of files not containing selected lines are written
 to standard output.  Pathnames are listed once per file searched.
 If the standard input is searched, the string ``(standard input)''
-is written.
+is written.  If \fB\-\-tree\fR is specified, outputs directories in a
+tree\-like format.
 .TP
 \fB\-l\fR, \fB\-\-files\-with\-matches\fR
 Only the names of files containing selected lines are written to
 standard output.  ugrep will only search a file until a match has
 been found, making searches potentially less expensive.  Pathnames
 are listed once per file searched.  If the standard input is
-searched, the string ``(standard input)'' is written.
+searched, the string ``(standard input)'' is written.  If \fB\-\-tree\fR is
+specified, outputs directories in a tree\-like format.
 .TP
 \fB\-\-label\fR=\fILABEL\fR
 Displays the LABEL value when input is read from standard input
@@ -580,7 +586,7 @@ and \fB\-\-line\-buffered\fR.
 .TP
 \fB\-\-pretty\fR
 When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-n\fR,
-\fB\-\-sort\fR and \fB\-T\fR when not explicitly disabled.
+\fB\-\-sort\fR, \fB\-\-tree\fR and \fB\-T\fR when not explicitly disabled.
 .TP
 \fB\-Q\fR[\fIDELAY\fR], \fB\-\-query\fR[=\fIDELAY\fR]
 Query mode: user interface to perform interactive searches.  This
@@ -693,6 +699,11 @@ NUM may be 1, 2, 4, or 8.  The default tab size is 8.
 \fB\-\-tag\fR[=\fITAG\fR[,\fIEND\fR]]
 Disables colors to mark up matches with TAG.  END marks the end of
 a match if specified, otherwise TAG.  The default is `___'.
+.TP
+\fB\-\-tree\fR, \-^
+Output directories with matching files in a tree\-like format when
+options \fB\-c\fR, \fB\-l\fR or \fB\-L\fR are used.  This option is enabled by \fB\-\-pretty\fR
+when the output is sent to a terminal.
 .TP
 \fB\-U\fR, \fB\-\-binary\fR
 Disables Unicode matching for binary file matching, forcing PATTERN

@@ -368,6 +368,7 @@ Flag flag_initial_tab;
 Flag flag_line_number;
 Flag flag_smart_case;
 Flag flag_text;
+Flag flag_tree;
 Flag flag_ungroup;
 Sort flag_sort_key                 = Sort::NA;
 Action flag_devices_action         = Action::UNSP;
@@ -474,7 +475,6 @@ size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message);
 size_t strtofuzzy(const char *string, const char *message);
 void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs);
-void format(const char *format, size_t matches);
 void usage(const char *message, const char *arg = NULL, const char *valid = NULL);
 void help(std::ostream& out);
 void help(const char *what = NULL);
@@ -695,7 +695,7 @@ struct Zthread {
   }
 
   // start decompression thread and open new pipe, returns pipe or NULL on failure, this function is called by the main Grep thread
-  FILE *start(int ztstage, const char *pathname, FILE *file_in)
+  FILE *start(size_t ztstage, const char *pathname, FILE *file_in)
   {
     // return pipe
     FILE *pipe_in = NULL;
@@ -1138,12 +1138,13 @@ struct Zthread {
           // tar header fields name, size and prefix and make them \0-terminated by overwriting fields we do not use
           buf[100] = '\0';
           const char *name = reinterpret_cast<const char*>(buf);
+
           // path prefix is up to 155 bytes (ustar) or up to 131 bytes (gnutar)
           buf[345 + (is_ustar ? 155 : 131)] = '\0';
           const char *prefix = reinterpret_cast<const char*>(buf + 345);
 
-          // check GNU tar extension with leading byte 0x80 (unsigned positive) or leading byte 0xff (negative)
-          size_t size = 0;
+          // check gnutar size with leading byte 0x80 (unsigned positive) or leading byte 0xff (negative)
+          uint64_t size = 0;
           if (buf[124] == 0x80)
           {
             // 11 byte big-endian size field without the leading 0x80
@@ -1192,7 +1193,7 @@ struct Zthread {
           memmove(buf, buf + BLOCKSIZE, static_cast<size_t>(len));
 
           // check if archived file meets selection criteria
-          size_t minlen = std::min(static_cast<size_t>(len), size);
+          size_t minlen = static_cast<size_t>(std::min(static_cast<uint64_t>(len), size)); // size_t is OK: len is streamsize but non-negative
           bool is_selected = select_matching(path.c_str(), buf, minlen, is_regular);
 
           // if extended headers are present
@@ -1255,7 +1256,7 @@ struct Zthread {
 
           while (len > 0 && !stop)
           {
-            size_t len_out = std::min(static_cast<size_t>(len), size);
+            size_t len_out = static_cast<size_t>(std::min(static_cast<uint64_t>(len), size)); // size_t is OK: len is streamsize but non-negative
 
             if (ok)
             {
@@ -1270,7 +1271,7 @@ struct Zthread {
             if (size == 0)
             {
               len -= len_out;
-              memmove(buf, buf + len_out, static_cast<size_t>(len));
+              memmove(buf, buf + len_out, static_cast<size_t>(len)); // size_t is OK: len is streamsize but non-negative
 
               break;
             }
@@ -1563,7 +1564,7 @@ struct Zthread {
 
           while (len > 0 && !stop)
           {
-            size_t len_out = std::min(static_cast<size_t>(len), size);
+            size_t len_out = std::min(static_cast<size_t>(len), size); // size_t is OK: len is streamsize but non-negative
 
             if (ok)
             {
@@ -4215,8 +4216,10 @@ static void save_config()
 # specifies background colors.  A `+' qualifies a color as bright.  A\n\
 # foreground and a background color may be combined with font properties `n'\n\
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\n");
+
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   fprintf(file, "# Enable/disable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
+
   fprintf(file, "# Enable/disable query UI file viewing command with CTRL-Y, default: view\n");
   if (flag_view != NULL && *flag_view == '\0')
     fprintf(file, "view\n\n");
@@ -4224,16 +4227,23 @@ static void save_config()
     fprintf(file, "view=%s\n\n", flag_view);
   else
     fprintf(file, "no-view\n\n");
+
   fprintf(file, "# Enable/disable or specify a pager for terminal output, default: no-pager\n");
   if (flag_pager != NULL)
     fprintf(file, "pager=%s\n\n", flag_pager);
   else
     fprintf(file, "no-pager\n\n");
-  fprintf(file, "# Enable/disable pretty output to the terminal, default: no-pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
-  fprintf(file, "# Enable/disable headings for terminal output, default: no-heading\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
 
-  if (flag_break.is_defined())
-    fprintf(file, "# Enable/disable break for terminal output\n%s\n\n", flag_break ? "break" : "no-break");
+  fprintf(file, "# Enable/disable pretty output to the terminal, default: no-pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
+
+  if (flag_tree.is_defined() && flag_tree != flag_pretty)
+    fprintf(file, "# Enable/disable directory tree output for --files-with-matches and --count\n%s\n\n", flag_tree ? "tree" : "no-tree");
+
+  if (flag_heading.is_defined() && flag_heading != flag_pretty)
+    fprintf(file, "# Enable/disable headings\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
+
+  if (flag_break.is_defined() && flag_break != flag_pretty)
+    fprintf(file, "# Enable/disable break after matching files\n%s\n\n", flag_break ? "break" : "no-break");
 
   if (flag_line_number.is_defined() && flag_line_number != flag_pretty)
     fprintf(file, "# Enable/disable line numbers\n%s\n\n", flag_line_number ? "line-number" : "no-line-number");
@@ -4251,6 +4261,7 @@ static void save_config()
     fprintf(file, "# Hex output\nhex\n\n");
   else if (strcmp(flag_binary_files, "with-hex") == 0)
     fprintf(file, "# Output with hex for binary matches\nwith-hex\n\n");
+
   if (flag_hexdump != NULL)
     fprintf(file, "# Hex dump (columns, no space breaks, no character column, no hex spacing)\nhexdump=%s\n\n", flag_hexdump);
 
@@ -4269,6 +4280,7 @@ static void save_config()
     if (flag_before_context > 0)
       fprintf(file, "# Display lines before context\nbefore-context=%zu\n\n", flag_before_context);
   }
+
   if (flag_group_separator == NULL)
     fprintf(file, "# Disable group separator for contexts\nno-group-separator\n\n");
   else if (strcmp(flag_group_separator, "--") != 0)
@@ -4729,6 +4741,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_smart_case = false;
                 else if (strcmp(arg, "no-sort") == 0)
                   flag_sort = NULL;
+                else if (strcmp(arg, "no-tree") == 0)
+                  flag_tree = false;
                 else if (strcmp(arg, "no-stats") == 0)
                   flag_stats = NULL;
                 else if (strcmp(arg, "no-ungroup") == 0)
@@ -4740,7 +4754,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -4829,8 +4843,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_tag = arg + 4;
                 else if (strcmp(arg, "text") == 0)
                   flag_binary_files = "text";
+                else if (strcmp(arg, "tree") == 0)
+                  flag_tree = true;
                 else
-                  usage("invalid option --", arg, "--tabs, --tag or --text");
+                  usage("invalid option --", arg, "--tabs, --tag, --text or --tree");
                 break;
 
               case 'u':
@@ -5252,6 +5268,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             flag_bool = true;
             break;
 
+          case '^':
+            flag_tree = true;
+            break;
+
           case '+':
             flag_heading = true;
             break;
@@ -5584,6 +5604,10 @@ void init(int argc, const char **argv)
   // --query: override --pager
   if (flag_query > 0)
     flag_pager = NULL;
+
+  // --tree: require sort to produce directory tree
+  if (flag_tree && flag_sort == NULL)
+    flag_sort = "name";
 
   // check TTY info and set colors (warnings and errors may occur from here on)
   terminal();
@@ -6362,7 +6386,7 @@ void terminal()
     {
       if (flag_pretty)
       {
-        // --pretty: if output is to a TTY then enable --color, --heading, -T, -n, and --sort
+        // --pretty: if output is to a TTY then enable --color, --heading, -T, -n, --sort and --tree
 
         // enable --color
         if (flag_apply_color == NULL)
@@ -6383,6 +6407,10 @@ void terminal()
         // enable --sort=name if no --sort specified
         if (flag_sort == NULL)
           flag_sort = "name";
+
+        // enable --tree
+        if (flag_tree.is_undefined())
+          flag_tree = true;
       }
       else if (flag_apply_color != NULL)
       {
@@ -6425,6 +6453,22 @@ void terminal()
         flag_line_buffered = true;
       }
     }
+
+#ifndef OS_WIN
+
+    if (flag_tree && (flag_files_with_matches || flag_files_without_match || flag_count))
+    {
+      const char *lang = getenv("LANG");
+
+      if (lang != NULL && strstr(lang, "UTF-8"))
+      {
+        Output::Tree::bar = "│ ";
+        Output::Tree::ptr = "╰╴";
+        Output::Tree::end = "▔ ";
+      }
+    }
+
+#endif
 
     // --color: (re)set flag_apply_color depending on color_term and TTY output
     if (flag_apply_color != NULL)
@@ -6594,6 +6638,10 @@ void ugrep()
 
   // reset stats
   Stats::reset();
+
+  // --tree: reset directory tree output
+  Output::Tree::path.clear();
+  Output::Tree::depth = 0;
 
   // populate the combined all-include and all-exclude
   flag_all_include = flag_include;
@@ -6786,16 +6834,16 @@ void ugrep()
       flag_sort_key = Sort::BEST;
     else if (strcmp(sort_by, "size") == 0)
       flag_sort_key = Sort::SIZE;
-    else if (strcmp(sort_by, "used") == 0)
+    else if (strcmp(sort_by, "used") == 0 || strcmp(sort_by, "atime") == 0)
       flag_sort_key = Sort::USED;
-    else if (strcmp(sort_by, "changed") == 0)
+    else if (strcmp(sort_by, "changed") == 0 || strcmp(sort_by, "mtime") == 0)
       flag_sort_key = Sort::CHANGED;
-    else if (strcmp(sort_by, "created") == 0)
+    else if (strcmp(sort_by, "created") == 0 || strcmp(sort_by, "ctime") == 0)
       flag_sort_key = Sort::CREATED;
     else if (strcmp(sort_by, "list") == 0)
       flag_sort_key = Sort::LIST;
     else
-      usage("invalid argument --sort=KEY, valid arguments are 'name', 'best', 'size', 'used', 'changed', 'created', 'list', 'rname', 'rbest', 'rsize', 'rused', 'rchanged', 'rcreated' and 'rlist'");
+      usage("invalid argument --sort=KEY, valid arguments are 'name', 'best', 'size', 'used' ('atime'), 'changed' ('mtime'), 'created' ('ctime'), 'list', 'rname', 'rbest', 'rsize', 'rused' ('ratime'), 'rchanged' ('rmtime'), 'rcreated' ('rctime') and 'rlist'");
   }
 
   // add PATTERN to the CNF
@@ -7177,7 +7225,7 @@ void ugrep()
 
   // --format-begin
   if (flag_format_begin != NULL)
-    format(flag_format_begin, 0);
+    Output(output).format(flag_format_begin, 0);
 
   size_t nodes = 0;
   size_t edges = 0;
@@ -7437,9 +7485,18 @@ void ugrep()
     words_time = static_cast<size_t>(pattern.words_time());
   }
 
+  // --tree with -l or -c
+  if (flag_tree && (flag_files_with_matches || flag_count))
+  {
+    Output out(output);
+    for (int i = 1; i < Output::Tree::depth; ++i)
+      out.str(Output::Tree::end);
+    out.nl();
+  }
+
   // --format-end
   if (flag_format_end != NULL)
-    format(flag_format_end, Stats::found_parts());
+    Output(output).format(flag_format_end, Stats::found_parts());
 
   // --stats: display stats when we're done
   if (flag_stats != NULL)
@@ -8561,27 +8618,7 @@ void Grep::search(const char *pathname, uint16_t cost)
             }
             else
             {
-              out.str(color_fn);
-              if (color_hl != NULL)
-              {
-                out.str(color_hl);
-                out.uri(color_wd);
-                out.uri(pathname);
-                out.str(color_st);
-              }
-              out.str(pathname);
-              if (color_hl != NULL)
-              {
-                out.str(color_hl);
-                out.str(color_st);
-              }
-              if (!partname.empty())
-              {
-                out.chr('{');
-                out.str(partname);
-                out.chr('}');
-              }
-              out.str(color_off);
+              out.header(pathname, partname);
 
               if (flag_null)
                 out.chr('\0');
@@ -8713,27 +8750,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         {
           if (flag_with_filename || !partname.empty())
           {
-            out.str(color_fn);
-            if (color_hl != NULL)
-            {
-              out.str(color_hl);
-              out.uri(color_wd);
-              out.uri(pathname);
-              out.str(color_st);
-            }
-            out.str(pathname);
-            if (color_hl != NULL)
-            {
-              out.str(color_hl);
-              out.str(color_st);
-            }
-            if (!partname.empty())
-            {
-              out.chr('{');
-              out.str(partname);
-              out.chr('}');
-            }
-            out.str(color_off);
+            out.header(pathname, partname);
 
             if (flag_null)
             {
@@ -11334,107 +11351,6 @@ void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::
   }
 }
 
-// display format with option --format-begin and --format-end
-void format(const char *format, size_t matches)
-{
-  const char *sep = NULL;
-  size_t len = 0;
-  const char *s = format;
-  while (*s != '\0')
-  {
-    const char *a = NULL;
-    const char *t = s;
-    while (*s != '\0' && *s != '%')
-      ++s;
-    fwrite(t, 1, s - t, output);
-    if (*s == '\0' || *(s + 1) == '\0')
-      break;
-    ++s;
-    if (*s == '[')
-    {
-      a = ++s;
-      while (*s != '\0' && *s != ']')
-        ++s;
-      if (*s == '\0' || *(s + 1) == '\0')
-        break;
-      ++s;
-    }
-    int c = *s;
-    switch (c)
-    {
-      case 'T':
-        if (flag_initial_tab)
-        {
-          if (a)
-            fwrite(a, 1, s - a - 1, output);
-          fputc('\t', output);
-        }
-        break;
-
-      case 'S':
-        if (matches > 1)
-        {
-          if (a)
-            fwrite(a, 1, s - a - 1, output);
-          if (sep != NULL)
-            fwrite(sep, 1, len, output);
-          else
-            fputs(flag_separator, output);
-        }
-        break;
-
-      case '$':
-        sep = a;
-        len = s - a - 1;
-        break;
-
-      case 't':
-        fputc('\t', output);
-        break;
-
-      case 's':
-        if (sep != NULL)
-          fwrite(sep, 1, len, output);
-        else
-          fputs(flag_separator, output);
-        break;
-
-      case '~':
-#ifdef OS_WIN
-        fputc('\r', output);
-#endif
-        fputc('\n', output);
-        break;
-
-      case 'm':
-        fprintf(output, "%zu", matches);
-        break;
-
-      case '<':
-        if (matches <= 1 && a)
-          fwrite(a, 1, s - a - 1, output);
-        break;
-
-      case '>':
-        if (matches > 1 && a)
-          fwrite(a, 1, s - a - 1, output);
-        break;
-
-      case ',':
-      case ':':
-      case ';':
-      case '|':
-        if (matches > 1)
-          fputc(c, output);
-        break;
-
-      default:
-        fputc(c, output);
-    }
-    ++s;
-  }
-}
-
 // trim white space from either end of the line
 void trim(std::string& line)
 {
@@ -11823,7 +11739,9 @@ void help(std::ostream& out)
             displays the search patterns applied.  See also options --and,\n\
             --andnot, --not, --files and --lines.\n\
     --break\n\
-            Adds a line break between results from different files.\n\
+            Adds a line break between results from different files.  This\n\
+            option is enabled by --pretty when the output is sent to a\n\
+            terminal.\n\
     -C NUM, --context=NUM\n\
             Output NUM lines of leading and trailing context surrounding each\n\
             matching line.  Places a --group-separator between contiguous\n\
@@ -11833,7 +11751,8 @@ void help(std::ostream& out)
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
             If -o or -u is specified, counts the number of patterns matched.\n\
-            If -v is specified, counts the number of non-matching lines.\n\
+            If -v is specified, counts the number of non-matching lines.  If\n\
+            --tree is specified, outputs directories in a tree-like format.\n\
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the expression stored in the\n\
             GREP_COLOR or GREP_COLORS environment variable.  WHEN can be\n\
@@ -12031,7 +11950,8 @@ void help(std::ostream& out)
             when there is only one file (or only standard input) to search.\n\
     --heading, -+\n\
             Group matches per file.  Adds a heading and a line break between\n\
-            results from different files.\n\
+            results from different files.  This option is enabled by --pretty\n\
+            when the output is sent to a terminal.\n\
     --help [WHAT], -? [WHAT]\n\
             Display a help message, specifically on WHAT when specified.\n\
             In addition, `--help format' displays an overview of FORMAT fields,\n\
@@ -12136,13 +12056,15 @@ void help(std::ostream& out)
             Only the names of files not containing selected lines are written\n\
             to standard output.  Pathnames are listed once per file searched.\n\
             If the standard input is searched, the string ``(standard input)''\n\
-            is written.\n\
+            is written.  If --tree is specified, outputs directories in a\n\
+            tree-like format.\n\
     -l, --files-with-matches\n\
             Only the names of files containing selected lines are written to\n\
             standard output.  ugrep will only search a file until a match has\n\
             been found, making searches potentially less expensive.  Pathnames\n\
             are listed once per file searched.  If the standard input is\n\
-            searched, the string ``(standard input)'' is written.\n\
+            searched, the string ``(standard input)'' is written.  If --tree is\n\
+            specified, outputs directories in a tree-like format.\n\
     --label=LABEL\n\
             Displays the LABEL value when input is read from standard input\n\
             where a file name would normally be printed in the output.\n\
@@ -12243,7 +12165,7 @@ void help(std::ostream& out)
             and --line-buffered.\n\
     --pretty\n\
             When output is sent to a terminal, enables --color, --heading, -n,\n\
-            --sort and -T when not explicitly disabled.\n\
+            --sort, --tree and -T when not explicitly disabled.\n\
     -Q[DELAY], --query[=DELAY]\n\
             Query mode: user interface to perform interactive searches.  This\n\
             mode requires an ANSI capable terminal.  An optional DELAY argument\n\
@@ -12329,6 +12251,10 @@ void help(std::ostream& out)
     --tag[=TAG[,END]]\n\
             Disables colors to mark up matches with TAG.  END marks the end of\n\
             a match if specified, otherwise TAG.  The default is `___'.\n\
+    --tree, -^\n\
+            Output directories with matching files in a tree-like format when\n\
+            options -c, -l or -L are used.  This option is enabled by --pretty\n\
+            when the output is sent to a terminal.\n\
     -U, --binary\n\
             Disables Unicode matching for binary file matching, forcing PATTERN\n\
             to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\
@@ -12572,9 +12498,9 @@ void help(const char *what)
  %t          tab                         %[name]d    named capture byte size\n\
  %T %[...]T  ... + tab, if -T            %[name]e    named capture end offset\n\
  %u          unique lines, unless -u     %[n|...]#   capture n,... that matched\n\
- %v          matching pattern, as CSV    %[n|...]b   cpature n,... byte offset\n\
- %V          matching line, as CSV       %[n|...]d   cpature n,... byte size\n\
- %w          match width in wide chars   %[n|...]e   cpature n,... end offset\n\
+ %v          matching pattern, as CSV    %[n|...]b   capture n,... byte offset\n\
+ %V          matching line, as CSV       %[n|...]d   capture n,... byte size\n\
+ %w          match width in wide chars   %[n|...]e   capture n,... end offset\n\
  %x          matching pattern, as XML    %g          capture number or name\n\
  %X          matching line, as XML       %G          all capture numbers/names\n\
  %z          path in archive             %[t|...]g   text t indexed by capture\n\
