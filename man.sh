@@ -337,8 +337,10 @@ if not the first match: \fIARG\fR and separator, see also \fB%[\fR\fISEP\fR\fB]$
 the separator, see also \fB%[\fR\fIARG\fR\fB]S\fR and \fB%[\fR\fISEP\fR\fB]$.
 .IP \fB%~\fR
 a newline character.
+.IP \fB%M\fR
+the number of matching lines
 .IP \fB%m\fR
-the number of matches or matched files.
+the number of matches
 .IP \fB%O\fR
 the matching line is output as a raw string of bytes.
 .IP \fB%o\fR

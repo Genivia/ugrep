@@ -2088,7 +2088,7 @@ struct Grep {
           }
 
           if (flag_format_open != NULL)
-            grep.out.format(flag_format_open, pathname, grep.partname, Stats::found_parts(), &matcher, false, Stats::found_parts() > 1);
+            grep.out.format(flag_format_open, pathname, grep.partname, Stats::found_parts(), NULL, &matcher, false, Stats::found_parts() > 1);
         }
 
         // --max-count: max number of matches reached?
@@ -7137,6 +7137,10 @@ void ugrep()
     flag_format_end = NULL;
   }
 
+  // -o and --format: enable -u to ungroup matches
+  if (flag_only_matching && flag_format != NULL && flag_ungroup.is_undefined())
+    flag_ungroup = true;
+
   // -L: enable -l and flip -v i.e. -L=-lv and -l=-Lv
   if (flag_files_without_match)
   {
@@ -8611,10 +8615,10 @@ void Grep::search(const char *pathname, uint16_t cost)
             if (flag_format != NULL)
             {
               if (flag_format_open != NULL)
-                out.format(flag_format_open, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
-              out.format(flag_format, pathname, partname, 1, matcher, false, false);
+                out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
+              out.format(flag_format, pathname, partname, 1, NULL, matcher, false, false);
               if (flag_format_close != NULL)
-                out.format(flag_format_close, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
+                out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
             }
             else
             {
@@ -8741,10 +8745,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         if (flag_format != NULL)
         {
           if (flag_format_open != NULL)
-            out.format(flag_format_open, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
-          out.format(flag_format, pathname, partname, matches, matcher, false, false);
+            out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
+          out.format(flag_format, pathname, partname, matches, NULL, matcher, false, false);
           if (flag_format_close != NULL)
-            out.format(flag_format_close, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
+            out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
         }
         else
         {
@@ -8843,10 +8847,15 @@ void Grep::search(const char *pathname, uint16_t cost)
         }
         else
         {
+          size_t lineno = 0;
+          size_t matching = 0; // format match counter per match, differs from matches counter per line
+
           while (matcher->find())
           {
+            size_t current_lineno = matcher->lineno();
+
             // --range: max line exceeded?
-            if (flag_max_line > 0 && matcher->lineno() > flag_max_line)
+            if (flag_max_line > 0 && current_lineno > flag_max_line)
               break;
 
             if (matchers != NULL)
@@ -8859,57 +8868,62 @@ void Grep::search(const char *pathname, uint16_t cost)
                 continue;
             }
 
-            ++matches;
-
-            // --min-count: require at least min-count matches
-            if (flag_min_count > 0 && matches < flag_min_count)
-              continue;
-
-            // output --format-open=FORMAT for the first (or --min-count) match found
-            if (matches == flag_min_count + (flag_min_count == 0))
+            if (current_lineno != lineno || flag_ungroup)
             {
-              if (flag_files && matchers != NULL)
+              ++matches;
+
+              // --min-count: require at least min-count matches
+              if (flag_min_count > 0 && matches < flag_min_count)
+                continue;
+
+              // output --format-open=FORMAT for the first (or --min-count) match found
+              if (matches == flag_min_count + (flag_min_count == 0))
               {
-                // --format-open: we must acquire lock early before Stats::found_part()
-                if (acquire && out.holding())
+                if (flag_files && matchers != NULL)
                 {
-                  out.acquire();
+                  // --format-open: we must acquire lock early before Stats::found_part()
+                  if (acquire && out.holding())
+                  {
+                    out.acquire();
+
+                    // --max-files: max reached?
+                    if (!Stats::found_part())
+                      goto exit_search;
+                  }
+                }
+                else
+                {
+                  // --format-open: we must acquire lock early before Stats::found_part()
+                  if (acquire)
+                    out.acquire();
 
                   // --max-files: max reached?
                   if (!Stats::found_part())
                     goto exit_search;
                 }
-              }
-              else
-              {
-                // --format-open: we must acquire lock early before Stats::found_part()
-                if (acquire)
-                  out.acquire();
 
-                // --max-files: max reached?
-                if (!Stats::found_part())
-                  goto exit_search;
-              }
+                if (flag_format_open != NULL)
+                {
+                  // output --format-open=FORMAT
+                  out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
 
-              if (flag_format_open != NULL)
-              {
-                // output --format-open=FORMAT
-                out.format(flag_format_open, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
-
-                // --files: undo files count
-                if (flag_files && matchers != NULL && out.holding())
-                  Stats::undo_found_part();
+                  // --files: undo files count
+                  if (flag_files && matchers != NULL && out.holding())
+                    Stats::undo_found_part();
+                }
               }
             }
 
             // output --format=FORMAT
-            out.format(flag_format, pathname, partname, matches, matcher, matches > 1, matches > 1);
+            out.format(flag_format, pathname, partname, matches, &matching, matcher, matches > 1 || current_lineno == lineno, matches > 1);
 
             // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
               break;
 
             out.check_flush();
+
+            lineno = current_lineno;
           }
         }
 
@@ -8924,7 +8938,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // output --format-close=FORMAT
         if (matches > 0 && flag_format_close != NULL)
-          out.format(flag_format_close, pathname, partname, Stats::found_parts(), matcher, false, Stats::found_parts() > 1);
+          out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
       }
       else if (flag_only_matching)
       {
@@ -8933,10 +8947,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         size_t count = 0;
         size_t width = flag_before_context + flag_after_context;
         size_t lineno = 0;
+        size_t matching = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool nl = false;
-        bool ungroup = flag_ungroup || flag_column_number || flag_byte_offset;
         const char *restline_data = NULL;
         size_t restline_size = 0;
         size_t restline_last = 0;
@@ -8959,69 +8973,65 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           size_t current_lineno = matcher->lineno();
 
-          if (lineno != current_lineno || ungroup)
+          if (nl)
           {
-            if (nl)
+            if (restline_size > 0)
             {
-              if (restline_size > 0)
+              out.str(color_cx);
+              if (width > 0 && utf8nlen(restline_data, restline_size) > width)
               {
-                out.str(color_cx);
-                if (utf8nlen(restline_data, restline_size) > width)
-                {
-                  out.utf8strn(restline_data, restline_size, width);
-                  out.str(color_off);
-                  out.str(color_se);
-                  out.str("...");
-                }
-                else
-                {
-                  out.str(restline_data, restline_size);
-                }
+                out.utf8strn(restline_data, restline_size, width);
                 out.str(color_off);
-                restline_size = 0;
-              }
-
-              if (count > 0)
-              {
                 out.str(color_se);
                 out.str("...");
-                out.str(color_off);
-                out.str(color_cn);
-                out.str("[+");
-                out.num(count);
-                out.str(" more]");
-                out.str(color_off);
               }
-
-              out.nl();
-
-              count = 0;
-              width = flag_before_context + flag_after_context;
-              nl = false;
+              else
+              {
+                out.str(restline_data, restline_size);
+              }
+              out.str(color_off);
+              restline_size = 0;
             }
 
-            // --range: max line exceeded?
-            if (flag_max_line > 0 && current_lineno > flag_max_line)
-              break;
-
-            // --max-count: max number of matches reached?
-            if (flag_max_count > 0 && matches >= flag_max_count)
-              break;
-
-            // output blocked?
-            if (out.eof)
-              goto exit_search;
-
-            if (matchers != NULL)
+            if (count > 0)
             {
-              const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
-              const char *bol = matcher->bol();
-
-              // check CNF AND/OR/NOT matching
-              if (!cnf_matching(bol, eol))
-                continue;
+              out.str(color_se);
+              out.str("...");
+              out.str(color_off);
+              out.str(color_cn);
+              out.str("[+");
+              out.num(count);
+              out.str(" more]");
+              out.str(color_off);
             }
 
+            out.nl();
+
+            count = 0;
+            width = flag_before_context + flag_after_context;
+            nl = false;
+          }
+
+          // --range: max line exceeded?
+          if (flag_max_line > 0 && current_lineno > flag_max_line)
+            break;
+
+          // output blocked?
+          if (out.eof)
+            goto exit_search;
+
+          if (matchers != NULL)
+          {
+            const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
+            const char *bol = matcher->bol();
+
+            // check CNF AND/OR/NOT matching
+            if (!cnf_matching(bol, eol))
+              continue;
+          }
+
+          if (lineno != current_lineno || flag_ungroup)
+          {
             ++matches;
 
             // --min-count: require at least min-count matches
@@ -9031,39 +9041,43 @@ void Grep::search(const char *pathname, uint16_t cost)
               continue;
             }
 
+            // --max-count: max number of matches reached?
+            if (flag_max_count > 0 && matches > flag_max_count)
+              break;
+
             if (matches == flag_min_count + (flag_min_count == 0) && (!flag_files || matchers == NULL))
             {
               // --max-files: max reached?
               if (!Stats::found_part())
                 goto exit_search;
             }
-
-            if (binfile || (binary && !flag_hex && !flag_with_hex))
-            {
-              if (flag_binary_without_match)
-              {
-                matches = 0;
-              }
-              else
-              {
-                out.binary_file_matches(pathname, partname);
-                matches = 1;
-              }
-
-              if (flag_files && matchers != NULL && out.holding())
-                continue;
-
-              goto done_search;
-            }
-
-            if (!flag_no_header)
-            {
-              const char *separator = lineno != current_lineno ? flag_separator : "+";
-              out.header(pathname, partname, current_lineno, matcher, matcher->first(), separator, binary);
-            }
-
-            lineno = current_lineno;
           }
+
+          if (binfile || (binary && !flag_hex && !flag_with_hex))
+          {
+            if (flag_binary_without_match)
+            {
+              matches = 0;
+            }
+            else
+            {
+              out.binary_file_matches(pathname, partname);
+              matches = 1;
+            }
+
+            if (flag_files && matchers != NULL && out.holding())
+              continue;
+
+            goto done_search;
+          }
+
+          if (!flag_no_header)
+          {
+            const char *separator = lineno != current_lineno ? flag_separator : "+";
+            out.header(pathname, partname, current_lineno, matcher, matcher->first(), separator, binary);
+          }
+
+          lineno = current_lineno;
 
           // --min-count: require at least min-count matches
           if (flag_min_count > 0 && matches < flag_min_count)
@@ -9102,7 +9116,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           {
             // output --replace=FORMAT
             out.str(match_ms);
-            out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+            out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
             out.str(match_off);
           }
           else if (flag_before_context + flag_after_context > 0)
@@ -9259,7 +9273,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           if (restline_size > 0)
           {
             out.str(color_cx);
-            if (utf8nlen(restline_data, restline_size) > width)
+            if (width > 0 && utf8nlen(restline_data, restline_size) > width)
             {
               out.utf8strn(restline_data, restline_size, width);
               out.str(color_off);
@@ -9297,6 +9311,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         // options -A, -B, -C, -y, -v are not specified
 
         size_t lineno = 0;
+        size_t matching = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
@@ -9467,7 +9482,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(match_ms);
-                out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
                 out.str(match_off);
               }
               else
@@ -9589,7 +9604,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(match_ms);
-                    out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -9833,6 +9848,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // AnyLineGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
+        size_t matching = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
@@ -10032,7 +10048,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(v_match_ms);
-                out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
                 out.str(match_off);
               }
               else
@@ -10127,7 +10143,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(v_match_ms);
-                    out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -10285,6 +10301,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // ContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
+        size_t matching = 0;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
@@ -10487,7 +10504,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(match_ms);
-                out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
                 out.str(match_off);
               }
               else
@@ -10582,7 +10599,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(match_ms);
-                    out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -10745,6 +10762,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // InvertContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
+        size_t matching = 0;
         size_t last_lineno = lineno;
         size_t after = flag_after_context;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
@@ -10927,7 +10945,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                 {
                   // output --replace=FORMAT
                   out.str(match_mc);
-                  out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                  out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
                   out.str(match_off);
                 }
                 else
@@ -11061,7 +11079,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(match_mc);
-                    out.format(flag_replace, pathname, partname, matches, matcher, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -11921,8 +11939,8 @@ void help(std::ostream& out)
             followed by a newline `%~'.  If -P is specified, FORMAT may include\n\
             `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A\n\
             `%%' outputs `%'.  See `ugrep --help format' and `man ugrep'\n\
-            section FORMAT for details.  Context options -A, -B, -C and -y are\n\
-            ignored.\n\
+            section FORMAT for details.  When option -o is specified, option -u\n\
+            is also enabled.  Context options -A, -B, -C and -y are ignored.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
@@ -12125,8 +12143,8 @@ void help(std::ostream& out)
             --exclude='*.ext'.  This option may be repeated and may be combined\n\
             with options -g, -M and -t to expand the recursive search.\n\
     -o, --only-matching\n\
-            Output only the matching part of lines.  If -b, -k or -u is\n\
-            specified, output each match on a separate line.  When multiple\n\
+            Output only the matching part of lines.  Output additional matches\n\
+            on the same line with `+' as the field separator.  When multiple\n\
             lines match a pattern, output the matching lines with `|' as the\n\
             field separator.  If -A, -B or -C is specified, fits the match and\n\
             its context on a line within the specified number of columns.\n\
@@ -12288,7 +12306,7 @@ void help(std::ostream& out)
     --width[=NUM]\n\
             Truncate the output to NUM visible characters per line.  The width\n\
             of the terminal window is used if NUM is not specified.  Note that\n\
-            double wide characters in the input may result in wider lines.\n\
+            double wide characters in the output may result in wider lines.\n\
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option with --hexdump=2C.  To omit the matching\n\
@@ -12484,8 +12502,9 @@ void help(const char *what)
  %j          matching pattern, as JSON   \n\
  %J          matching line, as JSON      \n\
  %k          line number                 \n\
- %K %[...]K  ... + column number, if -k  Fields that require -P for captures:\n\
- %m          match number                \n\
+ %K %[...]K  ... + column number, if -k  \n\
+ %m          match number                Fields that require -P for captures:\n\
+ %M          match number, per line      \n\
  %n          line number                 field       output\n\
  %N %[...]N  ... + line number, if -n    ----------  --------------------------\n\
  %o          matching pattern            %1 %2...%9  group capture\n\

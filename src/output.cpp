@@ -677,12 +677,15 @@ void Output::format(const char *format, size_t matches)
 }
 
 // output formatted match with options --format, --format-open, --format-close
-void Output::format(const char *format, const char *& pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next)
+void Output::format(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool body, bool next)
 {
   if (!body)
     lineno_ = 0;
   else if (lineno_ > 0 && lineno_ == matcher->lineno() && matcher->lines() == 1)
     return;
+
+  if (matching != NULL)
+    ++*matching;
 
   size_t len = 0;
   const char *sep = NULL;
@@ -1065,8 +1068,12 @@ void Output::format(const char *format, const char *& pathname, const std::strin
         }
         break;
 
-      case 'm':
+      case 'M':
         num(matches);
+        break;
+
+      case 'm':
+        num(matching == NULL ? matches : *matching);
         break;
 
       case 'O':

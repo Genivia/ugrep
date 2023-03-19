@@ -4,64 +4,156 @@
   </file>
   <file name="Hello.class">
     <match>java&#12;&#0;&#7;&#0;&#8;&#7;&#0;&#23;</match>
+    <match>Hello World!&#7;&#0;&#26;</match>
   </file>
   <file name="Hello.java">
     <match>import java.lang.*;</match>
     <match>public class</match>
+    <match>Hello //</match>
+    <match>prints a</match>
+    <match>Hello World!</match>
     <match>public static</match>
+    <match>void main(String[]</match>
     <match>Hello World!&quot;);</match>
   </file>
   <file name="Hello.pdf">
     <match>4 0</match>
     <match>Length 5</match>
+    <match>0 R</match>
+    <match>Filter /FlateDecode</match>
     <match>9&#12;³1²Q&#2;¹F—â©&#18;ó™\LY</match>
     <match>5 0</match>
     <match>2 0</match>
     <match>Type /Page</match>
+    <match>Parent 3</match>
+    <match>0 R</match>
+    <match>Resources 6</match>
+    <match>0 R</match>
+    <match>Contents 4</match>
+    <match>0 R</match>
+    <match>MediaBox [0</match>
+    <match>0 612</match>
     <match>6 0</match>
     <match>ProcSet [</match>
+    <match>PDF /Text</match>
+    <match>ColorSpace &lt;&lt;</match>
+    <match>Cs1 7</match>
+    <match>0 R</match>
+    <match>Font &lt;&lt;</match>
+    <match>TT1 8</match>
+    <match>0 R</match>
     <match>9 0</match>
     <match>Length 10</match>
+    <match>0 R</match>
+    <match>N 1</match>
+    <match>Alternate /DeviceGray</match>
+    <match>Filter /FlateDecode</match>
     <match>m&#9;é2‰V&#19;‹µÛMºI&#19;·ëfS›*Êtv6;Ídfœ™İ&amp;¡O¥à›&#22;&#4;é« &gt;Æ‚&#8;¶*6/ö¥¥Å’J5&#15;</match>
     <match>7 ‹š&#17;òÈÇX</match>
     <match>bP&#12;‘*^&#21;‡Å!1</match>
     <match>10 0</match>
     <match>7 0</match>
     <match>ICCBased 9</match>
+    <match>0 R</match>
     <match>3 0</match>
     <match>Type /Pages</match>
+    <match>MediaBox [0</match>
+    <match>0 612</match>
+    <match>Count 1</match>
+    <match>Kids [</match>
+    <match>2 0</match>
+    <match>R ]</match>
     <match>11 0</match>
     <match>Type /Catalog</match>
+    <match>Pages 3</match>
+    <match>0 R</match>
     <match>8 0</match>
     <match>Type /Font</match>
+    <match>Subtype /TrueType</match>
+    <match>BaseFont /GQTMZF+Menlo-Regular</match>
     <match>12 0</match>
+    <match>R /Encoding</match>
+    <match>MacRomanEncoding /FirstChar</match>
+    <match>72 /LastChar</match>
+    <match>111 /Widths</match>
     <match>0 0</match>
     <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>602 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 602</match>
+    <match>0 0</match>
+    <match>602 ]</match>
     <match>12 0</match>
     <match>Type /FontDescriptor</match>
+    <match>FontName /GQTMZF+Menlo-Regular</match>
+    <match>Flags 33</match>
     <match>558 -375</match>
+    <match>718 1041]</match>
+    <match>ItalicAngle 0</match>
+    <match>Ascent 928</match>
+    <match>Descent -236</match>
+    <match>CapHeight 729</match>
     <match>StemV 99</match>
+    <match>XHeight 547</match>
+    <match>StemH 83</match>
+    <match>AvgWidth 602</match>
+    <match>MaxWidth 602</match>
+    <match>FontFile2 13</match>
+    <match>0 R</match>
     <match>13 0</match>
     <match>Length 14</match>
+    <match>0 R</match>
+    <match>Length1 4064</match>
+    <match>Filter /FlateDecode</match>
     <match>H (!&#8;A´1JQ</match>
     <match>j&#9;L+I&#23;.RÌ'›4‰&#3;‚pš¼Ã¤vÚÄˆÍä&#19;·&#x7f;=R&#14;õ‰Dª`ÌJ&gt;¦</match>
+    <match>K&#13;zËÅl©FK¥~ñB&#23;y1„‹&#1;ıB&#23;|{&gt;G~ÛŠó9ø‡Â9…orqÖ…¿×¢™ClVh\;&#24;¸¦&#x7f;=&#18;_)”_ÕâL!ş¦púË</match>
     <match>5&#13;»&#2;z&#15;;&#21;^¯E¤f¨|MáU&#30;^mÅ+lk‡Â&#31;</match>
     <match>axD&#11;&#4;âôaCír˜&#19;Ã&quot;&#26;±44`“Cí&#24;&#26;&#17;</match>
     <match>c&#11;íF</match>
     <match>u FÁÂ¦-</match>
     <match>fsu&#13;NÓbì¢Cô&#14;&#29;cî´&#24;&#8;^+&#14;‘Gœ`?+&#x7f;ğ¡¡¥=LËQ è$Jh‹x‰-–SD”Ò2Gm&quot;[Ş¯&#31;dt?=Ä×£´…J™72XÎñ&#x7f;L;h&#21;] </match>
+    <match>m&#11;W³&#20;ùÔŸ}tgi…ØÁqSL&#5;-’M¼U$êAôZŒEêü÷¦l·#¬ùF&#23;†&#3;&#19;‚î}!?û'¢Û&#17;ã&#14;Óøpâ}îÈµkãƒz†</match>
     <match>o&#11;CAçná&#30;Ÿ³“£Š¥„¬^½“óØuÓËÔ»²QëŞØxõƒFÙtõ-í†Ö,í›«Nö¯QùµÏø­QN)”IyF&#4;;&#25;t°&#8;iì!“=eæğ;ÏB‰</match>
+    <match>K&#12;&#20;ÉÂ*&#2;ê“ÇÊ^&#8;Ï7êrë2ÅÒ½vF•È·ØˆÊ¨CÜqHçS&#17;Q&quot;ÅG#q¥^/R¼»ôuzúz´&#3;SC&#31;œyö&#21;õ‘8!Öß¿ôñCoââ&#26;£æ&#26;­äœGqÎ</match>
     <match>14 0</match>
     <match>15 0</match>
     <match>16 0</match>
     <match>Mac OS</match>
+    <match>X 10.12.6</match>
+    <match>Quartz PDFContext)</match>
     <match>17 0</match>
     <match>18 0</match>
     <match>19 0</match>
     <match>20 0</match>
     <match>1 0</match>
     <match>Title 15</match>
+    <match>0 R</match>
+    <match>Producer 16</match>
+    <match>0 R</match>
+    <match>Creator 17</match>
+    <match>0 R</match>
+    <match>CreationDate 18</match>
+    <match>0 R</match>
     <match>18 0</match>
+    <match>R /Keywords</match>
+    <match>19 0</match>
+    <match>R /AAPL:Keywords</match>
+    <match>20 0</match>
+    <match>R &gt;&gt;</match>
     <match>0 21</match>
     <match>0000000000 65535</match>
     <match>0000005392 00000</match>
@@ -85,6 +177,11 @@
     <match>0000005353 00000</match>
     <match>0000005372 00000</match>
     <match>Size 21</match>
+    <match>Root 11</match>
+    <match>0 R</match>
+    <match>Info 1</match>
+    <match>0 R</match>
+    <match>ID [</match>
   </file>
   <file name="Hello.sh">
     <match>echo &quot;Hello</match>

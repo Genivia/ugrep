@@ -8,12 +8,15 @@
   {
     "file": "Hello.class",
     "matches": [
+      { "match": "Hello" },
+      { "match": "Hello" },
       { "match": "Hello" }
     ]
   },
   {
     "file": "Hello.java",
     "matches": [
+      { "match": "Hello" },
       { "match": "Hello" },
       { "match": "Hello" }
     ]

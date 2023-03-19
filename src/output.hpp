@@ -729,7 +729,7 @@ class Output {
   void format(const char *format, size_t matches);
 
   // output formatted match with options --format, --format-open, --format-close
-  void format(const char *format, const char *& pathname, const std::string& partname, size_t matches, reflex::AbstractMatcher *matcher, bool body, bool next);
+  void format(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool body, bool next);
 
   // output formatted inverted match with options -v --format, --format-open, --format-close
   void format_invert(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next);

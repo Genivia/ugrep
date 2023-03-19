@@ -1,6 +1,6 @@
 [![build status][travis-image]][travis-url] [![license][bsd-3-image]][bsd-3-url]
 
-**ugrep v3.10 is now available: more features & even faster than before**
+**ugrep v3.11 is now available: more features & even faster than before**
 
 Search for anything in everything... ultra fast
 
@@ -1848,11 +1848,11 @@ To search file `spanish-iso.txt` encoded in ISO-8859-1:
 ### Matching multiple lines of text
 
     -o, --only-matching
-            Print only the matching part of lines.  When multiple lines match,
-            the line numbers with option -n are displayed using `|' as the
-            field separator for each additional line matched by the pattern.
-            If -u is specified, ungroups multiple matches on the same line.
-            This option cannot be combined with options -A, -B, -C, -v, and -y.
+            Output only the matching part of lines.  Output additional matches
+            on the same line with `+' as the field separator.  When multiple
+            lines match a pattern, output the matching lines with `|' as the
+            field separator.  If -A, -B or -C is specified, fits the match and
+            its context on a line within the specified number of columns.
 
 Multiple lines may be matched by patterns that match newline characters.  Use
 option `-o` to output the match only, not the full lines(s) that match.
@@ -1880,7 +1880,7 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
 
 <a name="context"/>
 
-### Displaying match context with -A, -B, -C, and -y
+### Displaying match context with -A, -B, -C, -y, and --width
 
     -A NUM, --after-context=NUM
             Output NUM lines of trailing context after matching lines.  Places
@@ -1901,9 +1901,13 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
     -y, --any-line
             Any line is output (passthru).  Non-matching lines are output as
             context with a `-' separator.  See also options -A, -B, and -C.
+    --width[=NUM]
+            Truncate the output to NUM visible characters per line.  The width
+            of the terminal window is used if NUM is not specified.  Note that
+            double wide characters in the output may result in wider lines.
     -o, --only-matching
-            Output only the matching part of lines.  If -b, -k or -u is
-            specified, output each match on a separate line.  When multiple
+            Output only the matching part of lines.  Output additional matches
+            on the same line with `+' as the field separator.  When multiple
             lines match a pattern, output the matching lines with `|' as the
             field separator.  If -A, -B or -C is specified, fits the match and
             its context on a line within the specified number of columns.
@@ -3293,13 +3297,13 @@ To extract a table from an HTML file and put it in C/C++ source code using
             followed by a newline `%~'.  If -P is specified, FORMAT may include
             `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A
             `%%' outputs `%'.  See `ugrep --help format' and `man ugrep'
-            section FORMAT for details.  Context options -A, -B, -C and -y are
-            ignored.
+            section FORMAT for details.  When option -o is specified, option -u
+            is also enabled.  Context options -A, -B, -C and -y are ignored.
     -P, --perl-regexp
             Interpret PATTERN as a Perl regular expression.
 
 Use option `-P` to use group captures and backreferences.  Capturing groups in
-regex patterns are parenthesized expressions `(pattern)` and the first is
+regex patterns are parenthesized expressions `(pattern)`.  The first group is
 referenced in `FORMAT` by `%1`, the second by `%2` and so on.  Named captures
 are of the form `(?<NAME>pattern)` and are referenced in `FORMAT` by
 `%[NAME]#`.
@@ -3309,11 +3313,11 @@ The following output formatting options may be used.  The `FORMAT` string
 
 option                  | result
 ----------------------- | ------------------------------------------------------
-`--format-begin=FORMAT` | `FORMAT` when beginning the search
-`--format-open=FORMAT`  | `FORMAT` when opening a file and a match was found
+`--format-begin=FORMAT` | `FORMAT` beginning the search
+`--format-open=FORMAT`  | `FORMAT` opening a file and a match was found
 `--format=FORMAT`       | `FORMAT` for each match in a file
-`--format-close=FORMAT` | `FORMAT` when closing a file and a match was found
-`--format-end=FORMAT`   | `FORMAT` when ending the search
+`--format-close=FORMAT` | `FORMAT` closing a file and a match was found
+`--format-end=FORMAT`   | `FORMAT` ending the search
 
 The following tables show the formatting options corresponding to `--csv`,
 `--json`, and `--xml`.
@@ -3389,7 +3393,8 @@ field                   | output
 `%s`                    | the separator, see also `%[ARG]S` and `%[SEP]$`
 `%~`                    | a newline character
 `%+`                    | if option `--heading` is used: `%F` and a newline character, suppress all `%F` afterward
-`%m`                    | the number of matches or matched files
+`%m`                    | the number of matches, sequential (or number of matching files with `--format-end`)
+`%M`                    | the number of matching lines (or number of matching files with `--format-end`)
 `%O`                    | the matching line is output as is (a raw string of bytes)
 `%o`                    | the match is output as is (a raw string of bytes)
 `%Q`                    | the matching line as a quoted string, `\"` and `\\` replace `"` and `\`
@@ -3557,8 +3562,8 @@ the output:
             followed by a newline `%~'.  If -P is specified, FORMAT may include
             `%1' to `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A
             `%%' outputs `%'.  See `ugrep --help format' and `man ugrep'
-            section FORMAT for details.  Context options -A, -B, -C and -y are
-            ignored.
+            section FORMAT for details.  When option -o is specified, option -u
+            is also enabled.  Context options -A, -B, -C and -y are ignored.
 
 See [customized output with --format](#format) for details on the `FORMAT`
 fields.
@@ -4176,7 +4181,8 @@ in markdown:
                   specified, FORMAT may include `%1' to `%9', `%[NUM]#' and
                   `%[NAME]#' to output group captures.  A `%%' outputs `%'.  See
                   `ugrep --help format' and `man ugrep' section FORMAT for details.
-                  Context options -A, -B, -C and -y are ignored.
+                  When option -o is specified, option -u is also enabled.  Context
+                  options -A, -B, -C and -y are ignored.
 
            --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
@@ -4414,8 +4420,8 @@ in markdown:
                   search.
 
            -o, --only-matching
-                  Output only the matching part of lines.  If -b, -k or -u is
-                  specified, output each match on a separate line.  When multiple
+                  Output only the matching part of lines.  Output additional matches
+                  on the same line with `+' as the field separator.  When multiple
                   lines match a pattern, output the matching lines with `|' as the
                   field separator.  If -A, -B or -C is specified, fits the match and
                   its context on a line within the specified number of columns.
@@ -4614,7 +4620,7 @@ in markdown:
            --width[=NUM]
                   Truncate the output to NUM visible characters per line.  The width
                   of the terminal window is used if NUM is not specified.  Note that
-                  double wide characters in the input may result in wider lines.
+                  double wide characters in the output may result in wider lines.
 
            -X, --hex
                   Output matches in hexadecimal.  This option is equivalent to the
@@ -4955,7 +4961,9 @@ in markdown:
 
            %~     a newline character.
 
-           %m     the number of matches or matched files.
+           %M     the number of matching lines
+
+           %m     the number of matches
 
            %O     the matching line is output as a raw string of bytes.
 
@@ -5250,7 +5258,7 @@ in markdown:
 
 
 
-    ugrep 3.10.1                     March 17, 2023                         UGREP(1)
+    ugrep 3.11.0                     March 18, 2023                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

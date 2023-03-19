@@ -4,8 +4,11 @@
   </file>
   <file name="Hello.class">
     <match line="5">Hello</match>
+    <match line="5">Hello</match>
+    <match line="5">Hello</match>
   </file>
   <file name="Hello.java">
+    <match line="3">Hello</match>
     <match line="3">Hello</match>
     <match line="5">Hello</match>
   </file>

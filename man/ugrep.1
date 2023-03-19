@@ -1,4 +1,4 @@
-.TH UGREP "1" "March 17, 2023" "ugrep 3.10.1" "User Commands"
+.TH UGREP "1" "March 18, 2023" "ugrep 3.11.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -315,8 +315,8 @@ outputs matching lines `%O' with filename `%f` and line number `%n'
 followed by a newline `%~'.  If \fB\-P\fR is specified, FORMAT may include
 `%1' to `%9', `%[\fINUM\fR]#' and `%[\fINAME\fR]#' to output group captures.  A
 `%%' outputs `%'.  See `ugrep \fB\-\-help\fR format' and `man ugrep'
-section FORMAT for details.  Context options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR and \fB\-y\fR are
-ignored.
+section FORMAT for details.  When option \fB\-o\fR is specified, option \fB\-u\fR
+is also enabled.  Context options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR and \fB\-y\fR are ignored.
 .TP
 \fB\-\-free\-space\fR
 Spacing (blanks and tabs) in regular expressions are ignored.
@@ -549,8 +549,8 @@ each `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a
 with options \fB\-g\fR, \fB\-M\fR and \fB\-t\fR to expand the recursive search.
 .TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
-Output only the matching part of lines.  If \fB\-b\fR, \fB\-k\fR or \fB\-u\fR is
-specified, output each match on a separate line.  When multiple
+Output only the matching part of lines.  Output additional matches
+on the same line with `+' as the field separator.  When multiple
 lines match a pattern, output the matching lines with `|' as the
 field separator.  If \fB\-A\fR, \fB\-B\fR or \fB\-C\fR is specified, fits the match and
 its context on a line within the specified number of columns.
@@ -745,7 +745,7 @@ patterns to narrow or widen the scope of the PATTERN search.
 \fB\-\-width\fR[=\fINUM\fR]
 Truncate the output to NUM visible characters per line.  The width
 of the terminal window is used if NUM is not specified.  Note that
-double wide characters in the input may result in wider lines.
+double wide characters in the output may result in wider lines.
 .TP
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
@@ -1060,8 +1060,10 @@ if not the first match: \fIARG\fR and separator, see also \fB%[\fR\fISEP\fR\fB]$
 the separator, see also \fB%[\fR\fIARG\fR\fB]S\fR and \fB%[\fR\fISEP\fR\fB]$.
 .IP \fB%~\fR
 a newline character.
+.IP \fB%M\fR
+the number of matching lines
 .IP \fB%m\fR
-the number of matches or matched files.
+the number of matches
 .IP \fB%O\fR
 the matching line is output as a raw string of bytes.
 .IP \fB%o\fR

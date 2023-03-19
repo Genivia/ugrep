@@ -4,64 +4,156 @@
   </file>
   <file name="Hello.class">
     <match line="5" column="7" offset="128">java&#12;&#0;&#7;&#0;&#8;&#7;&#0;&#23;</match>
+    <match line="5" column="27" offset="148">Hello World!&#7;&#0;&#26;</match>
   </file>
   <file name="Hello.java">
     <match line="1" column="1" offset="0">import java.lang.*;</match>
     <match line="3" column="1" offset="21">public class</match>
+    <match line="3" column="14" offset="34">Hello //</match>
+    <match line="3" column="23" offset="43">prints a</match>
+    <match line="3" column="32" offset="52">Hello World!</match>
     <match line="4" column="3" offset="76">public static</match>
+    <match line="4" column="17" offset="90">void main(String[]</match>
     <match line="5" column="25" offset="138">Hello World!&quot;);</match>
   </file>
   <file name="Hello.pdf">
     <match line="3" column="1" offset="22">4 0</match>
     <match line="4" column="5" offset="34">Length 5</match>
+    <match line="4" column="14" offset="43">0 R</match>
+    <match line="4" column="19" offset="48">Filter /FlateDecode</match>
     <match line="7" column="25" offset="118">9&#12;³1²Q&#2;¹F—â©&#18;ó™\LY</match>
     <match line="11" column="1" offset="219">5 0</match>
     <match line="14" column="1" offset="238">2 0</match>
     <match line="15" column="5" offset="250">Type /Page</match>
+    <match line="15" column="17" offset="262">Parent 3</match>
+    <match line="15" column="26" offset="271">0 R</match>
+    <match line="15" column="31" offset="276">Resources 6</match>
+    <match line="15" column="43" offset="288">0 R</match>
+    <match line="15" column="48" offset="293">Contents 4</match>
+    <match line="15" column="59" offset="304">0 R</match>
+    <match line="15" column="64" offset="309">MediaBox [0</match>
+    <match line="15" column="76" offset="321">0 612</match>
     <match line="18" column="1" offset="342">6 0</match>
     <match line="19" column="5" offset="354">ProcSet [</match>
+    <match line="19" column="16" offset="365">PDF /Text</match>
+    <match line="19" column="29" offset="378">ColorSpace &lt;&lt;</match>
+    <match line="19" column="44" offset="393">Cs1 7</match>
+    <match line="19" column="50" offset="399">0 R</match>
+    <match line="19" column="58" offset="407">Font &lt;&lt;</match>
+    <match line="19" column="67" offset="416">TT1 8</match>
+    <match line="19" column="73" offset="422">0 R</match>
     <match line="22" column="1" offset="439">9 0</match>
     <match line="23" column="5" offset="451">Length 10</match>
+    <match line="23" column="15" offset="461">0 R</match>
+    <match line="23" column="20" offset="466">N 1</match>
+    <match line="23" column="25" offset="471">Alternate /DeviceGray</match>
+    <match line="23" column="48" offset="494">Filter /FlateDecode</match>
     <match line="25" column="19" offset="547">m&#9;é2‰V&#19;‹µÛMºI&#19;·ëfS›*Êtv6;Ídfœ™İ&amp;¡O¥à›&#22;&#4;é« &gt;Æ‚&#8;¶*6/ö¥¥Å’J5&#15;</match>
     <match line="26" column="307" offset="1006">7 ‹š&#17;òÈÇX</match>
     <match line="27" column="70" offset="1108">bP&#12;‘*^&#21;‡Å!1</match>
     <match line="33" column="1" offset="1658">10 0</match>
     <match line="36" column="1" offset="1679">7 0</match>
     <match line="37" column="4" offset="1690">ICCBased 9</match>
+    <match line="37" column="15" offset="1701">0 R</match>
     <match line="39" column="1" offset="1714">3 0</match>
     <match line="40" column="5" offset="1726">Type /Pages</match>
+    <match line="40" column="18" offset="1739">MediaBox [0</match>
+    <match line="40" column="30" offset="1751">0 612</match>
+    <match line="40" column="42" offset="1763">Count 1</match>
+    <match line="40" column="51" offset="1772">Kids [</match>
+    <match line="40" column="58" offset="1779">2 0</match>
+    <match line="40" column="62" offset="1783">R ]</match>
     <match line="42" column="1" offset="1797">11 0</match>
     <match line="43" column="5" offset="1810">Type /Catalog</match>
+    <match line="43" column="20" offset="1825">Pages 3</match>
+    <match line="43" column="28" offset="1833">0 R</match>
     <match line="45" column="1" offset="1847">8 0</match>
     <match line="46" column="5" offset="1859">Type /Font</match>
+    <match line="46" column="17" offset="1871">Subtype /TrueType</match>
+    <match line="46" column="36" offset="1890">BaseFont /GQTMZF+Menlo-Regular</match>
     <match line="47" column="1" offset="1937">12 0</match>
+    <match line="47" column="6" offset="1942">R /Encoding</match>
+    <match line="47" column="19" offset="1955">MacRomanEncoding /FirstChar</match>
+    <match line="47" column="47" offset="1983">72 /LastChar</match>
+    <match line="47" column="60" offset="1996">111 /Widths</match>
     <match line="48" column="1" offset="2014">0 0</match>
+    <match line="48" column="5" offset="2018">0 0</match>
+    <match line="48" column="9" offset="2022">0 0</match>
+    <match line="48" column="13" offset="2026">0 0</match>
+    <match line="48" column="17" offset="2030">0 0</match>
+    <match line="48" column="21" offset="2034">0 0</match>
+    <match line="48" column="25" offset="2038">0 0</match>
+    <match line="48" column="29" offset="2042">0 0</match>
+    <match line="48" column="33" offset="2046">0 0</match>
+    <match line="48" column="37" offset="2050">0 0</match>
+    <match line="48" column="41" offset="2054">0 0</match>
+    <match line="48" column="45" offset="2058">0 0</match>
+    <match line="48" column="49" offset="2062">0 0</match>
+    <match line="48" column="53" offset="2066">0 0</match>
+    <match line="48" column="57" offset="2070">602 0</match>
+    <match line="48" column="63" offset="2076">0 0</match>
+    <match line="48" column="67" offset="2080">0 0</match>
+    <match line="48" column="71" offset="2084">0 602</match>
     <match line="49" column="1" offset="2090">0 0</match>
+    <match line="49" column="5" offset="2094">602 ]</match>
     <match line="51" column="1" offset="2110">12 0</match>
     <match line="52" column="5" offset="2123">Type /FontDescriptor</match>
+    <match line="52" column="27" offset="2145">FontName /GQTMZF+Menlo-Regular</match>
+    <match line="52" column="59" offset="2177">Flags 33</match>
     <match line="53" column="3" offset="2198">558 -375</match>
+    <match line="53" column="12" offset="2207">718 1041]</match>
+    <match line="53" column="23" offset="2218">ItalicAngle 0</match>
+    <match line="53" column="38" offset="2233">Ascent 928</match>
+    <match line="53" column="50" offset="2245">Descent -236</match>
+    <match line="53" column="64" offset="2259">CapHeight 729</match>
     <match line="54" column="2" offset="2274">StemV 99</match>
+    <match line="54" column="12" offset="2284">XHeight 547</match>
+    <match line="54" column="25" offset="2297">StemH 83</match>
+    <match line="54" column="35" offset="2307">AvgWidth 602</match>
+    <match line="54" column="49" offset="2321">MaxWidth 602</match>
+    <match line="54" column="63" offset="2335">FontFile2 13</match>
+    <match line="54" column="76" offset="2348">0 R</match>
     <match line="57" column="1" offset="2362">13 0</match>
     <match line="58" column="5" offset="2375">Length 14</match>
+    <match line="58" column="15" offset="2385">0 R</match>
+    <match line="58" column="20" offset="2390">Length1 4064</match>
+    <match line="58" column="34" offset="2404">Filter /FlateDecode</match>
     <match line="60" column="33" offset="2475">H (!&#8;A´1JQ</match>
     <match line="61" column="187" offset="2776">j&#9;L+I&#23;.RÌ'›4‰&#3;‚pš¼Ã¤vÚÄˆÍä&#19;·&#x7f;=R&#14;õ‰Dª`ÌJ&gt;¦</match>
+    <match line="61" column="258" offset="2869">K&#13;zËÅl©FK¥~ñB&#23;y1„‹&#1;ıB&#23;|{&gt;G~ÛŠó9ø‡Â9…orqÖ…¿×¢™ClVh\;&#24;¸¦&#x7f;=&#18;_)”_ÕâL!ş¦púË</match>
     <match line="64" column="26" offset="3094">5&#13;»&#2;z&#15;;&#21;^¯E¤f¨|MáU&#30;^mÅ+lk‡Â&#31;</match>
     <match line="71" column="103" offset="3524">axD&#11;&#4;âôaCír˜&#19;Ã&quot;&#26;±44`“Cí&#24;&#26;&#17;</match>
     <match line="74" column="33" offset="3740">c&#11;íF</match>
     <match line="75" column="2" offset="3825">u FÁÂ¦-</match>
     <match line="77" column="50" offset="3920">fsu&#13;NÓbì¢Cô&#14;&#29;cî´&#24;&#8;^+&#14;‘Gœ`?+&#x7f;ğ¡¡¥=LËQ è$Jh‹x‰-–SD”Ò2Gm&quot;[Ş¯&#31;dt?=Ä×£´…J™72XÎñ&#x7f;L;h&#21;] </match>
+    <match line="77" column="290" offset="4225">m&#11;W³&#20;ùÔŸ}tgi…ØÁqSL&#5;-’M¼U$êAôZŒEêü÷¦l·#¬ùF&#23;†&#3;&#19;‚î}!?û'¢Û&#17;ã&#14;Óøpâ}îÈµkãƒz†</match>
     <match line="78" column="186" offset="4755">o&#11;CAçná&#30;Ÿ³“£Š¥„¬^½“óØuÓËÔ»²QëŞØxõƒFÙtõ-í†Ö,í›«Nö¯QùµÏø­QN)”IyF&#4;;&#25;t°&#8;iì!“=eæğ;ÏB‰</match>
+    <match line="78" column="303" offset="4915">K&#12;&#20;ÉÂ*&#2;ê“ÇÊ^&#8;Ï7êrë2ÅÒ½vF•È·ØˆÊ¨CÜqHçS&#17;Q&quot;ÅG#q¥^/R¼»ôuzúz´&#3;SC&#31;œyö&#21;õ‘8!Öß¿ôñCoââ&#26;£æ&#26;­äœGqÎ</match>
     <match line="81" column="1" offset="5186">14 0</match>
     <match line="84" column="1" offset="5207">15 0</match>
     <match line="87" column="1" offset="5231">16 0</match>
     <match line="88" column="2" offset="5241">Mac OS</match>
+    <match line="88" column="9" offset="5248">X 10.12.6</match>
+    <match line="88" column="19" offset="5258">Quartz PDFContext)</match>
     <match line="90" column="1" offset="5284">17 0</match>
     <match line="93" column="1" offset="5311">18 0</match>
     <match line="96" column="1" offset="5353">19 0</match>
     <match line="99" column="1" offset="5372">20 0</match>
     <match line="102" column="1" offset="5392">1 0</match>
     <match line="103" column="5" offset="5404">Title 15</match>
+    <match line="103" column="14" offset="5413">0 R</match>
+    <match line="103" column="19" offset="5418">Producer 16</match>
+    <match line="103" column="31" offset="5430">0 R</match>
+    <match line="103" column="36" offset="5435">Creator 17</match>
+    <match line="103" column="47" offset="5446">0 R</match>
+    <match line="103" column="52" offset="5451">CreationDate 18</match>
+    <match line="103" column="68" offset="5467">0 R</match>
     <match line="104" column="1" offset="5480">18 0</match>
+    <match line="104" column="6" offset="5485">R /Keywords</match>
+    <match line="104" column="18" offset="5497">19 0</match>
+    <match line="104" column="23" offset="5502">R /AAPL:Keywords</match>
+    <match line="104" column="40" offset="5519">20 0</match>
+    <match line="104" column="45" offset="5524">R &gt;&gt;</match>
     <match line="107" column="1" offset="5541">0 21</match>
     <match line="108" column="1" offset="5546">0000000000 65535</match>
     <match line="109" column="1" offset="5566">0000005392 00000</match>
@@ -85,6 +177,11 @@
     <match line="127" column="1" offset="5926">0000005353 00000</match>
     <match line="128" column="1" offset="5946">0000005372 00000</match>
     <match line="130" column="5" offset="5978">Size 21</match>
+    <match line="130" column="14" offset="5987">Root 11</match>
+    <match line="130" column="22" offset="5995">0 R</match>
+    <match line="130" column="27" offset="6000">Info 1</match>
+    <match line="130" column="34" offset="6007">0 R</match>
+    <match line="130" column="39" offset="6012">ID [</match>
   </file>
   <file name="Hello.sh">
     <match line="2" column="1" offset="10">echo &quot;Hello</match>

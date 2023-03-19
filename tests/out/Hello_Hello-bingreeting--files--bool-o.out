@@ -1,7 +1,7 @@
 [mBinary file[1;35m Hello.class[m matches
 [1;35mHello.java[m[1;36m:[m[1;4;32mHello[m
-[1;4;32mHello[m
-[1;4;32mgreeting[m
+[1;35mHello.java[m[1;36m+[m[1;4;32mHello[m
+[1;35mHello.java[m[1;36m+[m[1;4;32mgreeting[m
 [1;35mHello.java[m[1;36m:[m[1;4;32mHello[m
 [mBinary file[1;35m Hello.pdf[m matches
 [1;35mHello.txt[m[1;36m:[m[1;4;32mHello[m
