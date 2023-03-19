@@ -1,4 +1,4 @@
-[![build status][travis-image]][travis-url] [![license][bsd-3-image]][bsd-3-url]
+[![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
 **ugrep v3.11 is now available: more features & even faster than before**
 
@@ -5530,7 +5530,7 @@ the [man page](#man).  If you can't find it there and it looks like a bug, then
 [report an issue](https://github.com/Genivia/ugrep/issues) on GitHub.  Bug
 reports are quickly addressed.
 
-[travis-image]: https://travis-ci.com/Genivia/ugrep.svg?branch=master
-[travis-url]: https://app.travis-ci.com/github/Genivia/ugrep
+[ci-image]: https://github.com/Genivia/ugrep/actions/workflows/c-cpp.yml/badge.svg
+[ci-url]: https://github.com/Genivia/ugrep/actions/workflows/c-cpp.yml
 [bsd-3-image]: https://img.shields.io/badge/license-BSD%203--Clause-blue.svg
 [bsd-3-url]: https://opensource.org/licenses/BSD-3-Clause
