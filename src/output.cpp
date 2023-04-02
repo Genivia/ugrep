@@ -30,7 +30,7 @@
 @file      output.cpp
 @brief     Output management
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -224,7 +224,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     dump.done();
 
   bool sep = false; // when a separator is needed
-  bool nul = false; // -Q: mark pathname with three NUL bytes unless -a
+  bool nul = false; // -Q: mark pathname with three \0 markers unless -a
 
   if (flag_with_filename && pathname != NULL)
   {
@@ -360,10 +360,10 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
   }
 }
 
-// output the pathname header for --files_with_matches and --count
+// output the short pathname header for --files_with_matches and --count
 void Output::header(const char *pathname, const std::string& partname)
 {
-  bool nul = flag_query > 0; // -Q: mark pathname with three NUL bytes
+  bool nul = flag_query > 0; // -Q: mark pathname with three \0 markers for quick navigation
 
   if (flag_tree)
   {
@@ -377,6 +377,7 @@ void Output::header(const char *pathname, const std::string& partname)
       Tree::path.pop_back();
 
       size_t len = Tree::path.rfind(PATHSEPCHR);
+
       if (len == std::string::npos)
         Tree::path.clear();
       else
@@ -390,8 +391,17 @@ void Output::header(const char *pathname, const std::string& partname)
     {
       for (int i = 0; i < Tree::depth; ++i)
         str(Tree::bar);
-      while (--up > 0)
+      for (int i = 1; i < up; ++i)
         str(Tree::end);
+      nl();
+
+      // make sure to add a break between trees with terminated leafs
+      if (up > 1 && *Tree::end != '\0' && Tree::depth == 0)
+        nl();
+    }
+    else if (Tree::path.empty() && strchr(pathname, PATHSEPCHR) != NULL)
+    {
+      // add a break between the list of filenames without path and filenames with paths
       nl();
     }
 
@@ -399,16 +409,21 @@ void Output::header(const char *pathname, const std::string& partname)
 
     while ((sep = strchr(pathname + Tree::path.size(), PATHSEPCHR)) != NULL)
     {
+      if (nul)
+        chr('\0');
+
       for (int i = 1; i < Tree::depth; ++i)
         str(Tree::bar);
+
       if (Tree::depth > 0)
         str(Tree::ptr);
-      else if (nul)
-        str("\0\0", 2);
+
+      if (nul)
+        chr('\0');
 
       str(pathname + Tree::path.size(), sep - (pathname + Tree::path.size()) + 1);
 
-      if (nul && Tree::depth == 0)
+      if (nul)
         chr('\0');
       nl();
 
@@ -416,12 +431,14 @@ void Output::header(const char *pathname, const std::string& partname)
       ++Tree::depth;
     }
 
+    if (nul)
+      chr('\0');
+
     for (int i = 1; i < Tree::depth; ++i)
       str(Tree::bar);
+
     if (Tree::depth > 0)
       str(Tree::ptr);
-    else if (nul)
-      chr('\0');
 
     str(color_fn);
 
@@ -433,12 +450,12 @@ void Output::header(const char *pathname, const std::string& partname)
       str(color_st);
     }
 
-    if (nul && Tree::depth == 0)
+    if (nul)
       chr('\0');
 
     str(pathname + Tree::path.size());
 
-    if (nul && Tree::depth == 0)
+    if (nul)
       chr('\0');
 
   }
@@ -488,9 +505,11 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
 {
   if ((mode_ & BINARY) != 0)
     return;
+
   str(color_off);
   str("Binary file");
   str(color_fn);
+
   if (pathname != NULL)
   {
     chr(' ');
@@ -508,6 +527,7 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
       str(color_st);
     }
   }
+
   if (!partname.empty())
   {
     if (pathname == NULL)
@@ -516,9 +536,11 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
     str(partname);
     chr('}');
   }
+
   str(color_off);
   str(" matches");
   nl();
+
   mode_ |= BINARY;
 }
 

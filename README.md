@@ -1886,17 +1886,17 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
             Output NUM lines of trailing context after matching lines.  Places
             a --group-separator between contiguous groups of matches.  If -o is
             specified, output the match with context to fit NUM columns after
-            the match or shortening the match.  See also options -B, -C and -y.
+            the match or shortens the match.  See also options -B, -C and -y.
     -B NUM, --before-context=NUM
             Output NUM lines of leading context before matching lines.  Places
             a --group-separator between contiguous groups of matches.  If -o is
             specified, output the match with context to fit NUM columns before
-            the match or shortening the match.  See also options -A, -C and -y.
+            the match or shortens the match.  See also options -A, -C and -y.
     -C NUM, --context=NUM
             Output NUM lines of leading and trailing context surrounding each
             matching line.  Places a --group-separator between contiguous
             groups of matches.  If -o is specified, output the match with
-            context to fit NUM columns before and after the match or shortening
+            context to fit NUM columns before and after the match or shortens
             the match.  See also options -A, -B and -y.
     -y, --any-line
             Any line is output (passthru).  Non-matching lines are output as
@@ -3916,7 +3916,7 @@ in markdown:
                   Output NUM lines of trailing context after matching lines.  Places
                   a --group-separator between contiguous groups of matches.  If -o
                   is specified, output the match with context to fit NUM columns
-                  after the match or shortening the match.  See also options -B, -C
+                  after the match or shortens the match.  See also options -B, -C
                   and -y.
 
            -a, --text
@@ -3942,7 +3942,7 @@ in markdown:
                   Output NUM lines of leading context before matching lines.  Places
                   a --group-separator between contiguous groups of matches.  If -o
                   is specified, output the match with context to fit NUM columns
-                  before the match or shortening the match.  See also options -A, -C
+                  before the match or shortens the match.  See also options -A, -C
                   and -y.
 
            -b, --byte-offset
@@ -3998,8 +3998,8 @@ in markdown:
                   Output NUM lines of leading and trailing context surrounding each
                   matching line.  Places a --group-separator between contiguous
                   groups of matches.  If -o is specified, output the match with
-                  context to fit NUM columns before and after the match or
-                  shortening the match.  See also options -A, -B and -y.
+                  context to fit NUM columns before and after the match or shortens
+                  the match.  See also options -A, -B and -y.
 
            -c, --count
                   Only a count of selected lines is written to standard output.  If
@@ -4515,7 +4515,8 @@ in markdown:
            --separator[=SEP]
                   Use SEP as field separator between file name, line number, column
                   number, byte offset and the matched line.  The default is a colon
-                  (`:').
+                  (`:'), a plus (`+') for additional matches on the same line, and a
+                  bar (`|') for multi-line pattern matches.
 
            --sort[=KEY]
                   Displays matching files in the order specified by KEY in recursive
@@ -5258,7 +5259,7 @@ in markdown:
 
 
 
-    ugrep 3.11.0                     March 18, 2023                         UGREP(1)
+    ugrep 3.11.1                      April 2, 2023                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

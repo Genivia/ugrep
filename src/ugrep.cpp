@@ -30,7 +30,7 @@
 @file      ugrep.cpp
 @brief     a pattern search utility written in C++11
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 For download and installation instructions:
@@ -415,7 +415,10 @@ const char *flag_label             = LABEL_STANDARD_INPUT;
 const char *flag_pager             = DEFAULT_PAGER;
 const char *flag_replace           = NULL;
 const char *flag_save_config       = NULL;
-const char *flag_separator         = ":";
+const char *flag_separator         = NULL;
+const char *flag_separator_dash    = "-";
+const char *flag_separator_plus    = "+";
+const char *flag_separator_bar     = "|";
 const char *flag_sort              = NULL;
 const char *flag_stats             = NULL;
 const char *flag_tag               = NULL;
@@ -2160,7 +2163,7 @@ struct Grep {
       // context colors with or without -v
       short v_hex_context_line = flag_invert_match ? Output::Dump::HEX_LINE : Output::Dump::HEX_CONTEXT_LINE;
       const char *v_color_cx = flag_invert_match ? color_sl : color_cx;
-      const char *separator = flag_invert_match ? flag_separator : "-";
+      const char *separator = flag_invert_match ? flag_separator : flag_separator_dash;
 
       while (ptr != NULL)
       {
@@ -2304,7 +2307,7 @@ struct Grep {
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, state.before_offset[j], "-", state.before_binary[j]);
+            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, state.before_offset[j], flag_separator_dash, state.before_binary[j]);
 
           hex = state.before_binary[j];
 
@@ -2429,7 +2432,7 @@ struct Grep {
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, lineno, NULL, offset, "-", binary);
+            grep.out.header(pathname, grep.partname, lineno, NULL, offset, flag_separator_dash, binary);
 
           hex = binary;
 
@@ -2559,7 +2562,7 @@ struct Grep {
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, offset, "-", state.before_binary[j]);
+            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, offset, flag_separator_dash, state.before_binary[j]);
 
           hex = state.before_binary[j];
 
@@ -4220,7 +4223,7 @@ static void save_config()
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   fprintf(file, "# Enable/disable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
 
-  fprintf(file, "# Enable/disable query UI file viewing command with CTRL-Y, default: view\n");
+  fprintf(file, "# Enable/disable query UI file viewing command with CTRL-Y or F2, default: view\n");
   if (flag_view != NULL && *flag_view == '\0')
     fprintf(file, "view\n\n");
   else if (flag_view != NULL)
@@ -4298,6 +4301,12 @@ static void save_config()
   fprintf(file, "# Enable/disable binary files, default: no-ignore-binary\n%s\n\n", strcmp(flag_binary_files, "without-match") == 0 ? "ignore-binary" : "no-ignore-binary");
   fprintf(file, "# Enable/disable decompression and archive search, default: no-decompress\n%s\n\n", flag_decompress ? "decompress" : "no-decompress");
   fprintf(file, "# Maximum decompression and de-archiving nesting levels, default: 1\nzmax=%zu\n\n", flag_zmax);
+  if (flag_dereference)
+    fprintf(file, "# Dereference symlinks, default: no-dereference\ndereference\n\n");
+  if (flag_devices != NULL)
+    fprintf(file, "# Search devices, default: devices=skip\ndevices=%s\n\n", flag_devices);
+  if (flag_max_depth > 0)
+    fprintf(file, "# Recursively search directories up to %zu levels deep\nmax-depth=%zu\n\n", flag_max_depth, flag_max_depth);
   if (flag_ignore_files.empty())
   {
     fprintf(file, "# Enable/disable ignore files, default: no-ignore-files\nno-ignore-files\n\n");
@@ -4322,6 +4331,9 @@ static void save_config()
   }
 
   fprintf(file, "### OUTPUT ###\n\n");
+
+  if (flag_separator != NULL)
+    fprintf(file, "# Separator, default: none specified to output a `:', a `+', and a `|'\nseparator=%s\n\n", flag_separator);
 
   fprintf(file, "# Enable/disable sorted output, default: no-sort\n");
   if (flag_sort != NULL)
@@ -4813,7 +4825,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "save-config=", 12) == 0)
                   flag_save_config = arg + 12;
                 else if (strcmp(arg, "separator") == 0)
-                  flag_separator = ":";
+                  flag_separator = NULL;
                 else if (strncmp(arg, "separator=", 10) == 0)
                   flag_separator = arg + 10;
                 else if (strcmp(arg, "silent") == 0)
@@ -5619,6 +5631,12 @@ void init(int argc, const char **argv)
 
     exit(EXIT_ERROR);
   }
+
+  // --separator: override :, + and |, otherwise use default separators :, +, and |
+  if (flag_separator == NULL || *flag_separator == '\0')
+    flag_separator = ":";
+  else
+    flag_separator_bar = flag_separator_plus = flag_separator;
 
 #ifdef OS_WIN
   // save_config() and help() assume text mode, so switch to
@@ -9073,7 +9091,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           if (!flag_no_header)
           {
-            const char *separator = lineno != current_lineno ? flag_separator : "+";
+            const char *separator = lineno != current_lineno ? flag_separator : flag_separator_plus;
             out.header(pathname, partname, current_lineno, matcher, matcher->first(), separator, binary);
           }
 
@@ -9238,7 +9256,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               out.str(match_off);
               out.chr('\n');
 
-              out.header(pathname, partname, ++lineno, NULL, matcher->first() + (to - begin) + 1, "|", false);
+              out.header(pathname, partname, ++lineno, NULL, matcher->first() + (to - begin) + 1, flag_separator_bar, false);
 
               from = to + 1;
             }
@@ -9427,7 +9445,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             if (!flag_no_header)
             {
-              const char *separator = lineno != current_lineno ? flag_separator : "+";
+              const char *separator = lineno != current_lineno ? flag_separator : flag_separator_plus;
               out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
             }
 
@@ -9499,7 +9517,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   out.str(match_off);
                   out.chr('\n');
 
-                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
+                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                   from = to + 1;
                 }
@@ -9580,7 +9598,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                       if (left < first - restline_last)
                       {
                         if (!flag_no_header)
-                          out.header(pathname, partname, current_lineno, matcher, first, "+", binary);
+                          out.header(pathname, partname, current_lineno, matcher, first, flag_separator_plus, binary);
 
                         left = first - restline_last - left;
 
@@ -9624,7 +9642,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                         out.str(match_off);
                         out.chr('\n');
 
-                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                         from = to + 1;
                         ++num;
@@ -10010,7 +10028,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             if (!flag_no_header)
             {
-              const char *separator = lineno != current_lineno ? flag_invert_match ? "-" : flag_separator : "+";
+              const char *separator = lineno != current_lineno ? flag_invert_match ? flag_separator_dash : flag_separator : flag_separator_plus;
               out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
             }
 
@@ -10065,7 +10083,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   out.str(match_off);
                   out.chr('\n');
 
-                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
+                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                   from = to + 1;
                 }
@@ -10163,7 +10181,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                         out.str(match_off);
                         out.chr('\n');
 
-                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                         from = to + 1;
                         ++num;
@@ -10456,7 +10474,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             if (!flag_no_header)
             {
-              const char *separator = lineno != current_lineno ? flag_invert_match ? "-" : flag_separator : "+";
+              const char *separator = lineno != current_lineno ? flag_invert_match ? flag_separator_dash : flag_separator : flag_separator_plus;
               out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
             }
 
@@ -10521,7 +10539,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   out.str(match_off);
                   out.chr('\n');
 
-                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, "|", false);
+                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                   from = to + 1;
                 }
@@ -10619,7 +10637,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                         out.str(match_off);
                         out.chr('\n');
 
-                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "|", false);
+                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                         from = to + 1;
                         ++num;
@@ -10918,7 +10936,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                 out.dump.done();
 
               if (!flag_no_header)
-                out.header(pathname, partname, lineno, matcher, first, "-", binary);
+                out.header(pathname, partname, lineno, matcher, first, flag_separator_dash, binary);
 
               hex = binary;
 
@@ -10965,7 +10983,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                       out.str(match_off);
                       out.chr('\n');
 
-                      out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "-", false);
+                      out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_dash, false);
 
                       from = to + 1;
                       ++num;
@@ -11099,7 +11117,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                         out.str(match_off);
                         out.chr('\n');
 
-                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, "-", false);
+                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_dash, false);
 
                         from = to + 1;
                         ++num;
@@ -11134,7 +11152,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                     out.nl();
 
                   if (hex != binary && !flag_no_header)
-                    out.header(pathname, partname, lineno + lines - 1, matcher, last, "-", binary);
+                    out.header(pathname, partname, lineno + lines - 1, matcher, last, flag_separator_dash, binary);
 
                   hex = binary;
 
@@ -11695,7 +11713,7 @@ void help(std::ostream& out)
             Output NUM lines of trailing context after matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  If -o is\n\
             specified, output the match with context to fit NUM columns after\n\
-            the match or shortening the match.  See also options -B, -C and -y.\n\
+            the match or shortens the match.  See also options -B, -C and -y.\n\
     -a, --text\n\
             Process a binary file as if it were text.  This is equivalent to\n\
             the --binary-files=text option.  This option might output binary\n\
@@ -11716,7 +11734,7 @@ void help(std::ostream& out)
             Output NUM lines of leading context before matching lines.  Places\n\
             a --group-separator between contiguous groups of matches.  If -o is\n\
             specified, output the match with context to fit NUM columns before\n\
-            the match or shortening the match.  See also options -A, -C and -y.\n\
+            the match or shortens the match.  See also options -A, -C and -y.\n\
     -b, --byte-offset\n\
             The offset in bytes of a matched line is displayed in front of the\n\
             respective matched line.  If -u is specified, displays the offset\n\
@@ -11764,7 +11782,7 @@ void help(std::ostream& out)
             Output NUM lines of leading and trailing context surrounding each\n\
             matching line.  Places a --group-separator between contiguous\n\
             groups of matches.  If -o is specified, output the match with\n\
-            context to fit NUM columns before and after the match or shortening\n\
+            context to fit NUM columns before and after the match or shortens\n\
             the match.  See also options -A, -B and -y.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
@@ -12231,7 +12249,8 @@ void help(std::ostream& out)
     --separator[=SEP]\n\
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset and the matched line.  The default is a colon\n\
-            (`:').\n\
+            (`:'), a plus (`+') for additional matches on the same line, and a\n\
+            bar (`|') for multi-line pattern matches.\n\
     --sort[=KEY]\n\
             Displays matching files in the order specified by KEY in recursive\n\
             searches.  Normally the ug command sorts by name whereas the ugrep\n\

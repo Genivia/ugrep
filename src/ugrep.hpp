@@ -30,7 +30,7 @@
 @file      ugrep.hpp
 @brief     a pattern search utility written in C++11
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "3.11.0"
+#define UGREP_VERSION "3.11.1"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -348,7 +348,7 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 // the default -Q UI view command when --view is used and PAGER or EDITOR are not set
 #ifndef DEFAULT_VIEW_COMMAND
 # ifdef OS_WIN
-#  define DEFAULT_VIEW_COMMAND "ugrep"
+#  define DEFAULT_VIEW_COMMAND "more"
 # else
 #  define DEFAULT_VIEW_COMMAND "less"
 # endif

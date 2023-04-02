@@ -1,4 +1,4 @@
-.TH UGREP "1" "March 18, 2023" "ugrep 3.11.0" "User Commands"
+.TH UGREP "1" "April 02, 2023" "ugrep 3.11.1" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -58,7 +58,7 @@ The following options are available:
 Output NUM lines of trailing context after matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  If \fB\-o\fR is
 specified, output the match with context to fit NUM columns after
-the match or shortening the match.  See also options \fB\-B\fR, \fB\-C\fR and \fB\-y\fR.
+the match or shortens the match.  See also options \fB\-B\fR, \fB\-C\fR and \fB\-y\fR.
 .TP
 \fB\-a\fR, \fB\-\-text\fR
 Process a binary file as if it were text.  This is equivalent to
@@ -83,7 +83,7 @@ Combines \fB\-\-and\fR \fB\-\-not\fR.  See also options \fB\-\-and\fR, \fB\-\-no
 Output NUM lines of leading context before matching lines.  Places
 a \fB\-\-group\-separator\fR between contiguous groups of matches.  If \fB\-o\fR is
 specified, output the match with context to fit NUM columns before
-the match or shortening the match.  See also options \fB\-A\fR, \fB\-C\fR and \fB\-y\fR.
+the match or shortens the match.  See also options \fB\-A\fR, \fB\-C\fR and \fB\-y\fR.
 .TP
 \fB\-b\fR, \fB\-\-byte\-offset\fR
 The offset in bytes of a matched line is displayed in front of the
@@ -136,7 +136,7 @@ terminal.
 Output NUM lines of leading and trailing context surrounding each
 matching line.  Places a \fB\-\-group\-separator\fR between contiguous
 groups of matches.  If \fB\-o\fR is specified, output the match with
-context to fit NUM columns before and after the match or shortening
+context to fit NUM columns before and after the match or shortens
 the match.  See also options \fB\-A\fR, \fB\-B\fR and \fB\-y\fR.
 .TP
 \fB\-c\fR, \fB\-\-count\fR
@@ -643,7 +643,8 @@ a `\-', write the configuration to standard output.
 \fB\-\-separator\fR[=\fISEP\fR]
 Use SEP as field separator between file name, line number, column
 number, byte offset and the matched line.  The default is a colon
-(`:').
+(`:'), a plus (`+') for additional matches on the same line, and a
+bar (`|') for multi\-line pattern matches.
 .TP
 \fB\-\-sort\fR[=\fIKEY\fR]
 Displays matching files in the order specified by KEY in recursive

@@ -30,7 +30,7 @@
 @file      query.hpp
 @brief     Query engine and UI
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -266,7 +266,7 @@ class Query {
 
   static ssize_t stdin_sender(int fd);
 
-  static bool is_filename(const std::string& line, std::string& filename, bool compare_dir = false);
+  static bool find_filename(int ref, std::string& filename, bool compare_dir = false);
 
   static Mode                     mode_;
   static bool                     updated_;

@@ -30,7 +30,7 @@
 @file      query.cpp
 @brief     Query engine and UI
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -1357,7 +1357,7 @@ void Query::search()
   row_ = 0;
   rows_ = 0;
   skip_ = 0;
-  dots_ = 6; // to clear screen after 300ms
+  dots_ = 6; // to clear screen after 300 ms
   error_ = -1;
   arg_pattern = globbing_ ? temp_ : line_;
 
@@ -1434,8 +1434,8 @@ bool Query::update()
         Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
         Screen::normal();
 
-        // when still searching, don't immediately clear the rest of the screen but clear after 300ms (init dots_ = 6 and three iters)
-        if (dots_ == 0)
+        // when still searching, don't immediately clear the rest of the screen to avoid screen flicker, clear after 300 ms (init dots_ = 6 and three iters)
+        if (eof_ || dots_ == 0)
           Screen::end();
       }
 
@@ -1647,10 +1647,10 @@ void Query::fetch_all()
   }
 }
 
-// execute the search in a new thread
-void Query::execute(int fd)
+// execute the search in a new thread and send results to a pipe
+void Query::execute(int pipe_fd)
 {
-  output = fdopen(fd, "wb");
+  output = fdopen(pipe_fd, "wb");
 
   if (output != NULL)
   {
@@ -1871,40 +1871,44 @@ void Query::back()
   // compare the directory part for options -l and -c to move between directories
   bool compare_dir = flag_files_with_matches || flag_count;
 
-  std::string filename;
-  bool found = false;
+  // scroll current row_ or select_ selection
+  int& ref = select_ == -1 ? row_ : select_;
 
-  if (select_ == -1)
+  if (ref == 0)
+    return;
+
+  --ref;
+
+  if (compare_dir && flag_tree)
   {
-    if (row_ == 0)
+    if (ref == 0)
       return;
 
-    --row_;
+    --ref;
 
-    // get the current filename to compare when present
-    is_filename(view_[row_], filename);
-
-    while (row_ > 0 && !(found = is_filename(view_[row_], filename, compare_dir)))
-      --row_;
-
-    if (found && !flag_heading)
-      ++row_;
+    while (ref > 0 && view_[ref].size() > 1)
+      --ref;
   }
   else
   {
-    if (select_ == 0)
-      return;
+    std::string filename;
 
-    --select_;
+    // get the current filename to compare against, when present
+    find_filename(ref, filename);
 
-    // get the current filename to compare when present
-    is_filename(view_[select_], filename);
+    bool found = false;
 
-    while (select_ > 0 && !(found = is_filename(view_[select_], filename, compare_dir)))
-      --select_;
+    while (ref > 0 && !(found = find_filename(ref, filename, compare_dir)))
+      --ref;
 
-    if (found && !flag_heading)
-      ++select_;
+    if (found && (compare_dir || !flag_heading))
+    {
+      ++ref;
+
+      // --tree: skip over directory tree spacing
+      if (compare_dir && flag_tree && (view_[ref].empty() || view_[ref].front() != '\0'))
+        ++ref;
+    }
   }
 
   redraw();
@@ -1924,29 +1928,24 @@ void Query::next()
   // compare the directory part for options -l and -c to move between directories
   bool compare_dir = flag_files_with_matches || flag_count;
 
-  std::string filename;
+  // scroll current row_ or select_ selection
+  int& ref = select_ == -1 ? row_ : select_;
 
-  if (select_ == -1)
+  if (compare_dir && flag_tree)
   {
-    if (row_ < rows_)
-    {
-      // get the current filename to compare when present
-      is_filename(view_[row_], filename);
-    }
-
-    ++row_;
+    ++ref;
 
     while (true)
     {
       bool found = false;
 
-      while (row_ + 1 < rows_ && !(found = is_filename(view_[row_], filename, compare_dir)))
-        ++row_;
-
-      if (found || (eof_ && buflen_ == 0))
-        break;
+      while (ref + 1 < rows_ && !(found = view_[ref].size() <= 1))
+        ++ref;
 
       redraw();
+
+      if (found || (eof_ && buflen_ == 0))
+        return;
 
       // fetch more search results when available
       if (update())
@@ -1965,25 +1964,26 @@ void Query::next()
   }
   else
   {
-    if (select_ < rows_)
-    {
-      // get the current filename to compare when present
-      is_filename(view_[select_], filename);
-    }
+    std::string filename;
 
-    ++select_;
+    // get the current filename to compare when present
+    if (ref < rows_)
+      find_filename(ref, filename);
+
+    ++ref;
 
     while (true)
     {
       bool found = false;
 
-      while (select_ + 1 < rows_ && !(found = is_filename(view_[select_], filename, compare_dir)))
-        ++select_;
-
-      if (found || (eof_ && buflen_ == 0))
-        break;
+      // seach forward for different filename or different directory
+      while (ref + 1 < rows_ && !(found = find_filename(ref, filename, compare_dir)))
+        ++ref;
 
       redraw();
+
+      if (found || (eof_ && buflen_ == 0))
+        return;
 
       // fetch more search results when available
       if (update())
@@ -2000,8 +2000,6 @@ void Query::next()
       }
     }
   }
-
-  redraw();
 }
 
 // jump to the specified row
@@ -2010,87 +2008,45 @@ void Query::jump(int row)
   if (row < 0)
     row = 0;
 
-  if (select_ == -1)
+  // scroll current row_ or select_ selection
+  int& ref = select_ == -1 ? row_ : select_;
+
+  if (row <= ref)
   {
-    if (row <= row_)
-    {
-      row_ = row;
+    ref = row;
 
-      if (row_ >= rows_)
-        row_ = rows_ - 1;
-    }
-    else if (row < rows_)
-    {
-      row_ = row;
-    }
-    else
-    {
-      while (true)
-      {
-        while (row_ < row && row_ + 1 < rows_)
-          ++row_;
-
-        // exit if at the desired row or if the desired row is beyond the end of the search results
-        if (row_ == row || (eof_ && buflen_ == 0))
-          break;
-
-        redraw();
-
-        // fetch more search results when available
-        if (update())
-        {
-          // poll keys without timeout and stop if a key was pressed
-          if (VKey::poll(0))
-            return;
-        }
-        else
-        {
-          // poll keys with 100 ms timeout and stop if a key was pressed
-          if (VKey::poll(100))
-            return;
-        }
-      }
-    }
+    if (ref >= rows_)
+      ref = rows_ - 1;
+  }
+  else if (row < rows_)
+  {
+    ref = row;
   }
   else
   {
-    if (row <= select_)
+    while (true)
     {
-      select_ = row;
+      while (ref < row && ref + 1 < rows_)
+        ++ref;
 
-      if (select_ >= rows_)
-        select_ = rows_ - 1;
-    }
-    else if (row < rows_)
-    {
-      select_ = row;
-    }
-    else
-    {
-      while (true)
+      // exit if at the desired row or if the desired row is beyond the end of the search results
+      if (ref == row || (eof_ && buflen_ == 0))
+        break;
+
+      redraw();
+
+      // fetch more search results when available
+      if (update())
       {
-        while (select_ < row && select_ + 1 < rows_)
-          ++select_;
-
-        // exit if at the desired row or if the desired row is beyond the end of the search results
-        if (select_ == row || (eof_ && buflen_ == 0))
-          break;
-
-        redraw();
-
-        // fetch more search results when available
-        if (update())
-        {
-          // poll keys without timeout and stop if a key was pressed
-          if (VKey::poll(0))
-            return;
-        }
-        else
-        {
-          // poll keys with 100 ms timeout and stop if a key was pressed
-          if (VKey::poll(100))
-            return;
-        }
+        // poll keys without timeout and stop if a key was pressed
+        if (VKey::poll(0))
+          return;
+      }
+      else
+      {
+        // poll keys with 100 ms timeout and stop if a key was pressed
+        if (VKey::poll(100))
+          return;
       }
     }
   }
@@ -2111,11 +2067,13 @@ void Query::view()
   if (flag_stdin)
   {
     message("cannot view or edit standard input");
+
     return;
   }
 
   const char *pager = flag_view;
 
+  // if --view is empty and not --no-view, then try the PAGER or EDITOR environment variable as viewer or default viewer
   if (pager != NULL && *pager == '\0')
   {
     pager = getenv("PAGER");
@@ -2127,6 +2085,7 @@ void Query::view()
       pager = DEFAULT_VIEW_COMMAND;
   }
 
+  // if no viewer, then give up
   if (pager == NULL || *pager == '\0')
   {
     Screen::alert();
@@ -2134,12 +2093,21 @@ void Query::view()
     return;
   }
 
+  int row = select_ >= 0 ? select_ : row_;
+
+  // --tree: move down over non-filename lines to reach a filename
+  if (flag_tree && (flag_files_with_matches || flag_count))
+  {
+    while (row + 1 < rows_ && (view_[row].empty() || view_[row].front() != '\0'))
+      ++row;
+  }
+
   std::string filename;
   bool found = false;
-  int row;
 
-  for (row = row_; row >= 0 && !(found = is_filename(view_[row], filename)); --row)
-    continue;
+  // move up until a filename header is found
+  while (row >= 0 && !(found = find_filename(row, filename)))
+    --row;
 
   if (!found && arg_files.size() == 1)
   {
@@ -2174,6 +2142,17 @@ void Query::view()
 
       if (system(command.c_str()) == 0)
       {
+#ifdef OS_WIN
+        if (pager == "more")
+        {
+          Screen::setpos(Screen::rows - 1, 0);
+          Screen::put("(END) press a key");
+          Screen::alert();
+          VKey::flush();
+          VKey::get();
+        }
+#endif
+
         Screen::clear();
 
         bool changed;
@@ -2207,14 +2186,15 @@ void Query::view()
       }
       else
       {
-        Screen::put(0, 0, command.c_str());
         Screen::alert();
+        redraw();
+        message(std::string("failed: ").append(command));
       }
     }
   }
 
   if (!found)
-    message(std::string("cannot edit file ").append(filename));
+    message(std::string("cannot view or edit ").append(filename));
 }
 
 // chdir one level down into the directory of the file located under the cursor or just above the screen
@@ -2234,11 +2214,21 @@ void Query::select()
     return;
   }
 
+  int row = select_ >= 0 ? select_ : row_;
+
+  // --tree: move down over non-filename lines to reach a filename
+  if (flag_tree && (flag_files_with_matches || flag_count))
+  {
+    while (row + 1 < rows_ && (view_[row].empty() || view_[row].front() != '\0'))
+      ++row;
+  }
+
   std::string pathname;
   bool found = false;
 
-  for (int i = select_ >= 0 ? select_ : row_; i >= 0 && !(found = is_filename(view_[i], pathname)); --i)
-    continue;
+  // move up until a filename header is found
+  while (row >= 0 && !(found = find_filename(row, pathname)))
+    --row;
 
   if (found)
   {
@@ -3117,7 +3107,7 @@ bool Query::print(const std::string& line)
   const char *text = line.c_str();
   const char *end = text + line.size();
 
-  // how many nulls to ignore, part of filename marking?
+  // how many NULs to ignore that are part of the pathname marking in headers?
   int nulls = *text == '\0' && !flag_text ? 2 : 0;
 
   if (nulls > 0)
@@ -3510,9 +3500,10 @@ ssize_t Query::stdin_sender(int fd)
   return nwritten;
 }
 
-// true if line starts with a valid filename/filepath identified by three \0 markers and differs from the given filename, then assigns filename
-bool Query::is_filename(const std::string& line, std::string& filename, bool compare_dir)
+// true if view_[ref] starts with a valid filename/filepath identified by three \0 markers and differs from the given filename, then assigns filename
+bool Query::find_filename(int ref, std::string& filename, bool compare_dir)
 {
+  const std::string& line = view_[ref];
   size_t end = line.size();
 
   if (end < 4 || line.front() != '\0')
@@ -3534,26 +3525,72 @@ bool Query::is_filename(const std::string& line, std::string& filename, bool com
   if (pos == start || pos >= end)
     return false;
 
+  // extract the new filename
+  std::string new_filename = line.substr(start, pos - start);
+
+  // --tree: the new filename is the basename, we should reconstruct the new pathname from the tree in view_[]
+  if (flag_tree && (flag_files_with_matches || flag_count))
+  {
+    size_t last_start = start;
+
+    // while the top directory was not found (works since no colors are used for directory names)
+    while (start > 2 && --ref >= 0)
+    {
+      const std::string& scanline = view_[ref];
+
+      end = scanline.size();
+
+      if (end <= 1)
+        break;
+
+      if (end < 4 || scanline.front() != '\0')
+        continue;
+
+      pos = 1;
+
+      while (pos < end && scanline.at(pos) != '\0')
+        ++pos;
+
+      if (++pos >= end)
+        continue;
+
+      start = pos;
+
+      while (pos < end && scanline.at(pos) != '\0')
+        ++pos;
+
+      if (pos == start || pos >= end)
+        continue;
+
+      // if line scanned represents a parent directory, then prepend the directory to the new filename
+      if (start < last_start && scanline.at(pos - 1) == PATHSEPCHR)
+      {
+        new_filename.insert(0, scanline, start, pos - start);
+        last_start = start;
+      }
+    }
+  }
+
   if (compare_dir)
   {
+    // the new filename must not be in the same directory as the old filename
     size_t skip = 0;
 #ifdef OS_WIN
     if (filename.size() >= 3 && filename.at(1) == ':' && filename.at(2) == PATHSEPCHR)
       skip = 3;
 #endif
-    size_t pos1 = line.find(PATHSEPCHR, start + skip);
+    size_t pos1 = new_filename.find(PATHSEPCHR, skip);
     size_t pos2 = filename.find(PATHSEPCHR, skip);
-    if (pos1 != std::string::npos)
-      pos1 -= start;
-    if (pos1 == pos2 && (pos1 == std::string::npos || line.compare(start, skip + pos1, filename, 0, skip + pos2) == 0))
-      return false; // the extracted filename is the same or in the same directory as the previous
+
+    if (pos1 == pos2 && (pos1 == std::string::npos || new_filename.compare(0, pos1, filename, 0, pos2) == 0))
+      return false; // the extracted filename is the same or is in the same directory as the old filename
   }
-  else if (line.compare(start, pos - start, filename) == 0)
+  else if (new_filename.compare(filename) == 0)
   {
-    return false; // the extracted filename is the same as the previous
+    return false; // the new filename is the same as the old filename
   }
 
-  filename = line.substr(start, pos - start);
+  filename.swap(new_filename);
 
   return true;
 }
