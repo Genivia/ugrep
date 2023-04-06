@@ -117,8 +117,10 @@ After this, you may want to test ugrep and install it (optional):
 // optionally enable libzstd for -z
 // #define HAVE_LIBZSTD
 
-#include <stringapiset.h>
-#include <direct.h>
+#include <stringapiset.h>       // internationalization
+#include <direct.h>             // directory access
+#include <winsock.h>            // gethostname() for --hyperlink
+#pragma comment(lib, "Ws2_32.lib")
 
 #else
 
@@ -258,8 +260,6 @@ char match_ms[COLORLEN];  // --match or --tag: matched text in a selected line
 char match_mc[COLORLEN];  // --match or --tag: matched text in a context line
 char match_off[COLORLEN]; // --match or --tag: off
 
-std::string color_wd; // hyperlink working directory path
-
 const char *color_hl      = NULL; // hyperlink
 const char *color_st      = NULL; // ST
 
@@ -325,11 +325,13 @@ bool flag_files                    = false;
 bool flag_files_with_matches       = false;
 bool flag_files_without_match      = false;
 bool flag_fixed_strings            = false;
+bool flag_hex                      = false;
 bool flag_hex_star                 = false;
 bool flag_hex_cbr                  = true;
 bool flag_hex_chr                  = true;
 bool flag_hex_hbr                  = true;
 bool flag_hidden                   = DEFAULT_HIDDEN;
+bool flag_hyperlink_line           = false;
 bool flag_invert_match             = false;
 bool flag_json                     = false;
 bool flag_line_buffered            = false;
@@ -350,7 +352,6 @@ bool flag_stdin                    = false;
 bool flag_usage_warnings           = false;
 bool flag_word_regexp              = false;
 bool flag_xml                      = false;
-bool flag_hex                      = false;
 bool flag_with_hex                 = false;
 bool flag_no_filename              = false;
 bool flag_with_filename            = false;
@@ -411,6 +412,7 @@ const char *flag_format_end        = NULL;
 const char *flag_format_open       = NULL;
 const char *flag_group_separator   = "--";
 const char *flag_hexdump           = NULL;
+const char *flag_hyperlink         = NULL;
 const char *flag_label             = LABEL_STANDARD_INPUT;
 const char *flag_pager             = DEFAULT_PAGER;
 const char *flag_replace           = NULL;
@@ -424,6 +426,8 @@ const char *flag_stats             = NULL;
 const char *flag_tag               = NULL;
 const char *flag_view              = "";
 std::string              flag_config_file;
+std::string              flag_hyperlink_prefix;
+std::string              flag_hyperlink_path;
 std::set<std::string>    flag_config_options;
 std::vector<std::string> flag_regexp;
 std::vector<std::string> flag_file;
@@ -4218,9 +4222,15 @@ static void save_config()
 # (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white).  Upper case\n\
 # specifies background colors.  A `+' qualifies a color as bright.  A\n\
 # foreground and a background color may be combined with font properties `n'\n\
-# (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\n");
+# (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\
+# Parameter `hl' enables file name hyperlinks (same as --hyperlink).  Parameter\n\
+# `rv' reverses the `sl=' and `cx=' parameters when option -v is used.\n\n");
 
   fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
+  if (flag_hyperlink != NULL && *flag_hyperlink == '\0')
+    fprintf(file, "# Enable/disable hyperlinks in color output\nhyperlink\n\n");
+  else if (flag_hyperlink != NULL)
+    fprintf(file, "# Enable/disable hyperlinks in color output\nhyperlink=%s\n\n", flag_hyperlink);
   fprintf(file, "# Enable/disable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
 
   fprintf(file, "# Enable/disable query UI file viewing command with CTRL-Y or F2, default: view\n");
@@ -4585,8 +4595,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_hexdump = arg + 8;
                 else if (strcmp(arg, "hidden") == 0)
                   flag_hidden = true;
+                else if (strncmp(arg, "hyperlink=", 10) == 0)
+                  flag_hyperlink = arg + 10;
                 else if (strcmp(arg, "hyperlink") == 0)
-                  flag_colors = "hl";
+                  flag_hyperlink = "";
                 else
                   usage("invalid option --", arg, "--heading, --help, --hex, --hexdump, --hidden or --hyperlink");
                 break;
@@ -4725,6 +4737,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_heading = false;
                 else if (strcmp(arg, "no-hidden") == 0)
                   flag_hidden = false;
+                else if (strcmp(arg, "no-hyperlink") == 0)
+                  flag_hyperlink = NULL;
                 else if (strcmp(arg, "no-ignore-binary") == 0)
                   flag_binary_files = "binary";
                 else if (strcmp(arg, "no-ignore-case") == 0)
@@ -4766,7 +4780,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -6472,8 +6486,6 @@ void terminal()
       }
     }
 
-#ifndef OS_WIN
-
     if (flag_tree && (flag_files_with_matches || flag_files_without_match || flag_count))
     {
       const char *lang = getenv("LANG");
@@ -6485,8 +6497,6 @@ void terminal()
         Output::Tree::end = "▔ ";
       }
     }
-
-#endif
 
     // --color: (re)set flag_apply_color depending on color_term and TTY output
     if (flag_apply_color != NULL)
@@ -6606,21 +6616,21 @@ void terminal()
           if (*color_mc == '\0')
             copy_color(color_mc, color_mt);
 
-          // if OSC hyperlinks are OK (note that "hl" does not match color letters so strstr can be used)
-          if ((grep_colors != NULL && strstr(grep_colors, "hl") != NULL) || (flag_colors != NULL && strstr(flag_colors, "hl") != NULL))
+          // if not --hyperlink and hl or hl= is specified, then set --hyperlink
+          if (flag_hyperlink == NULL)
           {
-            char *cwd = getcwd0();
-            if (cwd != NULL)
-            {
-              char *path = cwd;
-              if (*path == PATHSEPCHR)
-                ++path;
-              color_wd.assign("file://localhost").append(PATHSEPSTR).append(path).push_back(PATHSEPCHR);
-              free(cwd);
-              color_hl = "\033]8;;";
-              color_st = "\033\\";
-            }
+            if (grep_colors != NULL && strstr(grep_colors, "hl=") != NULL)
+              flag_hyperlink = grep_colors + 3;
+            else if (flag_colors != NULL && strstr(flag_colors, "hl=") != NULL)
+              flag_hyperlink = flag_colors + 3;
+            else if (grep_colors != NULL && strstr(grep_colors, "hl") != NULL)
+              flag_hyperlink = "";
+            else if (flag_colors != NULL && strstr(flag_colors, "hl") != NULL)
+              flag_hyperlink = "";
           }
+
+          // --hyperlink
+          set_terminal_hyperlink();
 
           // if CSI erase line is OK (note that ne does not match color letters so strstr can be used)
           if ((grep_colors == NULL || strstr(grep_colors, "ne") == NULL) && (flag_colors == NULL || strstr(flag_colors, "ne") == NULL))
@@ -6644,6 +6654,58 @@ void terminal()
             free(env_grep_colors);
         }
       }
+    }
+  }
+}
+
+void set_terminal_hyperlink()
+{
+  // set prefix, host, current working directory path to output hyperlinks with --hyperlink
+  if (flag_hyperlink != NULL)
+  {
+    // get current working directory path in hyperlink
+    char *cwd = getcwd0();
+    if (cwd != NULL)
+    {
+      char *path = cwd;
+      if (*path == PATHSEPCHR)
+        ++path;
+
+      // get host in hyperlink
+      char host[80] = "localhost";
+
+#ifdef OS_WIN
+      WSADATA w;
+      if (WSAStartup(MAKEWORD(1, 1), &w) == 0)
+      {
+        gethostname(host, sizeof(host));
+        WSACleanup();
+      }
+#else
+      gethostname(host, sizeof(host));
+#endif
+
+      flag_hyperlink_path.assign(host).append("/").append(path);
+
+      free(cwd);
+
+      // get custom prefix in hyperlink or default file://
+      const char *s = flag_hyperlink;
+      while (*s != '\0' && isalnum(*s))
+        ++s;
+
+      if (s == flag_hyperlink)
+      {
+        flag_hyperlink_prefix.assign("file");
+      }
+      else
+      {
+        flag_hyperlink_prefix.assign(flag_hyperlink, s - flag_hyperlink);
+        flag_hyperlink_line = *s == '+';
+      }
+
+      color_hl = "\033]8;;";
+      color_st = "\033\\";
     }
   }
 }
@@ -11807,7 +11869,7 @@ void help(std::ostream& out)
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'\n\
             (invert), `u' (underline).  Parameter `hl' enables file name\n\
             hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters\n\
-            with option -v.  Selectively overrides GREP_COLORS.\n\
+            when option -v is specified.  Selectively overrides GREP_COLORS.\n\
     --config[=FILE], ---[FILE]\n\
             Use configuration FILE.  The default FILE is `.ugrep'.  The working\n\
             directory is checked first for FILE, then the home directory.  The\n\
@@ -12008,9 +12070,11 @@ void help(std::ostream& out)
             "Windows system and "
 #endif
             "hidden files and directories.\n\
-    --hyperlink\n\
+    --hyperlink[=[PREFIX][+]]\n\
             Hyperlinks are enabled for file names when colors are enabled.\n\
-            Same as --colors=hl.\n\
+            Same as --colors=hl.  When PREFIX is specified, replaces file://\n\
+            with PREFIX:// in the hyperlink.  A `+' adds a colon and line\n\
+            number of the matching line to the hyperlink.\n\
     -I, --ignore-binary\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\

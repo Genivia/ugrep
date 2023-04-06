@@ -3120,7 +3120,7 @@ To display the line and column numbers of matches in XML with `--xml`:
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'
             (invert), `u' (underline).  Parameter `hl' enables file name
             hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters
-            with option -v.  Selectively overrides GREP_COLORS.
+            when option -v is specified.  Selectively overrides GREP_COLORS.
     --tag[=TAG[,END]]
             Disables colors to mark up matches with TAG.  END marks the end of
             a match if specified, otherwise TAG.  The default is `___'.

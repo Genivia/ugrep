@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "3.11.1"
+#define UGREP_VERSION "3.11.2"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -483,6 +483,9 @@ extern const Type type_table[];
 
 // check TTY availability and set colors
 extern void terminal();
+
+// set or update hyperlink with host and current working directory, e.g. when changed
+extern void set_terminal_hyperlink();
 
 // perform a ugrep search given the specified command line flags, patterns, and files
 extern void ugrep();

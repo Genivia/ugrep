@@ -2261,6 +2261,9 @@ void Query::select()
         return;
       }
 
+      // a directory change affects --hyperlink
+      set_terminal_hyperlink();
+
       dirs_.append(pathname).append(PATHSEPSTR);
 
       search();
@@ -2327,6 +2330,9 @@ void Query::deselect()
     if (chdir("..") < 0)
       return;
 
+    // a directory change affects --hyperlink
+    set_terminal_hyperlink();
+
     if (dirs_.empty())
     {
       dirs_.assign(".." PATHSEPSTR);
@@ -2392,6 +2398,9 @@ void Query::unselect()
   {
     if (chdir(wdir_.c_str()) < 0)
       return;
+
+    // a directory change affects --hyperlink
+    set_terminal_hyperlink();
   }
   else if (!dirs_.empty())
   {
@@ -2410,12 +2419,15 @@ void Query::unselect()
       while (true)
       {
 #ifdef OS_WIN
-        if ((dirs_.size() == 3 && dirs_.at(1) == ':' && dirs_.at(2) == PATHSEPCHR) || chdir("..") < 0)
+        if (dirs_.size() == 3 && dirs_.at(1) == ':' && dirs_.at(2) == PATHSEPCHR)
           break;
 #else
-        if (dirs_ == PATHSEPSTR || chdir("..") < 0)
+        if (dirs_ == PATHSEPSTR)
           break;
 #endif
+
+        if (chdir("..") < 0)
+          break;
 
         dirs_.pop_back();
 
@@ -2426,6 +2438,9 @@ void Query::unselect()
 
         dirs_.resize(n + 1);
       }
+
+      // a directory change affects --hyperlink
+      set_terminal_hyperlink();
     }
   }
 

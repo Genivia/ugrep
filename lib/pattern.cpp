@@ -877,7 +877,7 @@ void Pattern::parse3(
         {
           // CHECKED algorithmic options 7/30 if (!nullable)
           // CHECKED algorithmic options 7/30   lazyset.clear();
-          if (n < m && lazyset.empty())
+          if (n <= m && lazyset.empty())
             greedy(firstpos);
         }
         // CHECKED added pfirstpos to point to updated firstpos with lazy quants

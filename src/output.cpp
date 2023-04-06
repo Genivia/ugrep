@@ -237,8 +237,16 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     if (color_hl != NULL)
     {
       str(color_hl);
-      uri(color_wd);
+      str(flag_hyperlink_prefix);
+      str("://");
+      uri(flag_hyperlink_path);
+      chr('/');
       uri(pathname);
+      if (flag_hyperlink_line)
+      {
+        chr(':');
+        num(lineno);
+      }
       str(color_st);
     }
 
@@ -445,7 +453,10 @@ void Output::header(const char *pathname, const std::string& partname)
     if (color_hl != NULL)
     {
       str(color_hl);
-      uri(color_wd);
+      str(flag_hyperlink_prefix);
+      str("://");
+      uri(flag_hyperlink_path);
+      chr('/');
       uri(pathname);
       str(color_st);
     }
@@ -469,7 +480,10 @@ void Output::header(const char *pathname, const std::string& partname)
     if (color_hl != NULL)
     {
       str(color_hl);
-      uri(color_wd);
+      str(flag_hyperlink_prefix);
+      str("://");
+      uri(flag_hyperlink_path);
+      chr('/');
       uri(pathname);
       str(color_st);
     }
@@ -516,7 +530,10 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
     if (color_hl != NULL)
     {
       str(color_hl);
-      uri(color_wd);
+      str(flag_hyperlink_prefix);
+      str("://");
+      uri(flag_hyperlink_path);
+      chr('/');
       uri(pathname);
       str(color_st);
     }
