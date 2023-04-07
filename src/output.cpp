@@ -244,7 +244,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
     uri(flag_hyperlink_path);
     chr('/');
     uri(pathname);
-    if (flag_hyperlink_line)
+    if (!(heading && flag_heading) && flag_hyperlink_line)
     {
       chr(':');
       num(lineno);
