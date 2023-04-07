@@ -1,7 +1,7 @@
 [1;35mHello.bat[m[1;36m:[mecho "[m[1;4;32m(1:Hello)[m World!"[m
-[mBinary file[1;35m Hello.class[m matches
+[mBinary file [1;35mHello.class[m matches
 [1;35mHello.java[m[1;36m:[mpublic class [m[1;4;32m(1:Hello)[m // prints a [m[1;4;32m(2:Hello)[m World! greeting[m
 [1;35mHello.java[m[1;36m:[m  { System.out.println("[m[1;4;32m(3:Hello)[m World!");[m
-[mBinary file[1;35m Hello.pdf[m matches
+[mBinary file [1;35mHello.pdf[m matches
 [1;35mHello.sh[m[1;36m:[mecho "[m[1;4;32m(1:Hello)[m World!"[m
 [1;35mHello.txt[m[1;36m:[m[m[1;4;32m(1:Hello)[m

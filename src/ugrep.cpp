@@ -238,8 +238,8 @@ static void sigint(int sig)
 
 #endif
 
-// unique identifier (address) for standard input path
-static const char *LABEL_STANDARD_INPUT = "(standard input)";
+// unique address to identify standard input path
+const char *LABEL_STANDARD_INPUT = "(standard input)";
 
 // full home directory path
 const char *home_dir = NULL;
@@ -1823,7 +1823,7 @@ struct Grep {
 
     Job(const char *pathname, uint16_t cost, size_t slot)
       :
-        pathname(pathname != NULL ? pathname : ""),
+        pathname(pathname != LABEL_STANDARD_INPUT ? pathname : ""), // empty pathname means stdin
         cost(cost),
         slot(slot)
     { }
@@ -3838,8 +3838,8 @@ void GrepWorker::execute()
     // start synchronizing output for this job slot in ORDERED mode (--sort)
     out.begin(job.slot);
 
-    // search the file for this job
-    search(job.pathname.c_str(), job.cost);
+    // search the file for this job, an empty pathname means stdin
+    search(job.pathname.empty() ? LABEL_STANDARD_INPUT : job.pathname.c_str(), job.cost);
 
     // end output in ORDERED mode (--sort) for this job slot
     out.end();

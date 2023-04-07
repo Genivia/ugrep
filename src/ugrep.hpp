@@ -417,6 +417,9 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 // undefined size_t value
 #define UNDEFINED_SIZE static_cast<size_t>(~0UL)
 
+// unique address to identify standard input path
+extern const char *LABEL_STANDARD_INPUT;
+
 // the CNF of Boolean search queries and patterns
 extern CNF bcnf;
 
@@ -435,6 +438,9 @@ extern FILE *source;
 
 // redirectable output destination is standard output by default or a pipe
 extern FILE *output;
+
+// full home directory path
+extern const char *home_dir;
 
 // ANSI SGR substrings extracted from GREP_COLORS and --colors
 #define COLORLEN 32

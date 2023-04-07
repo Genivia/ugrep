@@ -226,6 +226,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
   // get column number when we need it
   size_t columno = flag_column_number && matcher != NULL ? matcher->columno() + 1 : 1;
 
+  bool hyp = pathname != LABEL_STANDARD_INPUT && color_hl != NULL; // include hyperlinks
   bool sep = false; // when a separator is needed
   bool nul = false; // -Q: mark pathname with three \0 markers unless -a
 
@@ -236,7 +237,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
   }
 
   // --hyperlink: open link
-  if (color_hl != NULL)
+  if (hyp)
   {
     str(color_hl);
     str(flag_hyperlink_prefix);
@@ -257,7 +258,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
     str(color_st);
   }
 
-  // header should include pathname
+  // header should include the pathname
   if (heading)
   {
     str(color_fn);
@@ -278,7 +279,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
     if (flag_heading)
     {
       // --hyperlink: close link
-      if (color_hl != NULL)
+      if (hyp)
       {
         str(color_hl);
         str(color_st);
@@ -290,7 +291,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
       nl();
 
       // --hyperlink: open link
-      if (color_hl != NULL)
+      if (hyp)
       {
         str(color_hl);
         str(flag_hyperlink_prefix);
@@ -377,7 +378,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
   }
 
   // --hyperlink: close link
-  if (color_hl != NULL)
+  if (hyp)
   {
     str(color_hl);
     str(color_st);
@@ -416,6 +417,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
 // output the short pathname header for --files_with_matches and --count
 void Output::header(const char *pathname, const std::string& partname)
 {
+  bool hyp = pathname != LABEL_STANDARD_INPUT && color_hl != NULL; // include hyperlinks
   bool nul = flag_query > 0; // -Q: mark pathname with three \0 markers for quick navigation
 
   if (flag_tree)
@@ -495,7 +497,7 @@ void Output::header(const char *pathname, const std::string& partname)
 
     str(color_fn);
 
-    if (color_hl != NULL)
+    if (hyp)
     {
       str(color_hl);
       str(flag_hyperlink_prefix);
@@ -522,7 +524,7 @@ void Output::header(const char *pathname, const std::string& partname)
 
     str(color_fn);
 
-    if (color_hl != NULL)
+    if (hyp)
     {
       str(color_hl);
       str(flag_hyperlink_prefix);
@@ -541,12 +543,11 @@ void Output::header(const char *pathname, const std::string& partname)
     if (nul)
       chr('\0');
 
-    if (color_hl != NULL)
+    if (hyp)
     {
       str(color_hl);
       str(color_st);
     }
-
   }
 
   if (!partname.empty())
@@ -566,40 +567,37 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
     return;
 
   str(color_off);
-  str("Binary file");
+  str("Binary file ");
   str(color_fn);
 
-  if (pathname != NULL)
+  if (pathname != LABEL_STANDARD_INPUT && color_hl != NULL)
   {
-    chr(' ');
-    if (color_hl != NULL)
-    {
-      str(color_hl);
-      str(flag_hyperlink_prefix);
-      str("://");
-      uri(flag_hyperlink_path);
-      chr('/');
-      uri(pathname);
-      str(color_st);
-    }
-    str(pathname);
-    if (color_hl != NULL)
-    {
-      str(color_hl);
-      str(color_st);
-    }
+    str(color_hl);
+    str(flag_hyperlink_prefix);
+    str("://");
+    uri(flag_hyperlink_path);
+    chr('/');
+    uri(pathname);
+    str(color_st);
+  }
+
+  str(pathname);
+
+  if (pathname != LABEL_STANDARD_INPUT && color_hl != NULL)
+  {
+    str(color_hl);
+    str(color_st);
   }
 
   if (!partname.empty())
   {
-    if (pathname == NULL)
-      chr(' ');
     chr('{');
     str(partname);
-    chr('}');
+    str("} ");
   }
 
   str(color_off);
+
   str(" matches");
   nl();
 

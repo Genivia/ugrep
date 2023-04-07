@@ -1,4 +1,4 @@
-.TH UGREP "1" "April 02, 2023" "ugrep 3.11.1" "User Commands"
+.TH UGREP "1" "April 07, 2023" "ugrep 3.11.2" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -164,7 +164,7 @@ bright.  A foreground and a background color may be combined with
 font properties `n' (normal), `f' (faint), `h' (highlight), `i'
 (invert), `u' (underline).  Parameter `hl' enables file name
 hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters
-with option \fB\-v\fR.  Selectively overrides GREP_COLORS.
+when option \fB\-v\fR is specified.  Selectively overrides GREP_COLORS.
 .TP
 \fB\-\-config\fR[=\fIFILE\fR], \fB\-\-\-\fR[\fIFILE\fR]
 Use configuration FILE.  The default FILE is `.ugrep'.  The working
@@ -373,9 +373,11 @@ line is included in the output.  See also options \fB\-U\fR, \fB\-W\fR and \fB\-
 \fB\-\-hidden\fR, \fB\-.\fR
 Search hidden files and directories.
 .TP
-\fB\-\-hyperlink\fR
+\fB\-\-hyperlink\fR[=[\fIPREFIX\fR][+]]
 Hyperlinks are enabled for file names when colors are enabled.
-Same as \fB\-\-colors\fR=hl.
+Same as \fB\-\-colors\fR=hl.  When PREFIX is specified, replaces file://
+with PREFIX:// in the hyperlink.  A `+' includes the line number in
+the hyperlink and when option \fB\-k\fR is specified, the column number.
 .TP
 \fB\-I\fR, \fB\-\-ignore\-binary\fR
 Ignore matches in binary files.  This option is equivalent to the

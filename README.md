@@ -4026,7 +4026,8 @@ in markdown:
                   with font properties `n' (normal), `f' (faint), `h' (highlight),
                   `i' (invert), `u' (underline).  Parameter `hl' enables file name
                   hyperlinks.  Parameter `rv' reverses the `sl=' and `cx='
-                  parameters with option -v.  Selectively overrides GREP_COLORS.
+                  parameters when option -v is specified.  Selectively overrides
+                  GREP_COLORS.
 
            --config[=FILE], ---[FILE]
                   Use configuration FILE.  The default FILE is `.ugrep'.  The
@@ -4242,9 +4243,12 @@ in markdown:
            --hidden, -.
                   Search hidden files and directories.
 
-           --hyperlink
+           --hyperlink[=[PREFIX][+]]
                   Hyperlinks are enabled for file names when colors are enabled.
-                  Same as --colors=hl.
+                  Same as --colors=hl.  When PREFIX is specified, replaces file://
+                  with PREFIX:// in the hyperlink.  A `+' includes the line number
+                  in the hyperlink and when option -k is specified, the column
+                  number.
 
            -I, --ignore-binary
                   Ignore matches in binary files.  This option is equivalent to the
@@ -5259,7 +5263,7 @@ in markdown:
 
 
 
-    ugrep 3.11.1                      April 2, 2023                         UGREP(1)
+    ugrep 3.11.2                      April 7, 2023                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

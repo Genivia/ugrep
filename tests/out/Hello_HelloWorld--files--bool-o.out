@@ -1,6 +1,6 @@
 [1;35mHello.bat[m[1;36m:[m[1;4;32mHello[m
 [1;35mHello.bat[m[1;36m+[m[1;4;32mWorld[m
-[mBinary file[1;35m Hello.class[m matches
+[mBinary file [1;35mHello.class[m matches
 [1;35mHello.java[m[1;36m:[m[1;4;32mHello[m
 [1;35mHello.java[m[1;36m+[m[1;4;32mHello[m
 [1;35mHello.java[m[1;36m+[m[1;4;32mWorld[m
