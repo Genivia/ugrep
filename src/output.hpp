@@ -717,7 +717,7 @@ class Output {
   }
 
   // output the header part of the match, preceding the matched line
-  void header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *sep, bool newline);
+  void header(const char *pathname, const std::string& partname, bool& heading, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *sep, bool newline);
 
   // output the pathname header for --files_with_matches and --count
   void header(const char *pathname, const std::string& partname);
@@ -729,10 +729,10 @@ class Output {
   void format(const char *format, size_t matches);
 
   // output formatted match with options --format, --format-open, --format-close
-  void format(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool body, bool next);
+  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool& heading, bool body, bool next);
 
   // output formatted inverted match with options -v --format, --format-open, --format-close
-  void format_invert(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next);
+  void format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool& heading, bool next);
 
   // output a quoted string with escapes for \ and "
   void quote(const char *data, size_t size);

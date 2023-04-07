@@ -1884,11 +1884,12 @@ struct Grep {
   // extend the reflex::AbstractMatcher::Handler with a grep object reference and references to some of the grep::search locals
   struct GrepHandler : public reflex::AbstractMatcher::Handler {
 
-    GrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    GrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
       :
         grep(grep),
         pathname(pathname),
         lineno(lineno),
+        heading(heading),
         binfile(binfile),
         hex(hex),
         binary(binary),
@@ -1899,6 +1900,7 @@ struct Grep {
     Grep&        grep;     // grep object
     const char*& pathname; // grep::search argument pathname
     size_t&      lineno;   // grep::search lineno local variable
+    bool&        heading;  // grep::search heading local variable
     bool&        binfile;  // grep::search binfile local variable
     bool&        hex;      // grep::search hex local variable
     bool&        binary;   // grep::search binary local variable
@@ -1978,9 +1980,9 @@ struct Grep {
   // extend event GrepHandler to output invert match lines for -v
   struct InvertMatchGrepHandler : public GrepHandler {
 
-    InvertMatchGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    InvertMatchGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
       :
-        GrepHandler(grep, pathname, lineno, binfile, hex, binary, matches, stop)
+        GrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
     { }
 
     // functor invoked by the reflex::AbstractMatcher when the buffer contents are shifted out, also called explicitly in grep::search
@@ -2027,7 +2029,7 @@ struct Grep {
           grep.out.dump.done();
 
         if (!flag_no_header)
-          grep.out.header(pathname, grep.partname, lineno, NULL, offset, flag_separator, binary);
+          grep.out.header(pathname, grep.partname, heading, lineno, NULL, offset, flag_separator, binary);
 
         hex = binary;
 
@@ -2060,9 +2062,9 @@ struct Grep {
   // extend event GrepHandler to output formatted invert match lines for --format -v
   struct FormatInvertMatchGrepHandler : public GrepHandler {
 
-    FormatInvertMatchGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    FormatInvertMatchGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
       :
-        GrepHandler(grep, pathname, lineno, binfile, hex, binary, matches, stop)
+        GrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
     { }
 
     // functor invoked by the reflex::AbstractMatcher when the buffer contents are shifted out, also called explicitly in grep::search
@@ -2095,7 +2097,7 @@ struct Grep {
           }
 
           if (flag_format_open != NULL)
-            grep.out.format(flag_format_open, pathname, grep.partname, Stats::found_parts(), NULL, &matcher, false, Stats::found_parts() > 1);
+            grep.out.format(flag_format_open, pathname, grep.partname, Stats::found_parts(), NULL, &matcher, heading, false, Stats::found_parts() > 1);
         }
 
         // --max-count: max number of matches reached?
@@ -2109,7 +2111,7 @@ struct Grep {
         ++matches;
 
         // output --format
-        grep.out.format_invert(flag_format, pathname, grep.partname, matches, lineno, offset, ptr, size - (size > 0 && ptr[size - 1] == '\n'), matches > 1);
+        grep.out.format_invert(flag_format, pathname, grep.partname, matches, lineno, offset, ptr, size - (size > 0 && ptr[size - 1] == '\n'), heading, matches > 1);
 
         next_before(buf, len, num, ptr, size, offset);
       }
@@ -2119,9 +2121,9 @@ struct Grep {
   // extend event GrepHandler to output any context lines for -y
   struct AnyLineGrepHandler : public GrepHandler {
 
-    AnyLineGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop, const char*& rest_line_data, size_t& rest_line_size, size_t& rest_line_last)
+    AnyLineGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop, const char*& rest_line_data, size_t& rest_line_size, size_t& rest_line_last)
       :
-        GrepHandler(grep, pathname, lineno, binfile, hex, binary, matches, stop),
+        GrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop),
         rest_line_data(rest_line_data),
         rest_line_size(rest_line_size),
         rest_line_last(rest_line_last)
@@ -2211,7 +2213,7 @@ struct Grep {
           grep.out.dump.done();
 
         if (!flag_no_header)
-          grep.out.header(pathname, grep.partname, lineno, NULL, offset, separator, binary);
+          grep.out.header(pathname, grep.partname, heading, lineno, NULL, offset, separator, binary);
 
         hex = binary;
 
@@ -2274,9 +2276,9 @@ struct Grep {
 
     };
 
-    ContextGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop, const char*& rest_line_data, size_t& rest_line_size, size_t& rest_line_last)
+    ContextGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop, const char*& rest_line_data, size_t& rest_line_size, size_t& rest_line_last)
       :
-        AnyLineGrepHandler(grep, pathname, lineno, binfile, hex, binary, matches, stop, rest_line_data, rest_line_size, rest_line_last)
+        AnyLineGrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop, rest_line_data, rest_line_size, rest_line_last)
     { }
 
     // display the before context
@@ -2311,7 +2313,7 @@ struct Grep {
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, state.before_offset[j], flag_separator_dash, state.before_binary[j]);
+            grep.out.header(pathname, grep.partname, heading, before_lineno + i, NULL, state.before_offset[j], flag_separator_dash, state.before_binary[j]);
 
           hex = state.before_binary[j];
 
@@ -2436,7 +2438,7 @@ struct Grep {
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, lineno, NULL, offset, flag_separator_dash, binary);
+            grep.out.header(pathname, grep.partname, heading, lineno, NULL, offset, flag_separator_dash, binary);
 
           hex = binary;
 
@@ -2531,9 +2533,9 @@ struct Grep {
 
     };
 
-    InvertContextGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop, const char*& rest_line_data, size_t& rest_line_size, size_t& rest_line_last)
+    InvertContextGrepHandler(Grep& grep, const char*& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop, const char*& rest_line_data, size_t& rest_line_size, size_t& rest_line_last)
       :
-        AnyLineGrepHandler(grep, pathname, lineno, binfile, hex, binary, matches, stop, rest_line_data, rest_line_size, rest_line_last)
+        AnyLineGrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop, rest_line_data, rest_line_size, rest_line_last)
     { }
 
     // display the before context
@@ -2566,7 +2568,7 @@ struct Grep {
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, before_lineno + i, NULL, offset, flag_separator_dash, state.before_binary[j]);
+            grep.out.header(pathname, grep.partname, heading, before_lineno + i, NULL, offset, flag_separator_dash, state.before_binary[j]);
 
           hex = state.before_binary[j];
 
@@ -2747,7 +2749,7 @@ struct Grep {
           grep.out.dump.done();
 
         if (!flag_no_header)
-          grep.out.header(pathname, grep.partname, lineno, NULL, offset, flag_separator, binary);
+          grep.out.header(pathname, grep.partname, heading, lineno, NULL, offset, flag_separator, binary);
 
         hex = binary;
 
@@ -7566,8 +7568,8 @@ void ugrep()
     words_time = static_cast<size_t>(pattern.words_time());
   }
 
-  // --tree with -l or -c
-  if (flag_tree && (flag_files_with_matches || flag_count))
+  // --tree with -l or -c but not --format
+  if (flag_tree && (flag_files_with_matches || flag_count) && flag_format == NULL)
   {
     Output out(output);
     for (int i = 1; i < Output::Tree::depth; ++i)
@@ -8626,6 +8628,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
 
+        bool heading = flag_with_filename;
         size_t lineno = 0;
 
         while (matcher->find())
@@ -8692,10 +8695,10 @@ void Grep::search(const char *pathname, uint16_t cost)
             if (flag_format != NULL)
             {
               if (flag_format_open != NULL)
-                out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
-              out.format(flag_format, pathname, partname, 1, NULL, matcher, false, false);
+                out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, heading, false, Stats::found_parts() > 1);
+              out.format(flag_format, pathname, partname, 1, NULL, matcher, heading, false, false);
               if (flag_format_close != NULL)
-                out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
+                out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, heading, false, Stats::found_parts() > 1);
             }
             else
             {
@@ -8715,6 +8718,8 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
+
+        bool heading = flag_with_filename;
 
         if (!flag_match || !flag_invert_match)
         {
@@ -8822,10 +8827,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         if (flag_format != NULL)
         {
           if (flag_format_open != NULL)
-            out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
-          out.format(flag_format, pathname, partname, matches, NULL, matcher, false, false);
+            out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, heading, false, Stats::found_parts() > 1);
+          out.format(flag_format, pathname, partname, matches, NULL, matcher, heading, false, false);
           if (flag_format_close != NULL)
-            out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
+            out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, heading, false, Stats::found_parts() > 1);
         }
         else
         {
@@ -8855,6 +8860,8 @@ void Grep::search(const char *pathname, uint16_t cost)
         // whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format_open != NULL || flag_format_close != NULL;
 
+        bool heading = flag_with_filename;
+
         if (flag_invert_match)
         {
           // FormatInvertMatchHandler requires lineno to be set precisely, i.e. after skipping --range lines
@@ -8865,7 +8872,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           bool stop = false;
 
           // construct event handler functor with captured *this and some of the locals
-          FormatInvertMatchGrepHandler invert_match_handler(*this, pathname, lineno, binfile, hex, binary, matches, stop);
+          FormatInvertMatchGrepHandler invert_match_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
 
           // register an event handler to display non-matching lines
           matcher->set_handler(&invert_match_handler);
@@ -8982,7 +8989,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                 if (flag_format_open != NULL)
                 {
                   // output --format-open=FORMAT
-                  out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
+                  out.format(flag_format_open, pathname, partname, Stats::found_parts(), NULL, matcher, heading, false, Stats::found_parts() > 1);
 
                   // --files: undo files count
                   if (flag_files && matchers != NULL && out.holding())
@@ -8992,7 +8999,7 @@ void Grep::search(const char *pathname, uint16_t cost)
             }
 
             // output --format=FORMAT
-            out.format(flag_format, pathname, partname, matches, &matching, matcher, matches > 1 || current_lineno == lineno, matches > 1);
+            out.format(flag_format, pathname, partname, matches, &matching, matcher, heading, matches > 1 || current_lineno == lineno, matches > 1);
 
             // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
@@ -9015,7 +9022,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // output --format-close=FORMAT
         if (matches > 0 && flag_format_close != NULL)
-          out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, false, Stats::found_parts() > 1);
+          out.format(flag_format_close, pathname, partname, Stats::found_parts(), NULL, matcher, heading, false, Stats::found_parts() > 1);
       }
       else if (flag_only_matching)
       {
@@ -9025,6 +9032,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         size_t width = flag_before_context + flag_after_context;
         size_t lineno = 0;
         size_t matching = 0;
+        bool heading = flag_with_filename;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool nl = false;
@@ -9151,7 +9159,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           if (!flag_no_header)
           {
             const char *separator = lineno != current_lineno ? flag_separator : flag_separator_plus;
-            out.header(pathname, partname, current_lineno, matcher, matcher->first(), separator, binary);
+            out.header(pathname, partname, heading, current_lineno, matcher, matcher->first(), separator, binary);
           }
 
           lineno = current_lineno;
@@ -9193,7 +9201,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           {
             // output --replace=FORMAT
             out.str(match_ms);
-            out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+            out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
             out.str(match_off);
           }
           else if (flag_before_context + flag_after_context > 0)
@@ -9315,7 +9323,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               out.str(match_off);
               out.chr('\n');
 
-              out.header(pathname, partname, ++lineno, NULL, matcher->first() + (to - begin) + 1, flag_separator_bar, false);
+              out.header(pathname, partname, heading, ++lineno, NULL, matcher->first() + (to - begin) + 1, flag_separator_bar, false);
 
               from = to + 1;
             }
@@ -9389,6 +9397,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         size_t lineno = 0;
         size_t matching = 0;
+        bool heading = flag_with_filename;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
@@ -9505,7 +9514,7 @@ void Grep::search(const char *pathname, uint16_t cost)
             if (!flag_no_header)
             {
               const char *separator = lineno != current_lineno ? flag_separator : flag_separator_plus;
-              out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
+              out.header(pathname, partname, heading, current_lineno, matcher, first, separator, binary);
             }
 
             hex = binary;
@@ -9559,7 +9568,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(match_ms);
-                out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                 out.str(match_off);
               }
               else
@@ -9576,7 +9585,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   out.str(match_off);
                   out.chr('\n');
 
-                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                  out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                   from = to + 1;
                 }
@@ -9657,7 +9666,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                       if (left < first - restline_last)
                       {
                         if (!flag_no_header)
-                          out.header(pathname, partname, current_lineno, matcher, first, flag_separator_plus, binary);
+                          out.header(pathname, partname, heading, current_lineno, matcher, first, flag_separator_plus, binary);
 
                         left = first - restline_last - left;
 
@@ -9681,7 +9690,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(match_ms);
-                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -9701,7 +9710,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                         out.str(match_off);
                         out.chr('\n');
 
-                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                        out.header(pathname, partname, heading, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                         from = to + 1;
                         ++num;
@@ -9736,7 +9745,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                     out.nl();
 
                   if (hex != binary && !flag_no_header)
-                    out.header(pathname, partname, lineno + lines - 1, matcher, last, flag_separator, binary);
+                    out.header(pathname, partname, heading, lineno + lines - 1, matcher, last, flag_separator, binary);
 
                   hex = binary;
 
@@ -9839,13 +9848,14 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // InvertMatchHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
+        bool heading = flag_with_filename;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
         bool stop = false;
 
         // construct event handler functor with captured *this and some of the locals
-        InvertMatchGrepHandler invert_match_handler(*this, pathname, lineno, binfile, hex, binary, matches, stop);
+        InvertMatchGrepHandler invert_match_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
 
         // register an event handler to display non-matching lines
         matcher->set_handler(&invert_match_handler);
@@ -9926,6 +9936,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         // AnyLineGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
         size_t matching = 0;
+        bool heading = flag_with_filename;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
@@ -9937,7 +9948,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         size_t restline_last = 0;
 
         // construct event handler functor with captured *this and some of the locals
-        AnyLineGrepHandler any_line_handler(*this, pathname, lineno, binfile, hex, binary, matches, stop, restline_data, restline_size, restline_last);
+        AnyLineGrepHandler any_line_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop, restline_data, restline_size, restline_last);
 
         // register an event handler functor to display non-matching lines
         matcher->set_handler(&any_line_handler);
@@ -10088,7 +10099,7 @@ void Grep::search(const char *pathname, uint16_t cost)
             if (!flag_no_header)
             {
               const char *separator = lineno != current_lineno ? flag_invert_match ? flag_separator_dash : flag_separator : flag_separator_plus;
-              out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
+              out.header(pathname, partname, heading, current_lineno, matcher, first, separator, binary);
             }
 
             hex = binary;
@@ -10125,7 +10136,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(v_match_ms);
-                out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                 out.str(match_off);
               }
               else
@@ -10142,7 +10153,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   out.str(match_off);
                   out.chr('\n');
 
-                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                  out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                   from = to + 1;
                 }
@@ -10220,7 +10231,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(v_match_ms);
-                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -10240,7 +10251,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                         out.str(match_off);
                         out.chr('\n');
 
-                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                        out.header(pathname, partname, heading, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                         from = to + 1;
                         ++num;
@@ -10275,7 +10286,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                     out.nl();
 
                   if (hex != binary && !flag_no_header)
-                    out.header(pathname, partname, lineno + lines - 1, matcher, last, flag_separator, binary);
+                    out.header(pathname, partname, heading, lineno + lines - 1, matcher, last, flag_separator, binary);
 
                   hex = binary;
 
@@ -10379,6 +10390,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         // ContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
         size_t matching = 0;
+        bool heading = flag_with_filename;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
@@ -10390,7 +10402,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         size_t restline_last = 0;
 
         // construct event handler functor with captured *this and some of the locals
-        ContextGrepHandler context_handler(*this, pathname, lineno, binfile, hex, binary, matches, stop, restline_data, restline_size, restline_last);
+        ContextGrepHandler context_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop, restline_data, restline_size, restline_last);
 
         // register an event handler functor to display non-matching lines
         matcher->set_handler(&context_handler);
@@ -10534,7 +10546,7 @@ void Grep::search(const char *pathname, uint16_t cost)
             if (!flag_no_header)
             {
               const char *separator = lineno != current_lineno ? flag_invert_match ? flag_separator_dash : flag_separator : flag_separator_plus;
-              out.header(pathname, partname, current_lineno, matcher, first, separator, binary);
+              out.header(pathname, partname, heading, current_lineno, matcher, first, separator, binary);
             }
 
             hex = binary;
@@ -10581,7 +10593,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(match_ms);
-                out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                 out.str(match_off);
               }
               else
@@ -10598,7 +10610,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   out.str(match_off);
                   out.chr('\n');
 
-                  out.header(pathname, partname, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                  out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                   from = to + 1;
                 }
@@ -10676,7 +10688,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(match_ms);
-                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -10696,7 +10708,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                         out.str(match_off);
                         out.chr('\n');
 
-                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                        out.header(pathname, partname, heading, lineno + num, NULL, first + (to - begin) + 1, flag_separator_bar, false);
 
                         from = to + 1;
                         ++num;
@@ -10731,7 +10743,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                     out.nl();
 
                   if (hex != binary && !flag_no_header)
-                    out.header(pathname, partname, lineno + lines - 1, matcher, last, flag_separator, binary);
+                    out.header(pathname, partname, heading, lineno + lines - 1, matcher, last, flag_separator, binary);
 
                   hex = binary;
 
@@ -10842,6 +10854,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         size_t matching = 0;
         size_t last_lineno = lineno;
         size_t after = flag_after_context;
+        bool heading = flag_with_filename;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
         bool hex = false;
         bool binary = false;
@@ -10853,7 +10866,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         size_t restline_last = 0;
 
         // construct event handler functor with captured *this and some of the locals
-        InvertContextGrepHandler invert_context_handler(*this, pathname, lineno, binfile, hex, binary, matches, stop, restline_data, restline_size, restline_last);
+        InvertContextGrepHandler invert_context_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop, restline_data, restline_size, restline_last);
 
         // register an event handler functor to display non-matching lines
         matcher->set_handler(&invert_context_handler);
@@ -10995,7 +11008,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                 out.dump.done();
 
               if (!flag_no_header)
-                out.header(pathname, partname, lineno, matcher, first, flag_separator_dash, binary);
+                out.header(pathname, partname, heading, lineno, matcher, first, flag_separator_dash, binary);
 
               hex = binary;
 
@@ -11022,7 +11035,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                 {
                   // output --replace=FORMAT
                   out.str(match_mc);
-                  out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+                  out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                   out.str(match_off);
                 }
                 else
@@ -11042,7 +11055,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                       out.str(match_off);
                       out.chr('\n');
 
-                      out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_dash, false);
+                      out.header(pathname, partname, heading, lineno + num, NULL, first + (to - begin) + 1, flag_separator_dash, false);
 
                       from = to + 1;
                       ++num;
@@ -11156,7 +11169,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(match_mc);
-                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -11176,7 +11189,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                         out.str(match_off);
                         out.chr('\n');
 
-                        out.header(pathname, partname, lineno + num, NULL, first + (to - begin) + 1, flag_separator_dash, false);
+                        out.header(pathname, partname, heading, lineno + num, NULL, first + (to - begin) + 1, flag_separator_dash, false);
 
                         from = to + 1;
                         ++num;
@@ -11211,7 +11224,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                     out.nl();
 
                   if (hex != binary && !flag_no_header)
-                    out.header(pathname, partname, lineno + lines - 1, matcher, last, flag_separator_dash, binary);
+                    out.header(pathname, partname, heading, lineno + lines - 1, matcher, last, flag_separator_dash, binary);
 
                   hex = binary;
 
@@ -12070,8 +12083,8 @@ void help(std::ostream& out)
     --hyperlink[=[PREFIX][+]]\n\
             Hyperlinks are enabled for file names when colors are enabled.\n\
             Same as --colors=hl.  When PREFIX is specified, replaces file://\n\
-            with PREFIX:// in the hyperlink.  A `+' adds a colon and line\n\
-            number of the matching line to the hyperlink.\n\
+            with PREFIX:// in the hyperlink.  A `+' includes the line number in\n\
+            the hyperlink and when option -k is specified, the column number.\n\
     -I, --ignore-binary\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
             --binary-files=without-match option.\n\

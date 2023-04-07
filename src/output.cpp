@@ -212,43 +212,55 @@ void Output::Dump::line()
 }
 
 // output the header part of the match, preceding the matched line
-void Output::header(const char *& pathname, const std::string& partname, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *separator, bool newline)
+void Output::header(const char *pathname, const std::string& partname, bool& heading, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *separator, bool newline)
 {
   // if hex dump line is incomplete and a header is output, then complete the hex dump first
   if (dump.incomplete() &&
-      ((flag_with_filename && pathname != NULL) ||
+      (heading ||
        (!flag_no_filename && !partname.empty()) ||
        flag_line_number ||
        flag_column_number ||
        flag_byte_offset))
     dump.done();
 
+  // get column number when we need it
+  size_t columno = flag_column_number && matcher != NULL ? matcher->columno() + 1 : 1;
+
   bool sep = false; // when a separator is needed
   bool nul = false; // -Q: mark pathname with three \0 markers unless -a
 
-  if (flag_with_filename && pathname != NULL)
+  if (heading && flag_query > 0 && !flag_text)
   {
-    nul = flag_query > 0 && !flag_text;
+    nul = true;
+    chr('\0');
+  }
 
-    if (nul)
-      chr('\0');
-
-    str(color_fn);
-    if (color_hl != NULL)
+  // --hyperlink: open link
+  if (color_hl != NULL)
+  {
+    str(color_hl);
+    str(flag_hyperlink_prefix);
+    str("://");
+    uri(flag_hyperlink_path);
+    chr('/');
+    uri(pathname);
+    if (flag_hyperlink_line)
     {
-      str(color_hl);
-      str(flag_hyperlink_prefix);
-      str("://");
-      uri(flag_hyperlink_path);
-      chr('/');
-      uri(pathname);
-      if (flag_hyperlink_line)
+      chr(':');
+      num(lineno);
+      if (flag_column_number)
       {
         chr(':');
-        num(lineno);
+        num(columno);
       }
-      str(color_st);
     }
+    str(color_st);
+  }
+
+  // header should include pathname
+  if (heading)
+  {
+    str(color_fn);
 
     if (nul)
       chr('\0');
@@ -258,11 +270,6 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     if (nul)
       chr('\0');
 
-    if (color_hl != NULL)
-    {
-      str(color_hl);
-      str(color_st);
-    }
     str(color_off);
 
     if (flag_null)
@@ -270,11 +277,42 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
 
     if (flag_heading)
     {
+      // --hyperlink: close link
+      if (color_hl != NULL)
+      {
+        str(color_hl);
+        str(color_st);
+      }
+
       str(color_fn);
       str(color_del);
       str(color_off);
       nl();
-      pathname = NULL;
+
+      // --hyperlink: open link
+      if (color_hl != NULL)
+      {
+        str(color_hl);
+        str(flag_hyperlink_prefix);
+        str("://");
+        uri(flag_hyperlink_path);
+        chr('/');
+        uri(pathname);
+        if (flag_hyperlink_line)
+        {
+          chr(':');
+          num(lineno);
+          if (flag_column_number)
+          {
+            chr(':');
+            num(columno);
+          }
+        }
+        str(color_st);
+      }
+
+      // the next headers should not include this pathname
+      heading = false;
     }
     else
     {
@@ -316,29 +354,7 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     }
 
     str(color_ln);
-
-    if (color_hl != NULL && flag_hyperlink_line)
-    {
-      str(color_hl);
-      str(flag_hyperlink_prefix);
-      str("://");
-      uri(flag_hyperlink_path);
-      chr('/');
-      uri(pathname);
-      chr(':');
-      num(lineno);
-      str(color_st);
-
-      num(lineno, (flag_initial_tab ? 6 : 1));
-
-      str(color_hl);
-      str(color_st);
-    }
-    else
-    {
-      num(lineno, (flag_initial_tab ? 6 : 1));
-    }
-
+    num(lineno, (flag_initial_tab ? 6 : 1));
     str(color_off);
 
     sep = true;
@@ -354,10 +370,17 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     }
 
     str(color_cn);
-    num((matcher != NULL ? matcher->columno() + 1 : 1), (flag_initial_tab ? 3 : 1));
+    num(columno, (flag_initial_tab ? 3 : 1));
     str(color_off);
 
     sep = true;
+  }
+
+  // --hyperlink: close link
+  if (color_hl != NULL)
+  {
+    str(color_hl);
+    str(color_st);
   }
 
   if (flag_byte_offset)
@@ -738,7 +761,7 @@ void Output::format(const char *format, size_t matches)
 }
 
 // output formatted match with options --format, --format-open, --format-close
-void Output::format(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool body, bool next)
+void Output::format(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool& heading, bool body, bool next)
 {
   if (!body)
     lineno_ = 0;
@@ -782,7 +805,7 @@ void Output::format(const char *format, const char *& pathname, const std::strin
         {
           if (flag_with_filename)
           {
-            if (pathname != NULL)
+            if (heading)
             {
               if (arg != NULL)
                 str(arg, s - arg - 1);
@@ -800,11 +823,11 @@ void Output::format(const char *format, const char *& pathname, const std::strin
         break;
 
       case 'F':
-        if (flag_with_filename && (pathname != NULL || !partname.empty()))
+        if (flag_with_filename && (heading || !partname.empty()))
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          if (pathname != NULL)
+          if (heading)
             str(pathname);
           if (!partname.empty())
           {
@@ -822,7 +845,7 @@ void Output::format(const char *format, const char *& pathname, const std::strin
         break;
 
       case 'f':
-        if (pathname != NULL)
+        if (heading)
         {
           str(pathname);
           if (!partname.empty())
@@ -835,7 +858,7 @@ void Output::format(const char *format, const char *& pathname, const std::strin
         break;
 
       case 'a':
-        if (pathname != NULL)
+        if (heading)
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename == NULL)
@@ -846,7 +869,7 @@ void Output::format(const char *format, const char *& pathname, const std::strin
         break;
 
       case 'p':
-        if (pathname != NULL)
+        if (heading)
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename != NULL)
@@ -859,7 +882,7 @@ void Output::format(const char *format, const char *& pathname, const std::strin
         break;
 
       case 'H':
-        if (flag_with_filename && (pathname != NULL || !partname.empty()))
+        if (flag_with_filename && (heading || !partname.empty()))
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
@@ -873,7 +896,7 @@ void Output::format(const char *format, const char *& pathname, const std::strin
             name.push_back('}');
             quote(name.c_str(), name.size());
           }
-          else if (pathname != NULL)
+          else if (heading)
           {
             quote(pathname, strlen(pathname));
           }
@@ -888,14 +911,14 @@ void Output::format(const char *format, const char *& pathname, const std::strin
         if (!partname.empty())
         {
           std::string name;
-          if (pathname != NULL)
+          if (heading)
             name = pathname;
           name.push_back('{');
           name.append(partname);
           name.push_back('}');
           quote(name.c_str(), name.size());
         }
-        else if (pathname != NULL)
+        else if (heading)
         {
           quote(pathname, strlen(pathname));
         }
@@ -1300,11 +1323,11 @@ void Output::format(const char *format, const char *& pathname, const std::strin
 
   // only output the pathname once
   if (flag_heading)
-    pathname = NULL;
+    heading = false;
 }
 
 // output formatted match with options -v --format
-void Output::format_invert(const char *format, const char *& pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool next)
+void Output::format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool& heading, bool next)
 {
   size_t len = 0;
   const char *sep = NULL;
@@ -1340,7 +1363,7 @@ void Output::format_invert(const char *format, const char *& pathname, const std
         {
           if (flag_with_filename)
           {
-            if (pathname != NULL)
+            if (heading)
             {
               if (arg != NULL)
                 str(arg, s - arg - 1);
@@ -1358,11 +1381,11 @@ void Output::format_invert(const char *format, const char *& pathname, const std
         break;
 
       case 'F':
-        if (flag_with_filename && (pathname != NULL || !partname.empty()))
+        if (flag_with_filename && (heading || !partname.empty()))
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          if (pathname != NULL)
+          if (heading)
             str(pathname);
           if (!partname.empty())
           {
@@ -1380,7 +1403,7 @@ void Output::format_invert(const char *format, const char *& pathname, const std
         break;
 
       case 'f':
-        if (pathname != NULL)
+        if (heading)
         {
           str(pathname);
           if (!partname.empty())
@@ -1393,7 +1416,7 @@ void Output::format_invert(const char *format, const char *& pathname, const std
         break;
 
       case 'a':
-        if (pathname != NULL)
+        if (heading)
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename == NULL)
@@ -1404,7 +1427,7 @@ void Output::format_invert(const char *format, const char *& pathname, const std
         break;
 
       case 'p':
-        if (pathname != NULL)
+        if (heading)
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename != NULL)
@@ -1417,21 +1440,21 @@ void Output::format_invert(const char *format, const char *& pathname, const std
         break;
 
       case 'H':
-        if (flag_with_filename && (pathname != NULL || !partname.empty()))
+        if (flag_with_filename && (heading || !partname.empty()))
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
           if (!partname.empty())
           {
             std::string name;
-            if (pathname != NULL)
+            if (heading)
               name = pathname;
             name.push_back('{');
             name.append(partname);
             name.push_back('}');
             quote(name.c_str(), name.size());
           }
-          else if (pathname != NULL)
+          else if (heading)
           {
             quote(pathname, strlen(pathname));
           }
@@ -1446,14 +1469,14 @@ void Output::format_invert(const char *format, const char *& pathname, const std
         if (!partname.empty())
         {
           std::string name;
-          if (pathname != NULL)
+          if (heading)
             name = pathname;
           name.push_back('{');
           name.append(partname);
           name.push_back('}');
           quote(name.c_str(), name.size());
         }
-        else if (pathname != NULL)
+        else if (heading)
         {
           quote(pathname, strlen(pathname));
         }
@@ -1675,7 +1698,7 @@ void Output::format_invert(const char *format, const char *& pathname, const std
 
   // only output the pathname once
   if (flag_heading)
-    pathname = NULL;
+    heading = false;
 }
 
 // output a quoted string with escapes for \ and "
