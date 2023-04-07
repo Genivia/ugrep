@@ -6695,14 +6695,11 @@ void set_terminal_hyperlink()
         ++s;
 
       if (s == flag_hyperlink)
-      {
         flag_hyperlink_prefix.assign("file");
-      }
       else
-      {
         flag_hyperlink_prefix.assign(flag_hyperlink, s - flag_hyperlink);
-        flag_hyperlink_line = *s == '+';
-      }
+
+      flag_hyperlink_line = *s == '+';
 
       color_hl = "\033]8;;";
       color_st = "\033\\";

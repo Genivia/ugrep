@@ -316,7 +316,29 @@ void Output::header(const char *& pathname, const std::string& partname, size_t 
     }
 
     str(color_ln);
-    num(lineno, (flag_initial_tab ? 6 : 1));
+
+    if (color_hl != NULL && flag_hyperlink_line)
+    {
+      str(color_hl);
+      str(flag_hyperlink_prefix);
+      str("://");
+      uri(flag_hyperlink_path);
+      chr('/');
+      uri(pathname);
+      chr(':');
+      num(lineno);
+      str(color_st);
+
+      num(lineno, (flag_initial_tab ? 6 : 1));
+
+      str(color_hl);
+      str(color_st);
+    }
+    else
+    {
+      num(lineno, (flag_initial_tab ? 6 : 1));
+    }
+
     str(color_off);
 
     sep = true;
