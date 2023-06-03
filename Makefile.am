@@ -7,9 +7,9 @@ EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 UGREP = $(shell pwd)/$(top_builddir)/bin/ugrep$(EXEEXT)
 CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 
-all-local:	cp2bin add-filters
+all-local:	cp2bin
 
-.PHONY:		cp2bin add-filters
+.PHONY:		cp2bin
 
 # to copy the ugrep binary to the local ugrep/bin/ugrep and ugrep/bin/ug
 cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
@@ -19,12 +19,10 @@ cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		  cd $(top_builddir)/bin; \
 		  rm -f ug$(EXEEXT); \
 		  cp -f ugrep$(EXEEXT) ug$(EXEEXT)
+		@./add-filters.sh
 		@echo
 		@echo "OK"
 		@echo
-
-add-filters:	${UGREP}
-		@./add-filters.sh
 
 install-exec-hook:
 		cp -f $(top_builddir)/bin/ugrep+ $(top_builddir)/bin/ug+ $(DESTDIR)$(bindir)
