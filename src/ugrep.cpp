@@ -2165,7 +2165,7 @@ struct Grep {
 
         rest_line_data = NULL;
       }
-      
+
       // context colors with or without -v
       short v_hex_context_line = flag_invert_match ? Output::Dump::HEX_LINE : Output::Dump::HEX_CONTEXT_LINE;
       const char *v_color_cx = flag_invert_match ? color_sl : color_cx;

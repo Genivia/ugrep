@@ -1,22 +1,16 @@
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
-Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.
+Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features beat grep, ripgrep, silver searcher, ack, sift, etc.
 
-Installing the ugrep tools adds the following powerful commands:
-
-**ug** use this for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
-
-**ug+** for interactive use, also searches pdfs, documents, e-books, image metadata
-
-**ugrep** use this command for batch use
-
-**ugrep+** for batch use, also searches pdfs, documents, e-books, image metadata
+The ugrep tools include the following powerful commands:
+- **ug** for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
+- **ug+** for interactive use, also searches pdfs, documents, e-books, image metadata
+- **ugrep** for batch use
+- **ugrep+** for batch use, also searches pdfs, documents, e-books, image metadata
 
 *Option -Q opens a query TUI to search files as you type!*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
-
-**Ugrep is ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.**
 
 - Written in clean and efficient C++11 for advanced features and speed, thoroughly tested
 
