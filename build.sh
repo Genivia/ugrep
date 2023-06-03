@@ -57,12 +57,12 @@ exit 1
 fi
 
 echo
-echo "ugrep was successfully built in ugrep/bin and tested:"
-ls -l bin/ug bin/ugrep
+echo "ugrep was successfully built in $(pwd)/bin and tested:"
+ls -l bin/ug bin/ug+ bin/ugrep bin/ugrep+
 echo
-echo "Copy ugrep/bin/ugrep and ugrep/bin/ug to a bin/ on your PATH"
+echo "Copy bin/ug, bin/ug+, bin/ugrep, and bin/ugrep+ to a bin/ on your PATH"
 echo
-echo "Or install ugrep and ug on your system by executing:"
+echo "Or install the ugrep tools on your system by executing:"
 echo "sudo make install"
 echo
 

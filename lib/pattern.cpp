@@ -168,6 +168,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
   nop_ = 0;
   len_ = 0;
   min_ = 0;
+  npy_ = 0;
   one_ = false;
   vno_ = 0;
   eno_ = 0;
@@ -191,6 +192,21 @@ void Pattern::init(const char *options, const uint8_t *pred)
           for (size_t i = 0; i < 256; ++i)
             bit_[i] = ~pred[i + n];
           n += 256;
+          npy_ = 0;
+          for (Char i = 0; i < 256; ++i)
+          {
+            bit_[i] |= ~((1 << min_) - 1);
+            npy_ += (bit_[i] & 0x01) == 0;
+            npy_ += (bit_[i] & 0x02) == 0;
+            npy_ += (bit_[i] & 0x04) == 0;
+            npy_ += (bit_[i] & 0x08) == 0;
+            npy_ += (bit_[i] & 0x10) == 0;
+            npy_ += (bit_[i] & 0x20) == 0;
+            npy_ += (bit_[i] & 0x40) == 0;
+            npy_ += (bit_[i] & 0x80) == 0;
+          }
+          // bitap entropy to estimate false positive rate, we don't use bitap when entropy is too high
+          npy_ /= min_;
         }
         if (min_ >= 4)
         {
@@ -3512,8 +3528,6 @@ void Pattern::predict_match_dfa(DFA::State *start)
     Char lo = state->edges.begin()->first;
     if (!is_meta(lo) && lo == state->edges.begin()->second.first)
     {
-      if (lo != state->edges.begin()->second.first)
-        break;
       if (len_ >= 255)
       {
         one_ = false;
@@ -3588,8 +3602,23 @@ void Pattern::gen_predict_match(DFA::State *state)
   for (int level = 1; level < 8; ++level)
     for (std::map<DFA::State*,ORanges<Hash> >::iterator from = states[level - 1].begin(); from != states[level - 1].end(); ++from)
       gen_predict_match_transitions(level, from->first, from->second, states[level]);
-  for (Char i = 0; i < 256; ++i)
-    bit_[i] &= (1 << min_) - 1;
+  if (min_ > 0)
+  {
+    for (Char i = 0; i < 256; ++i)
+    {
+      bit_[i] |= ~((1 << min_) - 1);
+      npy_ += (bit_[i] & 0x01) == 0;
+      npy_ += (bit_[i] & 0x02) == 0;
+      npy_ += (bit_[i] & 0x04) == 0;
+      npy_ += (bit_[i] & 0x08) == 0;
+      npy_ += (bit_[i] & 0x10) == 0;
+      npy_ += (bit_[i] & 0x20) == 0;
+      npy_ += (bit_[i] & 0x40) == 0;
+      npy_ += (bit_[i] & 0x80) == 0;
+    }
+    // bitap entropy to estimate false positive rate, we don't use bitap when entropy is too high
+    npy_ /= min_;
+  }
 }
 
 void Pattern::gen_predict_match_transitions(DFA::State *state, std::map<DFA::State*,ORanges<Hash> >& states)

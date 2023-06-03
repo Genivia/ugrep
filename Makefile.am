@@ -7,11 +7,11 @@ EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 UGREP = $(shell pwd)/$(top_builddir)/bin/ugrep$(EXEEXT)
 CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 
-all-local:	cp2bin
+all-local:	cp2bin add-filters
 
-.PHONY:		cp2bin
+.PHONY:		cp2bin add-filters
 
-# to copy the ugrep binary to the local ugrep/bin/ugrep and link ugrep/bin/ug
+# to copy the ugrep binary to the local ugrep/bin/ugrep and ugrep/bin/ug
 cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		rm -f $(top_builddir)/bin/ugrep$(EXEEXT)
 		mkdir -p $(top_builddir)/bin; \
@@ -23,7 +23,11 @@ cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		@echo "OK"
 		@echo
 
+add-filters:	${UGREP}
+		@./add-filters.sh
+
 install-exec-hook:
+		cp -f $(top_builddir)/bin/ugrep+ $(top_builddir)/bin/ug+ $(DESTDIR)$(bindir)
 		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
 		cd $(DESTDIR)$(bindir) && cp -f ugrep$(EXEEXT) ug$(EXEEXT)
 
@@ -44,6 +48,16 @@ install-data-hook:
 		 echo "| a .ugrep configuration file with your preferences,   |"; \
 		 echo "| located in the working directory or home directory.  |"; \
 		 echo "| Run 'ug --save-config' to create a .ugrep file.      |"; \
+		 echo "|                                                      |"; \
+		 echo "| The ugrep+ and ug+ commands are the same as the      |"; \
+		 echo "| ugrep and ug commands, but also use filters to       |"; \
+		 echo "| search PDFs, documents, e-books, image metadata,     |"; \
+		 echo "| when these filter tools are installed:               |"; \
+		 echo "|                                                      |"; \
+		 echo "|   pdftotext    https://pypi.org/project/pdftotext    |"; \
+		 echo "|   antiword     https://github.com/rsdoiel/antiword   |"; \
+		 echo "|   pandoc       https://pandoc.org                    |"; \
+		 echo "|   exiftool     https://exiftool.sourceforge.net      |"; \
 		 echo "|                                                      |"; \
 		 echo "| Aliases to consider:                                 |"; \
 		 echo "|   alias uq     = 'ug -Q'                             |"; \
@@ -67,7 +81,8 @@ install-data-hook:
 		 echo "|______________________________________________________|";
 
 uninstall-hook:
-		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
+		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT) $(DESTDIR)$(bindir)/ugrep$(EXEEXT)
+		rm -f $(DESTDIR)$(bindir)/ug+ $(DESTDIR)$(bindir)/ugrep+
 		rm -rf $(DESTDIR)$(datadir)/ugrep
 
 .PHONY:		test

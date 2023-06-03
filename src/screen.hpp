@@ -30,7 +30,7 @@
 @file      screen.hpp
 @brief     ANSI SGR code controlled screen API - static, not thread safe
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -210,7 +210,7 @@ class Screen {
   // return UCS-4 code of the specified UTF-8 sequence, or 0 for invalid UTF-8
   static uint32_t wchar(const char *ptr, const char **endptr);
 
-  // return character width of the specified UTF-8 sequence, 0 (invalid character), 1 (single width) or 2 (double width)
+  // return character width of the specified UTF-8 sequence, 0 (invalid or non-spacing character), 1 (single width) or 2 (double width)
   static int mbchar_width(const char *ptr, const char **endptr)
   {
     return wchar_width(wchar(ptr, endptr));
@@ -228,16 +228,24 @@ class Screen {
   // return pointer to string after pos screen columns
   static const char *mbstring_pos(const char *ptr, int pos)
   {
-    while (--pos >= 0 && *ptr != '\0')
-      wchar(ptr, &ptr);
+    while (pos > 0 && *ptr != '\0')
+      if (wchar(ptr, &ptr) > 0)
+        --pos;
+    const char *skp = ptr;
+    while (*skp != '\0' && wchar(skp, &skp) == 0)
+      ptr = skp;
     return ptr;
   }
 
   // return pointer to string after pos screen columns
   static char *mbstring_pos(char *ptr, int pos)
   {
-    while (--pos >= 0 && *ptr != '\0')
-      wchar(ptr, const_cast<const char**>(&ptr));
+    while (pos > 0 && *ptr != '\0')
+      if (wchar(ptr, const_cast<const char**>(&ptr)) > 0)
+        --pos;
+    char *skp = ptr;
+    while (*skp != '\0' && wchar(skp, const_cast<const char**>(&skp)) == 0)
+      ptr = skp;
     return ptr;
   }
 

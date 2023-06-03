@@ -404,7 +404,6 @@ const char *flag_config            = NULL;
 const char *flag_devices           = NULL;
 const char *flag_directories       = NULL;
 const char *flag_encoding          = NULL;
-const char *flag_filter            = NULL;
 const char *flag_format            = NULL;
 const char *flag_format_begin      = NULL;
 const char *flag_format_close      = NULL;
@@ -426,6 +425,7 @@ const char *flag_stats             = NULL;
 const char *flag_tag               = NULL;
 const char *flag_view              = "";
 std::string              flag_config_file;
+std::string              flag_filter;
 std::string              flag_hyperlink_prefix;
 std::string              flag_hyperlink_path;
 std::set<std::string>    flag_config_options;
@@ -2165,7 +2165,7 @@ struct Grep {
 
         rest_line_data = NULL;
       }
-
+      
       // context colors with or without -v
       short v_hex_context_line = flag_invert_match ? Output::Dump::HEX_LINE : Output::Dump::HEX_CONTEXT_LINE;
       const char *v_color_cx = flag_invert_match ? color_sl : color_cx;
@@ -3103,7 +3103,7 @@ struct Grep {
 #ifndef OS_WIN
 
     // --filter
-    if (flag_filter != NULL && in != NULL)
+    if (!flag_filter.empty() && in != NULL)
     {
       const char *basename = strrchr(pathname, PATHSEPCHR);
       if (basename == NULL)
@@ -3164,7 +3164,7 @@ struct Grep {
 
       size_t sep = strlen(suffix);
 
-      const char *command = flag_filter;
+      const char *command = flag_filter.c_str();
       const char *default_command = NULL;
 
       // find the command corresponding to the suffix
@@ -3290,7 +3290,7 @@ struct Grep {
             fclose(in);
           in = NULL;
 
-          warning("--filter: cannot create pipe", flag_filter);
+          warning("--filter: cannot create pipe", flag_filter.c_str());
 
           return false;
         }
@@ -4330,9 +4330,9 @@ static void save_config()
       fprintf(file, "ignore-files=%s\n", ignore.c_str());
     fprintf(file, "\n");
   }
-  if (flag_filter != NULL)
+  if (!flag_filter.empty())
   {
-    fprintf(file, "# Filtering\nfilter=%s\n\n", flag_filter);
+    fprintf(file, "# Filter search with file format conversion tools\nfilter=%s\n\n", flag_filter.c_str());
     if (!flag_filter_magic_label.empty())
     {
       fprintf(file, "# Filter by file signature magic bytes\n");
@@ -4536,7 +4536,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "fixed-strings") == 0)
                   flag_fixed_strings = true;
                 else if (strncmp(arg, "filter=", 7) == 0)
-                  flag_filter = arg + 7;
+                  flag_filter.append(flag_filter.empty() ? "" : ",").append(arg + 7);
                 else if (strncmp(arg, "filter-magic-label=", 19) == 0)
                   flag_filter_magic_label.emplace_back(arg + 19);
                 else if (strncmp(arg, "format=", 7) == 0)
@@ -4733,6 +4733,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_empty = false;
                 else if (strcmp(arg, "no-filename") == 0)
                   flag_no_filename = true;
+                else if (strcmp(arg, "no-filter") == 0)
+                  flag_filter.clear();
                 else if (strcmp(arg, "no-group-separator") == 0)
                   flag_group_separator = NULL;
                 else if (strcmp(arg, "no-heading") == 0)
@@ -4782,7 +4784,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-filter, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -6956,7 +6958,7 @@ void ugrep()
         else if (!flag_quiet && !flag_files_with_matches && !flag_files_without_match)
         {
           if (flag_hex)
-            regex = ".*\\n?";
+            regex = ".*\\n?"; // include trailing \n of a line when outputting hex
           else
             regex = "^.*"; // use ^.* to prevent -o from reporting an extra empty match
         }
@@ -7175,13 +7177,17 @@ void ugrep()
     }
   }
 
-  // -y: disable -A, -B and -C
-  if (flag_any_line)
-    flag_after_context = flag_before_context = 0;
-
   // -v or -y: disable -o and -u
   if (flag_invert_match || flag_any_line)
     flag_only_matching = flag_ungroup = false;
+
+  // --match: when matching everything disable -A, -B and -C unless -o
+  if (flag_match && !flag_only_matching)
+    flag_after_context = flag_before_context = 0;
+
+  // -y: disable -A, -B and -C
+  if (flag_any_line)
+    flag_after_context = flag_before_context = 0;
 
   // --depth: if -R or -r is not specified then enable -r
   if ((flag_min_depth > 0 || flag_max_depth > 0) && flag_directories_action == Action::UNSP)
@@ -12006,15 +12012,16 @@ void help(std::ostream& out)
             Filter files through the specified COMMANDS first before searching.\n\
             COMMANDS is a comma-separated list of `exts:command [option ...]',\n\
             where `exts' is a comma-separated list of filename extensions and\n\
-            `command' is a filter utility.  The filter utility should read from\n\
-            standard input and write to standard output.  Files matching one of\n\
-            `exts' are filtered.  When `exts' is `*', files with non-matching\n\
-            extensions are filtered.  One or more `option' separated by spacing\n\
-            may be specified, which are passed verbatim to the command.  A `%'\n\
-            as `option' expands into the pathname to search.  For example,\n\
-            --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands\n\
-            into a `-' when searching standard input.  Option --label=.ext may\n\
-            be used to specify extension `ext' when searching standard input.\n\
+            `command' is a filter utility.  Files matching one of `exts' are\n\
+            filtered.  When `exts' is a `*', all files are filtered.  One or\n\
+            more `option' separated by spacing may be specified, which are\n\
+            passed verbatim to the command.  A `%' as `option' expands into the\n\
+            pathname to search.  For example, --filter='pdf:pdftotext % -'\n\
+            searches PDF files.  The `%' expands into a `-' when searching\n\
+            standard input.  When a `%' is not specified, a filter utility\n\
+            should read from standard input and write to standard output.\n\
+            Option --label=.ext may be used to specify extension `ext' when\n\
+            searching standard input.  This option may be repeated.\n\
     --filter-magic-label=[+]LABEL:MAGIC\n\
             Associate LABEL with files whose signature \"magic bytes\" match the\n\
             MAGIC regex pattern.  Only files that have no filename extension\n\

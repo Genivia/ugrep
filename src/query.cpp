@@ -47,7 +47,7 @@
 
 #include <direct.h>
 
-// non-blocking pipe (Windows named pipe)
+// create a non-blocking pipe (Windows named pipe)
 inline HANDLE nonblocking_pipe(int fd[2])
 {
   DWORD pid = GetCurrentProcessId();
@@ -91,6 +91,7 @@ inline int nonblocking_pipe(int fd[2])
   return -1;
 }
 
+// make a pipe block
 inline void set_blocking(int fd0)
 {
   fcntl(fd0, F_SETFL, fcntl(fd0, F_GETFL) & ~O_NONBLOCK);
@@ -103,7 +104,7 @@ static constexpr const char *CERROR = "\033[37;41;1m"; // bright white on red
 static constexpr const char *LARROW = "«";             // left arrow
 static constexpr const char *RARROW = "»";             // right arrow
 
-// return pointer to character at screen col, taking UTF-8 double wide characters into account
+// return pointer to character in the query search line at screen col, taking UTF-8 double wide characters into account
 char *Query::line_ptr(int col)
 {
   char *ptr = line_;
@@ -117,13 +118,13 @@ char *Query::line_ptr(int col)
   return ptr;
 }
 
-// return pointer to the character at pos distance after the screen col
+// return pointer to the character in the query search line at pos distance after the screen col
 char *Query::line_ptr(int col, int pos)
 {
   return Screen::mbstring_pos(line_ptr(col), pos);
 }
 
-// return pointer to the end of the line
+// return pointer to the end of the query search line
 char *Query::line_end()
 {
   char *ptr = line_;
@@ -132,7 +133,7 @@ char *Query::line_end()
   return ptr;
 }
 
-// return number of character positions on the line up to the current screen Query::col_, taking UTF-8 double wide characters into account
+// return number of character positions on the query search line up to the current screen Query::col_, taking UTF-8 double wide characters into account
 int Query::line_pos()
 {
   char *ptr = line_;
@@ -146,13 +147,13 @@ int Query::line_pos()
   return pos;
 }
 
-// return the length of the line as a number of screen columns displayed
+// return the length of the query search line as a number of screen columns displayed
 int Query::line_len()
 {
   return Screen::mbstring_width(line_);
 }
 
-// return the length of the line as the number of wide characters
+// return the length of the query search line as the number of wide characters
 int Query::line_wsize()
 {
   int num = 0;
@@ -165,7 +166,7 @@ int Query::line_wsize()
   return num;
 }
 
-// draw a textual part of the query search line
+// draw a textual part of the query search line, this function is called by draw()
 void Query::display(int col, int len)
 {
   char *ptr = line_ptr(col);
@@ -227,6 +228,7 @@ void Query::draw()
     if (select_ == -1)
     {
       start_ = 0;
+
       Screen::home();
 
       if (row_ > 0)
@@ -516,15 +518,20 @@ void Query::redraw()
       row_ = select_ - Screen::rows + 3;
     else if (select_ >= 0 && select_ < row_)
       row_ = select_ - 1;
+
     if (row_ >= rows_)
       row_ = rows_ - 1;
     if (row_ < 0)
       row_ = 0;
+
     int end = rows_;
+
     if (end > row_ + Screen::rows - 1)
       end = row_ + Screen::rows - 1;
+
     for (int i = row_; i < end; ++i)
       disp(i);
+
     if (!message_)
       draw();
   }
@@ -567,7 +574,7 @@ void Query::sigint(int sig)
 
 #endif
 
-// move the cursor to a column
+// move the cursor to a column in the query search line
 void Query::move(int col)
 {
   int dir = 0;
@@ -583,16 +590,11 @@ void Query::move(int col)
     col += dir; // direction is -1 or 1 to jump at or after full width char
   col_ = col;
   if (len_ >= Screen::cols - start_ && col >= Screen::cols - start_ - shift_)
-  {
     draw();
-  }
+  else if (offset_ > 0)
+    draw();
   else
-  {
-    if (offset_ > 0)
-      draw();
-    else
-      Screen::setpos(0, start_ + col_ - offset_);
-  }
+    Screen::setpos(0, start_ + col_ - offset_);
 }
 
 // insert text to line at cursor
@@ -634,9 +636,13 @@ void Query::erase(int num)
 {
   char *ptr = line_ptr(col_);
   char *next = line_ptr(col_, num);
+  char *skip = next;
+  while (*skip != '\0' && Screen::mbchar_width(next, const_cast<const char**>(&skip)) == 0)
+    next = skip;
   if (next > ptr)
   {
-    memmove(ptr, next, line_end() - next + 1);
+    const char *end = line_end();
+    memmove(ptr, next, end - next + 1);
     updated_ = true;
     error_ = -1;
     len_ = line_len();
@@ -1171,7 +1177,7 @@ void Query::query_ui()
             Screen::alert();
           break;
 
-        case VKey::CTRL_R: // CTRL-R: jump to bookmark
+        case VKey::CTRL_R: // CTRL-R: restore bookmarked state
         case VKey::FN(4):
           if (mark_.row >= 0)
           {
@@ -1854,7 +1860,7 @@ void Query::pgdn(bool half_page)
   }
 }
 
-// scroll back one file
+// move back up one file
 void Query::back()
 {
   if (rows_ <= 0)
@@ -1914,7 +1920,7 @@ void Query::back()
   redraw();
 }
 
-// scroll to next file
+// move down to the next file
 void Query::next()
 {
   // if output is not suitable to scroll by filename, then PGDN

@@ -363,7 +363,7 @@ class Pattern {
     }
     return true;
   }
-  /// Returns zero when match is predicted or nonzero shift value, based on s[0..3].
+  /// Returns zero when match is predicted (removed shift distance return code)
   static inline size_t predict_match(const Pred pma[], const char *s)
   {
     uint8_t b0 = s[0];
@@ -379,15 +379,7 @@ class Pattern {
     Pred a3 = pma[h3];
     Pred p = (a0 & 0xc0) | (a1 & 0x30) | (a2 & 0x0c) | (a3 & 0x03);
     Pred m = ((((((p >> 2) | p) >> 2) | p) >> 1) | p);
-    if (m != 0xff)
-      return 0;
-    if ((pma[b1] & 0xc0) != 0xc0)
-      return 1;
-    if ((pma[b2] & 0xc0) != 0xc0)
-      return 2;
-    if ((pma[b3] & 0xc0) != 0xc0)
-      return 3;
-    return 4;
+    return m == 0xff;
   }
  protected:
   /// Throw an error.
@@ -1109,6 +1101,7 @@ class Pattern {
   float                 vms_; ///< ms elapsed time to compile DFA vertices
   float                 ems_; ///< ms elapsed time to compile DFA edges
   float                 wms_; ///< ms elapsed time to assemble code words
+  size_t                npy_; ///< entropy derived from bitap array
   bool                  one_; ///< true if matching one string in pre_[] without meta/anchors
 };
 

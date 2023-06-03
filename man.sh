@@ -34,6 +34,10 @@ configuration file located in the working directory or home directory, see
 CONFIGURATION.  \fBug\fR is equivalent to \fBugrep --config\fR and sorts files
 by name by default.
 .PP
+The \fBugrep+\fR and \fBug+\fR commands are the same as the \fBugrep\fR and
+\fBug\fR commands, but also use filters to search pdfs, documents, e-books,
+and image metadata, when the corresponding filter tools are installed.
+.PP
 \fBugrep\fR accepts input of various encoding formats and normalizes the output
 to UTF-8.  When a UTF byte order mark is present in the input, the input is
 automatically normalized; otherwise, \fBugrep\fR assumes the input is ASCII,

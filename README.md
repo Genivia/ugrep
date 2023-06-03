@@ -1,14 +1,22 @@
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
-**ugrep v3.11 is now available: more features & even faster than before**
+Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.
 
-Search for anything in everything... ultra fast
+Installing the ugrep tools adds the following powerful commands:
 
-*New option -Q opens a query TUI to search files as you type!*
+**ug** use this for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
+
+**ug+** for interactive use, also searches pdfs, documents, e-books, image metadata
+
+**ugrep** use this command for batch use
+
+**ugrep+** for batch use, also searches pdfs, documents, e-books, image metadata
+
+*Option -Q opens a query TUI to search files as you type!*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-- Ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.
+**Ugrep is ultra fast with new match algorithms and features beating grep, ripgrep, silver searcher, ack, sift, etc.**
 
 - Written in clean and efficient C++11 for advanced features and speed, thoroughly tested
 
@@ -22,25 +30,25 @@ Search for anything in everything... ultra fast
 
 - Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you are looking for
 
-  > 💡**ProTip** try `--help help`, `--help regex` and `--help globs`.
+  💡**ProTip** try `--help help`, `--help regex` and `--help globs`.
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command intended for interactive use that loads a .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-  > 💡**ProTip** `ug --save-config ...options...` saves a .ugrep config file in the working directory.
+  💡**ProTip** `ug --save-config ...options...` saves a .ugrep config file in the working directory.
 
 - Interactive [query TUI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
       ug -Q                                  ug -Q -e PATTERN    
 
-  > 💡**ProTip** `-Q` replaces `PATTERN` on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
+  💡**ProTip** `-Q` replaces `PATTERN` on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
       ug -Z PATTERN ...                      ug -Z3 PATTTERN ...
 
-  > 💡**ProTip** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
+  💡**ProTip** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
 
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
@@ -52,29 +60,32 @@ Search for anything in everything... ultra fast
 
   where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
-  > 💡**ProTip** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
+  💡**ProTip** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
 
       ug -Q1 --files --bool -l -w -Z+4 --sort=best
 
-  > 💡**ProTip** `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
+  💡**ProTip** `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
       ug -z PATTERN ...                      ug -z --zmax=2 PATTERN ...
 
-  > 💡**ProTip** specify `-z --zmax=2` to search compressed files and archives nested within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps, far more than you will ever need!  Larger `--zmax` slows searching.
+  💡**ProTip** specify `-z --zmax=2` to search compressed files and archives nested within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps, far more than you will ever need!  Larger `--zmax` slows searching.
 
-- Search pdf, doc, docx, xls, xlxs, and more [using filters](#filter)
+- Search pdf, doc, docx, e-book, and more with `ug+` [using filters](#filter) associated with filename extensions:
 
+      ug+ PATTERN ...
       ug --filter='pdf:pdftotext % -' PATTERN ...
+      ug --filter='doc:antiword %' PATTERN ...
+      ug --filter='odt,docx,epub,rtf:pandoc --wrap=preserve -t markdown % -o -' PATTERN ...
       ug --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
       ug --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
       ug --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
       ug --filter='7z:7z x -so -si' PATTERN ...
 
-  > 💡**ProTip** filters are selected based on the specified list of filename extensions.  Filters can be any commands (including your own scripts and executables) that take standard input to produce standard output.
+  💡**ProTip** the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata, when the [`pdftotext`](https://pypi.org/project/pdftotext), [`antiword`](https://github.com/rsdoiel/antiword), [`pandoc`](https://pandoc.org), and [`exiftool`](https://exiftool.sourceforge.net) are installed (optionally, not used when not installed).
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or `-U` for byte patterns)
 
@@ -82,7 +93,7 @@ Search for anything in everything... ultra fast
       ug -X -U BYTEPATTERN ...               ug -X TEXTPATTERN ...
       ug -W -U BYTEPATTERN ...               ug -W TEXTPATTERN ...
 
-  > 💡**ProTip** `--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.  Option `-X` is the same as `--hexdump=2C` with `2` columns of hex and the whole matching line as `C` context in hex.
+  💡**ProTip** `--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.  Option `-X` is the same as `--hexdump=2C` with `2` columns of hex and the whole matching line as `C` context in hex.
 
 - Include files to search by [filename extensions](#magic) or exclude them with `^`
 
@@ -129,7 +140,7 @@ Search for anything in everything... ultra fast
       ug --csv PATTERN ...                   ug --json PATTERN ...
       ug --xml PATTERN ...                   ug --format='file=%f line=%n match=%O%~' PATTERN ...
 
-  > 💡**ProTip** `ug --help format` displays help on format `%` fields.
+  💡**ProTip** `ug --help format` displays help on format `%` fields.
 
 - Search with PCRE's Perl-compatible regex patterns and display or replace [subpattern matches](#replace)
 
@@ -141,7 +152,7 @@ Search for anything in everything... ultra fast
       ug --replace='(%m:%o)' PATTERN ...     ug -y --replace='(%m:%o)' PATTERN ...
       ug -P --replace='%1' PATTERN ...       ug -y -P --replace='%1' PATTERN ...
 
-  > 💡**ProTip** `ug --help format` displays help on format `%` fields to optionally use with `--replace`.
+  💡**ProTip** `ug --help format` displays help on format `%` fields to optionally use with `--replace`.
 
 - Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
@@ -210,7 +221,7 @@ Download and install
 
 ### Homebrew for MacOS (and Linux)
 
-Install the latest **ugrep** with [Homebrew](https://brew.sh):
+Install the latest ugrep commands with [Homebrew](https://brew.sh):
 
     $ brew install ugrep
 
@@ -443,7 +454,7 @@ significant runtime overhead and should not be used for the final build.
 
 🔝 [Back to table of contents](#toc)
 
-<a name="speed">
+<a name="speed"/>
 
 Performance comparisons
 -----------------------
@@ -2388,7 +2399,7 @@ custom format using `%m`, where `%Z` is the *average* cost per match:
 
 🔝 [Back to table of contents](#toc)
 
-<a name="hidden">
+<a name="hidden"/>
 
 ### Search hidden files with -.
 
@@ -2410,15 +2421,16 @@ directories, for the word `login` in shell scripts:
             Filter files through the specified COMMANDS first before searching.
             COMMANDS is a comma-separated list of `exts:command [option ...]',
             where `exts' is a comma-separated list of filename extensions and
-            `command' is a filter utility.  The filter utility should read from
-            standard input and write to standard output.  Files matching one of
-            `exts' are filtered.  When `exts' is `*', files with non-matching
-            extensions are filtered.  One or more `option' separated by spacing
-            may be specified, which are passed verbatim to the command.  A `%'
-            as `option' expands into the pathname to search.  For example,
-            --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands
-            into a `-' when searching standard input.  Option --label=.ext may
-            be used to specify extension `ext' when searching standard input.
+            `command' is a filter utility.  Files matching one of `exts' are
+            filtered.  When `exts' is a `*', all files are filtered.  One or
+            more `option' separated by spacing may be specified, which are
+            passed verbatim to the command.  A `%' as `option' expands into the
+            pathname to search.  For example, --filter='pdf:pdftotext % -'
+            searches PDF files.  The `%' expands into a `-' when searching
+            standard input.  When a `%' is not specified, a filter utility
+            should read from standard input and write to standard output.
+            Option --label=.ext may be used to specify extension `ext' when
+            searching standard input.  This option may be repeated.
     --filter-magic-label=LABEL:MAGIC
             Associate LABEL with files whose signature "magic bytes" match the
             MAGIC regex pattern.  Only files that have no filename extension
@@ -2439,17 +2451,22 @@ options for the utility are invalid, the search is silently skipped.
 
 Common filter utilities are `cat` (concat, pass through), `head` (select first
 lines or bytes) `tr` (translate), `iconv` and `uconv` (convert), and more
-advanced utilities such as:
+advanced utilities, such as:
 
-- [`pdftotext`](https://pypi.org/project/pdftotext) to convert PDF to text
+- [`pdftotext`](https://pypi.org/project/pdftotext) to convert pdf to text
+- [`antiword`](https://github.com/rsdoiel/antiword) to convert doc to text
 - [`pandoc`](https://pandoc.org) to convert .docx, .epub, and other document
   formats
+- [`exiftool`](https://exiftool.sourceforge.net) to read meta information
+  embedded in image and video media formats.
 - [`soffice`](https://www.libreoffice.org) to convert office documents
 - [`csvkit`](https://pypi.org/project/csvkit) to convert spreadsheets
 - [`openssl`](https://wiki.openssl.org/index.php/Command_Line_Utilities) to
   convert certificates and key files to text and other formats
-- [`exiftool`](http://exiftool.sourceforge.net) to read meta information
-  embedded in image and video media formats.
+
+The `ugrep+` and `ug+` commands use the `pdftotext`, `antiword`, `pandoc` and
+`exiftool` filters, when installed, to search pdfs, documents, e-books, and
+image metadata.
 
 Also decompressors may be used as filter utilities, such as `unzip`, `gunzip`,
 `bunzip2`, `unlzma`, `unxz`, `lzop` and `7z` that decompress files to standard
@@ -2459,11 +2476,11 @@ output when option `--stdout` is specified.  For example:
     ug --filter='gz:gunzip -d --stdout -' ...
     ug --filter='7z:7z x -so %' ...
 
-The `--filter='lzo:lzop -d --stdout -' option decompresses files with extension
-`lzo` to standard output with `--stdout` with the compressed stream being read
-from standard input with `-`.  The `--filter='7z:7z x -so -si` option
-decompresses files with extension `7z` to standard output `-so` while reading
-standard input `-si` with the compressed file contents.
+The `--filter='lzo:lzop -d --stdout -'` option decompresses files with
+extension `lzo` to standard output with `--stdout` with the compressed stream
+being read from standard input with `-`.  The `--filter='7z:7z x -so -si`
+option decompresses files with extension `7z` to standard output `-so` while
+reading standard input `-si` with the compressed file contents.
 
 Note that **ugrep** option `-z` is typically faster to search compressed files
 compared to `--filter`.
@@ -2531,7 +2548,7 @@ including .odt, .doc, .docx, .rtf, .xls, .xlsx, .ppt, .pptx documents using the
 **Important:** the `soffice` utility will not output any text when one or more
 LibreOffice GUIs are open.  Make sure to quit all LibreOffice apps first.  This
 looks like a bug, but the LibreOffice developers do not appear to fix this
-any time soon (unless perhaps more people complain.)
+any time soon (unless perhaps more people complain?)
 
 To recursively search and display rows of .csv, .xls, and .xlsx spreadsheets
 that contain `10/6` using the `in2csv` filter of csvkit:
@@ -2667,7 +2684,7 @@ recursively below (see for example
 
 🔝 [Back to table of contents](#toc)
 
-<a name="nobinary">
+<a name="nobinary"/>
 
 ### Ignore binary files with -I
 
@@ -3877,6 +3894,10 @@ in markdown:
            see CONFIGURATION.  ug is equivalent to ugrep --config and sorts files by
            name by default.
 
+           The ugrep+ and ug+ commands are the same as the ugrep and ug commands,
+           but also use filters to search pdfs, documents, e-books, and image
+           metadata, when the corresponding filter tools are installed.
+
            ugrep accepts input of various encoding formats and normalizes the output
            to UTF-8.  When a UTF byte order mark is present in the input, the input
            is automatically normalized; otherwise, ugrep assumes the input is ASCII,
@@ -4157,16 +4178,17 @@ in markdown:
                   Filter files through the specified COMMANDS first before
                   searching.  COMMANDS is a comma-separated list of `exts:command
                   [option ...]', where `exts' is a comma-separated list of filename
-                  extensions and `command' is a filter utility.  The filter utility
-                  should read from standard input and write to standard output.
-                  Files matching one of `exts' are filtered.  When `exts' is `*',
-                  files with non-matching extensions are filtered.  One or more
-                  `option' separated by spacing may be specified, which are passed
-                  verbatim to the command.  A `%' as `option' expands into the
-                  pathname to search.  For example, --filter='pdf:pdftotext % -'
-                  searches PDF files.  The `%' expands into a `-' when searching
-                  standard input.  Option --label=.ext may be used to specify
-                  extension `ext' when searching standard input.
+                  extensions and `command' is a filter utility.  Files matching one
+                  of `exts' are filtered.  When `exts' is a `*', all files are
+                  filtered.  One or more `option' separated by spacing may be
+                  specified, which are passed verbatim to the command.  A `%' as
+                  `option' expands into the pathname to search.  For example,
+                  --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands
+                  into a `-' when searching standard input.  When a `%' is not
+                  specified, a filter utility should read from standard input and
+                  write to standard output.  Option --label=.ext may be used to
+                  specify extension `ext' when searching standard input.  This
+                  option may be repeated.
 
            --filter-magic-label=[+]LABEL:MAGIC
                   Associate LABEL with files whose signature "magic bytes" match the
@@ -5263,7 +5285,7 @@ in markdown:
 
 
 
-    ugrep 3.11.2                      April 7, 2023                         UGREP(1)
+    ugrep 3.12.0                      June 3, 2023                          UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

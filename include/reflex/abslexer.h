@@ -130,7 +130,7 @@ class AbstractLexer {
   {
     in_ = input;
     if (has_matcher())
-      matcher().input(input); // reset and assign new input
+      matcher().input(in_); // reset and assign new input
     return *this;
   }
   /// Reset the matcher and start scanning from the given byte sequence.
@@ -346,7 +346,7 @@ class AbstractLexer {
   {
     return matcher().columno();
   }
-#if defined(WITH_SPAN)
+#if WITH_SPAN
   /// Returns the number of bytes from the begin of line of the match.
   inline size_t border() const
     /// @returns border offset

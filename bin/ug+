@@ -1,0 +1,2 @@
+#!/bin/bash
+ug --filter='pdf:pdftotext % -,doc:antiword %,odt,docx,epub,rtf:pandoc --wrap=preserve -t markdown % -o -,gif,jpg,jpeg,mpg,mpeg,png,tiff:exiftool %' "$@"

@@ -1,4 +1,4 @@
-.TH UGREP "1" "April 07, 2023" "ugrep 3.11.2" "User Commands"
+.TH UGREP "1" "June 03, 2023" "ugrep 3.12.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -18,6 +18,10 @@ The \fBug\fR command is intended for interactive searching, using a .ugrep
 configuration file located in the working directory or home directory, see
 CONFIGURATION.  \fBug\fR is equivalent to \fBugrep --config\fR and sorts files
 by name by default.
+.PP
+The \fBugrep+\fR and \fBug+\fR commands are the same as the \fBugrep\fR and
+\fBug\fR commands, but also use filters to search pdfs, documents, e-books,
+and image metadata, when the corresponding filter tools are installed.
 .PP
 \fBugrep\fR accepts input of various encoding formats and normalizes the output
 to UTF-8.  When a UTF byte order mark is present in the input, the input is
@@ -292,15 +296,16 @@ patterns; thus nothing is matched.  This option may be repeated.
 Filter files through the specified COMMANDS first before searching.
 COMMANDS is a comma\-separated list of `exts:command [option ...]',
 where `exts' is a comma\-separated list of filename extensions and
-`command' is a filter utility.  The filter utility should read from
-standard input and write to standard output.  Files matching one of
-`exts' are filtered.  When `exts' is `*', files with non\-matching
-extensions are filtered.  One or more `option' separated by spacing
-may be specified, which are passed verbatim to the command.  A `%'
-as `option' expands into the pathname to search.  For example,
-\fB\-\-filter\fR='pdf:pdftotext % \-' searches PDF files.  The `%' expands
-into a `\-' when searching standard input.  Option \fB\-\-label\fR=.ext may
-be used to specify extension `ext' when searching standard input.
+`command' is a filter utility.  Files matching one of `exts' are
+filtered.  When `exts' is a `*', all files are filtered.  One or
+more `option' separated by spacing may be specified, which are
+passed verbatim to the command.  A `%' as `option' expands into the
+pathname to search.  For example, \fB\-\-filter\fR='pdf:pdftotext % \-'
+searches PDF files.  The `%' expands into a `\-' when searching
+standard input.  When a `%' is not specified, a filter utility
+should read from standard input and write to standard output.
+Option \fB\-\-label\fR=.ext may be used to specify extension `ext' when
+searching standard input.  This option may be repeated.
 .TP
 \fB\-\-filter\-magic\-label\fR=[+]LABEL:MAGIC
 Associate LABEL with files whose signature "magic bytes" match the

@@ -30,7 +30,7 @@
 @file      screen.cpp
 @brief     ANSI SGR code controlled screen API - static, not thread safe
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -46,7 +46,7 @@
 // max collective length of ANSI CSI escape sequences collected when skipping lead text with skip>0
 #define SCREEN_MAX_CODELEN 256
 
-// enable to interpret backspace (CTRL-H), not recommended because search results may not match what is shown
+// enable to perform backspace (CTRL-H), not recommended because search results may not match what is shown
 // #define WITH_BACKSPACE
 
 // emit ANSI SGR CSI sequence with one numeric parameter
@@ -341,7 +341,7 @@ void Screen::cleanup()
 #endif
 }
 
-// return character width, 0 (invalid character), 1 (single width) or 2 (double width)
+// return character width, 0 (non-spacing or invalid character), 1 (single width) or 2 (double width)
 int Screen::wchar_width(uint32_t wc)
 {
   /* based on https://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c with full table
@@ -421,7 +421,7 @@ int Screen::wchar_width(uint32_t wc)
         (wc >= 0x30000 && wc <= 0x3fffd)))));
 }
 
-// return UCS-4 code of the specified UTF-8 sequence, or 0 for invalid UTF-8
+// return UCS-4 code of the specified UTF-8 sequence, or 0 for invalid UTF-8, set endptr after the sequence
 uint32_t Screen::wchar(const char *ptr, const char **endptr)
 {
   uint32_t c1, c2, c3, c4;
