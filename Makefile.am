@@ -19,7 +19,6 @@ cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		  cd $(top_builddir)/bin; \
 		  rm -f ug$(EXEEXT); \
 		  cp -f ugrep$(EXEEXT) ug$(EXEEXT)
-		@./add-filters.sh
 		@echo
 		@echo "OK"
 		@echo

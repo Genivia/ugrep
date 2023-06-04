@@ -1381,7 +1381,7 @@ struct Zthread {
           int header_len = is_odc ? 76 : 110;
 
           char tmp[16];
-          char *rest;
+          char *rest = NULL;
 
           // get the namesize
           size_t namesize;

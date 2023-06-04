@@ -1,2 +1,15 @@
 #!/bin/bash
-ug --filter='pdf:pdftotext % -,doc:antiword %,odt,docx,epub,rtf:pandoc --wrap=preserve -t markdown % -o -,gif,jpg,jpeg,mpg,mpeg,png,tiff:exiftool %' "$@"
+filters=
+if [ -x "$(command -v pdftotext)" ] && pdftotext --help 2>&1 | ugrep -qw Poppler ; then
+  filters="${filters}${filters:+,}pdf:pdftotext % -"
+fi
+if [ -x "$(command -v antiword)" ] && antiword 2>&1 | ugrep -qw Adri ; then
+  filters="${filters}${filters:+,}doc:antiword %"
+fi
+if [ -x "$(command -v pandoc)" ] && pandoc --version 2>&1 | ugrep -qw pandoc.org ; then
+  filters="${filters}${filters:+,}odt,docx,epub,rtf:pandoc --wrap=preserve -t markdown % -o -"
+fi
+if [ -x "$(command -v exiftool)" ] ; then
+  filters="${filters}${filters:+,}gif,jpg,jpeg,mpg,mpeg,png,tiff:exiftool %"
+fi
+ug --filter="${filters}" "$@"

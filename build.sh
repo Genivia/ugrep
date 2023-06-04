@@ -56,6 +56,42 @@ echo "https://github.com/Genivia/ugrep/issues"
 exit 1
 fi
 
+echo "Checking whether ug+ and ugrep+ search pdfs, documents, image metadata:"
+if [ -x "$(command -v pdftotext)" ] && pdftotext --help 2>&1 | src/ugrep -qw Poppler ; then
+  echo "pdf: yes"
+else
+  echo "pdf: no, requires pdftotext"
+fi
+if [ -x "$(command -v antiword)" ] && antiword 2>&1 | src/ugrep -qw Adri ; then
+  echo "doc: yes"
+else
+  echo "doc: no, requires antiword"
+fi
+if [ -x "$(command -v pandoc)" ] && pandoc --version 2>&1 | src/ugrep -qw pandoc.org ; then
+  echo "docx: yes"
+  echo "epub: yes"
+  echo "odt: yes"
+  echo "rtf: yes"
+else
+  echo "docx: no, requires pandoc"
+  echo "epub: no, requires pandoc"
+  echo "odt: no, requires pandoc"
+  echo "rtf: no, requires pandoc"
+fi
+if [ -x "$(command -v exiftool)" ] ; then
+  echo "gif: yes"
+  echo "jpg: yes"
+  echo "mpg: yes"
+  echo "png: yes"
+  echo "tiff: yes"
+else
+  echo "gif: no, requires exiftool"
+  echo "jpg: no, requires exiftool"
+  echo "mpg: no, requires exiftool"
+  echo "png: no, requires exiftool"
+  echo "tiff: no, requires exiftool"
+fi
+
 echo
 echo "ugrep was successfully built in $(pwd)/bin and tested:"
 ls -l bin/ug bin/ug+ bin/ugrep bin/ugrep+
@@ -65,4 +101,3 @@ echo
 echo "Or install the ugrep tools on your system by executing:"
 echo "sudo make install"
 echo
-
