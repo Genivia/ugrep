@@ -13,7 +13,6 @@ if [ -x "$(command -v antiword)" ] && antiword 2>&1 | src/ugrep -qw Adri ; then
   filters="${filters}${filters:+,}doc:antiword %"
   echo "doc: yes"
 else
-  filters="${filters}${filters:+,}odt,docx,epub,rtf:pandoc --wrap=preserve -t markdown % -o -"
   echo "doc: no, requires antiword"
 fi
 if [ -x "$(command -v pandoc)" ] && pandoc --version 2>&1 | src/ugrep -qw pandoc.org  ; then
