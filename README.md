@@ -30,7 +30,7 @@ The ugrep tools include the following powerful commands:
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-  💡**ProTip** `ug --save-config ...options...` saves a .ugrep config file in the working directory.
+  💡**ProTip** `ug --save-config ...options-you-want-to-save...` saves a .ugrep config file in the working directory.
 
 - Interactive [query TUI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
@@ -73,7 +73,7 @@ The ugrep tools include the following powerful commands:
       ug+ PATTERN ...
       ug --filter='pdf:pdftotext % -' PATTERN ...
       ug --filter='doc:antiword %' PATTERN ...
-      ug --filter='odt,docx,epub,rtf:pandoc --wrap=preserve -t markdown % -o -' PATTERN ...
+      ug --filter='odt,docx,epub,rtf:pandoc --wrap=preserve -t plain % -o -' PATTERN ...
       ug --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
       ug --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
       ug --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
@@ -784,15 +784,6 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
     alias zxgrep = 'ugrep -zW'   # search (ERE) compressed files/archives and output text or hex for binary
 
     alias xdump  = 'ugrep -X ""' # hexdump files without searching
-
-To search PDF and office documents automatically, add a filter option to the
-aliased `ugrep` command:
-
-    --filter="pdf:pdftotext % -,odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %"
-
-This requires the utilities [`pdftotext`](https://pypi.org/project/pdftotext)
-and [`soffice`](https://www.libreoffice.org) to be installed.  See
-[Using filter utilities to search documents with --filter](#filter).
 
 🔝 [Back to table of contents](#toc)
 
@@ -2063,8 +2054,8 @@ comments:
 
     -z, --decompress
             Decompress files to search, when compressed.  Archives (.cpio,
-            .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,
-            .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
+            .pax, .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz,
+            .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
             matching pathnames of files in archives are output in braces.  If
             -g, -O, -M, or -t is specified, searches files stored in archives
             whose filenames match globs, match filename extensions, match file
@@ -2443,6 +2434,10 @@ When a specified utility is not found on the system, an error message is
 displayed.  When a utility fails to produce output, e.g. when the specified
 options for the utility are invalid, the search is silently skipped.
 
+Filtering does not apply to files stored in archives and compressed files.  A
+filter is usually applied to a file that is physically stored in the file
+system.  Archived files are not physically stored.
+
 Common filter utilities are `cat` (concat, pass through), `head` (select first
 lines or bytes) `tr` (translate), `iconv` and `uconv` (convert), and more
 advanced utilities, such as:
@@ -2526,7 +2521,7 @@ To search the first 8K of a text file:
 To recursively search and list the files that contain the word `Alice`,
 including .docx and .epub documents using the `pandoc` filter:
 
-    ug -rl -w --filter='docx,epub:pandoc --wrap=preserve -t markdown % -o -' 'Alice'
+    ug -rl -w --filter='docx,epub:pandoc --wrap=preserve -t plain % -o -' 'Alice'
 
 **Important:** the `pandoc` utility requires an input file and will not read
 standard input.  Option `%` expands into the full pathname of the file to
@@ -4688,8 +4683,8 @@ in markdown:
 
            -z, --decompress
                   Decompress files to search, when compressed.  Archives (.cpio,
-                  .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,
-                  .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
+                  .pax, .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz,
+                  .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
                   matching pathnames of files in archives are output in braces.  If
                   -g, -O, -M, or -t is specified, searches files stored in archives
                   whose filenames match globs, match filename extensions, match file
