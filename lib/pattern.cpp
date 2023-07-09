@@ -281,7 +281,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
     }
     // bitap entropy to estimate false positive rate, we don't use bitap when entropy is too high for short patterns
     npy_ /= min_;
-    if (min_ > 4)
+    if (min_ > 4 && npy_ < 200)
       npy_ = 0;
     // frequency threshold to enable a quick-and-dirty simple needle-based search
     // TODO a more sophisticated needle-based search method is certainly possible, but we keep it simple for now
