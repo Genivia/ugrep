@@ -341,29 +341,24 @@ class Pattern {
   static inline bool predict_match(const Pred pmh[], const char *s, size_t n)
   {
     Hash h = static_cast<uint8_t>(*s);
-    if (pmh[h] & 1)
-      return false;
+    Pred f = pmh[h] & 1;
     h = hash(h, static_cast<uint8_t>(*++s));
-    if (pmh[h] & 2)
-      return false;
+    f |= pmh[h] & 2;
     h = hash(h, static_cast<uint8_t>(*++s));
-    if (pmh[h] & 4)
-      return false;
+    f |= pmh[h] & 4;
     h = hash(h, static_cast<uint8_t>(*++s));
-    if (pmh[h] & 8)
-      return false;
+    f |= pmh[h] & 8;
     Pred m = 16;
     const char *e = s + n - 3;
-    while (++s < e)
+    while (f == 0 && ++s < e)
     {
       h = hash(h, static_cast<uint8_t>(*s));
-      if (pmh[h] & m)
-        return false;
+      f |= pmh[h] & m;
       m <<= 1;
     }
-    return true;
+    return f == 0;
   }
-  /// Returns zero when match is predicted (removed shift distance return code)
+  /// Returns zero when match is predicted (removed shift distance return code).
   static inline size_t predict_match(const Pred pma[], const char *s)
   {
     uint8_t b0 = s[0];
@@ -380,6 +375,34 @@ class Pattern {
     Pred p = (a0 & 0xc0) | (a1 & 0x30) | (a2 & 0x0c) | (a3 & 0x03);
     Pred m = ((((((p >> 2) | p) >> 2) | p) >> 1) | p);
     return m == 0xff;
+  }
+  /// Relative frequency of English letters with upper/lower-case ratio = 0.0563, punctuation and UTF-8 bytes.
+  static uint8_t frequency(uint8_t c)
+  {
+    static unsigned char freq[256] =
+      // x64 binary frequencies combined with ASCII TAB/LF/CR control code frequencies
+      "\377\101\14\22\15\21\10\10\24\73\41\10\11\41\6\51"
+      "\16\4\3\3\3\3\3\3\6\3\3\2\3\4\4\12"
+      // TAB/LF/CR control code frequencies in text
+      // "\0\0\0\0\0\0\0\0\0\73\41\0\0\41\0\0"
+      // "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+      // ASCII frequencies
+      "\377\0\1\1\0\0\16\33\6\6\7\0\27\11\27\14"
+      "\13\14\10\5\4\5\4\4\4\7\12\21\10\14\10\0"
+      "\0\11\2\3\5\16\2\2\7\10\0\1\4\3\7\10"
+      "\2\0\6\7\12\3\1\3\0\2\0\70\1\70\0\1"
+      "\0\237\35\64\133\373\53\47\170\205\3\20\115\64\202\227"
+      "\45\2\162\170\272\64\23\56\3\47\2\3\15\3\0\0"
+      // upper half with UTF-8 multibyte frequencies (synthesized)
+      "\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47"
+      "\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45"
+      "\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45"
+      "\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44"
+      "\0\0\5\5\5\5\5\5\5\5\5\5\5\5\5\5"
+      "\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5"
+      "\46\56\56\56\56\56\56\56\56\56\56\56\56\46\56\56"
+      "\73\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    return freq[c];
   }
  protected:
   /// Throw an error.
@@ -1072,10 +1095,6 @@ class Pattern {
   {
     return ((h << 3) ^ b) & (Const::HASH - 1);
   }
-  static inline Hash hash(Hash h)
-  {
-    return h & ((Const::HASH - 1) >> 3);
-  }
   Option                opt_; ///< pattern compiler options
 #ifdef WITH_TREE_DFA
   DFA                   tfa_; ///< tree DFA constructed from strings
@@ -1093,7 +1112,9 @@ class Pattern {
   FSM                   fsm_; ///< function pointer to FSM code
   size_t                len_; ///< prefix length of pre_[], less or equal to 255
   size_t                min_; ///< patterns after the prefix are at least this long but no more than 8
-  char                  pre_[256];         ///< pattern prefix, shorter or equal to 255 bytes
+  size_t                pin_; ///< position of the needles in the pattern, if any, less then min_
+  size_t                ndl_; ///< number of needles
+  char                  pre_[256];         ///< pattern prefix or needles, shorter or equal to 255 bytes
   Pred                  bit_[256];         ///< bitap array
   Pred                  pmh_[Const::HASH]; ///< predict-match hash array
   Pred                  pma_[Const::HASH]; ///< predict-match array

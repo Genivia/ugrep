@@ -2,6 +2,8 @@
 
 Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features beat grep, ripgrep, silver searcher, ack, sift, etc.
 
+Both ugrep and ripgrep use sophisticated pattern search algorithms.  Given a single file to search, ugrep may win in speed or ripgrep may sometimes win in speed.  When searching a single file the difference is rarely noticible.  Only when searching a very large file (100MB or more) the speed difference may be a 2x win for ugrep or a 2x win for ripgrep, where 2x is typically observed, though [ugrep may run several times faster](#speed).
+
 The ugrep tools include the following powerful commands:
 - **ug** for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
 - **ug+** for interactive use, also searches pdfs, documents, e-books, image metadata
@@ -516,7 +518,7 @@ input file is too large (T3: 13GB file) resulting in an error.
 
 GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      | T11      | T12      |
 --------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-ugrep           | **0.02** | **0.03** | **6.05** | **0.07** | **0.02** | **0.98** | **0.97** | **0.87** | **0.26** | **0.10** | **0.19** | **0.02** |
+ugrep           | **0.02** | **0.03** | **6.05** | **0.06** | **0.02** | **0.92** | **0.86** | **0.74** | **0.23** | **0.10** | **0.19** | **0.02** |
 hyperscan grep  | 0.09     | 0.10     | **4.35** | 0.11     | 0.04     | 7.78     | 3.39     | 1.41     | 1.17     | *n/a*    | *n/a*    | *n/a*    |
 ripgrep         | 0.06     | 0.10     | 7.50     | 0.19     | 0.06     | 2.20     | 2.07     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
 silver searcher | 0.10     | 0.11     | *n/a*    | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
@@ -2056,9 +2058,11 @@ comments:
             Decompress files to search, when compressed.  Archives (.cpio,
             .pax, .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz,
             .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
-            matching pathnames of files in archives are output in braces.  If
-            -g, -O, -M, or -t is specified, searches files stored in archives
-            whose filenames match globs, match filename extensions, match file
+            matching pathnames of files in archives are output in braces.  When
+            used with option --zmax=NUM, searches the contents of compressed
+            files and archives stored within archives up to NUM levels.  If -g,
+            -O, -M, or -t is specified, searches files stored in archives whose
+            filenames match globs, match filename extensions, match file
             signature magic bytes, or match file types, respectively.
             Supported compression formats: gzip (.gz), compress (.Z), zip,
             bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
@@ -2068,7 +2072,7 @@ comments:
     --zmax=NUM
             When used with option -z (--decompress), searches the contents of
             compressed files and archives stored within archives by up to NUM
-            recursive expansions.  The default --zmax=1 only permits searching
+            expansion levels deep.  The default --zmax=1 only permits searching
             uncompressed files stored in cpio, pax, tar and zip archives;
             compressed files and archives are detected as binary files and are
             effectively ignored.  Specify --zmax=2 to search compressed files
@@ -2607,7 +2611,7 @@ meaning; any name or string that does not contain a `:` or `,` may be used.
             --binary-files=hex option with --hexdump=2C.  To omit the matching
             line from the hex output, use option --hexdump instead of -X.  See
             also option -U.
-    --hexdump=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]
+    --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]
             Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
             default is 2 columns or 16 octets per line.  Option `a' outputs a
             `*' for all hex lines that are identical to the previous hex line,
@@ -3865,9 +3869,12 @@ in markdown:
            ugrep, ug -- file pattern searcher
 
     SYNOPSIS
-           ugrep [OPTIONS] [-A NUM] [-B NUM] [-C NUM] [-y] [-Q|PATTERN] [-f FILE]
-                 [-e PATTERN] [-N PATTERN] [-t TYPES] [-g GLOBS] [--sort[=KEY]]
-                 [--color[=WHEN]|--colour[=WHEN]] [--pager[=COMMAND]] [FILE ...]
+           ugrep [OPTIONS] [-i] [-Q|PATTERN] [-e PATTERN] [-N PATTERN] [-f FILE]
+                 [-F|-G|-P|-Z] [-U] [-m [MIN,][MAX]] [--bool [--files|--lines]]
+                 [-r|-R|-1|...|-9|--10|...] [-t TYPES] [-g GLOBS] [--sort[=KEY]]
+                 [-l|-c] [-o] [-n] [-k] [-b] [-A NUM] [-B NUM] [-C NUM] [-y]
+                 [--color[=WHEN]|--colour[=WHEN]] [--pretty] [--pager[=COMMAND]]
+                 [--hexdump|--csv|--json|--xml] [-I] [-z] [--zmax=NUM] [FILE ...]
 
     DESCRIPTION
            The ugrep utility searches any given input files, selecting lines that
@@ -3880,18 +3887,51 @@ in markdown:
 
            The ug command is intended for interactive searching, using a .ugrep
            configuration file located in the working directory or home directory,
-           see CONFIGURATION.  ug is equivalent to ugrep --config and sorts files by
-           name by default.
+           see CONFIGURATION.  ug is equivalent to ugrep --config --pretty --sort to
+           load a .ugrep file, enhance the terminal output, and sort files by name.
 
            The ugrep+ and ug+ commands are the same as the ugrep and ug commands,
            but also use filters to search pdfs, documents, e-books, and image
            metadata, when the corresponding filter tools are installed.
 
+           A list of matching files is produced with option -l (--files-with-
+           matches).  Option -c (--count) counts the number of matching lines.
+           Combine with option -o to count the total number of matches.  Combine
+           with option -m1, (--min-count=1) to omit zero matches.
+
+           The default pattern syntax is an extended form of the POSIX ERE syntax,
+           same as option -E (--extended-regexp).  Try ug --help regex for help with
+           pattern syntax and how to use logical connectives to specify Boolean
+           search queries with option -% (--bool).  Options -F (--fixed-strings), -G
+           (--basic-regexp) and -P (--perl-regexp) specify other pattern syntaxes.
+
+           Option -i (--ignore-case) ignores case in ASCII patterns.  Combine with
+           option -P for case-insensitive Unicode matching.  Option -j (--smart-
+           case) enables -i only if the search patterns are specified in lower case.
+
+           Fuzzy (approximate) search is specified with option -Z (--fuzzy) with an
+           optional argument to control character insertions, deletions, and/or
+           substitutions.  Try ug --help fuzzy for help with fuzzy search.
+
+           Note that pattern `.' matches any non-newline character.  Pattern `\n'
+           matches a newline character.  Multiple lines may be matched with patterns
+           that match one or more newline characters.
+
+           Empty-matching patterns do not match all lines.  For example, the pattern
+           `a*' will match one or more a's.  The single exception to this rule is
+           the empty pattern "", which matches all lines.  Option -Y forces empty
+           matches for compatibility with other grep tools.
+
+           Option -f FILE matches patterns specified in FILE.
+
+           By default Unicode patterns are matched.  Option -U (--binary) disables
+           Unicode matching for ASCII and binary pattern matching.  Non-Unicode
+           matching is generally more efficient.
+
            ugrep accepts input of various encoding formats and normalizes the output
            to UTF-8.  When a UTF byte order mark is present in the input, the input
-           is automatically normalized; otherwise, ugrep assumes the input is ASCII,
-           UTF-8, or raw binary.  An input encoding format may be specified with
-           option --encoding.
+           is automatically normalized.  An input encoding format may be specified
+           with option --encoding.
 
            If no FILE arguments are specified and standard input is read from a
            terminal, recursive searches are performed as if -r is specified.  To
@@ -3899,26 +3939,51 @@ in markdown:
 
            Directories specified as FILE arguments are searched without recursing
            deeper into subdirectories, unless -R, -r, or -2...-9 is specified to
-           search subdirectories.
+           search subdirectories recursively (up to the specified depth.)
+
+           Option -I (--ignore-binary) ignores binary files.  A binary file is a
+           file with non-text content.  A file with zero bytes or invalid UTF
+           formatting is considered binary.
 
            Hidden files and directories are ignored in recursive searches.  Option
            -. (--hidden) includes hidden files and directories in recursive
            searches.
 
-           A query interface is opened with -Q (--query) to interactively specify
-           search patterns and view search results.  Note that a PATTERN argument
-           cannot be specified in this case.  To specify one or more patterns with
-           -Q to start searching, use -e PATTERN.
+           To match the names of files to search and the names of directories to
+           recurse, one or more of the following options may be specified.  Option
+           -O specifies one or more filename extensions to match.  Option -t
+           specifies one or more file types to search (-t list outputs a list of
+           types.)  Option -g specifies a gitignore-style glob pattern to match
+           filenames.  Option --ignore-files specifies a file with gitignore-style
+           globs to ignore directories and files.  Try ug --help globs for help with
+           filename and directory name matching.  See also section GLOBBING.
 
-           Option -f FILE matches patterns specified in FILE.  If FILE is large and
-           defines complex regular expression patterns, then option -P (Perl
-           matching) may improve performance (this omits POSIX DFA construction.)
+           Compressed files and archives are searched with option -z (--decompress).
+           When used with option --zmax=NUM, searches the contents of compressed
+           files and archives stored within archives up to NUM levels.
 
-           ugrep --help WHAT displays help on options related to WHAT; --help format
-           displays help on --format and --replace formatting; --help regex displays
-           help on regular expression syntax and conventions; --help globs displays
-           help on glob patterns to select files to search; --help fuzzy displays
-           help on fuzzy (approximate) searching.
+           A query terminal user interface (TUI) is opened with -Q (--query) to
+           interactively specify search patterns and view search results.  Note that
+           a PATTERN argument cannot be specified in this case.  To specify one or
+           more patterns with -Q to start searching, use -e PATTERN.
+
+           Output to a terminal for viewing is enhanced with --pretty, which is
+           enabled by default with the ug command.
+
+           A terminal output pager is enabled with --pager.
+
+           Customized output is produced with option --format or --replace.  Try ug
+           --help format for help with custom formatting of the output.  Predefined
+           formats include CSV with option --csv, JSON with option --json, and XML
+           with option --xml.  Hexdumps are output with option -X (--hex) or with
+           option --hexdump to customize hexdumps.  See also section FORMAT.
+
+           A `--' signals the end of options; the rest of the parameters are FILE
+           arguments, allowing filenames to begin with a `-' character.
+
+           Long options may start with `--no-' to disable, when applicable.
+
+           ug --help WHAT displays help on options related to WHAT.
 
            The following options are available:
 
@@ -4240,7 +4305,7 @@ in markdown:
                   `--help globs' displays an overview of glob syntax and
                   conventions.
 
-           --hexdump=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]
+           --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]
                   Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
                   default is 2 columns or 16 octets per line.  Option `a' outputs a
                   `*' for all hex lines that are identical to the previous hex line,
@@ -4685,44 +4750,34 @@ in markdown:
                   Decompress files to search, when compressed.  Archives (.cpio,
                   .pax, .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz,
                   .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
-                  matching pathnames of files in archives are output in braces.  If
-                  -g, -O, -M, or -t is specified, searches files stored in archives
-                  whose filenames match globs, match filename extensions, match file
-                  signature magic bytes, or match file types, respectively.
-                  Supported compression formats: gzip (.gz), compress (.Z), zip,
-                  bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2,
-                  .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz, .txz), lz4
-                  (requires suffix .lz4), zstd (requires suffix .zst, .zstd, .tzst).
+                  matching pathnames of files in archives are output in braces.
+                  When used with option --zmax=NUM, searches the contents of
+                  compressed files and archives stored within archives up to NUM
+                  levels.  If -g, -O, -M, or -t is specified, searches files stored
+                  in archives whose filenames match globs, match filename
+                  extensions, match file signature magic bytes, or match file types,
+                  respectively.  Supported compression formats: gzip (.gz), compress
+                  (.Z), zip, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2,
+                  .tb2, .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
+                  lz4 (requires suffix .lz4), zstd (requires suffix .zst, .zstd,
+                  .tzst).
 
            --zmax=NUM
                   When used with option -z (--decompress), searches the contents of
                   compressed files and archives stored within archives by up to NUM
-                  recursive expansions.  The default --zmax=1 only permits searching
-                  uncompressed files stored in cpio, pax, tar and zip archives;
-                  compressed files and archives are detected as binary files and are
-                  effectively ignored.  Specify --zmax=2 to search compressed files
-                  and archives stored in cpio, pax, tar and zip archives.  NUM may
-                  range from 1 to 99 for up to 99 decompression and de-archiving
-                  steps.  Increasing NUM values gradually degrades performance.
+                  expansion levels deep.  The default --zmax=1 only permits
+                  searching uncompressed files stored in cpio, pax, tar and zip
+                  archives; compressed files and archives are detected as binary
+                  files and are effectively ignored.  Specify --zmax=2 to search
+                  compressed files and archives stored in cpio, pax, tar and zip
+                  archives.  NUM may range from 1 to 99 for up to 99 decompression
+                  and de-archiving steps.  Increasing NUM values gradually degrades
+                  performance.
 
            -0, --null
                   Output a zero-byte (NUL) after the file name.  This option can be
                   used with commands such as `find -print0' and `xargs -0' to
                   process arbitrary file names.
-
-           A `--' signals the end of options; the rest of the parameters are FILE
-           arguments, allowing filenames to begin with a `-' character.
-
-           Long options may start with `--no-' to disable, when applicable.
-
-           The regular expression pattern syntax is an extended form of the POSIX
-           ERE syntax.  For an overview of the syntax see README.md or visit:
-
-                  https://github.com/Genivia/ugrep
-
-           Note that `.' matches any non-newline character.  Pattern `\n' matches a
-           newline character.  Multiple lines may be matched with patterns that
-           match one or more newline characters.
 
     EXIT STATUS
            The ugrep utility exits with one of the following values:
@@ -4738,9 +4793,9 @@ in markdown:
 
     CONFIGURATION
            The ug command is intended for context-dependent interactive searching
-           and is equivalent to the ugrep --config command to load the default
-           configuration file `.ugrep' when present in the working directory or in
-           the home directory.
+           and is equivalent to the ugrep --config --pretty --sort command to load
+           the default configuration file `.ugrep' when present in the working
+           directory or in the home directory.
 
            A configuration file contains `NAME=VALUE' pairs per line, where `NAME`
            is the name of a long option (without `--') and `=VALUE' is an argument,
@@ -5274,7 +5329,7 @@ in markdown:
 
 
 
-    ugrep 3.12.1                      June 4, 2023                          UGREP(1)
+    ugrep 3.12.2                      July 9, 2023                          UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

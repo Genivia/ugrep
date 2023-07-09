@@ -7,9 +7,9 @@ if [ -x "$(command -v antiword)" ] && antiword 2>&1 | ugrep -qw Adri ; then
   filters="${filters}${filters:+,}doc:antiword %"
 fi
 if [ -x "$(command -v pandoc)" ] && pandoc --version 2>&1 | ugrep -qw pandoc.org ; then
-  filters="${filters}${filters:+,}odt,docx,epub,rtf:pandoc --wrap=preserve -t markdown % -o -"
+  filters="${filters}${filters:+,}odt,docx,epub,rtf:pandoc --wrap=preserve -t plain % -o -"
 fi
 if [ -x "$(command -v exiftool)" ] ; then
   filters="${filters}${filters:+,}gif,jpg,jpeg,mpg,mpeg,png,tiff:exiftool %"
 fi
-ug --filter="${filters}" "$@"
+ugrep --filter="${filters}" "$@"

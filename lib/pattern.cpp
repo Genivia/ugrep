@@ -35,6 +35,7 @@
 */
 
 #include <reflex/pattern.h>
+#include <reflex/simd.h>
 #include <reflex/timer.h>
 #include <algorithm>
 #include <cstdlib>
@@ -168,6 +169,8 @@ void Pattern::init(const char *options, const uint8_t *pred)
   nop_ = 0;
   len_ = 0;
   min_ = 0;
+  pin_ = 0;
+  ndl_ = 0;
   npy_ = 0;
   one_ = false;
   vno_ = 0;
@@ -192,21 +195,6 @@ void Pattern::init(const char *options, const uint8_t *pred)
           for (size_t i = 0; i < 256; ++i)
             bit_[i] = ~pred[i + n];
           n += 256;
-          npy_ = 0;
-          for (Char i = 0; i < 256; ++i)
-          {
-            bit_[i] |= ~((1 << min_) - 1);
-            npy_ += (bit_[i] & 0x01) == 0;
-            npy_ += (bit_[i] & 0x02) == 0;
-            npy_ += (bit_[i] & 0x04) == 0;
-            npy_ += (bit_[i] & 0x08) == 0;
-            npy_ += (bit_[i] & 0x10) == 0;
-            npy_ += (bit_[i] & 0x20) == 0;
-            npy_ += (bit_[i] & 0x40) == 0;
-            npy_ += (bit_[i] & 0x80) == 0;
-          }
-          // bitap entropy to estimate false positive rate, we don't use bitap when entropy is too high
-          npy_ /= min_;
         }
         if (min_ >= 4)
         {
@@ -274,6 +262,73 @@ void Pattern::init(const char *options, const uint8_t *pred)
     dfa_.clear();
     // delete the tree DFA
     tfa_.clear();
+  }
+  // clean up bitap and compute bitap entropy
+  if (min_ > 0 && len_ == 0)
+  {
+    npy_ = 0;
+    for (Char i = 0; i < 256; ++i)
+    {
+      bit_[i] |= ~((1 << min_) - 1);
+      npy_ += (bit_[i] & 0x01) == 0;
+      npy_ += (bit_[i] & 0x02) == 0;
+      npy_ += (bit_[i] & 0x04) == 0;
+      npy_ += (bit_[i] & 0x08) == 0;
+      npy_ += (bit_[i] & 0x10) == 0;
+      npy_ += (bit_[i] & 0x20) == 0;
+      npy_ += (bit_[i] & 0x40) == 0;
+      npy_ += (bit_[i] & 0x80) == 0;
+    }
+    // bitap entropy to estimate false positive rate, we don't use bitap when entropy is too high for short patterns
+    npy_ /= min_;
+    if (min_ > 4)
+      npy_ = 0;
+    // frequency threshold to enable a quick-and-dirty simple needle-based search
+    // TODO a more sophisticated needle-based search method is certainly possible, but we keep it simple for now
+#if defined(HAVE_NEON)
+    const size_t freqmax = 50;
+#else
+    const size_t freqmax = 119;
+#endif
+    // get needles
+    ndl_ = 0;
+    size_t j = 0, m = 256, g = 65536;
+    for (size_t k = 0; k < min_; ++k)
+    {
+      Pred mask = 1 << k;
+      uint16_t n = 0, f = 0;
+      // at position k count the matching characters and find the max character frequency
+      for (uint16_t i = 0; i < 256; ++i)
+      {
+        if ((bit_[i] & mask) == 0)
+        {
+          ++n;
+          if (frequency(i) > f)
+            f = frequency(i);
+        }
+      }
+#if !defined(HAVE_AVX512BW) && !defined(HAVE_AVX2) && !defined(HAVE_SSE2) && !defined(HAVE_NEON)
+      if (n == 1)
+#endif
+      {
+        // pick the fewest and rarest (least frequently occurring) needles to search
+        if (m > 1 && n <= 4 ? f < g : n <= m && f <= g)
+        {
+          m = n;
+          j = k;
+          g = f;
+        }
+      }
+    }
+    // determine if a needle-based search is worthwhile
+    if (m <= 8 && g <= freqmax)
+    {
+      pin_ = j;
+      Pred mask = 1 << j;
+      for (uint16_t i = 0; i < 256; ++i)
+        if ((bit_[i] & mask) == 0)
+          pre_[ndl_++] = i;
+    }
   }
 }
 
@@ -3602,23 +3657,6 @@ void Pattern::gen_predict_match(DFA::State *state)
   for (int level = 1; level < 8; ++level)
     for (std::map<DFA::State*,ORanges<Hash> >::iterator from = states[level - 1].begin(); from != states[level - 1].end(); ++from)
       gen_predict_match_transitions(level, from->first, from->second, states[level]);
-  if (min_ > 0)
-  {
-    for (Char i = 0; i < 256; ++i)
-    {
-      bit_[i] |= ~((1 << min_) - 1);
-      npy_ += (bit_[i] & 0x01) == 0;
-      npy_ += (bit_[i] & 0x02) == 0;
-      npy_ += (bit_[i] & 0x04) == 0;
-      npy_ += (bit_[i] & 0x08) == 0;
-      npy_ += (bit_[i] & 0x10) == 0;
-      npy_ += (bit_[i] & 0x20) == 0;
-      npy_ += (bit_[i] & 0x40) == 0;
-      npy_ += (bit_[i] & 0x80) == 0;
-    }
-    // bitap entropy to estimate false positive rate, we don't use bitap when entropy is too high
-    npy_ /= min_;
-  }
 }
 
 void Pattern::gen_predict_match_transitions(DFA::State *state, std::map<DFA::State*,ORanges<Hash> >& states)
@@ -3661,7 +3699,7 @@ void Pattern::gen_predict_match_transitions(DFA::State *state, std::map<DFA::Sta
         pma_[lo] &= ~(1 << 7);
       pma_[lo] &= ~(1 << 6);
       if (next != NULL)
-        states[next].insert(hash(lo));
+        states[next].insert(lo);
       ++lo;
     }
   }
@@ -3673,7 +3711,11 @@ void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, ORa
   {
     Char lo = edge->first;
     if (is_meta(lo))
+    {
+      if (min_ > level)
+        min_ = level;
       break;
+    }
     DFA::State *next = level < 7 ? edge->second.second : NULL;
     bool accept = next == NULL || next->accept > 0;
     if (!accept)
@@ -3703,8 +3745,8 @@ void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, ORa
           bit_[lo++] &= ~(1 << level);
       for (ORanges<Hash>::const_iterator label = labels.begin(); label != labels.end(); ++label)
       {
-        Hash label_hi = label->second - 1;
-        for (Hash label_lo = label->first; label_lo <= label_hi; ++label_lo)
+        Hash label_hi = label->second;
+        for (Hash label_lo = label->first; label_lo <label_hi; ++label_lo)
         {
           for (lo = edge->first; lo <= hi; ++lo)
           {
@@ -3717,7 +3759,7 @@ void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, ORa
               pma_[h] &= ~(1 << (6 - 2 * level));
             }
             if (next != NULL)
-              states[next].insert(hash(h));
+              states[next].insert(h);
           }
         }
       }

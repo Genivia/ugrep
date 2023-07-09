@@ -409,8 +409,6 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   bool simd_advance_avx512bw();
   /// optimized AVX2 version of advance() defined in matcher_avx2.cpp
   bool simd_advance_avx2();
-  // bool simd_advance_avx2(const char*& b, const char *e, size_t &loc, size_t min, const char *pre, size_t len);
-  // bool simd_advance_avx512bw(const char*& b, const char *e, size_t &loc, size_t min, const char *pre, size_t len);
 #if !defined(WITH_NO_INDENT)
   /// Update indentation column counter for indent() and dedent().
   inline void newline()

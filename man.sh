@@ -18,9 +18,12 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C \fR\fINUM\fR] [\fB-y\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
-      [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
-      [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pager\fR[=\fICOMMAND\fR]] [\fIFILE\fR \fI...\fR]
+[\fIOPTIONS\fR] [\fB-i\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
+      [\fB-F\fR|\fB-G\fR|\fB-P\fR|\fB-Z\fR] [\fB-U\fR] [\fB-m\fR [\fIMIN,\fR][\fIMAX\fR]] [\fB--bool\fR [\fB--files\fR|\fB--lines\fR]]
+      [\fB-r\fR|\fB-R\fR|\fB-1\fR|...|\fB-9\fR|\fB--10\fR|...] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
+      [\fB-l\fR|\fB-c\fR] [\fB-o\fR] [\fB-n\fR] [\fB-k\fR] [\fB-b\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C \fR\fINUM\fR] [\fB-y\fR]
+      [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pretty\fR] [\fB--pager\fR[=\fICOMMAND\fR]]
+      [\fB--hexdump\fR|\fB--csv\fR|\fB--json\fR|\fB--xml\fR] [\fB-I\fR] [\fB-z\fR] [\fB--zmax\fR=\fINUM\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
 match one or more patterns.  By default, a pattern matches an input line if the
@@ -31,18 +34,54 @@ of the patterns is written to the standard output.
 .PP
 The \fBug\fR command is intended for interactive searching, using a .ugrep
 configuration file located in the working directory or home directory, see
-CONFIGURATION.  \fBug\fR is equivalent to \fBugrep --config\fR and sorts files
-by name by default.
+CONFIGURATION.  \fBug\fR is equivalent to \fBugrep --config --pretty --sort\fR
+to load a .ugrep file, enhance the terminal output, and sort files by name.
 .PP
 The \fBugrep+\fR and \fBug+\fR commands are the same as the \fBugrep\fR and
 \fBug\fR commands, but also use filters to search pdfs, documents, e-books,
 and image metadata, when the corresponding filter tools are installed.
 .PP
+A list of matching files is produced with option \fB-l\fR
+(\fB--files-with-matches\fR).  Option \fB-c\fR (\fB--count\fR) counts the
+number of matching lines.  Combine with option \fB-o\fR to count the total
+number of matches.  Combine with option \fB-m1,\fR (\fB--min-count=1\fR) to
+omit zero matches.
+.PP
+The default pattern syntax is an extended form of the POSIX ERE syntax, same as
+option \fB-E\fR (\fB--extended-regexp\fR).  Try \fBug --help regex\fR for help
+with pattern syntax and how to use logical connectives to specify Boolean
+search queries with option \fB-%\fR (\fB--bool\fR).  Options \fB-F\fR
+(\fB--fixed-strings\fR), \fB-G\fR (\fB--basic-regexp\fR) and \fB-P\fR
+(\fB--perl-regexp\fR) specify other pattern syntaxes.
+.PP
+Option \fB-i\fR (\fB--ignore-case\fR) ignores case in ASCII patterns.  Combine
+with option \fB-P\fR for case-insensitive Unicode matching.  Option \fB-j\fR
+(\fB--smart-case\fR) enables \fB-i\fR only if the search patterns are specified
+in lower case.
+.PP
+Fuzzy (approximate) search is specified with option \fB-Z\fR (\fB--fuzzy\fR)
+with an optional argument to control character insertions, deletions, and/or
+substitutions.  Try \fBug --help fuzzy\fR for help with fuzzy search.
+.PP
+Note that pattern `.' matches any non-newline character.  Pattern `\\n' matches
+a newline character.  Multiple lines may be matched with patterns that match
+one or more newline characters.
+.PP
+Empty-matching patterns do not match all lines.  For example, the pattern `a*'
+will match one or more a's.  The single exception to this rule is the empty
+pattern "", which matches all lines.  Option \fB-Y\fR forces empty matches for
+compatibility with other grep tools.  
+.PP
+Option \fB-f\fR \fIFILE\fR matches patterns specified in \fIFILE\fR.
+.PP
+By default Unicode patterns are matched.  Option \fB-U\fR (\fB--binary\fR)
+disables Unicode matching for ASCII and binary pattern matching.  Non-Unicode
+matching is generally more efficient.
+.PP
 \fBugrep\fR accepts input of various encoding formats and normalizes the output
 to UTF-8.  When a UTF byte order mark is present in the input, the input is
-automatically normalized; otherwise, \fBugrep\fR assumes the input is ASCII,
-UTF-8, or raw binary.  An input encoding format may be specified with option
-\fB--encoding\fR.
+automatically normalized.  An input encoding format may be specified with
+option \fB--encoding\fR.
 .PP
 If no \fIFILE\fR arguments are specified and standard input is read from a
 terminal, recursive searches are performed as if \fB-r\fR is specified.  To
@@ -50,26 +89,53 @@ force reading from standard input, specify `-' as a \fIFILE\fR argument.
 .PP
 Directories specified as \fIFILE\fR arguments are searched without recursing
 deeper into subdirectories, unless \fB-R\fR, \fB-r\fR, or \fB-2\fR...\fB-9\fR
-is specified to search subdirectories.
+is specified to search subdirectories recursively (up to the specified depth.)
+.PP
+Option \fB-I\fR (\fB--ignore-binary\fR) ignores binary files.  A binary file is
+a file with non-text content.  A file with zero bytes or invalid UTF formatting
+is considered binary.
 .PP
 Hidden files and directories are ignored in recursive searches.  Option
 \fB-.\fR (\fB--hidden\fR) includes hidden files and directories in recursive
 searches.
 .PP
-A query interface is opened with \fB-Q\fR (\fB--query\fR) to interactively
-specify search patterns and view search results.  Note that a \fIPATTERN\fR
-argument cannot be specified in this case.  To specify one or more patterns
-with \fB-Q\fR to start searching, use \fB-e PATTERN\fR.
+To match the names of files to search and the names of directories to recurse,
+one or more of the following options may be specified.  Option \fB-O\fR
+specifies one or more filename extensions to match.  Option \fB-t\fR specifies
+one or more file types to search (\fB-t list\fR outputs a list of types.)
+Option \fB-g\fR specifies a gitignore-style glob pattern to match filenames.
+Option \fB--ignore-files\fR specifies a file with gitignore-style globs to
+ignore directories and files.  Try \fBug --help globs\fR for help with filename
+and directory name matching.  See also section GLOBBING.
 .PP
-Option \fB-f FILE\fR matches patterns specified in \fBFILE\fR.  If \fBFILE\fR
-is large and defines complex regular expression patterns, then option \fB-P\fR
-(Perl matching) may improve performance (this omits POSIX DFA construction.)
+Compressed files and archives are searched with option \fB-z\fR
+(\fB--decompress\fR).  When used with option \fB--zmax\fR=\fINUM\fR, searches
+the contents of compressed files and archives stored within archives up to
+\fINUM\fR levels.
 .PP
-\fBugrep --help \fIWHAT\fR displays help on options related to \fIWHAT\fR;
-\fB--help format\fR displays help on \fB--format\fR and \fB--replace\fR
-formatting; \fB--help regex\fR displays help on regular expression syntax and
-conventions; \fB--help globs\fR displays help on glob patterns to select files
-to search; \fB--help fuzzy\fR displays help on fuzzy (approximate) searching.
+A query terminal user interface (TUI) is opened with \fB-Q\fR (\fB--query\fR)
+to interactively specify search patterns and view search results.  Note that a
+\fIPATTERN\fR argument cannot be specified in this case.  To specify one or
+more patterns with \fB-Q\fR to start searching, use \fB-e PATTERN\fR.
+.PP
+Output to a terminal for viewing is enhanced with \fB--pretty\fR, which is
+enabled by default with the \fBug\fR command.
+.PP
+A terminal output pager is enabled with \fB--pager\fR.
+.PP
+Customized output is produced with option \fB--format\fR or \fB--replace\fR.
+Try \fBug --help format\fR for help with custom formatting of the output.
+Predefined formats include CSV with option \fB--csv\fR, JSON with option
+\fB--json\fR, and XML with option \fB--xml\fR.  Hexdumps are output with option
+\fB-X\fR (\fB--hex\fR) or with option \fB--hexdump\fR to customize hexdumps.
+See also section FORMAT.
+.PP
+A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
+arguments, allowing filenames to begin with a `-' character.
+.PP
+Long options may start with `\FB--no-\fR' to disable, when applicable.
+.PP
+\fBug --help \fIWHAT\fR displays help on options related to \fIWHAT\fR.
 .PP
 The following options are available:
 END
@@ -100,20 +166,6 @@ src/ugrep --help \
   -e 's/=\([-A-Z]\{1,\}\)/=\\fI\1\\fR/g' \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
 cat >> man/ugrep.1 << 'END'
-.PP
-A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
-arguments, allowing filenames to begin with a `-' character.
-.PP
-Long options may start with `\FB--no-\fR' to disable, when applicable.
-.PP
-The regular expression pattern syntax is an extended form of the POSIX ERE
-syntax.  For an overview of the syntax see README.md or visit:
-.IP
-https://github.com/Genivia/ugrep
-.PP
-Note that `.' matches any non-newline character.  Pattern `\\n' matches a
-newline character.  Multiple lines may be matched with patterns that match
-one or more newline characters.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -127,9 +179,9 @@ If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
 the exit status is 0 even if an error occurred.
 .SH CONFIGURATION
 The \fBug\fR command is intended for context-dependent interactive searching
-and is equivalent to the \fBugrep --config\fR command to load the default
-configuration file `.ugrep' when present in the working directory or in the
-home directory.
+and is equivalent to the \fBugrep --config --pretty --sort\fR command to load
+the default configuration file `.ugrep' when present in the working directory
+or in the home directory.
 .PP
 A configuration file contains `NAME=VALUE' pairs per line, where `NAME` is the
 name of a long option (without `--') and `=VALUE' is an argument, which is

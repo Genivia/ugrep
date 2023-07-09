@@ -1381,7 +1381,7 @@ struct Zthread {
           int header_len = is_odc ? 76 : 110;
 
           char tmp[16];
-          char *rest = NULL;
+          char *rest = tmp;
 
           // get the namesize
           size_t namesize;
@@ -1399,7 +1399,7 @@ struct Zthread {
           }
 
           // if not a valid mode value, then something is wrong
-          if (rest == NULL || *rest != '\0')
+          if (*rest != '\0')
           {
             // data was read, stop reading more
             if (in_progress)
@@ -1429,7 +1429,7 @@ struct Zthread {
           }
 
           // if not a valid mode value, then something is wrong
-          if (rest == NULL || *rest != '\0')
+          if (*rest != '\0')
           {
             // data was read, stop reading more
             if (in_progress)
@@ -1455,7 +1455,7 @@ struct Zthread {
           }
 
           // if not a valid mode value, then something is wrong
-          if (rest == NULL || *rest != '\0')
+          if (*rest != '\0')
           {
             // data was read, stop reading more
             if (in_progress)
@@ -4249,9 +4249,9 @@ static void save_config()
   else
     fprintf(file, "no-pager\n\n");
 
-  fprintf(file, "# Enable/disable pretty output to the terminal, default: no-pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
+  fprintf(file, "# Enable/disable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
 
-  if (flag_tree.is_defined() && flag_tree != flag_pretty)
+  if (flag_tree.is_defined())
     fprintf(file, "# Enable/disable directory tree output for --files-with-matches and --count\n%s\n\n", flag_tree ? "tree" : "no-tree");
 
   if (flag_heading.is_defined() && flag_heading != flag_pretty)
@@ -5512,7 +5512,8 @@ void init(int argc, const char **argv)
 
   if (strncmp(program, "ug", len) == 0)
   {
-    // the 'ug' command is equivalent to 'ugrep --sort --config' to sort output by default and load custom configuration files, when no --config=FILE is specified
+    // the 'ug' command is equivalent to 'ugrep --config --pretty --sort' to load custom configuration files, when no --config=FILE is specified
+    flag_pretty = true;
     flag_sort = "name";
     if (flag_config == NULL)
       load_config(pattern_args);
@@ -12072,7 +12073,7 @@ void help(std::ostream& out)
             In addition, `--help format' displays an overview of FORMAT fields,\n\
             `--help regex' displays an overview of regular expressions and\n\
             `--help globs' displays an overview of glob syntax and conventions.\n\
-    --hexdump=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]\n\
+    --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]\n\
             Output matches in 1 to 8 columns of 8 hexadecimal octets.  The\n\
             default is 2 columns or 16 octets per line.  Option `a' outputs a\n\
             `*' for all hex lines that are identical to the previous hex line,\n\
@@ -12446,11 +12447,13 @@ void help(std::ostream& out)
             text.  No whitespace may be given between -Z and its argument.\n\
     -z, --decompress\n\
             Decompress files to search, when compressed.  Archives (.cpio,\n\
-            .pax, .tar and .zip) and compressed archives (e.g. .taz, .tgz,\n\
-            .tpz, .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and\n\
-            matching pathnames of files in archives are output in braces.  If\n\
-            -g, -O, -M, or -t is specified, searches files stored in archives\n\
-            whose filenames match globs, match filename extensions, match file\n\
+            .pax, .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz,\n\
+            .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and\n\
+            matching pathnames of files in archives are output in braces.  When\n\
+            used with option --zmax=NUM, searches the contents of compressed\n\
+            files and archives stored within archives up to NUM levels.  If -g,\n\
+            -O, -M, or -t is specified, searches files stored in archives whose\n\
+            filenames match globs, match filename extensions, match file\n\
             signature magic bytes, or match file types, respectively.\n"
 #ifndef HAVE_LIBZ
             "\
@@ -12480,7 +12483,7 @@ void help(std::ostream& out)
     --zmax=NUM\n\
             When used with option -z (--decompress), searches the contents of\n\
             compressed files and archives stored within archives by up to NUM\n\
-            recursive expansions.  The default --zmax=1 only permits searching\n\
+            expansion levels deep.  The default --zmax=1 only permits searching\n\
             uncompressed files stored in cpio, pax, tar and zip archives;\n\
             compressed files and archives are detected as binary files and are\n\
             effectively ignored.  Specify --zmax=2 to search compressed files\n\
@@ -12715,7 +12718,7 @@ Option --stats displays the options and patterns applied to the matching files.\
 \n\
 ";
     }
-    else if (strcmp(what, "globs") == 0)
+    else if (strcmp(what, "glob") == 0 || strcmp(what, "globs") == 0)
     {
       std::cout <<
 "Glob syntax and conventions:\n\
@@ -12735,6 +12738,10 @@ Gitignore-style globbing is performed by -g (--glob), --include, --exclude,\n\
  /**         when at the end of a glob, matches everything after the /\n\
  \\?          a ? or any other character specified after the backslash\n\
 \n\
+A glob pattern starting with a ^ or a ! inverts the matching.  Instead of\n\
+matching a filename or directory name, the directory or file is ignored and\n\
+excluded from the search.\n\
+\n\
 When a glob pattern contains a /, the full pathname is matched.  Otherwise, the\n\
 basename of a file or directory is matched in recursive searches.\n\
 \n\
@@ -12743,7 +12750,23 @@ working directory, not recursively.\n\
 \n\
 When a glob pattern ends with a /, directories are matched instead of files.\n\
 \n\
+Option -O (--file-extension) matches filename extensions or ignores extensions\n\
+when preceeded with a ^ or !.\n\
+\n\
+Option -t (--file-type) matches file types or ignores file types when preceeded\n\
+with a ^ or a !.  Use -tlist to view the list of supported file types with\n\
+corresponding glob patterns.\n\
+\n\
+Opton --ignore-files specifies a file with gitignore-style globs, where the\n\
+default file is .gitignore.  When one ore more ignore files are encountered in\n\
+recursive searches, the search is narrowed accordingly.\n\
+\n\
 Option --stats displays the search path globs applied to the matching files.\n\
+\n\
+IMPORTANT:\n\
+\n\
+Always specify glob patterns using quotes to prevent the shell from expanding\n\
+the globs.  For example, use -g \"*foo.*\" or alternatively \"-g*foo.*\".\n\
 \n\
 ";
     }
@@ -12777,7 +12800,7 @@ directory such that files with minimum differences with the specified pattern\n\
 are listed first.  This requires two passes over each input file, which reduces\n\
 performance significantly.\n\
 \n\
-Important:\n\
+IMPORTANT:\n\
 \n\
 Fuzzy search anchors matches at the beginning character or characters of the\n\
 specified regex pattern.  This significantly improves search performance and\n\

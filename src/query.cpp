@@ -2107,6 +2107,10 @@ void Query::view()
     while (row + 1 < rows_ && (view_[row].empty() || view_[row].front() != '\0'))
       ++row;
   }
+  else if (row + 1 < rows_ && (view_[row].empty() || view_[row].front() != '\0'))
+  {
+    ++row; // skip a non-filename line to get to a potential filename just below this line
+  }
 
   std::string filename;
   bool found = false;
@@ -2227,6 +2231,10 @@ void Query::select()
   {
     while (row + 1 < rows_ && (view_[row].empty() || view_[row].front() != '\0'))
       ++row;
+  }
+  else if (row + 1 < rows_ && (view_[row].empty() || view_[row].front() != '\0'))
+  {
+    ++row; // skip a non-filename line to get to a potential filename just below this line
   }
 
   std::string pathname;
