@@ -24,7 +24,7 @@ cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		@echo
 
 install-exec-hook:
-		cp -f $(top_builddir)/bin/ugrep+ $(top_builddir)/bin/ug+ $(DESTDIR)$(bindir)
+		cp -f $(top_builddir)/src/bin/ugrep+ $(top_builddir)/src/bin/ug+ $(DESTDIR)$(bindir)
 		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
 		cd $(DESTDIR)$(bindir) && cp -f ugrep$(EXEEXT) ug$(EXEEXT)
 
