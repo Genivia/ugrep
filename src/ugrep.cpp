@@ -4201,7 +4201,7 @@ static void save_config()
   if (strcmp(flag_save_config, ".ugrep") == 0)
     fprintf(file, "# default .ugrep configuration file used by ug and ugrep --config.\n");
   else if (strcmp(flag_save_config, "-") == 0)
-    fprintf(file, "# ugrep configuration.\n");
+    fprintf(file, "# ugrep configuration\n");
   else
     fprintf(file, "# configuration used with ugrep --config=%s or ---%s.\n", flag_save_config, flag_save_config);
 
@@ -4210,7 +4210,7 @@ static void save_config()
 # A long option is defined per line with an optional `=' and its argument,\n\
 # when applicable. Empty lines and lines starting with a `#' are ignored.\n\
 #\n\
-# Try `ugrep --help' or `ugrep --help WHAT' for more information.\n\n");
+# Try `ug --help' or `ug --help WHAT' for more information.\n\n");
 
   fprintf(file, "### TERMINAL DISPLAY ###\n\n");
 
@@ -4228,14 +4228,14 @@ static void save_config()
 # Parameter `hl' enables file name hyperlinks (same as --hyperlink).  Parameter\n\
 # `rv' reverses the `sl=' and `cx=' parameters when option -v is used.\n\n");
 
-  fprintf(file, "# Enable/disable color\n%s\n\n", flag_color != NULL ? "color" : "no-color");
+  fprintf(file, "# Enable color output to a terminal\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   if (flag_hyperlink != NULL && *flag_hyperlink == '\0')
-    fprintf(file, "# Enable/disable hyperlinks in color output\nhyperlink\n\n");
+    fprintf(file, "# Enable hyperlinks in color output\nhyperlink\n\n");
   else if (flag_hyperlink != NULL)
-    fprintf(file, "# Enable/disable hyperlinks in color output\nhyperlink=%s\n\n", flag_hyperlink);
-  fprintf(file, "# Enable/disable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
+    fprintf(file, "# Enable hyperlinks in color output\nhyperlink=%s\n\n", flag_hyperlink);
+  fprintf(file, "# Enable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
 
-  fprintf(file, "# Enable/disable query UI file viewing command with CTRL-Y or F2, default: view\n");
+  fprintf(file, "# Enable query UI file viewing command with CTRL-Y or F2, default: view\n");
   if (flag_view != NULL && *flag_view == '\0')
     fprintf(file, "view\n\n");
   else if (flag_view != NULL)
@@ -4243,34 +4243,33 @@ static void save_config()
   else
     fprintf(file, "no-view\n\n");
 
-  fprintf(file, "# Enable/disable or specify a pager for terminal output, default: no-pager\n");
+  fprintf(file, "# Enable a pager for terminal output, default: no-pager\n");
   if (flag_pager != NULL)
     fprintf(file, "pager=%s\n\n", flag_pager);
   else
     fprintf(file, "no-pager\n\n");
 
-  fprintf(file, "# Enable/disable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
+  fprintf(file, "# Enable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
 
-  if (flag_tree.is_defined())
-    fprintf(file, "# Enable/disable directory tree output for --files-with-matches and --count\n%s\n\n", flag_tree ? "tree" : "no-tree");
+  fprintf(file, "# Enable directory tree output to a terminal for --files-with-matches and --count\n%s\n\n", flag_tree ? "tree" : "no-tree");
 
   if (flag_heading.is_defined() && flag_heading != flag_pretty)
-    fprintf(file, "# Enable/disable headings\n%s\n\n", flag_heading.is_undefined() ? "# no-heading" : flag_heading ? "heading" : "no-heading");
+    fprintf(file, "# Enable headings\n%s\n\n", flag_heading ? "heading" : "no-heading");
 
   if (flag_break.is_defined() && flag_break != flag_pretty)
-    fprintf(file, "# Enable/disable break after matching files\n%s\n\n", flag_break ? "break" : "no-break");
+    fprintf(file, "# Enable break after matching files\n%s\n\n", flag_break ? "break" : "no-break");
+
+  if (flag_initial_tab.is_defined() && flag_initial_tab != flag_pretty)
+    fprintf(file, "# Enable initial tab\n%s\n\n", flag_initial_tab ? "initial-tab" : "no-initial-tab");
 
   if (flag_line_number.is_defined() && flag_line_number != flag_pretty)
-    fprintf(file, "# Enable/disable line numbers\n%s\n\n", flag_line_number ? "line-number" : "no-line-number");
+    fprintf(file, "# Enable line numbers\n%s\n\n", flag_line_number ? "line-number" : "no-line-number");
 
   if (flag_column_number.is_defined())
-    fprintf(file, "# Enable/disable column numbers\n%s\n\n", flag_column_number ? "column-number" : "no-column-number");
+    fprintf(file, "# Enable column numbers\n%s\n\n", flag_column_number ? "column-number" : "no-column-number");
 
   if (flag_byte_offset.is_defined())
-    fprintf(file, "# Enable/disable byte offsets\n%s\n\n", flag_byte_offset ? "byte-offset" : "no-byte-offset");
-
-  if (flag_initial_tab.is_defined() && flag_line_number != flag_pretty)
-    fprintf(file, "# Enable/disable initial tab\n%s\n\n", flag_initial_tab ? "initial-tab" : "no-initial-tab");
+    fprintf(file, "# Enable byte offsets\n%s\n\n", flag_byte_offset ? "byte-offset" : "no-byte-offset");
 
   if (strcmp(flag_binary_files, "hex") == 0)
     fprintf(file, "# Hex output\nhex\n\n");
@@ -4303,16 +4302,16 @@ static void save_config()
 
   fprintf(file, "### SEARCH PATTERNS ###\n\n");
 
-  fprintf(file, "# Enable/disable case-insensitive search, default: no-ignore-case\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
-  fprintf(file, "# Enable/disable smart case, default: no-smart-case\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
-  fprintf(file, "# Enable/disable empty pattern matches, default: no-empty\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
+  fprintf(file, "# Enable case-insensitive search, default: no-ignore-case\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
+  fprintf(file, "# Enable smart case, default: no-smart-case\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
+  fprintf(file, "# Enable empty pattern matches, default: no-empty\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
 
   fprintf(file, "### SEARCH TARGETS ###\n\n");
 
-  fprintf(file, "# Enable/disable searching hidden files and directories, default: no-hidden\n%s\n\n", flag_hidden ? "hidden" : "no-hidden");
-  fprintf(file, "# Enable/disable binary files, default: no-ignore-binary\n%s\n\n", strcmp(flag_binary_files, "without-match") == 0 ? "ignore-binary" : "no-ignore-binary");
-  fprintf(file, "# Enable/disable decompression and archive search, default: no-decompress\n%s\n\n", flag_decompress ? "decompress" : "no-decompress");
-  fprintf(file, "# Maximum decompression and de-archiving nesting levels, default: 1\nzmax=%zu\n\n", flag_zmax);
+  fprintf(file, "# Search hidden files and directories, default: no-hidden\n%s\n\n", flag_hidden ? "hidden" : "no-hidden");
+  fprintf(file, "# Ignore binary files, default: no-ignore-binary\n%s\n\n", strcmp(flag_binary_files, "without-match") == 0 ? "ignore-binary" : "no-ignore-binary");
+  fprintf(file, "# Enable decompression and archive search, default: no-decompress\n%s\n\n", flag_decompress ? "decompress" : "no-decompress");
+  fprintf(file, "# Maximum decompression and de-archiving nesting levels, default: zmax=1\nzmax=%zu\n\n", flag_zmax);
   if (flag_dereference)
     fprintf(file, "# Dereference symlinks, default: no-dereference\ndereference\n\n");
   if (flag_devices != NULL)
@@ -4321,11 +4320,11 @@ static void save_config()
     fprintf(file, "# Recursively search directories up to %zu levels deep\nmax-depth=%zu\n\n", flag_max_depth, flag_max_depth);
   if (flag_ignore_files.empty())
   {
-    fprintf(file, "# Enable/disable ignore files, default: no-ignore-files\nno-ignore-files\n\n");
+    fprintf(file, "# Ignore files and directories specified in .gitignore, default: no-ignore-files\nno-ignore-files\n\n");
   }
   else
   {
-    fprintf(file, "# Enable/disable ignore files, default: no-ignore-files\n");
+    fprintf(file, "# Ignore files and directories specified in .gitignore, default: no-ignore-files\n");
     for (const auto& ignore : flag_ignore_files)
       fprintf(file, "ignore-files=%s\n", ignore.c_str());
     fprintf(file, "\n");
@@ -4347,7 +4346,7 @@ static void save_config()
   if (flag_separator != NULL)
     fprintf(file, "# Separator, default: none specified to output a `:', a `+', and a `|'\nseparator=%s\n\n", flag_separator);
 
-  fprintf(file, "# Enable/disable sorted output, default: no-sort\n");
+  fprintf(file, "# Sort the list of files and directories searched and matched, default: no-sort\n");
   if (flag_sort != NULL)
     fprintf(file, "sort=%s\n\n", flag_sort);
   else

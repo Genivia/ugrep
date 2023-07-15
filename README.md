@@ -5329,7 +5329,7 @@ in markdown:
 
 
 
-    ugrep 3.12.2                      July 9, 2023                          UGREP(1)
+    ugrep 3.12.3                      July 14, 2023                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
