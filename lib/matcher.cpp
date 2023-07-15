@@ -708,7 +708,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -762,7 +762,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -818,7 +818,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -876,7 +876,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -936,7 +936,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -998,7 +998,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -1062,7 +1062,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -1116,7 +1116,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -1170,7 +1170,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -1226,7 +1226,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc > end_ - 4 || Pattern::predict_match(pma, &buf_[loc]) == 0)
+              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
                 return true;
             }
             mask &= mask - 1;
@@ -1651,7 +1651,7 @@ bool Matcher::advance()
       loc = cur_ + 1;
       if (loc >= end_)
         return false;
-      if (loc >= end_ - 6)
+      if (loc + 6 >= end_)
       {
         set_current(loc);
         return true;
