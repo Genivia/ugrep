@@ -358,7 +358,7 @@ class Pattern {
     }
     return f == 0;
   }
-  /// Returns zero when match is predicted (removed shift distance return code).
+  /// Returns zero when match is predicted (removed shift distance return, just 0 or 1).
   static inline size_t predict_match(const Pred pma[], const char *s)
   {
     uint8_t b0 = s[0];
@@ -393,14 +393,14 @@ class Pattern {
       "\2\0\6\7\12\3\1\3\0\2\0\70\1\70\0\1"
       "\0\237\35\64\133\373\53\47\170\205\3\20\115\64\202\227"
       "\45\2\162\170\272\64\23\56\3\47\2\3\15\3\0\0"
-      // upper half with UTF-8 multibyte frequencies (synthesized)
+      // upper half with UTF-8 multibyte frequencies (synthesized from Unicode tables)
       "\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47\47"
       "\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45"
       "\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45\45"
-      "\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44\44"
-      "\0\0\5\5\5\5\5\5\5\5\5\5\5\5\5\5"
-      "\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5\5"
-      "\46\56\56\56\56\56\56\56\56\56\56\56\56\46\56\56"
+      "\42\44\42\44\44\44\44\44\44\44\44\44\42\44\44\44"
+      "\0\0\5\5\5\5\0\5\5\5\5\5\5\5\0\5"
+      "\0\5\5\5\0\5\5\5\5\5\5\5\5\5\5\5"
+      "\40\72\76\100\100\100\100\100\100\100\76\100\100\40\100\77"
       "\73\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
     return freq[c];
   }
@@ -1107,23 +1107,26 @@ class Pattern {
   std::vector<bool>     acc_; ///< true if subpattern n is accepting (state is reachable)
   size_t                vno_; ///< number of finite state machine vertices |V|
   size_t                eno_; ///< number of finite state machine edges |E|
-  const Opcode         *opc_; ///< points to the opcode table
+  const Opcode         *opc_; ///< points to the table with compiled finite state machine opcodes
   Index                 nop_; ///< number of opcodes generated
   FSM                   fsm_; ///< function pointer to FSM code
-  size_t                len_; ///< prefix length of pre_[], less or equal to 255
+  size_t                len_; ///< length of chr_[], less or equal to 255
   size_t                min_; ///< patterns after the prefix are at least this long but no more than 8
-  size_t                pin_; ///< position of the needles in the pattern, if any, less then min_
-  size_t                ndl_; ///< number of needles
-  char                  pre_[256];         ///< pattern prefix or needles, shorter or equal to 255 bytes
+  size_t                pin_; ///< number of needles
+  char                  chr_[256];         ///< pattern prefix string or character needles for needle-based search
   Pred                  bit_[256];         ///< bitap array
   Pred                  pmh_[Const::HASH]; ///< predict-match hash array
   Pred                  pma_[Const::HASH]; ///< predict-match array
+  uint16_t              lcp_; ///< primary least common character position in the pattern or 0xffff
+  uint16_t              lcs_; ///< secondary least common character position in the pattern or 0xffff
+  size_t                bmd_; ///< Boyer-Moore jump distance on mismatch, B-M is enabled when bmd_ > 0
+  uint8_t               bms_[256]; ///< Boyer-Moore skip array
   float                 pms_; ///< ms elapsed time to parse regex
   float                 vms_; ///< ms elapsed time to compile DFA vertices
   float                 ems_; ///< ms elapsed time to compile DFA edges
   float                 wms_; ///< ms elapsed time to assemble code words
-  size_t                npy_; ///< entropy derived from bitap array
-  bool                  one_; ///< true if matching one string in pre_[] without meta/anchors
+  size_t                npy_; ///< entropy derived from the bitap array bit_[]
+  bool                  one_; ///< true if matching one string stored in chr_[] without meta/anchors
 };
 
 } // namespace reflex

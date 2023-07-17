@@ -814,8 +814,8 @@ unrolled:
       {
         if (pat_->min_ > 0)
         {
-          const Pattern::Pred *pma = pat_->pma_;
-          while (s < e && (pma[static_cast<uint8_t>(*s)] & 0xc0) == 0xc0)
+          const Pattern::Pred *bit = pat_->bit_;
+          while (s < e && (bit[static_cast<uint8_t>(*s)] & 1))
             ++s;
           if (s < e)
           {
@@ -838,7 +838,7 @@ unrolled:
       }
       else if (s < e)
       {
-        s = static_cast<const char*>(std::memchr(s, *pat_->pre_, e - s));
+        s = static_cast<const char*>(std::memchr(s, *pat_->chr_, e - s));
         if (s != NULL)
         {
           loc = s - buf_;
@@ -970,12 +970,12 @@ unrolled:
             {
               if (pat_->min_ > 0)
               {
-                const Pattern::Pred *pma = pat_->pma_;
+                const Pattern::Pred *bit = pat_->bit_;
                 while (true)
                 {
                   const char *s = buf_ + loc;
                   const char *e = buf_ + end_;
-                  while (s < e && (pma[static_cast<uint8_t>(*s)] & 0xc0) == 0xc0)
+                  while (s < e && (bit[static_cast<uint8_t>(*s)] & 1))
                     ++s;
                   if (s < e)
                   {
@@ -998,7 +998,7 @@ unrolled:
               {
                 const char *s = buf_ + loc;
                 const char *e = buf_ + end_;
-                s = static_cast<const char*>(std::memchr(s, *pat_->pre_, e - s));
+                s = static_cast<const char*>(std::memchr(s, *pat_->chr_, e - s));
                 if (s != NULL)
                 {
                   loc = s - buf_;

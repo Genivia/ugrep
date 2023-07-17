@@ -170,7 +170,9 @@ void Pattern::init(const char *options, const uint8_t *pred)
   len_ = 0;
   min_ = 0;
   pin_ = 0;
-  ndl_ = 0;
+  lcp_ = 0;
+  lcs_ = 0;
+  bmd_ = 0;
   npy_ = 0;
   one_ = false;
   vno_ = 0;
@@ -186,7 +188,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
       len_ = pred[0];
       min_ = pred[1] & 0x0f;
       one_ = pred[1] & 0x10;
-      memcpy(pre_, pred + 2, len_);
+      memcpy(chr_, pred + 2, len_);
       if (min_ > 0)
       {
         size_t n = len_ + 2;
@@ -266,6 +268,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
   // clean up bitap and compute bitap entropy
   if (min_ > 0 && len_ == 0)
   {
+    // bitap entropy to estimate false positive rate
     npy_ = 0;
     for (Char i = 0; i < 256; ++i)
     {
@@ -279,56 +282,154 @@ void Pattern::init(const char *options, const uint8_t *pred)
       npy_ += (bit_[i] & 0x40) == 0;
       npy_ += (bit_[i] & 0x80) == 0;
     }
-    // bitap entropy to estimate false positive rate, we don't use bitap when entropy is too high for short patterns
+    // average entropy per bitap position, we don't use bitap when entropy is too high for short patterns
     npy_ /= min_;
+    // if patterns are longer then 4, we use bitap to increase accuracy, unless entropy is very high
     if (min_ > 4 && npy_ < 200)
       npy_ = 0;
-    // frequency threshold to enable a quick-and-dirty simple needle-based search
-    // TODO a more sophisticated needle-based search method is certainly possible, but we keep it simple for now
-#if defined(HAVE_NEON)
-    const size_t freqmax = 50;
+    // needle count and frequency thresholds to enable needle-based search
+    uint16_t pinmax = 8;
+    uint8_t freqmax = 251;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+    if (have_HW_AVX512BW() || have_HW_AVX2())
+      pinmax = 16;
+    else if (have_HW_SSE2())
+      pinmax = 8;
+    else
+      pinmax = 1;
+#elif defined(HAVE_NEON)
+    pinmax = 8;
 #else
-    const size_t freqmax = 119;
+    pinmax = 1;
 #endif
     // get needles
-    ndl_ = 0;
-    size_t j = 0, m = 256, g = 65536;
+    pin_ = 0;
+    lcp_ = 0;
+    lcs_ = 0;
+    uint16_t nlcp = 65535; // max and undefined
+    uint16_t nlcs = 65535; // max and undefined
+    uint8_t freqlcp = 255; // max
+    uint8_t freqlcs = 255; // max
     for (size_t k = 0; k < min_; ++k)
     {
       Pred mask = 1 << k;
-      uint16_t n = 0, f = 0;
+      uint16_t n = 0;
+      uint8_t freq = 0;
       // at position k count the matching characters and find the max character frequency
       for (uint16_t i = 0; i < 256; ++i)
       {
         if ((bit_[i] & mask) == 0)
         {
           ++n;
-          if (frequency(i) > f)
-            f = frequency(i);
+          if (frequency(i) > freq)
+            freq = frequency(i);
         }
       }
-#if !defined(HAVE_AVX512BW) && !defined(HAVE_AVX2) && !defined(HAVE_SSE2) && !defined(HAVE_NEON)
-      if (n == 1)
-#endif
+      if (n <= pinmax)
       {
         // pick the fewest and rarest (least frequently occurring) needles to search
-        if (m > 1 && n <= 4 ? f < g : n <= m && f <= g)
+        if (freq < freqlcp || (n < nlcp && freq == freqlcp))
         {
-          m = n;
-          j = k;
-          g = f;
+          lcs_ = lcp_;
+          nlcs = nlcp;
+          freqlcs = freqlcp;
+          lcp_ = k;
+          nlcp = n;
+          freqlcp = freq;
+        }
+        else if (n < nlcs || (n == nlcs && freq < freqlcs))
+        {
+          lcs_ = k;
+          nlcs = n;
+          freqlcs = freq;
         }
       }
     }
-    // determine if a needle-based search is worthwhile
-    if (m <= 8 && g <= freqmax)
+    // number of needles required
+    uint16_t n = nlcp > nlcs ? nlcp : nlcs;
+    // determine if a needle-based search is worthwhile, below or meeting the thresholds
+    if (n <= pinmax && freqlcp <= freqmax)
     {
-      pin_ = j;
-      Pred mask = 1 << j;
+      // bridge the gap from 9 to 16
+      if (n > 8)
+        n = 16;
+      uint8_t j = 0, k = n;
+      Pred masklcp = 1 << lcp_;
+      Pred masklcs = 1 << lcs_;
       for (uint16_t i = 0; i < 256; ++i)
-        if ((bit_[i] & mask) == 0)
-          pre_[ndl_++] = i;
+      {
+        if ((bit_[i] & masklcp) == 0)
+          chr_[j++] = i;
+        if ((bit_[i] & masklcs) == 0)
+          chr_[k++] = i;
+      }
+      // fill up the rest of the character tables with duplicates if necessary
+      for (; j < n; ++j)
+        chr_[j] = chr_[j - 1];
+      for (; k < 2*n; ++k)
+        chr_[k] = chr_[k - 1];
+      pin_ = n;
     }
+  }
+  else if (len_ > 1)
+  {
+    // Boyer-Moore preprocessing of the given string pattern pat of length len, generates bmd_ > 0 and bms_[] shifts
+    uint8_t n = static_cast<uint8_t>(len_); // okay to cast: actually never more than 255
+    uint16_t i;
+    for (i = 0; i < 256; ++i)
+      bms_[i] = n;
+    lcp_ = 0;
+    lcs_ = 1;
+    for (i = 0; i < n; ++i)
+    {
+      uint8_t pch = static_cast<uint8_t>(chr_[i]);
+      bms_[pch] = static_cast<uint8_t>(n - i - 1);
+      if (i > 0)
+      {
+        uint8_t freqpch = frequency(pch);
+        uint8_t lcpch = static_cast<uint8_t>(chr_[lcp_]);
+        uint8_t lcsch = static_cast<uint8_t>(chr_[lcs_]);
+        if (frequency(lcpch) > freqpch)
+        {
+          lcs_ = lcp_;
+          lcp_ = i;
+        }
+        else if (lcpch != pch && frequency(lcsch) > freqpch)
+        {
+          lcs_ = i;
+        }
+      }
+    }
+    uint16_t j;
+    for (i = n - 1, j = i; j > 0; --j)
+      if (chr_[j - 1] == chr_[i])
+        break;
+    bmd_ = i - j + 1;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2) || defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2 || !defined(HAVE_NEON)
+    size_t score = 0;
+    for (i = 0; i < n; ++i)
+      score += bms_[static_cast<uint8_t>(chr_[i])];
+    score /= n;
+    uint8_t fch = frequency(static_cast<uint8_t>(chr_[lcp_]));
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+    if (!have_HW_SSE2() && !have_HW_AVX2() && !have_HW_AVX512BW())
+    {
+      // SSE2/AVX2 not available: if B-M scoring is high and freq is high, then use our improved Boyer-Moore
+      if (score > 1 && fch > 35 && (score > 4 || fch > 50) && fch + score > 52)
+        lcs_ = 0xffff; // use B-M
+    }
+#elif defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
+    // SSE2 is available: only if B-M scoring is high and freq is high, then use our improved Boyer-Moore
+    if (score > 1 && fch > 35 && (score > 4 || fch > 50) && fch + score > 52)
+      lcs_ = 0xffff; // use B-M
+#elif !defined(HAVE_NEON)
+    // no SIMD available: if B-M scoring is high and freq is high, then use our improved Boyer-Moore
+    if (score > 1 && fch > 35 && (score > 3 || fch > 50) && fch + score > 52)
+      lcs_ = 0xffff; // use B-M
+#endif
+#endif
+    if (lcs_ < 0xffff)
+      bmd_ = 0; // do not use B-M
   }
 }
 
@@ -3588,7 +3689,7 @@ void Pattern::predict_match_dfa(DFA::State *start)
         one_ = false;
         break;
       }
-      pre_[len_++] = static_cast<uint8_t>(lo);
+      chr_[len_++] = static_cast<uint8_t>(lo);
     }
     else
     {
@@ -3772,7 +3873,7 @@ void Pattern::write_predictor(FILE *file) const
   ::fprintf(file, "const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (min_ > 1 && len_ == 0) * 256 + (min_ > 0) * Const::HASH);
   ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4))));
   for (size_t i = 0; i < len_; ++i)
-    ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(pre_[i]));
+    ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(chr_[i]));
   if (min_ > 0)
   {
     if (min_ > 1 && len_ == 0)
