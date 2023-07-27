@@ -1,6 +1,7 @@
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
-**New faster ugrep 3.12 with more features.**
+New ultra-fast ugrep 3.12 with more features
+--------------------------------------------
 
 Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features beat grep, ripgrep, silver searcher, ack, sift, etc.
 
