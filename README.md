@@ -1,5 +1,7 @@
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
+**New faster ugrep 3.12 with more features.**
+
 Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features beat grep, ripgrep, silver searcher, ack, sift, etc.
 
 The ugrep tools include the following powerful commands:
@@ -22,9 +24,9 @@ The ugrep tools include the following powerful commands:
 
 - Matches multiple lines with `\n` and `\R` regex patterns
 
-- Built-in help: `ugrep --help WHAT` displays options related to `WHAT` you are looking for
+- Built-in help: `ug --help`, where `ug --help WHAT` displays options related to `WHAT` you are looking for
 
-  💡**ProTip** try `--help help`, `--help regex` and `--help globs`.
+  💡**ProTip** try `ug --help regex`, `ug --help globs`, `ug --help fuzzy`, `ug --help format`.
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command intended for interactive use that loads a .ugrep configuration file with your preferences
 
