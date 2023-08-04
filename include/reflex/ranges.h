@@ -567,14 +567,21 @@ This lowers storage overhead and reduces insertion, deletion, and search time.
 We can iterate over open-ended ranges.  The iterator dereferences values are
 `[lo,hi+1)` pairs, i.e. `lo = i->first` and `hi = i->second - 1`.
 
-Note that the largest value that can be stored in an open-ended range is the
-maximum representable value minus 1.  For example, `reflex::ORanges<char>`
-holds values -128 to 126 and excludes 127.  The macro WITH_ORANGES_CLAMPED can
-be defined to use this library such that the maximum value is clamped to
-prevent overflow, e.g. `reflex::ORanges<char> ch = 127` is clamped to 126.
-However, this still excludes 127 from the range set.  This feature should not
-be required when the library is used with sufficiently wide container value
-types.
+IMPORTANT:
+
+The largest value that can be stored in an open-ended range of value type T is
+the maximum T-representable value minus 1.  For example, the character range
+`reflex::ORanges<char>` holds values -128 to 126 and excludes 127.
+- Pick sufficiently wide container value types T, e.g. int instead of char.
+- Or the macro WITH_ORANGES_CLAMPED can be defined to use this library such
+  that the maximum value is clamped to prevent overflow, e.g.
+  `reflex::ORanges<char> ch = 127` is clamped to 126.  However, this still
+  excludes 127 from the range set.
+- It is in principle possible to store and search for character 127 separately
+  with insert(127) and find(127), respectively.  Repeated insert(127) will add
+  more 127 values, which is not desirable, since the unique set property no
+  longer holds.  Beware that insert(ch, 127) will not work.  Also, value 127
+  cannot be deleted.
 
 Example:
 

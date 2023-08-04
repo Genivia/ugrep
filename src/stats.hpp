@@ -60,6 +60,10 @@ class Stats {
     reflex::timer_start(timer);
     files = 0;
     dirs = 0;
+    indexed = 0;
+    skipped = 0;
+    changed = 0;
+    added = 0;
     fileno = 0;
     partno = 0;
     lineno = 0;
@@ -77,6 +81,30 @@ class Stats {
   static void score_dir()
   {
     ++dirs;
+  }
+
+  // score an indexed file
+  static void score_indexed()
+  {
+    ++indexed;
+  }
+
+  // score an indexed file that was skipped from search
+  static void score_skipped()
+  {
+    ++skipped;
+  }
+
+  // score an indexed file that was changed and searched (stale index file)
+  static void score_changed()
+  {
+    ++changed;
+  }
+
+  // score a non-indexed file that was added and searched (stale index file)
+  static void score_added()
+  {
+    ++added;
   }
 
   // score matches
@@ -164,6 +192,10 @@ class Stats {
   static reflex::timer_type       timer;   // elapsed wall-clock time in milli seconds (ms)
   static size_t                   files;   // number of files searched, excluding files in archives
   static size_t                   dirs;    // number of directories searched
+  static size_t                   indexed; // number of files found to be indexed
+  static size_t                   skipped; // number of files found to be indexed that were skipped as not matching
+  static size_t                   changed; // number of files found to be indexed but changed (stale index file)
+  static size_t                   added;   // number of files found to be added (stale index file)
   static std::atomic_size_t       fileno;  // number of matching files, excluding files in archives, atomic for GrepWorker::search() update
   static std::atomic_size_t       partno;  // number of matching files, including files in archives, atomic for GrepWorker::search() update
   static std::atomic_size_t       lineno;  // number of lines searched cummulatively

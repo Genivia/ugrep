@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 16, 2023" "ugrep 3.12.4" "User Commands"
+.TH UGREP "1" "August 04, 2023" "ugrep 3.12.5" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -396,7 +396,7 @@ Spacing (blanks and tabs) in regular expressions are ignored.
 Interpret patterns as basic regular expressions (BREs), i.e. make
 ugrep behave as traditional grep.
 .TP
-\fB\-g\fR \fIGLOBS\fR, \fB\-\-glob\fR=\fIGLOBS\fR
+\fB\-g\fR \fIGLOBS\fR, \fB\-\-glob\fR=\fIGLOBS\fR, \fB\-\-iglob\fR=\fIGLOBS\fR
 Search only files whose name matches the specified comma\-separated
 list of GLOBS, same as \fB\-\-include\fR='glob' for each `glob' in GLOBS.
 When a `glob' is preceded by a `!' or a `^', skip files whose name
@@ -404,9 +404,13 @@ matches `glob', same as \fB\-\-exclude\fR='glob'.  When `glob' contains a
 `/', full pathnames are matched.  Otherwise basenames are matched.
 When `glob' ends with a `/', directories are matched, same as
 \fB\-\-include\-dir\fR='glob' and \fB\-\-exclude\-dir\fR='glob'.  A leading `/'
-matches the working directory.  This option may be repeated and may
-be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR to expand searches.  See
+matches the working directory.  Option \fB\-\-iglob\fR performs
+case\-insensitive name matching.  This option may be repeated and
+may be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR to expand searches.  See
 `ugrep \fB\-\-help\fR globs' and `man ugrep' section GLOBBING for details.
+.TP
+\fB\-\-glob\-ignore\-case\fR
+Perform case\-insensitive glob matching in general.
 .TP
 \fB\-\-group\-separator\fR[=\fISEP\fR]
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR and \fB\-C\fR.
@@ -426,10 +430,11 @@ results from different files.  This option is enabled by \fB\-\-pretty\fR
 when the output is sent to a terminal.
 .TP
 \fB\-\-help\fR [\fIWHAT\fR], \fB\-?\fR [\fIWHAT\fR]
-Display a help message, specifically on WHAT when specified.
-In addition, `\fB\-\-help\fR format' displays an overview of FORMAT fields,
-`\fB\-\-help\fR regex' displays an overview of regular expressions and
-`\fB\-\-help\fR globs' displays an overview of glob syntax and conventions.
+Display a help message on options related to WHAT when specified.
+In addition, `\fB\-\-help\fR regex' displays an overview of regular
+expressions, `\fB\-\-help\fR globs' displays an overview of glob syntax and
+conventions.  `\fB\-\-help\fR fuzzy' displays details of fuzzy search with
+option \fB\-Z\fR and `\fB\-\-help\fR format' displays a list of \fB\-\-format\fR fields.
 .TP
 \fB\-\-hexdump\fR[=[1\-8][a][bch][A[\fINUM\fR]][B[\fINUM\fR]][C[\fINUM\fR]]]
 Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
@@ -511,6 +516,10 @@ pathnames of directories on file systems.  \fB\-\-include\-fs\fR=. restricts
 recursive searches to the file system of the working directory
 only.  Note that \fB\-\-exclude\-fs\fR mounts take priority over
 \fB\-\-include\-fs\fR mounts.  This option may be repeated.
+.TP
+\fB\-\-index\fR
+Perform indexing\-based search on files indexed with ugrep\-indexer.
+Note: a beta release feature.
 .TP
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
 Specifies the number of threads spawned to search files.  By
@@ -680,19 +689,19 @@ ALT\-] to increase fuzziness and ALT\-} to increase context.  Enables
 \fB\-\-heading\fR.  See also options \fB\-\-confirm\fR and \fB\-\-view\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
-Quiet mode: suppress all output.  ugrep will only search until a
-match has been found.
+Quiet mode: suppress all output.  Only search a file until a match
+has been found.
 .TP
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
 Recursively read all files under each directory.  Follow all
-symbolic links, unlike \fB\-r\fR.  See also option \fB\-\-sort\fR.
+symbolic links to directories, unlike \fB\-r\fR.  See also option \fB\-\-sort\fR.
 .TP
 \fB\-r\fR, \fB\-\-recursive\fR
 Recursively read all files under each directory, following symbolic
-links only if they are specified on the command line.  Note that
-when no FILE arguments are specified and input is read from a
-terminal, recursive searches are performed as if \fB\-r\fR is specified.
-See also option \fB\-\-sort\fR.
+links to files but not to directories.  Note that when no FILE
+arguments are specified and input is read from a terminal,
+recursive searches are performed as if \fB\-r\fR is specified.  See also
+option \fB\-\-sort\fR.
 .TP
 \fB\-\-replace\fR=\fIFORMAT\fR
 Replace matching patterns in the output by the specified FORMAT

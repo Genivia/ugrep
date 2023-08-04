@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "3.12.4"
+#define UGREP_VERSION "3.12.5"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -163,9 +163,7 @@ inline char *getcwd0()
 inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 {
   *file = NULL;
-
   std::wstring wfilename = utf8_decode(filename);
-
   HANDLE hFile;
   if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
     hFile = CreateFileW(wfilename.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
@@ -173,26 +171,20 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
     hFile = CreateFileW(wfilename.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   else
     hFile = CreateFileW(wfilename.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
   if (hFile == INVALID_HANDLE_VALUE)
     return errno = (GetLastError() == ERROR_ACCESS_DENIED ? EACCES : ENOENT);
-
   int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), _O_RDONLY);
-
   if (fd == -1)
   { 
     CloseHandle(hFile);
     return errno = EINVAL; 
   }
-
   *file = _fdopen(fd, mode);
-
   if (*file == NULL)
   {
     _close(fd);
     return errno ? errno : (errno = EINVAL);
   }
-
   return 0;
 }
 
@@ -242,6 +234,7 @@ inline int dupenv_s(char **ptr, const char *name)
 // Open Unicode wide string UTF-8 encoded filename
 inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 {
+  *file = NULL;
 #if defined(HAVE_F_RDAHEAD)
   if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
   {

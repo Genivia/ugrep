@@ -628,6 +628,8 @@ bool Matcher::advance()
 #endif
   size_t loc = cur_ + 1;
   size_t min = pat_->min_;
+  const Pattern::Pred *pma = pat_->pma_;
+  const Pattern::Pred *pmh = pat_->pmh_;
   if (pat_->len_ == 0)
   {
     if (min == 0)
@@ -640,7 +642,6 @@ bool Matcher::advance()
       if (loc + min > end_)
         return false;
     }
-    const Pattern::Pred *pma = pat_->pma_;
     // look for a needle
     if (pat_->pin_ == 1)
     {
@@ -668,7 +669,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -711,7 +712,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -758,7 +759,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -781,7 +782,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -817,7 +818,7 @@ bool Matcher::advance()
           set_current(loc);
           if (min >= 4)
           {
-            if (s + min > e || (s[lcs] == chr[1] && Pattern::predict_match(pat_->pmh_, s, min)))
+            if (s + min > e || (s[lcs] == chr[1] && Pattern::predict_match(pmh, s, min)))
               return true;
           }
           else
@@ -870,7 +871,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -926,7 +927,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -986,7 +987,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1050,7 +1051,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1118,7 +1119,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1190,7 +1191,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1266,7 +1267,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1374,7 +1375,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1428,7 +1429,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1484,7 +1485,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1544,7 +1545,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1608,7 +1609,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1676,7 +1677,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1748,7 +1749,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1824,7 +1825,7 @@ bool Matcher::advance()
             set_current(loc);
             if (min >= 4)
             {
-              if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+              if (Pattern::predict_match(pmh, &buf_[loc], min))
                 return true;
             }
             else
@@ -1880,7 +1881,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -1903,7 +1904,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -1971,7 +1972,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -1994,7 +1995,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2068,7 +2069,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2091,7 +2092,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2171,7 +2172,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2194,7 +2195,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2280,7 +2281,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2303,7 +2304,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2395,7 +2396,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2418,7 +2419,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2516,7 +2517,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2539,7 +2540,7 @@ bool Matcher::advance()
                 set_current(loc);
                 if (min >= 4)
                 {
-                  if (Pattern::predict_match(pat_->pmh_, &buf_[loc], min))
+                  if (Pattern::predict_match(pmh, &buf_[loc], min))
                     return true;
                 }
                 else
@@ -2602,7 +2603,7 @@ bool Matcher::advance()
           {
             s -= min - 1;
             loc = s - buf_;
-            if (Pattern::predict_match(pat_->pmh_, s, min))
+            if (Pattern::predict_match(pmh, s, min))
             {
               set_current(loc);
               return true;
@@ -2703,8 +2704,8 @@ bool Matcher::advance()
         const char *e = buf_ + end_ - min;
         bool f = true;
         while (s < e &&
-            (f = (!Pattern::predict_match(pat_->pmh_, s, min) &&
-                  !Pattern::predict_match(pat_->pmh_, ++s, min))))
+            (f = (!Pattern::predict_match(pmh, s, min) &&
+                  !Pattern::predict_match(pmh, ++s, min))))
         {
           ++s;
         }
@@ -2717,12 +2718,10 @@ bool Matcher::advance()
         set_current_match(loc - 1);
         (void)peek_more();
         loc = cur_ + 1;
-        if (loc >= end_)
-          return false;
         if (loc + min >= end_)
         {
           set_current(loc);
-          return true;
+          return loc + min <= end_;
         }
       }
     }
@@ -2750,12 +2749,10 @@ bool Matcher::advance()
         set_current_match(loc - 1);
         (void)peek_more();
         loc = cur_ + 1;
-        if (loc >= end_)
-          return false;
         if (loc + 6 >= end_)
         {
           set_current(loc);
-          return true;
+          return loc + min <= end_;
         }
       }
     }
@@ -2777,12 +2774,12 @@ bool Matcher::advance()
           return true;
         if (min >= 4)
         {
-          if (s + 1 + min > e || Pattern::predict_match(pat_->pmh_, s + 1, min))
+          if (s + 1 + min > e || Pattern::predict_match(pmh, s + 1, min))
             return true;
         }
         else
         {
-          if (s > e - 5 || Pattern::predict_match(pat_->pma_, s + 1) == 0)
+          if (s > e - 5 || Pattern::predict_match(pma, s + 1) == 0)
             return true;
         }
         ++loc;
@@ -2827,12 +2824,12 @@ bool Matcher::advance()
               return true;
             if (min >= 4)
             {
-              if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+              if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
                 return true;
             }
             else
             {
-              if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+              if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                 return true;
             }
           }
@@ -2863,12 +2860,12 @@ bool Matcher::advance()
               return true;
             if (min >= 4)
             {
-              if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+              if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
                 return true;
             }
             else
             {
-              if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+              if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                 return true;
             }
           }
@@ -2899,12 +2896,12 @@ bool Matcher::advance()
               return true;
             if (min >= 4)
             {
-              if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+              if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
                 return true;
             }
             else
             {
-              if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+              if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                 return true;
             }
           }
@@ -2938,12 +2935,12 @@ bool Matcher::advance()
                 return true;
               if (min >= 4)
               {
-                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
                   return true;
               }
               else
               {
-                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                   return true;
               }
             }
@@ -2963,12 +2960,12 @@ bool Matcher::advance()
                 return true;
               if (min >= 4)
               {
-                if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+                if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
                   return true;
               }
               else
               {
-                if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+                if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                   return true;
               }
             }
@@ -2996,12 +2993,12 @@ bool Matcher::advance()
             return true;
           if (min >= 4)
           {
-            if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+            if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
               return true;
           }
           else
           {
-            if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+            if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
               return true;
           }
         }
@@ -3045,12 +3042,12 @@ bool Matcher::advance()
             return true;
           if (min >= 4)
           {
-            if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+            if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
               return true;
           }
           else
           {
-            if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+            if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
               return true;
           }
         }

@@ -50,6 +50,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <bitset>
 #include <vector>
 
 // ugrep 3.7: use vectors instead of sets to store positions to compile DFAs
@@ -317,25 +318,41 @@ class Pattern {
   {
     return nop_;
   }
+  /// Get the total number of indexing hash tables constructed for the optional HFA.
+  size_t hashes() const
+    /// @returns number of HFA hashes total for all HFA edges
+  {
+    return hno_;
+  }
   /// Get elapsed regex parsing and analysis time.
   float parse_time() const
+    /// @returns time in ms
   {
     return pms_;
   }
   /// Get elapsed DFA vertices construction time.
   float nodes_time() const
+    /// @returns time in ms
   {
     return vms_;
   }
   /// Get elapsed DFA edges construction time.
   float edges_time() const
+    /// @returns time in ms
   {
     return ems_;
   }
   /// Get elapsed code words assembly time.
   float words_time() const
+    /// @returns time in ms
   {
     return wms_;
+  }
+  /// Get elapsed time of indexing hash finite state automaton construction for the optional HFA.
+  float hashing_time() const
+    /// @returns time in ms
+  {
+    return hno_ > 0 ? hms_ : 0.0f;
   }
   /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4).
   static inline bool predict_match(const Pred pmh[], const char *s, size_t n)
@@ -353,12 +370,12 @@ class Pattern {
     while (f == 0 && ++s < e)
     {
       h = hash(h, static_cast<uint8_t>(*s));
-      f |= pmh[h] & m;
+      f = pmh[h] & m;
       m <<= 1;
     }
     return f == 0;
   }
-  /// Returns zero when match is predicted (removed shift distance return, just 0 or 1).
+  /// Returns zero when match is predicted (removed shift distance return, now just returns 0 or 1).
   static inline size_t predict_match(const Pred pma[], const char *s)
   {
     uint8_t b0 = s[0];
@@ -637,7 +654,8 @@ class Pattern {
   /// DFA created by subset construction from regex patterns.
   struct DFA {
     struct State : Positions {
-      typedef std::map<Char,std::pair<Char,State*> > Edges;
+      typedef std::pair<Char,State*> Edge;  ///< hi of char range [lo,hi] and state to transition to
+      typedef std::map<Char,Edge>    Edges; ///< maps lo to hi and state to transition to on char in range [lo,hi]
       State()
         :
           next(NULL),
@@ -762,10 +780,28 @@ class Pattern {
     List     list; ///< block allocation list
     uint16_t next; ///< block allocation, next available slot in last block
   };
+  /// Indexing hash finite state automaton for indexed file search.
+  struct HFA {
+    static const size_t MAX_DEPTH  =     16; // max hashed pattern length must be between 3 and 16, long is accurate
+    static const size_t MAX_CHAIN  =      8; // max length of hashed chars chain must be between 2 and 8 (8 is optimal)
+    static const size_t MAX_STATES =   1024; // max number of states must be 256 or greater
+    static const size_t MAX_RANGES = 262144; // max number of hashes ranges on an edge to the next state
+    typedef ORanges<Hash>                    HashRange;
+    typedef HashRange                        HashRanges[MAX_DEPTH];
+    typedef std::map<DFA::State*,HashRanges> StateHashes;
+    typedef uint16_t                         State;
+    typedef std::map<State,HashRanges>       Hashes;
+    typedef std::set<State>                  StateSet;
+    typedef std::map<State,StateSet>         States;
+    typedef std::bitset<MAX_STATES>          VisitSet;
+    Hashes hashes[MAX_DEPTH];
+    States states;
+  };
   /// Global modifier modes, syntax flags, and compiler options.
   struct Option {
-    Option() : b(), e(), f(), i(), m(), n(), o(), p(), q(), r(), s(), w(), x(), z() { }
+    Option() : b(), h(), e(), f(), i(), m(), n(), o(), p(), q(), r(), s(), w(), x(), z() { }
     bool                     b; ///< disable escapes in bracket lists
+    bool                     h; ///< construct indexing hash finite state automaton
     Char                     e; ///< escape character, or > 255 for none, '\\' default
     std::vector<std::string> f; ///< output to files
     bool                     i; ///< case insensitive mode, also `(?i:X)`
@@ -908,10 +944,21 @@ class Pattern {
       bool              peek) const;
   void graph_dfa(const DFA::State *start) const;
   void export_code() const;
-  void predict_match_dfa(DFA::State *start);
-  void gen_predict_match(DFA::State *state);
-  void gen_predict_match_transitions(DFA::State *state, std::map<DFA::State*,ORanges<Hash> >& states);
-  void gen_predict_match_transitions(size_t level, DFA::State *state, ORanges<Hash>& labels, std::map<DFA::State*,ORanges<Hash> >& states);
+  void predict_match_dfa(const DFA::State *start);
+  void gen_predict_match(const DFA::State *state);
+  void gen_predict_match_start(const DFA::State *state, std::map<const DFA::State*,ORanges<Hash> >& states);
+  void gen_predict_match_transitions(size_t level, const DFA::State *state, const ORanges<Hash>& labels, std::map<const DFA::State*,ORanges<Hash> >& states);
+  void gen_match_hfa(DFA::State *state);
+  bool gen_match_hfa_start(DFA::State *state, HFA::State& index, HFA::StateHashes& hashes);
+  bool gen_match_hfa_transitions(size_t level, size_t& max_level, DFA::State *state, const HFA::HashRanges& previous, HFA::State& index, HFA::StateHashes& hashes);
+ public:
+  bool has_hfa() const
+  {
+    return !hfa_.states.empty();
+  }
+  bool match_hfa(const uint8_t *indexed, size_t size) const;
+ private:
+  bool match_hfa_transitions(size_t level, const HFA::Hashes& hashes, const uint8_t *indexed, size_t size, HFA::VisitSet& visit, HFA::VisitSet& next_visit, bool& accept) const;
   void write_predictor(FILE *fd) const;
   void write_namespace_open(FILE* fd) const;
   void write_namespace_close(FILE* fd) const;
@@ -1079,23 +1126,28 @@ class Pattern {
   {
     return opcode & 0xFFFF;
   }
+  /// convert to lower case if c is a letter a-z, A-Z.
   static inline Char lowercase(Char c)
   {
     return static_cast<unsigned char>(c | 0x20);
   }
+  /// convert to upper case if c is a letter a-z, A-Z.
   static inline Char uppercase(Char c)
   {
     return static_cast<unsigned char>(c & ~0x20);
   }
-  static inline Char reversecase(Char c)
-  {
-    return static_cast<unsigned char>(c ^ 0x20);
-  }
+  /// predict match hash 0 <= hash() < Const::HASH.
   static inline Hash hash(Hash h, uint8_t b)
   {
     return ((h << 3) ^ b) & (Const::HASH - 1);
   }
+  /// file indexing hash 0 <= indexhash() < 65536, must be additive: indexhash(x,b+1) = indexhash(x,b)+1 modulo 2^16
+  static inline Hash indexhash(Hash h, uint8_t b)
+  {
+    return (h << 6) - h - h - h + b;
+  }
   Option                opt_; ///< pattern compiler options
+  HFA                   hfa_; ///< indexing hash finite state automaton
 #ifdef WITH_TREE_DFA
   DFA                   tfa_; ///< tree DFA constructed from strings
 #else
@@ -1107,6 +1159,7 @@ class Pattern {
   std::vector<bool>     acc_; ///< true if subpattern n is accepting (state is reachable)
   size_t                vno_; ///< number of finite state machine vertices |V|
   size_t                eno_; ///< number of finite state machine edges |E|
+  size_t                hno_; ///< number of indexing hash tables (HFA edges)
   const Opcode         *opc_; ///< points to the table with compiled finite state machine opcodes
   Index                 nop_; ///< number of opcodes generated
   FSM                   fsm_; ///< function pointer to FSM code
@@ -1125,6 +1178,7 @@ class Pattern {
   float                 vms_; ///< ms elapsed time to compile DFA vertices
   float                 ems_; ///< ms elapsed time to compile DFA edges
   float                 wms_; ///< ms elapsed time to assemble code words
+  float                 hms_; ///< ms elapsed time to construct the indexing hash finite state automaton HFA
   size_t                npy_; ///< entropy derived from the bitap array bit_[]
   bool                  one_; ///< true if matching one string stored in chr_[] without meta/anchors
 };

@@ -34,6 +34,10 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
+// See my article "Fast String Matching with Wildcards, Globs, and
+//                 Gitignore-Style Globs - How Not to Blow it Up":
+// https://www.codeproject.com/Articles/5163931/Fast-String-Matching-with-Wildcards-Globs-and-Giti
+//
 //  - supports gitignore-style glob matching, see syntax below
 //  - matches / in globs against the windows \ path separator
 //  - replaced recursion by iteration (two levels of iteration are needed to
@@ -41,6 +45,7 @@
 //    one for the last deep ** wildcard)
 //  - linear time complexity in the length of the text for usual cases, with
 //    worst-case quadratic time
+//  - performs case-insensitive matching when the ic flag is set to true
 //
 //  Pathnames are normalized by removing any leading ./ and / from the pathname
 //
@@ -80,6 +85,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cctype>
 
 #ifdef OS_WIN
 #define PATHSEP '\\'
@@ -87,10 +93,10 @@
 #define PATHSEP '/'
 #endif
 
-static int utf8(const char **s);
+static int utf8(const char **s, bool ic = false);
 
-// match text against glob, return true or false
-static bool match(const char *text, const char *glob)
+// match text against glob, return true or false, perform case-insensitive match if ic is true
+static bool match(const char *text, const char *glob, bool ic)
 {
   // to iteratively backtrack on *
   const char *text1_backup = NULL;
@@ -142,7 +148,8 @@ static bool match(const char *text, const char *glob)
 
       case '[':
       {
-        int chr = utf8(&text), last = 0x10ffff;
+        // match character class, ignoring case if ic is true
+        int chr = utf8(&text, ic), last = 0x10ffff;
 
         // match anything except /
         if (chr == PATHSEP)
@@ -156,12 +163,24 @@ static bool match(const char *text, const char *glob)
           glob++;
         glob++;
 
-        // match character class
-        while (*glob != '\0' && *glob != ']')
-          if (last < 0x10ffff && *glob == '-' && glob[1] != ']' && glob[1] != '\0' ?
-              chr <= utf8(&++glob) && chr >= last :
-              chr == (last = utf8(&glob)))
-            matched = true;
+        int lc = chr, uc = (ic && lc >= 'a' && lc <= 'z' ? toupper(chr) : chr);
+
+        if (lc == uc)
+        {
+          while (*glob != '\0' && *glob != ']')
+            if (last < 0x10ffff && *glob == '-' && glob[1] != ']' && glob[1] != '\0' ?
+                chr <= utf8(&++glob) && chr >= last :
+                chr == (last = utf8(&glob)))
+              matched = true;
+        }
+        else
+        {
+          while (*glob != '\0' && *glob != ']')
+            if (last < 0x10ffff && *glob == '-' && glob[1] != ']' && glob[1] != '\0' ?
+                ((lc <= (chr = utf8(&++glob)) && lc >= last) || (uc <= chr && uc >= last)) :
+                (lc == (last = utf8(&glob)) || uc == last))
+              matched = true;
+        }
 
         if (matched == reverse)
           break;
@@ -178,9 +197,9 @@ static bool match(const char *text, const char *glob)
 
       default:
 #ifdef OS_WIN
-        if (*glob != *text && !(*glob == '/' && *text == '\\'))
+        if ((ic ? tolower(*glob) != tolower(*text) : *glob != *text) && !(*glob == '/' && *text == '\\'))
 #else
-        if (*glob != *text)
+        if (ic ? tolower(*glob) != tolower(*text) : *glob != *text)
 #endif
           break;
 
@@ -213,8 +232,8 @@ static bool match(const char *text, const char *glob)
   return *glob == '\0';
 }
  
-// pathname or basename matching, returns true or false
-bool glob_match(const char *pathname, const char *basename, const char *glob)
+// pathname or basename glob matching, returns true or false, perform case-insensitive match if ic is true
+bool glob_match(const char *pathname, const char *basename, const char *glob, bool ic)
 {
   // if pathname starts with ./ then skip this
   while (pathname[0] == '.' && pathname[1] == PATHSEP)
@@ -231,20 +250,20 @@ bool glob_match(const char *pathname, const char *basename, const char *glob)
       glob += 2;
     else if (glob[0] == '/')
       ++glob;
-    return match(pathname, glob);
+    return match(pathname, glob, ic);
   }
 
-  return match(basename, glob);
+  return match(basename, glob, ic);
 }
 
-// return wide character of UTF-8 multi-byte sequence
-static int utf8(const char **s)
+// return wide character of UTF-8 multi-byte sequence, return ASCII lower case if ic is true
+static int utf8(const char **s, bool ic)
 {
   int c1, c2, c3, c = (unsigned char)**s;
   if (c != '\0')
     (*s)++;
   if (c < 0x80)
-    return c;
+    return ic ? tolower(c) : c;
   c1 = (unsigned char)**s;
   if (c < 0xC0 || (c == 0xC0 && c1 != 0x80) || c == 0xC1 || (c1 & 0xC0) != 0x80)
     return 0xFFFD;

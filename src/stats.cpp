@@ -64,15 +64,32 @@ void Stats::report(FILE *output)
   if (fm > 0 && !flag_quiet && !flag_files_with_matches && !flag_files_without_match)
   {
     if (flag_ungroup || (flag_count && flag_only_matching) || (!flag_count && flag_format != NULL))
-      fprintf(output, "Searched %zu line%s: found %zu matches (ungrouped)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm);
+      fprintf(output, "Searched %zu line%s: found %zu match%s (ungrouped)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm, (fm == 1 ? "" : "es"));
     else
       fprintf(output, "Searched %zu line%s: %zu matching (%.4g%%)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm, 100.0 * fm / sl);
+  }
+
+  if (flag_index && indexed)
+  {
+    fprintf(stderr, "Skipped %zu of %zu files with indexes not matching any search patterns\n", skipped, indexed);
+    if (changed > 0 || added > 0)
+    {
+      fprintf(output, "Detected outdated or missing index files, run ugrep-indexer to re-index:\n");
+      if (changed > 1)
+        fprintf(output, "  %zu files were changed after indexing and searched\n", changed);
+      else if (changed == 1)
+        fprintf(output, "  1 file was changed after indexing and searched\n");
+      if (added > 1)
+        fprintf(output, "  %zu new files are not indexed and searched\n", added);
+      else if (added == 1)
+        fprintf(output, "  1 new file is not indexed and searched\n");
+    }
   }
 
   if (warnings > 0)
     fprintf(output, "Received %zu warning%s" NEWLINESTR, ws, ws == 1 ? "" : "s");
 
-  fprintf(output, "The following pathname selections and search restrictions were applied:" NEWLINESTR);
+  fprintf(output, "The following pathname selections and search constraints were applied:" NEWLINESTR);
   if (flag_config != NULL)
     fprintf(output, "  --config=%s" NEWLINESTR, flag_config_file.c_str());
   if (flag_min_depth > 0 && flag_max_depth > 0)
@@ -112,6 +129,8 @@ void Stats::report(FILE *output)
   }
   if (flag_files)
     fprintf(output, "  --files" NEWLINESTR);
+  if (flag_glob_ignore_case)
+    fprintf(output, "  --glob-ignore-case" NEWLINESTR);
 #ifdef WITH_HIDDEN
   if (flag_hidden)
     fprintf(output, "  --hidden (default)" NEWLINESTR);
@@ -125,6 +144,8 @@ void Stats::report(FILE *output)
 #endif
   for (auto& i : flag_ignore_files)
     fprintf(output, "  --ignore-files=\"%s\"" NEWLINESTR, i.c_str());
+  if (flag_index != NULL)
+    fprintf(output, "  --index" NEWLINESTR);
   if (flag_min_count > 0)
     fprintf(output, "  --min-count=%zu" NEWLINESTR, flag_min_count);
   if (flag_max_count > 0)
@@ -145,18 +166,22 @@ void Stats::report(FILE *output)
   for (auto& i : flag_exclude_fs)
     fprintf(output, "  --exclude-fs=\"%s\"" NEWLINESTR, i.c_str());
   for (auto& i : flag_all_include)
-    fprintf(output, "  --include=\"%s\"%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
+    fprintf(output, "  --include=\"%s\"%s%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "", &i < &flag_all_include.front() + flag_include_iglob_size ? " (ignore case)" : "");
   for (auto& i : flag_all_exclude)
-    fprintf(output, "  --exclude=\"%s\"%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
+    fprintf(output, "  --exclude=\"%s\"%s%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "", &i < &flag_all_exclude.front() + flag_exclude_iglob_size ? " (ignore case)" : "");
   for (auto& i : flag_all_include_dir)
-    fprintf(output, "  --include-dir=\"%s\"%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
+    fprintf(output, "  --include-dir=\"%s\"%s%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "", &i < &flag_all_include_dir.front() + flag_include_iglob_dir_size ? " (ignore case)" : "");
   for (auto& i : flag_all_exclude_dir)
-    fprintf(output, "  --exclude-dir=\"%s\"%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "");
+    fprintf(output, "  --exclude-dir=\"%s\"%s%s" NEWLINESTR, i.c_str(), i.front() == '!' ? " (negated)" : "", &i < &flag_all_exclude_dir.front() + flag_exclude_iglob_dir_size ? " (ignore case)" : "");
 }
 
 reflex::timer_type       Stats::timer;
-size_t                   Stats::files  = 0;
-size_t                   Stats::dirs   = 0;
+size_t                   Stats::files   = 0;
+size_t                   Stats::dirs    = 0;
+size_t                   Stats::indexed = 0;
+size_t                   Stats::skipped = 0;
+size_t                   Stats::changed = 0;
+size_t                   Stats::added   = 0;
 std::atomic_size_t       Stats::fileno;
 std::atomic_size_t       Stats::partno;
 std::atomic_size_t       Stats::matchno;

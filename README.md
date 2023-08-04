@@ -1367,13 +1367,13 @@ using ugrep query selection mode (press Enter to select lines):
             specified, outputs directories in a tree-like format.
     -R, --dereference-recursive
             Recursively read all files under each directory.  Follow all
-            symbolic links, unlike -r.  See also option --sort.
+            symbolic links to directories, unlike -r.  See also option --sort.
     -r, --recursive
             Recursively read all files under each directory, following symbolic
-            links only if they are specified on the command line.  Note that
-            when no FILE arguments are specified and input is read from a
-            terminal, recursive searches are performed as if -r is specified.
-            See also option --sort.
+            links to files but not to directories.  Note that when no FILE
+            arguments are specified and input is read from a terminal,
+            recursive searches are performed as if -r is specified.  See also
+            option --sort.
     --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
             Restrict recursive searches from MIN to MAX directory levels deep,
             where -1 (--depth=1) searches the specified path without recursing
@@ -4269,7 +4269,7 @@ in markdown:
                   Interpret patterns as basic regular expressions (BREs), i.e. make
                   ugrep behave as traditional grep.
 
-           -g GLOBS, --glob=GLOBS
+           -g GLOBS, --glob=GLOBS, --iglob=GLOBS
                   Search only files whose name matches the specified comma-separated
                   list of GLOBS, same as --include='glob' for each `glob' in GLOBS.
                   When a `glob' is preceded by a `!' or a `^', skip files whose name
@@ -4277,10 +4277,14 @@ in markdown:
                   `/', full pathnames are matched.  Otherwise basenames are matched.
                   When `glob' ends with a `/', directories are matched, same as
                   --include-dir='glob' and --exclude-dir='glob'.  A leading `/'
-                  matches the working directory.  This option may be repeated and
+                  matches the working directory.  Option --iglob performs
+                  case-insensitive name matching.  This option may be repeated and
                   may be combined with options -M, -O and -t to expand searches.
                   See `ugrep --help globs' and `man ugrep' section GLOBBING for
                   details.
+
+           --glob-ignore-case
+                  Perform case-insensitive glob matching in general.
 
            --group-separator[=SEP]
                   Use SEP as a group separator for context options -A, -B and -C.
@@ -4300,11 +4304,12 @@ in markdown:
                   when the output is sent to a terminal.
 
            --help [WHAT], -? [WHAT]
-                  Display a help message, specifically on WHAT when specified.  In
-                  addition, `--help format' displays an overview of FORMAT fields,
-                  `--help regex' displays an overview of regular expressions and
-                  `--help globs' displays an overview of glob syntax and
-                  conventions.
+                  Display a help message on options related to WHAT when specified.
+                  In addition, `--help regex' displays an overview of regular
+                  expressions, `--help globs' displays an overview of glob syntax
+                  and conventions.  `--help fuzzy' displays details of fuzzy search
+                  with option -Z and `--help format' displays a list of --format
+                  fields.
 
            --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]
                   Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
@@ -4389,6 +4394,10 @@ in markdown:
                   restricts recursive searches to the file system of the working
                   directory only.  Note that --exclude-fs mounts take priority over
                   --include-fs mounts.  This option may be repeated.
+
+           --index
+                  Perform indexing-based search on files indexed with ugrep-indexer.
+                  Note: a beta release feature.
 
            -J NUM, --jobs=NUM
                   Specifies the number of threads spawned to search files.  By
@@ -4560,19 +4569,19 @@ in markdown:
                   --confirm and --view.
 
            -q, --quiet, --silent
-                  Quiet mode: suppress all output.  ugrep will only search until a
-                  match has been found.
+                  Quiet mode: suppress all output.  Only search a file until a match
+                  has been found.
 
            -R, --dereference-recursive
                   Recursively read all files under each directory.  Follow all
-                  symbolic links, unlike -r.  See also option --sort.
+                  symbolic links to directories, unlike -r.  See also option --sort.
 
            -r, --recursive
                   Recursively read all files under each directory, following
-                  symbolic links only if they are specified on the command line.
-                  Note that when no FILE arguments are specified and input is read
-                  from a terminal, recursive searches are performed as if -r is
-                  specified.  See also option --sort.
+                  symbolic links to files but not to directories.  Note that when no
+                  FILE arguments are specified and input is read from a terminal,
+                  recursive searches are performed as if -r is specified.  See also
+                  option --sort.
 
            --replace=FORMAT
                   Replace matching patterns in the output by the specified FORMAT
@@ -5330,7 +5339,7 @@ in markdown:
 
 
 
-    ugrep 3.12.4                      July 16, 2023                         UGREP(1)
+    ugrep 3.12.5                     August 4, 2023                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
