@@ -50,6 +50,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <array>
 #include <bitset>
 #include <vector>
 
@@ -782,12 +783,12 @@ class Pattern {
   };
   /// Indexing hash finite state automaton for indexed file search.
   struct HFA {
-    static const size_t MAX_DEPTH  =     16; // max hashed pattern length must be between 3 and 16, long is accurate
-    static const size_t MAX_CHAIN  =      8; // max length of hashed chars chain must be between 2 and 8 (8 is optimal)
-    static const size_t MAX_STATES =   1024; // max number of states must be 256 or greater
-    static const size_t MAX_RANGES = 262144; // max number of hashes ranges on an edge to the next state
+    static const size_t MAX_DEPTH  =     16; ///< max hashed pattern length must be between 3 and 16, long is accurate
+    static const size_t MAX_CHAIN  =      8; ///< max length of hashed chars chain must be between 2 and 8 (8 is optimal)
+    static const size_t MAX_STATES =   1024; ///< max number of states must be 256 or greater
+    static const size_t MAX_RANGES = 262144; ///< max number of hashes ranges on an edge to the next state
     typedef ORanges<Hash>                    HashRange;
-    typedef HashRange                        HashRanges[MAX_DEPTH];
+    typedef std::array<HashRange,MAX_DEPTH>  HashRanges;
     typedef std::map<DFA::State*,HashRanges> StateHashes;
     typedef uint16_t                         State;
     typedef std::map<State,HashRanges>       Hashes;
