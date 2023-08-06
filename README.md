@@ -5,7 +5,7 @@ New ultra-fast ugrep 3.12 with more features
 
 Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features beat grep, ripgrep, silver searcher, ack, sift, etc.
 
-New **ugrep-indexer** to accelerate search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
+New faster ugrep 3.12.6 and new **ugrep-indexer** tool to accelerate search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
 The ugrep tools include the following powerful commands:
 - **ug** for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
