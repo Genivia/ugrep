@@ -1350,7 +1350,7 @@ using ugrep query selection mode (press Enter to select lines):
 
 <a name="recursion"/>
 
-### Recursively list matching files with -l, -R, -r, --depth, -g, -O, and -t
+### Recursively list matching files with -l, -R, -r, -S, --depth, -g, -O, and -t
 
     -L, --files-without-match
             Only the names of files not containing selected lines are written
@@ -1367,13 +1367,15 @@ using ugrep query selection mode (press Enter to select lines):
             specified, outputs directories in a tree-like format.
     -R, --dereference-recursive
             Recursively read all files under each directory.  Follow all
-            symbolic links to directories, unlike -r.  See also option --sort.
+            symbolic links to files and directories, unlike -r.
     -r, --recursive
             Recursively read all files under each directory, following symbolic
-            links to files but not to directories.  Note that when no FILE
+            links only if they are on the command line.  Note that when no FILE
             arguments are specified and input is read from a terminal,
-            recursive searches are performed as if -r is specified.  See also
-            option --sort.
+            recursive searches are performed as if -r is specified.
+    -S, --dereference-files
+            When -r is specified, symbolic links to files are followed, but not
+            to directories.  The default is not to follow symbolic links.
     --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
             Restrict recursive searches from MIN to MAX directory levels deep,
             where -1 (--depth=1) searches the specified path without recursing
@@ -1413,8 +1415,7 @@ If no FILE arguments are specified and input is read from a terminal, recursive
 searches are performed as if `-r` is specified.  To force reading from standard
 input, specify `-` as the FILE argument.
 
-To recursively list all non-empty files in the working directory, following
-symbolic links:
+To recursively list all non-empty files in the working directory:
 
     ug -r -l ''
 
@@ -2340,10 +2341,10 @@ Line feed (`\n`) and NUL (`\0`) characters are never deleted or substituted to
 ensure that fuzzy matches do not extend the pattern match beyond the number of
 lines specified by the regex pattern.
 
-Option `-U` (`--binary`) restricts fuzzy matches to ASCII and binary only with
-edit distances measured in bytes.  Otherwise, fuzzy pattern matching is
-performed with Unicode patterns and edit distances are measured in Unicode
-characters.
+Option `-U` (`--ascii` or `--binary`) restricts fuzzy matches to ASCII and
+binary only with edit distances measured in bytes.  Otherwise, fuzzy pattern
+matching is performed with Unicode patterns and edit distances are measured in
+Unicode characters.
 
 Option `--sort=best` orders files by best match.  Files with at least one exact
 match anywhere in the file are shown first, followed by files with approximate
@@ -2597,7 +2598,7 @@ meaning; any name or string that does not contain a `:` or `,` may be used.
 
 ### Searching and displaying binary files with -U, -W, and -X
 
-    -U, --binary
+    -U, --ascii, --binary
             Disables Unicode matching for binary file matching, forcing PATTERN
             to match bytes, not Unicode characters.  For example, -U '\xa3'
             matches byte A3 (hex) instead of the Unicode code point U+00A3
@@ -4397,7 +4398,13 @@ in markdown:
 
            --index
                   Perform indexing-based search on files indexed with ugrep-indexer.
-                  Note: a beta release feature.
+                  Recursive searches are performed by skipping non-matching files.
+                  Binary files are skipped with option -I.  Note that the start-up
+                  time to search is increased, which may be significant when complex
+                  search patterns are specified that contain large Unicode character
+                  classes with `*' or `+' repeats, which should be avoided.  Option
+                  -U (--ascii) improves performance.  Option --stats=vm displays a
+                  detailed indexing-based search report.  This is a beta feature.
 
            -J NUM, --jobs=NUM
                   Specifies the number of threads spawned to search files.  By
@@ -4537,8 +4544,8 @@ in markdown:
                   pattern matching.
 
            -p, --no-dereference
-                  If -R or -r is specified, no symbolic links are followed, even
-                  when they are specified on the command line.
+                  If -R or -r is specified, do not follow symbolic links, even when
+                  symbolic links are specified on the command line.
 
            --pager[=COMMAND]
                   When output is sent to the terminal, uses COMMAND to page through
@@ -4573,15 +4580,14 @@ in markdown:
                   has been found.
 
            -R, --dereference-recursive
-                  Recursively read all files under each directory.  Follow all
-                  symbolic links to directories, unlike -r.  See also option --sort.
+                  Recursively read all files under each directory.  Follow symbolic
+                  links to files and directories, unlike -r.
 
            -r, --recursive
                   Recursively read all files under each directory, following
-                  symbolic links to files but not to directories.  Note that when no
-                  FILE arguments are specified and input is read from a terminal,
-                  recursive searches are performed as if -r is specified.  See also
-                  option --sort.
+                  symbolic links only if they are on the command line.  Note that
+                  when no FILE arguments are specified and input is read from a
+                  terminal, recursive searches are performed as if -r is specified.
 
            --replace=FORMAT
                   Replace matching patterns in the output by the specified FORMAT
@@ -4590,9 +4596,9 @@ in markdown:
                   outputs `%' and `%~' outputs a newline.  See option --format,
                   `ugrep --help format' and `man ugrep' section FORMAT for details.
 
-           -S, --dereference
-                  If -r is specified, all symbolic links are followed, like -R.  The
-                  default is not to follow symbolic links to directories.
+           -S, --dereference-files
+                  When -r is specified, follow symbolic links to files, but not to
+                  directories.  The default is not to follow symbolic links.
 
            -s, --no-messages
                   Silent mode: nonexistent and unreadable files are ignored, i.e.
@@ -4668,11 +4674,11 @@ in markdown:
                   options -c, -l or -L are used.  This option is enabled by --pretty
                   when the output is sent to a terminal.
 
-           -U, --binary
-                  Disables Unicode matching for binary file matching, forcing
-                  PATTERN to match bytes, not Unicode characters.  For example, -U
-                  '\xa3' matches byte A3 (hex) instead of the Unicode code point
-                  U+00A3 represented by the UTF-8 sequence C2 A3.  See also option
+           -U, --ascii, --binary
+                  Disables Unicode matching for ASCII and binary matching.  PATTERN
+                  matches bytes, not Unicode characters.  For example, -U '\xa3'
+                  matches byte A3 (hex) instead of the Unicode code point U+00A3
+                  represented by the UTF-8 sequence C2 A3.  See also option
                   --dotall.
 
            -u, --ungroup
@@ -5339,7 +5345,7 @@ in markdown:
 
 
 
-    ugrep 3.12.5                     August 4, 2023                         UGREP(1)
+    ugrep 3.12.6                     August 6, 2023                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

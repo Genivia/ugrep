@@ -81,6 +81,7 @@ extern bool flag_cpp;
 extern bool flag_csv;
 extern bool flag_decompress;
 extern bool flag_dereference;
+extern bool flag_dereference_files;
 extern bool flag_files;
 extern bool flag_files_with_matches;
 extern bool flag_files_without_match;

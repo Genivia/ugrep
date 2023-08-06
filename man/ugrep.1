@@ -1,4 +1,4 @@
-.TH UGREP "1" "August 04, 2023" "ugrep 3.12.5" "User Commands"
+.TH UGREP "1" "August 06, 2023" "ugrep 3.12.6" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -519,7 +519,13 @@ only.  Note that \fB\-\-exclude\-fs\fR mounts take priority over
 .TP
 \fB\-\-index\fR
 Perform indexing\-based search on files indexed with ugrep\-indexer.
-Note: a beta release feature.
+Recursive searches are performed by skipping non\-matching files.
+Binary files are skipped with option \fB\-I\fR.  Note that the start\-up
+time to search is increased, which may be significant when complex
+search patterns are specified that contain large Unicode character
+classes with `*' or `+' repeats, which should be avoided.  Option
+\fB\-U\fR (\fB\-\-ascii\fR) improves performance.  Option \fB\-\-stats\fR=vm displays a
+detailed indexing\-based search report.  This is a beta feature.
 .TP
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
 Specifies the number of threads spawned to search files.  By
@@ -658,8 +664,8 @@ Note that Perl pattern matching differs from the default grep POSIX
 pattern matching.
 .TP
 \fB\-p\fR, \fB\-\-no\-dereference\fR
-If \fB\-R\fR or \fB\-r\fR is specified, no symbolic links are followed, even when
-they are specified on the command line.
+If \fB\-R\fR or \fB\-r\fR is specified, do not follow symbolic links, even when
+symbolic links are specified on the command line.
 .TP
 \fB\-\-pager\fR[=\fICOMMAND\fR]
 When output is sent to the terminal, uses COMMAND to page through
@@ -693,15 +699,14 @@ Quiet mode: suppress all output.  Only search a file until a match
 has been found.
 .TP
 \fB\-R\fR, \fB\-\-dereference\-recursive\fR
-Recursively read all files under each directory.  Follow all
-symbolic links to directories, unlike \fB\-r\fR.  See also option \fB\-\-sort\fR.
+Recursively read all files under each directory.  Follow symbolic
+links to files and directories, unlike \fB\-r\fR.
 .TP
 \fB\-r\fR, \fB\-\-recursive\fR
 Recursively read all files under each directory, following symbolic
-links to files but not to directories.  Note that when no FILE
+links only if they are on the command line.  Note that when no FILE
 arguments are specified and input is read from a terminal,
-recursive searches are performed as if \fB\-r\fR is specified.  See also
-option \fB\-\-sort\fR.
+recursive searches are performed as if \fB\-r\fR is specified.
 .TP
 \fB\-\-replace\fR=\fIFORMAT\fR
 Replace matching patterns in the output by the specified FORMAT
@@ -710,9 +715,9 @@ with `%' fields.  If \fB\-P\fR is specified, FORMAT may include `%1' to
 outputs `%' and `%~' outputs a newline.  See option \fB\-\-format\fR,
 `ugrep \fB\-\-help\fR format' and `man ugrep' section FORMAT for details.
 .TP
-\fB\-S\fR, \fB\-\-dereference\fR
-If \fB\-r\fR is specified, all symbolic links are followed, like \fB\-R\fR.  The
-default is not to follow symbolic links to directories.
+\fB\-S\fR, \fB\-\-dereference\-files\fR
+When \fB\-r\fR is specified, follow symbolic links to files, but not to
+directories.  The default is not to follow symbolic links.
 .TP
 \fB\-s\fR, \fB\-\-no\-messages\fR
 Silent mode: nonexistent and unreadable files are ignored, i.e.
@@ -788,9 +793,9 @@ Output directories with matching files in a tree\-like format when
 options \fB\-c\fR, \fB\-l\fR or \fB\-L\fR are used.  This option is enabled by \fB\-\-pretty\fR
 when the output is sent to a terminal.
 .TP
-\fB\-U\fR, \fB\-\-binary\fR
-Disables Unicode matching for binary file matching, forcing PATTERN
-to match bytes, not Unicode characters.  For example, \fB\-U\fR '\\xa3'
+\fB\-U\fR, \fB\-\-ascii\fR, \fB\-\-binary\fR
+Disables Unicode matching for ASCII and binary matching.  PATTERN
+matches bytes, not Unicode characters.  For example, \fB\-U\fR '\\xa3'
 matches byte A3 (hex) instead of the Unicode code point U+00A3
 represented by the UTF\-8 sequence C2 A3.  See also option \fB\-\-dotall\fR.
 .TP

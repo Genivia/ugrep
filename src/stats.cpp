@@ -76,13 +76,13 @@ void Stats::report(FILE *output)
     {
       fprintf(output, "Detected outdated or missing index files, run ugrep-indexer to re-index:\n");
       if (changed > 1)
-        fprintf(output, "  %zu files were changed after indexing and searched\n", changed);
+        fprintf(output, "  searched %zu changed files\n", changed);
       else if (changed == 1)
-        fprintf(output, "  1 file was changed after indexing and searched\n");
+        fprintf(output, "  searched 1 changed file\n");
       if (added > 1)
-        fprintf(output, "  %zu new files are not indexed and searched\n", added);
+        fprintf(output, "  searched %zu new files\n", added);
       else if (added == 1)
-        fprintf(output, "  1 new file is not indexed and searched\n");
+        fprintf(output, "  searched 1 new file\n");
     }
   }
 

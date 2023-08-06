@@ -2,7 +2,7 @@ How to contribute
 =================
 
 Thank you for taking the time to contribute.  Let's keep moving forward
-together to make ugrep the best Universal grep utility on the planet.
+together to make ugrep the best grep utility on the planet.
 
 The following is a set of guidelines for contributing to ugrep.
 

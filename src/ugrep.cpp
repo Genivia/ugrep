@@ -319,6 +319,7 @@ bool flag_cpp                      = false;
 bool flag_csv                      = false;
 bool flag_decompress               = false;
 bool flag_dereference              = false;
+bool flag_dereference_files        = false;
 bool flag_files                    = false;
 bool flag_files_with_matches       = false;
 bool flag_files_without_match      = false;
@@ -1865,7 +1866,221 @@ struct Grep {
     size_t      slot;
   };
 
+#ifdef WITH_LOCK_FREE_JOB_QUEUE
+
+  // a lock-free job queue for one producer and one consumer with a bounded circular buffer
+  struct JobQueue {
+
+    JobQueue()
+      :
+        head(ring),
+        tail(ring),
+        todo(0)
+    { }
+
+    bool empty() const
+    {
+      return head.load() == tail.load();
+    }
+
+    // add a sentinel NONE job to the queue
+    void enqueue()
+    {
+      enqueue("", Entry::UNDEFINED_COST, Job::NONE);
+    }
+
+    // add a job to the queue
+    void enqueue(const char *pathname, uint16_t cost, size_t slot)
+    {
+      Job *job = tail.load();
+      Job *next = job + 1;
+      if (next == &ring[MAX_JOB_QUEUE_SIZE])
+        next = ring;
+
+      while (next == head.load())
+      {
+        // we must lock and wait until the buffer is not full
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        queue_full.wait(lock);
+      }
+
+      job->pathname.assign(pathname);
+      job->cost = cost;
+      job->slot = slot;
+      tail.store(next);
+      ++todo;
+      queue_data.notify_one();
+    }
+
+    // try to add a job to the queue if the queue is not too large
+    bool try_enqueue(const char *pathname, uint16_t cost, size_t slot)
+    {
+      Job *job = tail.load();
+      Job *next = job + 1;
+      if (next == &ring[MAX_JOB_QUEUE_SIZE])
+        next = ring;
+
+      if (next == head.load())
+        return false;
+
+      job->pathname.assign(pathname);
+      job->cost = cost;
+      job->slot = slot;
+      tail.store(next);
+      ++todo;
+      queue_data.notify_one();
+
+      return true;
+    }
+
+    // pop a job
+    void dequeue(Job& job)
+    {
+      while (empty())
+      {
+        // we must lock and wait until the buffer is not empty
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        queue_data.wait(lock);
+      }
+
+      Job *next = head.load() + 1;
+      if (next == &ring[MAX_JOB_QUEUE_SIZE])
+        next = ring;
+
+      job = *head.load();
+      head.store(next);
+      --todo;
+      queue_full.notify_one();
+    }
+
+    Job                     ring[MAX_JOB_QUEUE_SIZE];
+    std::atomic<Job*>       head;
+    std::atomic<Job*>       tail;
+    std::mutex              queue_mutex; // job queue mutex used when queue is empty or full
+    std::condition_variable queue_data;  // cv to control the job queue
+    std::condition_variable queue_full;  // cv to control the job queue
+    std::atomic_size_t      todo;        // number of jobs in the queue
+  };
+
+#else
+
+  // a job queue
+  struct JobQueue : public std::deque<Job> {
+
+    JobQueue()
+      :
+        todo(0)
+    { }
+
+    // add a sentinel NONE job to the queue
+    void enqueue()
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+
+      emplace_back();
+      ++todo;
+
+      queue_work.notify_one();
+    }
+
+    // add a job to the queue
+    void enqueue(const char *pathname, uint16_t cost, size_t slot)
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+
+      emplace_back(pathname, cost, slot);
+      ++todo;
+
+      queue_work.notify_one();
+    }
+
+    // try to add a job to the queue if the queue is not too large
+    bool try_enqueue(const char *pathname, uint16_t cost, size_t slot)
+    {
+      if (todo >= MAX_JOB_QUEUE_SIZE)
+        return false;
+
+      enqueue(pathname, cost, slot);
+
+      return true;
+    }
+
+    // pop a job
+    void dequeue(Job& job)
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+
+      while (empty())
+        queue_work.wait(lock);
+
+      job = front();
+      pop_front();
+      --todo;
+
+      // if we popped a Job::NONE sentinel but the queue has some jobs, then move the sentinel to the back of the queue
+      if (job.none() && !empty())
+      {
+        emplace_back();
+        job = front();
+        pop_front();
+      }
+    }
+
+    // steal a job from this worker, if at least --min-steal jobs to do, returns true if successful
+    bool steal_job(Job& job)
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+
+      if (empty())
+        return false;
+
+      job = front();
+
+      // we cannot steal a Job::NONE sentinel
+      if (job.none())
+        return false;
+
+      pop_front();
+      --todo;
+
+      return true;
+    }
+
+    // move a stolen job to this worker, maintaining job slot order
+    void move_job(Job& job)
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+
+      bool inserted = false;
+
+      // insert job in the queue to maintain job order
+      for (auto j = begin(); j != end(); ++j)
+      {
+        if (j->slot > job.slot)
+        {
+          insert(j, std::move(job));
+          inserted = true;
+          break;
+        }
+      }
+
+      if (!inserted)
+        emplace_back(std::move(job));
+
+      ++todo;
+
+      queue_work.notify_one();
+    }
+
+    std::mutex              queue_mutex; // job queue mutex
+    std::condition_variable queue_work;  // cv to control the job queue
+    std::atomic_size_t      todo;        // number of jobs in the queue, atomic for job stealing
+  };
+
+#endif
+
 #ifndef OS_WIN
+
   // extend the reflex::Input::Handler to handle stdin from a TTY or from a slow pipe
   struct StdInHandler : public reflex::Input::Handler {
 
@@ -1906,6 +2121,7 @@ struct Grep {
       return 1;
     }
   };
+
 #endif
 
   // extend the reflex::AbstractMatcher::Handler with a grep object reference and references to some of the grep::search locals
@@ -3536,7 +3752,7 @@ struct Grep {
 
 struct GrepWorker;
 
-// master submits jobs to workers and implements operations to support lock-free job stealing
+// master submits jobs to workers and implements operations to support job stealing
 struct GrepMaster : public Grep {
 
   GrepMaster(FILE *file, reflex::AbstractMatcher *matcher, Matchers *matchers)
@@ -3608,7 +3824,7 @@ struct GrepMaster : public Grep {
   // submit a job with a pathname to a worker, workers are visited round-robin
   void submit(const char *pathname, uint16_t cost);
 
-  // lock-free job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
+  // job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
   bool steal(GrepWorker *worker);
 
   std::list<GrepWorker>           workers; // workers running threads
@@ -3623,8 +3839,7 @@ struct GrepWorker : public Grep {
   GrepWorker(FILE *file, GrepMaster *master)
     :
       Grep(file, master->matcher_clone(), master->matchers_clone()),
-      master(master),
-      todo(0)
+      master(master)
   {
     // all workers synchronize their output on the master's sync object
     out.sync_on(&master->sync);
@@ -3649,101 +3864,25 @@ struct GrepWorker : public Grep {
   // submit Job::NONE sentinel to this worker
   void submit_job()
   {
-    while (todo >= MAX_JOB_QUEUE_SIZE && !out.eof && !out.cancelled())
-      std::this_thread::sleep_for(std::chrono::milliseconds(100)); // give the worker threads some slack
-
-    std::unique_lock<std::mutex> lock(queue_mutex);
-
-    jobs.emplace_back();
-    ++todo;
-
-    queue_work.notify_one();
+    jobs.enqueue();
   }
 
   // submit a job to this worker
   void submit_job(const char *pathname, uint16_t cost, size_t slot)
   {
-    while (todo >= MAX_JOB_QUEUE_SIZE && !out.eof && !out.cancelled())
-      std::this_thread::sleep_for(std::chrono::milliseconds(100)); // give the worker threads some slack
-
-    std::unique_lock<std::mutex> lock(queue_mutex);
-
-    jobs.emplace_back(pathname, cost, slot);
-    ++todo;
-
-    queue_work.notify_one();
+    jobs.enqueue(pathname, cost, slot);
   }
 
-  // move a stolen job to this worker, maintaining job slot order
-  void move_job(Job& job)
+  // submit a job to this worker
+  bool try_submit_job(const char *pathname, uint16_t cost, size_t slot)
   {
-    std::unique_lock<std::mutex> lock(queue_mutex);
-
-    bool inserted = false;
-
-    // insert job in the queue to maintain job order
-    for (auto j = jobs.begin(); j != jobs.end(); ++j)
-    {
-      if (j->slot > job.slot)
-      {
-        jobs.insert(j, std::move(job));
-        inserted = true;
-        break;
-      }
-    }
-
-    if (!inserted)
-      jobs.emplace_back(std::move(job));
-
-    ++todo;
-
-    queue_work.notify_one();
+    return jobs.try_enqueue(pathname, cost, slot);
   }
 
   // receive a job for this worker, wait until one arrives
   void next_job(Job& job)
   {
-    std::unique_lock<std::mutex> lock(queue_mutex);
-
-    while (jobs.empty())
-      queue_work.wait(lock);
-
-    job = jobs.front();
-
-    jobs.pop_front();
-    --todo;
-
-    // if we popped a Job::NONE sentinel but the queue has some jobs, then move the sentinel to the back of the queue
-    if (job.none() && !jobs.empty())
-    {
-      jobs.emplace_back();
-      job = jobs.front();
-      jobs.pop_front();
-    }
-  }
-
-  // steal a job from this worker, if at least --min-steal jobs to do, returns true if successful
-  bool steal_job(Job& job)
-  {
-    // not enough jobs in the queue to steal from
-    if (todo < flag_min_steal)
-      return false;
-
-    std::unique_lock<std::mutex> lock(queue_mutex);
-
-    if (jobs.empty())
-      return false;
-
-    job = jobs.front();
-
-    // we cannot steal a Job::NONE sentinel
-    if (job.none())
-      return false;
-
-    jobs.pop_front();
-    --todo;
-
-    return true;
+    jobs.dequeue(job);
   }
 
   // submit Job::NONE sentinel to stop this worker
@@ -3754,11 +3893,7 @@ struct GrepWorker : public Grep {
 
   std::thread             thread;      // thread of this worker, spawns GrepWorker::execute()
   GrepMaster             *master;      // the master of this worker
-  std::mutex              queue_mutex; // job queue mutex
-  std::condition_variable queue_work;  // cv to control the job queue
-  std::deque<Job>         jobs;        // queue of pending jobs submitted to this worker
-  std::atomic_size_t      todo;        // number of jobs in the queue, atomic for lock-free job stealing
-
+  JobQueue                jobs;        // queue of pending jobs submitted to this worker
 };
 
 // start worker threads
@@ -3798,7 +3933,34 @@ void GrepMaster::stop_workers()
 // submit a job with a pathname to a worker, workers are visited round-robin
 void GrepMaster::submit(const char *pathname, uint16_t cost)
 {
-  iworker->submit_job(pathname, cost, sync.next++);
+  size_t min_todo = iworker->jobs.todo;
+
+  // if this worker has some jobs that can't be stolen, then find a worker with the minimum number of jobs
+  if (min_todo > flag_min_steal)
+  {
+    auto min_worker = iworker;
+
+    for (size_t num = 0; num < threads; ++num)
+    {
+      if (iworker->jobs.todo < min_todo)
+      {
+        min_todo = iworker->jobs.todo;
+        min_worker = iworker;
+      }
+
+      ++iworker;
+      if (iworker == workers.end())
+        iworker = workers.begin();
+    }
+
+    iworker = min_worker;
+  }
+
+  // give the worker threads some slack
+  while (!iworker->try_submit_job(pathname, cost, sync.next) && !out.eof && !out.cancelled())
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+  ++sync.next;
 
   // around we go
   ++iworker;
@@ -3806,47 +3968,51 @@ void GrepMaster::submit(const char *pathname, uint16_t cost)
     iworker = workers.begin();
 }
 
-// lock-free job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
+#ifndef WITH_LOCK_FREE_JOB_QUEUE
+
+// job stealing on behalf of a worker from a co-worker with at least --min-steal jobs still to do
 bool GrepMaster::steal(GrepWorker *worker)
 {
-  // pick a random co-worker using thread-safe std::chrono::high_resolution_clock as a simple RNG
-  size_t n = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() % threads;
-  auto iworker = workers.begin();
-
-  while (n > 0)
-  {
-    ++iworker;
-    --n;
-  }
-
-  // try to steal a job from the random co-worker or the next co-workers
+  // try to steal a job from a co-worker with the most jobs
+  auto coworker = workers.begin();
+  auto max_worker = coworker;
+  size_t max_todo = 0;
+  
   for (size_t i = 0; i < threads; ++i)
   {
-    // around we go
-    if (iworker == workers.end())
-      iworker = workers.begin();
-
-    // if co-worker isn't this worker (no self-stealing!)
-    if (&*iworker != worker)
+    if (&*coworker != worker && coworker->jobs.todo > max_todo)
     {
-      Job job;
-
-      // if co-worker has at least --min-steal jobs then steal one for this worker
-      if (iworker->steal_job(job))
-      {
-        worker->move_job(job);
-
-        return true;
-      }
+      max_todo = coworker->jobs.todo;
+      max_worker = coworker;
     }
 
-    // try next co-worker
-    ++iworker;
+    // around we go
+    ++coworker;
+    if (coworker == workers.end())
+      coworker = workers.begin();
+  }
+
+  // not enough jobs in the co-worker's queue to steal from
+  if (max_todo < flag_min_steal)
+    return false;
+
+  coworker = max_worker;
+
+  Job job;
+
+  // steal a job for this worker
+  if (coworker->jobs.steal_job(job))
+  {
+    worker->jobs.move_job(job);
+
+    return true;
   }
 
   // couldn't steal any job
   return false;
 }
+
+#endif
 
 // execute worker thread
 void GrepWorker::execute()
@@ -3871,9 +4037,11 @@ void GrepWorker::execute()
     // end output in ORDERED mode (--sort) for this job slot
     out.end();
 
+#ifndef WITH_LOCK_FREE_JOB_QUEUE
     // if only one job is left to do or nothing to do, then try stealing another job from a co-worker
-    if (todo <= 1)
+    if (jobs.todo <= 1)
       master->steal(this);
+#endif
   }
 }
 
@@ -4342,6 +4510,8 @@ static void save_config()
   fprintf(file, "# Maximum decompression and de-archiving nesting levels, default: zmax=1\nzmax=%zu\n\n", flag_zmax);
   if (flag_dereference)
     fprintf(file, "# Dereference symlinks, default: no-dereference\ndereference\n\n");
+  else if (flag_dereference_files)
+    fprintf(file, "# Dereference symlinks to files, not directories, default: no-dereference-files\ndereference-files\n\n");
   if (flag_devices != NULL)
     fprintf(file, "# Search devices, default: devices=skip\ndevices=%s\n\n", flag_devices);
   if (flag_max_depth > 0)
@@ -4435,10 +4605,12 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   option_andnot(pattern_args, arg + 7);
                 else if (strcmp(arg, "any-line") == 0)
                   flag_any_line = true;
+                else if (strcmp(arg, "ascii") == 0)
+                  flag_binary = true;
                 else if (strcmp(arg, "after-context") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--after-context, --and, --andnot or --any-line");
+                  usage("invalid option --", arg, "--after-context, --and, --andnot, --any-line or --ascii");
                 break;
 
               case 'b':
@@ -4504,6 +4676,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   strtopos2(arg + 6, flag_min_depth, flag_max_depth, "invalid argument --depth=");
                 else if (strcmp(arg, "dereference") == 0)
                   flag_dereference = true;
+                else if (strcmp(arg, "dereference-files") == 0)
+                  flag_dereference_files = true;
                 else if (strcmp(arg, "dereference-recursive") == 0)
                   flag_directories = "dereference-recurse";
                 else if (strncmp(arg, "devices=", 8) == 0)
@@ -4517,7 +4691,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "directories") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--decompress, --depth, --dereference, --dereference-recursive, --devices, --directories or --dotall");
+                  usage("invalid option --", arg, "--decompress, --depth, --dereference, --dereference-files, --dereference-recursive, --devices, --directories or --dotall");
                 break;
 
               case 'e':
@@ -4762,6 +4936,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_decompress = false;
                 else if (strcmp(arg, "no-dereference") == 0)
                   flag_no_dereference = true;
+                else if (strcmp(arg, "no-dereference-files") == 0)
+                  flag_dereference_files = false;
                 else if (strcmp(arg, "no-dotall") == 0)
                   flag_dotall = false;
                 else if (strcmp(arg, "no-empty") == 0)
@@ -4821,7 +4997,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dotall, --no-empty, --no-filename, --no-filter, --glob-no-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-filter, --glob-no-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -5226,7 +5402,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'S':
-            flag_dereference = true;
+            flag_dereference_files = true;
             break;
 
           case 's':
@@ -5718,7 +5894,7 @@ void init(int argc, const char **argv)
 
     if (encoding_table[i].format == NULL)
     {
-      std::string msg = "invalid argument --encoding=ENCODING, valid arguments are";
+      std::string msg("invalid argument --encoding=ENCODING, valid arguments are");
 
       for (int i = 0; encoding_table[i].format != NULL; ++i)
         msg.append(" '").append(encoding_table[i].format).append("',");
@@ -6247,7 +6423,7 @@ void init(int argc, const char **argv)
 
         if (type_table[i].type == NULL)
         {
-          std::string msg = "invalid argument -t TYPES, valid arguments are";
+          std::string msg("invalid argument -t TYPES, valid arguments are");
 
           for (int i = 0; type_table[i].type != NULL; ++i)
             msg.append(" '").append(type_table[i].type).append("',");
@@ -7317,7 +7493,7 @@ void ugrep()
 
   // -p (--no-dereference) and -S (--dereference): -p takes priority over -S and -R
   if (flag_no_dereference)
-    flag_dereference = false;
+    flag_dereference = flag_dereference_files = false;
 
   // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
   if (!flag_no_filename && (flag_all_threads || flag_directories_action == Action::RECURSE || arg_files.size() > 1 || (flag_stdin && !arg_files.empty())))
@@ -7371,8 +7547,11 @@ void ugrep()
   {
     unsigned int cores = std::thread::hardware_concurrency();
     unsigned int concurrency = cores > 2 ? cores : 2;
-    // reduce concurrency by one for 8+ core CPUs
-    concurrency -= concurrency / 9;
+    // reduce concurrency by a few for 9+ core CPUs
+    if (concurrency >= 10)
+      concurrency -= concurrency / 5;
+    else
+      concurrency -= concurrency / 9;
     flag_jobs = std::min(concurrency, MAX_JOBS);
   }
 
@@ -8081,8 +8260,8 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
       // check if directory
       if (type == DIRENT_TYPE_DIR || ((type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISDIR(buf.st_mode)))
       {
-        // if symlinked directory, then follow into directory?
-        if (follow || !symlink)
+        // if symlinked directory, then follow only if -R is specified or if FILE is a command line argument
+        if (!symlink || follow)
         {
           if (flag_directories_action == Action::READ)
           {
@@ -8162,8 +8341,8 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
       }
       else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == Action::READ)
       {
-        // if not -p or if follow or if not symlinked then search file
-        if (!flag_no_dereference || follow || !symlink)
+        // if symlinked files, then follow only if -R or -S is specified or if FILE is a command line argument
+        if (!symlink || follow || flag_dereference_files)
         {
           // --depth: recursion level not deep enough?
           if (flag_min_depth > 0 && level <= flag_min_depth)
@@ -8351,7 +8530,8 @@ void Grep::recurse(size_t level, const char *pathname)
 #endif
 
   // --ignore-files: check if one or more are present to read and extend the file and dir exclusions
-  size_t saved_all_exclude_size, saved_all_exclude_dir_size;
+  size_t saved_all_exclude_size = 0;
+  size_t saved_all_exclude_dir_size = 0;
   bool saved = false;
 
   if (!flag_ignore_files.empty())
@@ -12488,7 +12668,13 @@ void help(std::ostream& out)
             "\
     --index\n\
             Perform indexing-based search on files indexed with ugrep-indexer.\n\
-            Note: a beta release feature.\n\
+            Recursive searches are performed by skipping non-matching files.\n\
+            Binary files are skipped with option -I.  Note that the start-up\n\
+            time to search is increased, which may be significant when complex\n\
+            search patterns are specified that contain large Unicode character\n\
+            classes with `*' or `+' repeats, which should be avoided.  Option\n\
+            -U (--ascii) improves performance.  Option --stats=vm displays a\n\
+            detailed indexing-based search report.  This is a beta feature.\n\
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
             default an optimum number of threads is spawned to search files\n\
@@ -12611,8 +12797,8 @@ void help(std::ostream& out)
             Note that Perl pattern matching differs from the default grep POSIX\n\
             pattern matching.\n\
     -p, --no-dereference\n\
-            If -R or -r is specified, no symbolic links are followed, even when\n\
-            they are specified on the command line.\n\
+            If -R or -r is specified, do not follow symbolic links, even when\n\
+            symbolic links are specified on the command line.\n\
     --pager[=COMMAND]\n\
             When output is sent to the terminal, uses COMMAND to page through\n\
             the output.  The default COMMAND is `" DEFAULT_PAGER_COMMAND "'.  Enables --heading\n\
@@ -12641,23 +12827,22 @@ void help(std::ostream& out)
             Quiet mode: suppress all output.  Only search a file until a match\n\
             has been found.\n\
     -R, --dereference-recursive\n\
-            Recursively read all files under each directory.  Follow all\n\
-            symbolic links to directories, unlike -r.  See also option --sort.\n\
+            Recursively read all files under each directory.  Follow symbolic\n\
+            links to files and directories, unlike -r.\n\
     -r, --recursive\n\
             Recursively read all files under each directory, following symbolic\n\
-            links to files but not to directories.  Note that when no FILE\n\
+            links only if they are on the command line.  Note that when no FILE\n\
             arguments are specified and input is read from a terminal,\n\
-            recursive searches are performed as if -r is specified.  See also\n\
-            option --sort.\n\
+            recursive searches are performed as if -r is specified.\n\
     --replace=FORMAT\n\
             Replace matching patterns in the output by the specified FORMAT\n\
             with `%' fields.  If -P is specified, FORMAT may include `%1' to\n\
             `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'\n\
             outputs `%' and `%~' outputs a newline.  See option --format,\n\
             `ugrep --help format' and `man ugrep' section FORMAT for details.\n\
-    -S, --dereference\n\
-            If -r is specified, all symbolic links are followed, like -R.  The\n\
-            default is not to follow symbolic links to directories.\n\
+    -S, --dereference-files\n\
+            When -r is specified, follow symbolic links to files, but not to\n\
+            directories.  The default is not to follow symbolic links.\n\
     -s, --no-messages\n\
             Silent mode: nonexistent and unreadable files are ignored, i.e.\n\
             their error messages and warnings are suppressed.\n\
@@ -12710,9 +12895,9 @@ void help(std::ostream& out)
             Output directories with matching files in a tree-like format when\n\
             options -c, -l or -L are used.  This option is enabled by --pretty\n\
             when the output is sent to a terminal.\n\
-    -U, --binary\n\
-            Disables Unicode matching for binary file matching, forcing PATTERN\n\
-            to match bytes, not Unicode characters.  For example, -U '\\xa3'\n\
+    -U, --ascii, --binary\n\
+            Disables Unicode matching for ASCII and binary matching.  PATTERN\n\
+            matches bytes, not Unicode characters.  For example, -U '\\xa3'\n\
             matches byte A3 (hex) instead of the Unicode code point U+00A3\n\
             represented by the UTF-8 sequence C2 A3.  See also option --dotall.\n\
     -u, --ungroup\n\
