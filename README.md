@@ -7,6 +7,8 @@ Ugrep is like grep, but faster, user-friendly, and equipped with must-have featu
 
 New faster ugrep 3.12.6 and new **ugrep-indexer** tool to accelerate search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
+See [how to install](#install) to install ugrep on your system.
+
 The ugrep tools include the following powerful commands:
 - **ug** for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
 - **ug+** for interactive use, also searches pdfs, documents, e-books, image metadata
