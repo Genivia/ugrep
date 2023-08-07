@@ -2355,7 +2355,7 @@ minimum error (edit distance) found among all approximate matches per file.
 
 To recursively search for approximate matches of the word `foobar` with `-Z`,
 i.e.  approximate matching with one error, e.g. `Foobar`, `foo_bar`, `foo bar`,
-`fobar`:
+`fobar` and other forms with one missing, one extra or one deleted character:
 
     ug -Z 'foobar'
 
