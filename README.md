@@ -43,12 +43,6 @@ The ugrep tools include the following powerful commands:
 
   💡**ProTip** `-Q` replaces `PATTERN` on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
 
-- Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
-
-      ug -Z PATTERN ...                      ug -Z3 PATTTERN ...
-
-  💡**ProTip** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
-
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
       ug --bool 'A B C' ...                  ug -e 'A' --and 'B' --and 'C' ...
@@ -60,12 +54,6 @@ The ugrep tools include the following powerful commands:
   where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
   💡**ProTip** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
-
-- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
-
-      ug -Q1 --files --bool -l -w -Z+4 --sort=best
-
-  💡**ProTip** `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
@@ -85,6 +73,18 @@ The ugrep tools include the following powerful commands:
       ug --filter='7z:7z x -so -si' PATTERN ...
 
   💡**ProTip** the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata, when the [`pdftotext`](https://pypi.org/project/pdftotext), [`antiword`](https://github.com/rsdoiel/antiword), [`pandoc`](https://pandoc.org), and [`exiftool`](https://exiftool.sourceforge.net) are installed (optionally, not used when not installed).
+
+- Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
+
+      ug -Z PATTERN ...                      ug -Z3 PATTTERN ...
+
+  💡**ProTip** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
+
+- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
+
+      ug -Q1 --files --bool -l -w -Z+4 --sort=best
+
+  💡**ProTip** `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or `-U` for byte patterns)
 
