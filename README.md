@@ -7,7 +7,7 @@ Ugrep is like grep, but faster, user-friendly, and equipped with must-have featu
 
 New faster ugrep 3.12.6 and new **ugrep-indexer** tool to accelerate search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
-See [how to install](#install) to install ugrep on your system.
+See [how to install ugrep](#install) on your system.
 
 The ugrep tools include the following powerful commands:
 - **ug** for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
@@ -19,15 +19,14 @@ The ugrep tools include the following powerful commands:
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-- Written in clean and efficient C++11 for advanced features and speed, thoroughly tested
-
-- Portable (Linux, Unix, MacOS, Windows, etc), includes binaries for Windows in the [releases](https://github.com/Genivia/ugrep/releases)
+Overview
+--------
 
 - Supports all GNU/BSD grep standard options; ugrep is a faster [compatible replacement](#grep) for GNU/BSD grep
 
 - Matches Unicode patterns by default in UTF-8, UTF-16, UTF-32 encoded files
 
-- Matches multiple lines with `\n` and `\R` regex patterns
+- Matches multiple lines with `\n` or `\R` in regex patterns, *no special options are required to do so!*
 
 - Built-in help: `ug --help`, where `ug --help WHAT` displays options related to `WHAT` you are looking for
 
