@@ -19,6 +19,16 @@ The ugrep tools include the following powerful commands:
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
+Development roadmap
+-------------------
+
+- my highest priority is testing and quality assurance to continue to make sure ugrep has no bugs and is 100% reliable, my nightmare would be something like ripgrep's serious bugs (that I actually uncovered in benchmarking ugrep)
+- make ugrep even faster, see [my latest blog article](https://www.genivia.com/ugrep.html) demonstrating with a reproducible benchmark that ugrep beats GNU grep and ripgrep in terms of raw performance
+- share reproducible performance data with the community
+- improve the interactive TUI with a split screen
+- add high-performance file indexing to accelerate cold search performance, see my [ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details on a new indexing method that I call a *monotonic indexer*
+- improve localization/internationalization and associated regex pattern syntax. Ugrep also offers PCRE2 matching, so you're not limited, but it is nicer to improve support by default
+
 Overview
 --------
 
@@ -702,7 +712,7 @@ options and improves many of them too.  For details see [notable improvements
 over grep](#improvements).
 
 If you want to stick exactly to GNU/BSD grep ASCII/LATIN1 non-UTF Unicode
-patterns, use `ugrep -U` to disable full Unicode pattern matching.
+patterns, use option `-U` to disable full Unicode pattern matching.
 
 In fact, executing `ugrep` with options `-U`, `-Y`, `-.` and `--sort` makes it
 behave exactly like `egrep`, matching only ASCII/LATIN1 non-UTF Unicode
@@ -800,10 +810,10 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
 - **ugrep** starts an interactive query TUI with option `-Q`.
 - **ugrep** matches patterns across multiple lines when patterns match `\n`.
 - **ugrep** matches full Unicode by default (disabled with option `-U`).
-- **ugrep** supports fuzzy (approximate) matching with option `-Z`.
-- **ugrep** supports gitignore with option `--ignore-files`.
-- **ugrep** supports user-defined global and local configuration files.
 - **ugrep** supports Boolean patterns with AND, OR and NOT (option `--bool`).
+- **ugrep** supports gitignore with option `--ignore-files`.
+- **ugrep** supports fuzzy (approximate) matching with option `-Z`.
+- **ugrep** supports user-defined global and local configuration files.
 - **ugrep** searches compressed files and archives with option `-z`.
 - **ugrep** searches cpio, jar, pax, tar and zip archives with option `-z`.
 - **ugrep** searches cpio, jar, pax, tar and zip archives recursively stored
@@ -870,7 +880,7 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
   searching for identifiers in source code and find matches that aren't in
   strings and comments.  Predefined `zap` patterns use negative patterns, for
   example, use `-f cpp/zap_comments` to ignore pattern matches in C++ comments.
-- **ugrep** does not the `GREP_OPTIONS` environment variable, because the
+- **ugrep** ignores the `GREP_OPTIONS` environment variable, because the
   behavior of **ugrep** must be portable and predictable on every system.  Also
   GNU grep abandoned `GREP_OPTIONS` for this reason.  Please use the `ug`
   command that loads the .ugrep configuration file located in the working
