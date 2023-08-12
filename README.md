@@ -26,8 +26,7 @@ Development roadmap
 - make ugrep even faster, see [my latest blog article](https://www.genivia.com/ugrep.html) demonstrating with a reproducible benchmark that ugrep beats GNU grep and ripgrep in terms of raw performance
 - share reproducible performance data with the community
 - improve the interactive TUI with a split screen
-- add high-performance file indexing to accelerate cold search performance, see my [ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details on a new indexing method that I call a *monotonic indexer*
-- improve localization/internationalization and associated regex pattern syntax. Ugrep also offers PCRE2 matching, so you're not limited, but it is nicer to improve support by default
+- add high-performance file indexing to accelerate cold search performance, see the [ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details on a new indexing method that I call a *monotonic indexer*
 
 Overview
 --------
