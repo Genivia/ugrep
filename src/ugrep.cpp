@@ -7601,10 +7601,11 @@ void ugrep()
   // reflex::Matcher options
   std::string matcher_options;
 
-  // -Y: permit empty pattern matches and match closing ) when no opening (
+  // -Y: permit empty pattern matches and match closing ) when no opening ( unless -P and -F
   if (flag_empty)
   {
-    convert_flags |= reflex::convert_flag::closing;
+    if (!flag_perl_regexp && !flag_fixed_strings)
+      convert_flags |= reflex::convert_flag::closing;
     matcher_options.push_back('N');
   }
 
