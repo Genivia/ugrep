@@ -452,14 +452,14 @@ void Query::redraw()
     Screen::put( 9, 0, "\033[7mM-Left\033[m \033[7mM-Right\033[m pan ½ page");
     Screen::put(10, 0, "\033[7mM-Up\033[m   \033[7mM-Down\033[m  scroll ½ pg");
 #endif
-    Screen::put(11, 0, "");
-    Screen::put(12, 0, "\033[7mHome\033[m \033[7mEnd\033[m begin/end of line");
+    Screen::put(11, 0, "\033[7mHome\033[m   \033[7mEnd\033[m     of pattern");
+    Screen::put(12, 0, "");
     Screen::put(13, 0, "\033[7m^K\033[m delete after cursor");
     Screen::put(14, 0, "\033[7m^L\033[m refresh screen");
     Screen::put(15, 0, "\033[7m^Q\033[m quick exit and output");
     Screen::put(16, 0, "\033[7m^R\033[m or \033[7mF4\033[m restore bookmark");
     Screen::put(17, 0, "\033[7m^S\033[m scroll to next file/dir");
-    Screen::put(18, 0, "\033[7m^T\033[m toggle colors on/off");
+    Screen::put(18, 0, "\033[7m^T\033[m toggle colors");
     Screen::put(19, 0, "\033[7m^U\033[m delete before cursor");
     Screen::put(20, 0, "\033[7m^V\033[m verbatim character");
     Screen::put(21, 0, "\033[7m^W\033[m scroll back one file/dir");
@@ -502,9 +502,9 @@ void Query::redraw()
     if (!message_)
     {
 #ifdef WITH_MACOS_META_KEY
-      Screen::put(0, 0, "\033[7mF1\033[m help and options:        \033[7m^\033[m=\033[7mCtrl\033[m  \033[7mS-\033[m=\033[7mShift\033[m  \033[7mM-\033[m=\033[7mAlt\033[m/\033[7mOption\033[m or use \033[7m^O\033[m+key");
+      Screen::put(0, 0, "     HELP AND OPTIONS       \033[7m^\033[m=Ctrl  \033[7mS-\033[m=Shift  \033[7mM-\033[m=Alt/Option or \033[7m^O\033[m+key");
 #else
-      Screen::put(0, 0, "\033[7mF1\033[m help and options:        \033[7m^\033[m=\033[7mCtrl\033[m  \033[7mS-\033[m=\033[7mShift\033[m  \033[7mM-\033[m=\033[7mAlt\033[m or use \033[7m^O\033[m+key");
+      Screen::put(0, 0, "     HELP AND OPTIONS       \033[7m^\033[m=Ctrl  \033[7mS-\033[m=Shift  \033[7mM-\033[m=Alt or \033[7m^O\033[m+key");
 #endif
     }
 
@@ -750,6 +750,8 @@ void Query::query_ui()
   eof_        = true;
   buflen_     = 0;
 
+  Screen::clear();
+
   // if -e PATTERN specified, collect patterns on the line to edit
   if (!flag_regexp.empty())
   {
@@ -787,8 +789,11 @@ void Query::query_ui()
 
     move(len_);
   }
-
-  Screen::clear();
+  else
+  {
+    // display a brief help message
+    message("press CTRL-Z or F1 for help");
+  }
 
   set_prompt();
 

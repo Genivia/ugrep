@@ -803,15 +803,15 @@ class Pattern {
     Option() : b(), h(), e(), f(), i(), m(), n(), o(), p(), q(), r(), s(), w(), x(), z() { }
     bool                     b; ///< disable escapes in bracket lists
     bool                     h; ///< construct indexing hash finite state automaton
-    Char                     e; ///< escape character, or > 255 for none, '\\' default
-    std::vector<std::string> f; ///< output to files
+    Char                     e; ///< escape character, or > 255 for none, a backslash by default
+    std::vector<std::string> f; ///< output the patterns and/or DFA to files(s)
     bool                     i; ///< case insensitive mode, also `(?i:X)`
     bool                     m; ///< multi-line mode, also `(?m:X)`
     std::string              n; ///< pattern name (for use in generated code)
     bool                     o; ///< generate optimized FSM code for option f
     bool                     p; ///< with option f also output predict match array for fast search with find()
     bool                     q; ///< enable "X" quotation of verbatim content, also `(?q:X)`
-    bool                     r; ///< raise syntax errors
+    bool                     r; ///< raise syntax errors as exceptions
     bool                     s; ///< single-line mode (dotall mode), also `(?s:X)`
     bool                     w; ///< write error message to stderr
     bool                     x; ///< free-spacing mode, also `(?x:X)`

@@ -22,12 +22,12 @@ The ugrep tools include the following powerful commands:
 Development roadmap
 -------------------
 
-- my highest priority is testing and quality assurance to continue to make sure ugrep has no bugs and is 100% reliable, my nightmare would be something like ripgrep's bugs (that I actually uncovered in benchmarking ugrep)
-- listen to users to continue to improve ugrep with new and updated features
+- my highest priority is testing and quality assurance to continue to make sure ugrep has no bugs and is reliable
 - make ugrep even faster, see [my latest blog article](https://www.genivia.com/ugrep.html) demonstrating with a reproducible benchmark that ugrep beats GNU grep and ripgrep in terms of raw performance
+- listen to users to continue to improve ugrep with new and updated features
 - share reproducible performance data with the community
 - improve the interactive TUI with a split screen
-- add file indexing to accelerate cold search performance, see the [ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details on a new indexing method that I call a *monotonic indexer*
+- add file indexing to speed up cold search performance, see [ugrep-indexer](https://github.com/Genivia/ugrep-indexer)
 
 Overview
 --------
@@ -5358,7 +5358,7 @@ in markdown:
 
 
 
-    ugrep 3.12.6                     August 6, 2023                         UGREP(1)
+    ugrep 3.12.7                     August 14, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

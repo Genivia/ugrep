@@ -1750,19 +1750,35 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         else
         {
           if (lev == 1)
-            throw regex_error(regex_error::mismatched_parens, pattern, pos);
-          if (beg)
-            throw regex_error(regex_error::empty_expression, pattern, pos);
-          if (lap == lev)
           {
-            // lex lookahead: translate ) to ))
-            regex.append(&pattern[loc], pos - loc).push_back(')');
-            loc = pos;
-            lap = 0;
+            if (!(flags & convert_flag::closing))
+              throw regex_error(regex_error::mismatched_parens, pattern, pos);
+            if (!(flags & convert_flag::basic) || bre)
+            {
+              // translate a closing ) to \) when it has no opening (
+              regex.append(&pattern[loc], pos - loc).push_back('\\');
+              loc = pos;
+              anc = false;
+              beg = false;
+            }
           }
-          // terminate (?isx:...)
-          mod[lev].clear();
-          --lev;
+          else if (beg)
+          {
+            throw regex_error(regex_error::empty_expression, pattern, pos);
+          }
+          else
+          {
+            if (lap == lev)
+            {
+              // lex lookahead: translate ) to ))
+              regex.append(&pattern[loc], pos - loc).push_back(')');
+              loc = pos;
+              lap = 0;
+            }
+            // terminate (?isx:...)
+            mod[lev].clear();
+            --lev;
+          }
         }
         break;
       case '|':
@@ -2004,10 +2020,6 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           loc = pos;
           anc = false;
           beg = false;
-        }
-        else
-        {
-          throw regex_error(regex_error::mismatched_braces, pattern, pos);
         }
         break;
       case '#':

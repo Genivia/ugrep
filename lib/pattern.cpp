@@ -493,17 +493,17 @@ void Pattern::init_options(const char *options)
           opt_.x = true;
           break;
         case 'z':
-            for (const char *t = s += (s[1] == '='); *s != ';' && *s != '\0'; ++t)
+          for (const char *t = s += (s[1] == '='); *s != ';' && *s != '\0'; ++t)
+          {
+            if (std::isspace(*t) || *t == ';' || *t == '\0')
             {
-              if (std::isspace(*t) || *t == ';' || *t == '\0')
-              {
-                if (t > s + 1)
-                  opt_.z = std::string(s + 1, t - s - 1);
-                s = t;
-              }
+              if (t > s + 1)
+                opt_.z = std::string(s + 1, t - s - 1);
+              s = t;
             }
-            --s;
-            break;
+          }
+          --s;
+          break;
         case 'f':
         case 'n':
           for (const char *t = s += (s[1] == '='); *s != ';' && *s != '\0'; ++t)
@@ -596,7 +596,10 @@ void Pattern::parse(
         Char c = at(end);
         if (c == '\0' || c == '|')
           break;
-        if (c == '.' || c == '^' || c == '$' || c == '(' || c == ')' || c == '[' || c == '{' || c == '?' || c == '*' || c == '+')
+        if (c == '.' || c == '^' || c == '$' ||
+            c == '(' || c == '[' || c == '{' ||
+            c == '?' || c == '*' || c == '+' ||
+            c == ')')
         {
           end = loc;
           break;
@@ -1115,6 +1118,10 @@ void Pattern::parse3(
           lazyset.clear();
         }
       }
+      else if (at(loc) == '\0')
+      {
+        error(regex_error::mismatched_braces, loc);
+      }
       else
       {
         error(regex_error::invalid_repeat, loc);
@@ -1381,17 +1388,13 @@ void Pattern::parse4(
   {
     error(begin ? regex_error::empty_expression : regex_error::mismatched_parens, loc++);
   }
-  else if (c == '}')
-  {
-    error(regex_error::mismatched_braces, loc++);
-  }
   else if (c != '\0' && c != '|' && c != '?' && c != '*' && c != '+')
   {
     pos_add(firstpos, loc);
     pos_add(lastpos, loc);
     nullable = false;
     if (c == opt_.e)
-      (void)parse_esc(loc);
+      c = parse_esc(loc);
     else
       ++loc;
   }
@@ -4060,8 +4063,8 @@ bool Pattern::match_hfa(const uint8_t *indexed, size_t size) const
 {
   if (!has_hfa())
     return false;
-  HFA::VisitSet visit[2]; // we alternate and swap two visit bitsets, to produce a new one from the previous
-  bool accept = false; // a flag to indicate that we reached an accept (or dead) state, i.e. a possible match is found
+  HFA::VisitSet visit[2]; // we alternate two state visit bitsets, to produce a new one from the previous
+  bool accept = false; // a flag to indicate that we reached an accept (= dead) state, i.e. a possible match is found
   for (size_t level = 0; level < HFA::MAX_DEPTH && !accept; ++level)
     if (!match_hfa_transitions(level, hfa_.hashes[level], indexed, size, visit[level & 1], visit[~level & 1], accept))
       return false;
@@ -4098,7 +4101,7 @@ bool Pattern::match_hfa_transitions(size_t level, const HFA::Hashes& hashes, con
         {
           HFA::States::const_iterator state = hfa_.states.find(next->first);
           if (state == hfa_.states.end() || state->second.empty())
-            return accept = true; // reached an accepting (dead) state (dead means accept in HFA)
+            return accept = true; // reached an accepting (= dead) state (dead means accept in HFA)
           const HFA::StateSet::const_iterator index_end = state->second.end();
           for (HFA::StateSet::const_iterator index = state->second.begin(); index != index_end; ++index)
             next_visit.set(*index, true);

@@ -63,7 +63,7 @@
 
 // the max time that a message (to confirm a command) is shown at the query line, in steps of 100ms
 #ifndef QUERY_MESSAGE_DELAY
-#define QUERY_MESSAGE_DELAY 12
+#define QUERY_MESSAGE_DELAY 15
 #endif
 
 class Query {
