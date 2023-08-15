@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 filters=
 if [ -x "$(command -v pdftotext)" ] && pdftotext --help 2>&1 | ugrep -qw Poppler ; then
   filters="${filters}${filters:+,}pdf:pdftotext % -"
