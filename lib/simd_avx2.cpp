@@ -35,6 +35,7 @@
 */
 
 #include <reflex/absmatcher.h>
+#include <cstddef>
 
 namespace reflex {
 
@@ -48,7 +49,7 @@ size_t simd_nlcount_avx2(const char*& b, const char *e)
     return 0;
   size_t n = 0;
   // align on 32 bytes
-  while ((reinterpret_cast<ptrdiff_t>(s) & 0x1f) != 0)
+  while ((reinterpret_cast<std::ptrdiff_t>(s) & 0x1f) != 0)
     n += (*s++ == '\n');
   __m256i vlcn = _mm256_set1_epi8('\n');
   while (s <= e)
@@ -82,7 +83,7 @@ size_t simd_nlcount_sse2(const char*& b, const char *e)
     return 0;
   size_t n = 0;
   // align on 16 bytes
-  while ((reinterpret_cast<ptrdiff_t>(s) & 0x0f) != 0)
+  while ((reinterpret_cast<std::ptrdiff_t>(s) & 0x0f) != 0)
     n += (*s++ == '\n');
   __m128i vlcn = _mm_set1_epi8('\n');
   while (s <= e)
