@@ -649,7 +649,7 @@ $ tail -f /var/log/system.log | ugrep -u -i -w bug
 .PP
 Interactive fuzzy search with Boolean search queries:
 .IP
-$ ugrep -Q --bool -Z3 --sort=best
+$ ugrep -Q -l --bool -Z3 --sort=best
 .PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP

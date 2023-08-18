@@ -2,7 +2,7 @@
 [1;35mHello.bat[m[1;36m:[m[32;1m     2[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     10[m[1;36m:[m	echo "Hello World!"[m
 [mBinary file [1;35mHello.class[m matches
 [1;35mHello.java[m[1;36m:[m[32;1m     1[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m      0[m[1;36m:[m	import java.lang.*;[m
-[1;35mHello.java[m[1;36m:[m[32;1m     2[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     20[m[1;36m:[m	
+[1;35mHello.java[m[1;36m:[m[32;1m     2[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     20[m[1;36m:[m	[m
 [1;35mHello.java[m[1;36m:[m[32;1m     3[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     21[m[1;36m:[m	public class Hello // prints a Hello World! greeting[m
 [1;35mHello.java[m[1;36m:[m[32;1m     4[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     74[m[1;36m:[m	{ public static void main(String[] arg)[m
 [1;35mHello.java[m[1;36m:[m[32;1m     5[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m    114[m[1;36m:[m	  { System.out.println("Hello World!");[m
@@ -12,4 +12,4 @@
 [1;35mHello.sh[m[1;36m:[m[32;1m     1[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m      0[m[1;36m:[m	#!/bin/sh[m
 [1;35mHello.sh[m[1;36m:[m[32;1m     2[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m     10[m[1;36m:[m	echo "Hello World!"[m
 [1;35mHello.txt[m[1;36m:[m[32;1m     1[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m      0[m[1;36m:[m	Hello[m
-[1;35memptyline.txt[m[1;36m:[m[32;1m     1[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m      0[m[1;36m:[m	
+[1;35memptyline.txt[m[1;36m:[m[32;1m     1[m[1;36m:[m[1;32m  1[m[1;36m:[m[1;32m      0[m[1;36m:[m	[m

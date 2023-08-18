@@ -34,8 +34,8 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#if defined(HAVE_AVX2) || defined(HAVE_AVX512BW)
-# if !defined(__AVX2__) || defined(__AVX512BW__)
+#if defined(HAVE_AVX2)
+# if !defined(__AVX2__)
 #  error matcher_avx2.cpp must be compiled with -mavx2 or /arch:avx2.
 # endif
 #endif

@@ -128,6 +128,7 @@ inline uint32_t popcountl(uint64_t x)
 #endif
 
 // Partially count newlines in string b up to and including position e in b, updates b close to e with uncounted part
+extern size_t simd_nlcount_sse2(const char*& b, const char *e);
 extern size_t simd_nlcount_avx2(const char*& b, const char *e);
 extern size_t simd_nlcount_avx512bw(const char*& b, const char *e);
 

@@ -110,12 +110,12 @@ class AbstractMatcher {
     static const int EOB      = EOF;        ///< end of buffer meta-char marker
     static const size_t BLOCK = 4096;       ///< minimum remaining unused space in the buffer, to prevent excessive shifting
 #ifndef REFLEX_BUFSZ
-    static const size_t BUFSZ = (64*1024);  ///< initial buffer size, at least 4096 bytes
+    static const size_t BUFSZ = (128*1024); ///< initial buffer size, at least 4096 bytes
 #else
     static const size_t BUFSZ = REFLEX_BUFSZ;
 #endif
 #ifndef REFLEX_BOLSZ
-    static const size_t BOLSZ = (3*BUFSZ);  ///< max begin of line size till match to retain in memory by growing the buffer
+    static const size_t BOLSZ = BUFSZ;      ///< max begin of line size till match to retain in memory by growing the buffer
 #else
     static const size_t BOLSZ = REFLEX_BOLSZ;
 #endif
@@ -662,60 +662,33 @@ class AbstractMatcher {
       size_t n = 0;
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
       if (have_HW_AVX512BW())
-      {
-        n += simd_nlcount_avx512bw(s, t);
-      }
+        n = simd_nlcount_avx512bw(s, t);
       else if (have_HW_AVX2())
-      {
-        n += simd_nlcount_avx2(s, t);
-      }
+        n = simd_nlcount_avx2(s, t);
       else
-      {
-        __m128i vlcn = _mm_set1_epi8('\n');
-        while (s + 16 <= t)
-        {
-          __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
-          uint32_t mask = _mm_movemask_epi8(vlceq);
-          n += popcount(mask);
-          s += 16;
-        }
-      }
+        n = simd_nlcount_sse2(s, t);
 #elif defined(HAVE_AVX2)
       if (have_HW_AVX2())
-      {
-        n += simd_nlcount_avx2(s, t);
-      }
+        n = simd_nlcount_avx2(s, t);
       else
-      {
-        __m128i vlcn = _mm_set1_epi8('\n');
-        while (s + 16 <= t)
-        {
-          __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
-          uint32_t mask = _mm_movemask_epi8(vlceq);
-          n += popcount(mask);
-          s += 16;
-        }
-      }
+        n = simd_nlcount_sse2(s, t);
 #elif defined(HAVE_SSE2)
-      __m128i vlcn = _mm_set1_epi8('\n');
-      while (s + 16 <= t)
-      {
-        __m128i vlcm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-        __m128i vlceq = _mm_cmpeq_epi8(vlcm, vlcn);
-        uint32_t mask = _mm_movemask_epi8(vlceq);
-        n += popcount(mask);
-        s += 16;
-      }
-#elif defined(HAVE_NEON)
-      {
-        // ARM AArch64/NEON SIMD optimized loop? - no code that runs faster than the code below?
-      }
+      n = simd_nlcount_sse2(s, t);
 #endif
-      uint32_t n0 = 0, n1 = 0, n2 = 0, n3 = 0;
+#if defined(HAVE_NEON)
+      // no ARM AArch64/NEON SIMD optimized loop? - no code that runs faster than the code below?!
+      uint32_t n0 = 0, n1 = 0;
+      while (s < t - 1)
+      {
+        n0 += s[0] == '\n';
+        n1 += s[1] == '\n';
+        s += 2;
+      }
+      n += n0 + n1 + (s < t && *s == '\n');
+#else
       // clang/gcc 4-way auto-vectorizable loop
-      while (s + 3 < t)
+      uint32_t n0 = 0, n1 = 0, n2 = 0, n3 = 0;
+      while (s < t - 3)
       {
         n0 += s[0] == '\n';
         n1 += s[1] == '\n';
@@ -735,13 +708,14 @@ class AbstractMatcher {
             n += *s == '\n';
         }
       }
+#endif
       // if newlines are detected, then find begin of the last line to adjust bol
       if (n > 0)
       {
         lno_ += n;
         s = lpb_;
         // clang/gcc 4-way auto-vectorizable loop
-        while (t - 4 >= s)
+        while (t >= s + 4)
         {
           if ((t[-1] == '\n') | (t[-2] == '\n') | (t[-3] == '\n') | (t[-4] == '\n'))
             break;
@@ -1428,7 +1402,7 @@ class AbstractMatcher {
 #if WITH_SPAN
     (void)lineno();
     cno_ = 0;
-    if (bol_ + Const::BOLSZ - buf_ < txt_ - bol_ && evh_ == NULL)
+    if (bol_ + Const::BOLSZ - buf_ < txt_ - bol_)
     {
       // this line is very long, so shift all the way to the match instead of to the begin of the last line
       DBGLOG("Line in buffer is too long to shift, moving bol position to text match position");

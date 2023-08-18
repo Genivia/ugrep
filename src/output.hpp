@@ -334,63 +334,75 @@ class Output {
   }
 
   // output a character c
-  void chr(int c)
+  inline void chr(int c)
   {
     if (cur_ >= buf_->data + SIZE)
       next();
     *cur_++ = c;
   }
 
-  // output a string s
-  void str(const std::string& s)
+  // output a std::string s
+  inline void str(const std::string& s)
   {
     str(s.c_str(), s.size());
   }
 
-  // output a string s
-  void str(const char *s)
+  // output a \0-terminated string s
+  inline void str(const char *s)
   {
-    while (*s != '\0')
-      chr(*s++);
+    if (s[0] != '\0')
+    {
+      if (s[1] != '\0')
+        str(s, strlen(s));
+      else
+        chr(s[0]);
+    }
   }
 
-  // output a string s up to n single byte characters
-  void str(const char *s, size_t n)
+  // output a string s of byte length n
+  inline void str(const char *s, size_t n)
   {
-    while (n-- > 0)
-      chr(*s++);
+    while (cur_ + n >= buf_->data + SIZE)
+    {
+      size_t k = static_cast<size_t>(buf_->data + SIZE - cur_);
+      memcpy(cur_, s, k);
+      s += k;
+      n -= k;
+      cur_ += k;
+      next();
+    }
+    memcpy(cur_, s, n);
+    cur_ += n;
   }
 
   // output a UTF-8 multibyte string s of byte length n for up to k UTF-8-encoded characters
-  void utf8strn(const char *s, size_t n, size_t k)
+  inline void utf8strn(const char *s, size_t n, size_t k)
   {
+    const char *t = s;
     while (n-- > 0 && k-- > 0)
-    {
-      do
-        chr(*s++);
-      while ((*s & 0xc0) == 0x80 && n-- > 0);
-    }
+      while ((*++s & 0xc0) == 0x80 && n-- > 0)
+        continue;
+    str(t, t - s);
   }
 
   // output a UTF-8 multibyte string s (\0-terminated) for up to k Unicode characters
-  void utf8str(const char *s, size_t k)
+  inline void utf8str(const char *s, size_t k)
   {
+    const char *t = s;
     while (*s != '\0' && k-- > 0)
-    {
-      do
-        chr(*s++);
-      while ((*s & 0xc0) == 0x80);
-    }
+      while ((*++s & 0xc0) == 0x80)
+        continue;
+    str(t, t - s);
   }
 
   // output a URI-encoded string s
-  void uri(const std::string& s)
+  inline void uri(const std::string& s)
   {
     uri(s.c_str());
   }
 
   // output a URI-encoded string s
-  void uri(const char *s)
+  inline void uri(const char *s)
   {
     while (*s != '\0')
     {
@@ -401,13 +413,13 @@ class Output {
       else
       {
         chr('%');
-        hex(static_cast<unsigned char>(*s++), 2);
+        hex(static_cast<uint8_t>(*s++), 2);
       }
     }
   }
 
   // output a match
-  void mat(reflex::AbstractMatcher *matcher)
+  inline void mat(reflex::AbstractMatcher *matcher)
   {
     if (flag_only_matching)
     {
@@ -422,7 +434,7 @@ class Output {
   }
 
   // output a quoted match with escapes for \ and "
-  void quote(reflex::AbstractMatcher *matcher)
+  inline void quote(reflex::AbstractMatcher *matcher)
   {
     if (flag_only_matching)
     {
@@ -437,7 +449,7 @@ class Output {
   }
 
   // output a match as a string in C/C++
-  void cpp(reflex::AbstractMatcher *matcher)
+  inline void cpp(reflex::AbstractMatcher *matcher)
   {
     if (flag_only_matching)
     {
@@ -452,7 +464,7 @@ class Output {
   }
 
   // output a match as a quoted string in CSV
-  void csv(reflex::AbstractMatcher *matcher)
+  inline void csv(reflex::AbstractMatcher *matcher)
   {
     if (flag_only_matching)
     {
@@ -467,7 +479,7 @@ class Output {
   }
 
   // output a match as a quoted string in JSON
-  void json(reflex::AbstractMatcher *matcher)
+  inline void json(reflex::AbstractMatcher *matcher)
   {
     if (flag_only_matching)
     {
@@ -482,7 +494,7 @@ class Output {
   }
 
   // output a match in XML
-  void xml(reflex::AbstractMatcher *matcher)
+  inline void xml(reflex::AbstractMatcher *matcher)
   {
     if (flag_only_matching)
     {
@@ -496,42 +508,44 @@ class Output {
     }
   }
 
-  // output a number with field width w (padded with spaces)
-  void num(size_t i, size_t w = 1)
+  // output an unsigned integer i with field width w (padded with spaces)
+  inline void num(size_t i, size_t w = 1)
   {
     char tmp[24];
-    size_t n = 0;
+    size_t k = sizeof(tmp);
 
     do
-      tmp[n++] = i % 10 + '0';
+      tmp[--k] = i % 10 + '0';
     while ((i /= 10) > 0);
+
+    size_t n = sizeof(tmp) - k;
 
     while (w-- > n)
       chr(' ');
 
-    while (n > 0)
-      chr(tmp[--n]);
+    str(&tmp[k], n);
   }
 
   // output a number in hex with width w (padded with digit '0')
-  void hex(size_t i, size_t w = 1)
+  inline void hex(size_t i, size_t w = 1)
   {
     char tmp[16];
-    size_t n = 0;
+    size_t k = sizeof(tmp);
 
     do
-      tmp[n++] = "0123456789abcdef"[i % 16];
-    while ((i /= 16) > 0);
+      tmp[--k] = "0123456789abcdef"[i & 0xf];
+    while ((i >>= 4) > 0);
+
+    size_t n = sizeof(tmp) - k;
 
     while (w-- > n)
       chr('0');
 
-    while (n > 0)
-      chr(tmp[--n]);
+    str(&tmp[k], n);
   }
 
-  // output a byte in octal
-  void oct(int i)
+  // output a single byte in octal
+  inline void oct(int i)
   {
     uint8_t b = static_cast<uint8_t>(i);
     chr('0' + (b >> 6));
@@ -540,7 +554,7 @@ class Output {
   }
 
   // output a newline (platform-specific conditional "\r\n" or "\n"); flush if --line-buffered.
-  void nl(bool lf_only = false)
+  inline void nl(bool lf_only = false)
   {
     if (!lf_only)
 #ifdef OS_WIN

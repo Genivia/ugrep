@@ -28,7 +28,7 @@
 
 /**
 @file      simd_avx512bw.cpp
-@brief     RE/flex SIMD intrinsics compiled with -mavx512bw
+@brief     RE/flex SIMD primitives compiled with -mavx512bw
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2022, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -41,22 +41,30 @@ namespace reflex {
 // Partially count newlines in string b up to and including position e in b, updates b close to e with uncounted part
 size_t simd_nlcount_avx512bw(const char*& b, const char *e)
 {
-  const char *s = b;
-  size_t n = 0;
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
+  const char *s = b;
+  e -= 128;
+  if (s > e)
+    return 0;
+  size_t n = 0;
+  // align on 64 bytes
+  while ((reinterpret_cast<ptrdiff_t>(s) & 0x3f) != 0)
+    n += (*s++ == '\n');
   __m512i vlcn = _mm512_set1_epi8('\n');
-  while (s + 64 <= e)
+  while (s <= e)
   {
-    __m512i vlcm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
-    uint64_t mask = _mm512_cmpeq_epi8_mask(vlcm, vlcn);
-    n += popcountl(mask);
-    s += 64;
+    __m512i vlcm1 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
+    __m512i vlcm2 = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + 64));
+    n += popcountl(_mm512_cmpeq_epi8_mask(vlcm1, vlcn)) + popcountl(_mm512_cmpeq_epi8_mask(vlcm2, vlcn));
+    s += 128;
   }
-#else
-  (void)e;
-#endif
   b = s;
   return n;
+#else
+  (void)b;
+  (void)e;
+  return 0;
+#endif
 }
 
 } // namespace reflex

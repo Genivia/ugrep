@@ -2770,8 +2770,6 @@ bool Matcher::advance()
       {
         loc = s - buf_;
         set_current(loc);
-        if (min == 0)
-          return true;
         if (min >= 4)
         {
           if (s + 1 + min > e || Pattern::predict_match(pmh, s + 1, min))
@@ -2779,7 +2777,7 @@ bool Matcher::advance()
         }
         else
         {
-          if (s > e - 5 || Pattern::predict_match(pma, s + 1) == 0)
+          if (min == 0 || s > e - 5 || Pattern::predict_match(pma, s + 1) == 0)
             return true;
         }
         ++loc;
@@ -2820,8 +2818,6 @@ bool Matcher::advance()
           {
             loc = s - lcp + offset - buf_;
             set_current(loc);
-            if (min == 0)
-              return true;
             if (min >= 4)
             {
               if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
@@ -2829,7 +2825,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+              if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                 return true;
             }
           }
@@ -2856,8 +2852,6 @@ bool Matcher::advance()
           {
             loc = s - lcp + offset - buf_;
             set_current(loc);
-            if (min == 0)
-              return true;
             if (min >= 4)
             {
               if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
@@ -2865,7 +2859,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+              if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                 return true;
             }
           }
@@ -2892,8 +2886,6 @@ bool Matcher::advance()
           {
             loc = s - lcp + offset - buf_;
             set_current(loc);
-            if (min == 0)
-              return true;
             if (min >= 4)
             {
               if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
@@ -2901,7 +2893,7 @@ bool Matcher::advance()
             }
             else
             {
-              if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+              if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                 return true;
             }
           }
@@ -2914,65 +2906,91 @@ bool Matcher::advance()
       // enhanced with least frequent character matching
       uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
       uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
-      while (s <= e - 16)
+      if (min >= 4)
       {
-        uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-        uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
-        uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
-        uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
-        uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
-        uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
-        uint64_t mask = vgetq_lane_u64(vmask64, 0);
-        if (mask != 0)
+        while (s <= e - 16)
         {
-          for (int i = 0; i < 8; ++i)
+          uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+          uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
+          uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
+          uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
+          uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
+          uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
+          uint64_t mask = vgetq_lane_u64(vmask64, 0);
+          if (mask != 0)
           {
-            if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
+            for (int i = 0; i < 8; ++i)
             {
-              loc = s - lcp + i - buf_;
-              set_current(loc);
-              if (min == 0)
-                return true;
-              if (min >= 4)
+              if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
               {
+                loc = s - lcp + i - buf_;
+                set_current(loc);
                 if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
                   return true;
               }
-              else
-              {
-                if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
-                  return true;
-              }
+              mask >>= 8;
             }
-            mask >>= 8;
           }
-        }
-        mask = vgetq_lane_u64(vmask64, 1);
-        if (mask != 0)
-        {
-          for (int i = 0; i < 8; ++i)
+          mask = vgetq_lane_u64(vmask64, 1);
+          if (mask != 0)
           {
-            if ((mask & 0xff) && std::memcmp(s - lcp + i + 8, chr, len) == 0)
+            for (int i = 0; i < 8; ++i)
             {
-              loc = s - lcp + i + 8 - buf_;
-              set_current(loc);
-              if (min == 0)
-                return true;
-              if (min >= 4)
+              if ((mask & 0xff) && std::memcmp(s - lcp + i + 8, chr, len) == 0)
               {
+                loc = s - lcp + i + 8 - buf_;
+                set_current(loc);
                 if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
                   return true;
               }
-              else
+              mask >>= 8;
+            }
+          }
+          s += 16;
+        }
+      }
+      else
+      {
+        while (s <= e - 16)
+        {
+          uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+          uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
+          uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
+          uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
+          uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
+          uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
+          uint64_t mask = vgetq_lane_u64(vmask64, 0);
+          if (mask != 0)
+          {
+            for (int i = 0; i < 8; ++i)
+            {
+              if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
               {
-                if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+                loc = s - lcp + i - buf_;
+                set_current(loc);
+                if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
                   return true;
               }
+              mask >>= 8;
             }
-            mask >>= 8;
           }
+          mask = vgetq_lane_u64(vmask64, 1);
+          if (mask != 0)
+          {
+            for (int i = 0; i < 8; ++i)
+            {
+              if ((mask & 0xff) && std::memcmp(s - lcp + i + 8, chr, len) == 0)
+              {
+                loc = s - lcp + i + 8 - buf_;
+                set_current(loc);
+                if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+                  return true;
+              }
+              mask >>= 8;
+            }
+          }
+          s += 16;
         }
-        s += 16;
       }
 #endif
       while (s < e)
@@ -3038,8 +3056,6 @@ bool Matcher::advance()
         {
           loc = q - buf_ + 1;
           set_current(loc);
-          if (min == 0)
-            return true;
           if (min >= 4)
           {
             if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
@@ -3047,7 +3063,7 @@ bool Matcher::advance()
           }
           else
           {
-            if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+            if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
               return true;
           }
         }

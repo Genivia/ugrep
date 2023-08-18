@@ -1,4 +1,4 @@
-.TH UGREP "1" "August 14, 2023" "ugrep 3.12.7" "User Commands"
+.TH UGREP "1" "August 18, 2023" "ugrep 4.0.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -676,7 +676,7 @@ and \fB\-\-line\-buffered\fR.
 When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-n\fR,
 \fB\-\-sort\fR, \fB\-\-tree\fR and \fB\-T\fR when not explicitly disabled.
 .TP
-\fB\-Q\fR[\fIDELAY\fR], \fB\-\-query\fR[=\fIDELAY\fR]
+\fB\-Q\fR[=\fIDELAY\fR], \fB\-\-query\fR[=\fIDELAY\fR]
 Query mode: user interface to perform interactive searches.  This
 mode requires an ANSI capable terminal.  An optional DELAY argument
 may be specified to reduce or increase the response time to execute
@@ -1392,7 +1392,7 @@ $ tail -f /var/log/system.log | ugrep -u -i -w bug
 .PP
 Interactive fuzzy search with Boolean search queries:
 .IP
-$ ugrep -Q --bool -Z3 --sort=best
+$ ugrep -Q -l --bool -Z3 --sort=best
 .PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP

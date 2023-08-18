@@ -1,5 +1,5 @@
 [1;35mHello.bat[m[1;36m-[m[1;34m#!/bin/sh[m
-[1;35mHello.bat[m[1;36m:[m[m[1;4;32mecho "Hello[m World!"[m
+[1;35mHello.bat[m[1;36m:[m[1;4;32mecho "Hello[m World!"[m
 [1;35mHello.class[m[1;36m-[m
 [1;32m00000000[m [m[1;34m ca fe ba be 00 00 00 34  00 1d 0a[m[1;34m -- -- -- -- -- [m[1;36m |[m[1;34m[7m.[7m.[7m.[7m.[7m@[7m@[7m@[m[1;34m4[7m@[7m][7mJ[m[1;34m-----[m[1;36m|[m
 [1;35mHello.class[m[1;36m-[m
@@ -41,9 +41,9 @@
 [1;35mHello.class[m[1;36m-[m
 [1;32m00000180[m [m[1;34m -- -- -- -- -- -- -- --  -- -- -- --[m[1;34m 00 02 00 00 [m[1;36m |[m[1;34m------------[m[1;34m[7m@[7mB[7m@[7m@[m[1;36m|[m
 [1;32m00000190[m [m[1;34m 00 05 00 08 00 06 00 01  00 0d 00 00 00 02 00 0e [m[1;36m |[m[1;34m[7m@[7mE[7m@[7mH[7m@[7mF[7m@[7mA[7m@[7mM[7m@[7m@[7m@[7mB[7m@[7mN[m[1;36m|[m
-[1;35mHello.java[m[1;36m:[m[m[1;4;32mimport java.lang.*;[m
+[1;35mHello.java[m[1;36m:[m[1;4;32mimport java.lang.*;[m
 [1;35mHello.java[m[1;36m-[m
-[1;35mHello.java[m[1;36m:[m[m[1;4;32mpublic class[m [m[1;4;32mHello //[m [m[1;4;32mprints a[m [m[1;4;32mHello World![m greeting[m
+[1;35mHello.java[m[1;36m:[m[1;4;32mpublic class[m [m[1;4;32mHello //[m [m[1;4;32mprints a[m [m[1;4;32mHello World![m greeting[m
 [1;35mHello.java[m[1;36m:[m{ [m[1;4;32mpublic static[m [m[1;4;32mvoid main(String[][m arg)[m
 [1;35mHello.java[m[1;36m:[m  { System.out.println("[m[1;4;32mHello World!");[m
 [1;35mHello.java[m[1;36m-[m[1;34m  }[m
@@ -52,7 +52,7 @@
 [1;35mHello.pdf[m[1;36m-[m
 [1;32m00000000[m [m[1;34m -- -- -- -- -- -- -- --  --[m[1;34m 25 c4 e5 f2 e5 eb a7 [m[1;36m |[m[1;34m---------[m[1;34m%[7m.[7m.[7m.[7m.[7m.[7m.[m[1;36m|[m
 [1;32m00000010[m [m[1;34m f3 a0 d0 c4 c6 0a[m[1;34m -- --  -- -- -- -- -- -- -- -- [m[1;36m |[m[1;34m[7m.[7m.[7m.[7m.[7m.[7mJ[m[1;34m----------[m[1;36m|[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m4 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m4 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mLength 5[m [m[1;4;32m0 R[m /[m[1;4;32mFilter /FlateDecode[m >>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mstream[m
 [1;35mHello.pdf[m[1;36m-[m
@@ -71,18 +71,18 @@
 [1;32m000000c0[m [m[1;34m 37 b5 37 e3 17 4e ff 20  a5 0a[m[1;34m -- -- -- -- -- -- [m[1;36m |[m[1;34m7[7m.[m[1;34m7[7m.[7mW[m[1;34mN[7m.[m[1;34m [7m.[7mJ[m[1;34m------[m[1;36m|[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendstream[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m5 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m5 0[m obj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m123[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m2 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m2 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mType /Page[m /[m[1;4;32mParent 3[m [m[1;4;32m0 R[m /[m[1;4;32mResources 6[m [m[1;4;32m0 R[m /[m[1;4;32mContents 4[m [m[1;4;32m0 R[m /[m[1;4;32mMediaBox [0[m [m[1;4;32m0 612[m 792][m
 [1;35mHello.pdf[m[1;36m-[m[1;34m>>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m6 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m6 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mProcSet [[m /[m[1;4;32mPDF /Text[m ] /[m[1;4;32mColorSpace <<[m /[m[1;4;32mCs1 7[m [m[1;4;32m0 R[m >> /[m[1;4;32mFont <<[m /[m[1;4;32mTT1 8[m [m[1;4;32m0 R[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m>> >>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m9 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m9 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mLength 10[m [m[1;4;32m0 R[m /[m[1;4;32mN 1[m /[m[1;4;32mAlternate /DeviceGray[m /[m[1;4;32mFilter /FlateDecode[m >>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mstream[m
 [1;35mHello.pdf[m[1;36m:[m
@@ -169,31 +169,31 @@
 [1;32m00000660[m [m[1;34m ea 26 d1 7f b7 8f 93 34  0a[m[1;34m -- -- -- -- -- -- -- [m[1;36m |[m[1;34m[7m.[m[1;34m&[7m.[7m~[7m.[7m.[7m.[m[1;34m4[7mJ[m[1;34m-------[m[1;36m|[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendstream[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m10 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m10 0[m obj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m1116[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m7 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m7 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m[ /[m[1;4;32mICCBased 9[m [m[1;4;32m0 R[m ][m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m3 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m3 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mType /Pages[m /[m[1;4;32mMediaBox [0[m [m[1;4;32m0 612[m 792] /[m[1;4;32mCount 1[m /[m[1;4;32mKids [[m [m[1;4;32m2 0[m [m[1;4;32mR ][m >>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m11 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m11 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mType /Catalog[m /[m[1;4;32mPages 3[m [m[1;4;32m0 R[m >>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m8 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m8 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mType /Font[m /[m[1;4;32mSubtype /TrueType[m /[m[1;4;32mBaseFont /GQTMZF+Menlo-Regular[m /FontDescriptor[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m12 0[m [m[1;4;32mR /Encoding[m /[m[1;4;32mMacRomanEncoding /FirstChar[m [m[1;4;32m72 /LastChar[m [m[1;4;32m111 /Widths[m [ 602[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m602 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 602[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0 0[m [m[1;4;32m602 ][m >>[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m12 0[m [m[1;4;32mR /Encoding[m /[m[1;4;32mMacRomanEncoding /FirstChar[m [m[1;4;32m72 /LastChar[m [m[1;4;32m111 /Widths[m [ 602[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m602 0[m [m[1;4;32m0 0[m [m[1;4;32m0 0[m [m[1;4;32m0 602[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0 0[m [m[1;4;32m602 ][m >>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m12 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m12 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mType /FontDescriptor[m /[m[1;4;32mFontName /GQTMZF+Menlo-Regular[m /[m[1;4;32mFlags 33[m /FontBBox[m
 [1;35mHello.pdf[m[1;36m:[m[-[m[1;4;32m558 -375[m [m[1;4;32m718 1041][m /[m[1;4;32mItalicAngle 0[m /[m[1;4;32mAscent 928[m /[m[1;4;32mDescent -236[m /[m[1;4;32mCapHeight 729[m
 [1;35mHello.pdf[m[1;36m:[m/[m[1;4;32mStemV 99[m /[m[1;4;32mXHeight 547[m /[m[1;4;32mStemH 83[m /[m[1;4;32mAvgWidth 602[m /[m[1;4;32mMaxWidth 602[m /[m[1;4;32mFontFile2 13[m [m[1;4;32m0 R[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m>>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m13 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m13 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mLength 14[m [m[1;4;32m0 R[m /[m[1;4;32mLength1 4064[m /[m[1;4;32mFilter /FlateDecode[m >>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mstream[m
 [1;35mHello.pdf[m[1;36m:[m
@@ -407,54 +407,54 @@
 [1;32m00001430[m [m 0a[m[1;34m -- -- -- -- -- -- --  -- -- -- -- -- -- -- -- [m[1;36m |[m[7mJ[m[1;34m---------------[m[1;36m|[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendstream[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m14 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m14 0[m obj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m2734[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m15 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m15 0[m obj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m(Hello)[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m16 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m16 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m([m[1;4;32mMac OS[m [m[1;4;32mX 10.12.6[m [m[1;4;32mQuartz PDFContext)[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m17 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m17 0[m obj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m(TextEdit)[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m18 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m18 0[m obj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m(D:20200124010711Z00'00')[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m19 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m19 0[m obj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m()[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m20 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m20 0[m obj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m[ ][m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m1 0[m obj[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m1 0[m obj[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mTitle 15[m [m[1;4;32m0 R[m /[m[1;4;32mProducer 16[m [m[1;4;32m0 R[m /[m[1;4;32mCreator 17[m [m[1;4;32m0 R[m /[m[1;4;32mCreationDate 18[m [m[1;4;32m0 R[m /ModDate[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m18 0[m [m[1;4;32mR /Keywords[m [m[1;4;32m19 0[m [m[1;4;32mR /AAPL:Keywords[m [m[1;4;32m20 0[m [m[1;4;32mR >>[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m18 0[m [m[1;4;32mR /Keywords[m [m[1;4;32m19 0[m [m[1;4;32mR /AAPL:Keywords[m [m[1;4;32m20 0[m [m[1;4;32mR >>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mendobj[m
 [1;35mHello.pdf[m[1;36m-[m[1;34mxref[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0 21[m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000000000 65535[m f [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000005392 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000000238 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000001714 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000000022 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000000219 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000000342 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000001679 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000001847 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000000439 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000001658 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000001797 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000002110 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000002362 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000005186 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000005207 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000005231 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000005284 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000005311 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000005353 00000[m n [m
-[1;35mHello.pdf[m[1;36m:[m[m[1;4;32m0000005372 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0 21[m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000000000 65535[m f [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000005392 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000000238 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000001714 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000000022 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000000219 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000000342 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000001679 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000001847 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000000439 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000001658 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000001797 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000002110 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000002362 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000005186 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000005207 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000005231 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000005284 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000005311 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000005353 00000[m n [m
+[1;35mHello.pdf[m[1;36m:[m[1;4;32m0000005372 00000[m n [m
 [1;35mHello.pdf[m[1;36m-[m[1;34mtrailer[m
 [1;35mHello.pdf[m[1;36m:[m<< /[m[1;4;32mSize 21[m /[m[1;4;32mRoot 11[m [m[1;4;32m0 R[m /[m[1;4;32mInfo 1[m [m[1;4;32m0 R[m /[m[1;4;32mID [[m <8db88d3335070bd9583341583cf769a3>[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m<8db88d3335070bd9583341583cf769a3> ] >>[m
@@ -462,6 +462,6 @@
 [1;35mHello.pdf[m[1;36m-[m[1;34m5536[m
 [1;35mHello.pdf[m[1;36m-[m[1;34m%%EOF[m
 [1;35mHello.sh[m[1;36m-[m[1;34m#!/bin/sh[m
-[1;35mHello.sh[m[1;36m:[m[m[1;4;32mecho "Hello[m World!"[m
+[1;35mHello.sh[m[1;36m:[m[1;4;32mecho "Hello[m World!"[m
 [1;35mHello.txt[m[1;36m-[m[1;34mHello[m
 [1;35memptyline.txt[m[1;36m-[m

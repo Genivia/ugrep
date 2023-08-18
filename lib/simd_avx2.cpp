@@ -28,7 +28,7 @@
 
 /**
 @file      simd_avx2.cpp
-@brief     RE/flex SIMD intrinsics compiled with -mavx2
+@brief     RE/flex SIMD primitives compiled with -mavx2 (and/or -msse2)
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2022, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -41,23 +41,73 @@ namespace reflex {
 // Partially count newlines in string b up to and including position e in b, updates b close to e with uncounted part
 size_t simd_nlcount_avx2(const char*& b, const char *e)
 {
-  const char *s = b;
-  size_t n = 0;
 #if defined(HAVE_AVX2)
+  const char *s = b;
+  e -= 128;
+  if (s > e)
+    return 0;
+  size_t n = 0;
+  // align on 32 bytes
+  while ((reinterpret_cast<ptrdiff_t>(s) & 0x1f) != 0)
+    n += (*s++ == '\n');
   __m256i vlcn = _mm256_set1_epi8('\n');
-  while (s + 32 <= e)
+  while (s <= e)
   {
-    __m256i vlcm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-    __m256i vlceq = _mm256_cmpeq_epi8(vlcm, vlcn);
-    uint32_t mask = _mm256_movemask_epi8(vlceq);
-    n += popcount(mask);
-    s += 32;
+    __m256i vlcm1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
+    __m256i vlcm2 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + 32));
+    __m256i vlcm3 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + 64));
+    __m256i vlcm4 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + 96));
+    n += popcount(_mm256_movemask_epi8(_mm256_cmpeq_epi8(vlcm1, vlcn)))
+      +  popcount(_mm256_movemask_epi8(_mm256_cmpeq_epi8(vlcm2, vlcn)))
+      +  popcount(_mm256_movemask_epi8(_mm256_cmpeq_epi8(vlcm3, vlcn)))
+      +  popcount(_mm256_movemask_epi8(_mm256_cmpeq_epi8(vlcm4, vlcn)));
+    s += 128;
   }
-#else
-  (void)e;
-#endif
   b = s;
   return n;
+#else
+  (void)b;
+  (void)e;
+  return 0;
+#endif
+}
+
+// Partially count newlines in string b up to and including position e in b, updates b close to e with uncounted part
+size_t simd_nlcount_sse2(const char*& b, const char *e)
+{
+#if defined(HAVE_SSE2)
+  const char *s = b;
+  e -= 64;
+  if (s > e)
+    return 0;
+  size_t n = 0;
+  // align on 16 bytes
+  while ((reinterpret_cast<ptrdiff_t>(s) & 0x0f) != 0)
+    n += (*s++ == '\n');
+  __m128i vlcn = _mm_set1_epi8('\n');
+  while (s <= e)
+  {
+    __m128i vlcm1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+    __m128i vlcm2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 16));
+    __m128i vlcm3 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 32));
+    __m128i vlcm4 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 48));
+    __m128i vlceq1 = _mm_cmpeq_epi8(vlcm1, vlcn);
+    __m128i vlceq2 = _mm_cmpeq_epi8(vlcm2, vlcn);
+    __m128i vlceq3 = _mm_cmpeq_epi8(vlcm3, vlcn);
+    __m128i vlceq4 = _mm_cmpeq_epi8(vlcm4, vlcn);
+    n += popcount(_mm_movemask_epi8(vlceq1))
+      +  popcount(_mm_movemask_epi8(vlceq2))
+      +  popcount(_mm_movemask_epi8(vlceq3))
+      +  popcount(_mm_movemask_epi8(vlceq4));
+    s += 64;
+  }
+  b = s;
+  return n;
+#else
+  (void)b;
+  (void)e;
+  return 0;
+#endif
 }
 
 } // namespace reflex

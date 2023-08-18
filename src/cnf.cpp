@@ -56,6 +56,9 @@ void CNF::OpTree::parse1(const char *& pattern)
 {
   skip_space(pattern);
 
+  if (*pattern == '\0' && flag_line_regexp)
+    pattern = "^$";
+
   while (*pattern != '\0' && *pattern != ')')
   {
     list.emplace_back(OR);
@@ -611,7 +614,6 @@ void CNF::report(FILE *output) const
     return;
 
   fprintf(output, flag_files ? "Files " : "Lines ");
-
 
   if (flag_fuzzy > 0)
   {

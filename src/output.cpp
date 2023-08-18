@@ -98,7 +98,7 @@ void Output::Dump::line()
       }
       if (flag_hex_hbr || (i == 0 && flag_hex_cbr))
         out.chr(' ');
-      out.str("--");
+      out.str("--", 2);
       if (flag_hex_cbr && (i & 7) == 7)
         out.chr(' ');
     }
@@ -157,18 +157,18 @@ void Output::Dump::line()
         {
           if (byte < 0x20)
           {
-            out.str("\033[7m");
+            out.str("\033[7m", 4);
             out.chr('@' + byte);
             inverted = true;
           }
           else if (byte == 0x7f)
           {
-            out.str("\033[7m~");
+            out.str("\033[7m~", 5);
             inverted = true;
           }
           else if (byte > 0x7f)
           {
-            out.str("\033[7m.");
+            out.str("\033[7m.", 5);
             inverted = true;
           }
           else if (inverted)
@@ -241,7 +241,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
   {
     str(color_hl);
     str(flag_hyperlink_prefix);
-    str("://");
+    str("://", 3);
     uri(flag_hyperlink_path);
     chr('/');
     uri(pathname);
@@ -295,7 +295,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
       {
         str(color_hl);
         str(flag_hyperlink_prefix);
-        str("://");
+        str("://", 3);
         uri(flag_hyperlink_path);
         chr('/');
         uri(pathname);
@@ -501,7 +501,7 @@ void Output::header(const char *pathname, const std::string& partname)
     {
       str(color_hl);
       str(flag_hyperlink_prefix);
-      str("://");
+      str("://", 3);
       uri(flag_hyperlink_path);
       chr('/');
       uri(pathname);
@@ -528,7 +528,7 @@ void Output::header(const char *pathname, const std::string& partname)
     {
       str(color_hl);
       str(flag_hyperlink_prefix);
-      str("://");
+      str("://", 3);
       uri(flag_hyperlink_path);
       chr('/');
       uri(pathname);
@@ -567,14 +567,14 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
     return;
 
   str(color_off);
-  str("Binary file ");
+  str("Binary file ", 12);
   str(color_fn);
 
   if (pathname != LABEL_STANDARD_INPUT && color_hl != NULL)
   {
     str(color_hl);
     str(flag_hyperlink_prefix);
-    str("://");
+    str("://", 3);
     uri(flag_hyperlink_path);
     chr('/');
     uri(pathname);
@@ -593,12 +593,12 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
   {
     chr('{');
     str(partname);
-    str("} ");
+    str("} ", 2);
   }
 
   str(color_off);
 
-  str(" matches");
+  str(" matches", 8);
   nl();
 
   mode_ |= BINARY;
@@ -1800,7 +1800,7 @@ void Output::csv(const char *data, size_t size)
       {
         str(t, s - t);
         t = s + 1;
-        str("\"\"");
+        str("\"\"", 2);
       }
       else if ((c < 0x20 && c != '\t') || c == '\\')
       {
@@ -1837,7 +1837,7 @@ void Output::csv(const char *data, size_t size)
         }
         else
         {
-          str("\\x");
+          str("\\x", 2);
           hex(c, 2);
         }
       }
@@ -1899,7 +1899,7 @@ void Output::json(const char *data, size_t size)
         }
         else
         {
-          str("\\u");
+          str("\\u", 2);
           hex(c, 4);
         }
       }
@@ -1929,31 +1929,31 @@ void Output::xml(const char *data, size_t size)
         case '&':
           str(t, s - t);
           t = s + 1;
-          str("&amp;");
+          str("&amp;", 5);
           break;
 
         case '<':
           str(t, s - t);
           t = s + 1;
-          str("&lt;");
+          str("&lt;", 4);
           break;
 
         case '>':
           str(t, s - t);
           t = s + 1;
-          str("&gt;");
+          str("&gt;", 4);
           break;
 
         case '"':
           str(t, s - t);
           t = s + 1;
-          str("&quot;");
+          str("&quot;", 6);
           break;
 
         case 0x7f:
           str(t, s - t);
           t = s + 1;
-          str("&#x7f;");
+          str("&#x7f;", 6);
           break;
 
         default:
@@ -1961,7 +1961,7 @@ void Output::xml(const char *data, size_t size)
           {
             str(t, s - t);
             t = s + 1;
-            str("&#");
+            str("&#", 2);
             num(c);
             chr(';');
           }

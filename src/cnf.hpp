@@ -283,14 +283,6 @@ class CNF {
     // patterns that start with ^ or end with $ are already anchored
     if (!pattern.empty() && (pattern.front() == '^' || pattern.back() == '$'))
     {
-      if (!flag_line_regexp && flag_word_regexp)
-      {
-        if (pattern.front() != '^')
-          pattern.insert(0, wleft);
-        else if (pattern.back() != '$')
-          pattern.append(wright);
-      }
-
       // enable -Y to match empty
       flag_empty = true;
     }

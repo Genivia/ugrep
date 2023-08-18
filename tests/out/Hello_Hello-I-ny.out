@@ -9,5 +9,5 @@
 [1;35mHello.java[m[1;36m-[m[32;1m7[m[1;36m-[m[1;34m}[m
 [1;35mHello.sh[m[1;36m-[m[32;1m1[m[1;36m-[m[1;34m#!/bin/sh[m
 [1;35mHello.sh[m[1;36m:[m[32;1m2[m[1;36m:[mecho "[m[1;4;32mHello[m World!"[m
-[1;35mHello.txt[m[1;36m:[m[32;1m1[m[1;36m:[m[m[1;4;32mHello[m
+[1;35mHello.txt[m[1;36m:[m[32;1m1[m[1;36m:[m[1;4;32mHello[m
 [1;35memptyline.txt[m[1;36m-[m[32;1m1[m[1;36m-[m

@@ -1,18 +1,19 @@
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
-New ultra-fast ugrep 3.12 with more features
---------------------------------------------
+New ugrep 4.0
+-------------
 
 Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features beat grep, ripgrep, silver searcher, ack, sift, etc.
 
-New faster ugrep 3.12.6 and new **ugrep-indexer** tool to accelerate search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
+New faster ugrep 4.0 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
-See [how to install ugrep](#install) on your system.
+See [how to install ugrep](#install) on your system.  Ugrep is always free.
 
 The ugrep tools include the following powerful commands:
+
 - **ug** for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
-- **ug+** for interactive use, also searches pdfs, documents, e-books, image metadata
 - **ugrep** for batch use
+- **ug+** for interactive use, also searches pdfs, documents, e-books, image metadata
 - **ugrep+** for batch use, also searches pdfs, documents, e-books, image metadata
 
 *Option -Q opens a query TUI to search files as you type!*
@@ -23,36 +24,38 @@ Development roadmap
 -------------------
 
 - my highest priority is testing and quality assurance to continue to make sure ugrep has no bugs and is reliable
-- make ugrep even faster, see [my latest blog article](https://www.genivia.com/ugrep.html) demonstrating with a reproducible benchmark that ugrep beats GNU grep and ripgrep in terms of raw performance
-- listen to users to continue to improve ugrep with new and updated features
-- share reproducible performance data with the community
+- listen to users to continue to add new and updated features
 - improve the interactive TUI with a split screen
+- make ugrep even faster and report on progress, see [my latest article](https://www.genivia.com/ugrep.html)
+- share reproducible performance data with the community
 - add file indexing to speed up cold search performance, see [ugrep-indexer](https://github.com/Genivia/ugrep-indexer)
 
 Overview
 --------
 
-- Supports all GNU/BSD grep standard options; ugrep is a faster [compatible replacement](#grep) for GNU/BSD grep
+Why use ugrep?
 
-- Matches Unicode patterns by default in UTF-8, UTF-16, UTF-32 encoded files
+- Compatible with the GNU grep command options and output, but faster and with a lot more features
+
+- Matches Unicode patterns by default and automatically searches UTF-8, UTF-16 and UTF-32 encoded files
 
 - Matches multiple lines with `\n` or `\R` in regex patterns, *no special options are required to do so!*
 
 - Built-in help: `ug --help`, where `ug --help WHAT` displays options related to `WHAT` you are looking for
 
-  💡**ProTip** try `ug --help regex`, `ug --help globs`, `ug --help fuzzy`, `ug --help format`.
+  💡 try `ug --help regex`, `ug --help globs`, `ug --help fuzzy`, `ug --help format`.
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command intended for interactive use that loads a .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-  💡**ProTip** `ug --save-config ...options-you-want-to-save...` saves a .ugrep config file in the working directory.
+  💡 `ug --save-config ...options-you-want-to-save...` saves a .ugrep config file in the working directory.
 
 - Interactive [query TUI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
       ug -Q                                  ug -Q -e PATTERN    
 
-  💡**ProTip** `-Q` replaces `PATTERN` on the command line to type your patterns interactively instead.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI.  For quicker search responses to keypresses, try `-Q1` (fast, 100ms delay) to `-Q5` (default 500ms delay).
+  💡 `-Q` replaces `PATTERN` on the command line to let you enter patterns interactively.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI.  Best is `-Qle PATTERN` to view a list of matching files.
 
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
@@ -64,13 +67,13 @@ Overview
 
   where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
-  💡**ProTip** specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
+  💡 specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
 
 - Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
 
       ug -z PATTERN ...                      ug -z --zmax=2 PATTERN ...
 
-  💡**ProTip** specify `-z --zmax=2` to search compressed files and archives nested within archives, e.g. to search zip files stored in (compressed) tar files.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps, far more than you will ever need!  Larger `--zmax` slows searching.
+  💡 specify `-z --zmax=2` to search compressed files and archives stored within archives.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps to search nested archives, far more than you will ever need!  Larger `--zmax` slows searching.
 
 - Search pdf, doc, docx, e-book, and more with `ug+` [using filters](#filter) associated with filename extensions:
 
@@ -83,19 +86,19 @@ Overview
       ug --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
       ug --filter='7z:7z x -so -si' PATTERN ...
 
-  💡**ProTip** the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata, when the [`pdftotext`](https://pypi.org/project/pdftotext), [`antiword`](https://github.com/rsdoiel/antiword), [`pandoc`](https://pandoc.org), and [`exiftool`](https://exiftool.sourceforge.net) are installed (optionally, not used when not installed).
+  💡 the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata, when the [`pdftotext`](https://pypi.org/project/pdftotext), [`antiword`](https://github.com/rsdoiel/antiword), [`pandoc`](https://pandoc.org), and [`exiftool`](https://exiftool.sourceforge.net) are installed (optionally, not used when not installed).
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
       ug -Z PATTERN ...                      ug -Z3 PATTTERN ...
 
-  💡**ProTip** `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
+  💡 `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
 
       ug -Q1 --files --bool -l -w -Z+4 --sort=best
 
-  💡**ProTip** `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
+  💡 `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or `-U` for byte patterns)
 
@@ -103,11 +106,7 @@ Overview
       ug -X -U BYTEPATTERN ...               ug -X TEXTPATTERN ...
       ug -W -U BYTEPATTERN ...               ug -W TEXTPATTERN ...
 
-  💡**ProTip** `--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.  Option `-X` is the same as `--hexdump=2C` with `2` columns of hex and the whole matching line as `C` context in hex.
-
-- Include files to search by [filename extensions](#magic) or exclude them with `^`
-
-      ug -O EXT PATTERN ...                  ug -O ^EXT PATTERN ...
+  💡 `--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.  Option `-X` is the same as `--hexdump=2C` with `2` columns of hex and the whole matching line as `C` context in hex.
 
 - Include files to search by [file types or file "magic bytes"](#magic) or exclude them with `^`
 
@@ -120,6 +119,10 @@ Overview
       ug -g 'DIRGLOB/' PATTERN ...           ug -g '^DIRGLOB/' PATTERN ...
       ug -g 'PATH/FILEGLOB' PATTERN ...      ug -g '^PATH/FILEGLOB' PATTERN ...
       ug -g 'PATH/DIRGLOB/' PATTERN ...      ug -g '^PATH/DIRGLOB/' PATTERN ...
+
+- Include files to search by [filename extensions](#magic) (suffix) or exclude them with `^`, a shorthand for `-g"*.EXT"`
+
+      ug -O EXT PATTERN ...                  ug -O ^EXT PATTERN ...
 
 - Include [hidden files (dotfiles) and directories](#hidden) to search (omitted by default)
 
@@ -150,7 +153,7 @@ Overview
       ug --csv PATTERN ...                   ug --json PATTERN ...
       ug --xml PATTERN ...                   ug --format='file=%f line=%n match=%O%~' PATTERN ...
 
-  💡**ProTip** `ug --help format` displays help on format `%` fields.
+  💡 `ug --help format` displays help on format `%` fields.
 
 - Search with PCRE's Perl-compatible regex patterns and display or replace [subpattern matches](#replace)
 
@@ -162,7 +165,7 @@ Overview
       ug --replace='(%m:%o)' PATTERN ...     ug -y --replace='(%m:%o)' PATTERN ...
       ug -P --replace='%1' PATTERN ...       ug -y -P --replace='%1' PATTERN ...
 
-  💡**ProTip** `ug --help format` displays help on format `%` fields to optionally use with `--replace`.
+  💡 `ug --help format` displays help on format `%` fields to optionally use with `--replace`.
 
 - Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
@@ -173,7 +176,7 @@ Overview
 Table of contents
 -----------------
 
-- [Download and install](#install)
+- [How to install](#install)
 - [Performance comparisons](#speed)
 - [Using ugrep within Vim](#vim)
 - [Using ugrep within Emacs](#emacs)
@@ -226,8 +229,8 @@ Table of contents
 
 <a name="install"/>
 
-Download and install
---------------------
+How to install
+--------------
 
 ### Homebrew for MacOS (and Linux)
 
@@ -1212,7 +1215,7 @@ The configuration is written to standard output when `FILE` is a `-`.
 
 ### Interactive search with -Q
 
-    -Q[DELAY], --query[=DELAY]
+    -Q[=DELAY], --query[=DELAY]
             Query mode: user interface to perform interactive searches.  This
             mode requires an ANSI capable terminal.  An optional DELAY argument
             may be specified to reduce or increase the response time to execute
@@ -4569,7 +4572,7 @@ in markdown:
                   When output is sent to a terminal, enables --color, --heading, -n,
                   --sort, --tree and -T when not explicitly disabled.
 
-           -Q[DELAY], --query[=DELAY]
+           -Q[=DELAY], --query[=DELAY]
                   Query mode: user interface to perform interactive searches.  This
                   mode requires an ANSI capable terminal.  An optional DELAY
                   argument may be specified to reduce or increase the response time
@@ -5333,7 +5336,7 @@ in markdown:
 
            Interactive fuzzy search with Boolean search queries:
 
-                  $ ugrep -Q --bool -Z3 --sort=best
+                  $ ugrep -Q -l --bool -Z3 --sort=best
 
            Display all words in a MacRoman-encoded file that has CR newlines:
 
@@ -5358,7 +5361,7 @@ in markdown:
 
 
 
-    ugrep 3.12.7                     August 14, 2023                        UGREP(1)
+    ugrep 4.0.0                      August 18, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
