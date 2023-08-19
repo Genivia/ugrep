@@ -7595,10 +7595,15 @@ void ugrep()
     unsigned int cores = std::thread::hardware_concurrency();
     unsigned int concurrency = cores > 2 ? cores : 2;
     // reduce concurrency by a few for 9+ core CPUs
+#if defined(__APPLE__) && defined(HAVE_NEON)
+    // apple M1 8 or 10 cores should be reduced to 7
     if (concurrency >= 10)
-      concurrency -= concurrency / 5;
+      concurrency = 7;
     else
-      concurrency -= concurrency / 9;
+      concurrency -= concurrency / 8;
+#else
+    concurrency -= concurrency / 9;
+#endif
     flag_jobs = std::min(concurrency, MAX_JOBS);
   }
 
