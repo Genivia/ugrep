@@ -27,7 +27,7 @@ Development roadmap
 - listen to users to continue to add new and updated features
 - improve the interactive TUI with a split screen
 - make ugrep even faster and report on progress, see [my latest article](https://www.genivia.com/ugrep.html)
-- share reproducible performance data with the community
+- share [reproducible performance data](https://github.com/Genivia/ugrep-benchmarks) with the community
 - add file indexing to speed up cold search performance, see [ugrep-indexer](https://github.com/Genivia/ugrep-indexer)
 
 Overview
