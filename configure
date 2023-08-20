@@ -8418,7 +8418,7 @@ fi
 # Check whether --enable-hidden was given.
 if test ${enable_hidden+y}
 then :
-  enableval=$enable_hidden; with_hidden="yes"
+  enableval=$enable_hidden; with_hidden="$enable_hidden"
 else $as_nop
   with_hidden="no"
 fi

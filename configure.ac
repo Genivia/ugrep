@@ -160,7 +160,7 @@ fi
 AC_ARG_ENABLE(hidden,
   [AS_HELP_STRING([--enable-hidden],
                   [enable searching hidden files and directories by default unless explicitly disabled with ugrep flag --no-hidden])],
-  [with_hidden="yes"],
+  [with_hidden="$enable_hidden"],
   [with_hidden="no"])
 AC_MSG_CHECKING(for --enable-hidden)
 if test "x$with_hidden" = "xno"; then
