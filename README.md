@@ -472,6 +472,12 @@ significant runtime overhead and should not be used for the final build.
 Performance comparisons
 -----------------------
 
+For an up-to-date comprehensive performance comparison, please see the
+[ugrep performance benchmarks](https://github.com/Genivia/ugrep-benchmarks).
+
+Below is a two-year old performance comparison when ugrep was first released
+with performance enhancements.  This old comparison is getting outdated.
+
 Performance comparisons should represent what users can expect the performance
 to be in practice.  There should not be any shenanigans to trick the system to
 perform more optimally or to degrade an important aspect of the search to make
