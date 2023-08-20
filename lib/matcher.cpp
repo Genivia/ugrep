@@ -2566,7 +2566,7 @@ bool Matcher::advance()
       }
     }
 #endif
-    if (min >= 2 && pat_->npy_ < 16)
+    if (pat_->npy_ < 16)
     {
       if (min >= 4)
       {
@@ -2693,6 +2693,40 @@ bool Matcher::advance()
             if (loc >= end_)
               return false;
           }
+        }
+      }
+      const Pattern::Pred *bit = pat_->bit_;
+      while (true)
+      {
+        const char *s = buf_ + loc;
+        const char *e = buf_ + end_ - 3;
+        bool f = true;
+        while (s < e &&
+            (f = ((bit[static_cast<uint8_t>(*s)] & 1) &&
+                  (bit[static_cast<uint8_t>(*++s)] & 1) &&
+                  (bit[static_cast<uint8_t>(*++s)] & 1) &&
+                  (bit[static_cast<uint8_t>(*++s)] & 1))))
+        {
+          ++s;
+        }
+        loc = s - buf_;
+        if (!f)
+        {
+          if (s < e && Pattern::predict_match(pma, s))
+          {
+            ++loc;
+            continue;
+          }
+          set_current(loc);
+          return true;
+        }
+        set_current_match(loc - 1);
+        (void)peek_more();
+        loc = cur_ + 1;
+        if (loc + 3 >= end_)
+        {
+          set_current(loc);
+          return false;
         }
       }
     }

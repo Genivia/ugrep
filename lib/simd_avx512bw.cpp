@@ -49,7 +49,7 @@ size_t simd_nlcount_avx512bw(const char*& b, const char *e)
     return 0;
   size_t n = 0;
   // align on 64 bytes
-  while ((reinterpret_cast<ptrdiff_t>(s) & 0x3f) != 0)
+  while ((reinterpret_cast<std::ptrdiff_t>(s) & 0x3f) != 0)
     n += (*s++ == '\n');
   __m512i vlcn = _mm512_set1_epi8('\n');
   while (s <= e)

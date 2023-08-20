@@ -347,6 +347,12 @@ void Pattern::init(const char *options, const uint8_t *pred)
         }
       }
     }
+    // only one position to pin
+    if (min_ == 1)
+    {
+      nlcs = nlcp;
+      lcs_ = lcp_;
+    }
     // number of needles required
     uint16_t n = nlcp > nlcs ? nlcp : nlcs;
     // determine if a needle-based search is worthwhile, below or meeting the thresholds

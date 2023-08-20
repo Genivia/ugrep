@@ -1066,7 +1066,13 @@ struct Zthread {
           {
             // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join so we drain the rest of the decompressed data
             if (is_selected && !drain && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
+            {
+              // if no next decompression thread and decompressing a single file (not zip), then stop immediately
+              if (ztchain == NULL && zipinfo == NULL)
+                break;
+
               drain = true;
+            }
 
             // decompress the next block of data into the buffer
             len = zstream->decompress(buf, maxlen);
