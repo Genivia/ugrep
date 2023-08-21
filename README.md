@@ -49,7 +49,7 @@ Why use ugrep?
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-  💡 `ug --save-config ...options-you-want-to-save...` saves a .ugrep config file in the working directory.
+  💡 `ug --save-config ...options-you-want-to-save...` saves a .ugrep config file in the working directory so that the next time you run `ug` there it uses these options.  Do this in your home directory to save a .ugrep config file with options you generally want to use.
 
 - Interactive [query TUI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
@@ -3043,10 +3043,12 @@ To exclude `fuse` and `tmpfs` type file systems from recursive searches:
 ### Counting the number of matches with -c and -co
 
     -c, --count
-            Only a count of selected lines is written to standard output.  If
-            -o or -u is specified, counts the number of patterns matched.  If
-            -v is specified, counts the number of non-matching lines.  If
-            --tree is specified, outputs directories in a tree-like format.
+            Only a count of selected lines is written to standard output.
+            If -o or -u is specified, counts the number of patterns matched.
+            If -v is specified, counts the number of non-matching lines.  If
+            -m1, (with a comma or --min-count=1) is specified, counts only
+            matching files without outputting zero matches.  If --tree is
+            specified, outputs directories in a tree-like format.
 
 To count the number of lines in a file:
 
