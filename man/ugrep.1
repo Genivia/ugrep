@@ -1,4 +1,4 @@
-.TH UGREP "1" "August 18, 2023" "ugrep 4.0.0" "User Commands"
+.TH UGREP "1" "August 22, 2023" "ugrep 4.0.2" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -213,7 +213,9 @@ the match.  See also options \fB\-A\fR, \fB\-B\fR and \fB\-y\fR.
 Only a count of selected lines is written to standard output.
 If \fB\-o\fR or \fB\-u\fR is specified, counts the number of patterns matched.
 If \fB\-v\fR is specified, counts the number of non\-matching lines.  If
-\fB\-\-tree\fR is specified, outputs directories in a tree\-like format.
+\fB\-m\fR1, (with a comma or \fB\-\-min\-count\fR=1) is specified, counts only
+matching files without outputting zero matches.  If \fB\-\-tree\fR is
+specified, outputs directories in a tree\-like format.
 .TP
 \fB\-\-color\fR[=\fIWHEN\fR], \fB\-\-colour\fR[=\fIWHEN\fR]
 Mark up the matching text with the expression stored in the

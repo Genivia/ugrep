@@ -291,7 +291,8 @@ void Pattern::init(const char *options, const uint8_t *pred)
       npy_ = 0;
     // needle count and frequency thresholds to enable needle-based search
     uint16_t pinmax = 8;
-    uint8_t freqmax = 251;
+    uint8_t freqmax1 = 91; // one position
+    uint8_t freqmax2 = 251; // two positions
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
     if (have_HW_AVX512BW() || have_HW_AVX2())
       pinmax = 16;
@@ -310,55 +311,64 @@ void Pattern::init(const char *options, const uint8_t *pred)
     lcs_ = 0;
     uint16_t nlcp = 65535; // max and undefined
     uint16_t nlcs = 65535; // max and undefined
+    uint16_t freqsum = 0;
     uint8_t freqlcp = 255; // max
     uint8_t freqlcs = 255; // max
     for (uint16_t k = 0; k < min_; ++k)
     {
       Pred mask = 1 << k;
       uint16_t n = 0;
-      uint8_t freq = 0;
+      uint16_t sum = 0;
+      uint8_t max = 0;
       // at position k count the matching characters and find the max character frequency
       for (uint16_t i = 0; i < 256; ++i)
       {
         if ((bit_[i] & mask) == 0)
         {
           ++n;
-          if (frequency(static_cast<uint8_t>(i)) > freq)
-            freq = frequency(static_cast<uint8_t>(i));
+          uint8_t freq = frequency(static_cast<uint8_t>(i));
+          sum += freq;
+          if (freq > max)
+            max = freq;
         }
       }
       if (n <= pinmax)
       {
         // pick the fewest and rarest (least frequently occurring) needles to search
-        if (freq < freqlcp || (n < nlcp && freq == freqlcp))
+        if (max < freqlcp || (n < nlcp && max == freqlcp))
         {
           lcs_ = lcp_;
           nlcs = nlcp;
           freqlcs = freqlcp;
           lcp_ = static_cast<uint8_t>(k);
           nlcp = n;
-          freqlcp = freq;
+          freqsum = sum;
+          freqlcp = max;
         }
-        else if (n < nlcs || (n == nlcs && freq < freqlcs))
+        else if (n < nlcs ||
+            (n == nlcs &&
+             (max < freqlcs ||
+              abs(static_cast<int>(lcp_) - static_cast<int>(lcs_)) < abs(static_cast<int>(lcp_) - static_cast<int>(k)))))
         {
           lcs_ = static_cast<uint8_t>(k);
           nlcs = n;
-          freqlcs = freq;
+          freqlcs = max;
         }
       }
     }
-    // only one position to pin
-    if (min_ == 1)
+    // one position to pin: make lcp and lcs equal (compared and optimized later)
+    if (min_ == 1 || ((freqsum <= freqlcp || nlcs == 65535) && freqsum <= freqmax1))
     {
       nlcs = nlcp;
       lcs_ = lcp_;
     }
     // number of needles required
     uint16_t n = nlcp > nlcs ? nlcp : nlcs;
+    DBGLOG("min=%zu lcp=%hu(%hu) pin=%hu nlcp=%hu(%hu) freq=%hu(%hu) freqsum=%hu npy=%zu", min_, lcp_, lcs_, n, nlcp, nlcs, freqlcp, freqlcs, freqsum, npy_);
     // determine if a needle-based search is worthwhile, below or meeting the thresholds
-    if (n <= pinmax && freqlcp <= freqmax)
+    if (n <= pinmax && freqlcp <= freqmax2)
     {
-      // bridge the gap from 9 to 16
+      // bridge the gap from 9 to 16 to handle 9 to 16 combined
       if (n > 8)
         n = 16;
       uint16_t j = 0, k = n;

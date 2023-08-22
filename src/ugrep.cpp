@@ -7732,24 +7732,28 @@ void ugrep()
       flag_invert_match = false;
     }
 
-    // -X (--hex) and --match: also output terminating \n in hexdumps (set LineMatcher option A)
-    if (flag_hex)
-      matcher_options.push_back('A');
-
-    // --match: match lines with the RE/flex Line Matcher
-    reflex::LineMatcher matcher(reflex::Input(), matcher_options.c_str());
-
-    if (threads > 1)
+    // --match and -v matches nothing, but -y and also -c should still list files when --min-count > 0
+    if (!flag_invert_match || flag_any_line || (flag_count && flag_min_count == 0))
     {
-      GrepMaster grep(output, &matcher, NULL);
-      grep.ugrep();
-    }
-    else
-    {
-      Grep grep(output, &matcher, NULL);
-      set_grep_handle(&grep);
-      grep.ugrep();
-      clear_grep_handle();
+      // -X (--hex) and --match: also output terminating \n in hexdumps (set LineMatcher option A)
+      if (flag_hex)
+        matcher_options.push_back('A');
+
+      // --match: match lines with the RE/flex Line Matcher
+      reflex::LineMatcher matcher(reflex::Input(), matcher_options.c_str());
+
+      if (threads > 1)
+      {
+        GrepMaster grep(output, &matcher, NULL);
+        grep.ugrep();
+      }
+      else
+      {
+        Grep grep(output, &matcher, NULL);
+        set_grep_handle(&grep);
+        grep.ugrep();
+        clear_grep_handle();
+      }
     }
   }
   else if (flag_perl_regexp)
@@ -9194,7 +9198,7 @@ void Grep::search(const char *pathname, uint16_t cost)
   if (pathname == LABEL_STANDARD_INPUT)
     pathname = flag_label;
 
-  bool colorize = flag_apply_color || flag_tag != NULL;
+  bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
   bool matched = false;
 
   // -z: loop over extracted archive parts, when applicable
@@ -9232,10 +9236,6 @@ void Grep::search(const char *pathname, uint16_t cost)
       if (flag_quiet || flag_files_with_matches)
       {
         // option -q, -l, or -L
-
-        // --match and -v matches nothing
-        if (flag_match && flag_invert_match)
-          goto exit_search;
 
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
@@ -9395,6 +9395,13 @@ void Grep::search(const char *pathname, uint16_t cost)
                   break;
 
                 lineno = current_lineno;
+
+#if WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
+                // if the match does not span more than one line, then skip to end of the line (we count matching lines)
+                if (matcher->lines() == 1)
+                  if (!matcher->skip('\n'))
+                    break;
+#endif
               }
             }
 
@@ -10446,6 +10453,14 @@ void Grep::search(const char *pathname, uint16_t cost)
                 restline_last = matcher->last();
               }
             }
+
+#if WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
+            // no -u and no colors: if the match does not span more than one line, then skip to end of the line
+            if (!flag_ungroup && !colorize)
+              if (matcher->lines() == 1)
+                if (!matcher->skip('\n'))
+                  break;
+#endif
           }
           else
           {

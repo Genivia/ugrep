@@ -1290,7 +1290,7 @@ bool Matcher::advance()
           break;
       }
     }
-    else if (pat_->pin_ > 8 && pat_->pin_ <= 16)
+    else if (pat_->pin_ == 16)
     {
       size_t lcp = pat_->lcp_;
       size_t lcs = pat_->lcs_;
@@ -2566,7 +2566,7 @@ bool Matcher::advance()
       }
     }
 #endif
-    if (pat_->npy_ < 16)
+    if (min >= 4 || pat_->npy_ < 16 || (min >= 2 && pat_->npy_ >= 56))
     {
       if (min >= 4)
       {
@@ -2730,64 +2730,32 @@ bool Matcher::advance()
         }
       }
     }
-    if (min >= 4)
+    while (true)
     {
-      while (true)
+      const char *s = buf_ + loc;
+      const char *e = buf_ + end_ - 6;
+      bool f = true;
+      while (s < e &&
+          (f = (Pattern::predict_match(pma, s) &&
+                Pattern::predict_match(pma, ++s) &&
+                Pattern::predict_match(pma, ++s) &&
+                Pattern::predict_match(pma, ++s))))
       {
-        const char *s = buf_ + loc;
-        const char *e = buf_ + end_ - min;
-        bool f = true;
-        while (s < e &&
-            (f = (!Pattern::predict_match(pmh, s, min) &&
-                  !Pattern::predict_match(pmh, ++s, min))))
-        {
-          ++s;
-        }
-        loc = s - buf_;
-        if (!f)
-        {
-          set_current(loc);
-          return true;
-        }
-        set_current_match(loc - 1);
-        (void)peek_more();
-        loc = cur_ + 1;
-        if (loc + min >= end_)
-        {
-          set_current(loc);
-          return loc + min <= end_;
-        }
+        ++s;
       }
-    }
-    else
-    {
-      while (true)
+      loc = s - buf_;
+      if (!f)
       {
-        const char *s = buf_ + loc;
-        const char *e = buf_ + end_ - 6;
-        bool f = true;
-        while (s < e &&
-            (f = (Pattern::predict_match(pma, s) &&
-                  Pattern::predict_match(pma, ++s) &&
-                  Pattern::predict_match(pma, ++s) &&
-                  Pattern::predict_match(pma, ++s))))
-        {
-          ++s;
-        }
-        loc = s - buf_;
-        if (!f)
-        {
-          set_current(loc);
-          return true;
-        }
-        set_current_match(loc - 1);
-        (void)peek_more();
-        loc = cur_ + 1;
-        if (loc + 6 >= end_)
-        {
-          set_current(loc);
-          return loc + min <= end_;
-        }
+        set_current(loc);
+        return true;
+      }
+      set_current_match(loc - 1);
+      (void)peek_more();
+      loc = cur_ + 1;
+      if (loc + 6 >= end_)
+      {
+        set_current(loc);
+        return loc + min <= end_;
       }
     }
   }

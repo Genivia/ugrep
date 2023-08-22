@@ -4108,8 +4108,10 @@ in markdown:
            -c, --count
                   Only a count of selected lines is written to standard output.  If
                   -o or -u is specified, counts the number of patterns matched.  If
-                  -v is specified, counts the number of non-matching lines.  If
-                  --tree is specified, outputs directories in a tree-like format.
+                  -v is specified, counts the number of non-matching lines.  If -m1,
+                  (with a comma or --min-count=1) is specified, counts only matching
+                  files without outputting zero matches.  If --tree is specified,
+                  outputs directories in a tree-like format.
 
            --color[=WHEN], --colour[=WHEN]
                   Mark up the matching text with the expression stored in the
@@ -5372,7 +5374,7 @@ in markdown:
 
 
 
-    ugrep 4.0.0                      August 18, 2023                        UGREP(1)
+    ugrep 4.0.2                      August 22, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
