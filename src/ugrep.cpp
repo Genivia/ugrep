@@ -4475,7 +4475,7 @@ static void save_config()
 
   fprintf(file, "# Enable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty ? "pretty" : "no-pretty");
 
-  fprintf(file, "# Enable directory tree output to a terminal for --files-with-matches and --count\n%s\n\n", flag_tree ? "tree" : "no-tree");
+  fprintf(file, "# Enable directory tree output to a terminal for -l (--files-with-matches) and -c (--count)\n%s\n\n", flag_tree ? "tree" : "no-tree");
 
   if (flag_heading.is_defined() && flag_heading != flag_pretty)
     fprintf(file, "# Enable headings\n%s\n\n", flag_heading ? "heading" : "no-heading");
@@ -4529,6 +4529,7 @@ static void save_config()
   fprintf(file, "# Enable case-insensitive search, default: no-ignore-case\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
   fprintf(file, "# Enable smart case, default: no-smart-case\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
   fprintf(file, "# Enable empty pattern matches, default: no-empty\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
+  fprintf(file, "# Force option -c (--count) to return non-zero matches with --min-count=1, default: --min-count=0\nmin-count=%zu\n\n", flag_min_count);
 
   fprintf(file, "### SEARCH TARGETS ###\n\n");
 
@@ -12678,7 +12679,9 @@ void help(std::ostream& out)
             Only a count of selected lines is written to standard output.\n\
             If -o or -u is specified, counts the number of patterns matched.\n\
             If -v is specified, counts the number of non-matching lines.  If\n\
-            --tree is specified, outputs directories in a tree-like format.\n\
+            -m1, (with a comma or --min-count=1) is specified, counts only\n\
+            matching files without outputting zero matches.  If --tree is\n\
+            specified, outputs directories in a tree-like format.\n\
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the expression stored in the\n\
             GREP_COLOR or GREP_COLORS environment variable.  WHEN can be\n\
