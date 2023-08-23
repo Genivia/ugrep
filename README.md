@@ -27,7 +27,7 @@ Development roadmap
 - listen to users to continue to add new and updated features
 - improve the interactive TUI with a split screen
 - make ugrep even faster and report on progress, see [my latest article](https://www.genivia.com/ugrep.html)
-- share [reproducible performance data](https://github.com/Genivia/ugrep-benchmarks) with the community
+- share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
 - add file indexing to speed up cold search performance, see [ugrep-indexer](https://github.com/Genivia/ugrep-indexer)
 
 Overview
@@ -36,6 +36,8 @@ Overview
 Why use ugrep?
 
 - Compatible with the GNU grep command options and output, but faster and with a lot more features
+
+- One of the [fastest grep tools](https://github.com/Genivia/ugrep-benchmarks)
 
 - Matches Unicode patterns by default and automatically searches UTF-8, UTF-16 and UTF-32 encoded files
 
@@ -479,27 +481,7 @@ For an up-to-date comprehensive performance comparison, please see the
 [ugrep performance benchmarks](https://github.com/Genivia/ugrep-benchmarks).
 
 Below is a two-year old performance comparison when ugrep was first released
-with performance enhancements.  This old comparison is getting outdated.
-
-Performance comparisons should represent what users can expect the performance
-to be in practice.  There should not be any shenanigans to trick the system to
-perform more optimally or to degrade an important aspect of the search to make
-one grep tool look better than another.
-
-**ugrep** is a no-nonsense fast search tool that utilizes a worker pool of
-threads with clever lock-free job queue stealing for optimized load balancing.
-A new hashing technique is used to identify possible matches to speed up
-multi-pattern matches.  In addition, regex matching is optimized with AVX/SSE
-and ARM NEON/AArch64 instructions.  Compressed files are decompressed
-concurrently while searching to further increase performance.  Asynchronous IO
-is implemented for efficient input and output.
-
-**ugrep** performs very well overall and particularly well when searching
-compressed files and archives.  This means that at its core, the search
-engine's performance of ugrep excellent if not the best among grep tools
-available.
-
-### Benchmarks
+with performance enhancements.  This old comparison is getting outdated!
 
 The following benchmark tests span a range of practical use cases:
 
@@ -527,8 +509,6 @@ search compressed files (a bug), and with ripgrep as `--glob='*.h'
 
 The corpora used in the tests are available for
 [download](https://www.genivia.com/files/corpora.zip).
-
-### Performance results
 
 The following performance tests were conducted with a new and common MacBook
 Pro using clang 12.0.0 -O2 on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3
