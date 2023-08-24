@@ -56,7 +56,7 @@
 #define QUERY_BUFFER_SIZE 16384
 #endif
 
-// default -Q response to keyboard input delay is 0.5s, in steps of 100ms
+// default -Q response to keyboard input delay is ~0.5s, in steps of 100ms
 #ifndef DEFAULT_QUERY_DELAY
 #define DEFAULT_QUERY_DELAY 5
 #endif

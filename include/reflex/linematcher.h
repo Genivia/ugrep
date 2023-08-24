@@ -49,12 +49,14 @@ class LineMatcher : public AbstractMatcher {
       const Input& input = Input(), ///< input character sequence for this matcher
       const char  *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      AbstractMatcher(input, opt)
+      AbstractMatcher(input, opt),
+      inc_(false)
   { }
   /// Copy constructor.
   LineMatcher(const LineMatcher& matcher) ///< matcher to copy
     :
-      AbstractMatcher(matcher.in, matcher.opt_)
+      AbstractMatcher(matcher.in, matcher.opt_),
+      inc_(false)
   { }
   /// Delete matcher.
   virtual ~LineMatcher()
@@ -63,6 +65,7 @@ class LineMatcher : public AbstractMatcher {
   LineMatcher& operator=(const LineMatcher& matcher) ///< matcher to copy
   {
     AbstractMatcher::operator=(matcher);
+    inc_ = matcher.inc_;
     return *this;
   }
   /// Polymorphic cloning.
@@ -71,7 +74,12 @@ class LineMatcher : public AbstractMatcher {
     return new LineMatcher(*this);
   }
   /// Reset this matcher's state to the initial state and when assigned new input.
-  using AbstractMatcher::reset;
+  virtual void reset(const char *opt = NULL)
+  {
+    DBGLOG("LineMatcher::reset()");
+    AbstractMatcher::reset(opt);
+    inc_ = false;
+  }
   /// Returns a pair <text(),size() for any n
   virtual std::pair<const char*,size_t> operator[](size_t) ///< ignored
     /// @returns pair.
@@ -98,13 +106,16 @@ class LineMatcher : public AbstractMatcher {
   {
     DBGLOG("BEGIN LineMatcher::match(%d)", method);
     reset_text();
+    got_ = '\n';
 find:
+    pos_ += inc_;
     txt_ = buf_ + pos_;
     cur_ = txt_ - buf_;
     len_ = 0;
     cap_ = !at_end();
     if (cap_)
     {
+      inc_ = false;
       const char *end = eol(true);
       if (end == txt_)
         return cap_ = 0;
@@ -119,7 +130,11 @@ find:
           n = len_ - (*--end == '\n');
           // option A includes the terminating \n in the match, when present
           if (!opt_.A)
+          {
+            inc_ = (len_ > n);
             len_ = n;
+            pos_ = cur_ + n;
+          }
           // option N also finds empty lines
           if (n == 0 && !opt_.N)
             goto find;
@@ -139,6 +154,7 @@ find:
     }
     return cap_;
   }
+  bool inc_; ///< true if next find() should skip over \n
 };
 
 } // namespace reflex

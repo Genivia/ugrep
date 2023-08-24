@@ -1223,6 +1223,8 @@ The configuration is written to standard output when `FILE` is a `-`.
             --heading.  See also options --confirm and --view.
     --no-confirm
             Do not confirm actions in -Q query mode.  The default is confirm.
+    --delay=DELAY
+            Set the default -Q response delay (nonzero).  Default is 5.
     --view[=COMMAND]
             Use COMMAND to view/edit a file in query mode when pressing CTRL-Y.
 
@@ -4147,6 +4149,9 @@ in markdown:
                   under each directory, recursively, following symbolic links.  This
                   is equivalent to the -R option.
 
+           --delay=DELAY
+                  Set the default -Q response delay (nonzero).  Default is 5.
+
            --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
                   Restrict recursive searches from MIN to MAX directory levels deep,
                   where -1 (--depth=1) searches the specified path without recursing
@@ -5354,7 +5359,7 @@ in markdown:
 
 
 
-    ugrep 4.0.2                      August 22, 2023                        UGREP(1)
+    ugrep 4.0.3                      August 24, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

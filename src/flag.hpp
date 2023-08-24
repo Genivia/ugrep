@@ -139,6 +139,7 @@ extern Action flag_devices_action;
 extern Action flag_directories_action;
 extern size_t flag_after_context;
 extern size_t flag_before_context;
+extern size_t flag_delay;
 extern size_t flag_exclude_iglob_size;
 extern size_t flag_exclude_iglob_dir_size;
 extern size_t flag_fuzzy;

@@ -378,6 +378,7 @@ Action flag_devices_action         = Action::UNSP;
 Action flag_directories_action     = Action::UNSP;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
+size_t flag_delay                  = DEFAULT_QUERY_DELAY;
 size_t flag_exclude_iglob_size     = 0;
 size_t flag_exclude_iglob_dir_size = 0;
 size_t flag_fuzzy                  = 0;
@@ -2506,7 +2507,7 @@ struct Grep {
     }
   };
 
-  // extend event AnyLineGrepHandler to output specific context lines for -ABC
+  // extend event AnyLineGrepHandler to output specific context lines for -ABC without -v
   struct ContextGrepHandler : public AnyLineGrepHandler {
 
     // context state to track context lines before and after a match
@@ -2628,7 +2629,7 @@ struct Grep {
       {
         if (binary)
         {
-          grep.out.dump.hex(flag_invert_match ? Output::Dump::HEX_CONTEXT_LINE : Output::Dump::HEX_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
+          grep.out.dump.hex(Output::Dump::HEX_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
         }
         else
         {
@@ -2639,7 +2640,7 @@ struct Grep {
             grep.restline_size -= lf_only;
             if (grep.restline_size > 0)
             {
-              grep.out.str(flag_invert_match ? color_cx : color_sl);
+              grep.out.str(color_sl);
               grep.out.str(grep.restline_data, grep.restline_size);
               grep.out.str(color_off);
             }
@@ -2661,29 +2662,9 @@ struct Grep {
         if (flag_max_line > 0 && lineno > flag_max_line)
           break;
 
-        if (matches == 0 && flag_invert_match)
-        {
-          // --max-files: max reached?
-          if (!Stats::found_part())
-          {
-            stop = true;
-            break;
-          }
-        }
-
-        // --max-count: max number of matches reached?
-        if (flag_invert_match && flag_max_count > 0 && matches >= flag_max_count)
-        {
-          stop = true;
-          break;
-        }
-
         // output blocked?
         if (grep.out.eof)
           break;
-
-        if (flag_invert_match)
-          ++matches;
 
         if (flag_with_hex)
           binary = false;
@@ -2993,11 +2974,8 @@ struct Grep {
         }
 
         // --max-count: max number of matches reached?
-        if (flag_invert_match && flag_max_count > 0 && matches >= flag_max_count)
-        {
-          stop = true;
+        if (flag_max_count > 0 && matches >= flag_max_count)
           break;
-        }
 
         // output blocked?
         if (grep.out.eof)
@@ -4457,9 +4435,14 @@ static void save_config()
     fprintf(file, "# Enable hyperlinks in color output\nhyperlink\n\n");
   else if (flag_hyperlink != NULL)
     fprintf(file, "# Enable hyperlinks in color output\nhyperlink=%s\n\n", flag_hyperlink);
-  fprintf(file, "# Enable query UI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
+  fprintf(file, "# Enable query TUI confirmation prompts, default: confirm\n%s\n\n", flag_confirm ? "confirm" : "no-confirm");
+  fprintf(file, "# Default query TUI response delay (nonzero) in units of 100ms, default: delay=5\n");
+  if (flag_delay == DEFAULT_QUERY_DELAY)
+    fprintf(file, "# delay=5\n\n");
+  else
+    fprintf(file, "delay=%zu\n\n", flag_delay);
 
-  fprintf(file, "# Enable query UI file viewing command with CTRL-Y or F2, default: view\n");
+  fprintf(file, "# Enable query TUI file viewing command with CTRL-Y or F2, default: view\n");
   if (flag_view != NULL && *flag_view == '\0')
     fprintf(file, "view\n\n");
   else if (flag_view != NULL)
@@ -4529,7 +4512,11 @@ static void save_config()
   fprintf(file, "# Enable case-insensitive search, default: no-ignore-case\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
   fprintf(file, "# Enable smart case, default: no-smart-case\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
   fprintf(file, "# Enable empty pattern matches, default: no-empty\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
-  fprintf(file, "# Force option -c (--count) to return non-zero matches with --min-count=1, default: --min-count=0\nmin-count=%zu\n\n", flag_min_count);
+  fprintf(file, "# Force option -c (--count) to return non-zero matches with --min-count=1, default: --min-count=0\n");
+  if (flag_min_count == 0)
+    fprintf(file, "# min-count=0\n\n");
+  else
+    fprintf(file, "min-count=%zu\n\n", flag_min_count);
 
   fprintf(file, "### SEARCH TARGETS ###\n\n");
 
@@ -4702,6 +4689,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
               case 'd':
                 if (strcmp(arg, "decompress") == 0)
                   flag_decompress = true;
+                else if (strncmp(arg, "delay=", 6) == 0)
+                  flag_delay = strtopos(arg + 6, "invalid argument --delay=");
                 else if (strncmp(arg, "depth=", 6) == 0)
                   strtopos2(arg + 6, flag_min_depth, flag_max_depth, "invalid argument --depth=");
                 else if (strcmp(arg, "dereference") == 0)
@@ -4721,7 +4710,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "directories") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--decompress, --depth, --dereference, --dereference-files, --dereference-recursive, --devices, --directories or --dotall");
+                  usage("invalid option --", arg, "--decompress, --delay, --depth, --dereference, --dereference-files, --dereference-recursive, --devices, --directories or --dotall");
                 break;
 
               case 'e':
@@ -5056,7 +5045,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'q':
                 if (strcmp(arg, "query") == 0)
-                  flag_query = DEFAULT_QUERY_DELAY;
+                  flag_query = flag_delay;
                 else if (strncmp(arg, "query=", 6) == 0)
                   flag_query = strtopos(arg + 6, "invalid argument --query=");
                 else if (strcmp(arg, "quiet") == 0)
@@ -5414,7 +5403,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             }
             else
             {
-              flag_query = DEFAULT_QUERY_DELAY;
+              flag_query = flag_delay;
             }
             break;
 
@@ -7529,8 +7518,8 @@ void ugrep()
   if (flag_invert_match || flag_any_line)
     flag_only_matching = flag_ungroup = false;
 
-  // --match: when matching everything disable -ABC unless -o
-  if (flag_match && !flag_only_matching)
+  // --match: when matching everything disable -ABC unless -o or -x
+  if (flag_match && !flag_only_matching && !flag_line_regexp)
     flag_after_context = flag_before_context = 0;
 
   // -y: disable -ABC
@@ -9398,9 +9387,8 @@ void Grep::search(const char *pathname, uint16_t cost)
 
 #if WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
                 // if the match does not span more than one line, then skip to end of the line (we count matching lines)
-                if (matcher->lines() == 1)
-                  if (!matcher->skip('\n'))
-                    break;
+                if (!matcher->at_bol())
+                  matcher->skip('\n');
 #endif
               }
             }
@@ -10457,7 +10445,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 #if WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
             // no -u and no colors: if the match does not span more than one line, then skip to end of the line
             if (!flag_ungroup && !colorize)
-              if (matcher->lines() == 1)
+              if (!matcher->at_bol())
                 if (!matcher->skip('\n'))
                   break;
 #endif
@@ -11296,32 +11284,6 @@ void Grep::search(const char *pathname, uint16_t cost)
               continue;
             }
 
-            // get the lines before the matched line
-            context = matcher->before();
-
-            if (context.len > 0)
-              context_handler(*matcher, context.buf, context.len, context.num);
-
-            if (binfile || (binary && !flag_hex && !flag_with_hex))
-            {
-              if (flag_binary_without_match)
-              {
-                matches = 0;
-              }
-              else
-              {
-                out.binary_file_matches(pathname, partname);
-                matches = 1;
-              }
-
-              if (flag_files && matchers != NULL && out.holding())
-                continue;
-
-              goto done_search;
-            }
-
-            context_handler.output_before_context();
-
             // --range: max line exceeded?
             if (flag_max_line > 0 && current_lineno > flag_max_line)
               break;
@@ -11337,13 +11299,29 @@ void Grep::search(const char *pathname, uint16_t cost)
                 goto exit_search;
             }
 
-            // --max-count: max number of matches reached?
-            if (flag_max_count > 0 && matches > flag_max_count)
-              break;
-
             // output blocked?
             if (out.eof)
               goto exit_search;
+
+            // --max-count: max number of matches reached?
+            if (flag_max_count > 0 && matches > flag_max_count)
+            {
+              if (flag_after_context == 0 || matches > flag_max_count + 1)
+                break;
+
+              // one more iteration to get the after context displayed
+              lineno = current_lineno;
+              context_handler.set_after_lineno(lineno + matcher->lines());
+              continue;
+            }
+
+            // get the lines before the matched line
+            context = matcher->before();
+
+            if (context.len > 0)
+              context_handler(*matcher, context.buf, context.len, context.num);
+
+            context_handler.output_before_context();
 
             binary = flag_hex || (flag_with_hex && is_binary(bol, eol - bol));
 
@@ -12743,6 +12721,8 @@ void help(std::ostream& out)
             option.  If ACTION is `dereference-recurse', read all files under\n\
             each directory, recursively, following symbolic links.  This is\n\
             equivalent to the -R option.\n\
+    --delay=DELAY\n\
+            Set the default -Q response delay (nonzero).  Default is 5.\n\
     --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...\n\
             Restrict recursive searches from MIN to MAX directory levels deep,\n\
             where -1 (--depth=1) searches the specified path without recursing\n\

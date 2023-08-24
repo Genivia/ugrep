@@ -1,4 +1,4 @@
-.TH UGREP "1" "August 22, 2023" "ugrep 4.0.2" "User Commands"
+.TH UGREP "1" "August 24, 2023" "ugrep 4.0.3" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -270,6 +270,9 @@ only if they are on the command line.  This is equivalent to the \fB\-r\fR
 option.  If ACTION is `dereference\-recurse', read all files under
 each directory, recursively, following symbolic links.  This is
 equivalent to the \fB\-R\fR option.
+.TP
+\fB\-\-delay\fR=\fIDELAY\fR
+Set the default \fB\-Q\fR response delay (nonzero).  Default is 5.
 .TP
 \fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, ... \fB\-9\fR, \fB\-\-10\fR, \fB\-\-11\fR, \fB\-\-12\fR, ...
 Restrict recursive searches from MIN to MAX directory levels deep,
