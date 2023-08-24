@@ -57,7 +57,7 @@ Why use ugrep?
 
       ug -Q                                  ug -Q -e PATTERN    
 
-  💡 `-Q` replaces `PATTERN` on the command line to let you enter patterns interactively.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI, for example `-Qle PATTERN` shows a list of matching files.  Then use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.
+  💡 `-Q` replaces `PATTERN` on the command line to let you enter patterns interactively.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI, for example `-Qle PATTERN` shows a list of matching files.  Then use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.  For quick responses `ug -Q=1` won't wait 0.5s for you to complete typing (but may run up the CPU).
 
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
