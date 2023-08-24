@@ -1,8 +1,0 @@
-language: cpp
-compiler:
-  - clang
-  - gcc
-before_install:
-  - sudo apt-get update
-  - sudo apt-get -y install libpcre2-dev
-  - autoreconf -fi
