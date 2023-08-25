@@ -203,6 +203,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <cstdint>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
