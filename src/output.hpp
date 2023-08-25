@@ -44,6 +44,7 @@
 #include <list>
 #include <mutex>
 #include <condition_variable>
+#include <cstdint>
 
 // max hexadecimal columns of bytes per line = 8*8
 #ifndef MAX_HEX_COLUMNS

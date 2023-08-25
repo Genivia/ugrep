@@ -80,6 +80,7 @@
 #include <direct.h>
 #include <errno.h>
 #include <string>
+#include <cstdint>
 
 #define STDIN_FILENO  0
 #define STDOUT_FILENO 1
