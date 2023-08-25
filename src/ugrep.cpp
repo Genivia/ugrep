@@ -4529,8 +4529,9 @@ static void save_config()
     fprintf(file, "# Dereference symlinks, default: no-dereference\ndereference\n\n");
   else if (flag_dereference_files)
     fprintf(file, "# Dereference symlinks to files, not directories, default: no-dereference-files\ndereference-files\n\n");
-  if (flag_devices != NULL)
-    fprintf(file, "# Search devices, default: devices=skip\ndevices=%s\n\n", flag_devices);
+  fprintf(file, "# Search devices, default: devices=skip\n%sdevices=%s\n\n", flag_devices == NULL ? "# " : "", flag_devices == NULL ? "skip" : flag_devices);
+  if (flag_directories == NULL || strcmp(flag_directories, "read") == 0)
+    fprintf(file, "# Warn when searching directories specified on the command line (like grep) with directories=read\n%sdirectories=read\n\n", flag_directories == NULL ? "# " : "");
   if (flag_max_depth > 0)
     fprintf(file, "# Recursively search directories up to %zu levels deep\nmax-depth=%zu\n\n", flag_max_depth, flag_max_depth);
   if (flag_ignore_files.empty())
@@ -7895,7 +7896,12 @@ void ugrep()
   else
   {
     // construct the RE/flex DFA-based pattern matcher and start matching files
+#ifdef WITH_SKIP_NEWLINE
+    bool multiline = false;
+    reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags, &multiline), (flag_index != NULL ? "hr" : "r"));
+#else
     reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), (flag_index != NULL ? "hr" : "r"));
+#endif
     std::list<reflex::Pattern> patterns;
     Grep::Matchers matchers;
 
@@ -9385,7 +9391,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                 lineno = current_lineno;
 
-#if WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
+#ifdef WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
                 // if the match does not span more than one line, then skip to end of the line (we count matching lines)
                 if (!matcher->at_bol())
                   matcher->skip('\n');
@@ -10442,7 +10448,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               }
             }
 
-#if WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
+#ifdef WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
             // no -u and no colors: if the match does not span more than one line, then skip to end of the line
             if (!flag_ungroup && !colorize)
               if (!matcher->at_bol())

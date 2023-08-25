@@ -1,0 +1,4 @@
+[1;35mHello.bat[m[1;36m:[m[32;1m1[m[1;36m:[m[1;34m#!/bin/s[m[1;4;32mh[m[1;34mcho "Hello [m[1;36m...[m
+[1;35mHello.java[m[1;36m:[m[32;1m3[m[1;36m:[m[1;36m...[m[1;34md! greetin[m[1;4;32mg[m[1;34m public s[m[1;36m...[m
+[1;35mHello.java[m[1;36m:[m[32;1m6[m[1;36m:[m[1;34m  [m[1;4;32m}[m
+[1;35mHello.sh[m[1;36m:[m[32;1m1[m[1;36m:[m[1;34m#!/bin/s[m[1;4;32mh[m[1;34mcho "Hello [m[1;36m...[m

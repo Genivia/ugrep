@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "4.0.3"
+#define UGREP_VERSION "4.0.4"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -269,7 +269,7 @@ inline size_t utf8len(const char *s)
 {
   size_t k = 0;
   while (*s != '\0')
-    k += ((*s++ & 0xc0) != 0x80);
+    k += (static_cast<uint8_t>(*s++ & 0xc0) != 0x80);
   return k;
 }
 
@@ -278,7 +278,7 @@ inline size_t utf8nlen(const char *s, size_t n)
 {
   size_t k = 0;
   while (n-- > 0)
-    k += ((*s++ & 0xc0) != 0x80);
+    k += (static_cast<uint8_t>(*s++ & 0xc0) != 0x80);
   return k;
 }
 
@@ -286,7 +286,7 @@ inline size_t utf8nlen(const char *s, size_t n)
 inline const char *utf8skip(const char *s, size_t k)
 {
   while (*s != '\0' && k > 0)
-    k -= ((*++s & 0xc0) != 0x80);
+    k -= (static_cast<uint8_t>(*++s & 0xc0) != 0x80);
   return s;
 }
 
@@ -294,7 +294,7 @@ inline const char *utf8skip(const char *s, size_t k)
 inline const char *utf8skipn(const char *s, size_t n, size_t k)
 {
   while (n-- > 0 && k > 0)
-    k -= ((*++s & 0xc0) != 0x80);
+    k -= (static_cast<uint8_t>(*++s & 0xc0) != 0x80);
   return s;
 }
 

@@ -380,9 +380,9 @@ class Output {
   {
     const char *t = s;
     while (n-- > 0 && k-- > 0)
-      while ((*++s & 0xc0) == 0x80 && n-- > 0)
-        continue;
-    str(t, t - s);
+      while (static_cast<uint8_t>(*++s & 0xc0) == 0x80 && n > 0)
+        --n;
+    str(t, s - t);
   }
 
   // output a UTF-8 multibyte string s (\0-terminated) for up to k Unicode characters
@@ -390,9 +390,9 @@ class Output {
   {
     const char *t = s;
     while (*s != '\0' && k-- > 0)
-      while ((*++s & 0xc0) == 0x80)
+      while (static_cast<uint8_t>(*++s & 0xc0) == 0x80)
         continue;
-    str(t, t - s);
+    str(t, s - t);
   }
 
   // output a URI-encoded string s

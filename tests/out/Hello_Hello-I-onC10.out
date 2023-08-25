@@ -1,0 +1,6 @@
+[1;35mHello.bat[m[1;36m:[m[32;1m2[m[1;36m:[m[1;34mecho "[m[1;4;32mHello[m[1;34m World!"[m
+[1;35mHello.java[m[1;36m:[m[32;1m3[m[1;36m:[m[1;36m...[m[1;34mc class [m[1;4;32mHello[m[1;34m // pri[m[1;36m...[m
+[1;35mHello.java[m[1;36m+[m[32;1m3[m[1;36m+[m[1;36m...[m[1;34mrints a [m[1;4;32mHello[m[1;34m World![m[1;36m...[m
+[1;35mHello.java[m[1;36m:[m[32;1m5[m[1;36m:[m[1;36m...[m[1;34mrintln("[m[1;4;32mHello[m[1;34m World![m[1;36m...[m
+[1;35mHello.sh[m[1;36m:[m[32;1m2[m[1;36m:[m[1;34mecho "[m[1;4;32mHello[m[1;34m World!"[m
+[1;35mHello.txt[m[1;36m:[m[32;1m1[m[1;36m:[m[1;4;32mHello[m

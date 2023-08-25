@@ -93,7 +93,7 @@ $UG --range=1,1   Hello $FILES > out/Hello_Hello--range.out
 for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
-    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-v' '-nv' '-C2' '-nC2' '-vC2' '-nvC2' '-y' '-ny' '-vy' '-nvy' ; do
+    for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-v' '-nv' '-C2' '-nC2' '-vC2' '-nvC2' '-onC10' '-y' '-ny' '-vy' '-nvy' ; do
       $UG -U $OUT $OPS "$PAT" $FILES > "out/$FN$OUT$OPS.out"
     done
   done
