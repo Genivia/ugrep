@@ -3,7 +3,7 @@
 New ugrep 4.0
 -------------
 
-Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features beat grep, ripgrep, silver searcher, ack, sift, etc.
+Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features surpass grep, ripgrep, silver searcher, ack, sift, etc.
 
 New faster ugrep 4.0 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
