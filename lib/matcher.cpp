@@ -2726,7 +2726,7 @@ bool Matcher::advance()
         if (loc + 3 >= end_)
         {
           set_current(loc);
-          return false;
+          return loc + min <= end_;
         }
       }
     }
