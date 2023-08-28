@@ -101,7 +101,7 @@ Why use ugrep?
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
 
-      ug -Q1 --files --bool -l -w -Z+4 --sort=best
+      ug -Q --files --bool -l -w -Z+4 --sort=best
 
   💡 `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
