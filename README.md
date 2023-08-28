@@ -133,9 +133,13 @@ Why use ugrep?
 
       ug -. PATTERN ...                      ug -g'.*,.*/' PATTERN ...
 
+  💡 specify `hidden` in your .ugrep to always search hidden files with `ug`.
+
 - Exclude files specified by [.gitignore](#ignore) etc.
 
       ug --ignore-files PATTERN ...          ug --ignore-files=.ignore PATTERN ...
+
+  💡 specify `ignore-files` in your .ugrep to always ignore them with `ug`.  Add additional `ignore-files=...` as desired.
 
 - Search patterns excluding [negative patterns](#not) ("match this but not that")
 
@@ -158,7 +162,7 @@ Why use ugrep?
       ug --csv PATTERN ...                   ug --json PATTERN ...
       ug --xml PATTERN ...                   ug --format='file=%f line=%n match=%O%~' PATTERN ...
 
-  💡 `ug --help format` displays help on format `%` fields.
+  💡 `ug --help format` displays help on format `%` fields for customized output.
 
 - Search with PCRE's Perl-compatible regex patterns and display or replace [subpattern matches](#replace)
 
