@@ -3,13 +3,13 @@
 New ugrep 4.0
 -------------
 
-Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep's speed and features surpass other grep tools.
+Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep combines the best features of other grep and surpasses their search speeds (mostly, not always yet).
 
 New faster ugrep 4.0 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
 See [how to install ugrep](#install) on your system.  Ugrep is always free.
 
-The ugrep tools include the following powerful commands:
+The ugrep tools include the following commands:
 
 - **ug** for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
 - **ugrep** for batch use
