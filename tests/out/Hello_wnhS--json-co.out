@@ -1,0 +1,50 @@
+[
+  {
+    "file": "Hello.bat",
+    "matches": [
+      { "match": 2 }
+    ]
+  },
+  {
+    "file": "Hello.class",
+    "matches": [
+      { "match": 1 }
+    ]
+  },
+  {
+    "file": "Hello.java",
+    "matches": [
+      { "match": 9 }
+    ]
+  },
+  {
+    "file": "Hello.pdf",
+    "matches": [
+      { "match": 203 }
+    ]
+  },
+  {
+    "file": "Hello.sh",
+    "matches": [
+      { "match": 2 }
+    ]
+  },
+  {
+    "file": "Hello.txt",
+    "matches": [
+      { "match": 0 }
+    ]
+  },
+  {
+    "file": "empty.txt",
+    "matches": [
+      { "match": 0 }
+    ]
+  },
+  {
+    "file": "emptyline.txt",
+    "matches": [
+      { "match": 0 }
+    ]
+  }
+]

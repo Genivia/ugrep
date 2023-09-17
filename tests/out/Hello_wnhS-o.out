@@ -1,0 +1,18 @@
+[1;35mHello.bat[m[1;36m:[m[1;4;32msh[m
+[1;35mHello.bat[m[1;36m|[m[1;4;32mecho[m
+[1;35mHello.bat[m[1;36m+[m[1;4;32mHello World!"[m
+[mBinary file [1;35mHello.class[m matches
+[1;35mHello.java[m[1;36m:[m[1;4;32mimport java.lang.*;[m
+[1;35mHello.java[m[1;36m:[m[1;4;32mpublic class[m
+[1;35mHello.java[m[1;36m+[m[1;4;32mHello //[m
+[1;35mHello.java[m[1;36m+[m[1;4;32mprints a[m
+[1;35mHello.java[m[1;36m+[m[1;4;32mHello World![m
+[1;35mHello.java[m[1;36m+[m[1;4;32mgreeting[m
+[1;35mHello.java[m[1;36m|[m[1;4;32m{[m
+[1;35mHello.java[m[1;36m+[m[1;4;32mpublic static[m
+[1;35mHello.java[m[1;36m+[m[1;4;32mvoid main(String[][m
+[1;35mHello.java[m[1;36m:[m[1;4;32mHello World!");[m
+[mBinary file [1;35mHello.pdf[m matches
+[1;35mHello.sh[m[1;36m:[m[1;4;32msh[m
+[1;35mHello.sh[m[1;36m|[m[1;4;32mecho[m
+[1;35mHello.sh[m[1;36m+[m[1;4;32mHello World!"[m

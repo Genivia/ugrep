@@ -69,12 +69,12 @@ enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED, LIST };
 enum class Action { UNSP, SKIP, READ, RECURSE };
 
 // ugrep command-line options
-extern bool flag_all_threads;
+extern bool flag_all_threads; // internal flag
 extern bool flag_any_line;
 extern bool flag_basic_regexp;
 extern bool flag_best_match;
 extern bool flag_bool;
-extern bool flag_color_term;
+extern bool flag_color_term; // internal flag
 extern bool flag_confirm;
 extern bool flag_count;
 extern bool flag_cpp;
@@ -87,18 +87,20 @@ extern bool flag_files_with_matches;
 extern bool flag_files_without_match;
 extern bool flag_fixed_strings;
 extern bool flag_glob_ignore_case;
+extern bool flag_grep; // internal flag
 extern bool flag_hex;
-extern bool flag_hex_star;
-extern bool flag_hex_cbr;
-extern bool flag_hex_chr;
-extern bool flag_hex_hbr;
+extern bool flag_hex_star; // hexdump flag
+extern bool flag_hex_cbr; // hexdump flag
+extern bool flag_hex_chr; // hexdump flag
+extern bool flag_hex_hbr; // hexdump flag
 extern bool flag_hidden;
-extern bool flag_hyperlink_line;
+extern bool flag_hyperlink_line; // internal flag
 extern bool flag_invert_match;
 extern bool flag_json;
 extern bool flag_line_buffered;
 extern bool flag_line_regexp;
 extern bool flag_match;
+extern bool flag_multiline; // internal flag
 extern bool flag_no_dereference;
 extern bool flag_no_header;
 extern bool flag_no_messages;
@@ -109,10 +111,10 @@ extern bool flag_only_matching;
 extern bool flag_perl_regexp;
 extern bool flag_pretty;
 extern bool flag_quiet;
-extern bool flag_sort_rev;
+extern bool flag_sort_rev; // internal flag
 extern bool flag_stdin;
-extern bool flag_tty_term;
-extern bool flag_usage_warnings;
+extern bool flag_tty_term; // internal flag
+extern bool flag_usage_warnings; // internal flag
 extern bool flag_word_regexp;
 extern bool flag_xml;
 extern bool flag_with_hex;
@@ -134,20 +136,20 @@ extern Flag flag_smart_case;
 extern Flag flag_text;
 extern Flag flag_tree;
 extern Flag flag_ungroup;
-extern Sort flag_sort_key;
-extern Action flag_devices_action;
-extern Action flag_directories_action;
+extern Sort flag_sort_key; // internal flag
+extern Action flag_devices_action; // internal flag
+extern Action flag_directories_action; // internal flag
 extern size_t flag_after_context;
 extern size_t flag_before_context;
 extern size_t flag_delay;
-extern size_t flag_exclude_iglob_size;
-extern size_t flag_exclude_iglob_dir_size;
+extern size_t flag_exclude_iglob_size; // internal flag
+extern size_t flag_exclude_iglob_dir_size; // internal flag
 extern size_t flag_fuzzy;
-extern size_t flag_hex_after;
-extern size_t flag_hex_before;
-extern size_t flag_hex_columns;
-extern size_t flag_include_iglob_size;
-extern size_t flag_include_iglob_dir_size;
+extern size_t flag_hex_after; // internal flag
+extern size_t flag_hex_before; // internal flag
+extern size_t flag_hex_columns; // internal flag
+extern size_t flag_include_iglob_size; // internal flag
+extern size_t flag_include_iglob_dir_size; // internal flag
 extern size_t flag_jobs;
 extern size_t flag_max_count;
 extern size_t flag_max_depth;
@@ -164,7 +166,7 @@ extern size_t flag_query;
 extern size_t flag_tabs;
 extern size_t flag_width;
 extern size_t flag_zmax;
-extern const char *flag_apply_color;
+extern const char *flag_apply_color; // internal flag
 extern const char *flag_binary_files;
 extern const char *flag_color;
 extern const char *flag_colors;
@@ -186,17 +188,17 @@ extern const char *flag_pager;
 extern const char *flag_replace;
 extern const char *flag_save_config;
 extern const char *flag_separator;
-extern const char *flag_separator_dash;
-extern const char *flag_separator_plus;
-extern const char *flag_separator_bar;
+extern const char *flag_separator_dash; // internal flag
+extern const char *flag_separator_plus; // internal flag
+extern const char *flag_separator_bar; // internal flag
 extern const char *flag_sort;
 extern const char *flag_stats;
 extern const char *flag_tag;
 extern const char *flag_view;
 extern std::string flag_config_file;
 extern std::string flag_filter;
-extern std::string flag_hyperlink_prefix;
-extern std::string flag_hyperlink_path;
+extern std::string flag_hyperlink_prefix; // internal flag
+extern std::string flag_hyperlink_path; // internal flag
 extern std::set<std::string> flag_config_options;
 extern std::vector<std::string> flag_regexp;
 extern std::vector<std::string> flag_file;

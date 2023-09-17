@@ -82,7 +82,7 @@ inline int uppercase(int c)
   return static_cast<unsigned char>(c & ~0x20);
 }
 
-static std::string posix_class(const char *s, int esc)
+static std::string posix_class(const char *s, int esc, convert_flag_type flags)
 {
   std::string regex;
   const int *wc = Posix::range(s + (s[0] == '^'));
@@ -90,7 +90,17 @@ static std::string posix_class(const char *s, int esc)
   {
     regex.assign("[");
     if (s[0] == '^')
+    {
       regex.push_back('^');
+    }
+    else if (wc[0] <= '\n' && wc[1] >= '\n' && (flags & convert_flag::notnewline))
+    {
+      if (wc[0] != '\n')
+        regex.append(latin1(wc[0], '\n' - 1, esc, false));
+      if (wc[1] != '\n')
+        regex.append(latin1('\n' + 1, wc[1], esc, false));
+      wc += 2;
+    }
     for (; wc[1] != 0; wc += 2)
       regex.append(latin1(wc[0], wc[1], esc, false));
     regex.push_back(']');
@@ -152,19 +162,25 @@ static std::string unicode_class(const char *s, int esc, convert_flag_type flags
           regex.append(utf8(last, 0x10FFFF, esc, par, !(flags & convert_flag::permissive))).push_back('|');
         }
       }
-      if (!regex.empty())
-        regex.resize(regex.size() - 1);
     }
     else
     {
-      regex.assign(utf8(wc[0], wc[1], esc, par, !(flags & convert_flag::permissive)));
-      wc += 2;
+      if (wc[0] <= '\n' && wc[1] >= '\n' && (flags & convert_flag::notnewline))
+      {
+        if (wc[0] != '\n')
+          regex.append(utf8(wc[0], '\n' - 1, esc, par, !(flags & convert_flag::permissive))).push_back('|');
+        if (wc[1] != '\n')
+          regex.append(utf8('\n' + 1, wc[1], esc, par, !(flags & convert_flag::permissive))).push_back('|');
+        wc += 2;
+      }
       for (; wc[1] != 0; wc += 2)
-        regex.append("|").append(utf8(wc[0], wc[1], esc, par, !(flags & convert_flag::permissive)));
+        regex.append(utf8(wc[0], wc[1], esc, par, !(flags & convert_flag::permissive))).push_back('|');
     }
+    if (!regex.empty())
+      regex.resize(regex.size() - 1);
+    if (regex.find('|') != std::string::npos)
+      regex.insert(0, par).push_back(')');
   }
-  if (regex.find('|') != std::string::npos)
-    regex.insert(0, par).push_back(')');
   return regex;
 }
 
@@ -399,8 +415,10 @@ static void convert_anycase_ranges(ORanges<int>& ranges)
     ranges.insert(i->first ^ 0x20, (i->second - 1) ^ 0x20);
 }
 
-static std::string convert_ranges(const char *pattern, size_t pos, ORanges<int>& ranges, const std::map<size_t,std::string>& mod, convert_flag_type flags, const char *signature, const char *par)
+static std::string convert_ranges(const char *pattern, size_t pos, ORanges<int>& ranges, const std::map<size_t,std::string>& mod, convert_flag_type flags, const char *signature, const char *par, bool& nl)
 {
+  if (ranges.find('\n') != ranges.end())
+    nl = true;
   if (is_modified(mod, 'i'))
     convert_anycase_ranges(ranges);
   if (is_modified(mod, 'u') && ranges.hi() > 0x7F)
@@ -410,12 +428,15 @@ static std::string convert_ranges(const char *pattern, size_t pos, ORanges<int>&
   return convert_posix_ranges(ranges, signature);
 }
 
-static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, const char *signature, const char *par, const std::map<std::string,std::string> *macros, std::string& regex)
+static void insert_list(const char *pattern, size_t len, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges, const std::map<std::string,std::string> *macros);
+
+static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, const char *signature, const char *par, const std::map<std::string,std::string> *macros, std::string& regex, bool& nl)
 {
-  bool no_newline = false;
+  bool invert = false;
+  bool newline = false;
   if (pos + 1 < len && pattern[pos] == '^')
   {
-    no_newline = true;
+    invert = true;
     ++pos;
   }
   while (pos + 1 < len)
@@ -424,43 +445,7 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
     if (c == '\\')
     {
       c = pattern[++pos];
-      if (c == 'p' || c == 'P')
-      {
-        // translate \p{POSIX} and \P{POSIX}, while leaving Unicode classes intact
-        size_t k = ++pos;
-        if (pos >= len)
-          throw regex_error(regex_error::invalid_class, pattern, pos);
-        // get name X of \pX, \PX, \p{X}, and \P{X}
-        std::string name;
-        if (pattern[pos] == '{')
-        {
-          size_t j = pos + 1;
-          if (c == 'P')
-            name.push_back('^');
-          k = j;
-          while (k < len && pattern[k] != '}')
-            ++k;
-          if (k >= len)
-            throw regex_error(regex_error::mismatched_braces, pattern, pos);
-          name.append(pattern, j, k - j);
-        }
-        else
-        {
-          if (c == 'P')
-            name.push_back('^');
-          name.push_back(pattern[pos]);
-        }
-        std::string translated;
-        int esc = hex_or_octal_escape(signature);
-        translated = posix_class(name.c_str(), esc);
-        if (!translated.empty())
-        {
-          regex.append(&pattern[loc], pos - loc - 2).append(translated.substr(1, translated.size() - 2));
-          loc = k + 1;
-        }
-        pos = k;
-      }
-      else if (c == 's' && (flags & convert_flag::notnewline))
+      if (c == 's' && (flags & convert_flag::notnewline))
       {
         if (is_modified(mod, 'u'))
           regex.append(&pattern[loc], pos - loc - 1).append("\\t\\x0b-\\r\\x85\\p{Z}");
@@ -468,16 +453,40 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
           regex.append(&pattern[loc], pos - loc - 1).append("\\h\\x0b-\\r\\x85\\xa0");
         loc = pos + 1;
       }
-      else if (c == 'n')
+      else if (c == 'p' || c == 'P')
       {
-        no_newline = false;
+        nl = true; // safe, but it is too conservative to assume all \p{} include \n
+      }
+      else if (strchr("DHLUWXn", c) != NULL)
+      {
+        newline = true;
       }
     }
     else if (c == '[' && (pattern[pos + 1] == ':' || pattern[pos + 1] == '.' || pattern[pos + 1] == '='))
     {
       ++pos;
-      while (pos + 1 < len && pattern[++pos] != ']')
-        continue;
+      if (!invert && (strncmp(&pattern[pos], ":space:]", 8) == 0 || strncmp(&pattern[pos], ":cntrl:]", 8) == 0))
+      {
+        if ((flags & convert_flag::notnewline))
+        {
+          if (pattern[pos + 1] == 's')
+            regex.append(&pattern[loc], pos - loc - 1).append("\\h\\x0b-\\r");
+          else
+            regex.append(&pattern[loc], pos - loc - 1).append("\\x00-\\t\\x0b-\\x1f\\x7f");
+          pos += 7;
+          loc = pos + 1;
+        }
+        else
+        {
+          while (pos + 1 < len && pattern[++pos] != ']')
+            continue;
+        }
+      }
+      else
+      {
+        while (pos + 1 < len && pattern[++pos] != ']')
+          continue;
+      }
     }
     else if (c == '|' && pattern[pos + 1] == '|' && pos + 3 < len && pattern[pos + 2] == '[')
     {
@@ -485,23 +494,25 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
       if (!supports_escape(signature, '['))
         throw regex_error(regex_error::invalid_class, pattern, pos + 1);
       pos += 3;
-      expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex);
+      expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex, nl);
     }
     else if (c == '&' && pattern[pos + 1] == '&' && pos + 3 < len && pattern[pos + 2] == '[')
     {
+      bool nl1;
       // character class intersection [a-z&&[^aeiou]]
       if (!supports_escape(signature, '['))
         throw regex_error(regex_error::invalid_class, pattern, pos + 1);
       pos += 3;
-      expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex);
+      expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex, nl1);
     }
     else if (c == '-' && pattern[pos + 1] == '-' && pos + 3 < len && pattern[pos + 2] == '[')
     {
+      bool nl1;
       // character class subtraction [a-z--[aeiou]]
       if (!supports_escape(signature, '['))
         throw regex_error(regex_error::invalid_class, pattern, pos + 1);
       pos += 3;
-      expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex);
+      expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex, nl1);
     }
     ++pos;
     if (pos >= len || pattern[pos] == ']')
@@ -509,33 +520,45 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
   }
   if (pos >= len || pattern[pos] != ']')
     throw regex_error(regex_error::mismatched_brackets, pattern, loc);
-  if (no_newline && (flags & convert_flag::notnewline))
+  if (invert && !newline && (flags & convert_flag::notnewline))
   {
     regex.append(&pattern[loc], pos - loc).append("\\n");
     loc = pos;
   }
+  else if (!invert && newline)
+  {
+    nl = true;
+  }
 }
 
-static void insert_escape_class(const char *pattern, size_t pos, const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
+static void insert_escape_class(const char *pattern, size_t pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
 {
   int c = pattern[pos];
   char name[2] = { static_cast<char>(lowercase(c)), '\0' };
-  const int *translated = NULL;
+  const int *wc = NULL;
   if (is_modified(mod, 'u'))
-    translated = Unicode::range(name);
+    wc = Unicode::range(name);
   else
-    translated = Posix::range(name);
-  if (translated == NULL)
+    wc = Posix::range(name);
+  if (wc == NULL)
     throw regex_error(regex_error::invalid_class, pattern, pos);
   if (std::islower(c))
   {
-    for (const int *wc = translated; wc[1] != 0; wc += 2)
+    if (wc[0] <= '\n' && wc[1] >= '\n' && (flags & convert_flag::notnewline))
+    {
+      if (wc[0] != '\n')
+        ranges.insert(wc[0], '\n' - 1);
+      if (wc[1] != '\n')
+        ranges.insert('\n' + 1, wc[1]);
+      wc += 2;
+    }
+    for (; wc[1] != 0; wc += 2)
       ranges.insert(wc[0], wc[1]);
   }
   else
   {
     int last = 0x00;
-    for (const int *wc = translated; wc[1] != 0; wc += 2)
+    for (; wc[1] != 0; wc += 2)
     {
       if (wc[0] > 0x00)
       {
@@ -622,7 +645,7 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
     }
     else
     {
-      insert_escape_class(pattern, pos, mod, ranges);
+      insert_escape_class(pattern, pos, flags, mod, ranges);
       return -1;
     }
   }
@@ -646,20 +669,20 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
     {
       name.push_back(pattern[k]);
     }
-    const int *translated = NULL;
+    const int *wc = NULL;
     const char *s = name.c_str();
     if (s[0] == '^')
       ++s;
     if (is_modified(mod, 'u'))
-      translated = Unicode::range(s);
-    else if (translated == NULL)
-      translated = Posix::range(s);
-    if (translated == NULL)
+      wc = Unicode::range(s);
+    else
+      wc = Posix::range(s);
+    if (wc == NULL)
       throw regex_error(regex_error::invalid_class, pattern, pos);
     if (c == 'P' || name.at(0) == '^')
     {
       int last = 0x00;
-      for (const int *wc = translated; wc[1] != 0; wc += 2)
+      for (; wc[1] != 0; wc += 2)
       {
         if (wc[0] > 0x00)
         {
@@ -699,17 +722,18 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
     }
     else
     {
-      for (const int *wc = translated; wc[1] != 0; wc += 2)
+      if (wc[0] <= '\n' && wc[1] >= '\n' && (flags & convert_flag::notnewline))
+      {
+        if (wc[0] != '\n')
+          ranges.insert(wc[0], '\n' - 1);
+        if (wc[1] != '\n')
+          ranges.insert('\n' + 1, wc[1]);
+        wc += 2;
+      }
+      for (; wc[1] != 0; wc += 2)
         ranges.insert(wc[0], wc[1]);
     }
     pos = k;
-    return -1;
-  }
-  else if (c == 's' && (flags & convert_flag::notnewline))
-  {
-    // \s is the same as \p{Space} but without newline \n
-    insert_escape_class(pattern, pos, mod, ranges);
-    ranges.erase('\n');
     return -1;
   }
   else if (std::isalpha(c))
@@ -717,7 +741,7 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
     const char *s = std::strchr(regex_abtnvfr, c);
     if (s == NULL)
     {
-      insert_escape_class(pattern, pos, mod, ranges);
+      insert_escape_class(pattern, pos, flags, mod, ranges);
       return -1;
     }
     c = static_cast<int>(s - regex_abtnvfr + '\a');
@@ -726,7 +750,7 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
   return c;
 }
 
-static void insert_posix_class(const char *pattern, size_t len, size_t& pos, ORanges<int>& ranges)
+static void insert_posix_class(const char *pattern, size_t len, size_t& pos, convert_flag_type flags, ORanges<int>& ranges)
 {
   pos += 2;
   char buf[8] = "";
@@ -745,13 +769,13 @@ static void insert_posix_class(const char *pattern, size_t len, size_t& pos, ORa
     else if (name[0] == 'A' && name[1] == 's')
       name = const_cast<char*>("ASCII");
   }
-  const int *translated = Posix::range(name);
-  if (translated == NULL)
+  const int *wc = Posix::range(name);
+  if (wc == NULL)
     throw regex_error(regex_error::invalid_class, pattern, pos);
   if (*buf == '^')
   {
     int last = 0x00;
-    for (const int *wc = translated; wc[1] != 0; wc += 2)
+    for (; wc[1] != 0; wc += 2)
     {
       if (wc[0] > 0x00)
         ranges.insert(last, wc[0] - 1);
@@ -762,13 +786,19 @@ static void insert_posix_class(const char *pattern, size_t len, size_t& pos, ORa
   }
   else
   {
-    for (const int *wc = translated; wc[1] != 0; wc += 2)
+    if (wc[0] <= '\n' && wc[1] >= '\n' && (flags & convert_flag::notnewline))
+    {
+      if (wc[0] != '\n')
+        ranges.insert(wc[0], '\n' - 1);
+      if (wc[1] != '\n')
+        ranges.insert('\n' + 1, wc[1]);
+      wc += 2;
+    }
+    for (; wc[1] != 0; wc += 2)
       ranges.insert(wc[0], wc[1]);
   }
   ++pos;
 }
-
-static void insert_list(const char *pattern, size_t len, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges, const std::map<std::string,std::string> *macros);
 
 static void merge_list(const char *pattern, size_t len, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges, const std::map<std::string,std::string> *macros)
 {
@@ -928,7 +958,7 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
       // POSIX character class (ASCII only)
       if (range)
         throw regex_error(regex_error::invalid_class_range, pattern, pos);
-      insert_posix_class(pattern, len, pos, ranges);
+      insert_posix_class(pattern, len, pos, flags, ranges);
       pc = -1;
     }
     else if (c == '[' && (pattern[pos + 1] == '.' || pattern[pos + 1] == '='))
@@ -1024,7 +1054,7 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void convert_escape_char(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const char *signature, const std::map<size_t,std::string>& mod, const char *par, std::string& regex)
+static void convert_escape_char(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const char *signature, const std::map<size_t,std::string>& mod, const char *par, std::string& regex, bool& nl)
 {
   int c = pattern[pos];
   if (std::strchr(regex_unescapes, c) != NULL)
@@ -1044,9 +1074,11 @@ static void convert_escape_char(const char *pattern, size_t len, size_t& loc, si
   {
     char buf[3] = { '^', static_cast<char>(lowercase(c)), '\0' };
     bool invert = std::isupper(c) != 0;
+    if (c == 'n' || (invert && strchr("DHLUWX", c) != NULL))
+      nl = true;
     const char *name = buf + !invert;
-    std::string translated;
     int esc = hex_or_octal_escape(signature);
+    std::string translated;
     if (is_modified(mod, 'u'))
     {
       if (!supports_escape(signature, 'p'))
@@ -1054,7 +1086,7 @@ static void convert_escape_char(const char *pattern, size_t len, size_t& loc, si
     }
     else if (!supports_escape(signature, c))
     {
-      translated = posix_class(name, esc);
+      translated = posix_class(name, esc, flags);
     }
     if (!translated.empty())
     {
@@ -1157,15 +1189,20 @@ static void convert_escape_char(const char *pattern, size_t len, size_t& loc, si
   }
 }
 
-static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const char *signature, const std::map<size_t,std::string>& mod, const char *par, std::string& regex)
+static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const char *signature, const std::map<size_t,std::string>& mod, const char *par, std::string& regex, bool& nl)
 {
   int c = pattern[pos];
   if (c == '\n' || c == '\r')
   {
+    if (c == '\n')
+      nl = true;
     // remove line continuation from \ \n (\ \r\n) to next line, skipping indent
     regex.append(&pattern[loc], pos - loc - 1);
     if (++pos < len && pattern[pos] == '\n')
+    {
       ++pos;
+      nl = true;
+    }
     while (pos < len && ((c = pattern[pos]) == ' ' || c == '\t'))
       ++pos;
     loc = pos;
@@ -1179,6 +1216,8 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     if (c < 0x21 || c >= 0x7F)
       throw regex_error(regex_error::invalid_escape, pattern, pos);
     c &= 0x1F;
+    if (c == '\n')
+      nl = true;
     if (!supports_escape(signature, 'c'))
     {
       // translate \cX to \xXX
@@ -1224,6 +1263,8 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     }
     if (wc > 0xFF)
       throw regex_error(regex_error::invalid_escape, pattern, pos);
+    if (wc == '\n')
+      nl = true;
     if (std::isalpha(wc) && is_modified(mod, 'i'))
     {
       // anycase: translate A to [Aa]
@@ -1247,6 +1288,8 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
   {
     size_t k = pos;
     int wc = (c == 'o' ? convert_oct(pattern, len, k) : convert_hex(pattern, len, k, flags));
+    if (wc == '\n')
+      nl = true;
     if (wc >= 0)
     {
       if (c == 'u' && wc >= 0xD800 && wc < 0xE000)
@@ -1305,7 +1348,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     }
     else
     {
-      convert_escape_char(pattern, len, loc, pos, flags, signature, mod, par, regex);
+      convert_escape_char(pattern, len, loc, pos, flags, signature, mod, par, regex, nl);
     }
   }
   else if (c == 'p' || c == 'P')
@@ -1337,12 +1380,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     int esc = hex_or_octal_escape(signature);
     if (supports_escape(signature, 'p'))
     {
-      translated = posix_class(name.c_str(), esc);
-      if (!translated.empty())
-      {
-        regex.append(&pattern[loc], pos - loc - 2).append("[").append(translated.substr(1, translated.size() - 2)).append("]");
-        loc = k + 1;
-      }
+      nl = true; // safe, but it is too conservative to assume all \p{} include \n
     }
     else
     {
@@ -1351,14 +1389,14 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
         translated = unicode_class(name.c_str(), esc, flags, par);
         if (translated.empty())
         {
-          translated = posix_class(name.c_str(), esc);
+          translated = posix_class(name.c_str(), esc, flags);
           if (translated.empty())
             throw regex_error(regex_error::invalid_class, pattern, pos);
         }
       }
       else
       {
-        translated = posix_class(name.c_str(), esc);
+        translated = posix_class(name.c_str(), esc, flags);
         if (translated.empty() && !supports_escape(signature, c))
           throw regex_error(regex_error::invalid_class, pattern, pos);
       }
@@ -1372,28 +1410,30 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
   }
   else if (c == 's' && (flags & convert_flag::notnewline))
   {
-    // \s is the same as \p{Space} but without newline \n
-    if (supports_escape(signature, 'p'))
+    // \s is the same as \p{Space} without newline \n
+    if (is_modified(mod, 'u'))
     {
-      if (is_modified(mod, 'u'))
+      if (supports_escape(signature, 'p'))
+      {
         regex.append(&pattern[loc], pos - loc - 1).append("[\\t\\x0b-\\r\\x85\\p{Z}]");
+      }
       else
-        regex.append(&pattern[loc], pos - loc - 1).append("[\\h\\x0b-\\r\\x85\\xa0]");
-      loc = pos + 1;
+      {
+        ORanges<int> ranges;
+        insert_escape_class(pattern, pos, flags, mod, ranges);
+        regex.append(&pattern[loc], pos - loc - 1);
+        regex.append(convert_ranges(pattern, pos, ranges, mod, flags, signature, par, nl));
+      }
     }
     else
     {
-      ORanges<int> ranges;
-      insert_escape_class(pattern, pos, mod, ranges);
-      ranges.erase('\n');
-      regex.append(&pattern[loc], pos - loc - 1);
-      regex.append(convert_ranges(pattern, pos, ranges, mod, flags, signature, par));
-      loc = pos + 1;
+      regex.append(&pattern[loc], pos - loc - 1).append("[\\h\\x0b-\\r\\x85\\xa0]");
     }
+    loc = pos + 1;
   }
   else
   {
-    convert_escape_char(pattern, len, loc, pos, flags, signature, mod, par, regex);
+    convert_escape_char(pattern, len, loc, pos, flags, signature, mod, par, regex, nl);
   }
 }
 
@@ -1403,7 +1443,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-std::string convert(const char *pattern, const char *signature, convert_flag_type flags, const std::map<std::string,std::string> *macros)
+std::string convert(const char *pattern, const char *signature, convert_flag_type flags, bool *multiline, const std::map<std::string,std::string> *macros)
 {
   std::string regex;
   bool anc = false;
@@ -1417,6 +1457,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
   bool can = std::strchr(signature, ':') != NULL;
   const char *par = can ? "(?:" : "(";
   std::map<size_t,std::string> mod;
+  bool nl = false;
   if ((flags & convert_flag::anycase))
     enable_modifier('i', pattern, 0, mod, 0);
   if ((flags & convert_flag::dotall))
@@ -1553,21 +1594,23 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             loc = pos + 1;
           }
           beg = false;
+          nl = true;
         }
         else if (c == 'X')
         {
           if (!is_modified(mod, 'u') || !supports_escape(signature, 'X'))
           {
 #ifndef WITH_UTF8_UNRESTRICTED
-            // translate \X to match any ISO-8859-1 and valid UTF-8
+            // translate \X to match any valid UTF-8
             regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\xff]|[\\xc2-\\xdf][\\x80-\\xbf]|\\xe0[\\xa0-\\xbf][\\x80-\\xbf]|[\\xe1-\\xec][\\x80-\\xbf][\\x80-\\xbf]|\\xed[\\x80-\\x9f][\\x80-\\xbf]|[\\xee\\xef][\\x80-\\xbf][\\x80-\\xbf]|\\xf0[\\x90-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|[\\xf1-\\xf3][\\x80-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|\\xf4[\\x80-\\x8f][\\x80-\\xbf][\\x80-\\xbf]").push_back(')');
 #else
-            // translate \X to match any ISO-8859-1 and UTF-8 encodings, including malformed UTF-8 with overruns
+            // translate \X to match any UTF-8 encoding, including malformed UTF-8 with overruns
             regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\xff]|[\\xc0-\\xff][\\x80-\\xbf]+").push_back(')');
 #endif
             loc = pos + 1;
           }
           beg = false;
+          nl = true;
         }
         else if ((flags & convert_flag::basic) && (c == '?' || c == '+' || c == '|' || c == '(' || c == ')' || c == '{' || c == '}'))
         {
@@ -1578,7 +1621,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         }
         else
         {
-          convert_escape(pattern, len, loc, pos, flags, signature, mod, par, regex);
+          convert_escape(pattern, len, loc, pos, flags, signature, mod, par, regex, nl);
           anc = (std::strchr(regex_anchors, c) != NULL);
           if (!anc || c == 'Z' || c == 'z')
             beg = false;
@@ -1852,7 +1895,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         else if (supports_escape(signature, 'p'))
         {
           ++pos;
-          expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex);
+          expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex, nl);
           anc = false;
           beg = false;
         }
@@ -1862,7 +1905,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           regex.append(&pattern[loc], pos - loc);
           ++pos;
           insert_list(pattern, len, pos, flags, mod, ranges, macros);
-          regex.append(convert_ranges(pattern, pos, ranges, mod, flags, signature, par));
+          regex.append(convert_ranges(pattern, pos, ranges, mod, flags, signature, par, nl));
           loc = pos + 1;
           anc = false;
           beg = false;
@@ -1958,7 +2001,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
               if (subpos + 1 < subregex.size())
                 throw regex_error(regex_error::invalid_class_range, pattern, loc);
               extend_list(pattern, len, pos, flags, mod, ranges, macros);
-              regex.append(convert_ranges(pattern, pos, ranges, mod, flags, signature, par));
+              regex.append(convert_ranges(pattern, pos, ranges, mod, flags, signature, par, nl));
             }
             else
             {
@@ -2052,6 +2095,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           {
             regex.append(&pattern[loc], pos - loc).append(par).append("[\\x00-\\xff][\\x80-\\xbf]*)");
             loc = pos + 1;
+            nl = true;
           }
           else if (!supports_escape(signature, 'p'))
           {
@@ -2068,6 +2112,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           // dotall: translate . to [\x00-\xff]
           regex.append(&pattern[loc], pos - loc).append("[\\x00-\\xff]");
           loc = pos + 1;
+          nl = true;
         }
         else if (!supports_modifier(signature, 's') && !supports_escape(signature, '.'))
         {
@@ -2098,8 +2143,11 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         if (pos + 1 < len && !(flags & convert_flag::basic) && (pattern[pos + 1] == '?' || pattern[pos + 1] == '+') && !supports_escape(signature, pattern[pos + 1]))
           throw regex_error(regex_error::invalid_quantifier, pattern, pos + 1);
         break;
-      case '\t':
       case '\n':
+        if (!is_modified(mod, 'x'))
+          nl = true;
+        // fall through
+      case '\t':
       case '\r':
       case ' ':
         if (is_modified(mod, 'x'))
@@ -2173,6 +2221,8 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
     regex.push_back(')');
   if ((flags & convert_flag::recap))
     regex.push_back(')');
+  if (multiline != NULL)
+    *multiline = nl;
   return regex;
 }
 

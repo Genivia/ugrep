@@ -202,40 +202,6 @@ reflex::Matcher magic_matcher; // concurrent access is not thread safe
 // the --filter-magic-label pattern DFA
 reflex::Pattern filter_magic_pattern; // concurrent access is thread safe
 
-#ifdef OS_WIN
-
-// CTRL-C handler
-BOOL WINAPI sigint(DWORD signal)
-{
-  if (signal == CTRL_C_EVENT || signal == CTRL_BREAK_EVENT)
-  {
-    // be nice, reset colors on interrupt when sending output to a color TTY
-    if (flag_color_term)
-      flag_color_term = write(1, "\033[m", 3) > 0; // appease -Wunused-result
-  }
-
-  // return FALSE to invoke the next handler (when applicable) or just exit
-  return FALSE;
-}
-
-#else
-
-// SIGINT and SIGTERM handler
-static void sigint(int sig)
-{
-  // reset to the default handler
-  signal(sig, SIG_DFL);
-
-  // be nice, reset colors on interrupt when sending output to a color TTY
-  if (flag_color_term)
-    flag_color_term = write(1, "\033[m", 3) > 0; // appease -Wunused-result
-
-  // signal again
-  kill(getpid(), sig);
-}
-
-#endif
-
 // unique address to identify standard input path
 const char *LABEL_STANDARD_INPUT = "(standard input)";
 
@@ -326,6 +292,7 @@ bool flag_files_with_matches       = false;
 bool flag_files_without_match      = false;
 bool flag_fixed_strings            = false;
 bool flag_glob_ignore_case         = false;
+bool flag_grep                     = false;
 bool flag_hex                      = false;
 bool flag_hex_star                 = false;
 bool flag_hex_cbr                  = true;
@@ -338,6 +305,7 @@ bool flag_json                     = false;
 bool flag_line_buffered            = false;
 bool flag_line_regexp              = false;
 bool flag_match                    = false;
+bool flag_multiline                = false;
 bool flag_no_dereference           = false;
 bool flag_no_header                = false;
 bool flag_no_messages              = false;
@@ -421,7 +389,7 @@ const char *flag_hexdump           = NULL;
 const char *flag_hyperlink         = NULL;
 const char *flag_index             = NULL;
 const char *flag_label             = LABEL_STANDARD_INPUT;
-const char *flag_pager             = DEFAULT_PAGER;
+const char *flag_pager             = NULL;
 const char *flag_replace           = NULL;
 const char *flag_save_config       = NULL;
 const char *flag_separator         = NULL;
@@ -490,13 +458,98 @@ size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message);
 size_t strtofuzzy(const char *string, const char *message);
-void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs);
+void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, bool gitignore = false);
 void usage(const char *message, const char *arg = NULL, const char *valid = NULL);
 void help(std::ostream& out);
 void help(const char *what = NULL);
 void version();
 void is_directory(const char *pathname);
 void cannot_decompress(const char *pathname, const char *message);
+void open_pager();
+void close_pager();
+
+#ifdef OS_WIN
+
+// CTRL-C handler
+BOOL WINAPI sigint(DWORD signal)
+{
+  if (signal == CTRL_C_EVENT || signal == CTRL_BREAK_EVENT)
+  {
+    // be nice, reset colors on interrupt when sending output to a color TTY
+    if (flag_color_term)
+      flag_color_term = write(1, "\033[m", 3) > 0; // appease -Wunused-result
+
+    close_pager();
+  }
+
+  // return FALSE to invoke the next handler (when applicable) or just exit
+  return FALSE;
+}
+
+#else
+
+// SIGINT and SIGTERM handler
+static void sigint(int sig)
+{
+  // reset to the default handler
+  signal(sig, SIG_DFL);
+
+  // be nice, reset colors on interrupt when sending output to a color TTY
+  if (flag_color_term)
+    flag_color_term = write(1, "\033[m", 3) > 0; // appease -Wunused-result
+
+  close_pager();
+
+  // signal again
+  kill(getpid(), sig);
+}
+
+#endif
+
+// open a pager if output is to a TTY then page through the results
+void open_pager()
+{
+  if (flag_pager != NULL)
+  {
+    // --pager without argument uses $PAGER or DEFAULT_PAGER_COMMAND
+    if (*flag_pager == '\0')
+    {
+      const char *pager = getenv("PAGER");
+
+      if (pager != NULL && *pager != '\0')
+        flag_pager = pager;
+      else
+        flag_pager = DEFAULT_PAGER_COMMAND;
+    }
+
+    // pager 'less' requires -R
+    if (strcmp(flag_pager, "less") == 0)
+      flag_pager = "less -R";
+
+    // open a pipe to a forked pager
+#ifdef OS_WIN
+    output = popen(flag_pager, "wb");
+#else
+    output = popen(flag_pager, "w");
+#endif
+    if (output == NULL)
+      error("cannot open pipe to pager", flag_pager);
+
+    // enable --heading if not explicitly disabled (enables --break later)
+    if (flag_heading.is_undefined())
+      flag_heading = true;
+
+    // enable --line-buffered to flush output to the pager immediately
+    flag_line_buffered = true;
+  }
+}
+
+// close the pipe to the forked pager
+void close_pager()
+{
+  if (flag_pager != NULL && output != NULL && output != stdout)
+    pclose(output);
+}
 
 // open a file where - means stdin/stdout and an initial ~ expands to home directory
 int fopen_smart(FILE **file, const char *filename, const char *mode)
@@ -2551,8 +2604,19 @@ struct Grep {
 
         if (flag_group_separator != NULL)
         {
-          grep.out.str(color_se);
-          grep.out.str(flag_group_separator);
+          if (flag_query > 0 && !flag_text)
+          {
+            grep.out.chr('\0');
+            grep.out.str(color_se);
+            grep.out.chr('\0');
+            grep.out.str(flag_group_separator);
+            grep.out.chr('\0');
+          }
+          else
+          {
+            grep.out.str(color_se);
+            grep.out.str(flag_group_separator);
+          }
           grep.out.str(color_off);
           grep.out.nl();
         }
@@ -2791,8 +2855,19 @@ struct Grep {
         if (hex)
           grep.out.dump.done();
 
-        grep.out.str(color_se);
-        grep.out.str(flag_group_separator);
+        if (flag_query > 0 && !flag_text)
+        {
+          grep.out.chr('\0');
+          grep.out.str(color_se);
+          grep.out.chr('\0');
+          grep.out.str(flag_group_separator);
+          grep.out.chr('\0');
+        }
+        else
+        {
+          grep.out.str(color_se);
+          grep.out.str(flag_group_separator);
+        }
         grep.out.str(color_off);
         grep.out.nl();
       }
@@ -3984,7 +4059,7 @@ bool GrepMaster::steal(GrepWorker *worker)
   auto coworker = workers.begin();
   auto max_worker = coworker;
   size_t max_todo = 0;
-  
+
   for (size_t i = 0; i < threads; ++i)
   {
     if (&*coworker != worker && coworker->jobs.todo > max_todo)
@@ -4451,7 +4526,7 @@ static void save_config()
     fprintf(file, "no-view\n\n");
 
   fprintf(file, "# Enable a pager for terminal output, default: no-pager\n");
-  if (flag_pager != NULL)
+  if (flag_pager != NULL && *flag_pager != '\0')
     fprintf(file, "pager=%s\n\n", flag_pager);
   else
     fprintf(file, "no-pager\n\n");
@@ -5031,7 +5106,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'p':
                 if (strcmp(arg, "pager") == 0)
-                  flag_pager = DEFAULT_PAGER_COMMAND;
+                  flag_pager = "";
                 else if (strncmp(arg, "pager=", 6) == 0)
                   flag_pager = arg + 6;
                 else if (strcmp(arg, "passthru") == 0)
@@ -5476,7 +5551,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'Y':
-            flag_empty = true;
+            flag_grep = true;
             break;
 
           case 'y':
@@ -5754,23 +5829,23 @@ void init(int argc, const char **argv)
   {
     // the 'grep' command is equivalent to 'ugrep -GY. --sort'
     flag_basic_regexp = true;
+    flag_grep = true;
     flag_hidden = true;
-    flag_empty = true;
     flag_sort = "name";
   }
   else if (strncmp(program, "egrep", len) == 0)
   {
     // the 'egrep' command is equivalent to 'ugrep -Y. --sort'
+    flag_grep = true;
     flag_hidden = true;
-    flag_empty = true;
     flag_sort = "name";
   }
   else if (strncmp(program, "fgrep", len) == 0)
   {
     // the 'fgrep' command is equivalent to 'ugrep -FY. --sort'
     flag_fixed_strings = true;
+    flag_grep = true;
     flag_hidden = true;
-    flag_empty = true;
     flag_sort = "name";
   }
   else if (strncmp(program, "zgrep", len) == 0)
@@ -5778,16 +5853,16 @@ void init(int argc, const char **argv)
     // the 'zgrep' command is equivalent to 'ugrep -zGY. --sort'
     flag_decompress = true;
     flag_basic_regexp = true;
+    flag_grep = true;
     flag_hidden = true;
-    flag_empty = true;
     flag_sort = "name";
   }
   else if (strncmp(program, "zegrep", len) == 0)
   {
     // the 'zegrep' command is equivalent to 'ugrep -zY. --sort'
     flag_decompress = true;
+    flag_grep = true;
     flag_hidden = true;
-    flag_empty = true;
     flag_sort = "name";
   }
   else if (strncmp(program, "zfgrep", len) == 0)
@@ -5795,8 +5870,8 @@ void init(int argc, const char **argv)
     // the 'zfgrep' command is equivalent to 'ugrep -zFY. --sort'
     flag_decompress = true;
     flag_fixed_strings = true;
+    flag_grep = true;
     flag_hidden = true;
-    flag_empty = true;
     flag_sort = "name";
   }
 
@@ -5838,7 +5913,7 @@ void init(int argc, const char **argv)
   if (flag_zmax > 99)
     usage("option --zmax argument exceeds upper limit");
 
-  // -P disables -F, -G and -Z (P>F>G>E override)
+  // -P disables -F, -G and -Z (P>F>G>E override) and does not allow -N patterns
   if (flag_perl_regexp)
   {
 #if defined(HAVE_PCRE2) || defined(HAVE_BOOST_REGEX)
@@ -5846,10 +5921,21 @@ void init(int argc, const char **argv)
     flag_basic_regexp = false;
     if (flag_fuzzy > 0)
       usage("options -P and -Z are not compatible");
+    for (const auto &arg : pattern_args)
+      if ((arg.first & CNF::PATTERN::NEG) != 0)
+        usage("options -P and -N are not compatible");
 #else
     usage("option -P is not available in this build configuration of ugrep");
 #endif
   }
+
+  // -Y: enable --empty
+  if (flag_grep)
+    flag_empty = true;
+
+  // -o (or -u) disables -Y to emulate grep behavior when ugrep is aliased to grep/egrep/fgrep
+  if (flag_only_matching || flag_ungroup)
+    flag_empty = false;
 
   // -F disables -G (P>F>G>E override)
   if (flag_fixed_strings)
@@ -5938,14 +6024,6 @@ void init(int argc, const char **argv)
   else if (strcmp(flag_binary_files, "binary") != 0)
     usage("invalid argument --binary-files=TYPE, valid arguments are 'binary', 'without-match', 'text', 'hex' and 'with-hex'");
 
-  // --hex takes priority over --with-hex takes priority over -I takes priority over -a
-  if (flag_hex)
-    flag_with_hex = (flag_binary_without_match = flag_text = false);
-  else if (flag_with_hex)
-    flag_binary_without_match = (flag_text = false);
-  else if (flag_binary_without_match)
-    flag_text = false;
-
   // --hexdump: normalize by assigning flags
   if (flag_hexdump != NULL)
   {
@@ -6026,6 +6104,14 @@ void init(int argc, const char **argv)
     if (!flag_with_hex)
       flag_hex = true;
   }
+
+  // --hex takes priority over --with-hex takes priority over -I takes priority over -a
+  if (flag_hex)
+    flag_with_hex = (flag_binary_without_match = flag_text = false);
+  else if (flag_with_hex)
+    flag_binary_without_match = (flag_text = false);
+  else if (flag_binary_without_match)
+    flag_text = false;
 
   // --tabs: value should be 1, 2, 4, or 8
   if (flag_tabs && flag_tabs != 1 && flag_tabs != 2 && flag_tabs != 4 && flag_tabs != 8)
@@ -6702,26 +6788,6 @@ void terminal()
           flag_heading = true;
 
         // enable --line-buffered to flush output immediately
-        flag_line_buffered = true;
-      }
-      else if (flag_pager != NULL && *flag_pager != '\0')
-      {
-        // --pager: if output is to a TTY then page through the results
-
-        // open a pipe to a forked pager
-#ifdef OS_WIN
-        output = popen(flag_pager, "wb");
-#else
-        output = popen(flag_pager, "w");
-#endif
-        if (output == NULL)
-          error("cannot open pipe to pager", flag_pager);
-
-        // enable --heading if not explicitly disabled (enables --break later)
-        if (flag_heading.is_undefined())
-          flag_heading = true;
-
-        // enable --line-buffered to flush output to the pager immediately
         flag_line_buffered = true;
       }
     }
@@ -7591,15 +7657,15 @@ void ugrep()
   {
     unsigned int cores = std::thread::hardware_concurrency();
     unsigned int concurrency = cores > 2 ? cores : 2;
-    // reduce concurrency by a few for 9+ core CPUs
+    // reduce concurrency by a few for 8+ core CPUs
 #if defined(__APPLE__) && defined(HAVE_NEON)
-    // apple M1 8 or 10 cores should be reduced to 7
+    // apple silicon with 8 or more cores should be reduced to 6 since 7 or 8 are slower, but not on x64 machines
     if (concurrency >= 10)
-      concurrency = 7;
+      concurrency = 6;
     else
-      concurrency -= concurrency / 8;
+      concurrency -= concurrency / 4;
 #else
-    concurrency -= concurrency / 9;
+    concurrency -= concurrency / 8;
 #endif
     flag_jobs = std::min(concurrency, MAX_JOBS);
   }
@@ -7650,13 +7716,13 @@ void ugrep()
   // reflex::Matcher options
   std::string matcher_options;
 
-  // -Y: permit empty pattern matches and literally match closing ) when not paired with ( unless -P or -F
+  // -Y: literally match closing ) like GNU grep when not paired with ( unless -P or -F
+  if (flag_grep && !flag_perl_regexp && !flag_fixed_strings)
+    convert_flags |= reflex::convert_flag::closing;
+
+  // --empty: permit empty pattern matches
   if (flag_empty)
-  {
-    if (!flag_perl_regexp && !flag_fixed_strings)
-      convert_flags |= reflex::convert_flag::closing;
     matcher_options.push_back('N');
-  }
 
   // -w: match whole words, i.e. make \< and \> match only left side and right side, respectively
   if (flag_word_regexp)
@@ -7732,6 +7798,9 @@ void ugrep()
       // --match: match lines with the RE/flex Line Matcher
       reflex::LineMatcher matcher(reflex::Input(), matcher_options.c_str());
 
+      // --pager
+      open_pager();
+
       if (threads > 1)
       {
         GrepMaster grep(output, &matcher, NULL);
@@ -7751,7 +7820,7 @@ void ugrep()
     // -P: Perl matching with PCRE2 or Boost.Regex
 #if defined(HAVE_PCRE2)
     // construct the PCRE2 JIT-optimized NFA-based Perl pattern matcher
-    std::string pattern(flag_binary ? reflex::PCRE2Matcher::convert(regex, convert_flags) : reflex::PCRE2UTFMatcher::convert(regex, convert_flags));
+    std::string pattern(flag_binary ? reflex::PCRE2Matcher::convert(regex, convert_flags, &flag_multiline) : reflex::PCRE2UTFMatcher::convert(regex, convert_flags, &flag_multiline));
     reflex::PCRE2Matcher matcher(pattern, reflex::Input(), matcher_options.c_str(), flag_binary ? (PCRE2_NEVER_UTF | PCRE2_NEVER_UCP) : (PCRE2_UTF | PCRE2_UCP));
     Grep::Matchers matchers;
 
@@ -7780,6 +7849,9 @@ void ugrep()
       }
     }
 
+    // --pager
+    open_pager();
+
     if (threads > 1)
     {
       GrepMaster grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
@@ -7797,7 +7869,7 @@ void ugrep()
     try
     {
       // construct the Boost.Regex NFA-based Perl pattern matcher
-      pattern.assign(reflex::BoostPerlMatcher::convert(regex, convert_flags));
+      pattern.assign(reflex::BoostPerlMatcher::convert(regex, convert_flags, &flag_multiline));
       reflex::BoostPerlMatcher matcher(pattern, reflex::Input(), matcher_options.c_str());
       Grep::Matchers matchers;
 
@@ -7825,6 +7897,9 @@ void ugrep()
           }
         }
       }
+
+      // --pager
+      open_pager();
 
       if (threads > 1)
       {
@@ -7896,12 +7971,7 @@ void ugrep()
   else
   {
     // construct the RE/flex DFA-based pattern matcher and start matching files
-#ifdef WITH_SKIP_NEWLINE
-    bool multiline = false;
-    reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags, &multiline), (flag_index != NULL ? "hr" : "r"));
-#else
-    reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags), (flag_index != NULL ? "hr" : "r"));
-#endif
+    reflex::Pattern pattern(reflex::Matcher::convert(regex, convert_flags, &flag_multiline), (flag_index != NULL ? "hr" : "r"));
     std::list<reflex::Pattern> patterns;
     Grep::Matchers matchers;
 
@@ -7936,6 +8006,9 @@ void ugrep()
           }
         }
       }
+
+      // --pager
+      open_pager();
 
       if (threads > 1)
       {
@@ -7984,6 +8057,9 @@ void ugrep()
       if (flag_index != NULL && pattern.has_hfa())
         index_pattern = &pattern;
 
+      // --pager
+      open_pager();
+
       if (threads > 1)
       {
         GrepMaster grep(output, &matcher, bcnf.singleton_or_undefined() ? NULL : &matchers);
@@ -8005,7 +8081,7 @@ void ugrep()
     edges = pattern.edges();
     words = pattern.words();
     hashes = pattern.hashes();
-    
+  
     nodes_time = static_cast<size_t>(pattern.nodes_time());
     edges_time = static_cast<size_t>(pattern.parse_time() + pattern.edges_time());
     words_time = static_cast<size_t>(pattern.words_time());
@@ -8041,9 +8117,7 @@ void ugrep()
     }
   }
 
-  // close the pipe to the forked pager
-  if (flag_pager != NULL && output != NULL && output != stdout)
-    pclose(output);
+  close_pager();
 }
 
 // cancel the search
@@ -8636,9 +8710,9 @@ void Grep::recurse(size_t level, const char *pathname)
   {
     std::string ignore_filename;
 
-    for (const auto& i : flag_ignore_files)
+    for (const auto& ignore_file : flag_ignore_files)
     {
-      ignore_filename.assign(pathname).append(PATHSEPSTR).append(i);
+      ignore_filename.assign(pathname).append(PATHSEPSTR).append(ignore_file);
 
       FILE *file = NULL;
       if (fopenw_s(&file, ignore_filename.c_str(), "r") == 0)
@@ -8652,7 +8726,7 @@ void Grep::recurse(size_t level, const char *pathname)
 
         // push globs imported from the ignore file to the back of the vectors
         Stats::ignore_file(ignore_filename);
-        import_globs(file, flag_all_exclude, flag_all_exclude_dir);
+        import_globs(file, flag_all_exclude, flag_all_exclude_dir, true);
         fclose(file);
       }
     }
@@ -9193,7 +9267,6 @@ void Grep::search(const char *pathname, uint16_t cost)
   if (pathname == LABEL_STANDARD_INPUT)
     pathname = flag_label;
 
-  bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
   bool matched = false;
 
   // -z: loop over extracted archive parts, when applicable
@@ -9325,14 +9398,13 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // --format: whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
-
         bool heading = flag_with_filename;
 
         if (!flag_match || !flag_invert_match)
         {
           if (flag_ungroup || flag_only_matching)
           {
-            // -co or -cu: count the number of patterns matched in the file
+            // -co or -cu: count the number of patterns matched
 
             while (matcher->find())
             {
@@ -9391,11 +9463,9 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                 lineno = current_lineno;
 
-#ifdef WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
                 // if the match does not span more than one line, then skip to end of the line (we count matching lines)
-                if (!matcher->at_bol())
+                if (!flag_multiline && !matcher->at_bol())
                   matcher->skip('\n');
-#endif
               }
             }
 
@@ -9468,7 +9538,6 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // whether to out.acquire() early before Stats::found_part()
         bool acquire = flag_format_open != NULL || flag_format_close != NULL;
-
         bool heading = flag_with_filename;
 
         if (flag_invert_match)
@@ -9608,7 +9677,11 @@ void Grep::search(const char *pathname, uint16_t cost)
             }
 
             // output --format=FORMAT
-            out.format(flag_format, pathname, partname, matches, &matching, matcher, heading, matches > 1 || current_lineno == lineno, matches > 1);
+            // if the match does not span more than one line, then skip to end of the line
+            if (!out.format(flag_format, pathname, partname, matches, &matching, matcher, heading, matches > 1 || current_lineno == lineno, matches > 1))
+              if (!flag_multiline && !matcher->at_bol())
+                if (!matcher->skip('\n'))
+                  break;
 
             // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches >= flag_max_count)
@@ -10210,6 +10283,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool hex = false;
         bool binary = false;
         bool stop = false;
+        bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
 
         // construct event handler functor with captured *this and some of the locals
         GrepHandler handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
@@ -10448,13 +10522,11 @@ void Grep::search(const char *pathname, uint16_t cost)
               }
             }
 
-#ifdef WITH_SKIP_NEWLINE // this is only valid if no \n is part of the patterns
             // no -u and no colors: if the match does not span more than one line, then skip to end of the line
             if (!flag_ungroup && !colorize)
-              if (!matcher->at_bol())
+              if (!flag_multiline && !matcher->at_bol())
                 if (!matcher->skip('\n'))
                   break;
-#endif
           }
           else
           {
@@ -10766,6 +10838,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool hex = false;
         bool binary = false;
         bool stop = false;
+        bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
 
         // to display the rest of the matching line
         restline_data = NULL;
@@ -11023,6 +11096,12 @@ void Grep::search(const char *pathname, uint16_t cost)
                 restline_last = matcher->last();
               }
             }
+
+            // no -u and no colors: if the match does not span more than one line, then skip to end of the line
+            if (!flag_ungroup && !colorize)
+              if (!flag_multiline && !matcher->at_bol())
+                if (!matcher->skip('\n'))
+                  break;
           }
           else if (!binfile && (!binary || flag_hex || flag_with_hex))
           {
@@ -11220,6 +11299,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool hex = false;
         bool binary = false;
         bool stop = false;
+        bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
 
         // to display the rest of the matching line
         restline_data = NULL;
@@ -11470,6 +11550,12 @@ void Grep::search(const char *pathname, uint16_t cost)
                 restline_last = matcher->last();
               }
             }
+
+            // no -u and no colors: if the match does not span more than one line, then skip to end of the line
+            if (!flag_ungroup && !colorize)
+              if (!flag_multiline && !matcher->at_bol())
+                if (!matcher->skip('\n'))
+                  break;
           }
           else
           {
@@ -11674,6 +11760,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool hex = false;
         bool binary = false;
         bool stop = false;
+        bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
 
         // to display the rest of the matching line
         restline_data = NULL;
@@ -12239,7 +12326,7 @@ exit_search:
 }
 
 // read globs from a file and split them into files or dirs to include or exclude by pushing them onto the vectors
-void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs)
+void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, bool gitignore)
 {
   // read globs from the specified file or files
   reflex::BufferedInput input(file);
@@ -12268,6 +12355,8 @@ void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::
         else
         {
           files.emplace_back(line);
+          if (gitignore)
+            dirs.emplace_back(line);
         }
       }
     }
@@ -12923,13 +13012,13 @@ void help(std::ostream& out)
             Ignore files and directories matching the globs in each FILE that\n\
             is encountered in recursive searches.  The default FILE is\n\
             `" DEFAULT_IGNORE_FILE "'.  Matching files and directories located in the\n\
-            directory of a FILE's location and in directories below are ignored\n\
-            by temporarily extending the --exclude and --exclude-dir globs, as\n\
-            if --exclude-from=FILE is locally enforced.  Globbing syntax is the\n\
-            same as the --exclude-from=FILE gitignore syntax; directories are\n\
-            excluded when the glob ends in a `/', same as git.  Files and\n\
-            directories explicitly specified as command line arguments are\n\
-            never ignored.  This option may be repeated with additional files.\n\
+            directory of the FILE and in subdirectories below are ignored.\n\
+            Globbing syntax is the same as the --exclude-from=FILE gitignore\n\
+            syntax, but files and directories are excluded instead of only\n\
+            files.  Directories are specifically excluded when the glob ends in\n\
+            a `/'.  Files and directories explicitly specified as command line\n\
+            arguments are never ignored.  This option may be repeated to\n\
+            specify additional files.\n\
     --include=GLOB\n\
             Search only files whose name matches GLOB using wildcard matching,\n\
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards and\n\
@@ -13049,7 +13138,8 @@ void help(std::ostream& out)
             unless it matches the negative PATTERN.  Same as -e (?^PATTERN).\n\
             Negative pattern matches are essentially removed before any other\n\
             patterns are matched.  Note that longer patterns take precedence\n\
-            over shorter patterns.  This option may be repeated.\n\
+            over shorter patterns.  Option -N cannot be specified with -P.\n\
+            This option may be repeated.\n\
     -n, --line-number\n\
             Each output line is preceded by its relative line number in the\n\
             file, starting at line 1.  The line number counter is reset for\n\
@@ -13107,8 +13197,9 @@ void help(std::ostream& out)
             symbolic links are specified on the command line.\n\
     --pager[=COMMAND]\n\
             When output is sent to the terminal, uses COMMAND to page through\n\
-            the output.  The default COMMAND is `" DEFAULT_PAGER_COMMAND "'.  Enables --heading\n\
-            and --line-buffered.\n\
+            the output.  COMMAND defaults to environment variable $PAGER when\n\
+            defined or `" DEFAULT_PAGER_COMMAND "'.  Enables --heading and\n\
+            --line-buffered.\n\
     --pretty\n\
             When output is sent to a terminal, enables --color, --heading, -n,\n\
             --sort, --tree and -T when not explicitly disabled.\n\
@@ -13123,7 +13214,7 @@ void help(std::ostream& out)
             or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke a\n\
             command to view or edit the file shown at the top of the screen.\n\
             The command can be specified with option --view, or defaults to\n\
-            environment variable PAGER if defined, or EDITOR.  Press Tab and\n\
+            environment variable PAGER when defined, or EDITOR.  Press Tab and\n\
             Shift-Tab to navigate directories and to select a file to search.\n\
             Press Enter to select lines to output.  Press ALT-l for option -l\n\
             to list files, ALT-n for -n, etc.  Non-option commands include\n\
@@ -13238,8 +13329,7 @@ void help(std::ostream& out)
     -X, --hex\n\
             Output matches in hexadecimal.  This option is equivalent to the\n\
             --binary-files=hex option with --hexdump=2C.  To omit the matching\n\
-            line from the hex output, use option --hexdump instead of -X.  See\n\
-            also option -U.\n\
+            line from the hex output use option --hexdump.  See also option -U.\n\
     -x, --line-regexp\n\
             Select only those matches that exactly match the whole line, as if\n\
             the patterns are surrounded by ^ and $.  If a PATTERN is specified,\n\
@@ -13488,20 +13578,20 @@ void help(const char *what)
  [abc-e]     one character a,b,c,d,e     \n\
  [^abc-e]    one char not a,b,c,d,e,\\n   pattern     anchors and boundaries\n\
  [[:name:]]  one char in POSIX class:    ----------  --------------------------\n\
-      alnum  a-z,A-Z,0-9                 ^           begin of line anchor\n\
-      alpha  a-z,A-Z                     $           end of line anchor\n\
-      ascii  ASCII char \\x00-\\x7f        \\b          word boundary (-P)\n\
-      blank  space or tab                \\B          non-word boundary (-P)\n\
-      cntrl  control characters          \\<          start word boundary (-P)\n\
-      digit  0-9                         \\>          end word boundary (-P)\n\
-      graph  visible characters          (?=...)     lookahead (-P)\n\
-      lower  a-z                         (?!...)     negative lookahead (-P)\n\
-      print  visible chars and space     (?<=...)    lookbehind (-P)\n\
-      punct  punctuation characters      (?<!...)    negative lookbehind (-P)\n\
-      space  space,\\t,\\n,\\v,\\f,\\r        --------------------------------------\n\
-      upper  A-Z                         \n\
-       word  a-z,A-Z,0-9,_               pattern     grouping\n\
-     xdigit  0-9,a-f,A-F                 ----------  --------------------------\n\
+    alnum      a-z,A-Z,0-9               ^           begin of line anchor\n\
+    alpha      a-z,A-Z                   $           end of line anchor\n\
+    ascii      ASCII char \\x00-\\x7f      \\b          word boundary (-P)\n\
+    blank      space or tab              \\B          non-word boundary (-P)\n\
+    cntrl      control characters        \\<          start word boundary (-P)\n\
+    digit      0-9                       \\>          end word boundary (-P)\n\
+    graph      visible characters        (?=...)     lookahead (-P)\n\
+    lower      a-z                       (?!...)     negative lookahead (-P)\n\
+    print      visible chars and space   (?<=...)    lookbehind (-P)\n\
+    punct      punctuation characters    (?<!...)    negative lookbehind (-P)\n\
+    space      space,\\t,\\v,\\f,\\r        --------------------------------------\n\
+    upper      A-Z                       \n\
+     word      a-z,A-Z,0-9,_             pattern     grouping\n\
+   xdigit      0-9,a-f,A-F               ----------  --------------------------\n\
  \\p{class}   one character in class      (...)       capturing group (-P)\n\
  \\P{class}   one char not in class       (...)       non-capturing group\n\
  \\d          a digit                     (?:...)     non-capturing group\n\
@@ -13513,6 +13603,9 @@ void help(const char *what)
  \\w          a word character            --------------------------------------\n\
  \\W          a non-word character        \n\
  --------------------------------------      (-P): pattern requires option -P\n\
+\n\
+Character classes never match a newline, except when \\P, \\D, \\H, or \\W is\n\
+specified or when a \\n or a \\R is specified, such as [\\s\\n].\n\
 \n\
 Option -P enables Perl regex matching, supporting Unicode patterns, Unicode\n\
 word boundary matching (\\b, \\B, \\<, \\>), lookaheads and capturing groups.\n\
@@ -13545,7 +13638,7 @@ Option --stats displays the options and patterns applied to the matching files.\
 \n\
 ";
     }
-    else if (strcmp(what, "glob") == 0 || strcmp(what, "globs") == 0)
+    else if (strcmp(what, "glob") == 0 || strcmp(what, "globs") == 0 || strcmp(what, "globbing") == 0)
     {
       std::cout <<
 "Glob syntax and conventions:\n\
@@ -13576,62 +13669,77 @@ basename of a file or directory is matched in recursive searches.\n\
 When a glob pattern begins with a /, files and directories are matched at the\n\
 working directory, not recursively.\n\
 \n\
-When a glob pattern ends with a /, directories are matched instead of files.\n\
+When a glob pattern ends with a /, only directories are matched, not files.\n\
 \n\
-Option -O (--file-extension) matches filename extensions or ignores extensions\n\
-when preceeded with a ^ or !.\n\
-\n\
-Option -t (--file-type) matches file types or ignores file types when preceeded\n\
-with a ^ or a !.  Use -tlist to view the list of supported file types with\n\
-corresponding glob patterns.\n\
-\n\
-Opton --ignore-files specifies a file with gitignore-style globs, where the\n\
-default file is .gitignore.  When one ore more ignore files are encountered in\n\
-recursive searches, the search is narrowed accordingly.\n\
+Option -g (--glob) performs glob matching with the specified glob pattern or\n\
+a set of comma-separated globs.  When a glob is preceeded with a ^ or !, the\n\
+glob match is inverted by excluding matching files or directories.\n\
 \n\
 Option --iglob performs case-insensitive glob matching with the specified glob\n\
-patterns.\n\
+pattern or a set of comma-separated globs.  When a glob is preceeded with a ^\n\
+or !, the glob match is inverted by excluding matching files or directories.\n\
 \n\
 Option --glob-ignore-case performs case-insensitive glob matching in general,\n\
 except with the globs specified in --ignore-files, such as .gitignore.\n\
+\n\
+Option --ignore-files specifies a file with gitignore-style globs, where the\n\
+default file is .gitignore.  When one ore more ignore files are encountered in\n\
+recursive searches, the search is narrowed accordingly by excluding files and\n\
+directories matching the globs.\n\
+\n\
+RELATED:\n\
+\n\
+Option -O (--file-extension) matches filename extensions, or ignores extensions\n\
+when preceeded with a ^ or !.\n\
+\n\
+Option -t (--file-type) matches file types, or ignores file types when\n\
+preceeded with a ^ or a !.  Use -tlist to view the list of supported file types\n\
+with corresponding glob patterns.\n\
 \n\
 Option --stats displays the search path globs applied to the matching files.\n\
 \n\
 IMPORTANT:\n\
 \n\
-Always specify glob patterns using quotes to prevent the shell from expanding\n\
-the globs.  For example, use -g \"*foo.*\" or alternatively \"-g*foo.*\".\n\
+Always quote glob patterns to prevent the shell from expanding the globs.  For\n\
+example, specify -g \"*foo.*\" or -g\"*foo.*\" or \"-g*foo.*\".\n\
 \n\
 ";
     }
     else if (strcmp(what, "fuzzy") == 0)
     {
       std::cout <<
-"Fuzzy (approximate) search is performed with option -Z (no whitespace may be\n\
-given between -Z and its argument when specified):\n\
+"Fuzzy (approximate) search is performed with option -Z:\n\
 \n\
  -Z    fuzzy match\n\
- ----  ------------------------------------------------------------------\n\
+ ----  ---------------------------------------------------------------------\n\
        allow 1 character insertion, deletion or substitution (-Z default)\n\
- 2     allow 2 character insertions, deletions or substitutions\n\
- +2    allow 2 character insertions\n\
- -2    allow 2 character deletions\n\
- ~2    allow 2 character substitutions\n\
- +-2   allow 2 character insertions or deletions\n\
- +~2   allow 2 character insertions or substitutions\n\
- -~2   allow 2 character deletions or substitutions\n\
+ 2     allow 2 character insertions, deletions and/or substitutions\n\
+ +1    allow 1 character insertion, e.g. pattern 'foo' also matches 'fomo'\n\
+ -1    allow 1 character deletion, e.g. pattern 'food' also matches 'fod'\n\
+ ~1    allow 1 character substitution, e.g. pattern 'foo' also matches 'for'\n\
+ +-1   allow 1 character insertion or deletion\n\
+ +~1   allow 1 character insertion or substitution\n\
+ -~1   allow 1 character deletion or substitution\n\
  best  when prefixed to the above, output the best matches only\n\
+\n\
+No whitespace may be given between -Z and its argument.\n\
 \n\
 Insertions, deletions and/or substitutions are applied to Unicode characters,\n\
 except when option -U is specified for binary/ASCII pattern search.\n\
 \n\
-The best matches are those that minimize the difference with the specified\n\
-pattern.  This requires two passes over an input file, which reduces\n\
-performance significantly.\n\
+The 'best' prefix outputs the best matching lines with the lowest cost (minimal\n\
+edit distance) per file.  For example, if a file has an exact match anywhere,\n\
+then only exact matches are output, no approximate matches.  This requires two\n\
+passes over an input file to determine the minimal edit distance, which reduces\n\
+performance significantly.  This option cannot be used with standard input or\n\
+with Boolean queries.\n\
 \n\
-When multiple files are searched, option --sort=best sorts the files in a\n\
-directory such that files with minimum differences with the specified pattern\n\
-are listed first.  This requires two passes over each input file, which reduces\n\
+RELATED:\n\
+\n\
+Option --sort=best sorts the directory output by best fuzzy match based on edit\n\
+distance, i.e. files with at least one exact match are output first, followed\n\
+by files with at least a match that is one edit distance from exact, and so on.\n\
+This sort option requires two passes over each input file, which reduces\n\
 performance significantly.\n\
 \n\
 IMPORTANT:\n\

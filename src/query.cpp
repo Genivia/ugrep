@@ -458,16 +458,16 @@ void Query::redraw()
     Screen::put(14, 0, "\033[7m^L\033[m refresh screen");
     Screen::put(15, 0, "\033[7m^Q\033[m quick exit and output");
     Screen::put(16, 0, "\033[7m^R\033[m or \033[7mF4\033[m restore bookmark");
-    Screen::put(17, 0, "\033[7m^S\033[m scroll to next file/dir");
+    Screen::put(17, 0, "\033[7m^S\033[m next dir/file/context");
     Screen::put(18, 0, "\033[7m^T\033[m toggle colors");
     Screen::put(19, 0, "\033[7m^U\033[m delete before cursor");
     Screen::put(20, 0, "\033[7m^V\033[m verbatim character");
-    Screen::put(21, 0, "\033[7m^W\033[m scroll back one file/dir");
+    Screen::put(21, 0, "\033[7m^W\033[m prev dir/file/context");
     Screen::put(22, 0, "\033[7m^X\033[m or \033[7mF3\033[m set bookmark");
     Screen::put(23, 0, "\033[7m^Y\033[m or \033[7mF2\033[m view or edit file");
     Screen::put(24, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
     Screen::put(25, 0, "\033[7m^^\033[m chdir to starting dir");
-    Screen::put(26, 0, "\033[7m^\\\033[m terminate process");
+    Screen::put(26, 0, "\033[7m^\\\033[m force terminate process");
     Screen::put(27, 0, "");
     Screen::put(28, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
     Screen::put(29, 0, "");
@@ -1351,7 +1351,7 @@ void Query::search()
 
   if (search_thread_.joinable())
   {
-    // clear "Searching..." or "(END)", if displayed
+    // clear "Searching..." or "~~~", if displayed
     if (error_ == -1 && rows_ < row_ + Screen::rows - 1)
     {
       Screen::normal();
@@ -1442,7 +1442,7 @@ bool Query::update()
         searching_[11] = '.';
         searching_[9 + dots_] = '\0';
 
-        Screen::put(rows_ - row_ + 1, 0, eof_ ? "(END)" : searching_);
+        Screen::put(rows_ - row_ + 1, 0, eof_ ? "~~~" : searching_);
         Screen::normal();
 
         // when still searching, don't immediately clear the rest of the screen to avoid screen flicker, clear after 300 ms (init dots_ = 6 and three iters)
@@ -3619,9 +3619,15 @@ bool Query::find_filename(int ref, std::string& filename, bool compare_dir)
     if (pos1 == pos2 && (pos1 == std::string::npos || new_filename.compare(0, pos1, filename, 0, pos2) == 0))
       return false; // the extracted filename is the same or is in the same directory as the old filename
   }
+  else if ((flag_after_context > 0 || flag_before_context > 0) && new_filename.compare(flag_group_separator) == 0)
+  {
+    // -ABC: jump to the group-separator (default is '--')
+    return true;
+  }
   else if (new_filename.compare(filename) == 0)
   {
-    return false; // the new filename is the same as the old filename
+    // the new filename is the same as the old filename
+    return false;
   }
 
   filename.swap(new_filename);

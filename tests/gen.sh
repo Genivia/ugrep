@@ -90,7 +90,7 @@ $UG --max-count=1 Hello $FILES > out/Hello_Hello--max-count.out
 $UG --max-files=1 Hello $FILES > out/Hello_Hello--max-files.out
 $UG --range=1,1   Hello $FILES > out/Hello_Hello--range.out
 
-for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
+for PAT in '' 'Hello' '\w+[\n\h]+\S+' '\S\n\S' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
     for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-v' '-nv' '-C2' '-nC2' '-vC2' '-nvC2' '-onC10' '-y' '-ny' '-vy' '-nvy' ; do
@@ -111,10 +111,10 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
   $UG -U -F  "$PAT" $FILES > "out/$FN-F.out"
   $UG -U -Fw "$PAT" $FILES > "out/$FN-Fw.out"
   $UG -U -Fx "$PAT" $FILES > "out/$FN-Fx.out"
-  if [ "$PAT" == '\w+\s+\S+' ]; then
-    $UG -U -G  '\w\+\s\+\S\+' $FILES > "out/$FN-G.out"
-    $UG -U -Gw '\w\+\s\+\S\+' $FILES > "out/$FN-Gw.out"
-    $UG -U -Gx '\w\+\s\+\S\+' $FILES > "out/$FN-Gx.out"
+  if [ "$PAT" == '\w+[\n\h]+\S+' ]; then
+    $UG -U -G  '\w\+[\n\h]\+\S\+' $FILES > "out/$FN-G.out"
+    $UG -U -Gw '\w\+[\n\h]\+\S\+' $FILES > "out/$FN-Gw.out"
+    $UG -U -Gx '\w\+[\n\h]\+\S\+' $FILES > "out/$FN-Gx.out"
   else
     $UG -U -G  "$PAT" $FILES > "out/$FN-G.out"
     $UG -U -Gw "$PAT" $FILES > "out/$FN-Gw.out"

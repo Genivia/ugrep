@@ -1,0 +1,46 @@
+<grep>
+  <file name="Hello.class">
+    <match>Êþº¾&#0;&#0;&#0;4&#0;&#29;</match>
+    <match>&#0;&#6;&#0;&#15;&#9;&#0;&#16;&#0;&#17;&#8;&#0;&#18;</match>
+    <match>&#0;&#19;&#0;&#20;&#7;&#0;&#21;&#7;&#0;&#22;&#1;&#0;&#6;&lt;init&gt;&#1;&#0;&#3;()V&#1;&#0;&#4;Code&#1;&#0;&#15;LineNumberTable&#1;&#0;&#4;main&#1;&#0;&#22;([Ljava/lang/String;)V&#1;&#0;</match>
+    <match>SourceFile&#1;&#0;</match>
+    <match>&#0;&#0;&#0;&#6;&#0;&#1;&#0;&#0;&#0;&#3;&#0;&#9;&#0;&#11;&#0;&#12;&#0;&#1;&#0;&#9;&#0;&#0;&#0;%&#0;&#2;&#0;&#1;&#0;&#0;&#0;&#9;²&#0;&#2;&#18;&#3;¶&#0;&#4;±&#0;&#0;&#0;&#1;&#0;</match>
+    <match>&#0;&#0;&#0;</match>
+    <match>&#0;&#2;&#0;&#0;&#0;&#5;&#0;&#8;&#0;&#6;&#0;&#1;&#0;&#13;&#0;&#0;&#0;&#2;&#0;&#14;</match>
+  </file>
+  <file name="Hello.java">
+    <match></match>
+    <match>  }</match>
+    <match>}</match>
+  </file>
+  <file name="Hello.pdf">
+    <match>&gt;&gt;</match>
+    <match>&gt;&gt; &gt;&gt;</match>
+    <match>ÐpÐ|ô&#12;h&#21;€tZ&#0;*%´LôX'ž£R&#21;=•f¢YA„ØÊý¨oP~×§Ô€´NëÖ^£_&quot;É&lt;ýJsèç!m`l¦Ãn&#30;^8´&#8;&#15;Ø&#19;¶ù eÓ&#21;Û…&amp;žG;(&amp;Ä+bP&#12;‘*^&#21;‡Å!1&#12;é8&#24;Í‰½OúÎ~&gt;Ø°ô.ÖMú¾&#12;&#14;B¬gÃ3&#7;¬p4&#1;&lt;ø&#7;ëÎFš&#9;¶.îhìó¼Þ?ï¿c&#25;·&gt;ø³½&#0;ú1'¿Á¢&#11;k&amp;%æ^?÷MOÂCuE|õÖîëçèx2KQÞªY’×äûò</match>
+    <match>¾÷äÕ¤&#13;ùgy&#21;ï½¶\=Ê&#11;ÿ“¹Í!F;’ÍAÎ&lt;›Q´qÆ&#27;À!¸©Esö·YL²é¶b´`ÉB”«¸ÿË&#9;óÃ&lt;·±Rs.îð¼·?c6Í÷Š&#15;‹t¾O»¬­kŸh?j&#x7f;h+ÚÇ@¿K&#31;J_JßJW¤«Ò&#13;R¥kÒ²ôô½ô¹ô5z_@º,]éØIqì&#27;»&#7;~Æ{Öhí0f†³&#20;&#16;óÂÚÌ</match>
+    <match>K&#31;ñw&#6;c›ù3¡Õ^&#3;»&#x7f;c-åˆ²SyF&#25;Vv+Ï)&#19;J¯r@9¬lW&#6;Ðú•Qe/Fvn°dc=Î€…&#x7f;’g‹¦#®â&lt;±Wu°çÃK&#29;ï¦_\ÃÖ†5ØI=&#14;žÙÚ¦&#14;¯&#17;W¿&#21;Uc¼;]œ&#6;:M!b‹Î&quot;r&#31;:œ&#31;'ªþÎÙ\“85Roâ”°Ä.Ñ/ÆZ5˜&#19;&#7;P…ãmõ8ÈUš&#25;É&#12;gr¤fz3C™þÌ1ÆQ¬Ñù’Ù‹Ñ!|G&#18;Þ3Ë1ÿ›5Äg&#24;ï&#29;æ¨&#9;l£‡[+4çqß&#17;å]oÁ·fê¡: i/©9\¯¦:æ&#24;Ù&gt;U·m5&#26;</match>
+    <match>&gt;&gt;</match>
+    <match>ïT`ŸÂÛ</match>
+    <match>&#x7f;VØ»)Q¾¥°GáM…?)4°½&#6;&#23;Þ°¢~w¬WØ½kšÜ]‡Ý•ú®:ŸÜ5&#13;»&#2;z&#15;;&#21;^¯E¤f¨|MáU&#30;^mÅ+lk‡Â&#31;&#11;±½&#16;/Û&#16;NÂ&#31;&#20;^R«ø½Â‹</match>
+    <match>¿KÂ6…&#23;ž·É&#23;rñ¼&#13;ÏmuÊçºa«&#19;ÏnñËg+°Åß*&lt;£ð´ÂSO¦Ë§</match>
+    <match>TtÄý</match>
+    <match>å6üBa‰Â=</match>
+    <match>Ý&#20;º*t±Ã—:Lú</match>
+    <match>Ò&#5;prh…Æ€6&#8;‚&#3;&#16;~&#3;&quot;&quot;</match>
+    <match>W¬&#22;Yÿ?þÇSáOg„&#26;Í¾M¬åÑØGDè!m&#25;&#x7f;¥¿¿&quot;´‡u4S/&quot;&#26;ÅJ±“ù­¼·h¤åt^ÄãmÑŸ¹z^&#27;Ô=ŒÖÐfsu&#13;NÓbì¢Cô&#14;&#29;cî´&#24;&#8;^+&#14;‘Gœ`?+&#x7f;ð¡¡ž¥=LËQ è$Jh‹x‰-–SD”Ò2Gm&quot;[Þ¯&#31;dt?=Ä×£´…J™72XÎñ&#x7f;L;h&#21;] &#13;Ú&#25;šÂüNÚËñ(þüš¹ˆ&amp;jaKÛ´ÁÚlÖÛËÖ6Ñ&amp;±œšh‘Nü)WtJ6iYlu&#7;g@4“6Ë&amp;¹Á¨&#7;Mò&#28;Ï&#16;u°D,®&#24;/gaÔn«Ø%zkãè&#16;¯/§É¸&#13;wã˜X¡{õ%8C5&#26;a:ÝI&#7;d“ÅE51^ª±Ì&#22;÷éÓÍ«œ­•kKôéb&#27;a›3ñ&#29;Ë&#30;Žl³™1Ñ&#14;m¢&#28;'ÇqÎ³&#25;ÛlÒš(µ8h?Z¹îk5%Fé#0„ó)×o¢&#13;ô&#12;ÛíÊ•!*E_ö^Jåruô¢m|ùåjÔrEÍjˆ&lt;m0mÖf‹U&#28;m&#11;W³&#20;ùÔŸ}tgi…ØÁqSL&#5;-’M¼U$êAôZŒEêü÷¦l·#¬ùF&#23;†&#3;&#19;‚î}!?û'¢Û&#17;ã&#14;Óøpâ}îÈµkãƒz†&#12;…ef&#24;¾Ø°îóžúO“§üÙcÆ&#7;Ý&#17;Ñ® ¿ÍlÁô|&#6;'&#5;Ù&#3;ÿ&#12;˜Ý&#21;0&#22;&#5;F‡¥&#x7f;£§‡Ý³ŠÝUŽ*ï *GÑ ?ïÿ²Ç0&#25;&#31;|YˆGB&#17;qmE„ò;¼Î»HÜq;OÇe»Ý&#5;sóÃb:&#11;ñÙ&#12;ôð0—í&#30;ÁaŽ˜&#24;ô†ÜUîªÑ…Uî&#17;îâ&#25;…&#28;·9òDQU(‡3˜&#20;œËtrÐ&#19;&#14;„2~`‹B!Ã»Õ°ÃKX½*Ä&#22;îl³À£&#9;å\e¥Äì1î0ºŒ&#15;N&#8;†+ó3ÂüP†Çã.&#8;7Œ&#15;†&#27;ò3&lt;¡&#16;kÙ~ˆ”#®˜›Ö&#22;³c¶õàyGÔ</match>
+    <match>—(&#17;¦PU•asRÐë&#9;WVUeTq&#30;mr„&#26;~&#2;&#8;ú)&#16;h&#3;&quot;dØàJ&#20;ð÷`&lt;&#27;ãÁëÉ0&#0;¯Çëá8CùìÛiÜš&#2;ŽÔ&#19;òónœŠ¹¯ä^ÎýœÁó³&#24;Ýçóù‚Ï&#0;SX&#30;EÝþm¿Îð&#x7f;Ù´&#31;éÁ”t“vágw;&#20;™ü¯/Vµz±ÜÂ§ª&#24;ê´ËÜó&#19;Y„ëU&#17;+—k:å¼u¸¹79&#14;7&#31;nî•ìô8}&#30;§§X§+‹qå&#11;U&#27;cûîüBKwÃ¬0rÐGñ¿ n6N&#21;|osøÖq·:øXô&#30;wæÅqÆX–&lt;êÜc&#24;&#23;,Ç½Ço&#11;CAçná&#30;Ÿ³“£Š¥„¬^½“óØužÓËÔ»²QëÞØxõƒFÙtõ-í†Ö,í›«Nö¯QùµÏø­QN)”IyF&#4;;&#25;t°&#8;iì!“=eæð;ÏB‰&#12;î¤dJ7G£&#14;†&#23;‘âI±¤æåöëŸb&#19;^79&#29;”—›&#20;ÓSx;[bôéW&gt;‹}ã¥`CÉÜ=SÕeuT¸Ï&#29;¹&#20;¶®}xÅ‹±Zõ&#20;Ë&#23;û&#6;&#12;|-+K&#12;&#20;ÉÂ*&#2;ê“ÇÊ^&#8;Ï7êrŽë2ÅÒž½vF•È·ØˆÊ¨CÜqŽHçSž&#17;Q&quot;ÅG#q¥^/R¼»ôuzúz´&#3;SC&#31;œyö&#21;õ‘8!Öß¿ôñCoââ&#26;£æ&#26;­äœGqÎ&#9;ÔŽ¼dKu&#18;U[ë“6¦Å%Ùó‘”ò³4Ç…æ+Æ-üüB³ãl/ÑÙ’â2rìÛ§K×Ü$§CóvÖœŽ$­¸zÍšêÕkÖ¬&gt;s©å«3--8qôHÓ±cMGŽnVï«OÕ)uHøù³ÓQô4üšíÚRó95N§?n’Å,~~o¦‰Ì&#9;&gt;:Fu,Æ&#11;rä„Éc§ŒÈ&#26;[4&#x7f;^©&#x7f;bÑœÅóf,$ú&#23; -&#6;ä</match>
+    <match>(Hello)</match>
+    <match>(TextEdit)</match>
+    <match>(D:20200124010711Z00'00')</match>
+    <match>()</match>
+    <match>[ ]</match>
+    <match>&lt;8db88d3335070bd9583341583cf769a3&gt; ] &gt;&gt;</match>
+    <match>%%EOF</match>
+  </file>
+  <file name="Hello.txt">
+    <match>Hello</match>
+  </file>
+  <file name="emptyline.txt">
+    <match></match>
+  </file>
+</grep>

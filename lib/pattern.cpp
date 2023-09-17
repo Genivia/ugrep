@@ -191,25 +191,22 @@ void Pattern::init(const char *options, const uint8_t *pred)
       min_ = pred[1] & 0x0f;
       one_ = pred[1] & 0x10;
       memcpy(chr_, pred + 2, len_);
-      if (min_ > 0)
+      size_t n = len_ + 2;
+      if (len_ == 0)
       {
-        size_t n = len_ + 2;
-        if (min_ > 1 && len_ == 0)
-        {
-          for (size_t i = 0; i < 256; ++i)
-            bit_[i] = ~pred[i + n];
-          n += 256;
-        }
-        if (min_ >= 4)
-        {
-          for (size_t i = 0; i < Const::HASH; ++i)
-            pmh_[i] = ~pred[i + n];
-        }
-        else
-        {
-          for (size_t i = 0; i < Const::HASH; ++i)
-            pma_[i] = ~pred[i + n];
-        }
+        for (size_t i = 0; i < 256; ++i)
+          bit_[i] = ~pred[i + n];
+        n += 256;
+      }
+      if (min_ >= 4)
+      {
+        for (size_t i = 0; i < Const::HASH; ++i)
+          pmh_[i] = ~pred[i + n];
+      }
+      else
+      {
+        for (size_t i = 0; i < Const::HASH; ++i)
+          pma_[i] = ~pred[i + n];
       }
     }
   }
@@ -268,27 +265,30 @@ void Pattern::init(const char *options, const uint8_t *pred)
     tfa_.clear();
   }
   // clean up bitap and compute bitap entropy
-  if (min_ > 0 && len_ == 0)
+  if (len_ == 0)
   {
     // bitap entropy to estimate false positive rate
     npy_ = 0;
-    for (Char i = 0; i < 256; ++i)
+    if (min_ > 0)
     {
-      bit_[i] |= ~((1 << min_) - 1);
-      npy_ += (bit_[i] & 0x01) == 0;
-      npy_ += (bit_[i] & 0x02) == 0;
-      npy_ += (bit_[i] & 0x04) == 0;
-      npy_ += (bit_[i] & 0x08) == 0;
-      npy_ += (bit_[i] & 0x10) == 0;
-      npy_ += (bit_[i] & 0x20) == 0;
-      npy_ += (bit_[i] & 0x40) == 0;
-      npy_ += (bit_[i] & 0x80) == 0;
+      for (Char i = 0; i < 256; ++i)
+      {
+        bit_[i] |= ~((1 << min_) - 1);
+        npy_ += (bit_[i] & 0x01) == 0;
+        npy_ += (bit_[i] & 0x02) == 0;
+        npy_ += (bit_[i] & 0x04) == 0;
+        npy_ += (bit_[i] & 0x08) == 0;
+        npy_ += (bit_[i] & 0x10) == 0;
+        npy_ += (bit_[i] & 0x20) == 0;
+        npy_ += (bit_[i] & 0x40) == 0;
+        npy_ += (bit_[i] & 0x80) == 0;
+      }
+      // average entropy per bitap position, we don't use bitap when entropy is too high for short patterns
+      npy_ /= min_;
+      // if patterns are longer then 4, we use bitap to increase accuracy, unless entropy is very high
+      if (min_ > 4 && npy_ < 200)
+        npy_ = 0;
     }
-    // average entropy per bitap position, we don't use bitap when entropy is too high for short patterns
-    npy_ /= min_;
-    // if patterns are longer then 4, we use bitap to increase accuracy, unless entropy is very high
-    if (min_ > 4 && npy_ < 200)
-      npy_ = 0;
     // needle count and frequency thresholds to enable needle-based search
     uint16_t pinmax = 8;
     uint8_t freqmax1 = 91; // one position
@@ -314,7 +314,8 @@ void Pattern::init(const char *options, const uint8_t *pred)
     uint16_t freqsum = 0;
     uint8_t freqlcp = 255; // max
     uint8_t freqlcs = 255; // max
-    for (uint16_t k = 0; k < min_; ++k)
+    size_t min = (min_ == 0 ? 1 : min_);
+    for (uint16_t k = 0; k < min; ++k)
     {
       Pred mask = 1 << k;
       uint16_t n = 0;
@@ -357,14 +358,14 @@ void Pattern::init(const char *options, const uint8_t *pred)
       }
     }
     // one position to pin: make lcp and lcs equal (compared and optimized later)
-    if (min_ == 1 || ((freqsum <= freqlcp || nlcs == 65535) && freqsum <= freqmax1))
+    if (min == 1 || ((freqsum <= freqlcp || nlcs == 65535) && freqsum <= freqmax1))
     {
       nlcs = nlcp;
       lcs_ = lcp_;
     }
     // number of needles required
     uint16_t n = nlcp > nlcs ? nlcp : nlcs;
-    DBGLOG("min=%zu lcp=%hu(%hu) pin=%hu nlcp=%hu(%hu) freq=%hu(%hu) freqsum=%hu npy=%zu", min_, lcp_, lcs_, n, nlcp, nlcs, freqlcp, freqlcs, freqsum, npy_);
+    DBGLOG("min=%zu lcp=%hu(%hu) pin=%hu nlcp=%hu(%hu) freq=%hu(%hu) freqsum=%hu npy=%zu", min, lcp_, lcs_, n, nlcp, nlcs, freqlcp, freqlcs, freqsum, npy_);
     // determine if a needle-based search is worthwhile, below or meeting the thresholds
     if (n <= pinmax && freqlcp <= freqmax2)
     {
@@ -418,6 +419,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
         }
       }
     }
+    DBGLOG("len=%zu lcp=%hu(%hu)", len_, lcp_, lcs_);
     uint16_t j;
     for (i = n - 1, j = i; j > 0; --j)
       if (chr_[j - 1] == chr_[i])
@@ -3738,7 +3740,7 @@ void Pattern::predict_match_dfa(const DFA::State *start)
   std::memset(bit_, 0xFF, sizeof(bit_));
   std::memset(pmh_, 0xFF, sizeof(pmh_));
   std::memset(pma_, 0xFF, sizeof(pma_));
-  if (state != NULL && state->accept == 0)
+  if (state != NULL && (len_ == 0 || state->accept == 0))
   {
     gen_predict_match(state);
 #ifdef DEBUG
@@ -3774,7 +3776,7 @@ void Pattern::predict_match_dfa(const DFA::State *start)
     }
 #endif
   }
-  DBGLOGN("min = %zu", min_);
+  DBGLOG("min = %zu len = %zu", min_, len_);
   DBGLOG("END Pattern::predict_match_dfa()");
 }
 
@@ -4137,27 +4139,24 @@ bool Pattern::match_hfa_transitions(size_t level, const HFA::Hashes& hashes, con
 
 void Pattern::write_predictor(FILE *file) const
 {
-  ::fprintf(file, "const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (min_ > 1 && len_ == 0) * 256 + (min_ > 0) * Const::HASH);
+  ::fprintf(file, "const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (len_ == 0) * 256 + Const::HASH);
   ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4))));
   for (size_t i = 0; i < len_; ++i)
     ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(chr_[i]));
-  if (min_ > 0)
+  if (len_ == 0)
   {
-    if (min_ > 1 && len_ == 0)
-    {
-      for (Char i = 0; i < 256; ++i)
-        ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~bit_[i]));
-    }
-    if (min_ >= 4)
-    {
-      for (Hash i = 0; i < Const::HASH; ++i)
-        ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pmh_[i]));
-    }
-    else
-    {
-      for (Hash i = 0; i < Const::HASH; ++i)
-        ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i]));
-    }
+    for (Char i = 0; i < 256; ++i)
+      ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~bit_[i]));
+  }
+  if (min_ >= 4)
+  {
+    for (Hash i = 0; i < Const::HASH; ++i)
+      ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pmh_[i]));
+  }
+  else
+  {
+    for (Hash i = 0; i < Const::HASH; ++i)
+      ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i]));
   }
   ::fprintf(file, "\n};\n\n");
 }

@@ -481,101 +481,8 @@ significant runtime overhead and should not be used for the final build.
 Performance comparisons
 -----------------------
 
-For an up-to-date comprehensive performance comparison, please see the
+For an up-to-date performance comparison of the latest ugrep, please see the
 [ugrep performance benchmarks](https://github.com/Genivia/ugrep-benchmarks).
-
-Below is a two-year old performance comparison when ugrep was first released
-with performance enhancements.  This old comparison is getting outdated!
-
-The following benchmark tests span a range of practical use cases:
-
-Test | Command                                                          | Description
----- | ---------------------------------------------------------------- | -----------------------------------------------------
-T1   | `GREP -c quartz enwik8`                                          | count "quartz" in a 100MB file (word with low frequency letters)
-T2   | `GREP -c sternness enwik8`                                       | count "sternness" in a 100MB file (word with high frequency letters)
-T3   | `GREP -c 'Sherlock Holmes' en.txt`                               | count "Sherlock Holmes" in a huge [13GB decompressed file](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz)
-T4   | `GREP -cw -e char -e int -e long -e size_t -e void big.cpp`      | count 5 short words in a 35MB C++ source code file
-T5   | `GREP -Eon 'serialize_[a-zA-Z0-9_]+Type' big.cpp`                | search and display C++ serialization functions in a 35MB source code file
-T6   | `GREP -Fon -f words1+1000 enwik8`                                | search 1000 words of length 1 or longer in a 100MB Wikipedia file
-T7   | `GREP -Fon -f words2+1000 enwik8`                                | search 1000 words of length 2 or longer in a 100MB Wikipedia file
-T8   | `GREP -Fon -f words4+1000 enwik8`                                | search 1000 words of length 4 or longer in a 100MB Wikipedia file
-T9   | `GREP -Fon -f words8+1000 enwik8`                                | search 1000 words of length 8 or longer in a 100MB Wikipedia file
-T10  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | multi-threaded recursive search of `#include "..."` in the directory tree from the Qt 5.9.2 root, restricted to `.h`, `.hpp`, and `.cpp` files
-T11  | `GREP -ro '#[[:space:]]*include[[:space:]]+"[^"]+"' -Oh,hpp,cpp` | same as T10 but single-threaded
-T12  | `GREP -z -Fc word word*.gz`                                      | count `word` in 6 compressed files of 1MB to 3MB each
-
-Note: T10 and T11 use `ugrep` option `-Oh,hpp,cpp` to restrict the search to
-files with extensions `.h`, `.hpp`, and `.cpp`, which is formulated with
-GNU/BSD/PCRGE grep as `--include='*.h' --include='*.hpp' --include='*.cpp'`,
-with silver searcher as `-G '.*\.(h|hpp|cpp)'` requiring `--search-binary` to
-search compressed files (a bug), and with ripgrep as `--glob='*.h'
---glob='*.hpp' --glob='*.cpp'`.
-
-The corpora used in the tests are available for
-[download](https://www.genivia.com/files/corpora.zip).
-
-The following performance tests were conducted with a new and common MacBook
-Pro using clang 12.0.0 -O2 on a 2.9 GHz Intel Core i7, 16 GB 2133 MHz LPDDR3
-MacOS 10.15.7 machine with the grep tools listed in the table installed (e.g.
-MacOS BSD grep 2.5.1).  The best times of 30 runs is shown under minimal
-machine load.  When comparing tools, the same match counts were produced.
-These results are reproducible on similar machines.
-
-Results are shown in real time (wall clock time) seconds elapsed.  Best times
-are shown in **boldface** and *n/a* means that the running time exceeded 1
-minute or the selected options are not supported (T12: option `-z`) or the
-input file is too large (T3: 13GB file) resulting in an error.
-
-GREP            | T1       | T2       | T3       | T4       | T5       | T6       | T7       | T8       | T9       | T10      | T11      | T12      |
---------------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | -------- |
-ugrep           | **0.02** | **0.03** | **6.05** | **0.06** | **0.02** | **0.92** | **0.86** | **0.74** | **0.23** | **0.10** | **0.19** | **0.02** |
-hyperscan grep  | 0.09     | 0.10     | **4.35** | 0.11     | 0.04     | 7.78     | 3.39     | 1.41     | 1.17     | *n/a*    | *n/a*    | *n/a*    |
-ripgrep         | 0.06     | 0.10     | 7.50     | 0.19     | 0.06     | 2.20     | 2.07     | 2.01     | 2.14     | 0.12     | 0.36     | 0.03     |
-silver searcher | 0.10     | 0.11     | *n/a*    | 0.16     | 0.21     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 0.45     | 0.32     | 0.09     |
-GNU grep 3.3    | 0.08     | 0.15     | 11.21    | 0.18     | 0.16     | 2.70     | 2.64     | 2.42     | 2.26     | *n/a*    | 0.26     | *n/a*    |
-PCREGREP 8.42   | 0.17     | 0.17     | *n/a*    | 0.26     | 0.08     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 2.37     | *n/a*    |
-BSD grep 2.5.1  | 0.81     | 1.60     | *n/a*    | 1.85     | 0.83     | *n/a*    | *n/a*    | *n/a*    | *n/a*    | *n/a*    | 3.35     | 0.60     |
-
-Note T3: [Hyperscan simplegrep](https://github.com/intel/hyperscan/tree/master/examples)
-was compiled with optimizations enabled.  Hyperscan results for T3 are somewhat
-better than ugrep as expected because hyperscan simplegrep has one advantage
-here: it does not maintain line numbers and other line-related information.  By
-contrast, line information should be tracked (as in ugrep) to determine if
-matches are on the same line or not, as required by option `-c`.  Hyperscan
-simplegrep returns more matches than other greps due to its "all matches
-reported" pattern matching behavior.
-
-Note T4-T9: Hyperscan simplegrep does not support command line options.  Option
-`-w` was emulated using the pattern `\b(char|int|long|size_t|void)\b`.  Option
-`-f` was emulated as follows:
-
-    paste -d'|' -s words1+1000 > pattern.txt
-    /usr/bin/time ./simplegrep `cat pattern.txt` enwik8 | ./null
-
-Note T10+T11: [silver searcher 2.2.0](https://github.com/ggreer/the_silver_searcher)
-runs slower with multiple threads (T10 0.45s) than single-threaded (T11 0.32s),
-which was reported as an issue to the maintainers.
-
-Note: ugrep option `-c` does not shortcut the search by skipping over the rest
-of the line after a first match, by contrast to other grep to speed up
-matching.  The reason is that ugrep supports multi-line matches by default,
-which means that the remainder of the line should always be searched to produce
-accurate results.
-
-Output is sent to a `null` utility to eliminate terminal display overhead
-(`> /dev/null` cannot be used as some greps detect it to remove all output).
-The `null` utility source code:
-
-    #include <sys/types.h>
-    #include <sys/uio.h>
-    #include <unistd.h>
-    int main() { char buf[65536]; while (read(0, buf, 65536) > 0) continue; }
-
-Performance results may depend on warm/cold runs, compilers, libraries,
-the OS, the CPU type, and file system latencies.  However, comparable
-competitive results were obtained on many other types of machines.
-
-🔝 [Back to table of contents](#toc)
 
 <a name="vim"/>
 
@@ -1669,7 +1576,8 @@ same line, like XOR:
             unless it matches the negative PATTERN.  Same as -e (?^PATTERN).
             Negative pattern matches are essentially removed before any other
             patterns are matched.  Note that longer patterns take precedence
-            over shorter patterns.  This option may be repeated.
+            over shorter patterns.  Option -N cannot be specified with -P.
+            This option may be repeated.
     -v, --invert-match
             Selected lines are those not matching any of the specified
             patterns.
@@ -1802,29 +1710,29 @@ search binary files with binary patterns, see
 
 To recursively list all files that are ASCII (i.e. 7-bit):
 
-    ug -RL '[^[:ascii:]]'
+    ug -L '[^[:ascii:]]'
 
 To recursively list all files that are non-ASCII, i.e. UTF-8, UTF-16, and
 UTF-32 files with non-ASCII Unicode characters (U+0080 and up):
 
-    ug -Rl '[^[:ascii:]]'
+    ug -l '[^[:ascii:]]'
 
 To check if a file contains non-ASCII Unicode (U+0080 and up):
 
     ug -q '[^[:ascii:]]' myfile && echo "contains Unicode"
 
-To remove invalid Unicode characters from a file (note that `-o` does not work
+To remove invalid Unicode characters from a file (note that `-o` may not work
 because binary data is detected and rejected and newlines are added, but
 `--format="%o%` does not check for binary and copies the match "as is"):
 
-    ug "\p{Unicode}" --format="%o" badfile.txt
+    ug "[\p{Unicode}\n]" --format="%o" badfile.txt
 
 To recursively list files with invalid UTF content (i.e. invalid UTF-8 byte
 sequences or files that contain any UTF-8/16/32 code points that are outside
 the valid Unicode range) by matching any code point with `.` and by using a
-negative pattern `-N '\p{Unicode}'`:
+negative pattern `-N '\p{Unicode}'` to ignore each valid Unicode character:
 
-    ug -Rl -e '.' -N '\p{Unicode}'
+    ug -l -e '.' -N '\p{Unicode}'
 
 To display lines containing laughing face emojis:
 
@@ -1975,13 +1883,13 @@ Same, but with pretty output with headings, line numbers and column numbers
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
-            directory of a FILE's location and in directories below are ignored
-            by temporarily extending the --exclude and --exclude-dir globs, as
-            if --exclude-from=FILE is locally enforced.  Globbing syntax is the
-            same as the --exclude-from=FILE gitignore syntax; directories are
-            excluded when the glob ends in a `/', same as git.  Files and
-            directories explicitly specified as command line arguments are
-            never ignored.  This option may be repeated with additional files.
+            directory of the FILE and in subdirectories below are ignored.
+            Globbing syntax is the same as the --exclude-from=FILE gitignore
+            syntax, but files and directories are excluded instead of only
+            files.  Directories are specifically excluded when the glob ends in
+            a `/'.  Files and directories explicitly specified as command line
+            arguments are never ignored.  This option may be repeated to
+            specify additional files.
     -g GLOBS, --glob=GLOBS
             Search only files whose name matches the specified comma-separated
             list of GLOBS, same as --include='glob' for each `glob' in GLOBS.
@@ -2253,13 +2161,13 @@ search the files:
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
-            directory of a FILE's location and in directories below are ignored
-            by temporarily extending the --exclude and --exclude-dir globs, as
-            if --exclude-from=FILE is locally enforced.  Globbing syntax is the
-            same as the --exclude-from=FILE gitignore syntax; directories are
-            excluded when the glob ends in a `/', same as git.  Files and
-            directories explicitly specified as command line arguments are
-            never ignored.  This option may be repeated with additional files.
+            directory of the FILE and in subdirectories below are ignored.
+            Globbing syntax is the same as the --exclude-from=FILE gitignore
+            syntax, but files and directories are excluded instead of only
+            files.  Directories are specifically excluded when the glob ends in
+            a `/'.  Files and directories explicitly specified as command line
+            arguments are never ignored.  This option may be repeated to
+            specify additional files.
     -M MAGIC, --file-magic=MAGIC
             Only files matching the signature pattern MAGIC are searched.  The
             signature \"magic bytes\" at the start of a file are compared to
@@ -2622,8 +2530,7 @@ meaning; any name or string that does not contain a `:` or `,` may be used.
     -X, --hex
             Output matches in hexadecimal.  This option is equivalent to the
             --binary-files=hex option with --hexdump=2C.  To omit the matching
-            line from the hex output, use option --hexdump instead of -X.  See
-            also option -U.
+            line from the hex output use option --hexdump.  See also option -U.
     --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]
             Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
             default is 2 columns or 16 octets per line.  Option `a' outputs a
@@ -2724,13 +2631,13 @@ source):
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
-            directory of a FILE's location and in directories below are ignored
-            by temporarily extending the --exclude and --exclude-dir globs, as
-            if --exclude-from=FILE is locally enforced.  Globbing syntax is the
-            same as the --exclude-from=FILE gitignore syntax; directories are
-            excluded when the glob ends in a `/', same as git.  Files and
-            directories explicitly specified as command line arguments are
-            never ignored.  This option may be repeated with additional files.
+            directory of the FILE and in subdirectories below are ignored.
+            Globbing syntax is the same as the --exclude-from=FILE gitignore
+            syntax, but files and directories are excluded instead of only
+            files.  Directories are specifically excluded when the glob ends in
+            a `/'.  Files and directories explicitly specified as command line
+            arguments are never ignored.  This option may be repeated to
+            specify additional files.
 
 Option `--ignore-files` looks for `.gitignore`, or the specified `FILE`, in
 recursive searches.  When `.gitignore`, or the specified `FILE`, is found while
@@ -2832,14 +2739,13 @@ implicit:
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
-            directory of a FILE's location and in directories below are ignored
-            by temporarily overriding the --exclude and --exclude-dir globs,
-            as if --exclude-from=FILE is locally enforced.  Globbing is the
-            same as --exclude-from=FILE and supports gitignore syntax, but
-            directories are not automatically excluded from searches (use a
-            glob ending with a `/' to identify directories to ignore, same as
-            git).  Files and directories explicitly specified as command line
-            arguments are never ignored.  This option may be repeated.
+            directory of the FILE and in subdirectories below are ignored.
+            Globbing syntax is the same as the --exclude-from=FILE gitignore
+            syntax, but files and directories are excluded instead of only
+            files.  Directories are specifically excluded when the glob ends in
+            a `/'.  Files and directories explicitly specified as command line
+            arguments are never ignored.  This option may be repeated to
+            specify additional files.
     --include=GLOB
             Search only files whose name matches GLOB using wildcard matching,
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,
@@ -5377,9 +5283,9 @@ For PCRE regex patterns with option `-P`, please see the PCRE documentation
 has more features than the pattern syntax described below.  For the patterns in
 common the syntax and meaning are the same.
 
-Note that `\s` and inverted bracket lists `[^...]` are modified in **ugrep** to
-prevent matching newlines `\n`.  This modification is done to replicate the
-behavior of grep.
+Note that `[[:space:]]` and `\s` and inverted bracket lists `[^...]` are
+modified in **ugrep** to prevent matching newlines `\n`.  This modification is
+done to replicate the behavior of grep.
 
 <a name="posix-syntax"/>
 
@@ -5408,7 +5314,7 @@ sub-expression patterns `φ` and `ψ`:
   `\Q...\E` | matches the quoted content between `\Q` and `\E` literally
   `[abc]`   | matches one of `a`, `b`, or `c`
   `[0-9]`   | matches a digit `0` to `9`
-  `[^0-9]`  | matches any character except a digit and excluding newline `\n`
+  `[^0-9]`  | matches any character except a digit and excluding `\n`
   `φ?`      | matches `φ` zero or one time (optional)
   `φ*`      | matches `φ` zero or more times (repetition)
   `φ+`      | matches `φ` one or more times (repetition)
@@ -5494,33 +5400,33 @@ that has the same meaning as `\p{^C}`, which matches any character except
 characters in the class `C`.  For example, `\P{ASCII}` is the same as
 `\p{^ASCII}` which is the same as `[[:^ascii]]`.
 
-  POSIX form   | POSIX category    | Matches
-  ------------ | ----------------- | ---------------------------------------------
-  `[:ascii:]`  | `\p{ASCII}`       | matches an ASCII character U+0000 to U+007F
-  `[:space:]`  |                   | matches a white space character `[ \t\n\v\f\r]` or `\p{Space}` with `-P`
-  `[:xdigit:]` | `\p{Xdigit}`      | matches a hex digit `[0-9A-Fa-f]`
-  `[:cntrl:]`  | `\p{Cntrl}`       | matches a control character `[\x00-\0x1f\x7f]`
-  `[:print:]`  | `\p{Print}`       | matches a printable character `[\x20-\x7e]`
-  `[:alnum:]`  | `\p{Alnum}`       | matches a alphanumeric character `[0-9A-Za-z]` or `[\p{L}\p{N}]` with `-P`
-  `[:alpha:]`  | `\p{Alpha}`       | matches a letter `[A-Za-z]` or `\p{L}` with `-P`
-  `[:blank:]`  | `\p{Blank}`, `\h` | matches a blank `[ \t]` or horizontal space with `-P`
-  `[:digit:]`  | `\p{Digit}`       | matches a digit `[0-9]` or `\p{Nd}` with `-P`
-  `[:graph:]`  | `\p{Graph}`       | matches a visible character `[\x21-\x7e]`
-  `[:lower:]`  |                   | matches a lower case letter `[a-z]` or `\p{Ll}` with `-P`
-  `[:punct:]`  | `\p{Punct}`       | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
-  `[:upper:]`  |                   | matches an upper case letter `[A-Z]` or `\p{Lu}` with `-P`
-  `[:word:]`   |                   | matches a word character `[0-9A-Za-z_]` or `[\p{L}\p{N}_]` with `-P`
-  `[:^blank:]` | `\P{Blank}`, `\H` | matches a non-blank character including newline `\n`
-  `[:^digit:]` | `\P{Digit}`       | matches a non-digit including newline `\n`
+  POSIX form   | Matches
+  ------------ | ---------------------------------------------
+  `[:ascii:]`  | matches an ASCII character U+0000 to U+007F including `\n`
+  `[:space:]`  | matches a white space character `[ \t\v\f\r]` excluding `\n`
+  `[:xdigit:]` | matches a hex digit `[0-9A-Fa-f]`
+  `[:cntrl:]`  | matches a control character `[\x00-\t\x0b-\x1f\x7f]` excluding `\n`
+  `[:print:]`  | matches a printable character `[\x20-\x7e]`
+  `[:alnum:]`  | matches a alphanumeric character `[0-9A-Za-z]`
+  `[:alpha:]`  | matches a letter `[A-Za-z]`
+  `[:blank:]`  | matches a blank character `\h` same as `[ \t]`
+  `[:digit:]`  | matches a digit `[0-9]`
+  `[:graph:]`  | matches a visible character `[\x21-\x7e]`
+  `[:lower:]`  | matches a lower case letter `[a-z]`
+  `[:punct:]`  | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
+  `[:upper:]`  | matches an upper case letter `[A-Z]`
+  `[:word:]`   | matches a word character `[0-9A-Za-z_]`
+  `[:^blank:]` | matches a non-blank characater `\H` same as `[^ \t]`
+  `[:^digit:]` | matches a non-digit `[^0-9]`
 
 POSIX character categories only cover ASCII, `[[:^ascii]]` is empty and
 therefore invalid to use.  By contrast, `[^[:ascii]]` is a Unicode character
 class that excludes the ASCII character category.
 
-Note that the patterns `[[:ascii:]]`, `[[:ctnrl:]]` and `[[:space:]]` and most
-of the negated classes such as `[[:^blank:]]` and `[[:digit:]]` match newlines,
-which is the official definition of these POSIX categories.  By contrast,
-GNU/BSD grep never match newlines.  As a consequence, more patterns may match.
+Note that the patterns `[[:ascii:]]` and negated classes such as `[[:^digit:]]`
+match newlines, which is the official definition of these POSIX categories.  By
+contrast, GNU/BSD grep never match newlines.  As a consequence, more patterns
+may match.
 
 Negated character classes of the form `[^...]` match any Unicode character
 except the given characters and does not match newlines either.  For example
@@ -5538,22 +5444,24 @@ Option `-U` disables Unicode wide-character matching, i.e. ASCII matching.
   `\D`                                   | matches a non-digit including `\n`
   `\e`                                   | matches ESC U+001b
   `\f`                                   | matches FF U+000c
+  `\h`                                   | matches a blank `[ \t]`
+  `\H`                                   | matches a non-blank `[^ \t]` including `\n`
   `\l`                                   | matches a lower case letter `\p{Ll}`
   `\n`                                   | matches LF U+000a
   `\N`                                   | matches a non-LF character
   `\r`                                   | matches CR U+000d
   `\R`                                   | matches a Unicode line break (`\r\n`, `\r`, `\v`, `\f`, `\n`, U+0085, U+2028 and U+2029)
   `\s`                                   | matches a white space character `[ \t\v\f\r\x85\p{Z}]` excluding `\n`
-  `\S`                                   | matches a non-white space character
+  `\S`                                   | matches a non-white space character and excluding `\n`
   `\t`                                   | matches TAB U+0009
   `\u`                                   | matches an upper case letter `\p{Lu}`
   `\v`                                   | matches VT U+000b or vertical space character with option `-P`
   `\w`                                   | matches a word character `[0-9A-Za-z_]` or `[\p{L}\p{Nd}\p{Pc}]`
-  `\W`                                   | matches a non-Unicode word character
-  `\X`                                   | matches any ISO-8859-1 or Unicode character
-  `\p{Space}`                            | matches a white space character `[ \t\n\v\f\r\x85\p{Z}]` including `\n`
+  `\W`                                   | matches a non-Unicode word character including `\n`
+  `\X`                                   | matches any ISO-8859-1 or Unicode character including `\n`
+  `\p{Space}`                            | matches a white space character `[ \t\v\f\r\x85\p{Z}]` excluding `\n`
   `\p{Unicode}`                          | matches any Unicode character U+0000 to U+10FFFF minus U+D800 to U+DFFF
-  `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F
+  `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F including `\n`
   `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+0080 to U+10FFFF minus U+D800 to U+DFFF
   `\p{L&}`                               | matches a character with Unicode property L& (i.e. property Ll, Lu, or Lt)
   `\p{Letter}`,`\p{L}`                   | matches a character with Unicode property Letter

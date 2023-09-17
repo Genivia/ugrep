@@ -289,9 +289,9 @@ class FuzzyMatcher : public Matcher {
       bpt.sub = false;
       bpt.pc1 += !bpt.alt;
     }
-    else if (ins_)
+    else if (del_)
     {
-      // try inserting a pattern char that should have matched a deleted char in the text
+      // try inserting a pattern char in the text to match a missing char in the text
       DBGLOG("Delete: jump to %u at pos %zu char %d (0x%x)", jump, pos_, c1, c1);
       bpt.sub = bpt.alt;
       ++bpt.pc1;
@@ -610,11 +610,11 @@ redo:
           }
           else
           {
-            if (Pattern::is_opcode_halt(opcode))
-              break;
             if (c1 == EOF)
               break;
             c1 = get();
+            if (Pattern::is_opcode_halt(opcode))
+              break;
             DBGLOG("Get: c1 = %d (0x%x) at pos %zu", c1, c1, pos_ - 1);
             if (bin_ || (c1 & 0xC0) != 0x80 || c1 == EOF)
             {
@@ -666,9 +666,13 @@ unrolled:
           jump = Pattern::index_of(opcode);
           if (jump == 0)
           {
-            // loop back to start state after only one char matched (one transition) but w/o full match, then optimize
-            if (cap_ == 0 && pos_ == cur_ + 1 && method == Const::FIND)
-              cur_ = pos_; // set cur_ to move forward from cur_ + 1 with FIND advance()
+            // loop back to start state w/o full match: advance to avoid backtracking
+            if (cap_ == 0 && pos_ > cur_ && method == Const::FIND)
+            {
+              // use bit_[] to check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
+              while (++cur_ < pos_ && (pat_->bit_[static_cast<uint8_t>(buf_[cur_])] & 1))
+                continue;
+            }
           }
           else if (jump >= Pattern::Const::LONG)
           {
@@ -684,37 +688,45 @@ unrolled:
         // match, i.e. cap_ > 0?
         if (method == Const::MATCH)
         {
-          // exit fuzzy loop if fuzzy match succeeds till end of input
+          // exit fuzzy loop if fuzzy match succeeds till end of input when insertions are allowed
           if (cap_ > 0)
           {
-            if (c1 == EOF)
-              break;
-            while (err_ < max_)
+            if (c1 != EOF && ins_)
             {
-              c1 = get();
-              if (c1 == EOF)
-                break;
-              // skip one (multibyte) char
-              if (!bin_ && c1 >= 0xC0)
+              // text insertions are allowed
+              while (err_ < max_)
               {
-                int n = (c1 >= 0xE0) + (c1 >= 0xF0);
-                while (n-- >= 0)
-                  if ((c1 = get()) == EOF)
-                    break;
+                ++err_;
+                c1 = get();
+                // reached the end?
+                if (c1 == EOF)
+                  break;
+                // skip one (multibyte) char
+                if (!bin_ && c1 >= 0xC0)
+                {
+                  int n = (c1 >= 0xE0) + (c1 >= 0xF0);
+                  while (n-- >= 0)
+                    if ((c1 = get()) == EOF)
+                      break;
+                }
               }
-              ++err_;
             }
-            if (at_end())
+            if (c1 == EOF || ins_)
             {
-              DBGLOG("Match pos = %zu", pos_);
-              set_current(pos_);
-              break;
+              // reached the end?
+              if (at_end())
+              {
+                DBGLOG("Match pos = %zu", pos_);
+                set_current(pos_);
+                break;
+              }
             }
+            cap_ = 0;
           }
         }
         else
         {
-          // exit fuzzy loop if match or first char mismatched
+          // exit fuzzy loop if match or if first char mismatched
           if (cap_ > 0 || pos_ == static_cast<size_t>(txt_ + len_ - buf_ + 1))
             break;
         }
@@ -729,7 +741,7 @@ unrolled:
             if (stack == 0 || bpt_[stack - 1].pc0 != pc0)
             {
               point(bpt_[stack++], pc0, len0, false, c1 == EOF);
-              DBGLOG("Point[%u] at %zu EOF", stack - 1, pc0 - pat_->opc_);
+              DBGLOG("Point[%u] at %zu pos %zu (\\0|\\nEOF)", stack - 1, pc0 - pat_->opc_, pos_ - 1);
             }
           }
           else
@@ -801,7 +813,7 @@ unrolled:
         }
       }
     }
-    // if fuzzy matched with errors then perform a second pass ahead of this match to check for an exact match
+    // if fuzzy find/split with errors then perform a second pass ahead of this match to check for an exact match
     if (cap_ > 0 && err_ > 0 && !sst.use && (method == Const::FIND || method == Const::SPLIT))
     {
       // this part is based on advance() in matcher.cpp, limited to advancing ahead till the one of the first pattern char(s) match excluding \n
@@ -1076,8 +1088,8 @@ unrolled:
   std::vector<BacktrackPoint> bpt_; ///< vector of backtrack points, max_ size
   uint8_t max_;                     ///< max errors
   uint8_t err_;                     ///< accumulated edit distance (not guaranteed minimal)
-  bool ins_;                        ///< fuzzy match permits inserted chars (extra chars)
-  bool del_;                        ///< fuzzy match permits deleted chars (missing chars)
+  bool ins_;                        ///< fuzzy match permits inserted chars (extra chars in the input)
+  bool del_;                        ///< fuzzy match permits deleted chars (missing chars in the input)
   bool sub_;                        ///< fuzzy match permits substituted chars
   bool bin_;                        ///< fuzzy match bytes, not UTF-8 multibyte encodings
 };

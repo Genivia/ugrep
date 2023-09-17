@@ -1183,17 +1183,10 @@ class AbstractMatcher {
         set_current(txt_ - buf_);
         return true;
       }
-      if (eof_)
-        break;
       pos_ = cur_ = end_;
       txt_ = buf_ + end_;
-      (void)grow();
-      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
-      if (pos_ >= end_ && !wrap())
-      {
-        eof_ = true;
+      if (peek_more() == EOF)
         break;
-      }
     }
     set_current(end_);
     return false;

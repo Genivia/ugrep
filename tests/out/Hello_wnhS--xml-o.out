@@ -1,0 +1,229 @@
+<grep>
+  <file name="Hello.bat">
+    <match>sh&#10;echo</match>
+    <match>Hello World!&quot;</match>
+  </file>
+  <file name="Hello.class">
+    <match>Hello World!&#7;&#0;&#26;</match>
+  </file>
+  <file name="Hello.java">
+    <match>import java.lang.*;</match>
+    <match>public class</match>
+    <match>Hello //</match>
+    <match>prints a</match>
+    <match>Hello World!</match>
+    <match>greeting&#10;{</match>
+    <match>public static</match>
+    <match>void main(String[]</match>
+    <match>Hello World!&quot;);</match>
+  </file>
+  <file name="Hello.pdf">
+    <match>3&#10;%ƒÂÚÂÎßÛ†–ƒ∆</match>
+    <match>4 0</match>
+    <match>obj&#10;&lt;&lt;</match>
+    <match>Length 5</match>
+    <match>0 R</match>
+    <match>Filter /FlateDecode</match>
+    <match>stream&#10;x&#1;Eéª</match>
+    <match>LY&#10;üâ&#7;oÜk˜¥é–õ·‚j©Rj≤@8˛≠Ìî</match>
+    <match>endstream&#10;endobj</match>
+    <match>5 0</match>
+    <match>obj&#10;123</match>
+    <match>endobj&#10;2</match>
+    <match>0 obj</match>
+    <match>Type /Page</match>
+    <match>Parent 3</match>
+    <match>0 R</match>
+    <match>Resources 6</match>
+    <match>0 R</match>
+    <match>Contents 4</match>
+    <match>0 R</match>
+    <match>MediaBox [0</match>
+    <match>0 612</match>
+    <match>endobj&#10;6</match>
+    <match>0 obj</match>
+    <match>ProcSet [</match>
+    <match>PDF /Text</match>
+    <match>ColorSpace &lt;&lt;</match>
+    <match>Cs1 7</match>
+    <match>0 R</match>
+    <match>Font &lt;&lt;</match>
+    <match>TT1 8</match>
+    <match>0 R</match>
+    <match>endobj&#10;9</match>
+    <match>0 obj</match>
+    <match>Length 10</match>
+    <match>0 R</match>
+    <match>N 1</match>
+    <match>Alternate /DeviceGray</match>
+    <match>Filter /FlateDecode</match>
+    <match>stream&#10;x&#1;ÖU]h&#28;U&#20;&gt;ªsg&#3;&#18;&#7;&#31;¥</match>
+    <match>m&#9;È2âV&#19;ãµ€M∫I&#19;∑ÎfSõ* tv6;Õdfúô›&amp;°O•‡õ&#22;&#4;È´†&gt;∆Ç&#8;∂*6/ˆ••≈íJ5&#15;</match>
+    <match>7 ãö&#17;Ú»«X</match>
+    <match>4&#10;endstream</match>
+    <match>endobj&#10;10</match>
+    <match>0 obj</match>
+    <match>1116&#10;endobj</match>
+    <match>7 0</match>
+    <match>obj&#10;[</match>
+    <match>ICCBased 9</match>
+    <match>0 R</match>
+    <match>endobj&#10;3</match>
+    <match>0 obj</match>
+    <match>Type /Pages</match>
+    <match>MediaBox [0</match>
+    <match>0 612</match>
+    <match>Count 1</match>
+    <match>Kids [</match>
+    <match>2 0</match>
+    <match>R ]</match>
+    <match>endobj&#10;11</match>
+    <match>0 obj</match>
+    <match>Type /Catalog</match>
+    <match>Pages 3</match>
+    <match>0 R</match>
+    <match>endobj&#10;8</match>
+    <match>0 obj</match>
+    <match>Type /Font</match>
+    <match>Subtype /TrueType</match>
+    <match>BaseFont /GQTMZF+Menlo-Regular</match>
+    <match>FontDescriptor&#10;12</match>
+    <match>0 R</match>
+    <match>Encoding /MacRomanEncoding</match>
+    <match>FirstChar 72</match>
+    <match>LastChar 111</match>
+    <match>Widths [</match>
+    <match>602&#10;0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 602</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>0 0</match>
+    <match>602&#10;0</match>
+    <match>0 602</match>
+    <match>endobj&#10;12</match>
+    <match>0 obj</match>
+    <match>Type /FontDescriptor</match>
+    <match>FontName /GQTMZF+Menlo-Regular</match>
+    <match>Flags 33</match>
+    <match>FontBBox&#10;[-558</match>
+    <match>375 718</match>
+    <match>ItalicAngle 0</match>
+    <match>Ascent 928</match>
+    <match>Descent -236</match>
+    <match>CapHeight 729</match>
+    <match>StemV 99</match>
+    <match>XHeight 547</match>
+    <match>StemH 83</match>
+    <match>AvgWidth 602</match>
+    <match>MaxWidth 602</match>
+    <match>FontFile2 13</match>
+    <match>0 R</match>
+    <match>endobj&#10;13</match>
+    <match>0 obj</match>
+    <match>Length 14</match>
+    <match>0 R</match>
+    <match>Length1 4064</match>
+    <match>Filter /FlateDecode</match>
+    <match>stream&#10;x&#1;›W{xT≈&#21;?s&#x7f;w6ØÕ&gt;íMHHÄ]÷Âï,ÅÑ∑R&#22;Hxà</match>
+    <match>H (!&#8;A¥1êJQ</match>
+    <match>j&#9;L+I&#23;.RÃ'õ4â&#3;Çpöº√§v⁄ƒàÕ‰&#19;∑&#x7f;=R&#14;ıâD™`ÃJ&gt;¶</match>
+    <match>a&#10;&gt;®¿ëAhb°i&#16;&#14;+&#28;z?^&#30;Rx?&#30;&#7;&#21;ﬁS8PÂî&#7;2Ò◊TÏWx∑&#22;ç´|≤Q·/</match>
+    <match>W&#10;À&#21;&#30;p&#14;ì&#15;L¬/&#21;*Ô≈≤•&#21;rô¬“</match>
+    <match>y&#10;wÂ‚NÖππ(n≈ú:ÃV(R(Tò5≥£ú•0ì&#28;rfGÃPòÆpá¬ÌS&#18;‰Ì6L+ƒm˚0ïÖ©.LI&#0;?—A&#23;nU¯π¬-&#25;ÈÚñ\LVò§0QaB&#5;∆+‹Ï¬8Ö±¬/«*‹Tá1›p„Ë4yc&#x7f;å&#30;û$GßaTAö&#28;•0í•ëÖ&#24;¡“à:&#20;§!üÅ¸˛&#24;&gt;Ã)á'axD</match>
+    <match>g&#10;É9Ñ¡≠∏A·˙n&#24;§0ê</match>
+    <match>F 5≈/Sá!≈Âê)~∏&#28;HfΩd&#23;íx}íÇì3w&#14;ÉÉ=8úpDkg∑Y•›&#14;{¥v∂ƒxi≥¬&#22;≠]&quot;◊.1&#30;â\ª&#29;∫5&#14;V„ŸÍØ'(ƒs&amp;Ò</match>
+    <match>u F¡¬¶-</match>
+    <match>endstream&#10;endobj</match>
+    <match>14 0</match>
+    <match>obj&#10;2734</match>
+    <match>endobj&#10;15</match>
+    <match>0 obj</match>
+    <match>endobj&#10;16</match>
+    <match>0 obj</match>
+    <match>Mac OS</match>
+    <match>X 10.12.6</match>
+    <match>Quartz PDFContext)</match>
+    <match>endobj&#10;17</match>
+    <match>0 obj</match>
+    <match>endobj&#10;18</match>
+    <match>0 obj</match>
+    <match>endobj&#10;19</match>
+    <match>0 obj</match>
+    <match>endobj&#10;20</match>
+    <match>0 obj</match>
+    <match>endobj&#10;1</match>
+    <match>0 obj</match>
+    <match>Title 15</match>
+    <match>0 R</match>
+    <match>Producer 16</match>
+    <match>0 R</match>
+    <match>Creator 17</match>
+    <match>0 R</match>
+    <match>CreationDate 18</match>
+    <match>0 R</match>
+    <match>ModDate&#10;18</match>
+    <match>0 R</match>
+    <match>Keywords 19</match>
+    <match>0 R</match>
+    <match>Keywords 20</match>
+    <match>0 R</match>
+    <match>endobj&#10;xref</match>
+    <match>0 21</match>
+    <match>0000000000 65535</match>
+    <match>f &#10;0000005392</match>
+    <match>00000 n</match>
+    <match>0000000238 00000</match>
+    <match>n &#10;0000001714</match>
+    <match>00000 n</match>
+    <match>0000000022 00000</match>
+    <match>n &#10;0000000219</match>
+    <match>00000 n</match>
+    <match>0000000342 00000</match>
+    <match>n &#10;0000001679</match>
+    <match>00000 n</match>
+    <match>0000001847 00000</match>
+    <match>n &#10;0000000439</match>
+    <match>00000 n</match>
+    <match>0000001658 00000</match>
+    <match>n &#10;0000001797</match>
+    <match>00000 n</match>
+    <match>0000002110 00000</match>
+    <match>n &#10;0000002362</match>
+    <match>00000 n</match>
+    <match>0000005186 00000</match>
+    <match>n &#10;0000005207</match>
+    <match>00000 n</match>
+    <match>0000005231 00000</match>
+    <match>n &#10;0000005284</match>
+    <match>00000 n</match>
+    <match>0000005311 00000</match>
+    <match>n &#10;0000005353</match>
+    <match>00000 n</match>
+    <match>0000005372 00000</match>
+    <match>n &#10;trailer</match>
+    <match>Size 21</match>
+    <match>Root 11</match>
+    <match>0 R</match>
+    <match>Info 1</match>
+    <match>0 R</match>
+    <match>ID [</match>
+    <match>startxref&#10;5536</match>
+  </file>
+  <file name="Hello.sh">
+    <match>sh&#10;echo</match>
+    <match>Hello World!&quot;</match>
+  </file>
+</grep>

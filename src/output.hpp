@@ -743,8 +743,8 @@ class Output {
   // output format with option --format-begin and --format-end
   void format(const char *format, size_t matches);
 
-  // output formatted match with options --format, --format-open, --format-close
-  void format(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool& heading, bool body, bool next);
+  // output formatted match with options --format, --format-open, --format-close, returns false when nothing is output
+  bool format(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool& heading, bool body, bool next);
 
   // output formatted inverted match with options -v --format, --format-open, --format-close
   void format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool& heading, bool next);

@@ -436,9 +436,13 @@ unrolled:
       Pattern::Index jump = Pattern::index_of(opcode);
       if (jump == 0)
       {
-        // loop back to start state after only one char matched (one transition) but w/o full match, then optimize
-        if (cap_ == 0 && pos_ == cur_ + 1 && method == Const::FIND)
-          cur_ = pos_; // set cur_ to move forward from cur_ + 1 with FIND advance()
+        // loop back to start state w/o full match: advance to avoid backtracking
+        if (cap_ == 0 && pos_ > cur_ && method == Const::FIND)
+        {
+          // use bit_[] to check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
+          while (++cur_ < pos_ && (pat_->bit_[static_cast<uint8_t>(buf_[cur_])] & 1))
+            continue;
+        }
       }
       else if (jump >= Pattern::Const::LONG)
       {
@@ -576,11 +580,40 @@ unrolled:
     else if (method == Const::FIND)
     {
       DBGLOG("Reject empty match and continue?");
-      // skip one char to keep searching
-      set_current(++cur_);
       // allow FIND with "N" to match an empty line, with ^$ etc.
       if (cap_ == 0 || !opt_.N)
-        goto scan;
+      {
+        // if we found an empty match, we keep looking for non-empty matches when "N" is off
+        if (cap_ != 0)
+        {
+          if (
+#if defined(COMPILE_AVX512BW)
+              simd_advance_avx512bw()
+#elif defined(COMPILE_AVX2)
+              simd_advance_avx2()
+#else
+              advance()
+#endif
+             )
+          {
+            goto scan;
+          }
+          set_current(++cur_);
+          // at end of input, no matches remain
+          cap_ = 0;
+        }
+        else
+        {
+          // advance one char to keep searching
+          set_current(++cur_);
+          goto scan;
+        }
+      }
+      else
+      {
+        // advance one char to keep searching at the next character position when we return
+        set_current(++cur_);
+      }
       DBGLOG("Accept empty match");
     }
     else
@@ -633,7 +666,13 @@ bool Matcher::advance()
   if (pat_->len_ == 0)
   {
     if (min == 0)
-      return false;
+    {
+      // if "N" is on (non-empty pattern matches only), then there is nothing to match
+      if (opt_.N)
+        return false;
+      // if "N" is off, then match an empty-matching pattern as if non-empty
+      min = 1;
+    }
     if (loc + min > end_)
     {
       set_current_match(loc - 1);

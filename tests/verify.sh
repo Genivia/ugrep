@@ -215,7 +215,7 @@ $UG --range=1,1   Hello $FILES \
     | $DIFF out/Hello_Hello--range.out \
     || ERR "--range=1,1 Hello $FILES"
 
-for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
+for PAT in '' 'Hello' '\w+[\n\h]+\S+' '\S\n\S' 'nomatch' ; do
   FN=`echo "Hello_$PAT" | tr -Cd '[:alnum:]_'`
   for OUT in '' '-I' '-W' '-X' ; do
     for OPS in '' '-l' '-lv' '-c' '-co' '-cv' '-n' '-nkbT' '-unkbT' '-o' '-on' '-onkbT' '-ounkbT' '-v' '-nv' '-C2' '-nC2' '-vC2' '-nvC2' '-onC10' '-y' '-ny' '-vy' '-nvy' ; do
@@ -270,16 +270,16 @@ for PAT in '' 'Hello' '\w+\s+\S+' '\S\n\S' 'nomatch' ; do
     | $DIFF "out/$FN-Fx.out" \
     || ERR "-Fx '$PAT' $FILES"
   printf .
-  if [ "$PAT" == '\w+\s+\S+' ]; then
-    $UG -U -G  '\w\+\s\+\S\+' $FILES \
+  if [ "$PAT" == '\w+[\n\h]+\S+' ]; then
+    $UG -U -G  '\w\+[\n\h]\+\S\+' $FILES \
       | $DIFF "out/$FN-G.out" \
-      || ERR "-G '\w\+\s\+\S\+' $FILES"
-    $UG -U -Gw '\w\+\s\+\S\+' $FILES \
+      || ERR "-G '\w\+[\n\h]\+\S\+' $FILES"
+    $UG -U -Gw '\w\+[\n\h]\+\S\+' $FILES \
       | $DIFF "out/$FN-Gw.out" \
-      || ERR "-Gw '\w\+\s\+\S\+' $FILES"
-    $UG -U -Gx '\w\+\s\+\S\+' $FILES \
+      || ERR "-Gw '\w\+[\n\h]\+\S\+' $FILES"
+    $UG -U -Gx '\w\+[\n\h]\+\S\+' $FILES \
       | $DIFF "out/$FN-Gx.out" \
-      || ERR "-Gx '\w\+\s\+\S\+' $FILES"
+      || ERR "-Gx '\w\+[\n\h]\+\S\+' $FILES"
   else
     $UG -U -G  "$PAT" $FILES \
       | $DIFF "out/$FN-G.out" \
@@ -403,17 +403,16 @@ $UG -z -c -tShell Hello archive.tzst    | $DIFF out/archive-t.tzst.out    || ERR
 fi
 fi
 
-# --zmax has shown to be stable unless we can find a counter example
-#if [ "$have_libz" == yes ]; then
-#printf .
-#$UG --zmax=2 -z -c Hello archive2.tgz         | $DIFF out/archive2.tgz.out   || ERR "-zmax=2 -z -c Hello archive2.tgz"
-#printf .
-#$UG --zmax=3 -z -c Hello archive3.tgz         | $DIFF out/archive3.tgz.out   || ERR "-zmax=3 -z -c Hello archive3.tgz"
-#printf .
-#$UG --zmax=2 -z -c -tShell Hello archive2.tgz | $DIFF out/archive2-t.tgz.out || ERR "-zmax=2 -z -c -tShell Hello archive2.tgz"
-#printf .
-#$UG --zmax=3 -z -c -tShell Hello archive3.tgz | $DIFF out/archive3-t.tgz.out || ERR "-zmax=3 -z -c -tShell Hello archive3.tgz"
-#fi
+if [ "$have_libz" == yes ]; then
+printf .
+$UG --zmax=2 -z -c Hello archive2.tgz         | $DIFF out/archive2.tgz.out   || ERR "-zmax=2 -z -c Hello archive2.tgz"
+printf .
+$UG --zmax=3 -z -c Hello archive3.tgz         | $DIFF out/archive3.tgz.out   || ERR "-zmax=3 -z -c Hello archive3.tgz"
+printf .
+$UG --zmax=2 -z -c -tShell Hello archive2.tgz | $DIFF out/archive2-t.tgz.out || ERR "-zmax=2 -z -c -tShell Hello archive2.tgz"
+printf .
+$UG --zmax=3 -z -c -tShell Hello archive3.tgz | $DIFF out/archive3-t.tgz.out || ERR "-zmax=3 -z -c -tShell Hello archive3.tgz"
+fi
 
 if [ "$have_libz" == yes ]; then
 printf .
@@ -424,6 +423,22 @@ for PAT in '\.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at
   $UG -z -co "$PAT" archive.gz | $DIFF out/$FN-co.gz.out || ERR "-z -co '$PAT' archive.gz"
 done
 fi
+
+# optional: verify SIMD, PM-4, Bitap, and Bloom filter optimizations
+# a=
+# for (( i = 1; i <= 8; ++i )); do
+#   a=a$a
+#   for (( k = 1; k <= 32; ++k )); do
+#     kk=$((k+i-1))
+#     for (( x = 61; x <= 69; ++x )); do
+#       printf .
+#       echo "$k:$a" > out/column.out
+#       printf "%${kk}s" "$a" | $UG --no-color -ok "[a-\x$x]{$i}" | $DIFF out/column.out || ERR "-ok [a-\x$x]{$i} $k:$a"
+#     done
+#   done
+# done
+
+rm -f out/column.out
 
 echo
 echo "ALL TESTS PASSED"
