@@ -4270,14 +4270,13 @@ in markdown:
                   Ignore files and directories matching the globs in each FILE that
                   is encountered in recursive searches.  The default FILE is
                   `.gitignore'.  Matching files and directories located in the
-                  directory of a FILE's location and in directories below are
-                  ignored by temporarily extending the --exclude and --exclude-dir
-                  globs, as if --exclude-from=FILE is locally enforced.  Globbing
-                  syntax is the same as the --exclude-from=FILE gitignore syntax;
-                  directories are excluded when the glob ends in a `/', same as git.
-                  Files and directories explicitly specified as command line
-                  arguments are never ignored.  This option may be repeated with
-                  additional files.
+                  directory of the FILE and in subdirectories below are ignored.
+                  Globbing syntax is the same as the --exclude-from=FILE gitignore
+                  syntax, but files and directories are excluded instead of only
+                  files.  Directories are specifically excluded when the glob ends
+                  in a `/'.  Files and directories explicitly specified as command
+                  line arguments are never ignored.  This option may be repeated to
+                  specify additional files.
 
            --include=GLOB
                   Search only files whose name matches GLOB using wildcard matching,
@@ -4413,7 +4412,8 @@ in markdown:
                   unless it matches the negative PATTERN.  Same as -e (?^PATTERN).
                   Negative pattern matches are essentially removed before any other
                   patterns are matched.  Note that longer patterns take precedence
-                  over shorter patterns.  This option may be repeated.
+                  over shorter patterns.  Option -N cannot be specified with -P.
+                  This option may be repeated.
 
            -n, --line-number
                   Each output line is preceded by its relative line number in the
@@ -4473,8 +4473,8 @@ in markdown:
 
            --pager[=COMMAND]
                   When output is sent to the terminal, uses COMMAND to page through
-                  the output.  The default COMMAND is `less -R'.  Enables --heading
-                  and --line-buffered.
+                  the output.  COMMAND defaults to environment variable $PAGER when
+                  defined or `less'.  Enables --heading and --line-buffered.
 
            --pretty
                   When output is sent to a terminal, enables --color, --heading, -n,
@@ -4491,7 +4491,7 @@ in markdown:
                   -e.  Press F1 or CTRL-Z to view the help screen.  Press F2 or
                   CTRL-Y to invoke a command to view or edit the file shown at the
                   top of the screen.  The command can be specified with option
-                  --view, or defaults to environment variable PAGER if defined, or
+                  --view, or defaults to environment variable PAGER when defined, or
                   EDITOR.  Press Tab and Shift-Tab to navigate directories and to
                   select a file to search.  Press Enter to select lines to output.
                   Press ALT-l for option -l to list files, ALT-n for -n, etc.
@@ -4646,8 +4646,8 @@ in markdown:
            -X, --hex
                   Output matches in hexadecimal.  This option is equivalent to the
                   --binary-files=hex option with --hexdump=2C.  To omit the matching
-                  line from the hex output, use option --hexdump instead of -X.  See
-                  also option -U.
+                  line from the hex output use option --hexdump.  See also option
+                  -U.
 
            -x, --line-regexp
                   Select only those matches that exactly match the whole line, as if
@@ -5269,7 +5269,7 @@ in markdown:
 
 
 
-    ugrep 4.0.5                      August 27, 2023                        UGREP(1)
+    ugrep 4.1.0                    September 17, 2023                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

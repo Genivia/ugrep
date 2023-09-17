@@ -1,4 +1,4 @@
-.TH UGREP "1" "August 27, 2023" "ugrep 4.0.5" "User Commands"
+.TH UGREP "1" "September 17, 2023" "ugrep 4.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -473,13 +473,13 @@ Use options \fB\-P\fR and \fB\-i\fR for Unicode case insensitive matching.
 Ignore files and directories matching the globs in each FILE that
 is encountered in recursive searches.  The default FILE is
 `.gitignore'.  Matching files and directories located in the
-directory of a FILE's location and in directories below are ignored
-by temporarily extending the \fB\-\-exclude\fR and \fB\-\-exclude\-dir\fR globs, as
-if \fB\-\-exclude\-from\fR=\fIFILE\fR is locally enforced.  Globbing syntax is the
-same as the \fB\-\-exclude\-from\fR=\fIFILE\fR gitignore syntax; directories are
-excluded when the glob ends in a `/', same as git.  Files and
-directories explicitly specified as command line arguments are
-never ignored.  This option may be repeated with additional files.
+directory of the FILE and in subdirectories below are ignored.
+Globbing syntax is the same as the \fB\-\-exclude\-from\fR=\fIFILE\fR gitignore
+syntax, but files and directories are excluded instead of only
+files.  Directories are specifically excluded when the glob ends in
+a `/'.  Files and directories explicitly specified as command line
+arguments are never ignored.  This option may be repeated to
+specify additional files.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Search only files whose name matches GLOB using wildcard matching,
@@ -615,7 +615,8 @@ input line is selected only if it matches the specified patterns
 unless it matches the negative PATTERN.  Same as \fB\-e\fR (?^PATTERN).
 Negative pattern matches are essentially removed before any other
 patterns are matched.  Note that longer patterns take precedence
-over shorter patterns.  This option may be repeated.
+over shorter patterns.  Option \fB\-N\fR cannot be specified with \fB\-P\fR.
+This option may be repeated.
 .TP
 \fB\-n\fR, \fB\-\-line\-number\fR
 Each output line is preceded by its relative line number in the
@@ -674,8 +675,9 @@ symbolic links are specified on the command line.
 .TP
 \fB\-\-pager\fR[=\fICOMMAND\fR]
 When output is sent to the terminal, uses COMMAND to page through
-the output.  The default COMMAND is `less \fB\-R\fR'.  Enables \fB\-\-heading\fR
-and \fB\-\-line\-buffered\fR.
+the output.  COMMAND defaults to environment variable $PAGER when
+defined or `less'.  Enables \fB\-\-heading\fR and
+\fB\-\-line\-buffered\fR.
 .TP
 \fB\-\-pretty\fR
 When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-n\fR,
@@ -692,7 +694,7 @@ the default is 5 (0.5s delay).  No whitespace may be given between
 or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke a
 command to view or edit the file shown at the top of the screen.
 The command can be specified with option \fB\-\-view\fR, or defaults to
-environment variable PAGER if defined, or EDITOR.  Press Tab and
+environment variable PAGER when defined, or EDITOR.  Press Tab and
 Shift\-Tab to navigate directories and to select a file to search.
 Press Enter to select lines to output.  Press ALT\-l for option \fB\-l\fR
 to list files, ALT\-n for \fB\-n\fR, etc.  Non\-option commands include
@@ -843,8 +845,7 @@ double wide characters in the output may result in wider lines.
 \fB\-X\fR, \fB\-\-hex\fR
 Output matches in hexadecimal.  This option is equivalent to the
 \fB\-\-binary\-files\fR=hex option with \fB\-\-hexdump\fR=2C.  To omit the matching
-line from the hex output, use option \fB\-\-hexdump\fR instead of \fB\-X\fR.  See
-also option \fB\-U\fR.
+line from the hex output use option \fB\-\-hexdump\fR.  See also option \fB\-U\fR.
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Select only those matches that exactly match the whole line, as if
