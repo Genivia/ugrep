@@ -3,7 +3,7 @@
 New ugrep 4.1
 -------------
 
-Ugrep is like grep, but faster, user-friendly, and equipped with must-have features.  Ugrep combines the best features of other grep, adds a couple of new things, and surpasses their search speeds (mostly, not absolutely always yet).
+Ugrep is like grep, but faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed beat GNU grep, Silver Searcher, ack, sift, and ripgrep in [almost all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
 
 New faster ugrep 4.1 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
@@ -23,7 +23,7 @@ The ugrep tools include the following commands:
 Development roadmap
 -------------------
 
-- my highest priority is testing and quality assurance to continue to make sure ugrep has no bugs and is reliable
+- my highest priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 - make ugrep even faster and report on progress, see [my latest article](https://www.genivia.com/ugrep.html) and planned enhancements [#288](https://github.com/Genivia/ugrep/issues/288)
 - listen to users to continue to add new and updated features
 - improve the interactive TUI with a split screen
@@ -483,6 +483,8 @@ Performance comparisons
 
 For an up-to-date performance comparison of the latest ugrep, please see the
 [ugrep performance benchmarks](https://github.com/Genivia/ugrep-benchmarks).
+Ugrep is faster than GNU grep, Silver Searcher, ack, sift.  Ugrep's speed beats
+ripgrep in most benchmarks.
 
 <a name="vim"/>
 
