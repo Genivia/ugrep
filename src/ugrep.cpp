@@ -4692,34 +4692,8 @@ static void set_depth_long(const char *arg)
     usage("invalid argument --depth=", arg);
 }
 
-// load config file specified or the default .ugrep, located in the working directory or home directory
-static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args)
+static void read_config(FILE *file, std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args)
 {
-  // warn about invalid options but do not exit
-  flag_usage_warnings = true;
-
-  // the default config file is .ugrep when FILE is not specified
-  if (flag_config == NULL || *flag_config == '\0')
-    flag_config_file.assign(".ugrep");
-  else
-    flag_config_file.assign(flag_config);
-
-  FILE *file = NULL;
-
-  if (fopen_smart(&file, flag_config_file.c_str(), "r") != 0)
-  {
-    if (Static::home_dir != NULL)
-    {
-      // check the home directory for the configuration file
-      if (flag_config == NULL || *flag_config == '\0')
-        flag_config_file.assign(Static::home_dir).append(PATHSEPSTR).append(".ugrep");
-      else
-        flag_config_file.assign(Static::home_dir).append(PATHSEPSTR).append(flag_config);
-      if (fopen_smart(&file, flag_config_file.c_str(), "r") != 0)
-        file = NULL;
-    }
-  }
-
   if (file != NULL)
   {
     reflex::BufferedInput input(file);
@@ -4776,6 +4750,36 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
   {
     error("option --config: cannot read", flag_config_file.c_str());
   }
+}
+
+// load config file specified or the default .ugrep, located in the home directory and working directory
+static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args)
+{
+  // warn about invalid options but do not exit
+  flag_usage_warnings = true;
+
+  FILE *file = NULL;
+
+  if (Static::home_dir != NULL)
+  {
+    // check the home directory for the configuration file
+    // the default config file is .ugrep when FILE is not specified
+    if (flag_config == NULL || *flag_config == '\0')
+      flag_config_file.assign(Static::home_dir).append(PATHSEPSTR).append(".ugrep");
+    else
+      flag_config_file.assign(Static::home_dir).append(PATHSEPSTR).append(flag_config);
+    if (fopen_smart(&file, flag_config_file.c_str(), "r") != 0)
+      file = NULL;
+    read_config(file, pattern_args);
+  }
+
+  if (flag_config == NULL || *flag_config == '\0')
+    flag_config_file.assign(".ugrep");
+  else
+    flag_config_file.assign(flag_config);
+  if (fopen_smart(&file, flag_config_file.c_str(), "r") != 0)
+    file = NULL;
+  read_config(file, pattern_args);
 
   flag_usage_warnings = false;
 }
@@ -13324,9 +13328,10 @@ void help(std::ostream& out)
             hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters\n\
             when option -v is specified.  Selectively overrides GREP_COLORS.\n\
     --config[=FILE], ---[FILE]\n\
-            Use configuration FILE.  The default FILE is `.ugrep'.  The working\n\
-            directory is checked first for FILE, then the home directory.  The\n\
-            options specified in the configuration FILE are parsed first,\n\
+            Use configuration FILE.  The default FILE is `.ugrep'.  The FILE\n\
+            from the home directory is always read if it exists, then the one\n\
+            from the working directory.  Later options override earlier ones.\n\
+            Options specified in the configuration FILE are parsed first,\n\
             followed by the remaining options specified on the command line.\n\
     --confirm\n\
             Confirm actions in -Q query TUI.  The default is confirm.\n\
