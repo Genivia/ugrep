@@ -166,7 +166,7 @@ After this, you may want to test ugrep and install it (optional):
 
 // limit the job queue size to wait to give the worker threads some slack
 #ifndef MAX_JOB_QUEUE_SIZE
-# define MAX_JOB_QUEUE_SIZE 65536
+# define MAX_JOB_QUEUE_SIZE 8192
 #endif
 
 // a hard limit on the recursive search depth
@@ -669,16 +669,13 @@ inline bool is_binary(const char *s, size_t n)
 
     while (s < e)
     {
-      do
-      {
-        if ((*s & 0xc0) == 0x80)
-          return true;
-      } while ((*s & 0xc0) != 0xc0 && ++s < e);
+      while (!(*s & 0x80) && s < e)
+        ++s;
 
       if (s >= e)
         return false;
 
-      if (++s >= e || (*s & 0xc0) != 0x80)
+      if ((*s & 0xc0) == 0x80 || ++s >= e || (*s & 0xc0) != 0x80)
         return true;
 
       if (++s < e && (*s & 0xc0) == 0x80)
@@ -2110,12 +2107,13 @@ struct Grep {
     // move a stolen job to this worker, maintaining job slot order
     void move_job(Job& job)
     {
-      std::unique_lock<std::mutex> lock(queue_mutex);
-
       bool inserted = false;
 
-      // insert job in the queue to maintain job order
-      for (auto j = begin(); j != end(); ++j)
+      std::unique_lock<std::mutex> lock(queue_mutex);
+
+      // insert job in the small queue to maintain job order
+      const auto e = end();
+      for (auto j = begin(); j != e; ++j)
       {
         if (j->slot > job.slot)
         {
@@ -3347,24 +3345,27 @@ struct Grep {
       return false;
     }
 
-#ifndef OS_WIN
-    // check if a regular file is special and recursive searching files should not block
-    struct stat buf;
-    if (file_in != stdin && file_in != source && fstat(fileno(file_in), &buf) == 0 && S_ISREG(buf.st_mode))
+#if !defined(OS_WIN) && !defined(__APPLE__)
+    if (file_in != stdin && file_in != source)
     {
-      // recursive searches should not block on special regular files like in /proc and /sys
-      if (flag_directories_action == Action::RECURSE)
-        fcntl(fileno(file_in), F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
-
-      // check if an empty file is readable e.g. not a special sysfd file like in /proc and /sys
-      char data[1];
-      if (buf.st_size == 0 && (read(fileno(file_in), data, 1) < 0 || fseek(file_in, 0, SEEK_SET) != 0))
+      int fd = fileno(file_in);
+      struct stat buf;
+      if (fstat(fd, &buf) == 0)
       {
-        warning("cannot read", pathname);
-        fclose(file_in);
-        file_in = NULL;
+        // if zero length regular file or a device to skip (i.e. not -Dread), then there is nothing to read
+        if (buf.st_size == 0 && (S_ISREG(buf.st_mode) || flag_devices_action != Action::READ))
+        {
+          input.clear();
+          return true;
+        }
 
-        return false;
+        // recursive searches should not block on special regular files like in /proc and /sys unless -Dread
+        if (flag_directories_action == Action::RECURSE && flag_devices_action != Action::READ)
+        {
+          int fl = fcntl(fd, F_GETFL);
+          if (fl >= 0)
+            fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+        }
       }
     }
 #endif
@@ -3799,8 +3800,17 @@ struct Grep {
   bool init_is_binary()
   {
     size_t avail = matcher->avail();
+
+    if (avail == 0)
+      return false;
+
     if (avail > 65536)
       avail = 65536;
+
+    // do not cut off right after the first UTF-8 byte
+    if ((matcher->begin()[avail - 1] & 0xc0) == 0xc0)
+      --avail;
+
     return is_binary(matcher->begin(), avail);
   }
 
@@ -4012,35 +4022,41 @@ void GrepMaster::stop_workers()
     worker.thread.join();
 }
 
-// submit a job with a pathname to a worker, workers are visited round-robin
+// submit a job with a pathname to a worker
 void GrepMaster::submit(const char *pathname, uint16_t cost)
 {
-  size_t min_todo = iworker->jobs.todo;
-
-  // if this worker has some jobs that can't be stolen, then find a worker with the minimum number of jobs
-  if (min_todo > flag_min_steal)
+  while (true)
   {
-    auto min_worker = iworker;
+    size_t min_todo = iworker->jobs.todo;
 
-    for (size_t num = 0; num < threads; ++num)
+    // find a worker with the minimum number of jobs
+    if (min_todo > 0)
     {
-      if (iworker->jobs.todo < min_todo)
+      auto min_worker = iworker;
+
+      for (size_t num = 0; num < threads; ++num)
       {
-        min_todo = iworker->jobs.todo;
-        min_worker = iworker;
+        if (iworker->jobs.todo < min_todo)
+        {
+          min_todo = iworker->jobs.todo;
+          min_worker = iworker;
+        }
+
+        ++iworker;
+        if (iworker == workers.end())
+          iworker = workers.begin();
       }
 
-      ++iworker;
-      if (iworker == workers.end())
-        iworker = workers.begin();
+      iworker = min_worker;
     }
 
-    iworker = min_worker;
-  }
+    // try to submit, if not successful then the queue is full
+    if (iworker->try_submit_job(pathname, cost, sync.next) || out.eof || out.cancelled())
+      break;
 
-  // give the worker threads some slack
-  while (!iworker->try_submit_job(pathname, cost, sync.next) && !out.eof && !out.cancelled())
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // give the worker threads some slack to make progress, then try again
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
 
   ++sync.next;
 
@@ -4082,7 +4098,7 @@ bool GrepMaster::steal(GrepWorker *worker)
 
   Job job;
 
-  // steal a job for this worker
+  // steal a job from the co-worker for this worker
   if (coworker->jobs.steal_job(job))
   {
     worker->jobs.move_job(job);
@@ -4356,7 +4372,7 @@ int main(int argc, const char **argv)
 
 #endif
 
-  return warnings == 0 && Stats::found_any_file() ? EXIT_OK : EXIT_FAIL;
+  return warnings > 0 ? EXIT_ERROR : Stats::found_any_file() ? EXIT_OK : EXIT_FAIL;
 }
 
 static void set_depth(const char *arg)
@@ -4503,7 +4519,18 @@ static void save_config()
 # foreground and a background color may be combined with font properties `n'\n\
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\
 # Parameter `hl' enables file name hyperlinks (same as --hyperlink).  Parameter\n\
-# `rv' reverses the `sl=' and `cx=' parameters when option -v is used.\n\n");
+# `rv' reverses the `sl=' and `cx=' parameters when option -v is used.\n\
+#\n\
+# The ugrep default color scheme:\n\
+#   colors=sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36\n\
+# The GNU grep and ripgrep default color scheme:\n\
+#   colors=sl=37:cx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\n\
+# The silver searcher default color scheme:\n\
+#   colors=mt=30;43:fn=1;32:ln=1;33:cn=1;33:bn=1;33\n\
+# Underlined bright green matches with shaded background on bright selected lines:\n\
+#   colors=sl=1:cx=33:ms=1;4;32;100:mc=1;4;32:fn=1;32;100:ln=1;32:cn=1;32:bn=1;32:se=36\n\
+# Inverted bright yellow matches:\n\
+#   colors=cx=hb:ms=hiy:mc=hic:fn=hi+y+K:ln=hg:cn=hg:bn=hg:se=c\n\n");
 
   fprintf(file, "# Enable color output to a terminal\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   if (flag_hyperlink != NULL && *flag_hyperlink == '\0')
@@ -5799,6 +5826,9 @@ void init(int argc, const char **argv)
   if (flag_config != NULL)
     load_config(pattern_args);
 
+  // reset warnings
+  warnings = 0;
+
   // apply the appropriate options when the program is named grep, egrep, fgrep, zgrep, zegrep, zfgrep
 
   const char *program = strrchr(argv[0], PATHSEPCHR);
@@ -7016,9 +7046,6 @@ void set_terminal_hyperlink()
 // search the specified files, directories, and/or standard input for pattern matches
 void ugrep()
 {
-  // reset warnings
-  warnings = 0;
-
   // reset stats
   Stats::reset();
 
@@ -7659,11 +7686,8 @@ void ugrep()
     unsigned int concurrency = cores > 2 ? cores : 2;
     // reduce concurrency by a few for 8+ core CPUs
 #if defined(__APPLE__) && defined(HAVE_NEON)
-    // apple silicon with 8 or more cores should be reduced to 6 since 7 or 8 are slower, but not on x64 machines
-    if (concurrency >= 10)
-      concurrency = 6;
-    else
-      concurrency -= concurrency / 4;
+    // apple silicon with 8 or more cores should be reduced
+    concurrency = 4;
 #else
     concurrency -= concurrency / 8;
 #endif
@@ -13580,10 +13604,10 @@ void help(const char *what)
  [[:name:]]  one char in POSIX class:    ----------  --------------------------\n\
     alnum      a-z,A-Z,0-9               ^           begin of line anchor\n\
     alpha      a-z,A-Z                   $           end of line anchor\n\
-    ascii      ASCII char \\x00-\\x7f      \\b          word boundary (-P)\n\
-    blank      space or tab              \\B          non-word boundary (-P)\n\
-    cntrl      control characters        \\<          start word boundary (-P)\n\
-    digit      0-9                       \\>          end word boundary (-P)\n\
+    ascii      ASCII char \\x00-\\x7f      \\b          word boundary\n\
+    blank      space or tab              \\B          non-word boundary\n\
+    cntrl      control characters        \\<          start of word boundary\n\
+    digit      0-9                       \\>          end of word boundary\n\
     graph      visible characters        (?=...)     lookahead (-P)\n\
     lower      a-z                       (?!...)     negative lookahead (-P)\n\
     print      visible chars and space   (?<=...)    lookbehind (-P)\n\
@@ -13608,7 +13632,7 @@ Character classes never match a newline, except when \\P, \\D, \\H, or \\W is\n\
 specified or when a \\n or a \\R is specified, such as [\\s\\n].\n\
 \n\
 Option -P enables Perl regex matching, supporting Unicode patterns, Unicode\n\
-word boundary matching (\\b, \\B, \\<, \\>), lookaheads and capturing groups.\n\
+word boundary matching, lookaheads and capturing groups.\n\
 \n\
 Option -U disables full Unicode pattern matching: non-POSIX Unicode character\n\
 classes \\p{class} are disabled, ASCII, LATIN1 and binary regex patterns only.\n\
@@ -13815,8 +13839,8 @@ void cannot_decompress(const char *pathname, const char *message)
   if (!flag_no_messages)
   {
     fprintf(stderr, "%sugrep: %swarning:%s %scannot decompress %s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, pathname, color_off, color_message, message != NULL ? message : "", color_off);
-    ++warnings;
   }
+  ++warnings;
 }
 #endif
 
@@ -13833,8 +13857,8 @@ void warning(const char *message, const char *arg)
     const char *errmsg = strerror(errno);
 #endif
     fprintf(stderr, "%sugrep: %swarning:%s %s%s%s%s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", color_off, color_message, errmsg, color_off);
-    ++warnings;
   }
+  ++warnings;
 }
 
 // print to standard error: error message, assumes errno is set, like perror(), then exit

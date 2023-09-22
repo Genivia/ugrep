@@ -38,12 +38,12 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "4.1.0"
+#define UGREP_VERSION "4.2.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
 
-// use a task-parallel thread to decompress the stream into a pipe to search, handles archives and increases decompression speed for larger files
+// use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD
 
 // use a lock-free job queue, which is appears to be SLOWER than a standard simple lock-based queue for each worker

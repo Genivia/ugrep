@@ -26,7 +26,7 @@ Development roadmap
 - my highest priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 - make ugrep even faster and report on progress, see [my latest article](https://www.genivia.com/ugrep.html) and planned enhancements [#288](https://github.com/Genivia/ugrep/issues/288) and [#297](https://github.com/Genivia/ugrep/issues/297)
 - listen to users to continue to add new and updated features
-- improve the interactive TUI with a split screen
+- improve the interactive TUI with a split screen and regex syntax highlighting
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
 - add file indexing to speed up cold search performance, see [ugrep-indexer](https://github.com/Genivia/ugrep-indexer)
 

@@ -35,6 +35,7 @@
 */
 
 #include "ugrep.hpp"
+#include "stats.hpp"
 #include "query.hpp"
 
 #include <reflex/error.h>
@@ -514,6 +515,9 @@ void Query::redraw()
   }
   else
   {
+    // to lazely redraw the status line and clear the screen below without flicker
+    dots_ = 6;
+
     if (select_ >= 0 && select_ >= row_ + Screen::rows - 1)
       row_ = select_ - Screen::rows + 3;
     else if (select_ >= 0 && select_ < row_)
@@ -1351,7 +1355,7 @@ void Query::search()
 
   if (search_thread_.joinable())
   {
-    // clear "Searching..." or "~~~", if displayed
+    // clear "Searching..." or "(end)", if displayed
     if (error_ == -1 && rows_ < row_ + Screen::rows - 1)
     {
       Screen::normal();
@@ -1368,7 +1372,7 @@ void Query::search()
   row_ = 0;
   rows_ = 0;
   skip_ = 0;
-  dots_ = 6; // to clear screen after 300 ms
+  dots_ = 6; // to clear the screen below the status line after 300 ms to avoid flicker
   error_ = -1;
   arg_pattern = globbing_ ? temp_ : line_;
 
@@ -1435,26 +1439,46 @@ bool Query::update()
 
     if (error_ == -1)
     {
-      if (dots_ < 4)
+      size_t sf = Stats::searched_files();
+      size_t ff = Stats::found_files();
+
+      // display banner with search stats
+      char banner[256];
+
+      if (eof_)
       {
-        searching_[9] = '.';
-        searching_[10] = '.';
-        searching_[11] = '.';
-        searching_[9 + dots_] = '\0';
+        if (dots_ < 7)
+        {
+          size_t sd = Stats::searched_dirs();
+          size_t ws = warnings;
 
-        Screen::put(rows_ - row_ + 1, 0, eof_ ? "~~~" : searching_);
-        Screen::normal();
-
-        // when still searching, don't immediately clear the rest of the screen to avoid screen flicker, clear after 300 ms (init dots_ = 6 and three iters)
-        if (eof_ || dots_ == 0)
+          snprintf(banner, sizeof(banner), "%zu/%zu files | %zu dirs | %zu warnings |%*s", ff, sf, sd, ws, 256, "");
+          Screen::put(rows_ - row_ + 1, 0, banner);
+          Screen::normal();
           Screen::end();
-      }
 
-      dots_ = (dots_ + 1) & 3;
+          dots_ = 7;
+        }
+      }
+      else
+      {
+        if (dots_ < 4)
+        {
+          snprintf(banner, sizeof(banner), "%zu/%zu files queued | searching...%*s", ff, sf, 256, "");
+          Screen::put(rows_ - row_ + 1, 0, banner);
+          Screen::normal();
+
+          // when still searching, don't immediately clear the rest of the screen to avoid screen flicker, clear after 300 ms (init dots_ = 6 and do three iters)
+          if (dots_ == 0)
+            Screen::end();
+        }
+
+        dots_ = (dots_ + 1) & 3;
+      }
     }
-    else
+    else if (dots_ < 7)
     {
-      Screen::put(rows_ - row_ + 1, 0, "(ERROR)");
+      Screen::setpos(1, 0);
       Screen::normal();
       Screen::erase();
 
@@ -1469,7 +1493,13 @@ bool Query::update()
       Screen::normal();
 
       Screen::end();
+
+      dots_ = 7;
     }
+  }
+  else
+  {
+    dots_ = 6;
   }
 
   // return true if screen was updated when data was available
@@ -1667,6 +1697,9 @@ void Query::execute(int pipe_fd)
   {
     try
     {
+      // reset warnings
+      warnings = 0;
+
       // clear the CNF first to populate the CNF in ugrep() with the contents of arg_pattern
       bcnf.clear();
 
@@ -2104,7 +2137,81 @@ void Query::view()
     return;
   }
 
+  std::string command(pager);
   int row = select_ >= 0 ? select_ : row_;
+  size_t line_number = 0;
+
+  // -n: extract line number from ugrep output if the specified pager supports +linenum
+  if (flag_line_number &&
+      (command == "less"  ||
+       command == "more"  ||
+       command == "most"  ||
+       command == "w3m"   ||
+       command == "joe"   ||
+       command == "vi"    ||
+       command == "vim"   ||
+       command == "vis"   ||
+       command == "emacs" ||
+       command == "nano"  ||
+       command == "pico"  ||
+       command == "vile"  ||
+       command == "zile"))
+  {
+    const std::string& line = view_[row];
+    size_t pos = 0;
+    size_t end = line.size();
+
+    // skip over pathname when present
+    if (line.front() == '\0')
+    {
+      while (++pos < end && line.at(pos) != '\0')
+        continue;
+
+      while (++pos < end && line.at(pos) != '\0')
+        continue;
+
+      ++pos;
+    }
+
+    while (true)
+    {
+      // skip over ESC codes when present
+      while (pos < end && line.at(pos) == '\033')
+      {
+        if (pos + 1 < end && line.at(pos + 1) == '[')
+        {
+          // CSI \e[... sequence
+          pos += 2;
+          while (pos < end && (line.at(pos) < 0x40 || line.at(pos) > 0x7e))
+            ++pos;
+          ++pos;
+        }
+        else if (pos + 1 < end && line.at(pos + 1) == ']')
+        {
+          // OSC \e]...BEL|ST sequence
+          pos += 2;
+          while (pos < end && line.at(pos) != '\a' && (line.at(pos) != '\033' || (pos + 1 < end && line.at(pos + 1) != '\\')))
+            ++pos;
+          if (pos < end && line.at(pos) == '\033')
+            ++pos;
+          ++pos;
+        }
+        else
+        {
+          // ESC x sequence
+          pos += 2;
+        }
+      }
+
+      if (pos >= end || isdigit(line.at(pos)))
+        break;
+
+      ++pos;
+    }
+
+    if (pos < end)
+      line_number = static_cast<size_t>(strtoull(line.c_str() + pos, NULL, 10));
+  }
 
   // --tree: move down over non-filename lines to reach a filename
   if (flag_tree && (flag_files_with_matches || flag_count))
@@ -2149,7 +2256,9 @@ void Query::view()
 
     if (found)
     {
-      std::string command(pager);
+      // -n: add +line_number
+      if (line_number > 0)
+        command.append(" +").append(std::to_string(line_number));
 
       command.append(" \"").append(filename).append("\"");
 
@@ -2158,7 +2267,7 @@ void Query::view()
       if (system(command.c_str()) == 0)
       {
 #ifdef OS_WIN
-        if (pager == "more")
+        if (strcmp(pager, "more") == 0)
         {
           Screen::setpos(Screen::rows - 1, 0);
           Screen::put("(END) press a key");
@@ -3673,8 +3782,7 @@ std::thread                Query::search_thread_;
 std::string                Query::stdin_buffer_;
 int                        Query::stdin_pipe_[2];
 std::thread                Query::stdin_thread_;
-char                       Query::searching_[16]       = "Searching...";
-int                        Query::dots_                = 3;
+int                        Query::dots_                = 6;
 size_t                     Query::context_             = 2;
 size_t                     Query::only_context_        = 20;
 size_t                     Query::fuzzy_               = 1;

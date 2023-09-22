@@ -225,8 +225,12 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// FSM code FIND.
   inline void FSM_FIND()
   {
-    if (cap_ == 0)
-      cur_ = pos_;
+    if (cap_ == 0 && pos_ > cur_)
+    {
+      // use bit_[] to check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
+      while (++cur_ < pos_ && (pat_->bit_[static_cast<uint8_t>(buf_[cur_])] & 1))
+        continue;
+    }
   }
   /// FSM code CHAR.
   inline int FSM_CHAR()

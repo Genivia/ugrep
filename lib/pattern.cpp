@@ -30,7 +30,7 @@
 @file      pattern.cpp
 @brief     RE/flex regular expression pattern compiler
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -2515,7 +2515,8 @@ void Pattern::compile_transition(
     }
   }
   Moves::iterator i = moves.begin();
-  while (i != moves.end())
+  Moves::const_iterator e = moves.end();
+  while (i != e)
   {
     trim_lazy(&i->second);
     if (i->second.empty())
@@ -3354,7 +3355,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
 
 void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, bool& prev) const
 {
-  if (nest > 4)
+  if (nest > 5)
     return;
   for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
   {
@@ -3449,7 +3450,98 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
         }
       } while (++lo <= hi);
     }
+#if WITH_COMPACT_DFA == -1
+    else
+    {
+      Index target_index = Const::IMAX;
+      if (i->second.second != NULL)
+        target_index = i->second.second->index;
+      DFA::State::Edges::const_reverse_iterator j = i;
+      if (target_index == Const::IMAX && (++j == state->edges.rend() || is_meta(j->second.first)))
+        break;
+      ::fprintf(file, "%*s", 2*nest, "");
+      if (lo == hi)
+      {
+        ::fprintf(file, "if (c1 == ");
+        print_char(file, lo);
+        ::fprintf(file, ")");
+      }
+      else if (hi == 0xFF)
+      {
+        ::fprintf(file, "if (");
+        print_char(file, lo);
+        ::fprintf(file, " <= c1)");
+      }
+      else
+      {
+        ::fprintf(file, "if (");
+        print_char(file, lo);
+        ::fprintf(file, " <= c1 && c1 <= ");
+        print_char(file, hi);
+        ::fprintf(file, ")");
+      }
+      if (target_index == Const::IMAX)
+      {
+        if (peek)
+          ::fprintf(file, " return m.FSM_HALT(c1);\n");
+        else
+          ::fprintf(file, " return m.FSM_HALT();\n");
+      }
+      else
+      {
+        ::fprintf(file, " goto S%u;\n", target_index);
+      }
+    }
   }
+#else
+  }
+  for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
+  {
+    Char lo = i->first;
+    Char hi = i->second.first;
+    if (!is_meta(lo))
+    {
+      Index target_index = Const::IMAX;
+      if (i->second.second != NULL)
+        target_index = i->second.second->index;
+      DFA::State::Edges::const_iterator j = i;
+      if (target_index == Const::IMAX && (++j == state->edges.end() || is_meta(j->second.first)))
+        break;
+      ::fprintf(file, "%*s", 2*nest, "");
+      if (lo == hi)
+      {
+        ::fprintf(file, "if (c1 == ");
+        print_char(file, lo);
+        ::fprintf(file, ")");
+      }
+      else if (hi == 0xFF)
+      {
+        ::fprintf(file, "if (");
+        print_char(file, lo);
+        ::fprintf(file, " <= c1)");
+      }
+      else
+      {
+        ::fprintf(file, "if (");
+        print_char(file, lo);
+        ::fprintf(file, " <= c1 && c1 <= ");
+        print_char(file, hi);
+        ::fprintf(file, ")");
+      }
+      if (target_index == Const::IMAX)
+      {
+        if (peek)
+          ::fprintf(file, " return m.FSM_HALT(c1);\n");
+        else
+          ::fprintf(file, " return m.FSM_HALT();\n");
+      }
+      else
+      {
+        ::fprintf(file, " goto S%u;\n", target_index);
+      }
+    }
+  }
+#endif
 }
 
 void Pattern::graph_dfa(const DFA::State *start) const
