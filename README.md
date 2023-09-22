@@ -1,11 +1,11 @@
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
-New ugrep 4.1
+New ugrep 4.2
 -------------
 
 Ugrep is like grep, but faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed beat GNU grep, Silver Searcher, ack, sift, and ripgrep in [almost all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
 
-New faster ugrep 4.1 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
+New faster ugrep 4.2 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
 See [how to install ugrep](#install) on your system.  Ugrep is always free.
 
@@ -5271,7 +5271,7 @@ in markdown:
 
 
 
-    ugrep 4.1.0                    September 17, 2023                       UGREP(1)
+    ugrep 4.2.0                    September 22, 2023                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
