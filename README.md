@@ -241,11 +241,15 @@ Table of contents
 How to install
 --------------
 
-### Homebrew for MacOS (and Linux)
+### MacOS
 
-Install the latest ugrep commands with [Homebrew](https://brew.sh):
+Install the latest ugrep with [Homebrew](https://brew.sh):
 
     $ brew install ugrep
+
+or install with [MacPorts](https://www.macports.org):
+
+    $ sudo port install ugrep
 
 This installs the `ugrep` and `ug` commands, where `ug` is the same as `ugrep`
 but also loads the configuration file .ugrep when present in the working
