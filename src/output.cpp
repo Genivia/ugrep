@@ -226,9 +226,8 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
   // get column number when we need it
   size_t columno = flag_column_number && matcher != NULL ? matcher->columno() + 1 : 1;
 
-  bool hyp = pathname != LABEL_STANDARD_INPUT && color_hl != NULL; // include hyperlinks
-  bool sep = false; // when a separator is needed
-  bool nul = false; // -Q: mark pathname with three \0 markers unless -a
+  // -Q: mark pathname with three \0 markers unless -a
+  bool nul = false;
 
   if (heading && flag_query > 0 && !flag_text)
   {
@@ -237,6 +236,8 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
   }
 
   // --hyperlink: open link
+  bool hyp = pathname != LABEL_STANDARD_INPUT && color_hl != NULL; // include hyperlinks
+
   if (hyp)
   {
     str(color_hl);
@@ -257,6 +258,9 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
     }
     str(color_st);
   }
+
+  // when a separator is needed
+  bool sep = false;
 
   // header should include the pathname
   if (heading)
@@ -480,6 +484,7 @@ void Output::header(const char *pathname, const std::string& partname)
 
       if (nul)
         chr('\0');
+
       nl();
 
       Tree::path.assign(pathname, sep - pathname + 1);
@@ -811,6 +816,7 @@ bool Output::format(const char *format, const char *pathname, const std::string&
               if (flag_null)
                 chr('\0');
               nl();
+              heading = false;
             }
             else if (flag_break)
             {
@@ -843,20 +849,16 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'f':
-        if (heading)
+        str(pathname);
+        if (!partname.empty())
         {
-          str(pathname);
-          if (!partname.empty())
-          {
-            chr('{');
-            str(partname);
-            chr('}');
-          }
+          chr('{');
+          str(partname);
+          chr('}');
         }
         break;
 
       case 'a':
-        if (heading)
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename == NULL)
@@ -867,7 +869,6 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'p':
-        if (heading)
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename != NULL)
@@ -887,14 +888,14 @@ bool Output::format(const char *format, const char *pathname, const std::string&
           if (!partname.empty())
           {
             std::string name;
-            if (pathname != NULL)
+            if (heading)
               name = pathname;
             name.push_back('{');
             name.append(partname);
             name.push_back('}');
             quote(name.c_str(), name.size());
           }
-          else if (heading)
+          else
           {
             quote(pathname, strlen(pathname));
           }
@@ -908,15 +909,13 @@ bool Output::format(const char *format, const char *pathname, const std::string&
       case 'h':
         if (!partname.empty())
         {
-          std::string name;
-          if (heading)
-            name = pathname;
+          std::string name(pathname);
           name.push_back('{');
           name.append(partname);
           name.push_back('}');
           quote(name.c_str(), name.size());
         }
-        else if (heading)
+        else
         {
           quote(pathname, strlen(pathname));
         }
@@ -1319,10 +1318,6 @@ bool Output::format(const char *format, const char *pathname, const std::string&
     ++s;
   }
 
-  // only output the pathname once
-  if (flag_heading)
-    heading = false;
-
   return true;
 }
 
@@ -1371,6 +1366,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
               if (flag_null)
                 chr('\0');
               nl();
+              heading = false;
             }
             else if (flag_break)
             {
@@ -1403,20 +1399,16 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case 'f':
-        if (heading)
+        str(pathname);
+        if (!partname.empty())
         {
-          str(pathname);
-          if (!partname.empty())
-          {
-            chr('{');
-            str(partname);
-            chr('}');
-          }
+          chr('{');
+          str(partname);
+          chr('}');
         }
         break;
 
       case 'a':
-        if (heading)
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename == NULL)
@@ -1427,7 +1419,6 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case 'p':
-        if (heading)
         {
           const char *basename = strrchr(pathname, PATHSEPCHR);
           if (basename != NULL)
@@ -1454,7 +1445,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
             name.push_back('}');
             quote(name.c_str(), name.size());
           }
-          else if (heading)
+          else
           {
             quote(pathname, strlen(pathname));
           }
@@ -1468,15 +1459,13 @@ void Output::format_invert(const char *format, const char *pathname, const std::
       case 'h':
         if (!partname.empty())
         {
-          std::string name;
-          if (heading)
-            name = pathname;
+          std::string name(pathname);
           name.push_back('{');
           name.append(partname);
           name.push_back('}');
           quote(name.c_str(), name.size());
         }
-        else if (heading)
+        else
         {
           quote(pathname, strlen(pathname));
         }
@@ -1695,10 +1684,6 @@ void Output::format_invert(const char *format, const char *pathname, const std::
     }
     ++s;
   }
-
-  // only output the pathname once
-  if (flag_heading)
-    heading = false;
 }
 
 // output a quoted string with escapes for \ and "
