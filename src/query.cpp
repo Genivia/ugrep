@@ -1320,8 +1320,9 @@ void Query::search()
   {
     if (cancel && error_ == -1)
     {
-      char banner[256];
-      snprintf(banner, sizeof(banner), "restarting: please be patient while I cancel searching large files...%*s", 256, "");
+      const int banlen = 256;
+      char banner[banlen];
+      snprintf(banner, banlen, "restarting: please be patient while I cancel searching large files...%*s", banlen - 70, "");
       Screen::normal();
       Screen::invert();
       Screen::put(maxrows_ - 1, 0, banner);
@@ -1385,7 +1386,8 @@ void Query::search()
 // display the status line
 void Query::status(bool show)
 {
-  char banner[256];
+  const int banlen = 256;
+  char banner[banlen];
   size_t sf = Stats::searched_files();
   size_t ff = Stats::found_files();
   const char *bookmark = mark_.is_set() ? "^R restore" : "^X bookmark";
@@ -1405,7 +1407,7 @@ void Query::status(bool show)
       size_t ws = Static::warnings;
       const char *pager = flag_view ? flag_view : "-";
 
-      snprintf(banner, sizeof(banner), "%zu/%zu files | %zu dirs | %zu warnings | ^Q quit  ^T split  ^Y %s  ^Z help  %s%*s", ff, sf, sd, ws, pager, bookmark, 256, "");
+      snprintf(banner, banlen, "%zu/%zu files | %zu dirs | %zu warnings | ^Q quit  ^T split  ^Y %s  ^Z help  %s%*s", ff, sf, sd, ws, pager, bookmark, banlen - 100, "");
       Screen::normal();
       Screen::invert();
       Screen::put(maxrows_ - 1, 0, banner);
@@ -1433,7 +1435,7 @@ void Query::status(bool show)
       int spinner = "-\\|/"[spin_];
       const char *pager = flag_view ? flag_view : "-";
 
-      snprintf(banner, sizeof(banner), "[%c] %zu/%zu files queued | ^Q quit  ^T split  ^Y %s  ^Z help  %s%*s", spinner, ff, sf, pager, bookmark, 256, "");
+      snprintf(banner, banlen, "[%c] %zu/%zu files queued | ^Q quit  ^T split  ^Y %s  ^Z help  %s%*s", spinner, ff, sf, pager, bookmark, banlen - 100, "");
       Screen::normal();
       Screen::invert();
       Screen::put(maxrows_ - 1, 0, banner);
