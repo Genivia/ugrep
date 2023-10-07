@@ -56,9 +56,9 @@
 #define QUERY_BUFFER_SIZE 16384
 #endif
 
-// default -Q response to keyboard input delay is ~0.5s, in steps of 100ms
+// default -Q response to keyboard input delay is 3 for 300ms, in steps of 100ms
 #ifndef DEFAULT_QUERY_DELAY
-#define DEFAULT_QUERY_DELAY 5
+#define DEFAULT_QUERY_DELAY 3
 #endif
 
 // the max time that a message (to confirm a command) is shown at the query line, in steps of 100ms
@@ -74,7 +74,7 @@ class Query {
 
  protected:
 
-  enum class Mode { QUERY, LIST, EDIT, HELP };
+  enum class Mode { QUERY, HELP };
 
   typedef char Line[QUERY_MAX_LEN];
 
@@ -90,14 +90,19 @@ class Query {
 
     State()
     {
-      unset();
+      reset();
     }
 
-    void unset()
+    void reset()
     {
       *line = '\0';
       col = 0;
       row = -1;
+    }
+
+    bool is_set()
+    {
+      return row != -1;
     }
 
     void save(const Line& line_, int col_, int row_, const Flags flags_[])
@@ -204,17 +209,13 @@ class Query {
 
   static void search();
 
+  static void status(bool show);
+
   static bool update();
 
-  static void fetch(int row);
-
-  static void fetch_all();
+  static bool fetch(int row);
 
   static void execute(int fd);
-
-  static void load_line();
-
-  static void save_line();
 
   static void up();
 
@@ -232,6 +233,8 @@ class Query {
 
   static void view();
 
+  static void preview();
+
   static void select();
 
   static void deselect();
@@ -247,8 +250,6 @@ class Query {
   static void meta(int key);
 
   static bool selections();
-
-  static void save();
 
   static void print();
 
@@ -266,38 +267,48 @@ class Query {
 
   static ssize_t stdin_sender(int fd);
 
-  static bool find_filename(int ref, std::string& filename, bool compare_dir = false);
+  static bool find_filename(int ref, std::string& filename, bool compare_dir = false, bool find_path = false, std::string *partname = NULL);
 
-  static Mode                     mode_;
-  static bool                     updated_;
-  static bool                     message_;
-  static Line                     line_;
-  static Line                     temp_;
-  static std::string              prompt_;
-  static int                      start_;
-  static int                      col_;
-  static int                      len_;
-  static int                      offset_;
-  static int                      shift_;
-  static std::atomic_int          error_;
-  static std::string              what_;
-  static int                      row_;
-  static int                      rows_;
-  static State                    mark_;
-  static int                      skip_;
-  static int                      select_;
-  static bool                     select_all_;
-  static bool                     globbing_;
-  static std::string              globs_;
-  static std::string              dirs_;
-  static std::string              wdir_;
+  static bool get_filename(int ref, std::string& filename, size_t& start, size_t& pos);
+
+  static size_t get_line_number();
+
+  static Mode                     mode_;        // query TUI mode
+  static bool                     updated_;     // true when the query is updated requiring a new search
+  static bool                     message_;     // true when a message is displayed
+  static Line                     line_;        // query line of QUERY_MAX_LEN chars
+  static Line                     temp_;        // temporary buffer to hold query line to enter globs instead
+  static std::string              prompt_;      // query line prompt
+  static int                      start_;       // starting column of the query line
+  static int                      col_;         // column position in the query line of the cursor
+  static int                      len_;         // length of the query line
+  static int                      offset_;      // offset of the query line displayed when the left part is out of view
+  static int                      shift_;       // horizontal shift amount of the query line from the screen edges
+  static std::atomic_int          error_;       // error position in the pattern or -1 if no error
+  static std::string              what_;        // what happened when an error occurred
+  static int                      row_;         // current row of view_[]
+  static int                      rows_;        // number of rows_ stored in view_[]
+  static int                      maxrows_;     // max number of screen rows, normally Screen::rows
+  static State                    mark_;        // bookmark state
+  static int                      skip_;        // skipped left text output amount, to pan the screen left/right
+  static int                      select_;      // select output or -1 if selecting is not active
+  static bool                     select_all_;  // selecting with A (select all)
+  static bool                     globbing_;    // true when specifying a glob pattern
+  static std::string              globs_;       // the glob patterns specified
+  static std::string              dirs_;        // dir path to display before the prompt when we chdir into dirs
+  static std::string              wdir_;        // the working directory
+  static std::string              prevfile_;    // the preview filename
+  static std::string              prevpart_;    // the preview archive partname
+  static size_t                   prevfrom_;    // the preview line number to search from
+  static size_t                   prevline_;    // the preview line number
+  static std::vector<std::string> preview_;     // the preview text to display in the split screen bottom half
+  static size_t                   prevnum_;     // the number of previous text entries
   static bool                     deselect_file_;
   static std::string              selected_file_;
   static std::stack<History>      history_;
-  static std::vector<std::string> view_;
-  static std::list<std::string>   saved_;
-  static std::vector<bool>        selected_;
-  static bool                     eof_;
+  static std::vector<std::string> view_;        // search output text to display, incrementally fetched
+  static std::vector<bool>        selected_;    // marked lines in view_[] selected in selection mode
+  static bool                     eof_;         // end of results, no more results can be fetched
   static bool                     append_;
   static size_t                   buflen_;
   static char                     buffer_[QUERY_BUFFER_SIZE];
@@ -306,12 +317,14 @@ class Query {
   static std::string              stdin_buffer_;
   static int                      stdin_pipe_[2];
   static std::thread              stdin_thread_;
-  static char                     searching_[16];
-  static int                      dots_;
-  static size_t                   context_;
-  static size_t                   only_context_;
-  static size_t                   fuzzy_;
-  static bool                     dotall_;
+  static size_t                   searched_;    // last update number of files searched
+  static size_t                   found_;       // last update number of files found
+  static int                      tick_;        // 100ms tick 0 to 7 or steady 8
+  static int                      spin_;        // spinner state
+  static size_t                   context_;     // -ABC context size
+  static size_t                   only_context_;// -o with -ABC context size
+  static size_t                   fuzzy_;       // --fuzzy fuzzy distance
+  static bool                     dotall_;      // --dotall flag
 
 #ifdef OS_WIN
 

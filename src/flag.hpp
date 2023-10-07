@@ -110,9 +110,11 @@ extern bool flag_only_line_number;
 extern bool flag_only_matching;
 extern bool flag_perl_regexp;
 extern bool flag_pretty;
+extern bool flag_query;
 extern bool flag_quiet;
 extern bool flag_sort_rev; // internal flag
-extern bool flag_stdin;
+extern bool flag_split;
+extern bool flag_stdin; // internal flag
 extern bool flag_tty_term; // internal flag
 extern bool flag_usage_warnings; // internal flag
 extern bool flag_word_regexp;
@@ -162,7 +164,6 @@ extern size_t flag_min_line;
 extern size_t flag_min_magic;
 extern size_t flag_min_steal;
 extern size_t flag_not_magic;
-extern size_t flag_query;
 extern size_t flag_tabs;
 extern size_t flag_width;
 extern size_t flag_zmax;

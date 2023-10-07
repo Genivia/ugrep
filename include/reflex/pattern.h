@@ -95,7 +95,9 @@ class Pattern {
       opc_(NULL),
       nop_(0),
       fsm_(NULL)
-  { }
+  {
+    init(NULL);
+  }
   /// Construct a pattern object given a regex string.
   explicit Pattern(
       const char *regex,
@@ -613,12 +615,14 @@ class Pattern {
     {
       clear();
     }
-    /// delete the tree DFA.
+    /// delete the tree DFA and reset to the intial state.
     void clear()
     {
       for (List::iterator i = list.begin(); i != list.end(); ++i)
         delete[] *i;
       list.clear();
+      tree = NULL;
+      next = ALLOC;
     }
     /// return the root of the tree.
     Node *root()
@@ -707,12 +711,13 @@ class Pattern {
     {
       clear();
     }
-    /// delete DFA
+    /// delete DFA and reset to initial state.
     void clear()
     {
       for (List::iterator i = list.begin(); i != list.end(); ++i)
         delete[] *i;
       list.clear();
+      next = ALLOC;
     }
 #ifdef WITH_TREE_DFA
     /// new DFA state.

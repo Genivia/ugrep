@@ -28,7 +28,7 @@
 
 /**
 @file      query.cpp
-@brief     Query engine and UI
+@brief     Query engine TUI
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
@@ -58,7 +58,7 @@ inline HANDLE nonblocking_pipe(int fd[2])
   HANDLE pipe_r = CreateNamedPipeA(pipe_name.c_str(), PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, buffer_size, buffer_size, 0, NULL);
   if (pipe_r != INVALID_HANDLE_VALUE)
   {
-    HANDLE pipe_w = CreateFileA(pipe_name.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL); 
+    HANDLE pipe_w = CreateFileA(pipe_name.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (pipe_w != INVALID_HANDLE_VALUE)
     {
       fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), _O_RDONLY);
@@ -100,12 +100,12 @@ inline void set_blocking(int fd0)
 
 #endif
 
-static constexpr const char *PROMPT = "\033[32;1m";    // bright green
-static constexpr const char *CERROR = "\033[37;41;1m"; // bright white on red
-static constexpr const char *LARROW = "«";             // left arrow
-static constexpr const char *RARROW = "»";             // right arrow
+static const char *PROMPT = "\033[32;1m";    // bright green
+static const char *CERROR = "\033[37;41;1m"; // bright white on red
+static const char *LARROW = "«";             // left arrow
+static const char *RARROW = "»";             // right arrow
 
-// return pointer to character in the query search line at screen col, taking UTF-8 double wide characters into account
+// return pointer to character in the query search line at screen col, taking UTF-8 double width characters into account
 char *Query::line_ptr(int col)
 {
   char *ptr = line_;
@@ -134,7 +134,7 @@ char *Query::line_end()
   return ptr;
 }
 
-// return number of character positions on the query search line up to the current screen Query::col_, taking UTF-8 double wide characters into account
+// return number of character positions on the query search line up to the current screen Query::col_, taking UTF-8 wide characters into account
 int Query::line_pos()
 {
   char *ptr = line_;
@@ -154,7 +154,7 @@ int Query::line_len()
   return Screen::mbstring_width(line_);
 }
 
-// return the length of the query search line as the number of wide characters
+// return the length of the query search line as the number of UTF-8 wide characters
 int Query::line_wsize()
 {
   int num = 0;
@@ -188,7 +188,7 @@ void Query::display(int col, int len)
     if (ch < ' ' || ch == 0x7f)
     {
       Screen::put(ptr, next - ptr);
-      if (alert && next > err)
+      if (err != NULL && alert && next > err)
       {
         Screen::normal();
         alert = false;
@@ -208,7 +208,7 @@ void Query::display(int col, int len)
       ptr = next + 1;
       alert = false;
     }
-    else if (alert && next > err && (ch & 0xc0) != 0x80)
+    else if (err != NULL && alert && next > err && (ch & 0xc0) != 0x80)
     {
       Screen::put(ptr, next - ptr);
       Screen::normal();
@@ -238,8 +238,7 @@ void Query::draw()
 
         snprintf(down, sizeof(down), "%3d ", row_);
 
-        if (!Screen::mono)
-          Screen::put(PROMPT);
+        Screen::normal();
         Screen::put(down);
 
         start_ = strlen(down);
@@ -249,9 +248,9 @@ void Query::draw()
       {
         int width = Screen::mbstring_width(dirs_.c_str());
         int offset = 0;
-        int split = Screen::cols/2 - start_;
-        if (width + 2 > split)
-          offset = width + 2 - split;
+        int middle = Screen::cols/2 - start_;
+        if (width + 2 > middle)
+          offset = width + 2 - middle;
 
         Screen::normal();
         if (offset > 0)
@@ -355,89 +354,48 @@ void Query::draw()
       Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m (de)select line  \033[7mA\033[mll  \033[7mC\033[mlear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quit & output");
     }
   }
-  else if (mode_ == Mode::LIST)
-  {
-    Screen::normal();
-    Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m (de)select file type  \033[7mC\033[m clear  \033[7mEsc\033[m go back");
-  }
-  else if (mode_ == Mode::EDIT)
-  {
-    Screen::put(0, 0, "\033[7mEDIT\033[m");
-
-    Screen::setpos(select_ - row_ + 1, 0);
-
-    int pos;
-    if (len_ - col_ < shift_)
-      pos = Screen::cols - (len_ - col_) - 1;
-    else
-      pos = Screen::cols - shift_ - 1;
-
-    offset_ = col_ > pos ? col_ - pos : 0;
-
-    if (offset_ > 0)
-    {
-      Screen::put(LARROW);
-      Screen::normal();
-
-      int adj = 1;
-      if (line_ptr(offset_) == line_ptr(offset_ + 1)) // adjust columns when double width char at offset
-      {
-        Screen::put(' ');
-        adj = 2; // make the displayed line start one character later
-      }
-
-      if (len_ >= offset_ + Screen::cols)
-      {
-        display(offset_ + adj, Screen::cols - adj - 1);
-        Screen::erase();
-        Screen::put(RARROW);
-      }
-      else
-      {
-        display(offset_ + adj, len_ - offset_ - adj);
-        Screen::erase();
-      }
-    }
-    else
-    {
-      Screen::normal();
-
-      if (len_ > Screen::cols)
-      {
-        display(0, Screen::cols - 1);
-        Screen::erase();
-        Screen::put(RARROW);
-      }
-      else
-      {
-        display(0, len_);
-        if (len_ < Screen::cols)
-          Screen::erase();
-      }
-    }
-  }
 }
 
 // view one row of text by drawing it on screen
 void Query::disp(int row)
 {
   Screen::normal();
-  if (selected_[row])
-    Screen::select();
-  Screen::put(row - row_ + 1, 0, view_[row], skip_);
-  if (selected_[row])
-    Screen::deselect();
+  if (row < rows_)
+  {
+    if (selected_[row])
+      Screen::select();
+    int nulls = !flag_text ? 2 : 0; // how many nulls to ignore in marked pathnames?
+    Screen::put(row - row_ + 1, 0, view_[row], skip_, -1, nulls);
+    if (selected_[row])
+      Screen::deselect();
+  }
+  else if (row - row_ + 1 < maxrows_)
+  {
+    Screen::setpos(row - row_ + 1, 0);
+    Screen::erase();
+  }
 }
 
 // redraw the screen
 void Query::redraw()
 {
   Screen::getsize();
+  maxrows_ = Screen::rows;
+  if (flag_split)
+    maxrows_ /= 2;
   shift_ = (Screen::cols - start_) / 10;
   Screen::normal();
 
   if (mode_ == Mode::HELP)
   {
+    message_ = false;
+
+#ifdef __APPLE__
+    Screen::put(0, 0, "\033[7m     HELP AND OPTIONS     \033[m  \033[7m^\033[m=ctrl  \033[7mS-\033[m=shift  \033[7mM-\033[m=option or \033[7m^O\033[m+key");
+#else
+    Screen::put(0, 0, "\033[7m     HELP AND OPTIONS     \033[m  \033[7m^\033[m=ctrl  \033[7mS-\033[m=shift  \033[7mM-\033[m=alt or \033[7m^O\033[m+key");
+#endif
+
     Screen::put( 1, 0, "");
     Screen::put( 2, 0, "\033[7mEsc\033[m   go back / exit");
     Screen::put( 3, 0, "\033[7mTab\033[m   cd dir / select file");
@@ -446,7 +404,7 @@ void Query::redraw()
     Screen::put( 6, 0, "");
     Screen::put( 7, 0, "\033[7mUp\033[m     \033[7mDown\033[m    scroll");
     Screen::put( 8, 0, "\033[7mPgUp\033[m   \033[7mPgDn\033[m    scroll page");
-#ifdef WITH_MACOS_META_KEY
+#ifdef __APPLE__
     Screen::put( 9, 0, "\033[7mS-Left\033[m \033[7mS-Right\033[m pan ½ page");
     Screen::put(10, 0, "\033[7mS-Up\033[m   \033[7mS-Down\033[m  scroll ½ pg");
 #else
@@ -457,24 +415,25 @@ void Query::redraw()
     Screen::put(12, 0, "");
     Screen::put(13, 0, "\033[7m^K\033[m delete after cursor");
     Screen::put(14, 0, "\033[7m^L\033[m refresh screen");
-    Screen::put(15, 0, "\033[7m^Q\033[m quick exit and output");
-    Screen::put(16, 0, "\033[7m^R\033[m or \033[7mF4\033[m restore bookmark");
+    Screen::put(15, 0, "\033[7m^Q\033[m quit and output");
+    Screen::put(16, 0, "\033[7m^R\033[m/\033[7mF4\033[m restore bookmark");
     Screen::put(17, 0, "\033[7m^S\033[m next dir/file/context");
-    Screen::put(18, 0, "\033[7m^T\033[m toggle colors");
+    Screen::put(18, 0, "\033[7m^T\033[m/\033[7mF5\033[m toggle split screen");
     Screen::put(19, 0, "\033[7m^U\033[m delete before cursor");
     Screen::put(20, 0, "\033[7m^V\033[m verbatim character");
     Screen::put(21, 0, "\033[7m^W\033[m prev dir/file/context");
-    Screen::put(22, 0, "\033[7m^X\033[m or \033[7mF3\033[m set bookmark");
-    Screen::put(23, 0, "\033[7m^Y\033[m or \033[7mF2\033[m view or edit file");
-    Screen::put(24, 0, "\033[7m^Z\033[m or \033[7mF1\033[m help");
+    Screen::put(22, 0, "\033[7m^X\033[m/\033[7mF3\033[m set bookmark");
+    Screen::put(23, 0, "\033[7m^Y\033[m/\033[7mF2\033[m view or edit file");
+    Screen::put(24, 0, "\033[7m^Z\033[m/\033[7mF1\033[m help");
     Screen::put(25, 0, "\033[7m^^\033[m chdir to starting dir");
-    Screen::put(26, 0, "\033[7m^\\\033[m force terminate process");
-    Screen::put(27, 0, "");
-    Screen::put(28, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
-    Screen::put(29, 0, "");
+    Screen::put(26, 0, "\033[7m^]\033[m toggle color/mono");
+    Screen::put(27, 0, "\033[7m^\\\033[m force quit");
+    Screen::put(28, 0, "");
+    Screen::put(29, 0, "\033[7mM-/xxxx/\033[m U+xxxx code point");
+    Screen::put(30, 0, "");
 
     std::string buf;
-    int row = 30;
+    int row = 31;
     int col = 0;
 
     for (Flags *fp = flags_; fp->text != NULL; ++fp)
@@ -482,12 +441,11 @@ void Query::redraw()
       buf.assign("\033[7mM- \033[m ");
       buf[6] = fp->key;
       if (strncmp(fp->text, "decrease", 8) == 0 || strncmp(fp->text, "increase", 8) == 0)
-        buf.append("    ");
+        buf.append("    ").append(fp->text);
       else if (fp->flag)
-        buf.append("[\033[32;1mX\033[m] ");
+        buf.append("[\033[32;1m*\033[m] \033[1m").append(fp->text).append("\033[m");
       else
-        buf.append("[ ] ");
-      buf.append(fp->text);
+        buf.append("[ ] ").append(fp->text);
       if (row >= Screen::rows)
       {
         row = 2;
@@ -500,41 +458,34 @@ void Query::redraw()
     if (col == 0)
       Screen::end();
 
-    if (!message_)
-    {
-#ifdef WITH_MACOS_META_KEY
-      Screen::put(0, 0, "     HELP AND OPTIONS       \033[7m^\033[m=Ctrl  \033[7mS-\033[m=Shift  \033[7mM-\033[m=Alt/Option or \033[7m^O\033[m+key");
-#else
-      Screen::put(0, 0, "     HELP AND OPTIONS       \033[7m^\033[m=Ctrl  \033[7mS-\033[m=Shift  \033[7mM-\033[m=Alt or \033[7m^O\033[m+key");
-#endif
-    }
-
-    message_ = false;
-
     Screen::put(0, Screen::cols - 1, "?");
   }
   else
   {
-    // to lazely redraw the status line and clear the screen below without flicker
-    dots_ = 6;
+    // do not show dots
+    tick_ = 4;
 
-    if (select_ >= 0 && select_ >= row_ + Screen::rows - 1)
-      row_ = select_ - Screen::rows + 3;
-    else if (select_ >= 0 && select_ < row_)
-      row_ = select_ - 1;
+    if (error_ == -1)
+    {
+      if (select_ >= 0 && select_ >= row_ + maxrows_ - 1)
+        row_ = select_ - maxrows_ + 3;
+      else if (select_ >= 0 && select_ < row_)
+        row_ = select_ - 1;
 
-    if (row_ >= rows_)
-      row_ = rows_ - 1;
-    if (row_ < 0)
-      row_ = 0;
+      if (row_ >= rows_)
+        row_ = rows_ - 1;
+      if (row_ < 0)
+        row_ = 0;
 
-    int end = rows_;
+      int end = row_ + maxrows_ - 2;
 
-    if (end > row_ + Screen::rows - 1)
-      end = row_ + Screen::rows - 1;
+      for (int i = row_; i < end; ++i)
+        disp(i);
 
-    for (int i = row_; i < end; ++i)
-      disp(i);
+      status(true);
+
+      preview();
+    }
 
     if (!message_)
       draw();
@@ -674,7 +625,7 @@ void Query::query()
   SetConsoleCtrlHandler(&sigint, TRUE);
 
 #else
-  
+
   signal(SIGINT, sigint);
 
   signal(SIGQUIT, sigint);
@@ -695,13 +646,25 @@ void Query::query()
 
   get_flags();
 
+  // if --view is empty (default), then try the PAGER or EDITOR environment variable as viewer or use the default viewer
+  if (flag_view != NULL && *flag_view == '\0')
+  {
+    flag_view = getenv("PAGER");
+
+    if (flag_view == NULL)
+      flag_view = getenv("EDITOR");
+
+    if (flag_view == NULL)
+      flag_view = DEFAULT_VIEW_COMMAND;
+  }
+
   query_ui();
 
   VKey::cleanup();
   Screen::cleanup();
 
   // check TTY again for color support, this time without --query
-  flag_query = 0;
+  flag_query = false;
   terminal();
 
   if (!flag_quiet)
@@ -714,14 +677,14 @@ void Query::query()
     eof_ = true;
 
     // graciously shut down ugrep() if still running
-    cancel_ugrep();
+    Static::cancel_ugrep();
   }
 
   // close the stdin pipe
-  if (flag_stdin && source != stdin && source != NULL)
+  if (flag_stdin && Static::source != stdin && Static::source != NULL)
   {
-    fclose(source);
-    source = NULL;
+    fclose(Static::source);
+    Static::source = NULL;
   }
 
   // join the search thread
@@ -745,8 +708,10 @@ void Query::query_ui()
   offset_     = 0;
   shift_      = 8;
   error_      = -1;
+  tick_       = 4;
   row_        = 0;
   rows_       = 0;
+  maxrows_    = Screen::rows;
   skip_       = 0;
   select_     = -1;
   select_all_ = false;
@@ -793,13 +758,10 @@ void Query::query_ui()
 
     move(len_);
   }
-  else
-  {
-    // display a brief help message
-    message("press CTRL-Z or F1 for help");
-  }
 
   set_prompt();
+
+  redraw();
 
   search();
 
@@ -810,7 +772,7 @@ void Query::query_ui()
 
   while (true)
   {
-    size_t delay = message_ ? QUERY_MESSAGE_DELAY : flag_query;
+    size_t delay = message_ ? QUERY_MESSAGE_DELAY : flag_delay;
 
     int key = 0;
 
@@ -841,14 +803,7 @@ void Query::query_ui()
         err = true;
       }
 
-      key = VKey::in(100);
-
-      if (key > 0)
-        break;
-
-      --delay;
-
-      if (delay == 0)
+      if (delay-- == 0)
       {
         if (mode_ == Mode::QUERY && updated_)
         {
@@ -876,8 +831,13 @@ void Query::query_ui()
           draw();
         }
 
-        delay = flag_query;
+        delay = flag_delay;
       }
+
+      key = VKey::in(100);
+
+      if (key > 0)
+        break;
     }
 
     if (message_)
@@ -934,7 +894,7 @@ void Query::query_ui()
 
         case VKey::LF:
         case VKey::CR:
-          if (mode_ == Mode::QUERY || mode_ == Mode::LIST)
+          if (mode_ == Mode::QUERY)
           {
             if (select_ == -1)
             {
@@ -942,7 +902,15 @@ void Query::query_ui()
               {
                 select_ = row_;
                 select_all_ = false;
-                draw();
+                if (flag_split)
+                {
+                  flag_split = false;
+                  redraw();
+                }
+                else
+                {
+                  draw();
+                }
               }
               else
               {
@@ -955,12 +923,6 @@ void Query::query_ui()
               disp(select_);
               down();
             }
-          }
-          else if (mode_ == Mode::EDIT)
-          {
-            if (select_ + 1 == rows_)
-              ++rows_;
-            down();
           }
           break;
 
@@ -982,6 +944,10 @@ void Query::query_ui()
                     skip_ = 0;
                   redraw();
                 }
+              }
+              else if (error_ != -1 && !dirs_.empty())
+              {
+                deselect();
               }
               else
               {
@@ -1044,10 +1010,6 @@ void Query::query_ui()
               redraw();
             }
           }
-          else if (mode_ == Mode::EDIT)
-          {
-            insert('\t');
-          }
           else
           {
             Screen::alert();
@@ -1055,7 +1017,7 @@ void Query::query_ui()
           break;
 
         case VKey::BS: // Backspace: delete character before the cursor
-          if (mode_ == Mode::QUERY || mode_ == Mode::LIST)
+          if (mode_ == Mode::QUERY)
           {
             if (select_ == -1)
             {
@@ -1071,23 +1033,10 @@ void Query::query_ui()
               disp(select_);
             }
           }
-          else if (mode_ == Mode::EDIT)
-          {
-            if (col_ <= 0)
-            {
-              up();
-              move(len_);
-            }
-            else
-            {
-              move(col_ - 1);
-              erase(1);
-            }
-          }
           break;
 
         case VKey::DEL: // DEL: delete character under the cursor
-          if (mode_ == Mode::EDIT || select_ == -1)
+          if (select_ == -1)
           {
             erase(1);
           }
@@ -1100,7 +1049,7 @@ void Query::query_ui()
           break;
 
         case VKey::RIGHT: // RIGHT/CTRL-F: move right
-          if (mode_ == Mode::EDIT || select_ == -1)
+          if (select_ == -1)
           {
             move(col_ + 1);
           }
@@ -1116,7 +1065,7 @@ void Query::query_ui()
           break;
 
         case VKey::LEFT: // LEFT/CTRL-B: move left
-          if (mode_ == Mode::EDIT || select_ == -1)
+          if (select_ == -1)
           {
             move(col_ - 1);
           }
@@ -1150,14 +1099,14 @@ void Query::query_ui()
           break;
 
         case VKey::HOME: // HOME/CTRL-A: begin of line
-          if (mode_ == Mode::EDIT || select_ == -1)
+          if (select_ == -1)
             move(0);
           else
             Screen::alert();
           break;
 
         case VKey::END: // END/CTRL-E: end of line
-          if (mode_ == Mode::EDIT || select_ == -1)
+          if (select_ == -1)
             move(len_);
           else
             Screen::alert();
@@ -1169,7 +1118,7 @@ void Query::query_ui()
           break;
 
         case VKey::CTRL_K: // CTRL-K: delete after cursor
-          if (mode_ == Mode::EDIT || select_ == -1)
+          if (select_ == -1)
             erase(len_ - col_);
           else
             Screen::alert();
@@ -1180,13 +1129,13 @@ void Query::query_ui()
           break;
 
         case VKey::CTRL_O: // CTRL-O: press KEY to get Alt-KEY
-          if (mode_ == Mode::EDIT || select_ == -1)
+          if (select_ == -1)
             ctrl_o = true;
           else
             Screen::alert();
           break;
 
-        case VKey::CTRL_R: // CTRL-R: restore bookmarked state
+        case VKey::CTRL_R: // CTRL-R or F4: restore bookmarked state
         case VKey::FN(4):
           if (mark_.row >= 0)
           {
@@ -1209,17 +1158,19 @@ void Query::query_ui()
         case VKey::CTRL_Q: // CTRL-Q: immediately quit and output lines
           return;
 
-        case VKey::CTRL_S: // CTRL=S: scroll to next file (or directory with -l or -c)
+        case VKey::CTRL_S: // CTRL=S: scroll to next file or directory (with -l or -c) or context with -ABC
           next();
           break;
 
-        case VKey::CTRL_T: // CTRL-T: toggle colors on/off
-          Screen::mono = !Screen::mono;
+        case VKey::CTRL_T: // CTRL-T or F5: toggle split screen
+        case VKey::FN(5):
+          if (select_ == -1)
+            flag_split = !flag_split; // (un)split screen
           redraw();
           break;
 
         case VKey::CTRL_U: // CTRL-U: delete before cursor
-          if (mode_ == Mode::EDIT || select_ == -1)
+          if (select_ == -1)
           {
             int pos = line_pos();
             col_ = 0;
@@ -1238,16 +1189,17 @@ void Query::query_ui()
             Screen::alert();
           break;
 
-        case VKey::CTRL_W: // CTRL-W: scroll back one file or (or directory with -l or -c)
+        case VKey::CTRL_W: // CTRL-W: scroll back one file or directory (with -l or -c) or context with -ABC
           back();
           break;
 
-        case VKey::CTRL_X: // CTRL-X: set bookmark and save state
+        case VKey::CTRL_X: // CTRL-X or F3: set bookmark and save state
         case VKey::FN(3):
           mark_.save(line_, col_, (select_ >= 0 ? select_ : row_), flags_);
+          status(true);
           break;
 
-        case VKey::CTRL_Y: // CTRL-Y: edit file
+        case VKey::CTRL_Y: // CTRL-Y or F2: view (or edit) file
         case VKey::FN(2):
           if (select_ == -1)
             view();
@@ -1255,7 +1207,7 @@ void Query::query_ui()
             Screen::alert();
           break;
 
-        case VKey::CTRL_Z: // CTRL-Z: help
+        case VKey::CTRL_Z: // CTRL-Z or F1: help
         case VKey::FN(1):
           if (help())
             return;
@@ -1269,15 +1221,20 @@ void Query::query_ui()
 #endif
           break;
 
+        case VKey::CTRL_RB: // CTRL-]: toggle colors/mono
+          Screen::mono = !Screen::mono;
+          redraw();
+          break;
+
         case VKey::CTRL_CA: // CTRL-^: chdir back to working directory
-          if (mode_ == Mode::QUERY && error_ == -1 && select_ == -1)
+          if (mode_ == Mode::QUERY && (error_ == -1 || !dirs_.empty()) && select_ == -1)
             unselect();
           break;
 
         default:
           if (key >= 32 && key < 256)
           {
-            if (mode_ == Mode::EDIT || select_ == -1)
+            if (select_ == -1)
             {
               insert(key);
             }
@@ -1299,6 +1256,10 @@ void Query::query_ui()
             }
             else
             {
+#ifdef __APPLE__
+              Screen::put(CERROR);
+              Screen::put(0, 0, "MacOS Terminal Preferences/Profiles/Keyboard: enable \"Use Option as Meta key\"");
+#endif
               Screen::alert();
             }
           }
@@ -1312,17 +1273,19 @@ void Query::query_ui()
   }
 }
 
-// start a new search, stop the previous search when still running
+// start a new search, cancel the previous search when still running
 void Query::search()
 {
-  if (!eof_)
+  bool cancel = !eof_;
+
+  if (cancel)
   {
     close(search_pipe_[0]);
     eof_ = true;
     buflen_ = 0;
 
     // graciously shut down ugrep() if still running
-    cancel_ugrep();
+    Static::cancel_ugrep();
   }
 
 #ifdef OS_WIN
@@ -1331,9 +1294,9 @@ void Query::search()
 
   if (hPipe_ == INVALID_HANDLE_VALUE)
   {
-    if (!Screen::mono)
-      Screen::put(CERROR);
-    Screen::put(0, 0, "Error: cannot create pipe");
+    what_.assign("cannot create pipe");
+    // error at the end of the line, not within
+    error_ = line_wsize();
     return;
   }
 
@@ -1345,9 +1308,9 @@ void Query::search()
 
   if (nonblocking_pipe(search_pipe_) < 0)
   {
-    if (!Screen::mono)
-      Screen::put(CERROR);
-    Screen::put(0, 0, "Error: cannot create pipe");
+    what_.assign("cannot create pipe");
+    // error at the end of the line, not within
+    error_ = line_wsize();
     return;
   }
 
@@ -1355,14 +1318,14 @@ void Query::search()
 
   if (search_thread_.joinable())
   {
-    // clear "Searching..." or "(end)", if displayed
-    if (error_ == -1 && rows_ < row_ + Screen::rows - 1)
+    if (cancel && error_ == -1)
     {
+      char banner[256];
+      snprintf(banner, sizeof(banner), "restarting: please be patient while I cancel searching large files...%*s", 256, "");
       Screen::normal();
       Screen::invert();
-      Screen::put(rows_ - row_ + 1, 0, "Restarting search...");
+      Screen::put(maxrows_ - 1, 0, banner);
       Screen::normal();
-      Screen::erase();
     }
 
     search_thread_.join();
@@ -1372,19 +1335,24 @@ void Query::search()
   row_ = 0;
   rows_ = 0;
   skip_ = 0;
-  dots_ = 6; // to clear the screen below the status line after 300 ms to avoid flicker
+  searched_ = 0;
+  found_ = 0;
   error_ = -1;
-  arg_pattern = globbing_ ? temp_ : line_;
+
+  Static::arg_pattern = globbing_ ? temp_ : line_;
+
+  if (*Static::arg_pattern == '\0' && !flag_file.empty())
+    Static::arg_pattern = NULL;
 
   if (deselect_file_)
   {
     selected_file_.clear();
-    arg_files.clear();
+    Static::arg_files.clear();
     deselect_file_ = false;
   }
-  else if (!selected_file_.empty() && arg_files.empty())
+  else if (!selected_file_.empty() && Static::arg_files.empty())
   {
-    arg_files.emplace_back(selected_file_.c_str());
+    Static::arg_files.emplace_back(selected_file_.c_str());
   }
 
   set_flags();
@@ -1392,123 +1360,206 @@ void Query::search()
   set_stdin();
 
   if (error_ == -1)
+  {
+    // reset warnings
+    Static::warnings = 0;
+
+    // clear the CNF first to populate the CNF in ugrep() with the contents of arg_pattern
+    Static::bcnf.clear();
+
+    // delete old matcher, if any, to prevent preview from using it (rows_ == 0 prevents that too)
+    Static::matcher.reset();
+
     search_thread_ = std::thread(Query::execute, search_pipe_[1]);
+  }
 
   select_ = -1;
   select_all_ = false;
 
-  redraw();
+  draw();
+  status(true);
 
   updated_ = false;
 }
 
-// update screen and display more data when data becomes available
+// display the status line
+void Query::status(bool show)
+{
+  char banner[256];
+  size_t sf = Stats::searched_files();
+  size_t ff = Stats::found_files();
+  const char *bookmark = mark_.is_set() ? "^R restore" : "^X bookmark";
+
+  // force redisplay by setting tick
+  if (show)
+    tick_ = 4;
+
+  if (eof_)
+  {
+    if (tick_ < 8)
+    {
+      if (ff == 0)
+        Screen::put(1, 0, "[no matches found]");
+
+      size_t sd = Stats::searched_dirs();
+      size_t ws = Static::warnings;
+      const char *pager = flag_view ? flag_view : "-";
+
+      snprintf(banner, sizeof(banner), "%zu/%zu files | %zu dirs | %zu warnings | ^Q quit  ^T split  ^Y %s  ^Z help  %s%*s", ff, sf, sd, ws, pager, bookmark, 256, "");
+      Screen::normal();
+      Screen::invert();
+      Screen::put(maxrows_ - 1, 0, banner);
+      Screen::normal();
+
+      tick_ = 8;
+    }
+  }
+  else
+  {
+    if (sf > searched_)
+    {
+      searched_ = sf;
+      tick_ = 4;
+    }
+
+    if (ff > found_)
+    {
+      found_ = ff;
+      tick_ = 4;
+    }
+
+    if (tick_ == 4)
+    {
+      int spinner = "-\\|/"[spin_];
+      const char *pager = flag_view ? flag_view : "-";
+
+      snprintf(banner, sizeof(banner), "[%c] %zu/%zu files queued | ^Q quit  ^T split  ^Y %s  ^Z help  %s%*s", spinner, ff, sf, pager, bookmark, 256, "");
+      Screen::normal();
+      Screen::invert();
+      Screen::put(maxrows_ - 1, 0, banner);
+      Screen::normal();
+
+      spin_ = (spin_ + 1) & 3;
+    }
+
+    tick_ = (tick_ + 1) & 7;
+  }
+}
+
+// update screen periodically and display more data when data becomes available
 bool Query::update()
 {
   int begin = rows_;
 
-  // fetch viewable portion plus a screenful more, when available
-  fetch(row_ + 2 * Screen::rows - 2);
+  // fetch viewable portion plus one up to two screenfuls more
+  fetch(row_ - (row_ % Screen::rows) + 2 * Screen::rows);
 
   // display the viewable portion when updated
-  if (rows_ > begin && begin < row_ + Screen::rows - 1)
+  if (rows_ > begin && begin < row_ + maxrows_ - 2)
   {
     Screen::normal();
 
-    if (begin + Screen::rows - 1 > rows_)
-      begin = rows_ - Screen::rows + 1;
+    if (begin + maxrows_ - 2 > rows_)
+      begin = rows_ - maxrows_ + 2;
     if (begin < 0)
       begin = 0;
-
-    int end = rows_;
-    if (end > begin + Screen::rows - 1)
-      end = begin + Screen::rows - 1;
-
     if (begin < row_)
       begin = row_;
+
+    int end = rows_;
+
+    if (end > row_ + maxrows_ - 2)
+      end = row_ + maxrows_ - 2;
 
     for (int i = begin; i < end; ++i)
       disp(i);
   }
 
-  // display final status line if in view
-  if (rows_ < row_ + Screen::rows - 1)
+  if (error_ == -1)
   {
-    Screen::normal();
-    Screen::invert();
-
-    if (error_ == -1)
+    if (tick_ < 8 && rows_ < row_ + maxrows_ - 2)
     {
-      size_t sf = Stats::searched_files();
-      size_t ff = Stats::found_files();
+      int row = rows_ - row_ + 1;
 
-      // display banner with search stats
-      char banner[256];
-
+      // no dots and clear below when we hit eof
       if (eof_)
-      {
-        if (dots_ < 7)
-        {
-          size_t sd = Stats::searched_dirs();
-          size_t ws = warnings;
+        tick_ = 4;
 
-          snprintf(banner, sizeof(banner), "%zu/%zu files | %zu dirs | %zu warnings |%*s", ff, sf, sd, ws, 256, "");
-          Screen::put(rows_ - row_ + 1, 0, banner);
-          Screen::normal();
+      Screen::setpos(row, 0);
+      if (tick_ < 4)
+      {
+        if (tick_ == 0)
+          Screen::erase();
+        else
+          Screen::put(&"..."[3 - tick_]);
+      }
+      else if (tick_ == 4)
+      {
+        // clear elipsis and below
+        if (flag_split)
+        {
+          if (eof_)
+          {
+            redraw();
+          }
+          else
+          {
+            // clear top half below last row
+            for (int i = rows_; i < maxrows_ - 1; ++i)
+              disp(i);
+
+            // clear bottom half if nothing was found yet
+            if (rows_ == 0)
+            {
+              Screen::setpos(maxrows_, 0);
+              Screen::end();
+            }
+          }
+        }
+        else
+        {
+          // clear all below last row
           Screen::end();
-
-          dots_ = 7;
         }
       }
-      else
-      {
-        if (dots_ < 4)
-        {
-          snprintf(banner, sizeof(banner), "%zu/%zu files queued | searching...%*s", ff, sf, 256, "");
-          Screen::put(rows_ - row_ + 1, 0, banner);
-          Screen::normal();
-
-          // when still searching, don't immediately clear the rest of the screen to avoid screen flicker, clear after 300 ms (init dots_ = 6 and do three iters)
-          if (dots_ == 0)
-            Screen::end();
-        }
-
-        dots_ = (dots_ + 1) & 3;
-      }
     }
-    else if (dots_ < 7)
-    {
-      Screen::setpos(1, 0);
-      Screen::normal();
-      Screen::erase();
 
-      if (!Screen::mono)
-      {
-        Screen::setpos(2, 0);
-        Screen::put(CERROR);
-        Screen::erase();
-      }
-
-      Screen::put(2, 0, what_);
-      Screen::normal();
-
-      Screen::end();
-
-      dots_ = 7;
-    }
+    // display updated status line
+    status(false);
   }
-  else
+  else if (tick_ < 8)
   {
-    dots_ = 6;
+    Screen::setpos(1, 0);
+    Screen::normal();
+    Screen::erase();
+
+    if (!Screen::mono)
+    {
+      Screen::setpos(2, 0);
+      Screen::put(CERROR);
+      Screen::erase();
+    }
+
+    Screen::put(2, 0, what_);
+    Screen::normal();
+    Screen::end();
+
+    tick_ = 8;
   }
+
+  // preview the first file when it arrived
+  if (flag_split && begin == 0 && rows_ > 0)
+    preview();
 
   // return true if screen was updated when data was available
   return begin < rows_;
 }
 
 // fetch rows up to and including the specified row, when available, i.e. do not block when pipe is non-blocking
-void Query::fetch(int row)
+bool Query::fetch(int row)
 {
+  int prev_rows = rows_;
+
   while (rows_ <= row)
   {
     bool incomplete = false;
@@ -1546,7 +1597,7 @@ void Query::fetch(int row)
               default:
                 close(search_pipe_[0]);
                 eof_ = true;
-                cancel_ugrep();
+                Static::cancel_ugrep();
             }
           }
         }
@@ -1571,7 +1622,7 @@ void Query::fetch(int row)
               default:
                 close(search_pipe_[0]);
                 eof_ = true;
-                cancel_ugrep();
+                Static::cancel_ugrep();
             }
           }
         }
@@ -1595,7 +1646,7 @@ void Query::fetch(int row)
           {
             close(search_pipe_[0]);
             eof_ = true;
-            cancel_ugrep();
+            Static::cancel_ugrep();
           }
         }
         else
@@ -1603,7 +1654,7 @@ void Query::fetch(int row)
           // no data, pipe is closed (EOF)
           close(search_pipe_[0]);
           eof_ = true;
-          cancel_ugrep();
+          Static::cancel_ugrep();
         }
 
 #endif
@@ -1663,53 +1714,27 @@ void Query::fetch(int row)
       memmove(buffer_, nlptr, buflen_);
     }
   }
-}
 
-// fetch all lines when all is selected in selection mode
-void Query::fetch_all()
-{
-  if (select_all_ && (!eof_ || buflen_ > 0))
-  {
-    // reading the search pipe should block until all data is received
-#ifdef OS_WIN
-    blocking_ = true;
-    pending_ = false;
-#else
-    set_blocking(search_pipe_[0]);
-#endif
-
-    while (true)
-    {
-      int i = rows_;
-      fetch(rows_);
-      if (i < rows_)
-        break;
-    }
-  }
+  // true if more rows were fetched
+  return prev_rows < rows_;
 }
 
 // execute the search in a new thread and send results to a pipe
 void Query::execute(int pipe_fd)
 {
-  output = fdopen(pipe_fd, "wb");
+  Static::output = fdopen(pipe_fd, "wb");
 
-  if (output != NULL)
+  if (Static::output != NULL)
   {
     try
     {
-      // reset warnings
-      warnings = 0;
-
-      // clear the CNF first to populate the CNF in ugrep() with the contents of arg_pattern
-      bcnf.clear();
-
       ugrep();
     }
 
     catch (reflex::regex_error& error)
     {
       what_.assign(error.what());
-      
+
       // error position in the pattern
       error_ = static_cast<int>(error.pos());
 
@@ -1736,164 +1761,159 @@ void Query::execute(int pipe_fd)
       error_ = line_wsize();
     }
 
-    fclose(output);
-    output = NULL;
+    fclose(Static::output);
+    Static::output = NULL;
   }
   else
   {
-    if (!Screen::mono)
-      Screen::put(CERROR);
-    Screen::put(0, 0, "Error: cannot fdopen pipe");
+    what_.assign("cannot fdopen pipe");
+
+    // error at the end of the line, not within
+    error_ = line_wsize();
   }
 }
 
-void Query::load_line()
-{
-  if (mode_ == Mode::EDIT)
-  {
-    if (static_cast<size_t>(select_) < view_.size())
-    {
-      size_t size = view_[select_].size();
-      if (size >= sizeof(Line))
-        size = sizeof(Line) - 1;
-      view_[select_].copy(line_, size);
-      line_[size] = '\0';
-      len_ = line_len();
-      if (col_ > len_)
-        move(len_);
-    }
-    else
-    {
-      *line_ = '\0';
-      view_.emplace_back(line_);
-      len_ = 0;
-      col_ = 0;
-    }
-  }
-}
-
-void Query::save_line()
-{
-  if (mode_ == Mode::EDIT)
-  {
-    if (static_cast<size_t>(select_) >= view_.size())
-      view_.emplace_back(line_);
-    else
-      view_[select_].assign(line_);
-  }
-}
-
+// cursor up
 void Query::up()
 {
   if (select_ > 0)
   {
-    save_line();
     --select_;
-    load_line();
     if (select_ > row_)
       return;
   }
   if (row_ > 0)
   {
-    disp(row_ - 1);
-    --row_;
-    Screen::pan_down();
-    draw();
+    if (!flag_split)
+    {
+      disp(row_ - 1);
+      --row_;
+      Screen::pan_down();
+      status(true);
+      draw();
+    }
+    else
+    {
+      // split screen
+      --row_;
+      redraw();
+    }
   }
 }
 
+// cursor down
 void Query::down()
 {
   if (select_ >= 0)
   {
-    save_line();
     ++select_;
     if (select_ >= rows_)
       select_ = rows_ - 1;
-    load_line();
-    if (select_ < row_ + Screen::rows - 2)
+    if (select_ < row_ + maxrows_ - 2)
       return;
   }
   if (row_ + 1 < rows_)
   {
     ++row_;
-    Screen::normal();
-    Screen::pan_up();
-    if (row_ + Screen::rows - 2 < rows_)
-      disp(row_ + Screen::rows - 2);
-    draw();
+    if (!flag_split)
+    {
+      Screen::normal();
+      disp(row_ + maxrows_ - 2);
+      Screen::pan_up();
+      status(true);
+      draw();
+    }
+    else
+    {
+      // split screen
+      redraw();
+    }
   }
 }
 
+// page up the display
 void Query::pgup(bool half_page)
 {
   if (select_ >= 0)
   {
-    save_line();
     if (half_page)
-      select_ -= Screen::rows / 2;
+      select_ -= maxrows_ / 2;
     else
-      select_ -= Screen::rows - 2;
+      select_ -= maxrows_ - 2;
     if (select_ < 0)
       select_ = 0;
-    load_line();
     if (select_ > row_)
       return;
   }
   if (row_ > 0)
   {
-    disp(row_ - 1);
     int oldrow = row_;
     if (half_page)
-      row_ -= Screen::rows / 2;
+      row_ -= maxrows_ / 2;
     else
-      row_ -= Screen::rows - 2;
+      row_ -= maxrows_ - 2;
     if (row_ < 0)
       row_ = 0;
-    Screen::pan_down(oldrow - row_);
-    for (int i = row_; i < oldrow - 1; ++i)
-      disp(i);
-    draw();
+    if (!flag_split)
+    {
+      Screen::pan_down(oldrow - row_);
+      for (int i = row_; i < oldrow; ++i)
+        disp(i);
+      status(true);
+      draw();
+    }
+    else
+    {
+      // split screen
+      redraw();
+    }
   }
 }
 
+// page down the display
 void Query::pgdn(bool half_page)
 {
   if (select_ >= 0)
   {
-    save_line();
     if (half_page)
-      select_ += Screen::rows / 2;
+      select_ += maxrows_ / 2;
     else
-      select_ += Screen::rows - 2;
+      select_ += maxrows_ - 2;
     if (select_ >= rows_)
       select_ = rows_ - 1;
-    load_line();
-    if (select_ < row_ + Screen::rows - 2)
+    if (select_ < row_ + maxrows_ - 2)
       return;
   }
-  if (row_ + Screen::rows - 1 <= rows_)
+  if (row_ + maxrows_ - 1 <= rows_)
   {
     int oldrow = row_;
     if (half_page)
-      row_ += Screen::rows / 2;
+      row_ += maxrows_ / 2;
     else
-      row_ += Screen::rows - 2;
-    if (row_ + Screen::rows > rows_)
+      row_ += maxrows_ - 2;
+    if (row_ + maxrows_ > rows_)
     {
-      row_ = rows_ - Screen::rows + 2;
+      row_ = rows_ - maxrows_ + 2;
       if (row_ < oldrow)
         row_ = oldrow;
     }
-    int diff = row_ - oldrow;
-    if (diff > 0)
+    if (!flag_split)
     {
-      Screen::normal();
-      Screen::pan_up(diff);
-      for (int i = row_ + Screen::rows - diff - 1; i < row_ + Screen::rows - 1; ++i)
-        if (i < rows_)
+      int diff = row_ - oldrow;
+      if (diff > 0)
+      {
+        Screen::normal();
+        Screen::pan_up(diff);
+        for (int i = row_ + maxrows_ - diff - 2; i < row_ + maxrows_ - 2; ++i)
           disp(i);
-      draw();
+        status(true);
+        draw();
+      }
+    }
+    else
+    {
+      // split screen
+      redraw();
     }
   }
 }
@@ -1908,7 +1928,6 @@ void Query::back()
   if (flag_text || flag_format != NULL)
   {
     pgup();
-
     return;
   }
 
@@ -1965,7 +1984,6 @@ void Query::next()
   if (flag_text || flag_format != NULL)
   {
     pgdn();
-
     return;
   }
 
@@ -2098,143 +2116,128 @@ void Query::jump(int row)
   redraw();
 }
 
+// skip over ANSI escape sequence when present on a line
+static size_t skip_escapes(const std::string& line, size_t pos)
+{
+  size_t end = line.size();
+
+  while (pos < end && line.at(pos) == '\033')
+  {
+    if (pos + 1 < end && line.at(pos + 1) == '[')
+    {
+      // CSI \e[... sequence
+      pos += 2;
+      while (pos < end && (line.at(pos) < 0x40 || line.at(pos) > 0x7e))
+        ++pos;
+      ++pos;
+    }
+    else if (pos + 1 < end && line.at(pos + 1) == ']')
+    {
+      // OSC \e]...BEL|ST sequence
+      pos += 2;
+      while (pos < end && line.at(pos) != '\a' && (line.at(pos) != '\033' || (pos + 1 < end && line.at(pos + 1) != '\\')))
+        ++pos;
+      if (pos < end && line.at(pos) == '\033')
+        ++pos;
+      ++pos;
+    }
+    else
+    {
+      // ESC x sequence
+      pos += 2;
+    }
+  }
+
+  return pos;
+}
+
 // view or edit the file located under the cursor or just above in the screen (when not in selection mode)
 void Query::view()
 {
   if (row_ >= rows_ || flag_text || flag_format != NULL)
   {
     Screen::alert();
-
     return;
-  }
-
-  if (flag_stdin)
-  {
-    message("cannot view or edit standard input");
-
-    return;
-  }
-
-  const char *pager = flag_view;
-
-  // if --view is empty and not --no-view, then try the PAGER or EDITOR environment variable as viewer or default viewer
-  if (pager != NULL && *pager == '\0')
-  {
-    pager = getenv("PAGER");
-
-    if (pager == NULL)
-      pager = getenv("EDITOR");
-
-    if (pager == NULL)
-      pager = DEFAULT_VIEW_COMMAND;
   }
 
   // if no viewer, then give up
-  if (pager == NULL || *pager == '\0')
+  if (flag_view == NULL || *flag_view == '\0')
   {
     Screen::alert();
-
     return;
   }
 
-  std::string command(pager);
-  int row = select_ >= 0 ? select_ : row_;
+  std::string command(flag_view);
+  int ref = select_ >= 0 ? select_ : row_;
   size_t line_number = 0;
 
   // -n: extract line number from ugrep output if the specified pager supports +linenum
   if (flag_line_number &&
+      !flag_files_with_matches &&
+      !flag_count &&
+      !flag_hex &&
+      !flag_with_hex &&
       (command == "less"  ||
+       command == "moar"  ||
        command == "more"  ||
        command == "most"  ||
        command == "w3m"   ||
+       command == "emacs" ||
        command == "joe"   ||
        command == "vi"    ||
        command == "vim"   ||
        command == "vis"   ||
-       command == "emacs" ||
        command == "nano"  ||
        command == "pico"  ||
        command == "vile"  ||
        command == "zile"))
   {
-    const std::string& line = view_[row];
-    size_t pos = 0;
-    size_t end = line.size();
-
-    // skip over pathname when present
-    if (line.front() == '\0')
-    {
-      while (++pos < end && line.at(pos) != '\0')
-        continue;
-
-      while (++pos < end && line.at(pos) != '\0')
-        continue;
-
-      ++pos;
-    }
-
-    while (true)
-    {
-      // skip over ESC codes when present
-      while (pos < end && line.at(pos) == '\033')
-      {
-        if (pos + 1 < end && line.at(pos + 1) == '[')
-        {
-          // CSI \e[... sequence
-          pos += 2;
-          while (pos < end && (line.at(pos) < 0x40 || line.at(pos) > 0x7e))
-            ++pos;
-          ++pos;
-        }
-        else if (pos + 1 < end && line.at(pos + 1) == ']')
-        {
-          // OSC \e]...BEL|ST sequence
-          pos += 2;
-          while (pos < end && line.at(pos) != '\a' && (line.at(pos) != '\033' || (pos + 1 < end && line.at(pos + 1) != '\\')))
-            ++pos;
-          if (pos < end && line.at(pos) == '\033')
-            ++pos;
-          ++pos;
-        }
-        else
-        {
-          // ESC x sequence
-          pos += 2;
-        }
-      }
-
-      if (pos >= end || isdigit(line.at(pos)))
-        break;
-
-      ++pos;
-    }
-
-    if (pos < end)
-      line_number = static_cast<size_t>(strtoull(line.c_str() + pos, NULL, 10));
-  }
-
-  // --tree: move down over non-filename lines to reach a filename
-  if (flag_tree && (flag_files_with_matches || flag_count))
-  {
-    while (row + 1 < rows_ && (view_[row].empty() || view_[row].front() != '\0'))
-      ++row;
-  }
-  else if (row + 1 < rows_ && (view_[row].empty() || view_[row].front() != '\0'))
-  {
-    ++row; // skip a non-filename line to get to a potential filename just below this line
+    line_number = get_line_number();
   }
 
   std::string filename;
+  std::string partname;
   bool found = false;
 
-  // move up until a filename header is found
-  while (row >= 0 && !(found = find_filename(row, filename)))
-    --row;
-
-  if (!found && arg_files.size() == 1)
+  if (rows_ > 0)
   {
-    filename = arg_files.front();
-    found = true;
+    if (flag_tree && (flag_files_with_matches || flag_count))
+    {
+      // --tree with -c or -l: move down over non-filename lines to reach a filename
+      while (ref + 1 < rows_ && (view_[ref].empty() || view_[ref].front() != '\0'))
+        ++ref;
+    }
+    else
+    {
+      // move down to skip empty lines
+      while (ref + 1 < rows_ && view_[ref].empty())
+        ++ref;
+    }
+
+    // move up until a filename header is found, unless we're at an empty line
+    if (!view_[ref].empty())
+      while (ref >= 0 && !(found = find_filename(ref, filename, false, true, &partname)))
+        --ref;
+
+    // only a partname was present, no filename
+    if (filename.empty())
+      found = false;
+
+    if (!found && Static::arg_files.size() == 1)
+    {
+      // if not found an only one FILE argument was provided then view FILE
+      filename = Static::arg_files.front();
+      found = true;
+    }
+    else if (!partname.empty())
+    {
+      // cannot view an archive part
+      found = false;
+    }
+
+    // cannot view standard input
+    if (found && flag_stdin && filename.compare(flag_label) == 0)
+      found = false;
   }
 
   if (found)
@@ -2267,7 +2270,7 @@ void Query::view()
       if (system(command.c_str()) == 0)
       {
 #ifdef OS_WIN
-        if (strcmp(pager, "more") == 0)
+        if (strcmp(flag_view, "more") == 0)
         {
           Screen::setpos(Screen::rows - 1, 0);
           Screen::put("(END) press a key");
@@ -2301,7 +2304,7 @@ void Query::view()
         {
           // file is changed, update the search results
           search();
-          jump(row);
+          jump(ref);
         }
         else
         {
@@ -2318,7 +2321,135 @@ void Query::view()
   }
 
   if (!found)
-    message(std::string("cannot view or edit ").append(filename));
+  {
+    std::string problem("cannot view or edit ");
+    if (partname.empty())
+      problem.append(filename);
+    else
+     problem.append(partname).append(" in ").append(filename);
+    problem.append(" (coming in a release update)");
+    message(problem);
+  }
+}
+
+// preview the file located under the cursor when the screen is split into multiple windows
+void Query::preview()
+{
+  if (!flag_split || error_ != -1)
+    return;
+
+  bool found = false;
+  std::string filename;
+  std::string partname;
+
+  if (rows_ > 0)
+  {
+    int ref = row_;
+
+    // --tree with -c or -l: move down over non-filename lines to reach a filename
+    if (flag_tree && (flag_files_with_matches || flag_count))
+      while (ref + 1 < rows_ && (view_[ref].empty() || view_[ref].front() != '\0'))
+        ++ref;
+
+    // find a filename upwards, unless we're at an empty line
+    if (!view_[ref].empty())
+      while (ref >= 0 && !(found = find_filename(ref, filename, false, true, &partname)))
+        --ref;
+
+    // only a partname was present, no filename
+    if (filename.empty())
+      found = false;
+
+    if (found && filename.back() == PATHSEPCHR)
+    {
+      found = false;
+    }
+    else if (!found && Static::arg_files.size() == 1)
+    {
+      // if not found an only one FILE argument was provided then preview FILE
+      filename = Static::arg_files.front();
+      found = true;
+    }
+
+    // cannot preview standard input
+    if (found && flag_stdin && filename.compare(flag_label) == 0)
+      found = false;
+  }
+
+  // no problems to report
+  const char *problem = NULL;
+
+  if (found)
+  {
+    // get line number if any, zero otherwise
+    size_t from_lineno =
+      flag_line_number &&
+      !flag_files_with_matches &&
+      !flag_count && !flag_hex &&
+      !flag_with_hex ? get_line_number() : 0;
+
+    // has the filename or partname or line number changed?
+    if (from_lineno == 0 ||
+        from_lineno != prevfrom_ ||
+        filename != prevfile_ ||
+        partname != prevpart_)
+    {
+      size_t max = Screen::rows - maxrows_ - 1;
+
+      try
+      {
+        ugrep_find_text_preview(filename.c_str(), partname.c_str(), from_lineno, max, prevline_, prevnum_, preview_);
+      }
+
+      catch (...)
+      {
+        // this should never happen, but just in case we ignore errors
+        prevnum_ = 0;
+      }
+
+      prevfile_.swap(filename);
+      prevpart_.swap(partname);
+      prevfrom_ = from_lineno;
+    }
+
+    if (prevnum_ == 0)
+      problem = "[no matches to display]";
+
+    if (problem == NULL)
+    {
+      char header[256];
+      if (prevpart_.empty())
+        snprintf(header, sizeof(header), "%s%s%s%s%s:%s%s%zu%s", color_off, color_fn, prevfile_.c_str(), color_off, color_se, color_off, color_ln, prevline_, color_off);
+      else
+        snprintf(header, sizeof(header), "%s%s%s{%s}%s%s:%s%s%zu%s", color_off, color_fn, prevfile_.c_str(), prevpart_.c_str(), color_off, color_se, color_off, color_ln, prevline_, color_off);
+      Screen::put(maxrows_, 0, header);
+      Screen::normal();
+
+      // (re)display the (cached) preview text
+      int row = maxrows_ + 1;
+      for (size_t i = 0; i < prevnum_ && row < Screen::rows; ++i)
+        row = Screen::put(row, 0, preview_[i], 0, 0);
+
+      if (row < Screen::rows)
+        Screen::end();
+    }
+  }
+  else
+  {
+    problem = "[no file selected]";
+  }
+
+  if (problem != NULL)
+  {
+    Screen::normal();
+    Screen::put(maxrows_, 0, problem);
+    Screen::end();
+
+    prevfile_.clear();
+    prevpart_.clear();
+    prevnum_ = 0;
+    prevline_ = 0;
+  }
 }
 
 // chdir one level down into the directory of the file located under the cursor or just above the screen
@@ -2327,14 +2458,12 @@ void Query::select()
   if (flag_stdin)
   {
     message("cannot chdir: standard input is searched");
-
     return;
   }
 
-  if (!arg_files.empty())
+  if (!Static::arg_files.empty())
   {
     message("cannot chdir: file or directory arguments are present");
-
     return;
   }
 
@@ -2355,7 +2484,7 @@ void Query::select()
   bool found = false;
 
   // move up until a filename header is found
-  while (row >= 0 && !(found = find_filename(row, pathname)))
+  while (row >= 0 && !(found = find_filename(row, pathname, false, true)))
     --row;
 
   if (found)
@@ -2374,7 +2503,7 @@ void Query::select()
     history_.emplace();
     history_.top().save(line_, col_, row_, flags_, mark_);
 
-    mark_.unset();
+    mark_.reset();
 
     size_t n = pathname.find(PATHSEPCHR);
     size_t b = pathname.find('{'); // do not cd into archives
@@ -2385,7 +2514,6 @@ void Query::select()
       if (chdir(pathname.c_str()) < 0)
       {
         message("cannot chdir: operation denied");
-
         return;
       }
 
@@ -2422,14 +2550,12 @@ void Query::deselect()
     if (flag_stdin)
     {
       message("cannot chdir: standard input is searched");
-
       return;
     }
 
-    if (!arg_files.empty())
+    if (!Static::arg_files.empty())
     {
       message("cannot chdir: file or directory arguments are present");
-
       return;
     }
 
@@ -2500,7 +2626,7 @@ void Query::deselect()
     deselect_file_ = true;
   }
 
-  mark_.unset();
+  mark_.reset();
 
   if (!history_.empty())
   {
@@ -2576,7 +2702,7 @@ void Query::unselect()
   wdir_.clear();
   deselect_file_ = true;
 
-  mark_.unset();
+  mark_.reset();
 
   if (!history_.empty())
   {
@@ -2600,12 +2726,11 @@ void Query::unselect()
 // display a message
 void Query::message(const std::string& message)
 {
+  Screen::normal();
   if (!Screen::mono)
     Screen::put(PROMPT);
   Screen::put(0, 0, "-> ");
-  if (!Screen::mono)
-    Screen::normal();
-  Screen::erase();
+  Screen::normal();
   Screen::put(0, 3, message.c_str());
   message_ = true;
 }
@@ -2655,7 +2780,7 @@ bool Query::help()
 
     while (true)
     {
-      key = VKey::in(100);
+      key = VKey::in(500);
 
       if (key > 0)
         break;
@@ -2709,17 +2834,17 @@ bool Query::help()
           ctrl_o = true;
           break;
 
-        case VKey::CTRL_T:
-          Screen::mono = !Screen::mono;
-          redraw();
-          break;
-
         case VKey::CTRL_BS:
 #ifdef OS_WIN
           GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
 #else
           raise(SIGTERM);
 #endif
+          break;
+
+        case VKey::CTRL_RB: // CTRL-]: toggle colors/mono
+          Screen::mono = !Screen::mono;
+          redraw();
           break;
 
         case VKey::META:
@@ -2736,13 +2861,6 @@ bool Query::help()
           else
           {
             Screen::alert();
-
-#ifdef WITH_MACOS_META_KEY
-            if (!Screen::mono)
-              Screen::put(CERROR);
-            Screen::put(1, 0, "MacOS Terminal Preferences/Profiles/Keyboard: enable \"Use Option as Meta key\"");
-            Screen::setpos(0, start_ + col_ - offset_);
-#endif
           }
       }
     }
@@ -2838,7 +2956,6 @@ void Query::meta(int key)
             flags_[3].flag = false;
             flags_[13].flag = false;
             flags_[14].flag = false;
-            flags_[15].flag = false;
             flags_[16].flag = false;
             flags_[29].flag = false;
             break;
@@ -2882,7 +2999,6 @@ void Query::meta(int key)
             flags_[3].flag = false;
             flags_[4].flag = false;
             flags_[13].flag = false;
-            flags_[15].flag = false;
             flags_[16].flag = false;
             flags_[29].flag = false;
             break;
@@ -2987,6 +3103,14 @@ void Query::meta(int key)
       {
         switch (key)
         {
+          case 'n':
+            if (flags_[4].flag || flags_[14].flag)
+            {
+              flags_[4].flag = false;
+              flags_[14].flag = false;
+              flags_[15].flag = false;
+            }
+            break;
           case 'R':
           case 'r':
             for (int i = 33; i <= 41; ++i)
@@ -3069,6 +3193,8 @@ void Query::meta(int key)
               --context_;
             msg.append(" to ").append(std::to_string(context_));
           }
+          flags_[4].flag = false;
+          flags_[14].flag = false;
         }
         else if (key == ']')
         {
@@ -3093,6 +3219,8 @@ void Query::meta(int key)
               flags_[3].flag = true;
             msg.append(" to ").append(std::to_string(context_));
           }
+          flags_[4].flag = false;
+          flags_[14].flag = false;
         }
         else if (key == '{')
         {
@@ -3150,102 +3278,59 @@ bool Query::selections()
   return false;
 }
 
-// save selected lines -- unused
-void Query::save()
-{
-  if (saved_.empty() || confirm("Overwrite saved selections"))
-  {
-    saved_.clear();
-
-    try
-    {
-      if (select_all_)
-      {
-        message("please wait a moment to complete the search...");
-        fetch_all();
-      }
-
-      for (int i = 0; i < rows_; ++i)
-        if (selected_[i])
-          saved_.emplace_back(view_[i]);
-    }
-
-    catch (std::bad_alloc&)
-    {
-      message("out of memory");
-    }
-
-    message(std::to_string(saved_.size()).append(" lines saved"));
-  }
-  else
-  {
-    for (int i = 0; i < rows_; ++i)
-      selected_[i] = false;
-    select_all_ = false;
-  }
-}
-
-// print query results when done
+// print selected query results when done
 void Query::print()
 {
-  if (!saved_.empty())
+  int i = 0;
+
+  // output selected query results
+  while (i < rows_)
   {
-    for (auto& line : saved_)
-      print(line);
+    if (selected_[i])
+      if (!print(view_[i]))
+        return;
+    view_[i].clear();
+    ++i;
   }
-  else
+
+  // if all lines are selected, output the remaining lines that aren't in view
+  if (select_all_ && (!eof_ || buflen_ > 0))
   {
-    int i = 0;
-
-    // output selected query results
-    while (i < rows_)
-    {
-      if (selected_[i])
-        if (!print(view_[i]))
-          return;
-      ++i;
-    }
-
-    // if all lines are selected, output the remaining lines that aren't in view
-    if (select_all_ && (!eof_ || buflen_ > 0))
-    {
-      // reading the search pipe should block until data is received
+    // reading the search pipe should block until data is received
 #ifdef OS_WIN
-      blocking_ = true;
-      pending_ = false;
+    blocking_ = true;
+    pending_ = false;
 #else
-      set_blocking(search_pipe_[0]);
+    set_blocking(search_pipe_[0]);
 #endif
 
-      while (true)
+    while (!eof_ || buflen_ > 0)
+    {
+      // if not appending to a row, start over at the begin of the view to conserve memory
+      if (!append_)
+        rows_ = 0;
+
+      i = rows_;
+
+      // fetch a bunch more lines, if no more lines to fetch then break
+      fetch(rows_ + 1000);
+
+      while (i < rows_)
       {
-        // if not appending to a row, start over at the begin of the view to conserve memory
-        if (!append_)
-          rows_ = 0;
-
-        int i = rows_;
-
-        fetch(i);
-
-        if (rows_ <= i)
-          break;
-
-        while (i < rows_)
-        {
-          if (!print(view_[i]))
-            return;
-          ++i;
-        }
+        if (!print(view_[i]))
+          return;
+        view_[i].clear();
+        ++i;
       }
     }
   }
 }
 
-// print one row of query results
+// print one row of query results, return false on failure
 bool Query::print(const std::string& line)
 {
   if (line.empty())
-    return true;
+    return fwrite("\n", 1, 1, stdout) == 1;
 
   const char *text = line.c_str();
   const char *end = text + line.size();
@@ -3258,7 +3343,7 @@ bool Query::print(const std::string& line)
 
   const char *ptr = text;
 
-  // if output should not be colored or colors are turned off with CTRL-T, then output the selected line without its CSI sequences
+  // if output should not be colored or colors are turned off, then output the selected line without its CSI sequences
   if (flag_apply_color == NULL || Screen::mono)
   {
     while (ptr < end)
@@ -3392,6 +3477,21 @@ void Query::get_flags()
     }
   }
 
+  // get the --iglob
+  for (auto& glob : flag_iglob)
+  {
+    if (!glob.empty())
+    {
+      if (!globs_.empty())
+        globs_.push_back(',');
+      globs_.append(glob);
+    }
+  }
+
+  // if any --iglob is specified, make all globs case-insensitive
+  if (!flag_iglob.empty())
+    flag_glob_ignore_case = true;
+
   // get the interactive flags from the ugrep flags
   flags_[0].flag = flag_after_context > 0 && flag_before_context == 0;
   flags_[1].flag = flag_after_context == 0 && flag_before_context > 0;
@@ -3492,6 +3592,7 @@ void Query::set_flags()
   flag_fixed_strings = flags_[5].flag;
   flag_basic_regexp = flags_[6].flag;
   flag_glob.clear();
+  flag_iglob.clear();
   if (globbing_)
     globs_.assign(line_);
   flags_[7].flag = !globs_.empty();
@@ -3549,10 +3650,18 @@ void Query::set_prompt()
 {
   if (globbing_)
   {
-    prompt_ = "--glob=";
+    if (flag_glob_ignore_case)
+      prompt_.assign("--iglob=");
+    else
+      prompt_.assign("--glob=");
   }
   else
   {
+    prompt_.clear();
+
+    if (!flag_file.empty())
+      prompt_.append("file");
+
     const char *mode;
 
     if (flags_[5].flag)
@@ -3580,15 +3689,15 @@ void Query::set_prompt()
     }
 
     if (flags_[42].flag)
-      prompt_.assign("bool").append(mode);
+      prompt_.append("bool").append(mode);
     else
-      prompt_.assign(mode);
+      prompt_.append(mode);
   }
 }
 
 void Query::get_stdin()
 {
-  // if standard input is searched, buffer all data
+  // if standard input is searched, then buffer all its text
   if (flag_stdin)
   {
     reflex::BufferedInput input(stdin, flag_encoding_type);
@@ -3605,34 +3714,38 @@ void Query::get_stdin()
 
 void Query::set_stdin()
 {
-  // if standard input is searched, start thread to produce data
+  // if standard input is searched, start thread to reproduce its text on demand
   if (flag_stdin)
   {
-    // close the stdin pipe
-    if (source != stdin && source != NULL)
+    // close the stdin pipe when open
+    if (Static::source != stdin && Static::source != NULL)
     {
-      fclose(source);
-      source = NULL;
+      fclose(Static::source);
+      Static::source = NULL;
     }
 
+    // join the stdin_sender
     if (stdin_thread_.joinable())
       stdin_thread_.join();
 
+    // create a new pipe
     if (pipe(stdin_pipe_) < 0)
     {
-      if (!Screen::mono)
-        Screen::put(CERROR);
-      Screen::put(0, 0, "Error: cannot create pipe");
+      what_.assign("cannot create pipe");
+      // error at the end of the line, not within
+      error_ = line_wsize();
       return;
     }
 
-    source = fdopen(stdin_pipe_[0], "rb");
+    // and assign it to the source
+    Static::source = fdopen(stdin_pipe_[0], "rb");
 
+    // run stdin_sender in the background to push buffered standard input down the pipe
     stdin_thread_ = std::thread(Query::stdin_sender, stdin_pipe_[1]);
   }
 }
 
-// send standard input data down the specified pipe fd
+// push standard input down the specified pipe fd
 ssize_t Query::stdin_sender(int fd)
 {
   // write the stdin data all at once, we can ignore the return value
@@ -3643,72 +3756,90 @@ ssize_t Query::stdin_sender(int fd)
   return nwritten;
 }
 
-// true if view_[ref] starts with a valid filename/filepath identified by three \0 markers and differs from the given filename, then assigns filename
-bool Query::find_filename(int ref, std::string& filename, bool compare_dir)
+// true if view_[ref] has a valid filename/filepath identified by three \0 markers and differs from the given filename, then assigns filename
+bool Query::find_filename(int ref, std::string& filename, bool compare_dir, bool find_path, std::string *partname)
 {
-  const std::string& line = view_[ref];
-  size_t end = line.size();
-
-  if (end < 4 || line.front() != '\0')
+  // extract the new filename to compare with and assign to the old filename
+  std::string new_filename;
+  size_t start;
+  size_t pos;
+  if (!get_filename(ref, new_filename, start, pos))
     return false;
 
-  size_t pos = 1;
-
-  while (pos < end && line.at(pos) != '\0')
-    ++pos;
-
-  if (++pos >= end)
+  // if we need a pathname but we are at a marked group separator, then return
+  if (find_path && (flag_after_context > 0 || flag_before_context > 0) &&
+      flag_group_separator != NULL &&
+      new_filename.compare(flag_group_separator) == 0)
     return false;
 
-  size_t start = pos;
+  // if the new filename is an archive part name, then assign it to the partname when applicable
+  if (find_path && flag_decompress && new_filename.front() == '{' && new_filename.back() == '}')
+  {
+    if (partname == NULL)
+      return false;
 
-  while (pos < end && line.at(pos) != '\0')
-    ++pos;
+    // swap partname for filename sans braces
+    new_filename.erase(0, 1);
+    new_filename.pop_back();
+    partname->swap(new_filename);
 
-  if (pos == start || pos >= end)
-    return false;
+    // try to find the filename in a header above
+    while (--ref >= 0)
+      if (get_filename(ref, filename, start, pos) && filename.front() != '{')
+        break;
 
-  // extract the new filename
-  std::string new_filename = line.substr(start, pos - start);
+    if (ref < 0)
+      filename.clear();
+
+    return true;
+  }
+
+  // extract the archive partname, if any
+  if (partname != NULL)
+  {
+    // -z: get the archive partname when present
+    if (flag_decompress)
+    {
+      // skip ANSI escape codes when present
+      start = ++pos;
+      const std::string& line = view_[ref];
+      size_t end = line.size();
+      while (pos < end && (pos = skip_escapes(line, pos)) > start)
+        start = pos;
+
+      // extract the part from {part} or {path:part}
+      if (pos < end && line.at(pos) == '{')
+      {
+        start = ++pos;
+
+        while (pos < end && line.at(pos) != '}')
+          ++pos;
+
+        if (start < pos && pos < end)
+          partname->assign(line.substr(start, pos - start));
+      }
+    }
+  }
 
   // --tree: the new filename is the basename, we should reconstruct the new pathname from the tree in view_[]
   if (flag_tree && (flag_files_with_matches || flag_count))
   {
     size_t last_start = start;
+    std::string dir;
 
     // while the top directory was not found (works since no colors are used for directory names)
     while (start > 2 && --ref >= 0)
     {
-      const std::string& scanline = view_[ref];
-
-      end = scanline.size();
-
-      if (end <= 1)
+      if (view_[ref].size() <= 1)
         break;
 
-      if (end < 4 || scanline.front() != '\0')
-        continue;
-
-      pos = 1;
-
-      while (pos < end && scanline.at(pos) != '\0')
-        ++pos;
-
-      if (++pos >= end)
-        continue;
-
-      start = pos;
-
-      while (pos < end && scanline.at(pos) != '\0')
-        ++pos;
-
-      if (pos == start || pos >= end)
+      if (!get_filename(ref, dir, start, pos))
         continue;
 
       // if line scanned represents a parent directory, then prepend the directory to the new filename
-      if (start < last_start && scanline.at(pos - 1) == PATHSEPCHR)
+      if (start < last_start && dir.back() == PATHSEPCHR)
       {
-        new_filename.insert(0, scanline, start, pos - start);
+        new_filename.insert(0, dir);
         last_start = start;
       }
     }
@@ -3728,9 +3859,11 @@ bool Query::find_filename(int ref, std::string& filename, bool compare_dir)
     if (pos1 == pos2 && (pos1 == std::string::npos || new_filename.compare(0, pos1, filename, 0, pos2) == 0))
       return false; // the extracted filename is the same or is in the same directory as the old filename
   }
-  else if ((flag_after_context > 0 || flag_before_context > 0) && new_filename.compare(flag_group_separator) == 0)
+  else if ((flag_after_context > 0 || flag_before_context > 0) &&
+      flag_group_separator != NULL &&
+      new_filename.compare(flag_group_separator) == 0)
   {
-    // -ABC: jump to the group-separator (default is '--')
+    // -ABC: jump to the group-separator (default is '--') unless we find_path only then ignore group separators
     return true;
   }
   else if (new_filename.compare(filename) == 0)
@@ -3742,6 +3875,85 @@ bool Query::find_filename(int ref, std::string& filename, bool compare_dir)
   filename.swap(new_filename);
 
   return true;
+}
+
+// get filename from the output, return position at last \0 marker or -1 when not found
+bool Query::get_filename(int ref, std::string& filename, size_t& start, size_t& pos)
+{
+  const std::string& line = view_[ref];
+  size_t end = line.size();
+
+  if (end < 4 || line.front() != '\0')
+    return false;
+
+  pos = 1;
+
+  while (pos < end && line.at(pos) != '\0')
+    ++pos;
+
+  if (++pos >= end)
+    return false;
+
+  start = pos;
+
+  while (pos < end && line.at(pos) != '\0')
+    ++pos;
+
+  if (pos == start || pos >= end)
+    return false;
+
+  filename = line.substr(start, pos - start);
+
+  return true;
+}
+
+// get line number from the output, assumes option -n is active
+size_t Query::get_line_number()
+{
+  int row = select_ >= 0 ? select_ : row_;
+
+  // look at the current line and the one below it
+  for (int i = row; i < rows_ && i <= row + 1; ++i)
+  {
+    const std::string& line = view_[i];
+    size_t pos = 0;
+    size_t end = line.size();
+
+    // skip over pathname or group separator when present
+    if (line.front() == '\0')
+    {
+      while (++pos < end && line.at(pos) != '\0')
+        continue;
+
+      while (++pos < end && line.at(pos) != '\0')
+        continue;
+
+      ++pos;
+    }
+
+    while (true)
+    {
+      // skip over ANSI escape sequence when present
+      pos = skip_escapes(line, pos);
+
+      // skip archive part
+      if (pos < end && line.at(pos) == '{')
+        while (pos < end && line.at(pos) != '}')
+          ++pos;
+
+      // at end?
+      if (pos >= end)
+        break;
+
+      // found the line number?
+      if (isdigit(line.at(pos)))
+        return static_cast<size_t>(strtoull(line.c_str() + pos, NULL, 10));
+
+      ++pos;
+    }
+  }
+
+  return 0;
 }
 
 Query::Mode                Query::mode_                = Query::Mode::QUERY;
@@ -3759,6 +3971,7 @@ std::atomic_int            Query::error_;
 std::string                Query::what_;
 int                        Query::row_                 = 0;
 int                        Query::rows_                = 0;
+int                        Query::maxrows_;
 Query::State               Query::mark_;
 int                        Query::select_              = -1;
 bool                       Query::select_all_          = false;
@@ -3766,12 +3979,17 @@ bool                       Query::globbing_            = false;
 std::string                Query::globs_;
 std::string                Query::dirs_;
 std::string                Query::wdir_;
+std::string                Query::prevfile_;
+std::string                Query::prevpart_;
+size_t                     Query::prevfrom_;
+size_t                     Query::prevline_;
+std::vector<std::string>   Query::preview_;
+size_t                     Query::prevnum_;
 bool                       Query::deselect_file_;
 std::string                Query::selected_file_;
 std::stack<Query::History> Query::history_;
 int                        Query::skip_                = 0;
 std::vector<std::string>   Query::view_;
-std::list<std::string>     Query::saved_;
 std::vector<bool>          Query::selected_;
 bool                       Query::eof_                 = true;
 bool                       Query::append_              = false;
@@ -3782,7 +4000,10 @@ std::thread                Query::search_thread_;
 std::string                Query::stdin_buffer_;
 int                        Query::stdin_pipe_[2];
 std::thread                Query::stdin_thread_;
-int                        Query::dots_                = 6;
+size_t                     Query::searched_            = 0;
+size_t                     Query::found_               = 0;
+int                        Query::tick_                = 0;
+int                        Query::spin_                = 0;
 size_t                     Query::context_             = 2;
 size_t                     Query::only_context_        = 20;
 size_t                     Query::fuzzy_               = 1;

@@ -1,11 +1,11 @@
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
-New ugrep 4.2
+New ugrep 4.3
 -------------
 
-Ugrep is like grep, but faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed beat GNU grep, Silver Searcher, ack, sift, and ripgrep in [almost all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
+Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed beat GNU grep, Silver Searcher, ack, sift, and ripgrep in [nearly all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
 
-New faster ugrep 4.2 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
+New faster ugrep 4.3 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
 
 See [how to install ugrep](#install) on your system.  Ugrep is always free.
 
@@ -26,9 +26,9 @@ Development roadmap
 - my highest priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 - make ugrep even faster and report on progress, see [my latest article](https://www.genivia.com/ugrep.html) and planned enhancements [#288](https://github.com/Genivia/ugrep/issues/288)
 - listen to users to continue to add new and updated features
-- improve the interactive TUI with a split screen and regex syntax highlighting
+- further improve the interactive TUI with regex syntax highlighting
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
-- add file indexing to speed up cold search performance, see [ugrep-indexer](https://github.com/Genivia/ugrep-indexer)
+- file indexing to speed up cold search performance, see [ugrep-indexer](https://github.com/Genivia/ugrep-indexer)
 
 Overview
 --------
@@ -962,7 +962,7 @@ includes header files when we want to only search `.c` and `.cpp` files.
 We can also skip files and directories from being searched that are defined in
 `.gitignore`.  To do so we use `--ignore-files` to exclude any files and
 directories from recursive searches that match the globs in `.gitignore`, when
-one ore more`.gitignore` files are found:
+one or more `.gitignore` files are found:
 
     ug -R -tc++ --ignore-files -f c++/defines
 
@@ -1122,28 +1122,30 @@ The configuration is written to standard output when `FILE` is a `-`.
 ### Interactive search with -Q
 
     -Q[=DELAY], --query[=DELAY]
-            Query mode: user interface to perform interactive searches.  This
-            mode requires an ANSI capable terminal.  An optional DELAY argument
-            may be specified to reduce or increase the response time to execute
+            Query mode: start a TUI to perform interactive searches.  This mode
+            requires an ANSI capable terminal.  An optional DELAY argument may
+            be specified to reduce or increase the response time to execute
             searches after the last key press, in increments of 100ms, where
-            the default is 5 (0.5s delay).  No whitespace may be given between
+            the default is 3 (300ms delay).  No whitespace may be given between
             -Q and its argument DELAY.  Initial patterns may be specified with
             -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1
             or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke a
             command to view or edit the file shown at the top of the screen.
             The command can be specified with option --view, or defaults to
-            environment variable PAGER if defined, or EDITOR.  Press Tab and
+            environment variable PAGER when defined, or EDITOR.  Press Tab and
             Shift-Tab to navigate directories and to select a file to search.
             Press Enter to select lines to output.  Press ALT-l for option -l
             to list files, ALT-n for -n, etc.  Non-option commands include
-            ALT-] to increase fuzziness and ALT-} to increase context.  Enables
-            --heading.  See also options --confirm and --view.
+            ALT-] to increase context.  See also options --confirm, --delay,
+            --split and --view.
     --no-confirm
-            Do not confirm actions in -Q query mode.  The default is confirm.
+            Do not confirm actions in -Q query TUI.  The default is confirm.
     --delay=DELAY
-            Set the default -Q response delay (nonzero).  Default is 5.
+            Set the default -Q key response delay.  Default is 3 for 300ms.
+    --split
+            Split the -Q query TUI screen on startup.
     --view[=COMMAND]
-            Use COMMAND to view/edit a file in query mode when pressing CTRL-Y.
+            Use COMMAND to view/edit a file in -Q query TUI by pressing CTRL-Y.
 
 This option starts a user interface to enter search patterns interactively:
 - Press F1 or CTRL-Z to view a help screen and to enable or disable options.
@@ -1164,6 +1166,8 @@ This option starts a user interface to enter search patterns interactively:
   When the `--glob=` prompt is shown, a comma-separated list of gitignore-style
   glob patterns may be entered.  Presssing ESC returns control to the pattern
   prompt.
+- Press CTRL-T to split the TUI screen to preview a file in the bottom pane.
+- Press CTRL-Y to view a file with a pager specified with `--view`.
 - Press Enter to switch to selection mode to select lines to output when ugrep
   exits.  Normally, ugrep in query mode does not output any results unless
   results are selected.  While in selection mode, select or deselect lines with
@@ -1176,7 +1180,7 @@ This option starts a user interface to enter search patterns interactively:
 - Press TAB to chdir one level down into the directory of the file listed
   or viewed at the top of the screen.  If no directory exists, the file itself
   is selected to search.  Press Shift-TAB to go back up one level.
-- Press CTRL-T to toggle colors on and off.  Normally ugrep in query mode uses
+- Press CTRL-] to toggle colors on and off.  Normally ugrep in query mode uses
   colors and other markup to highlight results.  When colors are turned off,
   selected results are also not colored in the output produced by ugrep when
   ugrep exits.  When colors are turned on (the default), selected results are
@@ -1198,41 +1202,42 @@ This option starts a user interface to enter search patterns interactively:
 
 Query TUI key mapping:
 
-key(s)                  | function
------------------------ | -------------------------------------------------
-`Alt-key`               | toggle ugrep command-line option corresponding to `key`
-`Alt-/`xxxx`/`          | insert Unicode hex code point U+xxxx
-`Esc` `Ctrl-[` `Ctrl-C` | go back or exit
-`Ctrl-Q`                | quick exit and output the results selected in selection mode
-`Tab`                   | chdir to the directory of the file shown at the top of the screen or select file
-`Shift-Tab`             | chdir one level up or deselect file
-`Enter`                 | enter selection mode and toggle selected lines to output on exit
-`Up` `Ctrl-P`           | move up
-`Down` `Ctrl-N`         | move down
-`Left` `Ctrl-B`         | move left
-`Right` `Ctrl-F`        | move right
-`PgUp` `Ctrl-G`         | move display up by a page
-`PgDn` `Ctrl-D`         | move display down by a page
-`Alt-Up`                | move display up by 1/2 page (MacOS `Shift-Up`)
-`Alt-Down`              | move display down by 1/2 page (MacOS `Shift-Down`)
-`Alt-Left`              | move display left by 1/2 page (MacOS `Shift-Left`)
-`Alt-Right`             | move display right by 1/2 page (MacOS `Shift-Right`)
-`Home` `Ctrl-A`         | move cursor to the beginning of the line
-`End` `Ctrl-E`          | move cursor to the end of the line
-`Ctrl-K`                | delete after cursor
-`Ctrl-L`                | refresh screen
-`Ctrl-O`+`key`          | toggle ugrep command-line option corresponding to `key`, same as `Alt-key`
-`Ctrl-R` `F4`           | jump to bookmark
-`Ctrl-S`                | scroll to the next file
-`Ctrl-T`                | toggle colors on/off
-`Ctrl-U`                | delete before cursor
-`Ctrl-V`                | verbatim character
-`Ctrl-W`                | scroll back one file
-`Ctrl-X` `F3`           | set bookmark
-`Ctrl-Y` `F2`           | edit file shown at the top of the screen or under the cursor
-`Ctrl-Z` `F1`           | view help and options
-`Ctrl-^`                | chdir back to the starting working directory
-`Ctrl-\`                | terminate process
+key(s)           | function
+---------------- | -------------------------------------------------
+`Alt-key`        | toggle ugrep command-line option corresponding to `key`
+`Alt-/`xxxx`/`   | insert Unicode hex code point U+xxxx
+`Esc` `Ctrl-C`   | go back or exit
+`Ctrl-Q`         | quick exit and output the results selected in selection mode
+`Tab`            | chdir to the directory of the file shown at the top of the screen or select file
+`Shift-Tab`      | chdir one level up or deselect file
+`Enter`          | enter selection mode and toggle selected lines to output on exit
+`Up` `Ctrl-P`    | move up
+`Down` `Ctrl-N`  | move down
+`Left` `Ctrl-B`  | move left
+`Right` `Ctrl-F` | move right
+`PgUp` `Ctrl-G`  | move display up by a page
+`PgDn` `Ctrl-D`  | move display down by a page
+`Alt-Up`         | move display up by 1/2 page (MacOS `Shift-Up`)
+`Alt-Down`       | move display down by 1/2 page (MacOS `Shift-Down`)
+`Alt-Left`       | move display left by 1/2 page (MacOS `Shift-Left`)
+`Alt-Right`      | move display right by 1/2 page (MacOS `Shift-Right`)
+`Home` `Ctrl-A`  | move cursor to the beginning of the line
+`End` `Ctrl-E`   | move cursor to the end of the line
+`Ctrl-K`         | delete after cursor
+`Ctrl-L`         | refresh screen
+`Ctrl-O`+`key`   | toggle ugrep command-line option corresponding to `key`, same as `Alt-key`
+`Ctrl-R` `F4`    | jump to bookmark
+`Ctrl-S`         | jump to the next dir/file/context
+`Ctrl-T` `F5`    | toggle split screen (`--split` starts a split-screen TUI)
+`Ctrl-U`         | delete before cursor
+`Ctrl-V`         | verbatim character
+`Ctrl-W`         | jump back one dir/file/context
+`Ctrl-X` `F3`    | set bookmark
+`Ctrl-Y` `F2`    | view or edit the file shown at the top of the screen
+`Ctrl-Z` `F1`    | view help and options
+`Ctrl-^`         | chdir back to the starting working directory
+`Ctrl-]`         | toggle color/mono
+`Ctrl-\`         | terminate process
 
 To interactively search the files in the working directory and below:
 
@@ -2586,7 +2591,7 @@ Same, compacted to 32 bytes per line without the character column:
 To match the binary pattern `A3..A3.` (hex) in a binary file without
 Unicode pattern matching (which would otherwise match `\xaf` as a Unicode
 character U+00A3 with UTF-8 byte sequence C2 A3) and display the results
-in compact hex with `--hexdump` with pager `less -R`:
+in compact hex with `--hexdump` with pager:
 
     ug --pager --hexdump -U '\xa3[\x00-\xff]{2}\xa3[\x00-\xff]' a.out
 
@@ -3063,8 +3068,8 @@ To display the line and column numbers of matches in XML with `--xml`:
             a match if specified, otherwise TAG.  The default is `___'.
     --pager[=COMMAND]
             When output is sent to the terminal, uses COMMAND to page through
-            the output.  The default COMMAND is `less -R'.  Enables --heading
-            and --line-buffered.
+            the output.  COMMAND defaults to environment variable PAGER when
+            defined or `less'.  Enables --heading and --line-buffered.
     --pretty
             When output is sent to a terminal, enables --color, --heading, -n,
             --sort, --tree and -T when not explicitly disabled.
@@ -3329,7 +3334,7 @@ field                   | output
 `%[ARG]S`               | if not the first match: `ARG` and separator, see also `%[SEP]$`
 `%s`                    | the separator, see also `%[ARG]S` and `%[SEP]$`
 `%~`                    | a newline character
-`%+`                    | if option `--heading` is used: `%F` and a newline character, suppress all `%F` afterward
+`%+`                    | if option `--heading` is used: `%F` and a newline character, suppress all `%F` and `%H` afterward
 `%m`                    | the number of matches, sequential (or number of matching files with `--format-end`)
 `%M`                    | the number of matching lines (or number of matching files with `--format-end`)
 `%O`                    | the matching line is output as is (a raw string of bytes)
@@ -4041,7 +4046,7 @@ in markdown:
                   command line.
 
            --confirm
-                  Confirm actions in -Q query mode.  The default is confirm.
+                  Confirm actions in -Q query TUI.  The default is confirm.
 
            --cpp  Output file matches in C++.  See also options --format and -u.
 
@@ -4066,7 +4071,7 @@ in markdown:
                   is equivalent to the -R option.
 
            --delay=DELAY
-                  Set the default -Q response delay (nonzero).  Default is 5.
+                  Set the default -Q key response delay.  Default is 3 for 300ms.
 
            --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
                   Restrict recursive searches from MIN to MAX directory levels deep,
@@ -4382,7 +4387,7 @@ in markdown:
 
            --lines
                   Apply Boolean queries to match lines, the opposite of --files.
-                  This is the default Boolean query mode to match specific lines.
+                  This is the default Boolean mode to match specific lines.
 
            -M MAGIC, --file-magic=MAGIC
                   Only files matching the signature pattern MAGIC are searched.  The
@@ -4479,7 +4484,7 @@ in markdown:
 
            --pager[=COMMAND]
                   When output is sent to the terminal, uses COMMAND to page through
-                  the output.  COMMAND defaults to environment variable $PAGER when
+                  the output.  COMMAND defaults to environment variable PAGER when
                   defined or `less'.  Enables --heading and --line-buffered.
 
            --pretty
@@ -4487,11 +4492,11 @@ in markdown:
                   --sort, --tree and -T when not explicitly disabled.
 
            -Q[=DELAY], --query[=DELAY]
-                  Query mode: user interface to perform interactive searches.  This
+                  Query mode: start a TUI to perform interactive searches.  This
                   mode requires an ANSI capable terminal.  An optional DELAY
                   argument may be specified to reduce or increase the response time
                   to execute searches after the last key press, in increments of
-                  100ms, where the default is 5 (0.5s delay).  No whitespace may be
+                  100ms, where the default is 3 (300ms delay).  No whitespace may be
                   given between -Q and its argument DELAY.  Initial patterns may be
                   specified with -e PATTERN, i.e. a PATTERN argument requires option
                   -e.  Press F1 or CTRL-Z to view the help screen.  Press F2 or
@@ -4501,9 +4506,9 @@ in markdown:
                   EDITOR.  Press Tab and Shift-Tab to navigate directories and to
                   select a file to search.  Press Enter to select lines to output.
                   Press ALT-l for option -l to list files, ALT-n for -n, etc.
-                  Non-option commands include ALT-] to increase fuzziness and ALT-}
-                  to increase context.  Enables --heading.  See also options
-                  --confirm and --view.
+                  Non-option commands include ALT-] to increase context and ALT-} to
+                  increase fuzzyness.  See also options --confirm, --delay, --split
+                  and --view.
 
            -q, --quiet, --silent
                   Quiet mode: suppress all output.  Only search a file until a match
@@ -4543,6 +4548,9 @@ in markdown:
                   number, byte offset and the matched line.  The default is a colon
                   (`:'), a plus (`+') for additional matches on the same line, and a
                   bar (`|') for multi-line pattern matches.
+
+           --split
+                  Split the -Q query TUI screen on startup.
 
            --sort[=KEY]
                   Displays matching files in the order specified by KEY in recursive
@@ -4624,7 +4632,7 @@ in markdown:
                   patterns.
 
            --view[=COMMAND]
-                  Use COMMAND to view/edit a file in query mode when pressing
+                  Use COMMAND to view/edit a file in -Q query TUI by pressing
                   CTRL-Y.
 
            -W, --with-hex
@@ -5275,7 +5283,7 @@ in markdown:
 
 
 
-    ugrep 4.2.0                    September 22, 2023                       UGREP(1)
+    ugrep 4.3.0                      October 7, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

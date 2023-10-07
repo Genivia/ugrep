@@ -47,15 +47,15 @@ void Stats::report(FILE *output)
   size_t ff = found_files();
   size_t fp = found_parts();
   size_t fm = found_matches();
-  size_t ws = warnings;
+  size_t ws = Static::warnings;
 
   fprintf(output, NEWLINESTR "Searched %zu file%s", sf, (sf == 1 ? "" : "s"));
   if (sd > 0)
     fprintf(output, " in %zu director%s", sd, (sd == 1 ? "y" : "ies"));
-  if (flag_query == 0 && flag_pager == NULL)
+  if (!flag_query && flag_pager == NULL)
     fprintf(output, " in %.3g seconds", 0.001 * reflex::timer_elapsed(timer));
-  if (threads > 1)
-    fprintf(output, " with %zu threads", threads);
+  if (Static::threads > 1)
+    fprintf(output, " with %zu threads", Static::threads);
   fprintf(output, ": %zu matching (%.4g%%)", ff, 100.0 * ff / sf);
   if (fp > ff)
     fprintf(output, " + %zu in archives", fp - ff);
@@ -86,7 +86,7 @@ void Stats::report(FILE *output)
     }
   }
 
-  if (warnings > 0)
+  if (Static::warnings > 0)
     fprintf(output, "Received %zu warning%s" NEWLINESTR, ws, ws == 1 ? "" : "s");
 
   fprintf(output, "The following pathname selections and search constraints were applied:" NEWLINESTR);

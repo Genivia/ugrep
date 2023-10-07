@@ -40,6 +40,7 @@
 #include <reflex/error.h>
 #include <string>
 #include <map>
+#include <cstring>
 
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # pragma warning( disable : 4290 )
@@ -174,6 +175,29 @@ inline std::string convert(
     const std::map<std::string,std::string> *macros = NULL)
 {
   return convert(pattern.c_str(), signature, flags, multiline, macros);
+}
+
+inline bool supports_modifier(
+    const char *signature,
+    int         modchar)
+{
+  if (signature == NULL)
+    return false;
+  const char *escapes = std::strchr(signature, ':');
+  if (escapes == NULL)
+    return false;
+  const char *s = std::strchr(signature, modchar);
+  return s && s < escapes;
+}
+
+inline bool supports_escape(
+    const char *signature,
+    int         escape)
+{
+  if (signature == NULL)
+    return false;
+  const char *escapes = std::strchr(signature, ':');
+  return std::strchr(escapes != NULL ? escapes : signature, escape) != NULL;
 }
 
 } // namespace reflex

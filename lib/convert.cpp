@@ -219,23 +219,6 @@ inline bool is_modified(const std::map<size_t,std::string>& mod, int c)
   return false;
 }
 
-inline bool supports_modifier(const char *signature, int c)
-{
-  const char *escapes = std::strchr(signature, ':');
-  if (escapes == NULL)
-    return false;
-  const char *s = std::strchr(signature, c);
-  return s && s < escapes;
-}
-
-inline bool supports_escape(const char *signature, int escape)
-{
-  if (!signature)
-    return false;
-  const char *escapes = std::strchr(signature, ':');
-  return std::strchr(escapes != NULL ? escapes : signature, escape) != NULL;
-}
-
 inline int hex_or_octal_escape(const char *signature)
 {
   if (supports_escape(signature, 'x'))
@@ -1601,11 +1584,11 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           if (!is_modified(mod, 'u') || !supports_escape(signature, 'X'))
           {
 #ifndef WITH_UTF8_UNRESTRICTED
-            // translate \X to match any valid UTF-8
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\xff]|[\\xc2-\\xdf][\\x80-\\xbf]|\\xe0[\\xa0-\\xbf][\\x80-\\xbf]|[\\xe1-\\xec][\\x80-\\xbf][\\x80-\\xbf]|\\xed[\\x80-\\x9f][\\x80-\\xbf]|[\\xee\\xef][\\x80-\\xbf][\\x80-\\xbf]|\\xf0[\\x90-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|[\\xf1-\\xf3][\\x80-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|\\xf4[\\x80-\\x8f][\\x80-\\xbf][\\x80-\\xbf]").push_back(')');
+            // translate \X to match any valid UTF-8 even beyond
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xdf][\\x80-\\xbf]|\\xe0[\\xa0-\\xbf][\\x80-\\xbf]|[\\xe1-\\xec][\\x80-\\xbf][\\x80-\\xbf]|\\xed[\\x80-\\x9f][\\x80-\\xbf]|[\\xee\\xef][\\x80-\\xbf][\\x80-\\xbf]|\\xf0[\\x90-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|[\\xf1-\\xf3][\\x80-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|\\xf4[\\x80-\\x8f][\\x80-\\xbf][\\x80-\\xbf]").push_back(')');
 #else
-            // translate \X to match any UTF-8 encoding, including malformed UTF-8 with overruns
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\xff]|[\\xc0-\\xff][\\x80-\\xbf]+").push_back(')');
+            // translate \X to match any valid UTF-8 encoding (including overruns)
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xf4][\\x80-\\xbf]+").push_back(')');
 #endif
             loc = pos + 1;
           }
@@ -2099,11 +2082,22 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           }
           else if (!supports_escape(signature, 'p'))
           {
-            // \p is not supported: this indicates that . is non-Unicode
-            if (supports_modifier(signature, 's') || supports_escape(signature, '.'))
-              regex.append(&pattern[loc], pos - loc).append(par).append(".[\\x80-\\xbf]*)");
+            // \p is not supported: this indicates that . is matches as non-Unicode but we want to match Unicode
+            if ((flags & convert_flag::lex))
+            {
+              // lex . matches any byte (including invalid UTF-8) and any Unicode character e.g. in a catch-all-else rule
+              if (supports_modifier(signature, 's') || supports_escape(signature, '.'))
+                regex.append(&pattern[loc], pos - loc).append(par).append(".[\\x80-\\xbf]*)");
+              else
+                regex.append(&pattern[loc], pos - loc).append(par).append("[^\\n][\\x80-\\xbf]*)");
+            }
             else
-              regex.append(&pattern[loc], pos - loc).append(par).append("[^\\n][\\x80-\\xbf]*)");
+            {
+              if (is_modified(mod, 's'))
+                regex.append(&pattern[loc], pos - loc).append(par).append("[^\\x80-\\xbf][\\x80-\\xbf]*)");
+              else
+                regex.append(&pattern[loc], pos - loc).append(par).append("[^\\n\\x80-\\xbf][\\x80-\\xbf]*)");
+            }
             loc = pos + 1;
           }
         }

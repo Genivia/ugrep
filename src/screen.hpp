@@ -37,9 +37,7 @@
 #ifndef SCREEN_HPP
 #define SCREEN_HPP
 
-#include "ugrep.hpp"
 #include "vkey.hpp"
-
 #include <cinttypes>
 
 #ifndef OS_WIN
@@ -273,14 +271,14 @@ class Screen {
     put(text, strlen(text));
   }
 
-  // emit text at the specified screen position, where (0,0) is home
-  static void put(int row, int col, const std::string& text, int skip = 0, int wrap = -1)
+  // emit text at the specified screen position, where (0,0) is home, return row number of the updated cursor position
+  static int put(int row, int col, const std::string& text, int skip = 0, int wrap = -1, int nulls = 0)
   {
-    put(row, col, text.c_str(), text.size(), skip, wrap);
+    return put(row, col, text.c_str(), text.size(), skip, wrap, nulls);
   }
 
-  // emit text at the specified screen position, where (0,0) is home
-  static void put(int row, int col, const char *text, size_t size = std::string::npos, int skip = 0, int wrap = -1);
+  // emit text at the specified screen position, where (0,0) is home, return row number updated when wrap >= 0
+  static int put(int row, int col, const char *text, size_t size = std::string::npos, int skip = 0, int wrap = -1, int nulls = 0);
 
   static int  rows; // number of screen rows
   static int  cols; // number of screen columns

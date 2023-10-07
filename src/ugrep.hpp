@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "4.2.0"
+#define UGREP_VERSION "4.3.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -88,7 +88,7 @@
 
 #define PATHSEPCHR '\\'
 #define PATHSEPSTR "\\"
-#define NEWLINESTR "\r\n" // Note: Also hard-coded into Output class.
+#define NEWLINESTR "\r\n" // Note: also hard-coded into Output class
 
 // POSIX read() and write() return type is ssize_t
 typedef int ssize_t;
@@ -404,9 +404,13 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 
 #include "flag.hpp"
 #include "cnf.hpp"
+#include <reflex/absmatcher.h>
+#include <reflex/pattern.h>
 #include <reflex/input.h>
 #include <algorithm>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
 #include <map>
 #include <set>
 #include <string>
@@ -415,30 +419,94 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 // undefined size_t value
 #define UNDEFINED_SIZE static_cast<size_t>(~0UL)
 
-// unique address to identify standard input path
-extern const char *LABEL_STANDARD_INPUT;
+// managed global static state
+struct Static {
 
-// the CNF of Boolean search queries and patterns
-extern CNF bcnf;
+  // CNF of AND/OR/NOT matchers
+  typedef std::list<std::list<std::unique_ptr<reflex::AbstractMatcher>>> Matchers;
 
-// ugrep command-line arguments pointing to argv[]
-extern const char *arg_pattern;
-extern std::vector<const char*> arg_files;
+  // the CNF of Boolean search queries and patterns
+  static CNF bcnf;
 
-// number of concurrent threads for workers
-extern size_t threads;
+  // pointer to the --index pattern DFA with HFA constructed before threads start
+  static const reflex::Pattern *index_pattern; // concurrent access is thread safe
 
-// number of warnings given
-extern std::atomic_size_t warnings;
+  // the -M MAGIC pattern DFA constructed before threads start, read-only afterwards
+  static reflex::Pattern magic_pattern; // concurrent access is thread safe
+  static reflex::Matcher magic_matcher; // concurrent access is not thread safe
 
-// redirectable source is standard input by default or a pipe
-extern FILE *source;
+  // the --filter-magic-label pattern DFA
+  static reflex::Pattern filter_magic_pattern; // concurrent access is thread safe
 
-// redirectable output destination is standard output by default or a pipe
-extern FILE *output;
+  // unique address and label to identify standard input path
+  static const char *LABEL_STANDARD_INPUT;
 
-// full home directory path
-extern const char *home_dir;
+  // ugrep command-line arguments pointing to argv[]
+  static const char *arg_pattern;
+  static std::vector<const char*> arg_files;
+
+  // number of concurrent threads for workers
+  static size_t threads;
+
+  // number of warnings given
+  static std::atomic_size_t warnings;
+
+  // redirectable source is standard input by default or a pipe
+  static FILE *source;
+
+  // redirectable output destination is standard output by default or a pipe
+  static FILE *output;
+
+  // full home directory path or NULL to expand ~ in options with path arguments
+  static const char *home_dir;
+
+  // Grep object handle, to cancel the search with cancel_ugrep()
+  static struct Grep *grep_handle;
+  static std::mutex grep_handle_mutex;
+
+  // set/clear the handle to use cancel_ugrep()
+  static void set_grep_handle(struct Grep*);
+  static void clear_grep_handle();
+
+  // graciously shut down ugrep() if still running as a thread
+  static void cancel_ugrep();
+
+  // patterns
+  static reflex::Pattern reflex_pattern;
+  static std::string string_pattern;
+  static std::list<reflex::Pattern> reflex_patterns;
+  static std::list<std::string> string_patterns;
+
+  // the LineMatcher, PCRE2Matcher, FuzzyMatcher or Matcher, concurrent access is not thread safe
+  static std::unique_ptr<reflex::AbstractMatcher> matcher;
+
+  // the CNF of AND/OR/NOT matchers or NULL, concurrent access is not thread safe
+  static Matchers matchers;
+
+  // clone the CNF of AND/OR/NOT matchers - the caller is responsible to deallocate the returned list of matchers if not NULL
+  static Matchers *matchers_clone()
+  {
+    Matchers *new_matchers = new Matchers;
+
+    for (const auto& i : matchers)
+    {
+      new_matchers->emplace_back();
+
+      auto& last = new_matchers->back();
+
+      for (const auto& j : i)
+      {
+        if (j)
+          last.emplace_back(j->clone());
+        else
+          last.emplace_back();
+      }
+    }
+
+    return new_matchers;
+  }
+
+};
 
 // ANSI SGR substrings extracted from GREP_COLORS and --colors
 #define COLORLEN 32
@@ -491,11 +559,11 @@ extern void terminal();
 // set or update hyperlink with host and current working directory, e.g. when changed
 extern void set_terminal_hyperlink();
 
-// perform a ugrep search given the specified command line flags, patterns, and files
+// search the specified files, directories, and/or standard input for pattern matches, may throw an exception
 extern void ugrep();
 
-// graciously shut down ugrep() if still running as a thread
-extern void cancel_ugrep();
+// perform a limited ugrep search on a single file with optional archive part and store up to num results in a vector, may throw an exception
+extern void ugrep_find_text_preview(const char *filename, const char *partname, size_t from_lineno, size_t max, size_t& lineno, size_t& num, std::vector<std::string>& text);
 
 extern void warning(const char *message, const char *arg);
 extern void error(const char *message, const char *arg);

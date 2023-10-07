@@ -1,4 +1,4 @@
-.TH UGREP "1" "September 22, 2023" "ugrep 4.2.0" "User Commands"
+.TH UGREP "1" "October 07, 2023" "ugrep 4.3.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -245,7 +245,7 @@ options specified in the configuration FILE are parsed first,
 followed by the remaining options specified on the command line.
 .TP
 \fB\-\-confirm\fR
-Confirm actions in \fB\-Q\fR query mode.  The default is confirm.
+Confirm actions in \fB\-Q\fR query TUI.  The default is confirm.
 .TP
 \fB\-\-cpp\fR
 Output file matches in C++.  See also options \fB\-\-format\fR and \fB\-u\fR.
@@ -272,7 +272,7 @@ each directory, recursively, following symbolic links.  This is
 equivalent to the \fB\-R\fR option.
 .TP
 \fB\-\-delay\fR=\fIDELAY\fR
-Set the default \fB\-Q\fR response delay (nonzero).  Default is 5.
+Set the default \fB\-Q\fR key response delay.  Default is 3 for 300ms.
 .TP
 \fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, ... \fB\-9\fR, \fB\-\-10\fR, \fB\-\-11\fR, \fB\-\-12\fR, ...
 Restrict recursive searches from MIN to MAX directory levels deep,
@@ -580,7 +580,7 @@ Force output to be line buffered instead of block buffered.
 .TP
 \fB\-\-lines\fR
 Apply Boolean queries to match lines, the opposite of \fB\-\-files\fR.
-This is the default Boolean query mode to match specific lines.
+This is the default Boolean mode to match specific lines.
 .TP
 \fB\-M\fR \fIMAGIC\fR, \fB\-\-file\-magic\fR=\fIMAGIC\fR
 Only files matching the signature pattern MAGIC are searched.  The
@@ -675,20 +675,19 @@ symbolic links are specified on the command line.
 .TP
 \fB\-\-pager\fR[=\fICOMMAND\fR]
 When output is sent to the terminal, uses COMMAND to page through
-the output.  COMMAND defaults to environment variable $PAGER when
-defined or `less'.  Enables \fB\-\-heading\fR and
-\fB\-\-line\-buffered\fR.
+the output.  COMMAND defaults to environment variable PAGER when
+defined or `less'.  Enables \fB\-\-heading\fR and \fB\-\-line\-buffered\fR.
 .TP
 \fB\-\-pretty\fR
 When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-n\fR,
 \fB\-\-sort\fR, \fB\-\-tree\fR and \fB\-T\fR when not explicitly disabled.
 .TP
 \fB\-Q\fR[=\fIDELAY\fR], \fB\-\-query\fR[=\fIDELAY\fR]
-Query mode: user interface to perform interactive searches.  This
-mode requires an ANSI capable terminal.  An optional DELAY argument
-may be specified to reduce or increase the response time to execute
+Query mode: start a TUI to perform interactive searches.  This mode
+requires an ANSI capable terminal.  An optional DELAY argument may
+be specified to reduce or increase the response time to execute
 searches after the last key press, in increments of 100ms, where
-the default is 5 (0.5s delay).  No whitespace may be given between
+the default is 3 (300ms delay).  No whitespace may be given between
 \fB\-Q\fR and its argument DELAY.  Initial patterns may be specified with
 \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press F1
 or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke a
@@ -698,8 +697,8 @@ environment variable PAGER when defined, or EDITOR.  Press Tab and
 Shift\-Tab to navigate directories and to select a file to search.
 Press Enter to select lines to output.  Press ALT\-l for option \fB\-l\fR
 to list files, ALT\-n for \fB\-n\fR, etc.  Non\-option commands include
-ALT\-] to increase fuzziness and ALT\-} to increase context.  Enables
-\fB\-\-heading\fR.  See also options \fB\-\-confirm\fR and \fB\-\-view\fR.
+ALT\-] to increase context and ALT\-} to increase fuzzyness.  See
+also options \fB\-\-confirm\fR, \fB\-\-delay\fR, \fB\-\-split\fR and \fB\-\-view\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  Only search a file until a match
@@ -739,6 +738,9 @@ Use SEP as field separator between file name, line number, column
 number, byte offset and the matched line.  The default is a colon
 (`:'), a plus (`+') for additional matches on the same line, and a
 bar (`|') for multi\-line pattern matches.
+.TP
+\fB\-\-split\fR
+Split the \fB\-Q\fR query TUI screen on startup.
 .TP
 \fB\-\-sort\fR[=\fIKEY\fR]
 Displays matching files in the order specified by KEY in recursive
@@ -819,7 +821,7 @@ Selected lines are those not matching any of the specified
 patterns.
 .TP
 \fB\-\-view\fR[=\fICOMMAND\fR]
-Use COMMAND to view/edit a file in query mode when pressing CTRL\-Y.
+Use COMMAND to view/edit a file in \fB\-Q\fR query TUI by pressing CTRL\-Y.
 .TP
 \fB\-W\fR, \fB\-\-with\-hex\fR
 Output binary matches in hexadecimal, leaving text matches alone.

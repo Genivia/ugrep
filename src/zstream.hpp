@@ -1124,32 +1124,67 @@ class zstreambuf : public std::streambuf {
     }
     else
     {
-      // read compression format magic bytes
-      std::streamsize num = fread(buf_, 1, 2, file);
+      // try to read two compression format magic bytes
+      size_t num = fread(buf_, 1, 2, file);
 
-      if (num == 2)
+      if (num == 2 && u16(buf_) == ZipInfo::DEFLATE_HEADER_MAGIC)
       {
-        if (u16(buf_) == ZipInfo::DEFLATE_HEADER_MAGIC)
+        // open zlib compressed file
+        try
         {
-          // open zlib compressed file
+          zfile_ = new Z();
+
+          // copy the gzip header's magic bytes to zbuf[], needed by inflate()
+          zfile_->zbuf[0] = buf_[0];
+          zfile_->zbuf[1] = buf_[1];
+          zfile_->zlen = 2;
+          zfile_->strm.next_in  = zfile_->zbuf;
+          zfile_->strm.avail_in = zfile_->zlen;
+
+          // inflate gzip compressed data starting with a gzip header
+          if (inflateInit2(&zfile_->strm, 16 + MAX_WBITS) != Z_OK)
+          {
+            cannot_decompress(pathname_, zfile_->strm.msg != NULL ? zfile_->strm.msg : "inflateInit2 failed");
+
+            delete zfile_;
+            zfile_ = NULL;
+            file_ = NULL;
+          }
+        }
+
+        catch (const std::bad_alloc&)
+        {
+          errno = ENOMEM;
+          warning("out of memory", pathname);
+          file_ = NULL;
+        }
+      }
+      else if (num == 2 && u16(buf_) == ZipInfo::COMPRESS_HEADER_MAGIC)
+      {
+        // open compress (Z) compressed file
+        if ((zzfile_ = z_open(file, "r", 0, 1)) == NULL)
+        {
+          warning("zopen error", pathname);
+          file_ = NULL;
+        }
+      }
+      else
+      {
+        // read up to four bytes of the compression format's magic bytes to check for zip
+        num += fread(buf_ + num, 1, 4 - num, file);
+
+        if (num == 4 && u32(buf_) == ZipInfo::ZIP_HEADER_MAGIC)
+        {
+          // open zip compressed file
           try
           {
-            zfile_ = new Z();
+            zipinfo_ = new ZipInfo(pathname, file, buf_, 4);
 
-            // copy the gzip header's magic bytes to zbuf[], needed by inflate()
-            zfile_->zbuf[0] = buf_[0];
-            zfile_->zbuf[1] = buf_[1];
-            zfile_->zlen = 2;
-            zfile_->strm.next_in  = zfile_->zbuf;
-            zfile_->strm.avail_in = zfile_->zlen;
-
-            // inflate gzip compressed data starting with a gzip header
-            if (inflateInit2(&zfile_->strm, 16 + MAX_WBITS) != Z_OK)
+            // read the zip header of the first compressed file
+            if (!zipinfo_->header())
             {
-              cannot_decompress(pathname_, zfile_->strm.msg != NULL ? zfile_->strm.msg : "inflateInit2 failed");
-
-              delete zfile_;
-              zfile_ = NULL;
+              delete zipinfo_;
+              zipinfo_ = NULL;
               file_ = NULL;
             }
           }
@@ -1161,76 +1196,23 @@ class zstreambuf : public std::streambuf {
             file_ = NULL;
           }
         }
-        else if (u16(buf_) == ZipInfo::COMPRESS_HEADER_MAGIC)
+        else if (num == 4 && u32(buf_) == ZipInfo::ZIP_EMPTY_MAGIC)
         {
-          // open compress (Z) compressed file
-          if ((zzfile_ = z_open(file, "r", 0, 1)) == NULL)
-          {
-            warning("zopen error", pathname);
-            file_ = NULL;
-          }
+          // skip empty zip file without warning
+          file_ = NULL;
+        }
+        else if (num == 4 && u32(buf_) == ZipInfo::ZIP_DESCRIPTOR_MAGIC)
+        {
+          // cannot decompress split zip files
+          cannot_decompress(pathname, "spanned zip fragment of a split zip archive");
+          file_ = NULL;
         }
         else
         {
-          // read two more bytes of the compression format's magic bytes to check for zip
-          num = fread(buf_ + 2, 1, 2, file);
-
-          if (num == 2 && u32(buf_) == ZipInfo::ZIP_HEADER_MAGIC)
-          {
-            // open zip compressed file
-            try
-            {
-              zipinfo_ = new ZipInfo(pathname, file, buf_, 4);
-
-              // read the zip header of the first compressed file
-              if (!zipinfo_->header())
-              {
-                delete zipinfo_;
-                zipinfo_ = NULL;
-                file_ = NULL;
-              }
-            }
-
-            catch (const std::bad_alloc&)
-            {
-              errno = ENOMEM;
-              warning("out of memory", pathname);
-              file_ = NULL;
-            }
-          }
-          else if (num == 2 && u32(buf_) == ZipInfo::ZIP_EMPTY_MAGIC)
-          {
-            // skip empty zip file without warning
-            file_ = NULL;
-          }
-          else if (num == 2 && u32(buf_) == ZipInfo::ZIP_DESCRIPTOR_MAGIC)
-          {
-            // cannot decompress split zip files
-            cannot_decompress(pathname, "spanned zip fragment of a split zip archive");
-            file_ = NULL;
-          }
-          else if (num >= 0)
-          {
-            // assume no compression
-            len_ = num + 2;
-            num = fread(buf_ + 4, 1, Z_BUF_LEN - 4, file);
-            if (num >= 0)
-            {
-              len_ += num;
-            }
-            else
-            {
-              warning("cannot read", pathname);
-              file_ = NULL;
-            }
-          }
+          // no compression: pass through
+          num += fread(buf_ + num, 1, Z_BUF_LEN - num, file);
+          len_ = static_cast<std::streamsize>(num);
         }
-      }
-
-      if (num < 0)
-      {
-        warning("cannot read", pathname);
-        file_ = NULL;
       }
     }
   }

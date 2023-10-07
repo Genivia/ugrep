@@ -554,7 +554,7 @@ class Output {
     chr('0' + (b & 7));
   }
 
-  // output a newline (platform-specific conditional "\r\n" or "\n"); flush if --line-buffered.
+  // output a newline (platform-specific conditional "\r\n" or "\n"); flush if --line-buffered
   inline void nl(bool lf_only = false)
   {
     if (!lf_only)

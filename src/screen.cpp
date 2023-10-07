@@ -435,20 +435,20 @@ uint32_t Screen::wchar(const char *ptr, const char **endptr)
     return c1;
   }
 
-  if ((c1 & 0xc0) != 0xc0)
+  if ((c1 & 0xc0) != 0xc0 || c1 <= 0xc1 || c1 > 0xf4)
   {
     if (endptr != NULL)
       *endptr = ptr;
-    return 0; // incomplete UTF-8
+    return 0; // incomplete or invalid UTF-8
   }
 
   c2 = static_cast<unsigned char>(*ptr++);
 
-  if ((c2 & 0xc0) != 0x80)
+  if ((c2 & 0xc0) != 0x80 || (c1 == 0xed && c2 > 0x9f))
   {
     if (endptr != NULL)
       *endptr = ptr;
-    return 0; // incomplete UTF-8
+    return 0; // incomplete UTF-8 or surrogates
   }
 
   c2 &= 0x3f;
@@ -493,8 +493,8 @@ uint32_t Screen::wchar(const char *ptr, const char **endptr)
   return ((c1 & 0x07) << 18) | (c2 << 12) | (c3 << 6) | (c4 & 0x3f);
 }
 
-// emit text at the specified screen position, where (0,0) is home
-void Screen::put(int row, int col, const char *text, size_t size, int skip, int wrap)
+// emit text at the specified screen position, where (0,0) is home, return row number of the updated cursor position
+int Screen::put(int row, int col, const char *text, size_t size, int skip, int wrap, int nulls)
 {
   if (size == std::string::npos)
     size = strlen(text);
@@ -503,8 +503,8 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
 
   int len = cols - col;
 
-  // how many nulls to ignore, part of filename marking?
-  int nulls = *text == '\0' && !flag_text ? 2 : 0;
+  // when text starts with \0, how many more nulls to ignore, part of filename marking?
+  nulls = *text == '\0' ? nulls : 0;
 
   if (nulls > 0)
     ++text;
@@ -552,7 +552,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             erase();
             ++row;
             if (row >= rows)
-              return;
+              return row;
             setpos(row, col);
             num = skip;
             ++text;
@@ -563,7 +563,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             break;
 
           default:
-            if (*text == '\033')
+            if (*text == '\033' && text + 1 < end && (text[1] == '[' || text[1] == ']'))
             {
               if (text + 1 < end && text[1] == '[')
               {
@@ -580,7 +580,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
                   codeptr += next - text;
                 }
               }
-              else if (text + 1 < end && text[1] == ']')
+              else
               {
                 // OSC \e]...BEL|ST sequence
                 next = text;
@@ -596,14 +596,6 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
                   memcpy(codeptr, text, next - text);
                   codeptr += next - text;
                 }
-              }
-              else
-              {
-                // ESC x sequence
-                next = text;
-                ++next;
-                if (next < end)
-                  ++next;
               }
             }
             else
@@ -671,7 +663,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             {
               ++row;
               if (row >= rows)
-                return;
+                return row;
               col = wrap;
               setpos(row, col);
               len = cols - col;
@@ -679,8 +671,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
             }
             else
             {
-              text = strchr(ptr, '\n');
-              ptr = text;
+              ptr = text = strchr(ptr, '\n');
             }
           }
           else
@@ -695,11 +686,11 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
           erase();
           ++row;
           if (row >= rows)
-            return;
-          setpos(row, col);
-          text = ++ptr;
+            return row;
           col = 0;
-          len = cols - col;
+          setpos(row, 0);
+          len = cols;
+          text = ++ptr;
           break;
 
         case '\r':
@@ -708,9 +699,9 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
           break;
 
         default:
-          if (*ptr == '\033')
+          if (*ptr == '\033' && ptr + 1 < end && (ptr[1] == '[' || ptr[1] == ']'))
           {
-            if (ptr + 1 < end && ptr[1] == '[')
+            if (ptr[1] == '[')
             {
               // CSI \e[... sequence
               if (mono)
@@ -731,7 +722,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
                 text = ptr;
               }
             }
-            else if (ptr + 1 < end && ptr[1] == ']')
+            else
             {
               // OSC \e]...BEL|ST sequence
               if (mono)
@@ -754,28 +745,20 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
                 text = ptr;
               }
             }
-            else
-            {
-              // ESC x sequence
-              ++ptr;
-              if (ptr < end)
-                ++ptr;
-              text = ptr;
-            }
           }
           else
           {
             uint32_t wc = wchar(ptr, &next);
             int width = *ptr == '\0' || (wc == 0 && *ptr != '\0') ? 2 : wchar_width(wc);
             len -= width;
-            if (len < 0)
+            if (len < 0 || (len == 0 && width == 0))
             {
               put(text, ptr - text);
               if (wrap >= 0)
               {
                 ++row;
                 if (row >= rows)
-                  return;
+                  return row;
                 col = wrap;
                 setpos(row, col);
                 len = cols - col;
@@ -783,8 +766,7 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
               }
               else
               {
-                text = strchr(ptr, '\n');
-                ptr = text;
+                ptr = text = strchr(ptr, '\n');
               }
             }
             else if (wc == 0 && *ptr != '\0')
@@ -850,6 +832,8 @@ void Screen::put(int row, int col, const char *text, size_t size, int skip, int 
       }
     }
   }
+
+  return row;
 }
 
 // convert integer to text
