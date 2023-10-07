@@ -877,7 +877,7 @@ struct Zthread {
             // wait for the partname to be set by the next decompression thread in the ztchain
             if (!assigned)
               part_ready.wait(lock);
-            // implicit unlock
+            lock.unlock();
           }
           else
           {
@@ -908,17 +908,16 @@ struct Zthread {
         std::unique_lock<std::mutex> lock(pipe_mutex);
         assigned = true;
         part_ready.notify_one();
-        // implicit unlock
+        lock.unlock();
       }
     }
 
     return NULL;
   }
 
-  // cancel decompression
+  // cancel decompression gracefully
   void cancel()
   {
-    quit = true;
     stop = true;
 
     // recursively cancel decompression threads in the chain
@@ -995,7 +994,7 @@ struct Zthread {
       pipe_zstrm.wait(lock);
       waiting = false;
     }
-    // implicit unlock
+    lock.unlock();
   }
 
   // decompression thread execution
@@ -1085,7 +1084,7 @@ struct Zthread {
               std::unique_lock<std::mutex> lock(pipe_mutex);
               assigned = true;
               part_ready.notify_one();
-              // implicit unlock
+              lock.unlock();
             }
           }
 
@@ -1150,7 +1149,7 @@ struct Zthread {
         std::unique_lock<std::mutex> lock(pipe_mutex);
         assigned = true;
         part_ready.notify_one();
-        // implicit unlock
+        lock.unlock();
       }
 
       // close the pipe and wait until zstream pipe is open, unless quitting
@@ -1303,7 +1302,7 @@ struct Zthread {
               std::unique_lock<std::mutex> lock(pipe_mutex);
               assigned = true;
               part_ready.notify_one();
-              // implicit unlock
+              lock.unlock();
             }
           }
 
@@ -1384,7 +1383,7 @@ struct Zthread {
           std::unique_lock<std::mutex> lock(pipe_mutex);
           assigned = true;
           part_ready.notify_one();
-          // implicit unlock
+          lock.unlock();
         }
 
         // done extracting the tar file
@@ -1616,7 +1615,7 @@ struct Zthread {
               std::unique_lock<std::mutex> lock(pipe_mutex);
               assigned = true;
               part_ready.notify_one();
-              // implicit unlock
+              lock.unlock();
             }
           }
 
@@ -1701,7 +1700,7 @@ struct Zthread {
           std::unique_lock<std::mutex> lock(pipe_mutex);
           assigned = true;
           part_ready.notify_one();
-          // implicit unlock
+          lock.unlock();
         }
 
         // done extracting the cpio file
