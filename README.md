@@ -5,33 +5,28 @@ New ugrep 4.3
 
 Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed beat GNU grep, Silver Searcher, ack, sift, and ripgrep in [nearly all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
 
-New faster ugrep 4.3 and new **ugrep-indexer** tool to speed up search with file system indexing.  Visit [GitHub ugrep-indexer](https://github.com/Genivia/ugrep-indexer) for details.
-
-See [how to install ugrep](#install) on your system.  Ugrep is always free.
-
-The ugrep tools include the following commands:
-
-- **ug** for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory (run 'ug --save-config' to create a .ugrep file you can edit)
-- **ugrep** for batch use
-- **ug+** for interactive use, also searches pdfs, documents, e-books, image metadata
-- **ugrep+** for batch use, also searches pdfs, documents, e-books, image metadata
-
 *Option -Q opens a query TUI to search files as you type!*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
+See [how to install ugrep](#install) on your system.  Ugrep is always free.
+
 Development roadmap
 -------------------
 
-- my highest priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
-- make ugrep even faster and report on progress, see [my latest article](https://www.genivia.com/ugrep.html) and planned enhancements [#288](https://github.com/Genivia/ugrep/issues/288)
+- #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 - listen to users to continue to add new and updated features
-- further improve the interactive TUI with regex syntax highlighting
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
-- file indexing to speed up cold search performance, see [ugrep-indexer](https://github.com/Genivia/ugrep-indexer)
+- make ugrep even faster, see [my latest article](https://www.genivia.com/ugrep.html) and planned enhancements [#288](https://github.com/Genivia/ugrep/issues/288)
 
 Overview
 --------
+
+Commands:
+
+- `ug` is for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory, `ug+` also searches pdfs, documents, e-books, image metadata
+
+- `ugrep` for batch use like GNU grep without a .ugrep configuration file, `ugrep+` also searches pdfs, documents, e-books, image metadata
 
 Why use ugrep?
 
@@ -45,7 +40,7 @@ Why use ugrep?
 
 - Built-in help: `ug --help`, where `ug --help WHAT` displays options related to `WHAT` you are looking for
 
-  💡 try `ug --help regex`, `ug --help globs`, `ug --help fuzzy`, `ug --help format`.
+  💡 `ug --help regex`, `ug --help globs`, `ug --help fuzzy`, `ug --help format`.
 
 - User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command intended for interactive use that loads a .ugrep configuration file with your preferences
 
@@ -57,7 +52,13 @@ Why use ugrep?
 
       ug -Q                                  ug -Q -e PATTERN    
 
-  💡 `-Q` replaces `PATTERN` on the command line to let you enter patterns interactively.  Specify `-e PATTERN` to search and edit the `PATTERN` in the TUI, for example `-Qle PATTERN` shows a list of matching files.  Then use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.  For quick responses `ug -Q=1` won't wait 0.5s for you to complete typing (but may run up the CPU).
+  💡 `-Q` replaces `PATTERN` on the command line to let you enter patterns interactively in the TUI.  In the TUI use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.
+
+- Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
+
+      ug -z PATTERN ...                      ug -z --zmax=2 PATTERN ...
+
+  💡 specify `-z --zmax=2` to search compressed files and archives nested within archives.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps to search nested archives
 
 - Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
 
@@ -70,12 +71,6 @@ Why use ugrep?
   where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
   💡 specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
-
-- Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
-
-      ug -z PATTERN ...                      ug -z --zmax=2 PATTERN ...
-
-  💡 specify `-z --zmax=2` to search compressed files and archives stored within archives.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps to search nested archives, far more than you will ever need!  Larger `--zmax` slows searching.
 
 - Search pdf, doc, docx, e-book, and more with `ug+` [using filters](#filter) associated with filename extensions:
 
@@ -91,7 +86,7 @@ Why use ugrep?
       ug --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
       ug --filter='7z:7z x -so -si' PATTERN ...
 
-  💡 the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata, when the [`pdftotext`](https://pypi.org/project/pdftotext), [`antiword`](https://github.com/rsdoiel/antiword), [`pandoc`](https://pandoc.org), and [`exiftool`](https://exiftool.sourceforge.net) are installed (optionally, not used when not installed).
+  💡 the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
@@ -111,7 +106,7 @@ Why use ugrep?
       ug -X -U BYTEPATTERN ...               ug -X TEXTPATTERN ...
       ug -W -U BYTEPATTERN ...               ug -W TEXTPATTERN ...
 
-  💡 `--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.  Option `-X` is the same as `--hexdump=2C` with `2` columns of hex and the whole matching line as `C` context in hex.
+  💡 `--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.
 
 - Include files to search by [file types or file "magic bytes"](#magic) or exclude them with `^`
 
