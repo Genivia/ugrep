@@ -492,6 +492,13 @@ significant runtime overhead and should not be used for the final build.
 Performance comparisons
 -----------------------
 
+Please note that the **ugrep** and **ug** commands search binary files by
+default and do not ignore .gitignore specified files, which will not make
+recursive search performance comparisons meaningful unless options `-I` and
+`--ignore-files` are used.  To make these options the default for **ug**,
+simply add `ignore-binary` and `ignore-files` to your .ugrep configuration
+file.
+
 For an up-to-date performance comparison of the latest ugrep, please see the
 [ugrep performance benchmarks](https://github.com/Genivia/ugrep-benchmarks).
 Ugrep is faster than GNU grep, Silver Searcher, ack, sift.  Ugrep's speed beats
