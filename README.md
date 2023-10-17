@@ -22,17 +22,23 @@ Development roadmap
 Overview
 --------
 
-Commands:
+### Commands
 
 - `ug` is for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory, `ug+` also searches pdfs, documents, e-books, image metadata
 
 - `ugrep` for batch use like GNU grep without a .ugrep configuration file, `ugrep+` also searches pdfs, documents, e-books, image metadata
 
-Why use ugrep?
+### Why use ugrep?
 
 - Compatible with the GNU grep command options and output, but faster and with a lot more features
 
 - One of the [fastest grep tools](https://github.com/Genivia/ugrep-benchmarks)
+
+- User-friendly with sensible defaults defined in a customizable configuration files
+
+- Interactive TUI with built-in help and options to control searching, and a file (pre)view feature
+
+### What does ugrep add that GNU grep does not support?
 
 - Matches Unicode patterns by default and automatically searches UTF-8, UTF-16 and UTF-32 encoded files
 
@@ -42,7 +48,7 @@ Why use ugrep?
 
   💡 `ug --help regex`, `ug --help globs`, `ug --help fuzzy`, `ug --help format`.
 
-- User-friendly with sensible defaults and customizable [configuration files](#config) used by the `ug` command intended for interactive use that loads a .ugrep configuration file with your preferences
+- User-friendly with customizable [configuration files](#config) used by the `ug` command intended for interactive use that loads a .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
@@ -87,6 +93,12 @@ Why use ugrep?
       ug --filter='7z:7z x -so -si' PATTERN ...
 
   💡 the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata
+
+- Display horizontal context with option `-o` (`--only-matching`) and context options `-ABC`, e.g. to find matches in very long lines, such as Javascript and JSON sources:
+
+      ug -o -C20 -nk PATTERN longlines.js
+
+  💡 `-o -C20` fits all matches with context in 20 characters before and 20 charactess after a match (i.e. 40 Unicode characters total), `-nk` outputs line and column numbers.
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
@@ -3049,15 +3061,18 @@ To display the line and column numbers of matches in XML with `--xml`:
             one or more parameters `sl=' (selected line), `cx=' (context line),
             `mt=' (matched text), `ms=' (match selected), `mc=' (match
             context), `fn=' (file name), `ln=' (line number), `cn=' (column
-            number), `bn=' (byte offset), `se=' (separator).  Parameter values
-            are ANSI SGR color codes or `k' (black), `r' (red), `g' (green),
-            `y' (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white).
-            Upper case specifies background colors.  A `+' qualifies a color as
-            bright.  A foreground and a background color may be combined with
-            font properties `n' (normal), `f' (faint), `h' (highlight), `i'
-            (invert), `u' (underline).  Parameter `hl' enables file name
-            hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters
-            when option -v is specified.  Selectively overrides GREP_COLORS.
+            number), `bn=' (byte offset), `se=' (separator), `qp=' (TUI
+            prompt), `qe=' (TUI errors), `qr=' (TUI regex), `qm=' (TUI regex
+            meta characters), `ql=' (TUI regex bracket lists), `qb=' (TUI regex
+            braces).  Parameter values are ANSI SGR color codes or `k' (black),
+            `r' (red), `g' (green), `y' (yellow), `b' (blue), `m' (magenta),
+            `c' (cyan), `w' (white).  Upper case specifies background colors.
+            A `+' qualifies a color as bright.  A foreground and a background
+            color may be combined with font properties `n' (normal), `f'
+            (faint), `h' (highlight), `i' (invert), `u' (underline).  Parameter
+            `hl' enables file name hyperlinks.  Parameter `rv' reverses the
+            `sl=' and `cx=' parameters when option -v is specified.
+            Selectively overrides GREP_COLORS.
     --tag[=TAG[,END]]
             Disables colors to mark up matches with TAG.  END marks the end of
             a match if specified, otherwise TAG.  The default is `___'.
@@ -3075,17 +3090,23 @@ that defaults to `cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36`:
 
 param | result
 ----- | ------------------------------------------------------------------------
-`sl=` | SGR substring for selected lines
-`cx=` | SGR substring for context lines
+`sl=` | selected lines
+`cx=` | context lines
 `rv`  | Swaps the `sl=` and `cx=` capabilities when `-v` is specified
-`mt=` | SGR substring for matching text in any matching line
-`ms=` | SGR substring for matching text in a selected line.  The substring mt= by default
-`mc=` | SGR substring for matching text in a context line.  The substring mt= by default
-`fn=` | SGR substring for file names
-`ln=` | SGR substring for line numbers
-`cn=` | SGR substring for column numbers
-`bn=` | SGR substring for byte offsets
-`se=` | SGR substring for separators
+`mt=` | matching text in any matching line
+`ms=` | matching text in a selected line.  The substring mt= by default
+`mc=` | matching text in a context line.  The substring mt= by default
+`fn=` | file names
+`ln=` | line numbers
+`cn=` | column numbers
+`bn=` | byte offsets
+`se=` | separators
+`qp=` | TUI prompt
+`qe=` | TUI errors
+`qr=` | TUI regex
+`qm=` | TUI regex meta characters
+`ql=` | TUI regex bracket lists
+`qb=` | TUI regex braces
 
 Multiple SGR codes may be specified for a single parameter when separated by a
 semicolon, e.g. `mt=1;31` specifies bright red.  The following SGR codes are
@@ -4022,13 +4043,16 @@ in markdown:
                   one or more parameters `sl=' (selected line), `cx=' (context
                   line), `mt=' (matched text), `ms=' (match selected), `mc=' (match
                   context), `fn=' (file name), `ln=' (line number), `cn=' (column
-                  number), `bn=' (byte offset), `se=' (separator).  Parameter values
-                  are ANSI SGR color codes or `k' (black), `r' (red), `g' (green),
-                  `y' (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white).
-                  Upper case specifies background colors.  A `+' qualifies a color
-                  as bright.  A foreground and a background color may be combined
-                  with font properties `n' (normal), `f' (faint), `h' (highlight),
-                  `i' (invert), `u' (underline).  Parameter `hl' enables file name
+                  number), `bn=' (byte offset), `se=' (separator), `qp=' (TUI
+                  prompt), `qe=' (TUI errors), `qr=' (TUI regex), `qm=' (TUI regex
+                  meta characters), `ql=' (TUI regex bracket lists), `qb=' (TUI
+                  regex braces).  Parameter values are ANSI SGR color codes or `k'
+                  (black), `r' (red), `g' (green), `y' (yellow), `b' (blue), `m'
+                  (magenta), `c' (cyan), `w' (white).  Upper case specifies
+                  background colors.  A `+' qualifies a color as bright.  A
+                  foreground and a background color may be combined with font
+                  properties `n' (normal), `f' (faint), `h' (highlight), `i'
+                  (invert), `u' (underline).  Parameter `hl' enables file name
                   hyperlinks.  Parameter `rv' reverses the `sl=' and `cx='
                   parameters when option -v is specified.  Selectively overrides
                   GREP_COLORS.
@@ -4872,9 +4896,11 @@ in markdown:
                   May be used to specify ANSI SGR parameters to highlight matches
                   and other attributes when option --color is used.  Its value is a
                   colon-separated list of ANSI SGR parameters that defaults to
-                  cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36.  The mt=,
-                  ms=, and mc= capabilities of GREP_COLORS take priority over
-                  GREP_COLOR.  Option --colors takes priority over GREP_COLORS.
+                  cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36 with
+                  additional parameters for TUI colors
+                  :qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=35.  The mt=, ms=, and mc=
+                  capabilities of GREP_COLORS take priority over GREP_COLOR.  Option
+                  --colors takes priority over GREP_COLORS.
 
     GREP_COLORS
            Colors are specified as string of colon-separated ANSI SGR parameters of
@@ -4886,35 +4912,45 @@ in markdown:
            properties `n' (normal), `f' (faint), `h' (highlight), `i' (invert), `u'
            (underline).  Substrings may be specified for:
 
-           sl=    SGR substring for selected lines.
+           sl=    selected lines.
 
-           cx=    SGR substring for context lines.
+           cx=    context lines.
 
-           rv     Swaps the sl= and cx= capabilities when -v is specified.
+           rv     swaps the sl= and cx= capabilities when -v is specified.
 
-           mt=    SGR substring for matching text in any matching line.
+           mt=    matching text in any matching line.
 
-           ms=    SGR substring for matching text in a selected line.  The substring
-                  mt= by default.
+           ms=    matching text in a selected line.  The substring mt= by default.
 
-           mc=    SGR substring for matching text in a context line.  The substring
-                  mt= by default.
+           mc=    matching text in a context line.  The substring mt= by default.
 
-           fn=    SGR substring for filenames.
+           fn=    filenames.
 
-           ln=    SGR substring for line numbers.
+           ln=    line numbers.
 
-           cn=    SGR substring for column numbers.
+           cn=    column numbers.
 
-           bn=    SGR substring for byte offsets.
+           bn=    byte offsets.
 
-           se=    SGR substring for separators.
+           se=    separators.
 
            rv     a Boolean parameter, switches sl= and cx= with option -v.
 
            hl     a Boolean parameter, enables filename hyperlinks (\33]8;;link).
 
            ne     a Boolean parameter, disables ``erase in line'' \33[K.
+
+           qp=    TUI prompt.
+
+           qe=    TUI errors.
+
+           qr=    TUI regex.
+
+           qm=    TUI regex meta characters.
+
+           ql=    TUI regex bracket lists.
+
+           qb=    TUI regex braces.
 
     FORMAT
            Option --format=FORMAT specifies an output format for file matches.
@@ -5278,7 +5314,7 @@ in markdown:
 
 
 
-    ugrep 4.3.0                      October 7, 2023                        UGREP(1)
+    ugrep 4.3.1                      October 9, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
