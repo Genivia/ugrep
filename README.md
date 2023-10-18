@@ -278,7 +278,10 @@ Windows command line:
 - to match newlines in patterns, you may want to use `\R` instead of `\n` to
   match any Unicode newlines, such as `\r\n` pairs and single `\r` and `\n`.
 
-Install with [Chocolatey](https://community.chocolatey.org/packages/ugrep)
+Install with [Winget](https://learn.microsoft.com/en-us/windows/package-manager/)
+`winget install Genivia.ugrep`
+
+Or install with [Chocolatey](https://community.chocolatey.org/packages/ugrep)
 `choco install ugrep`
 
 Or install with [Scoop](https://scoop.sh) `scoop install ugrep`
