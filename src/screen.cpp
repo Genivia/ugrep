@@ -341,7 +341,7 @@ void Screen::cleanup()
 #endif
 }
 
-// return character width, 0 (non-spacing or invalid character), 1 (single width) or 2 (double width)
+// return character display width, 0 (non-spacing or invalid character), 1 (single width) or 2 (double width)
 int Screen::wchar_width(uint32_t wc)
 {
   /* based on https://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c with full table
@@ -503,7 +503,7 @@ int Screen::put(int row, int col, const char *text, size_t size, int skip, int w
 
   int len = cols - col;
 
-  // when text starts with \0, how many more nulls to ignore, part of filename marking?
+  // when text starts with \0, how many more nulls to ignore, part of filename marking for the TUI
   nulls = *text == '\0' ? nulls : 0;
 
   if (nulls > 0)
@@ -801,7 +801,7 @@ int Screen::put(int row, int col, const char *text, size_t size, int skip, int w
             }
             else if (wc == 0x7f)
             {
-              // display control character 0x7f
+              // display control character 0x7f as ^?
               put(text, ptr - text);
               invert();
               put("^?", 2);

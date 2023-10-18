@@ -26,6 +26,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsArabicExtended-A"] = IsArabicExtended_A;
   static const int IsArabicExtended_B[] = { 2160, 2207, 0, 0 };
   range["IsArabicExtended-B"] = IsArabicExtended_B;
+  static const int IsArabicExtended_C[] = { 69312, 69375, 0, 0 };
+  range["IsArabicExtended-C"] = IsArabicExtended_C;
   static const int IsArabicMathematicalAlphabeticSymbols[] = { 126464, 126719, 0, 0 };
   range["IsArabicMathematicalAlphabeticSymbols"] = IsArabicMathematicalAlphabeticSymbols;
   static const int IsArabicPresentationForms_A[] = { 64336, 65023, 0, 0 };
@@ -104,6 +106,10 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsCJKUnifiedIdeographsExtensionF"] = IsCJKUnifiedIdeographsExtensionF;
   static const int IsCJKUnifiedIdeographsExtensionG[] = { 196608, 201551, 0, 0 };
   range["IsCJKUnifiedIdeographsExtensionG"] = IsCJKUnifiedIdeographsExtensionG;
+  static const int IsCJKUnifiedIdeographsExtensionH[] = { 201552, 205743, 0, 0 };
+  range["IsCJKUnifiedIdeographsExtensionH"] = IsCJKUnifiedIdeographsExtensionH;
+  static const int IsCJKUnifiedIdeographsExtensionI[] = { 191472, 192095, 0, 0 };
+  range["IsCJKUnifiedIdeographsExtensionI"] = IsCJKUnifiedIdeographsExtensionI;
   static const int IsCarian[] = { 66208, 66271, 0, 0 };
   range["IsCarian"] = IsCarian;
   static const int IsCaucasianAlbanian[] = { 66864, 66927, 0, 0 };
@@ -158,6 +164,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsCyrillicExtended-B"] = IsCyrillicExtended_B;
   static const int IsCyrillicExtended_C[] = { 7296, 7311, 0, 0 };
   range["IsCyrillicExtended-C"] = IsCyrillicExtended_C;
+  static const int IsCyrillicExtended_D[] = { 122928, 123023, 0, 0 };
+  range["IsCyrillicExtended-D"] = IsCyrillicExtended_D;
   static const int IsCyrillicSupplement[] = { 1280, 1327, 0, 0 };
   range["IsCyrillicSupplement"] = IsCyrillicSupplement;
   static const int IsDeseret[] = { 66560, 66639, 0, 0 };
@@ -166,6 +174,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsDevanagari"] = IsDevanagari;
   static const int IsDevanagariExtended[] = { 43232, 43263, 0, 0 };
   range["IsDevanagariExtended"] = IsDevanagariExtended;
+  static const int IsDevanagariExtended_A[] = { 72448, 72543, 0, 0 };
+  range["IsDevanagariExtended-A"] = IsDevanagariExtended_A;
   static const int IsDingbats[] = { 9984, 10175, 0, 0 };
   range["IsDingbats"] = IsDingbats;
   static const int IsDivesAkuru[] = { 71936, 72031, 0, 0 };
@@ -178,7 +188,7 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsDuployan"] = IsDuployan;
   static const int IsEarlyDynasticCuneiform[] = { 74880, 75087, 0, 0 };
   range["IsEarlyDynasticCuneiform"] = IsEarlyDynasticCuneiform;
-  static const int IsEgyptianHieroglyphFormatControls[] = { 78896, 78911, 0, 0 };
+  static const int IsEgyptianHieroglyphFormatControls[] = { 78896, 78943, 0, 0 };
   range["IsEgyptianHieroglyphFormatControls"] = IsEgyptianHieroglyphFormatControls;
   static const int IsEgyptianHieroglyphs[] = { 77824, 78895, 0, 0 };
   range["IsEgyptianHieroglyphs"] = IsEgyptianHieroglyphs;
@@ -280,6 +290,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsJavanese"] = IsJavanese;
   static const int IsKaithi[] = { 69760, 69839, 0, 0 };
   range["IsKaithi"] = IsKaithi;
+  static const int IsKaktovikNumerals[] = { 119488, 119519, 0, 0 };
+  range["IsKaktovikNumerals"] = IsKaktovikNumerals;
   static const int IsKanaExtended_A[] = { 110848, 110895, 0, 0 };
   range["IsKanaExtended-A"] = IsKanaExtended_A;
   static const int IsKanaExtended_B[] = { 110576, 110591, 0, 0 };
@@ -296,6 +308,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsKatakana"] = IsKatakana;
   static const int IsKatakanaPhoneticExtensions[] = { 12784, 12799, 0, 0 };
   range["IsKatakanaPhoneticExtensions"] = IsKatakanaPhoneticExtensions;
+  static const int IsKawi[] = { 73472, 73567, 0, 0 };
+  range["IsKawi"] = IsKawi;
   static const int IsKayahLi[] = { 43264, 43311, 0, 0 };
   range["IsKayahLi"] = IsKayahLi;
   static const int IsKharoshthi[] = { 68096, 68191, 0, 0 };
@@ -424,6 +438,8 @@ void reflex::Unicode::Tables::block_scripts(void)
   range["IsNKo"] = IsNKo;
   static const int IsNabataean[] = { 67712, 67759, 0, 0 };
   range["IsNabataean"] = IsNabataean;
+  static const int IsNagMundari[] = { 124112, 124159, 0, 0 };
+  range["IsNagMundari"] = IsNagMundari;
   static const int IsNandinagari[] = { 72096, 72191, 0, 0 };
   range["IsNandinagari"] = IsNandinagari;
   static const int IsNewTaiLue[] = { 6528, 6623, 0, 0 };

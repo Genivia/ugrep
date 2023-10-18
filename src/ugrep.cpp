@@ -202,6 +202,13 @@ char color_cn[COLORLEN]; // column number
 char color_bn[COLORLEN]; // byte offset
 char color_se[COLORLEN]; // separator
 
+char color_qp[COLORLEN]; // TUI prompt
+char color_qe[COLORLEN]; // TUI errors
+char color_qr[COLORLEN]; // TUI regex highlight
+char color_qm[COLORLEN]; // TUI regex meta characters highlight
+char color_ql[COLORLEN]; // TUI regex lists and literals highlight
+char color_qb[COLORLEN]; // TUI regex braces highlight
+
 char match_ms[COLORLEN];  // --match or --tag: matched text in a selected line
 char match_mc[COLORLEN];  // --match or --tag: matched text in a context line
 char match_off[COLORLEN]; // --match or --tag: off
@@ -3198,8 +3205,11 @@ struct Grep {
   // search a file or archive
   virtual void search(const char *pathname, uint16_t cost);
 
-  // search a file to find matching text lines
-  virtual void find_text_preview(const char *filename, const char *partname, size_t from_lineno, size_t max, size_t& lineno, size_t& num, std::vector<std::string>& text);
+  // search input after lineno to populate a string vector with the matching line and lines after up to max lines
+  void find_text_preview(const char *filename, const char *partname, size_t from_lineno, size_t max, size_t& lineno, size_t& num, std::vector<std::string>& text);
+
+  // extract a part from an archive and send to a stream
+  void extract(const char *filename, const char *partname, FILE *output);
 
   // check CNF AND/OR/NOT conditions are met for the line(s) spanning bol to eol
   bool cnf_matching(const char *bol, const char *eol, bool acquire = false)
@@ -3449,7 +3459,7 @@ struct Grep {
   }
 
   // return true on success, create a pipe to replace file input if filtering files in a forked process
-  bool filter(FILE *& in, const char *pathname)
+  bool filter(FILE*& in, const char *pathname)
   {
 #ifndef OS_WIN
 
@@ -4423,14 +4433,14 @@ int main(int argc, const char **argv)
   if (flag_query)
   {
     if (!flag_no_messages && Static::warnings > 0)
-      abort("option -Q: warnings are present, use -s to ignore");
+      abort("option -Q: warnings are present, specify -s to ignore");
 
     Query::query();
   }
   else
   {
     if (!flag_no_messages && flag_pager != NULL && Static::warnings > 0)
-      abort("option --pager: warnings are present, use -s to ignore");
+      abort("option --pager: warnings are present, specify -s to ignore");
 
     try
     {
@@ -4594,25 +4604,32 @@ static void save_config()
 # The argument is a colon-separated list of one or more parameters `sl='\n\
 # (selected line), `cx=' (context line), `mt=' (matched text), `ms=' (match\n\
 # selected), `mc=' (match context), `fn=' (file name), `ln=' (line number),\n\
-# `cn=' (column number), `bn=' (byte offset), `se=' (separator).  Parameter\n\
-# values are ANSI SGR color codes or `k' (black), `r' (red), `g' (green), `y'\n\
-# (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white).  Upper case\n\
-# specifies background colors.  A `+' qualifies a color as bright.  A\n\
-# foreground and a background color may be combined with font properties `n'\n\
+# `cn=' (column number), `bn=' (byte offset), `se=' (separator), `qp=' (TUI\n\
+# prompt), `qe=' (TUI errors), `qr=' (TUI regex), `qm=' (TUI regex meta\n\
+# characters), `ql=' (TUI regex lists and literals), `qb=' (TUI regex braces).\n\
+# Parameter values are ANSI SGR color codes or `k' (black), `r' (red), `g'\n\
+# (green), `y' (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white), or\n\
+# leave empty for no color.\n\
+# Upper case specifies background colors.\n\
+# A `+' qualifies a color as bright.\n\
+# A foreground and a background color may be combined with font properties `n'\n\
 # (normal), `f' (faint), `h' (highlight), `i' (invert), `u' (underline).\n\
-# Parameter `hl' enables file name hyperlinks (same as --hyperlink).  Parameter\n\
-# `rv' reverses the `sl=' and `cx=' parameters when option -v is used.\n\
+# Parameter `hl' enables file name hyperlinks (same as --hyperlink).\n\
+# Parameter `rv' reverses the `sl=' and `cx=' parameters when option -v is\n\
+# used.\n\
 #\n\
 # The ugrep default color scheme:\n\
-#   colors=sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36\n\
+#   colors=cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36:qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=1;35\n\
 # The GNU grep and ripgrep default color scheme:\n\
-#   colors=sl=37:cx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36\n\
+#   colors=sl=37:cx=33:mt=1;31:fn=35:ln=32:cn=32:bn=32:se=36:qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=1;35\n\
 # The silver searcher default color scheme:\n\
-#   colors=mt=30;43:fn=1;32:ln=1;33:cn=1;33:bn=1;33\n\
+#   colors=mt=30;43:fn=1;32:ln=1;33:cn=1;33:bn=1;33:qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=1;35\n\
 # Underlined bright green matches with shaded background on bright selected lines:\n\
-#   colors=sl=1:cx=33:ms=1;4;32;100:mc=1;4;32:fn=1;32;100:ln=1;32:cn=1;32:bn=1;32:se=36\n\
-# Inverted bright yellow matches:\n\
-#   colors=cx=hb:ms=hiy:mc=hic:fn=hi+y+K:ln=hg:cn=hg:bn=hg:se=c\n\n");
+#   colors=sl=1:cx=33:ms=1;4;32;100:mc=1;4;32:fn=1;32;100:ln=1;32:cn=1;32:bn=1;32:se=36:qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=1;35\n\
+# Inverted bright yellow matches and TUI regex syntax highlighting with background colors:\n\
+#   colors=cx=hb:ms=hiy:mc=hic:fn=hi+y+K:ln=hg:cn=hg:bn=hg:se=c:gp=hg:qr=hwB:qm=hwG:ql=hwC:qb=hwM\n\
+# Only change the TUI regex syntax highlighting to use background colors:\n\
+#   colors=gp=hg:qr=hwB:qm=hwG:ql=hwC:qb=hwM\n\n");
 
   fprintf(file, "# Enable color output to a terminal\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   if (flag_hyperlink != NULL && *flag_hyperlink == '\0')
@@ -4697,7 +4714,7 @@ static void save_config()
   fprintf(file, "# Enable case-insensitive search, default: no-ignore-case\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
   fprintf(file, "# Enable smart case, default: no-smart-case\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
   fprintf(file, "# Enable empty pattern matches, default: no-empty\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
-  fprintf(file, "# Force option -c (--count) to return non-zero matches with --min-count=1, default: --min-count=0\n");
+  fprintf(file, "# Force option -c (--count) to return nonzero matches with --min-count=1, default: --min-count=0\n");
   if (flag_min_count == 0)
     fprintf(file, "# min-count=1\n\n");
   else
@@ -7013,6 +7030,13 @@ void terminal()
           set_color(grep_colors, "bn=", color_bn); // byte offset
           set_color(grep_colors, "se=", color_se); // separator
 
+          set_color(grep_colors, "qp=", color_qp); // TUI prompt
+          set_color(grep_colors, "qe=", color_qe); // TUI errors
+          set_color(grep_colors, "qr=", color_qr); // TUI regex highlight
+          set_color(grep_colors, "qm=", color_qm); // TUI regex meta characters highlight
+          set_color(grep_colors, "ql=", color_ql); // TUI regex lists and literals highlight
+          set_color(grep_colors, "qb=", color_qb); // TUI regex braces highlight
+
           // parse --colors to override GREP_COLORS
           set_color(flag_colors, "sl=", color_sl); // selected line
           set_color(flag_colors, "cx=", color_cx); // context line
@@ -7024,6 +7048,13 @@ void terminal()
           set_color(flag_colors, "cn=", color_cn); // column number
           set_color(flag_colors, "bn=", color_bn); // byte offset
           set_color(flag_colors, "se=", color_se); // separator
+
+          set_color(flag_colors, "qp=", color_qp); // TUI prompt
+          set_color(flag_colors, "qe=", color_qe); // TUI errors
+          set_color(flag_colors, "qr=", color_qr); // TUI regex highlight
+          set_color(flag_colors, "qm=", color_qm); // TUI regex meta characters highlight
+          set_color(flag_colors, "ql=", color_ql); // TUI regex lists and literals highlight
+          set_color(flag_colors, "qb=", color_qb); // TUI regex braces highlight
 
           // -v: if rv in GREP_COLORS then swap the sl and cx colors (note that rv does not match color letters)
           if (flag_invert_match &&
@@ -8252,6 +8283,13 @@ void ugrep_find_text_preview(const char *filename, const char *partname, size_t 
 
   // delete the cloned matcher
   delete matcher;
+}
+
+// extract a part from an archive and send to a stream
+void ugrep_extract(const char *filename, const char *partname, FILE *output)
+{
+  Grep grep(NULL, NULL, NULL);
+  grep.extract(filename, partname, output);
 }
 
 // set the handle to be able to use cancel_ugrep()
@@ -12543,6 +12581,36 @@ void Grep::find_text_preview(const char *filename, const char *findpart, size_t 
     continue;
 }
 
+// extract a part from an archive and send to a stream
+void Grep::extract(const char *filename, const char *findpart, FILE *output)
+{
+  try
+  {
+    // open (archive or compressed) file
+    if (!open_file(filename, findpart))
+      return;
+  }
+
+  catch (...)
+  {
+    // this should never happen
+    return;
+  }
+
+  // copy input to output
+  char buffer[65536];
+  while (true)
+  {
+    size_t len = input.get(buffer, sizeof(buffer));
+    if (len == 0 || fwrite(buffer, 1, len, output) < len)
+      break;
+  }
+
+  // close file or -z: loop over next extracted archive parts, when applicable
+  while (close_file(filename))
+    continue;
+}
+
 // read globs from a file and split them into files or dirs to include or exclude by pushing them onto the vectors
 void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::string>& dirs, bool gitignore)
 {
@@ -12998,9 +13066,12 @@ void help(std::ostream& out)
             one or more parameters `sl=' (selected line), `cx=' (context line),\n\
             `mt=' (matched text), `ms=' (match selected), `mc=' (match\n\
             context), `fn=' (file name), `ln=' (line number), `cn=' (column\n\
-            number), `bn=' (byte offset), `se=' (separator).  Parameter values\n\
-            are ANSI SGR color codes or `k' (black), `r' (red), `g' (green),\n\
-            `y' (yellow), `b' (blue), `m' (magenta), `c' (cyan), `w' (white).\n\
+            number), `bn=' (byte offset), `se=' (separator), `qp=' (TUI\n\
+            prompt), `qe=' (TUI errors), `qr=' (TUI regex), `qm=' (TUI regex\n\
+            meta characters), `ql=' (TUI regex lists and literals), `qb=' (TUI\n\
+            regex braces).  Parameter values are ANSI SGR color codes or `k'\n\
+            (black), `r' (red), `g' (green), `y' (yellow), `b' (blue), `m'\n\
+            (magenta), `c' (cyan), `w' (white), or leave empty for no color.\n\
             Upper case specifies background colors.  A `+' qualifies a color as\n\
             bright.  A foreground and a background color may be combined with\n\
             font properties `n' (normal), `f' (faint), `h' (highlight), `i'\n\
@@ -13339,7 +13410,8 @@ void help(std::ostream& out)
     -m [MIN,][MAX], --min-count=MIN, --max-count=MAX\n\
             Require MIN matches, stop after MAX matches when specified.  Output\n\
             MIN to MAX matches.  For example, -m1 outputs the first match and\n\
-            -cm1, (with a comma) counts non-zero matches.  See also option -K.\n\
+            -cm1, (with a comma) counts nonzero matches.  If -u is specified,\n\
+            each individual match counts.  See also option -K.\n\
     --match\n\
             Match all input.  Same as specifying an empty pattern to search.\n\
     --max-files=NUM\n\

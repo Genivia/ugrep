@@ -415,6 +415,7 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
 
 static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& pos, convert_flag_type flags, const std::map<size_t,std::string>& mod, const char *signature, const char *par, const std::map<std::string,std::string> *macros, std::string& regex, bool& nl)
 {
+  size_t bls = pos - 1;
   bool invert = false;
   bool newline = false;
   if (pos + 1 < len && pattern[pos] == '^')
@@ -502,7 +503,7 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
       break;
   }
   if (pos >= len || pattern[pos] != ']')
-    throw regex_error(regex_error::mismatched_brackets, pattern, loc);
+    throw regex_error(regex_error::mismatched_brackets, pattern, bls);
   if (invert && !newline && (flags & convert_flag::notnewline))
   {
     regex.append(&pattern[loc], pos - loc).append("\\n");
@@ -1023,7 +1024,7 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
     }
   }
   if (pos >= len || pattern[pos] != ']')
-    throw regex_error(regex_error::mismatched_brackets, pattern, loc);
+    throw regex_error(regex_error::mismatched_brackets, pattern, loc - 1);
   if (negate)
     negate_list(flags, mod, ranges);
   extend_list(pattern, len, pos, flags, mod, ranges, macros);
@@ -2005,6 +2006,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
               throw regex_error(regex_error::invalid_repeat, pattern, pos);
             char *s;
             size_t n = static_cast<size_t>(std::strtoul(&pattern[pos], &s, 10));
+            size_t brc = pos - 1;
             pos = s - pattern;
             if (pos + 1 < len && pattern[pos] == ',')
             {
@@ -2031,7 +2033,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
               if (pos + 1 < len)
                 throw regex_error(regex_error::invalid_repeat, pattern, pos);
               else
-                throw regex_error(regex_error::mismatched_braces, pattern, pos);
+                throw regex_error(regex_error::mismatched_braces, pattern, brc);
             }
             if (pos + 1 < len && (pattern[pos + 1] == '?' || pattern[pos + 1] == '+') && !supports_escape(signature, pattern[pos + 1]))
               throw regex_error(regex_error::invalid_quantifier, pattern, pos + 1);

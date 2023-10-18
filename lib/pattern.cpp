@@ -89,6 +89,7 @@ inline int fopen_s(FILE **file, const char *name, const char *mode) { return ::f
 inline int fopen_s(FILE **file, const char *name, const char *mode) { return (*file = ::fopen(name, mode)) ? 0 : errno; }
 #endif
 
+#ifndef WITH_NO_CODEGEN
 static void print_char(FILE *file, int c, bool h = false)
 {
   if (c >= '\a' && c <= '\r')
@@ -104,6 +105,26 @@ static void print_char(FILE *file, int c, bool h = false)
   else
     ::fprintf(file, "%u", c);
 }
+#endif
+
+#ifndef WITH_NO_CODEGEN
+static const char *meta_label[] = {
+  NULL,
+  "NWB",
+  "NWE",
+  "BWB",
+  "EWB",
+  "BWE",
+  "EWE",
+  "BOL",
+  "EOL",
+  "BOB",
+  "EOB",
+  "UND",
+  "IND",
+  "DED",
+};
+#endif
 
 static const char *posix_class[] = {
   "ASCII",
@@ -120,23 +141,6 @@ static const char *posix_class[] = {
   "Punct",
   "Upper",
   "Word",
-};
-
-static const char *meta_label[] = {
-  NULL,
-  "NWB",
-  "NWE",
-  "BWB",
-  "EWB",
-  "BWE",
-  "EWE",
-  "BOL",
-  "EOL",
-  "BOB",
-  "EOB",
-  "UND",
-  "IND",
-  "DED",
 };
 
 const std::string Pattern::operator[](Accept choice) const
@@ -3049,6 +3053,7 @@ void Pattern::encode_dfa(DFA::State *start)
 
 void Pattern::gencode_dfa(const DFA::State *start) const
 {
+#ifndef WITH_NO_CODEGEN
   for (std::vector<std::string>::const_iterator i = opt_.f.begin(); i != opt_.f.end(); ++i)
   {
     const std::string& filename = *i;
@@ -3351,8 +3356,12 @@ void Pattern::gencode_dfa(const DFA::State *start) const
         ::fclose(file);
     }
   }
+#else
+  (void)start;
+#endif
 }
 
+#ifndef WITH_NO_CODEGEN
 void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, bool& prev) const
 {
   if (nest > 5)
@@ -3381,7 +3390,9 @@ void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, b
     }
   }
 }
+#endif
 
+#ifndef WITH_NO_CODEGEN
 void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest, bool peek) const
 {
   bool elif = false;
@@ -3543,9 +3554,11 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
   }
 #endif
 }
+#endif
 
 void Pattern::graph_dfa(const DFA::State *start) const
 {
+#ifndef WITH_NO_CODEGEN
   for (std::vector<std::string>::const_iterator i = opt_.f.begin(); i != opt_.f.end(); ++i)
   {
     const std::string& filename = *i;
@@ -3687,10 +3700,14 @@ void Pattern::graph_dfa(const DFA::State *start) const
       }
     }
   }
+#else
+  (void)start;
+#endif
 }
 
 void Pattern::export_code() const
 {
+#ifndef WITH_NO_CODEGEN
   if (nop_ == 0)
     return;
   for (std::vector<std::string>::const_iterator i = opt_.f.begin(); i != opt_.f.end(); ++i)
@@ -3789,6 +3806,7 @@ void Pattern::export_code() const
       }
     }
   }
+#endif
 }
 
 void Pattern::predict_match_dfa(const DFA::State *start)

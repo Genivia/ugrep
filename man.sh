@@ -298,9 +298,11 @@ supported.
 May be used to specify ANSI SGR parameters to highlight matches and other
 attributes when option \fB--color\fR is used.  Its value is a colon-separated
 list of ANSI SGR parameters that defaults to
-\fBcx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36\fR.  The \fBmt=\fR,
-\fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR take priority over
-\fBGREP_COLOR\fR.  Option \fB--colors\fR takes priority over \fBGREP_COLORS\fR.
+\fBcx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36\fR with additional
+parameters for TUI colors \fB:qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=1;35\fR.
+The \fBmt=\fR, \fBms=\fR, and \fBmc=\fR capabilities of \fBGREP_COLORS\fR take
+priority over \fBGREP_COLOR\fR.  Option \fB--colors\fR takes priority over
+\fBGREP_COLORS\fR.
 .SH GREP_COLORS
 Colors are specified as string of colon-separated ANSI SGR parameters of the
 form `what=substring', where `substring' is a semicolon-separated list of ANSI
@@ -310,35 +312,47 @@ SGR codes or `k' (black), `r' (red), `g' (green), `y' (yellow), `b' (blue), `m'
 combined with one or more font properties `n' (normal), `f' (faint), `h'
 (highlight), `i' (invert), `u' (underline).  Substrings may be specified for:
 .IP \fBsl=\fR
-SGR substring for selected lines.
+selected lines.
 .IP \fBcx=\fR
-SGR substring for context lines.
+context lines.
 .IP \fBrv\fR
-Swaps the \fBsl=\fR and \fBcx=\fR capabilities when \fB-v\fR is specified.
+swaps the \fBsl=\fR and \fBcx=\fR capabilities when \fB-v\fR is specified.
 .IP \fBmt=\fR
-SGR substring for matching text in any matching line.
+matching text in any matching line.
 .IP \fBms=\fR
-SGR substring for matching text in a selected line.  The substring \fBmt=\fR by
+matching text in a selected line.  The substring \fBmt=\fR by
 default.
 .IP \fBmc=\fR
-SGR substring for matching text in a context line.  The substring \fBmt=\fR by
+matching text in a context line.  The substring \fBmt=\fR by
 default.
 .IP \fBfn=\fR
-SGR substring for filenames.
+filenames.
 .IP \fBln=\fR
-SGR substring for line numbers.
+line numbers.
 .IP \fBcn=\fR
-SGR substring for column numbers.
+column numbers.
 .IP \fBbn=\fR
-SGR substring for byte offsets.
+byte offsets.
 .IP \fBse=\fR
-SGR substring for separators.
+separators.
 .IP \fBrv\fR
 a Boolean parameter, switches \fBsl=\fR and \fBcx=\fR with option \fB-v\fR.
 .IP \fBhl\fR
 a Boolean parameter, enables filename hyperlinks (\fB\\33]8;;link\fR).
 .IP \fBne\fR
 a Boolean parameter, disables ``erase in line'' \fB\\33[K\fR.
+.IP \fBqp=\fR
+TUI prompt.
+.IP \fBqe=\fR
+TUI errors.
+.IP \fBqr=\fR
+TUI regex.
+.IP \fBqm=\fR
+TUI regex meta characters.
+.IP \fBql=\fR
+TUI regex lists and literals.
+.IP \fBqb=\fR
+TUI regex braces.
 .SH FORMAT
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:

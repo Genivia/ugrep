@@ -15,8 +15,11 @@ Development roadmap
 -------------------
 
 - #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
+
 - listen to users to continue to add new and updated features
+
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
+
 - make ugrep even faster, see [my latest article](https://www.genivia.com/ugrep.html) and planned enhancements [#288](https://github.com/Genivia/ugrep/issues/288)
 
 Overview
@@ -56,7 +59,7 @@ Overview
 
 - Interactive [query TUI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
-      ug -Q                                  ug -Q -e PATTERN    
+      ug -Q                                  ug -Q -e PATTERN
 
   💡 `-Q` replaces `PATTERN` on the command line to let you enter patterns interactively in the TUI.  In the TUI use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.
 
@@ -66,7 +69,7 @@ Overview
 
   💡 specify `-z --zmax=2` to search compressed files and archives nested within archives.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps to search nested archives
 
-- Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )`; or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns
+- Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )` (shown on the left side below); or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns (shown on the right side below):
 
       ug --bool 'A B C' ...                  ug -e 'A' --and 'B' --and 'C' ...
       ug --bool 'A|B C' ...                  ug -e 'A' -e 'B' --and 'C' ...
@@ -162,7 +165,7 @@ Overview
 
       ug --sort PATTERN ...                  ug --sort=size PATTERN ...
       ug --sort=changed PATTERN ...          ug --sort=created PATTERN ...
-      ug -Z --sort=best PATTERN ...
+      ug -Z --sort=best PATTERN ...          ug --no-sort PATTERN ...
 
 - Output results in [CSV, JSON, XML](#json), and [user-specified formats](#format)
 
@@ -264,17 +267,17 @@ directory or home directory.
 
 ### Windows
 
-Practical hints on using `ugrep.exe` and `ug.exe` for interactive use on the
-Windows command line:
+Practical hints on using `ugrep.exe` and `ug.exe` on the Windows command line:
+
 - when quoting patterns and arguments on the command line, do not use single
   `'` quotes but use `"` instead; most Windows command utilities consider
   the single `'` quotes part of the command-line argument!
-- file and directory globs specified with option `-g/GLOB` may behave more
-  intuitively than a `GLOB` command line argument, especially when directory
-  recursion is enabled;
+- file and directory globs are best specified with option `-g/GLOB` instead of
+  the usual `GLOB` command line arguments to select files and directories to
+  search, especially for recursive searches;
 - when specifying an empty pattern `""` to match all input, this may be ignored
-  by some Windows command interpreters such as Powershell, in that case use
-  option `--match` instead;
+  by some Windows command interpreters such as Powershell, in that case you
+  must specify option `--match` instead;
 - to match newlines in patterns, you may want to use `\R` instead of `\n` to
   match any Unicode newlines, such as `\r\n` pairs and single `\r` and `\n`.
 
@@ -583,7 +586,7 @@ CtrlP uses **ugrep** by adding the following lines to your `.vimrc`:
 
 where `-I` skips binary files, option `--ignore-files` skips files specified in
 `.gitignore` files, when present, and option `-3` restricts searching
-directories to three levels (the working directory and up to two levels below). 
+directories to three levels (the working directory and up to two levels below).
 
 Start Vim then enter the command:
 
@@ -2255,7 +2258,7 @@ To recursively list Python files (extension `.py` or a shebang) that have
 import statements, including hidden files with `-.`:
 
     ug -l. -tPython -f python/imports
- 
+
 🔝 [Back to table of contents](#toc)
 
 <a name="fuzzy"/>
@@ -2942,17 +2945,17 @@ Note that a list of mounted file systems is typically stored in `/etc/mtab`.
 To restrict recursive searches to the file system of the working directory
 only, without crossing into other file systems (similar to `find` option `-x`):
 
-    ug -rl --include-fs=. 'xyz' 
+    ug -rl --include-fs=. 'xyz'
 
 To exclude the file systems mounted at `/dev` and `/proc` from recursive
 searches:
 
-    ug -rl --exclude-fs=/dev,/proc 'xyz' 
+    ug -rl --exclude-fs=/dev,/proc 'xyz'
 
 To only include the file system associated with drive `d:` in recursive
 searches:
 
-    ug -rl --include-fs=d:/ 'xyz' 
+    ug -rl --include-fs=d:/ 'xyz'
 
 To exclude `fuse` and `tmpfs` type file systems from recursive searches:
 
@@ -3073,16 +3076,16 @@ To display the line and column numbers of matches in XML with `--xml`:
             context), `fn=' (file name), `ln=' (line number), `cn=' (column
             number), `bn=' (byte offset), `se=' (separator), `qp=' (TUI
             prompt), `qe=' (TUI errors), `qr=' (TUI regex), `qm=' (TUI regex
-            meta characters), `ql=' (TUI regex bracket lists), `qb=' (TUI regex
-            braces).  Parameter values are ANSI SGR color codes or `k' (black),
-            `r' (red), `g' (green), `y' (yellow), `b' (blue), `m' (magenta),
-            `c' (cyan), `w' (white).  Upper case specifies background colors.
-            A `+' qualifies a color as bright.  A foreground and a background
-            color may be combined with font properties `n' (normal), `f'
-            (faint), `h' (highlight), `i' (invert), `u' (underline).  Parameter
-            `hl' enables file name hyperlinks.  Parameter `rv' reverses the
-            `sl=' and `cx=' parameters when option -v is specified.
-            Selectively overrides GREP_COLORS.
+            meta characters), `ql=' (TUI regex lists and literals), `qb=' (TUI
+            regex braces).  Parameter values are ANSI SGR color codes or `k'
+            (black), `r' (red), `g' (green), `y' (yellow), `b' (blue), `m'
+            (magenta), `c' (cyan), `w' (white), or leave empty for no color.
+            Upper case specifies background colors.  A `+' qualifies a color as
+            bright.  A foreground and a background color may be combined with
+            font properties `n' (normal), `f' (faint), `h' (highlight), `i'
+            (invert), `u' (underline).  Parameter `hl' enables file name
+            hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters
+            when option -v is specified.  Selectively overrides GREP_COLORS.
     --tag[=TAG[,END]]
             Disables colors to mark up matches with TAG.  END marks the end of
             a match if specified, otherwise TAG.  The default is `___'.
@@ -3115,7 +3118,7 @@ param | result
 `qe=` | TUI errors
 `qr=` | TUI regex
 `qm=` | TUI regex meta characters
-`ql=` | TUI regex bracket lists
+`ql=` | TUI regex lists and literals
 `qb=` | TUI regex braces
 
 Multiple SGR codes may be specified for a single parameter when separated by a
@@ -3148,7 +3151,7 @@ code | c | effect                     | code | c  | effect
 See Wikipedia [ANSI escape code - SGR parameters](https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters)
 
 For quick and easy color specification, the corresponding single-letter color
-names may be used in place of numeric SGR codes.  Semicolons are not required
+names may be used in place of numeric SGR codes and semicolons are not required
 to separate color names.  Color names and numeric codes may be mixed.
 
 For example, to display matches in underlined bright green on bright selected
@@ -3605,7 +3608,8 @@ Same, but in this case select `<script>` `src` URLs when referencing `http` and
     -m [MIN,][MAX], --min-count=MIN, --max-count=MAX
             Require MIN matches, stop after MAX matches when specified.  Output
             MIN to MAX matches.  For example, -m1 outputs the first match and
-            -cm1, (with comma) counts non-zero matches.  See also option -K.
+            -cm1, (with a comma) counts nonzero matches.  If -u is specified,
+            each individual match counts.  See also option -K.
     --max-files=NUM
             Restrict the number of files matched to NUM.  Note that --sort or
             -J1 may be specified to produce replicable results.  If --sort is
@@ -3624,8 +3628,8 @@ Same, but in this case select `<script>` `src` URLs when referencing `http` and
             not sorted.  Subdirectories are sorted and displayed after matching
             files.  FILE arguments are searched in the same order as specified.
 
-To show only the first 10 matches of `FIXME` in C++ files in the working
-directory and all subdirectories below:
+To show only up to the first 10 matching lines with `FIXME` in C++ files in the
+working directory and all subdirectories below:
 
     ug -r -m10 -tc++ FIXME
 
@@ -4055,14 +4059,14 @@ in markdown:
                   context), `fn=' (file name), `ln=' (line number), `cn=' (column
                   number), `bn=' (byte offset), `se=' (separator), `qp=' (TUI
                   prompt), `qe=' (TUI errors), `qr=' (TUI regex), `qm=' (TUI regex
-                  meta characters), `ql=' (TUI regex bracket lists), `qb=' (TUI
+                  meta characters), `ql=' (TUI regex lists and literals), `qb=' (TUI
                   regex braces).  Parameter values are ANSI SGR color codes or `k'
                   (black), `r' (red), `g' (green), `y' (yellow), `b' (blue), `m'
-                  (magenta), `c' (cyan), `w' (white).  Upper case specifies
-                  background colors.  A `+' qualifies a color as bright.  A
-                  foreground and a background color may be combined with font
-                  properties `n' (normal), `f' (faint), `h' (highlight), `i'
-                  (invert), `u' (underline).  Parameter `hl' enables file name
+                  (magenta), `c' (cyan), `w' (white), or leave empty for no color.
+                  Upper case specifies background colors.  A `+' qualifies a color
+                  as bright.  A foreground and a background color may be combined
+                  with font properties `n' (normal), `f' (faint), `h' (highlight),
+                  `i' (invert), `u' (underline).  Parameter `hl' enables file name
                   hyperlinks.  Parameter `rv' reverses the `sl=' and `cx='
                   parameters when option -v is specified.  Selectively overrides
                   GREP_COLORS.
@@ -4430,8 +4434,8 @@ in markdown:
            -m [MIN,][MAX], --min-count=MIN, --max-count=MAX
                   Require MIN matches, stop after MAX matches when specified.
                   Output MIN to MAX matches.  For example, -m1 outputs the first
-                  match and -cm1, (with a comma) counts non-zero matches.  See also
-                  option -K.
+                  match and -cm1, (with a comma) counts nonzero matches.  If -u is
+                  specified, each individual match counts.  See also option -K.
 
            --match
                   Match all input.  Same as specifying an empty pattern to search.
@@ -4908,7 +4912,7 @@ in markdown:
                   colon-separated list of ANSI SGR parameters that defaults to
                   cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36 with
                   additional parameters for TUI colors
-                  :qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=35.  The mt=, ms=, and mc=
+                  :qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=1;35.  The mt=, ms=, and mc=
                   capabilities of GREP_COLORS take priority over GREP_COLOR.  Option
                   --colors takes priority over GREP_COLORS.
 
@@ -4958,7 +4962,7 @@ in markdown:
 
            qm=    TUI regex meta characters.
 
-           ql=    TUI regex bracket lists.
+           ql=    TUI regex lists and literals.
 
            qb=    TUI regex braces.
 
@@ -5324,7 +5328,7 @@ in markdown:
 
 
 
-    ugrep 4.3.1                      October 9, 2023                        UGREP(1)
+    ugrep 4.3.1                     October 18, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
@@ -5411,7 +5415,7 @@ follows, from high to low precedence:
   2. Grouping `(φ)`, `(?:φ)`, `(?=φ)`, and inline modifiers `(?imsux:φ)`
   3. Quantifiers `?`, `*`, `+`, `{n,m}`
   4. Concatenation `φψ`
-  5. Anchoring `^`, `$`, `\<`, `\>`, `\b`, `\B`, `\A`, `\z` 
+  5. Anchoring `^`, `$`, `\<`, `\>`, `\b`, `\B`, `\A`, `\z`
   6. Alternation `φ|ψ`
   7. Global modifiers `(?imsux)φ`
 
@@ -5448,7 +5452,7 @@ compatibility with traditional grep pattern matching.
 ### POSIX and Unicode character categories
 
 The POSIX form can only be used in bracket lists, for example
-`[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.  
+`[[:lower:][:digit:]]` matches an ASCII lower case letter or a digit.
 
 You can also use the `\p{C}` form for class `C` and upper case `\P{C}` form
 that has the same meaning as `\p{^C}`, which matches any character except

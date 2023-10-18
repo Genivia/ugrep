@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "4.3.0"
+#define UGREP_VERSION "4.3.1"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -318,9 +318,9 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 // the default GREP_COLORS
 #ifndef DEFAULT_GREP_COLORS
 # ifdef OS_WIN
-#  define DEFAULT_GREP_COLORS "sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
+#  define DEFAULT_GREP_COLORS "sl=1;37:cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36:qp=1;32:qe=1;37;41:qr=1;37:qm=1;32:ql=36:qb=1;35"
 # else
-#  define DEFAULT_GREP_COLORS "cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36"
+#  define DEFAULT_GREP_COLORS "cx=33:mt=1;31:fn=1;35:ln=1;32:cn=1;32:bn=1;32:se=36:qp=1;32:qe=1;37;41:qm=1;32:ql=36:qb=1;35"
 # endif
 #endif
 
@@ -521,6 +521,13 @@ extern char color_cn[COLORLEN]; // column number
 extern char color_bn[COLORLEN]; // byte offset
 extern char color_se[COLORLEN]; // separator
 
+extern char color_qp[COLORLEN]; // TUI prompt
+extern char color_qe[COLORLEN]; // TUI errors
+extern char color_qr[COLORLEN]; // TUI regex highlight
+extern char color_qm[COLORLEN]; // TUI regex meta symbols highlight
+extern char color_ql[COLORLEN]; // TUI regex bracket list highlight
+extern char color_qb[COLORLEN]; // TUI regex brace highlight
+
 extern char match_ms[COLORLEN];  // --match or --tag: matched text in a selected line
 extern char match_mc[COLORLEN];  // --match or --tag: matched text in a context line
 extern char match_off[COLORLEN]; // --match or --tag: off
@@ -564,6 +571,9 @@ extern void ugrep();
 
 // perform a limited ugrep search on a single file with optional archive part and store up to num results in a vector, may throw an exception
 extern void ugrep_find_text_preview(const char *filename, const char *partname, size_t from_lineno, size_t max, size_t& lineno, size_t& num, std::vector<std::string>& text);
+
+// extract a part from an archive and send to a stream
+extern void ugrep_extract(const char *filename, const char *partname, FILE *output);
 
 extern void warning(const char *message, const char *arg);
 extern void error(const char *message, const char *arg);

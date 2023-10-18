@@ -305,7 +305,8 @@ class Query {
   static size_t                   prevnum_;     // the number of previous text entries
   static bool                     deselect_file_;
   static std::string              selected_file_;
-  static std::stack<History>      history_;
+  static std::stack<History>      history_;     // tabbing history
+  static std::vector<const char*> files_;       // saved arg_files command line FILEs to search
   static std::vector<std::string> view_;        // search output text to display, incrementally fetched
   static std::vector<bool>        selected_;    // marked lines in view_[] selected in selection mode
   static bool                     eof_;         // end of results, no more results can be fetched
