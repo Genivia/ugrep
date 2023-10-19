@@ -20,7 +20,7 @@ Development roadmap
 
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
 
-- make ugrep even faster, see [my latest article](https://www.genivia.com/ugrep.html) and planned enhancements [#288](https://github.com/Genivia/ugrep/issues/288)
+- make ugrep even faster in the near future, see [my latest article](https://www.genivia.com/ugrep.html), enhancements [#288](https://github.com/Genivia/ugrep/issues/288) and other planned optimizations such as increased threading performance
 
 Overview
 --------
