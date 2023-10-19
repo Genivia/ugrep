@@ -2307,6 +2307,7 @@ void Query::view()
        command == "vi"    ||
        command == "vim"   ||
        command == "vis"   ||
+       command == "kak"   ||
        command == "nano"  ||
        command == "pico"  ||
        command == "vile"  ||
