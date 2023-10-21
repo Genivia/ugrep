@@ -199,6 +199,8 @@ void CNF::OpTree::parse3(const char *& pattern)
 
         if (*lookahead == '"')
           ++lookahead;
+
+        pattern  = lookahead;
       }
       else if (*lookahead == '[' && !flag_fixed_strings)
       {
