@@ -40,15 +40,9 @@
 // parse a pattern into an operator tree using a recursive descent parser
 void CNF::OpTree::parse(const char *& pattern)
 {
-  while (true)
-  {
+  do
     parse1(pattern);
-
-    if (*pattern == '\0')
-      break;
-
-    ++pattern;
-  }
+  while (*pattern != '\0');
 }
 
 // <parse1> -> <parse2> { <space>+ [ 'AND' <space>+ ] <parse2> }*
@@ -59,12 +53,15 @@ void CNF::OpTree::parse1(const char *& pattern)
   if (*pattern == '\0' && flag_line_regexp)
     pattern = "^$";
 
-  while (*pattern != '\0' && *pattern != ')')
+  while (*pattern != '\0')
   {
     list.emplace_back(OR);
     list.back().parse2(pattern);
 
     skip_space(pattern);
+
+    if (*pattern == ')')
+      break;
 
     if (is_oper(AND, pattern))
       skip_space(pattern);
@@ -116,7 +113,7 @@ void CNF::OpTree::parse3(const char *& pattern)
         if (level == 0)
         {
           ++lookahead;
-          parens = *lookahead == '\0' || *lookahead == '|' || isspace(*lookahead);
+          parens = *lookahead == '\0' || *lookahead == '|' || *lookahead == ')' || isspace(*lookahead);
 
           break;
         }
@@ -127,6 +124,8 @@ void CNF::OpTree::parse3(const char *& pattern)
       {
         // skip [...]
         ++lookahead;
+        lookahead += *lookahead == '^';
+        lookahead += *lookahead != '\0';
 
         while (*lookahead != '\0' && *lookahead != ']')
           if (*lookahead++ == '\\' && *lookahead != '\0')
@@ -164,21 +163,23 @@ void CNF::OpTree::parse3(const char *& pattern)
 
   if (!parens)
   {
-    const char *p;
+    int level = 0;
+    const char *lookahead = pattern;
 
     regex.clear();
 
-    while (true)
+    while (*lookahead != '\0')
     {
-      if (*pattern == '"')
+      if (*lookahead == '"')
       {
-        p = ++pattern;
+        regex.append(pattern, lookahead - pattern);
+        pattern = ++lookahead;
 
-        while (*pattern != '\0' && *pattern != '"')
-          if (*pattern++ == '\\' && *pattern != '\0')
-            ++pattern;
+        while (*lookahead != '\0' && *lookahead != '"')
+          if (*lookahead++ == '\\' && *lookahead != '\0')
+            ++lookahead;
 
-        std::string quoted(p, pattern - p);
+        std::string quoted(pattern, lookahead - pattern);
 
         size_t from = 0;
         size_t to;
@@ -196,52 +197,53 @@ void CNF::OpTree::parse3(const char *& pattern)
 
         regex.append(quoted);
 
-        if (*pattern == '"')
-          ++pattern;
+        if (*lookahead == '"')
+          ++lookahead;
       }
-      else if (*pattern == '[' && !flag_fixed_strings)
+      else if (*lookahead == '[' && !flag_fixed_strings)
       {
         // skip [...]
-        p = pattern++;
+        ++lookahead;
+        lookahead += *lookahead == '^';
+        lookahead += *lookahead != '\0';
 
-        while (*pattern != '\0' && *pattern != ']')
-          if (*pattern++ == '\\' && *pattern != '\0')
-            ++pattern;
+        while (*lookahead != '\0' && *lookahead != ']')
+          if (*lookahead++ == '\\' && *lookahead != '\0')
+            ++lookahead;
 
-        if (*pattern == ']')
-          ++pattern;
-
-        regex.append(p, pattern - p);
+        if (*lookahead == ']')
+          ++lookahead;
+      }
+      else if (*lookahead == '\\')
+      {
+        // skip \Q...\E and escaped characters \x such as \(
+        if (*++lookahead == 'Q')
+          while (*lookahead != '\0' && (*lookahead != '\\' || lookahead[1] != 'E'))
+            ++lookahead;
+        if (*lookahead != '\0')
+          ++lookahead;
+      }
+      else if (*lookahead == '(')
+      {
+        ++level;
+        ++lookahead;
+      }
+      else if (*lookahead == ')' && level > 0)
+      {
+        --level;
+        ++lookahead;
       }
       else
       {
-        p = pattern;
-
-        int level = 0;
-
-        while (*pattern != '\0')
-        {
-          if (*pattern == '\\' && pattern[1] == 'Q')
-            while (*pattern != '\0' && (*pattern != '\\' || pattern[1] != 'E'))
-              ++pattern;
-          else if (*pattern == '\\' && pattern[1] != '\0')
-            ++pattern;
-          else if (level == 0 && (*pattern == ')' || *pattern == '|' || *pattern == '"' || isspace(*pattern)))
-            break;
-          else if (*pattern == '(')
-            ++level;
-          else if (*pattern == ')')
-            --level;
-
-          ++pattern;
-        }
-
-        if (p == pattern)
-          break;
-
-        regex.append(p, pattern - p);
+        ++lookahead;
       }
+
+      if (level == 0 && (*lookahead == ')' || *lookahead == '|' || isspace(*lookahead)))
+        break;
     }
+
+    regex.append(pattern, lookahead - pattern);
+    pattern = lookahead;
 
     if (flag_line_regexp && regex.empty())
       regex.assign("^$");

@@ -223,19 +223,19 @@ class CNF {
     // return true if look ahead for a | or OR then return true when found and skip over it, otherwise return false
     static bool is_alternation(const char *& pattern)
     {
-      const char *p = pattern;
+      const char *lookahead = pattern;
 
-      skip_space(p);
+      skip_space(lookahead);
 
-      if (*p != '|' && !is_oper(OR, p))
+      if (*lookahead != '|' && !is_oper(OR, lookahead))
         return false;
 
-      while (*p == '|')
-        ++p;
+      while (*lookahead == '|')
+        ++lookahead;
 
-      skip_space(p);
+      skip_space(lookahead);
 
-      pattern = p;
+      pattern = lookahead;
 
       return true;
     }
