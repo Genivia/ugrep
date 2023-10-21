@@ -3,6 +3,8 @@
 #
 # step 2: run bash in the container, e.g. to run ugrep from the command line
 # docker run -it ugrep bash
+# or
+# docker run -it --mount type=bind,source=$PWD,target=/mnt ugrep bash
 #
 # step 3: run ugrep in the container, for example:
 # ugrep -r -n -tjava Hello ugrep/tests/

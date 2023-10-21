@@ -18,9 +18,9 @@ AC_STRUCT_DIRENT_D_TYPE
 
 AC_FUNC_MMAP
 
-AC_CHECK_HEADERS([sys/statvfs.h sys/time.h])
+AC_CHECK_HEADERS([sys/statvfs.h sys/time.h sys/param.h sys/cpuset.h sys/resource.h sched.h pthread.h])
 
-AC_CHECK_FUNCS([statvfs])
+AC_CHECK_FUNCS([statvfs sched_setaffinity cpuset_setaffinity pthread_setaffinity_np pthread_setschedprio setpriority])
 
 AC_CHECK_MEMBERS([struct stat.st_atim, struct stat.st_mtim, struct stat.st_ctim])
 AC_CHECK_MEMBERS([struct stat.st_atimespec, struct stat.st_mtimespec, struct stat.st_ctimespec])

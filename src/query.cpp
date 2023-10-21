@@ -176,6 +176,7 @@ void Query::display(int col, int len)
   bool list = false;
   bool braced = false;
   bool literal = false;
+  int prev = ' ';
   if (!Screen::mono)
   {
     if (!flag_fixed_strings)
@@ -253,87 +254,24 @@ void Query::display(int col, int len)
         ptr = next + 1;
         alert = false;
       }
-      else if (ch == '[' && !Screen::mono && !list && !literal && !braced && !flag_fixed_strings)
+      else if (!Screen::mono && !flag_fixed_strings)
       {
-        list = true;
-        Screen::put(ptr, next - ptr);
-        Screen::normal();
-        Screen::put(color_qm);
-        Screen::put(ch);
-        Screen::normal();
-        Screen::put(color_ql);
-        ptr = ++next;
-        next += (*next == '^');
-        next += (*next == '\\');
-      }
-      else if (ch == ']' && !Screen::mono && list && !literal && !braced && !flag_fixed_strings)
-      {
-        list = false;
-        Screen::put(ptr, next - ptr);
-        Screen::normal();
-        Screen::put(color_qm);
-        Screen::put(ch);
-        Screen::normal();
-        Screen::put(color_qr);
-        ptr = next + 1;
-      }
-      else if (ch == '{' && !Screen::mono && !list && !literal && !braced && !flag_fixed_strings)
-      {
-        braced = true;
-        Screen::put(ptr, next - ptr);
-        Screen::normal();
-        Screen::put(color_qb);
-        ptr = next;
-      }
-      else if (ch == '}' && !Screen::mono && !list && !literal && braced && !flag_fixed_strings)
-      {
-        braced = false;
-        Screen::put(ptr, next - ptr + 1);
-        Screen::normal();
-        Screen::put(color_qr);
-        ptr = next + 1;
-      }
-      else if (ch == '"' && !Screen::mono && !list && !braced && flag_bool && !flag_fixed_strings)
-      {
-        literal = !literal;
-        Screen::put(ptr, next - ptr);
-        Screen::normal();
-        Screen::put(color_ql);
-        Screen::put(ch);
-        Screen::normal();
-        if (literal)
-          Screen::put(color_ql);
-        else
-          Screen::put(color_qr);
-        ptr = next + 1;
-      }
-      else if (ch == '\\' && next + 1 != err && next[1] >= ' ' && next[1] <= '~' && !Screen::mono && !flag_fixed_strings)
-      {
-        if (next[1] == 'E' && !list)
-          literal = false;
-        if (!literal)
+        if (ch == '[' && !list && !literal && !braced)
         {
-          if (next[1] == 'Q' && !list)
-            literal = true;
+          list = true;
           Screen::put(ptr, next - ptr);
           Screen::normal();
           Screen::put(color_qm);
           Screen::put(ch);
-          Screen::put(next[1]);
           Screen::normal();
-          if (literal || list)
-            Screen::put(color_ql);
-          else if (braced)
-            Screen::put(color_qb);
-          else
-            Screen::put(color_qr);
-          ptr = ++next + 1;
+          Screen::put(color_ql);
+          ptr = ++next;
+          next += (*next == '^');
+          next += (*next == '\\');
         }
-      }
-      else if (strchr("$()*+.?^|", ch) != NULL && !list && !literal && !braced && !Screen::mono && !flag_fixed_strings)
-      {
-        if (!flag_basic_regexp || strchr("()+?|", ch) == NULL)
+        else if (ch == ']' && list && !literal && !braced)
         {
+          list = false;
           Screen::put(ptr, next - ptr);
           Screen::normal();
           Screen::put(color_qm);
@@ -342,10 +280,104 @@ void Query::display(int col, int len)
           Screen::put(color_qr);
           ptr = next + 1;
         }
+        else if (ch == '{' && !list && !literal && !braced)
+        {
+          braced = true;
+          Screen::put(ptr, next - ptr);
+          Screen::normal();
+          Screen::put(color_qb);
+          ptr = next;
+        }
+        else if (ch == '}' && !list && !literal && braced)
+        {
+          braced = false;
+          Screen::put(ptr, next - ptr + 1);
+          Screen::normal();
+          Screen::put(color_qr);
+          ptr = next + 1;
+        }
+        else if (ch == '"' && !list && !braced && flag_bool)
+        {
+          literal = !literal;
+          Screen::put(ptr, next - ptr);
+          Screen::normal();
+          Screen::put(color_ql);
+          Screen::put(ch);
+          Screen::normal();
+          if (literal)
+            Screen::put(color_ql);
+          else
+            Screen::put(color_qr);
+          ptr = next + 1;
+        }
+        else if (ch == '\\' && next + 1 != err && next[1] >= ' ' && next[1] <= '~')
+        {
+          if (next[1] == 'E' && !list)
+            literal = false;
+          if (!literal)
+          {
+            if (next[1] == 'Q' && !list)
+              literal = true;
+            Screen::put(ptr, next - ptr);
+            Screen::normal();
+            Screen::put(color_qm);
+            Screen::put(ch);
+            if (next + 1 < end)
+              Screen::put(next[1]);
+            Screen::normal();
+            if (literal || list)
+              Screen::put(color_ql);
+            else if (braced)
+              Screen::put(color_qb);
+            else
+              Screen::put(color_qr);
+            ptr = ++next + 1;
+          }
+        }
+        else if (strchr("$()*+.?^|", ch) != NULL && !list && !literal && !braced)
+        {
+          if (!flag_basic_regexp || strchr("()+?|", ch) == NULL)
+          {
+            Screen::put(ptr, next - ptr);
+            Screen::normal();
+            Screen::put(color_qm);
+            Screen::put(ch);
+            Screen::normal();
+            Screen::put(color_qr);
+            ptr = next + 1;
+          }
+        }
+        else if (flag_bool && !list && !literal && !braced)
+        {
+          if (prev == ' ')
+          {
+            if (ch == '-' ||
+                strncmp(next, "AND ", 4) == 0 ||
+                strncmp(next, "OR ", 3) == 0 ||
+                strncmp(next, "NOT ", 4) == 0)
+            {
+              Screen::put(ptr, next - ptr);
+              Screen::normal();
+              Screen::put(color_qm);
+              ptr = next;
+              if (ch != '-')
+                next += 2 + (next[2] != ' ');
+              ch = ' ';
+            }
+            else
+            {
+              Screen::put(ptr, next - ptr);
+              Screen::normal();
+              ptr = next;
+            }
+          }
+        }
       }
+      prev = ch;
     }
   }
-  Screen::put(ptr, next - ptr);
+  if (ptr < end)
+    Screen::put(ptr, end - ptr);
   if (next == err && !Screen::mono)
     Screen::put(color_qe);
 }
@@ -2369,7 +2401,7 @@ void Query::view()
     _WIN32_FILE_ATTRIBUTE_DATA attr_before;
 #else
     struct stat buf;
-    uint64_t mtime;
+    uint64_t mtime = 0;
 #endif
 
     if (!flag_stdin || filename != flag_label)

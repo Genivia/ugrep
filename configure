@@ -5417,12 +5417,72 @@ then :
   printf "%s\n" "#define HAVE_SYS_TIME_H 1" >>confdefs.h
 
 fi
+ac_fn_cxx_check_header_compile "$LINENO" "sys/param.h" "ac_cv_header_sys_param_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_param_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SYS_PARAM_H 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_header_compile "$LINENO" "sys/cpuset.h" "ac_cv_header_sys_cpuset_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_cpuset_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SYS_CPUSET_H 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_header_compile "$LINENO" "sys/resource.h" "ac_cv_header_sys_resource_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_resource_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SYS_RESOURCE_H 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_header_compile "$LINENO" "sched.h" "ac_cv_header_sched_h" "$ac_includes_default"
+if test "x$ac_cv_header_sched_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SCHED_H 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_header_compile "$LINENO" "pthread.h" "ac_cv_header_pthread_h" "$ac_includes_default"
+if test "x$ac_cv_header_pthread_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_PTHREAD_H 1" >>confdefs.h
+
+fi
 
 
 ac_fn_cxx_check_func "$LINENO" "statvfs" "ac_cv_func_statvfs"
 if test "x$ac_cv_func_statvfs" = xyes
 then :
   printf "%s\n" "#define HAVE_STATVFS 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_func "$LINENO" "sched_setaffinity" "ac_cv_func_sched_setaffinity"
+if test "x$ac_cv_func_sched_setaffinity" = xyes
+then :
+  printf "%s\n" "#define HAVE_SCHED_SETAFFINITY 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_func "$LINENO" "cpuset_setaffinity" "ac_cv_func_cpuset_setaffinity"
+if test "x$ac_cv_func_cpuset_setaffinity" = xyes
+then :
+  printf "%s\n" "#define HAVE_CPUSET_SETAFFINITY 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_func "$LINENO" "pthread_setaffinity_np" "ac_cv_func_pthread_setaffinity_np"
+if test "x$ac_cv_func_pthread_setaffinity_np" = xyes
+then :
+  printf "%s\n" "#define HAVE_PTHREAD_SETAFFINITY_NP 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_func "$LINENO" "pthread_setschedprio" "ac_cv_func_pthread_setschedprio"
+if test "x$ac_cv_func_pthread_setschedprio" = xyes
+then :
+  printf "%s\n" "#define HAVE_PTHREAD_SETSCHEDPRIO 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_func "$LINENO" "setpriority" "ac_cv_func_setpriority"
+if test "x$ac_cv_func_setpriority" = xyes
+then :
+  printf "%s\n" "#define HAVE_SETPRIORITY 1" >>confdefs.h
 
 fi
 

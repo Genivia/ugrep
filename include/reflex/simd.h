@@ -83,6 +83,12 @@ inline bool have_HW_SSE2()
   return HW & (1ULL << 26);
 }
 
+// support hyperthreading?
+inline bool have_HW_HTT()
+{
+  return HW & (1ULL << 28);
+}
+
 #ifdef _MSC_VER
 #pragma intrinsic(_BitScanForward)
 inline uint32_t ctz(uint32_t x)

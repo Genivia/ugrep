@@ -159,7 +159,7 @@ After this, you may want to test ugrep and install it (optional):
 
 // limit the total number of threads spawn (i.e. limit spawn overhead), because grepping is practically IO bound
 #ifndef MAX_JOBS
-# define MAX_JOBS 16U
+# define MAX_JOBS 16
 #endif
 
 // limit the job queue size to wait to give the worker threads some slack
@@ -402,7 +402,7 @@ reflex::Input::file_encoding_type flag_encoding_type = reflex::Input::file_encod
 std::list<std::string> arg_strings;
 #endif
 
-// function protos
+// helper function protos
 void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int argc, const char **argv);
 void option_regexp(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, const char *arg, bool is_neg = false);
 void option_and(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int& i, int argc, const char **argv);
@@ -467,6 +467,43 @@ static void sigint(int sig)
 }
 
 #endif
+
+// set this thread's affinity and priority, if supported by the OS, ignore errors to leave scheduling to the OS
+static void set_this_thread_affinity_and_priority(size_t cpu)
+{
+#if defined(OS_WIN) || defined(__CYGWIN__)
+  (void)SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu);
+#elif defined(__APPLE__)
+  (void)pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
+#elif defined(HAVE_SCHED_SETAFFINITY)
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
+  (void)sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+#elif defined(HAVE_CPUSET_SETAFFINITY)
+  cpuset_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
+  (void)cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t), &cpuset);
+#elif defined(HAVE_PTHREAD_SETAFFINITY_NP)
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
+  (void)pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+#endif
+
+#if defined(OS_WIN) || defined(__CYGWIN__)
+  (void)SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+#elif defined(__APPLE__)
+  (void)setpriority(PRIO_DARWIN_THREAD, 0, -20);
+#elif defined(HAVE_PTHREAD_SETSCHEDPRIO)
+  (void)pthread_setschedprio(pthread_self(), -20);
+#elif defined(HAVE_SETPRIORITY)
+  (void)setpriority(PRIO_PROCESS, 0, -20);
+#endif
+
+  (void)cpu;
+}
 
 // open a pager if output is to a TTY then page through the results
 void open_pager()
@@ -3899,6 +3936,9 @@ struct GrepMaster : public Grep {
     // set global handle to be able to call cancel_ugrep()
     Static::set_grep_handle(this);
 
+    if (Static::cores >= 8)
+      set_this_thread_affinity_and_priority(Static::cores - 1);
+
     start_workers();
 
     iworker = workers.begin();
@@ -3969,9 +4009,10 @@ struct GrepMaster : public Grep {
 // worker runs a thread to execute jobs submitted by the master
 struct GrepWorker : public Grep {
 
-  GrepWorker(FILE *file, GrepMaster *master)
+  GrepWorker(FILE *file, size_t id, GrepMaster *master)
     :
       Grep(file, master->matcher_clone(), master->matchers_clone()),
+      id(id),
       master(master)
   {
     // all workers synchronize their output on the master's sync object
@@ -4025,6 +4066,7 @@ struct GrepWorker : public Grep {
   }
 
   std::thread             thread;      // thread of this worker, spawns GrepWorker::execute()
+  const size_t            id;          // worker number 0 and up
   GrepMaster             *master;      // the master of this worker
   JobQueue                jobs;        // queue of pending jobs submitted to this worker
 };
@@ -4038,7 +4080,7 @@ void GrepMaster::start_workers()
   try
   {
     for (num = 0; num < Static::threads; ++num)
-      workers.emplace(workers.end(), out.file, this);
+      workers.emplace(workers.end(), out.file, num, this);
   }
 
   // if sufficient resources are not available then reduce the number of threads to the number of active workers created
@@ -4156,6 +4198,9 @@ bool GrepMaster::steal(GrepWorker *worker)
 // execute worker thread
 void GrepWorker::execute()
 {
+  if (Static::cores >= 3)
+    set_this_thread_affinity_and_priority(id);
+
   Job job;
 
   while (!out.eof && !out.cancelled())
@@ -4203,6 +4248,9 @@ reflex::Pattern Static::filter_magic_pattern; // concurrent access is thread saf
 // ugrep command-line arguments pointing to argv[]
 const char *Static::arg_pattern = NULL;
 std::vector<const char*> Static::arg_files;
+
+// number of cores
+size_t Static::cores;
 
 // number of concurrent threads for workers
 size_t Static::threads;
@@ -7806,19 +7854,24 @@ void ugrep()
   if (flag_heading && flag_with_filename)
     flag_break = true;
 
-  // -J: when not set the default is the number of cores (or hardware threads), limited to MAX_JOBS
+  // get number of CPU cores, returns 0 if unknown
+#if defined(__APPLE__) && defined(HAVE_NEON)
+  // apple silicon with 8 or more cores should be reduced to 4 P cores
+  Static::cores = 4;
+#else
+  Static::cores = std::thread::hardware_concurrency();
+#endif
+
+  // -J: the default is the number of cores, minus one for >= 8 cores, limited to MAX_JOBS
   if (flag_jobs == 0)
   {
-    unsigned int cores = std::thread::hardware_concurrency();
-    unsigned int concurrency = cores > 2 ? cores : 2;
-    // reduce concurrency by a few for 8+ core CPUs
-#if defined(__APPLE__) && defined(HAVE_NEON)
-    // apple silicon with 8 or more cores should be reduced
-    concurrency = 4;
-#else
-    concurrency -= concurrency / 8;
-#endif
-    flag_jobs = std::min(concurrency, MAX_JOBS);
+    flag_jobs = Static::cores - (Static::cores >= 8);
+
+    // we want at least 2 threads to be available for workers if needed, but not more than MAX_JOBS
+    if (flag_jobs < 2)
+      flag_jobs = 2;
+    else if (flag_jobs > MAX_JOBS)
+      flag_jobs = MAX_JOBS;
   }
 
   // --sort and --max-files: limit number of threads to --max-files to prevent unordered results, this is a special case

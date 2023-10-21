@@ -1029,7 +1029,7 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
     negate_list(flags, mod, ranges);
   extend_list(pattern, len, pos, flags, mod, ranges, macros);
   if (ranges.empty())
-    throw regex_error(regex_error::empty_class, pattern, loc);
+    throw regex_error(regex_error::empty_class, pattern, loc - 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

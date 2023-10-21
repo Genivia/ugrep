@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "4.3.1"
+#define UGREP_VERSION "4.3.1-1"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -211,6 +211,26 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 
 #ifdef HAVE_SYS_STATVFS_H
 # include <sys/statvfs.h>
+#endif
+
+#ifdef HAVE_SCHED_H
+# include <sched.h>
+#endif
+
+#ifdef HAVE_PTHREAD_H
+# include <pthread.h>
+#endif
+
+#ifdef HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+
+#ifdef HAVE_SYS_CPUSET_H
+# include <sys/cpuset.h>
+#endif
+
+#ifdef HAVE_SYS_RESOURCE_H
+# include <sys/resource.h>
 #endif
 
 #if defined(HAVE_F_RDAHEAD) || defined(HAVE_O_NOATIME)
@@ -444,6 +464,9 @@ struct Static {
   // ugrep command-line arguments pointing to argv[]
   static const char *arg_pattern;
   static std::vector<const char*> arg_files;
+
+  // number of cores
+  static size_t cores;
 
   // number of concurrent threads for workers
   static size_t threads;
