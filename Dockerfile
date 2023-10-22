@@ -1,4 +1,4 @@
-# step 1: create a container for ugrep named "ugrep"
+# step 1: create a debian or ubuntu container for ugrep named "ugrep"
 # docker -D build --no-cache -t ugrep .
 #
 # step 2: run bash in the container, e.g. to run ugrep from the command line
@@ -9,6 +9,7 @@
 # step 3: run ugrep in the container, for example:
 # ugrep -r -n -tjava Hello ugrep/tests/
 
+# debian or ubuntu
 FROM ubuntu
 
 RUN apt-get update

@@ -471,35 +471,78 @@ static void sigint(int sig)
 // set this thread's affinity and priority, if supported by the OS, ignore errors to leave scheduling to the OS
 static void set_this_thread_affinity_and_priority(size_t cpu)
 {
+  // set affinity
+
 #if defined(OS_WIN) || defined(__CYGWIN__)
+
   (void)SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu);
+
 #elif defined(__APPLE__)
+
   (void)pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
-#elif defined(HAVE_SCHED_SETAFFINITY)
-  cpu_set_t cpuset;
-  CPU_ZERO(&cpuset);
-  CPU_SET(cpu, &cpuset);
-  (void)sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
-#elif defined(HAVE_CPUSET_SETAFFINITY)
+
+#elif defined(__FreeBSD__) && defined(HAVE_CPUSET_SETAFFINITY)
+
   cpuset_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(cpu, &cpuset);
-  (void)cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t), &cpuset);
-#elif defined(HAVE_PTHREAD_SETAFFINITY_NP)
+  (void)cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset), &cpuset);
+
+#elif defined(__DragonFly__) && defined(HAVE_PTHREAD_SETAFFINITY_NP)
+
+  cpuset_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
+  (void)pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+
+#elif defined(__NetBSD__) && defined(HAVE_PTHREAD_SETAFFINITY_NP)
+
+  cpuset_t *cpuset = cpuset_create();
+  cpuset_set(cpu, cpuset);
+  (void)pthread_setaffinity_np(pthread_self(), cpuset_size(cpuset), cpuset);
+  cpuset_destroy(cpuset);
+
+#elif defined(HAVE_SCHED_SETAFFINITY)
+
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(cpu, &cpuset);
-  (void)pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  (void)sched_setaffinity(0, sizeof(cpuset), &cpuset);
+
+#elif defined(HAVE_CPUSET_SETAFFINITY)
+
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
+  (void)cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset), &cpuset);
+
+#elif defined(HAVE_PTHREAD_SETAFFINITY_NP)
+
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
+  (void)pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+
 #endif
 
+  // set priority
+
 #if defined(OS_WIN) || defined(__CYGWIN__)
+
   (void)SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+
 #elif defined(__APPLE__)
+
   (void)setpriority(PRIO_DARWIN_THREAD, 0, -20);
+
 #elif defined(HAVE_PTHREAD_SETSCHEDPRIO)
+
   (void)pthread_setschedprio(pthread_self(), -20);
+
 #elif defined(HAVE_SETPRIORITY)
+
   (void)setpriority(PRIO_PROCESS, 0, -20);
+
 #endif
 
   (void)cpu;
