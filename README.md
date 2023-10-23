@@ -16,7 +16,9 @@ Development roadmap
 
 - #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 
-- listen to users to continue to add new and updated features
+- *if anything isn't looking right to you when using ugrep, then I would like to know!*
+
+- add new and updated features
 
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
 
