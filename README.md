@@ -11,6 +11,11 @@ Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of n
 
 See [how to install ugrep](#install) on your system.  Ugrep is always free.
 
+New website
+-----------
+
+**[ugrep.com](https://ugrep.com)**
+
 Development roadmap
 -------------------
 
