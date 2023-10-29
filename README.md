@@ -14,7 +14,7 @@ See [how to install ugrep](#install) on your system.  Ugrep is always free.
 New website
 -----------
 
-**[ugrep.com](https://ugrep.com)**
+**[ugrep.com](https://ugrep.com)** with a helpful and compact user guide.
 
 Development roadmap
 -------------------
@@ -1332,7 +1332,7 @@ using ugrep query selection mode (press Enter to select lines):
     -S, --dereference-files
             When -r is specified, symbolic links to files are followed, but not
             to directories.  The default is not to follow symbolic links.
-    --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
+    --depth=[MIN,][MAX], -1, -2, -3, ... -9, -10, -11, -12, ...
             Restrict recursive searches from MIN to MAX directory levels deep,
             where -1 (--depth=1) searches the specified path without recursing
             into subdirectories.  Note that -3 -5, -3-5, and -35 search 3 to 5
@@ -3339,36 +3339,36 @@ The following fields may be used in the `FORMAT` string:
 field                   | output
 ----------------------- | ------------------------------------------------------
 `%F`                    | if option `-H` is used: the file pathname and separator
-`%[ARG]F`               | if option `-H` is used: `ARG`, the file pathname and separator
+`%[TEXT]F`              | if option `-H` is used: `TEXT`, the file pathname and separator
 `%f`                    | the file pathname
 `%a`                    | the file basename without directory path
 `%p`                    | the directory path to the file
 `%z`                    | the pathname in a (compressed) archive, without `{` and `}`
 `%H`                    | if option `-H` is used: the quoted pathname and separator, `\"` and `\\` replace `"` and `\`
-`%[ARG]H`               | if option `-H` is used: `ARG`, the quoted pathname and separator, `\"` and `\\` replace `"` and `\`
+`%[TEXT]H`              | if option `-H` is used: `TEXT`, the quoted pathname and separator, `\"` and `\\` replace `"` and `\`
 `%h`                    | the quoted file pathname, `\"` and `\\` replace `"` and `\`
 `%N`                    | if option `-n` is used: the line number and separator
-`%[ARG]N`               | if option `-n` is used: `ARG`, the line number and separator
+`%[TEXT]N`              | if option `-n` is used: `TEXT`, the line number and separator
 `%n`                    | the line number of the match
 `%K`                    | if option `-k` is used: the column number and separator
-`%[ARG]K`               | if option `-k` is used: `ARG`, the column number and separator
+`%[TEXT]K`              | if option `-k` is used: `TEXT`, the column number and separator
 `%k`                    | the column number of the match
 `%B`                    | if option `-b` is used: the byte offset and separator
-`%[ARG]B`               | if option `-b` is used: `ARG`, the byte offset and separator
+`%[TEXT]B`              | if option `-b` is used: `TEXT`, the byte offset and separator
 `%b`                    | the byte offset of the match
-`%T`                    | if option `-T` is used: `ARG` and a tab character
-`%[ARG]T`               | if option `-T` is used: `ARG` and a tab character
+`%T`                    | if option `-T` is used: `TEXT` and a tab character
+`%[TEXT]T`              | if option `-T` is used: `TEXT` and a tab character
 `%t`                    | a tab character
 `%[SEP]$`               | set field separator to `SEP` for the rest of the format fields
-`%[ARG]<`               | if the first match: `ARG`
-`%[ARG]>`               | if not the first match: `ARG`
+`%[TEXT]<`              | if the first match: `TEXT`
+`%[TEXT]>`              | if not the first match: `TEXT`
 `%,`                    | if not the first match: a comma, same as `%[,]>`
 `%:`                    | if not the first match: a colon, same as `%[:]>`
 `%;`                    | if not the first match: a semicolon, same as `%[;]>`
 `%│`                    | if not the first match: a vertical bar, same as `%[│]>`
 `%S`                    | if not the first match: separator, see also `%[SEP]$`
-`%[ARG]S`               | if not the first match: `ARG` and separator, see also `%[SEP]$`
-`%s`                    | the separator, see also `%[ARG]S` and `%[SEP]$`
+`%[TEXT]S`              | if not the first match: `TEXT` and separator, see also `%[SEP]$`
+`%s`                    | the separator, see also `%[TEXT]S` and `%[SEP]$`
 `%~`                    | a newline character
 `%+`                    | if option `--heading` is used: `%F` and a newline character, suppress all `%F` and `%H` afterward
 `%m`                    | the number of matches, sequential (or number of matching files with `--format-end`)
@@ -3417,7 +3417,7 @@ Note:
 
 - Formatted output is written without a terminating newline, unless `%~` or `\n`
   is explicitly specified in the format string.
-- The `[ARG]` part of a field is optional and may be omitted.  When present,
+- The `[TEXT]` part of a field is optional and may be omitted.  When present,
   the argument must be placed in `[]` brackets, for example `%[,]F` to output a
   comma, the pathname, and a separator, when option `-H` is used.
 - Fields `%[SEP]$` and `%u` are switches and do not write anything to the
@@ -3442,7 +3442,7 @@ Note:
   2, and so on.  If the list is too short, the index value is output or the
   name of a named group capture is output.
 - Option `-T` and `--pretty` add right-justifying spacing to fields `%N` and
-  `%K` if no leading `[ARG]` part is specified.
+  `%K` if no leading `[TEXT]` part is specified.
 - Field `%+` may be used in `--format-open` to output the pathname heading and
    a newline break, respectively.  Field `%+` suppresses `%a`, `%F`, `%f`,
    `%H`, `%h` and `%p` output.
@@ -3605,7 +3605,7 @@ Same, but in this case select `<script>` `src` URLs when referencing `http` and
 
 ### Limiting the number of matches with -1,-2...-9, -K, -m, and --max-files
 
-    --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
+    --depth=[MIN,][MAX], -1, -2, -3, ... -9, -10, -11, -12, ...
             Restrict recursive searches from MIN to MAX directory levels deep,
             where -1 (--depth=1) searches the specified path without recursing
             into subdirectories.  Note that -3 -5, -3-5, and -35 search 3 to 5
@@ -3840,7 +3840,7 @@ in markdown:
     SYNOPSIS
            ugrep [OPTIONS] [-i] [-Q|PATTERN] [-e PATTERN] [-N PATTERN] [-f FILE]
                  [-F|-G|-P|-Z] [-U] [-m [MIN,][MAX]] [--bool [--files|--lines]]
-                 [-r|-R|-1|...|-9|--10|...] [-t TYPES] [-g GLOBS] [--sort[=KEY]]
+                 [-r|-R|-1|...|-9|-10|...] [-t TYPES] [-g GLOBS] [--sort[=KEY]]
                  [-l|-c] [-o] [-n] [-k] [-b] [-A NUM] [-B NUM] [-C NUM] [-y]
                  [--color[=WHEN]|--colour[=WHEN]] [--pretty] [--pager[=COMMAND]]
                  [--hexdump|--csv|--json|--xml] [-I] [-z] [--zmax=NUM] [FILE ...]
@@ -4113,11 +4113,11 @@ in markdown:
            --delay=DELAY
                   Set the default -Q key response delay.  Default is 3 for 300ms.
 
-           --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...
+           --depth=[MIN,][MAX], -1, -2, -3, ... -9, -10, -11, -12, ...
                   Restrict recursive searches from MIN to MAX directory levels deep,
                   where -1 (--depth=1) searches the specified path without recursing
-                  into subdirectories.  Note that -3 -5, -3-5, and -35 search 3 to 5
-                  levels deep.  Enables -r if -R or -r is not specified.
+                  into subdirectories.  The short forms -3 -5, -3-5 and -3,5 search
+                  3 to 5 levels deep.  Enables -r if -R or -r is not specified.
 
            --dotall
                   Dot `.' in regular expressions matches anything, including
@@ -4741,20 +4741,19 @@ in markdown:
                   -Z and its argument.
 
            -z, --decompress
-                  Decompress files to search, when compressed.  Archives (.cpio,
-                  .pax, .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz,
-                  .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
-                  matching pathnames of files in archives are output in braces.
-                  When used with option --zmax=NUM, searches the contents of
-                  compressed files and archives stored within archives up to NUM
-                  levels.  If -g, -O, -M, or -t is specified, searches files stored
-                  in archives whose filenames match globs, match filename
-                  extensions, match file signature magic bytes, or match file types,
-                  respectively.  Supported compression formats: gzip (.gz), compress
-                  (.Z), zip, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2,
-                  .tb2, .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
-                  lz4 (requires suffix .lz4), zstd (requires suffix .zst, .zstd,
-                  .tzst).
+                  Search compressed files and archives.  Archives (.cpio, .pax,
+                  .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz, .tbz,
+                  .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching
+                  pathnames of files in archives are output in braces.  When used
+                  with option --zmax=NUM, searches the contents of compressed files
+                  and archives stored within archives up to NUM levels.  If -g, -O,
+                  -M, or -t is specified, searches files stored in archives whose
+                  filenames match globs, match filename extensions, match file
+                  signature magic bytes, or match file types, respectively.
+                  Supported compression formats: gzip (.gz), compress (.Z), zip,
+                  bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2,
+                  .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz, .txz), lz4
+                  (requires suffix .lz4), zstd (requires suffix .zst, .zstd, .tzst).
 
            --zmax=NUM
                   When used with option -z (--decompress), searches the contents of
@@ -4977,8 +4976,8 @@ in markdown:
            Option --format=FORMAT specifies an output format for file matches.
            Fields may be used in FORMAT, which expand into the following values:
 
-           %[ARG]F
-                  if option -H is used: ARG, the file pathname and separator.
+           %[TEXT]F
+                  if option -H is used: TEXT, the file pathname and separator.
 
            %f     the file pathname.
 
@@ -4988,40 +4987,40 @@ in markdown:
 
            %z     the file pathname in a (compressed) archive.
 
-           %[ARG]H
-                  if option -H is used: ARG, the quoted pathname and separator, \"
+           %[TEXT]H
+                  if option -H is used: TEXT, the quoted pathname and separator, \"
                   and \\ replace " and \.
 
            %h     the quoted file pathname, \" and \\ replace " and \.
 
-           %[ARG]N
-                  if option -n is used: ARG, the line number and separator.
+           %[TEXT]N
+                  if option -n is used: TEXT, the line number and separator.
 
            %n     the line number of the match.
 
-           %[ARG]K
-                  if option -k is used: ARG, the column number and separator.
+           %[TEXT]K
+                  if option -k is used: TEXT, the column number and separator.
 
            %k     the column number of the match.
 
-           %[ARG]B
-                  if option -b is used: ARG, the byte offset and separator.
+           %[TEXT]B
+                  if option -b is used: TEXT, the byte offset and separator.
 
            %b     the byte offset of the match.
 
-           %[ARG]T
-                  if option -T is used: ARG and a tab character.
+           %[TEXT]T
+                  if option -T is used: TEXT and a tab character.
 
            %t     a tab character.
 
            %[SEP]$
                   set field separator to SEP for the rest of the format fields.
 
-           %[ARG]<
-                  if the first match: ARG.
+           %[TEXT]<
+                  if the first match: TEXT.
 
-           %[ARG]>
-                  if not the first match: ARG.
+           %[TEXT]>
+                  if not the first match: TEXT.
 
            %,     if not the first match: a comma, same as %[,]>.
 
@@ -5031,10 +5030,10 @@ in markdown:
 
            %|     if not the first match: a vertical bar, same as %[|]>.
 
-           %[ARG]S
-                  if not the first match: ARG and separator, see also %[SEP]$.
+           %[TEXT]S
+                  if not the first match: TEXT and separator, see also %[SEP]$.
 
-           %s     the separator, see also %[ARG]S and %[SEP]$.
+           %s     the separator, see also %[TEXT]S and %[SEP]$.
 
            %~     a newline character.
 
@@ -5130,7 +5129,7 @@ in markdown:
            Formatted output is written without a terminating newline, unless %~ or
            `\n' is explicitly specified in the format string.
 
-           The [ARG] part of a field is optional and may be omitted.  When present,
+           The [TEXT] part of a field is optional and may be omitted.  When present,
            the argument must be placed in [] brackets, for example %[,]F to output a
            comma, the pathname, and a separator.
 
@@ -5335,7 +5334,7 @@ in markdown:
 
 
 
-    ugrep 4.3.1                     October 18, 2023                        UGREP(1)
+    ugrep 4.3.2                     October 25, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
