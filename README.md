@@ -23,7 +23,7 @@ Development roadmap
 
 - *if anything isn't looking right to you when using ugrep, then I would like to know!*
 
-- add new and updated features
+- add new and updated features, including [indexing (in beta release state)](https://github.com/Genivia/ugrep-indexer)
 
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
 
