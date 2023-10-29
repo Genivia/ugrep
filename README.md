@@ -25,7 +25,7 @@ Development roadmap
 
 - add new and updated features, including [indexing (in beta release state)](https://github.com/Genivia/ugrep-indexer)
 
-- share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
+- share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community, showing that ugrep is almost always faster than other grep tools
 
 - make ugrep even faster in the near future, see [my latest article](https://www.genivia.com/ugrep.html) and planned optimizations [#288](https://github.com/Genivia/ugrep/issues/288) and [#305](https://github.com/Genivia/ugrep/issues/305)
 
