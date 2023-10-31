@@ -21,7 +21,7 @@ Development roadmap
 
 - #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 
-- *if anything isn't looking right to you when using ugrep, then I would like to know!*
+- *if something should be improved or added to ugrep, then let me know!*
 
 - add new and updated features, including [indexing (in beta release state)](https://github.com/Genivia/ugrep-indexer)
 
