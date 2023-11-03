@@ -20,7 +20,7 @@ cat >> man/ugrep.1 << 'END'
 .B ugrep
 [\fIOPTIONS\fR] [\fB-i\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
       [\fB-F\fR|\fB-G\fR|\fB-P\fR|\fB-Z\fR] [\fB-U\fR] [\fB-m\fR [\fIMIN,\fR][\fIMAX\fR]] [\fB--bool\fR [\fB--files\fR|\fB--lines\fR]]
-      [\fB-r\fR|\fB-R\fR|\fB-1\fR|...|\fB-9\fR|\fB--10\fR|...] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
+      [\fB-r\fR|\fB-R\fR|\fB-1\fR|...|\fB-9\fR|\fB-10\fR|...] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
       [\fB-l\fR|\fB-c\fR] [\fB-o\fR] [\fB-n\fR] [\fB-k\fR] [\fB-b\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C \fR\fINUM\fR] [\fB-y\fR]
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pretty\fR] [\fB--pager\fR[=\fICOMMAND\fR]]
       [\fB--hexdump\fR|\fB--csv\fR|\fB--json\fR|\fB--xml\fR] [\fB-I\fR] [\fB-z\fR] [\fB--zmax\fR=\fINUM\fR] [\fIFILE\fR \fI...\fR]
@@ -50,7 +50,8 @@ omit zero matches.
 The default pattern syntax is an extended form of the POSIX ERE syntax, same as
 option \fB-E\fR (\fB--extended-regexp\fR).  Try \fBug --help regex\fR for help
 with pattern syntax and how to use logical connectives to specify Boolean
-search queries with option \fB-%\fR (\fB--bool\fR).  Options \fB-F\fR
+search queries with option \fB-%\fR (\fB--bool\fR) to match lines and \fB-%%\fR
+(-fB--files --bool\fR) to match files.  Options \fB-F\fR
 (\fB--fixed-strings\fR), \fB-G\fR (\fB--basic-regexp\fR) and \fB-P\fR
 (\fB--perl-regexp\fR) specify other pattern syntaxes.
 .PP
@@ -356,8 +357,8 @@ TUI regex braces.
 .SH FORMAT
 Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:
-.IP \fB%[\fR\fIARG\fR\fB]F\fR
-if option \fB-H\fR is used: \fIARG\fR, the file pathname and separator.
+.IP \fB%[\fR\fITEXT\fR\fB]F\fR
+if option \fB-H\fR is used: \fITEXT\fR, the file pathname and separator.
 .IP \fB%f\fR
 the file pathname.
 .IP \fB%a\fR
@@ -366,33 +367,33 @@ the file basename without directory path.
 the directory path to the file.
 .IP \fB%z\fR
 the file pathname in a (compressed) archive.
-.IP \fB%[\fR\fIARG\fR\fB]H\fR
-if option \fB-H\fR is used: \fIARG\fR, the quoted pathname and separator, \\"
+.IP \fB%[\fR\fITEXT\fR\fB]H\fR
+if option \fB-H\fR is used: \fITEXT\fR, the quoted pathname and separator, \\"
 and \\\\ replace " and \\.
 .IP \fB%h\fR
 the quoted file pathname, \\" and \\\\ replace " and \\.
-.IP \fB%[\fR\fIARG\fR\fB]N\fR
-if option \fB-n\fR is used: \fIARG\fR, the line number and separator.
+.IP \fB%[\fR\fITEXT\fR\fB]N\fR
+if option \fB-n\fR is used: \fITEXT\fR, the line number and separator.
 .IP \fB%n\fR
 the line number of the match.
-.IP \fB%[\fR\fIARG\fR\fB]K\fR
-if option \fB-k\fR is used: \fIARG\fR, the column number and separator.
+.IP \fB%[\fR\fITEXT\fR\fB]K\fR
+if option \fB-k\fR is used: \fITEXT\fR, the column number and separator.
 .IP \fB%k\fR
 the column number of the match.
-.IP \fB%[\fR\fIARG\fR\fB]B\fR
-if option \fB-b\fR is used: \fIARG\fR, the byte offset and separator.
+.IP \fB%[\fR\fITEXT\fR\fB]B\fR
+if option \fB-b\fR is used: \fITEXT\fR, the byte offset and separator.
 .IP \fB%b\fR
 the byte offset of the match.
-.IP \fB%[\fR\fIARG\fR\fB]T\fR
-if option \fB-T\fR is used: \fIARG\fR and a tab character.
+.IP \fB%[\fR\fITEXT\fR\fB]T\fR
+if option \fB-T\fR is used: \fITEXT\fR and a tab character.
 .IP \fB%t\fR
 a tab character.
 .IP \fB%[\fR\fISEP\fR\fB]$\fR
 set field separator to \fISEP\fR for the rest of the format fields.
-.IP \fB%[\fR\fIARG\fR\fB]<\fR
-if the first match: \fIARG\fR.
-.IP \fB%[\fR\fIARG\fR\fB]>\fR
-if not the first match: \fIARG\fR.
+.IP \fB%[\fR\fITEXT\fR\fB]<\fR
+if the first match: \fITEXT\fR.
+.IP \fB%[\fR\fITEXT\fR\fB]>\fR
+if not the first match: \fITEXT\fR.
 .IP \fB%,\fR
 if not the first match: a comma, same as \fB%[,]>\fR.
 .IP \fB%:\fR
@@ -401,10 +402,10 @@ if not the first match: a colon, same as \fB%[:]>\fR.
 if not the first match: a semicolon, same as \fB%[;]>\fR.
 .IP \fB%|\fR
 if not the first match: a vertical bar, same as \fB%[|]>\fR.
-.IP \fB%[\fR\fIARG\fR\fB]S\fR
-if not the first match: \fIARG\fR and separator, see also \fB%[\fR\fISEP\fR\fB]$.
+.IP \fB%[\fR\fITEXT\fR\fB]S\fR
+if not the first match: \fITEXT\fR and separator, see also \fB%[\fR\fISEP\fR\fB]$.
 .IP \fB%s\fR
-the separator, see also \fB%[\fR\fIARG\fR\fB]S\fR and \fB%[\fR\fISEP\fR\fB]$.
+the separator, see also \fB%[\fR\fITEXT\fR\fB]S\fR and \fB%[\fR\fISEP\fR\fB]$.
 .IP \fB%~\fR
 a newline character.
 .IP \fB%M\fR
@@ -487,7 +488,7 @@ the percentage sign.
 Formatted output is written without a terminating newline, unless \fB%~\fR or
 `\\n' is explicitly specified in the format string.
 .PP
-The \fB[\fR\fIARG\fR\fB]\fR part of a field is optional and may be omitted.
+The \fB[\fR\fITEXT\fR\fB]\fR part of a field is optional and may be omitted.
 When present, the argument must be placed in \fB[]\fR brackets, for example
 \fB%[,]F\fR to output a comma, the pathname, and a separator.
 .PP

@@ -3816,7 +3816,7 @@ void Pattern::predict_match_dfa(const DFA::State *start)
   one_ = true;
   while (state->accept == 0)
   {
-    if (state->edges.size() != 1)
+    if (state->edges.size() != 1 || !state->heads.empty())
     {
       one_ = false;
       break;
@@ -3844,7 +3844,7 @@ void Pattern::predict_match_dfa(const DFA::State *start)
     }
     state = next;
   }
-  if (state != NULL && state->accept > 0 && !state->edges.empty())
+  if (state != NULL && ((state->accept > 0 && !state->edges.empty()) || state->redo))
     one_ = false;
   min_ = 0;
   std::memset(bit_, 0xFF, sizeof(bit_));

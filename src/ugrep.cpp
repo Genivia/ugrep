@@ -33,7 +33,11 @@
 @copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
-For download and installation instructions:
+User guide:
+
+  https://ugrep.com
+
+Source code repository:
 
   https://github.com/Genivia/ugrep
 
@@ -52,13 +56,13 @@ Optional libraries to support options -P and -z:
 
 Build ugrep as follows:
 
-  $ ./configure --enable-colors
+  $ ./configure
   $ make -j
 
 Git does not preserve time stamps so ./configure may fail, in that case do:
 
   $ autoreconf -fi
-  $ ./configure --enable-colors
+  $ ./configure
   $ make -j
 
 After this, you may want to test ugrep and install it (optional):
@@ -163,8 +167,8 @@ After this, you may want to test ugrep and install it (optional):
 #endif
 
 // limit the job queue size to wait to give the worker threads some slack
-#ifndef MAX_JOB_QUEUE_SIZE
-# define MAX_JOB_QUEUE_SIZE 8192
+#ifndef DEFAULT_MAX_JOB_QUEUE_SIZE
+# define DEFAULT_MAX_JOB_QUEUE_SIZE 8192
 #endif
 
 // a hard limit on the recursive search depth
@@ -331,6 +335,7 @@ size_t flag_max_depth              = 0;
 size_t flag_max_files              = 0;
 size_t flag_max_line               = 0;
 size_t flag_max_mmap               = DEFAULT_MAX_MMAP_SIZE;
+size_t flag_max_queue              = DEFAULT_MAX_JOB_QUEUE_SIZE;
 size_t flag_min_count              = 0;
 size_t flag_min_depth              = 0;
 size_t flag_min_line               = 0;
@@ -711,19 +716,19 @@ inline bool is_binary(const char *s, size_t n)
 
     while (s < e)
     {
-      while (!(*s & 0x80) && s < e)
+      while (s < e && !(*s & 0x80))
         ++s;
 
       if (s >= e)
         return false;
 
-      if ((*s & 0xc0) == 0x80 || ++s >= e || (*s & 0xc0) != 0x80)
+      unsigned char c = static_cast<unsigned char>(*s);
+      if (c < 0xc2 || c > 0xf4 || ++s >= e || (*s & 0xc0) != 0x80)
         return true;
 
       if (++s < e && (*s & 0xc0) == 0x80)
         if (++s < e && (*s & 0xc0) == 0x80)
-          if (++s < e && (*s & 0xc0) == 0x80)
-            ++s;
+          ++s;
     }
   }
 
@@ -2067,7 +2072,7 @@ struct Grep {
     {
       Job *job = tail.load();
       Job *next = job + 1;
-      if (next == &ring[MAX_JOB_QUEUE_SIZE])
+      if (next == &ring[DEFAULT_MAX_JOB_QUEUE_SIZE])
         next = ring;
 
       while (next == head.load())
@@ -2090,7 +2095,7 @@ struct Grep {
     {
       Job *job = tail.load();
       Job *next = job + 1;
-      if (next == &ring[MAX_JOB_QUEUE_SIZE])
+      if (next == &ring[DEFAULT_MAX_JOB_QUEUE_SIZE])
         next = ring;
 
       if (next == head.load())
@@ -2117,7 +2122,7 @@ struct Grep {
       }
 
       Job *next = head.load() + 1;
-      if (next == &ring[MAX_JOB_QUEUE_SIZE])
+      if (next == &ring[DEFAULT_MAX_JOB_QUEUE_SIZE])
         next = ring;
 
       job = *head.load();
@@ -2126,7 +2131,7 @@ struct Grep {
       queue_full.notify_one();
     }
 
-    Job                     ring[MAX_JOB_QUEUE_SIZE];
+    Job                     ring[DEFAULT_MAX_JOB_QUEUE_SIZE];
     std::atomic<Job*>       head;
     std::atomic<Job*>       tail;
     std::mutex              queue_mutex; // job queue mutex used when queue is empty or full
@@ -2170,7 +2175,7 @@ struct Grep {
     // try to add a job to the queue if the queue is not too large
     bool try_enqueue(const char *pathname, uint16_t cost, size_t slot)
     {
-      if (todo >= MAX_JOB_QUEUE_SIZE)
+      if (todo >= flag_max_queue)
         return false;
 
       enqueue(pathname, cost, slot);
@@ -3909,7 +3914,7 @@ struct Grep {
     if (flag_binary_without_match && init_is_binary())
       return false;
 
-    // --range=NUM1[,NUM2]: start searching at line NUM1
+    // --range=[MIN,][MAX]: start searching at line MIN
     for (size_t i = flag_min_line; i > 1; --i)
       if (!matcher->skip('\n'))
         break;
@@ -4160,23 +4165,26 @@ void GrepMaster::submit(const char *pathname, uint16_t cost)
     {
       auto min_worker = iworker;
 
-      for (size_t num = 0; num < Static::threads; ++num)
+      for (size_t num = 1; num < Static::threads; ++num)
       {
-        if (iworker->jobs.todo < min_todo)
-        {
-          min_todo = iworker->jobs.todo;
-          min_worker = iworker;
-        }
-
         ++iworker;
         if (iworker == workers.end())
           iworker = workers.begin();
+
+        if (iworker->jobs.todo < min_todo)
+        {
+          min_todo = iworker->jobs.todo;
+          if (min_todo == 0)
+            break;
+
+          min_worker = iworker;
+        }
       }
 
       iworker = min_worker;
     }
 
-    // try to submit, if not successful then the queue is full
+    // try to submit, if not successful then the queue reached max specified size
     if (iworker->try_submit_job(pathname, cost, sync.next) || out.eof || out.cancelled())
       break;
 
@@ -4526,6 +4534,10 @@ int main(int argc, const char **argv)
     if (!flag_no_messages && Static::warnings > 0)
       abort("option -Q: warnings are present, specify -s to ignore");
 
+    // queue more files than we queue for more optimized searching by default
+    flag_max_queue = 65536;
+
+    // -Q: TUI query mode
     Query::query();
   }
   else
@@ -4558,20 +4570,45 @@ int main(int argc, const char **argv)
   return Static::warnings > 0 ? EXIT_ERROR : Stats::found_any_file() ? EXIT_OK : EXIT_FAIL;
 }
 
-static void set_depth(const char *arg)
+// set -1,...,-9,-10,... recursion depth flags
+static void set_depth(const char *& arg)
 {
+  const char *range = arg;
+  char *rest = NULL;
+
   if (flag_max_depth > 0)
   {
     if (flag_min_depth == 0)
       flag_min_depth = flag_max_depth;
-    flag_max_depth = strtopos(arg, "invalid argument --");
-    if (flag_min_depth > flag_max_depth)
-      usage("invalid argument -", arg);
+    flag_max_depth = strtoull(range, &rest, 10);
+    range = rest;
   }
   else
   {
-    strtopos2(arg, flag_min_depth, flag_max_depth, "invalid argument --");
+    flag_max_depth = strtoull(range, &rest, 10);
+    range = rest;
+    if (*range == '-' || *range == ',')
+    {
+      flag_min_depth = flag_max_depth;
+      flag_max_depth = strtoull(range + 1, &rest, 10);
+      range = rest;
+    }
   }
+
+  if (flag_min_depth > flag_max_depth)
+    usage("invalid argument -", arg);
+
+  arg = range - 1;
+}
+
+// set --10,... and --depth=10,... recursion depth flags
+static void set_depth_long(const char *arg)
+{
+  const char *range = arg;
+  set_depth(range);
+  
+  if (range[1] != '\0')
+    usage("invalid argument --depth=", arg);
 }
 
 // load config file specified or the default .ugrep, located in the working directory or home directory
@@ -4986,7 +5023,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "delay=", 6) == 0)
                   flag_delay = strtonum(arg + 6, "invalid argument --delay=");
                 else if (strncmp(arg, "depth=", 6) == 0)
-                  strtopos2(arg + 6, flag_min_depth, flag_max_depth, "invalid argument --depth=");
+                  set_depth_long(arg + 6);
                 else if (strcmp(arg, "dereference") == 0)
                   flag_dereference = true;
                 else if (strcmp(arg, "dereference-files") == 0)
@@ -5196,6 +5233,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_max_files = strtopos(arg + 10, "invalid argument --max-files=");
                 else if (strncmp(arg, "max-line=", 9) == 0)
                   flag_max_line = strtopos(arg + 9, "invalid argument --max-line=");
+                else if (strncmp(arg, "max-queue=", 10) == 0)
+                  flag_max_queue = strtopos(arg + 10, "invalid argument --max-queue=");
                 else if (strncmp(arg, "min-count=", 10) == 0)
                   flag_min_count = strtopos(arg + 10, "invalid argument --min-count=");
                 else if (strncmp(arg, "min-depth=", 10) == 0)
@@ -5231,6 +5270,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   option_not(pattern_args, arg + 4);
                 else if (strcmp(arg, "no-any-line") == 0)
                   flag_any_line = false;
+                else if (strcmp(arg, "no-ascii") == 0)
+                  flag_binary = false;
                 else if (strcmp(arg, "no-binary") == 0)
                   flag_binary = false;
                 else if (strcmp(arg, "no-bool") == 0)
@@ -5312,7 +5353,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-filter, --glob-no-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-filter, --glob-no-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -5460,7 +5501,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               default:
                 if (isdigit(*arg))
-                  set_depth(arg);
+                  set_depth_long(arg);
                 else
                   usage("invalid option --", arg);
             }
@@ -5813,11 +5854,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
           case '7':
           case '8':
           case '9':
-            if (flag_min_depth == 0 && flag_max_depth > 0)
-              flag_min_depth = flag_max_depth;
-            flag_max_depth = *arg - '0';
-            if (flag_min_depth > flag_max_depth)
-              usage("invalid argument -", arg);
+            set_depth(arg);
             break;
 
           case '?':
@@ -5825,6 +5862,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case '%':
+            if (flag_bool)
+              flag_files = true;
             flag_bool = true;
             break;
 
@@ -13114,7 +13153,7 @@ void help(std::ostream& out)
             `with-hex' only reports binary matches in hexadecimal, leaving text\n\
             matches alone.  A match is considered binary when matching a zero\n\
             byte or invalid UTF.  Short options are -a, -I, -U, -W and -X.\n\
-    --bool, -%\n\
+    --bool, -%, -%%\n\
             Specifies Boolean query patterns.  A Boolean query pattern is\n\
             composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.\n\
             Spacing between subpatterns is the same as `AND', `|' is the same\n\
@@ -13126,14 +13165,15 @@ void help(std::ostream& out)
             lines with (`A' or `B') and (`C' or `D'), --bool 'A AND NOT B'\n\
             matches lines with `A' without `B'.  Quoted subpatterns are matched\n\
             literally as strings.  For example, --bool 'A \"AND\"|\"OR\"' matches\n\
-            lines with `A' and also either `AND' or `OR'.  Parenthesis are used\n\
+            lines with `A' and also either `AND' or `OR'.  Parentheses are used\n\
             for grouping.  For example, --bool '(A B)|C' matches lines with `A'\n\
             and `B', or lines with `C'.  Note that all subpatterns in a Boolean\n\
             query pattern are regular expressions, unless -F is specified.\n\
             Options -E, -F, -G, -P and -Z can be combined with --bool to match\n\
             subpatterns as strings or regular expressions (-E is the default.)\n\
-            This option does not apply to -f FILE patterns.  Option --stats\n\
-            displays the search patterns applied.  See also options --and,\n\
+            This option does not apply to -f FILE patterns.  The double short\n\
+            option -%% enables options --files --bool.  Option --stats displays\n\
+            the Boolean search patterns applied.  See also options --and,\n\
             --andnot, --not, --files and --lines.\n\
     --break\n\
             Adds a line break between results from different files.  This\n\
@@ -13203,11 +13243,11 @@ void help(std::ostream& out)
             equivalent to the -R option.\n\
     --delay=DELAY\n\
             Set the default -Q key response delay.  Default is 3 for 300ms.\n\
-    --depth=[MIN,][MAX], -1, -2, -3, ... -9, --10, --11, --12, ...\n\
+    --depth=[MIN,][MAX], -1, -2, -3, ... -9, -10, -11, -12, ...\n\
             Restrict recursive searches from MIN to MAX directory levels deep,\n\
             where -1 (--depth=1) searches the specified path without recursing\n\
-            into subdirectories.  Note that -3 -5, -3-5, and -35 search 3 to 5\n\
-            levels deep.  Enables -r if -R or -r is not specified.\n\
+            into subdirectories.  The short forms -3 -5, -3-5 and -3,5 search 3\n\
+            to 5 levels deep.  Enables -r if -R or -r is not specified.\n\
     --dotall\n\
             Dot `.' in regular expressions matches anything, including newline.\n\
             Note that `.*' matches all input and should not be used.\n\
@@ -13493,8 +13533,7 @@ void help(std::ostream& out)
     --line-buffered\n\
             Force output to be line buffered instead of block buffered.\n\
     --lines\n\
-            Apply Boolean queries to match lines, the opposite of --files.\n\
-            This is the default Boolean mode to match specific lines.\n\
+            Boolean line matching mode for option --bool, the default mode.\n\
     -M MAGIC, --file-magic=MAGIC\n\
             Only files matching the signature pattern MAGIC are searched.  The\n\
             signature \"magic bytes\" at the start of a file are compared to\n\
@@ -13556,15 +13595,14 @@ void help(std::ostream& out)
             The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
             file processed.\n\
-    --files\n\
-            Apply Boolean queries to match files, the opposite of --lines.  A\n\
-            file matches if all Boolean conditions are satisfied by the lines\n\
-            matched in the file.  For example, --files -e A --and -e B -e C\n\
-            --andnot -e D matches a file if some lines match `A' and some lines\n\
-            match (`B' or `C') and no line in the file matches `D'.  May also\n\
-            be specified as --files --bool 'A B|C -D'.  Option -v cannot be\n\
-            specified with --files.  See also options --and, --andnot, --not,\n\
-            --bool and --lines.\n\
+    --files, -%%\n\
+            Boolean file matching mode, the opposite of --lines.  When combined\n\
+            with option --bool, matches a file if all Boolean conditions are\n\
+            satisfied.  For example, --files --bool 'A B|C -D' matches a file\n\
+            if some lines match `A', and some lines match either `B' or `C',\n\
+            and no line matches `D'.  See also options --and, --andnot, --not,\n\
+            --bool and --lines.  The double short option -%% enables options\n\
+            --files --bool.\n\
     -P, --perl-regexp\n\
             Interpret PATTERN as a Perl regular expression"
 #if defined(HAVE_PCRE2)
@@ -13750,15 +13788,15 @@ void help(std::ostream& out)
             -U applies fuzzy matching to ASCII and bytes instead of Unicode\n\
             text.  No whitespace may be given between -Z and its argument.\n\
     -z, --decompress\n\
-            Decompress files to search, when compressed.  Archives (.cpio,\n\
-            .pax, .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz,\n\
-            .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and\n\
-            matching pathnames of files in archives are output in braces.  When\n\
-            used with option --zmax=NUM, searches the contents of compressed\n\
-            files and archives stored within archives up to NUM levels.  If -g,\n\
-            -O, -M, or -t is specified, searches files stored in archives whose\n\
-            filenames match globs, match filename extensions, match file\n\
-            signature magic bytes, or match file types, respectively.\n"
+            Search compressed files and archives.  Archives (.cpio, .pax, .tar)\n\
+            and compressed archives (e.g. .zip, .taz, .tgz, .tpz, .tbz, .tbz2,\n\
+            .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching pathnames\n\
+            of files in archives are output in braces.  When used with option\n\
+            --zmax=NUM, searches the contents of compressed files and archives\n\
+            stored within archives up to NUM levels.  If -g, -O, -M, or -t is\n\
+            specified, searches files stored in archives whose filenames match\n\
+            globs, match filename extensions, match file signature magic bytes,\n\
+            or match file types, respectively.\n"
 #ifndef HAVE_LIBZ
             "\
             This option is not available in this build configuration of ugrep.\n"
@@ -13959,8 +13997,8 @@ void help(const char *what)
  a{3,}?      3 or more a's lazily        \\0          NUL\n\
  a{3,7}?     3 to 7 a's lazily           \\0ddd       octal character code ddd\n\
  --------------------------------------  \\xhh        hex character code hh\n\
-                                         \\x{hex}     hex Unicode code point\n\
- pattern     character classes           \\u{hex}     hex Unicode code point\n\
+                                         \\x{hhhh}    Unicode code point U+hhhh\n\
+ pattern     character classes           \\u{hhhh}    Unicode code point U+hhhh\n\
  ----------  --------------------------  --------------------------------------\n\
  [abc-e]     one character a,b,c,d,e     \n\
  [^abc-e]    one char not a,b,c,d,e,\\n   pattern     anchors and boundaries\n\
@@ -13975,7 +14013,7 @@ void help(const char *what)
     lower      a-z                       (?!...)     negative lookahead (-P)\n\
     print      visible chars and space   (?<=...)    lookbehind (-P)\n\
     punct      punctuation characters    (?<!...)    negative lookbehind (-P)\n\
-    space      space,\\t,\\v,\\f,\\r        --------------------------------------\n\
+    space      space,\\t,\\v,\\f,\\r         --------------------------------------\n\
     upper      A-Z                       \n\
      word      a-z,A-Z,0-9,_             pattern     grouping\n\
    xdigit      0-9,a-f,A-F               ----------  --------------------------\n\
@@ -14000,7 +14038,7 @@ word boundary matching, lookaheads and capturing groups.\n\
 Option -U disables full Unicode pattern matching: non-POSIX Unicode character\n\
 classes \\p{class} are disabled, ASCII, LATIN1 and binary regex patterns only.\n\
 \n\
-Option --bool adds the following operations to regex patterns `a' and `b':\n\
+Option -% (--bool) adds the following operations to regex patterns `a' and `b':\n\
 \n\
  pattern     operation                   pattern     operation\n\
  ----------  --------------------------  ----------  --------------------------\n\
@@ -14013,13 +14051,18 @@ Option --bool adds the following operations to regex patterns `a' and `b':\n\
 Listed from the highest level of precedence to the lowest, NOT is performed\n\
 before OR and OR is performed before AND.  Thus, `-x|y z' is `((-x)|y) z'.\n\
 \n\
-Spacing with --bool logical operators and grouping is recommended.  Parenthesis\n\
-become part of the regex sub-patterns when nested and when regex operators are\n\
-directly applied to a parenthesized sub-expression.  For example, `((x y)z)'\n\
-matches `x yz' and likewise `((x y){3} z)' match three `x y' and a `z'.\n\
+Spacing of the logical AND, OR and NOT operators is required.\n\
 \n\
-The default is to match lines satisfying the --bool query.  To match files,\n\
-use option --files with --bool.  See also options --and, --andnot, --not.\n\
+Nested parentheses that are part of a regex sub-pattern do not group logical\n\
+operators.  For example, `((x y)z)' matches `x yz'.  Note that `((x y){3} z)'\n\
+matches `x y' three times and a `z', since the outer parentheses group the AND\n\
+(a space).\n\
+\n\
+The default is to match lines satisfying the Boolean query.  To match files,\n\
+specify the double short option -%% to enable both options --files --bool.\n\
+\n\
+See also options --and, --andnot, --not to specify sub-patterns as command-line\n\
+arguments with options as logical operators.\n\
 \n\
 Option --stats displays the options and patterns applied to the matching files.\n\
 \n\
@@ -14030,9 +14073,9 @@ Option --stats displays the options and patterns applied to the matching files.\
       std::cout <<
 "Glob syntax and conventions:\n\
 \n\
-Gitignore-style globbing is performed by -g (--glob), --iglob, --include,\n\
---exclude, --include-dir, --exclude-dir, --include-from, --exclude-from,\n\
-and --ignore-files.\n\
+Gitignore-style globbing is performed by all glob-related options: -g (--glob),\n\
+--iglob, --include, --exclude, --include-dir, --exclude-dir, --include-from,\n\
+--exclude-from, and --ignore-files.\n\
 \n\
  pattern     matches\n\
  ----------  -----------------------------------------------------------\n\
@@ -14163,28 +14206,29 @@ void version()
     " +neon/AArch64" <<
 #endif
 #if defined(HAVE_PCRE2)
-    (pcre2_config(PCRE2_CONFIG_JIT, &tmp) >= 0 && tmp != 0 ? " +pcre2jit" : " +pcre2") <<
+    (pcre2_config(PCRE2_CONFIG_JIT, &tmp) >= 0 && tmp != 0 ? "; -P:pcre2jit" : "; -P:pcre2") <<
 #elif defined(HAVE_BOOST_REGEX)
-    " +boost_regex" <<
+    "; -P:boost_regex" <<
 #endif
 #ifdef HAVE_LIBZ
-    " +zlib" <<
+    "; -z:zlib" <<
 #ifdef HAVE_LIBBZ2
-    " +bzip2" <<
+    ",bzip2" <<
 #endif
 #ifdef HAVE_LIBLZMA
-    " +lzma" <<
+    ",lzma" <<
 #endif
 #ifdef HAVE_LIBLZ4
-    " +lz4" <<
+    ",lz4" <<
 #endif
 #ifdef HAVE_LIBZSTD
-    " +zstd" <<
+    ",zstd" <<
 #endif
 #endif
     "\n"
-    "License BSD-3-Clause: <https://opensource.org/licenses/BSD-3-Clause>\n"
-    "Written by Robert van Engelen and others: <https://github.com/Genivia/ugrep>" << std::endl;
+    "License: BSD-3-Clause;  ugrep user guide:  https://ugrep.com\n"
+    "Written by Robert van Engelen and others:  https://github.com/Genivia/ugrep\n"
+    "Ugrep utilizes the RE/flex regex library:  https://github.com/Genivia/RE-flex" << std::endl;
   exit(EXIT_OK);
 }
 

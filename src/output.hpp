@@ -56,7 +56,7 @@ class Output {
 
  protected:
 
-  static constexpr size_t SIZE = 16384;          // size of each buffer in the buffers container
+  static constexpr size_t SIZE = 32768;          // size of each buffer in the buffers container
   static constexpr size_t STOP = UNDEFINED_SIZE; // if last == STOP, cancel output
   static constexpr int FLUSH   = 1;              // mode bit: flush each line of output
   static constexpr int HOLD    = 2;              // mode bit: hold output

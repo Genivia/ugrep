@@ -11,23 +11,23 @@ Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of n
 
 See [how to install ugrep](#install) on your system.  Ugrep is always free.
 
-New website
------------
+Website
+-------
 
-**[ugrep.com](https://ugrep.com)** with a helpful and compact user guide.
+**[ugrep.com](https://ugrep.com)** has a compact user guide.
 
 Development roadmap
 -------------------
 
-- #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
+*if something should be improved or added to ugrep, then let me know!*
 
-- *if something should be improved or added to ugrep, then let me know!*
+- #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 
 - add new and updated features, including [indexing (in beta release state)](https://github.com/Genivia/ugrep-indexer)
 
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community, showing that ugrep is almost always faster than other grep tools
 
-- make ugrep even faster in the near future, see [my latest article](https://www.genivia.com/ugrep.html) and planned optimizations [#288](https://github.com/Genivia/ugrep/issues/288) and [#305](https://github.com/Genivia/ugrep/issues/305)
+- make ugrep even faster, see [my article](https://www.genivia.com/ugrep.html) and planned optimizations [#288](https://github.com/Genivia/ugrep/issues/288)
 
 Overview
 --------
@@ -1429,7 +1429,7 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
 
 ### Boolean query patterns with --bool (-%), --and, --not
 
-    --bool, -%
+    --bool, -%, -%%
             Specifies Boolean query patterns.  A Boolean query pattern is
             composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.
             Spacing between subpatterns is the same as `AND', `|' is the same
@@ -1441,27 +1441,26 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
             lines with (`A' or `B') and (`C' or `D'), --bool 'A AND NOT B'
             matches lines with `A' without `B'.  Quoted subpatterns are matched
             literally as strings.  For example, --bool 'A "AND"|"OR"' matches
-            lines with `A' and also either `AND' or `OR'.  Parenthesis are used
+            lines with `A' and also either `AND' or `OR'.  Parentheses are used
             for grouping.  For example, --bool '(A B)|C' matches lines with `A'
             and `B', or lines with `C'.  Note that all subpatterns in a Boolean
             query pattern are regular expressions, unless -F is specified.
             Options -E, -F, -G, -P and -Z can be combined with --bool to match
             subpatterns as strings or regular expressions (-E is the default.)
-            This option does not apply to -f FILE patterns.  Option --stats
-            displays the search patterns applied.  See also options --and,
+            This option does not apply to -f FILE patterns.  The double short
+            option -%% enables options --files --bool.  Option --stats displays
+            the Boolean search patterns applied.  See also options --and,
             --andnot, --not, --files and --lines.
     --files
-            Apply Boolean queries to match files, the opposite of --lines.  A
-            file matches if all Boolean conditions are satisfied by the lines
-            matched in the file.  For example, --files -e A --and -e B -e C
-            --andnot -e D matches a file if some lines match `A' and some lines
-            match (`B' or `C') and no line in the file matches `D'.  May also
-            be specified as --files --bool 'A B|C -D'.  Option -v cannot be
-            specified with --files.  See also options --and, --andnot, --not,
-            --bool and --lines.
+            Boolean file matching mode, the opposite of --lines.  When combined
+            with option --bool, matches a file if all Boolean conditions are
+            satisfied.  For example, --files --bool 'A B|C -D' matches a file
+            if some lines match `A', and some lines match either `B' or `C',
+            and no line matches `D'.  See also options --and, --andnot, --not,
+            --bool and --lines.  The double short option -%% enables options
+            --files --bool.
     --lines
-            Apply Boolean queries to match lines, the opposite of --files.
-            This is the default Boolean query mode to match specific lines.
+            Boolean line matching mode for option --bool, the default mode.
     --and [[-e] PATTERN] ... -e PATTERN
             Specify additional patterns to match.  Patterns must be specified
             with -e.  Each -e PATTERN following this option is considered an
@@ -3871,8 +3870,9 @@ in markdown:
            The default pattern syntax is an extended form of the POSIX ERE syntax,
            same as option -E (--extended-regexp).  Try ug --help regex for help with
            pattern syntax and how to use logical connectives to specify Boolean
-           search queries with option -% (--bool).  Options -F (--fixed-strings), -G
-           (--basic-regexp) and -P (--perl-regexp) specify other pattern syntaxes.
+           search queries with option -% (--bool) to match lines and -%% (-fB--files
+           --bool) to match files.  Options -F (--fixed-strings), -G (--basic-
+           regexp) and -P (--perl-regexp) specify other pattern syntaxes.
 
            Option -i (--ignore-case) ignores case in ASCII patterns.  Combine with
            option -P for case-insensitive Unicode matching.  Option -j (--smart-
@@ -4010,7 +4010,7 @@ in markdown:
                   zero byte or invalid UTF.  Short options are -a, -I, -U, -W and
                   -X.
 
-           --bool, -%
+           --bool, -%, -%%
                   Specifies Boolean query patterns.  A Boolean query pattern is
                   composed of `AND', `OR', `NOT' operators and grouping with `('
                   `)'.  Spacing between subpatterns is the same as `AND', `|' is the
@@ -4022,16 +4022,17 @@ in markdown:
                   matches lines with (`A' or `B') and (`C' or `D'), --bool 'A AND
                   NOT B' matches lines with `A' without `B'.  Quoted subpatterns are
                   matched literally as strings.  For example, --bool 'A "AND"|"OR"'
-                  matches lines with `A' and also either `AND' or `OR'.  Parenthesis
+                  matches lines with `A' and also either `AND' or `OR'.  Parentheses
                   are used for grouping.  For example, --bool '(A B)|C' matches
                   lines with `A' and `B', or lines with `C'.  Note that all
                   subpatterns in a Boolean query pattern are regular expressions,
                   unless -F is specified.  Options -E, -F, -G, -P and -Z can be
                   combined with --bool to match subpatterns as strings or regular
                   expressions (-E is the default.)  This option does not apply to -f
-                  FILE patterns.  Option --stats displays the search patterns
-                  applied.  See also options --and, --andnot, --not, --files and
-                  --lines.
+                  FILE patterns.  The double short option -%% enables options
+                  --files --bool.  Option --stats displays the Boolean search
+                  patterns applied.  See also options --and, --andnot, --not,
+                  --files and --lines.
 
            --break
                   Adds a line break between results from different files.  This
@@ -4426,8 +4427,7 @@ in markdown:
                   Force output to be line buffered instead of block buffered.
 
            --lines
-                  Apply Boolean queries to match lines, the opposite of --files.
-                  This is the default Boolean mode to match specific lines.
+                  Boolean line matching mode for option --bool, the default mode.
 
            -M MAGIC, --file-magic=MAGIC
                   Only files matching the signature pattern MAGIC are searched.  The
@@ -4503,15 +4503,14 @@ in markdown:
                   displaying the match.  The line number counter is reset for each
                   file processed.
 
-           --files
-                  Apply Boolean queries to match files, the opposite of --lines.  A
-                  file matches if all Boolean conditions are satisfied by the lines
-                  matched in the file.  For example, --files -e A --and -e B -e C
-                  --andnot -e D matches a file if some lines match `A' and some
-                  lines match (`B' or `C') and no line in the file matches `D'.  May
-                  also be specified as --files --bool 'A B|C -D'.  Option -v cannot
-                  be specified with --files.  See also options --and, --andnot,
-                  --not, --bool and --lines.
+           --files, -%%
+                  Boolean file matching mode, the opposite of --lines.  When
+                  combined with option --bool, matches a file if all Boolean
+                  conditions are satisfied.  For example, --files --bool 'A B|C -D'
+                  matches a file if some lines match `A', and some lines match
+                  either `B' or `C', and no line matches `D'.  See also options
+                  --and, --andnot, --not, --bool and --lines.  The double short
+                  option -%% enables options --files --bool.
 
            -P, --perl-regexp
                   Interpret PATTERN as a Perl regular expression using PCRE2.  Note
@@ -5334,7 +5333,7 @@ in markdown:
 
 
 
-    ugrep 4.3.2                     October 25, 2023                        UGREP(1)
+    ugrep 4.3.2                     November 3, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

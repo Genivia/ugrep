@@ -435,7 +435,7 @@ uint32_t Screen::wchar(const char *ptr, const char **endptr)
     return c1;
   }
 
-  if ((c1 & 0xc0) != 0xc0 || c1 <= 0xc1 || c1 > 0xf4)
+  if (c1 < 0xc2 || c1 > 0xf4)
   {
     if (endptr != NULL)
       *endptr = ptr;

@@ -102,14 +102,17 @@ scan:
 find:
   int c1 = got_;
   bool bol = at_bol(); // at begin of line?
+#if !defined(WITH_NO_CODEGEN)
   if (pat_->fsm_ != NULL)
     fsm_.c1 = c1;
+#endif
 #if !defined(WITH_NO_INDENT)
 redo:
 #endif
   lap_.resize(0);
   cap_ = 0;
   bool nul = method == Const::MATCH;
+#if !defined(WITH_NO_CODEGEN)
   if (pat_->fsm_ != NULL)
   {
     DBGLOG("FSM code %p", pat_->fsm_);
@@ -119,7 +122,9 @@ redo:
     nul = fsm_.nul;
     c1 = fsm_.c1;
   }
-  else if (pat_->opc_ != NULL)
+  else
+#endif
+  if (pat_->opc_ != NULL)
   {
     const Pattern::Opcode *pc = pat_->opc_;
     Pattern::Index back = Pattern::Const::IMAX; // where to jump back to

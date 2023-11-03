@@ -958,7 +958,7 @@ install-data-hook:
 		 echo "|                                                      |"; \
 		 echo "| Thank you for using ugrep!                           |"; \
 		 echo "|                                                      |"; \
-		 echo "|             https://github.com/Genivia/ugrep         |"; \
+		 echo "|                             https://ugrep.com        |"; \
 		 echo "|______________________________________________________|";
 
 uninstall-hook:
