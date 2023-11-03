@@ -11,10 +11,10 @@ Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of n
 
 See [how to install ugrep](#install) on your system.  Ugrep is always free.
 
-Website
--------
+New official web site
+---------------------
 
-**[ugrep.com](https://ugrep.com)** has a compact user guide.
+**[ugrep.com](https://ugrep.com)** is the official ugrep web site with a user guide.  This site will always be safe and guaranteed to be ad free and cookie free; ugrep.org forwards to ugrep.com.
 
 Development roadmap
 -------------------
@@ -23,7 +23,7 @@ Development roadmap
 
 - #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 
-- add new and updated features, including [indexing (in beta release state)](https://github.com/Genivia/ugrep-indexer)
+- add new and updated features, including [indexing (beta release)](https://github.com/Genivia/ugrep-indexer)
 
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community, showing that ugrep is almost always faster than other grep tools
 
