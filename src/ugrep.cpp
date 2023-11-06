@@ -4483,6 +4483,7 @@ const Type type_table[] = {
   { "Xml",          "xml,xsd,xsl,xslt,wsdl,rss,svg,ent,plist", NULL,                  "<\\?xml " },
   { "yacc",         "y", NULL,                                                        NULL },
   { "yaml",         "yaml,yml", NULL,                                                 NULL },
+  { "zig",          "zig,zon", NULL,                                                  NULL },
   { NULL,           NULL, NULL,                                                       NULL }
 };
 

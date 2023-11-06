@@ -4636,7 +4636,7 @@ in markdown:
                   `rust', `scala', `scheme', `shell', `Shell', `smalltalk', `sql',
                   `svg', `swift', `tcl', `tex', `text', `tiff', `Tiff', `tt',
                   `typescript', `verilog', `vhdl', `vim', `xml', `Xml', `yacc',
-                  `yaml'.
+                  `yaml', 'zig'.
 
            --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value
