@@ -166,7 +166,7 @@ After this, you may want to test ugrep and install it (optional):
 # define MAX_JOBS 16
 #endif
 
-// limit the job queue size to wait to give the worker threads some slack
+// default limit on the job queue size to wait for worker threads to finish more work
 #ifndef DEFAULT_MAX_JOB_QUEUE_SIZE
 # define DEFAULT_MAX_JOB_QUEUE_SIZE 8192
 #endif
@@ -2172,17 +2172,6 @@ struct Grep {
       queue_work.notify_one();
     }
 
-    // try to add a job to the queue if the queue is not too large
-    bool try_enqueue(const char *pathname, uint16_t cost, size_t slot)
-    {
-      if (todo >= flag_max_queue)
-        return false;
-
-      enqueue(pathname, cost, slot);
-
-      return true;
-    }
-
     // pop a job
     void dequeue(Job& job)
     {
@@ -4095,12 +4084,6 @@ struct GrepWorker : public Grep {
     jobs.enqueue(pathname, cost, slot);
   }
 
-  // submit a job to this worker
-  bool try_submit_job(const char *pathname, uint16_t cost, size_t slot)
-  {
-    return jobs.try_enqueue(pathname, cost, slot);
-  }
-
   // receive a job for this worker, wait until one arrives
   void next_job(Job& job)
   {
@@ -4184,12 +4167,25 @@ void GrepMaster::submit(const char *pathname, uint16_t cost)
       iworker = min_worker;
     }
 
-    // try to submit, if not successful then the queue reached max specified size
+#ifdef WITH_LOCK_FREE_JOB_QUEUE
+
     if (iworker->try_submit_job(pathname, cost, sync.next) || out.eof || out.cancelled())
       break;
 
     // give the worker threads some slack to make progress, then try again
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+#else
+
+    // give the worker threads some slack to make progress when their queues reached a soft max size
+    if (min_todo > flag_max_queue && flag_max_queue > 0)
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    // submit job to worker, do not loop
+    iworker->submit_job(pathname, cost, sync.next);
+    break;
+
+#endif
   }
 
   ++sync.next;
@@ -4535,7 +4531,7 @@ int main(int argc, const char **argv)
     if (!flag_no_messages && Static::warnings > 0)
       abort("option -Q: warnings are present, specify -s to ignore");
 
-    // queue more files than we queue for more optimized searching by default
+    // increase worker threads queue
     flag_max_queue = 65536;
 
     // -Q: TUI query mode

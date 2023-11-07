@@ -1522,11 +1522,10 @@ void Query::search()
 
   select_ = -1;
   select_all_ = false;
+  updated_ = false;
+  tick_ = 4;
 
   draw();
-  status(true);
-
-  updated_ = false;
 }
 
 // display the status line
