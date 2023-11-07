@@ -5,6 +5,8 @@ New ugrep 4.3
 
 Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed beat GNU grep, Silver Searcher, ack, sift, and ripgrep in [nearly all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
 
+[How to install ugrep](#install) and see also [ugrep.com](ugrep.com) for installation and help.
+
 *Option -Q opens a query TUI to search files as you type!*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
