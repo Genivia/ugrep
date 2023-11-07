@@ -9,12 +9,12 @@ Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of n
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-See [how to install ugrep](#install) on your system.  Ugrep is always free.
-
 New official web site
 ---------------------
 
-**[ugrep.com](https://ugrep.com)** is the official ugrep web site with a user guide.  This site will always be safe and guaranteed to be ad free and cookie free; ugrep.org forwards to ugrep.com.
+**[ugrep.com](https://ugrep.com)** is the official new ugrep web site with installation instructions and a user guide.
+
+The ugrep.com site will always be safe and guaranteed to be ad free and cookie free; ugrep.org forwards to ugrep.com.
 
 Development roadmap
 -------------------
@@ -4636,7 +4636,7 @@ in markdown:
                   `rust', `scala', `scheme', `shell', `Shell', `smalltalk', `sql',
                   `svg', `swift', `tcl', `tex', `text', `tiff', `Tiff', `tt',
                   `typescript', `verilog', `vhdl', `vim', `xml', `Xml', `yacc',
-                  `yaml', 'zig'.
+                  `yaml', `zig'.
 
            --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value
@@ -5333,7 +5333,7 @@ in markdown:
 
 
 
-    ugrep 4.3.2                     November 3, 2023                        UGREP(1)
+    ugrep 4.3.2                     November 6, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
