@@ -450,6 +450,9 @@ class zstreambuf : public std::streambuf {
               cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
               num = -1;
               zend_ = true;
+              if (ret < Z_OK) {
+                return false;
+              }
             }
             else
             {
@@ -481,6 +484,9 @@ class zstreambuf : public std::streambuf {
                 cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
                 num = -1;
                 zend_ = true;
+                if (ret < Z_OK) {
+                  return false;
+                }
               }
               else
               {
@@ -507,6 +513,9 @@ class zstreambuf : public std::streambuf {
             {
               cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
               num = -1;
+              if (ret < Z_OK) {
+                return false;
+              }
             }
           }
 
