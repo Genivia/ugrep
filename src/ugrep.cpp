@@ -885,8 +885,11 @@ struct Zthread {
 
       if (thread.joinable())
       {
-        // wake decompression thread in close_wait_zstream_open()
+        // wake decompression thread waiting in close_wait_zstream_open(), there is work to do
         pipe_zstrm.notify_one();
+
+        // wake decompression thread waiting in wait_pipe_ready(), when it encountered an error
+        pipe_ready.notify_one();
       }
       else
       {
@@ -1026,12 +1029,25 @@ struct Zthread {
 
     if (thread.joinable())
     {
-      // decompression thread should terminate, notify decompression thread when it is waiting in close_wait_zstream_open()
       std::unique_lock<std::mutex> lock(pipe_mutex);
+
+      // decompression thread should quit to join
       quit = true;
+
       if (!waiting)
+      {
+        // wait until decompression thread closes the pipe
         pipe_close.wait(lock);
-      pipe_zstrm.notify_one();
+      }
+      else
+      {
+        // wake decompression thread waiting in close_wait_zstream_open(), there is no more work to do
+        pipe_zstrm.notify_one();
+
+        // wake decompression thread waiting in wait_pipe_ready(), when it encountered an error
+        pipe_ready.notify_one();
+      }
+
       lock.unlock();
 
       // now wait for the decomprssion thread to join
@@ -3480,6 +3496,8 @@ struct Grep {
           int fl = fcntl(fd, F_GETFL);
           if (fl >= 0)
             fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+          else
+            clearerr(file_in);
         }
       }
     }
@@ -3892,8 +3910,10 @@ struct Grep {
         // if input is a TTY or pipe, then make stdin nonblocking and register a stdin handler to continue reading and to flush results to output
         if (interactive)
         {
-          fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
-          matcher->in.set_handler(&stdin_handler);
+          if (fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK) == -1)
+            clearerr(stdin);
+          else
+            matcher->in.set_handler(&stdin_handler);
         }
       }
 #endif
