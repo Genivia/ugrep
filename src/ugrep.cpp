@@ -887,9 +887,6 @@ struct Zthread {
       {
         // wake decompression thread waiting in close_wait_zstream_open(), there is work to do
         pipe_zstrm.notify_one();
-
-        // wake decompression thread waiting in wait_pipe_ready(), when it encountered an error
-        pipe_ready.notify_one();
       }
       else
       {
@@ -1043,9 +1040,6 @@ struct Zthread {
       {
         // wake decompression thread waiting in close_wait_zstream_open(), there is no more work to do
         pipe_zstrm.notify_one();
-
-        // wake decompression thread waiting in wait_pipe_ready(), when it encountered an error
-        pipe_ready.notify_one();
       }
 
       lock.unlock();
@@ -1151,67 +1145,70 @@ struct Zthread {
           }
         }
 
+        bool is_selected = false;
+
         // decompress a block of data into the buffer
         std::streamsize len = zstream->decompress(buf, maxlen);
-        if (len < 0)
-          break;
 
-        bool is_selected = true;
-
-        if (!filter_tar(path, buf, maxlen, len, is_selected) &&
-            !filter_cpio(path, buf, maxlen, len, is_selected))
+        if (len >= 0)
         {
-          // not a tar/cpio file, decompress the data into pipe, if not unzipping or if zipped file meets selection criteria
-          is_selected = is_regular && (zipinfo == NULL || select_matching(NULL, path.c_str(), buf, static_cast<size_t>(len), true));
+          is_selected = true;
 
-          if (is_selected)
+          if (!filter_tar(path, buf, maxlen, len, is_selected) &&
+              !filter_cpio(path, buf, maxlen, len, is_selected))
           {
-            // if pipe is closed, then wait until receiver reopens it, break if failed
-            if (!wait_pipe_ready())
+            // not a tar/cpio file, decompress the data into pipe, if not unzipping or if zipped file meets selection criteria
+            is_selected = is_regular && (zipinfo == NULL || select_matching(NULL, path.c_str(), buf, static_cast<size_t>(len), true));
+
+            if (is_selected)
             {
-              // close the input pipe from the next decompression chain stage
-              if (ztchain != NULL && zpipe_in != NULL)
+              // if pipe is closed, then wait until receiver reopens it, break if failed
+              if (!wait_pipe_ready())
               {
-                fclose(zpipe_in);
-                zpipe_in = NULL;
-              }
-              break;
-            }
-
-            // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the new pipe
-            if (ztchain == NULL)
-              partnameref.assign(std::move(path));
-            else if (path.empty())
-              partnameref.assign(partname);
-            else
-              partnameref.assign(partname).append(":").append(std::move(path));
-
-            // notify the receiver of the new partname
-            if (chained)
-            {
-              std::unique_lock<std::mutex> lock(pipe_mutex);
-              assigned = true;
-              part_ready.notify_one();
-              lock.unlock();
-            }
-          }
-
-          // push decompressed data into pipe
-          bool drain = false;
-          while (len > 0 && !stop)
-          {
-            // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join so we drain the rest of the decompressed data
-            if (is_selected && !drain && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
-            {
-              // if no next decompression thread and decompressing a single file (not zip), then stop immediately
-              if (ztchain == NULL && zipinfo == NULL)
+                // close the input pipe from the next decompression chain stage
+                if (ztchain != NULL && zpipe_in != NULL)
+                {
+                  fclose(zpipe_in);
+                  zpipe_in = NULL;
+                }
                 break;
+              }
 
-              drain = true;
+              // assign the Grep::partname (synchronized on pipe_mutex and pipe), before sending to the new pipe
+              if (ztchain == NULL)
+                partnameref.assign(std::move(path));
+              else if (path.empty())
+                partnameref.assign(partname);
+              else
+                partnameref.assign(partname).append(":").append(std::move(path));
+
+              // notify the receiver of the new partname
+              if (chained)
+              {
+                std::unique_lock<std::mutex> lock(pipe_mutex);
+                assigned = true;
+                part_ready.notify_one();
+                lock.unlock();
+              }
             }
 
-            // decompress the next block of data into the buffer
-            len = zstream->decompress(buf, maxlen);
+            // push decompressed data into pipe
+            bool drain = false;
+            while (len > 0 && !stop)
+            {
+              // write buffer data to the pipe, if the pipe is broken then the receiver is waiting for this thread to join so we drain the rest of the decompressed data
+              if (is_selected && !drain && write(pipe_fd[1], buf, static_cast<size_t>(len)) < len)
+              {
+                // if no next decompression thread and decompressing a single file (not zip), then stop immediately
+                if (ztchain == NULL && zipinfo == NULL)
+                  break;
+
+                drain = true;
+              }
+
+              // decompress the next block of data into the buffer
+              len = zstream->decompress(buf, maxlen);
+            }
           }
         }
 
@@ -2096,6 +2093,7 @@ struct Grep {
         // we must lock and wait until the buffer is not full
         std::unique_lock<std::mutex> lock(queue_mutex);
         queue_full.wait(lock);
+        lock.unlock();
       }
 
       job->pathname.assign(pathname);
@@ -2135,6 +2133,7 @@ struct Grep {
         // we must lock and wait until the buffer is not empty
         std::unique_lock<std::mutex> lock(queue_mutex);
         queue_data.wait(lock);
+        lock.unlock();
       }
 
       Job *next = head.load() + 1;
@@ -2170,9 +2169,9 @@ struct Grep {
     void enqueue()
     {
       std::unique_lock<std::mutex> lock(queue_mutex);
-
       emplace_back();
       ++todo;
+      lock.unlock();
 
       queue_work.notify_one();
     }
@@ -2181,9 +2180,9 @@ struct Grep {
     void enqueue(const char *pathname, uint16_t cost, size_t slot)
     {
       std::unique_lock<std::mutex> lock(queue_mutex);
-
       emplace_back(pathname, cost, slot);
       ++todo;
+      lock.unlock();
 
       queue_work.notify_one();
     }
@@ -2207,6 +2206,8 @@ struct Grep {
         job = front();
         pop_front();
       }
+
+      lock.unlock();
     }
 
     // steal a job from this worker, if at least --min-steal jobs to do, returns true if successful
@@ -2225,6 +2226,8 @@ struct Grep {
 
       pop_front();
       --todo;
+
+      lock.unlock();
 
       return true;
     }
@@ -2252,6 +2255,8 @@ struct Grep {
         emplace_back(std::move(job));
 
       ++todo;
+
+      lock.unlock();
 
       queue_work.notify_one();
     }
@@ -8449,6 +8454,7 @@ void Static::set_grep_handle(Grep *grep)
 {
   std::unique_lock<std::mutex> lock(Static::grep_handle_mutex);
   Static::grep_handle = grep;
+  lock.unlock();
 }
 
 // reset the grep handle
@@ -8456,6 +8462,7 @@ void Static::clear_grep_handle()
 {
   std::unique_lock<std::mutex> lock(Static::grep_handle_mutex);
   Static::grep_handle = NULL;
+  lock.unlock();
 }
 
 // cancel the search
@@ -8464,6 +8471,7 @@ void Static::cancel_ugrep()
   std::unique_lock<std::mutex> lock(Static::grep_handle_mutex);
   if (Static::grep_handle != NULL)
     Static::grep_handle->cancel();
+  lock.unlock();
 }
 
 // search the specified files or standard input for pattern matches

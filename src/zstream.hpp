@@ -218,7 +218,7 @@ class zstreambuf : public std::streambuf {
       data = read_num(namelen);
       if (data == NULL)
       {
-        cannot_decompress(pathname_, "an error was detected in the zip compressed data");
+        cannot_decompress(pathname_, "corrupt zip archive");
         return false;
       }
 
@@ -228,7 +228,7 @@ class zstreambuf : public std::streambuf {
       data = read_num(extralen);
       if (data == NULL)
       {
-        cannot_decompress(pathname_, "an error was detected in the zip compressed data");
+        cannot_decompress(pathname_, "corrupt zip archive");
         return false;
       }
 
@@ -448,8 +448,8 @@ class zstreambuf : public std::streambuf {
             if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR)
             {
               cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
-              num = -1;
               zend_ = true;
+              num = -1;
             }
             else
             {
@@ -479,8 +479,8 @@ class zstreambuf : public std::streambuf {
               if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR)
               {
                 cannot_decompress(pathname_, "a zlib decompression error was detected in the zip compressed data");
-                num = -1;
                 zend_ = true;
+                num = -1;
               }
               else
               {
@@ -495,8 +495,8 @@ class zstreambuf : public std::streambuf {
             else
             {
               cannot_decompress(pathname_, "EOF detected in the zip compressed data");
-              num = -1;
               zend_ = true;
+              num = -1;
             }
           }
 
@@ -533,8 +533,8 @@ class zstreambuf : public std::streambuf {
             if (ret != BZ_OK && ret != BZ_STREAM_END)
             {
               cannot_decompress(pathname_, "a bzip2 decompression error was detected in the zip compressed data");
-              num = -1;
               zend_ = true;
+              num = -1;
             }
             else
             {
@@ -564,8 +564,8 @@ class zstreambuf : public std::streambuf {
               if (ret != BZ_OK && ret != BZ_STREAM_END)
               {
                 cannot_decompress(pathname_, "a bzip2 decompression error was detected in the zip compressed data");
-                num = -1;
                 zend_ = true;
+                num = -1;
               }
               else
               {
@@ -580,8 +580,8 @@ class zstreambuf : public std::streambuf {
             else
             {
               cannot_decompress(pathname_, "EOF detected in the zip compressed data");
-              num = -1;
               zend_ = true;
+              num = -1;
             }
           }
 
@@ -613,8 +613,8 @@ class zstreambuf : public std::streambuf {
           if (ZSTD_isError(ret))
           {
             cannot_decompress(pathname_, "an error was detected in the zstd compressed data");
-            num = -1;
             zend_ = true;
+            num = -1;
           }
           else
           {
@@ -633,8 +633,8 @@ class zstreambuf : public std::streambuf {
             if (ZSTD_isError(ret))
             {
               cannot_decompress(pathname_, "an error was detected in the zstd compressed data");
-              num = -1;
               zend_ = true;
+              num = -1;
             }
             else
             {
@@ -645,8 +645,8 @@ class zstreambuf : public std::streambuf {
           else
           {
             cannot_decompress(pathname_, "EOF detected in the zip compressed data");
-            num = -1;
             zend_ = true;
+            num = -1;
           }
         }
       }
@@ -669,8 +669,8 @@ class zstreambuf : public std::streambuf {
           if (ret != LZMA_OK && ret != LZMA_STREAM_END)
           {
             cannot_decompress(pathname_, "a lzma decompression error was detected in the zip compressed data");
-            num = -1;
             zend_ = true;
+            num = -1;
           }
           else
           {
@@ -700,8 +700,8 @@ class zstreambuf : public std::streambuf {
             if (ret != LZMA_OK && ret != LZMA_STREAM_END)
             {
               cannot_decompress(pathname_, "a lzma decompression error was detected in the zip compressed data");
-              num = -1;
               zend_ = true;
+              num = -1;
             }
             else
             {
@@ -712,8 +712,8 @@ class zstreambuf : public std::streambuf {
           else
           {
             cannot_decompress(pathname_, "EOF detected in the zip compressed data");
-            num = -1;
             zend_ = true;
+            num = -1;
           }
         }
         
@@ -740,8 +740,8 @@ class zstreambuf : public std::streambuf {
           else
           {
             cannot_decompress(pathname_, "EOF detected in the zip compressed data");
-            num = -1;
             zend_ = true;
+            num = -1;
           }
         }
 
@@ -767,7 +767,10 @@ class zstreambuf : public std::streambuf {
         {
           // read data descriptor data and check descriptor magic
           const unsigned char *data = read_num(16);
-          if (data == NULL || u32(data) != ZIP_DESCRIPTOR_MAGIC)
+          if (data == NULL)
+            return false;
+
+          if (u32(data) != ZIP_DESCRIPTOR_MAGIC)
           {
             cannot_decompress(pathname_, "an error was detected in the zip compressed data");
             return false;
@@ -845,17 +848,17 @@ class zstreambuf : public std::streambuf {
       memmove(zbuf_, zbuf_ + zcur_, zlen_);
       zcur_ = 0;
       size_t ret = fread(zbuf_ + zlen_, 1, ZIPBLOCK - zlen_, file_);
-      if (ret > 0)
+      zlen_ += ret;
+      if (zlen_ >= num)
       {
-        zlen_ += ret;
-        if (zlen_ >= num)
-        {
-          zcur_ = num;
-          return zbuf_;
-        }
+        zcur_ = num;
+        return zbuf_;
       }
 
-      warning("cannot read", pathname_);
+      if (ferror(file_))
+        warning("cannot read", pathname_);
+      else
+        cannot_decompress(pathname_, "an error was detected in the zip compressed data");
       return NULL;
     }
 
@@ -1567,6 +1570,7 @@ class zstreambuf : public std::streambuf {
           {
             warning("cannot read", pathname_);
             zfile_->zend = true;
+            num = -1;
           }
           else
           {
@@ -1677,6 +1681,7 @@ class zstreambuf : public std::streambuf {
           {
             warning("cannot read", pathname_);
             bzfile_->zend = true;
+            num = -1;
           }
           else
           {
@@ -1769,6 +1774,7 @@ class zstreambuf : public std::streambuf {
         {
           warning("cannot read", pathname_);
           xzfile_->zend = true;
+          num = -1;
         }
         else
         {
@@ -1884,12 +1890,14 @@ class zstreambuf : public std::streambuf {
                     break;
                   size -= ret;
                 }
+
                 if (size > 0)
                 {
                   warning("cannot read", pathname_);
                   num = -1;
                   break;
                 }
+
                 lz4file_->zloc = lz4file_->zlen = 0;
               }
               else
@@ -2090,6 +2098,7 @@ class zstreambuf : public std::streambuf {
           {
             warning("cannot read", pathname_);
             zstdfile_->zend = true;
+            num = -1;
           }
           else
           {
@@ -2124,7 +2133,7 @@ class zstreambuf : public std::streambuf {
 #endif
     else if (zipinfo_ != NULL)
     {
-      // decompress a zip compressed block into the guven buf[]
+      // decompress a zip compressed block into the given buf[]
       num = zipinfo_->decompress(buf, len);
 
       // there was an error?
