@@ -81,6 +81,11 @@ typedef ZSTD_DStream zstd_stream;
 struct zstd_stream;
 #endif
 
+// if we have libbrotlidec
+#ifdef HAVE_LIBBROTLI
+#include <brotli/decode.h>
+#endif
+
 // zip decompression crc check disabled as this is too slow, we should optimize crc32() with a table
 // use zip crc integrity check at the cost of a significant slow down?
 // #define WITH_ZIP_CRC32
@@ -922,6 +927,12 @@ class zstreambuf : public std::streambuf {
     return has_ext(pathname, ".zst.zstd.tzst");
   }
 
+  // return true if pathname has a br filename extension
+  static bool is_br(const char *pathname)
+  {
+    return has_ext(pathname, ".br");
+  }
+
   // return true if pathname has a (tar) compress (Z) filename extension
   static bool is_Z(const char *pathname)
   {
@@ -972,6 +983,7 @@ class zstreambuf : public std::streambuf {
       xzfile_(NULL),
       lz4file_(NULL),
       zstdfile_(NULL),
+      brfile_(NULL),
       zipinfo_(NULL),
       cur_(0),
       len_(0)
@@ -988,6 +1000,7 @@ class zstreambuf : public std::streambuf {
       xzfile_(NULL),
       lz4file_(NULL),
       zstdfile_(NULL),
+      brfile_(NULL),
       zipinfo_(NULL),
       cur_(0),
       len_(0)
@@ -1101,6 +1114,25 @@ class zstreambuf : public std::streambuf {
       try
       {
         zstdfile_ = new ZSTD();
+      }
+
+      catch (const std::bad_alloc&)
+      {
+        cannot_decompress(pathname_, "out of memory");
+        file_ = NULL;
+      }
+#else
+      cannot_decompress("unsupported compression format", pathname);
+      file_ = NULL;
+#endif
+    }
+    else if (is_br(pathname))
+    {
+#ifdef HAVE_LIBBROTLI
+      // open brotli compressed file
+      try
+      {
+        brfile_ = new BR();
       }
 
       catch (const std::bad_alloc&)
@@ -1265,6 +1297,14 @@ class zstreambuf : public std::streambuf {
       // close zstd compressed file
       delete zstdfile_;
       zstdfile_ = NULL;
+    }
+#endif
+#ifdef HAVE_LIBBROTLI
+    else if (brfile_ != NULL)
+    {
+      // close brotli compressed file
+      delete brfile_;
+      brfile_ = NULL;
     }
 #endif
     else if (zipinfo_ != NULL)
@@ -1528,6 +1568,47 @@ class zstreambuf : public std::streambuf {
 
   // unused zstd file handle
   typedef void *zstdFile;
+
+#endif
+
+#ifdef HAVE_LIBBROTLI
+
+  // brotli decompression state data
+  struct BR {
+
+    BR()
+      : strm(BrotliDecoderCreateInstance(NULL, NULL, NULL)),
+        next_in(NULL),
+        avail_in(0),
+        next_out(NULL),
+        avail_out(0),
+        zlen(0),
+        zend(false)
+    { }
+
+    ~BR()
+    {
+      BrotliDecoderDestroyInstance(strm);
+    }
+
+    BrotliDecoderState *strm; // brotli decompression stream state
+    const uint8_t      *next_in;
+    size_t              avail_in;
+    uint8_t            *next_out;
+    size_t              avail_out;
+    unsigned char       zbuf[Z_BUF_LEN];
+    size_t              zlen;
+    bool                zend;
+
+  };
+
+  // brotli file handle
+  typedef struct BR *brotliFile;
+
+#else
+
+  // unused brotli file handle
+  typedef void *brotliFile;
 
 #endif
 
@@ -2131,6 +2212,86 @@ class zstreambuf : public std::streambuf {
       }
     }
 #endif
+#ifdef HAVE_LIBBROTLI
+    else if (brfile_ != NULL)
+    {
+      while (true)
+      {
+        BrotliDecoderResult ret = BROTLI_DECODER_RESULT_SUCCESS;
+
+        // decompress non-empty brfile_->zbuf[] into the given buf[]
+        if (brfile_->avail_out == 0)
+        {
+          brfile_->next_out  = buf;
+          brfile_->avail_out = len;
+
+          ret = BrotliDecoderDecompressStream(brfile_->strm, &brfile_->avail_in, &brfile_->next_in, &brfile_->avail_out, &brfile_->next_out, NULL);
+
+          if (ret == BROTLI_DECODER_RESULT_ERROR)
+          {
+            cannot_decompress(pathname_, "an error was detected in the brotli compressed data");
+            num = -1;
+          }
+          else
+          {
+            num = len - brfile_->avail_out;
+          }
+        }
+
+        // read compressed data into brfile_->zbuf[] and decompress brfile_->zbuf[] into the given buf[]
+        if (ret != BROTLI_DECODER_RESULT_ERROR && brfile_->avail_in == 0 && num < static_cast<std::streamsize>(len) && !brfile_->zend)
+        {
+          brfile_->zlen = fread(brfile_->zbuf, 1, Z_BUF_LEN, file_);
+
+          if (ferror(file_))
+          {
+            warning("cannot read", pathname_);
+            brfile_->zend = true;
+            num = -1;
+          }
+          else
+          {
+            if (feof(file_))
+              brfile_->zend = true;
+
+            brfile_->next_in  = brfile_->zbuf;
+            brfile_->avail_in = brfile_->zlen;
+
+            if (num == 0)
+            {
+              brfile_->next_out  = buf;
+              brfile_->avail_out = len;
+            }
+
+            ret = BrotliDecoderDecompressStream(brfile_->strm, &brfile_->avail_in, &brfile_->next_in, &brfile_->avail_out, &brfile_->next_out, NULL);
+
+            if (ret == BROTLI_DECODER_RESULT_ERROR)
+            {
+              cannot_decompress(pathname_, "an error was detected in the brotli compressed data");
+              num = -1;
+            }
+            else
+            {
+              num = len - brfile_->avail_out;
+
+              if (num == 0 && ret != BROTLI_DECODER_RESULT_ERROR)
+                continue;
+            }
+          }
+        }
+
+        // decompressed the last block or there was an error?
+        if (num <= 0)
+        {
+          delete brfile_;
+          brfile_ = NULL;
+          file_ = NULL;
+        }
+
+        break;
+      }
+    }
+#endif
     else if (zipinfo_ != NULL)
     {
       // decompress a zip compressed block into the given buf[]
@@ -2241,6 +2402,7 @@ class zstreambuf : public std::streambuf {
   xzFile          xzfile_;         // xz/lzma file handle
   lz4File         lz4file_;        // lz4 file handle
   zstdFile        zstdfile_;       // zstd file handle
+  brotliFile      brfile_;         // brotli file handle
   ZipInfo        *zipinfo_;        // zip file and zip info handle
   unsigned char   buf_[Z_BUF_LEN]; // buffer with decompressed stream data
   std::streamsize cur_;            // current position in buffer to read the stream data, less or equal to len_
