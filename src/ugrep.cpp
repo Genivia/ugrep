@@ -47,12 +47,13 @@ This program uses RE/flex:
 
 Optional libraries to support options -P and -z:
 
-  -P: PCRE2 or Boost.Regex
+  -P: PCRE2 (or Boost.Regex)
   -z: zlib (.gz)
-  -z: libbz2 (.bz, bz2, .bzip2)
-  -z: liblzma (.lzma, .xz)
-  -z: liblz4 (.lz4)
-  -z: libzstd (.zst, .zstd)
+  -z: bz2 (.bz, bz2, .bzip2)
+  -z: lzma (.lzma, .xz)
+  -z: lz4 (.lz4)
+  -z: zstd (.zst, .zstd)
+  -z: brotli (.br)
 
 Build ugrep as follows:
 
@@ -119,6 +120,9 @@ After this, you may want to test ugrep and install it (optional):
 
 // optionally enable libzstd for -z
 // #define HAVE_LIBZSTD
+
+// optionally enable brotli library for -z
+// #define HAVE_LIBBROTLI
 
 #include <stringapiset.h>       // internationalization
 #include <direct.h>             // directory access
@@ -996,7 +1000,7 @@ struct Zthread {
         // notify the decompression thread filter_tar/filter_cpio of the closed pipe
         pipe_ready.notify_one();
 
-        // when an error occurred, we should still need to notify the receiver in case it is waiting on the partname
+        // when an error occurred, we still need to notify the receiver in case it is waiting on the partname
         std::unique_lock<std::mutex> lock(pipe_mutex);
         assigned = true;
         part_ready.notify_one();
@@ -1248,7 +1252,7 @@ struct Zthread {
 
       extracting = false;
 
-      // when an error occurred or nothing was selected, then we may still need to notify the receiver in case it is waiting on the partname
+      // when an error occurred or nothing was selected, then we still need to notify the receiver in case it is waiting on the partname
       if (chained)
       {
         std::unique_lock<std::mutex> lock(pipe_mutex);
@@ -4628,7 +4632,7 @@ static void set_depth_long(const char *arg)
 {
   const char *range = arg;
   set_depth(range);
-  
+
   if (range[1] != '\0')
     usage("invalid argument --depth=", arg);
 }
@@ -7060,14 +7064,6 @@ void terminal()
         if (flag_tree.is_undefined())
           flag_tree = true;
       }
-      else if (flag_apply_color != NULL)
-      {
-        // --colors: if output is to a TTY then enable --color and use the specified --colors
-
-        // enable --color
-        if (flag_apply_color == NULL)
-          flag_apply_color = "auto";
-      }
 
       if (flag_query)
       {
@@ -7544,6 +7540,12 @@ void ugrep()
     flag_all_include.emplace_back("*.pax.zstd");
     flag_all_include.emplace_back("*.tar.zstd");
     flag_all_include.emplace_back("*.tzst");
+#endif
+
+#ifdef HAVE_LIBBROTLI
+    flag_all_include.emplace_back("*.cpio.br");
+    flag_all_include.emplace_back("*.pax.br");
+    flag_all_include.emplace_back("*.tar.br");
 #endif
   }
 #endif
@@ -13844,6 +13846,10 @@ void help(std::ostream& out)
             ",\n\
             zstd (requires suffix .zst, .zstd, .tzst)"
 #endif
+#ifdef HAVE_LIBBROTLI
+            ",\n\
+            brotli (requires suffix .br)"
+#endif
             ".\n"
 #endif
             "\
@@ -14248,6 +14254,9 @@ void version()
 #endif
 #ifdef HAVE_LIBZSTD
     ",zstd" <<
+#endif
+#ifdef HAVE_LIBBROTLI
+    ",brotli" <<
 #endif
 #endif
     "\n"

@@ -28,7 +28,7 @@ else
   have_pcre2=no
 fi
 
-echo "Have libpcre2?" $have_pcre2
+printf "Have libpcre2?  %3s (recommended)\n" $have_pcre2
 
 if test "$have_pcre2" = "no" ; then
   if $UG -Fq 'HAVE_BOOST_REGEX 1' "$CONFIGH" ; then
@@ -37,7 +37,7 @@ if test "$have_pcre2" = "no" ; then
     have_boost_regex=no
   fi
 
-  echo "Have libboost_regex?" $have_boost_regex
+  printf "Have libboost_regex? %s (optional)\n" $have_boost_regex
 fi
 
 if $UG -Fq 'HAVE_LIBZ 1' "$CONFIGH" ; then
@@ -46,7 +46,7 @@ else
   have_libz=no
 fi
 
-echo "Have libz?" $have_libz
+printf "Have libz?      %3s (recommended)\n" $have_libz
 
 if $UG -Fq 'HAVE_LIBBZ2 1' "$CONFIGH" ; then
   have_libbz2=yes
@@ -54,7 +54,7 @@ else
   have_libbz2=no
 fi
 
-echo "Have libbz2?" $have_libbz2
+printf "Have libbz2?    %3s (recommended)\n" $have_libbz2
 
 if $UG -Fq 'HAVE_LIBLZMA 1' "$CONFIGH" ; then
   have_liblzma=yes
@@ -62,7 +62,7 @@ else
   have_liblzma=no
 fi
 
-echo "Have liblzma?" $have_liblzma
+printf "Have liblzma?   %3s (recommended)\n" $have_liblzma
 
 if $UG -Fq 'HAVE_LIBLZ4 1' "$CONFIGH" ; then
   have_liblz4=yes
@@ -70,7 +70,7 @@ else
   have_liblz4=no
 fi
 
-echo "Have liblz4?" $have_liblz4
+printf "Have liblz4?    %3s (optional)\n" $have_liblz4
 
 if $UG -Fq 'HAVE_LIBZSTD 1' "$CONFIGH" ; then
   have_libzstd=yes
@@ -78,7 +78,15 @@ else
   have_libzstd=no
 fi
 
-echo "Have libzstd?" $have_libzstd
+printf "Have libzstd?   %3s (optional)\n" $have_libzstd
+
+if $UG -Fq 'HAVE_LIBBROTLI 1' "$CONFIGH" ; then
+  have_libbrotli=yes
+else
+  have_libbrotli=no
+fi
+
+printf "Have libbrotli? %3s (optional)\n" $have_libbrotli
 
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
@@ -366,6 +374,10 @@ if [ "$have_libzstd" == yes ]; then
 printf .
 $UG -z -c Hello archive.tzst    | $DIFF out/archive.tzst.out    || ERR "-z -c Hello archive.tzst"
 fi
+if [ "$have_libbrotli" == yes ]; then
+printf .
+$UG -z -c Hello archive.tar.br  | $DIFF out/archive.tar.br.out  || ERR "-z -c Hello archive.tar.br"
+fi
 fi
 
 if [ "$have_libz" == yes ]; then
@@ -400,6 +412,10 @@ fi
 if [ "$have_libzstd" == yes ]; then
 printf .
 $UG -z -c -tShell Hello archive.tzst    | $DIFF out/archive-t.tzst.out    || ERR "-z -c -tShell Hello archive.tzst"
+fi
+if [ "$have_libbrotli" == yes ]; then
+printf .
+$UG -z -c -tShell Hello archive.tar.br  | $DIFF out/archive-t.tar.br.out  || ERR "-z -c -tShell Hello archive.tar.br"
 fi
 fi
 

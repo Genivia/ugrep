@@ -1247,6 +1247,7 @@ AC_SUBST([am__untar])
 ]) # _AM_PROG_TAR
 
 m4_include([m4/ax_boost_regex.m4])
+m4_include([m4/ax_check_brotlilib.m4])
 m4_include([m4/ax_check_bzlib.m4])
 m4_include([m4/ax_check_lz4lib.m4])
 m4_include([m4/ax_check_lzmalib.m4])

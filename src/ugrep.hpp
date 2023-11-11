@@ -401,7 +401,7 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 # define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
 #endif
 
-// pretty is disabled by default, unless enabled with WITH_PRETTY
+// pretty is disabled by default for ugrep (enabled by ug), unless enabled with WITH_PRETTY
 #ifdef WITH_PRETTY
 # define DEFAULT_PRETTY true
 #else

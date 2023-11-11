@@ -144,15 +144,16 @@ rm -f archive.*
 ls $FILES | cpio -o --quiet > archive.cpio
 ls $FILES | pax -w -f archive.pax
 tar cf archive.tar $FILES
-compress -c archive.tar > archive.tZ
-gzip  -9 -c archive.tar > archive.tgz
-bzip2 -9 -c archive.tar > archive.tbz
-lzma  -9 -c archive.tar > archive.tlz
-xz    -9 -c archive.tar > archive.txz
-lz4   -9 -c archive.tar > archive.tar.lz4
-zstd  -9 -c archive.tar > archive.tzst
-zip   -9 -q archive.tar.zip archive.tar
-zip   -9 -q archive.zip $FILES
+compress  -c archive.tar > archive.tZ
+gzip   -9 -c archive.tar > archive.tgz
+bzip2  -9 -c archive.tar > archive.tbz
+lzma   -9 -c archive.tar > archive.tlz
+xz     -9 -c archive.tar > archive.txz
+lz4    -9 -c archive.tar > archive.tar.lz4
+zstd   -9 -c archive.tar > archive.tzst
+brotli -9 -c archive.tar > archive.tar.br
+zip    -9 -q archive.tar.zip archive.tar
+zip    -9 -q archive.zip $FILES
 
 tar cfz archive2.tgz archive.tar $FILES archive.tgz
 tar cfz archive3.tgz archive.tgz $FILES archive2.tgz
@@ -169,6 +170,7 @@ $UG -z -c Hello archive.tlz     > out/archive.tlz.out
 $UG -z -c Hello archive.txz     > out/archive.txz.out
 $UG -z -c Hello archive.tar.lz4 > out/archive.tar.lz4.out
 $UG -z -c Hello archive.tzst    > out/archive.tzst.out
+$UG -z -c Hello archive.tar.br  > out/archive.tar.br.out
 
 $UG -z -c -tShell Hello archive.cpio    > out/archive-t.cpio.out
 $UG -z -c -tShell Hello archive.pax     > out/archive-t.pax.out
@@ -182,6 +184,7 @@ $UG -z -c -tShell Hello archive.tlz     > out/archive-t.tlz.out
 $UG -z -c -tShell Hello archive.txz     > out/archive-t.txz.out
 $UG -z -c -tShell Hello archive.tar.lz4 > out/archive-t.tar.lz4.out
 $UG -z -c -tShell Hello archive.tzst    > out/archive-t.tzst.out
+$UG -z -c -tShell Hello archive.tar.br  > out/archive-t.tar.br.out
 
 $UG --zmax=2 -z -c Hello archive2.tgz         > out/archive2.tgz.out
 $UG --zmax=3 -z -c Hello archive3.tgz         > out/archive3.tgz.out

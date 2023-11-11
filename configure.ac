@@ -78,6 +78,8 @@ AX_CHECK_LZ4LIB([], [echo "liblz4 not found: ugrep option -z won't decompress .l
 
 AX_CHECK_ZSTDLIB([], [echo "libzstd not found: ugrep option -z won't decompress .zst files"])
 
+AX_CHECK_BROTLILIB([], [echo "brotli library not found: ugrep option -z won't decompress .br files"])
+
 AC_ARG_WITH(grep-path,
   [AS_HELP_STRING([--with-grep-path=GREP_PATH],
                   [specifies the GREP_PATH if different than the default DATAROOTDIR/ugrep/patterns])],
