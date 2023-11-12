@@ -777,7 +777,8 @@ with_bzlib
 with_lzma
 with_lz4
 with_zstd
-with_brotlilib
+with_brotli
+with_bzip3
 with_grep_path
 with_grep_colors
 enable_auto_color
@@ -1477,10 +1478,14 @@ Optional Packages:
   --with-zstd=DIR         root directory path of zstd installation [defaults to
                           /usr/local or /usr if not found in /usr/local]
   --without-zstd          to disable zstd usage completely
-  --with-brotlilib=DIR    root directory path of brotli library installation
+  --with-brotli=DIR       root directory path of brotli library installation
                           [defaults to /usr/local or /usr if not found in
                           /usr/local]
-  --without-brotlilib     to disable brotli library usage completely
+  --without-brotli        to disable brotli library usage completely
+  --with-bzip3=DIR        root directory path of bzip3 library installation
+                          [defaults to /usr/local or /usr if not found in
+                          /usr/local]
+  --without-bzip3         to disable bzip3 library usage completely
   --with-grep-path=GREP_PATH
                           specifies the GREP_PATH if different than the
                           default DATAROOTDIR/ugrep/patterns
@@ -7871,16 +7876,16 @@ then
   # check the user supplied or any other more or less 'standard' place:
   #   Most UNIX systems      : /usr/local and /usr
   #   MacPorts / Fink on OSX : /opt/local respectively /sw
-  for BZLIB_HOME in ${bzlib_places} ; do
-    if test -f "${BZLIB_HOME}/include/bzlib.h"; then break; fi
-    BZLIB_HOME=""
+  for B2ZLIB_HOME in ${bzlib_places} ; do
+    if test -f "${B2ZLIB_HOME}/include/bzlib.h"; then break; fi
+    B2ZLIB_HOME=""
   done
 
-  BZLIB_OLD_LDFLAGS=$LDFLAGS
-  BZLIB_OLD_CPPFLAGS=$CPPFLAGS
-  if test -n "${BZLIB_HOME}"; then
-    LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
-    CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
+  B2ZLIB_OLD_LDFLAGS=$LDFLAGS
+  B2ZLIB_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${B2ZLIB_HOME}"; then
+    LDFLAGS="$LDFLAGS -L${B2ZLIB_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${B2ZLIB_HOME}/include"
   fi
   ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -7950,8 +7955,8 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
     # If both library and header were found, action-if-found
     #
 
-                CPPFLAGS="$CPPFLAGS -I${BZLIB_HOME}/include"
-                LDFLAGS="$LDFLAGS -L${BZLIB_HOME}/lib"
+                CPPFLAGS="$CPPFLAGS -I${B2ZLIB_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${B2ZLIB_HOME}/lib"
                 LIBS="-lbz2 $LIBS"
 
 printf "%s\n" "#define HAVE_LIBBZ2 1" >>confdefs.h
@@ -8368,25 +8373,25 @@ fi
 #
 # Handle user hints
 #
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if brotlilib is wanted" >&5
-printf %s "checking if brotlilib is wanted... " >&6; }
-brotlilib_places="/usr/local /usr /opt/homebrew /opt/local /sw"
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if brotli is wanted" >&5
+printf %s "checking if brotli is wanted... " >&6; }
+brotli_places="/usr/local /usr /opt/homebrew /opt/local /sw"
 
-# Check whether --with-brotlilib was given.
-if test ${with_brotlilib+y}
+# Check whether --with-brotli was given.
+if test ${with_brotli+y}
 then :
-  withval=$with_brotlilib; if test "$withval" != "no" ; then
+  withval=$with_brotli; if test "$withval" != "no" ; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
   if test -d "$withval"
   then
-    brotlilib_places="$withval $brotlilib_places"
+    brotli_places="$withval $brotli_places"
   else
     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
 printf "%s\n" "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
   fi
 else
-  brotlilib_places=""
+  brotli_places=""
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
 fi
@@ -8396,23 +8401,23 @@ printf "%s\n" "yes" >&6; }
 fi
 
 #
-# Locate brotlilib, if wanted
+# Locate brotli, if wanted
 #
-if test -n "${brotlilib_places}"
+if test -n "${brotli_places}"
 then
   # check the user supplied or any other more or less 'standard' place:
   #   Most UNIX systems      : /usr/local and /usr
   #   MacPorts / Fink on OSX : /opt/local respectively /sw
-  for BROTLILIB_HOME in ${brotlilib_places} ; do
+  for BROTLI_HOME in ${brotli_places} ; do
     if test -f "${BROTLILIB_HOME}/include/brotli/decode.h"; then break; fi
-    BROTLILIB_HOME=""
+    BROTLI_HOME=""
   done
 
-  BROTLILIB_OLD_LDFLAGS=$LDFLAGS
-  BROTLILIB_OLD_CPPFLAGS=$CPPFLAGS
-  if test -n "${BROTLILIB_HOME}"; then
-    LDFLAGS="$LDFLAGS -L${BROTLILIB_HOME}/lib"
-    CPPFLAGS="$CPPFLAGS -I${BROTLILIB_HOME}/include"
+  BROTLI_OLD_LDFLAGS=$LDFLAGS
+  BROTLI_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${BROTLI_HOME}"; then
+    LDFLAGS="$LDFLAGS -L${BROTLI_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${BROTLI_HOME}/include"
   fi
   ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -8457,17 +8462,17 @@ fi
 printf "%s\n" "$ac_cv_lib_brotlidec_BrotliDecoderCreateInstance" >&6; }
 if test "x$ac_cv_lib_brotlidec_BrotliDecoderCreateInstance" = xyes
 then :
-  brotlilib_cv_libbrotli=yes
+  brotli_cv_libbrotli=yes
 else $as_nop
-  brotlilib_cv_libbrotli=no
+  brotli_cv_libbrotli=no
 fi
 
   ac_fn_c_check_header_compile "$LINENO" "brotli/decode.h" "ac_cv_header_brotli_decode_h" "$ac_includes_default"
 if test "x$ac_cv_header_brotli_decode_h" = xyes
 then :
-  brotlilib_cv_brotli_h=yes
+  brotli_cv_brotli_h=yes
 else $as_nop
-  brotlilib_cv_brotli_h=no
+  brotli_cv_brotli_h=no
 fi
 
   ac_ext=cpp
@@ -8476,14 +8481,14 @@ ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
-  if test "$brotlilib_cv_libbrotli" = "yes" && test "$brotlilib_cv_brotli_h" = "yes"
+  if test "$brotli_cv_libbrotli" = "yes" && test "$brotli_cv_brotli_h" = "yes"
   then
     #
     # If both library and header were found, action-if-found
     #
 
-                CPPFLAGS="$CPPFLAGS -I${BROTLILIB_HOME}/include"
-                LDFLAGS="$LDFLAGS -L${BROTLILIB_HOME}/lib"
+                CPPFLAGS="$CPPFLAGS -I${BROTLI_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${BROTLI_HOME}/lib"
                 LIBS="-lbrotlidec -lbrotlienc $LIBS"
 
 printf "%s\n" "#define HAVE_LIBBROTLI 1" >>confdefs.h
@@ -8494,6 +8499,139 @@ printf "%s\n" "#define HAVE_LIBBROTLI 1" >>confdefs.h
     # If either header or library was not found, action-if-not-found
     #
     echo "brotli library not found: ugrep option -z won't decompress .br files"
+  fi
+fi
+
+
+#
+# Handle user hints
+#
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if bzip3 is wanted" >&5
+printf %s "checking if bzip3 is wanted... " >&6; }
+bzip3_places="/usr/local /usr /opt/homebrew /opt/local /sw"
+
+# Check whether --with-bzip3 was given.
+if test ${with_bzip3+y}
+then :
+  withval=$with_bzip3; if test "$withval" != "no" ; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+  if test -d "$withval"
+  then
+    bzip3_places="$withval $bzip3_places"
+  else
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Sorry, $withval does not exist, checking usual places" >&5
+printf "%s\n" "$as_me: WARNING: Sorry, $withval does not exist, checking usual places" >&2;}
+  fi
+else
+  bzip3_places=""
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+else $as_nop
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+fi
+
+#
+# Locate bzip3 library, if wanted
+#
+if test -n "${bzip3_places}"
+then
+  # check the user supplied or any other more or less 'standard' place:
+  #   Most UNIX systems      : /usr/local and /usr
+  #   MacPorts / Fink on OSX : /opt/local respectively /sw
+  for BZIP3_HOME in ${bzip3_places} ; do
+    if test -f "${BZIP3_HOME}/include/libbz3.h"; then break; fi
+    BZIP3_HOME=""
+  done
+
+  BZIP3_OLD_LDFLAGS=$LDFLAGS
+  BZIP3_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${BZIP3_HOME}"; then
+    LDFLAGS="$LDFLAGS -L${BZIP3_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${BZIP3_HOME}/include"
+  fi
+  ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for bz3_new in -lbzip3" >&5
+printf %s "checking for bz3_new in -lbzip3... " >&6; }
+if test ${ac_cv_lib_bzip3_bz3_new+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbzip3  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char bz3_new ();
+int
+main (void)
+{
+return bz3_new ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_bzip3_bz3_new=yes
+else $as_nop
+  ac_cv_lib_bzip3_bz3_new=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bzip3_bz3_new" >&5
+printf "%s\n" "$ac_cv_lib_bzip3_bz3_new" >&6; }
+if test "x$ac_cv_lib_bzip3_bz3_new" = xyes
+then :
+  bzip3_cv_libbzip3=yes
+else $as_nop
+  bzip3_cv_libbzip3=no
+fi
+
+  ac_fn_c_check_header_compile "$LINENO" "libbz3.h" "ac_cv_header_libbz3_h" "$ac_includes_default"
+if test "x$ac_cv_header_libbz3_h" = xyes
+then :
+  bzip3_cv_libbz3_h=yes
+else $as_nop
+  bzip3_cv_libbz3_h=no
+fi
+
+  ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+  if test "$bzip3_cv_libbzip3" = "yes" && test "$bzip3_cv_libbz3_h" = "yes"
+  then
+    #
+    # If both library and header were found, action-if-found
+    #
+
+                CPPFLAGS="$CPPFLAGS -I${BZIP3_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${BZIP3_HOME}/lib"
+                LIBS="-lbzip3 $LIBS"
+
+printf "%s\n" "#define HAVE_LIBBZIP3 1" >>confdefs.h
+
+
+  else
+    #
+    # If either header or library was not found, action-if-not-found
+    #
+    echo "libbzip3 not found: ugrep option -z won't decompress .bz3 files"
   fi
 fi
 

@@ -88,6 +88,14 @@ fi
 
 printf "Have libbrotli? %3s (optional)\n" $have_libbrotli
 
+if $UG -Fq 'HAVE_LIBBZIP3 1' "$CONFIGH" ; then
+  have_libbzip3=yes
+else
+  have_libbzip3=no
+fi
+
+printf "Have libbzip3?  %3s (optional)\n" $have_libbzip3
+
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
 function ERR() {
@@ -378,6 +386,10 @@ if [ "$have_libbrotli" == yes ]; then
 printf .
 $UG -z -c Hello archive.tar.br  | $DIFF out/archive.tar.br.out  || ERR "-z -c Hello archive.tar.br"
 fi
+if [ "$have_libbzip3" == yes ]; then
+printf .
+$UG -z -c Hello archive.tar.bz3 | $DIFF out/archive.tar.bz3.out || ERR "-z -c Hello archive.tar.bz3"
+fi
 fi
 
 if [ "$have_libz" == yes ]; then
@@ -416,6 +428,10 @@ fi
 if [ "$have_libbrotli" == yes ]; then
 printf .
 $UG -z -c -tShell Hello archive.tar.br  | $DIFF out/archive-t.tar.br.out  || ERR "-z -c -tShell Hello archive.tar.br"
+fi
+if [ "$have_libbzip3" == yes ]; then
+printf .
+$UG -z -c -tShell Hello archive.tar.bz3 | $DIFF out/archive-t.tar.bz3.out || ERR "-z -c -tShell Hello archive.tar.bz3"
 fi
 fi
 

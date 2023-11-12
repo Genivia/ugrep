@@ -70,7 +70,7 @@ fi
 
 AX_CHECK_ZLIB([], [echo "zlib not found: ugrep option -z is not available"])
 
-AX_CHECK_BZLIB([], [echo "libbz2 not found: ugrep option -z won't decompress .bz and .bz2 files"])
+AX_CHECK_BZ2LIB([], [echo "libbz2 not found: ugrep option -z won't decompress .bz and .bz2 files"])
 
 AX_CHECK_LZMALIB([], [echo "liblzma not found: ugrep option -z won't decompress .lzma and .xz files"])
 
@@ -79,6 +79,8 @@ AX_CHECK_LZ4LIB([], [echo "liblz4 not found: ugrep option -z won't decompress .l
 AX_CHECK_ZSTDLIB([], [echo "libzstd not found: ugrep option -z won't decompress .zst files"])
 
 AX_CHECK_BROTLILIB([], [echo "brotli library not found: ugrep option -z won't decompress .br files"])
+
+AX_CHECK_BZIP3LIB([], [echo "libbzip3 not found: ugrep option -z won't decompress .bz3 files"])
 
 AC_ARG_WITH(grep-path,
   [AS_HELP_STRING([--with-grep-path=GREP_PATH],

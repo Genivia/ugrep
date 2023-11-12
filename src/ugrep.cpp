@@ -49,11 +49,12 @@ Optional libraries to support options -P and -z:
 
   -P: PCRE2 (or Boost.Regex)
   -z: zlib (.gz)
-  -z: bz2 (.bz, bz2, .bzip2)
+  -z: bzip2 (.bz, bz2, .bzip2)
   -z: lzma (.lzma, .xz)
   -z: lz4 (.lz4)
   -z: zstd (.zst, .zstd)
   -z: brotli (.br)
+  -z: bzip3 (.bz3)
 
 Build ugrep as follows:
 
@@ -124,6 +125,9 @@ After this, you may want to test ugrep and install it (optional):
 // optionally enable brotli library for -z
 // #define HAVE_LIBBROTLI
 
+// optionally enable libbzip3 for -z
+// #define HAVE_LIBBZIP3
+
 #include <stringapiset.h>       // internationalization
 #include <direct.h>             // directory access
 #include <winsock.h>            // gethostname() for --hyperlink
@@ -155,7 +159,7 @@ After this, you may want to test ugrep and install it (optional):
 // #define Z_BUF_LEN 16384
 // #define Z_BUF_LEN 32768
 
-// use zlib, libbz2, liblzma for option -z
+// use zlib, libbz2, liblzma etc for option -z
 #ifdef HAVE_LIBZ
 # include "zstream.hpp"
 #endif
@@ -7547,6 +7551,12 @@ void ugrep()
     flag_all_include.emplace_back("*.pax.br");
     flag_all_include.emplace_back("*.tar.br");
 #endif
+
+#ifdef HAVE_LIBBZIP3
+    flag_all_include.emplace_back("*.cpio.bz3");
+    flag_all_include.emplace_back("*.pax.bz3");
+    flag_all_include.emplace_back("*.tar.bz3");
+#endif
   }
 #endif
 #endif
@@ -13850,6 +13860,10 @@ void help(std::ostream& out)
             ",\n\
             brotli (requires suffix .br)"
 #endif
+#ifdef HAVE_LIBBZIP3
+            ",\n\
+            bzip3 (requires suffix .bz3)"
+#endif
             ".\n"
 #endif
             "\
@@ -14257,6 +14271,9 @@ void version()
 #endif
 #ifdef HAVE_LIBBROTLI
     ",brotli" <<
+#endif
+#ifdef HAVE_LIBBZIP3
+    ",bzip3" <<
 #endif
 #endif
     "\n"

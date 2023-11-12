@@ -91,7 +91,8 @@ subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_regex.m4 \
 	$(top_srcdir)/m4/ax_check_brotlilib.m4 \
-	$(top_srcdir)/m4/ax_check_bzlib.m4 \
+	$(top_srcdir)/m4/ax_check_bz2lib.m4 \
+	$(top_srcdir)/m4/ax_check_bzip3lib.m4 \
 	$(top_srcdir)/m4/ax_check_lz4lib.m4 \
 	$(top_srcdir)/m4/ax_check_lzmalib.m4 \
 	$(top_srcdir)/m4/ax_check_pcre2.m4 \
@@ -955,7 +956,8 @@ install-data-hook:
 		 echo "|   alias zpgrep = 'ug -zP'                            |"; \
 		 echo "|   alias ux     = 'ugrep -U --hexdump'                |"; \
 		 echo "|   alias zxgrep = 'ugrep -zU --hexdump'               |"; \
-		 echo "|   alias xdump  = 'ugrep -X \"\"'                       |"; \
+		 echo "|   alias xdump  = 'ugrep --hexdump \"\"'                |"; \
+		 echo "|   alias zmore  = 'ugrep+ -z -I -+ --pager \"\"'        |"; \
 		 echo "|                                                      |"; \
 		 echo "| Thank you for using ugrep!                           |"; \
 		 echo "|                                                      |"; \

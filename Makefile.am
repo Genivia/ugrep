@@ -70,7 +70,8 @@ install-data-hook:
 		 echo "|   alias zpgrep = 'ug -zP'                            |"; \
 		 echo "|   alias ux     = 'ugrep -U --hexdump'                |"; \
 		 echo "|   alias zxgrep = 'ugrep -zU --hexdump'               |"; \
-		 echo "|   alias xdump  = 'ugrep -X \"\"'                       |"; \
+		 echo "|   alias xdump  = 'ugrep --hexdump \"\"'                |"; \
+		 echo "|   alias zmore  = 'ugrep+ -z -I -+ --pager \"\"'        |"; \
 		 echo "|                                                      |"; \
 		 echo "| Thank you for using ugrep!                           |"; \
 		 echo "|                                                      |"; \

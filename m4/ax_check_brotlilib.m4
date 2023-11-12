@@ -6,21 +6,21 @@
 #
 #   This macro searches for an installed brotli library. If nothing was
 #   specified when calling configure, it searches first in /usr/local and
-#   then in /usr, /opt/local and /sw. If the --with-brotlilib=DIR is specified,
+#   then in /usr, /opt/local and /sw. If the --with-brotli=DIR is specified,
 #   it will try to find it in DIR/include/brotli/decode.h and
-#   DIR/lib/libbrotlidec. If --without-brotlilib is specified, the library is
+#   DIR/lib/libbrotlidec. If --without-brotli is specified, the library is
 #   not searched at all.
 #
 #   If either the header file (brotli/decode.h) or the library (libbrotlidec)
 #   is not found, shell commands 'action-if-not-found' is run. If
 #   'action-if-not-found' is not specified, the configuration exits on error,
 #   asking for a valid brotli library installation directory or
-#   --without-brotlilib.
+#   --without-brotli.
 #
 #   If both header file and library are found, shell commands
 #   'action-if-found' is run. If 'action-if-found' is not specified, the
-#   default action appends '-I${BROTLILIB_HOME}/include' to CPFLAGS, appends
-#   '-L${BROTLILIB_HOME}/lib' to LDFLAGS, prepends '-lbrotlidec' and
+#   default action appends '-I${BROTLI_HOME}/include' to CPFLAGS, appends
+#   '-L${BROTLI_HOME}/lib' to LDFLAGS, prepends '-lbrotlidec' and
 #   '-lbrotlienc' to LIBS, and calls AC_DEFINE(HAVE_LIBBROTLI). You should use
 #   autoheader to include a definition for this symbol in a config.h file.
 #   Sample usage in a C/C++ source is as follows:
@@ -66,64 +66,64 @@ AC_DEFUN([AX_CHECK_BROTLILIB],
 #
 # Handle user hints
 #
-[AC_MSG_CHECKING(if brotlilib is wanted)
-brotlilib_places="/usr/local /usr /opt/homebrew /opt/local /sw"
-AC_ARG_WITH([brotlilib],
-[  --with-brotlilib=DIR    root directory path of brotli library installation
+[AC_MSG_CHECKING(if brotli is wanted)
+brotli_places="/usr/local /usr /opt/homebrew /opt/local /sw"
+AC_ARG_WITH([brotli],
+[  --with-brotli=DIR       root directory path of brotli library installation
                           @<:@defaults to /usr/local or /usr if not found in
                           /usr/local@:>@
-  --without-brotlilib     to disable brotli library usage completely],
+  --without-brotli        to disable brotli library usage completely],
 [if test "$withval" != "no" ; then
   AC_MSG_RESULT(yes)
   if test -d "$withval"
   then
-    brotlilib_places="$withval $brotlilib_places"
+    brotli_places="$withval $brotli_places"
   else
     AC_MSG_WARN([Sorry, $withval does not exist, checking usual places])
   fi
 else
-  brotlilib_places=""
+  brotli_places=""
   AC_MSG_RESULT(no)
 fi],
 [AC_MSG_RESULT(yes)])
 #
-# Locate brotlilib, if wanted
+# Locate brotli, if wanted
 #
-if test -n "${brotlilib_places}"
+if test -n "${brotli_places}"
 then
   # check the user supplied or any other more or less 'standard' place:
   #   Most UNIX systems      : /usr/local and /usr
   #   MacPorts / Fink on OSX : /opt/local respectively /sw
-  for BROTLILIB_HOME in ${brotlilib_places} ; do
+  for BROTLI_HOME in ${brotli_places} ; do
     if test -f "${BROTLILIB_HOME}/include/brotli/decode.h"; then break; fi
-    BROTLILIB_HOME=""
+    BROTLI_HOME=""
   done
 
-  BROTLILIB_OLD_LDFLAGS=$LDFLAGS
-  BROTLILIB_OLD_CPPFLAGS=$CPPFLAGS
-  if test -n "${BROTLILIB_HOME}"; then
-    LDFLAGS="$LDFLAGS -L${BROTLILIB_HOME}/lib"
-    CPPFLAGS="$CPPFLAGS -I${BROTLILIB_HOME}/include"
+  BROTLI_OLD_LDFLAGS=$LDFLAGS
+  BROTLI_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${BROTLI_HOME}"; then
+    LDFLAGS="$LDFLAGS -L${BROTLI_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${BROTLI_HOME}/include"
   fi
   AC_LANG_PUSH([C])
-  AC_CHECK_LIB([brotlidec], [BrotliDecoderCreateInstance], [brotlilib_cv_libbrotli=yes], [brotlilib_cv_libbrotli=no])
-  AC_CHECK_HEADER([brotli/decode.h], [brotlilib_cv_brotli_h=yes], [brotlilib_cv_brotli_h=no])
+  AC_CHECK_LIB([brotlidec], [BrotliDecoderCreateInstance], [brotli_cv_libbrotli=yes], [brotli_cv_libbrotli=no])
+  AC_CHECK_HEADER([brotli/decode.h], [brotli_cv_brotli_h=yes], [brotli_cv_brotli_h=no])
   AC_LANG_POP([C])
-  if test "$brotlilib_cv_libbrotli" = "yes" && test "$brotlilib_cv_brotli_h" = "yes"
+  if test "$brotli_cv_libbrotli" = "yes" && test "$brotli_cv_brotli_h" = "yes"
   then
     #
     # If both library and header were found, action-if-found
     #
     m4_ifblank([$1],[
-                CPPFLAGS="$CPPFLAGS -I${BROTLILIB_HOME}/include"
-                LDFLAGS="$LDFLAGS -L${BROTLILIB_HOME}/lib"
+                CPPFLAGS="$CPPFLAGS -I${BROTLI_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${BROTLI_HOME}/lib"
                 LIBS="-lbrotlidec -lbrotlienc $LIBS"
                 AC_DEFINE([HAVE_LIBBROTLI], [1],
                           [Define to 1 if you have `brotli' library (-lbrotlidec -lbrotlienc)])
                ],[
                 # Restore variables
-                LDFLAGS="$BROTLILIB_OLD_LDFLAGS"
-                CPPFLAGS="$BROTLILIB_OLD_CPPFLAGS"
+                LDFLAGS="$BROTLI_OLD_LDFLAGS"
+                CPPFLAGS="$BROTLI_OLD_CPPFLAGS"
                 $1
                ])
   else
@@ -131,7 +131,7 @@ then
     # If either header or library was not found, action-if-not-found
     #
     m4_default([$2],[
-                AC_MSG_ERROR([either specify a valid brotli library installation with --with-brotlilib=DIR or disable brotlilib usage with --without-brotlilib])
+                AC_MSG_ERROR([either specify a valid brotli library installation with --with-brotli=DIR or disable brotli usage with --without-brotli])
                 ])
   fi
 fi
