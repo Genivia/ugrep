@@ -110,6 +110,7 @@ extern bool flag_only_line_number;
 extern bool flag_only_matching;
 extern bool flag_perl_regexp;
 extern bool flag_pretty;
+extern bool flag_pretty_always; // internal flag
 extern bool flag_query;
 extern bool flag_quiet;
 extern bool flag_sort_rev; // internal flag
@@ -168,7 +169,6 @@ extern size_t flag_not_magic;
 extern size_t flag_tabs;
 extern size_t flag_width;
 extern size_t flag_zmax;
-extern const char *flag_apply_color; // internal flag
 extern const char *flag_binary_files;
 extern const char *flag_color;
 extern const char *flag_colors;

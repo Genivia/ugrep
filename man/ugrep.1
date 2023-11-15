@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 12, 2023" "ugrep 4.3.2" "User Commands"
+.TH UGREP "1" "November 15, 2023" "ugrep 4.3.3" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -201,8 +201,7 @@ the Boolean search patterns applied.  See also options \fB\-\-and\fR,
 .TP
 \fB\-\-break\fR
 Adds a line break between results from different files.  This
-option is enabled by \fB\-\-pretty\fR when the output is sent to a
-terminal.
+option is enabled by \fB\-\-heading\fR.
 .TP
 \fB\-C\fR \fINUM\fR, \fB\-\-context\fR=\fINUM\fR
 Output NUM lines of leading and trailing context surrounding each
@@ -682,9 +681,10 @@ When output is sent to the terminal, uses COMMAND to page through
 the output.  COMMAND defaults to environment variable PAGER when
 defined or `less'.  Enables \fB\-\-heading\fR and \fB\-\-line\-buffered\fR.
 .TP
-\fB\-\-pretty\fR
+\fB\-\-pretty\fR[=\fIWHEN\fR]
 When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-n\fR,
-\fB\-\-sort\fR, \fB\-\-tree\fR and \fB\-T\fR when not explicitly disabled.
+\fB\-\-sort\fR, \fB\-\-tree\fR and \fB\-T\fR when not explicitly disabled.  WHEN can be
+`never', `always', or `auto'.  The default is `auto'.
 .TP
 \fB\-Q\fR[=\fIDELAY\fR], \fB\-\-query\fR[=\fIDELAY\fR]
 Query mode: start a TUI to perform interactive searches.  This mode

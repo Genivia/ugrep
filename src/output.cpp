@@ -153,7 +153,7 @@ void Output::Dump::line()
           out.str(color_hex[last_hex_color]);
         }
         byte &= 0xff;
-        if (flag_apply_color != NULL)
+        if (flag_color != NULL)
         {
           if (byte < 0x20)
           {
@@ -2099,7 +2099,7 @@ bool Output::flush_truncated_lines(const char *data, size_t size)
       size -= num;
 
       // disable CSI when line was truncated
-      if (flag_apply_color)
+      if (flag_color != NULL)
         if (fwrite("\033[m", 1, 3, file) < 3)
           return true;
 

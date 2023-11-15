@@ -47,14 +47,14 @@ This program uses RE/flex:
 
 Optional libraries to support options -P and -z:
 
-  -P: PCRE2 (or Boost.Regex)
-  -z: zlib (.gz)
-  -z: bzip2 (.bz, bz2, .bzip2)
-  -z: lzma (.lzma, .xz)
-  -z: lz4 (.lz4)
-  -z: zstd (.zst, .zstd)
-  -z: brotli (.br)
-  -z: bzip3 (.bz3)
+  -P: PCRE2 (or Boost.Regex)    recommended
+  -z: zlib (.gz)                recommended
+  -z: bzip2 (.bz, bz2, .bzip2)  recommended
+  -z: lzma (.lzma, .xz)         recommended
+  -z: lz4 (.lz4)                optional
+  -z: zstd (.zst, .zstd)        optional
+  -z: brotli (.br)              optional
+  -z: bzip3 (.bz3)              optional
 
 Build ugrep as follows:
 
@@ -295,6 +295,7 @@ bool flag_only_line_number         = false;
 bool flag_only_matching            = false;
 bool flag_perl_regexp              = false;
 bool flag_pretty                   = DEFAULT_PRETTY;
+bool flag_pretty_always            = false;
 bool flag_query                    = false;
 bool flag_quiet                    = false;
 bool flag_sort_rev                 = false;
@@ -353,7 +354,6 @@ size_t flag_not_magic              = 0;
 size_t flag_tabs                   = DEFAULT_TABS;
 size_t flag_width                  = 0;
 size_t flag_zmax                   = 1;
-const char *flag_apply_color       = NULL;
 const char *flag_binary_files      = "binary";
 const char *flag_color             = DEFAULT_COLOR;
 const char *flag_colors            = NULL;
@@ -5406,6 +5406,14 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_perl_regexp = true;
                 else if (strcmp(arg, "pretty") == 0)
                   flag_pretty = true;
+                else if (strcmp(arg, "pretty=always") == 0)
+                  flag_pretty = flag_pretty_always = true;
+                else if (strcmp(arg, "pretty=auto") == 0)
+                  flag_pretty = true;
+                else if (strcmp(arg, "pretty=never") == 0)
+                  flag_pretty = false;
+                else if (strncmp(arg, "pretty=", 7) == 0)
+                  usage("invalid argument --pretty=WHEN, valid arguments are 'never', 'always' and 'auto'");
                 else
                   usage("invalid option --", arg, "--pager, --passthru, --perl-regexp or --pretty");
                 break;
@@ -7033,20 +7041,36 @@ void terminal()
 #endif
   }
 
+  // --color=WHEN: normalize WHEN argument
+  if (flag_color != NULL)
+  {
+    if (strcmp(flag_color, "never") == 0 || strcmp(flag_color, "no") == 0 || strcmp(flag_color, "none") == 0)
+      flag_color = "never";
+    else if (strcmp(flag_color, "always") == 0 || strcmp(flag_color, "yes") == 0 || strcmp(flag_color, "force") == 0)
+      flag_color = "always";
+    else if (strcmp(flag_color, "auto") == 0 || strcmp(flag_color, "tty") == 0 || strcmp(flag_color, "if-tty") == 0)
+      flag_color = "auto";
+    else
+      usage("invalid argument --color=WHEN, valid arguments are 'never', 'always' and 'auto'");
+  }
+
   // whether to apply colors
-  flag_apply_color = flag_tag != NULL ? "never" : flag_query ? "always" : flag_color;
+  if (flag_tag != NULL)
+    flag_color = NULL;
+  else if ((flag_query || flag_pretty_always) && (flag_color == NULL || strcmp(flag_color, "auto") == 0))
+    flag_color = "always";
 
   if (!flag_quiet)
   {
-    if (flag_tty_term || flag_query)
+    if (flag_tty_term || flag_query || flag_pretty_always)
     {
       if (flag_pretty)
       {
         // --pretty: if output is to a TTY then enable --color, --heading, -T, -n, --sort and --tree
 
-        // enable --color
-        if (flag_apply_color == NULL)
-          flag_apply_color = "auto";
+        // enable --color if not set yet and not --tag
+        if (flag_color == NULL && flag_tag == NULL)
+          flag_color = "auto";
 
         // enable --heading if not explicitly disabled (enables --break later)
         if (flag_heading.is_undefined())
@@ -7095,14 +7119,14 @@ void terminal()
       }
     }
 
-    // --color: (re)set flag_apply_color depending on color term and TTY output
-    if (flag_apply_color != NULL)
+    // --color: (re)set flag_color depending on color term and TTY output
+    if (flag_color != NULL)
     {
       flag_color_term = flag_query;
 
-      if (strcmp(flag_apply_color, "never") == 0 || strcmp(flag_apply_color, "no") == 0 || strcmp(flag_apply_color, "none") == 0)
+      if (strcmp(flag_color, "never") == 0)
       {
-        flag_apply_color = NULL;
+        flag_color = NULL;
       }
       else
       {
@@ -7145,17 +7169,13 @@ void terminal()
 
 #endif
 
-        if (strcmp(flag_apply_color, "auto") == 0 || strcmp(flag_apply_color, "tty") == 0 || strcmp(flag_apply_color, "if-tty") == 0)
+        if (strcmp(flag_color, "auto") == 0)
         {
-          if (!flag_color_term)
-            flag_apply_color = NULL;
-        }
-        else if (strcmp(flag_apply_color, "always") != 0 && strcmp(flag_apply_color, "yes") != 0 && strcmp(flag_apply_color, "force") != 0)
-        {
-          usage("invalid argument --color=WHEN, valid arguments are 'never', 'always' and 'auto'");
+          if (!flag_color_term && flag_save_config == NULL)
+            flag_color = NULL;
         }
 
-        if (flag_apply_color != NULL)
+        if (flag_color != NULL)
         {
           // get GREP_COLOR and GREP_COLORS, when defined
           char *env_grep_color = NULL;
@@ -7967,7 +7987,7 @@ void ugrep()
   }
 
   // --heading: enable --break when filenames are shown
-  if (flag_heading && flag_with_filename)
+  if (flag_heading && flag_with_filename && flag_break.is_undefined())
     flag_break = true;
 
   // get number of CPU cores, returns 0 if unknown
@@ -10627,7 +10647,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool hex = false;
         bool binary = false;
         bool stop = false;
-        bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
+        bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
         // construct event handler functor with captured *this and some of the locals
         GrepHandler handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
@@ -11182,7 +11202,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool hex = false;
         bool binary = false;
         bool stop = false;
-        bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
+        bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
         // to display the rest of the matching line
         restline_data = NULL;
@@ -11643,7 +11663,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool hex = false;
         bool binary = false;
         bool stop = false;
-        bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
+        bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
         // to display the rest of the matching line
         restline_data = NULL;
@@ -12104,7 +12124,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool hex = false;
         bool binary = false;
         bool stop = false;
-        bool colorize = flag_apply_color || flag_replace != NULL || flag_tag != NULL;
+        bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
         // to display the rest of the matching line
         restline_data = NULL;
@@ -13214,8 +13234,7 @@ void help(std::ostream& out)
             --andnot, --not, --files and --lines.\n\
     --break\n\
             Adds a line break between results from different files.  This\n\
-            option is enabled by --pretty when the output is sent to a\n\
-            terminal.\n\
+            option is enabled by --heading.\n\
     -C NUM, --context=NUM\n\
             Output NUM lines of leading and trailing context surrounding each\n\
             matching line.  Places a --group-separator between contiguous\n\
@@ -13660,9 +13679,10 @@ void help(std::ostream& out)
             When output is sent to the terminal, uses COMMAND to page through\n\
             the output.  COMMAND defaults to environment variable PAGER when\n\
             defined or `" DEFAULT_PAGER_COMMAND "'.  Enables --heading and --line-buffered.\n\
-    --pretty\n\
+    --pretty[=WHEN]\n\
             When output is sent to a terminal, enables --color, --heading, -n,\n\
-            --sort, --tree and -T when not explicitly disabled.\n\
+            --sort, --tree and -T when not explicitly disabled.  WHEN can be\n\
+            `never', `always', or `auto'.  The default is `auto'.\n\
     -Q[=DELAY], --query[=DELAY]\n\
             Query mode: start a TUI to perform interactive searches.  This mode\n\
             requires an ANSI capable terminal.  An optional DELAY argument may\n\

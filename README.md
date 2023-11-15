@@ -3,7 +3,7 @@
 New ugrep 4.3
 -------------
 
-Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed beat GNU grep, Silver Searcher, ack, sift, and ripgrep in [nearly all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
+Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed surpass GNU grep, Silver Searcher, ack, sift, and ripgrep in [nearly all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
 
 [How to install ugrep](#install) and see also [ugrep.com](ugrep.com) for installation and help.
 
@@ -72,7 +72,7 @@ Overview
 
   💡 `-Q` replaces `PATTERN` on the command line to let you enter patterns interactively in the TUI.  In the TUI use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.
 
-- Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd)
+- Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd, brotli)
 
       ug -z PATTERN ...                      ug -z --zmax=2 PATTERN ...
 
@@ -385,9 +385,9 @@ release.
 You can always add these later, when you need these features:
 
 - Option `-P` (Perl regular expressions) requires either the PCRE2 library
-  (preferred) or the Boost.Regex library.  If PCRE2 is not installed,
-  install PCRE2 with e.g. `sudo apt-get install -y libpcre2-dev` or
-  [download PCRE2](https://www.pcre.org) and follow the installation
+  (recommended) or the Boost.Regex library (optional fallback).  If PCRE2 is
+  not installed, install PCRE2 with e.g. `sudo apt-get install -y libpcre2-dev`
+  or [download PCRE2](https://www.pcre.org) and follow the installation
   instructions.  Alternatively,
   [download Boost.Regex](https://www.boost.org/users/download) and run
   `./bootstrap.sh` and `sudo ./b2 --with-regex install`.  See
@@ -397,14 +397,18 @@ You can always add these later, when you need these features:
   [zlib](https://www.zlib.net) library installed.  It is installed on most
   systems.  If not, install it, e.g. with `sudo apt-get install -y libz-dev`.
   To search `.bz` and `.bz2` files, install the
-  [bzip2](https://www.sourceware.org/bzip2) library, e.g. with
+  [bzip2](https://www.sourceware.org/bzip2) library (recommended), e.g. with
   `sudo apt-get install -y libbz2-dev`.  To search `.lzma` and `.xz` files,
-  install the [lzma](https://tukaani.org/xz) library, e.g. with
+  install the [lzma](https://tukaani.org/xz) library (recommended), e.g. with
   `sudo apt-get install -y liblzma-dev`.  To search `.lz4` files, install the
-  [lz4](https://github.com/lz4/lz4) library, e.g. with
-  `sudo apt-get install -y liblz4-dev`.  To search `.zst` files, install the
-  [zstd](http://facebook.github.io/zstd) library, e.g. with
-  `sudo apt-get install -y libzstd-dev`
+  [lz4](https://github.com/lz4/lz4) library (optional, not required), e.g.
+  with `sudo apt-get install -y liblz4-dev`.  To search `.zst` files, install
+  the [zstd](http://facebook.github.io/zstd) library (optional, not required),
+  e.g. with `sudo apt-get install -y libzstd-dev`.  To search `.br` files,
+  install the [brotli](https://github.com/google/brotli) library (optional, not
+  required), e.g. with `sudo apt-get install -y brotli`.  To search `.bz3`
+  files, install the [bzip3](https://github.com/kspalaiologos/bzip3) library
+  (optional, not required), e.g. with `sudo apt-get install -y bzip3`.
 
 **Note:** even if your system has command line utilities, such as `bzip2`, that
 does not necessarily mean that the development libraries such as `libbz2` are
@@ -2015,20 +2019,22 @@ comments:
 ### Searching compressed files and archives with -z
 
     -z, --decompress
-            Decompress files to search, when compressed.  Archives (.cpio,
-            .pax, .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz,
-            .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
-            matching pathnames of files in archives are output in braces.  When
-            used with option --zmax=NUM, searches the contents of compressed
-            files and archives stored within archives up to NUM levels.  If -g,
-            -O, -M, or -t is specified, searches files stored in archives whose
-            filenames match globs, match filename extensions, match file
-            signature magic bytes, or match file types, respectively.
+            Search compressed files and archives.  Archives (.cpio, .pax, .tar)
+            and compressed archives (e.g. .zip, .taz, .tgz, .tpz, .tbz, .tbz2,
+            .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching pathnames
+            of files in archives are output in braces.  When used with option
+            --zmax=NUM, searches the contents of compressed files and archives
+            stored within archives up to NUM levels.  If -g, -O, -M, or -t is
+            specified, searches files stored in archives whose filenames match
+            globs, match filename extensions, match file signature magic bytes,
+            or match file types, respectively.
             Supported compression formats: gzip (.gz), compress (.Z), zip,
             bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
             lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
             lz4 (requires suffix .lz4),
-            zstd (requires suffix .zst, .zstd, .tzst).
+            zstd (requires suffix .zst, .zstd, .tzst),
+            brotli (requires suffix .br),
+            bzip3 (requires suffix .bz3).
     --zmax=NUM
             When used with option -z (--decompress), searches the contents of
             compressed files and archives stored within archives by up to NUM
@@ -2041,9 +2047,11 @@ comments:
             steps.  Increasing NUM values gradually degrades performance.
 
 Files compressed with gzip (`.gz`), compress (`.Z`), bzip2 (`.bz`, `.bz2`,
-`.bzip2`), lzma (`.lzma`), xz (`.xz`), lz4 (`.lz4`) and zstd (`.zst`, `.zstd`)
-are searched with option `-z`.  This option does not require files to be
-compressed.  Uncompressed files are searched also.
+`.bzip2`), lzma (`.lzma`), xz (`.xz`), lz4 (`.lz4`), zstd (`.zst`, `.zstd`),
+brotli (`.br`) and bzip3 (`.bz3`) are searched with option `-z` when the
+corresponding libraries are installed and compiled with ugrep.  This option
+does not require files to be compressed.  Uncompressed files are searched also,
+although slower.
 
 Other compression formats can be searched with **ugrep** [filters](#filter).
 
@@ -2087,17 +2095,17 @@ criteria are searched only.
 The gzip, compress, and zip formats are automatically detected, which is useful
 when reading gzip-compressed data from standard input, e.g. input redirected
 from a pipe.  Other compression formats require a filename suffix: `.bz`,
-`.bz2`, or `.bzip2` for bzip2, `.lzma` for lzma, `.xz` for xz, `.lz4` for lz4
-and `.zst` or `.zstd` for zstd.  Also the compressed tar archive shorthands
-`.taz`, `.tgz` and `.tpz` for gzip, `.tbz`, `.tbz2`, `.tb2`, and `.tz2` for
-bzip2, `.tlz` for lzma, `.txz` for xz, and `.tzst` for zstd are recognized.  To
-search these formats with ugrep from standard input, use option
-`--label='stdin.bz2'` for bzip2, `--label='stdin.lzma'` for lzma,
-`--label='stdin.xz'` for xz, `--label='stdin.lz4` for lz4 and
-`--label='stdin.zst` for zstd.  The name `stdin` is arbitrary and may be
-omitted:
+`.bz2`, or `.bzip2` for bzip2, `.lzma` for lzma, `.xz` for xz, `.lz4` for lz4,
+`.zst` or `.zstd` for zstd, `.br` for brotli and `.bz3` for bzip3.  Also the
+compressed tar archive shorthands `.taz`, `.tgz` and `.tpz` for gzip, `.tbz`,
+`.tbz2`, `.tb2`, and `.tz2` for bzip2, `.tlz` for lzma, `.txz` for xz, and
+`.tzst` for zstd are recognized.  To search these formats with ugrep from
+standard input, use option `--label='stdin.bz2'` for bzip2,
+`--label='stdin.lzma'` for lzma, `--label='stdin.xz'` for xz,
+`--label='stdin.lz4` for lz4 and `--label='stdin.zst` for zstd and so on.  The
+name `stdin` is arbitrary and may be omitted:
 
-format    | filename suffix         | tar/pax archive short suffix    | suffix required? | ugrep from stdin | lib required |
+format    | filename suffix         | tar/pax archive short suffix    | suffix required? | ugrep from stdin | library      |
 --------- | ----------------------- | ------------------------------- | ---------------- | ---------------- | ------------ |
 gzip      | `.gz`                   | `.taz`, `.tgz`, `.tpz`          | no               | automatic        | libz         |
 compress  | `.Z`                    | `.taZ`, `.tZ`                   | no               | automatic        | *built-in*   |
@@ -2107,6 +2115,8 @@ lzma      | `.lzma`                 | `.tlz`                          | yes     
 xz        | `.xz`                   | `.txz`                          | yes              | `--label=.xz`    | liblzma      |
 lz4       | `.lz4`                  |                                 | yes              | `--label=.lz4`   | liblz4       |
 zstd      | `.zst`, `.zstd`         | `.tzst`                         | yes              | `--label=.zst`   | libzstd      |
+brotli    | `.br`                   |                                 | yes              | `--label=.br`    | libbrotlidec |
+bzip3     | `.bz3`                  |                                 | yes              | `--label=.bz3`   | libbzip3     |
 
 The gzip, bzip2, xz, lz4 and zstd formats support concatenated compressed
 files.  Concatenated compressed files are searched as one file.
@@ -3101,9 +3111,10 @@ To display the line and column numbers of matches in XML with `--xml`:
             When output is sent to the terminal, uses COMMAND to page through
             the output.  COMMAND defaults to environment variable PAGER when
             defined or `less'.  Enables --heading and --line-buffered.
-    --pretty
+    --pretty[=WHEN]
             When output is sent to a terminal, enables --color, --heading, -n,
-            --sort, --tree and -T when not explicitly disabled.
+            --sort, --tree and -T when not explicitly disabled.  WHEN can be
+            `never', `always', or `auto'.  The default is `auto'.
 
 To change the color palette, set the `GREP_COLORS` environment variable or use
 `--colors=COLORS`.  The value is a colon-separated list of ANSI SGR parameters
@@ -4038,8 +4049,7 @@ in markdown:
 
            --break
                   Adds a line break between results from different files.  This
-                  option is enabled by --pretty when the output is sent to a
-                  terminal.
+                  option is enabled by --heading.
 
            -C NUM, --context=NUM
                   Output NUM lines of leading and trailing context surrounding each
@@ -4528,9 +4538,10 @@ in markdown:
                   the output.  COMMAND defaults to environment variable PAGER when
                   defined or `less'.  Enables --heading and --line-buffered.
 
-           --pretty
+           --pretty[=WHEN]
                   When output is sent to a terminal, enables --color, --heading, -n,
-                  --sort, --tree and -T when not explicitly disabled.
+                  --sort, --tree and -T when not explicitly disabled.  WHEN can be
+                  `never', `always', or `auto'.  The default is `auto'.
 
            -Q[=DELAY], --query[=DELAY]
                   Query mode: start a TUI to perform interactive searches.  This
@@ -4754,7 +4765,8 @@ in markdown:
                   Supported compression formats: gzip (.gz), compress (.Z), zip,
                   bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2,
                   .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz, .txz), lz4
-                  (requires suffix .lz4), zstd (requires suffix .zst, .zstd, .tzst).
+                  (requires suffix .lz4), zstd (requires suffix .zst, .zstd, .tzst),
+                  brotli (requires suffix .br), bzip3 (requires suffix .bz3).
 
            --zmax=NUM
                   When used with option -z (--decompress), searches the contents of
@@ -5335,7 +5347,7 @@ in markdown:
 
 
 
-    ugrep 4.3.2                     November 6, 2023                        UGREP(1)
+    ugrep 4.3.3                     November 15, 2023                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

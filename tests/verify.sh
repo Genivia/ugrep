@@ -7,6 +7,8 @@ UG="$UGREP --color=always --sort $@"
 
 FILES="Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt emptyline.txt"
 
+# check for errors in the installation
+
 if test ! -x "$UGREP" ; then
   echo "$UGREP not found, exiting"
   exit 1
@@ -21,6 +23,8 @@ if ! $UG --version | head -n1 ; then
   echo "$UGREP failed to execute, exiting"
   exit 1
 fi
+
+# check for recommended libraries
 
 if $UG -Fq 'HAVE_PCRE2 1' "$CONFIGH" ; then
   have_pcre2=yes
@@ -64,6 +68,8 @@ fi
 
 printf "Have liblzma?   %3s (recommended)\n" $have_liblzma
 
+# check for optional libraries
+
 if $UG -Fq 'HAVE_LIBLZ4 1' "$CONFIGH" ; then
   have_liblz4=yes
 else
@@ -88,15 +94,20 @@ fi
 
 printf "Have libbrotli? %3s (optional)\n" $have_libbrotli
 
+# check for uncommon libraries that aren't typically installed, don't report
+
 if $UG -Fq 'HAVE_LIBBZIP3 1' "$CONFIGH" ; then
   have_libbzip3=yes
+  printf "Have libbzip3?  yes (optional)\n"
 else
   have_libbzip3=no
 fi
 
-printf "Have libbzip3?  %3s (optional)\n" $have_libbzip3
+# set special color scheme
 
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
+
+# set ERR and DIFF to compare and report
 
 function ERR() {
   echo "[1;31mError:[0m[1m ugrep --sort $1 [1;31mfailed[0m"
@@ -104,6 +115,8 @@ function ERR() {
 }
 
 DIFF="diff -U1 -"
+
+# prepare to test
 
 rm -rf dir1/ dir2/
 
@@ -124,6 +137,8 @@ cat > dir1/.gitignore << END
 # ignore dir2 (sub)directories
 **/dir2/
 END
+
+# tests
 
 printf .
 $UG -rl                                  Hello dir1 | $DIFF out/dir.out               || ERR "-rl Hello dir1"

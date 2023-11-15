@@ -3571,7 +3571,7 @@ bool Query::print(const std::string& line)
   const char *ptr = text;
 
   // if output should not be colored or colors are turned off, then output the selected line without its CSI sequences
-  if (flag_apply_color == NULL || Screen::mono)
+  if (flag_color == NULL || Screen::mono)
   {
     while (ptr < end)
     {

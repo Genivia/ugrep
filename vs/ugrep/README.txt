@@ -6,8 +6,8 @@ The following instructions apply to MSVC++ 2017 or greater.
 There are two choices for ugrep option -P: PCRE2 (preferred) or Boost.Regex.
 
 
-When using PCRE2 for option -P (preferred)
-------------------------------------------
+When using PCRE2 for option -P (recommended)
+--------------------------------------------
 
 Copy the ugrep\include, ugrep\lib, and ugrep\src directories to the Visual Studio ugrep project directory located below this directory to create ugrep\include, ugrep\lib, and ugrep\src.
 
@@ -189,8 +189,8 @@ Optionally, right-click on the matcher_avx512bw.cpp file to enable AVX512 when a
 Then build ugrep in Visual Studio.
 
 
-When using Boost.Regex for option -P
-------------------------------------
+When using Boost.Regex for option -P (fallback)
+-----------------------------------------------
 
 Copy the ugrep\include, ugrep\lib, and ugrep\src directories to the Visual Studio ugrep project directory located below this directory to create ugrep\include, ugrep\lib, and ugrep\src.
 

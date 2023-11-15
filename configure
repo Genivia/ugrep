@@ -7610,8 +7610,7 @@ printf "%s\n" "#define HAVE_PCRE2 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "checking for Boost.Regex because PCRE2 is not usable"
-
+    echo "recommended PCRE2 library not found: checking for Boost.Regex"
   fi
 fi
 
@@ -7833,7 +7832,7 @@ printf "%s\n" "#define HAVE_LIBZ 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "zlib not found: ugrep option -z is not available"
+    echo "recommended zlib not found: ugrep option -z is disabled"
   fi
 fi
 
@@ -7966,7 +7965,7 @@ printf "%s\n" "#define HAVE_LIBBZ2 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "libbz2 not found: ugrep option -z won't decompress .bz and .bz2 files"
+    echo "recommended libbz2 not found: ugrep option -z cannot decompress .bz and .bz2 files"
   fi
 fi
 
@@ -8099,7 +8098,7 @@ printf "%s\n" "#define HAVE_LIBLZMA 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "liblzma not found: ugrep option -z won't decompress .lzma and .xz files"
+    echo "recommended liblzma not found: ugrep option -z cannot decompress .lzma and .xz files"
   fi
 fi
 
@@ -8232,7 +8231,7 @@ printf "%s\n" "#define HAVE_LIBLZ4 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "liblz4 not found: ugrep option -z won't decompress .lz4 files"
+    echo "optional liblz4 not found: install if you want ugrep -z to decompress .lz4 files"
   fi
 fi
 
@@ -8365,7 +8364,7 @@ printf "%s\n" "#define HAVE_LIBZSTD 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "libzstd not found: ugrep option -z won't decompress .zst files"
+    echo "optional libzstd not found: install if you want ugrep -z to decompress .zst files"
   fi
 fi
 
@@ -8498,7 +8497,7 @@ printf "%s\n" "#define HAVE_LIBBROTLI 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "brotli library not found: ugrep option -z won't decompress .br files"
+    echo "optional brotli library not found: install if you want ugrep -z to decompress .br files"
   fi
 fi
 
@@ -8631,7 +8630,7 @@ printf "%s\n" "#define HAVE_LIBBZIP3 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "libbzip3 not found: ugrep option -z won't decompress .bz3 files"
+    echo "optional libbzip3 not found: install if you want ugrep -z to decompress .bz3 files"
   fi
 fi
 

@@ -286,7 +286,7 @@ class zstreambuf : public std::streambuf {
 
         // prepare to inflate the remainder of the buffered data
         z_strm_->next_in   = zbuf_ + zcur_;
-        z_strm_->avail_in  = zlen_ - zcur_;
+        z_strm_->avail_in  = static_cast<uInt>(zlen_ - zcur_);
         z_strm_->next_out  = Z_NULL;
         z_strm_->avail_out = 0;
 
@@ -322,7 +322,7 @@ class zstreambuf : public std::streambuf {
 
         // prepare to decompress the remainder of the buffered data
         bz_strm_->next_in   = reinterpret_cast<char*>(zbuf_ + zcur_);
-        bz_strm_->avail_in  = zlen_ - zcur_;
+        bz_strm_->avail_in  = static_cast<unsigned int>(zlen_ - zcur_);
         bz_strm_->next_out  = NULL;
         bz_strm_->avail_out = 0;
 
@@ -451,7 +451,7 @@ class zstreambuf : public std::streambuf {
           if (z_strm_->avail_in > 0 && z_strm_->avail_out == 0)
           {
             z_strm_->next_out  = buf;
-            z_strm_->avail_out = len;
+            z_strm_->avail_out = static_cast<uInt>(len);
 
             ret = inflate(z_strm_, Z_NO_FLUSH);
 
@@ -476,12 +476,12 @@ class zstreambuf : public std::streambuf {
             if (read())
             {
               z_strm_->next_in  = zbuf_;
-              z_strm_->avail_in = zlen_;
+              z_strm_->avail_in = static_cast<uInt>(zlen_);
 
               if (num == 0)
               {
                 z_strm_->next_out  = buf;
-                z_strm_->avail_out = len;
+                z_strm_->avail_out = static_cast<uInt>(len);
               }
 
               ret = inflate(z_strm_, Z_NO_FLUSH);
@@ -536,7 +536,7 @@ class zstreambuf : public std::streambuf {
           if (bz_strm_->avail_in > 0 && bz_strm_->avail_out == 0)
           {
             bz_strm_->next_out  = reinterpret_cast<char*>(buf);
-            bz_strm_->avail_out = len;
+            bz_strm_->avail_out = static_cast<unsigned int>(len);
 
             ret = BZ2_bzDecompress(bz_strm_);
 
@@ -561,12 +561,12 @@ class zstreambuf : public std::streambuf {
             if (read())
             {
               bz_strm_->next_in  = reinterpret_cast<char*>(zbuf_);
-              bz_strm_->avail_in = zlen_;
+              bz_strm_->avail_in = static_cast<unsigned int>(zlen_);
 
               if (num == 0)
               {
                 bz_strm_->next_out  = reinterpret_cast<char*>(buf);
-                bz_strm_->avail_out = len;
+                bz_strm_->avail_out = static_cast<unsigned int>(len);
               }
 
               ret = BZ2_bzDecompress(bz_strm_);
@@ -822,13 +822,13 @@ class zstreambuf : public std::streambuf {
         if (z_strm_ != NULL)
         {
           z_strm_->next_in  = zbuf_;
-          z_strm_->avail_in = zlen_;
+          z_strm_->avail_in = static_cast<uInt>(zlen_);
         }
 #ifdef HAVE_LIBBZ2
         else if (bz_strm_ != NULL)
         {
           bz_strm_->next_in  = reinterpret_cast<char*>(zbuf_);
-          bz_strm_->avail_in = zlen_;
+          bz_strm_->avail_in = static_cast<unsigned int>(zlen_);
         }
 #endif
 #ifdef HAVE_LIBLZMA
@@ -1259,7 +1259,7 @@ class zstreambuf : public std::streambuf {
           zfile_->zbuf[1] = buf_[1];
           zfile_->zlen = 2;
           zfile_->strm.next_in  = zfile_->zbuf;
-          zfile_->strm.avail_in = zfile_->zlen;
+          zfile_->strm.avail_in = static_cast<uInt>(zfile_->zlen);
 
           // inflate gzip compressed data starting with a gzip header
           if (inflateInit2(&zfile_->strm, 16 + MAX_WBITS) != Z_OK)
@@ -1762,7 +1762,7 @@ class zstreambuf : public std::streambuf {
         if (zfile_->strm.avail_in > 0 && zfile_->strm.avail_out == 0)
         {
           zfile_->strm.next_out  = buf;
-          zfile_->strm.avail_out = len;
+          zfile_->strm.avail_out = static_cast<uInt>(len);
 
           ret = inflate(&zfile_->strm, Z_NO_FLUSH);
 
@@ -1794,12 +1794,12 @@ class zstreambuf : public std::streambuf {
               zfile_->zend = true;
 
             zfile_->strm.next_in  = zfile_->zbuf;
-            zfile_->strm.avail_in = zfile_->zlen;
+            zfile_->strm.avail_in = static_cast<uInt>(zfile_->zlen);
 
             if (num == 0)
             {
               zfile_->strm.next_out  = buf;
-              zfile_->strm.avail_out = len;
+              zfile_->strm.avail_out = static_cast<uInt>(len);
             }
 
             ret = inflate(&zfile_->strm, Z_NO_FLUSH);
@@ -1873,7 +1873,7 @@ class zstreambuf : public std::streambuf {
         if (bzfile_->strm.avail_in > 0 && bzfile_->strm.avail_out == 0)
         {
           bzfile_->strm.next_out  = reinterpret_cast<char*>(buf);
-          bzfile_->strm.avail_out = len;
+          bzfile_->strm.avail_out = static_cast<unsigned int>(len);
 
           ret = BZ2_bzDecompress(&bzfile_->strm);
 
@@ -1905,12 +1905,12 @@ class zstreambuf : public std::streambuf {
               bzfile_->zend = true;
 
             bzfile_->strm.next_in  = reinterpret_cast<char*>(bzfile_->zbuf);
-            bzfile_->strm.avail_in = bzfile_->zlen;
+            bzfile_->strm.avail_in = static_cast<unsigned int>(bzfile_->zlen);
 
             if (num == 0)
             {
               bzfile_->strm.next_out  = reinterpret_cast<char*>(buf);
-              bzfile_->strm.avail_out = len;
+              bzfile_->strm.avail_out = static_cast<unsigned int>(len);
             }
 
             ret = BZ2_bzDecompress(&bzfile_->strm);
@@ -2092,7 +2092,7 @@ class zstreambuf : public std::streambuf {
               }
 
               // skip this skippable frame, then continue with next frame
-              uint32_t size = u32(lz4file_->zbuf + 4);
+              size_t size = u32(lz4file_->zbuf + 4);
               lz4file_->zloc = 8;
               if (lz4file_->zloc + size > lz4file_->zlen)
               {
