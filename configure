@@ -1482,6 +1482,7 @@ Optional Packages:
                           [defaults to /usr/local or /usr if not found in
                           /usr/local]
   --without-brotli        to disable brotli library usage completely
+  --with-bzip3            to enable bzip3 library to decompress .bz3 files
   --with-bzip3=DIR        root directory path of bzip3 library installation
                           [defaults to /usr/local or /usr if not found in
                           /usr/local]
@@ -8502,7 +8503,20 @@ printf "%s\n" "#define HAVE_LIBBROTLI 1" >>confdefs.h
 fi
 
 
-#
+
+# Check whether --with-bzip3 was given.
+if test ${with_bzip3+y}
+then :
+  withval=$with_bzip3; with_bzip3_library="$withval"
+else $as_nop
+  with_bzip3_library=""
+fi
+
+if test "x$with_bzip3_library" != "x"; then
+  if test "x$with_bzip3" == "xyes"; then
+    unset with_bzip3
+  fi
+  #
 # Handle user hints
 #
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if bzip3 is wanted" >&5
@@ -8634,6 +8648,7 @@ printf "%s\n" "#define HAVE_LIBBZIP3 1" >>confdefs.h
   fi
 fi
 
+fi
 
 
 # Check whether --with-grep-path was given.

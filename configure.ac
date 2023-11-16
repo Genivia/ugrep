@@ -77,7 +77,17 @@ AX_CHECK_ZSTDLIB([], [echo "optional libzstd not found: install if you want ugre
 
 AX_CHECK_BROTLILIB([], [echo "optional brotli library not found: install if you want ugrep -z to decompress .br files"])
 
-AX_CHECK_BZIP3LIB([], [echo "optional libbzip3 not found: install if you want ugrep -z to decompress .bz3 files"])
+AC_ARG_WITH(bzip3,
+  [AS_HELP_STRING([--with-bzip3],
+                  [to enable bzip3 library to decompress .bz3 files])],
+  [with_bzip3_library="$withval"],
+  [with_bzip3_library=""])
+if test "x$with_bzip3_library" != "x"; then
+  if test "x$with_bzip3" == "xyes"; then
+    unset with_bzip3
+  fi
+  AX_CHECK_BZIP3LIB([], [echo "optional libbzip3 not found: install if you want ugrep -z to decompress .bz3 files"])
+fi
 
 AC_ARG_WITH(grep-path,
   [AS_HELP_STRING([--with-grep-path=GREP_PATH],
