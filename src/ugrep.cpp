@@ -14167,11 +14167,11 @@ working directory, not recursively.\n\
 When a glob pattern ends with a /, only directories are matched, not files.\n\
 \n\
 Option -g (--glob) performs glob matching with the specified glob pattern or\n\
-a set of comma-separated globs.  When a glob is preceeded with a ^ or !, the\n\
+a set of comma-separated globs.  When a glob is preceded with a ^ or !, the\n\
 glob match is inverted by excluding matching files or directories.\n\
 \n\
 Option --iglob performs case-insensitive glob matching with the specified glob\n\
-pattern or a set of comma-separated globs.  When a glob is preceeded with a ^\n\
+pattern or a set of comma-separated globs.  When a glob is preceded with a ^\n\
 or !, the glob match is inverted by excluding matching files or directories.\n\
 \n\
 Option --glob-ignore-case performs case-insensitive glob matching in general,\n\
@@ -14185,10 +14185,10 @@ directories matching the globs.\n\
 RELATED:\n\
 \n\
 Option -O (--file-extension) matches filename extensions, or ignores extensions\n\
-when preceeded with a ^ or !.\n\
+when preceded with a ^ or !.\n\
 \n\
 Option -t (--file-type) matches file types, or ignores file types when\n\
-preceeded with a ^ or a !.  Use -tlist to view the list of supported file types\n\
+preceded with a ^ or a !.  Use -tlist to view the list of supported file types\n\
 with corresponding glob patterns.\n\
 \n\
 Option --stats displays the search path globs applied to the matching files.\n\
