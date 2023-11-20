@@ -381,6 +381,18 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     anc_ = true;
     return isword(got_) == isword(static_cast<unsigned char>(txt_[len_]));
   }
+  /// FSM code META WBE.
+  inline bool FSM_META_WBE(int c0, int c1)
+  {
+    anc_ = true;
+    return isword(c0) != isword(c1);
+  }
+  /// FSM code META WBB.
+  inline bool FSM_META_WBB()
+  {
+    anc_ = true;
+    return isword(got_) != isword(static_cast<unsigned char>(txt_[len_]));
+  }
  protected:
   typedef std::vector<size_t> Stops; ///< indent margin/tab stops
   /// FSM data for FSM code

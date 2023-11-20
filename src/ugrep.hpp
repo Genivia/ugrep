@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "4.3.3"
+#define UGREP_VERSION "4.3.3-1"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -379,7 +379,7 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 
 // color is disabled by default, unless enabled with WITH_COLOR
 #ifdef WITH_COLOR
-# define DEFAULT_COLOR "auto"
+# define DEFAULT_COLOR Static::AUTO
 #else
 # define DEFAULT_COLOR NULL
 #endif
@@ -401,11 +401,11 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 # define DEFAULT_MAX_MMAP_SIZE MAX_MMAP_SIZE
 #endif
 
-// pretty is disabled by default for ugrep (enabled by ug), unless enabled with WITH_PRETTY
+// pretty is disabled by default for ugrep (always enabled by ug), unless enabled with WITH_PRETTY
 #ifdef WITH_PRETTY
-# define DEFAULT_PRETTY true
+# define DEFAULT_PRETTY Static::AUTO
 #else
-# define DEFAULT_PRETTY false
+# define DEFAULT_PRETTY NULL
 #endif
 
 // hidden file and directory search is enabled by default, unless disabled with WITH_HIDDEN
@@ -460,6 +460,11 @@ struct Static {
 
   // unique address and label to identify standard input path
   static const char *LABEL_STANDARD_INPUT;
+
+  // unique address to identify color and pretty WHEN arguments
+  static const char *NEVER;
+  static const char *ALWAYS;
+  static const char *AUTO;
 
   // ugrep command-line arguments pointing to argv[]
   static const char *arg_pattern;

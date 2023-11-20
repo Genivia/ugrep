@@ -1810,11 +1810,9 @@ To search file `spanish-iso.txt` encoded in ISO-8859-1:
 ### Matching multiple lines of text
 
     -o, --only-matching
-            Output only the matching part of lines.  Output additional matches
-            on the same line with `+' as the field separator.  When multiple
-            lines match a pattern, output the matching lines with `|' as the
-            field separator.  If -A, -B or -C is specified, fits the match and
-            its context on a line within the specified number of columns.
+            Output only the matching part of lines.  If -A, -B or -C is
+            specified, fits the match and its context on a line within the
+            specified number of columns.
 
 Multiple lines may be matched by patterns that match newline characters.  Use
 option `-o` to output the match only, not the full lines(s) that match.
@@ -1868,11 +1866,9 @@ Same as `sed -n '/begin/,/end/p'`: to match all lines between a line containing
             of the terminal window is used if NUM is not specified.  Note that
             double wide characters in the output may result in wider lines.
     -o, --only-matching
-            Output only the matching part of lines.  Output additional matches
-            on the same line with `+' as the field separator.  When multiple
-            lines match a pattern, output the matching lines with `|' as the
-            field separator.  If -A, -B or -C is specified, fits the match and
-            its context on a line within the specified number of columns.
+            Output only the matching part of lines.  If -A, -B or -C is
+            specified, fits the match and its context on a line within the
+            specified number of columns.
 
 To display two lines of context before and after a matching line:
 

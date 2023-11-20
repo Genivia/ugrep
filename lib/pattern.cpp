@@ -110,6 +110,8 @@ static void print_char(FILE *file, int c, bool h = false)
 #ifndef WITH_NO_CODEGEN
 static const char *meta_label[] = {
   NULL,
+  "WBB",
+  "WBE",
   "NWB",
   "NWE",
   "BWB",
@@ -2488,10 +2490,7 @@ void Pattern::compile_transition(
                       trim_anchors(follow, *k);
                       break;
                     case 'b':
-                      if (k->anchor())
-                        chars.add(META_BWB, META_EWB);
-                      else
-                        chars.add(META_BWE, META_EWE);
+                      chars.add(k->anchor() ? META_WBB : META_WBE);
                       trim_anchors(follow, *k);
                       break;
                     case '<':
@@ -3125,7 +3124,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
             {
               if (lo == META_EOB || lo == META_EOL)
                 peek = true;
-              else if (lo == META_EWE || lo == META_BWE || lo == META_NWE)
+              else if (lo == META_EWE || lo == META_BWE || lo == META_NWE || lo == META_WBE)
                 prev = peek = true;
               if (prev && peek)
                 break;
@@ -3180,6 +3179,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
                 case META_EWE:
                 case META_BWE:
                 case META_NWE:
+                case META_WBE:
                   ::fprintf(file, "  ");
                   if (elif)
                     ::fprintf(file, "else ");
@@ -3269,6 +3269,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
                 case META_EWE:
                 case META_BWE:
                 case META_NWE:
+                case META_BWE:
                   ::fprintf(file, "  ");
                   if (elif)
                     ::fprintf(file, "else ");
@@ -3381,7 +3382,7 @@ void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, b
       {
         if (lo == META_EOB || lo == META_EOL)
           peek = true;
-        else if (lo == META_EWE || lo == META_BWE || lo == META_NWE)
+        else if (lo == META_EWE || lo == META_BWE || lo == META_NWE || lo == META_WBE)
           prev = peek = true;
         if (prev && peek)
           break;
@@ -3442,6 +3443,7 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
           case META_EWE:
           case META_BWE:
           case META_NWE:
+          case META_WBE:
             ::fprintf(file, "%*s", 2*nest, "");
             if (elif)
               ::fprintf(file, "else ");

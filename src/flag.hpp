@@ -109,8 +109,6 @@ extern bool flag_null;
 extern bool flag_only_line_number;
 extern bool flag_only_matching;
 extern bool flag_perl_regexp;
-extern bool flag_pretty;
-extern bool flag_pretty_always; // internal flag
 extern bool flag_query;
 extern bool flag_quiet;
 extern bool flag_sort_rev; // internal flag
@@ -187,11 +185,11 @@ extern const char *flag_hyperlink;
 extern const char *flag_index;
 extern const char *flag_label;
 extern const char *flag_pager;
+extern const char *flag_pretty;
 extern const char *flag_replace;
 extern const char *flag_save_config;
 extern const char *flag_separator;
 extern const char *flag_separator_dash; // internal flag
-extern const char *flag_separator_plus; // internal flag
 extern const char *flag_separator_bar; // internal flag
 extern const char *flag_sort;
 extern const char *flag_stats;

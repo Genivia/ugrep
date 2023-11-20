@@ -294,8 +294,6 @@ bool flag_null                     = false;
 bool flag_only_line_number         = false;
 bool flag_only_matching            = false;
 bool flag_perl_regexp              = false;
-bool flag_pretty                   = DEFAULT_PRETTY;
-bool flag_pretty_always            = false;
 bool flag_query                    = false;
 bool flag_quiet                    = false;
 bool flag_sort_rev                 = false;
@@ -372,11 +370,11 @@ const char *flag_hyperlink         = NULL;
 const char *flag_index             = NULL;
 const char *flag_label             = Static::LABEL_STANDARD_INPUT;
 const char *flag_pager             = NULL;
+const char *flag_pretty            = DEFAULT_PRETTY;
 const char *flag_replace           = NULL;
 const char *flag_save_config       = NULL;
 const char *flag_separator         = NULL;
 const char *flag_separator_dash    = "-";
-const char *flag_separator_plus    = "+";
 const char *flag_separator_bar     = "|";
 const char *flag_sort              = NULL;
 const char *flag_stats             = NULL;
@@ -2365,6 +2363,7 @@ struct Grep {
       size = 0;
       offset = 0;
 
+      // if no gap to shift then return (this also happens when the buffer grows)
       if (len == 0)
         return;
 
@@ -2586,37 +2585,40 @@ struct Grep {
 
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
-      // display the rest of the matching line before the context lines
-      if (grep.restline_data != NULL && (lineno != matcher.lineno() || flag_ungroup))
+      // output the rest of the matching line before the context lines
+      if (grep.restline_data != NULL)
       {
-        if (binary)
+        if (lineno != matcher.lineno() || flag_ungroup)
         {
-          grep.out.dump.hex(flag_invert_match ? Output::Dump::HEX_CONTEXT_LINE : Output::Dump::HEX_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
-          grep.out.dump.done();
+          if (binary)
+          {
+            grep.out.dump.hex(flag_invert_match ? Output::Dump::HEX_CONTEXT_LINE : Output::Dump::HEX_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
+            grep.out.dump.done();
+          }
+          else
+          {
+            bool lf_only = false;
+            if (grep.restline_size > 0)
+            {
+              lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
+              grep.restline_size -= lf_only;
+              if (grep.restline_size > 0)
+              {
+                grep.out.str(flag_invert_match ? color_cx : color_sl);
+                grep.out.str(grep.restline_data, grep.restline_size);
+                grep.out.str(color_off);
+              }
+            }
+            grep.out.nl(lf_only);
+          }
+
+          grep.restline_data = NULL;
         }
         else
         {
-          bool lf_only = false;
-          if (grep.restline_size > 0)
-          {
-            lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
-            grep.restline_size -= lf_only;
-            if (grep.restline_size > 0)
-            {
-              grep.out.str(flag_invert_match ? color_cx : color_sl);
-              grep.out.str(grep.restline_data, grep.restline_size);
-              grep.out.str(color_off);
-            }
-          }
-          grep.out.nl(lf_only);
+          // save restline before the buffer shifts
+          GrepHandler::operator()(matcher, buf, len, num);
         }
-
-        grep.restline_data = NULL;
-      }
-      else
-      {
-        // save restline before the buffer shifts
-        GrepHandler::operator()(matcher, buf, len, num);
       }
 
       // context colors with or without -v
@@ -2702,6 +2704,25 @@ struct Grep {
     // context state to track context lines before and after a match
     struct ContextState {
 
+      struct Line {
+
+        Line() :
+          binary(false),
+          offset(0),
+          ptr(NULL),
+          size(0)
+        { }
+
+        bool        binary; // before context binary line
+        size_t      offset; // before context offset of line
+        const char* ptr;    // before context pointer to line
+        size_t      size;   // before context length of the line
+        std::string line;   // before context line data saved from before_ptr with before_size bytes
+
+      };
+
+      typedef std::vector<Line> Lines;
+
       ContextState()
         :
           before_index(0),
@@ -2709,18 +2730,14 @@ struct Grep {
           after_lineno(0),
           after_length(flag_after_context)
       {
-        before_binary.resize(flag_before_context);
-        before_offset.resize(flag_before_context);
-        before_line.resize(flag_before_context);
+        before_lines.resize(flag_before_context);
       }
 
-      size_t                   before_index;  // before context rotation index
-      size_t                   before_length; // accumulated length of the before context
-      std::vector<bool>        before_binary; // before context binary line
-      std::vector<size_t>      before_offset; // before context offset of line
-      std::vector<std::string> before_line;   // before context line data
-      size_t                   after_lineno;  // after context line number
-      size_t                   after_length;  // accumulated length of the after context
+      size_t before_index;  // before context rotation index
+      size_t before_length; // accumulated length of the before context
+      Lines  before_lines;  // before context line data
+      size_t after_lineno;  // after context line number
+      size_t after_length;  // accumulated length of the after context
 
     };
 
@@ -2729,10 +2746,10 @@ struct Grep {
         AnyLineGrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
     { }
 
-    // display the before context
+    // output the before context
     void output_before_context()
     {
-      // the group separator indicates lines skipped, like GNU grep
+      // the group separator indicates lines skipped between contexts, like GNU grep
       if (state.after_lineno > 0 && state.after_lineno + state.after_length < grep.matcher->lineno() - state.before_length)
       {
         if (hex)
@@ -2767,21 +2784,22 @@ struct Grep {
         for (size_t i = 0; i < state.before_length; ++i)
         {
           size_t j = (state.before_index + i) % state.before_length;
+          const ContextState::Line& before_line = state.before_lines[j];
 
-          if (hex && !state.before_binary[j])
+          if (hex && !before_line.binary)
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, heading, before_lineno + i, NULL, state.before_offset[j], flag_separator_dash, state.before_binary[j]);
+            grep.out.header(pathname, grep.partname, heading, before_lineno + i, NULL, before_line.offset, flag_separator_dash, before_line.binary);
 
-          hex = state.before_binary[j];
+          hex = before_line.binary;
 
-          const char *ptr = state.before_line[j].c_str();
-          size_t size = state.before_line[j].size();
+          const char *ptr = before_line.line.c_str();
+          size_t size = before_line.line.size();
 
           if (hex)
           {
-            grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, state.before_offset[j], ptr, size);
+            grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, before_line.offset, ptr, size);
           }
           else
           {
@@ -2807,7 +2825,7 @@ struct Grep {
       state.before_length = 0;
     }
 
-    // set the after context
+    // set the after context to the current line + 1
     void set_after_lineno(size_t lineno)
     {
       // set the after context state with the first after context line number
@@ -2824,36 +2842,39 @@ struct Grep {
 
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
-      // display the rest of the matching line before the context lines
-      if (grep.restline_data != NULL && (lineno != matcher.lineno() || flag_ungroup))
+      // output the rest of the matching line before the context lines
+      if (grep.restline_data != NULL)
       {
-        if (binary)
+        if (lineno != matcher.lineno() || flag_ungroup)
         {
-          grep.out.dump.hex(Output::Dump::HEX_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
+          if (binary)
+          {
+            grep.out.dump.hex(Output::Dump::HEX_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
+          }
+          else
+          {
+            bool lf_only = false;
+            if (grep.restline_size > 0)
+            {
+              lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
+              grep.restline_size -= lf_only;
+              if (grep.restline_size > 0)
+              {
+                grep.out.str(color_sl);
+                grep.out.str(grep.restline_data, grep.restline_size);
+                grep.out.str(color_off);
+              }
+            }
+            grep.out.nl(lf_only);
+          }
+
+          grep.restline_data = NULL;
         }
         else
         {
-          bool lf_only = false;
-          if (grep.restline_size > 0)
-          {
-            lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
-            grep.restline_size -= lf_only;
-            if (grep.restline_size > 0)
-            {
-              grep.out.str(color_sl);
-              grep.out.str(grep.restline_data, grep.restline_size);
-              grep.out.str(color_off);
-            }
-          }
-          grep.out.nl(lf_only);
+          // save restline before the buffer shifts
+          GrepHandler::operator()(matcher, buf, len, num);
         }
-
-        grep.restline_data = NULL;
-      }
-      else
-      {
-        // save restline before the buffer shifts
-        GrepHandler::operator()(matcher, buf, len, num);
       }
 
       while (ptr != NULL)
@@ -2911,10 +2932,13 @@ struct Grep {
         {
           if (state.before_length < flag_before_context)
             ++state.before_length;
+
           state.before_index %= state.before_length;
-          state.before_binary[state.before_index] = binary;
-          state.before_offset[state.before_index] = offset;
-          state.before_line[state.before_index].assign(ptr, size);
+          state.before_lines[state.before_index].binary = binary;
+          state.before_lines[state.before_index].offset = offset;
+          state.before_lines[state.before_index].ptr    = ptr;
+          state.before_lines[state.before_index].size   = size;
+
           ++state.before_index;
         }
         else
@@ -2923,6 +2947,16 @@ struct Grep {
         }
 
         next_before(buf, len, num, ptr, size, offset);
+      }
+
+      // save the (new or additional) before lines that become inaccessible after shift or buffer growth
+      for (size_t i = 0; i < state.before_length; ++i)
+      {
+        if (state.before_lines[i].ptr != NULL)
+        {
+          state.before_lines[i].line.assign(state.before_lines[i].ptr, state.before_lines[i].size);
+          state.before_lines[i].ptr = NULL;
+        }
       }
     }
 
@@ -2933,25 +2967,44 @@ struct Grep {
   // extend event AnyLineGrepHandler to output specific context lines for -ABC with -v
   struct InvertContextGrepHandler : public AnyLineGrepHandler {
 
-    struct InvertContextMatch {
-
-      InvertContextMatch(size_t pos, size_t size, size_t offset)
-        :
-          pos(pos),
-          size(size),
-          offset(offset)
-      { }
-
-      size_t pos;    // position on the line
-      size_t size;   // size of the match
-      size_t offset; // size of the match
-
-    };
-
-    typedef std::vector<InvertContextMatch> InvertContextMatches;
-
     // context state to track matching lines before non-matching lines
     struct InvertContextState {
+
+      struct Match {
+
+        Match(size_t pos, size_t size, size_t offset)
+          :
+            pos(pos),
+            size(size),
+            offset(offset)
+        { }
+
+        size_t pos;    // position on the line
+        size_t size;   // size of the match
+        size_t offset; // byte offset of the match
+
+      };
+
+      typedef std::vector<Match> Matches;
+
+      struct Line {
+
+        Line()
+          :
+            binary(false),
+            columno(0),
+            offset(0)
+        { }
+
+        bool        binary;  // before context binary line
+        size_t      columno; // before context column number of first match
+        size_t      offset;  // before context offset of first match
+        std::string line;    // before context line data
+        Matches     matches; // before context matches per line
+
+      };
+
+      typedef std::vector<Line> Lines;
 
       InvertContextState()
         :
@@ -2959,21 +3012,13 @@ struct Grep {
           before_length(0),
           after_lineno(0)
       {
-        before_binary.resize(flag_before_context);
-        before_columno.resize(flag_before_context);
-        before_offset.resize(flag_before_context);
-        before_line.resize(flag_before_context);
-        before_match.resize(flag_before_context);
+        before_lines.resize(flag_before_context);
       }
 
-      size_t                            before_index;   // before context rotation index
-      size_t                            before_length;  // accumulated length of the before context
-      std::vector<bool>                 before_binary;  // before context binary line
-      std::vector<size_t>               before_columno; // before context column number of first match
-      std::vector<size_t>               before_offset;  // before context offset of first match
-      std::vector<std::string>          before_line;    // before context line data
-      std::vector<InvertContextMatches> before_match;   // before context matches per line
-      size_t                            after_lineno;   // the after context line number
+      size_t before_index;  // before context rotation index
+      size_t before_length; // accumulated length of the before context
+      Lines  before_lines;  // before context line data
+      size_t after_lineno;  // the after context line number
 
     };
 
@@ -2982,10 +3027,10 @@ struct Grep {
         AnyLineGrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
     { }
 
-    // display the before context
+    // output the before context
     void output_before_context()
     {
-      // the group separator indicates lines skipped, like GNU grep
+      // the group separator indicates lines skipped between contexts, like GNU grep
       if (state.after_lineno > 0 && state.after_lineno + flag_after_context + flag_before_context < lineno && flag_group_separator != NULL)
       {
         if (hex)
@@ -3017,21 +3062,22 @@ struct Grep {
         for (size_t i = 0; i < state.before_length; ++i)
         {
           size_t j = (state.before_index + i) % state.before_length;
-          size_t offset = state.before_match[j].empty() ? state.before_offset[j] : state.before_match[j].front().offset;
+          const InvertContextState::Line& before_line = state.before_lines[j];
+          size_t offset = before_line.matches.empty() ? before_line.offset : before_line.matches.front().offset;
 
-          if (hex && !state.before_binary[j])
+          if (hex && !before_line.binary)
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, heading, before_lineno + i, NULL, offset, flag_separator_dash, state.before_binary[j]);
+            grep.out.header(pathname, grep.partname, heading, before_lineno + i, NULL, offset, flag_separator_dash, before_line.binary);
 
-          hex = state.before_binary[j];
+          hex = before_line.binary;
 
-          const char *ptr = state.before_line[j].c_str();
-          size_t size = state.before_line[j].size();
+          const char *ptr = before_line.line.c_str();
+          size_t size = before_line.line.size();
           size_t pos = 0;
 
-          for (auto& match : state.before_match[j])
+          for (const auto& match : before_line.matches)
           {
             if (hex)
             {
@@ -3064,7 +3110,7 @@ struct Grep {
 
           if (hex)
           {
-            grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, state.before_offset[j] + pos, ptr + pos, size - pos);
+            grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, before_line.offset + pos, ptr + pos, size - pos);
           }
           else
           {
@@ -3088,7 +3134,7 @@ struct Grep {
       // reset the context state
       state.before_index = 0;
       state.before_length = 0;
-      state.after_lineno = lineno;
+      state.after_lineno = lineno + 1;
     }
 
     // add line with the first match to the before context
@@ -3096,12 +3142,15 @@ struct Grep {
     {
       if (state.before_length < flag_before_context)
         ++state.before_length;
+
       state.before_index %= state.before_length;
-      state.before_binary[state.before_index] = binary;
-      state.before_columno[state.before_index] = columno;
-      state.before_offset[state.before_index] = offset;
-      state.before_line[state.before_index].assign(bol, eol - bol);
-      state.before_match[state.before_index].clear();
+
+      state.before_lines[state.before_index].binary  = binary;
+      state.before_lines[state.before_index].columno = columno;
+      state.before_lines[state.before_index].offset  = offset;
+      state.before_lines[state.before_index].line.assign(bol, eol - bol);
+      state.before_lines[state.before_index].matches.clear();
+
       ++state.before_index;
     }
 
@@ -3112,14 +3161,8 @@ struct Grep {
       if (state.before_length > 0)
       {
         size_t index = (state.before_index + state.before_length - 1) % state.before_length;
-        state.before_match[index].emplace_back(pos, size, offset);
+        state.before_lines[index].matches.emplace_back(pos, size, offset);
       }
-    }
-
-    // set the after context
-    void set_after_lineno(size_t lineno)
-    {
-      state.after_lineno = lineno;
     }
 
     // functor invoked by the reflex::AbstractMatcher when the buffer contents are shifted out, also called explicitly in grep::search
@@ -3131,36 +3174,39 @@ struct Grep {
 
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
-      // display the rest of the "after" matching line
-      if (grep.restline_data != NULL && (lineno != matcher.lineno() || flag_ungroup))
+      // output the rest of the "after" matching line
+      if (grep.restline_data != NULL)
       {
-        if (binary)
+        if (lineno != matcher.lineno() || flag_ungroup)
         {
-          grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
+          if (binary)
+          {
+            grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
+          }
+          else
+          {
+            bool lf_only = false;
+            if (grep.restline_size > 0)
+            {
+              lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
+              grep.restline_size -= lf_only;
+              if (grep.restline_size > 0)
+              {
+                grep.out.str(color_cx);
+                grep.out.str(grep.restline_data, grep.restline_size);
+                grep.out.str(color_off);
+              }
+            }
+            grep.out.nl(lf_only);
+          }
+
+          grep.restline_data = NULL;
         }
         else
         {
-          bool lf_only = false;
-          if (grep.restline_size > 0)
-          {
-            lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
-            grep.restline_size -= lf_only;
-            if (grep.restline_size > 0)
-            {
-              grep.out.str(color_cx);
-              grep.out.str(grep.restline_data, grep.restline_size);
-              grep.out.str(color_off);
-            }
-          }
-          grep.out.nl(lf_only);
+          // save restline before the buffer shifts
+          GrepHandler::operator()(matcher, buf, len, num);
         }
-
-        grep.restline_data = NULL;
-      }
-      else
-      {
-        // save restline before the buffer shifts
-        GrepHandler::operator()(matcher, buf, len, num);
       }
 
       if (ptr != NULL)
@@ -4315,6 +4361,11 @@ CNF Static::bcnf;
 // unique address to identify standard input path
 const char *Static::LABEL_STANDARD_INPUT = "(standard input)";
 
+// unique address to identify color and pretty WHEN arguments
+const char *Static::NEVER = "never";
+const char *Static::ALWAYS = "always";
+const char *Static::AUTO = "auto";
+
 // pointer to the --index pattern DFA with HFA constructed before threads start
 const reflex::Pattern *Static::index_pattern = NULL; // concurrent access is thread safe
 
@@ -4816,20 +4867,20 @@ static void save_config()
   else
     fprintf(file, "# pager=less\n\n");
 
-  fprintf(file, "# Enable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty ? "# no-pretty" : "no-pretty");
+  fprintf(file, "# Enable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty != NULL ? "# no-pretty" : "no-pretty");
 
   fprintf(file, "# Enable directory tree output to a terminal for -l (--files-with-matches) and -c (--count)\n%s\n\n", flag_tree ? "tree" : "no-tree");
 
-  if (flag_heading.is_defined() && flag_heading != flag_pretty)
+  if (flag_heading.is_defined() && flag_heading != (flag_pretty != NULL))
     fprintf(file, "# Enable headings (enabled with --pretty)\n%s\n\n", flag_heading ? "heading" : "no-heading");
 
-  if (flag_break.is_defined() && flag_break != flag_pretty)
+  if (flag_break.is_defined() && flag_break != (flag_pretty != NULL))
     fprintf(file, "# Enable break after matching files (enabled with --pretty)\n%s\n\n", flag_break ? "break" : "no-break");
 
-  if (flag_initial_tab.is_defined() && flag_initial_tab != flag_pretty)
+  if (flag_initial_tab.is_defined() && flag_initial_tab != (flag_pretty != NULL))
     fprintf(file, "# Enable initial tab (enabled with --pretty)\n%s\n\n", flag_initial_tab ? "initial-tab" : "no-initial-tab");
 
-  if (flag_line_number.is_defined() && flag_line_number != flag_pretty)
+  if (flag_line_number.is_defined() && flag_line_number != (flag_pretty != NULL))
     fprintf(file, "# Enable line numbers (enabled with --pretty)\n%s\n\n", flag_line_number ? "line-number" : "no-line-number");
 
   if (flag_column_number.is_defined())
@@ -4896,7 +4947,7 @@ static void save_config()
     fprintf(file, "# Recursively search directories up to %zu levels deep\nmax-depth=%zu\n\n", flag_max_depth, flag_max_depth);
   if (flag_ignore_files.empty())
   {
-    fprintf(file, "# Ignore files and directories specified in .gitignore, default: no-ignore-files\nno-ignore-files\n\n");
+    fprintf(file, "# Ignore files and directories specified in .gitignore, default: no-ignore-files\n# ignore-files\n\n");
   }
   else
   {
@@ -4905,6 +4956,7 @@ static void save_config()
       fprintf(file, "ignore-files=%s\n", ignore.c_str());
     fprintf(file, "\n");
   }
+
   if (!flag_filter.empty())
   {
     fprintf(file, "# Filter search with file format conversion tools\nfilter=%s\n\n", flag_filter.c_str());
@@ -4920,7 +4972,7 @@ static void save_config()
   fprintf(file, "### OUTPUT ###\n\n");
 
   if (flag_separator != NULL)
-    fprintf(file, "# Separator, default: none specified to output a `:', a `+', and a `|'\nseparator=%s\n\n", flag_separator);
+    fprintf(file, "# Separator, default: none specified to output a `:'\nseparator=%s\n\n", flag_separator);
 
   fprintf(file, "# Sort the list of files and directories searched and matched, default: sort\n");
   if (flag_sort != NULL)
@@ -5016,7 +5068,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'c':
                 if (strcmp(arg, "color") == 0 || strcmp(arg, "colour") == 0)
-                  flag_color = "auto";
+                  flag_color = Static::AUTO;
                 else if (strncmp(arg, "color=", 6) == 0)
                   flag_color = arg + 6;
                 else if (strncmp(arg, "colour=", 7) == 0)
@@ -5311,7 +5363,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "no-byte-offset") == 0)
                   flag_byte_offset = false;
                 else if (strcmp(arg, "no-color") == 0 || strcmp(arg, "no-colour") == 0)
-                  flag_color = "never";
+                  flag_color = Static::NEVER;
                 else if (strcmp(arg, "no-column-number") == 0)
                   flag_column_number = false;
                 else if (strcmp(arg, "no-confirm") == 0)
@@ -5362,8 +5414,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_max_mmap = 0;
                 else if (strcmp(arg, "no-pager") == 0)
                   flag_pager = NULL;
+                else if (strcmp(arg, "no-passthru") == 0)
+                  flag_any_line = false;
                 else if (strcmp(arg, "no-pretty") == 0)
-                  flag_pretty = false;
+                  flag_pretty = NULL;
                 else if (strcmp(arg, "no-smart-case") == 0)
                   flag_smart_case = false;
                 else if (strcmp(arg, "no-sort") == 0)
@@ -5405,15 +5459,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "perl-regexp") == 0)
                   flag_perl_regexp = true;
                 else if (strcmp(arg, "pretty") == 0)
-                  flag_pretty = true;
-                else if (strcmp(arg, "pretty=always") == 0)
-                  flag_pretty = flag_pretty_always = true;
-                else if (strcmp(arg, "pretty=auto") == 0)
-                  flag_pretty = true;
-                else if (strcmp(arg, "pretty=never") == 0)
-                  flag_pretty = false;
+                  flag_pretty = Static::AUTO;
                 else if (strncmp(arg, "pretty=", 7) == 0)
-                  usage("invalid argument --pretty=WHEN, valid arguments are 'never', 'always' and 'auto'");
+                  flag_pretty = arg + 7;
                 else
                   usage("invalid option --", arg, "--pager, --passthru, --perl-regexp or --pretty");
                 break;
@@ -6123,7 +6171,7 @@ void init(int argc, const char **argv)
   if (strncmp(program, "ug", len) == 0)
   {
     // the 'ug' command is equivalent to 'ugrep --config --pretty --sort' to load custom configuration files, when no --config=FILE is specified
-    flag_pretty = true;
+    flag_pretty = Static::AUTO;
     flag_sort = "name";
     if (flag_config == NULL)
       load_config(pattern_args);
@@ -6275,11 +6323,11 @@ void init(int argc, const char **argv)
     exit(EXIT_ERROR);
   }
 
-  // --separator: override :, + and |, otherwise use default separators :, +, and |
+  // --separator: override : and | otherwise use default separators : and |
   if (flag_separator == NULL || *flag_separator == '\0')
     flag_separator = ":";
   else
-    flag_separator_bar = flag_separator_plus = flag_separator;
+    flag_separator_bar = flag_separator;
 
 #ifdef OS_WIN
   // save_config() and help() assume text mode, so switch to
@@ -7045,32 +7093,45 @@ void terminal()
   if (flag_color != NULL)
   {
     if (strcmp(flag_color, "never") == 0 || strcmp(flag_color, "no") == 0 || strcmp(flag_color, "none") == 0)
-      flag_color = "never";
+      flag_color = Static::NEVER;
     else if (strcmp(flag_color, "always") == 0 || strcmp(flag_color, "yes") == 0 || strcmp(flag_color, "force") == 0)
-      flag_color = "always";
+      flag_color = Static::ALWAYS;
     else if (strcmp(flag_color, "auto") == 0 || strcmp(flag_color, "tty") == 0 || strcmp(flag_color, "if-tty") == 0)
-      flag_color = "auto";
+      flag_color = Static::AUTO;
     else
       usage("invalid argument --color=WHEN, valid arguments are 'never', 'always' and 'auto'");
   }
 
-  // whether to apply colors
+  // --pretty=WHEN: normalize WHEN argument
+  if (flag_pretty != NULL)
+  {
+    if (strcmp(flag_pretty, "never") == 0 || strcmp(flag_pretty, "no") == 0 || strcmp(flag_pretty, "none") == 0)
+      flag_pretty = NULL;
+    else if (strcmp(flag_pretty, "always") == 0 || strcmp(flag_pretty, "yes") == 0 || strcmp(flag_pretty, "force") == 0)
+      flag_pretty = Static::ALWAYS;
+    else if (strcmp(flag_pretty, "auto") == 0 || strcmp(flag_pretty, "tty") == 0 || strcmp(flag_pretty, "if-tty") == 0)
+      flag_pretty = Static::AUTO;
+    else
+      usage("invalid argument --pretty=WHEN, valid arguments are 'never', 'always' and 'auto'");
+  }
+
+  // whether to apply colors based on --tag, --query and --pretty
   if (flag_tag != NULL)
     flag_color = NULL;
-  else if ((flag_query || flag_pretty_always) && (flag_color == NULL || strcmp(flag_color, "auto") == 0))
-    flag_color = "always";
+  else if ((flag_query || flag_pretty == Static::ALWAYS) && flag_color == Static::AUTO)
+    flag_color = Static::ALWAYS;
 
   if (!flag_quiet)
   {
-    if (flag_tty_term || flag_query || flag_pretty_always)
+    if (flag_tty_term || flag_query || flag_pretty == Static::ALWAYS)
     {
-      if (flag_pretty)
+      if (flag_pretty != NULL)
       {
-        // --pretty: if output is to a TTY then enable --color, --heading, -T, -n, --sort and --tree
+        // --pretty: if output is sent to a TTY then enable --color, --heading, -T, -n, --sort and --tree
 
         // enable --color if not set yet and not --tag
         if (flag_color == NULL && flag_tag == NULL)
-          flag_color = "auto";
+          flag_color = Static::ALWAYS;
 
         // enable --heading if not explicitly disabled (enables --break later)
         if (flag_heading.is_undefined())
@@ -7122,14 +7183,14 @@ void terminal()
     // --color: (re)set flag_color depending on color term and TTY output
     if (flag_color != NULL)
     {
-      flag_color_term = flag_query;
-
-      if (strcmp(flag_color, "never") == 0)
+      if (flag_color == Static::NEVER)
       {
         flag_color = NULL;
       }
       else
       {
+        flag_color_term = flag_query;
+
 #ifdef OS_WIN
 
         if (flag_tty_term || flag_query)
@@ -7169,11 +7230,8 @@ void terminal()
 
 #endif
 
-        if (strcmp(flag_color, "auto") == 0)
-        {
-          if (!flag_color_term && flag_save_config == NULL)
-            flag_color = NULL;
-        }
+        if (!flag_color_term && flag_save_config == NULL && flag_color == Static::AUTO)
+          flag_color = NULL;
 
         if (flag_color != NULL)
         {
@@ -7943,11 +8001,11 @@ void ugrep()
   if (flag_no_dereference)
     flag_dereference = flag_dereference_files = false;
 
-  // display file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
+  // output file name if more than one input file is specified or options -R, -r, and option -h --no-filename is not specified
   if (!flag_no_filename && (flag_all_threads || flag_directories_action == Action::RECURSE || Static::arg_files.size() > 1 || (flag_stdin && !Static::arg_files.empty())))
     flag_with_filename = true;
 
-  // if no display options -H, -n, -k, -b are set, enable --no-header to suppress headers for speed
+  // if no output options -H, -n, -k, -b are set, enable --no-header to suppress headers for speed
   if (!flag_with_filename && !flag_line_number && !flag_column_number && !flag_byte_offset)
     flag_no_header = true;
 
@@ -8407,7 +8465,7 @@ void ugrep()
     }
   }
 
-  // --tree with -l or -c but not --format: finish tree display
+  // --tree with -l or -c but not --format: finish tree output
   if (flag_tree && (flag_files_with_matches || flag_count) && flag_format == NULL)
   {
     Output out(Static::output);
@@ -8420,7 +8478,7 @@ void ugrep()
   if (flag_format_end != NULL)
     Output(Static::output).format(flag_format_end, Stats::found_parts());
 
-  // --stats: display stats when we're done
+  // --stats: output stats when we're done
   if (flag_stats != NULL)
   {
     Stats::report(Static::output);
@@ -9570,7 +9628,7 @@ uint16_t Grep::compute_cost(const char *pathname)
   return cost;
 }
 
-// search input and display pattern matches
+// search input to output the pattern matches
 void Grep::search(const char *pathname, uint16_t cost)
 {
   // -Zbest (or --best-match): compute cost if not yet computed by --sort=best
@@ -9913,7 +9971,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           // construct event handler functor with captured *this and some of the locals
           FormatInvertMatchGrepHandler invert_match_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
 
-          // register the event handler to display non-matching lines
+          // register the event handler to output non-matching lines
           matcher->set_handler(&invert_match_handler);
 
           // to get the context from the invert_match handler explicitly
@@ -9938,7 +9996,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               // get the lines before the matched line
               context = matcher->before();
 
-              // display non-matching lines up to this line
+              // output non-matching lines up to this line
               if (context.len > 0)
                 invert_match_handler(*matcher, context.buf, context.len, context.num);
 
@@ -9962,7 +10020,7 @@ void Grep::search(const char *pathname, uint16_t cost)
             lineno = current_lineno + matcher->lines() - 1;
           }
 
-          // get the remaining context
+          // get the remaining context after the last match to output
           context = matcher->after();
 
           if (context.len > 0)
@@ -10164,10 +10222,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           }
 
           if (!flag_no_header)
-          {
-            const char *separator = lineno != current_lineno ? flag_separator : flag_separator_plus;
-            out.header(pathname, partname, heading, current_lineno, matcher, matcher->first(), separator, binary);
-          }
+            out.header(pathname, partname, heading, current_lineno, matcher, matcher->first(), flag_separator, binary);
 
           lineno = current_lineno;
 
@@ -10404,10 +10459,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           }
 
           if (!flag_no_header)
-          {
-            const char *separator = lineno != current_lineno ? flag_separator : flag_separator_plus;
-            out.header(pathname, partname, heading, current_lineno, matcher, matcher->first(), separator, binary);
-          }
+            out.header(pathname, partname, heading, current_lineno, matcher, matcher->first(), flag_separator, binary);
 
           lineno = current_lineno;
 
@@ -10767,10 +10819,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               out.dump.done();
 
             if (!flag_no_header)
-            {
-              const char *separator = lineno != current_lineno ? flag_separator : flag_separator_plus;
-              out.header(pathname, partname, heading, current_lineno, matcher, first, separator, binary);
-            }
+              out.header(pathname, partname, heading, current_lineno, matcher, first, flag_separator, binary);
 
             hex = binary;
 
@@ -10928,7 +10977,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                       if (left < first - restline_last)
                       {
                         if (!flag_no_header)
-                          out.header(pathname, partname, heading, current_lineno, matcher, first, flag_separator_plus, binary);
+                          out.header(pathname, partname, heading, current_lineno, matcher, first, flag_separator_bar, binary);
 
                         left = first - restline_last - left;
 
@@ -11118,7 +11167,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         // construct event handler functor with captured *this and some of the locals
         InvertMatchGrepHandler invert_match_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
 
-        // register the event handler to display non-matching lines
+        // register the event handler to output non-matching lines
         matcher->set_handler(&invert_match_handler);
 
         // to get the context from the invert_match handler explicitly
@@ -11143,7 +11192,7 @@ void Grep::search(const char *pathname, uint16_t cost)
             // get the lines before the matched line
             context = matcher->before();
 
-            // display non-matching lines up to this line
+            // output non-matching lines up to this line
             if (context.len > 0)
               invert_match_handler(*matcher, context.buf, context.len, context.num);
 
@@ -11173,7 +11222,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           lineno = current_lineno + matcher->lines() - 1;
         }
 
-        // get the remaining context
+        // get the remaining context after the last match to output 
         context = matcher->after();
 
         if (context.len > 0)
@@ -11204,7 +11253,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool stop = false;
         bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
-        // to display the rest of the matching line
+        // to output the rest of the matching line
         restline_data = NULL;
         restline_size = 0;
         restline_last = 0;
@@ -11212,14 +11261,15 @@ void Grep::search(const char *pathname, uint16_t cost)
         // construct event handler functor with captured *this and some of the locals
         AnyLineGrepHandler any_line_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
 
-        // register the event handler functor to display non-matching lines
+        // register the event handler functor to output non-matching lines
         matcher->set_handler(&any_line_handler);
 
-        // to display colors with or without -v
+        // to output colors with or without -v
         short v_hex_line = flag_invert_match ? Output::Dump::HEX_CONTEXT_LINE : Output::Dump::HEX_LINE;
         short v_hex_match = flag_invert_match ? Output::Dump::HEX_CONTEXT_MATCH : Output::Dump::HEX_MATCH;
         const char *v_color_sl = flag_invert_match ? color_cx : color_sl;
         const char *v_match_ms = flag_invert_match ? match_mc : match_ms;
+        const char *separator = flag_invert_match ? flag_separator_dash : flag_separator;
 
         // to get the context from the any_line handler explicitly
         reflex::AbstractMatcher::Context context;
@@ -11359,10 +11409,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               out.dump.done();
 
             if (!flag_no_header)
-            {
-              const char *separator = lineno != current_lineno ? flag_invert_match ? flag_separator_dash : flag_separator : flag_separator_plus;
               out.header(pathname, partname, heading, current_lineno, matcher, first, separator, binary);
-            }
 
             hex = binary;
 
@@ -11634,7 +11681,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           restline_data = NULL;
         }
 
-        // get the remaining context
+        // get the remaining context after the last match to output
         context = matcher->after();
 
         if (context.len > 0)
@@ -11665,7 +11712,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool stop = false;
         bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
-        // to display the rest of the matching line
+        // to output the rest of the matching line
         restline_data = NULL;
         restline_size = 0;
         restline_last = 0;
@@ -11673,10 +11720,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         // construct event handler functor with captured *this and some of the locals
         ContextGrepHandler context_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
 
-        // register the event handler functor to display non-matching lines
+        // register the event handler functor to output non-matching lines
         matcher->set_handler(&context_handler);
 
-        // to get the context from the any_line handler explicitly
+        // to get the context from the context handler explicitly
         reflex::AbstractMatcher::Context context;
 
         while (matcher->find())
@@ -11759,7 +11806,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               if (flag_after_context == 0 || matches > flag_max_count + 1)
                 break;
 
-              // one more iteration to get the after context displayed
+              // one more iteration to get the after context to output
               lineno = current_lineno;
               context_handler.set_after_lineno(lineno + matcher->lines());
               continue;
@@ -11803,10 +11850,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               out.dump.done();
 
             if (!flag_no_header)
-            {
-              const char *separator = lineno != current_lineno ? flag_invert_match ? flag_separator_dash : flag_separator : flag_separator_plus;
-              out.header(pathname, partname, heading, current_lineno, matcher, first, separator, binary);
-            }
+              out.header(pathname, partname, heading, current_lineno, matcher, first, flag_separator, binary);
 
             hex = binary;
 
@@ -12093,7 +12137,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           restline_data = NULL;
         }
 
-        // get the remaining context
+        // get the remaining context after the last match to output
         context = matcher->after();
 
         if (context.len > 0)
@@ -12116,8 +12160,9 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // InvertContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
         size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-        size_t matching = 0;
         size_t last_lineno = lineno;
+        size_t next_lineno = lineno + 1;
+        size_t matching = 0;
         size_t after = flag_after_context;
         bool heading = flag_with_filename;
         bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
@@ -12126,7 +12171,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool stop = false;
         bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
-        // to display the rest of the matching line
+        // to output the rest of the matching line
         restline_data = NULL;
         restline_size = 0;
         restline_last = 0;
@@ -12134,10 +12179,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         // construct event handler functor with captured *this and some of the locals
         InvertContextGrepHandler invert_context_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
 
-        // register the event handler functor to display non-matching lines
+        // register the event handler functor to output non-matching lines
         matcher->set_handler(&invert_context_handler);
 
-        // to get the context from the handler explicitly
+        // to get the context from the context handler explicitly
         reflex::AbstractMatcher::Context context;
 
         while (matcher->find())
@@ -12145,9 +12190,10 @@ void Grep::search(const char *pathname, uint16_t cost)
           size_t current_lineno = matcher->lineno();
           size_t lines = matcher->lines();
 
+          // adjust the number of after lines output so far upward if uninterrupted, or reset to zero
           if (last_lineno != current_lineno)
           {
-            if (lineno + 1 >= current_lineno)
+            if (next_lineno >= current_lineno)
               after += lines;
             else
               after = 0;
@@ -12250,7 +12296,9 @@ void Grep::search(const char *pathname, uint16_t cost)
                 }
                 else // if (flag_invert_match) is true
                 {
-                  lineno = last_lineno = current_lineno + matcher->lines() - 1;
+                  last_lineno = current_lineno;
+                  next_lineno = current_lineno + lines;
+                  lineno = next_lineno - 1;
                   continue;
                 }
                 /* logically OK but dead code because -v
@@ -12355,7 +12403,9 @@ void Grep::search(const char *pathname, uint16_t cost)
                 }
                 else // if (flag_invert_match) is true
                 {
-                  lineno = last_lineno = current_lineno + matcher->lines() - 1;
+                  last_lineno = current_lineno;
+                  next_lineno = current_lineno + lines;
+                  lineno = next_lineno - 1;
                   continue;
                 }
                 /* logically OK but dead code because -v
@@ -12558,7 +12608,9 @@ void Grep::search(const char *pathname, uint16_t cost)
                   }
                   else // if (flag_invert_match) is true
                   {
-                    lineno = last_lineno = current_lineno + matcher->lines() - 1;
+                    last_lineno = current_lineno;
+                    next_lineno = current_lineno + lines;
+                    lineno = next_lineno - 1;
                     continue;
                   }
                   /* logically OK but dead code because -v
@@ -12600,7 +12652,8 @@ void Grep::search(const char *pathname, uint16_t cost)
           }
 
           last_lineno = current_lineno;
-          lineno = current_lineno + lines - 1;
+          next_lineno = current_lineno + lines;
+          lineno = next_lineno - 1;
         }
 
         if (restline_data != NULL)
@@ -12629,7 +12682,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           restline_data = NULL;
         }
 
-        // get the remaining context
+        // get the remaining context after the last match to output
         context = matcher->after();
 
         if (context.len > 0)
@@ -13113,7 +13166,7 @@ size_t strtofuzzy(const char *string, const char *message)
   return max | flags;
 }
 
-// display diagnostic message
+// print a diagnostic message
 void usage(const char *message, const char *arg, const char *valid)
 {
   std::cerr << "ugrep: " << message << (arg != NULL ? arg : "");
@@ -13161,7 +13214,7 @@ void usage(const char *message, const char *arg, const char *valid)
   ++Static::warnings;
 }
 
-// display usage/help information and exit
+// print usage/help information and exit
 void help(std::ostream& out)
 {
   out <<
@@ -13642,11 +13695,9 @@ void help(std::ostream& out)
             --exclude='*.ext'.  This option may be repeated and may be combined\n\
             with options -g, -M and -t to expand the recursive search.\n\
     -o, --only-matching\n\
-            Output only the matching part of lines.  Output additional matches\n\
-            on the same line with `+' as the field separator.  When multiple\n\
-            lines match a pattern, output the matching lines with `|' as the\n\
-            field separator.  If -A, -B or -C is specified, fits the match and\n\
-            its context on a line within the specified number of columns.\n\
+            Output only the matching part of lines.  If -A, -B or -C is\n\
+            specified, fits the match and its context on a line within the\n\
+            specified number of columns.\n\
     --only-line-number\n\
             The line number of the matching line in the file is output without\n\
             displaying the match.  The line number counter is reset for each\n\
@@ -13729,8 +13780,7 @@ void help(std::ostream& out)
     --separator[=SEP]\n\
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset and the matched line.  The default is a colon\n\
-            (`:'), a plus (`+') for additional matches on the same line, and a\n\
-            bar (`|') for multi-line pattern matches.\n\
+            (`:') and a bar (`|') for multi-line pattern matches.\n\
     --split\n\
             Split the -Q query TUI screen on startup.\n\
     --sort[=KEY]\n\
@@ -13781,8 +13831,7 @@ void help(std::ostream& out)
             represented by the UTF-8 sequence C2 A3.  See also option --dotall.\n\
     -u, --ungroup\n\
             Do not group multiple pattern matches on the same matched line.\n\
-            Output the matched line again for each additional pattern match,\n\
-            using `+' as a separator.\n\
+            Output the matched line again for each additional pattern match.\n\
     -V, --version\n\
             Display version with linked libraries and exit.\n\
     -v, --invert-match\n\
@@ -13918,7 +13967,7 @@ void help(std::ostream& out)
     status is 0 even if an error occurred.\n\n";
 }
 
-// display helpful information for WHAT, if specified, and exit
+// print a helpful information for WHAT, if specified, and exit
 void help(const char *what)
 {
   if (what != NULL && *what == '=')
@@ -14254,7 +14303,7 @@ make the first characters of the regex pattern optional, for example\n\
   exit(EXIT_ERROR);
 }
 
-// display version info
+// print the version info
 void version()
 {
 #if defined(HAVE_PCRE2)

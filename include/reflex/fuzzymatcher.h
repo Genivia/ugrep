@@ -586,6 +586,29 @@ redo:
                       }
                       opcode = *++pc;
                       continue;
+                    case Pattern::META_WBE - Pattern::META_MIN:
+                      DBGLOG("WBE? %d %d %d", c0, c1, isword(c0) != isword(c1));
+                      anc_ = true;
+                      if (jump == Pattern::Const::IMAX && isword(c0) != isword(c1))
+                      {
+                        jump = Pattern::index_of(opcode);
+                        if (jump == Pattern::Const::LONG)
+                          jump = Pattern::long_index_of(*++pc);
+                      }
+                      opcode = *++pc;
+                      continue;
+                    case Pattern::META_WBB - Pattern::META_MIN:
+                      DBGLOG("WBB? %d %d", at_bow(), at_eow());
+                      anc_ = true;
+                      if (jump == Pattern::Const::IMAX &&
+                          isword(got_) != isword(static_cast<unsigned char>(txt_[len_])))
+                      {
+                        jump = Pattern::index_of(opcode);
+                        if (jump == Pattern::Const::LONG)
+                          jump = Pattern::long_index_of(*++pc);
+                      }
+                      opcode = *++pc;
+                      continue;
                     case 0xFF: // LONG
                       opcode = *++pc;
                       continue;

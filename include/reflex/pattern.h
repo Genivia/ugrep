@@ -826,21 +826,23 @@ class Pattern {
   enum Meta {
     META_MIN = 0x100,
     // word boundaries
-    META_NWB = 0x101, ///< non-word boundary at begin `\Bx`
-    META_NWE = 0x102, ///< non-word boundary at end   `x\B`
-    META_BWB = 0x103, ///< begin of word at begin     `\<x` where \bx=(\<|\>)x
-    META_EWB = 0x104, ///< end of word at begin       `\>x`
-    META_BWE = 0x105, ///< begin of word at end       `x\<` where x\b=x(\<|\>)
-    META_EWE = 0x106, ///< end of word at end         `x\>`
+    META_WBB = 0x101, ///< word boundary at begin     `\bx`
+    META_WBE = 0x102, ///< word boundary at end       `x\b`
+    META_NWB = 0x103, ///< non-word boundary at begin `\Bx`
+    META_NWE = 0x104, ///< non-word boundary at end   `x\B`
+    META_BWB = 0x105, ///< begin of word at begin     `\<x`
+    META_EWB = 0x106, ///< end of word at begin       `\>x`
+    META_BWE = 0x107, ///< begin of word at end       `x\<`
+    META_EWE = 0x108, ///< end of word at end         `x\>`
     // line and buffer boundaries
-    META_BOL = 0x107, ///< begin of line              `^`
-    META_EOL = 0x108, ///< end of line                `$`
-    META_BOB = 0x109, ///< begin of buffer            `\A`
-    META_EOB = 0x10A, ///< end of buffer              `\Z`
+    META_BOL = 0x109, ///< begin of line              `^`
+    META_EOL = 0x10A, ///< end of line                `$`
+    META_BOB = 0x10B, ///< begin of buffer            `\A`
+    META_EOB = 0x10C, ///< end of buffer              `\Z`
     // indent boundaries
-    META_UND = 0x10B, ///< undent boundary            `\k`
-    META_IND = 0x10C, ///< indent boundary            `\i` (must be one but the largest META code)
-    META_DED = 0x10D, ///< dedent boundary            `\j` (must be the largest META code)
+    META_UND = 0x10D, ///< undent boundary            `\k`
+    META_IND = 0x10E, ///< indent boundary            `\i` (must be one but the largest META code)
+    META_DED = 0x10F, ///< dedent boundary            `\j` (must be the largest META code)
     // end of boundaries
     META_MAX          ///< max meta characters
   };
