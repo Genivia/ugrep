@@ -319,7 +319,7 @@ Check <https://pkgs.alpinelinux.org/packages?name=ugrep> for version info.
 
     $ pacman -S ugrep
 
-Check <https://archlinux.org/packages/community/x86_64/ugrep> for version info.
+Check <https://archlinux.org/packages/extra/x86_64/ugrep> for version info.
 
 ### CentOS
 
