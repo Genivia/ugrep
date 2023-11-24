@@ -380,11 +380,11 @@ const char *flag_sort              = NULL;
 const char *flag_stats             = NULL;
 const char *flag_tag               = NULL;
 const char *flag_view              = "";
-std::string              flag_config_file;
 std::string              flag_filter;
 std::string              flag_hyperlink_prefix;
 std::string              flag_hyperlink_path;
-std::set<std::string>    flag_config_options;
+std::set<std::string>    flag_config_files;
+std::set<std::string>    flag_ignore_files;
 std::vector<std::string> flag_regexp;
 std::vector<std::string> flag_file;
 std::vector<std::string> flag_file_type;
@@ -393,7 +393,6 @@ std::vector<std::string> flag_file_magic;
 std::vector<std::string> flag_filter_magic_label;
 std::vector<std::string> flag_glob;
 std::vector<std::string> flag_iglob;
-std::vector<std::string> flag_ignore_files;
 std::vector<std::string> flag_include;
 std::vector<std::string> flag_include_dir;
 std::vector<std::string> flag_include_from;
@@ -408,10 +407,8 @@ std::vector<std::string> flag_all_exclude;
 std::vector<std::string> flag_all_exclude_dir;
 reflex::Input::file_encoding_type flag_encoding_type = reflex::Input::file_encoding::plain;
 
-#ifdef OS_WIN
-// store UTF-8 arguments decoded from wargv[] in strings to re-populate argv[] with pointers
+// store string arguments and the UTF-8 arguments decoded from wargv[] in strings to re-populate argv[] with pointers
 std::list<std::string> arg_strings;
-#endif
 
 // helper function protos
 void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int argc, const char **argv);
@@ -427,6 +424,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
 void trim_pathname_arg(const char *arg);
 bool is_output(ino_t inode);
+const char *strarg(const char *string);
 size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
 void strtopos2(const char *string, size_t& pos1, size_t& pos2, const char *message);
@@ -916,7 +914,7 @@ struct Zthread {
           pipe_fd[0] = -1;
           pipe_fd[1] = -1;
 
-          warning("cannot create thread to decompress",  pathname);
+          warning("cannot create thread to decompress", pathname);
 
           return NULL;
         }
@@ -933,7 +931,7 @@ struct Zthread {
         pipe_fd[1] = -1;
       }
 
-      warning("cannot create pipe to decompress",  pathname);
+      warning("cannot create pipe to decompress", pathname);
 
       return NULL;
     }
@@ -2402,25 +2400,25 @@ struct Grep {
       if (ptr == NULL)
         return;
 
-      const char *s = ptr + size;
-      const char *e = buf + len;
+      const char *pos = ptr + size;
+      const char *end = buf + len;
 
-      if (s >= e)
+      if (pos >= end)
       {
         ptr = NULL;
       }
       else
       {
-        e = static_cast<const char*>(memchr(s, '\n', e - s));
+        const char *eol = static_cast<const char*>(memchr(pos, '\n', end - pos));
 
-        if (e == NULL)
-          e = buf + len;
+        if (eol == NULL)
+          eol = buf + len;
         else
-          ++e;
+          ++eol;
 
-        ptr = s;
-        size = e - s;
-        offset = s - buf + num;
+        ptr = pos;
+        size = eol - pos;
+        offset = pos - buf + num;
 
         ++lineno;
       }
@@ -4652,7 +4650,7 @@ int main(int argc, const char **argv)
 }
 
 // set -1,...,-9,-10,... recursion depth flags
-static void set_depth(const char *& arg)
+static void set_depth(const char*& arg)
 {
   const char *range = arg;
   char *rest = NULL;
@@ -4693,33 +4691,44 @@ static void set_depth_long(const char *arg)
 }
 
 // load config file specified or the default .ugrep, located in the working directory or home directory
-static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args)
+static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, bool recurse = false)
 {
-  // warn about invalid options but do not exit
-  flag_usage_warnings = true;
-
   // the default config file is .ugrep when FILE is not specified
   if (flag_config == NULL || *flag_config == '\0')
-    flag_config_file.assign(".ugrep");
-  else
-    flag_config_file.assign(flag_config);
+    flag_config = ".ugrep";
 
+  // if config file was parsed before, then only try parsing the home dir config file
+  bool home = flag_config_files.find(flag_config) != flag_config_files.end();
+
+  // open a local config file or in the home directory
+  std::string config_file = flag_config;
   FILE *file = NULL;
-
-  if (fopen_smart(&file, flag_config_file.c_str(), "r") != 0)
+  if (home || fopen_smart(&file, flag_config, "r") != 0)
   {
-    if (Static::home_dir != NULL)
+    file = NULL;
+    if (Static::home_dir != NULL && *flag_config != '~' && *flag_config != PATHSEPCHR)
     {
-      // check the home directory for the configuration file
-      if (flag_config == NULL || *flag_config == '\0')
-        flag_config_file.assign(Static::home_dir).append(PATHSEPSTR).append(".ugrep");
-      else
-        flag_config_file.assign(Static::home_dir).append(PATHSEPSTR).append(flag_config);
-      if (fopen_smart(&file, flag_config_file.c_str(), "r") != 0)
+      // check the home directory for the configuration file, parse only if not parsed before
+      config_file.assign(Static::home_dir).append(PATHSEPSTR).append(flag_config);
+      if (flag_config_files.find(config_file) != flag_config_files.end() ||
+          fopen_smart(&file, config_file.c_str(), "r") != 0)
+      {
         file = NULL;
+      }
+      else
+      {
+        // new config file in the home dir to parse, add to the set
+        flag_config_files.insert(config_file);
+      }
     }
   }
+  else
+  {
+    // new config file to parse, add to the set
+    flag_config_files.insert(flag_config);
+  }
 
+  // parse config file
   if (file != NULL)
   {
     reflex::BufferedInput input(file);
@@ -4736,23 +4745,49 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
 
       trim(line);
 
-      // skip empty lines and comments
+      // parse option or skip empty lines and comments
       if (!line.empty() && line.front() != '#')
       {
         // construct an option argument to parse as argv[]
         line.insert(0, "--");
-        const char *arg = flag_config_options.insert(line).first->c_str();
+        const char *arg = line.c_str();
         const char *args[2] = { NULL, arg };
 
         Static::warnings = 0;
+
+        // warn about invalid options but do not exit
+        flag_usage_warnings = true;
 
         options(pattern_args, 2, args);
 
         if (Static::warnings > 0)
         {
-          std::cerr << "ugrep: error in " << flag_config_file << " at line " << lineno << "\n\n";
-
+          std::cerr << "ugrep: error in " << config_file << " at line " << lineno << '\n';
           errors = true;
+        }
+        else if (line.compare(0, 8, "--config") == 0)
+        {
+          // parse a config file, but do not recurse more than one level deep
+          if (recurse)
+          {
+            std::cerr << "ugrep: recursive configuration in " << config_file << " at line " << lineno << '\n';
+            errors = true;
+          }
+          else
+          {
+            // save flag and pathname
+            const char *this_config = flag_config;
+            std::string this_file;
+            this_file.swap(config_file);
+
+            // load config to include in this config
+            flag_config = line.size() == 8 ? NULL : line.c_str() + 9;
+            load_config(pattern_args, true);
+
+            // restore flag and pathname
+            config_file.swap(this_file);
+            flag_config = this_config;
+          }
         }
       }
 
@@ -4760,30 +4795,52 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
     }
 
     if (ferror(file))
-      error("error while reading", flag_config_file.c_str());
+      error("error while reading", config_file.c_str());
 
     if (file != stdin)
       fclose(file);
 
     if (errors)
-    {
-      std::cerr << "Try `ugrep --help' or `ugrep --help WHAT' for more information\n";
-
       exit(EXIT_ERROR);
-    }
   }
-  else if (flag_config != NULL && *flag_config != '\0')
+  else if (strcmp(flag_config, ".ugrep") != 0)
   {
-    error("option --config: cannot read", flag_config_file.c_str());
+    error("option --config: cannot read", flag_config);
   }
 
   flag_usage_warnings = false;
 }
 
-// save a configuration file
+// save a configuration file after loading it first when present
 static void save_config()
 {
+  bool exists = false;
+
+  // rename old config file to .old when present and not standard input
+  if (strcmp(flag_save_config, "-") != 0)
+  {
+    std::string config_old(flag_save_config);
+    config_old.append(".old");
+    if (std::rename(flag_save_config, config_old.c_str()) == 0)
+    {
+      exists = true;
+      errno = EEXIST;
+      warning("renamed existing configuration file to", config_old.c_str());
+    }
+  }
+
   FILE *file = NULL;
+
+  // if not saved to standard output ("-"), then inform user
+  if (!flag_no_messages && strcmp(flag_save_config, "-") != 0)
+  {
+    if (flag_config == NULL)
+      fprintf(stderr, "ugrep: saving configuration file %s\n", flag_save_config);
+    else if (exists && strcmp(flag_config, flag_save_config) == 0)
+      fprintf(stderr, "ugrep: updating configuration file %s\n", flag_save_config);
+    else
+      fprintf(stderr, "ugrep: saving configuration file %s with options based on %s\n", flag_save_config, flag_config);
+  }
 
   if (fopen_smart(&file, flag_save_config, "w") != 0)
   {
@@ -4793,22 +4850,26 @@ static void save_config()
   }
 
   if (strcmp(flag_save_config, ".ugrep") == 0)
-    fprintf(file, "# default .ugrep configuration file used by ug and ugrep --config.\n");
+    fprintf(file, "# ugrep configuration used by ug and ugrep --config.\n");
   else if (strcmp(flag_save_config, "-") == 0)
     fprintf(file, "# ugrep configuration\n");
   else
-    fprintf(file, "# configuration used with ugrep --config=%s or ---%s.\n", flag_save_config, flag_save_config);
+    fprintf(file, "# ugrep configuration used with --config=%s or ---%s.\n", flag_save_config, flag_save_config);
 
   fprintf(file, "\
 #\n\
 # A long option is defined per line with an optional `=' and its argument,\n\
-# when applicable. Empty lines and lines starting with a `#' are ignored.\n\
+# when applicable.  Empty lines and lines starting with a `#' are ignored.\n\
 #\n\
-# Try `ug --help' or `ug --help WHAT' for more information.\n\n");
+# Try `ug --help' or `ug --help WHAT' for help with options.\n\n");
 
   fprintf(file, "### TERMINAL DISPLAY ###\n\n");
 
-  fprintf(file, "# Custom color scheme overrides default GREP_COLORS parameters\ncolors=%s\n", flag_colors != NULL ? flag_colors : "");
+  fprintf(file, "# Custom color scheme, overrides default GREP_COLORS parameters\n");
+  if (flag_colors != NULL)
+    fprintf(file, "colors=%s\n", flag_colors);
+  else
+    fprintf(file, "# colors=\n");
   fprintf(file, "\
 # The argument is a colon-separated list of one or more parameters `sl='\n\
 # (selected line), `cx=' (context line), `mt=' (matched text), `ms=' (match\n\
@@ -4867,7 +4928,7 @@ static void save_config()
   else
     fprintf(file, "# pager=less\n\n");
 
-  fprintf(file, "# Enable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty != NULL ? "# no-pretty" : "no-pretty");
+  fprintf(file, "# Enable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty != NULL ? "pretty" : "no-pretty");
 
   fprintf(file, "# Enable directory tree output to a terminal for -l (--files-with-matches) and -c (--count)\n%s\n\n", flag_tree ? "tree" : "no-tree");
 
@@ -5053,7 +5114,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "binary") == 0)
                   flag_binary = true;
                 else if (strncmp(arg, "binary-files=", 13) == 0)
-                  flag_binary_files = arg + 13;
+                  flag_binary_files = strarg(arg + 13);
                 else if (strcmp(arg, "bool") == 0)
                   flag_bool = true;
                 else if (strcmp(arg, "break") == 0)
@@ -5070,13 +5131,13 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "color") == 0 || strcmp(arg, "colour") == 0)
                   flag_color = Static::AUTO;
                 else if (strncmp(arg, "color=", 6) == 0)
-                  flag_color = arg + 6;
+                  flag_color = strarg(arg + 6);
                 else if (strncmp(arg, "colour=", 7) == 0)
-                  flag_color = arg + 7;
+                  flag_color = strarg(arg + 7);
                 else if (strncmp(arg, "colors=", 7) == 0)
-                  flag_colors = arg + 7;
+                  flag_colors = strarg(arg + 7);
                 else if (strncmp(arg, "colours=", 8) == 0)
-                  flag_colors = arg + 8;
+                  flag_colors = strarg(arg + 8);
                 else if (strcmp(arg, "column-number") == 0)
                   flag_column_number = true;
                 else if (strcmp(arg, "config") == 0 || strncmp(arg, "config=", 7) == 0)
@@ -5113,9 +5174,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "dereference-recursive") == 0)
                   flag_directories = "dereference-recurse";
                 else if (strncmp(arg, "devices=", 8) == 0)
-                  flag_devices = arg + 8;
+                  flag_devices = strarg(arg + 8);
                 else if (strncmp(arg, "directories=", 12) == 0)
-                  flag_directories = arg + 12;
+                  flag_directories = strarg(arg + 12);
                 else if (strcmp(arg, "dotall") == 0)
                   flag_dotall = true;
                 else if (strcmp(arg, "depth") == 0 ||
@@ -5130,7 +5191,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "empty") == 0)
                   flag_empty = true;
                 else if (strncmp(arg, "encoding=", 9) == 0)
-                  flag_encoding = arg + 9;
+                  flag_encoding = strarg(arg + 9);
                 else if (strncmp(arg, "exclude=", 8) == 0)
                   flag_exclude.emplace_back(arg + 8);
                 else if (strncmp(arg, "exclude-dir=", 12) == 0)
@@ -5173,15 +5234,15 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "filter-magic-label=", 19) == 0)
                   flag_filter_magic_label.emplace_back(arg + 19);
                 else if (strncmp(arg, "format=", 7) == 0)
-                  flag_format = arg + 7;
+                  flag_format = strarg(arg + 7);
                 else if (strncmp(arg, "format-begin=", 13) == 0)
-                  flag_format_begin = arg + 13;
+                  flag_format_begin = strarg(arg + 13);
                 else if (strncmp(arg, "format-close=", 13) == 0)
-                  flag_format_close = arg + 13;
+                  flag_format_close = strarg(arg + 13);
                 else if (strncmp(arg, "format-end=", 11) == 0)
-                  flag_format_end = arg + 11;
+                  flag_format_end = strarg(arg + 11);
                 else if (strncmp(arg, "format-open=", 12) == 0)
-                  flag_format_open = arg + 12;
+                  flag_format_open = strarg(arg + 12);
                 else if (strcmp(arg, "fuzzy") == 0)
                   flag_fuzzy = 1;
                 else if (strncmp(arg, "fuzzy=", 6) == 0)
@@ -5210,7 +5271,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "glob-ignore-case") == 0)
                   flag_glob_ignore_case = true;
                 else if (strncmp(arg, "group-separator=", 16) == 0)
-                  flag_group_separator = arg + 16;
+                  flag_group_separator = strarg(arg + 16);
                 else if (strcmp(arg, "group-separator") == 0)
                   flag_group_separator = "--";
                 else if (strcmp(arg, "glob") == 0)
@@ -5229,11 +5290,11 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "hexdump") == 0)
                   flag_hexdump = "2";
                 else if (strncmp(arg, "hexdump=", 8) == 0)
-                  flag_hexdump = arg + 8;
+                  flag_hexdump = strarg(arg + 8);
                 else if (strcmp(arg, "hidden") == 0)
                   flag_hidden = true;
                 else if (strncmp(arg, "hyperlink=", 10) == 0)
-                  flag_hyperlink = arg + 10;
+                  flag_hyperlink = strarg(arg + 10);
                 else if (strcmp(arg, "hyperlink") == 0)
                   flag_hyperlink = "";
                 else
@@ -5248,9 +5309,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "ignore-case") == 0)
                   flag_ignore_case = true;
                 else if (strcmp(arg, "ignore-files") == 0)
-                  flag_ignore_files.emplace_back(DEFAULT_IGNORE_FILE);
+                  flag_ignore_files.insert(DEFAULT_IGNORE_FILE);
                 else if (strncmp(arg, "ignore-files=", 13) == 0)
-                  flag_ignore_files.emplace_back(arg + 13);
+                  flag_ignore_files.insert(arg + 13);
                 else if (strncmp(arg, "include=", 8) == 0)
                   flag_include.emplace_back(arg + 8);
                 else if (strncmp(arg, "include-dir=", 12) == 0)
@@ -5262,7 +5323,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "index") == 0)
                   flag_index = "search";
                 else if (strncmp(arg, "index=", 6) == 0)
-                  flag_index = arg + 6;
+                  flag_index = strarg(arg + 6);
                 else if (strcmp(arg, "initial-tab") == 0)
                   flag_initial_tab = true;
                 else if (strcmp(arg, "invert-match") == 0)
@@ -5289,7 +5350,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'l':
                 if (strncmp(arg, "label=", 6) == 0)
-                  flag_label = arg + 6;
+                  flag_label = strarg(arg + 6);
                 else if (strcmp(arg, "line-buffered") == 0)
                   flag_line_buffered = true;
                 else if (strcmp(arg, "line-number") == 0)
@@ -5453,7 +5514,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "pager") == 0)
                   flag_pager = "";
                 else if (strncmp(arg, "pager=", 6) == 0)
-                  flag_pager = arg + 6;
+                  flag_pager = strarg(arg + 6);
                 else if (strcmp(arg, "passthru") == 0)
                   flag_any_line = true;
                 else if (strcmp(arg, "perl-regexp") == 0)
@@ -5461,7 +5522,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "pretty") == 0)
                   flag_pretty = Static::AUTO;
                 else if (strncmp(arg, "pretty=", 7) == 0)
-                  flag_pretty = arg + 7;
+                  flag_pretty = strarg(arg + 7);
                 else
                   usage("invalid option --", arg, "--pager, --passthru, --perl-regexp or --pretty");
                 break;
@@ -5485,7 +5546,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "regexp=", 7) == 0)
                   option_regexp(pattern_args, arg + 7);
                 else if (strncmp(arg, "replace=", 8) == 0)
-                  flag_replace = arg + 8;
+                  flag_replace = strarg(arg + 8);
                 else if (strcmp(arg, "range") == 0 || strcmp(arg, "regexp") == 0 || strcmp(arg, "replace") == 0)
                   usage("missing argument for --", arg);
                 else
@@ -5496,11 +5557,11 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "save-config") == 0)
                   flag_save_config = ".ugrep";
                 else if (strncmp(arg, "save-config=", 12) == 0)
-                  flag_save_config = arg + 12;
+                  flag_save_config = strarg(arg + 12);
                 else if (strcmp(arg, "separator") == 0)
                   flag_separator = NULL;
                 else if (strncmp(arg, "separator=", 10) == 0)
-                  flag_separator = arg + 10;
+                  flag_separator = strarg(arg + 10);
                 else if (strcmp(arg, "silent") == 0)
                   flag_quiet = flag_no_messages = true;
                 else if (strcmp(arg, "smart-case") == 0)
@@ -5508,13 +5569,13 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "sort") == 0)
                   flag_sort = "name";
                 else if (strncmp(arg, "sort=", 5) == 0)
-                  flag_sort = arg + 5;
+                  flag_sort = strarg(arg + 5);
                 else if (strcmp(arg, "split") == 0)
                   flag_split = true;
                 else if (strcmp(arg, "stats") == 0)
                   flag_stats = "";
                 else if (strncmp(arg, "stats=", 6) == 0)
-                  flag_stats = arg + 6;
+                  flag_stats = strarg(arg + 6);
                 else
                   usage("invalid option --", arg, "--save-config, --separator, --silent, --smart-case, --sort, --split or --stats");
                 break;
@@ -5527,7 +5588,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "tag") == 0)
                   flag_tag = DEFAULT_TAG;
                 else if (strncmp(arg, "tag=", 4) == 0)
-                  flag_tag = arg + 4;
+                  flag_tag = strarg(arg + 4);
                 else if (strcmp(arg, "text") == 0)
                   flag_binary_files = "text";
                 else if (strcmp(arg, "tree") == 0)
@@ -5547,7 +5608,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "version") == 0)
                   version();
                 else if (strncmp(arg, "view=", 5) == 0)
-                  flag_view = arg + 5;
+                  flag_view = strarg(arg + 5);
                 else if (strcmp(arg, "view") == 0)
                   flag_view = "";
                 else
@@ -6320,7 +6381,7 @@ void init(int argc, const char **argv)
   {
     save_config();
 
-    exit(EXIT_ERROR);
+    exit(EXIT_OK);
   }
 
   // --separator: override : and | otherwise use default separators : and |
@@ -11222,7 +11283,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           lineno = current_lineno + matcher->lines() - 1;
         }
 
-        // get the remaining context after the last match to output 
+        // get the remaining context after the last match to output
         context = matcher->after();
 
         if (context.len > 0)
@@ -13093,6 +13154,13 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
   }
 }
 
+// save a string argument parsed from the command line or from a config file
+const char *strarg(const char *string)
+{
+  arg_strings.emplace_back(string);
+  return arg_strings.back().c_str();
+}
+
 // convert unsigned decimal to non-negative size_t, produce error when conversion fails
 size_t strtonum(const char *string, const char *message)
 {
@@ -13774,9 +13842,16 @@ void help(std::ostream& out)
     -s, --no-messages\n\
             Silent mode: nonexistent and unreadable files are ignored, i.e.\n\
             their error messages and warnings are suppressed.\n\
-    --save-config[=FILE]\n\
-            Save configuration FILE.  By default `.ugrep' is saved.  If FILE is\n\
-            a `-', write the configuration to standard output.\n\
+    --save-config[=FILE] [OPTIONS]\n\
+            Save configuration FILE to include OPTIONS.  Update FILE when\n\
+            first loaded with --config=FILE.  The default FILE is `.ugrep',\n\
+            which is automatically loaded by the ug command.  When FILE is a\n\
+            `-', writes the configuration to standard output.  Only part of the\n\
+            OPTIONS are saved that do not cause searches to fail when combined\n\
+            with other options.  Additional options may be specified by editing\n\
+            the the saved configuration file.  A configuration file may be\n\
+            modified to specify one or more config[=FILE] to indirectly load\n\
+            the specified FILE, but recursive config loading is not allowed.\n\
     --separator[=SEP]\n\
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset and the matched line.  The default is a colon\n\

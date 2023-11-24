@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 15, 2023" "ugrep 4.3.3" "User Commands"
+.TH UGREP "1" "November 24, 2023" "ugrep 4.3.4" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -647,11 +647,9 @@ each `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a
 with options \fB\-g\fR, \fB\-M\fR and \fB\-t\fR to expand the recursive search.
 .TP
 \fB\-o\fR, \fB\-\-only\-matching\fR
-Output only the matching part of lines.  Output additional matches
-on the same line with `+' as the field separator.  When multiple
-lines match a pattern, output the matching lines with `|' as the
-field separator.  If \fB\-A\fR, \fB\-B\fR or \fB\-C\fR is specified, fits the match and
-its context on a line within the specified number of columns.
+Output only the matching part of lines.  If \fB\-A\fR, \fB\-B\fR or \fB\-C\fR is
+specified, fits the match and its context on a line within the
+specified number of columns.
 .TP
 \fB\-\-only\-line\-number\fR
 The line number of the matching line in the file is output without
@@ -733,15 +731,21 @@ directories.  The default is not to follow symbolic links.
 Silent mode: nonexistent and unreadable files are ignored, i.e.
 their error messages and warnings are suppressed.
 .TP
-\fB\-\-save\-config\fR[=\fIFILE\fR]
-Save configuration FILE.  By default `.ugrep' is saved.  If FILE is
-a `\-', write the configuration to standard output.
+\fB\-\-save\-config\fR[=\fIFILE\fR] [\fIOPTIONS\fR]
+Save configuration FILE to include OPTIONS.  Update FILE when
+first loaded with \fB\-\-config\fR=\fIFILE\fR.  The default FILE is `.ugrep',
+which is automatically loaded by the ug command.  When FILE is a
+`\-', writes the configuration to standard output.  Only part of the
+OPTIONS are saved that do not cause searches to fail when combined
+with other options.  Additional options may be specified by editing
+the the saved configuration file.  A configuration file may be
+modified to specify one or more config[=\fIFILE\fR] to indirectly load
+the specified FILE, but recursive config loading is prohibited.
 .TP
 \fB\-\-separator\fR[=\fISEP\fR]
 Use SEP as field separator between file name, line number, column
 number, byte offset and the matched line.  The default is a colon
-(`:'), a plus (`+') for additional matches on the same line, and a
-bar (`|') for multi\-line pattern matches.
+(`:') and a bar (`|') for multi\-line pattern matches.
 .TP
 \fB\-\-split\fR
 Split the \fB\-Q\fR query TUI screen on startup.
@@ -814,8 +818,7 @@ represented by the UTF\-8 sequence C2 A3.  See also option \fB\-\-dotall\fR.
 .TP
 \fB\-u\fR, \fB\-\-ungroup\fR
 Do not group multiple pattern matches on the same matched line.
-Output the matched line again for each additional pattern match,
-using `+' as a separator.
+Output the matched line again for each additional pattern match.
 .TP
 \fB\-V\fR, \fB\-\-version\fR
 Display version with linked libraries and exit.
@@ -905,8 +908,7 @@ bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
 lz4 (requires suffix .lz4),
 zstd (requires suffix .zst, .zstd, .tzst),
-brotli (requires suffix .br),
-bzip3 (requires suffix .bz3).
+brotli (requires suffix .br).
 .TP
 \fB\-\-zmax\fR=\fINUM\fR
 When used with option \fB\-z\fR (\fB\-\-decompress\fR), searches the contents of
@@ -955,9 +957,10 @@ is loaded first, followed by the remaining options and arguments on the command
 line.
 .PP
 The \fB--save-config\fR option saves a `.ugrep' configuration file to the
-working directory with a subset of the current options.  The
-\fB--save-config\fR=\fIFILE\fR option saves the configuration to \fIFILE\fR.
-The configuration is written to standard output when \fIFILE\fR is a `-'.
+working directory with a subset of the options specified on the command line.
+The \fB--save-config\fR=\fIFILE\fR option saves the configuration to
+\fIFILE\fR.  The configuration is written to standard output when \fIFILE\fR is
+a `-'.
 .SH GLOBBING
 Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,

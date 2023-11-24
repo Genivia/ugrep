@@ -12,35 +12,25 @@
 # debian or ubuntu
 FROM ubuntu
 
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-        make \
-        vim \
-        git \
-        clang \
-        wget \
-        unzip \
-        ca-certificates \
-        libpcre2-dev \
-        libz-dev \
-        libbz2-dev \
-        liblzma-dev \
-        liblz4-dev \
-        libzstd-dev && \
-    git clone --depth=1 https://github.com/Genivia/ugrep && \
-    cd ugrep && \
-    ./build.sh && \
-    make install && \
-    ugrep -V && \
-    cd ../ && \
-    rm -rf ugrep && \
-    apt-get remove -y \
-        make \
-        git \
-        libpcre2-dev \
-        libz-dev \
-        libbz2-dev \
-        liblzma-dev \
-        liblz4-dev \
-        libzstd-dev && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update
+
+RUN apt-get install -y \
+    make \
+    vim \
+    git \
+    clang \
+    wget \
+    unzip \
+    libpcre2-dev \
+    libz-dev \
+    libbz2-dev \
+    liblzma-dev \
+    liblz4-dev \
+    libzstd-dev
+
+RUN cd / &&\
+    git clone https://github.com/Genivia/ugrep
+
+RUN cd ugrep &&\
+    ./build.sh &&\
+    make install

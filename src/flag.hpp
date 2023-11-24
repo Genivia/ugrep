@@ -38,8 +38,8 @@
 #define FLAG_HPP
 
 #include <reflex/input.h>
-#include <set>
 #include <string>
+#include <set>
 #include <vector>
 
 // three-valued logic flags that behave as bool; this allows us to check if a flag was undefined (default) and explicitly enabled/disabled
@@ -195,11 +195,11 @@ extern const char *flag_sort;
 extern const char *flag_stats;
 extern const char *flag_tag;
 extern const char *flag_view;
-extern std::string flag_config_file;
-extern std::string flag_filter;
-extern std::string flag_hyperlink_prefix; // internal flag
-extern std::string flag_hyperlink_path; // internal flag
-extern std::set<std::string> flag_config_options;
+extern std::string              flag_filter;
+extern std::string              flag_hyperlink_prefix; // internal flag
+extern std::string              flag_hyperlink_path; // internal flag
+extern std::set<std::string>    flag_config_files; // internal flag
+extern std::set<std::string>    flag_ignore_files;
 extern std::vector<std::string> flag_regexp;
 extern std::vector<std::string> flag_file;
 extern std::vector<std::string> flag_file_type;
@@ -208,7 +208,6 @@ extern std::vector<std::string> flag_file_magic;
 extern std::vector<std::string> flag_filter_magic_label;
 extern std::vector<std::string> flag_glob;
 extern std::vector<std::string> flag_iglob;
-extern std::vector<std::string> flag_ignore_files;
 extern std::vector<std::string> flag_include;
 extern std::vector<std::string> flag_include_dir;
 extern std::vector<std::string> flag_include_from;

@@ -199,9 +199,10 @@ is loaded first, followed by the remaining options and arguments on the command
 line.
 .PP
 The \fB--save-config\fR option saves a `.ugrep' configuration file to the
-working directory with a subset of the current options.  The
-\fB--save-config\fR=\fIFILE\fR option saves the configuration to \fIFILE\fR.
-The configuration is written to standard output when \fIFILE\fR is a `-'.
+working directory with a subset of the options specified on the command line.
+The \fB--save-config\fR=\fIFILE\fR option saves the configuration to
+\fIFILE\fR.  The configuration is written to standard output when \fIFILE\fR is
+a `-'.
 .SH GLOBBING
 Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,

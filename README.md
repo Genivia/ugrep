@@ -1082,9 +1082,16 @@ In the interactive query TUI, press F1 or CTRL-Z for help and options:
             directory is checked first for FILE, then the home directory.  The
             options specified in the configuration FILE are parsed first,
             followed by the remaining options specified on the command line.
-    --save-config[=FILE]
-            Save configuration FILE.  By default `.ugrep' is saved.  If FILE is
-            a `-', write the configuration to standard output.
+    --save-config[=FILE] [OPTIONS]
+            Save configuration FILE to include OPTIONS.  Update FILE when
+            first loaded with --config=FILE.  The default FILE is `.ugrep',
+            which is automatically loaded by the ug command.  When FILE is a
+            `-', writes the configuration to standard output.  Only part of the
+            OPTIONS are saved that do not cause searches to fail when combined
+            with other options.  Additional options may be specified by editing
+            the the saved configuration file.  A configuration file may be
+            modified to specify one or more config[=FILE] to indirectly load
+            the specified FILEs, but recursive config loading is not allowed.
 
 #### The ug command versus the ugrep command
 
@@ -1141,12 +1148,20 @@ produced by a named configuration as opposed to the default configuration.
 
 #### Saving a configuration file
 
-The `--save-config` option saves a `.ugrep` configuration file to the
-working directory.  The file contains a strict subset of options that are
-deemed reasonably safe with respect to the search results reported.
+The `--save-config` option saves a `.ugrep` configuration file to the working
+directory using the current configuration loaded with `--config`.  This saves
+the current configuration combined with additional options when specified also.
+Only those options that cannot conflict with other options and options that
+cannot negatively impact search results will be saved.
 
 The `--save-config=FILE` option saves the configuration to the specified `FILE`.
 The configuration is written to standard output when `FILE` is a `-`.
+
+Alternatively, a configuration file may be manually created or modified.  A
+configuration file may include one or more `config[=FILE]` to indirectly load
+the specfified `FILE`, but recursive config loading is prohibited.  The
+simplest way to manuall create a configuration file is to specify `config` at
+the top of the file, followed by the long options to override the defaults.
 
 🔝 [Back to table of contents](#toc)
 
@@ -4500,11 +4515,9 @@ in markdown:
                   search.
 
            -o, --only-matching
-                  Output only the matching part of lines.  Output additional matches
-                  on the same line with `+' as the field separator.  When multiple
-                  lines match a pattern, output the matching lines with `|' as the
-                  field separator.  If -A, -B or -C is specified, fits the match and
-                  its context on a line within the specified number of columns.
+                  Output only the matching part of lines.  If -A, -B or -C is
+                  specified, fits the match and its context on a line within the
+                  specified number of columns.
 
            --only-line-number
                   The line number of the matching line in the file is output without
@@ -4587,15 +4600,22 @@ in markdown:
                   Silent mode: nonexistent and unreadable files are ignored, i.e.
                   their error messages and warnings are suppressed.
 
-           --save-config[=FILE]
-                  Save configuration FILE.  By default `.ugrep' is saved.  If FILE
-                  is a `-', write the configuration to standard output.
+           --save-config[=FILE] [OPTIONS]
+                  Save configuration FILE to include OPTIONS.  Update FILE when
+                  first loaded with --config=FILE.  The default FILE is `.ugrep',
+                  which is automatically loaded by the ug command.  When FILE is a
+                  `-', writes the configuration to standard output.  Only part of
+                  the OPTIONS are saved that do not cause searches to fail when
+                  combined with other options.  Additional options may be specified
+                  by editing the the saved configuration file.  A configuration file
+                  may be modified to specify one or more config[=FILE] to indirectly
+                  load the specified FILE, but recursive config loading is
+                  prohibited.
 
            --separator[=SEP]
                   Use SEP as field separator between file name, line number, column
                   number, byte offset and the matched line.  The default is a colon
-                  (`:'), a plus (`+') for additional matches on the same line, and a
-                  bar (`|') for multi-line pattern matches.
+                  (`:') and a bar (`|') for multi-line pattern matches.
 
            --split
                   Split the -Q query TUI screen on startup.
@@ -4669,8 +4689,7 @@ in markdown:
 
            -u, --ungroup
                   Do not group multiple pattern matches on the same matched line.
-                  Output the matched line again for each additional pattern match,
-                  using `+' as a separator.
+                  Output the matched line again for each additional pattern match.
 
            -V, --version
                   Display version with linked libraries and exit.
@@ -4762,7 +4781,7 @@ in markdown:
                   bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2,
                   .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz, .txz), lz4
                   (requires suffix .lz4), zstd (requires suffix .zst, .zstd, .tzst),
-                  brotli (requires suffix .br), bzip3 (requires suffix .bz3).
+                  brotli (requires suffix .br).
 
            --zmax=NUM
                   When used with option -z (--decompress), searches the contents of
@@ -4814,9 +4833,9 @@ in markdown:
            the command line.
 
            The --save-config option saves a `.ugrep' configuration file to the
-           working directory with a subset of the current options.  The --save-
-           config=FILE option saves the configuration to FILE.  The configuration is
-           written to standard output when FILE is a `-'.
+           working directory with a subset of the options specified on the command
+           line.  The --save-config=FILE option saves the configuration to FILE.
+           The configuration is written to standard output when FILE is a `-'.
 
     GLOBBING
            Globbing is used by options -g, --include, --include-dir, --include-from,
@@ -5343,7 +5362,7 @@ in markdown:
 
 
 
-    ugrep 4.3.3                     November 15, 2023                       UGREP(1)
+    ugrep 4.3.4                     November 24, 2023                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
