@@ -8513,7 +8513,7 @@ else $as_nop
 fi
 
 if test "x$with_bzip3_library" != "x"; then
-  if test "x$with_bzip3" == "xyes"; then
+  if test "x$with_bzip3" = "xyes"; then
     unset with_bzip3
   fi
   #

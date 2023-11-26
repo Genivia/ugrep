@@ -83,7 +83,7 @@ AC_ARG_WITH(bzip3,
   [with_bzip3_library="$withval"],
   [with_bzip3_library=""])
 if test "x$with_bzip3_library" != "x"; then
-  if test "x$with_bzip3" == "xyes"; then
+  if test "x$with_bzip3" = "xyes"; then
     unset with_bzip3
   fi
   AX_CHECK_BZIP3LIB([], [echo "optional libbzip3 not found: install if you want ugrep -z to decompress .bz3 files"])
