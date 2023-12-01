@@ -95,7 +95,7 @@ then
   #   Most UNIX systems      : /usr/local and /usr
   #   MacPorts / Fink on OSX : /opt/local respectively /sw
   for BROTLI_HOME in ${brotli_places} ; do
-    if test -f "${BROTLILIB_HOME}/include/brotli/decode.h"; then break; fi
+    if test -f "${BROTLI_HOME}/include/brotli/decode.h"; then break; fi
     BROTLI_HOME=""
   done
 

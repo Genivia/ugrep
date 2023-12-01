@@ -90,16 +90,16 @@ then
   # check the user supplied or any other more or less 'standard' place:
   #   Most UNIX systems      : /usr/local and /usr
   #   MacPorts / Fink on OSX : /opt/local respectively /sw
-  for B2ZLIB_HOME in ${bzlib_places} ; do
-    if test -f "${B2ZLIB_HOME}/include/bzlib.h"; then break; fi
-    B2ZLIB_HOME=""
+  for BZ2LIB_HOME in ${bzlib_places} ; do
+    if test -f "${BZ2LIB_HOME}/include/bzlib.h"; then break; fi
+    BZ2LIB_HOME=""
   done
 
-  B2ZLIB_OLD_LDFLAGS=$LDFLAGS
-  B2ZLIB_OLD_CPPFLAGS=$CPPFLAGS
-  if test -n "${B2ZLIB_HOME}"; then
-    LDFLAGS="$LDFLAGS -L${B2ZLIB_HOME}/lib"
-    CPPFLAGS="$CPPFLAGS -I${B2ZLIB_HOME}/include"
+  BZ2LIB_OLD_LDFLAGS=$LDFLAGS
+  BZ2LIB_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${BZ2LIB_HOME}"; then
+    LDFLAGS="$LDFLAGS -L${BZ2LIB_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${BZ2LIB_HOME}/include"
   fi
   AC_LANG_PUSH([C])
   AC_CHECK_LIB([bz2], [BZ2_bzRead], [bzlib_cv_libbz2=yes], [bzlib_cv_libbz2=no])
@@ -111,15 +111,15 @@ then
     # If both library and header were found, action-if-found
     #
     m4_ifblank([$1],[
-                CPPFLAGS="$CPPFLAGS -I${B2ZLIB_HOME}/include"
-                LDFLAGS="$LDFLAGS -L${B2ZLIB_HOME}/lib"
+                CPPFLAGS="$CPPFLAGS -I${BZ2LIB_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${BZ2LIB_HOME}/lib"
                 LIBS="-lbz2 $LIBS"
                 AC_DEFINE([HAVE_LIBBZ2], [1],
                           [Define to 1 if you have `bz2' library (-lbz2)])
                ],[
                 # Restore variables
-                LDFLAGS="$B2ZLIB_OLD_LDFLAGS"
-                CPPFLAGS="$B2ZLIB_OLD_CPPFLAGS"
+                LDFLAGS="$BZ2LIB_OLD_LDFLAGS"
+                CPPFLAGS="$BZ2LIB_OLD_CPPFLAGS"
                 $1
                ])
   else

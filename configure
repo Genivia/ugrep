@@ -7876,16 +7876,16 @@ then
   # check the user supplied or any other more or less 'standard' place:
   #   Most UNIX systems      : /usr/local and /usr
   #   MacPorts / Fink on OSX : /opt/local respectively /sw
-  for B2ZLIB_HOME in ${bzlib_places} ; do
-    if test -f "${B2ZLIB_HOME}/include/bzlib.h"; then break; fi
-    B2ZLIB_HOME=""
+  for BZ2LIB_HOME in ${bzlib_places} ; do
+    if test -f "${BZ2LIB_HOME}/include/bzlib.h"; then break; fi
+    BZ2LIB_HOME=""
   done
 
-  B2ZLIB_OLD_LDFLAGS=$LDFLAGS
-  B2ZLIB_OLD_CPPFLAGS=$CPPFLAGS
-  if test -n "${B2ZLIB_HOME}"; then
-    LDFLAGS="$LDFLAGS -L${B2ZLIB_HOME}/lib"
-    CPPFLAGS="$CPPFLAGS -I${B2ZLIB_HOME}/include"
+  BZ2LIB_OLD_LDFLAGS=$LDFLAGS
+  BZ2LIB_OLD_CPPFLAGS=$CPPFLAGS
+  if test -n "${BZ2LIB_HOME}"; then
+    LDFLAGS="$LDFLAGS -L${BZ2LIB_HOME}/lib"
+    CPPFLAGS="$CPPFLAGS -I${BZ2LIB_HOME}/include"
   fi
   ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -7955,8 +7955,8 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
     # If both library and header were found, action-if-found
     #
 
-                CPPFLAGS="$CPPFLAGS -I${B2ZLIB_HOME}/include"
-                LDFLAGS="$LDFLAGS -L${B2ZLIB_HOME}/lib"
+                CPPFLAGS="$CPPFLAGS -I${BZ2LIB_HOME}/include"
+                LDFLAGS="$LDFLAGS -L${BZ2LIB_HOME}/lib"
                 LIBS="-lbz2 $LIBS"
 
 printf "%s\n" "#define HAVE_LIBBZ2 1" >>confdefs.h
@@ -7966,7 +7966,7 @@ printf "%s\n" "#define HAVE_LIBBZ2 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "recommended libbz2 not found: ugrep option -z cannot decompress .bz and .bz2 files"
+    echo "recommended libbz2 not found: ugrep option -z cannot search .bz and .bz2 files"
   fi
 fi
 
@@ -8099,7 +8099,7 @@ printf "%s\n" "#define HAVE_LIBLZMA 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "recommended liblzma not found: ugrep option -z cannot decompress .lzma and .xz files"
+    echo "recommended liblzma not found: ugrep option -z cannot search .lzma and .xz files"
   fi
 fi
 
@@ -8232,7 +8232,7 @@ printf "%s\n" "#define HAVE_LIBLZ4 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "optional liblz4 not found: install if you want ugrep -z to decompress .lz4 files"
+    echo "optional liblz4 not found: install if you want ugrep option -z to search .lz4 files"
   fi
 fi
 
@@ -8365,7 +8365,7 @@ printf "%s\n" "#define HAVE_LIBZSTD 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "optional libzstd not found: install if you want ugrep -z to decompress .zst files"
+    echo "optional libzstd not found: install if you want ugrep option -z to search .zst files"
   fi
 fi
 
@@ -8409,7 +8409,7 @@ then
   #   Most UNIX systems      : /usr/local and /usr
   #   MacPorts / Fink on OSX : /opt/local respectively /sw
   for BROTLI_HOME in ${brotli_places} ; do
-    if test -f "${BROTLILIB_HOME}/include/brotli/decode.h"; then break; fi
+    if test -f "${BROTLI_HOME}/include/brotli/decode.h"; then break; fi
     BROTLI_HOME=""
   done
 
@@ -8498,7 +8498,7 @@ printf "%s\n" "#define HAVE_LIBBROTLI 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "optional brotli library not found: install if you want ugrep -z to decompress .br files"
+    echo "optional brotli library not found: install if you want ugrep option -z to search .br files"
   fi
 fi
 
@@ -8644,7 +8644,7 @@ printf "%s\n" "#define HAVE_LIBBZIP3 1" >>confdefs.h
     #
     # If either header or library was not found, action-if-not-found
     #
-    echo "optional libbzip3 not found: install if you want ugrep -z to decompress .bz3 files"
+    echo "optional libbzip3 not found: install if you want ugrep option -z to search .bz3 files"
   fi
 fi
 
