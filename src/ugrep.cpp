@@ -13880,9 +13880,9 @@ void help(std::ostream& out)
     --index\n\
             Perform index-based recursive search.  This option assumes, but\n\
             does not require, that files are indexed with ugrep-indexer.  This\n\
-            option accellerates recursive searching by skipping non-matching\n\
+            option accelerates recursive searching by skipping non-matching\n\
             files, archives and compressed files when indexed.  Significant\n\
-            accelleration may be achieved on cold (not file-cached) and large\n\
+            acceleration may be achieved on cold (not file-cached) and large\n\
             file systems, or any file system that is slow to search.  Note that\n\
             the start-up time to search is increased, which may be significant\n\
             when complex search patterns are specified that contain large\n\
