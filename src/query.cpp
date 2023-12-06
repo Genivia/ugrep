@@ -2328,20 +2328,21 @@ void Query::view()
       !flag_count &&
       !flag_hex &&
       !flag_with_hex &&
-      (command == "less"  ||
-       command == "moar"  ||
-       command == "more"  ||
-       command == "most"  ||
-       command == "w3m"   ||
-       command == "emacs" ||
-       command == "joe"   ||
-       command == "vi"    ||
-       command == "vim"   ||
-       command == "vis"   ||
-       command == "kak"   ||
-       command == "nano"  ||
-       command == "pico"  ||
-       command == "vile"  ||
+      (command == "less"       ||
+       command == "moar-pager" ||
+       command == "moar"       ||
+       command == "more"       ||
+       command == "most"       ||
+       command == "w3m"        ||
+       command == "emacs"      ||
+       command == "joe"        ||
+       command == "vi"         ||
+       command == "vim"        ||
+       command == "vis"        ||
+       command == "kak"        ||
+       command == "nano"       ||
+       command == "pico"       ||
+       command == "vile"       ||
        command == "zile"))
   {
     line_number = get_line_number();
