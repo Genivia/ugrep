@@ -94,11 +94,11 @@ fi
 
 printf "Have libbrotli? %3s (optional)\n" $have_libbrotli
 
-# check for uncommon libraries that aren't typically installed, don't report
+# check for libraries that aren't typically installed, don't report
 
 if $UG -Fq 'HAVE_LIBBZIP3 1' "$CONFIGH" ; then
   have_libbzip3=yes
-  printf "Have libbzip3?  yes (optional)\n"
+  printf "Have libbzip3?  yes (requested)\n"
 else
   have_libbzip3=no
 fi

@@ -26,11 +26,11 @@ cat >> man/ugrep.1 << 'END'
       [\fB--hexdump\fR|\fB--csv\fR|\fB--json\fR|\fB--xml\fR] [\fB-I\fR] [\fB-z\fR] [\fB--zmax\fR=\fINUM\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
-match one or more patterns.  By default, a pattern matches an input line if the
-regular expression (RE) matches the input line.  A pattern matches multiple
-input lines if the RE in the pattern matches one or more newlines in the input.
-An empty pattern matches every line.  Each input line that matches at least one
-of the patterns is written to the standard output.
+match one or more patterns specified as regular expressions or as fixed
+strings.  A pattern matches multiple input lines when the pattern's regular
+expression matches one or more newlines.  An empty pattern matches every line.
+Each input line that matches at least one of the patterns is written to the
+standard output.
 .PP
 The \fBug\fR command is intended for interactive searching, using a .ugrep
 configuration file located in the working directory or home directory, see
@@ -43,9 +43,9 @@ and image metadata, when the corresponding filter tools are installed.
 .PP
 A list of matching files is produced with option \fB-l\fR
 (\fB--files-with-matches\fR).  Option \fB-c\fR (\fB--count\fR) counts the
-number of matching lines.  Combine with option \fB-o\fR to count the total
-number of matches.  Combine with option \fB-m1,\fR (\fB--min-count=1\fR) to
-omit zero matches.
+number of matching lines.  When combined with option \fB-o\fR, counts the total
+number of matches.  When combined with option \fB-m1,\fR (\fB--min-count=1\fR),
+skips files with zero matches.
 .PP
 The default pattern syntax is an extended form of the POSIX ERE syntax, same as
 option \fB-E\fR (\fB--extended-regexp\fR).  Try \fBug --help regex\fR for help
@@ -55,9 +55,10 @@ search queries with option \fB-%\fR (\fB--bool\fR) to match lines and \fB-%%\fR
 (\fB--fixed-strings\fR), \fB-G\fR (\fB--basic-regexp\fR) and \fB-P\fR
 (\fB--perl-regexp\fR) specify other pattern syntaxes.
 .PP
-Option \fB-i\fR (\fB--ignore-case\fR) ignores case in ASCII patterns.  Combine
-with option \fB-P\fR for case-insensitive Unicode matching.  Option \fB-j\fR
-(\fB--smart-case\fR) enables \fB-i\fR only if the search patterns are specified
+Option \fB-i\fR (\fB--ignore-case\fR) ignores case in ASCII patterns.  When
+combined with option \fB-P\fR, ignores case in Unicode patterns.  Option
+\fB-j\fR (\fB--smart-case\fR) enables \fB-i\fR only if the search patterns are
+specified
 in lower case.
 .PP
 Fuzzy (approximate) search is specified with option \fB-Z\fR (\fB--fuzzy\fR)
@@ -68,10 +69,9 @@ Note that pattern `.' matches any non-newline character.  Pattern `\\n' matches
 a newline character.  Multiple lines may be matched with patterns that match
 one or more newline characters.
 .PP
-Empty-matching patterns do not match all lines.  For example, the pattern `a*'
-will match one or more a's.  The single exception to this rule is the empty
-pattern "", which matches all lines.  Option \fB-Y\fR forces empty matches for
-compatibility with other grep tools.  
+The empty pattern "" matches all lines.  Other empty-matching patterns do not.
+For example, the pattern `a*' will match one or more a's.  Option \fB-Y\fR
+forces empty matches for compatibility with other grep tools.  
 .PP
 Option \fB-f\fR \fIFILE\fR matches patterns specified in \fIFILE\fR.
 .PP
@@ -115,9 +115,9 @@ the contents of compressed files and archives stored within archives up to
 \fINUM\fR levels.
 .PP
 A query terminal user interface (TUI) is opened with \fB-Q\fR (\fB--query\fR)
-to interactively specify search patterns and view search results.  Note that a
-\fIPATTERN\fR argument cannot be specified in this case.  To specify one or
-more patterns with \fB-Q\fR to start searching, use \fB-e PATTERN\fR.
+to interactively specify search patterns and view search results.  A
+\fIPATTERN\fR argument requires \fB-e PATTERN\fR to start the query TUI with
+the specified pattern.
 .PP
 Output to a terminal for viewing is enhanced with \fB--pretty\fR, which is
 enabled by default with the \fBug\fR command.

@@ -30,7 +30,7 @@
 @file      zstream.hpp
 @brief     file decompression streams - zstreambuf extends std::streambuf
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -1405,6 +1405,21 @@ class zstreambuf : public std::streambuf {
       delete zipinfo_;
       zipinfo_ = NULL;
     }
+  }
+
+  // return true if decompressing a file
+  bool decompressing() const
+  {
+    return
+      zfile_    != NULL ||
+      zzfile_   != NULL ||
+      bzfile_   != NULL ||
+      xzfile_   != NULL ||
+      lz4file_  != NULL ||
+      zstdfile_ != NULL ||
+      brfile_   != NULL ||
+      bz3file_  != NULL ||
+      zipinfo_  != NULL;
   }
 
   // copy or decompress a block of data into buf[0..len-1], return number of bytes decompressed, zero on EOF or negative on error

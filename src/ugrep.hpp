@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "4.3.4"
+#define UGREP_VERSION "4.3.5"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -158,7 +158,7 @@ inline int chdir(const char *path)
 inline char *getcwd0()
 {
   wchar_t *wcwd = _wgetcwd(NULL, 0);
-  std::string cwd = utf8_encode(wcwd);
+  std::string cwd(utf8_encode(wcwd));
   free(wcwd);
   return strdup(cwd.c_str());
 }
@@ -167,12 +167,12 @@ inline char *getcwd0()
 inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 {
   *file = NULL;
-  std::wstring wfilename = utf8_decode(filename);
+  std::wstring wfilename(utf8_decode(filename));
   HANDLE hFile;
   if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
-    hFile = CreateFileW(wfilename.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    hFile = CreateFileW(wfilename.c_str(), (strchr(mode, '+') == NULL ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE), FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   else if (strchr(mode, 'a') == NULL)
-    hFile = CreateFileW(wfilename.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    hFile = CreateFileW(wfilename.c_str(), (strchr(mode, '+') == NULL ? GENERIC_WRITE : GENERIC_READ | GENERIC_WRITE), FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   else
     hFile = CreateFileW(wfilename.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == INVALID_HANDLE_VALUE)

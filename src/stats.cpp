@@ -71,7 +71,7 @@ void Stats::report(FILE *output)
 
   if (flag_index && indexed)
   {
-    fprintf(stderr, "Skipped %zu of %zu files with indexes not matching any search patterns\n", skipped, indexed);
+    fprintf(stderr, "Skipped %zu of %zu indexed files with indexes not matching any search patterns\n", skipped, indexed);
     if (changed > 0 || added > 0)
     {
       fprintf(output, "Detected outdated or missing index files, run ugrep-indexer to re-index:\n");
@@ -96,6 +96,18 @@ void Stats::report(FILE *output)
     for (const auto& i : flag_config_files)
       fprintf(output, "    using %s" NEWLINESTR, i.c_str());
   }
+  if (flag_bool)
+    fprintf(output, "  --bool %s" NEWLINESTR, (flag_files ? "--files" : "--lines"));
+  if (flag_basic_regexp)
+    fprintf(output, "  --basic-regexp" NEWLINESTR);
+  else if (flag_fixed_strings)
+    fprintf(output, "  --fixed-strings" NEWLINESTR);
+  else if (flag_fuzzy > 0)
+    fprintf(output, "  --fuzzy" NEWLINESTR);
+  else if (flag_perl_regexp)
+    fprintf(output, "  --perl-regexp" NEWLINESTR);
+  if (flag_decompress)
+    fprintf(output, "  --decompress --zmax=%zu" NEWLINESTR, flag_zmax);
   if (flag_min_depth > 0 && flag_max_depth > 0)
     fprintf(output, "  --depth=%zu,%zu" NEWLINESTR, flag_min_depth, flag_max_depth);
   else if (flag_min_depth > 0)
@@ -131,8 +143,6 @@ void Stats::report(FILE *output)
     default:
       break;
   }
-  if (flag_files)
-    fprintf(output, "  --files" NEWLINESTR);
   if (flag_glob_ignore_case)
     fprintf(output, "  --glob-ignore-case" NEWLINESTR);
 #ifdef WITH_HIDDEN
@@ -154,6 +164,12 @@ void Stats::report(FILE *output)
     fprintf(output, "  --min-count=%zu" NEWLINESTR, flag_min_count);
   if (flag_max_count > 0)
     fprintf(output, "  --max-count=%zu" NEWLINESTR, flag_max_count);
+  if (flag_max_files > 0)
+    fprintf(output, "  --max-files=%zu" NEWLINESTR, flag_max_files);
+  if (flag_min_line > 0)
+    fprintf(output, "  --min-line=%zu" NEWLINESTR, flag_min_line);
+  if (flag_max_line > 0)
+    fprintf(output, "  --max-line=%zu" NEWLINESTR, flag_max_line);
   if (flag_sort != NULL)
     fprintf(output, "  --sort=%s" NEWLINESTR, flag_sort);
   for (const auto& i : ignore)

@@ -148,6 +148,12 @@ After completing the steps above, this directory should contain the following di
 
 Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
+Add all .c files except compress.c in zlib-1.2.11 to the project "Source Files" if not already there.
+
+Add bzlib.c, crctable.c, compress.c, decompress.c, huffman.c and randtable.c in bzip2-1.0.5 to the project "Source Files" if not already there.
+
+Add the lz4.c file in lz4-dev to the project "Source Files" if not already there.
+
 Edit Visual Studio project properties for Release x86 to make sure these match the following:
 
 Project Configuration Properties
@@ -269,6 +275,12 @@ After completing the steps above, this directory should contain the following di
 	manifest.xml
 
 Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
+
+Add all .c files except compress.c in zlib-1.2.11 to the project "Source Files" if not already there.
+
+Add bzlib.c, crctable.c, compress.c, decompress.c, huffman.c and randtable.c in bzip2-1.0.5 to the project "Source Files" if not already there.
+
+Add the lz4.c file in lz4-dev to the project "Source Files" if not already there.
 
 Edit Visual Studio project properties for Release x86 to make sure these match the following:
 

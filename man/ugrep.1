@@ -1,4 +1,4 @@
-.TH UGREP "1" "November 24, 2023" "ugrep 4.3.4" "User Commands"
+.TH UGREP "1" "December 06, 2023" "ugrep 4.3.5" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -11,11 +11,11 @@
       [\fB--hexdump\fR|\fB--csv\fR|\fB--json\fR|\fB--xml\fR] [\fB-I\fR] [\fB-z\fR] [\fB--zmax\fR=\fINUM\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
 The \fBugrep\fR utility searches any given input files, selecting lines that
-match one or more patterns.  By default, a pattern matches an input line if the
-regular expression (RE) matches the input line.  A pattern matches multiple
-input lines if the RE in the pattern matches one or more newlines in the input.
-An empty pattern matches every line.  Each input line that matches at least one
-of the patterns is written to the standard output.
+match one or more patterns specified as regular expressions or as fixed
+strings.  A pattern matches multiple input lines when the pattern's regular
+expression matches one or more newlines.  An empty pattern matches every line.
+Each input line that matches at least one of the patterns is written to the
+standard output.
 .PP
 The \fBug\fR command is intended for interactive searching, using a .ugrep
 configuration file located in the working directory or home directory, see
@@ -28,9 +28,9 @@ and image metadata, when the corresponding filter tools are installed.
 .PP
 A list of matching files is produced with option \fB-l\fR
 (\fB--files-with-matches\fR).  Option \fB-c\fR (\fB--count\fR) counts the
-number of matching lines.  Combine with option \fB-o\fR to count the total
-number of matches.  Combine with option \fB-m1,\fR (\fB--min-count=1\fR) to
-omit zero matches.
+number of matching lines.  When combined with option \fB-o\fR, counts the total
+number of matches.  When combined with option \fB-m1,\fR (\fB--min-count=1\fR),
+skips files with zero matches.
 .PP
 The default pattern syntax is an extended form of the POSIX ERE syntax, same as
 option \fB-E\fR (\fB--extended-regexp\fR).  Try \fBug --help regex\fR for help
@@ -40,9 +40,10 @@ search queries with option \fB-%\fR (\fB--bool\fR) to match lines and \fB-%%\fR
 (\fB--fixed-strings\fR), \fB-G\fR (\fB--basic-regexp\fR) and \fB-P\fR
 (\fB--perl-regexp\fR) specify other pattern syntaxes.
 .PP
-Option \fB-i\fR (\fB--ignore-case\fR) ignores case in ASCII patterns.  Combine
-with option \fB-P\fR for case-insensitive Unicode matching.  Option \fB-j\fR
-(\fB--smart-case\fR) enables \fB-i\fR only if the search patterns are specified
+Option \fB-i\fR (\fB--ignore-case\fR) ignores case in ASCII patterns.  When
+combined with option \fB-P\fR, ignores case in Unicode patterns.  Option
+\fB-j\fR (\fB--smart-case\fR) enables \fB-i\fR only if the search patterns are
+specified
 in lower case.
 .PP
 Fuzzy (approximate) search is specified with option \fB-Z\fR (\fB--fuzzy\fR)
@@ -53,10 +54,9 @@ Note that pattern `.' matches any non-newline character.  Pattern `\\n' matches
 a newline character.  Multiple lines may be matched with patterns that match
 one or more newline characters.
 .PP
-Empty-matching patterns do not match all lines.  For example, the pattern `a*'
-will match one or more a's.  The single exception to this rule is the empty
-pattern "", which matches all lines.  Option \fB-Y\fR forces empty matches for
-compatibility with other grep tools.  
+The empty pattern "" matches all lines.  Other empty-matching patterns do not.
+For example, the pattern `a*' will match one or more a's.  Option \fB-Y\fR
+forces empty matches for compatibility with other grep tools.  
 .PP
 Option \fB-f\fR \fIFILE\fR matches patterns specified in \fIFILE\fR.
 .PP
@@ -100,9 +100,9 @@ the contents of compressed files and archives stored within archives up to
 \fINUM\fR levels.
 .PP
 A query terminal user interface (TUI) is opened with \fB-Q\fR (\fB--query\fR)
-to interactively specify search patterns and view search results.  Note that a
-\fIPATTERN\fR argument cannot be specified in this case.  To specify one or
-more patterns with \fB-Q\fR to start searching, use \fB-e PATTERN\fR.
+to interactively specify search patterns and view search results.  A
+\fIPATTERN\fR argument requires \fB-e PATTERN\fR to start the query TUI with
+the specified pattern.
 .PP
 Output to a terminal for viewing is enhanced with \fB--pretty\fR, which is
 enabled by default with the \fBug\fR command.
@@ -527,14 +527,17 @@ only.  Note that \fB\-\-exclude\-fs\fR mounts take priority over
 \fB\-\-include\-fs\fR mounts.  This option may be repeated.
 .TP
 \fB\-\-index\fR
-Perform indexing\-based search on files indexed with ugrep\-indexer.
-Recursive searches are performed by skipping non\-matching files.
-Binary files are skipped with option \fB\-I\fR.  Note that the start\-up
-time to search is increased, which may be significant when complex
-search patterns are specified that contain large Unicode character
-classes with `*' or `+' repeats, which should be avoided.  Option
-\fB\-U\fR (\fB\-\-ascii\fR) improves performance.  Option \fB\-\-stats\fR=vm displays a
-detailed indexing\-based search report.  This is a beta feature.
+Perform index\-based recursive search.  This option assumes, but
+does not require, that files are indexed with ugrep\-indexer.  This
+option accellerates recursive searching by skipping non\-matching
+files, archives and compressed files when indexed.  Significant
+accelleration may be achieved on cold (not file\-cached) and large
+file systems, or any file system that is slow to search.  Note that
+the start\-up time to search is increased, which may be significant
+when complex search patterns are specified that contain large
+Unicode character classes combined with `*' or `+' repeats, which
+should be avoided.  Option \fB\-U\fR (\fB\-\-ascii\fR) improves performance.
+Option \fB\-\-stats\fR displays an index search report.
 .TP
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
 Specifies the number of threads spawned to search files.  By
@@ -738,9 +741,9 @@ which is automatically loaded by the ug command.  When FILE is a
 `\-', writes the configuration to standard output.  Only part of the
 OPTIONS are saved that do not cause searches to fail when combined
 with other options.  Additional options may be specified by editing
-the the saved configuration file.  A configuration file may be
-modified to specify one or more config[=\fIFILE\fR] to indirectly load
-the specified FILE, but recursive config loading is prohibited.
+the saved configuration file.  A configuration file may be modified
+manually to specify one or more config[=\fIFILE\fR] to indirectly load
+the specified FILE, but recursive config loading is not allowed.
 .TP
 \fB\-\-separator\fR[=\fISEP\fR]
 Use SEP as field separator between file name, line number, column

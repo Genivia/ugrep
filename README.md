@@ -1089,8 +1089,8 @@ In the interactive query TUI, press F1 or CTRL-Z for help and options:
             `-', writes the configuration to standard output.  Only part of the
             OPTIONS are saved that do not cause searches to fail when combined
             with other options.  Additional options may be specified by editing
-            the the saved configuration file.  A configuration file may be
-            modified to specify one or more config[=FILE] to indirectly load
+            the saved configuration file.  A configuration file may be modified
+            manually to specify one or more config[=FILE] to indirectly load
             the specified FILEs, but recursive config loading is not allowed.
 
 #### The ug command versus the ugrep command
@@ -3144,6 +3144,7 @@ param | result
 `cn=` | column numbers
 `bn=` | byte offsets
 `se=` | separators
+`hl`  | hyperlink file names, same as `--hyperlink`
 `qp=` | TUI prompt
 `qe=` | TUI errors
 `qr=` | TUI regex
@@ -3870,12 +3871,11 @@ in markdown:
 
     DESCRIPTION
            The ugrep utility searches any given input files, selecting lines that
-           match one or more patterns.  By default, a pattern matches an input line
-           if the regular expression (RE) matches the input line.  A pattern matches
-           multiple input lines if the RE in the pattern matches one or more
-           newlines in the input.  An empty pattern matches every line.  Each input
-           line that matches at least one of the patterns is written to the standard
-           output.
+           match one or more patterns specified as regular expressions or as fixed
+           strings.  A pattern matches multiple input lines when the pattern's
+           regular expression matches one or more newlines.  An empty pattern
+           matches every line.  Each input line that matches at least one of the
+           patterns is written to the standard output.
 
            The ug command is intended for interactive searching, using a .ugrep
            configuration file located in the working directory or home directory,
@@ -3887,9 +3887,9 @@ in markdown:
            metadata, when the corresponding filter tools are installed.
 
            A list of matching files is produced with option -l (--files-with-
-           matches).  Option -c (--count) counts the number of matching lines.
-           Combine with option -o to count the total number of matches.  Combine
-           with option -m1, (--min-count=1) to omit zero matches.
+           matches).  Option -c (--count) counts the number of matching lines.  When
+           combined with option -o, counts the total number of matches.  When
+           combined with option -m1, (--min-count=1), skips files with zero matches.
 
            The default pattern syntax is an extended form of the POSIX ERE syntax,
            same as option -E (--extended-regexp).  Try ug --help regex for help with
@@ -3898,8 +3898,8 @@ in markdown:
            --bool) to match files.  Options -F (--fixed-strings), -G (--basic-
            regexp) and -P (--perl-regexp) specify other pattern syntaxes.
 
-           Option -i (--ignore-case) ignores case in ASCII patterns.  Combine with
-           option -P for case-insensitive Unicode matching.  Option -j (--smart-
+           Option -i (--ignore-case) ignores case in ASCII patterns.  When combined
+           with option -P, ignores case in Unicode patterns.  Option -j (--smart-
            case) enables -i only if the search patterns are specified in lower case.
 
            Fuzzy (approximate) search is specified with option -Z (--fuzzy) with an
@@ -3910,10 +3910,9 @@ in markdown:
            matches a newline character.  Multiple lines may be matched with patterns
            that match one or more newline characters.
 
-           Empty-matching patterns do not match all lines.  For example, the pattern
-           `a*' will match one or more a's.  The single exception to this rule is
-           the empty pattern "", which matches all lines.  Option -Y forces empty
-           matches for compatibility with other grep tools.
+           The empty pattern "" matches all lines.  Other empty-matching patterns do
+           not.  For example, the pattern `a*' will match one or more a's.  Option
+           -Y forces empty matches for compatibility with other grep tools.
 
            Option -f FILE matches patterns specified in FILE.
 
@@ -3956,9 +3955,9 @@ in markdown:
            files and archives stored within archives up to NUM levels.
 
            A query terminal user interface (TUI) is opened with -Q (--query) to
-           interactively specify search patterns and view search results.  Note that
-           a PATTERN argument cannot be specified in this case.  To specify one or
-           more patterns with -Q to start searching, use -e PATTERN.
+           interactively specify search patterns and view search results.  A PATTERN
+           argument requires -e PATTERN to start the query TUI with the specified
+           pattern.
 
            Output to a terminal for viewing is enhanced with --pretty, which is
            enabled by default with the ug command.
@@ -4395,14 +4394,17 @@ in markdown:
                   --include-fs mounts.  This option may be repeated.
 
            --index
-                  Perform indexing-based search on files indexed with ugrep-indexer.
-                  Recursive searches are performed by skipping non-matching files.
-                  Binary files are skipped with option -I.  Note that the start-up
-                  time to search is increased, which may be significant when complex
-                  search patterns are specified that contain large Unicode character
-                  classes with `*' or `+' repeats, which should be avoided.  Option
-                  -U (--ascii) improves performance.  Option --stats=vm displays a
-                  detailed indexing-based search report.  This is a beta feature.
+                  Perform index-based recursive search.  This option assumes, but
+                  does not require, that files are indexed with ugrep-indexer.  This
+                  option accellerates recursive searching by skipping non-matching
+                  files, archives and compressed files when indexed.  Significant
+                  accelleration may be achieved on cold (not file-cached) and large
+                  file systems, or any file system that is slow to search.  Note
+                  that the start-up time to search is increased, which may be
+                  significant when complex search patterns are specified that
+                  contain large Unicode character classes combined with `*' or `+'
+                  repeats, which should be avoided.  Option -U (--ascii) improves
+                  performance.  Option --stats displays an index search report.
 
            -J NUM, --jobs=NUM
                   Specifies the number of threads spawned to search files.  By
@@ -4607,10 +4609,10 @@ in markdown:
                   `-', writes the configuration to standard output.  Only part of
                   the OPTIONS are saved that do not cause searches to fail when
                   combined with other options.  Additional options may be specified
-                  by editing the the saved configuration file.  A configuration file
-                  may be modified to specify one or more config[=FILE] to indirectly
-                  load the specified FILE, but recursive config loading is
-                  prohibited.
+                  by editing the saved configuration file.  A configuration file may
+                  be modified manually to specify one or more config[=FILE] to
+                  indirectly load the specified FILE, but recursive config loading
+                  is not allowed.
 
            --separator[=SEP]
                   Use SEP as field separator between file name, line number, column
@@ -5362,7 +5364,7 @@ in markdown:
 
 
 
-    ugrep 4.3.4                     November 24, 2023                       UGREP(1)
+    ugrep 4.3.5                     December 6, 2023                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

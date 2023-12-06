@@ -33,7 +33,7 @@
 @copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
-User guide:
+User manual:
 
   https://ugrep.com
 
@@ -170,8 +170,8 @@ After this, you may want to test ugrep and install it (optional):
 #define EXIT_ERROR 2 // An error occurred
 
 // limit the total number of threads spawn (i.e. limit spawn overhead), because grepping is practically IO bound
-#ifndef MAX_JOBS
-# define MAX_JOBS 16
+#ifndef DEFAULT_MAX_JOBS
+# define DEFAULT_MAX_JOBS 12
 #endif
 
 // default limit on the job queue size to wait for worker threads to finish more work
@@ -782,16 +782,16 @@ inline void copy_color(char to[COLORLEN], const char from[COLORLEN])
 // decompression thread state with shared objects
 struct Zthread {
 
-  Zthread(bool chained, std::string& partname) :
+  Zthread(bool is_chained, std::string& partname) :
       ztchain(NULL),
       zstream(NULL),
       zpipe_in(NULL),
-      chained(chained),
+      is_chained(is_chained),
       quit(false),
       stop(false),
-      extracting(false),
-      waiting(false),
-      assigned(false),
+      is_extracting(false),
+      is_waiting(false),
+      is_assigned(false),
       partnameref(partname),
       findpart(NULL)
   {
@@ -801,12 +801,10 @@ struct Zthread {
 
   ~Zthread()
   {
-    if (zstream != NULL)
-    {
-      delete zstream;
-      zstream = NULL;
-    }
+    // recursively join all stages of the decompression thread chain (--zmax>1), delete zstream
+    join();
 
+    // delete the decompression chain (--zmax>1)
     if (ztchain != NULL)
     {
       delete ztchain;
@@ -814,7 +812,7 @@ struct Zthread {
     }
   }
 
-  // start decompression thread and open new pipe, returns pipe or NULL on failure, this function is called by the main Grep thread
+  // start decompression thread if not running, open new pipe, returns pipe or NULL on failure, this function is called by the main thread
   FILE *start(size_t ztstage, const char *pathname, FILE *file_in, const char *find = NULL)
   {
     // return pipe
@@ -825,7 +823,7 @@ struct Zthread {
     pipe_fd[1] = -1;
 
     // partnameref is not assigned yet, used only when this decompression thread is chained
-    assigned = false;
+    is_assigned = false;
 
     // if there is a specific part to search in a (nested) archive, NULL otherwise
     findpart = find;
@@ -868,7 +866,7 @@ struct Zthread {
 
         // wait for the partname to be assigned by the next decompression thread in the decompression chain
         std::unique_lock<std::mutex> lock(ztchain->pipe_mutex);
-        if (!ztchain->assigned)
+        if (!ztchain->is_assigned)
           ztchain->part_ready.wait(lock);
         lock.unlock();
 
@@ -900,8 +898,8 @@ struct Zthread {
           // reset flags
           quit = false;
           stop = false;
-          extracting = false;
-          waiting = false;
+          is_extracting = false;
+          is_waiting = false;
 
           thread = std::thread(&Zthread::decompress, this);
         }
@@ -939,7 +937,7 @@ struct Zthread {
     return pipe_in;
   }
 
-  // open pipe to the next file in the archive or return NULL, this function is called by the main Grep thread
+  // open pipe to the next file or part in the archive or return NULL, this function is called by the main thread or by the previous decompression thread
   FILE *open_next(const char *pathname)
   {
     if (pipe_fd[0] != -1)
@@ -949,29 +947,29 @@ struct Zthread {
 
       // if extracting and the decompression filter thread is not yet waiting, then wait until decompression thread closed its end of the pipe
       std::unique_lock<std::mutex> lock(pipe_mutex);
-      if (!waiting)
+      if (!is_waiting)
         pipe_close.wait(lock);
       lock.unlock();
 
       // partnameref is not assigned yet, used only when this decompression thread is chained
-      assigned = false;
+      is_assigned = false;
 
       // extract the next file from the archive when applicable, e.g. zip format
-      if (extracting)
+      if (is_extracting)
       {
         FILE *pipe_in = NULL;
 
         // open pipe between worker and decompression thread, then start decompression thread
         if (pipe(pipe_fd) == 0 && (pipe_in = fdopen(pipe_fd[0], "rb")) != NULL)
         {
-          if (chained)
+          if (is_chained)
           {
             // use lock and wait for partname ready
             std::unique_lock<std::mutex> lock(pipe_mutex);
             // notify the decompression filter thread of the new pipe
             pipe_ready.notify_one();
             // wait for the partname to be set by the next decompression thread in the ztchain
-            if (!assigned)
+            if (!is_assigned)
               part_ready.wait(lock);
             lock.unlock();
           }
@@ -985,7 +983,7 @@ struct Zthread {
         }
 
         // failed to create a new pipe
-        warning("cannot create pipe to decompress", chained ? NULL : pathname);
+        warning("cannot create pipe to decompress", is_chained ? NULL : pathname);
 
         if (pipe_fd[0] != -1)
         {
@@ -1002,7 +1000,7 @@ struct Zthread {
 
         // when an error occurred, we still need to notify the receiver in case it is waiting on the partname
         std::unique_lock<std::mutex> lock(pipe_mutex);
-        assigned = true;
+        is_assigned = true;
         part_ready.notify_one();
         lock.unlock();
       }
@@ -1021,10 +1019,10 @@ struct Zthread {
       ztchain->cancel();
   }
 
-  // join this thread, this function is called by the main Grep thread
+  // join this thread, this function is called by the main thread
   void join()
   {
-    // --zmax: when quitting, recursively join all stages of the decompression thread chain
+    // --zmax>1: recursively join all stages of the decompression thread chain
     if (ztchain != NULL)
       ztchain->join();
 
@@ -1035,7 +1033,7 @@ struct Zthread {
       // decompression thread should quit to join
       quit = true;
 
-      if (!waiting)
+      if (!is_waiting)
       {
         // wait until decompression thread closes the pipe
         pipe_close.wait(lock);
@@ -1060,7 +1058,7 @@ struct Zthread {
     }
   }
 
-  // if the pipe was closed, then wait until the Grep thread opens a new pipe to search the next part in an archive
+  // if the pipe was closed, then wait until the main thread opens a new pipe to search the next file or part in an archive
   bool wait_pipe_ready()
   {
     if (pipe_fd[1] == -1)
@@ -1068,9 +1066,9 @@ struct Zthread {
       // signal close and wait until a new zstream pipe is ready
       std::unique_lock<std::mutex> lock(pipe_mutex);
       pipe_close.notify_one();
-      waiting = true;
+      is_waiting = true;
       pipe_ready.wait(lock);
-      waiting = false;
+      is_waiting = false;
       lock.unlock();
 
       // the receiver did not create a new pipe in close_file()
@@ -1081,7 +1079,7 @@ struct Zthread {
     return true;
   }
 
-  // close the pipe and wait until the Grep thread opens a new zstream and pipe for the next decompression job, unless quitting
+  // close the pipe and wait until the main thread opens a new zstream and pipe for the next decompression job, unless quitting
   void close_wait_zstream_open()
   {
     if (pipe_fd[1] != -1)
@@ -1096,9 +1094,9 @@ struct Zthread {
     pipe_close.notify_one();
     if (!quit)
     {
-      waiting = true;
+      is_waiting = true;
       pipe_zstrm.wait(lock);
-      waiting = false;
+      is_waiting = false;
     }
     lock.unlock();
   }
@@ -1114,8 +1112,8 @@ struct Zthread {
       zstream->get_buffer(buf, maxlen);
 
       // reset flags
-      extracting = false;
-      waiting = false;
+      is_extracting = false;
+      is_waiting = false;
 
       // extract the parts of a zip file, one by one, if zip file detected
       while (!stop)
@@ -1131,7 +1129,7 @@ struct Zthread {
         if (zipinfo != NULL)
         {
           // extracting a zip file
-          extracting = true;
+          is_extracting = true;
 
           if (!zipinfo->name.empty() && zipinfo->name.back() == '/')
           {
@@ -1187,10 +1185,10 @@ struct Zthread {
                 partnameref.assign(partname).append(":").append(std::move(path));
 
               // notify the receiver of the new partname
-              if (chained)
+              if (is_chained)
               {
                 std::unique_lock<std::mutex> lock(pipe_mutex);
-                assigned = true;
+                is_assigned = true;
                 part_ready.notify_one();
                 lock.unlock();
               }
@@ -1240,7 +1238,7 @@ struct Zthread {
         }
 
         // extracting a file
-        extracting = true;
+        is_extracting = true;
 
         // after extracting files from an archive, close our end of the pipe and loop for the next file
         if (is_selected && pipe_fd[1] != -1)
@@ -1250,13 +1248,13 @@ struct Zthread {
         }
       }
 
-      extracting = false;
+      is_extracting = false;
 
       // when an error occurred or nothing was selected, then we still need to notify the receiver in case it is waiting on the partname
-      if (chained)
+      if (is_chained)
       {
         std::unique_lock<std::mutex> lock(pipe_mutex);
-        assigned = true;
+        is_assigned = true;
         part_ready.notify_one();
         lock.unlock();
       }
@@ -1266,7 +1264,7 @@ struct Zthread {
     }
   }
 
-  // if tar file, extract regular file contents and push into pipes one by one, return true when done
+  // if tar/pax file, extract regular file contents and push into pipes one by one, return true when done
   bool filter_tar(const std::string& archive, unsigned char *buf, size_t maxlen, std::streamsize len, bool& is_selected)
   {
     const int BLOCKSIZE = 512;
@@ -1281,7 +1279,7 @@ struct Zthread {
       const char gnutar_magic[8] = { 'u', 's', 't', 'a', 'r', ' ', ' ', 0 };
       bool is_gnutar = *buf != '\0' && memcmp(buf + 257, gnutar_magic, 8) == 0;
 
-      // is this a tar archive?
+      // is this a tar/pax archive?
       if (is_ustar || is_gnutar)
       {
         // produce headers with tar file pathnames for each archived part (Grep::partname)
@@ -1289,7 +1287,7 @@ struct Zthread {
           flag_no_header = false;
 
         // inform the main grep thread we are extracting an archive
-        extracting = true;
+        is_extracting = true;
 
         // to hold the path (prefix + name) extracted from the header
         std::string path;
@@ -1406,10 +1404,10 @@ struct Zthread {
             }
 
             // notify the receiver of the new partname after wait_pipe_ready()
-            if (chained)
+            if (is_chained)
             {
               std::unique_lock<std::mutex> lock(pipe_mutex);
-              assigned = true;
+              is_assigned = true;
               part_ready.notify_one();
               lock.unlock();
             }
@@ -1487,10 +1485,10 @@ struct Zthread {
         }
 
         // if we're stopping we still need to notify the receiver in case it is waiting on the partname
-        if (chained)
+        if (is_chained)
         {
           std::unique_lock<std::mutex> lock(pipe_mutex);
-          assigned = true;
+          is_assigned = true;
           part_ready.notify_one();
           lock.unlock();
         }
@@ -1528,7 +1526,7 @@ struct Zthread {
           flag_no_header = false;
 
         // inform the main grep thread we are extracting an archive
-        extracting = true;
+        is_extracting = true;
 
         // to hold the path (prefix + name) extracted from the header
         std::string path;
@@ -1719,10 +1717,10 @@ struct Zthread {
             }
 
             // notify the receiver of the new partname
-            if (chained)
+            if (is_chained)
             {
               std::unique_lock<std::mutex> lock(pipe_mutex);
-              assigned = true;
+              is_assigned = true;
               part_ready.notify_one();
               lock.unlock();
             }
@@ -1804,10 +1802,10 @@ struct Zthread {
         }
 
         // if we're stopping we still need to notify the receiver in case it is waiting on the partname
-        if (chained)
+        if (is_chained)
         {
           std::unique_lock<std::mutex> lock(pipe_mutex);
-          assigned = true;
+          is_assigned = true;
           part_ready.notify_one();
           lock.unlock();
         }
@@ -1910,25 +1908,25 @@ struct Zthread {
     return is_selected;
   }
 
-  Zthread                *ztchain;     // chain of Zthread decompression threads to decompress multi-compressed/archived files
-  zstreambuf             *zstream;     // the decompressed stream buffer from compressed input
-  FILE                   *zpipe_in;    // input pipe from the next ztchain stage, if any
-  std::thread             thread;      // decompression thread handle
-  bool                    chained;     // true if decompression thread is chained before another decompression thread
-  std::atomic_bool        quit;        // true if decompression thread should terminate to exit the program
-  std::atomic_bool        stop;        // true if decompression thread should stop (cancel search)
-  volatile bool           extracting;  // true if extracting files from TAR or ZIP archive (no concurrent r/w)
-  volatile bool           waiting;     // true if decompression thread is waiting (no concurrent r/w)
-  volatile bool           assigned;    // true when partnameref was assigned
-  int                     pipe_fd[2];  // decompressed stream pipe
-  std::mutex              pipe_mutex;  // mutex to extract files in thread
-  std::condition_variable pipe_zstrm;  // cv to control new pipe creation
-  std::condition_variable pipe_ready;  // cv to control new pipe creation
-  std::condition_variable pipe_close;  // cv to control new pipe creation
-  std::condition_variable part_ready;  // cv to control new partname creation to pass along decompression chains
-  std::string             partname;    // name of the archive part extracted by the next decompressor in the ztchain
-  std::string&            partnameref; // reference to the partname of Grep or of the previous decompressor
-  const char             *findpart;    // when non-NULL, select a specific part in an archive to search
+  Zthread                *ztchain;       // chain of decompression threads to decompress multi-compressed/archived files
+  zstreambuf             *zstream;       // the decompressed stream buffer from compressed input
+  FILE                   *zpipe_in;      // input pipe from the next ztchain stage, if any
+  std::thread             thread;        // decompression thread handle
+  bool                    is_chained;    // true if decompression thread is chained before another decompression thread
+  std::atomic_bool        quit;          // true if decompression thread should terminate to exit the program
+  std::atomic_bool        stop;          // true if decompression thread should stop (cancel search)
+  volatile bool           is_extracting; // true if extracting files from TAR or ZIP archive (no concurrent r/w)
+  volatile bool           is_waiting;    // true if decompression thread is waiting (no concurrent r/w)
+  volatile bool           is_assigned;   // true when partnameref was assigned
+  int                     pipe_fd[2];    // decompressed stream pipe
+  std::mutex              pipe_mutex;    // mutex to extract files in thread
+  std::condition_variable pipe_zstrm;    // cv to control new pipe creation
+  std::condition_variable pipe_ready;    // cv to control new pipe creation
+  std::condition_variable pipe_close;    // cv to control new pipe creation
+  std::condition_variable part_ready;    // cv to control new partname creation to pass along decompression chains
+  std::string             partname;      // name of the archive part extracted by the next decompressor in the ztchain
+  std::string&            partnameref;   // reference to the partname of Grep or of the previous decompressor
+  const char             *findpart;      // when non-NULL, select a specific part in an archive to search
 
 };
 
@@ -1964,7 +1962,25 @@ struct Grep {
     uint64_t    info;
     uint16_t    cost;
 
-#ifndef OS_WIN
+#ifdef OS_WIN
+
+    // get modification time (micro seconds) from directory entry
+    static uint64_t modified_time(const WIN32_FIND_DATAW& ffd)
+    {
+      const struct _FILETIME& time = ffd.ftLastWriteTime;
+      return static_cast<uint64_t>(time.dwLowDateTime) | (static_cast<uint64_t>(time.dwHighDateTime) << 32);
+    }
+
+    // get modification time (micro seconds) from file handle
+    static int64_t modified_time(const HANDLE& hFile)
+    {
+      struct _FILETIME time;
+      GetFileTime(hFile, NULL, NULL, &time);
+      return static_cast<uint64_t>(time.dwLowDateTime) | (static_cast<uint64_t>(time.dwHighDateTime) << 32);
+    }
+
+#else
+
     // get sortable info from stat buf
     static uint64_t sort_info(const struct stat& buf)
     {
@@ -1979,7 +1995,7 @@ struct Grep {
 #endif
     }
 
-    // get modification time from stat buf
+    // get modification time (micro seconds) from stat buf
     static uint64_t modified_time(const struct stat& buf)
     {
 #if defined(HAVE_STAT_ST_ATIM) && defined(HAVE_STAT_ST_MTIM) && defined(HAVE_STAT_ST_CTIM)
@@ -1992,6 +2008,7 @@ struct Grep {
       return static_cast<uint64_t>(buf.st_mtime);
 #endif
     }
+
 #endif
 
     // compare two entries by pathname
@@ -2354,7 +2371,7 @@ struct Grep {
       }
     }
 
-    // get the start of the before context, if present
+    // get the start of the after/before context, if present
     void begin_before(reflex::AbstractMatcher& matcher, const char *buf, size_t len, size_t num, const char*& ptr, size_t& size, size_t& offset)
     {
       ptr = NULL;
@@ -2715,7 +2732,7 @@ struct Grep {
         size_t      offset; // before context offset of line
         const char* ptr;    // before context pointer to line
         size_t      size;   // before context length of the line
-        std::string line;   // before context line data saved from before_ptr with before_size bytes
+        std::string line;   // before context line data saved from ptr with size bytes
 
       };
 
@@ -2837,6 +2854,14 @@ struct Grep {
       const char *ptr;
       size_t size;
       size_t offset;
+
+      // if we only need the before context, then look for it right before the current lineno
+      if (state.after_length >= flag_after_context)
+      {
+        size_t current = matcher.lineno();
+        if (lineno + flag_before_context - state.before_length + 1  < current)
+          lineno = current + state.before_length - flag_before_context - 1;
+      }
 
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
@@ -3305,14 +3330,13 @@ struct Grep {
   virtual ~Grep()
   {
 #ifdef HAVE_LIBZ
-#ifdef WITH_DECOMPRESSION_THREAD
-    zthread.join();
-#else
+#ifndef WITH_DECOMPRESSION_THREAD
     if (stream != NULL)
     {
       delete stream;
       stream = NULL;
     }
+
     if (zstream != NULL)
     {
       delete zstream;
@@ -3569,7 +3593,7 @@ struct Grep {
     {
 #ifdef WITH_DECOMPRESSION_THREAD
 
-      // start decompression thread to read the current input file, get pipe with decompressed input
+      // start decompression thread if not running, get pipe with decompressed input
       FILE *pipe_in = zthread.start(flag_zmax, pathname, file_in, find);
       if (pipe_in == NULL)
       {
@@ -3582,6 +3606,7 @@ struct Grep {
       input = reflex::Input(pipe_in, flag_encoding_type);
 
 #else
+      (void)find; // appease -Wunused
 
       // create or open a new zstreambuf
       if (zstream == NULL)
@@ -3863,7 +3888,7 @@ struct Grep {
       if (out.eof)
         zthread.cancel();
 
-      // open pipe to the next file in an archive if there is a next file to extract
+      // open pipe to the next file or part in an archive if there is a next file to extract
       FILE *pipe_in = zthread.open_next(pathname);
       if (pipe_in != NULL)
       {
@@ -4701,7 +4726,7 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
   bool home = flag_config_files.find(flag_config) != flag_config_files.end();
 
   // open a local config file or in the home directory
-  std::string config_file = flag_config;
+  std::string config_file(flag_config);
   FILE *file = NULL;
   if (home || fopen_smart(&file, flag_config, "r") != 0)
   {
@@ -5321,7 +5346,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "include-fs=", 11) == 0)
                   flag_include_fs.emplace_back(arg + 11);
                 else if (strcmp(arg, "index") == 0)
-                  flag_index = "search";
+                  flag_index = "safe";
                 else if (strncmp(arg, "index=", 6) == 0)
                   flag_index = strarg(arg + 6);
                 else if (strcmp(arg, "initial-tab") == 0)
@@ -6556,7 +6581,7 @@ void init(int argc, const char **argv)
 
     for (const auto& arg_file : Static::arg_files)
     {
-      std::wstring filename = utf8_decode(arg_file);
+      std::wstring filename(utf8_decode(arg_file));
       bool has_wildcard_char = false;
 
       size_t basename_pos;
@@ -6650,6 +6675,10 @@ void init(int argc, const char **argv)
       usage("invalid argument -d ACTION, valid arguments are 'skip', 'read', 'recurse' and 'dereference-recurse'");
   }
 
+  if (flag_index != NULL)
+    if (strcmp(flag_index, "safe") != 0 && strcmp(flag_index, "fast") != 0 && strcmp(flag_index, "log") != 0)
+      usage("invalid argument --index=MODE, valid arguments are 'safe', 'fast' and 'log'");
+
   if (!flag_stdin && Static::arg_files.empty())
   {
     // if no FILE specified when reading standard input from a TTY then enable -R if not already -r or -R
@@ -6689,7 +6718,7 @@ void init(int argc, const char **argv)
     else
     {
       // use threads to recurse into a directory
-      if ((attr & FILE_ATTRIBUTE_DIRECTORY))
+      if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0 && (attr & FILE_ATTRIBUTE_REPARSE_POINT) == 0)
       {
         if (flag_directories_action == Action::UNSP)
           flag_all_threads = true;
@@ -8117,16 +8146,16 @@ void ugrep()
   Static::cores = std::thread::hardware_concurrency();
 #endif
 
-  // -J: the default is the number of cores, minus one for >= 8 cores, limited to MAX_JOBS
+  // -J: the default is the number of cores, minus one for >= 8 cores, limited to DEFAULT_MAX_JOBS
   if (flag_jobs == 0)
   {
     flag_jobs = Static::cores - (Static::cores >= 8);
 
-    // we want at least 2 threads to be available for workers if needed, but not more than MAX_JOBS
+    // we want at least 2 threads to be available for workers if needed, but not more than DEFAULT_MAX_JOBS
     if (flag_jobs < 2)
       flag_jobs = 2;
-    else if (flag_jobs > MAX_JOBS)
-      flag_jobs = MAX_JOBS;
+    else if (flag_jobs > DEFAULT_MAX_JOBS)
+      flag_jobs = DEFAULT_MAX_JOBS;
   }
 
   // --sort and --max-files: limit number of threads to --max-files to prevent unordered results, this is a special case
@@ -8202,7 +8231,6 @@ void ugrep()
   // --index: search is only possible with compatible options
   if (flag_index != NULL)
   {
-#ifndef OS_WIN
     if (flag_perl_regexp)
       usage("options --index and -P (--perl-regexp) are not compatible");
     if (!flag_filter.empty())
@@ -8211,15 +8239,10 @@ void ugrep()
       usage("options --index and -Z (--fuzzy) are not compatible");
     if (flag_invert_match)
       usage("options --index and -v (--invert-match) are not compatible");
-    if (flag_decompress)
-      usage("options --index with -z (--decompress) is not yet available in this version of ugrep");
 
     // -c and --index: force --min-count larger than 0, because indexed search skips non-matching files
     if (flag_count && flag_min_count == 0)
       flag_min_count = 1;
-#else
-    usage("option --index is not yet available for Windows");
-#endif
   }
 
   if (flag_match)
@@ -8716,10 +8739,15 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     return Type::SKIP;
   }
 
+  // skip FILE_ATTRIBUTE_REPARSE_POINT even when it is a symlink
+  if ((attr & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+    return Type::SKIP;
+
+  // skip hidden and system files unless explicitly searched with --hidden
   if (!flag_hidden && !is_argument && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
     return Type::SKIP;
 
-  if ((attr & FILE_ATTRIBUTE_DIRECTORY))
+  if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0)
   {
     if (flag_directories_action == Action::READ)
     {
@@ -9135,7 +9163,7 @@ void Grep::recurse(size_t level, const char *pathname)
   else
     glob.assign("*");
 
-  std::wstring wglob = utf8_decode(glob);
+  std::wstring wglob(utf8_decode(glob));
   HANDLE hFind = FindFirstFileW(wglob.c_str(), &ffd);
 
   if (hFind == INVALID_HANDLE_VALUE)
@@ -9175,14 +9203,15 @@ void Grep::recurse(size_t level, const char *pathname)
     return;
   }
 
+#endif
+
+  // --index: check index file, but only when necessary on demand to store indexed file entries in a map
   bool index_demand = Static::index_pattern != NULL;
   std::map<std::string,bool> indexed;
 
   // the indexing file stored per indexed directory and index file identifying magic bytes
   static const char ugrep_index_filename[] = "._UG#_Store";
   static const char ugrep_index_file_magic[5] = "UG#\x03";
-
-#endif
 
   // --ignore-files: check if one or more are present to read and extend the file and dir exclusions
   size_t saved_all_exclude_size = 0;
@@ -9225,6 +9254,7 @@ void Grep::recurse(size_t level, const char *pathname)
 
   std::string cFileName;
   uint64_t list = 0;
+  uint64_t index_time = 0;
 
   do
   {
@@ -9233,6 +9263,10 @@ void Grep::recurse(size_t level, const char *pathname)
     // search directory entries that aren't . or .. or hidden
     if (cFileName[0] != '.' || (flag_hidden && cFileName[1] != '\0' && cFileName[1] != '.'))
     {
+      // --index: do not search index files themselves, even when --hidden is specified
+      if (flag_index != NULL && cFileName == ugrep_index_filename)
+        continue;
+
       size_t len = strlen(pathname);
 
       if (len == 1 && pathname[0] == '.')
@@ -9242,7 +9276,6 @@ void Grep::recurse(size_t level, const char *pathname)
       else
         entry_pathname.assign(pathname).append(PATHSEPSTR).append(cFileName);
 
-      ino_t inode = 0;
       uint64_t info = 0;
 
       // --sort: get file info
@@ -9263,8 +9296,158 @@ void Grep::recurse(size_t level, const char *pathname)
         }
       }
 
+      ino_t inode = 0;
+      Type type = select(level + 1, entry_pathname.c_str(), cFileName.c_str(), DIRENT_TYPE_UNKNOWN, inode, info);
+
+      // --index: search indexed files quickly, but only when necessary on demand
+      if (type == Type::OTHER && Static::index_pattern != NULL)
+      {
+        // if we did not check for an index file yet, then check it now on demand and read it when found
+        if (index_demand)
+        {
+          // check no more than once at most
+          index_demand = false;
+
+          // check if an index file is present and use it
+          std::string index_filename(pathname);
+          index_filename.append(PATHSEPSTR).append(ugrep_index_filename);
+          std::wstring windex_filename(utf8_decode(index_filename));
+          HANDLE hFile = CreateFileW(windex_filename.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+
+          if (hFile != INVALID_HANDLE_VALUE)
+          {
+            char check_magic[sizeof(ugrep_index_file_magic)];
+            DWORD numread = 0;
+
+            // if an index file is present in the directory pathname, then read and stat it
+            if (ReadFile(hFile, check_magic, sizeof(ugrep_index_file_magic), &numread, NULL) &&
+                numread == sizeof(ugrep_index_file_magic) &&
+                memcmp(check_magic, ugrep_index_file_magic, sizeof(ugrep_index_file_magic)) == 0)
+            {
+              // time of indexing to check which files were modified after indexing
+              index_time = Entry::modified_time(hFile);
+
+              // allocate a buffer, not on the stack, because we are in a deeply recursive function
+              char *buffer = new char[65536]; // size must be 65536
+              uint8_t header[4];
+              std::map<std::string,bool>::iterator skip = indexed.end();
+
+              // populate indexed map
+              while (true)
+              {
+                if (!ReadFile(hFile, header, sizeof(header), &numread, NULL) || numread != sizeof(header))
+                  break;
+
+                uint16_t basename_size = header[2] | (header[3] << 8);
+
+                if (!ReadFile(hFile, buffer, basename_size, &numread, NULL) || numread != basename_size)
+                  break;
+
+                // make basename in buffer 0-terminated
+                buffer[basename_size] = '\0';
+
+                // hashes table size, zero to skip empty files and binary files when -I is specified
+                size_t hashes_size = 0;
+                uint8_t logsize = header[1] & 0x1f;
+                if (logsize > 0)
+                  for (hashes_size = 1; logsize > 0; --logsize)
+                    hashes_size <<= 1;
+
+                // sanity check
+                if (hashes_size > 65536)
+                  break;
+
+                // archives have multiple entries in the index file, we keep the skip iterator to compare entries
+                if ((header[1] & 0x40) == 0)
+                  skip = indexed.end();
+
+                // we're still looking in the same archive?
+                bool same_archive = skip != indexed.end() && skip->first == buffer;
+
+                // if not and archive or not the same archive entry, then add basename to the indexed map
+                if (!same_archive)
+                {
+                  Stats::score_indexed();
+                  skip = indexed.emplace(buffer, true).first;
+                }
+
+                // now read the hashes into the buffer to check for a possible match
+                if (hashes_size > 0 && (!ReadFile(hFile, buffer, hashes_size, &numread, NULL) || numread != hashes_size))
+                  break;
+
+                if ((header[1] & 0x80) != 0 && flag_binary_without_match)
+                {
+                  // -I: if the indexed file to search is a binary file, then skip it
+                }
+                else if ((header[1] & 0x60) != 0 && !flag_decompress)
+                {
+                  // not -z: if the indexed file to search is an archive or is a compressed file, then skip it
+                }
+                else if (hashes_size > 0)
+                {
+                  // check if the hashed pattern has a potential match with the file's index hash
+                  if (Static::index_pattern->match_hfa(reinterpret_cast<const uint8_t*>(buffer), hashes_size))
+                  {
+                    skip->second = false;
+                    if (*flag_index == 'l')
+                      fprintf(stderr, "INDEX LOG: %s" PATHSEPSTR "%s\n", pathname, skip->first.c_str());
+                  }
+                  else
+                  {
+                    // skip indexed file, does not match
+                  }
+                }
+                else if ((header[1] & 0x80) == 0)
+                {
+                  // skip indexed file
+                }
+                else
+                {
+                  // not -I: do not skip non-indexed binary files (marked empty in index) that we need to search
+                  skip->second = false;
+                  if (*flag_index == 'l')
+                    fprintf(stderr, "INDEX LOG: %s" PATHSEPSTR "%s (not indexed binary)\n", pathname, skip->first.c_str());
+                }
+              }
+
+              delete[] buffer;
+            }
+
+            CloseHandle(hFile);
+          }
+        }
+
+        // check if the file to search was indexed and did not match the specified pattern
+        const std::map<std::string,bool>::const_iterator skip = indexed.find(cFileName);
+        if (skip == indexed.end())
+        {
+          // a new file that was not indexed
+          Stats::score_added();
+          if (*flag_index == 'l')
+            fprintf(stderr, "INDEX LOG: %s (not indexed)\n", entry_pathname.c_str());
+        }
+        else if (skip->second)
+        {
+          bool is_changed = Entry::modified_time(ffd) > index_time;
+
+          if (is_changed)
+          {
+            // search the file that was changed after indexing
+            Stats::score_changed();
+            if (*flag_index == 'l')
+              fprintf(stderr, "INDEX LOG: %s (changed)\n", entry_pathname.c_str());
+          }
+          else
+          {
+            // skip this indexed file that does not match the specified pattern
+            Stats::score_skipped();
+            type = Type::SKIP;
+          }
+        }
+      }
+
       // search entry_pathname, unless searchable directory into which we should recurse
-      switch (select(level + 1, entry_pathname.c_str(), cFileName.c_str(), DIRENT_TYPE_UNKNOWN, inode, info))
+      switch (type)
       {
         case Type::DIRECTORY:
           dir_entries.emplace_back(entry_pathname, 0, info);
@@ -9303,7 +9486,7 @@ void Grep::recurse(size_t level, const char *pathname)
     // search directory entries that aren't . or .. or hidden
     if (dirent->d_name[0] != '.' || (flag_hidden && dirent->d_name[1] != '\0' && dirent->d_name[1] != '.'))
     {
-      // --index: do not search index files, even when --hidden is specified
+      // --index: do not search index files themselves, even when --hidden is specified
       if (flag_index != NULL && strcmp(dirent->d_name, ugrep_index_filename) == 0)
         continue;
 
@@ -9316,9 +9499,9 @@ void Grep::recurse(size_t level, const char *pathname)
       else
         entry_pathname.assign(pathname).append(PATHSEPSTR).append(dirent->d_name);
 
-      Type type;
       ino_t inode;
       uint64_t info;
+      Type type;
 
       // search entry_pathname, unless searchable directory into which we should recurse
 #if defined(HAVE_STRUCT_DIRENT_D_TYPE) && defined(HAVE_STRUCT_DIRENT_D_INO)
@@ -9332,13 +9515,13 @@ void Grep::recurse(size_t level, const char *pathname)
       if (flag_sort_key == Sort::LIST)
         info = list++;
 
-      // --index: search indexed files quickly, but only on demand
+      // --index: search indexed files quickly, but only when necessary on demand
       if (type == Type::OTHER && Static::index_pattern != NULL)
       {
-        // if we did not check for an index file yet, then check it now by demand and read it when found
+        // if we did not check for an index file yet, then check it now on demand and read it when found
         if (index_demand)
         {
-          // check no more than once
+          // check no more than once at most
           index_demand = false;
 
           // check if an index file is present and use it
@@ -9362,11 +9545,13 @@ void Grep::recurse(size_t level, const char *pathname)
                 uint64_t index_time = Entry::modified_time(buf);
 
                 // allocate a buffer, not on the stack, because we are in a deeply recursive function
-                char *buffer = new char[65536];
+                char *buffer = new char[65536]; // size must be 65536
                 uint8_t header[4];
                 std::string index_pathname;
+                bool is_changed = false;
+                std::map<std::string,bool>::iterator skip = indexed.end();
 
-                // populate index set
+                // populate indexed map
                 while (true)
                 {
                   if (fread(header, sizeof(header), 1, index_file) == 0)
@@ -9376,6 +9561,9 @@ void Grep::recurse(size_t level, const char *pathname)
 
                   if (fread(buffer, 1, basename_size, index_file) < basename_size)
                     break;
+
+                  // make basename in buffer 0-terminated
+                  buffer[basename_size] = '\0';
 
                   // hashes table size, zero to skip empty files and binary files when -I is specified
                   size_t hashes_size = 0;
@@ -9388,64 +9576,83 @@ void Grep::recurse(size_t level, const char *pathname)
                   if (hashes_size > 65536)
                     break;
 
-                  size_t len = strlen(pathname);
+                  // archives have multiple entries in the index file, we keep the skip iterator to compare entries
+                  if ((header[1] & 0x40) == 0)
+                    skip = indexed.end();
 
-                  if (len == 1 && pathname[0] == '.')
-                    index_pathname.assign(buffer, basename_size);
-                  else if (len > 0 && pathname[len - 1] == PATHSEPCHR)
-                    index_pathname.assign(pathname).append(buffer, basename_size);
-                  else
-                    index_pathname.assign(pathname).append(PATHSEPSTR).append(buffer, basename_size);
+                  // we're still looking in the same archive?
+                  bool same_archive = skip != indexed.end() && skip->first == buffer;
 
-                  // populate the indexing map for this directory
-                  std::map<std::string,bool>::iterator skip = indexed.emplace(std::string(buffer, basename_size), false).first;
+                  // if not and archive or not the same archive entry, then add basename to the indexed map
+                  if (!same_archive)
+                  {
+                    Stats::score_indexed();
 
+                    skip = indexed.emplace(buffer, true).first;
+
+                    // not --index=fast: check if the file to search was not modified after indexing
+                    if (*flag_index != 'f')
+                    {
+                      if (len == 1 && pathname[0] == '.')
+                        index_pathname.assign(buffer, basename_size);
+                      else if (len > 0 && pathname[len - 1] == PATHSEPCHR)
+                        index_pathname.assign(pathname).append(buffer, basename_size);
+                      else
+                        index_pathname.assign(pathname).append(PATHSEPSTR).append(buffer, basename_size);
+
+                      // does the file exist and was changed after indexing?
+                      is_changed = stat(index_pathname.c_str(), &buf) == 0 && Entry::modified_time(buf) > index_time;
+
+                      if (is_changed)
+                      {
+                        // search the file that was changed after indexing
+                        skip->second = false;
+                        Stats::score_changed();
+                        if (*flag_index == 'l')
+                          fprintf(stderr, "INDEX LOG: %s (changed)\n", index_pathname.c_str());
+                      }
+                    }
+                  }
+
+                  // now read the hashes into the buffer to check for a possible match
                   if (hashes_size > 0 && fread(buffer, hashes_size, 1, index_file) == 0)
                     break;
 
-                  Stats::score_indexed();
-
-                  // the file to search was not modified after indexing
-                  if (stat(index_pathname.c_str(), &buf) == 0 && Entry::modified_time(buf) <= index_time)
+                  if (!is_changed)
                   {
-                    // -I: if the file to search is a binary file, then skip it
                     if ((header[1] & 0x80) != 0 && flag_binary_without_match)
                     {
-                      skip->second = true;
-                      Stats::score_skipped();
+                      // -I: if the indexed file to search is a binary file, then skip it
+                    }
+                    else if ((header[1] & 0x60) != 0 && !flag_decompress)
+                    {
+                      // not -z: if the indexed file to search is an archive or is a compressed file, then skip it
                     }
                     else if (hashes_size > 0)
                     {
                       // check if the hashed pattern has a potential match with the file's index hash
                       if (Static::index_pattern->match_hfa(reinterpret_cast<const uint8_t*>(buffer), hashes_size))
                       {
-                        if (*flag_index == 'd')
-                          fprintf(stderr, "INDEX DEBUG: %s\n", index_pathname.c_str());
+                        skip->second = false;
+                        if (*flag_index == 'l')
+                          fprintf(stderr, "INDEX LOG: %s\n", index_pathname.c_str());
                       }
                       else
                       {
-                        // skip file, not changed and does not match
-                        skip->second = true;
-                        Stats::score_skipped();
+                        // skip indexed file, not changed and does not match
                       }
                     }
                     else if ((header[1] & 0x80) == 0)
                     {
-                      // skip file, not changed and is empty
-                      skip->second = true;
-                      Stats::score_skipped();
+                      // skip indexed file, not changed and is empty
                     }
                     else
                     {
-                      if (*flag_index == 'd')
-                        fprintf(stderr, "INDEX DEBUG: %s (not indexed binary)\n", index_pathname.c_str());
+                      // not -I: do not skip non-indexed binary files (marked empty in index) that we need to search
+                      skip->second = false;
+                      if (*flag_index == 'l')
+                        fprintf(stderr, "INDEX LOG: %s (not indexed binary)\n", index_pathname.c_str());
                     }
-                  }
-                  else
-                  {
-                    Stats::score_changed();
-                    if (*flag_index == 'd')
-                      fprintf(stderr, "INDEX DEBUG: %s (changed)\n", index_pathname.c_str());
                   }
                 }
 
@@ -9458,16 +9665,19 @@ void Grep::recurse(size_t level, const char *pathname)
             fclose(index_file);
         }
 
-        // check if the file to search was indexed and did not match
-        std::map<std::string,bool>::const_iterator skip = indexed.find(dirent->d_name);
+        // check if the file to search was indexed and did not match the specified pattern
+        const std::map<std::string,bool>::const_iterator skip = indexed.find(dirent->d_name);
         if (skip == indexed.end())
         {
+          // a new file that was not indexed
           Stats::score_added();
-          if (*flag_index == 'd')
-            fprintf(stderr, "INDEX DEBUG: %s (not indexed)\n", entry_pathname.c_str());
+          if (*flag_index == 'l')
+            fprintf(stderr, "INDEX LOG: %s (not indexed)\n", entry_pathname.c_str());
         }
         else if (skip->second)
         {
+          // skip this indexed file that does not match the specified pattern
+          Stats::score_skipped();
           type = Type::SKIP;
         }
       }
@@ -11510,6 +11720,8 @@ void Grep::search(const char *pathname, uint16_t cost)
                 out.str(v_match_ms);
                 out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                 out.str(match_off);
+
+                lineno += matcher->lines() - 1;
               }
               else
               {
@@ -11961,6 +12173,8 @@ void Grep::search(const char *pathname, uint16_t cost)
                 out.str(match_ms);
                 out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
                 out.str(match_off);
+
+                lineno += matcher->lines() - 1;
               }
               else
               {
@@ -13664,14 +13878,17 @@ void help(std::ostream& out)
 #endif
             "\
     --index\n\
-            Perform indexing-based search on files indexed with ugrep-indexer.\n\
-            Recursive searches are performed by skipping non-matching files.\n\
-            Binary files are skipped with option -I.  Note that the start-up\n\
-            time to search is increased, which may be significant when complex\n\
-            search patterns are specified that contain large Unicode character\n\
-            classes with `*' or `+' repeats, which should be avoided.  Option\n\
-            -U (--ascii) improves performance.  Option --stats=vm displays a\n\
-            detailed indexing-based search report.  This is a beta feature.\n\
+            Perform index-based recursive search.  This option assumes, but\n\
+            does not require, that files are indexed with ugrep-indexer.  This\n\
+            option accellerates recursive searching by skipping non-matching\n\
+            files, archives and compressed files when indexed.  Significant\n\
+            accelleration may be achieved on cold (not file-cached) and large\n\
+            file systems, or any file system that is slow to search.  Note that\n\
+            the start-up time to search is increased, which may be significant\n\
+            when complex search patterns are specified that contain large\n\
+            Unicode character classes combined with `*' or `+' repeats, which\n\
+            should be avoided.  Option -U (--ascii) improves performance.\n\
+            Option --stats displays an index search report.\n\
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
             default an optimum number of threads is spawned to search files\n\
@@ -13849,8 +14066,8 @@ void help(std::ostream& out)
             `-', writes the configuration to standard output.  Only part of the\n\
             OPTIONS are saved that do not cause searches to fail when combined\n\
             with other options.  Additional options may be specified by editing\n\
-            the the saved configuration file.  A configuration file may be\n\
-            modified to specify one or more config[=FILE] to indirectly load\n\
+            the saved configuration file.  A configuration file may be modified\n\
+            manually to specify one or more config[=FILE] to indirectly load\n\
             the specified FILE, but recursive config loading is not allowed.\n\
     --separator[=SEP]\n\
             Use SEP as field separator between file name, line number, column\n\
@@ -14421,7 +14638,7 @@ void version()
 #endif
 #endif
     "\n"
-    "License: BSD-3-Clause;  ugrep user guide:  https://ugrep.com\n"
+    "License: BSD-3-Clause; ugrep user manual:  https://ugrep.com\n"
     "Written by Robert van Engelen and others:  https://github.com/Genivia/ugrep\n"
     "Ugrep utilizes the RE/flex regex library:  https://github.com/Genivia/RE-flex" << std::endl;
   exit(EXIT_OK);
