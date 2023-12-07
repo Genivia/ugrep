@@ -5126,7 +5126,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "after-context") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--after-context, --and, --andnot, --any-line or --ascii");
+                  usage("invalid option --", arg, "--after-context=, --and, --andnot, --any-line or --ascii");
                 break;
 
               case 'b':
@@ -5149,7 +5149,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "before-context") == 0 || strcmp(arg, "binary-files") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--basic-regexp, --before-context, --binary, --binary-files, --bool, --break or --byte-offset");
+                  usage("invalid option --", arg, "--basic-regexp, --before-context=, --binary, --binary-files=, --bool, --break or --byte-offset");
                 break;
 
               case 'c':
@@ -5182,7 +5182,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "context") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--color, --colors, --column-number, --config, --confirm, --context, --count, --cpp or --csv");
+                  usage("invalid option --", arg, "--color, --colors=, --column-number, --config, --confirm, --context=, --count, --cpp or --csv");
                 break;
 
               case 'd':
@@ -5209,7 +5209,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "directories") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--decompress, --delay, --depth, --dereference, --dereference-files, --dereference-recursive, --devices, --directories or --dotall");
+                  usage("invalid option --", arg, "--decompress, --delay=, --depth=, --dereference, --dereference-files, --dereference-recursive, --devices=, --directories= or --dotall");
                 break;
 
               case 'e':
@@ -5234,7 +5234,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "exclude-fs") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--empty, --encoding, --exclude, --exclude-dir, --exclude-from, --exclude-fs or --extended-regexp");
+                  usage("invalid option --", arg, "--empty, --encoding=, --exclude=, --exclude-dir=, --exclude-from=, --exclude-fs= or --extended-regexp");
                 break;
 
               case 'f':
@@ -5287,7 +5287,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "format-open") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--file, --file-extension, --file-magic, --file-type, --files, --files-with-matches, --files-without-match, --fixed-strings, --filter, --filter-magic-label, --format, --format-begin, --format-close, --format-end, --format-open, --fuzzy or --free-space");
+                  usage("invalid option --", arg, "--file=, --file-extension=, --file-magic=, --file-type=, --files, --files-with-matches, --files-without-match, --fixed-strings, --filter=, --filter-magic-label=, --format=, --format-begin=, --format-close, --format-end=, --format-open=, --fuzzy or --free-space");
                 break;
 
               case 'g':
@@ -5302,7 +5302,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "glob") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--glob, --glob-ignore-case or --group-separator");
+                  usage("invalid option --", arg, "--glob=, --glob-ignore-case or --group-separator");
                 break;
 
               case 'h':
@@ -5359,7 +5359,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "include-fs") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--ignore-case, --ignore-files, --include, --include-dir, --include-from, --include-fs, --initial-tab or --invert-match");
+                  usage("invalid option --", arg, "--ignore-case, --ignore-files, --include=, --include-dir=, --include-from=, --include-fs=, --initial-tab or --invert-match");
                 break;
 
               case 'j':
@@ -5370,7 +5370,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "jobs") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--jobs or --json");
+                  usage("invalid option --", arg, "--jobs= or --json");
                 break;
 
               case 'l':
@@ -5387,7 +5387,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "label") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--label, --line-buffered, --line-number, --line-regexp or --lines");
+                  usage("invalid option --", arg, "--label=, --line-buffered, --line-number, --line-regexp or --lines");
                 break;
 
               case 'm':
@@ -5426,7 +5426,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                     strcmp(arg, "min-line") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--match, --max-count, --max-depth, --max-files, --max-line, --min-count, --min-depth, --min-line, --mmap or --messages");
+                  usage("invalid option --", arg, "--match, --max-count=, --max-depth=, --max-files=, --max-line=, --min-count=, --min-depth=, --min-line=, --mmap or --messages");
                 break;
 
               case 'n':
@@ -5523,7 +5523,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-filter, --glob-no-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp=, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-confirm, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-filter, --no-glob-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -5549,7 +5549,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "pretty=", 7) == 0)
                   flag_pretty = strarg(arg + 7);
                 else
-                  usage("invalid option --", arg, "--pager, --passthru, --perl-regexp or --pretty");
+                  usage("invalid option --", arg, "--pager, --passthru, --perl-regexp= or --pretty");
                 break;
 
               case 'q':
@@ -5572,10 +5572,12 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   option_regexp(pattern_args, arg + 7);
                 else if (strncmp(arg, "replace=", 8) == 0)
                   flag_replace = strarg(arg + 8);
-                else if (strcmp(arg, "range") == 0 || strcmp(arg, "regexp") == 0 || strcmp(arg, "replace") == 0)
+                else if (strcmp(arg, "range") == 0 ||
+                    strcmp(arg, "regexp") == 0 ||
+                    strcmp(arg, "replace") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--range, --recursive, --regexp or --replace");
+                  usage("invalid option --", arg, "--range=, --recursive, --regexp= or --replace=");
                 break;
 
               case 's':
@@ -9714,8 +9716,8 @@ void Grep::recurse(size_t level, const char *pathname)
 
 #endif
 
-  // -Z and --sort=best: presearch the selected files to determine edit distance cost
-  if (flag_fuzzy > 0 && flag_sort_key == Sort::BEST)
+  // -Z and --sort=best without --match: presearch the selected files to determine edit distance cost
+  if (flag_fuzzy > 0 && flag_sort_key == Sort::BEST && !flag_match)
   {
     auto entry = file_entries.begin();
     while (entry != file_entries.end())
@@ -9902,8 +9904,8 @@ uint16_t Grep::compute_cost(const char *pathname)
 // search input to output the pattern matches
 void Grep::search(const char *pathname, uint16_t cost)
 {
-  // -Zbest (or --best-match): compute cost if not yet computed by --sort=best
-  if (flag_best_match && flag_fuzzy > 0 && !flag_quiet && !flag_files_with_matches && matchers == NULL && pathname != Static::LABEL_STANDARD_INPUT)
+  // -Zbest (or --best-match) without --match: compute cost if not yet computed by --sort=best
+  if (flag_best_match && flag_fuzzy > 0 && !flag_match && !flag_quiet && !flag_files_with_matches && matchers == NULL && pathname != Static::LABEL_STANDARD_INPUT)
   {
     // -Z: matcher is a FuzzyMatcher for sure
     reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);

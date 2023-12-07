@@ -39,8 +39,8 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstdint>
 #include <cstring>
-#include <cinttypes>
 #include <streambuf>
 #include <zlib.h>
 

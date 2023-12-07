@@ -51,7 +51,7 @@ The default pattern syntax is an extended form of the POSIX ERE syntax, same as
 option \fB-E\fR (\fB--extended-regexp\fR).  Try \fBug --help regex\fR for help
 with pattern syntax and how to use logical connectives to specify Boolean
 search queries with option \fB-%\fR (\fB--bool\fR) to match lines and \fB-%%\fR
-(-fB--files --bool\fR) to match files.  Options \fB-F\fR
+(\fB--files --bool\fR) to match files.  Options \fB-F\fR
 (\fB--fixed-strings\fR), \fB-G\fR (\fB--basic-regexp\fR) and \fB-P\fR
 (\fB--perl-regexp\fR) specify other pattern syntaxes.
 .PP
@@ -545,7 +545,7 @@ $ ugrep -cowi patricia myfile.txt
 .PP
 List lines with `amount' and a decimal, ignoring case (space is AND):
 .IP
-$ ugrep -i --bool 'amount \d+(\.\d+)?' myfile.txt
+$ ugrep -i -% 'amount \d+(\.\d+)?' myfile.txt
 .PP
 Alternative query:
 .IP
@@ -605,7 +605,7 @@ $ ugrep -n -e FIXME --and urgent myfile.cpp
 .PP
 The same, but with a Boolean query pattern (a space is AND):
 .IP
-$ ugrep -n --bool 'FIXME urgent' myfile.cpp
+$ ugrep -n -% 'FIXME urgent' myfile.cpp
 .PP
 Find lines with `FIXME' that do not also contain `later':
 .IP
@@ -613,7 +613,7 @@ $ ugrep -n -e FIXME --andnot later myfile.cpp
 .PP
 The same, but with a Boolean query pattern (a space is AND, - is NOT):
 .IP
-$ ugrep -n --bool 'FIXME -later' myfile.cpp
+$ ugrep -n -% 'FIXME -later' myfile.cpp
 .PP
 Output a list of line numbers of lines with `FIXME' but not `later':
 .IP
@@ -622,7 +622,7 @@ $ ugrep -e FIXME --andnot later --format='%,%n' myfile.cpp
 Recursively list all files with both `FIXME' and `LICENSE' anywhere in the
 file, not necessarily on the same line:
 .IP
-$ ugrep -l --files --bool 'FIXME LICENSE'
+$ ugrep -l -%% 'FIXME LICENSE'
 .PP
 Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
@@ -665,7 +665,7 @@ $ tail -f /var/log/system.log | ugrep -u -i -w bug
 .PP
 Interactive fuzzy search with Boolean search queries:
 .IP
-$ ugrep -Q -l --bool -Z3 --sort=best
+$ ugrep -Q -l -% -Z3 --sort=best
 .PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
