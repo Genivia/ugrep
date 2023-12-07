@@ -78,17 +78,17 @@ Overview
 
   💡 specify `-z --zmax=2` to search compressed files and archives nested within archives.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps to search nested archives
 
-- Search with Google-like [Boolean query patterns](#bool) using `--bool` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )` (shown on the left side below); or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns (shown on the right side below):
+- Search with Google-like [Boolean query patterns](#bool) using `-%` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )` (shown on the left side below); or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns (shown on the right side below):
 
-      ug --bool 'A B C' ...                  ug -e 'A' --and 'B' --and 'C' ...
-      ug --bool 'A|B C' ...                  ug -e 'A' -e 'B' --and 'C' ...
-      ug --bool 'A -B -C' ...                ug -e 'A' --andnot 'B' --andnot 'C' ...
-      ug --bool 'A -(B|C)'...                ug -e 'A' --andnot 'B' --andnot 'C' ...
-      ug --bool '"abc" "def"' ...            ug -e '\Qabc\E' --and '\Qdef\E' ...
+      ug -% 'A B C' ...                      ug -e 'A' --and 'B' --and 'C' ...
+      ug -% 'A|B C' ...                      ug -e 'A' -e 'B' --and 'C' ...
+      ug -% 'A -B -C' ...                    ug -e 'A' --andnot 'B' --andnot 'C' ...
+      ug -% 'A -(B|C)'...                    ug -e 'A' --andnot 'B' --andnot 'C' ...
+      ug -% '"abc" "def"' ...                ug -e '\Qabc\E' --and '\Qdef\E' ...
 
   where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
-  💡 specify `--files --bool` to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
+  💡 specify option `-%%` (`--bool --files`) to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
 
 - Search pdf, doc, docx, e-book, and more with `ug+` [using filters](#filter) associated with filename extensions:
 
@@ -118,9 +118,9 @@ Overview
 
   💡 `-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
 
-- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `--files --bool` for file-wide Boolean searches
+- Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `-%%` for file-wide Boolean searches
 
-      ug -Q --files --bool -l -w -Z+4 --sort=best
+      ug -Q -%% -l -w -Z+4 --sort=best
 
   💡 `-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
@@ -219,7 +219,7 @@ Table of contents
   - [Configuration files](#config)
   - [Interactive search with -Q](#query)
   - [Recursively list matching files with -l, -R, -r, --depth, -g, -O, and -t](#recursion)
-  - [Boolean query patterns with --bool (-%), --and, --not](#bool)
+  - [Boolean query patterns with -%, -%%, --and, --not](#bool)
   - [Search this but not that with -v, -e, -N, -f, -L, -w, -x](#not)
   - [Search non-Unicode files with --encoding](#encoding)
   - [Matching multiple lines of text](#multiline)
@@ -1448,7 +1448,7 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
 
 <a name="bool"/>
 
-### Boolean query patterns with --bool (-%), --and, --not
+### Boolean query patterns with -%, -%%, --and, --not
 
     --bool, -%, -%%
             Specifies Boolean query patterns.  A Boolean query pattern is
@@ -1505,7 +1505,7 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
 
 Note that the `--and`, `--not`, and `--andnot` options require `-e PATTERN`.
 
-The `--bool` option makes all patterns Boolean-based, supporting the following
+The `-%` option makes all patterns Boolean-based, supporting the following
 logical operations listed from the highest level of precedence to the lowest:
 
 operator | alternative | result
@@ -1528,7 +1528,7 @@ operator | alternative | result
 The `--stats` option displays the Boolean queries in human-readable form
 converted to CNF (Conjunctive Normal Form), after the search is completed.
 To show the CNF without a search, read from standard input terminated by an
-EOF, like `echo | ugrep --bool '...' --stats`.
+EOF, like `echo | ugrep -% '...' --stats`.
 
 Subpatterns are color-highlighted in the output, except those negated with
 `NOT` (a `NOT` subpattern may still show up in a matching line when using an
@@ -1539,7 +1539,7 @@ Multiple lines may be matched when subpatterns match newlines.  There is one
 exception however: subpatterns ending with `(?=X)` lookaheads may not match
 when `X` spans multiple lines.
 
-Empty patterns match any line (grep standard).  Therefore, `--bool 'x|""|y'`
+Empty patterns match any line (grep standard).  Therefore, `-% 'x|""|y'`
 matches everything and `x` and `y` are not color-highlighted.  Option `-y`
 should be used to show every line as context, for example `-y 'x|y'`.
 
@@ -1548,59 +1548,59 @@ matching to allow e.g. up to 4 extra characters matched with `-Z+4` in words
 with `-w`), press TAB and ALT-y to view a file with matches.  Press SHIFT-TAB
 and ALT-l to go back to the list of matching files:
 
-    ug -Q1 --bool -l -w -F -Z+4 --sort=best
+    ug -Q -%% -l -w -F -Z+4 --sort=best
 
 To recursively find all files containing both `hot` and `dog` anywhere in the
 file with option `--files`:
 
-    ug --files --bool 'hot dog'
+    ug -%% 'hot dog'
     ug --files -e hot --and dog
 
 To find lines containing both `hot` and `dog` in `myfile.txt`:
 
-    ug --bool 'hot dog' myfile.txt
+    ug -% 'hot dog' myfile.txt
     ug -e hot --and dog myfile.txt
 
 To find lines containing `place` and then also `hotdog` or `taco` (or both) in
 `myfile.txt`:
 
-    ug --bool 'hotdog|taco place' myfile.txt
+    ug -% 'hotdog|taco place' myfile.txt
     ug -e hotdog -e taco --and place myfile.txt
 
 Same, but exclude lines matching `diner`:
 
-    ug --bool 'hotdog|taco place -diner' myfile.txt
+    ug -% 'hotdog|taco place -diner' myfile.txt
     ug -e hotdog -e taco --and place --andnot diner myfile.txt
 
 To find lines with `diner` or lines that match both `fast` and `food` but not `bad` in `myfile.txt`:
 
-    ug --bool 'diner|(fast food -bad)' myfile.txt
+    ug -% 'diner|(fast food -bad)' myfile.txt
 
 To find lines with `fast food` (exactly) or lines with `diner` but not `bad` or `old` in `myfile.txt`:
 
-    ug --bool '"fast food"|diner -bad -old' myfile.txt
+    ug -% '"fast food"|diner -bad -old' myfile.txt
 
 Same, but using a different Boolean expression that has the same meaning:
 
-    ug --bool '"fast food"|diner -(bad|old)' myfile.txt
+    ug -% '"fast food"|diner -(bad|old)' myfile.txt
 
 To find lines with `diner` implying `good` in `myfile.txt` (that is, show lines
 with `good` without `diner` and show lines with `diner` but only those with
 `good`, which is logically implied!):
 
-    ug --bool 'good|-diner' myfile.txt
+    ug -% 'good|-diner' myfile.txt
     ug -e good --not diner myfile.txt
 
 To find lines with `foo` and `-bar` and `"baz"` in `myfile.txt` (not that `-`
 and `"` should be matched using `\` escapes and with `--and -e -bar`):
 
-    ug --bool 'foo \-bar \"baz\"' myfile.txt
+    ug -% 'foo \-bar \"baz\"' myfile.txt
     ug -e foo --and -e -bar --and '"baz"' myfile.txt
 
 To search `myfile.cpp` for lines with `TODO` or `FIXME` but not both on the
 same line, like XOR:
 
-    ug --bool 'TODO|FIXME -(TODO FIXME)' myfile.cpp
+    ug -% 'TODO|FIXME -(TODO FIXME)' myfile.cpp
     ug -e TODO -e FIXME --and --not TODO --not FIXME myfile.cpp
 
 🔝 [Back to table of contents](#toc)
@@ -1655,7 +1655,7 @@ same line, like XOR:
             -f FILE patterns to allow -f FILE patterns to narrow or widen the
             scope of the PATTERN search.
 
-See also [Boolean query patterns with --bool (-%), --and, --not](#bool) for
+See also [Boolean query patterns with -%, -%%, --and, --not](#bool) for
 more powerful Boolean query options than the traditional GNU/BSD grep options.
 
 To display lines in file `myfile.sh` but not lines matching `^[ \t]*#`:
@@ -1666,9 +1666,9 @@ To search `myfile.cpp` for lines with `FIXME` and `urgent`, but not `Scotty`:
 
     ugrep FIXME myfile.cpp | ugrep urgent | ugrep -v Scotty
 
-Same, but using `--bool` for Boolean queries:
+Same, but using `-%` for Boolean queries:
 
-    ug --bool 'FIXME urgent -Scotty' myfile.cpp
+    ug -% 'FIXME urgent -Scotty' myfile.cpp
 
 To search for decimals using pattern `\d+` that do not start with `0` using
 negative pattern `0\d+` and excluding `555`:
@@ -3894,7 +3894,7 @@ in markdown:
            The default pattern syntax is an extended form of the POSIX ERE syntax,
            same as option -E (--extended-regexp).  Try ug --help regex for help with
            pattern syntax and how to use logical connectives to specify Boolean
-           search queries with option -% (--bool) to match lines and -%% (-fB--files
+           search queries with option -% (--bool) to match lines and -%% (--files
            --bool) to match files.  Options -F (--fixed-strings), -G (--basic-
            regexp) and -P (--perl-regexp) specify other pattern syntaxes.
 
@@ -5217,7 +5217,7 @@ in markdown:
 
            List lines with `amount' and a decimal, ignoring case (space is AND):
 
-                  $ ugrep -i --bool 'amount +(.+)?' myfile.txt
+                  $ ugrep -i -% 'amount +(.+)?' myfile.txt
 
            Alternative query:
 
@@ -5278,7 +5278,7 @@ in markdown:
 
            The same, but with a Boolean query pattern (a space is AND):
 
-                  $ ugrep -n --bool 'FIXME urgent' myfile.cpp
+                  $ ugrep -n -% 'FIXME urgent' myfile.cpp
 
            Find lines with `FIXME' that do not also contain `later':
 
@@ -5286,7 +5286,7 @@ in markdown:
 
            The same, but with a Boolean query pattern (a space is AND, - is NOT):
 
-                  $ ugrep -n --bool 'FIXME -later' myfile.cpp
+                  $ ugrep -n -% 'FIXME -later' myfile.cpp
 
            Output a list of line numbers of lines with `FIXME' but not `later':
 
@@ -5295,7 +5295,7 @@ in markdown:
            Recursively list all files with both `FIXME' and `LICENSE' anywhere in
            the file, not necessarily on the same line:
 
-                  $ ugrep -l --files --bool 'FIXME LICENSE'
+                  $ ugrep -l -%% 'FIXME LICENSE'
 
            Find lines with `FIXME' in the C/C++ files stored in a tarball:
 
@@ -5339,7 +5339,7 @@ in markdown:
 
            Interactive fuzzy search with Boolean search queries:
 
-                  $ ugrep -Q -l --bool -Z3 --sort=best
+                  $ ugrep -Q -l -% -Z3 --sort=best
 
            Display all words in a MacRoman-encoded file that has CR newlines:
 
