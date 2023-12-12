@@ -343,6 +343,12 @@ Check <https://packages.debian.org/ugrep> for version info.  To build and try
 
 Check <https://packages.fedoraproject.org/pkgs/ugrep/ugrep/> for version info.
 
+### OpenSUSE
+
+    $ zypper install ugrep
+
+Check <https://build.opensuse.org/package/show/utilities/ugrep> for version info.
+
 ### FreeBSD
 
     $ pkg install ugrep
