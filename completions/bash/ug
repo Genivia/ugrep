@@ -1,8 +1,31 @@
 #!/usr/bin/env bash
+# bash completion for ug and ugrep
+# recommended: add the following lines to ~/.inputrc
+# set colored-stats on
+# set colored-completion-prefix on
 
 if ! declare -F _init_completion >/dev/null 2>&1; then
     return
 fi
+
+_comp_cmd_ugrep_usage()
+{
+    local -a usage
+    local line i=1
+    usage[0]="Usage:"
+    # generate list of options, concat the first sentence to them
+    while read -r line; do
+        # truncate to screen width
+        usage[$i]=${line:0:$COLUMNS}
+        (( ++i ))
+    done < <(
+        $1 --help 2>&1 \
+        | sed -e '/^[ ]\{4\}-/,/^[ ]\{12\}.*\./!d' -e 's/^\([ ]\{12\}[^.]*\.\)\( .*\)\?$/\1/' -e 's/^[ ]\{4\}//' -e $'s/[`\']//g' \
+        | sed -e :a -e '$!N;s/\n[ ]\{7\}//;ta' -e 'P;D'
+        )
+    COMPREPLY=( "${usage[@]}" )
+    compopt -o nosort
+}
 
 _comp_cmd_ugrep_file_type()
 {
@@ -25,17 +48,7 @@ _comp_cmd_ugrep()
     _init_completion -s || return
 
     if [[ $cword -eq 1 && "${words[1]}" == "" ]]; then
-        local -a usage
-        usage=( "0| usage: $1 [OPTIONS] -Q|PATTERN [PATH]" \
-                "1|        $1 -iw 'hello|world' doc.txt" \
-                "2|        $1 -R -C3 -w 'TODO|FIXME' src/" \
-                "3|        $1 -l -j -Q" \
-                "4|        $1 -o -C30 -j -Q" )
-        local i
-        for i in "${!usage[@]}"; do
-            usage[$i]="$(printf '%*s' "-$COLUMNS" "${usage[$i]}")"
-        done
-        COMPREPLY=( "${usage[@]}" )
+        _comp_cmd_ugrep_usage $1
         return
     fi
 
@@ -201,6 +214,10 @@ _comp_cmd_ugrep()
         # add space after short option(s)
         COMPREPLY=( $cur )
         compopt +o nospace
+        return
+        ;;
+    -)
+        _comp_cmd_ugrep_usage $1
         return
         ;;
     esac
