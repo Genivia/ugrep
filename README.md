@@ -5,7 +5,7 @@ Why use ugrep?
 
 - Ugrep is a true drop-in replacement for GNU grep, unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher (Perl regex versus POSIX regex grep)
 
-- Ugrep is fast, user-friendly, and equipped with a ton of new features that surpass other grep, benchmarks also show that [ugrep is one of the fastest grep](https://github.com/Genivia/ugrep-benchmarks)
+- Ugrep is fast, user-friendly, and equipped with a ton of new features that surpass other grep, benchmarks also show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) and will be getting even faster
 
 - An easy-to-use user manual with installation instructions at [ugrep.com](https://ugrep.com)
 
