@@ -7,13 +7,13 @@ Why use ugrep?
 
 - Ugrep is fast, user-friendly, and equipped with a ton of new features that surpass other grep, benchmarks also show that [ugrep is one of the fastest grep](https://github.com/Genivia/ugrep-benchmarks)
 
+- An easy-to-use user manual with installation instructions at [ugrep.com](https://ugrep.com)
+
 - Ugrep includes an interactive TUI with built-in help and options to control searching and a file (pre)view split screen
 
 *Option -Q opens a query TUI to search files as you type!*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
-
-- An easy-to-use user manual with installation instructions at [ugrep.com](https://ugrep.com)
 
 Development roadmap
 -------------------
