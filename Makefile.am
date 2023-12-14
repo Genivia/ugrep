@@ -7,6 +7,21 @@ EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 UGREP = $(shell pwd)/$(top_builddir)/bin/ugrep$(EXEEXT)
 CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 
+if ENABLE_BASH_COMPLETION
+bashcompletiondir = $(BASH_COMPLETION_DIR)
+dist_bashcompletion_DATA = $(top_builddir)/completions/bash/ug
+endif
+
+if ENABLE_FISH_COMPLETION
+fishcompletiondir = $(FISH_COMPLETION_DIR)
+dist_fishcompletion_DATA = $(top_builddir)/completions/fish/ug.fish
+endif
+
+if ENABLE_ZSH_COMPLETION
+zshcompletiondir = $(ZSH_COMPLETION_DIR)
+dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug
+endif
+
 all-local:	cp2bin
 
 .PHONY:		cp2bin
@@ -14,10 +29,10 @@ all-local:	cp2bin
 # to copy the ugrep binary to the local ugrep/bin/ugrep and ugrep/bin/ug
 cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		rm -f $(top_builddir)/bin/ugrep$(EXEEXT)
-		mkdir -p $(top_builddir)/bin; \
-		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT); \
-		  cd $(top_builddir)/bin; \
-		  rm -f ug$(EXEEXT); \
+		mkdir -p $(top_builddir)/bin && \
+		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT) && \
+		  cd $(top_builddir)/bin && \
+		  rm -f ug$(EXEEXT) && \
 		  cp -f ugrep$(EXEEXT) ug$(EXEEXT)
 		@echo
 		@echo "OK"
@@ -31,9 +46,27 @@ install-exec-hook:
 install-data-hook:
 		mkdir -p $(DESTDIR)$(datadir)/ugrep && \
 		  cp -rf $(top_srcdir)/patterns $(DESTDIR)$(datadir)/ugrep/
-		cd $(DESTDIR)$(mandir)/man1; \
-		  rm -f ug.1; \
+		cd $(DESTDIR)$(mandir)/man1 && \
+		  rm -f ug.1 && \
 		  $(LN_S) ugrep.1 ug.1
+		@if [ "x$(bashcompletiondir)" != "x" ]; then \
+		  cd $(bashcompletiondir) && \
+		    $(LN_S) -f ug ug+ && \
+		    $(LN_S) -f ug ugrep && \
+		    $(LN_S) -f ug ugrep+; \
+		fi
+		@if [ "x$(fishcompletiondir)" != "x" ]; then \
+		  cd $(fishcompletiondir) && \
+		    sed -e 's/-c ug /-c ug+ /' ug.fish > ug+.fish && \
+		    sed -e 's/-c ug /-c ugrep /' ug.fish > ugrep.fish && \
+		    sed -e 's/-c ug /-c ugrep+ /' ug.fish > ugrep+.fish; \
+		fi
+		@if [ "x$(zshcompletiondir)" != "x" ]; then \
+		  cd $(zshcompletiondir) && \
+		    sed -e 's/^#compdef ug/#compdef ug+/' _ug > _ug+ && \
+		    sed -e 's/^#compdef ug/#compdef ugrep/' _ug > _ugrep && \
+		    sed -e 's/^#compdef ug/#compdef ugrep+/' _ug > _ugrep+; \
+		fi
 		@echo " ______________________________________________________ "; \
 		 echo "|                                                      |"; \
 		 echo "| You have successfully built and installed ugrep.     |"; \

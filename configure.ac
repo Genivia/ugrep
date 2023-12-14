@@ -33,6 +33,9 @@ AM_PROG_AR
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_PROG_LN_S
+AC_PROG_SED
+
+PKG_PROG_PKG_CONFIG
 
 AC_CANONICAL_HOST
 
@@ -88,6 +91,51 @@ if test "x$with_bzip3_library" != "x"; then
   fi
   AX_CHECK_BZIP3LIB([], [echo "optional libbzip3 not found: install if you want ugrep option -z to search .bz3 files"])
 fi
+
+AC_ARG_WITH([bash-completion-dir],
+  [AS_HELP_STRING([--with-bash-completion-dir[=PATH]],
+                  [install the bash auto-completion script in this directory. @<:@default=yes@:>@])],
+  [with_bash_completion_dir="$withval"],
+  [with_bash_completion_dir="yes"])
+if test "x$with_bash_completion_dir" = "xyes"; then
+  PKG_CHECK_MODULES([BASH_COMPLETION],
+                    [bash-completion >= 2.0],
+                    [BASH_COMPLETION_DIR="`pkg-config --define-variable=datadir=$datadir --variable=completionsdir bash-completion`"],
+                    [BASH_COMPLETION_DIR="$datadir/bash-completion/completions"])
+else
+  BASH_COMPLETION_DIR="$with_bash_completion_dir"
+fi
+AC_SUBST(BASH_COMPLETION_DIR)
+AM_CONDITIONAL([ENABLE_BASH_COMPLETION],[test "x$with_bash_completion_dir" != "xno"])
+
+AC_ARG_WITH([fish-completion-dir],
+  [AS_HELP_STRING([--with-fish-completion-dir[=PATH]],
+                  [install the fish auto-completion script in this directory. @<:@default=yes@:>@])],
+  [with_fish_completion_dir="$withval"],
+  [with_fish_completion_dir="yes"])
+if test "x$with_fish_completion_dir" = "xyes"; then
+  PKG_CHECK_MODULES([FISH_COMPLETION],
+                    [fish >= 3.0],
+                    [FISH_COMPLETION_DIR="`pkg-config --define-variable=datadir=$datadir --variable=completionsdir fish`"],
+                    [FISH_COMPLETION_DIR="$datadir/fish/vendor_completions.d"])
+else
+  FISH_COMPLETION_DIR="$with_fish_completion_dir"
+fi
+AC_SUBST(FISH_COMPLETION_DIR)
+AM_CONDITIONAL([ENABLE_FISH_COMPLETION],[test "x$with_fish_completion_dir" != "xno"])
+
+AC_ARG_WITH([zsh-completion-dir],
+    [AS_HELP_STRING([--with-zsh-completion-dir[=PATH]],
+                   [install the zsh auto-completion script in this directory. @<:@default=yes@:>@])],
+    [with_zsh_completion_dir="$withval"],
+    [with_zsh_completion_dir="yes"])
+if test "x$with_zsh_completion_dir" = "xyes"; then
+    ZSH_COMPLETION_DIR="$datadir/zsh/site-functions"
+else
+    ZSH_COMPLETION_DIR="$with_zsh_completion_dir"
+fi
+AC_SUBST(ZSH_COMPLETION_DIR)
+AM_CONDITIONAL([ENABLE_ZSH_COMPLETION],[test "x$with_zsh_completion_dir" != "xno"])
 
 AC_ARG_WITH(grep-path,
   [AS_HELP_STRING([--with-grep-path=GREP_PATH],

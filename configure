@@ -182,7 +182,8 @@ test -x / || exit 1"
   as_suggested="  as_lineno_1=";as_suggested=$as_suggested$LINENO;as_suggested=$as_suggested" as_lineno_1a=\$LINENO
   as_lineno_2=";as_suggested=$as_suggested$LINENO;as_suggested=$as_suggested" as_lineno_2a=\$LINENO
   eval 'test \"x\$as_lineno_1'\$as_run'\" != \"x\$as_lineno_2'\$as_run'\" &&
-  test \"x\`expr \$as_lineno_1'\$as_run' + 1\`\" = \"x\$as_lineno_2'\$as_run'\"' || exit 1"
+  test \"x\`expr \$as_lineno_1'\$as_run' + 1\`\" = \"x\$as_lineno_2'\$as_run'\"' || exit 1
+test \$(( 1 + 1 )) = 2 || exit 1"
   if (eval "$as_required") 2>/dev/null
 then :
   as_have_required=yes
@@ -659,7 +660,24 @@ SIMD_FLAGS
 CXXCPP
 EXTRA_CFLAGS
 GREP_PATH
+ENABLE_ZSH_COMPLETION_FALSE
+ENABLE_ZSH_COMPLETION_TRUE
+ZSH_COMPLETION_DIR
+ENABLE_FISH_COMPLETION_FALSE
+ENABLE_FISH_COMPLETION_TRUE
+FISH_COMPLETION_DIR
+FISH_COMPLETION_LIBS
+FISH_COMPLETION_CFLAGS
+ENABLE_BASH_COMPLETION_FALSE
+ENABLE_BASH_COMPLETION_TRUE
+BASH_COMPLETION_DIR
+BASH_COMPLETION_LIBS
+BASH_COMPLETION_CFLAGS
 PLATFORM
+PKG_CONFIG_LIBDIR
+PKG_CONFIG_PATH
+PKG_CONFIG
+SED
 LN_S
 RANLIB
 am__fastdepCC_FALSE
@@ -779,6 +797,9 @@ with_lz4
 with_zstd
 with_brotli
 with_bzip3
+with_bash_completion_dir
+with_fish_completion_dir
+with_zsh_completion_dir
 with_grep_path
 with_grep_colors
 enable_auto_color
@@ -802,6 +823,13 @@ CPPFLAGS
 CCC
 CC
 CFLAGS
+PKG_CONFIG
+PKG_CONFIG_PATH
+PKG_CONFIG_LIBDIR
+BASH_COMPLETION_CFLAGS
+BASH_COMPLETION_LIBS
+FISH_COMPLETION_CFLAGS
+FISH_COMPLETION_LIBS
 CXXCPP'
 
 
@@ -1487,6 +1515,15 @@ Optional Packages:
                           [defaults to /usr/local or /usr if not found in
                           /usr/local]
   --without-bzip3         to disable bzip3 library usage completely
+  --with-bash-completion-dir=PATH
+                          install the bash auto-completion script in this
+                          directory. [default=yes]
+  --with-fish-completion-dir=PATH
+                          install the fish auto-completion script in this
+                          directory. [default=yes]
+  --with-zsh-completion-dir=PATH
+                          install the zsh auto-completion script in this
+                          directory. [default=yes]
   --with-grep-path=GREP_PATH
                           specifies the GREP_PATH if different than the
                           default DATAROOTDIR/ugrep/patterns
@@ -1504,6 +1541,19 @@ Some influential environment variables:
               you have headers in a nonstandard directory <include dir>
   CC          C compiler command
   CFLAGS      C compiler flags
+  PKG_CONFIG  path to pkg-config utility
+  PKG_CONFIG_PATH
+              directories to add to pkg-config's search path
+  PKG_CONFIG_LIBDIR
+              path overriding pkg-config's built-in search path
+  BASH_COMPLETION_CFLAGS
+              C compiler flags for BASH_COMPLETION, overriding pkg-config
+  BASH_COMPLETION_LIBS
+              linker flags for BASH_COMPLETION, overriding pkg-config
+  FISH_COMPLETION_CFLAGS
+              C compiler flags for FISH_COMPLETION, overriding pkg-config
+  FISH_COMPLETION_LIBS
+              linker flags for FISH_COMPLETION, overriding pkg-config
   CXXCPP      C++ preprocessor
 
 Use these variables to override the choices made by `configure' or to help
@@ -7297,6 +7347,212 @@ else
 printf "%s\n" "no, using $LN_S" >&6; }
 fi
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a sed that does not truncate output" >&5
+printf %s "checking for a sed that does not truncate output... " >&6; }
+if test ${ac_cv_path_SED+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+            ac_script=s/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/
+     for ac_i in 1 2 3 4 5 6 7; do
+       ac_script="$ac_script$as_nl$ac_script"
+     done
+     echo "$ac_script" 2>/dev/null | sed 99q >conftest.sed
+     { ac_script=; unset ac_script;}
+     if test -z "$SED"; then
+  ac_path_SED_found=false
+  # Loop through the user's path and test for each of PROGNAME-LIST
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_prog in sed gsed
+   do
+    for ac_exec_ext in '' $ac_executable_extensions; do
+      ac_path_SED="$as_dir$ac_prog$ac_exec_ext"
+      as_fn_executable_p "$ac_path_SED" || continue
+# Check for GNU ac_path_SED and select it if it is found.
+  # Check for GNU $ac_path_SED
+case `"$ac_path_SED" --version 2>&1` in
+*GNU*)
+  ac_cv_path_SED="$ac_path_SED" ac_path_SED_found=:;;
+*)
+  ac_count=0
+  printf %s 0123456789 >"conftest.in"
+  while :
+  do
+    cat "conftest.in" "conftest.in" >"conftest.tmp"
+    mv "conftest.tmp" "conftest.in"
+    cp "conftest.in" "conftest.nl"
+    printf "%s\n" '' >> "conftest.nl"
+    "$ac_path_SED" -f conftest.sed < "conftest.nl" >"conftest.out" 2>/dev/null || break
+    diff "conftest.out" "conftest.nl" >/dev/null 2>&1 || break
+    as_fn_arith $ac_count + 1 && ac_count=$as_val
+    if test $ac_count -gt ${ac_path_SED_max-0}; then
+      # Best one so far, save it but keep looking for a better one
+      ac_cv_path_SED="$ac_path_SED"
+      ac_path_SED_max=$ac_count
+    fi
+    # 10*(2^10) chars as input seems more than enough
+    test $ac_count -gt 10 && break
+  done
+  rm -f conftest.in conftest.tmp conftest.nl conftest.out;;
+esac
+
+      $ac_path_SED_found && break 3
+    done
+  done
+  done
+IFS=$as_save_IFS
+  if test -z "$ac_cv_path_SED"; then
+    as_fn_error $? "no acceptable sed could be found in \$PATH" "$LINENO" 5
+  fi
+else
+  ac_cv_path_SED=$SED
+fi
+
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_path_SED" >&5
+printf "%s\n" "$ac_cv_path_SED" >&6; }
+ SED="$ac_cv_path_SED"
+  rm -f conftest.sed
+
+
+
+
+
+
+
+
+
+if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
+	if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_PKG_CONFIG+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKG_CONFIG="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+if test -n "$PKG_CONFIG"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
+printf "%s\n" "$PKG_CONFIG" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_path_PKG_CONFIG"; then
+  ac_pt_PKG_CONFIG=$PKG_CONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_ac_pt_PKG_CONFIG+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $ac_pt_PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
+if test -n "$ac_pt_PKG_CONFIG"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKG_CONFIG" >&5
+printf "%s\n" "$ac_pt_PKG_CONFIG" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKG_CONFIG" = x; then
+    PKG_CONFIG=""
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+printf "%s\n" "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKG_CONFIG=$ac_pt_PKG_CONFIG
+  fi
+else
+  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
+fi
+
+fi
+if test -n "$PKG_CONFIG"; then
+	_pkg_min_version=0.9.0
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking pkg-config is at least version $_pkg_min_version" >&5
+printf %s "checking pkg-config is at least version $_pkg_min_version... " >&6; }
+	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+	else
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+		PKG_CONFIG=""
+	fi
+fi
 
 
 
@@ -8651,6 +8907,218 @@ fi
 fi
 
 
+# Check whether --with-bash-completion-dir was given.
+if test ${with_bash_completion_dir+y}
+then :
+  withval=$with_bash_completion_dir; with_bash_completion_dir="$withval"
+else $as_nop
+  with_bash_completion_dir="yes"
+fi
+
+if test "x$with_bash_completion_dir" = "xyes"; then
+
+pkg_failed=no
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for bash-completion >= 2.0" >&5
+printf %s "checking for bash-completion >= 2.0... " >&6; }
+
+if test -n "$BASH_COMPLETION_CFLAGS"; then
+    pkg_cv_BASH_COMPLETION_CFLAGS="$BASH_COMPLETION_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"bash-completion >= 2.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "bash-completion >= 2.0") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_BASH_COMPLETION_CFLAGS=`$PKG_CONFIG --cflags "bash-completion >= 2.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$BASH_COMPLETION_LIBS"; then
+    pkg_cv_BASH_COMPLETION_LIBS="$BASH_COMPLETION_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"bash-completion >= 2.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "bash-completion >= 2.0") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_BASH_COMPLETION_LIBS=`$PKG_CONFIG --libs "bash-completion >= 2.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        BASH_COMPLETION_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "bash-completion >= 2.0" 2>&1`
+        else
+	        BASH_COMPLETION_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "bash-completion >= 2.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$BASH_COMPLETION_PKG_ERRORS" >&5
+
+	BASH_COMPLETION_DIR="$datadir/bash-completion/completions"
+elif test $pkg_failed = untried; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+	BASH_COMPLETION_DIR="$datadir/bash-completion/completions"
+else
+	BASH_COMPLETION_CFLAGS=$pkg_cv_BASH_COMPLETION_CFLAGS
+	BASH_COMPLETION_LIBS=$pkg_cv_BASH_COMPLETION_LIBS
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+	BASH_COMPLETION_DIR="`pkg-config --define-variable=datadir=$datadir --variable=completionsdir bash-completion`"
+fi
+else
+  BASH_COMPLETION_DIR="$with_bash_completion_dir"
+fi
+
+ if test "x$with_bash_completion_dir" != "xno"; then
+  ENABLE_BASH_COMPLETION_TRUE=
+  ENABLE_BASH_COMPLETION_FALSE='#'
+else
+  ENABLE_BASH_COMPLETION_TRUE='#'
+  ENABLE_BASH_COMPLETION_FALSE=
+fi
+
+
+
+# Check whether --with-fish-completion-dir was given.
+if test ${with_fish_completion_dir+y}
+then :
+  withval=$with_fish_completion_dir; with_fish_completion_dir="$withval"
+else $as_nop
+  with_fish_completion_dir="yes"
+fi
+
+if test "x$with_fish_completion_dir" = "xyes"; then
+
+pkg_failed=no
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for fish >= 3.0" >&5
+printf %s "checking for fish >= 3.0... " >&6; }
+
+if test -n "$FISH_COMPLETION_CFLAGS"; then
+    pkg_cv_FISH_COMPLETION_CFLAGS="$FISH_COMPLETION_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"fish >= 3.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "fish >= 3.0") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_FISH_COMPLETION_CFLAGS=`$PKG_CONFIG --cflags "fish >= 3.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$FISH_COMPLETION_LIBS"; then
+    pkg_cv_FISH_COMPLETION_LIBS="$FISH_COMPLETION_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"fish >= 3.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "fish >= 3.0") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_FISH_COMPLETION_LIBS=`$PKG_CONFIG --libs "fish >= 3.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        FISH_COMPLETION_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "fish >= 3.0" 2>&1`
+        else
+	        FISH_COMPLETION_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "fish >= 3.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$FISH_COMPLETION_PKG_ERRORS" >&5
+
+	FISH_COMPLETION_DIR="$datadir/fish/vendor_completions.d"
+elif test $pkg_failed = untried; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+	FISH_COMPLETION_DIR="$datadir/fish/vendor_completions.d"
+else
+	FISH_COMPLETION_CFLAGS=$pkg_cv_FISH_COMPLETION_CFLAGS
+	FISH_COMPLETION_LIBS=$pkg_cv_FISH_COMPLETION_LIBS
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+	FISH_COMPLETION_DIR="`pkg-config --define-variable=datadir=$datadir --variable=completionsdir fish`"
+fi
+else
+  FISH_COMPLETION_DIR="$with_fish_completion_dir"
+fi
+
+ if test "x$with_fish_completion_dir" != "xno"; then
+  ENABLE_FISH_COMPLETION_TRUE=
+  ENABLE_FISH_COMPLETION_FALSE='#'
+else
+  ENABLE_FISH_COMPLETION_TRUE='#'
+  ENABLE_FISH_COMPLETION_FALSE=
+fi
+
+
+
+# Check whether --with-zsh-completion-dir was given.
+if test ${with_zsh_completion_dir+y}
+then :
+  withval=$with_zsh_completion_dir; with_zsh_completion_dir="$withval"
+else $as_nop
+  with_zsh_completion_dir="yes"
+fi
+
+if test "x$with_zsh_completion_dir" = "xyes"; then
+    ZSH_COMPLETION_DIR="$datadir/zsh/site-functions"
+else
+    ZSH_COMPLETION_DIR="$with_zsh_completion_dir"
+fi
+
+ if test "x$with_zsh_completion_dir" != "xno"; then
+  ENABLE_ZSH_COMPLETION_TRUE=
+  ENABLE_ZSH_COMPLETION_FALSE='#'
+else
+  ENABLE_ZSH_COMPLETION_TRUE='#'
+  ENABLE_ZSH_COMPLETION_FALSE=
+fi
+
+
+
 # Check whether --with-grep-path was given.
 if test ${with_grep_path+y}
 then :
@@ -9316,6 +9784,18 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCC_TRUE}" && test -z "${am__fastdepCC_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCC\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_BASH_COMPLETION_TRUE}" && test -z "${ENABLE_BASH_COMPLETION_FALSE}"; then
+  as_fn_error $? "conditional \"ENABLE_BASH_COMPLETION\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_FISH_COMPLETION_TRUE}" && test -z "${ENABLE_FISH_COMPLETION_FALSE}"; then
+  as_fn_error $? "conditional \"ENABLE_FISH_COMPLETION\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_ZSH_COMPLETION_TRUE}" && test -z "${ENABLE_ZSH_COMPLETION_FALSE}"; then
+  as_fn_error $? "conditional \"ENABLE_ZSH_COMPLETION\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 

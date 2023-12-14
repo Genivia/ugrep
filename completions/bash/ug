@@ -30,7 +30,7 @@ _comp_cmd_ugrep_usage()
 _comp_cmd_ugrep_file_type()
 {
     # complete a file type by generating them
-    COMPREPLY=( $(compgen -W "$($1 -tlist 2>&1 | sed -e "s/[ ]*\(\w\+\).*/$2\1/" -e "/FILE/d" -e "/^ /d")" -- $cur) )
+    COMPREPLY=( $(compgen -W "$($1 -tlist 2>&1 | sed -E -e "s/[ ]*([0-9A-Za-z+]+).*/$2\1/" -e "/FILE/d" -e "/^ /d")" -- $cur) )
     compopt +o nospace
 }
 

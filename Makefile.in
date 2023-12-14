@@ -13,6 +13,7 @@
 # PARTICULAR PURPOSE.
 
 @SET_MAKE@
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -104,7 +105,9 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_regex.m4 \
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(top_srcdir)/configure \
-	$(am__configure_deps) $(am__DIST_COMMON)
+	$(am__configure_deps) $(am__dist_bashcompletion_DATA_DIST) \
+	$(am__dist_fishcompletion_DATA_DIST) \
+	$(am__dist_zshcompletion_DATA_DIST) $(am__DIST_COMMON)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
@@ -166,9 +169,20 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 man1dir = $(mandir)/man1
-am__installdirs = "$(DESTDIR)$(man1dir)"
+am__installdirs = "$(DESTDIR)$(man1dir)" \
+	"$(DESTDIR)$(bashcompletiondir)" \
+	"$(DESTDIR)$(fishcompletiondir)" \
+	"$(DESTDIR)$(zshcompletiondir)"
 NROFF = nroff
 MANS = $(man1_MANS)
+am__dist_bashcompletion_DATA_DIST =  \
+	$(top_builddir)/completions/bash/ug
+am__dist_fishcompletion_DATA_DIST =  \
+	$(top_builddir)/completions/fish/ug.fish
+am__dist_zshcompletion_DATA_DIST =  \
+	$(top_builddir)/completions/zsh/_ug
+DATA = $(dist_bashcompletion_DATA) $(dist_fishcompletion_DATA) \
+	$(dist_zshcompletion_DATA)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 am__recursive_targets = \
@@ -251,6 +265,9 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BASH_COMPLETION_CFLAGS = @BASH_COMPLETION_CFLAGS@
+BASH_COMPLETION_DIR = @BASH_COMPLETION_DIR@
+BASH_COMPLETION_LIBS = @BASH_COMPLETION_LIBS@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
@@ -270,6 +287,9 @@ ECHO_T = @ECHO_T@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
+FISH_COMPLETION_CFLAGS = @FISH_COMPLETION_CFLAGS@
+FISH_COMPLETION_DIR = @FISH_COMPLETION_DIR@
+FISH_COMPLETION_LIBS = @FISH_COMPLETION_LIBS@
 GREP_PATH = @GREP_PATH@
 HAVE_CXX11 = @HAVE_CXX11@
 INSTALL = @INSTALL@
@@ -293,10 +313,14 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PLATFORM = @PLATFORM@
 PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
 PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
+SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SIMD_AVX2_FLAGS = @SIMD_AVX2_FLAGS@
@@ -304,6 +328,7 @@ SIMD_AVX512BW_FLAGS = @SIMD_AVX512BW_FLAGS@
 SIMD_FLAGS = @SIMD_FLAGS@
 STRIP = @STRIP@
 VERSION = @VERSION@
+ZSH_COMPLETION_DIR = @ZSH_COMPLETION_DIR@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -362,6 +387,12 @@ man1_MANS = man/ugrep.1
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 UGREP = $(shell pwd)/$(top_builddir)/bin/ugrep$(EXEEXT)
 CONFIGH = $(shell pwd)/$(top_builddir)/config.h
+@ENABLE_BASH_COMPLETION_TRUE@bashcompletiondir = $(BASH_COMPLETION_DIR)
+@ENABLE_BASH_COMPLETION_TRUE@dist_bashcompletion_DATA = $(top_builddir)/completions/bash/ug
+@ENABLE_FISH_COMPLETION_TRUE@fishcompletiondir = $(FISH_COMPLETION_DIR)
+@ENABLE_FISH_COMPLETION_TRUE@dist_fishcompletion_DATA = $(top_builddir)/completions/fish/ug.fish
+@ENABLE_ZSH_COMPLETION_TRUE@zshcompletiondir = $(ZSH_COMPLETION_DIR)
+@ENABLE_ZSH_COMPLETION_TRUE@dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -455,6 +486,69 @@ uninstall-man1:
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^1][0-9a-z]*$$,1,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
 	dir='$(DESTDIR)$(man1dir)'; $(am__uninstall_files_from_dir)
+install-dist_bashcompletionDATA: $(dist_bashcompletion_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(dist_bashcompletion_DATA)'; test -n "$(bashcompletiondir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(bashcompletiondir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(bashcompletiondir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(bashcompletiondir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(bashcompletiondir)" || exit $$?; \
+	done
+
+uninstall-dist_bashcompletionDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(dist_bashcompletion_DATA)'; test -n "$(bashcompletiondir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(bashcompletiondir)'; $(am__uninstall_files_from_dir)
+install-dist_fishcompletionDATA: $(dist_fishcompletion_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(dist_fishcompletion_DATA)'; test -n "$(fishcompletiondir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(fishcompletiondir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(fishcompletiondir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(fishcompletiondir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(fishcompletiondir)" || exit $$?; \
+	done
+
+uninstall-dist_fishcompletionDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(dist_fishcompletion_DATA)'; test -n "$(fishcompletiondir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(fishcompletiondir)'; $(am__uninstall_files_from_dir)
+install-dist_zshcompletionDATA: $(dist_zshcompletion_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(dist_zshcompletion_DATA)'; test -n "$(zshcompletiondir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(zshcompletiondir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(zshcompletiondir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(zshcompletiondir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(zshcompletiondir)" || exit $$?; \
+	done
+
+uninstall-dist_zshcompletionDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(dist_zshcompletion_DATA)'; test -n "$(zshcompletiondir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(zshcompletiondir)'; $(am__uninstall_files_from_dir)
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run 'make' without going through this Makefile.
@@ -760,10 +854,10 @@ distcleancheck: distclean
 	       exit 1; } >&2
 check-am: all-am
 check: check-recursive
-all-am: Makefile $(MANS) config.h all-local
+all-am: Makefile $(MANS) $(DATA) config.h all-local
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(man1dir)"; do \
+	for dir in "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(bashcompletiondir)" "$(DESTDIR)$(fishcompletiondir)" "$(DESTDIR)$(zshcompletiondir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-recursive
@@ -817,7 +911,9 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-man
+install-data-am: install-dist_bashcompletionDATA \
+	install-dist_fishcompletionDATA install-dist_zshcompletionDATA \
+	install-man
 	@$(NORMAL_INSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
 install-dvi: install-dvi-recursive
@@ -865,7 +961,9 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-man
+uninstall-am: uninstall-dist_bashcompletionDATA \
+	uninstall-dist_fishcompletionDATA \
+	uninstall-dist_zshcompletionDATA uninstall-man
 	@$(NORMAL_INSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) uninstall-hook
 uninstall-man: uninstall-man1
@@ -880,15 +978,20 @@ uninstall-man: uninstall-man1
 	dist-zstd distcheck distclean distclean-generic distclean-hdr \
 	distclean-tags distcleancheck distdir distuninstallcheck dvi \
 	dvi-am html html-am info info-am install install-am \
-	install-data install-data-am install-data-hook install-dvi \
-	install-dvi-am install-exec install-exec-am install-exec-hook \
-	install-html install-html-am install-info install-info-am \
-	install-man install-man1 install-pdf install-pdf-am install-ps \
-	install-ps-am install-strip installcheck installcheck-am \
-	installdirs installdirs-am maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-generic pdf \
-	pdf-am ps ps-am tags tags-am uninstall uninstall-am \
-	uninstall-hook uninstall-man uninstall-man1
+	install-data install-data-am install-data-hook \
+	install-dist_bashcompletionDATA \
+	install-dist_fishcompletionDATA install-dist_zshcompletionDATA \
+	install-dvi install-dvi-am install-exec install-exec-am \
+	install-exec-hook install-html install-html-am install-info \
+	install-info-am install-man install-man1 install-pdf \
+	install-pdf-am install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs installdirs-am \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-generic pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-dist_bashcompletionDATA \
+	uninstall-dist_fishcompletionDATA \
+	uninstall-dist_zshcompletionDATA uninstall-hook uninstall-man \
+	uninstall-man1
 
 .PRECIOUS: Makefile
 
@@ -900,10 +1003,10 @@ all-local:	cp2bin
 # to copy the ugrep binary to the local ugrep/bin/ugrep and ugrep/bin/ug
 cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		rm -f $(top_builddir)/bin/ugrep$(EXEEXT)
-		mkdir -p $(top_builddir)/bin; \
-		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT); \
-		  cd $(top_builddir)/bin; \
-		  rm -f ug$(EXEEXT); \
+		mkdir -p $(top_builddir)/bin && \
+		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT) && \
+		  cd $(top_builddir)/bin && \
+		  rm -f ug$(EXEEXT) && \
 		  cp -f ugrep$(EXEEXT) ug$(EXEEXT)
 		@echo
 		@echo "OK"
@@ -917,9 +1020,27 @@ install-exec-hook:
 install-data-hook:
 		mkdir -p $(DESTDIR)$(datadir)/ugrep && \
 		  cp -rf $(top_srcdir)/patterns $(DESTDIR)$(datadir)/ugrep/
-		cd $(DESTDIR)$(mandir)/man1; \
-		  rm -f ug.1; \
+		cd $(DESTDIR)$(mandir)/man1 && \
+		  rm -f ug.1 && \
 		  $(LN_S) ugrep.1 ug.1
+		@if [ "x$(bashcompletiondir)" != "x" ]; then \
+		  cd $(bashcompletiondir) && \
+		    $(LN_S) -f ug ug+ && \
+		    $(LN_S) -f ug ugrep && \
+		    $(LN_S) -f ug ugrep+; \
+		fi
+		@if [ "x$(fishcompletiondir)" != "x" ]; then \
+		  cd $(fishcompletiondir) && \
+		    sed -e 's/-c ug /-c ug+ /' ug.fish > ug+.fish && \
+		    sed -e 's/-c ug /-c ugrep /' ug.fish > ugrep.fish && \
+		    sed -e 's/-c ug /-c ugrep+ /' ug.fish > ugrep+.fish; \
+		fi
+		@if [ "x$(zshcompletiondir)" != "x" ]; then \
+		  cd $(zshcompletiondir) && \
+		    sed -e 's/^#compdef ug/#compdef ug+/' _ug > _ug+ && \
+		    sed -e 's/^#compdef ug/#compdef ugrep/' _ug > _ugrep && \
+		    sed -e 's/^#compdef ug/#compdef ugrep+/' _ug > _ugrep+; \
+		fi
 		@echo " ______________________________________________________ "; \
 		 echo "|                                                      |"; \
 		 echo "| You have successfully built and installed ugrep.     |"; \
