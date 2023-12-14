@@ -1,22 +1,19 @@
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
 
-New ugrep 4.3
--------------
+Why use ugrep?
+--------------
 
-Ugrep is like grep, but much faster, user-friendly, and equipped with a ton of new features.  Ugrep's features and speed surpass GNU grep, Silver Searcher, ack, sift, and ripgrep in [nearly all benchmarks](https://github.com/Genivia/ugrep-benchmarks).
+- Ugrep is a true drop-in replacement for GNU grep, unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher (Perl regex versus POSIX regex grep)
 
-[How to install ugrep](#install) and see also [ugrep.com](https://ugrep.com) for installation and help.
+- Ugrep is fast, user-friendly, and equipped with a ton of new features that surpass other grep, benchmarks also show that [ugrep is one of the fastest grep](https://github.com/Genivia/ugrep-benchmarks)
+
+- Ugrep includes an interactive TUI with built-in help and options to control searching and a file (pre)view split screen
 
 *Option -Q opens a query TUI to search files as you type!*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
-New official web site
----------------------
-
-**[ugrep.com](https://ugrep.com)** is the official new ugrep web site with installation instructions and a user guide.
-
-The ugrep.com site will always be safe and guaranteed to be ad free and cookie free; ugrep.org forwards to ugrep.com.
+- An easy-to-use user manual with installation instructions at [ugrep.com](https://ugrep.com)
 
 Development roadmap
 -------------------
@@ -39,16 +36,6 @@ Overview
 - `ug` is for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory, `ug+` also searches pdfs, documents, e-books, image metadata
 
 - `ugrep` for batch use like GNU grep without a .ugrep configuration file, `ugrep+` also searches pdfs, documents, e-books, image metadata
-
-### Why use ugrep?
-
-- Compatible with the GNU grep command options and output, but faster and with a lot more features
-
-- One of the [fastest grep tools](https://github.com/Genivia/ugrep-benchmarks)
-
-- User-friendly with sensible defaults defined in a customizable configuration files
-
-- Interactive TUI with built-in help and options to control searching, and a file (pre)view feature
 
 ### What does ugrep add that GNU grep does not support?
 
@@ -343,12 +330,6 @@ Check <https://packages.debian.org/ugrep> for version info.  To build and try
 
 Check <https://packages.fedoraproject.org/pkgs/ugrep/ugrep/> for version info.
 
-### OpenSUSE
-
-    $ zypper install ugrep
-
-Check <https://build.opensuse.org/package/show/utilities/ugrep> for version info.
-
 ### FreeBSD
 
     $ pkg install ugrep
@@ -368,6 +349,12 @@ steps further below.
 You can use the standard NetBSD package installer (pkgsrc):
 <http://cdn.netbsd.org/pub/pkgsrc/current/pkgsrc/textproc/ugrep/README.html>
 
+### OpenSUSE
+
+    $ zypper install ugrep
+
+Check <https://build.opensuse.org/package/show/utilities/ugrep> for version info.
+
 ### RHEL
 
 First enable the [EPEL repository](https://docs.fedoraproject.org/en-US/epel/),
@@ -383,8 +370,7 @@ Clone `ugrep` with
 
     $ git clone https://github.com/Genivia/ugrep
 
-Or visit <https://github.com/Genivia/ugrep/releases> to download a specific
-release.
+Or visit <https://github.com/Genivia/ugrep/releases> to download a specific release.
 
 ### Other platforms: step 2 consider optional dependencies
 
@@ -1475,17 +1461,17 @@ To recursively list all shell scripts based on extensions only with `-tshell`:
             Options -E, -F, -G, -P and -Z can be combined with --bool to match
             subpatterns as strings or regular expressions (-E is the default.)
             This option does not apply to -f FILE patterns.  The double short
-            option -%% enables options --files --bool.  Option --stats displays
+            option -%% enables options --bool --files.  Option --stats displays
             the Boolean search patterns applied.  See also options --and,
             --andnot, --not, --files and --lines.
     --files
             Boolean file matching mode, the opposite of --lines.  When combined
             with option --bool, matches a file if all Boolean conditions are
-            satisfied.  For example, --files --bool 'A B|C -D' matches a file
+            satisfied.  For example, --bool --files 'A B|C -D' matches a file
             if some lines match `A', and some lines match either `B' or `C',
             and no line matches `D'.  See also options --and, --andnot, --not,
             --bool and --lines.  The double short option -%% enables options
-            --files --bool.
+            --bool --files.
     --lines
             Boolean line matching mode for option --bool, the default mode.
     --and [[-e] PATTERN] ... -e PATTERN
@@ -4059,7 +4045,7 @@ in markdown:
                   combined with --bool to match subpatterns as strings or regular
                   expressions (-E is the default.)  This option does not apply to -f
                   FILE patterns.  The double short option -%% enables options
-                  --files --bool.  Option --stats displays the Boolean search
+                  --bool --files.  Option --stats displays the Boolean search
                   patterns applied.  See also options --and, --andnot, --not,
                   --files and --lines.
 
@@ -4535,11 +4521,11 @@ in markdown:
            --files, -%%
                   Boolean file matching mode, the opposite of --lines.  When
                   combined with option --bool, matches a file if all Boolean
-                  conditions are satisfied.  For example, --files --bool 'A B|C -D'
+                  conditions are satisfied.  For example, --bool --files 'A B|C -D'
                   matches a file if some lines match `A', and some lines match
                   either `B' or `C', and no line matches `D'.  See also options
                   --and, --andnot, --not, --bool and --lines.  The double short
-                  option -%% enables options --files --bool.
+                  option -%% enables options --bool --files.
 
            -P, --perl-regexp
                   Interpret PATTERN as a Perl regular expression using PCRE2.  Note
