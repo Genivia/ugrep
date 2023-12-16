@@ -24,15 +24,32 @@ export ENCODING=$($UGREP --encoding=list 2>&1 | sed -e 's/^.[a-z].*are//' -e '/h
 # keep option line and description's first sentence up to period, remove ` ' from descriptions, remove 4 spaces indent
 # strip { } from single option
 # append indented description to the option line
-# quote '[description]'
+# enclose description in brackets '[description]:message:action
+# change --hexdump, --sort, -Z and --fuzzy to append - to take arguments
+# add ':message:action' to -DACTION and -dACTION
+# add ':message:( )' to -e, -g, -K, -m, -N, -O,--file-extention
+# add ':message:action' to -t,--file-type=TYPES and --encoding=ENCODING
+# add ':message:action' to --hexdump
+# add ':message:action' to --sort=KEY
+# add ':message:action' to -Z,--fuzzy=
+# add final quote
 $UGREP --help 2>&1 \
     | sed -E -e 's/^[ ]{4}-/    \{-/' -e "/^[ ]{4}\{/s/$/\}/" \
-    | sed -E -e '/^[ ]{4}\{/s/ \[-e\]|[ ]?\[[^]]+\]|[ ]?[A-Z]{3,}| \.\.\.|[],]//g' \
+    | sed -E -e '/^[ ]{4}\{/s/ \[-e\]|[ ]?\[[^]]+\]|[ ]?[A-Z]{3,}| \.\.\.|[],:]//g' \
     | sed -E -e '/^[ ]{4}\{/s/ -/,-/g' -e '/^[ ]{4}\{/s/=/=-/g' \
     | sed -E -e '/^[ ]{4}\{/,/^[ ]{12}.*\./!d' -e 's/^([ ]{12}[^.]*\.)( .*)?$/\1/' -e $'/^[ ]{12}/s/[`\']//g' -e 's/^[ ]{4}//' \
     | sed -E -e 's/\{([^,}]+)\}/\1/' \
     | sed -e :a -e '$!N;s/\n[ ]\{7\}//;ta' -e 'P;D' \
-    | sed -e "s/ /'[/" -e "s/$/\]'/" \
+    | sed -E -e "s/ /'[/" -e "s/\.?$/\]/" \
+    | sed -E -e "s/--hexdump/--hexdump=-/" -e "s/--sort/--sort=-/" -e "s/-Z,--fuzzy/-Z-,--fuzzy=-/" \
+    | sed -E -e "/\{-D/s/$/:ACTION:(read skip)/" -e "/\{-d/s/$/:ACTION:(read recurse skip)/" \
+    | sed -E -e "/\{-g/s/$/:GLOB:( )/" -e "/\{-[eN]/s/$/:PATTERN:( )/" -e "/\{-[Km]/s/$/:MIN,MAX:( )/" -e "/\{-O/s/$/:EXT:( )/" \
+    | sed -E -e "/\{-t/s/$/:TYPES:($TYPES)/" -e "/--encoding/s/$/:ENCODING:($ENCODING)/" \
+    | sed -E -e "/--hexdump/s/$/:NUM:(1a 2a 4ah 6ah 8ah 1aC1 2aC1 4ahC1 6ahC1 8ahC1)/" \
+    | sed -E -e "/\{-m/s/$/::(1 1, 1,10)/" \
+    | sed -E -e "/--sort/s/$/:KEY:(name best size changed created used rname rbest rsize rchanged rcreated rused)/" \
+    | sed -E -e "/\{-Z/s/$/:DIST:(1 +1 -1 \\\\~1 +-1 +~1 +-~1 -~1 best1 best+1 best-1 best~1 best+-1 best+~1 best+-~1 best-~1)/" \
+    | sed -E -e "s/$/'/" \
     >> _ug
 
 cat >> _ug <<END

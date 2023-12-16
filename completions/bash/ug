@@ -29,14 +29,14 @@ _comp_cmd_ugrep_usage()
 
 _comp_cmd_ugrep_file_type()
 {
-    # complete a file type by generating them
+    # complete a file type by generating the option values
     COMPREPLY=( $(compgen -W "$($1 -tlist 2>&1 | sed -E -e "s/[ ]*([0-9A-Za-z+]+).*/$2\1/" -e "/FILE/d" -e "/^ /d")" -- $cur) )
     compopt +o nospace
 }
 
 _comp_cmd_ugrep_encoding()
 {
-    # complete encoding format by generating them
+    # complete encoding format by generating the option values
     COMPREPLY=( $(compgen -W "$($1 --encoding=list 2>&1 | sed -e "s/^.[a-z].*are//" -e "/help/d" -e "s/ '//g" -e "s/',\?/ /g")" -- $cur) )
     compopt +o nospace
 }
@@ -78,7 +78,7 @@ _comp_cmd_ugrep()
         return
         ;;
     -t)
-        # complete a file type by generating them
+        # complete a file type by generating the option values
         _comp_cmd_ugrep_file_type $1 ""
         return
         ;;
@@ -120,7 +120,7 @@ _comp_cmd_ugrep()
         return
         ;;
     --encoding=*)
-        # complete encoding format by generating them
+        # complete encoding format by generating the option values
         _comp_cmd_ugrep_encoding $1
         return
         ;;
@@ -142,7 +142,7 @@ _comp_cmd_ugrep()
         return
         ;;
     --file-type=*)
-        # complete a file type by generating them
+        # complete a file type by generating the option values
         _comp_cmd_ugrep_file_type $1 ""
         return
         ;;
@@ -192,7 +192,7 @@ _comp_cmd_ugrep()
         return
         ;;
     -t*)
-        # complete a file type by generating them
+        # complete a file type by generating the option values
         _comp_cmd_ugrep_file_type $1 -t
         return
         ;;
