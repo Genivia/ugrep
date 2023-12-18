@@ -79,7 +79,12 @@ for OPS in '' '-F' '-G' '-P' ; do
   cat lorem | $UG $OPS -iwco --encoding=LATIN1 -f - lorem.latin1.txt > "out/lorem.latin1$OPS-iwco.out"
 done
 
-$UG -Zio Lorem lorem.utf8.txt > out/lorem_Lorem-Zio.out
+for PAT in '' 'Lorem' 'nomatch' ; do
+  FN=`echo "lorem_$PAT" | tr -Cd '[:alnum:]_'`
+  for OPS in '-Zio' '-ioZbest1' ; do
+    $UG $OPS "$PAT" lorem.utf8.txt > out/$FN$OPS.out
+  done
+done
 
 $UG -ci hello $FILES > out/Hello_Hello-ci.out
 $UG -cj hello $FILES > out/Hello_Hello-cj.out

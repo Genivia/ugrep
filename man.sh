@@ -51,7 +51,7 @@ The default pattern syntax is an extended form of the POSIX ERE syntax, same as
 option \fB-E\fR (\fB--extended-regexp\fR).  Try \fBug --help regex\fR for help
 with pattern syntax and how to use logical connectives to specify Boolean
 search queries with option \fB-%\fR (\fB--bool\fR) to match lines and \fB-%%\fR
-(\fB--files --bool\fR) to match files.  Options \fB-F\fR
+(\fB--bool --files\fR) to match files.  Options \fB-F\fR
 (\fB--fixed-strings\fR), \fB-G\fR (\fB--basic-regexp\fR) and \fB-P\fR
 (\fB--perl-regexp\fR) specify other pattern syntaxes.
 .PP

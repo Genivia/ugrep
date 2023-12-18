@@ -213,8 +213,13 @@ if [ "$have_pcre2" == yes ]; then
     || ERR "-P -iwco -f lorem lorem.latin1.txt"
 fi
 
-printf .
-$UG -Zio Lorem lorem.utf8.txt | $DIFF out/lorem_Lorem-Zio.out  || ERR "-Zio Lorem lorem.utf8.txt"
+for PAT in '' 'Lorem' 'nomatch' ; do
+  FN=`echo "lorem_$PAT" | tr -Cd '[:alnum:]_'`
+  for OPS in '-Zio' '-ioZbest1' ; do
+    printf .
+    $UG $OPS "$PAT" lorem.utf8.txt | $DIFF out/$FN$OPS.out  || ERR "$OPS '$PAT' lorem.utf8.txt"
+  done
+done
 
 printf .
 $UG -ci hello $FILES \

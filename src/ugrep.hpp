@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // ugrep version
-#define UGREP_VERSION "4.3.6"
+#define UGREP_VERSION "4.4.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP

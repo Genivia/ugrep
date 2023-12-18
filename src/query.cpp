@@ -254,90 +254,26 @@ void Query::display(int col, int len)
         ptr = next + 1;
         alert = false;
       }
-      else if (!Screen::mono && !flag_fixed_strings)
+      else if (!Screen::mono)
       {
-        if (ch == '[' && !list && !literal && !braced)
+        if (!flag_fixed_strings)
         {
-          list = true;
-          Screen::put(ptr, next - ptr);
-          Screen::normal();
-          Screen::put(color_qm);
-          Screen::put(ch);
-          Screen::normal();
-          Screen::put(color_ql);
-          ptr = ++next;
-          next += (*next == '^');
-          next += (*next == '\\');
-        }
-        else if (ch == ']' && list && !literal && !braced)
-        {
-          list = false;
-          Screen::put(ptr, next - ptr);
-          Screen::normal();
-          Screen::put(color_qm);
-          Screen::put(ch);
-          Screen::normal();
-          Screen::put(color_qr);
-          ptr = next + 1;
-        }
-        else if (ch == '{' && !list && !literal && !braced)
-        {
-          braced = true;
-          Screen::put(ptr, next - ptr);
-          Screen::normal();
-          Screen::put(color_qb);
-          ptr = next;
-        }
-        else if (ch == '}' && !list && !literal && braced)
-        {
-          braced = false;
-          Screen::put(ptr, next - ptr + 1);
-          Screen::normal();
-          Screen::put(color_qr);
-          ptr = next + 1;
-        }
-        else if (ch == '"' && !list && !braced && flag_bool)
-        {
-          literal = !literal;
-          Screen::put(ptr, next - ptr);
-          Screen::normal();
-          Screen::put(color_ql);
-          Screen::put(ch);
-          Screen::normal();
-          if (literal)
-            Screen::put(color_ql);
-          else
-            Screen::put(color_qr);
-          ptr = next + 1;
-        }
-        else if (ch == '\\' && next + 1 != err && next[1] >= ' ' && next[1] <= '~')
-        {
-          if (next[1] == 'E' && !list)
-            literal = false;
-          if (!literal)
+          if (ch == '[' && !list && !literal && !braced)
           {
-            if (next[1] == 'Q' && !list)
-              literal = true;
+            list = true;
             Screen::put(ptr, next - ptr);
             Screen::normal();
             Screen::put(color_qm);
             Screen::put(ch);
-            if (next + 1 < end)
-              Screen::put(next[1]);
             Screen::normal();
-            if (literal || list)
-              Screen::put(color_ql);
-            else if (braced)
-              Screen::put(color_qb);
-            else
-              Screen::put(color_qr);
-            ptr = ++next + 1;
+            Screen::put(color_ql);
+            ptr = ++next;
+            next += (*next == '^');
+            next += (*next == '\\');
           }
-        }
-        else if (strchr("$()*+.?^|", ch) != NULL && !list && !literal && !braced)
-        {
-          if (!flag_basic_regexp || strchr("()+?|", ch) == NULL)
+          else if (ch == ']' && list && !literal && !braced)
           {
+            list = false;
             Screen::put(ptr, next - ptr);
             Screen::normal();
             Screen::put(color_qm);
@@ -346,10 +282,77 @@ void Query::display(int col, int len)
             Screen::put(color_qr);
             ptr = next + 1;
           }
+          else if (ch == '{' && !list && !literal && !braced)
+          {
+            braced = true;
+            Screen::put(ptr, next - ptr);
+            Screen::normal();
+            Screen::put(color_qb);
+            ptr = next;
+          }
+          else if (ch == '}' && !list && !literal && braced)
+          {
+            braced = false;
+            Screen::put(ptr, next - ptr + 1);
+            Screen::normal();
+            Screen::put(color_qr);
+            ptr = next + 1;
+          }
+          else if (ch == '\\' && next + 1 != err && next[1] >= ' ' && next[1] <= '~')
+          {
+            if (next[1] == 'E' && !list)
+              literal = false;
+            if (!literal)
+            {
+              if (next[1] == 'Q' && !list)
+                literal = true;
+              Screen::put(ptr, next - ptr);
+              Screen::normal();
+              Screen::put(color_qm);
+              Screen::put(ch);
+              if (next + 1 < end)
+                Screen::put(next[1]);
+              Screen::normal();
+              if (literal || list)
+                Screen::put(color_ql);
+              else if (braced)
+                Screen::put(color_qb);
+              else
+                Screen::put(color_qr);
+              ptr = ++next + 1;
+            }
+          }
+          else if (strchr("$()*+.?^|", ch) != NULL && !list && !literal && !braced)
+          {
+            if (!flag_basic_regexp || strchr("()+?|", ch) == NULL)
+            {
+              Screen::put(ptr, next - ptr);
+              Screen::normal();
+              Screen::put(color_qm);
+              Screen::put(ch);
+              Screen::normal();
+              Screen::put(color_qr);
+              ptr = next + 1;
+            }
+          }
         }
-        else if (flag_bool && !list && !literal && !braced)
+        if (flag_bool && !list && !braced)
         {
-          if (prev == ' ')
+          if (ch == '"')
+          {
+            literal = !literal;
+            Screen::put(ptr, next - ptr);
+            Screen::normal();
+            Screen::put(color_ql);
+            Screen::put(ch);
+            Screen::normal();
+            if (literal)
+              Screen::put(color_ql);
+            else
+              Screen::put(color_qr);
+            ptr = next + 1;
+          }
+          else if (!literal && prev == ' ')
           {
             if (ch == '-' ||
                 strncmp(next, "AND ", 4) == 0 ||
@@ -3339,6 +3342,7 @@ void Query::meta(int key)
               flags_[15].flag = false;
             }
             break;
+
           case 'R':
           case 'r':
             for (int i = 33; i <= 41; ++i)
@@ -3403,76 +3407,98 @@ void Query::meta(int key)
         msg.assign("\033[7mM- \033[m ").append(fp->text);
         msg[6] = fp->key;
 
-        if (key == '[')
+        switch (key)
         {
-          if (!flags_[26].flag || flag_hexdump == NULL)
-            if (!flags_[0].flag && !flags_[1].flag)
-              flags_[3].flag = true;
+          case '[':
+            if (!flags_[26].flag || flag_hexdump == NULL)
+              if (!flags_[0].flag && !flags_[1].flag)
+                flags_[3].flag = true;
 
-          if (flags_[16].flag)
-          {
-            if (only_context_ > 1)
-              --only_context_;
-            msg.append(" to ").append(std::to_string(only_context_));
-          }
-          else
-          {
-            if (context_ > 1)
-              --context_;
-            msg.append(" to ").append(std::to_string(context_));
-          }
-          flags_[4].flag = false;
-          flags_[14].flag = false;
-        }
-        else if (key == ']')
-        {
-          if (flags_[26].flag && flag_hexdump != NULL)
-          {
-            ++context_;
-            msg.append(" to ").append(std::to_string(context_));
-          }
-          else if (flags_[16].flag)
-          {
-            if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
-              ++only_context_;
-            else if (!flags_[0].flag && !flags_[1].flag)
-              flags_[3].flag = true;
-            msg.append(" to ").append(std::to_string(only_context_));
-          }
-          else
-          {
-            if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
+            if (flags_[16].flag)
+            {
+              if (only_context_ > 1)
+                --only_context_;
+              msg.append(" to ").append(std::to_string(only_context_));
+            }
+            else
+            {
+              if (context_ > 1)
+                --context_;
+              msg.append(" to ").append(std::to_string(context_));
+            }
+            flags_[4].flag = false;
+            flags_[14].flag = false;
+            break;
+
+          case ']':
+            if (flags_[26].flag && flag_hexdump != NULL)
+            {
               ++context_;
-            else if (!flags_[0].flag && !flags_[1].flag)
-              flags_[3].flag = true;
-            msg.append(" to ").append(std::to_string(context_));
-          }
-          flags_[4].flag = false;
-          flags_[14].flag = false;
-        }
-        else if (key == '{')
-        {
-          flags_[30].flag = true;
+              msg.append(" to ").append(std::to_string(context_));
+            }
+            else if (flags_[16].flag)
+            {
+              if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
+                ++only_context_;
+              else if (!flags_[0].flag && !flags_[1].flag)
+                flags_[3].flag = true;
+              msg.append(" to ").append(std::to_string(only_context_));
+            }
+            else
+            {
+              if (flags_[0].flag || flags_[1].flag || flags_[3].flag)
+                ++context_;
+              else if (!flags_[0].flag && !flags_[1].flag)
+                flags_[3].flag = true;
+              msg.append(" to ").append(std::to_string(context_));
+            }
+            flags_[4].flag = false;
+            flags_[14].flag = false;
+            break;
 
-          if ((fuzzy_ & 0xff) > 1)
-            fuzzy_ = ((fuzzy_ & 0xff) - 1) | (fuzzy_ & 0xff00);
-
-          msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
-        }
-        else if (key == '}')
-        {
-          if (flags_[30].flag && (fuzzy_ & 0xff) < 0xff)
-            fuzzy_ = ((fuzzy_ & 0xff) + 1) | (fuzzy_ & 0xff00);
-          else
+          case '{':
             flags_[30].flag = true;
 
-          msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
-        }
-        else
-        {
-          fp->flag = !fp->flag;
+            if ((fuzzy_ & 0xff) > 1)
+              fuzzy_ = ((fuzzy_ & 0xff) - 1) | (fuzzy_ & 0xff00);
 
-          msg.append(fp->flag ? " \033[32;1mon\033[m" : " \033[31;1moff\033[m");
+            msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
+            break;
+
+          case '}':
+            if (flags_[30].flag && (fuzzy_ & 0xff) < 0xff)
+              fuzzy_ = ((fuzzy_ & 0xff) + 1) | (fuzzy_ & 0xff00);
+            else
+              flags_[30].flag = true;
+
+            msg.append(" to ").append(std::to_string(fuzzy_ & 0xff));
+            break;
+
+          case '%':
+            if (fp->flag)
+            {
+              if (!flag_files)
+              {
+                flag_files = true;
+                msg.append(" \033[32;1mfiles\033[m");
+              }
+              else
+              {
+                fp->flag = false;
+                flag_files = false;
+                msg.append(" \033[31;1moff\033[m");
+              }
+            }
+            else
+            {
+              fp->flag = true;
+              msg.append(" \033[32;1mlines\033[m");
+            }
+            break;
+
+          default:
+            fp->flag = !fp->flag;
+            msg.append(fp->flag ? " \033[32;1mon\033[m" : " \033[31;1moff\033[m");
         }
 
         // search when in QUERY mode, otherwise refresh HELP display
@@ -3890,6 +3916,9 @@ void Query::set_prompt()
     if (!flag_file.empty())
       prompt_.append("file");
 
+    if (flags_[42].flag)
+      prompt_.append(flag_files ? "%%" : "bool");
+
     const char *mode;
 
     if (flags_[5].flag)
@@ -3916,10 +3945,7 @@ void Query::set_prompt()
       mode = "Q>";
     }
 
-    if (flags_[42].flag)
-      prompt_.append("bool").append(mode);
-    else
-      prompt_.append(mode);
+    prompt_.append(mode);
   }
 }
 

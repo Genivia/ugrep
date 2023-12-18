@@ -3886,8 +3886,8 @@ in markdown:
            The default pattern syntax is an extended form of the POSIX ERE syntax,
            same as option -E (--extended-regexp).  Try ug --help regex for help with
            pattern syntax and how to use logical connectives to specify Boolean
-           search queries with option -% (--bool) to match lines and -%% (--files
-           --bool) to match files.  Options -F (--fixed-strings), -G (--basic-
+           search queries with option -% (--bool) to match lines and -%% (--bool
+           --files) to match files.  Options -F (--fixed-strings), -G (--basic-
            regexp) and -P (--perl-regexp) specify other pattern syntaxes.
 
            Option -i (--ignore-case) ignores case in ASCII patterns.  When combined
@@ -3984,15 +3984,15 @@ in markdown:
                   garbage to the terminal, which can have problematic consequences
                   if the terminal driver interprets some of it as commands.
 
-           --and [-e] PATTERN ... -e PATTERN
-                  Specify additional patterns to match.  Patterns must be specified
-                  with -e.  Each -e PATTERN following this option is considered an
-                  alternative pattern to match, i.e. each -e is interpreted as an OR
-                  pattern.  For example, -e A -e B --and -e C -e D matches lines
-                  with (`A' or `B') and (`C' or `D').  Note that multiple -e PATTERN
-                  are alternations that bind more tightly together than --and.
-                  Option --stats displays the search patterns applied.  See also
-                  options --not, --andnot, --bool, --files and --lines.
+           --and [-e] PATTERN
+                  Specify additional PATTERN that must match.  Additional -e PATTERN
+                  following this option is considered an alternative pattern to
+                  match, i.e. each -e is interpreted as an OR pattern enclosed
+                  within the AND.  For example, -e A -e B --and -e C -e D matches
+                  lines with (`A' or `B') and (`C' or `D').  Note that multiple -e
+                  PATTERN are alternations that bind more tightly together than
+                  --and.  Option --stats displays the search patterns applied.  See
+                  also options --not, --andnot, --bool, --files and --lines.
 
            --andnot [-e] PATTERN
                   Combines --and --not.  See also options --and, --not and --bool.
@@ -4005,11 +4005,11 @@ in markdown:
                   and -y.
 
            -b, --byte-offset
-                  The offset in bytes of a matched line is displayed in front of the
-                  respective matched line.  If -u is specified, displays the offset
-                  for each pattern matched on the same line.  Byte offsets are exact
-                  for ASCII, UTF-8 and raw binary input.  Otherwise, the byte offset
-                  in the UTF-8 normalized input is displayed.
+                  The offset in bytes of a pattern match is displayed in front of
+                  the respective matched line.  When -u is specified, displays the
+                  offset for each pattern matched on the same line.  Byte offsets
+                  are exact for ASCII, UTF-8 and raw binary input.  Otherwise, the
+                  byte offset in the UTF-8 normalized input is displayed.
 
            --binary-files=TYPE
                   Controls searching and reporting pattern matches in binary files.
@@ -4044,10 +4044,10 @@ in markdown:
                   unless -F is specified.  Options -E, -F, -G, -P and -Z can be
                   combined with --bool to match subpatterns as strings or regular
                   expressions (-E is the default.)  This option does not apply to -f
-                  FILE patterns.  The double short option -%% enables options
-                  --bool --files.  Option --stats displays the Boolean search
-                  patterns applied.  See also options --and, --andnot, --not,
-                  --files and --lines.
+                  FILE patterns.  The double short option -%% enables options --bool
+                  --files.  Option --stats displays the Boolean search patterns
+                  applied.  See also options --and, --andnot, --not, --files and
+                  --lines.
 
            --break
                   Adds a line break between results from different files.  This
@@ -4069,10 +4069,10 @@ in markdown:
                   outputs directories in a tree-like format.
 
            --color[=WHEN], --colour[=WHEN]
-                  Mark up the matching text with the expression stored in the
-                  GREP_COLOR or GREP_COLORS environment variable.  WHEN can be
-                  `never', `always', or `auto', where `auto' marks up matches only
-                  when output on a terminal.  The default is `auto'.
+                  Mark up the matching text with the colors specified with option
+                  --colors or the GREP_COLOR or GREP_COLORS environment variable.
+                  WHEN can be `never', `always', or `auto', where `auto' marks up
+                  matches only when output on a terminal.  The default is `auto'.
 
            --colors=COLORS, --colours=COLORS
                   Use COLORS to mark up text.  COLORS is a colon-separated list of
@@ -4128,7 +4128,7 @@ in markdown:
            --delay=DELAY
                   Set the default -Q key response delay.  Default is 3 for 300ms.
 
-           --depth=[MIN,][MAX], -1, -2, -3, ... -9, -10, -11, -12, ...
+           --depth=[MIN,][MAX], -1, -2, -3, ... -9, -10, -11, ...
                   Restrict recursive searches from MIN to MAX directory levels deep,
                   where -1 (--depth=1) searches the specified path without recursing
                   into subdirectories.  The short forms -3 -5, -3-5 and -3,5 search
@@ -4143,13 +4143,12 @@ in markdown:
                   the default.
 
            -e PATTERN, --regexp=PATTERN
-                  Specify a PATTERN used during the search of the input: an input
-                  line is selected if it matches any of the specified patterns.
-                  Note that longer patterns take precedence over shorter patterns.
-                  This option is most useful when multiple -e options are used to
-                  specify multiple patterns, when a pattern begins with a dash
-                  (`-'), to specify a pattern after option -f or after the FILE
-                  arguments.
+                  Specify a PATTERN to search the input.  An input line is selected
+                  if it matches any of the specified patterns.  Note that longer
+                  patterns take precedence over shorter patterns.  This option is
+                  most useful when multiple -e options are used to specify multiple
+                  patterns, when a pattern begins with a dash (`-'), to specify a
+                  pattern after option -f or after the FILE arguments.
 
            --encoding=ENCODING
                   The encoding format of the input.  The default ENCODING is binary
@@ -4166,15 +4165,14 @@ in markdown:
                   `KOI8-R', `KOI8-U', `KOI8-RU'.
 
            --exclude=GLOB
-                  Skip files whose name matches GLOB using wildcard matching, same
-                  as -g ^GLOB.  GLOB can use **, *, ?, and [...] as wildcards and \
-                  to quote a wildcard or backslash character literally.  When GLOB
-                  contains a `/', full pathnames are matched.  Otherwise basenames
-                  are matched.  When GLOB ends with a `/', directories are excluded
-                  as if --exclude-dir is specified.  Otherwise files are excluded.
-                  Note that --exclude patterns take priority over --include
-                  patterns.  GLOB should be quoted to prevent shell globbing.  This
-                  option may be repeated.
+                  Exclude files whose name matches GLOB, same as -g ^GLOB.  GLOB can
+                  use **, *, ?, and [...] as wildcards and \ to quote a wildcard or
+                  backslash character literally.  When GLOB contains a `/', full
+                  pathnames are matched.  Otherwise basenames are matched.  When
+                  GLOB ends with a `/', directories are excluded as if --exclude-dir
+                  is specified.  Otherwise files are excluded.  Note that --exclude
+                  patterns take priority over --include patterns.  GLOB should be
+                  quoted to prevent shell globbing.  This option may be repeated.
 
            --exclude-dir=GLOB
                   Exclude directories whose name matches GLOB from recursive
@@ -4199,10 +4197,10 @@ in markdown:
                   may be repeated.
 
            --exclude-fs=MOUNTS
-                  Exclude file systems specified by MOUNTS from recursive searches,
-                  MOUNTS is a comma-separated list of mount points or pathnames of
-                  directories on file systems.  Note that --exclude-fs mounts take
-                  priority over --include-fs mounts.  This option may be repeated.
+                  Exclude file systems specified by MOUNTS from recursive searches.
+                  MOUNTS is a comma-separated list of mount points or pathnames to
+                  directories.  Note that --exclude-fs=MOUNTS take priority over
+                  --include-fs=MOUNTS.  This option may be repeated.
 
            -F, --fixed-strings
                   Interpret pattern as a set of fixed strings, separated by
@@ -4257,12 +4255,11 @@ in markdown:
                   Spacing (blanks and tabs) in regular expressions are ignored.
 
            -G, --basic-regexp
-                  Interpret patterns as basic regular expressions (BREs), i.e. make
-                  ugrep behave as traditional grep.
+                  Interpret patterns as basic regular expressions (BREs).
 
            -g GLOBS, --glob=GLOBS, --iglob=GLOBS
-                  Search only files whose name matches the specified comma-separated
-                  list of GLOBS, same as --include='glob' for each `glob' in GLOBS.
+                  Only search files whose name matches the specified comma-separated
+                  list of GLOBS, same as --include=glob for each `glob' in GLOBS.
                   When a `glob' is preceded by a `!' or a `^', skip files whose name
                   matches `glob', same as --exclude='glob'.  When `glob' contains a
                   `/', full pathnames are matched.  Otherwise basenames are matched.
@@ -4345,15 +4342,14 @@ in markdown:
                   specify additional files.
 
            --include=GLOB
-                  Search only files whose name matches GLOB using wildcard matching,
-                  same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards
-                  and \ to quote a wildcard or backslash character literally.  When
-                  GLOB contains a `/', full pathnames are matched.  Otherwise
-                  basenames are matched.  When GLOB ends with a `/', directories are
-                  included as if --include-dir is specified.  Otherwise files are
-                  included.  Note that --exclude patterns take priority over
-                  --include patterns.  GLOB should be quoted to prevent shell
-                  globbing.  This option may be repeated.
+                  Only search files whose name matches GLOB, same as -g GLOB.  GLOB
+                  can use **, *, ?, and [...] as wildcards and \ to quote a wildcard
+                  or backslash character literally.  When GLOB contains a `/', full
+                  pathnames are matched.  Otherwise basenames are matched.  When
+                  GLOB ends with a `/', directories are included as if --include-dir
+                  is specified.  Otherwise files are included.  Note that --exclude
+                  patterns take priority over --include patterns.  GLOB should be
+                  quoted to prevent shell globbing.  This option may be repeated.
 
            --include-dir=GLOB
                   Only directories whose name matches GLOB are included in recursive
@@ -4380,10 +4376,10 @@ in markdown:
            --include-fs=MOUNTS
                   Only file systems specified by MOUNTS are included in recursive
                   searches.  MOUNTS is a comma-separated list of mount points or
-                  pathnames of directories on file systems.  --include-fs=.
-                  restricts recursive searches to the file system of the working
-                  directory only.  Note that --exclude-fs mounts take priority over
-                  --include-fs mounts.  This option may be repeated.
+                  pathnames to directories.  --include-fs=. restricts recursive
+                  searches to the file system of the working directory only.  Note
+                  that --exclude-fs=MOUNTS take priority over --include-fs=MOUNTS.
+                  This option may be repeated.
 
            --index
                   Perform index-based recursive search.  This option assumes, but
@@ -4405,8 +4401,8 @@ in markdown:
                   same order as specified.
 
            -j, --smart-case
-                  Perform case insensitive matching like option -i, unless a pattern
-                  is specified with a literal ASCII upper case letter.
+                  Perform case insensitive matching, unless a pattern is specified
+                  with a literal upper case ASCII letter.
 
            --json Output file matches in JSON.  If -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
@@ -4415,9 +4411,9 @@ in markdown:
                   Start searching at line MIN, stop at line MAX when specified.
 
            -k, --column-number
-                  The column number of a matched pattern is displayed in front of
-                  the respective matched line, starting at column 1.  Tabs are
-                  expanded when columns are counted, see also option --tabs.
+                  The column number of a pattern match is displayed in front of the
+                  respective matched line, starting at column 1.  Tabs are expanded
+                  in counting columns, see also option --tabs.
 
            -L, --files-without-match
                   Only the names of files not containing selected lines are written
@@ -4447,7 +4443,7 @@ in markdown:
                   Boolean line matching mode for option --bool, the default mode.
 
            -M MAGIC, --file-magic=MAGIC
-                  Only files matching the signature pattern MAGIC are searched.  The
+                  Only search files matching the magic signature pattern MAGIC.  The
                   signature "magic bytes" at the start of a file are compared to the
                   MAGIC regex pattern.  When matching, the file will be searched.
                   When MAGIC is preceded by a `!' or a `^', skip files with matching
@@ -4475,13 +4471,11 @@ in markdown:
                   specified, use up to MAX mmap memory per thread.
 
            -N PATTERN, --neg-regexp=PATTERN
-                  Specify a negative PATTERN used during the search of the input: an
-                  input line is selected only if it matches the specified patterns
-                  unless it matches the negative PATTERN.  Same as -e (?^PATTERN).
-                  Negative pattern matches are essentially removed before any other
-                  patterns are matched.  Note that longer patterns take precedence
-                  over shorter patterns.  Option -N cannot be specified with -P.
-                  This option may be repeated.
+                  Specify a negative PATTERN to reject pattern matches that also
+                  match PATTERN.  Note that longer patterns take precedence over
+                  shorter patterns, i.e. a negative pattern must be of the same
+                  length or longer to reject matching patterns.  Option -N cannot be
+                  specified with -P.  This option may be repeated.
 
            -n, --line-number
                   Each output line is preceded by its relative line number in the
@@ -4500,23 +4494,21 @@ in markdown:
                   --and, --andnot, --bool, --files and --lines.
 
            -O EXTENSIONS, --file-extension=EXTENSIONS
-                  Search only files whose filename extensions match the specified
-                  comma-separated list of EXTENSIONS, same as --include='*.ext' for
-                  each `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a
-                  `^', skip files whose filename extensions matches `ext', same as
-                  --exclude='*.ext'.  This option may be repeated and may be
-                  combined with options -g, -M and -t to expand the recursive
-                  search.
+                  Only search files whose filename extensions match the specified
+                  comma-separated list of EXTENSIONS, same as -g '*.ext' for each
+                  `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a `^',
+                  skip files whose filename extensions matches `ext', same as -g
+                  '^*.ext'.  This option may be repeated and may be combined with
+                  options -g, -M and -t to expand the recursive search.
 
            -o, --only-matching
-                  Output only the matching part of lines.  If -A, -B or -C is
-                  specified, fits the match and its context on a line within the
-                  specified number of columns.
+                  Only the matching part of a pattern match is output.  If -A, -B or
+                  -C is specified, fits the match and its context on a line within
+                  the specified number of columns.
 
            --only-line-number
-                  The line number of the matching line in the file is output without
-                  displaying the match.  The line number counter is reset for each
-                  file processed.
+                  Only the line number of a matching line is output.  The line
+                  number counter is reset for each file processed.
 
            --files, -%%
                   Boolean file matching mode, the opposite of --lines.  When
@@ -4570,8 +4562,8 @@ in markdown:
                   has been found.
 
            -R, --dereference-recursive
-                  Recursively read all files under each directory.  Follow symbolic
-                  links to files and directories, unlike -r.
+                  Recursively read all files under each directory, following
+                  symbolic links to files and directories, unlike -r.
 
            -r, --recursive
                   Recursively read all files under each directory, following
@@ -4580,18 +4572,18 @@ in markdown:
                   terminal, recursive searches are performed as if -r is specified.
 
            --replace=FORMAT
-                  Replace matching patterns in the output by the specified FORMAT
-                  with `%' fields.  If -P is specified, FORMAT may include `%1' to
-                  `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'
-                  outputs `%' and `%~' outputs a newline.  See option --format,
-                  `ugrep --help format' and `man ugrep' section FORMAT for details.
+                  Replace matching patterns in the output by FORMAT with `%' fields.
+                  If -P is specified, FORMAT may include `%1' to `%9', `%[NUM]#' and
+                  `%[NAME]#' to output group captures.  A `%%' outputs `%' and `%~'
+                  outputs a newline.  See also option --format, `ugrep --help
+                  format' and `man ugrep' section FORMAT for details.
 
            -S, --dereference-files
                   When -r is specified, follow symbolic links to files, but not to
                   directories.  The default is not to follow symbolic links.
 
            -s, --no-messages
-                  Silent mode: nonexistent and unreadable files are ignored, i.e.
+                  Silent mode: nonexistent and unreadable files are ignored and
                   their error messages and warnings are suppressed.
 
            --save-config[=FILE] [OPTIONS]
@@ -4744,7 +4736,7 @@ in markdown:
                   Any line is output (passthru).  Non-matching lines are output as
                   context with a `-' separator.  See also options -A, -B and -C.
 
-           -Z[best][+-~][MAX], --fuzzy=[best][+-~][MAX]
+           -Z[best][+-~][MAX], --fuzzy[=[best][+-~][MAX]]
                   Fuzzy mode: report approximate pattern matches within MAX errors.
                   The default is -Z1: one deletion, insertion or substitution is
                   allowed.  If `+`, `-' and/or `~' is specified, then `+' allows
@@ -4780,14 +4772,13 @@ in markdown:
            --zmax=NUM
                   When used with option -z (--decompress), searches the contents of
                   compressed files and archives stored within archives by up to NUM
-                  expansion levels deep.  The default --zmax=1 only permits
-                  searching uncompressed files stored in cpio, pax, tar and zip
-                  archives; compressed files and archives are detected as binary
-                  files and are effectively ignored.  Specify --zmax=2 to search
-                  compressed files and archives stored in cpio, pax, tar and zip
-                  archives.  NUM may range from 1 to 99 for up to 99 decompression
-                  and de-archiving steps.  Increasing NUM values gradually degrades
-                  performance.
+                  expansion stages.  The default --zmax=1 only permits searching
+                  uncompressed files stored in cpio, pax, tar and zip archives;
+                  compressed files and archives are detected as binary files and are
+                  effectively ignored.  Specify --zmax=2 to search compressed files
+                  and archives stored in cpio, pax, tar and zip archives.  NUM may
+                  range from 1 to 99 for up to 99 decompression and de-archiving
+                  steps.  Increasing NUM values gradually degrades performance.
 
            -0, --null
                   Output a zero-byte (NUL) after the file name.  This option can be
@@ -5356,7 +5347,7 @@ in markdown:
 
 
 
-    ugrep 4.3.6                     December 7, 2023                        UGREP(1)
+    ugrep 4.4.0                     December 18, 2023                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

@@ -424,6 +424,8 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN]);
 void trim(std::string& line);
 void trim_pathname_arg(const char *arg);
 bool is_output(ino_t inode);
+const char *getoptarg(int argc, const char **argv, const char *arg, int& i);
+const char *getloptarg(int argc, const char **argv, const char *arg, int& i);
 const char *strarg(const char *string);
 size_t strtonum(const char *string, const char *message);
 size_t strtopos(const char *string, const char *message);
@@ -5109,22 +5111,22 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 break;
 
               case 'a':
-                if (strncmp(arg, "after-context=", 14) == 0)
-                  flag_after_context = strtonum(arg + 14, "invalid argument --after-context=");
+                if (strcmp(arg, "after-context") == 0) // legacy form --after-context NUM
+                  flag_after_context = strtonum(getloptarg(argc, argv, "", i), "invalid argument --after-context=");
+                else if (strncmp(arg, "after-context=", 14) == 0)
+                  flag_after_context = strtonum(getloptarg(argc, argv, arg + 14, i), "invalid argument --after-context=");
                 else if (strcmp(arg, "and") == 0)
                   option_and(pattern_args, i, argc, argv);
                 else if (strncmp(arg, "and=", 4) == 0)
-                  option_and(pattern_args, arg + 4);
+                  option_and(pattern_args, getloptarg(argc, argv, arg + 4, i));
                 else if (strcmp(arg, "andnot") == 0)
                   option_andnot(pattern_args, i, argc, argv);
                 else if (strncmp(arg, "andnot=", 7) == 0)
-                  option_andnot(pattern_args, arg + 7);
+                  option_andnot(pattern_args, getloptarg(argc, argv, arg + 7, i));
                 else if (strcmp(arg, "any-line") == 0)
                   flag_any_line = true;
                 else if (strcmp(arg, "ascii") == 0)
                   flag_binary = true;
-                else if (strcmp(arg, "after-context") == 0)
-                  usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--after-context=, --and, --andnot, --any-line or --ascii");
                 break;
@@ -5132,22 +5134,24 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
               case 'b':
                 if (strcmp(arg, "basic-regexp") == 0)
                   flag_basic_regexp = true;
+                else if (strcmp(arg, "before-context") == 0) // legacy form --before-context NUM
+                  flag_before_context = strtonum(getloptarg(argc, argv, "", i), "invalid argument --before-context=");
                 else if (strncmp(arg, "before-context=", 15) == 0)
-                  flag_before_context = strtonum(arg + 15, "invalid argument --before-context=");
+                  flag_before_context = strtonum(getloptarg(argc, argv, arg + 15, i), "invalid argument --before-context=");
                 else if (strcmp(arg, "best-match") == 0)
                   flag_best_match = true;
                 else if (strcmp(arg, "binary") == 0)
                   flag_binary = true;
+                else if (strcmp(arg, "binary-files") == 0) // legacy form --binary-files TYPE
+                  flag_binary_files = strarg(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "binary-files=", 13) == 0)
-                  flag_binary_files = strarg(arg + 13);
+                  flag_binary_files = strarg(getloptarg(argc, argv, arg + 13, i));
                 else if (strcmp(arg, "bool") == 0)
                   flag_bool = true;
                 else if (strcmp(arg, "break") == 0)
                   flag_break = true;
                 else if (strcmp(arg, "byte-offset") == 0)
                   flag_byte_offset = true;
-                else if (strcmp(arg, "before-context") == 0 || strcmp(arg, "binary-files") == 0)
-                  usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--basic-regexp, --before-context=, --binary, --binary-files=, --bool, --break or --byte-offset");
                 break;
@@ -5156,30 +5160,30 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "color") == 0 || strcmp(arg, "colour") == 0)
                   flag_color = Static::AUTO;
                 else if (strncmp(arg, "color=", 6) == 0)
-                  flag_color = strarg(arg + 6);
+                  flag_color = strarg(getloptarg(argc, argv, arg + 6, i));
                 else if (strncmp(arg, "colour=", 7) == 0)
-                  flag_color = strarg(arg + 7);
+                  flag_color = strarg(getloptarg(argc, argv, arg + 7, i));
                 else if (strncmp(arg, "colors=", 7) == 0)
-                  flag_colors = strarg(arg + 7);
+                  flag_colors = strarg(getloptarg(argc, argv, arg + 7, i));
                 else if (strncmp(arg, "colours=", 8) == 0)
-                  flag_colors = strarg(arg + 8);
+                  flag_colors = strarg(getloptarg(argc, argv, arg + 8, i));
                 else if (strcmp(arg, "column-number") == 0)
                   flag_column_number = true;
                 else if (strcmp(arg, "config") == 0 || strncmp(arg, "config=", 7) == 0)
                   ; // --config is pre-parsed before other options are parsed
                 else if (strcmp(arg, "confirm") == 0)
                   flag_confirm = true;
+                else if (strcmp(arg, "context") == 0) // legacy form --context NUM
+                  flag_after_context = flag_before_context = strtonum(getloptarg(argc, argv, "", i), "invalid argument --context=");
                 else if (strncmp(arg, "context=", 8) == 0)
-                  flag_after_context = flag_before_context = strtonum(arg + 8, "invalid argument --context=");
+                  flag_after_context = flag_before_context = strtonum(getloptarg(argc, argv, arg + 8, i), "invalid argument --context=");
                 else if (strcmp(arg, "count") == 0)
                   flag_count = true;
                 else if (strcmp(arg, "cpp") == 0)
                   flag_cpp = true;
                 else if (strcmp(arg, "csv") == 0)
                   flag_csv = true;
-                else if (strcmp(arg, "colors") == 0 ||
-                    strcmp(arg, "colours") == 0 ||
-                    strcmp(arg, "context") == 0)
+                else if (strcmp(arg, "colors") == 0 || strcmp(arg, "colours") == 0)
                   usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--color, --colors=, --column-number, --config, --confirm, --context=, --count, --cpp or --csv");
@@ -5189,24 +5193,26 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "decompress") == 0)
                   flag_decompress = true;
                 else if (strncmp(arg, "delay=", 6) == 0)
-                  flag_delay = strtonum(arg + 6, "invalid argument --delay=");
+                  flag_delay = strtonum(getloptarg(argc, argv, arg + 6, i), "invalid argument --delay=");
                 else if (strncmp(arg, "depth=", 6) == 0)
-                  set_depth_long(arg + 6);
+                  set_depth_long(getloptarg(argc, argv, arg + 6, i));
                 else if (strcmp(arg, "dereference") == 0)
                   flag_dereference = true;
                 else if (strcmp(arg, "dereference-files") == 0)
                   flag_dereference_files = true;
                 else if (strcmp(arg, "dereference-recursive") == 0)
                   flag_directories = "dereference-recurse";
+                else if (strcmp(arg, "devices") == 0) // legacy form --devices ACTION
+                  flag_devices = strarg(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "devices=", 8) == 0)
-                  flag_devices = strarg(arg + 8);
+                  flag_devices = strarg(getloptarg(argc, argv, arg + 8, i));
+                else if (strcmp(arg, "directories") == 0) // legacy form --directories ACTION
+                  flag_directories = strarg(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "directories=", 12) == 0)
-                  flag_directories = strarg(arg + 12);
+                  flag_directories = strarg(getloptarg(argc, argv, arg + 12, i));
                 else if (strcmp(arg, "dotall") == 0)
                   flag_dotall = true;
-                else if (strcmp(arg, "depth") == 0 ||
-                    strcmp(arg, "devices") == 0 ||
-                    strcmp(arg, "directories") == 0)
+                else if (strcmp(arg, "delay") == 0 || strcmp(arg, "depth") == 0)
                   usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--decompress, --delay=, --depth=, --dereference, --dereference-files, --dereference-recursive, --devices=, --directories= or --dotall");
@@ -5216,36 +5222,40 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "empty") == 0)
                   flag_empty = true;
                 else if (strncmp(arg, "encoding=", 9) == 0)
-                  flag_encoding = strarg(arg + 9);
+                  flag_encoding = strarg(getloptarg(argc, argv, arg + 9, i));
+                else if (strcmp(arg, "exclude") == 0) // legacy form --exclude GLOB
+                  flag_exclude.emplace_back(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "exclude=", 8) == 0)
-                  flag_exclude.emplace_back(arg + 8);
+                  flag_exclude.emplace_back(getloptarg(argc, argv, arg + 8, i));
+                else if (strcmp(arg, "exclude-dir") == 0) // legacy form --exclude-dir GLOB
+                  flag_exclude_dir.emplace_back(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "exclude-dir=", 12) == 0)
-                  flag_exclude_dir.emplace_back(arg + 12);
+                  flag_exclude_dir.emplace_back(getloptarg(argc, argv, arg + 12, i));
+                else if (strcmp(arg, "exclude-from") == 0) // legacy form --exclude-from FILE
+                  flag_exclude_from.emplace_back(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "exclude-from=", 13) == 0)
-                  flag_exclude_from.emplace_back(arg + 13);
+                  flag_exclude_from.emplace_back(getloptarg(argc, argv, arg + 13, i));
                 else if (strncmp(arg, "exclude-fs=", 11) == 0)
-                  flag_exclude_fs.emplace_back(arg + 11);
+                  flag_exclude_fs.emplace_back(getloptarg(argc, argv, arg + 11, i));
                 else if (strcmp(arg, "extended-regexp") == 0)
                   flag_basic_regexp = false;
-                else if (strcmp(arg, "encoding") == 0 ||
-                    strcmp(arg, "exclude") == 0 ||
-                    strcmp(arg, "exclude-dir") == 0 ||
-                    strcmp(arg, "exclude-from") == 0 ||
-                    strcmp(arg, "exclude-fs") == 0)
+                else if (strcmp(arg, "encoding") == 0 || strcmp(arg, "exclude-fs") == 0)
                   usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--empty, --encoding=, --exclude=, --exclude-dir=, --exclude-from=, --exclude-fs= or --extended-regexp");
                 break;
 
               case 'f':
-                if (strncmp(arg, "file=", 5) == 0)
-                  flag_file.emplace_back(arg + 5);
+                if (strcmp(arg, "file") == 0) // legacy form --file FILE
+                  flag_file.emplace_back(getloptarg(argc, argv, "", i));
+                else if (strncmp(arg, "file=", 5) == 0)
+                  flag_file.emplace_back(getloptarg(argc, argv, arg + 5, i));
                 else if (strncmp(arg, "file-extension=", 15) == 0)
-                  flag_file_extension.emplace_back(arg + 15);
+                  flag_file_extension.emplace_back(getloptarg(argc, argv, arg + 15, i));
                 else if (strncmp(arg, "file-magic=", 11) == 0)
-                  flag_file_magic.emplace_back(arg + 11);
+                  flag_file_magic.emplace_back(getloptarg(argc, argv, arg + 11, i));
                 else if (strncmp(arg, "file-type=", 10) == 0)
-                  flag_file_type.emplace_back(arg + 10);
+                  flag_file_type.emplace_back(getloptarg(argc, argv, arg + 10, i));
                 else if (strcmp(arg, "files") == 0)
                   flag_files = true;
                 else if (strcmp(arg, "files-with-matches") == 0)
@@ -5255,27 +5265,26 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "fixed-strings") == 0)
                   flag_fixed_strings = true;
                 else if (strncmp(arg, "filter=", 7) == 0)
-                  flag_filter.append(flag_filter.empty() ? "" : ",").append(arg + 7);
+                  flag_filter.append(flag_filter.empty() ? "" : ",").append(getloptarg(argc, argv, arg + 7, i));
                 else if (strncmp(arg, "filter-magic-label=", 19) == 0)
-                  flag_filter_magic_label.emplace_back(arg + 19);
+                  flag_filter_magic_label.emplace_back(getloptarg(argc, argv, arg + 19, i));
                 else if (strncmp(arg, "format=", 7) == 0)
-                  flag_format = strarg(arg + 7);
+                  flag_format = strarg(getloptarg(argc, argv, arg + 7, i));
                 else if (strncmp(arg, "format-begin=", 13) == 0)
-                  flag_format_begin = strarg(arg + 13);
+                  flag_format_begin = strarg(getloptarg(argc, argv, arg + 13, i));
                 else if (strncmp(arg, "format-close=", 13) == 0)
-                  flag_format_close = strarg(arg + 13);
+                  flag_format_close = strarg(getloptarg(argc, argv, arg + 13, i));
                 else if (strncmp(arg, "format-end=", 11) == 0)
-                  flag_format_end = strarg(arg + 11);
+                  flag_format_end = strarg(getloptarg(argc, argv, arg + 11, i));
                 else if (strncmp(arg, "format-open=", 12) == 0)
-                  flag_format_open = strarg(arg + 12);
+                  flag_format_open = strarg(getloptarg(argc, argv, arg + 12, i));
                 else if (strcmp(arg, "fuzzy") == 0)
                   flag_fuzzy = 1;
                 else if (strncmp(arg, "fuzzy=", 6) == 0)
-                  flag_fuzzy = strtofuzzy(arg + 6, "invalid argument --fuzzy=");
+                  flag_fuzzy = strtofuzzy(getloptarg(argc, argv, arg + 6, i), "invalid argument --fuzzy=");
                 else if (strcmp(arg, "free-space") == 0)
                   flag_free_space = true;
-                else if (strcmp(arg, "file") == 0 ||
-                    strcmp(arg, "file-extension") == 0 ||
+                else if (strcmp(arg, "file-extension") == 0 ||
                     strcmp(arg, "file-magic") == 0 ||
                     strcmp(arg, "file-type") == 0 ||
                     strcmp(arg, "filter") == 0 ||
@@ -5292,13 +5301,13 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'g':
                 if (strncmp(arg, "glob=", 5) == 0)
-                  flag_glob.emplace_back(arg + 5);
+                  flag_glob.emplace_back(getloptarg(argc, argv, arg + 5, i));
                 else if (strcmp(arg, "glob-ignore-case") == 0)
                   flag_glob_ignore_case = true;
-                else if (strncmp(arg, "group-separator=", 16) == 0)
-                  flag_group_separator = strarg(arg + 16);
                 else if (strcmp(arg, "group-separator") == 0)
                   flag_group_separator = "--";
+                else if (strncmp(arg, "group-separator=", 16) == 0)
+                  flag_group_separator = strarg(getloptarg(argc, argv, arg + 16, i));
                 else if (strcmp(arg, "glob") == 0)
                   usage("missing argument for --", arg);
                 else
@@ -5315,11 +5324,11 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "hexdump") == 0)
                   flag_hexdump = "2";
                 else if (strncmp(arg, "hexdump=", 8) == 0)
-                  flag_hexdump = strarg(arg + 8);
+                  flag_hexdump = strarg(getloptarg(argc, argv, arg + 8, i));
                 else if (strcmp(arg, "hidden") == 0)
                   flag_hidden = true;
                 else if (strncmp(arg, "hyperlink=", 10) == 0)
-                  flag_hyperlink = strarg(arg + 10);
+                  flag_hyperlink = strarg(getloptarg(argc, argv, arg + 10, i));
                 else if (strcmp(arg, "hyperlink") == 0)
                   flag_hyperlink = "";
                 else
@@ -5328,7 +5337,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'i':
                 if (strncmp(arg, "iglob=", 6) == 0)
-                  flag_iglob.emplace_back(arg + 6);
+                  flag_iglob.emplace_back(getloptarg(argc, argv, arg + 6, i));
                 else if (strcmp(arg, "ignore-binary") == 0)
                   flag_binary_files = "without-match";
                 else if (strcmp(arg, "ignore-case") == 0)
@@ -5336,27 +5345,30 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "ignore-files") == 0)
                   flag_ignore_files.insert(DEFAULT_IGNORE_FILE);
                 else if (strncmp(arg, "ignore-files=", 13) == 0)
-                  flag_ignore_files.insert(arg + 13);
+                  flag_ignore_files.insert(getloptarg(argc, argv, arg + 13, i));
+                else if (strcmp(arg, "include") == 0) // legacy form --include GLOB
+                  flag_include.emplace_back(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "include=", 8) == 0)
-                  flag_include.emplace_back(arg + 8);
+                  flag_include.emplace_back(getloptarg(argc, argv, arg + 8, i));
+                else if (strcmp(arg, "include-dir") == 0) // legacy form --include-dir GLOB
+                  flag_include_dir.emplace_back(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "include-dir=", 12) == 0)
-                  flag_include_dir.emplace_back(arg + 12);
+                  flag_include_dir.emplace_back(getloptarg(argc, argv, arg + 12, i));
+                else if (strcmp(arg, "include-from") == 0) // legacy form --include-from FILE
+                  flag_include_from.emplace_back(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "include-from=", 13) == 0)
-                  flag_include_from.emplace_back(arg + 13);
+                  flag_include_from.emplace_back(getloptarg(argc, argv, arg + 13, i));
                 else if (strncmp(arg, "include-fs=", 11) == 0)
-                  flag_include_fs.emplace_back(arg + 11);
+                  flag_include_fs.emplace_back(getloptarg(argc, argv, arg + 11, i));
                 else if (strcmp(arg, "index") == 0)
                   flag_index = "safe";
                 else if (strncmp(arg, "index=", 6) == 0)
-                  flag_index = strarg(arg + 6);
+                  flag_index = strarg(getloptarg(argc, argv, arg + 6, i));
                 else if (strcmp(arg, "initial-tab") == 0)
                   flag_initial_tab = true;
                 else if (strcmp(arg, "invert-match") == 0)
                   flag_invert_match = true;
-                else if (strcmp(arg, "include") == 0 ||
-                    strcmp(arg, "include-dir") == 0 ||
-                    strcmp(arg, "include-from") == 0 ||
-                    strcmp(arg, "include-fs") == 0)
+                else if (strcmp(arg, "include-fs") == 0)
                   usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--ignore-case, --ignore-files, --include=, --include-dir=, --include-from=, --include-fs=, --initial-tab or --invert-match");
@@ -5364,7 +5376,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'j':
                 if (strncmp(arg, "jobs=", 5) == 0)
-                  flag_jobs = strtonum(arg + 5, "invalid argument --jobs=");
+                  flag_jobs = strtonum(getloptarg(argc, argv, arg + 5, i), "invalid argument --jobs=");
                 else if (strcmp(arg, "json") == 0)
                   flag_json = true;
                 else if (strcmp(arg, "jobs") == 0)
@@ -5374,8 +5386,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 break;
 
               case 'l':
-                if (strncmp(arg, "label=", 6) == 0)
-                  flag_label = strarg(arg + 6);
+                if (strcmp(arg, "label") == 0) // legacy form --label LABEL
+                  flag_label = strarg(getloptarg(argc, argv, "", i));
+                else if (strncmp(arg, "label=", 6) == 0)
+                  flag_label = strarg(getloptarg(argc, argv, arg + 6, i));
                 else if (strcmp(arg, "line-buffered") == 0)
                   flag_line_buffered = true;
                 else if (strcmp(arg, "line-number") == 0)
@@ -5384,8 +5398,6 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_line_regexp = true;
                 else if (strcmp(arg, "lines") == 0)
                   flag_files = false;
-                else if (strcmp(arg, "label") == 0)
-                  usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--label=, --line-buffered, --line-number, --line-regexp or --lines");
                 break;
@@ -5394,27 +5406,27 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "match") == 0)
                   flag_match = true;
                 else if (strncmp(arg, "max-count=", 10) == 0)
-                  flag_max_count = strtopos(arg + 10, "invalid argument --max-count=");
+                  flag_max_count = strtopos(getloptarg(argc, argv, arg + 10, i), "invalid argument --max-count=");
                 else if (strncmp(arg, "max-depth=", 10) == 0)
-                  flag_max_depth = strtopos(arg + 10, "invalid argument --max-depth=");
+                  flag_max_depth = strtopos(getloptarg(argc, argv, arg + 10, i), "invalid argument --max-depth=");
                 else if (strncmp(arg, "max-files=", 10) == 0)
-                  flag_max_files = strtopos(arg + 10, "invalid argument --max-files=");
+                  flag_max_files = strtopos(getloptarg(argc, argv, arg + 10, i), "invalid argument --max-files=");
                 else if (strncmp(arg, "max-line=", 9) == 0)
-                  flag_max_line = strtopos(arg + 9, "invalid argument --max-line=");
+                  flag_max_line = strtopos(getloptarg(argc, argv, arg + 9, i), "invalid argument --max-line=");
                 else if (strncmp(arg, "max-queue=", 10) == 0)
-                  flag_max_queue = strtopos(arg + 10, "invalid argument --max-queue=");
+                  flag_max_queue = strtopos(getloptarg(argc, argv, arg + 10, i), "invalid argument --max-queue=");
                 else if (strncmp(arg, "min-count=", 10) == 0)
-                  flag_min_count = strtopos(arg + 10, "invalid argument --min-count=");
+                  flag_min_count = strtopos(getloptarg(argc, argv, arg + 10, i), "invalid argument --min-count=");
                 else if (strncmp(arg, "min-depth=", 10) == 0)
-                  flag_min_depth = strtopos(arg + 10, "invalid argument --min-depth=");
+                  flag_min_depth = strtopos(getloptarg(argc, argv, arg + 10, i), "invalid argument --min-depth=");
                 else if (strncmp(arg, "min-line=", 9) == 0)
-                  flag_min_line = strtopos(arg + 9, "invalid argument --min-line=");
+                  flag_min_line = strtopos(getloptarg(argc, argv, arg + 9, i), "invalid argument --min-line=");
                 else if (strncmp(arg, "min-steal=", 10) == 0)
-                  flag_min_steal = strtopos(arg + 10, "invalid argument --min-steal=");
+                  flag_min_steal = strtopos(getloptarg(argc, argv, arg + 10, i), "invalid argument --min-steal=");
                 else if (strcmp(arg, "mmap") == 0)
                   flag_max_mmap = MAX_MMAP_SIZE;
                 else if (strncmp(arg, "mmap=", 5) == 0)
-                  flag_max_mmap = strtopos(arg + 5, "invalid argument --mmap=");
+                  flag_max_mmap = strtopos(getloptarg(argc, argv, arg + 5, i), "invalid argument --mmap=");
                 else if (strcmp(arg, "messages") == 0)
                   flag_no_messages = false;
                 else if (strcmp(arg, "max-count") == 0 ||
@@ -5431,11 +5443,11 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'n':
                 if (strncmp(arg, "neg-regexp=", 11) == 0)
-                  option_regexp(pattern_args, arg + 1, true);
+                  option_regexp(pattern_args, getloptarg(argc, argv, arg + 11, i), true);
                 else if (strcmp(arg, "not") == 0)
                   option_not(pattern_args, i, argc, argv);
                 else if (strncmp(arg, "not=", 4) == 0)
-                  option_not(pattern_args, arg + 4);
+                  option_not(pattern_args, getloptarg(argc, argv, arg + 4, i));
                 else if (strcmp(arg, "no-any-line") == 0)
                   flag_any_line = false;
                 else if (strcmp(arg, "no-ascii") == 0)
@@ -5539,7 +5551,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "pager") == 0)
                   flag_pager = "";
                 else if (strncmp(arg, "pager=", 6) == 0)
-                  flag_pager = strarg(arg + 6);
+                  flag_pager = strarg(getloptarg(argc, argv, arg + 6, i));
                 else if (strcmp(arg, "passthru") == 0)
                   flag_any_line = true;
                 else if (strcmp(arg, "perl-regexp") == 0)
@@ -5547,7 +5559,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "pretty") == 0)
                   flag_pretty = Static::AUTO;
                 else if (strncmp(arg, "pretty=", 7) == 0)
-                  flag_pretty = strarg(arg + 7);
+                  flag_pretty = strarg(getloptarg(argc, argv, arg + 7, i));
                 else
                   usage("invalid option --", arg, "--pager, --passthru, --perl-regexp= or --pretty");
                 break;
@@ -5556,7 +5568,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "query") == 0)
                   flag_query = true;
                 else if (strncmp(arg, "query=", 6) == 0)
-                  flag_query = (flag_delay = strtonum(arg + 6, "invalid argument --query="), true);
+                  flag_query = (flag_delay = strtonum(getloptarg(argc, argv, arg + 6, i), "invalid argument --query="), true);
                 else if (strcmp(arg, "quiet") == 0)
                   flag_quiet = flag_no_messages = true;
                 else
@@ -5565,15 +5577,16 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'r':
                 if (strncmp(arg, "range=", 6) == 0)
-                  strtopos2(arg + 6, flag_min_line, flag_max_line, "invalid argument --range=");
+                  strtopos2(getloptarg(argc, argv, arg + 6, i), flag_min_line, flag_max_line, "invalid argument --range=");
                 else if (strcmp(arg, "recursive") == 0)
                   flag_directories = "recurse";
+                else if (strcmp(arg, "regexp") == 0) // legacy form --regexp PATTERN
+                  option_regexp(pattern_args, getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "regexp=", 7) == 0)
-                  option_regexp(pattern_args, arg + 7);
+                  option_regexp(pattern_args, getloptarg(argc, argv, arg + 7, i));
                 else if (strncmp(arg, "replace=", 8) == 0)
-                  flag_replace = strarg(arg + 8);
+                  flag_replace = strarg(getloptarg(argc, argv, arg + 8, i));
                 else if (strcmp(arg, "range") == 0 ||
-                    strcmp(arg, "regexp") == 0 ||
                     strcmp(arg, "replace") == 0)
                   usage("missing argument for --", arg);
                 else
@@ -5584,11 +5597,11 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "save-config") == 0)
                   flag_save_config = ".ugrep";
                 else if (strncmp(arg, "save-config=", 12) == 0)
-                  flag_save_config = strarg(arg + 12);
+                  flag_save_config = strarg(getloptarg(argc, argv, arg + 12, i));
                 else if (strcmp(arg, "separator") == 0)
                   flag_separator = NULL;
                 else if (strncmp(arg, "separator=", 10) == 0)
-                  flag_separator = strarg(arg + 10);
+                  flag_separator = strarg(getloptarg(argc, argv, arg + 10, i));
                 else if (strcmp(arg, "silent") == 0)
                   flag_quiet = flag_no_messages = true;
                 else if (strcmp(arg, "smart-case") == 0)
@@ -5596,13 +5609,13 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "sort") == 0)
                   flag_sort = "name";
                 else if (strncmp(arg, "sort=", 5) == 0)
-                  flag_sort = strarg(arg + 5);
+                  flag_sort = strarg(getloptarg(argc, argv, arg + 5, i));
                 else if (strcmp(arg, "split") == 0)
                   flag_split = true;
                 else if (strcmp(arg, "stats") == 0)
                   flag_stats = "";
                 else if (strncmp(arg, "stats=", 6) == 0)
-                  flag_stats = strarg(arg + 6);
+                  flag_stats = strarg(getloptarg(argc, argv, arg + 6, i));
                 else
                   usage("invalid option --", arg, "--save-config, --separator, --silent, --smart-case, --sort, --split or --stats");
                 break;
@@ -5611,11 +5624,11 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "tabs") == 0)
                   flag_tabs = DEFAULT_TABS;
                 else if (strncmp(arg, "tabs=", 5) == 0)
-                  flag_tabs = strtopos(arg + 5, "invalid argument --tabs=");
+                  flag_tabs = strtopos(getloptarg(argc, argv, arg + 5, i), "invalid argument --tabs=");
                 else if (strcmp(arg, "tag") == 0)
                   flag_tag = DEFAULT_TAG;
                 else if (strncmp(arg, "tag=", 4) == 0)
-                  flag_tag = strarg(arg + 4);
+                  flag_tag = strarg(getloptarg(argc, argv, arg + 4, i));
                 else if (strcmp(arg, "text") == 0)
                   flag_binary_files = "text";
                 else if (strcmp(arg, "tree") == 0)
@@ -5635,7 +5648,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "version") == 0)
                   version();
                 else if (strncmp(arg, "view=", 5) == 0)
-                  flag_view = strarg(arg + 5);
+                  flag_view = strarg(getloptarg(argc, argv, arg + 5, i));
                 else if (strcmp(arg, "view") == 0)
                   flag_view = "";
                 else
@@ -5643,10 +5656,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 break;
 
               case 'w':
-                if (strncmp(arg, "width=", 6) == 0)
-                  flag_width = strtopos(arg + 6, "invalid argument --width=");
-                else if (strcmp(arg, "width") == 0)
+                if (strcmp(arg, "width") == 0)
                   flag_width = Screen::getsize();
+                else if (strncmp(arg, "width=", 6) == 0)
+                  flag_width = strtopos(getloptarg(argc, argv, arg + 6, i), "invalid argument --width=");
                 else if (strcmp(arg, "with-filename") == 0)
                   flag_with_filename = true;
                 else if (strcmp(arg, "with-hex") == 0)
@@ -5666,7 +5679,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'z':
                 if (strncmp(arg, "zmax=", 5) == 0)
-                  flag_zmax = strtopos(arg + 5, "invalid argument --zmax=");
+                  flag_zmax = strtopos(getloptarg(argc, argv, arg + 5, i), "invalid argument --zmax=");
                 else if (strcmp(arg, "zmax") == 0)
                   usage("missing argument for --", arg);
                 else
@@ -5682,13 +5695,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'A':
-            ++arg;
-            if (*arg)
-              flag_after_context = strtonum(&arg[*arg == '='], "invalid argument -A=");
-            else if (++i < argc)
-              flag_after_context = strtonum(argv[i], "invalid argument -A=");
-            else
-              usage("missing NUM argument for option -A");
+            flag_after_context = strtonum(getoptarg(argc, argv, arg, i), "invalid argument -A=");
             is_grouped = false;
             break;
 
@@ -5697,13 +5704,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'B':
-            ++arg;
-            if (*arg)
-              flag_before_context = strtonum(&arg[*arg == '='], "invalid argument -B=");
-            else if (++i < argc)
-              flag_before_context = strtonum(argv[i], "invalid argument -B=");
-            else
-              usage("missing NUM argument for option -B");
+            flag_before_context = strtonum(getoptarg(argc, argv, arg, i), "invalid argument -B=");
             is_grouped = false;
             break;
 
@@ -5712,13 +5713,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'C':
-            ++arg;
-            if (*arg)
-              flag_after_context = flag_before_context = strtonum(&arg[*arg == '='], "invalid argument -C=");
-            else if (++i < argc)
-              flag_after_context = flag_before_context = strtonum(argv[i], "invalid argument -C=");
-            else
-              usage("missing NUM argument for option -C");
+            flag_after_context = flag_before_context = strtonum(getoptarg(argc, argv, arg, i), "invalid argument -C=");
             is_grouped = false;
             break;
 
@@ -5727,24 +5722,12 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'D':
-            ++arg;
-            if (*arg)
-              flag_devices = &arg[*arg == '='];
-            else if (++i < argc)
-              flag_devices = argv[i];
-            else
-              usage("missing ACTION argument for option -D");
+            flag_devices = getoptarg(argc, argv, arg, i);
             is_grouped = false;
             break;
 
           case 'd':
-            ++arg;
-            if (*arg)
-              flag_directories = &arg[*arg == '='];
-            else if (++i < argc)
-              flag_directories = argv[i];
-            else
-              usage("missing ACTION argument for option -d");
+            flag_directories = getoptarg(argc, argv, arg, i);
             is_grouped = false;
             break;
 
@@ -5753,13 +5736,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'e':
-            ++arg;
-            if (*arg)
-              option_regexp(pattern_args, &arg[*arg == '=']);
-            else if (++i < argc)
-              option_regexp(pattern_args, argv[i]);
-            else
-              usage("missing PATTERN argument for option -e");
+            option_regexp(pattern_args, getoptarg(argc, argv, arg, i));
             is_grouped = false;
             break;
 
@@ -5768,13 +5745,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'f':
-            ++arg;
-            if (*arg)
-              flag_file.emplace_back(&arg[*arg == '=']);
-            else if (++i < argc)
-              flag_file.emplace_back(argv[i]);
-            else
-              usage("missing FILE argument for option -f");
+            flag_file.emplace_back(getoptarg(argc, argv, arg, i));
             is_grouped = false;
             break;
 
@@ -5783,13 +5754,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'g':
-            ++arg;
-            if (*arg)
-              flag_glob.emplace_back(&arg[*arg == '=']);
-            else if (++i < argc)
-              flag_glob.emplace_back(argv[i]);
-            else
-              usage("missing GLOB argument for option -g");
+            flag_glob.emplace_back(getoptarg(argc, argv, arg, i));
             is_grouped = false;
             break;
 
@@ -5810,13 +5775,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'J':
-            ++arg;
-            if (*arg)
-              flag_jobs = strtonum(&arg[*arg == '='], "invalid argument -J=");
-            else if (++i < argc)
-              flag_jobs = strtonum(argv[i], "invalid argument -J=");
-            else
-              usage("missing NUM argument for option -J");
+            flag_jobs = strtonum(getoptarg(argc, argv, arg, i), "invalid argument -J=");
             is_grouped = false;
             break;
 
@@ -5825,13 +5784,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'K':
-            ++arg;
-            if (*arg)
-              strtopos2(&arg[*arg == '='], flag_min_line, flag_max_line, "invalid argument -K=");
-            else if (++i < argc)
-              strtopos2(argv[i], flag_min_line, flag_max_line, "invalid argument -K=");
-            else
-              usage("missing NUM argument for option -K");
+            strtopos2(getoptarg(argc, argv, arg, i), flag_min_line, flag_max_line, "invalid argument -K=");
             is_grouped = false;
             break;
 
@@ -5848,35 +5801,17 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'M':
-            ++arg;
-            if (*arg)
-              flag_file_magic.emplace_back(&arg[*arg == '=']);
-            else if (++i < argc)
-              flag_file_magic.emplace_back(argv[i]);
-            else
-              usage("missing MAGIC argument for option -M");
+            flag_file_magic.emplace_back(getoptarg(argc, argv, arg, i));
             is_grouped = false;
             break;
 
           case 'm':
-            ++arg;
-            if (*arg)
-              strtopos2(&arg[*arg == '='], flag_min_count, flag_max_count, "invalid argument -m=");
-            else if (++i < argc)
-              strtopos2(argv[i], flag_min_count, flag_max_count, "invalid argument -m=");
-            else
-              usage("missing MAX argument for option -m");
+            strtopos2(getoptarg(argc, argv, arg, i), flag_min_count, flag_max_count, "invalid argument -m=");
             is_grouped = false;
             break;
 
           case 'N':
-            ++arg;
-            if (*arg)
-              option_regexp(pattern_args, &arg[*arg == '='], true);
-            else if (++i < argc)
-              option_regexp(pattern_args, argv[i], true);
-            else
-              usage("missing PATTERN argument for option -N");
+            option_regexp(pattern_args, getoptarg(argc, argv, arg, i), true);
             is_grouped = false;
             break;
 
@@ -5885,13 +5820,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'O':
-            ++arg;
-            if (*arg)
-              flag_file_extension.emplace_back(&arg[*arg == '=']);
-            else if (++i < argc)
-              flag_file_extension.emplace_back(argv[i]);
-            else
-              usage("missing EXTENSIONS argument for option -O");
+            flag_file_extension.emplace_back(getoptarg(argc, argv, arg, i));
             is_grouped = false;
             break;
 
@@ -5946,13 +5875,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 't':
-            ++arg;
-            if (*arg)
-              flag_file_type.emplace_back(&arg[*arg == '=']);
-            else if (++i < argc)
-              flag_file_type.emplace_back(argv[i]);
-            else
-              usage("missing TYPES argument for option -t");
+            flag_file_type.emplace_back(getoptarg(argc, argv, arg, i));
             is_grouped = false;
             break;
 
@@ -6427,6 +6350,15 @@ void init(int argc, const char **argv)
   if (flag_encoding != NULL)
   {
     int i, j;
+
+    if (strcmp(flag_encoding, "list") == 0)
+    {
+      // list the encoding_table[]
+      for (i = 0; encoding_table[i].format != NULL; ++i)
+        std::cerr << encoding_table[i].format << '\n';
+
+      exit(EXIT_ERROR);
+    }
 
     // scan the encoding_table[] for a matching encoding, case insensitive ASCII
     for (i = 0; encoding_table[i].format != NULL; ++i)
@@ -6972,6 +6904,29 @@ void init(int argc, const char **argv)
           if (type == type_table[i].type)
             break;
 
+        // if not found then find an unambiguous type with the specified filename suffix 
+        if (type_table[i].type == NULL)
+        {
+          size_t k = i;
+          for (size_t j = 0; type_table[j].type != NULL; ++j)
+          {
+            if (islower(type_table[j].type[0]))
+            {
+              const char *s = strstr(type_table[j].extensions, type.c_str());
+              if (s != NULL && (s == type_table[j].extensions || *--s == ','))
+              {
+                if (type_table[k].type != NULL)
+                {
+                  k = i;
+                  break;
+                }
+                k = j;
+              }
+            }
+          }
+          i = k;
+        }
+
         if (type_table[i].type == NULL)
         {
           std::string msg("invalid argument -t TYPES, valid arguments are");
@@ -7439,6 +7394,7 @@ void terminal()
   }
 }
 
+// --hyperlink parsing
 void set_terminal_hyperlink()
 {
   // set prefix, host, current working directory path to output hyperlinks with --hyperlink
@@ -13370,6 +13326,28 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
   }
 }
 
+// get short option argument
+const char *getoptarg(int argc, const char **argv, const char *arg, int& i)
+{
+  if (*++arg == '=')
+    ++arg;
+  if (*arg != '\0')
+    return arg;
+  if (++i < argc)
+    return argv[i];
+  return "";
+}
+
+// get long option argument after =
+const char *getloptarg(int argc, const char **argv, const char *arg, int& i)
+{
+  if (*arg != '\0')
+    return arg;
+  if (++i < argc)
+    return argv[i];
+  return "";
+}
+
 // save a string argument parsed from the command line or from a config file
 const char *strarg(const char *string)
 {
@@ -13399,6 +13377,11 @@ size_t strtopos(const char *string, const char *message)
 // convert one or two comma-separated unsigned decimals specifying a range to positive size_t, produce error when conversion fails or when the range is invalid
 void strtopos2(const char *string, size_t& min, size_t& max, const char *message)
 {
+  if (*string == '\0')
+  {
+    usage(message, string);
+    return;
+  }
   char *rest = const_cast<char*>(string);
   if (*string != ',')
     min = static_cast<size_t>(strtoull(string, &rest, 10));
@@ -13513,11 +13496,11 @@ void help(std::ostream& out)
             the --binary-files=text option.  This option might output binary\n\
             garbage to the terminal, which can have problematic consequences if\n\
             the terminal driver interprets some of it as commands.\n\
-    --and [-e] PATTERN ... -e PATTERN\n\
-            Specify additional patterns to match.  Patterns must be specified\n\
-            with -e.  Each -e PATTERN following this option is considered an\n\
-            alternative pattern to match, i.e. each -e is interpreted as an OR\n\
-            pattern.  For example, -e A -e B --and -e C -e D matches lines with\n\
+    --and [-e] PATTERN\n\
+            Specify additional PATTERN that must match.  Additional -e PATTERN\n\
+            following this option is considered an alternative pattern to\n\
+            match, i.e. each -e is interpreted as an OR pattern enclosed within\n\
+            the AND.  For example, -e A -e B --and -e C -e D matches lines with\n\
             (`A' or `B') and (`C' or `D').  Note that multiple -e PATTERN are\n\
             alternations that bind more tightly together than --and.  Option\n\
             --stats displays the search patterns applied.  See also options\n\
@@ -13530,8 +13513,8 @@ void help(std::ostream& out)
             specified, output the match with context to fit NUM columns before\n\
             the match or shortens the match.  See also options -A, -C and -y.\n\
     -b, --byte-offset\n\
-            The offset in bytes of a matched line is displayed in front of the\n\
-            respective matched line.  If -u is specified, displays the offset\n\
+            The offset in bytes of a pattern match is displayed in front of the\n\
+            respective matched line.  When -u is specified, displays the offset\n\
             for each pattern matched on the same line.  Byte offsets are exact\n\
             for ASCII, UTF-8 and raw binary input.  Otherwise, the byte offset\n\
             in the UTF-8 normalized input is displayed.\n\
@@ -13566,7 +13549,7 @@ void help(std::ostream& out)
             Options -E, -F, -G, -P and -Z can be combined with --bool to match\n\
             subpatterns as strings or regular expressions (-E is the default.)\n\
             This option does not apply to -f FILE patterns.  The double short\n\
-            option -%% enables options --files --bool.  Option --stats displays\n\
+            option -%% enables options --bool --files.  Option --stats displays\n\
             the Boolean search patterns applied.  See also options --and,\n\
             --andnot, --not, --files and --lines.\n\
     --break\n\
@@ -13586,10 +13569,10 @@ void help(std::ostream& out)
             matching files without outputting zero matches.  If --tree is\n\
             specified, outputs directories in a tree-like format.\n\
     --color[=WHEN], --colour[=WHEN]\n\
-            Mark up the matching text with the expression stored in the\n\
-            GREP_COLOR or GREP_COLORS environment variable.  WHEN can be\n\
-            `never', `always', or `auto', where `auto' marks up matches only\n\
-            when output on a terminal.  The default is `auto'.\n\
+            Mark up the matching text with the colors specified with option\n\
+            --colors or the GREP_COLOR or GREP_COLORS environment variable.\n\
+            WHEN can be `never', `always', or `auto', where `auto' marks up\n\
+            matches only when output on a terminal.  The default is `auto'.\n\
     --colors=COLORS, --colours=COLORS\n\
             Use COLORS to mark up text.  COLORS is a colon-separated list of\n\
             one or more parameters `sl=' (selected line), `cx=' (context line),\n\
@@ -13636,7 +13619,7 @@ void help(std::ostream& out)
             equivalent to the -R option.\n\
     --delay=DELAY\n\
             Set the default -Q key response delay.  Default is 3 for 300ms.\n\
-    --depth=[MIN,][MAX], -1, -2, -3, ... -9, -10, -11, -12, ...\n\
+    --depth=[MIN,][MAX], -1, -2, -3, ... -9, -10, -11, ...\n\
             Restrict recursive searches from MIN to MAX directory levels deep,\n\
             where -1 (--depth=1) searches the specified path without recursing\n\
             into subdirectories.  The short forms -3 -5, -3-5 and -3,5 search 3\n\
@@ -13648,12 +13631,12 @@ void help(std::ostream& out)
             Interpret patterns as extended regular expressions (EREs). This is\n\
             the default.\n\
     -e PATTERN, --regexp=PATTERN\n\
-            Specify a PATTERN used during the search of the input: an input\n\
-            line is selected if it matches any of the specified patterns.\n\
-            Note that longer patterns take precedence over shorter patterns.\n\
-            This option is most useful when multiple -e options are used to\n\
-            specify multiple patterns, when a pattern begins with a dash (`-'),\n\
-            to specify a pattern after option -f or after the FILE arguments.\n\
+            Specify a PATTERN to search the input.  An input line is selected\n\
+            if it matches any of the specified patterns.  Note that longer\n\
+            patterns take precedence over shorter patterns.  This option is\n\
+            most useful when multiple -e options are used to specify multiple\n\
+            patterns, when a pattern begins with a dash (`-'), to specify a\n\
+            pattern after option -f or after the FILE arguments.\n\
     --encoding=ENCODING\n\
             The encoding format of the input.  The default ENCODING is binary\n\
             and UTF-8 which are the same.  Note that option -U specifies binary\n\
@@ -13674,15 +13657,14 @@ void help(std::ostream& out)
   }
   out << ".\n\
     --exclude=GLOB\n\
-            Skip files whose name matches GLOB using wildcard matching, same as\n\
-            -g ^GLOB.  GLOB can use **, *, ?, and [...] as wildcards and \\ to\n\
-            quote a wildcard or backslash character literally.  When GLOB\n\
-            contains a `/', full pathnames are matched.  Otherwise basenames\n\
-            are matched.  When GLOB ends with a `/', directories are excluded\n\
-            as if --exclude-dir is specified.  Otherwise files are excluded.\n\
-            Note that --exclude patterns take priority over --include patterns.\n\
-            GLOB should be quoted to prevent shell globbing.  This option may\n\
-            be repeated.\n\
+            Exclude files whose name matches GLOB, same as -g ^GLOB.  GLOB can\n\
+            use **, *, ?, and [...] as wildcards and \\ to quote a wildcard or\n\
+            backslash character literally.  When GLOB contains a `/', full\n\
+            pathnames are matched.  Otherwise basenames are matched.  When GLOB\n\
+            ends with a `/', directories are excluded as if --exclude-dir is\n\
+            specified.  Otherwise files are excluded.  Note that --exclude\n\
+            patterns take priority over --include patterns.  GLOB should be\n\
+            quoted to prevent shell globbing.  This option may be repeated.\n\
     --exclude-dir=GLOB\n\
             Exclude directories whose name matches GLOB from recursive\n\
             searches, same as -g ^GLOB/.  GLOB can use **, *, ?, and [...] as\n\
@@ -13703,10 +13685,10 @@ void help(std::ostream& out)
             starting with a `#' and empty lines in FILE are ignored.  When FILE\n\
             is a `-', standard input is read.  This option may be repeated.\n\
     --exclude-fs=MOUNTS\n\
-            Exclude file systems specified by MOUNTS from recursive searches,\n\
-            MOUNTS is a comma-separated list of mount points or pathnames of\n\
-            directories on file systems.  Note that --exclude-fs mounts take\n\
-            priority over --include-fs mounts.  This option may be repeated.\n"
+            Exclude file systems specified by MOUNTS from recursive searches.\n\
+            MOUNTS is a comma-separated list of mount points or pathnames to\n\
+            directories.  Note that --exclude-fs=MOUNTS take priority over\n\
+            --include-fs=MOUNTS.  This option may be repeated.\n"
 #ifndef HAVE_STATVFS
             "\
             This option is not available in this build configuration of ugrep.\n"
@@ -13764,11 +13746,10 @@ void help(std::ostream& out)
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
     -G, --basic-regexp\n\
-            Interpret patterns as basic regular expressions (BREs), i.e. make\n\
-            ugrep behave as traditional grep.\n\
+            Interpret patterns as basic regular expressions (BREs).\n\
     -g GLOBS, --glob=GLOBS, --iglob=GLOBS\n\
-            Search only files whose name matches the specified comma-separated\n\
-            list of GLOBS, same as --include='glob' for each `glob' in GLOBS.\n\
+            Only search files whose name matches the specified comma-separated\n\
+            list of GLOBS, same as --include=glob for each `glob' in GLOBS.\n\
             When a `glob' is preceded by a `!' or a `^', skip files whose name\n\
             matches `glob', same as --exclude='glob'.  When `glob' contains a\n\
             `/', full pathnames are matched.  Otherwise basenames are matched.\n\
@@ -13838,15 +13819,14 @@ void help(std::ostream& out)
             arguments are never ignored.  This option may be repeated to\n\
             specify additional files.\n\
     --include=GLOB\n\
-            Search only files whose name matches GLOB using wildcard matching,\n\
-            same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards and\n\
-            \\ to quote a wildcard or backslash character literally.  When GLOB\n\
-            contains a `/', full pathnames are matched.  Otherwise basenames\n\
-            are matched.  When GLOB ends with a `/', directories are included\n\
-            as if --include-dir is specified.  Otherwise files are included.\n\
-            Note that --exclude patterns take priority over --include patterns.\n\
-            GLOB should be quoted to prevent shell globbing.  This option may\n\
-            be repeated.\n\
+            Only search files whose name matches GLOB, same as -g GLOB.  GLOB\n\
+            can use **, *, ?, and [...] as wildcards and \\ to quote a wildcard\n\
+            or backslash character literally.  When GLOB contains a `/', full\n\
+            pathnames are matched.  Otherwise basenames are matched.  When GLOB\n\
+            ends with a `/', directories are included as if --include-dir is\n\
+            specified.  Otherwise files are included.  Note that --exclude\n\
+            patterns take priority over --include patterns.  GLOB should be\n\
+            quoted to prevent shell globbing.  This option may be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose name matches GLOB are included in recursive\n\
             searches, same as -g GLOB/.  GLOB can use **, *, ?, and [...] as\n\
@@ -13870,10 +13850,10 @@ void help(std::ostream& out)
     --include-fs=MOUNTS\n\
             Only file systems specified by MOUNTS are included in recursive\n\
             searches.  MOUNTS is a comma-separated list of mount points or\n\
-            pathnames of directories on file systems.  --include-fs=. restricts\n\
-            recursive searches to the file system of the working directory\n\
-            only.  Note that --exclude-fs mounts take priority over\n\
-            --include-fs mounts.  This option may be repeated.\n"
+            pathnames to directories.  --include-fs=. restricts recursive\n\
+            searches to the file system of the working directory only.  Note\n\
+            that --exclude-fs=MOUNTS take priority over --include-fs=MOUNTS.\n\
+            This option may be repeated.\n"
 #ifndef HAVE_STATVFS
             "\
             This option is not available in this build configuration of ugrep.\n"
@@ -13897,17 +13877,17 @@ void help(std::ostream& out)
             simultaneously.  -J1 disables threading: files are searched in the\n\
             same order as specified.\n\
     -j, --smart-case\n\
-            Perform case insensitive matching like option -i, unless a pattern\n\
-            is specified with a literal ASCII upper case letter.\n\
+            Perform case insensitive matching, unless a pattern is specified\n\
+            with a literal upper case ASCII letter.\n\
     --json\n\
             Output file matches in JSON.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
     -K [MIN,][MAX], --range=[MIN,][MAX], --min-line=MIN, --max-line=MAX\n\
             Start searching at line MIN, stop at line MAX when specified.\n\
     -k, --column-number\n\
-            The column number of a matched pattern is displayed in front of the\n\
+            The column number of a pattern match is displayed in front of the\n\
             respective matched line, starting at column 1.  Tabs are expanded\n\
-            when columns are counted, see also option --tabs.\n\
+            in counting columns, see also option --tabs.\n\
     -L, --files-without-match\n\
             Only the names of files not containing selected lines are written\n\
             to standard output.  Pathnames are listed once per file searched.\n\
@@ -13931,7 +13911,7 @@ void help(std::ostream& out)
     --lines\n\
             Boolean line matching mode for option --bool, the default mode.\n\
     -M MAGIC, --file-magic=MAGIC\n\
-            Only files matching the signature pattern MAGIC are searched.  The\n\
+            Only search files matching the magic signature pattern MAGIC.  The\n\
             signature \"magic bytes\" at the start of a file are compared to\n\
             the MAGIC regex pattern.  When matching, the file will be searched.\n\
             When MAGIC is preceded by a `!' or a `^', skip files with matching\n\
@@ -13954,13 +13934,11 @@ void help(std::ostream& out)
             under certain conditions to improve performance.  When MAX is\n\
             specified, use up to MAX mmap memory per thread.\n\
     -N PATTERN, --neg-regexp=PATTERN\n\
-            Specify a negative PATTERN used during the search of the input: an\n\
-            input line is selected only if it matches the specified patterns\n\
-            unless it matches the negative PATTERN.  Same as -e (?^PATTERN).\n\
-            Negative pattern matches are essentially removed before any other\n\
-            patterns are matched.  Note that longer patterns take precedence\n\
-            over shorter patterns.  Option -N cannot be specified with -P.\n\
-            This option may be repeated.\n\
+            Specify a negative PATTERN to reject pattern matches that also\n\
+            match PATTERN.  Note that longer patterns take precedence over\n\
+            shorter patterns, i.e. a negative pattern must be of the same\n\
+            length or longer to reject matching patterns.  Option -N cannot be\n\
+            specified with -P.  This option may be repeated.\n\
     -n, --line-number\n\
             Each output line is preceded by its relative line number in the\n\
             file, starting at line 1.  The line number counter is reset for\n\
@@ -13975,28 +13953,27 @@ void help(std::ostream& out)
             displays the search patterns applied.  See also options --and,\n\
             --andnot, --bool, --files and --lines.\n\
     -O EXTENSIONS, --file-extension=EXTENSIONS\n\
-            Search only files whose filename extensions match the specified\n\
-            comma-separated list of EXTENSIONS, same as --include='*.ext' for\n\
-            each `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a\n\
-            `^', skip files whose filename extensions matches `ext', same as\n\
-            --exclude='*.ext'.  This option may be repeated and may be combined\n\
-            with options -g, -M and -t to expand the recursive search.\n\
+            Only search files whose filename extensions match the specified\n\
+            comma-separated list of EXTENSIONS, same as -g '*.ext' for each\n\
+            `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a `^',\n\
+            skip files whose filename extensions matches `ext', same as\n\
+            -g '^*.ext'.  This option may be repeated and may be combined with\n\
+            options -g, -M and -t to expand the recursive search.\n\
     -o, --only-matching\n\
-            Output only the matching part of lines.  If -A, -B or -C is\n\
-            specified, fits the match and its context on a line within the\n\
-            specified number of columns.\n\
+            Only the matching part of a pattern match is output.  If -A, -B or\n\
+            -C is specified, fits the match and its context on a line within\n\
+            the specified number of columns.\n\
     --only-line-number\n\
-            The line number of the matching line in the file is output without\n\
-            displaying the match.  The line number counter is reset for each\n\
-            file processed.\n\
+            Only the line number of a matching line is output.  The line number\n\
+            counter is reset for each file processed.\n\
     --files, -%%\n\
             Boolean file matching mode, the opposite of --lines.  When combined\n\
             with option --bool, matches a file if all Boolean conditions are\n\
-            satisfied.  For example, --files --bool 'A B|C -D' matches a file\n\
+            satisfied.  For example, --bool --files 'A B|C -D' matches a file\n\
             if some lines match `A', and some lines match either `B' or `C',\n\
             and no line matches `D'.  See also options --and, --andnot, --not,\n\
             --bool and --lines.  The double short option -%% enables options\n\
-            --files --bool.\n\
+            --bool --files.\n\
     -P, --perl-regexp\n\
             Interpret PATTERN as a Perl regular expression"
 #if defined(HAVE_PCRE2)
@@ -14042,7 +14019,7 @@ void help(std::ostream& out)
             Quiet mode: suppress all output.  Only search a file until a match\n\
             has been found.\n\
     -R, --dereference-recursive\n\
-            Recursively read all files under each directory.  Follow symbolic\n\
+            Recursively read all files under each directory, following symbolic\n\
             links to files and directories, unlike -r.\n\
     -r, --recursive\n\
             Recursively read all files under each directory, following symbolic\n\
@@ -14050,16 +14027,16 @@ void help(std::ostream& out)
             arguments are specified and input is read from a terminal,\n\
             recursive searches are performed as if -r is specified.\n\
     --replace=FORMAT\n\
-            Replace matching patterns in the output by the specified FORMAT\n\
-            with `%' fields.  If -P is specified, FORMAT may include `%1' to\n\
-            `%9', `%[NUM]#' and `%[NAME]#' to output group captures.  A `%%'\n\
-            outputs `%' and `%~' outputs a newline.  See option --format,\n\
-            `ugrep --help format' and `man ugrep' section FORMAT for details.\n\
+            Replace matching patterns in the output by FORMAT with `%' fields.\n\
+            If -P is specified, FORMAT may include `%1' to `%9', `%[NUM]#' and\n\
+            `%[NAME]#' to output group captures.  A `%%' outputs `%' and `%~'\n\
+            outputs a newline.  See also option --format, `ugrep --help format'\n\
+            and `man ugrep' section FORMAT for details.\n\
     -S, --dereference-files\n\
             When -r is specified, follow symbolic links to files, but not to\n\
             directories.  The default is not to follow symbolic links.\n\
     -s, --no-messages\n\
-            Silent mode: nonexistent and unreadable files are ignored, i.e.\n\
+            Silent mode: nonexistent and unreadable files are ignored and\n\
             their error messages and warnings are suppressed.\n\
     --save-config[=FILE] [OPTIONS]\n\
             Save configuration FILE to include OPTIONS.  Update FILE when\n\
@@ -14172,7 +14149,7 @@ void help(std::ostream& out)
     -y, --any-line, --passthru\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
             context with a `-' separator.  See also options -A, -B and -C.\n\
-    -Z[best][+-~][MAX], --fuzzy=[best][+-~][MAX]\n\
+    -Z[best][+-~][MAX], --fuzzy[=[best][+-~][MAX]]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             The default is -Z1: one deletion, insertion or substitution is\n\
             allowed.  If `+`, `-' and/or `~' is specified, then `+' allows\n\
@@ -14233,7 +14210,7 @@ void help(std::ostream& out)
     --zmax=NUM\n\
             When used with option -z (--decompress), searches the contents of\n\
             compressed files and archives stored within archives by up to NUM\n\
-            expansion levels deep.  The default --zmax=1 only permits searching\n\
+            expansion stages.  The default --zmax=1 only permits searching\n\
             uncompressed files stored in cpio, pax, tar and zip archives;\n\
             compressed files and archives are detected as binary files and are\n\
             effectively ignored.  Specify --zmax=2 to search compressed files\n\
@@ -14307,7 +14284,7 @@ void help(const char *what)
             if (((what[j] ^ str.at(i + j)) & ~0x20) != 0)
               break;
 
-          if (what[j] == '\0')
+          if (what[j] == '\0' || what[j] == '=' || isspace(what[j]))
           {
             if (pass == 0 ? i < nl: i > nl)
             {
@@ -14467,7 +14444,7 @@ matches `x y' three times and a `z', since the outer parentheses group the AND\n
 (a space).\n\
 \n\
 The default is to match lines satisfying the Boolean query.  To match files,\n\
-specify the double short option -%% to enable both options --files --bool.\n\
+specify the double short option -%% to enable both options --bool --files.\n\
 \n\
 See also options --and, --andnot, --not to specify sub-patterns as command-line\n\
 arguments with options as logical operators.\n\
