@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 18, 2023" "ugrep 4.4.0" "User Commands"
+.TH UGREP "1" "December 19, 2023" "ugrep 4.4.1" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -776,8 +776,9 @@ extensions passed to option \fB\-O\fR and filenames passed to option \fB\-g\fR.
 For capitalized file types, the search is expanded to include files
 with matching file signature magic bytes, as if passed to option
 \fB\-M\fR.  When a type is preceded by a `!' or a `^', excludes files of
-the specified type.  This option may be repeated.  The possible
-file types can be (where \fB\-t\fRlist displays a detailed list):
+the specified type.  Specifying the initial part of a type name
+suffices when the choice is unambiguous.  This option may be
+repeated.  The possible file types can be (\fB\-t\fRlist displays a list):
 `actionscript', `ada', `asm', `asp', `aspx', `autoconf', `automake',
 `awk', `Awk', `basic', `batch', `bison', `c', `c++',
 `clojure', `cpp', `csharp', `css', `csv', `dart', `Dart',

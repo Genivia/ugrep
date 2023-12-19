@@ -4636,9 +4636,10 @@ in markdown:
                   For capitalized file types, the search is expanded to include
                   files with matching file signature magic bytes, as if passed to
                   option -M.  When a type is preceded by a `!' or a `^', excludes
-                  files of the specified type.  This option may be repeated.  The
-                  possible file types can be (where -tlist displays a detailed
-                  list): `actionscript', `ada', `asm', `asp', `aspx', `autoconf',
+                  files of the specified type.  Specifying the initial part of a
+                  type name suffices when the choice is unambiguous.  This option
+                  may be repeated.  The possible file types can be (-tlist displays
+                  a list): `actionscript', `ada', `asm', `asp', `aspx', `autoconf',
                   `automake', `awk', `Awk', `basic', `batch', `bison', `c', `c++',
                   `clojure', `cpp', `csharp', `css', `csv', `dart', `Dart',
                   `delphi', `elisp', `elixir', `erlang', `fortran', `gif', `Gif',
@@ -5347,7 +5348,7 @@ in markdown:
 
 
 
-    ugrep 4.4.0                     December 18, 2023                       UGREP(1)
+    ugrep 4.4.1                     December 19, 2023                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

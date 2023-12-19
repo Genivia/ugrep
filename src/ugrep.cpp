@@ -6898,16 +6898,33 @@ void init(int argc, const char **argv)
         std::string type(types.substr(from, size));
 
         size_t i;
+        bool found = false;
+        bool valid = true;
 
-        // scan the type_table[] for a matching type
-        for (i = 0; type_table[i].type != NULL; ++i)
-          if (type == type_table[i].type)
-            break;
-
-        // if not found then find an unambiguous type with the specified filename suffix 
-        if (type_table[i].type == NULL)
+        // scan the type_table[] for the specified type, allowing type to be a prefix when unambiguous
+        for (size_t j = 0; type_table[j].type != NULL; ++j)
         {
-          size_t k = i;
+          if (type.compare(0, size, type_table[j].type, size) == 0)
+          {
+            // an ambiguous prefix is not a valid type
+            if (found)
+              valid = false;
+
+            found = true;
+            i = j;
+
+            // if full type match then we found a valid type match
+            if (strlen(type_table[j].type) == size)
+            {
+              valid = true;
+              break;
+            }
+          }
+        }
+
+        // if not found a valid type, then find an unambiguous type with the specified filename suffix 
+        if (!found && valid)
+        {
           for (size_t j = 0; type_table[j].type != NULL; ++j)
           {
             if (islower(type_table[j].type[0]))
@@ -6915,23 +6932,23 @@ void init(int argc, const char **argv)
               const char *s = strstr(type_table[j].extensions, type.c_str());
               if (s != NULL && (s == type_table[j].extensions || *--s == ','))
               {
-                if (type_table[k].type != NULL)
+                if (found)
                 {
-                  k = i;
+                  valid = false;
                   break;
                 }
-                k = j;
+                found = true;
+                i = j;
               }
             }
           }
-          i = k;
         }
 
-        if (type_table[i].type == NULL)
+        if (!found || !valid)
         {
           std::string msg("invalid argument -t TYPES, valid arguments are");
 
-          for (int i = 0; type_table[i].type != NULL; ++i)
+          for (i = 0; type_table[i].type != NULL; ++i)
             msg.append(" '").append(type_table[i].type).append("',");
           msg.append(" and 'list' to show a detailed list of file types");
 
@@ -14080,8 +14097,9 @@ void help(std::ostream& out)
             For capitalized file types, the search is expanded to include files\n\
             with matching file signature magic bytes, as if passed to option\n\
             -M.  When a type is preceded by a `!' or a `^', excludes files of\n\
-            the specified type.  This option may be repeated.  The possible\n\
-            file types can be (where -tlist displays a detailed list):";
+            the specified type.  Specifying the initial part of a type name\n\
+            suffices when the choice is unambiguous.  This option may be\n\
+            repeated.  The possible file types can be (-tlist displays a list):";
   for (int i = 0; type_table[i].type != NULL; ++i)
     out << (i == 0 ? "" : ",") << (i % 7 ? " " : "\n            ") << "`" << type_table[i].type << "'";
   out << ".\n\
