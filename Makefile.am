@@ -50,19 +50,19 @@ install-data-hook:
 		  rm -f ug.1 && \
 		  $(LN_S) ugrep.1 ug.1
 		@if [ "x$(bashcompletiondir)" != "x" ]; then \
-		  cd $(bashcompletiondir) && \
+		  cd $(DESTDIR)$(bashcompletiondir) && \
 		    $(LN_S) -f ug ug+ && \
 		    $(LN_S) -f ug ugrep && \
 		    $(LN_S) -f ug ugrep+; \
 		fi
 		@if [ "x$(fishcompletiondir)" != "x" ]; then \
-		  cd $(fishcompletiondir) && \
+		  cd $(DESTDIR)$(fishcompletiondir) && \
 		    sed -e 's/-c ug /-c ug+ /' ug.fish > ug+.fish && \
 		    sed -e 's/-c ug /-c ugrep /' ug.fish > ugrep.fish && \
 		    sed -e 's/-c ug /-c ugrep+ /' ug.fish > ugrep+.fish; \
 		fi
 		@if [ "x$(zshcompletiondir)" != "x" ]; then \
-		  cd $(zshcompletiondir) && \
+		  cd $(DESTDIR)$(zshcompletiondir) && \
 		    sed -e 's/^#compdef ug/#compdef ug+/' _ug > _ug+ && \
 		    sed -e 's/^#compdef ug/#compdef ugrep/' _ug > _ugrep && \
 		    sed -e 's/^#compdef ug/#compdef ugrep+/' _ug > _ugrep+; \
