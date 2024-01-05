@@ -1,4 +1,4 @@
-AC_INIT([ugrep],[4.4])
+AC_INIT([ugrep],[4.5])
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_HEADERS([config.h])
 AC_COPYRIGHT([Copyright (C) 2019-2023 Robert van Engelen, Genivia Inc.])
@@ -70,6 +70,8 @@ fi
 
 AX_CHECK_ZLIB([], [echo "recommended zlib not found: ugrep option -z is disabled"])
 
+if test -n "${zlib_places}"; then
+
 AX_CHECK_BZ2LIB([], [echo "recommended libbz2 not found: ugrep option -z cannot search .bz and .bz2 files"])
 
 AX_CHECK_LZMALIB([], [echo "recommended liblzma not found: ugrep option -z cannot search .lzma and .xz files"])
@@ -79,6 +81,22 @@ AX_CHECK_LZ4LIB([], [echo "optional liblz4 not found: install if you want ugrep 
 AX_CHECK_ZSTDLIB([], [echo "optional libzstd not found: install if you want ugrep option -z to search .zst files"])
 
 AX_CHECK_BROTLILIB([], [echo "optional brotli library not found: install if you want ugrep option -z to search .br files"])
+
+AC_ARG_ENABLE(7zip,
+  [AS_HELP_STRING([--disable-7zip],
+                  [to disable 7zip and no longer search .7z files (7z requires more memory and takes long to decompress)])],
+  [with_no_7zip="yes"],
+  [with_no_7zip="no"])
+AC_MSG_CHECKING(for --disable-7zip)
+if test "x$with_no_7zip" = "xno"; then
+  AC_MSG_RESULT(no)
+  CPPFLAGS="$CPPFLAGS -I../lzma/C"
+  LDFLAGS="$LDFLAGS -L../lzma/C"
+  LIBS="-lviiz $LIBS"
+else
+  EXTRA_CFLAGS="-DWITH_NO_7ZIP ${EXTRA_CFLAGS}"
+  AC_MSG_RESULT(yes)
+fi
 
 AC_ARG_WITH(bzip3,
   [AS_HELP_STRING([--with-bzip3],
@@ -90,6 +108,8 @@ if test "x$with_bzip3_library" != "x"; then
     unset with_bzip3
   fi
   AX_CHECK_BZIP3LIB([], [echo "optional libbzip3 not found: install if you want ugrep option -z to search .bz3 files"])
+fi
+
 fi
 
 AC_ARG_WITH([bash-completion-dir],
@@ -353,6 +373,6 @@ AC_SUBST(SIMD_AVX512BW_FLAGS)
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
 
-AC_CONFIG_FILES([Makefile lib/Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile lib/Makefile src/Makefile lzma/C/Makefile])
 
 AC_OUTPUT

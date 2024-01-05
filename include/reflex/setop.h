@@ -265,7 +265,7 @@ struct lazy_intersection {
     {
       return !operator==(rhs);
     }
-    void find(void)
+    void find()
     {
       while (i1 != i1_end && i2 != i2_end)
       {
@@ -277,7 +277,7 @@ struct lazy_intersection {
           break;
       }
     }
-    void next(void)
+    void next()
     {
       if (i1 != i1_end)
         i1++;
@@ -295,11 +295,11 @@ struct lazy_intersection {
       s1(s1),
       s2(s2)
   { }
-  const_iterator begin(void) const
+  const_iterator begin() const
   {
     return const_iterator(s1, s2);
   }
-  const_iterator end(void) const
+  const_iterator end() const
   {
     return const_iterator(s1.end(), s2.end());
   }
@@ -358,7 +358,7 @@ struct lazy_union {
     {
       return !operator==(rhs);
     }
-    void find(void)
+    void find()
     {
       if (i1 == i1_end)
       {
@@ -370,7 +370,7 @@ struct lazy_union {
           ++i2;
       }
     }
-    void next(void)
+    void next()
     {
       if (i1 == i1_end)
       {
@@ -428,11 +428,11 @@ struct lazy_union {
       s1(s1),
       s2(s2)
   { }
-  const_iterator begin(void) const
+  const_iterator begin() const
   {
     return const_iterator(s1, s2);
   }
-  const_iterator end(void) const
+  const_iterator end() const
   {
     return const_iterator(s1.end(), s2.end());
   }

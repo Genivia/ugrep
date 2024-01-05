@@ -59,7 +59,7 @@ Overview
 
   💡 `-Q` replaces `PATTERN` on the command line to let you enter patterns interactively in the TUI.  In the TUI use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.
 
-- Search the contents of [archives](#archives) (cpio, jar, tar, pax, zip) and [compressed files](#archives) (zip, gz, Z, bz, bz2, lzma, xz, lz4, zstd, brotli)
+- Search the contents of [archives](#archives) (zip, tar, pax, jar, cpio, 7z) and [compressed files](#archives) (gz, Z, bz, bz2, lzma, xz, lz4, zstd, brotli)
 
       ug -z PATTERN ...                      ug -z --zmax=2 PATTERN ...
 
@@ -89,7 +89,6 @@ Overview
       ug --filter='odt,doc,docx,rtf,xls,xlsx,ppt,pptx:soffice --headless --cat %' PATTERN ...
       ug --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
       ug --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
-      ug --filter='7z:7z x -so -si' PATTERN ...
 
   💡 the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata
 
@@ -749,9 +748,9 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
 - **ugrep** supports fuzzy (approximate) matching with option `-Z`.
 - **ugrep** supports user-defined global and local configuration files.
 - **ugrep** searches compressed files and archives with option `-z`.
-- **ugrep** searches cpio, jar, pax, tar and zip archives with option `-z`.
-- **ugrep** searches cpio, jar, pax, tar and zip archives recursively stored
-  within archives with `-z` and `--zmax=NUM` for up to `NUM` levels deep.
+- **ugrep** searches cpio, jar, pax, tar, zip and 7z archives with option `-z`.
+- **ugrep** searches cpio, jar, pax, tar, zip and 7z archives recursively
+  stored within archives with `-z` and `--zmax=NUM` for up to `NUM` levels deep.
 - **ugrep** searches pdf, doc, docx, xls, xlsx, epub, and more with `--filter`
   using third-party format conversion utilities as plugins.
 - **ugrep** searches a directory when the FILE argument is a directory, like
@@ -778,7 +777,7 @@ Commonly-used aliases to add to `.bashrc` to increase productivity:
   signature magic byte patterns, and predefined file types, respectively.  This
   allows searching for certain types of files in directory trees, for example
   with recursive search options `-R` and `-r`.  Options `-O`, `-M`, and `-t`
-  also applies to archived files in cpio, jar, pax, tar, and zip files.
+  also applies to archived files in cpio, jar, pax, tar, zip and 7z files.
 - **ugrep** option `-k`, `--column-number` to display the column number, taking
   tab spacing into account by expanding tabs, as specified by option `--tabs`.
 - **ugrep** option `-P` (Perl regular expressions) supports backreferences
@@ -1621,13 +1620,11 @@ same line, like XOR:
             If the standard input is searched, the string ``(standard input)''
             is written.
     -N PATTERN, --neg-regexp=PATTERN
-            Specify a negative PATTERN used during the search of the input: an
-            input line is selected only if it matches the specified patterns
-            unless it matches the negative PATTERN.  Same as -e (?^PATTERN).
-            Negative pattern matches are essentially removed before any other
-            patterns are matched.  Note that longer patterns take precedence
-            over shorter patterns.  Option -N cannot be specified with -P.
-            This option may be repeated.
+            Specify a negative PATTERN to reject specific -e PATTERN matches
+            with a counter pattern.  Note that longer patterns take precedence
+            over shorter patterns, i.e. a negative pattern must be of the same
+            length or longer to reject matching patterns.  Option -N cannot be
+            specified with -P.  This option may be repeated.
     -v, --invert-match
             Selected lines are those not matching any of the specified
             patterns.
@@ -2023,15 +2020,15 @@ comments:
 
     -z, --decompress
             Search compressed files and archives.  Archives (.cpio, .pax, .tar)
-            and compressed archives (e.g. .zip, .taz, .tgz, .tpz, .tbz, .tbz2,
-            .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching pathnames
-            of files in archives are output in braces.  When used with option
-            --zmax=NUM, searches the contents of compressed files and archives
-            stored within archives up to NUM levels.  If -g, -O, -M, or -t is
-            specified, searches files stored in archives whose filenames match
-            globs, match filename extensions, match file signature magic bytes,
-            or match file types, respectively.
-            Supported compression formats: gzip (.gz), compress (.Z), zip,
+            and compressed archives (e.g. .zip, .7z, .taz, .tgz, .tpz, .tbz,
+            .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching
+            pathnames of files in archives are output in braces.  When used
+            with option --zmax=NUM, searches the contents of compressed files
+            and archives stored within archives up to NUM levels.  If -g, -O,
+            -M, or -t is specified, searches files stored in archives whose
+            filenames match globs, match filename extensions, match file
+            signature magic bytes, or match file types, respectively.
+            Supported compression formats: gzip (.gz), compress (.Z), zip, 7z,
             bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
             lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
             lz4 (requires suffix .lz4),
@@ -2041,12 +2038,12 @@ comments:
     --zmax=NUM
             When used with option -z (--decompress), searches the contents of
             compressed files and archives stored within archives by up to NUM
-            expansion levels deep.  The default --zmax=1 only permits searching
-            uncompressed files stored in cpio, pax, tar and zip archives;
+            expansion stages.  The default --zmax=1 only permits searching
+            uncompressed files stored in cpio, pax, tar, zip and 7z archives;
             compressed files and archives are detected as binary files and are
             effectively ignored.  Specify --zmax=2 to search compressed files
-            and archives stored in cpio, pax, tar and zip archives.  NUM may
-            range from 1 to 99 for up to 99 decompression and de-archiving
+            and archives stored in cpio, pax, tar, zip and 7z archives.  NUM
+            may range from 1 to 99 for up to 99 decompression and de-archiving
             steps.  Increasing NUM values gradually degrades performance.
 
 Files compressed with gzip (`.gz`), compress (`.Z`), bzip2 (`.bz`, `.bz2`,
@@ -2058,20 +2055,20 @@ although slower.
 
 Other compression formats can be searched with **ugrep** [filters](#filter).
 
-Archives (cpio, jar, pax, tar, and zip) are searched with option `-z`.  Regular
-files in an archive that match are output with the archive pathnames enclosed
-in `{` and `}` braces.  Supported tar formats are v7, ustar, gnu, oldgnu, and
-pax.  Supported cpio formats are odc, newc, and crc.  Not supported is the
-obsolete non-portable old binary cpio format.  Archive formats cpio, tar, and
-pax are automatically recognized with option `-z` based on their content,
-independent of their filename suffix.
+Archives (cpio, jar, pax, tar, zip and 7z) are searched with option `-z`.
+Regular files in an archive that match are output with the archive pathnames
+enclosed in `{` and `}` braces.  Supported tar formats are v7, ustar, gnu,
+oldgnu, and pax.  Supported cpio formats are odc, newc, and crc.  Not supported
+is the obsolete non-portable old binary cpio format.  Archive formats cpio,
+tar, and pax are automatically recognized with option `-z` based on their
+content, independent of their filename suffix.
 
 By default, uncompressed archives stored within zip archives are also searched:
-all cpio, pax, and tar files in zip archives are automatically recognized and
-searched.  However, by default compressed files stored within archives are not
-recognized, e.g. zip files stored within tar files are not searched but rather
-all compressed files and archives are searched as if they are binary files
-without decompressing them.
+all cpio, pax, and tar files stored in zip and 7z archives are automatically
+recognized and searched.  However, by default, compressed files stored within
+archives are not recognized, e.g. zip files stored within tar files are not
+searched but rather all compressed files and archives are searched as if they
+are binary files without decompressing them.
 
 Specify `--zmax=NUM` to search archives that contain compressed files and
 archives for up to `NUM` levels deep.  The value of `NUM` may range from 1 to
@@ -2086,14 +2083,14 @@ compressed and uncompressed files that match the filename selection criteria
 `ugrep -r -z -tc++` searches C++ files such as `main.cpp` and zip and tar
 archives that contain C++ files such as `main.cpp`.  Also included in the
 search are compressed C++ files such as `main.cpp.gz` and `main.cpp.xz` when
-present.  Also any cpio, pax, tar, and zip archives when present are searched
-for C++ files that they contain, such as `main.cpp`.  Use option `--stats` to
-see a list of the glob patterns applied to filter file pathnames in the
-recursive search and when searching archive contents.
+present.  Also any cpio, pax, tar, zip and 7z archives when present are
+searched for C++ files that they contain, such as `main.cpp`.  Use option
+`--stats` to see a list of the glob patterns applied to filter file pathnames
+in the recursive search and when searching archive contents.
 
 When option `-z` is used with options `-g`, `-O`, `-M`, or `-t` to search cpio,
-jar, pax, tar, and zip archives, archived files that match the filename selection
-criteria are searched only.
+jar, pax, tar, zip and 7z archives, archived files that match the filename
+selection criteria are searched only.
 
 The gzip, compress, and zip formats are automatically detected, which is useful
 when reading gzip-compressed data from standard input, e.g. input redirected
@@ -2113,6 +2110,7 @@ format    | filename suffix         | tar/pax archive short suffix    | suffix r
 gzip      | `.gz`                   | `.taz`, `.tgz`, `.tpz`          | no               | automatic        | libz         |
 compress  | `.Z`                    | `.taZ`, `.tZ`                   | no               | automatic        | *built-in*   |
 zip       | `.zip`, `.zipx`, `.ZIP` |                                 | no               | automatic        | libz         |
+7zip      | `.7z`                   |                                 | yes              | `--label=.7z`    | *built-in*   |
 bzip2     | `.bz`, `.bz2`, `.bzip2` | `.tb2`, `.tbz`, `.tbz2`, `.tz2` | yes              | `--label=.bz2`   | libbz2       |
 lzma      | `.lzma`                 | `.tlz`                          | yes              | `--label=.lzma`  | liblzma      |
 xz        | `.xz`                   | `.txz`                          | yes              | `--label=.xz`    | liblzma      |
@@ -2122,7 +2120,7 @@ brotli    | `.br`                   |                                 | yes     
 bzip3     | `.bz3`                  |                                 | yes              | `--label=.bz3`   | libbzip3     |
 
 The gzip, bzip2, xz, lz4 and zstd formats support concatenated compressed
-files.  Concatenated compressed files are searched as one file.
+files.  Concatenated compressed files are searched as one single file.
 
 Supported zip compression methods are stored (0), deflate (8), bzip2 (12), lzma
 (14), xz (95) and zstd (93).  The bzip2, lzma, xz and zstd methods require
@@ -2131,12 +2129,18 @@ ugrep to be compiled with the corresponding compression libraries.
 Searching encrypted zip archives is not supported (perhaps in future releases,
 depending on requests for enhancements).
 
+Searching 7zip archives takes a lot more RAM and more time compared to other
+methods.  The 7zip LZMA SDK implementation does not support streaming,
+requiring a physical seekable 7z file.  This means that 7z files cannot be
+searched when nested within archives.  Best is to avoid 7zip.  Support for 7zip
+can be disabled with `./build.sh --disable-7zip` to build ugrep.
+
 Option `-z` uses threads for task parallelism to speed up searching larger
 files by running the decompressor concurrently with a search of the
 decompressed stream.
 
 To list all non-empty files stored in a `package.zip` archive, including the
-contents of all cpio, pax, tar and zip files that are stored in it:
+contents of all cpio, pax, tar, zip and 7z files that are stored in it:
 
     ug --zmax=2 -z -l '' package.zip
 
@@ -4471,9 +4475,9 @@ in markdown:
                   specified, use up to MAX mmap memory per thread.
 
            -N PATTERN, --neg-regexp=PATTERN
-                  Specify a negative PATTERN to reject pattern matches that also
-                  match PATTERN.  Note that longer patterns take precedence over
-                  shorter patterns, i.e. a negative pattern must be of the same
+                  Specify a negative PATTERN to reject specific -e PATTERN matches
+                  with a counter pattern.  Note that longer patterns take precedence
+                  over shorter patterns, i.e. a negative pattern must be of the same
                   length or longer to reject matching patterns.  Option -N cannot be
                   specified with -P.  This option may be repeated.
 
@@ -4756,29 +4760,29 @@ in markdown:
 
            -z, --decompress
                   Search compressed files and archives.  Archives (.cpio, .pax,
-                  .tar) and compressed archives (e.g. .zip, .taz, .tgz, .tpz, .tbz,
-                  .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching
-                  pathnames of files in archives are output in braces.  When used
-                  with option --zmax=NUM, searches the contents of compressed files
-                  and archives stored within archives up to NUM levels.  If -g, -O,
-                  -M, or -t is specified, searches files stored in archives whose
-                  filenames match globs, match filename extensions, match file
-                  signature magic bytes, or match file types, respectively.
-                  Supported compression formats: gzip (.gz), compress (.Z), zip,
-                  bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2,
-                  .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz, .txz), lz4
-                  (requires suffix .lz4), zstd (requires suffix .zst, .zstd, .tzst),
-                  brotli (requires suffix .br).
+                  .tar) and compressed archives (e.g. .zip, .7z, .taz, .tgz, .tpz,
+                  .tbz, .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and
+                  matching pathnames of files in archives are output in braces.
+                  When used with option --zmax=NUM, searches the contents of
+                  compressed files and archives stored within archives up to NUM
+                  levels.  If -g, -O, -M, or -t is specified, searches files stored
+                  in archives whose filenames match globs, match filename
+                  extensions, match file signature magic bytes, or match file types,
+                  respectively.  Supported compression formats: gzip (.gz), compress
+                  (.Z), zip, 7z, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz,
+                  .tbz2, .tb2, .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz,
+                  .txz), lz4 (requires suffix .lz4), zstd (requires suffix .zst,
+                  .zstd, .tzst), brotli (requires suffix .br).
 
            --zmax=NUM
                   When used with option -z (--decompress), searches the contents of
                   compressed files and archives stored within archives by up to NUM
                   expansion stages.  The default --zmax=1 only permits searching
-                  uncompressed files stored in cpio, pax, tar and zip archives;
+                  uncompressed files stored in cpio, pax, tar, zip and 7z archives;
                   compressed files and archives are detected as binary files and are
                   effectively ignored.  Specify --zmax=2 to search compressed files
-                  and archives stored in cpio, pax, tar and zip archives.  NUM may
-                  range from 1 to 99 for up to 99 decompression and de-archiving
+                  and archives stored in cpio, pax, tar, zip and 7z archives.  NUM
+                  may range from 1 to 99 for up to 99 decompression and de-archiving
                   steps.  Increasing NUM values gradually degrades performance.
 
            -0, --null
@@ -5290,8 +5294,9 @@ in markdown:
 
                   $ ugrep -n FIXME -tc++ -g^bak/,^old/
 
-           Recursively search for the word `copyright' in cpio/jar/pax/tar/zip
-           archives, compressed and regular files, and in PDFs using a PDF filter:
+           Recursively search for the word `copyright' in cpio, jar, pax, tar, zip,
+           7z archives, compressed and regular files, and in PDFs using a PDF
+           filter:
 
                   $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 
@@ -5348,7 +5353,7 @@ in markdown:
 
 
 
-    ugrep 4.4.1                     December 19, 2023                       UGREP(1)
+    ugrep 4.5.0                      January 5, 2024                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

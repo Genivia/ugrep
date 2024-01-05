@@ -1,4 +1,4 @@
-SUBDIRS = lib src
+SUBDIRS = lib lzma/C src
 
 man1_MANS = man/ugrep.1
 

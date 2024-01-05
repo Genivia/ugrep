@@ -2727,7 +2727,7 @@ void Query::select()
 
     mark_.reset();
 
-    size_t n = pathname.find(PATHSEPCHR);
+    size_t n = pathname.find(PATHSEPCHR, 1); // ignore PATHSEPCHR at front when present
     size_t b = pathname.find('{'); // do not cd into archives
     if (n != std::string::npos && (b == std::string::npos || n < b))
     {
@@ -2742,7 +2742,12 @@ void Query::select()
         return;
       }
 
-      dirs_.append(dir);
+      // absolute dir or relative dir
+      if (dir.front() == PATHSEPCHR)
+        dirs_.assign(dir);
+      else
+        dirs_.append(dir);
+
       pathname.erase(0, n + 1);
 
       // a directory change affects --hyperlink
@@ -2807,14 +2812,11 @@ void Query::deselect()
       }
     }
 
-    if (chdir("..") < 0)
-      return;
-
-    // a directory change affects --hyperlink
-    set_terminal_hyperlink();
-
     if (dirs_.empty())
     {
+      if (chdir("..") < 0)
+        return;
+
       dirs_.assign(".." PATHSEPSTR);
     }
     else
@@ -2823,22 +2825,38 @@ void Query::deselect()
 
       size_t n = dirs_.find_last_of(PATHSEPCHR);
 
-      if (n == std::string::npos)
+      if (n != std::string::npos && dirs_.front() == PATHSEPCHR)
       {
-        if (dirs_ != "..")
-          dirs_.clear();
-        else
-          dirs_.append(PATHSEPSTR ".." PATHSEPSTR);
-      }
-      else if (dirs_.compare(n + 1, std::string::npos, "..") == 0)
-      {
-        dirs_.append(PATHSEPSTR ".." PATHSEPSTR);
+        if (chdir(dirs_.substr(0, n + 1).c_str()) < 0)
+          return;
+
+        dirs_.resize(n + 1);
       }
       else
       {
-        dirs_.resize(n + 1);
+        if (chdir("..") < 0)
+          return;
+
+        if (n == std::string::npos)
+        {
+          if (dirs_ != "..")
+            dirs_.clear();
+          else
+            dirs_.append(PATHSEPSTR ".." PATHSEPSTR);
+        }
+        else if (dirs_.compare(n + 1, std::string::npos, "..") == 0)
+        {
+          dirs_.append(PATHSEPSTR ".." PATHSEPSTR);
+        }
+        else
+        {
+          dirs_.resize(n + 1);
+        }
       }
     }
+
+    // a directory change affects --hyperlink
+    set_terminal_hyperlink();
   }
   else
   {

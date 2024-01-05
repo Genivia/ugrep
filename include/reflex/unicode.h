@@ -46,16 +46,20 @@ namespace Unicode {
 class Tables : public Posix::Tables {
  public:
   Tables();
+  typedef std::map<int,const int*> Compose;
+  Compose compose;
  private:
-  void block_scripts(void);
-  void language_scripts(void);
-  void letter_scripts(void);
+  void block_scripts();
+  void language_scripts();
+  void letter_scripts();
+  void composer();
 };
 
 const int * range(const char *);
+int compose(int, int);
 
 } // namespace Unicode
 
-} // namespace reflex;
+} // namespace reflex
 
 #endif

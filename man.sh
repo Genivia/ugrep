@@ -633,8 +633,8 @@ and `old' directories:
 .IP
 $ ugrep -n FIXME -tc++ -g^bak/,^old/
 .PP
-Recursively search for the word `copyright' in cpio/jar/pax/tar/zip archives,
-compressed and regular files, and in PDFs using a PDF filter:
+Recursively search for the word `copyright' in cpio, jar, pax, tar, zip, 7z
+archives, compressed and regular files, and in PDFs using a PDF filter:
 .IP
 $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 .PP

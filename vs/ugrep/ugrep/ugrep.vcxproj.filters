@@ -203,12 +203,6 @@
     <ClInclude Include="include\reflex\error.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\zlib.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\zconf.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\zopen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -255,6 +249,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\reflex\simd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\reflex\pcre2matcher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\zlib-1.2.11\zlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\zlib-1.2.11\zconf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

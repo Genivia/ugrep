@@ -1,4 +1,4 @@
-.TH UGREP "1" "December 19, 2023" "ugrep 4.4.1" "User Commands"
+.TH UGREP "1" "January 05, 2024" "ugrep 4.5.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -614,9 +614,9 @@ under certain conditions to improve performance.  When MAX is
 specified, use up to MAX mmap memory per thread.
 .TP
 \fB\-N\fR \fIPATTERN\fR, \fB\-\-neg\-regexp\fR=\fIPATTERN\fR
-Specify a negative PATTERN to reject pattern matches that also
-match PATTERN.  Note that longer patterns take precedence over
-shorter patterns, i.e. a negative pattern must be of the same
+Specify a negative PATTERN to reject specific \fB\-e\fR \fIPATTERN\fR matches
+with a counter pattern.  Note that longer patterns take precedence
+over shorter patterns, i.e. a negative pattern must be of the same
 length or longer to reject matching patterns.  Option \fB\-N\fR cannot be
 specified with \fB\-P\fR.  This option may be repeated.
 .TP
@@ -893,15 +893,15 @@ text.  No whitespace may be given between \fB\-Z\fR and its argument.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
 Search compressed files and archives.  Archives (.cpio, .pax, .tar)
-and compressed archives (e.g. .zip, .taz, .tgz, .tpz, .tbz, .tbz2,
-\&.tb2, .tz2, .tlz, .txz, .tzst) are searched and matching pathnames
-of files in archives are output in braces.  When used with option
-\fB\-\-zmax\fR=\fINUM\fR, searches the contents of compressed files and archives
-stored within archives up to NUM levels.  If \fB\-g\fR, \fB\-O\fR, \fB\-M\fR, or \fB\-t\fR is
-specified, searches files stored in archives whose filenames match
-globs, match filename extensions, match file signature magic bytes,
-or match file types, respectively.
-Supported compression formats: gzip (.gz), compress (.Z), zip,
+and compressed archives (e.g. .zip, .7z, .taz, .tgz, .tpz, .tbz,
+\&.tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching
+pathnames of files in archives are output in braces.  When used
+with option \fB\-\-zmax\fR=\fINUM\fR, searches the contents of compressed files
+and archives stored within archives up to NUM levels.  If \fB\-g\fR, \fB\-O\fR,
+\fB\-M\fR, or \fB\-t\fR is specified, searches files stored in archives whose
+filenames match globs, match filename extensions, match file
+signature magic bytes, or match file types, respectively.
+Supported compression formats: gzip (.gz), compress (.Z), zip, 7z,
 bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
 lz4 (requires suffix .lz4),
@@ -912,11 +912,11 @@ brotli (requires suffix .br).
 When used with option \fB\-z\fR (\fB\-\-decompress\fR), searches the contents of
 compressed files and archives stored within archives by up to NUM
 expansion stages.  The default \fB\-\-zmax\fR=1 only permits searching
-uncompressed files stored in cpio, pax, tar and zip archives;
+uncompressed files stored in cpio, pax, tar, zip and 7z archives;
 compressed files and archives are detected as binary files and are
 effectively ignored.  Specify \fB\-\-zmax\fR=2 to search compressed files
-and archives stored in cpio, pax, tar and zip archives.  NUM may
-range from 1 to 99 for up to 99 decompression and de\-archiving
+and archives stored in cpio, pax, tar, zip and 7z archives.  NUM
+may range from 1 to 99 for up to 99 decompression and de\-archiving
 steps.  Increasing NUM values gradually degrades performance.
 .TP
 \fB\-0\fR, \fB\-\-null\fR
@@ -1389,8 +1389,8 @@ and `old' directories:
 .IP
 $ ugrep -n FIXME -tc++ -g^bak/,^old/
 .PP
-Recursively search for the word `copyright' in cpio/jar/pax/tar/zip archives,
-compressed and regular files, and in PDFs using a PDF filter:
+Recursively search for the word `copyright' in cpio, jar, pax, tar, zip, 7z
+archives, compressed and regular files, and in PDFs using a PDF filter:
 .IP
 $ ugrep -z -w --filter='pdf:pdftotext % -' copyright
 .PP

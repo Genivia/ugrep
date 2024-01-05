@@ -15,21 +15,19 @@ Download the latest version of PCRE2 from:
 
 	ftp://ftp.pcre.org/pub/pcre/
 
-Below we assume PCRE2 version 10.37 is used.
+Below we assume PCRE2 version 10.42 is used.
 
-Copy the downloaded pcre2-10.37 directory here.
+Copy the downloaded pcre2-10.42 directory here.
 
-Rename pcre2-10.37\src\config.h.generic as pcre2-10.37\src\config.h
+Rename pcre2-10.42\src\config.h.generic as pcre2-10.42\src\config.h
 
-Rename pcre2-10.37\src\pcre2.h.generic as pcre2-10.37\src\pcre2.h
+Rename pcre2-10.42\src\pcre2.h.generic as pcre2-10.42\src\pcre2.h
 
-Rename pcre2-10.37\src\pcre2_chartables.c.dist as pcre2-10.37\src\pcre2_chartables.c
+Rename pcre2-10.42\src\pcre2_chartables.c.dist as pcre2-10.42\src\pcre2_chartables.c
 
-Create a new C++ Static Library project in Visual Studio named "pcre2".  This
-should be an empty project (remove the .h and .cpp files when present).
+Create a new C++ Static Library project in Visual Studio named "pcre2".  This should be an empty project (remove the .h and .cpp files when present).
 
-Add all of the .h files and a select set of .c files in directory
-pcre2-10.37/src to the project sources:
+Add all of the .h files and a select set of .c files in directory pcre2-10.42/src to the project sources:
 
 	pcre2_auto_possess.c
 	pcre2_chartables.c
@@ -65,26 +63,24 @@ Select Release/x86 then Project Configuration Properties:
 		Use of MFC: Use Standard Windows Libraries
 	C/C++:
 		General:
-			Additional Include Directories: C:\Users\<YOUR-PATH-HERE>\ugrep\vs\ugrep\pcre2-10.37\src
+			Additional Include Directories: C:\Users\<YOUR-PATH-HERE>\ugrep\vs\ugrep\pcre2-10.42\src
 		Precompiled Headers:
 			Precompiled Header: Not Using Precompiled Headers
 		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_LIB;HAVE_CONFIG_H;PCRE2_STATIC;PCRE2_CODE_UNIT_WIDTH=8;SUPPORT_JIT;SUPPORT_UNICODE
+			Preprocessor Definitions: WIN32;NDEBUG;_LIB;WIN32_LEAN_AND_MEAN;HAVE_CONFIG_H;PCRE2_STATIC;PCRE2_CODE_UNIT_WIDTH=8;SUPPORT_JIT;SUPPORT_UNICODE;HAVE_MEMMOVE
 		Code Generation:
 			Runtime Library:
 				Multi-threaded (/MT)
 		Advanced:
-			Disable Specific Warnings: 4146;4703
+			Disable Specific Warnings: 4146;4703;4996
 
-Note: to increase the PCRE2 link size from 2 to 3 to support very large regex
-patterns, add LINK_SIZE=3 to the Preprocessor Definitions.
+Note: to increase the PCRE2 link size from 2 to 3 to support very large regex patterns, add LINK_SIZE=3 to the Preprocessor Definitions.
 
 Then build the pcre2.lib static library in Visual Studio.
 
 Copy Release\pcre2.lib to ugrep\vs\ugrep\pcre2-x32.lib.
 
-To build pcre2-x64.lib, repeat the last three steps, copy Release\x64\pcre2.lib
-to ugrep\vs\ugrep\pcre2-x64.lib.
+To build pcre2-x64.lib, repeat the last three steps, copy Release\x64\pcre2.lib to ugrep\vs\ugrep\pcre2-x64.lib.
 
 Download zlib 1.2.11 source code from:
 
@@ -127,12 +123,37 @@ Follow the instructions to build the Release Win32 and x64 versions of the libzs
 
 	https://github.com/facebook/zstd/tree/dev/build
 
+Next we build the viiz library based on 7zip LZMA SDK.  This step can be omitted when defining WITH_NO_7ZIP to compile ugrep.
+
+Create a new C++ Static Library project in Visual Studio named "viiz".  This should be an empty project (remove the .h and .cpp files when present).
+
+Add all of the .h and .c files from ugrep/lzma/C to the viiz project sources.
+
+Select Release/x86 then Project Configuration Properties:
+	General:
+		Configuration Type: Static library (.lib)
+		Use of MFC: Use Standard Windows Libraries
+	C/C++:
+		Precompiled Headers:
+			Precompiled Header: Not Using Precompiled Headers
+		Preprocessor: 
+			Preprocessor Definitions: WIN32;NDEBUG;_LIB;WIN32_LEAN_AND_MEAN;Z7_PPMD_SUPPORT;Z7_EXTRACT_ONLY;_REENTRANT;_FILE_OFFSET_BITS=64;_LARGEFILE_SOURCE
+		Code Generation:
+			Runtime Library:
+				Multi-threaded (/MT)
+
+Then build the viiz.lib static library in Visual Studio.
+
+Copy ugrep\Release\viiz.lib to ugrep\viiz-x32.lib
+
+To build viiz-x64.lib, repeat the last three steps, copy ugrep\Release\x64\viiz.lib to ugrep\viiz-x64.lib.
+
 After completing the steps above, this directory should contain the following directories and files (versions may differ):
 
 	api
 	bzip2-1.0.5
 	lz4-dev
-	pcre2-10.37
+	pcre2-10.42
 	Release
 	ugrep
 	x64
@@ -145,6 +166,8 @@ After completing the steps above, this directory should contain the following di
 	README.txt
 	ugrep.sln
 	manifest.xml
+        viiz-x32.lib
+        viiz-x64.lib
 
 Open vs\ugrep\ugrep.sln in Visual Studio.  Upgrade the version if prompted.
 
@@ -161,7 +184,7 @@ Project Configuration Properties
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
 		General:
-			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.37\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib
+			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.42\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib;$(ProjectDir)\lzma\C
 		Preprocessor: 
 			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;WITH_NO_CODEGEN;HAVE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
@@ -173,7 +196,7 @@ Project Configuration Properties
 		General:
 			Additional Library Directories: $(ProjectDir)\..;$(ProjectDir)\..\zstd-dev\build\VS2010\bin\Win32_Release
 		Input:
-			Additional Dependencies: pcre2-x32.lib;liblzma-x32.lib;libzstd_static.lib
+			Additional Dependencies: pcre2-x32.lib;liblzma-x32.lib;libzstd_static.lib;viiz-x32.lib
 	Manifest Tool:
 		Input and Output:
 			Additional Manifest Files: $(ProjectDir)\..\manifest.xml
@@ -195,8 +218,8 @@ Optionally, right-click on the matcher_avx512bw.cpp file to enable AVX512 when a
 Then build ugrep in Visual Studio.
 
 
-When using Boost.Regex for option -P (fallback)
------------------------------------------------
+When using Boost.Regex for option -P instead of PCRE2 (fallback)
+----------------------------------------------------------------
 
 Copy the ugrep\include, ugrep\lib, and ugrep\src directories to the Visual Studio ugrep project directory located below this directory to create ugrep\include, ugrep\lib, and ugrep\src.
 
@@ -289,7 +312,7 @@ Project Configuration Properties
 		Use of MFC: Use Standard Windows Libraries
 	C/C++
 		General:
-			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\boost_1_72_0;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib
+			Additional Include Directories: $(ProjectDir)\include;$(ProjectDir)\..\boost_1_72_0;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib;$(ProjectDir)\lzma\C
 		Preprocessor: 
 			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;WITH_NO_CODEGEN;HAVE_AVX2;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
@@ -301,7 +324,7 @@ Project Configuration Properties
 		General:
 			Additional Library Directories: $(ProjectDir)\..;$(ProjectDir)\..\zstd-dev\build\VS2010\bin\Win32_Release
 		Input:
-			Additional Dependencies: liblzma-x32.lib;libzstd_static.lib
+			Additional Dependencies: liblzma-x32.lib;libzstd_static.lib;viiz-x32.lib
 	Manifest Tool:
 		Input and Output:
 			Additional Manifest Files: $(ProjectDir)\..\manifest.xml

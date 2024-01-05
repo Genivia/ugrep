@@ -161,6 +161,7 @@ After this, you may want to test ugrep and install it (optional):
 
 // use zlib, libbz2, liblzma etc for option -z
 #ifdef HAVE_LIBZ
+# define WITH_MAX_7ZIP_SIZE 1073741824 // 7zip expands archived files in memory, we should limit expansion up to 1GB
 # include "zstream.hpp"
 #endif
 
@@ -6897,7 +6898,7 @@ void init(int argc, const char **argv)
 
         std::string type(types.substr(from, size));
 
-        size_t i;
+        size_t i = 0;
         bool found = false;
         bool valid = true;
 
@@ -7630,6 +7631,11 @@ void ugrep()
     flag_all_include.emplace_back("*.zip");
     flag_all_include.emplace_back("*.zipx");
     flag_all_include.emplace_back("*.ZIP");
+
+#ifndef WITH_NO_7ZIP
+    flag_all_include.emplace_back("*.7z");
+    flag_all_include.emplace_back("*.7Z");
+#endif
 
     flag_all_include.emplace_back("*.cpio.gz");
     flag_all_include.emplace_back("*.pax.gz");
@@ -13951,9 +13957,9 @@ void help(std::ostream& out)
             under certain conditions to improve performance.  When MAX is\n\
             specified, use up to MAX mmap memory per thread.\n\
     -N PATTERN, --neg-regexp=PATTERN\n\
-            Specify a negative PATTERN to reject pattern matches that also\n\
-            match PATTERN.  Note that longer patterns take precedence over\n\
-            shorter patterns, i.e. a negative pattern must be of the same\n\
+            Specify a negative PATTERN to reject specific -e PATTERN matches\n\
+            with a counter pattern.  Note that longer patterns take precedence\n\
+            over shorter patterns, i.e. a negative pattern must be of the same\n\
             length or longer to reject matching patterns.  Option -N cannot be\n\
             specified with -P.  This option may be repeated.\n\
     -n, --line-number\n\
@@ -14184,20 +14190,23 @@ void help(std::ostream& out)
             text.  No whitespace may be given between -Z and its argument.\n\
     -z, --decompress\n\
             Search compressed files and archives.  Archives (.cpio, .pax, .tar)\n\
-            and compressed archives (e.g. .zip, .taz, .tgz, .tpz, .tbz, .tbz2,\n\
-            .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching pathnames\n\
-            of files in archives are output in braces.  When used with option\n\
-            --zmax=NUM, searches the contents of compressed files and archives\n\
-            stored within archives up to NUM levels.  If -g, -O, -M, or -t is\n\
-            specified, searches files stored in archives whose filenames match\n\
-            globs, match filename extensions, match file signature magic bytes,\n\
-            or match file types, respectively.\n"
+            and compressed archives (e.g. .zip, .7z, .taz, .tgz, .tpz, .tbz,\n\
+            .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching\n\
+            pathnames of files in archives are output in braces.  When used\n\
+            with option --zmax=NUM, searches the contents of compressed files\n\
+            and archives stored within archives up to NUM levels.  If -g, -O,\n\
+            -M, or -t is specified, searches files stored in archives whose\n\
+            filenames match globs, match filename extensions, match file\n\
+            signature magic bytes, or match file types, respectively.\n"
 #ifndef HAVE_LIBZ
             "\
             This option is not available in this build configuration of ugrep.\n"
 #else
             "\
             Supported compression formats: gzip (.gz), compress (.Z), zip"
+#ifndef WITH_NO_7ZIP
+            ", 7z"
+#endif
 #ifdef HAVE_LIBBZ2
             ",\n\
             bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2)"
@@ -14229,11 +14238,11 @@ void help(std::ostream& out)
             When used with option -z (--decompress), searches the contents of\n\
             compressed files and archives stored within archives by up to NUM\n\
             expansion stages.  The default --zmax=1 only permits searching\n\
-            uncompressed files stored in cpio, pax, tar and zip archives;\n\
+            uncompressed files stored in cpio, pax, tar, zip and 7z archives;\n\
             compressed files and archives are detected as binary files and are\n\
             effectively ignored.  Specify --zmax=2 to search compressed files\n\
-            and archives stored in cpio, pax, tar and zip archives.  NUM may\n\
-            range from 1 to 99 for up to 99 decompression and de-archiving\n\
+            and archives stored in cpio, pax, tar, zip and 7z archives.  NUM\n\
+            may range from 1 to 99 for up to 99 decompression and de-archiving\n\
             steps.  Increasing NUM values gradually degrades performance.\n"
 #ifndef WITH_DECOMPRESSION_THREAD
             "\
@@ -14432,8 +14441,8 @@ void help(const char *what)
  \\W          a non-word character        \n\
  --------------------------------------      (-P): pattern requires option -P\n\
 \n\
-Character classes never match a newline, except when \\P, \\D, \\H, \\W or \\X\n\
-is specified or when a \\n or a \\R is specified, such as [\\s\\n].\n\
+Character classes do not match a newline, except for \\P, \\D, \\H, \\W and \\X\n\
+or when a \\n or a \\R is explicitly specified, such as [\\s\\n].\n\
 \n\
 Option -P enables Perl regex matching, supporting Unicode patterns, Unicode\n\
 word boundary matching, lookaheads and capturing groups.\n\
@@ -14441,7 +14450,7 @@ word boundary matching, lookaheads and capturing groups.\n\
 Option -U disables full Unicode pattern matching: non-POSIX Unicode character\n\
 classes \\p{class} are disabled, ASCII, LATIN1 and binary regex patterns only.\n\
 \n\
-Option -% (--bool) adds the following operations to regex patterns `a' and `b':\n\
+Options -% (--bool --lines) and -%% (--bool --files) augments pattern syntax:\n\
 \n\
  pattern     operation                   pattern     operation\n\
  ----------  --------------------------  ----------  --------------------------\n\
@@ -14453,7 +14462,6 @@ Option -% (--bool) adds the following operations to regex patterns `a' and `b':\
 \n\
 Listed from the highest level of precedence to the lowest, NOT is performed\n\
 before OR and OR is performed before AND.  Thus, `-x|y z' is `((-x)|y) z'.\n\
-\n\
 Spacing of the logical AND, OR and NOT operators is required.\n\
 \n\
 Nested parentheses that are part of a regex sub-pattern do not group logical\n\
@@ -14461,8 +14469,8 @@ operators.  For example, `((x y)z)' matches `x yz'.  Note that `((x y){3} z)'\n\
 matches `x y' three times and a `z', since the outer parentheses group the AND\n\
 (a space).\n\
 \n\
-The default is to match lines satisfying the Boolean query.  To match files,\n\
-specify the double short option -%% to enable both options --bool --files.\n\
+Option -% matches lines satisfying the Boolean query.  The double short option\n\
+-%% matches files satisfying the Boolean query.\n\
 \n\
 See also options --and, --andnot, --not to specify sub-patterns as command-line\n\
 arguments with options as logical operators.\n\

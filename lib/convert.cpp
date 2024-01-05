@@ -498,6 +498,31 @@ static void expand_list(const char *pattern, size_t len, size_t& loc, size_t& po
       pos += 3;
       expand_list(pattern, len, loc, pos, flags, mod, signature, par, macros, regex, nl1);
     }
+    else if ((c & 0xC0) == 0xC0 && is_modified(mod, 'u'))
+    {
+      // Unicode normalization may need to combine a previous ASCII character with a Unicode combining character
+      if (loc < pos && std::isalpha(pattern[pos - 1]))
+        --pos;
+      regex.append(&pattern[loc], pos - loc);
+      const char *s = &pattern[pos];
+      c = utf8(s, &s);
+      while (true)
+      {
+        // try combining one or more Unicode combining characters, if any
+        pos = s - pattern;
+        if (pos >= len || (*s & 0xC0) != 0xC0)
+          break;
+        int next = utf8(s, &s);
+        int combined = Unicode::compose(c, next);
+        if (combined < 0)
+          break;
+        c = combined;
+      }
+      char buf[8];
+      size_t size = utf8(c, buf);
+      regex.append(buf, size);
+      loc = pos--;
+    }
     ++pos;
     if (pos >= len || pattern[pos] == ']')
       break;
@@ -992,12 +1017,24 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
     }
     else
     {
-      if ((c & 0xC0) == 0xC0 && is_modified(mod, 'u'))
+      if (is_modified(mod, 'u'))
       {
-        // unicode: UTF-8 sequence
-        const char *r;
-        c = utf8(&pattern[pos], &r);
-        pos += r - &pattern[pos] - 1;
+        // Unicode normalization
+        const char *s = &pattern[pos];
+        c = utf8(s, &s);
+        while (true)
+        {
+          // try combining one or more Unicode combining characters, if any
+          pos = s - pattern;
+          if (pos >= len || (*s & 0xC0) != 0xC0)
+            break;
+          int next = utf8(s, &s);
+          int combined = Unicode::compose(c, next);
+          if (combined < 0)
+            break;
+          c = combined;
+        }
+        --pos;
       }
       if (range)
       {
@@ -2179,26 +2216,44 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             loc = pos + 1;
           }
         }
-        else if ((c & 0xC0) == 0xC0 && is_modified(mod, 'u') && !supports_escape(signature, 'p'))
+        else if ((c & 0xC0) == 0xC0 && is_modified(mod, 'u'))
         {
-          // unicode: group UTF-8 sequence
+          // Unicode normalization may need to combine a previous ASCII character with a Unicode combining character
+          if (loc < pos && std::isalpha(pattern[pos - 1]))
+            --pos;
           regex.append(&pattern[loc], pos - loc);
-          loc = pos;
-          while (pos + 1 < len && ((c = pattern[++pos]) & 0xC0) == 0x80)
-            continue;
+          const char *s = &pattern[pos];
+          c = utf8(s, &s);
+          while (true)
+          {
+            // try combining one or more Unicode combining characters, if any
+            pos = s - pattern;
+            if (pos >= len || (*s & 0xC0) != 0xC0)
+              break;
+            int next = utf8(s, &s);
+            int combined = Unicode::compose(c, next);
+            if (combined < 0)
+              break;
+            c = combined;
+          }
+          char buf[8];
+          size_t size = utf8(c, buf);
           if (pos < len &&
+              !supports_escape(signature, 'p') &&
               (pattern[pos] == '*' ||
                ((flags & convert_flag::basic) && pos + 1 < len ?
                 (pattern[pos] == '\\' && (pattern[pos + 1] == '?' || pattern[pos + 1] == '+' || pattern[pos + 1] == '{')) :
                 (pattern[pos] == '?' || pattern[pos] == '+' || pattern[pos] == '{'))))
           {
-            regex.append(par).append(&pattern[loc], pos - loc).push_back(')');
-            loc = pos;
-            --pos;
+            // group normalized Unicode character as UTF-8
+            regex.append(par).append(buf, size).push_back(')');
+            loc = pos--;
           }
           else if (pos > loc)
           {
-            --pos;
+            // save normalized Unicode character as UTF-8
+            regex.append(buf, size);
+            loc = pos--;
           }
         }
         anc = false;

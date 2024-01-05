@@ -46,6 +46,7 @@ Tables::Tables()
   block_scripts();
   language_scripts();
   letter_scripts();
+  composer();
 
   range["Other"]                  = range["C"];
   range["Letter"]                 = range["L"];
@@ -99,6 +100,16 @@ const int * range(const char *s)
   return NULL;
 }
 
+int compose(int prev, int next)
+{
+  Tables::Compose::const_iterator i = tables.compose.find(next);
+  if (i != tables.compose.end())
+    for (const int *p = i->second; p[0] != 0; p += 2)
+      if (p[0] == prev)
+        return p[1];
+  return -1;
 }
 
-}
+} // namespace Unicode
+
+} // namespace reflex
