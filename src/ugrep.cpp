@@ -9884,7 +9884,7 @@ uint16_t Grep::compute_cost(const char *pathname)
 void Grep::search(const char *pathname, uint16_t cost)
 {
   // -Zbest (or --best-match) without --match: compute cost if not yet computed by --sort=best
-  if (flag_best_match && flag_fuzzy > 0 && !flag_match && !flag_quiet && !flag_files_with_matches && matchers == NULL && pathname != Static::LABEL_STANDARD_INPUT)
+  if (flag_best_match && flag_fuzzy > 0 && !flag_match && !flag_quiet && (!flag_files_with_matches || flag_format != NULL) && matchers == NULL && pathname != Static::LABEL_STANDARD_INPUT)
   {
     // -Z: matcher is a FuzzyMatcher for sure
     reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
@@ -9911,8 +9911,7 @@ void Grep::search(const char *pathname, uint16_t cost)
     }
 
     // combine max distance cost (lower byte) with INS, DEL, SUB and BIN fuzzy flags (upper byte)
-    cost = (cost & 0xff) | (flag_fuzzy & 0xff00);
-    fuzzy_matcher->distance(cost);
+    fuzzy_matcher->distance((cost & 0xff) | (flag_fuzzy & 0xff00));
   }
 
   // stop when output is blocked
@@ -14360,8 +14359,8 @@ void help(const char *what)
  %J          matching line, as JSON      \n\
  %k          line number                 \n\
  %K %[...]K  ... + column number, if -k  \n\
- %m          match number                Fields that require -P for captures:\n\
- %M          match number, per line      \n\
+ %m          number of matches           Fields that require -P for captures:\n\
+ %M          number of matching lines    \n\
  %n          line number                 field       output\n\
  %N %[...]N  ... + line number, if -n    ----------  --------------------------\n\
  %o          matching pattern, also %0   %1 %2...%9  group capture\n\

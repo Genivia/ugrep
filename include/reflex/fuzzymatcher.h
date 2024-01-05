@@ -154,6 +154,11 @@ class FuzzyMatcher : public Matcher {
     bin_ = (max & BIN);
     bpt_.resize(max_);
   }
+  /// Get the fuzzy distance parameters, the max is stored in the lower byte and INS, DEL, SUB are hi byte bits
+  uint16_t distance()
+  {
+    return max_;
+  }
  protected:
   /// Save state to restore fuzzy matcher state after a second pass
   struct SaveState {

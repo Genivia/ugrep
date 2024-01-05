@@ -1243,11 +1243,14 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'Z':
-        if (flag_fuzzy > 0 && !flag_files_with_matches && !flag_count)
+        if (flag_fuzzy > 0 && !flag_match)
         {
           // -Z: we used the fuzzy matcher to search, so a dynamic cast is fine
           reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
-          num(fuzzy_matcher->edits());
+          if (!flag_files_with_matches && !flag_count)
+            num(fuzzy_matcher->edits());
+          else
+            num(fuzzy_matcher->distance() & 0xff);
         }
         break;
 
