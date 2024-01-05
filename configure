@@ -796,8 +796,8 @@ with_lzma
 with_lz4
 with_zstd
 with_brotli
-enable_7zip
 with_bzip3
+enable_7zip
 with_bash_completion_dir
 with_fish_completion_dir
 with_zsh_completion_dir
@@ -8764,28 +8764,6 @@ printf "%s\n" "#define HAVE_LIBBROTLI 1" >>confdefs.h
 fi
 
 
-# Check whether --enable-7zip was given.
-if test ${enable_7zip+y}
-then :
-  enableval=$enable_7zip; with_no_7zip="yes"
-else $as_nop
-  with_no_7zip="no"
-fi
-
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for --disable-7zip" >&5
-printf %s "checking for --disable-7zip... " >&6; }
-if test "x$with_no_7zip" = "xno"; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-  CPPFLAGS="$CPPFLAGS -I../lzma/C"
-  LDFLAGS="$LDFLAGS -L../lzma/C"
-  LIBS="-lviiz $LIBS"
-else
-  EXTRA_CFLAGS="-DWITH_NO_7ZIP ${EXTRA_CFLAGS}"
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-fi
-
 
 # Check whether --with-bzip3 was given.
 if test ${with_bzip3+y}
@@ -8931,6 +8909,28 @@ printf "%s\n" "#define HAVE_LIBBZIP3 1" >>confdefs.h
   fi
 fi
 
+fi
+
+# Check whether --enable-7zip was given.
+if test ${enable_7zip+y}
+then :
+  enableval=$enable_7zip; with_no_7zip="yes"
+else $as_nop
+  with_no_7zip="no"
+fi
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for --disable-7zip" >&5
+printf %s "checking for --disable-7zip... " >&6; }
+if test "x$with_no_7zip" = "xno"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+  CPPFLAGS="$CPPFLAGS -I../lzma/C"
+  LDFLAGS="$LDFLAGS -L../lzma/C"
+  LIBS="-lviiz $LIBS"
+else
+  EXTRA_CFLAGS="-DWITH_NO_7ZIP ${EXTRA_CFLAGS}"
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
 fi
 
 fi
