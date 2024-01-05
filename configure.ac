@@ -97,10 +97,10 @@ fi
 AC_ARG_ENABLE(7zip,
   [AS_HELP_STRING([--disable-7zip],
                   [to disable 7zip and no longer search .7z files (7z requires more memory and takes long to decompress)])],
-  [with_no_7zip="yes"],
-  [with_no_7zip="no"])
+  [with_7zip="$enableval"],
+  [with_7zip="yes"])
 AC_MSG_CHECKING(for --disable-7zip)
-if test "x$with_no_7zip" = "xno"; then
+if test "x$with_7zip" = "xyes"; then
   AC_MSG_RESULT(no)
   CPPFLAGS="$CPPFLAGS -I../lzma/C"
   LDFLAGS="$LDFLAGS -L../lzma/C"

@@ -8914,14 +8914,14 @@ fi
 # Check whether --enable-7zip was given.
 if test ${enable_7zip+y}
 then :
-  enableval=$enable_7zip; with_no_7zip="yes"
+  enableval=$enable_7zip; with_7zip="$enableval"
 else $as_nop
-  with_no_7zip="no"
+  with_7zip="yes"
 fi
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for --disable-7zip" >&5
 printf %s "checking for --disable-7zip... " >&6; }
-if test "x$with_no_7zip" = "xno"; then
+if test "x$with_7zip" = "xyes"; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
   CPPFLAGS="$CPPFLAGS -I../lzma/C"
