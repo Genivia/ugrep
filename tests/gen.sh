@@ -160,6 +160,7 @@ brotli -9 -c archive.tar > archive.tar.br
 bzip3     -c archive.tar > archive.tar.bz3
 zip    -9 -q archive.tar.zip archive.tar
 zip    -9 -q archive.zip $FILES
+7z         a archive.7z $FILES > /dev/null
 
 tar cfz archive2.tgz archive.tar $FILES archive.tgz
 tar cfz archive3.tgz archive.tgz $FILES archive2.tgz
@@ -171,6 +172,7 @@ $UG -z -c Hello archive.tgz     > out/archive.tgz.out
 $UG -z -c Hello archive.tZ      > out/archive.tZ.out
 $UG -z -c Hello archive.tar.zip > out/archive.tar.zip.out
 $UG -z -c Hello archive.zip     > out/archive.zip.out
+$UG -z -c Hello archive.7z      > out/archive.7z.out
 $UG -z -c Hello archive.tbz     > out/archive.tbz.out
 $UG -z -c Hello archive.tlz     > out/archive.tlz.out
 $UG -z -c Hello archive.txz     > out/archive.txz.out
@@ -186,6 +188,7 @@ $UG -z -c -tShell Hello archive.tgz     > out/archive-t.tgz.out
 $UG -z -c -tShell Hello archive.tZ      > out/archive-t.tZ.out
 $UG -z -c -tShell Hello archive.tar.zip > out/archive-t.tar.zip.out
 $UG -z -c -tShell Hello archive.zip     > out/archive-t.zip.out
+$UG -z -c -tShell Hello archive.7z      > out/archive-t.7z.out
 $UG -z -c -tShell Hello archive.tbz     > out/archive-t.tbz.out
 $UG -z -c -tShell Hello archive.tlz     > out/archive-t.tlz.out
 $UG -z -c -tShell Hello archive.txz     > out/archive-t.txz.out

@@ -384,6 +384,8 @@ printf .
 $UG -z -c Hello archive.tar.zip | $DIFF out/archive.tar.zip.out || ERR "-z -c Hello archive.tar.zip"
 printf .
 $UG -z -c Hello archive.zip     | $DIFF out/archive.zip.out     || ERR "-z -c Hello archive.zip"
+printf .
+$UG -z -c Hello archive.7z      | $DIFF out/archive.7z.out      || ERR "-z -c Hello archive.7z"
 if [ "$have_libbz2" == yes ]; then
 printf .
 $UG -z -c Hello archive.tbz     | $DIFF out/archive.tbz.out     || ERR "-z -c Hello archive.tbz"
@@ -427,6 +429,8 @@ printf .
 $UG -z -c -tShell Hello archive.tar.zip | $DIFF out/archive-t.tar.zip.out || ERR "-z -c -tShell Hello archive.tar.zip"
 printf .
 $UG -z -c -tShell Hello archive.zip     | $DIFF out/archive-t.zip.out     || ERR "-z -c -tShell Hello archive.zip"
+printf .
+$UG -z -c -tShell Hello archive.7z      | $DIFF out/archive-t.7z.out      || ERR "-z -c -tShell Hello archive.7z"
 if [ "$have_libbz2" == yes ]; then
 printf .
 $UG -z -c -tShell Hello archive.tbz     | $DIFF out/archive-t.tbz.out     || ERR "-z -c -tShell Hello archive.tbz"
