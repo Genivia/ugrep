@@ -111,6 +111,7 @@ else
 fi
 
 fi
+AM_CONDITIONAL([ENABLE_7ZIP],[test "x$with_7zip" = "xyes"])
 
 AC_ARG_WITH([bash-completion-dir],
   [AS_HELP_STRING([--with-bash-completion-dir[=PATH]],
