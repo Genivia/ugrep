@@ -105,6 +105,7 @@ if test "x$with_7zip" = "xyes"; then
   CPPFLAGS="$CPPFLAGS -I../lzma/C"
   LDFLAGS="$LDFLAGS -L../lzma/C"
   LIBS="-lviiz $LIBS"
+  AC_DEFINE(HAVE_7ZIP,1,[ Define if built with 7ZIP support])
 else
   EXTRA_CFLAGS="-DWITH_NO_7ZIP ${EXTRA_CFLAGS}"
   AC_MSG_RESULT(yes)
