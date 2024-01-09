@@ -94,6 +94,14 @@ fi
 
 printf "Have libbrotli? %3s (optional)\n" $have_libbrotli
 
+if $UG -Fq 'HAVE_7ZIP 1' "$CONFIGH" ; then
+  have_7zip=yes
+else
+  have_7zip=no
+fi
+
+printf "Have 7zip?      %3s (optional)\n" $have_7zip
+
 # check for libraries that aren't typically installed, don't report
 
 if $UG -Fq 'HAVE_LIBBZIP3 1' "$CONFIGH" ; then
@@ -385,7 +393,10 @@ $UG -z -c Hello archive.tar.zip | $DIFF out/archive.tar.zip.out || ERR "-z -c He
 printf .
 $UG -z -c Hello archive.zip     | $DIFF out/archive.zip.out     || ERR "-z -c Hello archive.zip"
 printf .
+if [ "$have_7zip" == yes ]; then
+printf .
 $UG -z -c Hello archive.7z      | $DIFF out/archive.7z.out      || ERR "-z -c Hello archive.7z"
+fi
 if [ "$have_libbz2" == yes ]; then
 printf .
 $UG -z -c Hello archive.tbz     | $DIFF out/archive.tbz.out     || ERR "-z -c Hello archive.tbz"
@@ -429,8 +440,10 @@ printf .
 $UG -z -c -tShell Hello archive.tar.zip | $DIFF out/archive-t.tar.zip.out || ERR "-z -c -tShell Hello archive.tar.zip"
 printf .
 $UG -z -c -tShell Hello archive.zip     | $DIFF out/archive-t.zip.out     || ERR "-z -c -tShell Hello archive.zip"
+if [ "$have_7zip" == yes ]; then
 printf .
 $UG -z -c -tShell Hello archive.7z      | $DIFF out/archive-t.7z.out      || ERR "-z -c -tShell Hello archive.7z"
+fi
 if [ "$have_libbz2" == yes ]; then
 printf .
 $UG -z -c -tShell Hello archive.tbz     | $DIFF out/archive-t.tbz.out     || ERR "-z -c -tShell Hello archive.tbz"
