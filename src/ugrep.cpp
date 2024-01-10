@@ -1873,28 +1873,20 @@ struct Zthread {
       if (*basename == '.' && !flag_hidden)
         return false;
 
-      // -O, -t, and -g (--include and --exclude): check if pathname or basename matches globs, is_selected = false if not
-      if (!flag_all_exclude.empty() || !flag_all_include.empty())
+      // exclude files whose basename matches any one of the --exclude globs
+      for (const auto& glob : flag_all_exclude)
       {
-        // exclude files whose basename matches any one of the --exclude globs
-        for (const auto& glob : flag_all_exclude)
-        {
-          bool ignore_case = &glob < &flag_all_exclude.front() + flag_exclude_iglob_size;
-          if (!(is_selected = !glob_match(path, basename, glob.c_str(), ignore_case)))
-            break;
-        }
+        bool ignore_case = &glob < &flag_all_exclude.front() + flag_exclude_iglob_size;
+        if (glob_match(path, basename, glob.c_str(), ignore_case))
+          return false;
+      }
 
-        // include only if not excluded
-        if (is_selected)
-        {
-          // include files whose basename matches any one of the --include globs
-          for (const auto& glob : flag_all_include)
-          {
-            bool ignore_case = &glob < &flag_all_include.front() + flag_include_iglob_size;
-            if ((is_selected = glob_match(path, basename, glob.c_str(), ignore_case)))
-              break;
-          }
-        }
+      // include files whose basename matches any one of the --include globs
+      for (const auto& glob : flag_all_include)
+      {
+        bool ignore_case = &glob < &flag_all_include.front() + flag_include_iglob_size;
+        if ((is_selected = glob_match(path, basename, glob.c_str(), ignore_case)))
+          break;
       }
 
       // -M: check magic bytes, requires sufficiently large len of buf[] to match patterns, which is fine when Z_BUF_LEN is large e.g. 64K to contain all magic bytes
@@ -8806,10 +8798,11 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     if (flag_min_depth > 0 && level <= flag_min_depth)
       return Type::SKIP;
 
+    bool ok = true;
+
     if (!flag_all_exclude.empty())
     {
       // exclude files whose pathname matches any one of the --exclude globs unless negated with !
-      bool ok = true;
       for (const auto& glob : flag_all_exclude)
       {
         bool ignore_case = &glob < &flag_all_exclude.front() + flag_exclude_iglob_size;
@@ -8827,8 +8820,29 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
         return Type::SKIP;
     }
 
+    if (!flag_all_include.empty())
+    {
+      // include files whose pathname matches any one of the --include globs unless negated with !
+      ok = false;
+      for (const auto& glob : flag_all_include)
+      {
+        bool ignore_case = &glob < &flag_all_include.front() + flag_include_iglob_size;
+        if (glob.front() == '!')
+        {
+          if (ok && glob_match(pathname, basename, glob.c_str() + 1), ignore_case)
+            ok = false;
+        }
+        else if (!ok && glob_match(pathname, basename, glob.c_str(), ignore_case))
+        {
+          ok = true;
+        }
+      }
+      if (!ok && flag_file_magic.empty())
+        return Type::SKIP;
+    }
+
     // check magic pattern against the file signature, when --file-magic=MAGIC is specified
-    if (!flag_file_magic.empty())
+    if (!flag_file_magic.empty() && (flag_all_include.empty() || !ok))
     {
       FILE *file;
 
@@ -8871,29 +8885,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
       fclose(file);
 
-      if (flag_all_include.empty())
-        return Type::SKIP;
-    }
-
-    if (!flag_all_include.empty())
-    {
-      // include files whose pathname matches any one of the --include globs unless negated with !
-      bool ok = false;
-      for (const auto& glob : flag_all_include)
-      {
-        bool ignore_case = &glob < &flag_all_include.front() + flag_include_iglob_size;
-        if (glob.front() == '!')
-        {
-          if (ok && glob_match(pathname, basename, glob.c_str() + 1), ignore_case)
-            ok = false;
-        }
-        else if (!ok && glob_match(pathname, basename, glob.c_str(), ignore_case))
-        {
-          ok = true;
-        }
-      }
-      if (!ok)
-        return Type::SKIP;
+      return Type::SKIP;
     }
 
     Stats::score_file();
@@ -9012,10 +9004,11 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           if (flag_min_depth > 0 && level <= flag_min_depth)
             return Type::SKIP;
 
+          bool ok = true;
+
           if (!flag_all_exclude.empty())
           {
             // exclude files whose pathname matches any one of the --exclude globs unless negated with !
-            bool ok = true;
             for (const auto& glob : flag_all_exclude)
             {
               bool ignore_case = &glob < &flag_all_exclude.front() + flag_exclude_iglob_size;
@@ -9033,8 +9026,29 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
               return Type::SKIP;
           }
 
+          if (!flag_all_include.empty())
+          {
+            // include files whose basename matches any one of the --include globs if not negated with !
+            ok = false;
+            for (const auto& glob : flag_all_include)
+            {
+              bool ignore_case = &glob < &flag_all_include.front() + flag_include_iglob_size;
+              if (glob.front() == '!')
+              {
+                if (ok && glob_match(pathname, basename, glob.c_str() + 1, ignore_case))
+                  ok = false;
+              }
+              else if (!ok && glob_match(pathname, basename, glob.c_str(), ignore_case))
+              {
+                ok = true;
+              }
+            }
+            if (!ok && flag_file_magic.empty())
+              return Type::SKIP;
+          }
+
           // check magic pattern against the file signature, when --file-magic=MAGIC is specified
-          if (!flag_file_magic.empty())
+          if (!flag_file_magic.empty() && (flag_all_include.empty() || !ok))
           {
             FILE *file;
 
@@ -9082,29 +9096,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
             fclose(file);
 
-            if (flag_all_include.empty())
-              return Type::SKIP;
-          }
-
-          if (!flag_all_include.empty())
-          {
-            // include directories whose basename matches any one of the --include-dir globs if not negated with !
-            bool ok = false;
-            for (const auto& glob : flag_all_include)
-            {
-              bool ignore_case = &glob < &flag_all_include.front() + flag_include_iglob_size;
-              if (glob.front() == '!')
-              {
-                if (ok && glob_match(pathname, basename, glob.c_str() + 1, ignore_case))
-                  ok = false;
-              }
-              else if (!ok && glob_match(pathname, basename, glob.c_str(), ignore_case))
-              {
-                ok = true;
-              }
-            }
-            if (!ok)
-              return Type::SKIP;
+            return Type::SKIP;
           }
 
           Stats::score_file();
@@ -14334,6 +14326,8 @@ void help(const char *what)
 
     if (found == 0)
       std::cout << "ugrep --help: nothing appropriate for " << what;
+    else
+      std::cout << "\n\nLong options may start with `--no-' to disable, when applicable.";
 
     std::cout << "\n\n";
 

@@ -673,6 +673,8 @@ ENABLE_BASH_COMPLETION_TRUE
 BASH_COMPLETION_DIR
 BASH_COMPLETION_LIBS
 BASH_COMPLETION_CFLAGS
+ENABLE_7ZIP_FALSE
+ENABLE_7ZIP_TRUE
 PLATFORM
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
@@ -8927,6 +8929,9 @@ printf "%s\n" "no" >&6; }
   CPPFLAGS="$CPPFLAGS -I../lzma/C"
   LDFLAGS="$LDFLAGS -L../lzma/C"
   LIBS="-lviiz $LIBS"
+
+printf "%s\n" "#define HAVE_7ZIP 1" >>confdefs.h
+
 else
   EXTRA_CFLAGS="-DWITH_NO_7ZIP ${EXTRA_CFLAGS}"
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
@@ -8934,6 +8939,14 @@ printf "%s\n" "yes" >&6; }
 fi
 
 fi
+ if test "x$with_7zip" = "xyes"; then
+  ENABLE_7ZIP_TRUE=
+  ENABLE_7ZIP_FALSE='#'
+else
+  ENABLE_7ZIP_TRUE='#'
+  ENABLE_7ZIP_FALSE=
+fi
+
 
 
 # Check whether --with-bash-completion-dir was given.
@@ -9813,6 +9826,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCC_TRUE}" && test -z "${am__fastdepCC_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCC\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_7ZIP_TRUE}" && test -z "${ENABLE_7ZIP_FALSE}"; then
+  as_fn_error $? "conditional \"ENABLE_7ZIP\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${ENABLE_BASH_COMPLETION_TRUE}" && test -z "${ENABLE_BASH_COMPLETION_FALSE}"; then

@@ -33,7 +33,7 @@ Overview
 
 ### Commands
 
-- `ug` is for interactive use with a .ugrep configuration file with your preferences located in the working directory or home directory, `ug+` also searches pdfs, documents, e-books, image metadata
+- `ug` is for interactive use, which loads an optional .ugrep configuration file with your preferences located in the working directory or home directory, `ug+` also searches pdfs, documents, e-books, image metadata
 
 - `ugrep` for batch use like GNU grep without a .ugrep configuration file, `ugrep+` also searches pdfs, documents, e-books, image metadata
 
@@ -5353,7 +5353,7 @@ in markdown:
 
 
 
-    ugrep 4.5.1                      January 6, 2024                        UGREP(1)
+    ugrep 4.5.2                      January 9, 2024                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

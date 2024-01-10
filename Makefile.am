@@ -1,9 +1,7 @@
 SUBDIRS = lib
-
 if ENABLE_7ZIP
 SUBDIRS += lzma/C
 endif
-
 SUBDIRS += src
 
 man1_MANS = man/ugrep.1

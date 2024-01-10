@@ -84,8 +84,9 @@ UInt32 Z7_FASTCALL CrcUpdateT1(UInt32 v, const void *data, size_t size, const UI
     #endif
     #endif
     #endif
-  #elif (defined(__clang__) && (__clang_major__ >= 3)) \
-     || (defined(__GNUC__) && (__GNUC__ > 4))
+  #elif ( (defined(__clang__) && (__clang_major__ >= 3)) ||	 \
+          (defined(__GNUC__)  && (__GNUC__ > 4)        )    ) && \
+        (__ARM_ARCH >= 8)
       #if !defined(__ARM_FEATURE_CRC32)
         #define __ARM_FEATURE_CRC32 1
         #if defined(__clang__)

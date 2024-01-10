@@ -6,6 +6,9 @@ LZMA SDK is placed in the public domain.
 
 LZMA SDK by Igor Pavlov.
 
+Updated to apply YOKOTA Hiroshi's patches:
+https://salsa.debian.org/debian/7zip/-/blob/master/debian/patches/0002-Disable-hardware-acceleration-support-on-armel.patch?ref_type=heads
+
 Included in this directory is a new C API to simplify decompression:
 
 - viizip.h   declarations, see below (hides implementation details)

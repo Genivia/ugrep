@@ -333,10 +333,11 @@ int viiget(struct viizip *viizip, char *name, size_t max, time_t *mtime, uint64_
   return res == SZ_OK ? 0 : -1;
 }
 
-/* decompress up to len bytes into buf[], return number of bytes decompressed */
+/* decompress up to len bytes into buf[], return number of bytes decompressed or -1 on error */
 ssize_t viidec(struct viizip *viizip, unsigned char *buf, size_t len)
 {
-  if (viizip == NULL)
+  /* if not initialized or not called viiget() then return error */
+  if (viizip == NULL || viizip->index == 0)
     return -1;
 
   switch (viizip->state)

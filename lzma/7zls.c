@@ -34,6 +34,11 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
+/* to build and run 7zls:
+   cc -o 7zls 7zls.c C/libviiz.a
+   ./7zls ../tests/archive.7z
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

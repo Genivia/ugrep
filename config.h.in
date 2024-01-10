@@ -1,5 +1,8 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define if built with 7ZIP support */
+#undef HAVE_7ZIP
+
 /* define if the Boost::Regex library is available */
 #undef HAVE_BOOST_REGEX
 
