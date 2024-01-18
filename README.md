@@ -3,7 +3,7 @@
 Why use ugrep?
 --------------
 
-- Ugrep is a true drop-in replacement for GNU grep, unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
+- Ugrep is a true drop-in replacement for GNU grep (assuming you [rename or symlink `ugrep` to `grep`, `egrep` and `fgrep`](#grep)), unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
 
 - Ugrep is fast, user-friendly, and equipped with a ton of new features that surpass other grep, benchmarks also show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) and will be getting even faster
 
@@ -1073,6 +1073,10 @@ In the interactive query TUI, press F1 or CTRL-Z for help and options:
             directory is checked first for FILE, then the home directory.  The
             options specified in the configuration FILE are parsed first,
             followed by the remaining options specified on the command line.
+            The ug command automatically loads a `.ugrep' configuration file,
+            unless --config=FILE or --no-config is specified.
+    --no-config
+            Do not load the default .ugrep configuration file.
     --save-config[=FILE] [OPTIONS]
             Save configuration FILE to include OPTIONS.  Update FILE when
             first loaded with --config=FILE.  The default FILE is `.ugrep',
