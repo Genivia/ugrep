@@ -2522,7 +2522,9 @@ including .odt, .doc, .docx, .rtf, .xls, .xlsx, .ppt, .pptx documents using the
 **Important:** the `soffice` utility will not output any text when one or more
 LibreOffice GUIs are open.  Make sure to quit all LibreOffice apps first.  This
 looks like a bug, but the LibreOffice developers do not appear to fix this
-any time soon (unless perhaps more people complain?)
+any time soon (unless perhaps more people complain?). You can workaround this problem
+specifying a specific user profile for `soffice` with the following semi-documented
+argument : `-env:UserInstallation=file:///home/user/.libreoffice-alt`.
 
 To recursively search and display rows of .csv, .xls, and .xlsx spreadsheets
 that contain `10/6` using the `in2csv` filter of csvkit:
