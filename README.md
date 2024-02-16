@@ -24,9 +24,7 @@ Development roadmap
 
 - add new and updated features, including [indexing (beta release)](https://github.com/Genivia/ugrep-indexer)
 
-- share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community, showing that ugrep is almost always faster than other grep tools
-
-- make ugrep even faster, see [my article](https://www.genivia.com/ugrep.html) and planned optimizations [#288](https://github.com/Genivia/ugrep/issues/288)
+- further increase performance and share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community, showing that ugrep is almost always faster than other grep tools
 
 Overview
 --------
@@ -2522,9 +2520,10 @@ including .odt, .doc, .docx, .rtf, .xls, .xlsx, .ppt, .pptx documents using the
 **Important:** the `soffice` utility will not output any text when one or more
 LibreOffice GUIs are open.  Make sure to quit all LibreOffice apps first.  This
 looks like a bug, but the LibreOffice developers do not appear to fix this
-any time soon (unless perhaps more people complain?). You can workaround this problem
-specifying a specific user profile for `soffice` with the following semi-documented
-argument : `-env:UserInstallation=file:///home/user/.libreoffice-alt`.
+any time soon (unless perhaps more people complain?). You can work around this
+problem by specifying a specific user profile for `soffice` with the following
+semi-documented argument passed to `soffice`:
+`-env:UserInstallation=file:///home/user/.libreoffice-alt`.
 
 To recursively search and display rows of .csv, .xls, and .xlsx spreadsheets
 that contain `10/6` using the `in2csv` filter of csvkit:
@@ -2953,17 +2952,20 @@ ignored by one or more .gitignore files, when any are present:
 ### Including or excluding mounted file systems from searches
 
     --exclude-fs=MOUNTS
-            Exclude file systems specified by MOUNTS from recursive searches,
-            MOUNTS is a comma-separated list of mount points or pathnames of
-            directories on file systems.  Note that --exclude-fs mounts take
-            priority over --include-fs mounts.  This option may be repeated.
+            Exclude file systems specified by MOUNTS from recursive searches.
+            MOUNTS is a comma-separated list of mount points or pathnames to
+            directories.  When MOUNTS is not specified, only descends into the
+            file systems associated with the specified file and directory
+            search targets, i.e. excludes all other file systems.  Note that
+            --exclude-fs=MOUNTS take priority over --include-fs=MOUNTS.  This
+            option may be repeated.
     --include-fs=MOUNTS
             Only file systems specified by MOUNTS are included in recursive
             searches.  MOUNTS is a comma-separated list of mount points or
-            pathnames of directories on file systems.  --include-fs=. restricts
-            recursive searches to the file system of the working directory
-            only.  Note that --exclude-fs mounts take priority over
-            --include-fs mounts.  This option may be repeated.
+            pathnames to directories.  When MOUNTS is not specified, restricts
+            recursive searches to the file system of the working directory,
+            same as --include-fs=. (dot). Note that --exclude-fs=MOUNTS take
+            priority over --include-fs=MOUNTS.  This option may be repeated.
 
 These options control recursive searches across file systems by comparing
 device numbers.  Mounted devices and symbolic links to files and directories
@@ -2973,25 +2975,35 @@ system to specify the applicable file system.
 
 Note that a list of mounted file systems is typically stored in `/etc/mtab`.
 
-To restrict recursive searches to the file system of the working directory
+To restrict recursive searches to the file system(s) of the search targets
 only, without crossing into other file systems (similar to `find` option `-x`):
 
-    ug -rl --include-fs=. 'xyz'
+    ug -rl --exclude-fs 'xyz' /sys /var
+
+To restrict recursive searches to the file system of the working directory
+only, without crossing into other file systems:
+
+    ug -l --include-fs 'xyz'
+
+In fact, for this case we can use `--exclude-fs` because we search the working
+directory as the target and we want to exclude all other file systems:
+
+    ug -l --exclude-fs 'xyz'
 
 To exclude the file systems mounted at `/dev` and `/proc` from recursive
 searches:
 
-    ug -rl --exclude-fs=/dev,/proc 'xyz'
+    ug -l --exclude-fs=/dev,/proc 'xyz'
 
 To only include the file system associated with drive `d:` in recursive
 searches:
 
-    ug -rl --include-fs=d:/ 'xyz'
+    ug -l --include-fs=d:/ 'xyz'
 
 To exclude `fuse` and `tmpfs` type file systems from recursive searches:
 
     exfs=`ugrep -w -e fuse -e tmpfs /etc/mtab | ugrep -P '^\S+ (\S+)' --format='%,%1'`
-    ug -rl --exclude-fs="$exfs" 'xyz'
+    ug -l --exclude-fs="$exfs" 'xyz'
 
 🔝 [Back to table of contents](#toc)
 
@@ -3994,6 +4006,15 @@ in markdown:
                   garbage to the terminal, which can have problematic consequences
                   if the terminal driver interprets some of it as commands.
 
+           --all, -@
+                  Search all files except hidden: cancel previous file and directory
+                  search restrictions and cancel --ignore-binary and --ignore-files
+                  when specified.  Restrictions specified after this option, i.e. to
+                  the right, are still applied.  For example, -@I searches all
+                  non-binary files and -@. searches all files including hidden
+                  files.  Note that hidden files and directories are never searched,
+                  unless option -. or --hidden is specified.
+
            --and [-e] PATTERN
                   Specify additional PATTERN that must match.  Additional -e PATTERN
                   following this option is considered an alternative pattern to
@@ -4108,7 +4129,12 @@ in markdown:
                   working directory is checked first for FILE, then the home
                   directory.  The options specified in the configuration FILE are
                   parsed first, followed by the remaining options specified on the
-                  command line.
+                  command line.  The ug command automatically loads a `.ugrep'
+                  configuration file, unless --config=FILE or --no-config is
+                  specified.
+
+           --no-config
+                  Do not automatically load the default .ugrep configuration file.
 
            --confirm
                   Confirm actions in -Q query TUI.  The default is confirm.
@@ -4209,8 +4235,11 @@ in markdown:
            --exclude-fs=MOUNTS
                   Exclude file systems specified by MOUNTS from recursive searches.
                   MOUNTS is a comma-separated list of mount points or pathnames to
-                  directories.  Note that --exclude-fs=MOUNTS take priority over
-                  --include-fs=MOUNTS.  This option may be repeated.
+                  directories.  When MOUNTS is not specified, only descends into the
+                  file systems associated with the specified file and directory
+                  search targets, i.e. excludes all other file systems.  Note that
+                  --exclude-fs=MOUNTS take priority over --include-fs=MOUNTS.  This
+                  option may be repeated.
 
            -F, --fixed-strings
                   Interpret pattern as a set of fixed strings, separated by
@@ -4288,6 +4317,10 @@ in markdown:
                   Use SEP as a group separator for context options -A, -B and -C.
                   The default is a double hyphen (`--').
 
+           --no-group-separator
+                  Removes the group separator line from the output for context
+                  options -A, -B and -C.
+
            -H, --with-filename
                   Always print the filename with output lines.  This is the default
                   when there is more than one file to search.
@@ -4351,6 +4384,9 @@ in markdown:
                   line arguments are never ignored.  This option may be repeated to
                   specify additional files.
 
+           --no-ignore-files
+                  Do not ignore files, i.e. cancel --ignore-files when specified.
+
            --include=GLOB
                   Only search files whose name matches GLOB, same as -g GLOB.  GLOB
                   can use **, *, ?, and [...] as wildcards and \ to quote a wildcard
@@ -4386,10 +4422,10 @@ in markdown:
            --include-fs=MOUNTS
                   Only file systems specified by MOUNTS are included in recursive
                   searches.  MOUNTS is a comma-separated list of mount points or
-                  pathnames to directories.  --include-fs=. restricts recursive
-                  searches to the file system of the working directory only.  Note
-                  that --exclude-fs=MOUNTS take priority over --include-fs=MOUNTS.
-                  This option may be repeated.
+                  pathnames to directories.  When MOUNTS is not specified, restricts
+                  recursive searches to the file system of the working directory,
+                  same as --include-fs=. (dot). Note that --exclude-fs=MOUNTS take
+                  priority over --include-fs=MOUNTS.  This option may be repeated.
 
            --index
                   Perform index-based recursive search.  This option assumes, but
@@ -4491,10 +4527,6 @@ in markdown:
                   Each output line is preceded by its relative line number in the
                   file, starting at line 1.  The line number counter is reset for
                   each file processed.
-
-           --no-group-separator
-                  Removes the group separator line from the output for context
-                  options -A, -B and -C.
 
            --not [-e] PATTERN
                   Specifies that PATTERN should not match.  Note that -e A --not -e
@@ -5344,22 +5376,22 @@ in markdown:
 
                   $ ugrep --help fuzzy
 
-    BUGS
-           Report bugs at:
+    COPYRIGHT
+           Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>
 
-                  https://github.com/Genivia/ugrep/issues
-
-    LICENSE
            ugrep is released under the BSD-3 license.  All parts of the software
            have reasonable copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
+
+    BUGS
+           Report bugs at: <https://github.com/Genivia/ugrep/issues>
 
     SEE ALSO
            grep(1).
 
 
 
-    ugrep 4.5.2                      January 9, 2024                        UGREP(1)
+    ugrep 5.0.0                     February 15, 2024                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

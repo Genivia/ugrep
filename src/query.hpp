@@ -322,10 +322,16 @@ class Query {
   static size_t                   found_;       // last update number of files found
   static int                      tick_;        // 100ms tick 0 to 7 or steady 8
   static int                      spin_;        // spinner state
-  static size_t                   context_;     // -ABC context size
-  static size_t                   only_context_;// -o with -ABC context size
-  static size_t                   fuzzy_;       // --fuzzy fuzzy distance
-  static bool                     dotall_;      // --dotall flag
+  static std::vector<std::string> exclude_;     // saved --exclude
+  static std::vector<std::string> exclude_dir_; // saved --exclude-dir
+  static std::vector<std::string> include_;     // saved --include
+  static std::vector<std::string> include_dir_; // saved --include-dir
+  static std::vector<std::string> file_magic_;  // saved --file-magic
+  static std::set<std::string> ignore_files_;   // saved --ignore-files
+  static size_t                   context_;     // saved -ABC context size
+  static size_t                   only_context_;// saved -o with -ABC context size
+  static size_t                   fuzzy_;       // saved --fuzzy fuzzy distance
+  static bool                     dotall_;      // saved --dotall flag
 
 #ifdef OS_WIN
 

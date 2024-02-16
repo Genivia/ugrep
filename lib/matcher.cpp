@@ -90,8 +90,9 @@ size_t Matcher::match(Method method)
 #endif
 #endif
   reset_text();
-  len_ = 0;     // split text length starts with 0
-  anc_ = false; // no word boundary anchor found and applied
+  len_ = 0;         // split text length starts with 0
+  anc_ = false;     // no word boundary anchor found and applied
+  size_t retry = 0; // retry regex match at lookback positions for predicted matches
 scan:
   txt_ = buf_ + cur_;
 #if !defined(WITH_NO_INDENT)
@@ -498,12 +499,13 @@ unrolled:
       jump = Pattern::index_of(opcode);
       if (jump == 0)
       {
-        // loop back to start state w/o full match: advance to avoid backtracking
+        // loop back to start state w/o full match: advance to avoid backtracking, not used for lookback
         if (cap_ == 0 && pos_ > cur_ && method == Const::FIND)
         {
           // use bit_[] to check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
-          while (++cur_ < pos_ && (pat_->bit_[static_cast<uint8_t>(buf_[cur_])] & 1))
-            continue;
+          while (++cur_ < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_])))
+            if (retry > 0)
+              --retry;
         }
       }
       else if (jump >= Pattern::Const::LONG)
@@ -604,6 +606,16 @@ unrolled:
     {
       if (!at_end())
       {
+        // when looking back from a predicted match, advance by one position and retry a match
+        if (retry > 0)
+        {
+          --retry;
+          set_current(++cur_);
+          anc_ = false;
+          DBGLOG("Find: try next pos %zu", cur_);
+          goto scan;
+        }
+        //
         if (anc_)
         {
           cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
@@ -621,6 +633,26 @@ unrolled:
 #endif
               )
           {
+            if (pat_->lbk_ > 0)
+            {
+              // look back and try/retry matching, over lookback chars (never includes \n)
+              size_t n = pat_->lbk_ == 0xffff ? SIZE_MAX : pat_->lbk_;
+              const char *s = buf_ + cur_;
+              const char *e = txt_;
+              while (n-- > 0 && --s > e && pat_->cbk_.test(static_cast<unsigned char>(*s)))
+                ++retry;
+              cur_ -= retry;
+              // not at or before the begin of the last match
+              s = buf_ + cur_;
+              // don't retry at minimal look back distances that are too short for pattern to match
+              if (retry > pat_->lbm_)
+                retry -= pat_->lbm_;
+              else
+                retry = 0;
+              set_current(cur_);
+              DBGLOG("Find: look back %zu to pos %zu", retry, cur_);
+              goto scan;
+            }
             if (!pat_->one_)
               goto scan;
             txt_ = buf_ + cur_;
@@ -747,8 +779,7 @@ bool Matcher::advance()
     }
     if (loc + min > end_)
     {
-      set_current_match(loc - 1);
-      (void)peek_more();
+      set_current_and_peek_more(loc - 1);
       loc = cur_ + 1;
       if (loc + min > end_)
         return false;
@@ -794,8 +825,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -837,8 +867,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -909,8 +938,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -942,8 +970,7 @@ bool Matcher::advance()
         else
         {
           loc = e - buf_;
-          set_current_match(loc - 1);
-          (void)peek_more();
+          set_current_and_peek_more(loc - 1);
           loc = cur_ + 1;
           if (loc + min > end_)
             return false;
@@ -996,8 +1023,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1052,8 +1078,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1112,8 +1137,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1176,8 +1200,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1244,8 +1267,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1316,8 +1338,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1392,8 +1413,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1500,8 +1520,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1554,8 +1573,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1610,8 +1628,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1670,8 +1687,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1734,8 +1750,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1802,8 +1817,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1874,8 +1888,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -1950,8 +1963,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -2031,8 +2043,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -2122,8 +2133,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -2219,8 +2229,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -2322,8 +2331,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -2431,8 +2439,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -2546,8 +2553,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -2667,8 +2673,7 @@ bool Matcher::advance()
         }
         s -= lcp;
         loc = s - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + min > end_)
           return false;
@@ -2724,8 +2729,7 @@ bool Matcher::advance()
           else
           {
             loc = s - buf_;
-            set_current_match(loc - min);
-            (void)peek_more();
+            set_current_and_peek_more(loc - min);
             loc = cur_ + min;
             if (loc >= end_)
               return false;
@@ -2761,8 +2765,7 @@ bool Matcher::advance()
           else
           {
             loc = s - buf_;
-            set_current_match(loc - 3);
-            (void)peek_more();
+            set_current_and_peek_more(loc - 3);
             loc = cur_ + 3;
             if (loc >= end_)
               return false;
@@ -2798,8 +2801,7 @@ bool Matcher::advance()
           else
           {
             loc = s - buf_;
-            set_current_match(loc - 2);
-            (void)peek_more();
+            set_current_and_peek_more(loc - 2);
             loc = cur_ + 2;
             if (loc >= end_)
               return false;
@@ -2831,8 +2833,7 @@ bool Matcher::advance()
           set_current(loc);
           return true;
         }
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + 3 >= end_)
         {
@@ -2860,8 +2861,7 @@ bool Matcher::advance()
         set_current(loc);
         return true;
       }
-      set_current_match(loc - 1);
-      (void)peek_more();
+      set_current_and_peek_more(loc - 1);
       loc = cur_ + 1;
       if (loc + 6 >= end_)
       {
@@ -2898,8 +2898,7 @@ bool Matcher::advance()
       else
       {
         loc = e - buf_;
-        set_current_match(loc - 1);
-        (void)peek_more();
+        set_current_and_peek_more(loc - 1);
         loc = cur_ + 1;
         if (loc + len > end_)
           return false;
@@ -3136,8 +3135,7 @@ bool Matcher::advance()
         ++s;
       }
       loc = s - lcp - buf_;
-      set_current_match(loc - 1);
-      (void)peek_more();
+      set_current_and_peek_more(loc - 1);
       loc = cur_ + 1;
       if (loc + len > end_)
         return false;
@@ -3195,8 +3193,7 @@ bool Matcher::advance()
       }
       s -= len - 1;
       loc = s - buf_;
-      set_current_match(loc - 1);
-      (void)peek_more();
+      set_current_and_peek_more(loc - 1);
       loc = cur_ + 1;
       if (loc + len > end_)
         return false;

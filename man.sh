@@ -674,15 +674,15 @@ $ ugrep --encoding=MACROMAN '\\w+' mac.txt
 Display options related to "fuzzy" searching:
 .IP
 $ ugrep --help fuzzy
-.SH BUGS
-Report bugs at:
-.IP
-https://github.com/Genivia/ugrep/issues
 .PP
-.SH LICENSE
+.SH COPYRIGHT
+Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>
+.PP
 \fBugrep\fR is released under the BSD\-3 license.  All parts of the software
 have reasonable copyright terms permitting free redistribution.  This includes
 the ability to reuse all or parts of the ugrep source tree.
+.SH BUGS
+Report bugs at: <https://github.com/Genivia/ugrep/issues>
 .SH "SEE ALSO"
 grep(1).
 END

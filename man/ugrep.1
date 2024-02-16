@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 09, 2024" "ugrep 4.5.2" "User Commands"
+.TH UGREP "1" "February 15, 2024" "ugrep 5.0.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -137,6 +137,15 @@ the \fB\-\-binary\-files\fR=text option.  This option might output binary
 garbage to the terminal, which can have problematic consequences if
 the terminal driver interprets some of it as commands.
 .TP
+\fB\-\-all\fR, \-@
+Search all files except hidden: cancel previous file and directory
+search restrictions and cancel \fB\-\-ignore\-binary\fR and \fB\-\-ignore\-files\fR
+when specified.  Restrictions specified after this option, i.e. to
+the right, are still applied.  For example, \-@I searches all
+non\-binary files and \-@. searches all files including hidden files.
+Note that hidden files and directories are never searched, unless
+option \fB\-.\fR or \fB\-\-hidden\fR is specified.
+.TP
 \fB\-\-and\fR [\fB\-e\fR] PATTERN
 Specify additional PATTERN that must match.  Additional \fB\-e\fR \fIPATTERN\fR
 following this option is considered an alternative pattern to
@@ -247,6 +256,11 @@ Use configuration FILE.  The default FILE is `.ugrep'.  The working
 directory is checked first for FILE, then the home directory.  The
 options specified in the configuration FILE are parsed first,
 followed by the remaining options specified on the command line.
+The ug command automatically loads a `.ugrep' configuration file,
+unless \fB\-\-config\fR=\fIFILE\fR or \fB\-\-no\-config\fR is specified.
+.TP
+\fB\-\-no\-config\fR
+Do not automatically load the default .ugrep configuration file.
 .TP
 \fB\-\-confirm\fR
 Confirm actions in \fB\-Q\fR query TUI.  The default is confirm.
@@ -348,8 +362,11 @@ is a `\-', standard input is read.  This option may be repeated.
 \fB\-\-exclude\-fs\fR=\fIMOUNTS\fR
 Exclude file systems specified by MOUNTS from recursive searches.
 MOUNTS is a comma\-separated list of mount points or pathnames to
-directories.  Note that \fB\-\-exclude\-fs\fR=\fIMOUNTS\fR take priority over
-\fB\-\-include\-fs\fR=\fIMOUNTS\fR.  This option may be repeated.
+directories.  When MOUNTS is not specified, only descends into the
+file systems associated with the specified file and directory
+search targets, i.e. excludes all other file systems.  Note that
+\fB\-\-exclude\-fs\fR=\fIMOUNTS\fR take priority over \fB\-\-include\-fs\fR=\fIMOUNTS\fR.  This
+option may be repeated.
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
@@ -423,6 +440,10 @@ Perform case\-insensitive glob matching in general.
 Use SEP as a group separator for context options \fB\-A\fR, \fB\-B\fR and \fB\-C\fR.
 The default is a double hyphen (`\fB\-\-\fR').
 .TP
+\fB\-\-no\-group\-separator\fR
+Removes the group separator line from the output for context
+options \fB\-A\fR, \fB\-B\fR and \fB\-C\fR.
+.TP
 \fB\-H\fR, \fB\-\-with\-filename\fR
 Always print the filename with output lines.  This is the default
 when there is more than one file to search.
@@ -483,6 +504,9 @@ a `/'.  Files and directories explicitly specified as command line
 arguments are never ignored.  This option may be repeated to
 specify additional files.
 .TP
+\fB\-\-no\-ignore\-files\fR
+Do not ignore files, i.e. cancel \fB\-\-ignore\-files\fR when specified.
+.TP
 \fB\-\-include\fR=\fIGLOB\fR
 Only search files whose name matches GLOB, same as \fB\-g\fR \fIGLOB\fR.  GLOB
 can use **, *, ?, and [...] as wildcards and \\ to quote a wildcard
@@ -518,10 +542,10 @@ may be repeated.
 \fB\-\-include\-fs\fR=\fIMOUNTS\fR
 Only file systems specified by MOUNTS are included in recursive
 searches.  MOUNTS is a comma\-separated list of mount points or
-pathnames to directories.  \fB\-\-include\-fs\fR=. restricts recursive
-searches to the file system of the working directory only.  Note
-that \fB\-\-exclude\-fs\fR=\fIMOUNTS\fR take priority over \fB\-\-include\-fs\fR=\fIMOUNTS\fR.
-This option may be repeated.
+pathnames to directories.  When MOUNTS is not specified, restricts
+recursive searches to the file system of the working directory,
+same as \fB\-\-include\-fs\fR=. (dot). Note that \fB\-\-exclude\-fs\fR=\fIMOUNTS\fR take
+priority over \fB\-\-include\-fs\fR=\fIMOUNTS\fR.  This option may be repeated.
 .TP
 \fB\-\-index\fR
 Perform index\-based recursive search.  This option assumes, but
@@ -624,10 +648,6 @@ specified with \fB\-P\fR.  This option may be repeated.
 Each output line is preceded by its relative line number in the
 file, starting at line 1.  The line number counter is reset for
 each file processed.
-.TP
-\fB\-\-no\-group\-separator\fR
-Removes the group separator line from the output for context
-options \fB\-A\fR, \fB\-B\fR and \fB\-C\fR.
 .TP
 \fB\-\-not\fR [\fB\-e\fR] PATTERN
 Specifies that PATTERN should not match.  Note that \fB\-e\fR \fIA\fR \fB\-\-not\fR \fB\-e\fR \fIB\fR
@@ -1430,14 +1450,14 @@ $ ugrep --encoding=MACROMAN '\\w+' mac.txt
 Display options related to "fuzzy" searching:
 .IP
 $ ugrep --help fuzzy
-.SH BUGS
-Report bugs at:
-.IP
-https://github.com/Genivia/ugrep/issues
 .PP
-.SH LICENSE
+.SH COPYRIGHT
+Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>
+.PP
 \fBugrep\fR is released under the BSD\-3 license.  All parts of the software
 have reasonable copyright terms permitting free redistribution.  This includes
 the ability to reuse all or parts of the ugrep source tree.
+.SH BUGS
+Report bugs at: <https://github.com/Genivia/ugrep/issues>
 .SH "SEE ALSO"
 grep(1).

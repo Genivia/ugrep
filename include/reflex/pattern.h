@@ -93,8 +93,8 @@ class Pattern {
   Pattern()
     :
       opc_(NULL),
-      nop_(0),
-      fsm_(NULL)
+      fsm_(NULL),
+      nop_(0)
   {
     init(NULL);
   }
@@ -351,11 +351,11 @@ class Pattern {
   {
     return wms_;
   }
-  /// Get elapsed time of indexing hash finite state automaton construction for the optional HFA.
-  float hashing_time() const
+  /// Get elapsed time of DFA analysis to predict matches and construct an optional HFA.
+  float analysis_time() const
     /// @returns time in ms
   {
-    return hno_ > 0 ? hms_ : 0.0f;
+    return ams_;
   }
   /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4).
   static inline bool predict_match(const Pred pmh[], const char *s, size_t n)
@@ -694,15 +694,19 @@ class Pattern {
       Tree::Node *tnode;  ///< the corresponding tree DFA node, when applicable
 #endif
       Edges       edges;  ///< state transitions
-      Index       first;  ///< index of this state in the opcode table, determined by the first assembly pass
-      Index       index;  ///< index of this state in the opcode table
+      Index       first;  ///< index of this state in the opcode table in the first assembly pass, also used in breadth-first search to cut DFA for predict match
+      Index       index;  ///< index of this state in the opcode table, also used in HFA construction
       Accept      accept; ///< nonzero if final state, the index of an accepted/captured subpattern
       Lookaheads  heads;  ///< lookahead head set
       Lookaheads  tails;  ///< lookahead tail set
       bool        redo;   ///< true if this is a final state of a negative pattern
     };
     typedef std::list<State*> List;
-    static const uint16_t ALLOC = 1024; ///< allocate 1024 DFA states at a time, to improve performance.
+    static const uint16_t ALLOC = 1024;           ///< allocate 1024 DFA states at a time, to improve performance
+    static const uint16_t MAX_DEPTH = 256;        ///< analyze DFA up to states this deep to improve predict match
+    static const Index DEAD_PATH = 1;             ///< state marker "path always and only reaches backedges" (a dead end)
+    static const Index KEEP_PATH = MAX_DEPTH;     ///< state marker "required path" (from a newline edge)
+    static const Index LOOP_PATH = MAX_DEPTH + 1; ///< state marker "path reaches a backedge" (collect lookback chars)
     DFA()
       :
         next(ALLOC)
@@ -795,7 +799,7 @@ class Pattern {
     typedef ORanges<Hash>                    HashRange;
     typedef std::array<HashRange,MAX_DEPTH>  HashRanges;
     typedef std::map<DFA::State*,HashRanges> StateHashes;
-    typedef uint16_t                         State;
+    typedef Index                            State;
     typedef std::map<State,HashRanges>       Hashes;
     typedef std::set<State>                  StateSet;
     typedef std::map<State,StateSet>         States;
@@ -805,15 +809,16 @@ class Pattern {
   };
   /// Global modifier modes, syntax flags, and compiler options.
   struct Option {
-    Option() : b(), h(), e(), f(), i(), m(), n(), o(), p(), q(), r(), s(), w(), x(), z() { }
+    Option() : b(), h(), e(), f(), g(0), i(), m(), n(), o(), p(), q(), r(), s(), w(), x(), z() { }
     bool                     b; ///< disable escapes in bracket lists
     bool                     h; ///< construct indexing hash finite state automaton
     Char                     e; ///< escape character, or > 255 for none, a backslash by default
     std::vector<std::string> f; ///< output the patterns and/or DFA to files(s)
+    int                      g; ///< debug level 0,1,2: output a cut DFA graphviz file with option f, predict match and HFA states
     bool                     i; ///< case insensitive mode, also `(?i:X)`
     bool                     m; ///< multi-line mode, also `(?m:X)`
     std::string              n; ///< pattern name (for use in generated code)
-    bool                     o; ///< generate optimized FSM code for option f
+    bool                     o; ///< generate optimized FSM code with option f
     bool                     p; ///< with option f also output predict match array for fast search with find()
     bool                     q; ///< enable "X" quotation of verbatim content, also `(?q:X)`
     bool                     r; ///< raise syntax errors as exceptions
@@ -956,12 +961,12 @@ class Pattern {
       bool              peek) const;
   void graph_dfa(const DFA::State *start) const;
   void export_code() const;
-  void predict_match_dfa(const DFA::State *start);
-  void gen_predict_match(const DFA::State *state);
-  void gen_predict_match_start(const DFA::State *state, std::map<const DFA::State*,ORanges<Hash> >& states);
-  void gen_predict_match_transitions(size_t level, const DFA::State *state, const ORanges<Hash>& labels, std::map<const DFA::State*,ORanges<Hash> >& states);
-  void gen_match_hfa(DFA::State *state);
-  bool gen_match_hfa_start(DFA::State *state, HFA::State& index, HFA::StateHashes& hashes);
+  void analyze_dfa(DFA::State *start);
+  void gen_predict_match(std::set<DFA::State*> states);
+  void gen_predict_match_start(std::set<DFA::State*> states, std::map<DFA::State*,ORanges<Hash> >& hashes);
+  void gen_predict_match_transitions(size_t level, DFA::State *state, const ORanges<Hash>& labels, std::map<DFA::State*,ORanges<Hash> >& hashes);
+  void gen_match_hfa(DFA::State* start);
+  void gen_match_hfa_start(DFA::State* start, HFA::State& index, HFA::StateHashes& hashes);
   bool gen_match_hfa_transitions(size_t level, size_t& max_level, DFA::State *state, const HFA::HashRanges& previous, HFA::State& index, HFA::StateHashes& hashes);
  public:
   bool has_hfa() const
@@ -1173,15 +1178,20 @@ class Pattern {
   size_t                eno_; ///< number of finite state machine edges |E|
   size_t                hno_; ///< number of indexing hash tables (HFA edges)
   const Opcode         *opc_; ///< points to the table with compiled finite state machine opcodes
-  Index                 nop_; ///< number of opcodes generated
   FSM                   fsm_; ///< function pointer to FSM code
+  Index                 nop_; ///< number of opcodes generated
+  Index                 cut_; ///< DFA s-t cut to improve predict match and HFA accuracy together with lbk_ and cbk_
   size_t                len_; ///< length of chr_[], less or equal to 255
   size_t                min_; ///< patterns after the prefix are at least this long but no more than 8
   size_t                pin_; ///< number of needles
+  std::bitset<256>      cbk_; ///< characters to look back over when lbk_ > 0, never includes \n
+  std::bitset<256>      fst_; ///< the beginning characters of the pattern
   char                  chr_[256];         ///< pattern prefix string or character needles for needle-based search
   Pred                  bit_[256];         ///< bitap array
   Pred                  pmh_[Const::HASH]; ///< predict-match hash array
   Pred                  pma_[Const::HASH]; ///< predict-match array
+  uint16_t              lbk_; ///< lookback distance or 0xffff unlimited lookback or 0 for no lookback (empty cbk_)
+  uint16_t              lbm_; ///< loopback minimum distance when lbk_ > 0
   uint16_t              lcp_; ///< primary least common character position in the pattern or 0xffff
   uint16_t              lcs_; ///< secondary least common character position in the pattern or 0xffff
   size_t                bmd_; ///< Boyer-Moore jump distance on mismatch, B-M is enabled when bmd_ > 0
@@ -1190,7 +1200,7 @@ class Pattern {
   float                 vms_; ///< ms elapsed time to compile DFA vertices
   float                 ems_; ///< ms elapsed time to compile DFA edges
   float                 wms_; ///< ms elapsed time to assemble code words
-  float                 hms_; ///< ms elapsed time to construct the indexing hash finite state automaton HFA
+  float                 ams_; ///< ms elapsed time to analyze DFA for predict match and HFA
   size_t                npy_; ///< entropy derived from the bitap array bit_[]
   bool                  one_; ///< true if matching one string stored in chr_[] without meta/anchors
 };

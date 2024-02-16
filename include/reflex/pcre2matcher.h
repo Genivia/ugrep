@@ -368,7 +368,12 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     /// @returns true when PCRE2 match found
   {
     if (pos_ == end_ && !eof_)
-      (void)peek_more();
+    {
+      if (method == Const::FIND)
+        set_current_and_peek_more(end_);
+      else
+        (void)peek_more();
+    }
     uint32_t flg = flg_;
     if (!eof_)
       flg |= PCRE2_PARTIAL_HARD;

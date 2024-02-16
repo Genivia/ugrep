@@ -58,6 +58,7 @@
 #include <reflex/traits.h>
 #include <reflex/simd.h>
 #include <cstdlib>
+#include <cstdint>
 #include <cctype>
 #include <iterator>
 
@@ -83,7 +84,7 @@ buf_=|  |text|rest|free|
         cur_ pos_ end_ max_
 
 buf_ // points to buffered input, buffer may grow to fit long matches
-cur_ // current position in buf_ while matching text, cur_ = pos_ afterwards, can be changed by more()
+cur_ // current position in buf_ while matching text, cur_ = pos_ afterwards, may be changed by peek() and more()
 pos_ // position in buf_ to start the next match
 end_ // position in buf_ that is free to fill with more input
 max_ // allocated size of buf_, must ensure that max_ > end_ for text() to add a final \0
@@ -1547,11 +1548,18 @@ class AbstractMatcher {
     got_ = loc > 0 ? static_cast<unsigned char>(buf_[loc - 1]) : Const::UNK;
 #endif
   }
-  /// Set the current match position in the buffer.
-  inline void set_current_match(size_t loc) ///< new location in buffer
+  /// Set the current match position in the buffer and peek for more text, allows large buffer shifts that aren't pinned to txt_.
+  inline void set_current_and_peek_more(size_t loc) ///< we don't need to keep text before this location in the buffer
   {
+    size_t old = txt_ - buf_;
     set_current(loc);
-    txt_ = buf_ + cur_;
+    txt_ = buf_ + loc; // set txt_ to allow buffer shift and flush out the buffer up to txt_
+    (void)peek_more();
+    size_t gap = buf_ + loc - txt_; // loc - (txt_ - buf_) is the buffer shift distance, zero if no shift
+    if (gap <= old)
+      txt_ = buf_ + old - gap; // old txt_ position in the buffer was not shifted out and is still valid
+    else
+      txt_ = buf_; // old txt_ position was shifted out, set to the begin of the buffer
   }
   /// Get the next character and grow the buffer to make more room if necessary.
   inline int get_more()

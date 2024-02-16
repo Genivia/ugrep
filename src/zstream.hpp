@@ -44,6 +44,7 @@
 #include <ctime>
 #include <climits>
 #include <exception>
+#include <stdexcept>
 #include <streambuf>
 #include <zlib.h>
 
@@ -1362,8 +1363,8 @@ class zstreambuf : public std::streambuf {
 
       catch (const std::invalid_argument&)
       {
-        /* non-seekable 7zip files cannot be decompressed,  */
-        cannot_decompress("non-seekable 7zip archive", pathname);
+        /* non-seekable and password-protected 7zip files cannot be decompressed */
+        cannot_decompress("7zip archive: encrypted data or 7z input is not seekable", pathname);
         file_ = NULL;
       }
 

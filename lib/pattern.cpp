@@ -188,7 +188,11 @@ void Pattern::init(const char *options, const uint8_t *pred)
   vms_ = 0.0;
   ems_ = 0.0;
   wms_ = 0.0;
-  hms_ = 0.0;
+  ams_ = 0.0;
+  cut_ = 0;
+  lbk_ = 0;
+  cbk_.reset();
+  fst_.reset();
   if (opc_ != NULL || fsm_ != NULL )
   {
     if (pred != NULL)
@@ -214,6 +218,21 @@ void Pattern::init(const char *options, const uint8_t *pred)
         for (size_t i = 0; i < Const::HASH; ++i)
           pma_[i] = ~pred[i + n];
       }
+      if ((pred[1] & 0x20) != 0)
+      {
+        n += Const::HASH;
+        lbk_ = pred[n + 0] | (pred[n + 1] << 8);
+        lbm_ = pred[n + 2] | (pred[n + 3] << 8);
+        for (size_t i = 0; i < 256; ++i)
+          cbk_.set(i, pred[n + 4 + (i >> 3)] & (1 << (i & 7)));
+        for (size_t i = 0; i < 256; ++i)
+          fst_.set(i, pred[n + 32 + 4 + (i >> 3)] & (1 << (i & 7)));
+      }
+      else
+      {
+        for (size_t i = 0; i < 256; ++i)
+          fst_.set(i, (bit_[i] & 1) == 0);
+      }
     }
   }
   else
@@ -236,7 +255,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
         // convert edges to case-insensitive by adding upper case transitions for alphas normalized to lower case
         timer_type et;
         timer_start(et);
-        for (DFA::State *state = start; state; state = state->next)
+        for (DFA::State *state = start; state != NULL; state = state->next)
         {
           for (DFA::State::Edges::iterator t = state->edges.begin(); t != state->edges.end(); ++t)
           {
@@ -291,9 +310,6 @@ void Pattern::init(const char *options, const uint8_t *pred)
       }
       // average entropy per bitap position, we don't use bitap when entropy is too high for short patterns
       npy_ /= min_;
-      // if patterns are longer then 4, we use bitap to increase accuracy, unless entropy is very high
-      if (min_ > 4 && npy_ < 200)
-        npy_ = 0;
     }
     // needle count and frequency thresholds to enable needle-based search
     uint16_t pinmax = 8;
@@ -463,6 +479,7 @@ void Pattern::init_options(const char *options)
 {
   opt_.b = false;
   opt_.h = false;
+  opt_.g = 0;
   opt_.i = false;
   opt_.m = false;
   opt_.o = false;
@@ -485,6 +502,9 @@ void Pattern::init_options(const char *options)
         case 'e':
           opt_.e = (*(s += (s[1] == '=') + 1) == ';' || *s == '\0' ? 256 : *s++);
           --s;
+          break;
+        case 'g':
+          ++opt_.g;
           break;
         case 'h':
           opt_.h = true;
@@ -1587,7 +1607,7 @@ void Pattern::compile(
     table[hash_pos(start)] = start;
   // last added state
   DFA::State *last_state = start;
-  for (DFA::State *state = start; state; state = state->next)
+  for (DFA::State *state = start; state != NULL; state = state->next)
   {
     Moves moves;
     timer_start(et);
@@ -2733,9 +2753,9 @@ void Pattern::assemble(DFA::State *start)
   timer_start(t);
   if (opt_.h)
     gen_match_hfa(start);
-  hms_ = timer_elapsed(t);
+  analyze_dfa(start);
+  ams_ = timer_elapsed(t);
   graph_dfa(start);
-  predict_match_dfa(start);
   compact_dfa(start);
   encode_dfa(start);
   wms_ = timer_elapsed(t);
@@ -2753,7 +2773,7 @@ void Pattern::compact_dfa(DFA::State *start)
 {
 #if WITH_COMPACT_DFA == -1
   // edge compaction in reverse order
-  for (DFA::State *state = start; state; state = state->next)
+  for (DFA::State *state = start; state != NULL; state = state->next)
   {
     for (DFA::State::Edges::iterator i = state->edges.begin(); i != state->edges.end(); ++i)
     {
@@ -2779,7 +2799,7 @@ void Pattern::compact_dfa(DFA::State *start)
   }
 #elif WITH_COMPACT_DFA == 1
   // edge compaction
-  for (DFA::State *state = start; state; state = state->next)
+  for (DFA::State *state = start; state != NULL; state = state->next)
   {
     for (DFA::State::Edges::reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
     {
@@ -2811,7 +2831,7 @@ void Pattern::compact_dfa(DFA::State *start)
 void Pattern::encode_dfa(DFA::State *start)
 {
   nop_ = 0;
-  for (DFA::State *state = start; state; state = state->next)
+  for (DFA::State *state = start; state != NULL; state = state->next)
   {
     // clamp max accept
     if (state->accept > Const::AMAX)
@@ -2866,7 +2886,7 @@ void Pattern::encode_dfa(DFA::State *start)
   {
     // over 64K opcodes: use 64-bit GOTO LONG opcodes
     nop_ = 0;
-    for (DFA::State *state = start; state; state = state->next)
+    for (DFA::State *state = start; state != NULL; state = state->next)
     {
       state->index = nop_;
 #if WITH_COMPACT_DFA == -1
@@ -2928,7 +2948,7 @@ void Pattern::encode_dfa(DFA::State *start)
   Opcode *opcode = new Opcode[nop_];
   opc_ = opcode;
   Index pc = 0;
-  for (const DFA::State *state = start; state; state = state->next)
+  for (const DFA::State *state = start; state != NULL; state = state->next)
   {
     if (state->redo)
     {
@@ -3092,7 +3112,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
           "{\n"
           "  int c0 = 0, c1 = 0;\n"
           "  m.FSM_INIT(c1);\n", opt_.n.empty() ? "FSM" : opt_.n.c_str());
-      for (const DFA::State *state = start; state; state = state->next)
+      for (const DFA::State *state = start; state != NULL; state = state->next)
       {
         ::fprintf(file, "\nS%u:\n", state->index);
         if (state == start)
@@ -3579,8 +3599,10 @@ void Pattern::graph_dfa(const DFA::State *start) const
       if (!err && file)
       {
         ::fprintf(file, "digraph %s {\n\t\trankdir=LR;\n\t\tconcentrate=true;\n\t\tnode [fontname=\"ArialNarrow\"];\n\t\tedge [fontname=\"Courier\"];\n\n\t\tinit [root=true,peripheries=0,label=\"%s\",fontname=\"Courier\"];\n\t\tinit -> N%p;\n", opt_.n.empty() ? "FSM" : opt_.n.c_str(), opt_.n.c_str(), (void*)start);
-        for (const DFA::State *state = start; state; state = state->next)
+        for (const DFA::State *state = start; state != NULL; state = state->next)
         {
+          if (opt_.g > 1 && state != start && state->first != 0 && state->first < cut_)
+            continue;
           if (state == start)
             ::fprintf(file, "\n/*START*/\t");
           if (state->redo)
@@ -3629,13 +3651,26 @@ void Pattern::graph_dfa(const DFA::State *start) const
           if ((state->accept && !state->redo) || !state->heads.empty() || !state->tails.empty())
             ::fprintf(file, "\\n");
 #endif
+          if (opt_.g && lbk_ > 0)
+          {
+            if (state->first == DFA::KEEP_PATH)
+              ::fprintf(file, "{keep}");
+            else if (state->first == DFA::LOOP_PATH)
+              ::fprintf(file, "{loop}");
+            else if (state->first > 0)
+              ::fprintf(file, "{%u}", state->first);
+            if (state->index > 0)
+              ::fprintf(file, "<%u>", state->index);
+          }
           if (state->accept > 0 && !state->redo)
             ::fprintf(file, "[%u]", state->accept);
           for (Lookaheads::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
             ::fprintf(file, "%u>", *i);
           for (Lookaheads::const_iterator i = state->heads.begin(); i != state->heads.end(); ++i)
             ::fprintf(file, "<%u", *i);
-          if (state->redo)
+          if (opt_.g && lbk_ > 0 && state->first > 0 && state->first <= cut_)
+            ::fprintf(file, "\",style=dotted];\n");
+          else if (state->redo)
             ::fprintf(file, "\",style=dashed,peripheries=1];\n");
           else if (state->accept > 0)
             ::fprintf(file, "\",peripheries=2];\n");
@@ -3643,8 +3678,14 @@ void Pattern::graph_dfa(const DFA::State *start) const
             ::fprintf(file, "\",style=dashed,peripheries=2];\n");
           else
             ::fprintf(file, "\"];\n");
+          if (opt_.g > 1 && lbk_ > 0 && state->accept > 0)
+            continue;
           for (DFA::State::Edges::const_iterator i = state->edges.begin(); i != state->edges.end(); ++i)
           {
+            if (i->second.second == NULL)
+              continue;
+            if (opt_.g > 1 && lbk_ > 0 && i->second.second->first != 0 && i->second.second->first <= cut_)
+              continue;
 #if WITH_COMPACT_DFA == -1
             Char lo = i->first;
             Char hi = i->second.first;
@@ -3683,7 +3724,10 @@ void Pattern::graph_dfa(const DFA::State *start) const
                 else
                   ::fprintf(file, "\\\\x%02x", hi);
               }
-              ::fprintf(file, "\"];\n");
+              ::fprintf(file, "\"");
+              if (opt_.g && lbk_ > 0 && i->second.second->first > 0 && i->second.second->first <= cut_)
+                ::fprintf(file, ",style=dotted");
+              ::fprintf(file, "];\n");
             }
             else
             {
@@ -3811,50 +3855,468 @@ void Pattern::export_code() const
 #endif
 }
 
-void Pattern::predict_match_dfa(const DFA::State *start)
+void Pattern::analyze_dfa(DFA::State *start)
 {
-  DBGLOG("BEGIN Pattern::predict_match_dfa()");
-  const DFA::State *state = start;
-  one_ = true;
-  while (state->accept == 0)
+  DBGLOG("BEGIN Pattern::analyze_dfa()");
+  cut_ = 0;
+  lbk_ = 0;
+  lbm_ = 0;
+  cbk_.reset();
+  fst_.reset();
+  std::set<DFA::State*> start_states;
+  if (start->accept == 0)
   {
-    if (state->edges.size() != 1 || !state->heads.empty())
+    // Analyze DFA with a breadth-first search to produce a set of new starting states for more accurate match prediction.
+    // A good starting state is one with few edges (chars); we want select a new set of starting states with few edges.
+    // We make a DFA graph s-t cut with few edges from which to predict matches.
+    // We also cut away edges to states that precede the new starting states, because these repetitions can be ignored.
+    // Characters on removed edges are recorded so we can look back to find a full match with the regex matcher.
+    // We name an edge a "backedge" when it points to a state before the new starting states, i.e. a loop, not necessarily a cycle.
+    bool backedge = false;       // if we found a backedge during breadth-first search
+    bool has_backedge = false;   // if we found a backedge after the last cut to a state after the cut, not before the cut
+    uint16_t fin_depth = 0xffff; // shortest distance to a final state
+    uint16_t fin_count = 0;      // number of characters to the final states cut off that are not included in the current cut
+    std::set<DFA::State*> states;     // current set of breadth-first-search states
+    std::set<DFA::State*> fin_states; // set of states to final states not included in the current cut
+    reflex::ORanges<Char> chars;      // set of characters on edges before the current cut, the lookback set
+    // current cut
+    bool cut_backedge = false;   // if we cound a backedge for the current cut
+    uint16_t cut_depth = 0;      // breadth-first search depth of the current cut
+    uint16_t cut_fin_depth = 0;  // shortest distance to a final state for the current cut
+    uint16_t cut_span = 0;       // length of the current cut, from the cut to the last state searched
+    uint16_t cut_count = 0xffff; // number of characters at the start of the current cut
+    uint16_t min_count = 0xffff; // min count of characters over the span of the current cut
+    uint16_t max_count = 0;      // max of number of characters over the span of the current cut
+    uint8_t max_freq = 0;        // max character frequency over the span of the current cut
+    std::set<DFA::State*> cut_states;     // set of states positioned on the left of the cut
+    std::set<DFA::State*> cut_fin_states; // set of states to final states not included in the current cut
+    reflex::ORanges<Char> cut_chars;      // set of characters on edges before the current cut, the lookback set
+    // best cut saved
+    bool best_cut_backedge = false;
+    uint16_t best_cut_depth = 0;
+    uint16_t best_cut_fin_depth = 0xffff;
+    uint16_t best_cut_span = 0;
+    uint16_t best_cut_count = 0xffff;
+    uint16_t best_min_count = 0xffff;
+    std::set<DFA::State*> best_cut_states;
+    std::set<DFA::State*> best_cut_fin_states;
+    reflex::ORanges<Char> best_cut_chars;
+    // start analyzing the DFA from the start state using a breadth-first search following forward edges to non-visited states
+    start->first = 1;
+    states.insert(states.begin(), start);
+    std::set<DFA::State*> next_states;
+    reflex::ORanges<uint16_t> next_chars;
+    bool searching = false;
+    for (uint16_t depth = 0; depth < DFA::MAX_DEPTH; ++depth)
     {
-      one_ = false;
-      break;
+      next_states.clear();
+      next_chars.clear();
+      bool is_more = fin_count == 0;
+      for (std::set<DFA::State*>::iterator it = states.begin(); it != states.end(); ++it)
+      {
+        DFA::State *state = *it;
+        DFA::State::Edges::iterator edge, end = state->edges.end();
+        for (edge = state->edges.begin(); edge != end; ++edge)
+        {
+          DFA::State *next_state = edge->second.second;
+          if (next_state == NULL)
+            continue;
+          Char lo = edge->first;
+          Char hi = edge->second.first;
+          if (depth == 0 && !is_meta(lo))
+            for (Char ch = lo; ch <= hi; ++ch)
+              fst_.set(ch);
+          if ((lo <= '\n' && hi >= '\n') || next_state->accept > 0 || next_state->edges.empty() || is_meta(lo) || is_meta(next_state->edges.rbegin()->first))
+          {
+            // reset the next state BFS depth to zero, to prevent edges to next states to be marked as backedges
+            next_state->first = lo <= '\n' && hi >= '\n' ? DFA::KEEP_PATH : 0;
+            // separate states that reach a final state or a state with a meta edge
+            fin_states.insert(state);
+            // depth
+            if (fin_depth == 0xffff)
+              fin_depth = depth;
+            // count number of edges from this state to the "final" state
+            fin_count += hi - lo + 1;
+            continue;
+          }
+          if (next_state->first == 0 || next_state->first > cut_depth + 1U)
+            next_chars.insert(lo, hi);
+          if (next_state->first == 0)
+          {
+            next_state->first = depth + 2;
+          }
+          else if (next_state->first <= state->first)
+          {
+            chars.insert(lo, hi);
+            if (next_state->first > cut_depth + 1U) // has a backedge to a state after the new cut?
+              has_backedge = true;
+            backedge = true; // has a backedge to a previous state
+            continue;
+          }
+          next_states.insert(next_state);
+        }
+      }
+      uint16_t count = static_cast<uint16_t>(next_chars.count()); // never more than 256
+      for (reflex::ORanges<uint16_t>::const_iterator range = next_chars.begin(); range != next_chars.end(); ++range)
+        for (Char ch = range->first; ch < range->second; ++ch)
+          max_freq = std::max(max_freq, frequency(static_cast<uint8_t>(ch)));
+      uint16_t prev_min_count = min_count;
+      if (count + fin_count > max_count)
+        max_count = count + fin_count;
+      if (count + fin_count < min_count)
+        min_count = count + fin_count;
+      if (is_more)
+        cut_span = depth - cut_depth;
+      DBGLOGN("depth %hu has-backedge=%d cut-len=%hu count=%zu fin-count=%hu min-count=%hu max-count=%hu max-freq=%hu", depth, has_backedge, cut_span, count, fin_count, min_count, max_count, max_freq);
+      if (searching)
+      {
+        // make a cut?
+        bool make_cut = false;
+        if (has_backedge)
+        {
+          make_cut = (max_count > 4 || max_freq > 251);
+        }
+        else if (cut_span >= 3 && prev_min_count < 0xffff)
+        {
+          make_cut = (prev_min_count > 2 * min_count ||
+              (prev_min_count > 16 && min_count <= 16) ||
+              (prev_min_count >  8 && min_count <=  8) ||
+              (prev_min_count >  1 && min_count <=  1));
+        }
+        if (make_cut)
+        {
+          // determine if this is a better cut than the last
+          bool better = false;
+          if (cut_span <= 2)
+            better = (cut_span > best_cut_span);
+          else
+            better = (best_min_count >= prev_min_count && cut_span >= best_cut_span);
+          if (better)
+          {
+            DBGLOGN("new improved cut-depth=%hu %hu/%hu %hu/%hu %hu/%hu", cut_depth, cut_span, best_cut_span, min_count, best_min_count, cut_count, best_cut_count);
+            best_cut_states = cut_states;
+            best_cut_fin_states = cut_fin_states;
+            best_cut_count = cut_count;
+            best_cut_chars = cut_chars;
+            best_cut_backedge = cut_backedge;
+            best_cut_depth = cut_depth;
+            best_cut_fin_depth = cut_fin_depth;
+            best_cut_span = cut_span;
+            best_min_count = prev_min_count;
+            searching = false;
+          }
+        }
+      }
+      // are we done?
+      if (count <= fin_count || !is_more)
+      {
+        if (is_more)
+          ++cut_span;
+        break;
+      }
+      if (!searching)
+      {
+        if (depth > 0)
+        {
+          // recalculate count at the cut, now without the self-edges that will be ignored in the cut-off sub-pattern DFA
+          next_chars.clear();
+          for (std::set<DFA::State*>::iterator it = states.begin(); it != states.end(); ++it)
+          {
+            DFA::State *state = *it;
+            DFA::State::Edges::iterator edge, end = state->edges.end();
+            for (edge = state->edges.begin(); edge != end; ++edge)
+            {
+              DFA::State *next_state = edge->second.second;
+              if (next_state == NULL)
+                continue;
+              Char lo = edge->first;
+              Char hi = edge->second.first;
+              if ((lo <= '\n' && hi >= '\n') || next_state->accept > 0 || next_state->edges.empty() || is_meta(lo) || is_meta(next_state->edges.rbegin()->first))
+                continue;
+              if (next_state->first == 0 || next_state->first > depth + 1U)
+                next_chars.insert(lo, hi);
+            }
+          }
+          count = static_cast<uint16_t>(next_chars.count()); // never more than 256
+        }
+        // save the previous metrics
+        cut_states = states;
+        cut_fin_states = fin_states;
+        cut_count = count + fin_count;
+        cut_chars += chars;
+        cut_backedge = backedge;
+        cut_depth = depth;
+        cut_fin_depth = fin_depth == 0xffff ? depth : fin_depth;
+        // prepare to find another cut
+        chars.clear();
+        has_backedge = false;
+        max_freq = 0;
+        max_count = count;
+        min_count = count;
+        searching = true;
+      }
+      chars += next_chars;
+      states.swap(next_states);
     }
-    Char lo = state->edges.begin()->first;
-    if (!is_meta(lo) && lo == state->edges.begin()->second.first)
+    // did we find more than one cut?
+    if (best_cut_depth > 0 || best_cut_backedge || best_cut_span > 0)
     {
-      if (len_ >= 255)
+      // if the current cut is not a better cut, then use the last best cut
+      bool better = false;
+      if (best_cut_count > cut_count || (best_cut_span == 1 && best_cut_count == cut_count))
+      {
+        if (cut_span > best_cut_span)
+          better = true;
+        else if (cut_span >= 2 || cut_span == best_cut_span)
+          better = ((best_min_count > 16 && min_count <= 16) ||
+                    (best_min_count >  8 && min_count <=  8));
+      }
+      if (better)
+      {
+        // the current cut is best
+        DBGLOGN("cut: %hu/%hu %hu/%hu %hu/%hu", cut_span, best_cut_span, cut_count, best_cut_count, min_count, best_min_count);
+      }
+      else
+      {
+        // the last best cut is best
+        DBGLOGN("best: %hu/%hu %hu/%hu %hu/%hu", cut_span, best_cut_span, cut_count, best_cut_count, min_count, best_min_count);
+        cut_states = best_cut_states;
+        cut_fin_states = best_cut_fin_states;
+        cut_count = best_cut_count;
+        cut_chars = best_cut_chars;
+        cut_backedge = best_cut_backedge;
+        cut_depth = best_cut_depth;
+        cut_fin_depth = best_cut_fin_depth;
+      }
+    }
+    // did we find a suitable cut?
+    if (cut_depth > 0 || cut_backedge)
+    {
+      cut_ = cut_depth + 1;
+      std::set<DFA::State*> sweep[HFA::MAX_DEPTH];
+      // include final states in the cut states
+      cut_states.insert(cut_fin_states.begin(), cut_fin_states.end());
+      // new start states
+      std::set<DFA::State*>::iterator fin = cut_states.end();
+      for (std::set<DFA::State*>::iterator it = cut_states.begin(); it != fin; ++it)
+      {
+        DFA::State *state = *it;
+        start = dfa_.state();
+        start->first = 1;
+        DFA::State::Edges::iterator end = state->edges.end();
+        // add edges to the new start state, ignore backedges to states <= cut
+        for (DFA::State::Edges::iterator edge = state->edges.begin(); edge != end; ++edge)
+        {
+          DFA::State *next_state = edge->second.second;
+          if (next_state == NULL)
+            continue;
+          if (next_state->first == 0 || next_state->first > cut_)
+          {
+            sweep[0].insert(next_state);
+            start->edges[edge->first] = edge->second;
+          }
+        }
+        if (!start->edges.empty())
+          start_states.insert(start);
+      }
+      // sweep forward over states up to 8 levels (max bitap length) or 16 levels (HFA::MAX_DEPTH) to mark states
+      size_t depth;
+      for (depth = 0; depth < 7 && !sweep[depth].empty(); ++depth)
+      {
+        fin = sweep[depth].end();
+        for (std::set<DFA::State*>::iterator it = sweep[depth].begin(); it != fin; ++it)
+        {
+          DFA::State *state = *it;
+          if (state->accept > 0 || state->edges.empty() || is_meta(state->edges.rbegin()->first))
+            continue;
+          // add edges from the new start state, ignore backedges to states <= cut
+          bool can = false, any = false;
+          DFA::State::Edges::iterator end = state->edges.end();
+          for (DFA::State::Edges::iterator edge = state->edges.begin(); edge != end; ++edge)
+          {
+            DFA::State *next_state = edge->second.second;
+            if (next_state == NULL)
+              continue;
+            Char lo = edge->first;
+            Char hi = edge->second.first;
+            if ((lo <= '\n' && hi >= '\n') || state->first == DFA::KEEP_PATH)
+            {
+              any = true;
+              if (next_state->first != DFA::KEEP_PATH)
+              {
+                next_state->first = DFA::KEEP_PATH;
+                sweep[depth + 1].insert(next_state);
+              }
+            }
+            else if (next_state->first == 0 || next_state->first > cut_)
+            {
+              any = true;
+              if (next_state->first != DFA::LOOP_PATH)
+                sweep[depth + 1].insert(next_state);
+            }
+            else
+            {
+              can = true; // can reach a backedge
+              cut_backedge = true; // loops are present
+              cut_chars.insert(lo, hi);
+            }
+          }
+          // mark state as to can reach a backedge (in a loop) / only reaches backedges (dead path)
+          if (can && state->first != DFA::KEEP_PATH)
+            state->first = any ? DFA::LOOP_PATH : DFA::DEAD_PATH;
+        }
+      }
+      // sweep backward to mark states loopy or dead when all out paths lead to a dead state
+      for (; depth > 0; --depth)
+      {
+        fin = sweep[depth - 1].end();
+        for (std::set<DFA::State*>::iterator it = sweep[depth - 1].begin(); it != fin; ++it)
+        {
+          DFA::State *state = *it;
+          if (state->first == DFA::KEEP_PATH || state->accept > 0 || state->edges.empty() || is_meta(state->edges.rbegin()->first))
+            continue;
+          bool all = true;
+          DFA::State::Edges::iterator end = state->edges.end();
+          for (DFA::State::Edges::iterator edge = state->edges.begin(); edge != end; ++edge)
+          {
+            DFA::State *next_state = edge->second.second;
+            if (next_state == NULL)
+              continue;
+            Char lo = edge->first;
+            Char hi = edge->second.first;
+            if (next_state->first == DFA::DEAD_PATH)
+            {
+              cut_chars.insert(lo, hi);
+            }
+            else if (next_state->first == DFA::LOOP_PATH)
+            {
+              all = false; // not all are marked dead
+              state->first = DFA::LOOP_PATH;
+              cut_chars.insert(lo, hi);
+            }
+            else
+            {
+              all = false; // not all are marked dead
+            }
+          }
+          if (all)
+            state->first = DFA::DEAD_PATH; // all edges only reach backedges (dead path)
+        }
+      }
+      // record lookback chars and remove start states with edges that are all dead paths
+      DBGLOGN("new start state with edges:");
+      next_chars.clear();
+      fin = start_states.end();
+      std::set<DFA::State*>::iterator it = start_states.begin();
+      while (it != fin)
+      {
+        bool all = true;
+        DFA::State *state = *it;
+        DFA::State::Edges::iterator end = state->edges.end();
+        for (DFA::State::Edges::iterator edge = state->edges.begin(); edge != end; ++edge)
+        {
+          DFA::State *next_state = edge->second.second;
+          if (next_state == NULL)
+            continue;
+          if (next_state->first == DFA::DEAD_PATH)
+          {
+            cut_chars.insert(edge->first, edge->second.first);
+          }
+          else if (next_state->first == DFA::LOOP_PATH)
+          {
+            all = false; // not all are marked dead
+            cut_chars.insert(edge->first, edge->second.first);
+            next_chars.insert(edge->first, edge->second.first);
+          }
+          else
+          {
+            all = false; // not all are marked dead
+            next_chars.insert(edge->first, edge->second.first);
+          }
+#ifdef DEBUG
+          if (next_state->first != DFA::DEAD_PATH)
+            DBGLOGN("%u: %d..%d -> %u", state->first, edge->first, edge->second.first, next_state->first);
+#endif
+        }
+        if (all)
+          start_states.erase(it++);
+        else
+          ++it;
+      }
+      // set the pattern's lookback distance lbk, lookback min distance lbm, and lookback characters cbk for the pattern matcher
+      lbk_ = cut_backedge ? 0xffff : cut_depth;
+      lbm_ = cut_fin_depth;
+      for (reflex::ORanges<Char>::iterator range = cut_chars.begin(); range != cut_chars.end(); ++range)
+        for (Char ch = range->first; ch < range->second; ++ch)
+          cbk_.set(ch, 1);
+#ifdef DEBUG
+      DBGLOGN("backedge=%d cut-depth=%hu cut-fin-depth=%hu cut=%u lookbacks:", cut_backedge, cut_depth, cut_fin_depth, cut_);
+      for (reflex::ORanges<Char>::iterator range = cut_chars.begin(); range != cut_chars.end(); ++range)
+      {
+        Char lo = range->first;
+        Char hi = range->second - 1;
+        if (lo > 32 && lo < 127)
+          DBGLOGA(" %c", lo);
+        else
+          DBGLOGA(" %02x", lo);
+        if (lo < hi)
+        {
+          DBGLOGA("..");
+          if (hi > 32 && hi < 127)
+            DBGLOGA("%c", hi);
+          else
+            DBGLOGA("%02x", hi);
+        }
+      }
+#endif
+    }
+  }
+  if (lbk_ == 0)
+  {
+    DFA::State *state = start;
+    one_ = true;
+    while (state->accept == 0)
+    {
+      if (state->edges.size() != 1 || !state->heads.empty())
       {
         one_ = false;
         break;
       }
-      chr_[len_++] = static_cast<uint8_t>(lo);
+      Char lo = state->edges.begin()->first;
+      if (!is_meta(lo) && lo == state->edges.begin()->second.first)
+      {
+        if (len_ >= 255)
+        {
+          one_ = false;
+          break;
+        }
+        chr_[len_++] = static_cast<uint8_t>(lo);
+      }
+      else
+      {
+        one_ = false;
+        break;
+      }
+      DFA::State *next = state->edges.begin()->second.second;
+      if (next == NULL)
+      {
+        one_ = false;
+        break;
+      }
+      state = next;
     }
-    else
-    {
+    if (state != NULL && ((state->accept > 0 && !state->edges.empty()) || state->redo))
       one_ = false;
-      break;
-    }
-    DFA::State *next = state->edges.begin()->second.second;
-    if (next == NULL)
-    {
-      one_ = false;
-      break;
-    }
-    state = next;
+    if (state != NULL && (len_ == 0 || state->accept == 0))
+      start_states.insert(state);
   }
-  if (state != NULL && ((state->accept > 0 && !state->edges.empty()) || state->redo))
-    one_ = false;
   min_ = 0;
   std::memset(bit_, 0xFF, sizeof(bit_));
   std::memset(pmh_, 0xFF, sizeof(pmh_));
   std::memset(pma_, 0xFF, sizeof(pma_));
-  if (state != NULL && (len_ == 0 || state->accept == 0))
+  if (!start_states.empty())
   {
-    gen_predict_match(state);
+    gen_predict_match(start_states);
 #ifdef DEBUG
     for (Char i = 0; i < 256; ++i)
     {
@@ -3889,70 +4351,68 @@ void Pattern::predict_match_dfa(const DFA::State *start)
 #endif
   }
   DBGLOG("min = %zu len = %zu", min_, len_);
-  DBGLOG("END Pattern::predict_match_dfa()");
+  DBGLOG("END Pattern::analyze_dfa()");
 }
 
-void Pattern::gen_predict_match(const DFA::State *state)
+void Pattern::gen_predict_match(std::set<DFA::State*> states)
 {
   min_ = 8;
-  std::map<const DFA::State*,ORanges<Hash> > hashes[8];
-  gen_predict_match_start(state, hashes[0]);
+  std::map<DFA::State*,ORanges<Hash> > hashes[8];
+  gen_predict_match_start(states, hashes[0]);
   for (int level = 1; level < 8; ++level)
-    for (std::map<const DFA::State*,ORanges<Hash> >::iterator from = hashes[level - 1].begin(); from != hashes[level - 1].end(); ++from)
+    for (std::map<DFA::State*,ORanges<Hash> >::iterator from = hashes[level - 1].begin(); from != hashes[level - 1].end(); ++from)
       gen_predict_match_transitions(level, from->first, from->second, hashes[level]);
 }
 
-void Pattern::gen_predict_match_start(const DFA::State *state, std::map<const DFA::State*,ORanges<Hash> >& hashes)
+void Pattern::gen_predict_match_start(std::set<DFA::State*> states, std::map<DFA::State*,ORanges<Hash> >& hashes)
 {
-  for (DFA::State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
+  bool empty = true;
+  for (std::set<DFA::State*>::iterator it = states.begin(); it != states.end(); ++it)
   {
-    Char lo = edge->first;
-    if (is_meta(lo))
+    DFA::State *state = *it;
+    if (!state->edges.empty())
+      empty = false;
+    for (DFA::State::Edges::iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
     {
-      min_ = 0;
-      break;
-    }
-    DFA::State *next = edge->second.second;
-    bool accept = (next == NULL || next->accept > 0);
-    if (!accept)
-    {
-      for (DFA::State::Edges::const_iterator e = next->edges.begin(); e != next->edges.end(); ++e)
+      Char lo = edge->first;
+      if (is_meta(lo))
       {
-        if (is_meta(e->first))
-        {
-          if (e == next->edges.begin())
-            next = NULL;
-          accept = true;
-          break;
-        }
+        min_ = 0;
+        break;
       }
-    }
-    else if (next != NULL && next->edges.empty())
-    {
-      next = NULL;
-      accept = true;
-    }
-    Char hi = edge->second.first;
-    if (next != NULL)
-      hashes[next].insert(lo, hi);
-    uint8_t mask = ~(1 << 6);
-    if (accept)
-    {
-      mask &= ~(1 << 7);
-      min_ = 1;
-    }
-    for (Char ch = lo; ch <= hi; ++ch)
-    {
-      bit_[ch] &= ~1;
-      pmh_[ch] &= ~1;
-      pma_[ch] &= mask;
+      DFA::State *next_state = edge->second.second;
+      // ignore edges from a state to a state with breadth-first depth <= cut
+      if (next_state != NULL && lbk_ > 0)
+        if (next_state->first > 0 && next_state->first <= cut_)
+          continue;
+      if (next_state != NULL && (next_state->edges.empty() || is_meta(next_state->edges.begin()->first)))
+        next_state = NULL;
+      bool accept = next_state == NULL || next_state->accept > 0 || is_meta(next_state->edges.rbegin()->first);
+      Char hi = edge->second.first;
+      if (next_state != NULL)
+        hashes[next_state].insert(lo, hi);
+      uint8_t mask = ~(1 << 6);
+      if (accept)
+      {
+        mask &= ~(1 << 7);
+        min_ = 1;
+      }
+      for (Char ch = lo; ch <= hi; ++ch)
+      {
+        bit_[ch] &= ~1;
+        pmh_[ch] &= ~1;
+        pma_[ch] &= mask;
+      }
+      DBGLOG("0 bitap %u..%u -> %p", lo, hi, next_state);
     }
   }
+  if (empty)
+    min_ = 0;
 }
 
-void Pattern::gen_predict_match_transitions(size_t level, const DFA::State *state, const ORanges<Hash>& previous, std::map<const DFA::State*,ORanges<Hash> >& hashes)
+void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, const ORanges<Hash>& previous, std::map<DFA::State*,ORanges<Hash> >& hashes)
 {
-  for (DFA::State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
+  for (DFA::State::Edges::iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
   {
     Char lo = edge->first;
     if (is_meta(lo))
@@ -3961,27 +4421,15 @@ void Pattern::gen_predict_match_transitions(size_t level, const DFA::State *stat
         min_ = level;
       break;
     }
-    DFA::State *next = level < 7 ? edge->second.second : NULL;
-    bool accept = next == NULL || next->accept > 0;
-    if (!accept)
-    {
-      for (DFA::State::Edges::const_iterator e = next->edges.begin(); e != next->edges.end(); ++e)
-      {
-        if (is_meta(e->first))
-        {
-          if (e == next->edges.begin())
-            next = NULL;
-          accept = true;
-          break;
-        }
-      }
-    }
-    else if (next != NULL && next->edges.empty())
-    {
-      next = NULL;
-      accept = true;
-    }
-    ORanges<Hash> *next_hashes = next != NULL ? &hashes[next] : NULL;
+    DFA::State *next_state = level < 7 ? edge->second.second : NULL;
+    // ignore edges from a state to a state with breadth-first depth <= cut
+    if (next_state != NULL && lbk_ > 0)
+      if (next_state->first > 0 && next_state->first <= cut_)
+        continue;
+    if (next_state != NULL && (next_state->edges.empty() || is_meta(next_state->edges.begin()->first)))
+      next_state = NULL;
+    bool accept = next_state == NULL || next_state->accept > 0 || is_meta(next_state->edges.rbegin()->first);
+    ORanges<Hash> *next_hashes = next_state != NULL ? &hashes[next_state] : NULL;
     if (accept && min_ > level)
       min_ = level + 1;
     if (level < 4)
@@ -3994,9 +4442,10 @@ void Pattern::gen_predict_match_transitions(size_t level, const DFA::State *stat
       if (level <= min_)
         for (Char ch = lo; ch <= hi; ++ch)
           bit_[ch] &= pmh_mask;
+      DBGLOG("%zu bitap %p: %u..%u -> %p", level, state, lo, hi, next_state);
       if (next_hashes != NULL)
       {
-        for (ORanges<Hash>::const_iterator prev_range = previous.begin(); prev_range != previous.end(); ++prev_range)
+        for (ORanges<Hash>::iterator prev_range = previous.begin(); prev_range != previous.end(); ++prev_range)
         {
           Hash prev_lo = prev_range->first;
           Hash prev_hi = prev_range->second;
@@ -4014,7 +4463,7 @@ void Pattern::gen_predict_match_transitions(size_t level, const DFA::State *stat
       }
       else
       {
-        for (ORanges<Hash>::const_iterator prev_range = previous.begin(); prev_range != previous.end(); ++prev_range)
+        for (ORanges<Hash>::iterator prev_range = previous.begin(); prev_range != previous.end(); ++prev_range)
         {
           Hash prev_lo = prev_range->first;
           Hash prev_hi = prev_range->second;
@@ -4036,9 +4485,10 @@ void Pattern::gen_predict_match_transitions(size_t level, const DFA::State *stat
       Char hi = edge->second.first;
       for (Char ch = lo; ch <= hi; ++ch)
         bit_[ch] &= pmh_mask;
+      DBGLOG("%zu bitap %p: %u..%u -> %p", level, state, lo, hi, next_state);
       if (next_hashes != NULL)
       {
-        for (ORanges<Hash>::const_iterator prev_range = previous.begin(); prev_range != previous.end(); ++prev_range)
+        for (ORanges<Hash>::iterator prev_range = previous.begin(); prev_range != previous.end(); ++prev_range)
         {
           Hash prev_lo = prev_range->first;
           Hash prev_hi = prev_range->second;
@@ -4055,7 +4505,7 @@ void Pattern::gen_predict_match_transitions(size_t level, const DFA::State *stat
       }
       else
       {
-        for (ORanges<Hash>::const_iterator prev_range = previous.begin(); prev_range != previous.end(); ++prev_range)
+        for (ORanges<Hash>::iterator prev_range = previous.begin(); prev_range != previous.end(); ++prev_range)
         {
           Hash prev_lo = prev_range->first;
           Hash prev_hi = prev_range->second;
@@ -4073,16 +4523,16 @@ void Pattern::gen_predict_match_transitions(size_t level, const DFA::State *stat
   }
 }
 
-void Pattern::gen_match_hfa(DFA::State *state)
+void Pattern::gen_match_hfa(DFA::State* start)
 {
-  size_t max_level = HFA::MAX_DEPTH - 1; // max level from start state is reduced when hashes exponentially increase
+  size_t max_level = HFA::MAX_DEPTH - 1; // max level from start state(s) is reduced when hashes exponentially increase
   HFA::State index = 1; // DFA states are enumarated for breadth-first matching with the state visit set in match_hfa()
-  HFA::StateHashes hashes[HFA::MAX_DEPTH]; // up to MAX_DEPTH states deep into the DFA are hashed from the start state
-  if (gen_match_hfa_start(state, index, hashes[0]))
-    for (size_t level = 1; level <= max_level; ++level)
-      for (HFA::StateHashes::iterator from = hashes[level - 1].begin(); from != hashes[level - 1].end(); ++from)
-        if (!gen_match_hfa_transitions(level, max_level, from->first, from->second, index, hashes[level]))
-          break;
+  HFA::StateHashes hashes[HFA::MAX_DEPTH]; // up to MAX_DEPTH states deep into the DFA are hashed from the start state(s)
+  gen_match_hfa_start(start, index, hashes[0]);
+  for (size_t level = 1; level <= max_level; ++level)
+    for (HFA::StateHashes::iterator from = hashes[level - 1].begin(); from != hashes[level - 1].end(); ++from)
+      if (!gen_match_hfa_transitions(level, max_level, from->first, from->second, index, hashes[level]))
+        break;
   // move the HFA to a new HFA with enumerated states for breadth-first matching with a bitset in match_hfa()
   for (size_t level = 0; level <= max_level; ++level)
   {
@@ -4097,94 +4547,103 @@ void Pattern::gen_match_hfa(DFA::State *state)
   }
 }
 
-bool Pattern::gen_match_hfa_start(DFA::State *state, HFA::State& index, HFA::StateHashes& hashes)
+void Pattern::gen_match_hfa_start(DFA::State *start, HFA::State& index, HFA::StateHashes& hashes)
 {
-  if (state->accept > 0)
-    return true;
-  state->index = index++;
-  for (DFA::State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
+  if (start->accept == 0 && !start->edges.empty() && !is_meta(start->edges.rbegin()->first))
   {
-    Char lo = edge->first;
-    if (is_meta(lo))
-      break;
-    DFA::State *next = edge->second.second;
-    if (next != NULL)
+    start->index = index++;
+    for (DFA::State::Edges::const_iterator edge = start->edges.begin(); edge != start->edges.end(); ++edge)
     {
-      if (next->index == 0)
-        next->index = index++; // cannot overflow max states if HFA::MAX_STATES >= 256
-      hfa_.states[state->index].insert(next->index);
+      DFA::State *next_state = edge->second.second;
+      if (next_state == NULL)
+        continue;
+      // ignore edges from a state to a state with breadth-first depth <= cut
+      if (lbk_ > 0 && next_state->first > 0 && next_state->first <= cut_)
+        continue;
+      if (next_state->index == 0)
+        next_state->index = index++; // cannot overflow max states if HFA::MAX_STATES >= 256
+      hfa_.states[start->index].insert(next_state->index);
+      Char lo = edge->first;
       Char hi = edge->second.first;
-      hashes[next][0].insert(lo, hi);
+      DBGLOG("0 HFA %p: %u..%u -> %p", state, lo, hi, next_state);
+      hashes[next_state][0].insert(lo, hi);
     }
   }
-  return true;
 }
 
 bool Pattern::gen_match_hfa_transitions(size_t level, size_t& max_level, DFA::State *state, const HFA::HashRanges& previous, HFA::State& index, HFA::StateHashes& hashes)
 {
-  if (state->accept > 0)
+  if (state->accept > 0 || state->edges.empty() || is_meta(state->edges.rbegin()->first))
     return true;
   size_t ranges = 0; // total number of hash ranges at this depth level from the DFA/HFA start state
   for (DFA::State::Edges::const_iterator edge = state->edges.begin(); edge != state->edges.end(); ++edge)
   {
-    Char lo = edge->first;
-    if (is_meta(lo))
-      break;
-    DFA::State *next = edge->second.second;
-    if (next != NULL)
+    DFA::State *next_state = edge->second.second;
+    if (next_state == NULL)
+      continue;
+    // ignore edges from a state to a state with breadth-first depth <= cut
+    if (lbk_ > 0 && next_state->first > 0 && next_state->first <= cut_)
+      continue;
+    if (next_state->index == 0)
     {
-      if (next->index == 0)
+      if (index >= HFA::MAX_STATES)
       {
-        if (index >= HFA::MAX_STATES)
-        {
-          max_level = level; // too many HFA states, truncate HFA depth to the current level minus one
-          hfa_.states[state->index].clear(); // make this state accepting (dead)
-          DBGLOG("Too many HFA states at level %zu\n", level);
-          return false; // stop generating HFA states and hashes
-        }
-        next->index = index++; // enumerate the next state
+        max_level = level; // too many HFA states, truncate HFA depth to the current level minus one
+        hfa_.states[state->index].clear(); // make this state accepting (dead)
+        DBGLOG("Too many HFA states at level %zu", level);
+        return false; // stop generating HFA states and hashes
       }
-      hfa_.states[state->index].insert(next->index);
-      Char hi = edge->second.first;
-      for (size_t offset = std::max(HFA::MAX_CHAIN - 1, level) + 1 - HFA::MAX_CHAIN; offset < level; ++offset)
+      next_state->index = index++; // enumerate the next state
+    }
+    hfa_.states[state->index].insert(next_state->index);
+    Char lo = edge->first;
+    Char hi = edge->second.first;
+    DBGLOG("%zu HFA %p: %u..%u -> %p", level, state, lo, hi, next_state);
+    for (size_t offset = std::max(HFA::MAX_CHAIN - 1, level) + 1 - HFA::MAX_CHAIN; offset < level; ++offset)
+    {
+      DBGLOGN("   offset%3zu", offset);
+      HFA::HashRange& next_hashes = hashes[next_state][offset];
+      const HFA::HashRange::const_iterator prev_range_end = previous[offset].end();
+      for (HFA::HashRange::const_iterator prev_range = previous[offset].begin(); prev_range != prev_range_end; ++prev_range)
       {
-        HFA::HashRange& next_hashes = hashes[next][offset];
-        const HFA::HashRange::const_iterator prev_range_end = previous[offset].end();
-        for (HFA::HashRange::const_iterator prev_range = previous[offset].begin(); prev_range != prev_range_end; ++prev_range)
+        Hash prev_lo = prev_range->first;
+        Hash prev_hi = prev_range->second - 1; // if prev_hi == 0 it overflowed from 65535, -1 takes care of this
+#ifdef DEBUG
+        if (prev_lo == prev_hi)
+          DBGLOGA(" %.4x", prev_lo);
+        else
+          DBGLOGA(" %.4x..%.4x", prev_lo, prev_hi);
+#endif
+        for (uint32_t prev = prev_lo; prev <= prev_hi; ++prev)
         {
-          Hash prev_lo = prev_range->first;
-          Hash prev_hi = prev_range->second - 1; // if prev_hi == 0 it overflowed from 65535, -1 takes care of this
-          for (uint32_t prev = prev_lo; prev <= prev_hi; ++prev)
+          // important: assume index hashing is additive, i.e. indexhash(x,b+1) = indexhash(x,b)+1 modulo 2^16
+          Hash hash_lo = indexhash(static_cast<Hash>(prev), static_cast<uint8_t>(lo));
+          Hash hash_hi = indexhash(static_cast<Hash>(prev), static_cast<uint8_t>(hi));
+          if (hash_lo <= hash_hi && hash_hi < 65535)
           {
-            // important: assume index hashing is additive, i.e. indexhash(x,b+1) = indexhash(x,b)+1 modulo 2^16
-            Hash hash_lo = indexhash(static_cast<Hash>(prev), static_cast<uint8_t>(lo));
-            Hash hash_hi = indexhash(static_cast<Hash>(prev), static_cast<uint8_t>(hi));
-            if (hash_lo <= hash_hi && hash_hi < 65535)
-            {
-              next_hashes.insert(hash_lo, hash_hi);
-            }
-            else
-            {
-              if (hash_lo < 65535)
-                next_hashes.insert(hash_lo, 65534); // 65534 max, 65535 overflows
-              if (hash_hi < 65535)
-                next_hashes.insert(0, hash_hi); // 65534 max, 65535 overflows
-              if (next_hashes.find(65535) == next_hashes.end())
-                next_hashes.insert(65535); // overflow value 65535 is unordered in ORange<Hash> 
-            }
+            next_hashes.insert(hash_lo, hash_hi);
+          }
+          else
+          {
+            if (hash_lo < 65535)
+              next_hashes.insert(hash_lo, 65534); // 65534 max, 65535 overflows
+            if (hash_hi < 65535)
+              next_hashes.insert(0, hash_hi); // 65534 max, 65535 overflows
+            if (next_hashes.find(65535) == next_hashes.end())
+              next_hashes.insert(65535); // overflow value 65535 is unordered in ORange<Hash> 
           }
         }
-        ranges += next_hashes.size();
       }
-      hashes[next][level].insert(lo, hi); // at offset == level
-      hno_ += ranges;
+      ranges += next_hashes.size();
     }
+    hashes[next_state][level].insert(lo, hi); // at offset == level
+    hno_ += ranges;
   }
   if (ranges > HFA::MAX_RANGES)
   {
     max_level = level; // too many hashes causing significant slow down, truncate HFA to the current level
     hfa_.states[state->index].clear(); // make this state accepting (dead)
-    DBGLOG("too many HFA hashes at level %zu state %u ranges %zu\n", level, state->index, ranges);
+    DBGLOG("too many HFA hashes at level %zu state %u ranges %zu", level, state->index, ranges);
   }
   return true;
 }
@@ -4193,7 +4652,7 @@ bool Pattern::match_hfa(const uint8_t *indexed, size_t size) const
 {
   if (!has_hfa())
     return false;
-  HFA::VisitSet visit[2]; // we alternate two state visit bitsets, to produce a new one from the previous
+  HFA::VisitSet visit[2]; // we alternate two state visit bitsets to produce a new one from the previous for breadth-first matching with the HFA (as an NFA)
   bool accept = false; // a flag to indicate that we reached an accept (= dead) state, i.e. a possible match is found
   for (size_t level = 0; level < HFA::MAX_DEPTH && !accept; ++level)
     if (!match_hfa_transitions(level, hfa_.hashes[level], indexed, size, visit[level & 1], visit[~level & 1], accept))
@@ -4251,8 +4710,8 @@ bool Pattern::match_hfa_transitions(size_t level, const HFA::Hashes& hashes, con
 
 void Pattern::write_predictor(FILE *file) const
 {
-  ::fprintf(file, "const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (len_ == 0) * 256 + Const::HASH);
-  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4))));
+  ::fprintf(file, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (len_ == 0) * 256 + Const::HASH + (lbk_ > 0) * 68);
+  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5))));
   for (size_t i = 0; i < len_; ++i)
     ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(chr_[i]));
   if (len_ == 0)
@@ -4269,6 +4728,24 @@ void Pattern::write_predictor(FILE *file) const
   {
     for (Hash i = 0; i < Const::HASH; ++i)
       ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i]));
+  }
+  if (lbk_ > 0)
+  {
+    ::fprintf(file, "\n  %3hhu,%3hhu,%3hhu,%3hhu,", static_cast<uint8_t>(lbk_ & 0xff), static_cast<uint8_t>(lbk_ >> 8), static_cast<uint8_t>(lbm_ & 0xff), static_cast<uint8_t>(lbm_ >> 8));
+    for (size_t i = 0; i < 256; i += 8)
+    {
+      uint8_t b = 0;
+      for (size_t j = 0; j < 8; ++j)
+        b |= cbk_.test(i + j) << j;
+      ::fprintf(file, "%s%3hhu,", (i & 0x7F) ? "" : "\n  ", b);
+    }
+    for (size_t i = 0; i < 256; i += 8)
+    {
+      uint8_t b = 0;
+      for (size_t j = 0; j < 8; ++j)
+        b |= fst_.test(i + j) << j;
+      ::fprintf(file, "%s%3hhu,", (i & 0x7F) ? "" : "\n  ", b);
+    }
   }
   ::fprintf(file, "\n};\n\n");
 }

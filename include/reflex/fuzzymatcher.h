@@ -729,7 +729,7 @@ unrolled:
             if (cap_ == 0 && pos_ > cur_ && method == Const::FIND)
             {
               // use bit_[] to check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
-              while (++cur_ < pos_ && (pat_->bit_[static_cast<uint8_t>(buf_[cur_])] & 1))
+              while (++cur_ < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_])))
                 continue;
             }
           }
@@ -895,8 +895,7 @@ unrolled:
       {
         if (pat_->min_ > 0)
         {
-          const Pattern::Pred *bit = pat_->bit_;
-          while (s < e && (bit[static_cast<uint8_t>(*s)] & 1))
+          while (s < e && !pat_->fst_.test(static_cast<uint8_t>(*s)))
             ++s;
           if (s < e)
           {
@@ -1051,12 +1050,11 @@ unrolled:
             {
               if (pat_->min_ > 0)
               {
-                const Pattern::Pred *bit = pat_->bit_;
                 while (true)
                 {
                   const char *s = buf_ + loc;
                   const char *e = buf_ + end_;
-                  while (s < e && (bit[static_cast<uint8_t>(*s)] & 1))
+                  while (s < e && !pat_->fst_.test(static_cast<uint8_t>(*s)))
                     ++s;
                   if (s < e)
                   {
@@ -1065,8 +1063,7 @@ unrolled:
                     goto scan;
                   }
                   loc = e - buf_;
-                  set_current_match(loc - 1);
-                  peek_more();
+                  set_current_and_peek_more(loc - 1);
                   loc = cur_ + 1;
                   if (loc >= end_)
                     break;
@@ -1087,8 +1084,7 @@ unrolled:
                   goto scan;
                 }
                 loc = e - buf_;
-                set_current_match(loc - 1);
-                peek_more();
+                set_current_and_peek_more(loc - 1);
                 loc = cur_ + 1;
                 if (loc + pat_->len_ > end_)
                   break;

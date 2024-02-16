@@ -567,6 +567,11 @@ This lowers storage overhead and reduces insertion, deletion, and search time.
 We can iterate over open-ended ranges.  The iterator dereferences values are
 `[lo,hi+1)` pairs, i.e. `lo = i->first` and `hi = i->second - 1`.
 
+Additional ORanges methods not defined by Ranges:
+
+- `size_t count()` returns the number of items stored in ranges, note that
+  `size()` returns the number of ranges.
+
 IMPORTANT:
 
 The largest value that can be stored in an open-ended range of value type T is
@@ -922,6 +927,15 @@ class ORanges : public Ranges<T> {
     /// @returns highest value
   {
     return this->rbegin()->second - static_cast<bound_type>(1);
+  }
+  /// Return the number of items stored in ranges
+  size_t count() const
+  {
+    size_t sum = 0;
+    const_iterator j = this->end();
+    for (const_iterator i = this->begin(); i != j; ++i)
+      sum += i->second - i->first;
+    return sum;
   }
  private:
   /// Bump value.

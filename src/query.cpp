@@ -352,26 +352,42 @@ void Query::display(int col, int len)
               Screen::put(color_qr);
             ptr = next + 1;
           }
-          else if (!literal && prev == ' ')
+          else if (!literal && flag_fixed_strings)
           {
-            if (ch == '-' ||
-                strncmp(next, "AND ", 4) == 0 ||
-                strncmp(next, "OR ", 3) == 0 ||
-                strncmp(next, "NOT ", 4) == 0)
+            if (prev == ' ' || prev == '|' || prev == '(')
+            {
+              if (ch == '-' ||
+                  ch == '|' ||
+                  (ch == '(' && strchr(next, ')') != NULL) ||
+                  ch == ')' ||
+                  strncmp(next, "AND ", 4) == 0 ||
+                  strncmp(next, "OR ", 3) == 0 ||
+                  strncmp(next, "NOT ", 4) == 0)
+              {
+                Screen::put(ptr, next - ptr);
+                Screen::normal();
+                Screen::put(color_qm);
+                ptr = next;
+                if (isalpha(ch))
+                  next += 2 + (next[2] != ' ');
+                ch = ' ';
+              }
+              else
+              {
+                Screen::put(ptr, next - ptr);
+                Screen::normal();
+                ptr = next;
+              }
+            }
+            else if (ch == '|' || (ch == ')' && (next + 1 >= end || next[1] == ' ' || next[1] == '|' || next[1] == ')')))
             {
               Screen::put(ptr, next - ptr);
               Screen::normal();
               Screen::put(color_qm);
-              ptr = next;
-              if (ch != '-')
-                next += 2 + (next[2] != ' ');
-              ch = ' ';
-            }
-            else
-            {
-              Screen::put(ptr, next - ptr);
+              Screen::put(ch);
               Screen::normal();
-              ptr = next;
+              Screen::put(color_qr);
+              ptr = next + 1;
             }
           }
         }
@@ -3323,28 +3339,32 @@ void Query::meta(int key)
               flags_[18].flag = true;
             break;
 
+          case '@':
+            flags_[10].flag = false;
+            break;
+
           case '~':
-            flags_[46].flag = false;
             flags_[47].flag = false;
             flags_[48].flag = false;
+            flags_[49].flag = false;
             break;
 
           case '#':
-            flags_[45].flag = false;
-            flags_[47].flag = false;
-            flags_[48].flag = false;
-            break;
-
-          case '%':
-            flags_[45].flag = false;
             flags_[46].flag = false;
             flags_[48].flag = false;
+            flags_[49].flag = false;
             break;
 
-          case '@':
-            flags_[45].flag = false;
+          case '$':
             flags_[46].flag = false;
             flags_[47].flag = false;
+            flags_[49].flag = false;
+            break;
+
+          case '!':
+            flags_[46].flag = false;
+            flags_[47].flag = false;
+            flags_[48].flag = false;
             break;
         }
       }
@@ -3706,6 +3726,14 @@ bool Query::print(const std::string& line)
 // initialze local flags with the global flags
 void Query::get_flags()
 {
+  // remember file and directory restrictions, when specified, to enable/disable with ALT-@
+  exclude_ = flag_exclude;
+  exclude_dir_ = flag_exclude_dir;
+  include_ = flag_include;
+  include_dir_ = flag_include_dir;
+  file_magic_ = flag_file_magic;
+  ignore_files_ = flag_ignore_files;
+
   // remember the context size, when specified
   if (flag_hexdump != NULL)
   {
@@ -3808,13 +3836,14 @@ void Query::get_flags()
   flags_[40].flag = flag_max_depth == 8;
   flags_[41].flag = flag_max_depth == 9;
   flags_[42].flag = flag_bool;
-  flags_[43].flag = flag_hidden;
-  flags_[44].flag = flag_heading;
-  flags_[45].flag = flag_sort && (strcmp(flag_sort, "best") == 0 || strcmp(flag_sort, "rbest") == 0);
-  flags_[46].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
-  flags_[47].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
-  flags_[48].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
-  flags_[49].flag = flag_sort && *flag_sort == 'r';
+  flags_[43].flag = false;
+  flags_[44].flag = flag_hidden;
+  flags_[45].flag = flag_heading;
+  flags_[46].flag = flag_sort && (strcmp(flag_sort, "best") == 0 || strcmp(flag_sort, "rbest") == 0);
+  flags_[47].flag = flag_sort && (strcmp(flag_sort, "size") == 0 || strcmp(flag_sort, "rsize") == 0);
+  flags_[48].flag = flag_sort && (strcmp(flag_sort, "changed") == 0 || strcmp(flag_sort, "changed") == 0);
+  flags_[49].flag = flag_sort && (strcmp(flag_sort, "created") == 0 || strcmp(flag_sort, "created") == 0);
+  flags_[50].flag = flag_sort && *flag_sort == 'r';
 }
 
 // set the global flags to the local flags
@@ -3826,8 +3855,27 @@ void Query::set_flags()
   flag_no_dereference = false;
   flag_files_without_match = false;
   flag_match = false;
-  flag_binary_files = NULL;
   flag_break = false;
+
+  // set/reset file and directory restrictions
+  if (flags_[43].flag)
+  {
+    flag_exclude.clear();
+    flag_exclude_dir.clear();
+    flag_include.clear();
+    flag_include_dir.clear();
+    flag_file_magic.clear();
+    flag_ignore_files.clear();
+  }
+  else
+  {
+    flag_exclude = exclude_;
+    flag_exclude_dir = exclude_dir_;
+    flag_include = include_;
+    flag_include_dir = include_dir_;
+    flag_file_magic = file_magic_;
+    flag_ignore_files = ignore_files_;
+  }
 
   // restore flags that may have changed by the last search
   flag_dotall = dotall_;
@@ -3868,7 +3916,7 @@ void Query::set_flags()
   if (globbing_)
     globs_.assign(line_);
   flags_[7].flag = !globs_.empty();
-  if (flags_[7].flag)
+  if (flags_[7].flag && !flags_[43].flag)
     flag_glob.emplace_back(globs_);
   flag_with_filename = flags_[8].flag;
   flag_no_filename = flags_[9].flag;
@@ -3904,18 +3952,18 @@ void Query::set_flags()
     if (flags_[i].flag)
       flag_max_depth = i - 32;
   flag_bool = flags_[42].flag;
-  flag_hidden = flags_[43].flag;
-  flag_heading = flags_[44].flag;
-  if (flags_[45].flag)
-    flag_sort = flags_[49].flag ? "rbest" : "best";
-  else if (flags_[46].flag)
-    flag_sort = flags_[49].flag ? "rsize" : "size";
+  flag_hidden = flags_[44].flag;
+  flag_heading = flags_[45].flag;
+  if (flags_[46].flag)
+    flag_sort = flags_[50].flag ? "rbest" : "best";
   else if (flags_[47].flag)
-    flag_sort = flags_[49].flag ? "rchanged" : "changed";
+    flag_sort = flags_[50].flag ? "rsize" : "size";
   else if (flags_[48].flag)
-    flag_sort = flags_[49].flag ? "rcreated" : "created";
+    flag_sort = flags_[50].flag ? "rchanged" : "changed";
+  else if (flags_[49].flag)
+    flag_sort = flags_[50].flag ? "rcreated" : "created";
   else
-    flag_sort = flags_[49].flag ? "rname" : "name";
+    flag_sort = flags_[50].flag ? "rname" : "name";
 }
 
 void Query::set_prompt()
@@ -4277,6 +4325,12 @@ size_t                     Query::searched_            = 0;
 size_t                     Query::found_               = 0;
 int                        Query::tick_                = 0;
 int                        Query::spin_                = 0;
+std::vector<std::string>   Query::exclude_;
+std::vector<std::string>   Query::exclude_dir_;
+std::vector<std::string>   Query::include_;
+std::vector<std::string>   Query::include_dir_;
+std::vector<std::string>   Query::file_magic_;
+std::set<std::string>      Query::ignore_files_;
 size_t                     Query::context_             = 2;
 size_t                     Query::only_context_        = 20;
 size_t                     Query::fuzzy_               = 1;
@@ -4335,12 +4389,13 @@ Query::Flags Query::flags_[] = {
   { false, '8', "recurse 8 levels" },
   { false, '9', "recurse 9 levels" },
   { false, '%', "Boolean queries" },
+  { false, '@', "all not hidden" },
   { false, '.', "include hidden" },
   { false, '+', "show heading" },
   { false, '~', "sort by best" },
   { false, '#', "sort by size" },
   { false, '$', "sort by changed" },
-  { false, '@', "sort by created" },
+  { false, '!', "sort by created" },
   { false, '^', "reverse sort" },
   { false, '[', "decrease context" },
   { false, ']', "increase context" },

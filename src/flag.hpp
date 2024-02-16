@@ -103,6 +103,7 @@ extern bool flag_match;
 extern bool flag_multiline; // internal flag
 extern bool flag_no_dereference;
 extern bool flag_no_header;
+extern bool flag_no_filename;
 extern bool flag_no_messages;
 extern bool flag_not;
 extern bool flag_null;
@@ -119,7 +120,6 @@ extern bool flag_usage_warnings; // internal flag
 extern bool flag_word_regexp;
 extern bool flag_xml;
 extern bool flag_with_hex;
-extern bool flag_no_filename;
 extern bool flag_with_filename;
 extern Flag flag_binary;
 extern Flag flag_binary_without_match;

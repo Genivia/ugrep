@@ -449,14 +449,14 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     return (col_ <= 0 || (!tab_.empty() && tab_.back() >= col_)) && (tab_.empty() || tab_.back() <= col_);
   }
 #endif
-  size_t            ded_;      ///< dedent count
-  size_t            col_;      ///< column counter for indent matching, updated by newline(), indent(), and dedent()
-  Stops             tab_;      ///< tab stops set by detecting indent margins
-  std::vector<int>  lap_;      ///< lookahead position in input that heads a lookahead match (indexed by lookahead number)
-  std::stack<Stops> stk_;      ///< stack to push/pop stops
-  FSM               fsm_;      ///< local state for FSM code
-  bool              mrk_;      ///< indent \i or dedent \j in pattern found: should check and update indent stops
-  bool              anc_;      ///< match is anchored, advance slowly to retry when searching
+  size_t            ded_; ///< dedent count
+  size_t            col_; ///< column counter for indent matching, updated by newline(), indent(), and dedent()
+  Stops             tab_; ///< tab stops set by detecting indent margins
+  std::vector<int>  lap_; ///< lookahead position in input that heads a lookahead match (indexed by lookahead number)
+  std::stack<Stops> stk_; ///< stack to push/pop stops
+  FSM               fsm_; ///< local state for FSM code
+  bool              mrk_; ///< indent \i or dedent \j in pattern found: should check and update indent stops
+  bool              anc_; ///< match is anchored, advance slowly to retry when searching
 };
 
 } // namespace reflex
