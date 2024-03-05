@@ -207,11 +207,11 @@ Right-click on the matcher_avx2.cpp file to enable AVX2:
 		Code Generation:
 			Enable Enhanced Instruction Set: Advanced Vector Extensions 2 (/arch:AVX2) 
 
-Optionally, right-click on the matcher_avx512bw.cpp file to enable AVX512 when available and add HAVE_AVX512BW to the preprocessor definitions:
+Optionally, right-click on the matcher_avx512bw.cpp file to enable AVX512 when available and add HAVE_AVX512_BW to the preprocessor definitions:
 
 	C/C++
 		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;WITH_NO_CODEGEN;HAVE_AVX2;HAVE_AVX512BW;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;WITH_NO_CODEGEN;HAVE_AVX2;HAVE_AVX512_BW;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
 			Enable Enhanced Instruction Set: Advanced Vector Extensions 512 (/arch:AVX512) 
 
@@ -341,11 +341,11 @@ Right-click on the matcher_avx2.cpp file to enable AVX2:
 		Code Generation:
 			Enable Enhanced Instruction Set: Advanced Vector Extensions 2 (/arch:AVX2) 
 
-Optionally, right-click on the matcher_avx512bw.cpp file to enable AVX512 when available and add HAVE_AVX512BW to the preprocessor definitions:
+Optionally, right-click on the matcher_avx512bw.cpp file to enable AVX512 when available and add HAVE_AVX512_BW to the preprocessor definitions:
 
 	C/C++
 		Preprocessor: 
-			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;WITH_NO_CODEGEN;HAVE_AVX2;HAVE_AVX512BW;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
+			Preprocessor Definitions: WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;WITH_NO_CODEGEN;HAVE_AVX2;HAVE_AVX512_BW;HAVE_BOOST_REGEX;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS
 		Code Generation:
 			Enable Enhanced Instruction Set: Advanced Vector Extensions 512 (/arch:AVX512) 
 

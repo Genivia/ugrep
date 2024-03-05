@@ -661,20 +661,23 @@ class AbstractMatcher {
       const char *s = lpb_;
       const char *t = txt_;
       size_t n = 0;
-#if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
+#if (!defined(_MSC_VER) || defined(_WIN64))
+#if defined(HAVE_AVX512_BW)
       if (have_HW_AVX512BW())
         n = simd_nlcount_avx512bw(s, t);
-      else if (have_HW_AVX2())
-        n = simd_nlcount_avx2(s, t);
       else
-        n = simd_nlcount_sse2(s, t);
-#elif defined(HAVE_AVX2)
+#endif
+#if defined(HAVE_AVX2)
       if (have_HW_AVX2())
         n = simd_nlcount_avx2(s, t);
       else
+#endif
+#if defined(HAVE_SSE2)
+      if (have_HW_SSE2())
         n = simd_nlcount_sse2(s, t);
-#elif defined(HAVE_SSE2)
-      n = simd_nlcount_sse2(s, t);
+      else
+#endif
+      {}
 #endif
 #if defined(HAVE_NEON)
       // no ARM AArch64/NEON SIMD optimized loop? - no code that runs faster than the code below?!

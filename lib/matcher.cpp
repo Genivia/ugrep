@@ -34,18 +34,6 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#if defined(COMPILE_AVX512BW) && !defined(HAVE_AVX512BW)
-
-// appease ranlib "has no symbols"
-void matcher_not_compiled_with_avx512bw() { }
-
-#elif defined(COMPILE_AVX2) && !defined(HAVE_AVX2) && !defined(HAVE_AVX512BW)
-
-// appease ranlib "has no symbols"
-void matcher_not_compiled_with_avx2() { }
-
-#else
-
 #include <reflex/matcher.h>
 
 namespace reflex {
@@ -79,14 +67,15 @@ size_t Matcher::simd_match_avx2(Method method)
 size_t Matcher::match(Method method)
 {
   DBGLOG("BEGIN Matcher::match()");
-#if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
+#if (!defined(_MSC_VER) || defined(_WIN64))
+#if defined(HAVE_AVX512_BW)
   if (have_HW_AVX512BW())
     return simd_match_avx512bw(method);
+#endif
+#if defined(HAVE_AVX2)
   if (have_HW_AVX2())
     return simd_match_avx2(method);
-#elif defined(HAVE_AVX2)
-  if (have_HW_AVX2())
-    return simd_match_avx2(method);
+#endif
 #endif
 #endif
   reset_text();
@@ -832,7 +821,11 @@ bool Matcher::advance()
         if (loc + min + 31 > end_)
           break;
       }
-#elif defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+#elif defined(HAVE_SSE2)
+      /* FIXME: I think this will crash if compiled on SSE2 CPU but run on CPU without SSE2 or AVX - RH
+       * It is disabled because HAVE_SSE2 is never defined. (ax_cv_have_avx2_ext in configure.ac)
+       * Need a simd_advance_sse2() implementation?
+       */
       __m128i vlcp = _mm_set1_epi8(chr[0]);
       __m128i vlcs = _mm_set1_epi8(chr[1]);
       while (true)
@@ -1528,7 +1521,11 @@ bool Matcher::advance()
           break;
       }
     }
-#elif defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+#elif defined(HAVE_SSE2)
+      /* FIXME: I think this will crash if compiled on SSE2 CPU but run on CPU without SSE2 or AVX - RH
+       * It is disabled because HAVE_SSE2 is never defined. (ax_cv_have_avx2_ext in configure.ac)
+       * Need a simd_advance_sse2() implementation?
+       */
     // look for needles
     else if (pat_->pin_ == 2)
     {
@@ -2979,7 +2976,11 @@ bool Matcher::advance()
         }
         s += 32;
       }
-#elif defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+#elif defined(HAVE_SSE2)
+      /* FIXME: I think this will crash if compiled on SSE2 CPU but run on CPU without SSE2 or AVX - RH
+       * It is disabled because HAVE_SSE2 is never defined. (ax_cv_have_avx2_ext in configure.ac)
+       * Need a simd_advance_sse2() implementation?
+       */
       // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
       // enhanced with least frequent character matching
       __m128i vlcp = _mm_set1_epi8(chr[lcp]);
@@ -3203,4 +3204,3 @@ bool Matcher::advance()
 
 } // namespace reflex
 
-#endif

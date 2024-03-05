@@ -14713,7 +14713,7 @@ void version()
   uint32_t tmp = 0;
 #endif
   std::cout << "ugrep " UGREP_VERSION " " PLATFORM << (flag_grep ? " (grep emu mode)" : "") <<
-#if defined(HAVE_AVX512BW)
+#if defined(HAVE_AVX512_BW)
     (reflex::have_HW_AVX512BW() ? " +avx512" : (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)")) <<
 #elif defined(HAVE_AVX2)
     (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)") <<

@@ -1,5 +1,6 @@
 noinst_LIBRARIES      = libreflex.a
-libreflex_a_CPPFLAGS  = -I$(top_srcdir)/include $(SIMD_FLAGS) -DWITH_NO_INDENT -DWITH_NO_CODEGEN
+libreflex_a_CPPFLAGS  = -include $(CONFIG_HEADER) -I$(top_srcdir)/include -DWITH_NO_INDENT -DWITH_NO_CODEGEN
+libreflex_a_CXXFLAGS  = $(SIMD_FLAGS)
 libreflex_a_SOURCES   = \
         convert.cpp \
         debug.cpp \
@@ -15,13 +16,17 @@ libreflex_a_SOURCES   = \
         letter_scripts.cpp \
         composer.cpp
 
-# separately compile matcher_avx2.cpp and matcher_avx512bw (with the same content as matcher.cpp) with AVX optimizations enabled
-libreflex_a-matcher_avx2.$(OBJEXT)     : CXXFLAGS += $(SIMD_AVX2_FLAGS)
-libreflex_a-matcher_avx512bw.$(OBJEXT) : CXXFLAGS += $(SIMD_AVX512BW_FLAGS)
+if ENABLE_AVX2
+    libreflex_a_SOURCES   += \
+        matcher_avx2.cpp \
+        simd_avx2.cpp
+endif
+if ENABLE_AVX512_BW
+    libreflex_a_SOURCES   += \
+        matcher_avx512bw.cpp \
+        simd_avx512bw.cpp
+endif
 
-# separately compile simd_avx2.cpp and simd_avx512bw.cpp with AVX optimizations enabled
-libreflex_a-simd_avx2.$(OBJEXT)     : CXXFLAGS += $(SIMD_AVX2_FLAGS)
-libreflex_a-simd_avx512bw.$(OBJEXT) : CXXFLAGS += $(SIMD_AVX512BW_FLAGS)
 # Tell automake to package these into the tarball
 # FIXME: move these files to this directory, they belong with the source code.
 # FIXME: Include them with "quotes", not angle <brackets>

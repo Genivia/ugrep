@@ -40,9 +40,9 @@
 namespace reflex {
 
 // Partially count newlines in string b up to and including position e in b, updates b close to e with uncounted part
+#if defined(HAVE_AVX512_BW) && (!defined(_MSC_VER) || defined(_WIN64))
 size_t simd_nlcount_avx512bw(const char*& b, const char *e)
 {
-#if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
   const char *s = b;
   e -= 128;
   if (s > e)
@@ -61,11 +61,7 @@ size_t simd_nlcount_avx512bw(const char*& b, const char *e)
   }
   b = s;
   return n;
-#else
-  (void)b;
-  (void)e;
-  return 0;
-#endif
 }
+#endif
 
 } // namespace reflex

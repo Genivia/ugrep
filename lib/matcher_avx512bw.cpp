@@ -34,7 +34,7 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#if defined(HAVE_AVX512BW)
+#if defined(HAVE_AVX512_BW)
 # if !defined(__AVX512BW__)
 #  error matcher_avx512bw.cpp must be compiled with -mavx512bw or /arch:avx512.
 # endif

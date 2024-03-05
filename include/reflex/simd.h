@@ -37,7 +37,7 @@
 #ifndef SIMD_H
 #define SIMD_H
 
-#if defined(HAVE_AVX512BW)
+#if defined(HAVE_AVX512_BW)
 # include <immintrin.h>
 #elif defined(HAVE_AVX2)
 # include <immintrin.h>
@@ -47,7 +47,7 @@
 # include <arm_neon.h>
 #endif
 
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+#if defined(HAVE_AVX512_BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
 
 #ifdef _MSC_VER
 # include <intrin.h>

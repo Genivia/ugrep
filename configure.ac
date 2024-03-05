@@ -262,56 +262,45 @@ AC_ARG_ENABLE(sse2,
                   [disable SSE2 and AVX optimizations])],
   [with_no_sse2="yes"],
   [with_no_sse2="no"])
-AC_MSG_CHECKING(for --disable-sse2)
-if test "x$with_no_sse2" = "xno"; then
-  AC_MSG_RESULT(no)
-  AC_MSG_CHECKING([whether ${CXX} supports SSE2 intrinsics])
-  save_CXXFLAGS=$CXXFLAGS
-  CXXFLAGS="-march=native"
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <emmintrin.h>]], [[__m128i n = _mm_set1_epi8(42);]])],
-                    [msse2_ok=yes],
-                    [msse2_ok=no])
-  CXXFLAGS=$save_CXXFLAGS
-  AC_MSG_RESULT($msse2_ok)
-  if test "x$msse2_ok" = "xyes"; then
-    SIMD_FLAGS="-msse2 -DHAVE_SSE2"
-    AC_ARG_ENABLE(avx,
-      [AS_HELP_STRING([--disable-avx],
-                      [disable AVX optimizations])],
-      [with_no_avx="yes"],
-      [with_no_avx="no"])
-    AC_MSG_CHECKING(for --disable-avx)
-    if test "x$with_no_avx" = "xno"; then
-      AC_MSG_RESULT(no)
-      AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
-      save_CXXFLAGS=$CXXFLAGS
-      CXXFLAGS="-march=native"
-      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m512 n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);]])],
-                        [mavx_ok=yes],
-                        [mavx_ok=no])
-      if test "x$mavx_ok" = "xyes"; then
-        SIMD_FLAGS="-msse2 -DHAVE_AVX512BW"
-        SIMD_AVX2_FLAGS="-mavx2"
-        SIMD_AVX512BW_FLAGS="-mavx512bw"
-      else
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42); (void)_mm256_movemask_epi8(_mm256_and_si256(n, n));]])],
-                          [mavx_ok=yes],
-                          [mavx_ok=no])
-        if test "x$mavx_ok" = "xyes"; then
-          SIMD_FLAGS="-msse2 -DHAVE_AVX2"
-          SIMD_AVX2_FLAGS="-mavx2"
-        fi
-      fi
-      CXXFLAGS=$save_CXXFLAGS
-      AC_MSG_RESULT($mavx_ok)
-    else
-      AC_MSG_RESULT(yes)
-    fi
-  fi
-else
-  AC_MSG_RESULT(yes)
-  SIMD_FLAGS=
+AM_CONDITIONAL([ENABLE_SIMD],[test "x$with_no_sse2" = "xyes"])
+if ! test "x$with_no_sse2" = "xyes"; then
+  # Cross-compiling must be set to allow compiler detection of -mavx2 and
+  # -mavx512bw support without probing the build machine's CPU. The build
+  # machine CPU need not be probed because the code base detects at runtime
+  # whether the CPU supports AVX2 and/or AVX512-BW, and runs the appropriate
+  # code path (or the native code path if neither AVX is available at
+  # runtime
+  # Per https://www.gnu.org/software/autoconf/manual/autoconf-2.68/html_node/Runtime.html
+  #
+  # Temporarily set cross_compiling mode to detect if the compiler supports
+  # AVX2 / AVX512 but not check the compiling CPU
+  save_cross_compiling=$cross_compiling
+  cross_compiling=yes
+
+  # Tell AX_EXT that the CPU supports it, because runtime will check.
+  ax_cv_have_avx2_cpu_ext=yes
+  ax_cv_have_avx512bw_cpu_ext=yes
+  # FIXME: Implement simd_advance_sse2() then uncomment the following, to define HAVE_SSE2:
+  # ax_cv_have_sse2_cpu_ext=no
+
+  # FIXME: Tell AX_EXT that the OS supports it. I don't think this is correct for
+  # the general case, but it will work for all OS's I know of.
+  # Eg. If compiling for an OS so locked down that does not allow AVX
+  # instructions even if the CPU supports them.
+  # FIXME: In order to make this correct, the runtime would have to catch the SIGILL
+  # signal thrown when AVX instruction is blocked.
+  # FIXME: See the test "checking for x86-AVX xgetbv 0x00000000" in configure script
+  # for sample implementation
+  ax_cv_have_avx2_ext=yes
+  ax_cv_have_avx512bw_ext=yes
+  # FIXME: Implement simd_advance_sse2() then uncomment the following, to define HAVE_SSE2:
+  # ax_cv_have_sse2_ext=no
+
+  AX_EXT
+  cross_compiling=$save_cross_compiling
 fi
+AM_CONDITIONAL([ENABLE_AVX2],[test "x$ax_cv_have_avx2_ext" = "xyes"])
+AM_CONDITIONAL([ENABLE_AVX512_BW],[test "x$ax_cv_have_avx512bw_ext" = "xyes"])
 
 if test "x$SIMD_FLAGS" = "x"; then
 AC_ARG_ENABLE(neon,

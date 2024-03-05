@@ -315,7 +315,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
     uint16_t pinmax = 8;
     uint8_t freqmax1 = 91; // one position
     uint8_t freqmax2 = 251; // two positions
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+#if defined(HAVE_AVX512_BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
     if (have_HW_AVX512BW() || have_HW_AVX2())
       pinmax = 16;
     else if (have_HW_SSE2())
@@ -447,13 +447,13 @@ void Pattern::init(const char *options, const uint8_t *pred)
       if (chr_[j - 1] == chr_[i])
         break;
     bmd_ = i - j + 1;
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2) || defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2 || !defined(HAVE_NEON)
+#if defined(HAVE_AVX512_BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2) || defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2 || !defined(HAVE_NEON)
     size_t score = 0;
     for (i = 0; i < n; ++i)
       score += bms_[static_cast<uint8_t>(chr_[i])];
     score /= n;
     uint8_t fch = frequency(static_cast<uint8_t>(chr_[lcp_]));
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+#if defined(HAVE_AVX512_BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
     if (!have_HW_SSE2() && !have_HW_AVX2() && !have_HW_AVX512BW())
     {
       // SSE2/AVX2 not available: if B-M scoring is high and freq is high, then use our improved Boyer-Moore

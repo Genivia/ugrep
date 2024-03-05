@@ -1361,7 +1361,7 @@ void Input::file_encoding(unsigned short enc, const unsigned short *page)
   }
 }
 
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+#if defined(HAVE_AVX512_BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
 
 #include <reflex/simd.h>
 
