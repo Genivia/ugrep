@@ -1,9 +1,38 @@
-SUBDIRS =
+# ############################################################
+#                       UGREP Program                        #
+# ############################################################
 
 bin_PROGRAMS   = ugrep
 ugrep_CPPFLAGS = -I$(top_srcdir)/include $(EXTRA_CFLAGS) $(PTHREAD_CFLAGS) -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\" -DWITH_NO_INDENT
-ugrep_SOURCES  = ugrep.cpp cnf.hpp cnf.cpp flag.hpp glob.hpp glob.cpp mmap.hpp output.hpp output.cpp query.hpp query.cpp screen.hpp screen.cpp stats.hpp stats.cpp vkey.hpp vkey.cpp zstream.hpp zopen.h zopen.c
+ugrep_SOURCES  = \
+        ugrep.cpp \
+        cnf.cpp \
+        glob.cpp \
+        output.cpp \
+        query.hpp \
+        query.cpp \
+        screen.cpp \
+        stats.hpp \
+        stats.cpp \
+        vkey.cpp \
+        zopen.c
 ugrep_LDADD    = $(PTHREAD_LIBS) libreflex.a
+
+noinst_HEADERS = \
+        ugrep.hpp \
+        cnf.hpp \
+        flag.hpp \
+        glob.hpp \
+        mmap.hpp \
+        output.hpp \
+        screen.hpp \
+        vkey.hpp \
+        zstream.hpp \
+        zopen.h
+
+# ############################################################
+#                       RE/Flex Library                      #
+# ############################################################
 
 noinst_LIBRARIES      = libreflex.a
 libreflex_a_CPPFLAGS  = -include $(CONFIG_HEADER) -I$(top_srcdir)/include -DWITH_NO_INDENT -DWITH_NO_CODEGEN
@@ -48,7 +77,7 @@ endif
 # Tell automake to package these into the tarball
 # FIXME: move these files to this directory, they belong with the source code.
 # FIXME: Include them with "quotes", not angle <brackets>
-noinst_HEADERS = \
+noinst_HEADERS += \
         $(top_srcdir)/include/reflex/abslexer.h \
         $(top_srcdir)/include/reflex/absmatcher.h \
         $(top_srcdir)/include/reflex/bits.h \
@@ -57,10 +86,13 @@ noinst_HEADERS = \
         $(top_srcdir)/include/reflex/debug.h \
         $(top_srcdir)/include/reflex/error.h \
         $(top_srcdir)/include/reflex/flexlexer.h \
+        $(top_srcdir)/include/reflex/fuzzymatcher.h \
         $(top_srcdir)/include/reflex/input.h \
+        $(top_srcdir)/include/reflex/linematcher.h \
         $(top_srcdir)/include/reflex/matcher.h \
         $(top_srcdir)/include/reflex/pattern.h \
         $(top_srcdir)/include/reflex/posix.h \
+        $(top_srcdir)/include/reflex/pcre2matcher.h \
         $(top_srcdir)/include/reflex/ranges.h \
         $(top_srcdir)/include/reflex/setop.h \
         $(top_srcdir)/include/reflex/simd.h \

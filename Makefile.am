@@ -1,6 +1,6 @@
 SUBDIRS = src
 
-man1_MANS = man/ugrep.1
+dist_man1_MANS = man/ugrep.1
 
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 
