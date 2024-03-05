@@ -97,22 +97,13 @@ fi
 AC_ARG_ENABLE(7zip,
   [AS_HELP_STRING([--disable-7zip],
                   [to disable 7zip and no longer search .7z files (7z requires more memory and takes long to decompress)])],
-  [with_7zip="$enableval"],
-  [with_7zip="yes"])
-AC_MSG_CHECKING(for --disable-7zip)
-if test "x$with_7zip" = "xyes"; then
-  AC_MSG_RESULT(no)
-  CPPFLAGS="$CPPFLAGS -I../lzma/C"
-  LDFLAGS="$LDFLAGS -L../lzma/C"
-  LIBS="-lviiz $LIBS"
-  AC_DEFINE(HAVE_7ZIP,1,[ Define if built with 7ZIP support])
-else
-  EXTRA_CFLAGS="-DWITH_NO_7ZIP ${EXTRA_CFLAGS}"
-  AC_MSG_RESULT(yes)
+  [],
+  [enable_7zip="yes"])
 fi
-
-fi
-AM_CONDITIONAL([ENABLE_7ZIP],[test "x$with_7zip" = "xyes"])
+AM_CONDITIONAL([ENABLE_7ZIP],[test "$enable_7zip" != "no"])
+AS_IF([test "$enable_7zip" != "no"],[
+  AC_DEFINE(HAVE_7ZIP,1,[7zip decompression is enabled. This define is used in verify.sh only])
+])
 
 AC_ARG_WITH([bash-completion-dir],
   [AS_HELP_STRING([--with-bash-completion-dir[=PATH]],

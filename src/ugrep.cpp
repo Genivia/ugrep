@@ -7717,7 +7717,7 @@ void ugrep()
     flag_all_include.emplace_back("*.zipx");
     flag_all_include.emplace_back("*.ZIP");
 
-#ifndef WITH_NO_7ZIP
+#ifdef WITH_7ZIP
     flag_all_include.emplace_back("*.7z");
     flag_all_include.emplace_back("*.7Z");
 #endif
@@ -14305,7 +14305,7 @@ void help(std::ostream& out)
 #else
             "\
             Supported compression formats: gzip (.gz), compress (.Z), zip"
-#ifndef WITH_NO_7ZIP
+#ifdef WITH_7ZIP
             ", 7z"
 #endif
 #ifdef HAVE_LIBBZ2

@@ -98,7 +98,7 @@ extern "C" {
 #endif
 
 // use 7zip LZMA SDK using a viizip decompressor wrapper
-#ifndef WITH_NO_7ZIP
+#ifdef WITH_7ZIP
 #include "viizip.h"
 // 7zip archive part pathname max length if limits.h doesn't define it
 #ifndef PATH_MAX
@@ -131,7 +131,7 @@ class zstreambuf : public std::streambuf {
 
     // C++ wrapper for our C viizip 7zip decompressor
     struct sz_stream {
-#ifndef WITH_NO_7ZIP
+#ifdef WITH_7ZIP
       sz_stream(const char *pathname, FILE *file)
       {
         viizip = viinew(file);
@@ -216,7 +216,7 @@ class zstreambuf : public std::streambuf {
       if (zstd_strm_ != NULL)
         ZSTD_freeDStream(zstd_strm_);
 #endif
-#ifndef WITH_NO_7ZIP
+#ifdef WITH_7ZIP
       if (sz_strm_ != NULL)
         delete sz_strm_;
 #endif
@@ -245,7 +245,7 @@ class zstreambuf : public std::streambuf {
     // read zip local file header if we are at a header, read the header, file name, and extra field
     bool header()
     {
-#ifndef WITH_NO_7ZIP
+#ifdef WITH_7ZIP
       // if 7zip then get the next file name and info, start decompressing, return false if none
       if (sz_strm_ != NULL)
       {
@@ -545,7 +545,7 @@ class zstreambuf : public std::streambuf {
 
       std::streamsize num = 0;
 
-#ifndef WITH_NO_7ZIP
+#ifdef WITH_7ZIP
       // 7zip decompression
       if (sz_strm_ != NULL)
       {
@@ -1353,7 +1353,7 @@ class zstreambuf : public std::streambuf {
     }
     else if (is_7z(pathname))
     {
-#ifndef WITH_NO_7ZIP
+#ifdef WITH_7ZIP
       // open 7zip compressed file
       try
       {
