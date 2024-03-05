@@ -27,7 +27,7 @@
 \******************************************************************************/
 
 /**
-@file      matcher.cpp, matcher_avx2.cpp, matcher_avx512bw.cpp
+@file      matcher.cpp, matcher_avx2.cpp, matcher_avx512bw.cpp, matcher_sse2.cpp
 @brief     RE/flex matcher engine
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2022, Robert van Engelen, Genivia Inc. All rights reserved.
@@ -58,26 +58,37 @@ namespace reflex {
 /// Compile an optimized AVX512BW version defined in matcher_avx2.cpp
 size_t Matcher::simd_match_avx512bw(Method method)
 {
+  DBGLOG("BEGIN Matcher::simd_match_avx512bw()");
 #elif defined(COMPILE_AVX2)
 /// Compile an optimized AVX2 version defined in matcher_avx512bw.cpp
 size_t Matcher::simd_match_avx2(Method method)
 {
+  DBGLOG("BEGIN Matcher::simd_match_avx2()");
+#elif defined(COMPILE_SSE2)
+/// Compile an optimized AVX2 version defined in matcher_avx512bw.cpp
+size_t Matcher::simd_match_sse2(Method method)
+{
+  DBGLOG("BEGIN Matcher::simd_match_sse2()");
 #else
 /// Returns true if input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
 size_t Matcher::match(Method method)
 {
-  DBGLOG("BEGIN Matcher::match()");
 #if (!defined(_MSC_VER) || defined(_WIN64))
 #if defined(HAVE_AVX512_BW)
-  if (have_HW_AVX512BW())
+  if (HW.avx512_bw)
     return simd_match_avx512bw(method);
 #endif
 #if defined(HAVE_AVX2)
-  if (have_HW_AVX2())
+  if (HW.avx2)
     return simd_match_avx2(method);
 #endif
+#if defined(HAVE_SSE2)
+  if (HW.sse2)
+    return simd_match_sse2(method);
 #endif
 #endif
+#endif
+  DBGLOG("BEGIN Matcher::match()");
   reset_text();
   len_ = 0;         // split text length starts with 0
   anc_ = false;     // no word boundary anchor found and applied
@@ -617,6 +628,8 @@ unrolled:
               simd_advance_avx512bw()
 #elif defined(COMPILE_AVX2)
               simd_advance_avx2()
+#elif defined(COMPILE_SSE2)
+              simd_advance_sse2()
 #else
               advance()
 #endif
@@ -684,6 +697,10 @@ unrolled:
               simd_advance_avx512bw()
 #elif defined(COMPILE_AVX2)
               simd_advance_avx2()
+#elif defined(COMPILE_SSE2)
+              simd_advance_sse2()
+#elif defined(COMPILE_NEON)
+              simd_advance_neon()
 #else
               advance()
 #endif
@@ -746,6 +763,14 @@ bool Matcher::simd_advance_avx512bw()
 #elif defined(COMPILE_AVX2)
 /// Compile an optimized AVX2 version defined in matcher_avx2.cpp
 bool Matcher::simd_advance_avx2()
+{
+#elif defined(COMPILE_SSE2)
+/// Compile an optimized SSE2 version defined in matcher_sse2.cpp
+bool Matcher::simd_advance_sse2()
+{
+#elif defined(COMPILE_NEON)
+/// Compile an optimized NEON version defined in matcher_sse2.cpp
+bool Matcher::simd_advance_neon()
 {
 #else
 /// advance input cursor position after mismatch to align input for the next match
@@ -821,11 +846,7 @@ bool Matcher::advance()
         if (loc + min + 31 > end_)
           break;
       }
-#elif defined(HAVE_SSE2)
-      /* FIXME: I think this will crash if compiled on SSE2 CPU but run on CPU without SSE2 or AVX - RH
-       * It is disabled because HAVE_SSE2 is never defined. (ax_cv_have_avx2_ext in configure.ac)
-       * Need a simd_advance_sse2() implementation?
-       */
+#elif defined(COMPILE_SSE2)
       __m128i vlcp = _mm_set1_epi8(chr[0]);
       __m128i vlcs = _mm_set1_epi8(chr[1]);
       while (true)
@@ -1521,11 +1542,7 @@ bool Matcher::advance()
           break;
       }
     }
-#elif defined(HAVE_SSE2)
-      /* FIXME: I think this will crash if compiled on SSE2 CPU but run on CPU without SSE2 or AVX - RH
-       * It is disabled because HAVE_SSE2 is never defined. (ax_cv_have_avx2_ext in configure.ac)
-       * Need a simd_advance_sse2() implementation?
-       */
+#elif defined(COMPILE_SSE2)
     // look for needles
     else if (pat_->pin_ == 2)
     {
@@ -2976,11 +2993,7 @@ bool Matcher::advance()
         }
         s += 32;
       }
-#elif defined(HAVE_SSE2)
-      /* FIXME: I think this will crash if compiled on SSE2 CPU but run on CPU without SSE2 or AVX - RH
-       * It is disabled because HAVE_SSE2 is never defined. (ax_cv_have_avx2_ext in configure.ac)
-       * Need a simd_advance_sse2() implementation?
-       */
+#elif defined(COMPILE_SSE2)
       // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
       // enhanced with least frequent character matching
       __m128i vlcp = _mm_set1_epi8(chr[lcp]);

@@ -410,6 +410,8 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   size_t simd_match_avx512bw(Method method);
   // match() with optimized AVX2 string search scheme defined in matcher_avx2.cpp
   size_t simd_match_avx2(Method method);
+  // match() with optimized SSE2 string search scheme defined in matcher_sse2.cpp
+  size_t simd_match_sse2(Method method);
   /// Returns true if able to advance to next possible match
   bool advance()
     /// @returns true if possible match found
@@ -418,6 +420,10 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   bool simd_advance_avx512bw();
   /// optimized AVX2 version of advance() defined in matcher_avx2.cpp
   bool simd_advance_avx2();
+  /// optimized AVX2 version of advance() defined in matcher_sse2.cpp
+  bool simd_advance_sse2();
+  /// optimized NEON version of advance() defined in matcher_neon.cpp
+  bool simd_advance_neon();
 #if !defined(WITH_NO_INDENT)
   /// Update indentation column counter for indent() and dedent().
   inline void newline()

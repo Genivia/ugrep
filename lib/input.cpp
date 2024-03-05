@@ -1361,27 +1361,33 @@ void Input::file_encoding(unsigned short enc, const unsigned short *page)
   }
 }
 
-#if defined(HAVE_AVX512_BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-
 #include <reflex/simd.h>
 
 // simd.h get_HW()
-static uint64_t get_HW()
+static struct SIMD_caps get_HW()
 {
+  struct SIMD_caps caps = {};
+#if defined(__x86_64__) || defined(_M_X64)
   int CPUInfo1[4] = { 0, 0, 0, 0 };
   int CPUInfo7[4] = { 0, 0, 0, 0 };
   cpuidex(CPUInfo1, 0, 0);
   int n = CPUInfo1[0];
-  if (n <= 0)
-    return 0ULL;
-  cpuidex(CPUInfo1, 1, 0); // cpuid EAX=1
-  if (n >= 7)
-    cpuidex(CPUInfo7, 7, 0); // cpuid EAX=7, ECX=0
-  return static_cast<uint32_t>(CPUInfo1[2]) | (static_cast<uint64_t>(static_cast<uint32_t>(CPUInfo7[1])) << 32);
+  if (n > 0) {
+    cpuidex(CPUInfo1, 1, 0); // cpuid EAX=1
+#if defined(HAVE_SSE2)
+    caps.sse2      = !!(CPUInfo1[3] & bit_SSE2); /* edx_cpuid1,26 */
+#endif
+
+    if (n >= 7) {
+      cpuidex(CPUInfo7, 7, 0); // cpuid EAX=7, ECX=0
+      caps.avx2      = !!(CPUInfo7[1] & bit_AVX2);     /* ebx_cpuid7,5 */
+      caps.avx512_bw = !!(CPUInfo7[1] & bit_AVX512BW); /* ebx_cpuid7,30 */
+    }
+  }
+#endif
+  return caps;
 }
 
-uint64_t HW = get_HW();
-
-#endif
+struct SIMD_caps HW = get_HW();
 
 } // namespace reflex

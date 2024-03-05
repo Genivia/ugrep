@@ -312,21 +312,29 @@ void Pattern::init(const char *options, const uint8_t *pred)
       npy_ /= min_;
     }
     // needle count and frequency thresholds to enable needle-based search
-    uint16_t pinmax = 8;
+    uint16_t pinmax;
     uint8_t freqmax1 = 91; // one position
     uint8_t freqmax2 = 251; // two positions
-#if defined(HAVE_AVX512_BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-    if (have_HW_AVX512BW() || have_HW_AVX2())
+#if defined(HAVE_AVX512_BW)
+    if (HW.avx512_bw)
       pinmax = 16;
-    else if (have_HW_SSE2())
+    else
+#endif
+#if defined(HAVE_AVX2)
+    if (HW.avx2)
+      pinmax = 16;
+    else
+#endif
+#if defined(HAVE_SSE2)
+    if (HW.sse2)
       pinmax = 8;
     else
-      pinmax = 1;
-#elif defined(HAVE_NEON)
-    pinmax = 8;
-#else
-    pinmax = 1;
 #endif
+#if defined(HAVE_NEON)
+    pinmax = 8;
+#endif
+      pinmax = 1;
+
     // get needles
     pin_ = 0;
     lcp_ = 0;
@@ -454,20 +462,24 @@ void Pattern::init(const char *options, const uint8_t *pred)
     score /= n;
     uint8_t fch = frequency(static_cast<uint8_t>(chr_[lcp_]));
 #if defined(HAVE_AVX512_BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-    if (!have_HW_SSE2() && !have_HW_AVX2() && !have_HW_AVX512BW())
+    if (!HW.sse2 && !HW.avx2 && !HW.avx512_bw)
     {
       // SSE2/AVX2 not available: if B-M scoring is high and freq is high, then use our improved Boyer-Moore
       if (score > 1 && fch > 35 && (score > 4 || fch > 50) && fch + score > 52)
         lcs_ = 0xffff; // use B-M
-    }
+    } else
 #elif defined(__SSE2__) || defined(__x86_64__) || _M_IX86_FP == 2
-    // SSE2 is available: only if B-M scoring is high and freq is high, then use our improved Boyer-Moore
-    if (score > 1 && fch > 35 && (score > 4 || fch > 50) && fch + score > 52)
-      lcs_ = 0xffff; // use B-M
+    if (HW.sse2) {
+      // SSE2 is available: only if B-M scoring is high and freq is high, then use our improved Boyer-Moore
+      if (score > 1 && fch > 35 && (score > 4 || fch > 50) && fch + score > 52)
+        lcs_ = 0xffff; // use B-M
+    } else
 #elif !defined(HAVE_NEON)
-    // no SIMD available: if B-M scoring is high and freq is high, then use our improved Boyer-Moore
-    if (score > 1 && fch > 35 && (score > 3 || fch > 50) && fch + score > 52)
-      lcs_ = 0xffff; // use B-M
+    {
+      // no SIMD available: if B-M scoring is high and freq is high, then use our improved Boyer-Moore
+      if (score > 1 && fch > 35 && (score > 3 || fch > 50) && fch + score > 52)
+        lcs_ = 0xffff; // use B-M
+    }
 #endif
 #endif
     if (lcs_ < 0xffff)

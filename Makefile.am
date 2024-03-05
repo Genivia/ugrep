@@ -22,22 +22,6 @@ zshcompletiondir = $(ZSH_COMPLETION_DIR)
 dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug
 endif
 
-all-local:	cp2bin
-
-.PHONY:		cp2bin
-
-# to copy the ugrep binary to the local ugrep/bin/ugrep and ugrep/bin/ug
-cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
-		rm -f $(top_builddir)/bin/ugrep$(EXEEXT)
-		mkdir -p $(top_builddir)/bin && \
-		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT) && \
-		  cd $(top_builddir)/bin && \
-		  rm -f ug$(EXEEXT) && \
-		  cp -f ugrep$(EXEEXT) ug$(EXEEXT)
-		@echo
-		@echo "OK"
-		@echo
-
 install-exec-hook:
 		cp -f $(top_builddir)/bin/ugrep+ $(top_builddir)/bin/ug+ $(DESTDIR)$(bindir)
 		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)

@@ -30,13 +30,15 @@ noinst_HEADERS = \
         zstream.hpp \
         zopen.h
 
+install-exec-hook:
+	$(INSTALL) -s -t $(DESTDIR)$(bindir) ugrep$(EXEEXT) ug$(EXEEXT)
+
 # ############################################################
 #                       RE/Flex Library                      #
 # ############################################################
 
 noinst_LIBRARIES      = libreflex.a
 libreflex_a_CPPFLAGS  = -include $(CONFIG_HEADER) -I$(top_srcdir)/include -DWITH_NO_INDENT -DWITH_NO_CODEGEN
-libreflex_a_CXXFLAGS  = $(SIMD_FLAGS)
 libreflex_a_SOURCES   = \
         ../lib/convert.cpp \
         ../lib/debug.cpp \
@@ -51,27 +53,35 @@ libreflex_a_SOURCES   = \
         ../lib/language_scripts.cpp \
         ../lib/letter_scripts.cpp \
         ../lib/composer.cpp
+libreflex_a_LIBADD =
 
-if ENABLE_SIMD
-    libreflex_a_SOURCES   += \
+if ENABLE_SSE2
+noinst_LIBRARIES      += libreflex-sse2.a
+libreflex_sse2_a_CPPFLAGS  = $(libreflex_a_CPPFLAGS)
+libreflex_sse2_a_CXXFLAGS  = $(SIMD_FLAGS_SSE2)
+libreflex_sse2_a_SOURCES   = \
         ../lib/matcher_sse2.cpp
+libreflex_a_LIBADD += $(libreflex_sse2_a_OBJECTS)
 endif
+
 if ENABLE_AVX2
-    libreflex_a_SOURCES   += \
+noinst_LIBRARIES      += libreflex-avx2.a
+libreflex_avx2_a_CPPFLAGS  = $(libreflex_a_CPPFLAGS)
+libreflex_avx2_a_CXXFLAGS  = $(SIMD_FLAGS_AVX2)
+libreflex_avx2_a_SOURCES   = \
         ../lib/matcher_avx2.cpp \
         ../lib/simd_avx2.cpp
-else
-if ENABLE_SIMD
-# simd_avx2.cpp contains SSE2 implementation.
-# Add it even if AVX2 is diabled, but SSE2 enabled
-    libreflex_a_SOURCES   += \
-        ../lib/simd_avx2.cpp
+libreflex_a_LIBADD += $(libreflex_avx2_a_OBJECTS)
 endif
-endif
+
 if ENABLE_AVX512_BW
-    libreflex_a_SOURCES   += \
+noinst_LIBRARIES      += libreflex-avx512bw.a
+libreflex_avx512bw_a_CPPFLAGS  = $(libreflex_a_CPPFLAGS)
+libreflex_avx512bw_a_CXXFLAGS  = $(SIMD_FLAGS_AVX512BW)
+libreflex_avx512bw_a_SOURCES   = \
         ../lib/matcher_avx512bw.cpp \
         ../lib/simd_avx512bw.cpp
+libreflex_a_LIBADD += $(libreflex_avx512bw_a_OBJECTS)
 endif
 
 # Tell automake to package these into the tarball

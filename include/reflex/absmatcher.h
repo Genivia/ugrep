@@ -663,17 +663,17 @@ class AbstractMatcher {
       size_t n = 0;
 #if (!defined(_MSC_VER) || defined(_WIN64))
 #if defined(HAVE_AVX512_BW)
-      if (have_HW_AVX512BW())
+      if (HW.avx512_bw)
         n = simd_nlcount_avx512bw(s, t);
       else
 #endif
 #if defined(HAVE_AVX2)
-      if (have_HW_AVX2())
+      if (HW.avx2)
         n = simd_nlcount_avx2(s, t);
       else
 #endif
 #if defined(HAVE_SSE2)
-      if (have_HW_SSE2())
+      if (HW.sse2)
         n = simd_nlcount_sse2(s, t);
       else
 #endif

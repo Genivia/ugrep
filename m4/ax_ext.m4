@@ -21,6 +21,9 @@
 #   This macro calls:
 #
 #     AC_SUBST(SIMD_FLAGS)
+#     AC_SUBST(SIMD_FLAGS_SSE2)
+#     AC_SUBST(SIMD_FLAGS_AVX2)
+#     AC_SUBST(SIMD_FLAGS_AVX512BW)
 #     AC_SUBST(CPUEXT_FLAGS)
 #
 #   And defines:
@@ -38,6 +41,7 @@
 #   Copyright (c) 2007 Christophe Tournayre <turn3r@users.sourceforge.net>
 #   Copyright (c) 2013,2015 Michael Petch <mpetch@capp-sysware.com>
 #   Copyright (c) 2017 Rafael de Lucena Valle <rafaeldelucena@gmail.com>
+#   Copyright (c) 2024 Radu Hociung <radu.git@Mergesium.com>
 #
 #   Copying and distribution of this file, with or without modification, are
 #   permitted in any medium without royalty provided the copyright notice
@@ -213,9 +217,9 @@ AC_DEFUN([AX_EXT],
       # For the full list supported, see the source at the URL in the header
       # This copy was made from git 5a42398
       for ac_instr_info dnl
-      in "sse;sse2;SSE2;edx_cpuid1,26;-msse2;HAVE_SSE2;SIMD_FLAGS" dnl
-         "avx;avx2;AVX2;ebx_cpuid7,5;-mavx2;HAVE_AVX2;SIMD_FLAGS" dnl
-         "avx512;avx512bw;AVX512-BW;ebx_cpuid7,30;-mavx512bw;HAVE_AVX512_BW;SIMD_FLAGS" dnl
+      in "sse;sse2;SSE2;edx_cpuid1,26;-msse2;HAVE_SSE2;SIMD_FLAGS_SSE2" dnl
+         "avx;avx2;AVX2;ebx_cpuid7,5;-mavx2;HAVE_AVX2;SIMD_FLAGS_AVX2" dnl
+         "avx512;avx512bw;AVX512-BW;ebx_cpuid7,30;-mavx512bw;HAVE_AVX512_BW;SIMD_FLAGS_AVX512BW" dnl
          #
       do ac_instr_os_support=$(eval echo \$ax_cv_have_$(echo $ac_instr_info | cut -d ";" -f 1)_os_support_ext)
          ac_instr_acvar=$(echo $ac_instr_info | cut -d ";" -f 2)
@@ -249,6 +253,7 @@ AC_DEFUN([AX_EXT],
                                                                eval ax_cv_support_${ac_instr_acvar}_ext=no)
              if test x"$(eval echo \$ax_cv_support_${ac_instr_acvar}_ext)" = x"yes"; then
                eval ${ac_instr_flag_type}=\"\$${ac_instr_flag_type} ${ac_instr_compiler_flags}\"
+               SIMD_FLAGS="${SIMD_FLAGS} ${ac_instr_compiler_flags}"
                AC_DEFINE_UNQUOTED([${ac_instr_have_define}])
              else
                AC_MSG_WARN([Your processor and OS supports ${ac_instr_shortname} instructions but not your compiler, can you try another compiler?])
@@ -299,5 +304,8 @@ AC_DEFUN([AX_EXT],
   AH_TEMPLATE([HAVE_AVX512_IFMA],[Define to 1 to support AVX-512 Integer Fused Multiply Add Instructions])
   AH_TEMPLATE([HAVE_AVX512_VBMI],[Define to 1 to support AVX-512 Vector Byte Manipulation Instructions])
   AC_SUBST(SIMD_FLAGS)
+  AC_SUBST(SIMD_FLAGS_SSE2)
+  AC_SUBST(SIMD_FLAGS_AVX2)
+  AC_SUBST(SIMD_FLAGS_AVX512BW)
   AC_SUBST(CPUEXT_FLAGS)
 ])

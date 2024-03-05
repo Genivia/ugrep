@@ -262,7 +262,7 @@ AC_ARG_ENABLE(sse2,
                   [disable SSE2 and AVX optimizations])],
   [with_no_sse2="yes"],
   [with_no_sse2="no"])
-AM_CONDITIONAL([ENABLE_SIMD],[test "x$with_no_sse2" = "xyes"])
+AM_CONDITIONAL([ENABLE_SIMD],[test "x$with_no_sse2" = "xno"])
 if ! test "x$with_no_sse2" = "xyes"; then
   # Cross-compiling must be set to allow compiler detection of -mavx2 and
   # -mavx512bw support without probing the build machine's CPU. The build
@@ -280,8 +280,7 @@ if ! test "x$with_no_sse2" = "xyes"; then
   # Tell AX_EXT that the CPU supports it, because runtime will check.
   ax_cv_have_avx2_cpu_ext=yes
   ax_cv_have_avx512bw_cpu_ext=yes
-  # FIXME: Implement simd_advance_sse2() then uncomment the following, to define HAVE_SSE2:
-  # ax_cv_have_sse2_cpu_ext=no
+  ax_cv_have_sse2_cpu_ext=yes
 
   # FIXME: Tell AX_EXT that the OS supports it. I don't think this is correct for
   # the general case, but it will work for all OS's I know of.
@@ -293,14 +292,14 @@ if ! test "x$with_no_sse2" = "xyes"; then
   # for sample implementation
   ax_cv_have_avx2_ext=yes
   ax_cv_have_avx512bw_ext=yes
-  # FIXME: Implement simd_advance_sse2() then uncomment the following, to define HAVE_SSE2:
-  # ax_cv_have_sse2_ext=no
+  ax_cv_have_sse2_ext=yes
 
   AX_EXT
   cross_compiling=$save_cross_compiling
 fi
-AM_CONDITIONAL([ENABLE_AVX2],[test "x$ax_cv_have_avx2_ext" = "xyes"])
-AM_CONDITIONAL([ENABLE_AVX512_BW],[test "x$ax_cv_have_avx512bw_ext" = "xyes"])
+AM_CONDITIONAL([ENABLE_SSE2],[test "x$ax_cv_support_sse2_ext" = "xyes"])
+AM_CONDITIONAL([ENABLE_AVX2],[test "x$ax_cv_support_avx2_ext" = "xyes"])
+AM_CONDITIONAL([ENABLE_AVX512_BW],[test "x$ax_cv_support_avx512bw_ext" = "xyes"])
 
 if test "x$SIMD_FLAGS" = "x"; then
 AC_ARG_ENABLE(neon,
@@ -347,10 +346,6 @@ else
   SIMD_FLAGS=
 fi
 fi
-
-AC_SUBST(SIMD_FLAGS)
-AC_SUBST(SIMD_AVX2_FLAGS)
-AC_SUBST(SIMD_AVX512BW_FLAGS)
 
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
