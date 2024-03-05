@@ -1,4 +1,4 @@
-SUBDIRS = lib
+SUBDIRS =
 if ENABLE_7ZIP
 SUBDIRS += lzma/C
 endif
