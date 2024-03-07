@@ -59,8 +59,6 @@
     DBGLOGA(" (%u)", (p).accepts()); \
     if ((p).lazy()) \
       DBGLOGA("?%u", (p).lazy()); \
-    if ((p).greedy()) \
-      DBGLOGA("!"); \
   } \
   else \
   { \
@@ -72,8 +70,6 @@
       DBGLOGA("?%u", (p).lazy()); \
     if ((p).anchor()) \
       DBGLOGA("^"); \
-    if ((p).greedy()) \
-      DBGLOGA("!"); \
     if ((p).ticked()) \
       DBGLOGA("'"); \
     if ((p).negate()) \
@@ -191,6 +187,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
   ams_ = 0.0;
   cut_ = 0;
   lbk_ = 0;
+  lbm_ = 0;
   cbk_.reset();
   fst_.reset();
   if (opc_ != NULL || fsm_ != NULL )
@@ -239,10 +236,11 @@ void Pattern::init(const char *options, const uint8_t *pred)
   {
     Positions startpos;
     Follow    followpos;
+    Lazypos   lazypos;
     Mods      modifiers;
     Map       lookahead;
     // parse the regex pattern to construct the followpos NFA without epsilon transitions
-    parse(startpos, followpos, modifiers, lookahead);
+    parse(startpos, followpos, lazypos, modifiers, lookahead);
     // start state = startpos = firstpost of the followpos NFA, also merge the tree DFA root when non-NULL
 #ifdef WITH_TREE_DFA
     DFA::State *start;
@@ -275,12 +273,12 @@ void Pattern::init(const char *options, const uint8_t *pred)
       // combine tree DFA (if any) with the DFA start state to construct a combined DFA with subset construction
       start = dfa_.state(tfa_.root(), startpos);
       // compile the NFA into a DFA
-      compile(start, followpos, modifiers, lookahead);
+      compile(start, followpos, lazypos, modifiers, lookahead);
     }
 #else
     DFA::State *start = dfa_.state(tfa_.tree, startpos);
     // compile the NFA into a DFA
-    compile(start, followpos, modifiers, lookahead);
+    compile(start, followpos, lazypos, modifiers, lookahead);
 #endif
     // assemble DFA opcode tables or direct code
     assemble(start);
@@ -575,6 +573,7 @@ void Pattern::init_options(const char *options)
 void Pattern::parse(
     Positions& startpos,
     Follow&    followpos,
+    Lazypos&   lazypos,
     Mods       modifiers,
     Map&       lookahead)
 {
@@ -734,7 +733,6 @@ void Pattern::parse(
     }
     else
     {
-      Lazyset lazyset;
       parse2(
           true,
           loc,
@@ -743,34 +741,23 @@ void Pattern::parse(
           nullable,
           followpos,
           lazyidx,
-          lazyset,
+          lazypos,
           modifiers,
           lookahead[choice],
           iter);
       pos_insert(startpos, firstpos);
       if (nullable)
+        pos_add(startpos, Position(choice).accept(true));
+      if (lazypos.empty())
       {
-        if (lazyset.empty())
-        {
-          pos_add(startpos, Position(choice).accept(true));
-        }
-        else
-        {
-          for (Lazyset::const_iterator l = lazyset.begin(); l != lazyset.end(); ++l)
-            pos_add(startpos, Position(choice).accept(true).lazy(*l));
-        }
-      }
-      for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-      {
-        if (lazyset.empty())
-        {
+        for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
           pos_add(followpos[p->pos()], Position(choice).accept(true));
-        }
-        else
-        {
-          for (Lazyset::const_iterator l = lazyset.begin(); l != lazyset.end(); ++l)
-            pos_add(followpos[p->pos()], Position(choice).accept(true).lazy(*l));
-        }
+      }
+      else
+      {
+        for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
+          for (Lazypos::const_iterator l = lazypos.begin(); l != lazypos.end(); ++l)
+            pos_add(followpos[p->pos()], Position(choice).accept(true).lazy(l->lazy()));
       }
     }
     if (++choice == 0)
@@ -815,7 +802,7 @@ void Pattern::parse1(
     bool&      nullable,
     Follow&    followpos,
     Lazy&      lazyidx,
-    Lazyset&   lazyset,
+    Lazypos&   lazypos,
     Mods       modifiers,
     Locations& lookahead,
     Iter&      iter)
@@ -829,14 +816,14 @@ void Pattern::parse1(
       nullable,
       followpos,
       lazyidx,
-      lazyset,
+      lazypos,
       modifiers,
       lookahead,
       iter);
   Positions firstpos1;
   Positions lastpos1;
   bool      nullable1;
-  Lazyset   lazyset1;
+  Lazypos   lazypos1;
   Iter      iter1;
   while (at(loc) == '|')
   {
@@ -849,13 +836,13 @@ void Pattern::parse1(
         nullable1,
         followpos,
         lazyidx,
-        lazyset1,
+        lazypos1,
         modifiers,
         lookahead,
         iter1);
     pos_insert(firstpos, firstpos1);
     pos_insert(lastpos, lastpos1);
-    lazy_insert(lazyset, lazyset1);
+    lazy_insert(lazypos, lazypos1);
     if (nullable1)
       nullable = true;
     if (iter1 > iter)
@@ -872,7 +859,7 @@ void Pattern::parse2(
     bool&      nullable,
     Follow&    followpos,
     Lazy&      lazyidx,
-    Lazyset&   lazyset,
+    Lazypos&   lazypos,
     Mods       modifiers,
     Locations& lookahead,
     Iter&      iter)
@@ -890,13 +877,13 @@ void Pattern::parse2(
       if (at(loc) == '^')
       {
         pos_add(a_pos, Position(loc++));
-        begin = false; // CHECKED algorithmic options: 7/29 but does not allow ^ as a pattern
+        begin = false;
       }
       else if (escapes_at(loc, "ABb<>"))
       {
         pos_add(a_pos, Position(loc));
         loc += 2;
-        begin = false; // CHECKED algorithmic options: 7/29 but does not allow \b as a pattern
+        begin = false;
       }
       else
       {
@@ -916,14 +903,14 @@ void Pattern::parse2(
         nullable,
         followpos,
         lazyidx,
-        lazyset,
+        lazypos,
         modifiers,
         lookahead,
         iter);
     Positions firstpos1;
     Positions lastpos1;
     bool      nullable1;
-    Lazyset   lazyset1;
+    Lazypos   lazypos1;
     Iter      iter1;
     while ((c = at(loc)) != '\0' && c != '|' && c != ')')
     {
@@ -935,19 +922,10 @@ void Pattern::parse2(
           nullable1,
           followpos,
           lazyidx,
-          lazyset1,
+          lazypos1,
           modifiers,
           lookahead,
           iter1);
-      if (!lazyset.empty()) // CHECKED this is an extra rule for + only and (may) not be needed for *
-      {
-        // CHECKED algorithmic options: lazy(lazyset, firstpos1); does not work for (a|b)*?a*b+, below works
-        Positions firstpos2;
-        lazy(lazyset, firstpos1, firstpos2);
-        pos_insert(firstpos1, firstpos2);
-        // if (lazyset1.empty())
-        // greedy(firstpos1); // CHECKED algorithmic options: 8/1 works except fails for ((a|b)*?b){2} and (a|b)??(a|b)??aa
-      }
       if (nullable)
         pos_insert(firstpos, firstpos1);
       for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
@@ -955,15 +933,13 @@ void Pattern::parse2(
       if (nullable1)
       {
         pos_insert(lastpos, lastpos1);
-        lazy_insert(lazyset, lazyset1); // CHECKED 10/21
       }
       else
       {
         lastpos.swap(lastpos1);
-        lazyset.swap(lazyset1); // CHECKED 10/21
         nullable = false;
       }
-      // CHECKED 10/21 lazy_insert(lazyset, lazyset1);
+      lazy_insert(lazypos, lazypos1);
       if (iter1 > iter)
         iter = iter1;
     }
@@ -994,7 +970,7 @@ void Pattern::parse3(
     bool&      nullable,
     Follow&    followpos,
     Lazy&      lazyidx,
-    Lazyset&   lazyset,
+    Lazypos&   lazypos,
     Mods       modifiers,
     Locations& lookahead,
     Iter&      iter)
@@ -1009,7 +985,7 @@ void Pattern::parse3(
       nullable,
       followpos,
       lazyidx,
-      lazyset,
+      lazypos,
       modifiers,
       lookahead,
       iter);
@@ -1027,30 +1003,17 @@ void Pattern::parse3(
       {
         if (++lazyidx == 0)
           error(regex_error::exceeds_limits, loc); // overflow: exceeds max 255 lazy quantifiers
-        lazy_add(lazyset, lazyidx);
-        if (nullable)
-          lazy(lazyset, firstpos);
+        lazy_add(lazypos, lazyidx, loc);
+        lazy(lazypos, firstpos);
         ++loc;
       }
-      else
+      else if (c != '?' && !lazypos.empty())
       {
-        // CHECKED algorithmic options: 7/30 if (!nullable)
-        // CHECKED algorithmic options: 7/30   lazyset.clear();
         greedy(firstpos);
       }
-      if (c == '+' && !nullable && !lazyset.empty())
-      {
-        Positions firstpos1;
-        lazy(lazyset, firstpos, firstpos1);
-        for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-          pos_insert(followpos[p->pos()], firstpos1);
-        pos_insert(firstpos, firstpos1);
-      }
-      else if (c == '*' || c == '+')
-      {
+      if (c != '?')
         for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
           pos_insert(followpos[p->pos()], firstpos);
-      }
     }
     else if (c == '{') // {n,m} repeat min n times to max m
     {
@@ -1087,35 +1050,14 @@ void Pattern::parse3(
         {
           if (++lazyidx == 0)
             error(regex_error::exceeds_limits, loc); // overflow: exceeds max 255 lazy quantifiers
-          lazy_add(lazyset, lazyidx);
-          if (nullable)
-            lazy(lazyset, firstpos);
-          /* CHECKED algorithmic options: 8/1 else
-             {
-             lazy(lazyset, firstpos, firstpos1);
-             pos_insert(firstpos, firstpos1);
-             pfirstpos = &firstpos1;
-             } */
+          lazy_add(lazypos, lazyidx, loc);
+          lazy(lazypos, firstpos);
           ++loc;
-        }
-        else
-        {
-          // CHECKED algorithmic options 7/30 if (!nullable)
-          // CHECKED algorithmic options 7/30   lazyset.clear();
-          if (n <= m && lazyset.empty())
-            greedy(firstpos);
-        }
-        // CHECKED added pfirstpos to point to updated firstpos with lazy quants
-        Positions firstpos1, *pfirstpos = &firstpos;
-        if (!nullable && !lazyset.empty()) // CHECKED algorithmic options 8/1 added to make ((a|b)*?b){2} work
-        {
-          lazy(lazyset, firstpos, firstpos1);
-          pfirstpos = &firstpos1;
         }
         if (nullable && unlimited) // {0,} == *
         {
           for (Positions::const_iterator p = lastpos.begin(); p != lastpos.end(); ++p)
-            pos_insert(followpos[p->pos()], *pfirstpos);
+            pos_insert(followpos[p->pos()], firstpos);
         }
         else if (m > 0)
         {
@@ -1133,16 +1075,17 @@ void Pattern::parse3(
           // add m-1 times virtual concatenation (by indexed positions k.i)
           for (Iter i = 0; i < m - 1; ++i)
             for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
-              for (Positions::const_iterator j = pfirstpos->begin(); j != pfirstpos->end(); ++j)
+              for (Positions::const_iterator j = firstpos.begin(); j != firstpos.end(); ++j)
                 pos_add(followpos[k->pos().iter(iter * i)], j->iter(iter * i + iter));
           if (unlimited)
             for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
-              for (Positions::const_iterator j = pfirstpos->begin(); j != pfirstpos->end(); ++j)
+              for (Positions::const_iterator j = firstpos.begin(); j != firstpos.end(); ++j)
                 pos_add(followpos[k->pos().iter(iter * (m - 1))], j->iter(iter * (m - 1)));
           if (nullable1)
           {
             // extend firstpos when sub-regex is nullable
-            Positions firstpos1 = *pfirstpos;
+            Positions firstpos1 = firstpos;
+            firstpos.reserve(m * firstpos1.size());
             for (Iter i = 1; i <= m - 1; ++i)
               for (Positions::const_iterator k = firstpos1.begin(); k != firstpos1.end(); ++k)
                 pos_add(firstpos, k->iter(iter * i));
@@ -1159,7 +1102,7 @@ void Pattern::parse3(
         {
           firstpos.clear();
           lastpos.clear();
-          lazyset.clear();
+          lazypos.clear();
         }
       }
       else if (at(loc) == '\0')
@@ -1188,7 +1131,7 @@ void Pattern::parse4(
     bool&      nullable,
     Follow&    followpos,
     Lazy&      lazyidx,
-    Lazyset&   lazyset,
+    Lazypos&   lazypos,
     Mods       modifiers,
     Locations& lookahead,
     Iter&      iter)
@@ -1197,7 +1140,7 @@ void Pattern::parse4(
   firstpos.clear();
   lastpos.clear();
   nullable = true;
-  lazyset.clear();
+  lazypos.clear();
   iter = 1;
   Char c = at(loc);
   if (c == '(')
@@ -1224,7 +1167,7 @@ void Pattern::parse4(
             nullable,
             followpos,
             lazyidx,
-            lazyset,
+            lazypos,
             modifiers,
             lookahead,
             iter);
@@ -1242,7 +1185,7 @@ void Pattern::parse4(
             nullable,
             followpos,
             lazyidx,
-            lazyset,
+            lazypos,
             modifiers,
             lookahead,
             iter);
@@ -1271,7 +1214,7 @@ void Pattern::parse4(
             nullable,
             followpos,
             lazyidx,
-            lazyset,
+            lazypos,
             modifiers,
             lookahead,
             iter);
@@ -1305,7 +1248,7 @@ void Pattern::parse4(
             nullable,
             followpos,
             lazyidx,
-            lazyset,
+            lazypos,
             modifiers,
             lookahead,
             iter);
@@ -1346,7 +1289,7 @@ void Pattern::parse4(
           nullable,
           followpos,
           lazyidx,
-          lazyset,
+          lazypos,
           modifiers,
           lookahead,
           iter);
@@ -1586,10 +1529,11 @@ Pattern::Char Pattern::parse_esc(Location& loc, Chars *chars) const
 }
 
 void Pattern::compile(
-    DFA::State *start,
-    Follow&     followpos,
-    const Mods  modifiers,
-    const Map&  lookahead)
+    DFA::State    *start,
+    Follow&        followpos,
+    const Lazypos& lazypos,
+    const Mods     modifiers,
+    const Map&     lookahead)
 {
   DBGLOG("BEGIN compile()");
   // init timers
@@ -1597,7 +1541,7 @@ void Pattern::compile(
   timer_start(vt);
   // construct the DFA
   acc_.resize(end_.size(), false);
-  trim_lazy(start);
+  trim_lazy(start, lazypos);
   // hash table with 64K pointer entries uint16_t indexed
   DFA::State **table = new DFA::State*[65536];
   for (int i = 0; i < 65536; ++i)
@@ -1617,6 +1561,7 @@ void Pattern::compile(
     compile_transition(
         state,
         followpos,
+        lazypos,
         modifiers,
         lookahead,
         moves);
@@ -2110,43 +2055,29 @@ void Pattern::compile(
 }
 
 void Pattern::lazy(
-    const Lazyset& lazyset,
+    const Lazypos& lazypos,
     Positions&     pos) const
 {
-  if (!lazyset.empty())
-  {
-    Positions pos1;
-    lazy(lazyset, pos, pos1);
-    pos.swap(pos1);
-  }
+  for (Positions::iterator p = pos.begin(); p != pos.end(); ++p)
+    for (Lazypos::const_iterator l = lazypos.begin(); l != lazypos.end(); ++l)
+      *p = p->lazy(l->lazy());
 }
 
 void Pattern::lazy(
-    const Lazyset&   lazyset,
+    const Lazypos&   lazypos,
     const Positions& pos,
     Positions&       pos1) const
 {
+  pos1.reserve(lazypos.size() * pos.size());
   for (Positions::const_iterator p = pos.begin(); p != pos.end(); ++p)
-    for (Lazyset::const_iterator l = lazyset.begin(); l != lazyset.end(); ++l)
-      // pos1.insert(p->lazy() ? *p : p->lazy(*l)); // CHECKED algorithmic options: only if p is not already lazy??
-      pos_add(pos1, p->lazy(*l)); // overrides lazyness even when p is already lazy
+    for (Lazypos::const_iterator l = lazypos.begin(); l != lazypos.end(); ++l)
+      pos_add(pos1, p->lazy(l->lazy()));
 }
 
 void Pattern::greedy(Positions& pos) const
 {
-#ifdef WITH_VECTOR
-  // in-place
   for (Positions::iterator p = pos.begin(); p != pos.end(); ++p)
-    if (!p->lazy())
-      *p = p->greedy(true); // CHECKED algorithmic options: 7/29 guard added: p->lazy() ? *p : p->greedy(true)
-    // CHECKED 10/21 pos_add(pos1, p->lazy(0).greedy(true));
-#else
-  Positions pos1;
-  for (Positions::const_iterator p = pos.begin(); p != pos.end(); ++p)
-    pos_add(pos1, p->lazy() ? *p : p->greedy(true)); // CHECKED algorithmic options: 7/29 guard added: p->lazy() ? *p : p->greedy(true)
-    // CHECKED 10/21 pos1.insert(p->lazy(0).greedy(true));
-  pos.swap(pos1);
-#endif
+    *p = p->lazy(0);
 }
 
 void Pattern::trim_anchors(Positions& follow, const Position p) const
@@ -2197,7 +2128,7 @@ void Pattern::trim_anchors(Positions& follow, const Position p) const
 #endif
 }
 
-void Pattern::trim_lazy(Positions *pos) const
+void Pattern::trim_lazy(Positions *pos, const Lazypos& lazypos) const
 {
 #ifdef DEBUG
   DBGLOG("BEGIN trim_lazy({");
@@ -2205,102 +2136,53 @@ void Pattern::trim_lazy(Positions *pos) const
     DBGLOGPOS(*q);
   DBGLOGA(" })");
 #endif
-#ifdef WITH_VECTOR
-  // sort the positions and remove duplicates
-  std::sort(pos->begin(), pos->end());
-  pos->erase(unique(pos->begin(), pos->end()), pos->end());
-  // note: positions are sorted w/o duplicates, may no longer be strictly sorted afterwards
-  Positions::iterator p = pos->begin();
-  while (p != pos->end())
+  for (Positions::iterator p = pos->begin(); p != pos->end(); ++p)
   {
     Lazy l = p->lazy();
-    if (l && (p->accept() || p->anchor()))
+    // if lazy accept state, then remove matching lazy positions to cut lazy edges
+    if (l > 0 && (p->accept() || p->anchor()))
     {
       *p = p->lazy(0);
-      p = pos->begin();
-      while (p != pos->end())
+      // remove lazy positions matching lazy index l
+      Positions::iterator q = pos->begin();
+      Positions::iterator r = q;
+      size_t i = 0;
+      while (q != pos->end())
       {
-        if (p->lazy() == l)
-          p = pos->erase(p);
-        else
-          ++p;
-      }
-      p = pos->begin();
-      continue;
-    }
-    ++p;
-  }
-  for (Positions::reverse_iterator q = pos->rbegin(); q != pos->rend() && q->lazy(); ++q)
-    if (q->greedy())
-      *q = q->lazy(0);
-#else
-  Positions::reverse_iterator p = pos->rbegin();
-  while (p != pos->rend() && p->lazy())
-  {
-    Lazy l = p->lazy();
-    if (p->accept() || p->anchor()) // CHECKED algorithmic options: 7/28 added p->anchor()
-    {
-      pos->insert(p->lazy(0)); // make lazy accept/anchor a non-lazy accept/anchor
-      pos->erase(--p.base());
-      while (p != pos->rend() && !p->accept() && p->lazy() == l)
-      {
-#if 0 // CHECKED algorithmic options: set to 1 to turn lazy trimming off
-        ++p;
-#else
-        pos->erase(--p.base());
-#endif
-      }
-    }
-    else
-    {
-#if 0 // CHECKED algorithmic options: 7/31
-      if (p->greedy())
-      {
-        pos->insert(p->lazy(0).greedy(false));
-        pos->erase(--p.base());
-      }
-      else
-      {
-        break; // ++p;
-      }
-#else
-      if (!p->greedy()) // stop here, greedy bit is 0 from here on
-        break;
-      pos->insert(p->lazy(0));
-      pos->erase(--p.base()); // CHECKED 10/21 ++p;
-#endif
-    }
-  }
-#if 0 // CHECKED algorithmic options: 7/31 but results in more states
-  while (p != pos->rend() && p->greedy())
-  {
-    pos->insert(p->greedy(false));
-    pos->erase(--p.base());
-  }
-#endif
-  // trim accept positions keeping the first (smallest) only
-  Positions::iterator q = pos->begin();
-  bool keep = true;
-  while (q != pos->end())
-  {
-    if (q->accept() && !q->negate())
-    {
-      if (keep)
-      {
-        keep = false;
+        if (q->lazy() != l)
+        {
+          if (q != r)
+            *r = *q;
+          ++r;
+          if (q < p)
+            ++i;
+        }
         ++q;
       }
-      else
+      // if anything was removed, then update the position vector and reassign iterator p
+      if (r != pos->end())
       {
-        q = pos->erase(q);
+        pos->erase(r, pos->end());
+        p = pos->begin() + i;
       }
     }
-    else
-    {
-      ++q;
-    }
   }
-#endif
+  // sort the positions and remove duplicates to make the state unique and comparable
+  std::sort(pos->begin(), pos->end());
+  pos->erase(unique(pos->begin(), pos->end()), pos->end());
+  // if all positions are lazy with the same lazy index, then make the after positions non-lazy
+  if (!pos->empty() && pos->begin()->lazy())
+  {
+    Location max = 0;
+    for (Lazypos::const_iterator l = lazypos.begin(); l != lazypos.end(); ++l)
+      for (Positions::const_iterator p = pos->begin(); p != pos->end(); ++p)
+        if (p->lazy() == l->lazy())
+          if (max < l->loc())
+            max = l->loc();
+    for (Positions::iterator p = pos->begin(); p != pos->end(); ++p)
+      if (p->loc() > max)
+        *p = p->lazy(0);
+  }
 #ifdef DEBUG
   DBGLOG("END trim_lazy({");
   for (Positions::const_iterator q = pos->begin(); q != pos->end(); ++q)
@@ -2310,11 +2192,12 @@ void Pattern::trim_lazy(Positions *pos) const
 }
 
 void Pattern::compile_transition(
-    DFA::State *state,
-    Follow&     followpos,
-    const Mods  modifiers,
-    const Map&  lookahead,
-    Moves&      moves) const
+    DFA::State    *state,
+    Follow&        followpos,
+    const Lazypos& lazypos,
+    const Mods     modifiers,
+    const Map&     lookahead,
+    Moves&         moves) const
 {
   DBGLOG("BEGIN compile_transition()");
   Positions::const_iterator end = state->end();
@@ -2393,32 +2276,20 @@ void Pattern::compile_transition(
           {
             Positions::iterator b = i->second.begin();
             if (b != i->second.end() && !b->negate())
-            {
-#ifdef WITH_VECTOR
-              // in-place
               for (Positions::iterator p = b; p != i->second.end(); ++p)
                 *p = p->negate(true);
-#else
-              Positions to;
-              for (Positions::const_iterator p = b; p != i->second.end(); ++p)
-                pos_add(to, p->negate(true));
-              i->second.swap(to);
-#endif
-            }
           }
-          if (k->lazy())
+          Lazy l = k->lazy();
+          if (l)
           {
-#if 1 // CHECKED algorithmic options: 7/31 this optimization works fine when trim_lazy adds non-lazy greedy state, but may increase the total number of states:
-            if (k->greedy())
-              continue;
-#endif
+            // propagage lazy property along the path
             Follow::iterator j = followpos.find(*k);
             if (j == followpos.end())
             {
-              // followpos is not defined for lazy pos yet, so add lazy followpos (memoization)
               j = followpos.insert(std::pair<Position,Positions>(*k, Positions())).first;
-              for (Positions::const_iterator p = i->second.begin(); p != i->second.end(); ++p)
-                pos_add(j->second, /* p->lazy() || CHECKED algorithmic options: 7/31 */ p->ticked() ? *p : /* CHECKED algorithmic options: 7/31 adds too many states p->greedy() ? p->lazy(0).greedy(false) : */ p->lazy(k->lazy())); // CHECKED algorithmic options: 7/18 ticked() preserves lookahead tail at '/' and ')'
+              j->second.reserve(i->second.size());
+              for (Positions::iterator p = i->second.begin(); p != i->second.end(); ++p)
+                pos_add(j->second, p->ticked() ? *p : p->lazy(l));
 #ifdef DEBUG
               DBGLOGN("lazy followpos(");
               DBGLOGPOS(*k);
@@ -2541,7 +2412,7 @@ void Pattern::compile_transition(
   Moves::const_iterator e = moves.end();
   while (i != e)
   {
-    trim_lazy(&i->second);
+    trim_lazy(&i->second, lazypos);
     if (i->second.empty())
       moves.erase(i++);
     else
@@ -2569,7 +2440,6 @@ void Pattern::transition(
       ++i;
     }
   }
-#ifdef WITH_VECTOR
   Chars common;
   for (i = moves.begin(); i != end; ++i)
   {
@@ -2593,36 +2463,6 @@ void Pattern::transition(
         return;
     }
   }
-#else
-  for (i = moves.begin(); i != end; ++i)
-  {
-    if (chars.intersects(i->first))
-    {
-      if (is_subset(follow, i->second))
-      {
-        chars -= i->first;
-      }
-      else
-      {
-        if (chars.contains(i->first))
-        {
-          chars -= i->first;
-          pos_insert(i->second, follow);
-        }
-        else
-        {
-          Move back(chars & i->first, i->second);
-          pos_insert(back.second, follow);
-          chars -= back.first;
-          i->first -= back.first;
-          moves.push_back(back);
-        }
-      }
-      if (!chars.any())
-        return;
-    }
-  }
-#endif
   if (chars.any())
     moves.push_back(Move(chars, follow));
 }
@@ -3637,8 +3477,6 @@ void Pattern::graph_dfa(const DFA::State *start) const
               ::fprintf(file, "?%u", i->lazy());
             if (i->anchor())
               ::fprintf(file, "^");
-            if (i->greedy())
-              ::fprintf(file, "!");
             if (i->ticked())
               ::fprintf(file, "'");
             if (i->negate())

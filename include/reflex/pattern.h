@@ -54,9 +54,6 @@
 #include <bitset>
 #include <vector>
 
-// ugrep 3.7: use vectors instead of sets to store positions to compile DFAs
-#define WITH_VECTOR
-
 // ugrep 3.7.0a: use a map to construct fixed string pattern trees
 // #define WITH_TREE_MAP
 // ugrep 3.7.0b: use a DFA as a tree to bypass DFA construction step when possible
@@ -503,7 +500,7 @@ class Pattern {
     static const value_type RES3    = 1ULL << 50; ///< reserved
     static const value_type NEGATE  = 1ULL << 51; ///< marks negative patterns
     static const value_type TICKED  = 1ULL << 52; ///< marks lookahead ending ) in (?=X)
-    static const value_type GREEDY  = 1ULL << 53; ///< force greedy quants
+    static const value_type RES4    = 1ULL << 53; ///< reserved
     static const value_type ANCHOR  = 1ULL << 54; ///< marks begin of word (\b,\<,\>) and buffer (\A,^) anchors
     static const value_type ACCEPT  = 1ULL << 55; ///< accept, not a regex position
     Position()                   : k(NPOS) { }
@@ -514,7 +511,6 @@ class Pattern {
     Position iter(Iter i)            const { return Position(k + (static_cast<value_type>(i) << 32)); }
     Position negate(bool b)          const { return b ? Position(k | NEGATE) : Position(k & ~NEGATE); }
     Position ticked(bool b)          const { return b ? Position(k | TICKED) : Position(k & ~TICKED); }
-    Position greedy(bool b)          const { return b ? Position(k | GREEDY) : Position(k & ~GREEDY); }
     Position anchor(bool b)          const { return b ? Position(k | ANCHOR) : Position(k & ~ANCHOR); }
     Position accept(bool b)          const { return b ? Position(k | ACCEPT) : Position(k & ~ACCEPT); }
     Position lazy(Lazy l)            const { return Position((k & 0x00FFFFFFFFFFFFFFULL) | static_cast<value_type>(l) << 56); }
@@ -524,30 +520,20 @@ class Pattern {
     Iter     iter()                  const { return static_cast<Index>((k >> 32) & 0xFFFF); }
     bool     negate()                const { return (k & NEGATE) != 0; }
     bool     ticked()                const { return (k & TICKED) != 0; }
-    bool     greedy()                const { return (k & GREEDY) != 0; }
     bool     anchor()                const { return (k & ANCHOR) != 0; }
     bool     accept()                const { return (k & ACCEPT) != 0; }
     Lazy     lazy()                  const { return static_cast<Lazy>(k >> 56); }
     value_type k;
   };
-  typedef std::vector<Lazy>            Lazyset;
-#ifdef WITH_VECTOR
+  typedef std::vector<Position>        Lazypos;
   typedef std::vector<Position>        Positions;
-#else
-  typedef std::set<Position>           Positions;
-#endif
   typedef std::map<Position,Positions> Follow;
   typedef std::pair<Chars,Positions>   Move;
   typedef std::list<Move>              Moves;
-#ifdef WITH_VECTOR
   inline static void pos_insert(Positions& s1, const Positions& s2) { s1.insert(s1.end(), s2.begin(), s2.end()); }
   inline static void pos_add(Positions& s, const Position& e) { s.insert(s.end(), e); }
-#else
-  inline static void pos_insert(Positions& s1, const Positions& s2) { s1.insert(s2.begin(), s2.end()); }
-  inline static void pos_add(Positions& s, const Position& e) { s.insert(e); }
-#endif
-  inline static void lazy_insert(Lazyset& s1, const Lazyset& s2) { s1.insert(s1.end(), s2.begin(), s2.end()); }
-  inline static void lazy_add(Lazyset& s, const Lazy& e) { s.insert(s.end(), e); }
+  inline static void lazy_insert(Lazypos& s1, const Lazypos& s2) { s1.insert(s1.end(), s2.begin(), s2.end()); }
+  inline static void lazy_add(Lazypos& s, const Lazy i, Location p) { s.insert(s.end(), Position(p).lazy(i)); }
 #ifndef WITH_TREE_DFA
   /// Tree DFA constructed from string patterns.
   struct Tree {
@@ -859,6 +845,7 @@ class Pattern {
   void parse(
       Positions& startpos,
       Follow&    followpos,
+      Lazypos&   lazypos,
       Mods       modifiers,
       Map&       lookahead);
   void parse1(
@@ -869,7 +856,7 @@ class Pattern {
       bool&      nullable,
       Follow&    followpos,
       Lazy&      lazyidx,
-      Lazyset&   lazyset,
+      Lazypos&   lazypos,
       Mods       modifiers,
       Locations& lookahead,
       Iter&      iter);
@@ -881,7 +868,7 @@ class Pattern {
       bool&      nullable,
       Follow&    followpos,
       Lazy&      lazyidx,
-      Lazyset&   lazyset,
+      Lazypos&   lazypos,
       Mods       modifiers,
       Locations& lookahead,
       Iter&      iter);
@@ -893,7 +880,7 @@ class Pattern {
       bool&      nullable,
       Follow&    followpos,
       Lazy&      lazyidx,
-      Lazyset&   lazyset,
+      Lazypos&   lazypos,
       Mods       modifiers,
       Locations& lookahead,
       Iter&      iter);
@@ -905,7 +892,7 @@ class Pattern {
       bool&      nullable,
       Follow&    followpos,
       Lazy&      lazyidx,
-      Lazyset&   lazyset,
+      Lazypos&   lazypos,
       Mods       modifiers,
       Locations& lookahead,
       Iter&      iter);
@@ -915,21 +902,23 @@ class Pattern {
   void compile(
       DFA::State *start,
       Follow&     followpos,
+      const Lazypos& lazypos,
       const Mods  modifiers,
       const Map&  lookahead);
   void lazy(
-      const Lazyset& lazyset,
+      const Lazypos& lazypos,
       Positions&     pos) const;
   void lazy(
-      const Lazyset&   lazyset,
+      const Lazypos&   lazypos,
       const Positions& pos,
       Positions&       pos1) const;
   void greedy(Positions& pos) const;
   void trim_anchors(Positions& follow, const Position p) const;
-  void trim_lazy(Positions *pos) const;
+  void trim_lazy(Positions *pos, const Lazypos& lazypos) const;
   void compile_transition(
       DFA::State *state,
       Follow&     followpos,
+      const Lazypos& lazypos,
       const Mods  modifiers,
       const Map&  lookahead,
       Moves&      moves) const;

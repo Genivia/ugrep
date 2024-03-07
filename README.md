@@ -5,13 +5,15 @@ Why use ugrep?
 
 - Ugrep is a true drop-in replacement for GNU grep (assuming you [rename or symlink `ugrep` to `grep`, `egrep` and `fgrep`](#grep)), unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
 
-- Ugrep is fast, user-friendly, and equipped with a ton of new features that surpass other grep, benchmarks also show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) and will be getting even faster
+- Ugrep is fast, user-friendly, and equipped with a ton of new features that users wanted
 
-- An easy-to-use user manual with installation instructions at [ugrep.com](https://ugrep.com)
+- Benchmarks show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) using the high-performance DFA-based regex matcher [RE/flex](https://github.com/Genivia/RE-flex)
 
-- Ugrep includes an interactive TUI with built-in help and options to control searching and a file (pre)view split screen
+- A quick user guide with installation instructions at [ugrep.com](https://ugrep.com)
 
-*Option -Q opens a query TUI to search files as you type!*
+- Includes a TUI with built-in help, interactive search with search mode and options selection, and a file preview split screen
+
+*Option -Q opens a query TUI to search files as you type*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
@@ -24,7 +26,7 @@ Development roadmap
 
 - add new and updated features, including [indexing (beta release)](https://github.com/Genivia/ugrep-indexer)
 
-- further increase performance and share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community, showing that ugrep is almost always faster than other grep tools
+- share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
 
 Overview
 --------

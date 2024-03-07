@@ -90,13 +90,11 @@ build_triplet = @build@
 host_triplet = @host@
 subdir = lzma/C
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_regex.m4 \
-	$(top_srcdir)/m4/ax_check_brotlilib.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_brotlilib.m4 \
 	$(top_srcdir)/m4/ax_check_bz2lib.m4 \
 	$(top_srcdir)/m4/ax_check_bzip3lib.m4 \
 	$(top_srcdir)/m4/ax_check_lz4lib.m4 \
 	$(top_srcdir)/m4/ax_check_lzmalib.m4 \
-	$(top_srcdir)/m4/ax_check_pcre2.m4 \
 	$(top_srcdir)/m4/ax_check_zlib.m4 \
 	$(top_srcdir)/m4/ax_check_zstdlib.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -212,9 +210,6 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BASH_COMPLETION_CFLAGS = @BASH_COMPLETION_CFLAGS@
-BASH_COMPLETION_DIR = @BASH_COMPLETION_DIR@
-BASH_COMPLETION_LIBS = @BASH_COMPLETION_LIBS@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
@@ -222,7 +217,6 @@ CPPFLAGS = @CPPFLAGS@
 CSCOPE = @CSCOPE@
 CTAGS = @CTAGS@
 CXX = @CXX@
-CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
 CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -234,10 +228,6 @@ ECHO_T = @ECHO_T@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
-FISH_COMPLETION_CFLAGS = @FISH_COMPLETION_CFLAGS@
-FISH_COMPLETION_DIR = @FISH_COMPLETION_DIR@
-FISH_COMPLETION_LIBS = @FISH_COMPLETION_LIBS@
-GREP_PATH = @GREP_PATH@
 HAVE_CXX11 = @HAVE_CXX11@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -260,22 +250,14 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
-PKG_CONFIG = @PKG_CONFIG@
-PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
-PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PLATFORM = @PLATFORM@
 PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
 PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
-SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
-SIMD_AVX2_FLAGS = @SIMD_AVX2_FLAGS@
-SIMD_AVX512BW_FLAGS = @SIMD_AVX512BW_FLAGS@
-SIMD_FLAGS = @SIMD_FLAGS@
 STRIP = @STRIP@
 VERSION = @VERSION@
-ZSH_COMPLETION_DIR = @ZSH_COMPLETION_DIR@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
