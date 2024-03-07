@@ -4,7 +4,7 @@ dist_man1_MANS = man/ugrep.1
 
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 
-UGREP = $(shell pwd)/$(top_builddir)/bin/ugrep$(EXEEXT)
+UGREP = $(shell pwd)/$(top_builddir)/src/ugrep$(EXEEXT)
 CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 
 if ENABLE_BASH_COMPLETION
@@ -22,13 +22,8 @@ zshcompletiondir = $(ZSH_COMPLETION_DIR)
 dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug
 endif
 
-install-exec-hook:
-		cp -f $(top_builddir)/bin/ugrep+ $(top_builddir)/bin/ug+ $(DESTDIR)$(bindir)
-		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
-		cd $(DESTDIR)$(bindir) && cp -f ugrep$(EXEEXT) ug$(EXEEXT)
-
 install-data-hook:
-		mkdir -p $(DESTDIR)$(datadir)/ugrep && \
+		$(INSTALL) -d $(DESTDIR)$(datadir)/ugrep && \
 		  cp -rf $(top_srcdir)/patterns $(DESTDIR)$(datadir)/ugrep/
 		cd $(DESTDIR)$(mandir)/man1 && \
 		  rm -f ug.1 && \
@@ -95,10 +90,6 @@ install-data-hook:
 		 echo "|                             https://ugrep.com        |"; \
 		 echo "|______________________________________________________|";
 
-uninstall-hook:
-		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT) $(DESTDIR)$(bindir)/ugrep$(EXEEXT)
-		rm -f $(DESTDIR)$(bindir)/ug+ $(DESTDIR)$(bindir)/ugrep+
-		rm -rf $(DESTDIR)$(datadir)/ugrep
 
 .PHONY:		test
 

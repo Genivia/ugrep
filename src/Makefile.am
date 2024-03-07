@@ -30,8 +30,23 @@ noinst_HEADERS = \
         zstream.hpp \
         zopen.h
 
+# Try installing hardlinks on filesystems that support it, otherwise
+# install stripped copies using the install program
 install-exec-hook:
-	$(INSTALL) -s -t $(DESTDIR)$(bindir) ugrep$(EXEEXT) ug$(EXEEXT)
+	( cd $(DESTDIR)$(bindir) && \
+		ln ugrep$(EXEEXT) ugrep+$(EXEEXT) && \
+		ln ugrep$(EXEEXT) ug$(EXEEXT) && \
+		ln ugrep$(EXEEXT) ug+$(EXEEXT)) || \
+	( \
+		$(INSTALL) ugrep$(EXEEXT) "$(bindir)/ugrep+" && \
+		$(INSTALL) ugrep$(EXEEXT) "$(bindir)/ug$(EXEEXT)" && \
+		$(INSTALL) ugrep$(EXEEXT) "$(bindir)/ug+" )
+
+uninstall-hook:
+	rm -f \
+	        $(DESTDIR)$(bindir)/ug$(EXEEXT) \
+		$(DESTDIR)$(bindir)/ug+ \
+	        $(DESTDIR)$(bindir)/ugrep+
 
 # ############################################################
 #                       RE/Flex Library                      #
