@@ -14,9 +14,6 @@ bashcompletion_DATA = \
 	completions/bash/ug \
 	completions/bash/ugrep+ \
 	completions/bash/ug+
-if ENABLE_FISH_COMPLETION
-fishcompletiondir = $(FISH_COMPLETION_DIR)
-dist_fishcompletion_DATA = $(top_builddir)/completions/fish/ug.fish
 endif
 
 if ENABLE_ZSH_COMPLETION
@@ -51,12 +48,6 @@ install-data-hook:
 		cd $(DESTDIR)$(mandir)/man1 && \
 		  rm -f ug.1 && \
 		  $(LN_S) ugrep.1 ug.1
-		@if [ "x$(fishcompletiondir)" != "x" ]; then \
-		  cd $(fishcompletiondir) && \
-		    sed -e 's/-c ug /-c ug+ /' ug.fish > ug+.fish && \
-		    sed -e 's/-c ug /-c ugrep /' ug.fish > ugrep.fish && \
-		    sed -e 's/-c ug /-c ugrep+ /' ug.fish > ugrep+.fish; \
-		fi
 		@if [ "x$(zshcompletiondir)" != "x" ]; then \
 		  cd $(zshcompletiondir) && \
 		    sed -e 's/^#compdef ug/#compdef ug+/' _ug > _ug+ && \
