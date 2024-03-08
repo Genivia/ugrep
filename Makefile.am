@@ -16,10 +16,6 @@ bashcompletion_DATA = \
 	completions/bash/ug+
 endif
 
-if ENABLE_ZSH_COMPLETION
-zshcompletiondir = $(ZSH_COMPLETION_DIR)
-dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug
-endif
 
 all-local:	cp2bin
 
@@ -48,12 +44,6 @@ install-data-hook:
 		cd $(DESTDIR)$(mandir)/man1 && \
 		  rm -f ug.1 && \
 		  $(LN_S) ugrep.1 ug.1
-		@if [ "x$(zshcompletiondir)" != "x" ]; then \
-		  cd $(zshcompletiondir) && \
-		    sed -e 's/^#compdef ug/#compdef ug+/' _ug > _ug+ && \
-		    sed -e 's/^#compdef ug/#compdef ugrep/' _ug > _ugrep && \
-		    sed -e 's/^#compdef ug/#compdef ugrep+/' _ug > _ugrep+; \
-		fi
 		@echo " ______________________________________________________ "; \
 		 echo "|                                                      |"; \
 		 echo "| You have successfully built and installed ugrep.     |"; \
