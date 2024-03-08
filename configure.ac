@@ -347,6 +347,10 @@ fi
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
 
+# Allow the manpage be accessed as either ug or ugrep
+AC_CONFIG_FILES([man/ugrep.1])
+AC_CONFIG_LINKS([man/ug.1:man/ugrep.1])
+
 # Instantiate Completion files from respective ug.in templates
 AC_CONFIG_FILES([
   completions/bash/ug

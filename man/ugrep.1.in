@@ -1,8 +1,8 @@
-.TH UGREP "1" "February 15, 2024" "ugrep 5.0.0" "User Commands"
+.TH UGREP "1" "February 15, 2024" "@PACKAGE_NAME@ @PACKAGE_VERSION@" "User Commands"
 .SH NAME
-\fBugrep\fR, \fBug\fR -- file pattern searcher
+\fB@PACKAGE_NAME@\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
-.B ugrep
+.B @PACKAGE_NAME@
 [\fIOPTIONS\fR] [\fB-i\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
       [\fB-F\fR|\fB-G\fR|\fB-P\fR|\fB-Z\fR] [\fB-U\fR] [\fB-m\fR [\fIMIN,\fR][\fIMAX\fR]] [\fB--bool\fR [\fB--files\fR|\fB--lines\fR]]
       [\fB-r\fR|\fB-R\fR|\fB-1\fR|...|\fB-9\fR|\fB-10\fR|...] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
@@ -10,19 +10,19 @@
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pretty\fR] [\fB--pager\fR[=\fICOMMAND\fR]]
       [\fB--hexdump\fR|\fB--csv\fR|\fB--json\fR|\fB--xml\fR] [\fB-I\fR] [\fB-z\fR] [\fB--zmax\fR=\fINUM\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
-The \fBugrep\fR utility searches any given input files, selecting lines that
+The \fB@PACKAGE_NAME@\fR utility searches any given input files, selecting lines that
 match one or more patterns specified as regular expressions or as fixed
 strings.  A pattern matches multiple input lines when the pattern's regular
 expression matches one or more newlines.  An empty pattern matches every line.
 Each input line that matches at least one of the patterns is written to the
 standard output.
 .PP
-The \fBug\fR command is intended for interactive searching, using a .ugrep
+The \fBug\fR command is intended for interactive searching, using a .@PACKAGE_NAME@
 configuration file located in the working directory or home directory, see
-CONFIGURATION.  \fBug\fR is equivalent to \fBugrep --config --pretty --sort\fR
-to load a .ugrep file, enhance the terminal output, and sort files by name.
+CONFIGURATION.  \fBug\fR is equivalent to \fB@PACKAGE_NAME@ --config --pretty --sort\fR
+to load a .@PACKAGE_NAME@ file, enhance the terminal output, and sort files by name.
 .PP
-The \fBugrep+\fR and \fBug+\fR commands are the same as the \fBugrep\fR and
+The \fB@PACKAGE_NAME@+\fR and \fBug+\fR commands are the same as the \fB@PACKAGE_NAME@\fR and
 \fBug\fR commands, but also use filters to search pdfs, documents, e-books,
 and image metadata, when the corresponding filter tools are installed.
 .PP
@@ -64,7 +64,7 @@ By default Unicode patterns are matched.  Option \fB-U\fR (\fB--binary\fR)
 disables Unicode matching for ASCII and binary pattern matching.  Non-Unicode
 matching is generally more efficient.
 .PP
-\fBugrep\fR accepts input of various encoding formats and normalizes the output
+\fB@PACKAGE_NAME@\fR accepts input of various encoding formats and normalizes the output
 to UTF-8.  When a UTF byte order mark is present in the input, the input is
 automatically normalized.  An input encoding format may be specified with
 option \fB--encoding\fR.
@@ -252,15 +252,15 @@ hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters
 when option \fB\-v\fR is specified.  Selectively overrides GREP_COLORS.
 .TP
 \fB\-\-config\fR[=\fIFILE\fR], \fB\-\-\-\fR[\fIFILE\fR]
-Use configuration FILE.  The default FILE is `.ugrep'.  The working
+Use configuration FILE.  The default FILE is `.@PACKAGE_NAME@'.  The working
 directory is checked first for FILE, then the home directory.  The
 options specified in the configuration FILE are parsed first,
 followed by the remaining options specified on the command line.
-The ug command automatically loads a `.ugrep' configuration file,
+The ug command automatically loads a `.@PACKAGE_NAME@' configuration file,
 unless \fB\-\-config\fR=\fIFILE\fR or \fB\-\-no\-config\fR is specified.
 .TP
 \fB\-\-no\-config\fR
-Do not automatically load the default .ugrep configuration file.
+Do not automatically load the default .@PACKAGE_NAME@ configuration file.
 .TP
 \fB\-\-confirm\fR
 Confirm actions in \fB\-Q\fR query TUI.  The default is confirm.
@@ -370,7 +370,7 @@ option may be repeated.
 .TP
 \fB\-F\fR, \fB\-\-fixed\-strings\fR
 Interpret pattern as a set of fixed strings, separated by newlines,
-any of which is to be matched.  This makes ugrep behave as fgrep.
+any of which is to be matched.  This makes @PACKAGE_NAME@ behave as fgrep.
 If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this
 option has no effect on \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR patterns
 to narrow or widen the scope of the PATTERN search.
@@ -379,7 +379,7 @@ to narrow or widen the scope of the PATTERN search.
 Read newline\-separated patterns from FILE.  White space in patterns
 is significant.  Empty lines in FILE are ignored.  If FILE does not
 exist, the GREP_PATH environment variable is used as path to FILE.
-If that fails, looks for FILE in /usr/local/share/ugrep/patterns.
+If that fails, looks for FILE in /usr/local/share/@PACKAGE_NAME@/patterns.
 When FILE is a `\-', standard input is read.  Empty files contain no
 patterns; thus nothing is matched.  This option may be repeated.
 .TP
@@ -410,7 +410,7 @@ Output FORMAT\-formatted matches.  For example \fB\-\-format\fR='%f:%n:%O%~'
 outputs matching lines `%O' with filename `%f` and line number `%n'
 followed by a newline `%~'.  If \fB\-P\fR is specified, FORMAT may include
 `%1' to `%9', `%[\fINUM\fR]#' and `%[\fINAME\fR]#' to output group captures.  A
-`%%' outputs `%'.  See `ugrep \fB\-\-help\fR format' and `man ugrep'
+`%%' outputs `%'.  See `@PACKAGE_NAME@ \fB\-\-help\fR format' and `man @PACKAGE_NAME@'
 section FORMAT for details.  When option \fB\-o\fR is specified, option \fB\-u\fR
 is also enabled.  Context options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR and \fB\-y\fR are ignored.
 .TP
@@ -431,7 +431,7 @@ When `glob' ends with a `/', directories are matched, same as
 matches the working directory.  Option \fB\-\-iglob\fR performs
 case\-insensitive name matching.  This option may be repeated and
 may be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR to expand searches.  See
-`ugrep \fB\-\-help\fR globs' and `man ugrep' section GLOBBING for details.
+`@PACKAGE_NAME@ \fB\-\-help\fR globs' and `man @PACKAGE_NAME@' section GLOBBING for details.
 .TP
 \fB\-\-glob\-ignore\-case\fR
 Perform case\-insensitive glob matching in general.
@@ -488,7 +488,7 @@ Ignore matches in binary files.  This option is equivalent to the
 \fB\-\-binary\-files\fR=without\-match option.
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
-Perform case insensitive matching.  By default, ugrep is case
+Perform case insensitive matching.  By default, @PACKAGE_NAME@ is case
 sensitive.  By default, this option applies to ASCII letters only.
 Use options \fB\-P\fR and \fB\-i\fR for Unicode case insensitive matching.
 .TP
@@ -549,7 +549,7 @@ priority over \fB\-\-include\-fs\fR=\fIMOUNTS\fR.  This option may be repeated.
 .TP
 \fB\-\-index\fR
 Perform index\-based recursive search.  This option assumes, but
-does not require, that files are indexed with ugrep\-indexer.  This
+does not require, that files are indexed with @PACKAGE_NAME@\-indexer.  This
 option accelerates recursive searching by skipping non\-matching
 files, archives and compressed files when indexed.  Significant
 acceleration may be achieved on cold (not file\-cached) and large
@@ -591,7 +591,7 @@ tree\-like format.
 .TP
 \fB\-l\fR, \fB\-\-files\-with\-matches\fR
 Only the names of files containing selected lines are written to
-standard output.  ugrep will only search a file until a match has
+standard output.  @PACKAGE_NAME@ will only search a file until a match has
 been found, making searches potentially less expensive.  Pathnames
 are listed once per file searched.  If the standard input is
 searched, the string ``(standard input)'' is written.  If \fB\-\-tree\fR is
@@ -737,8 +737,8 @@ recursive searches are performed as if \fB\-r\fR is specified.
 Replace matching patterns in the output by FORMAT with `%' fields.
 If \fB\-P\fR is specified, FORMAT may include `%1' to `%9', `%[\fINUM\fR]#' and
 `%[\fINAME\fR]#' to output group captures.  A `%%' outputs `%' and `%~'
-outputs a newline.  See also option \fB\-\-format\fR, `ugrep \fB\-\-help\fR format'
-and `man ugrep' section FORMAT for details.
+outputs a newline.  See also option \fB\-\-format\fR, `@PACKAGE_NAME@ \fB\-\-help\fR format'
+and `man @PACKAGE_NAME@' section FORMAT for details.
 .TP
 \fB\-S\fR, \fB\-\-dereference\-files\fR
 When \fB\-r\fR is specified, follow symbolic links to files, but not to
@@ -750,7 +750,7 @@ their error messages and warnings are suppressed.
 .TP
 \fB\-\-save\-config\fR[=\fIFILE\fR] [\fIOPTIONS\fR]
 Save configuration FILE to include OPTIONS.  Update FILE when
-first loaded with \fB\-\-config\fR=\fIFILE\fR.  The default FILE is `.ugrep',
+first loaded with \fB\-\-config\fR=\fIFILE\fR.  The default FILE is `.@PACKAGE_NAME@',
 which is automatically loaded by the ug command.  When FILE is a
 `\-', writes the configuration to standard output.  Only part of the
 OPTIONS are saved that do not cause searches to fail when combined
@@ -769,7 +769,7 @@ Split the \fB\-Q\fR query TUI screen on startup.
 .TP
 \fB\-\-sort\fR[=\fIKEY\fR]
 Displays matching files in the order specified by KEY in recursive
-searches.  Normally the ug command sorts by name whereas the ugrep
+searches.  Normally the ug command sorts by name whereas the @PACKAGE_NAME@
 batch command displays matches in no particular order to improve
 performance.  The sort KEY can be `name' to sort by pathname
 (default), `best' to sort by best match with option \fB\-Z\fR (sort by
@@ -944,7 +944,7 @@ Output a zero\-byte (NUL) after the file name.  This option can be
 used with commands such as `find \fB\-p\fRrint0' and `xargs \fB\-0\fR' to process
 arbitrary file names.
 .SH "EXIT STATUS"
-The \fBugrep\fR utility exits with one of the following values:
+The \fB@PACKAGE_NAME@\fR utility exits with one of the following values:
 .IP 0
 One or more lines were selected.
 .IP 1
@@ -956,8 +956,8 @@ If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
 the exit status is 0 even if an error occurred.
 .SH CONFIGURATION
 The \fBug\fR command is intended for context-dependent interactive searching
-and is equivalent to the \fBugrep --config --pretty --sort\fR command to load
-the default configuration file `.ugrep' when present in the working directory
+and is equivalent to the \fB@PACKAGE_NAME@ --config --pretty --sort\fR command to load
+the default configuration file `.@PACKAGE_NAME@' when present in the working directory
 or in the home directory.
 .PP
 A configuration file contains `NAME=VALUE' pairs per line, where `NAME` is the
@@ -974,7 +974,7 @@ Command line options are parsed in the following order: the configuration file
 is loaded first, followed by the remaining options and arguments on the command
 line.
 .PP
-The \fB--save-config\fR option saves a `.ugrep' configuration file to the
+The \fB--save-config\fR option saves a `.@PACKAGE_NAME@' configuration file to the
 working directory with a subset of the options specified on the command line.
 The \fB--save-config\fR=\fIFILE\fR option saves the configuration to
 \fIFILE\fR.  The configuration is written to standard output when \fIFILE\fR is
@@ -1300,119 +1300,119 @@ no effect on formatted output.
 .SH EXAMPLES
 Display lines containing the word `patricia' in `myfile.txt':
 .IP
-$ ugrep -w patricia myfile.txt
+$ @PACKAGE_NAME@ -w patricia myfile.txt
 .PP
 Display lines containing the word `patricia', ignoring case:
 .IP
-$ ugrep -wi patricia myfile.txt
+$ @PACKAGE_NAME@ -wi patricia myfile.txt
 .PP
 Display lines approximately matching the word `patricia', ignoring case and
 allowing up to 2 spelling errors using fuzzy search:
 .IP
-$ ugrep -Z2 -wi patricia myfile.txt
+$ @PACKAGE_NAME@ -Z2 -wi patricia myfile.txt
 .PP
 Count the number of lines containing `patricia', ignoring case:
 .IP
-$ ugrep -cwi patricia myfile.txt
+$ @PACKAGE_NAME@ -cwi patricia myfile.txt
 .PP
 Count the number of words `patricia', ignoring case:
 .IP
-$ ugrep -cowi patricia myfile.txt
+$ @PACKAGE_NAME@ -cowi patricia myfile.txt
 .PP
 List lines with `amount' and a decimal, ignoring case (space is AND):
 .IP
-$ ugrep -i -% 'amount \d+(\.\d+)?' myfile.txt
+$ @PACKAGE_NAME@ -i -% 'amount \d+(\.\d+)?' myfile.txt
 .PP
 Alternative query:
 .IP
-$ ugrep -wi -e amount --and '\d+(\.\d+)?' myfile.txt
+$ @PACKAGE_NAME@ -wi -e amount --and '\d+(\.\d+)?' myfile.txt
 .PP
 List all Unicode words in a file:
 .IP
-$ ugrep -o '\\w+' myfile.txt
+$ @PACKAGE_NAME@ -o '\\w+' myfile.txt
 .PP
 List all ASCII words in a file:
 .IP
-$ ugrep -o '[[:word:]]+' myfile.txt
+$ @PACKAGE_NAME@ -o '[[:word:]]+' myfile.txt
 .PP
 List the laughing face emojis (Unicode code points U+1F600 to U+1F60F):
 .IP
-$ ugrep -o '[\\x{1F600}-\\x{1F60F}]' myfile.txt
+$ @PACKAGE_NAME@ -o '[\\x{1F600}-\\x{1F60F}]' myfile.txt
 .PP
 Check if a file contains any non-ASCII (i.e. Unicode) characters:
 .IP
-$ ugrep -q '[^[:ascii:]]' myfile.txt && echo "contains Unicode"
+$ @PACKAGE_NAME@ -q '[^[:ascii:]]' myfile.txt && echo "contains Unicode"
 .PP
 Display the line and column number of `FIXME' in C++ files using recursive
 search, with one line of context before and after a matched line:
 .IP
-$ ugrep -C1 -R -n -k -tc++ FIXME
+$ @PACKAGE_NAME@ -C1 -R -n -k -tc++ FIXME
 .PP
 Display the line and column number of `FIXME' in long Javascript files using
 recursive search, showing only matches with up to 10 characters of context
 before and after:
 .IP
-$ ugrep -o -C20 -R -n -k -tjs FIXME
+$ @PACKAGE_NAME@ -o -C20 -R -n -k -tjs FIXME
 .PP
 List the C/C++ comments in a file with line numbers:
 .IP
-$ ugrep -n -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile.cpp
+$ @PACKAGE_NAME@ -n -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile.cpp
 .PP
 The same, but using predefined pattern c++/comments:
 .IP
-$ ugrep -n -f c++/comments myfile.cpp
+$ @PACKAGE_NAME@ -n -f c++/comments myfile.cpp
 .PP
 List the lines that need fixing in a C/C++ source file by looking for the word
 `FIXME' while skipping any `FIXME' in quoted strings:
 .IP
-$ ugrep -e FIXME -N '"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*"' myfile.cpp
+$ @PACKAGE_NAME@ -e FIXME -N '"(\\\\.|\\\\\\r?\\n|[^\\\\\\n"])*"' myfile.cpp
 .PP
 The same, but using predefined pattern cpp/zap_strings:
 .IP
-$ ugrep -e FIXME -f cpp/zap_strings myfile.cpp
+$ @PACKAGE_NAME@ -e FIXME -f cpp/zap_strings myfile.cpp
 .PP
 Find lines with `FIXME' or `TODO', showing line numberes:
 .IP
-$ ugrep -n -e FIXME -e TODO myfile.cpp
+$ @PACKAGE_NAME@ -n -e FIXME -e TODO myfile.cpp
 .PP
 Find lines with `FIXME' that also contain `urgent':
 .IP
-$ ugrep -n -e FIXME --and urgent myfile.cpp
+$ @PACKAGE_NAME@ -n -e FIXME --and urgent myfile.cpp
 .PP
 The same, but with a Boolean query pattern (a space is AND):
 .IP
-$ ugrep -n -% 'FIXME urgent' myfile.cpp
+$ @PACKAGE_NAME@ -n -% 'FIXME urgent' myfile.cpp
 .PP
 Find lines with `FIXME' that do not also contain `later':
 .IP
-$ ugrep -n -e FIXME --andnot later myfile.cpp
+$ @PACKAGE_NAME@ -n -e FIXME --andnot later myfile.cpp
 .PP
 The same, but with a Boolean query pattern (a space is AND, - is NOT):
 .IP
-$ ugrep -n -% 'FIXME -later' myfile.cpp
+$ @PACKAGE_NAME@ -n -% 'FIXME -later' myfile.cpp
 .PP
 Output a list of line numbers of lines with `FIXME' but not `later':
 .IP
-$ ugrep -e FIXME --andnot later --format='%,%n' myfile.cpp
+$ @PACKAGE_NAME@ -e FIXME --andnot later --format='%,%n' myfile.cpp
 .PP
 Recursively list all files with both `FIXME' and `LICENSE' anywhere in the
 file, not necessarily on the same line:
 .IP
-$ ugrep -l -%% 'FIXME LICENSE'
+$ @PACKAGE_NAME@ -l -%% 'FIXME LICENSE'
 .PP
 Find lines with `FIXME' in the C/C++ files stored in a tarball:
 .IP
-$ ugrep -z -tc++ -n FIXME project.tgz
+$ @PACKAGE_NAME@ -z -tc++ -n FIXME project.tgz
 .PP
 Recursively find lines with `FIXME' in C/C++ files, but do not search any `bak'
 and `old' directories:
 .IP
-$ ugrep -n FIXME -tc++ -g^bak/,^old/
+$ @PACKAGE_NAME@ -n FIXME -tc++ -g^bak/,^old/
 .PP
 Recursively search for the word `copyright' in cpio, jar, pax, tar, zip, 7z
 archives, compressed and regular files, and in PDFs using a PDF filter:
 .IP
-$ ugrep -z -w --filter='pdf:pdftotext % -' copyright
+$ @PACKAGE_NAME@ -z -w --filter='pdf:pdftotext % -' copyright
 .PP
 Match the binary pattern `A3hhhhA3' (hex) in a binary file without Unicode
 pattern matching \fB-U\fR (which would otherwise match `\\xaf' as a Unicode
@@ -1420,36 +1420,36 @@ character U+00A3 with UTF-8 byte sequence C2 A3) and display the results in hex
 with \fB--hexdump\fR with \fBC1\fR to output one hex line before and after each
 match:
 .IP
-$ ugrep -U --hexdump=C1 '\\xa3[\\x00-\\xff]{2}\\xa3' a.out
+$ @PACKAGE_NAME@ -U --hexdump=C1 '\\xa3[\\x00-\\xff]{2}\\xa3' a.out
 .PP
 Hexdump an entire file using a pager for viewing:
 .IP
-$ ugrep -X --pager '' a.out
+$ @PACKAGE_NAME@ -X --pager '' a.out
 .PP
 List all files that are not ignored by one or more `.gitignore':
 .IP
-$ ugrep -l '' --ignore-files
+$ @PACKAGE_NAME@ -l '' --ignore-files
 .PP
 List all files containing a RPM signature, located in the `rpm' directory and
 recursively below up to two levels deeper (3 levels total):
 .IP
-$ ugrep -3 -l -tRpm '' rpm/
+$ @PACKAGE_NAME@ -3 -l -tRpm '' rpm/
 .PP
 Monitor the system log for bug reports and ungroup multiple matches on a line:
 .IP
-$ tail -f /var/log/system.log | ugrep -u -i -w bug
+$ tail -f /var/log/system.log | @PACKAGE_NAME@ -u -i -w bug
 .PP
 Interactive fuzzy search with Boolean search queries:
 .IP
-$ ugrep -Q -l -% -Z3 --sort=best
+$ @PACKAGE_NAME@ -Q -l -% -Z3 --sort=best
 .PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
-$ ugrep --encoding=MACROMAN '\\w+' mac.txt
+$ @PACKAGE_NAME@ --encoding=MACROMAN '\\w+' mac.txt
 .PP
 Display options related to "fuzzy" searching:
 .IP
-$ ugrep --help fuzzy
+$ @PACKAGE_NAME@ --help fuzzy
 .PP
 .SH COPYRIGHT
 Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>

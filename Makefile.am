@@ -1,6 +1,6 @@
 SUBDIRS = src patterns
 
-dist_man1_MANS = man/ugrep.1
+man1_MANS = man/ug.1 man/ugrep.1
 
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 
@@ -18,9 +18,6 @@ endif
 
 
 install-data-hook:
-		cd $(DESTDIR)$(mandir)/man1 && \
-		  rm -f ug.1 && \
-		  $(LN_S) ugrep.1 ug.1
 		@echo " ______________________________________________________ "; \
 		 echo "|                                                      |"; \
 		 echo "| You have successfully built and installed ugrep.     |"; \
