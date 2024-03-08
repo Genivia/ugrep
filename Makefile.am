@@ -9,9 +9,11 @@ CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 
 if ENABLE_BASH_COMPLETION
 bashcompletiondir = $(BASH_COMPLETION_DIR)
-dist_bashcompletion_DATA = $(top_builddir)/completions/bash/ug
-endif
-
+bashcompletion_DATA = \
+	completions/bash/ugrep \
+	completions/bash/ug \
+	completions/bash/ugrep+ \
+	completions/bash/ug+
 if ENABLE_FISH_COMPLETION
 fishcompletiondir = $(FISH_COMPLETION_DIR)
 dist_fishcompletion_DATA = $(top_builddir)/completions/fish/ug.fish
@@ -49,12 +51,6 @@ install-data-hook:
 		cd $(DESTDIR)$(mandir)/man1 && \
 		  rm -f ug.1 && \
 		  $(LN_S) ugrep.1 ug.1
-		@if [ "x$(bashcompletiondir)" != "x" ]; then \
-		  cd $(bashcompletiondir) && \
-		    $(LN_S) -f ug ug+ && \
-		    $(LN_S) -f ug ugrep && \
-		    $(LN_S) -f ug ugrep+; \
-		fi
 		@if [ "x$(fishcompletiondir)" != "x" ]; then \
 		  cd $(fishcompletiondir) && \
 		    sed -e 's/-c ug /-c ug+ /' ug.fish > ug+.fish && \

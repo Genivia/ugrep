@@ -98,6 +98,9 @@ AC_ARG_WITH([bash-completion-dir],
   [with_bash_completion_dir="$withval"],
   [with_bash_completion_dir="yes"])
 if test "x$with_bash_completion_dir" = "xyes"; then
+  # FIXME: This is wrong.
+  # https://www.gnu.org/software/autoconf/manual/autoconf-2.69/html_node/Installation-Directory-Variables.html#Installation-Directory-Variables
+  # See "corollary"
   BASH_COMPLETION_DIR='$(sysconfdir)/bash_completion.d'
 else
   BASH_COMPLETION_DIR="$with_bash_completion_dir"
@@ -347,6 +350,22 @@ AC_SUBST(SIMD_AVX512BW_FLAGS)
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
 
-AC_CONFIG_FILES([Makefile lib/Makefile src/Makefile])
+
+# Instantiate Completion files from respective ug.in templates
+AC_CONFIG_FILES([
+  completions/bash/ug
+])
+
+# Bash completions for the alternative command names
+# are symlinks because the file contents would be identical
+# The bash completion is hand-written (distributed source)
+# fish/zsh alternates are generated in the src/Makefile, from
+# the built ugrep binary's --help output
+AC_CONFIG_LINKS([
+  completions/bash/ugrep:completions/bash/ug
+  completions/bash/ugrep+:completions/bash/ug
+  completions/bash/ug+:completions/bash/ug
+])
+
 
 AC_OUTPUT
