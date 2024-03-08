@@ -1,4 +1,4 @@
-SUBDIRS = lib src
+SUBDIRS = lib src patterns
 
 man1_MANS = man/ugrep.1
 
@@ -27,8 +27,6 @@ install-exec-hook:
 		cd $(DESTDIR)$(bindir) && $(LN_S) ugrep$(EXEEXT) ug$(EXEEXT)
 
 install-data-hook:
-		mkdir -p $(DESTDIR)$(datadir)/ugrep && \
-		  cp -rf $(top_srcdir)/patterns $(DESTDIR)$(datadir)/ugrep/
 		cd $(DESTDIR)$(mandir)/man1; \
 		  rm -f ug.1; \
 		  $(LN_S) ugrep.1 ug.1

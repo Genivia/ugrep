@@ -294,6 +294,11 @@ AC_SUBST(SIMD_AVX512BW_FLAGS)
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
 
-AC_CONFIG_FILES([Makefile lib/Makefile src/Makefile])
+AC_CONFIG_FILES([
+  Makefile
+  lib/Makefile
+  src/Makefile
+  patterns/Makefile
+])
 
 AC_OUTPUT
