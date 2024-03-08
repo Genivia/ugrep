@@ -363,6 +363,10 @@ AC_CONFIG_LINKS([
   completions/bash/ug+:completions/bash/ug
 ])
 
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([
+  Makefile
+  src/Makefile
+  patterns/Makefile
+])
 
 AC_OUTPUT

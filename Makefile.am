@@ -1,4 +1,4 @@
-SUBDIRS = src
+SUBDIRS = src patterns
 
 dist_man1_MANS = man/ugrep.1
 
@@ -18,8 +18,6 @@ endif
 
 
 install-data-hook:
-		$(INSTALL) -d $(DESTDIR)$(datadir)/ugrep && \
-		  cp -rf $(top_srcdir)/patterns $(DESTDIR)$(datadir)/ugrep/
 		cd $(DESTDIR)$(mandir)/man1 && \
 		  rm -f ug.1 && \
 		  $(LN_S) ugrep.1 ug.1
