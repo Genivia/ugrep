@@ -111,10 +111,10 @@ AC_ARG_WITH([bash-completion-dir],
   [with_bash_completion_dir="$withval"],
   [with_bash_completion_dir="yes"])
 if test "x$with_bash_completion_dir" = "xyes"; then
-  PKG_CHECK_MODULES([BASH_COMPLETION],
-                    [bash-completion >= 2.0],
-                    [BASH_COMPLETION_DIR="`pkg-config --define-variable=datadir=$datadir --variable=completionsdir bash-completion`"],
-                    [BASH_COMPLETION_DIR="$datadir/bash-completion/completions"])
+  # FIXME: This is wrong.
+  # https://www.gnu.org/software/autoconf/manual/autoconf-2.69/html_node/Installation-Directory-Variables.html#Installation-Directory-Variables
+  # See "corollary"
+  BASH_COMPLETION_DIR='$(sysconfdir)/bash_completion.d'
 else
   BASH_COMPLETION_DIR="$with_bash_completion_dir"
 fi
@@ -127,10 +127,7 @@ AC_ARG_WITH([fish-completion-dir],
   [with_fish_completion_dir="$withval"],
   [with_fish_completion_dir="yes"])
 if test "x$with_fish_completion_dir" = "xyes"; then
-  PKG_CHECK_MODULES([FISH_COMPLETION],
-                    [fish >= 3.0],
-                    [FISH_COMPLETION_DIR="`pkg-config --define-variable=datadir=$datadir --variable=completionsdir fish`"],
-                    [FISH_COMPLETION_DIR="$datadir/fish/vendor_completions.d"])
+  FISH_COMPLETION_DIR='$(sysconfdir)/fish/completions'
 else
   FISH_COMPLETION_DIR="$with_fish_completion_dir"
 fi
@@ -349,6 +346,22 @@ fi
 
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
+
+# Instantiate Completion files from respective ug.in templates
+AC_CONFIG_FILES([
+  completions/bash/ug
+])
+
+# Bash completions for the alternative command names
+# are symlinks because the file contents would be identical
+# The bash completion is hand-written (distributed source)
+# fish/zsh alternates are generated in the src/Makefile, from
+# the built ugrep binary's --help output
+AC_CONFIG_LINKS([
+  completions/bash/ugrep:completions/bash/ug
+  completions/bash/ugrep+:completions/bash/ug
+  completions/bash/ug+:completions/bash/ug
+])
 
 AC_CONFIG_FILES([Makefile src/Makefile])
 

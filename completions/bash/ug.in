@@ -1,4 +1,4 @@
-# bash completion for ug and ugrep
+# bash completion for ug and @PACKAGE_NAME@
 # recommended: add the following lines to ~/.inputrc
 # set colored-stats on
 # set colored-completion-prefix on
@@ -7,7 +7,7 @@ if ! declare -F _init_completion >/dev/null 2>&1; then
     return
 fi
 
-_comp_cmd_ugrep_usage()
+_comp_cmd_@PACKAGE_NAME@_usage()
 {
     local -a usage
     local line i=1
@@ -26,28 +26,28 @@ _comp_cmd_ugrep_usage()
     compopt -o nosort
 }
 
-_comp_cmd_ugrep_file_type()
+_comp_cmd_@PACKAGE_NAME@_file_type()
 {
     # complete a file type by generating the option values
     COMPREPLY=( $(compgen -W "$($1 -tlist 2>&1 | sed -E -e "s/[ ]*([0-9A-Za-z+]+).*/$2\1/" -e "/FILE/d" -e "/^ /d")" -- $cur) )
     compopt +o nospace
 }
 
-_comp_cmd_ugrep_encoding()
+_comp_cmd_@PACKAGE_NAME@_encoding()
 {
     # complete encoding format by generating the option values
     COMPREPLY=( $(compgen -W "$($1 --encoding=list 2>&1 | sed -e "s/^.[a-z].*are//" -e "/help/d" -e "s/ '//g" -e "s/',\?/ /g")" -- $cur) )
     compopt +o nospace
 }
 
-_comp_cmd_ugrep()
+_comp_cmd_@PACKAGE_NAME@()
 {
     local IFS=$' \t\n'
     local cur prev words cword
     _init_completion -s || return
 
     if [[ $cword -eq 1 && "${words[1]}" == "" ]]; then
-        _comp_cmd_ugrep_usage $1
+        _comp_cmd_@PACKAGE_NAME@_usage $1
         return
     fi
 
@@ -78,7 +78,7 @@ _comp_cmd_ugrep()
         ;;
     -t)
         # complete a file type by generating the option values
-        _comp_cmd_ugrep_file_type $1 ""
+        _comp_cmd_@PACKAGE_NAME@_file_type $1 ""
         return
         ;;
     -Z)
@@ -120,7 +120,7 @@ _comp_cmd_ugrep()
         ;;
     --encoding=*)
         # complete encoding format by generating the option values
-        _comp_cmd_ugrep_encoding $1
+        _comp_cmd_@PACKAGE_NAME@_encoding $1
         return
         ;;
     --hexdump=*)
@@ -142,7 +142,7 @@ _comp_cmd_ugrep()
         ;;
     --file-type=*)
         # complete a file type by generating the option values
-        _comp_cmd_ugrep_file_type $1 ""
+        _comp_cmd_@PACKAGE_NAME@_file_type $1 ""
         return
         ;;
     --fuzzy=*)
@@ -192,7 +192,7 @@ _comp_cmd_ugrep()
         ;;
     -t*)
         # complete a file type by generating the option values
-        _comp_cmd_ugrep_file_type $1 -t
+        _comp_cmd_@PACKAGE_NAME@_file_type $1 -t
         return
         ;;
     -Z*)
@@ -216,11 +216,11 @@ _comp_cmd_ugrep()
         return
         ;;
     -)
-        _comp_cmd_ugrep_usage $1
+        _comp_cmd_@PACKAGE_NAME@_usage $1
         return
         ;;
     esac
 
     _filedir
 } &&
-    complete -o nospace -F _comp_cmd_ugrep ug ug+ ugrep ugrep+
+    complete -o nospace -F _comp_cmd_@PACKAGE_NAME@ ug ug+ @PACKAGE_NAME@ @PACKAGE_NAME@+
