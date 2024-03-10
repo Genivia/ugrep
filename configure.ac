@@ -254,13 +254,13 @@ fi
 
 AC_SUBST(EXTRA_CFLAGS)
 
-AC_ARG_ENABLE(sse2,
-  [AS_HELP_STRING([--disable-sse2],
-                  [disable SSE2 and AVX optimizations])],
-  [with_no_sse2="yes"],
-  [with_no_sse2="no"])
-AM_CONDITIONAL([ENABLE_SIMD],[test "x$with_no_sse2" = "xno"])
-if ! test "x$with_no_sse2" = "xyes"; then
+AC_ARG_ENABLE(simd,
+  [AS_HELP_STRING([--disable-simd],
+                  [disable SIMD CPU extensions (SSE2, AVX, NEON, etc)])],
+  [with_no_simd="yes"],
+  [with_no_simd="no"])
+AM_CONDITIONAL([ENABLE_SIMD],[test "x$with_no_simd" = "xno"])
+if ! test "x$with_no_simd" = "xyes"; then
   # Cross-compiling must be set to allow compiler detection of -mavx2 and
   # -mavx512bw support without probing the build machine's CPU. The build
   # machine CPU need not be probed because the code base detects at runtime
