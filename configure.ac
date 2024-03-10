@@ -147,7 +147,22 @@ AS_IF([test "$enable_lzma" != "no"],[
   )
 ])
 
-AX_CHECK_LZ4LIB([], [echo "optional liblz4 not found: install if you want ugrep option -z to search .lz4 files"])
+AC_ARG_ENABLE([lz4],[
+  --enable-lz4            Use liblz4 to enable searching inside LZ4 compressed files.
+                          @<:@defaults to enabled if liblz4 is installed@:>@
+  --disable-lz4           Do not use liblz4])
+
+AS_IF([test "$enable_lz4" != "no"],[
+  PKG_CHECK_MODULES([LZ4], [liblz4],
+    [AC_DEFINE([HAVE_LIBLZ4], [1], [Use liblz4 compression library])
+    ],
+    # liblz4 is optional by default, but required if --enable-lz4 is given
+    [AS_IF([test -z "$enable_lz4" ],
+      [AC_MSG_WARN([liblz4 not found: ugrep option -z cannot search .lz4 files])],
+      [AC_MSG_ERROR([liblz4 not found. Is the devel package installed?])],
+    )]
+  )
+])
 
 AX_CHECK_ZSTDLIB([], [echo "optional libzstd not found: install if you want ugrep option -z to search .zst files"])
 
