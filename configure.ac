@@ -89,9 +89,25 @@ AS_IF([test "$enable_pcre2" != "no"],[
   )
 ])
 
-AX_CHECK_ZLIB([], [echo "recommended zlib not found: ugrep option -z is disabled"])
+AC_ARG_ENABLE([zlib],[
+  --enable-zlib           Use zlib to enable searching inside compressed files.
+                          @<:@defaults to enabled if zlib is installed@:>@
+  --disable-zlib          Do not use zlib])
 
-if test -n "${zlib_places}"; then
+AS_IF([test "$enable_zlib" != "no"],[
+  PKG_CHECK_MODULES([ZLIB], [zlib],
+    [AC_DEFINE([HAVE_LIBZ], [1], [Use libz compression library])
+    have_zlib=yes
+    ],
+    # zlib is optional by default, but required if --enable-zlib is given
+    [AS_IF([test -z "$enable_zlib" ],
+      [AC_MSG_WARN([zlib not found: ugrep option -z is disabled])],
+      [AC_MSG_ERROR([zlib not found. Is the devel package installed?])],
+    )]
+  )
+])
+
+if test "${have_zlib}" != "no" ; then
 
 AX_CHECK_BZ2LIB([], [echo "recommended libbz2 not found: ugrep option -z cannot search .bz and .bz2 files"])
 

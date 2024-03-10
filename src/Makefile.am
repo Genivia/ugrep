@@ -9,6 +9,8 @@ bin_PROGRAMS   = ugrep
 ugrep_CPPFLAGS = -I$(top_srcdir)/include $(EXTRA_CFLAGS) $(PTHREAD_CFLAGS) -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\" -DWITH_NO_INDENT
 ugrep_CXXFLAGS = \
         $(PCRE2_CFLAGS)
+ugrep_CFLAGS = \
+        $(ZLIB_CFLAGS)
 ugrep_SOURCES  = \
         ugrep.cpp \
         cnf.cpp \
@@ -24,6 +26,7 @@ ugrep_SOURCES  = \
 ugrep_LDADD    = \
         $(PTHREAD_LIBS) \
         libreflex.a \
+        $(ZLIB_LIBS) \
         $(PCRE2_LIBS)
 
 noinst_HEADERS = \
