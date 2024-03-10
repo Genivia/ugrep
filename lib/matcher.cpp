@@ -69,6 +69,11 @@ size_t Matcher::simd_match_avx2(Method method)
 size_t Matcher::simd_match_sse2(Method method)
 {
   DBGLOG("BEGIN Matcher::simd_match_sse2()");
+#elif defined(COMPILE_NEON)
+/// Compile an optimized NEON version defined in matcher_neon.cpp
+size_t Matcher::simd_match_neon(Method method)
+{
+  DBGLOG("BEGIN Matcher::simd_match_neon()");
 #else
 /// Returns true if input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
 size_t Matcher::match(Method method)
@@ -86,6 +91,10 @@ size_t Matcher::match(Method method)
   if (HW.sse2)
     return simd_match_sse2(method);
 #endif
+#endif
+#if defined(HAVE_NEON)
+  if (HW.neon)
+    return simd_match_neon(method);
 #endif
 #endif
   DBGLOG("BEGIN Matcher::match()");
@@ -630,6 +639,8 @@ unrolled:
               simd_advance_avx2()
 #elif defined(COMPILE_SSE2)
               simd_advance_sse2()
+#elif defined(COMPILE_NEON)
+              simd_advance_neon()
 #else
               advance()
 #endif
@@ -888,7 +899,7 @@ bool Matcher::advance()
         if (loc + min + 15 > end_)
           break;
       }
-#elif defined(HAVE_NEON)
+#elif defined(COMPILE_NEON)
       uint8x16_t vlcp = vdupq_n_u8(chr[0]);
       uint8x16_t vlcs = vdupq_n_u8(chr[1]);
       while (true)
@@ -1985,7 +1996,7 @@ bool Matcher::advance()
           break;
       }
     }
-#elif defined(HAVE_NEON)
+#elif defined(COMPILE_NEON)
     // look for needles
     else if (pat_->pin_ == 2)
     {
@@ -3027,7 +3038,7 @@ bool Matcher::advance()
         }
         s += 16;
       }
-#elif defined(HAVE_NEON)
+#elif defined(COMPILE_NEON)
       // implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
       // enhanced with least frequent character matching
       uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);

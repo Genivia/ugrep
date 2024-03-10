@@ -24,6 +24,7 @@
 #     AC_SUBST(SIMD_FLAGS_SSE2)
 #     AC_SUBST(SIMD_FLAGS_AVX2)
 #     AC_SUBST(SIMD_FLAGS_AVX512BW)
+#     AC_SUBST(SIMD_FLAGS_NEON)
 #     AC_SUBST(CPUEXT_FLAGS)
 #
 #   And defines:
@@ -35,6 +36,7 @@
 #     HAVE_AVX2 / HAVE_AVX512_F / HAVE_AVX512_CD / HAVE_AVX512_PF
 #     HAVE_AVX512_ER / HAVE_AVX512_VL / HAVE_AVX512_BW / HAVE_AVX512_DQ
 #     HAVE_AVX512_IFMA / HAVE_AVX512_VBMI / HAVE_ALTIVEC / HAVE_VSX
+#     HAVE_NEON
 #
 # LICENSE
 #
@@ -97,6 +99,52 @@ AC_DEFUN([AX_EXT],
             AC_DEFINE(HAVE_VSX,,[Support VSX instructions])
             AX_CHECK_COMPILE_FLAG(-mvsx, SIMD_FLAGS="$SIMD_FLAGS -mvsx", [])
           fi
+    ;;
+
+    arm)
+      for ac_instr_info dnl
+      in "neon;neon;NEON;-;-mfpu=neon;HAVE_NEON;SIMD_FLAGS_NEON" dnl
+         #
+      do ac_instr_os_support=$(eval echo \$ax_cv_have_$(echo $ac_instr_info | cut -d ";" -f 1)_os_support_ext)
+        ac_instr_acvar=$(echo $ac_instr_info | cut -d ";" -f 2)
+        ac_instr_shortname=$(echo $ac_instr_info | cut -d ";" -f 3)
+        # ac_instr_chk_loc=$(echo $ac_instr_info | cut -d ";" -f 4)
+        # ac_instr_chk_reg=0x$(eval echo \$$(echo $ac_instr_chk_loc | cut -d "," -f 1))
+        # ac_instr_chk_bit=$(echo $ac_instr_chk_loc | cut -d "," -f 2)
+        ac_instr_compiler_flags=$(echo $ac_instr_info | cut -d ";" -f 5)
+        ac_instr_have_define=$(echo $ac_instr_info | cut -d ";" -f 6)
+        ac_instr_flag_type=$(echo $ac_instr_info | cut -d ";" -f 7)
+
+        AX_CHECK_COMPILE_FLAG(${ac_instr_compiler_flags}, eval ax_cv_support_${ac_instr_acvar}_ext=yes,
+                                                          eval ax_cv_support_${ac_instr_acvar}_ext=no)
+        if test x"$(eval echo \$ax_cv_support_${ac_instr_acvar}_ext)" = x"yes"; then
+          eval ${ac_instr_flag_type}=\"\$${ac_instr_flag_type} ${ac_instr_compiler_flags}\"
+          AC_DEFINE_UNQUOTED([${ac_instr_have_define}])
+        else
+          AC_MSG_WARN([Your compiler does not support ${ac_instr_shortname} instructions, can you try another compiler?])
+        fi
+      done
+    ;;
+
+    aarch64)
+      for ac_instr_info dnl
+      in "neon;neon;NEON;-;-march=armv8-a;HAVE_NEON;SIMD_FLAGS_NEON" dnl
+         #
+      do ac_instr_os_support=$(eval echo \$ax_cv_have_$(echo $ac_instr_info | cut -d ";" -f 1)_os_support_ext)
+        ac_instr_acvar=$(echo $ac_instr_info | cut -d ";" -f 2)
+        ac_instr_shortname=$(echo $ac_instr_info | cut -d ";" -f 3)
+        # ac_instr_chk_loc=$(echo $ac_instr_info | cut -d ";" -f 4)
+        # ac_instr_chk_reg=0x$(eval echo \$$(echo $ac_instr_chk_loc | cut -d "," -f 1))
+        # ac_instr_chk_bit=$(echo $ac_instr_chk_loc | cut -d "," -f 2)
+        ac_instr_compiler_flags=$(echo $ac_instr_info | cut -d ";" -f 5)
+        ac_instr_have_define=$(echo $ac_instr_info | cut -d ";" -f 6)
+        ac_instr_flag_type=$(echo $ac_instr_info | cut -d ";" -f 7)
+
+        # No need to check compiler. arm8 is required to support NEON
+        eval ${ac_instr_flag_type}=\"\$${ac_instr_flag_type} ${ac_instr_compiler_flags}\"
+        eval ax_cv_support_${ac_instr_acvar}_ext=yes
+        AC_DEFINE_UNQUOTED([${ac_instr_have_define}])
+      done
     ;;
 
     i[[3456]]86*|x86_64*|amd64*)
@@ -303,9 +351,11 @@ AC_DEFUN([AX_EXT],
   AH_TEMPLATE([HAVE_AVX512_DQ],[Define to 1 to support AVX-512 Doubleword and Quadword Instructions])
   AH_TEMPLATE([HAVE_AVX512_IFMA],[Define to 1 to support AVX-512 Integer Fused Multiply Add Instructions])
   AH_TEMPLATE([HAVE_AVX512_VBMI],[Define to 1 to support AVX-512 Vector Byte Manipulation Instructions])
+  AH_TEMPLATE([HAVE_NEON],[Define to 1 to support ARM64 NEON Instructions])
   AC_SUBST(SIMD_FLAGS)
   AC_SUBST(SIMD_FLAGS_SSE2)
   AC_SUBST(SIMD_FLAGS_AVX2)
   AC_SUBST(SIMD_FLAGS_AVX512BW)
+  AC_SUBST(SIMD_FLAGS_NEON)
   AC_SUBST(CPUEXT_FLAGS)
 ])

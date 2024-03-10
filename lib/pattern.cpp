@@ -331,7 +331,9 @@ void Pattern::init(const char *options, const uint8_t *pred)
     else
 #endif
 #if defined(HAVE_NEON)
-    pinmax = 8;
+    if (HW.neon)
+      pinmax = 8;
+    else
 #endif
       pinmax = 1;
 

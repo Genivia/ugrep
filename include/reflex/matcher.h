@@ -412,6 +412,8 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   size_t simd_match_avx2(Method method);
   // match() with optimized SSE2 string search scheme defined in matcher_sse2.cpp
   size_t simd_match_sse2(Method method);
+  // match() with optimized NEON string search scheme defined in matcher_neon.cpp
+  size_t simd_match_neon(Method method);
   /// Returns true if able to advance to next possible match
   bool advance()
     /// @returns true if possible match found

@@ -139,6 +139,15 @@ libreflex_avx512bw_a_SOURCES   = \
 libreflex_a_LIBADD += $(libreflex_avx512bw_a_OBJECTS)
 endif
 
+if ENABLE_NEON
+noinst_LIBRARIES      += libreflex-neon.a
+libreflex_neon_a_CPPFLAGS  = $(libreflex_a_CPPFLAGS)
+libreflex_neon_a_CXXFLAGS  = $(SIMD_FLAGS_NEON)
+libreflex_neon_a_SOURCES   = \
+        ../lib/matcher_neon.cpp
+libreflex_a_LIBADD += $(libreflex_neon_a_OBJECTS)
+endif
+
 # Tell automake to package these into the tarball
 # FIXME: move these files to this directory, they belong with the source code.
 # FIXME: Include them with "quotes", not angle <brackets>

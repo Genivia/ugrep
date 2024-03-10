@@ -1380,10 +1380,22 @@ static struct SIMD_caps get_HW()
 
     if (n >= 7) {
       cpuidex(CPUInfo7, 7, 0); // cpuid EAX=7, ECX=0
+#if defined(HAVE_AVX2)
       caps.avx2      = !!(CPUInfo7[1] & bit_AVX2);     /* ebx_cpuid7,5 */
+#endif
+#if defined(HAVE_AVX512_BW)
       caps.avx512_bw = !!(CPUInfo7[1] & bit_AVX512BW); /* ebx_cpuid7,30 */
+#endif
     }
   }
+#elif defined(__ARM_NEON)
+#if defined(HAVE_NEON)
+  caps.neon = 1;
+#endif
+#elif defined(__ARM_ARCH_7A__)
+#if defined(HAVE_NEON)
+  caps.neon = !!(getauxval(AT_HWCAP) & HWCAP_NEON);
+#endif
 #endif
   return caps;
 }

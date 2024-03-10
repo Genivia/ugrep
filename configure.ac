@@ -290,6 +290,7 @@ if ! test "x$with_no_simd" = "xyes"; then
   ax_cv_have_avx2_ext=yes
   ax_cv_have_avx512bw_ext=yes
   ax_cv_have_sse2_ext=yes
+  ax_cv_have_neon_ext=yes
 
   AX_EXT
   cross_compiling=$save_cross_compiling
@@ -297,52 +298,7 @@ fi
 AM_CONDITIONAL([ENABLE_SSE2],[test "x$ax_cv_support_sse2_ext" = "xyes"])
 AM_CONDITIONAL([ENABLE_AVX2],[test "x$ax_cv_support_avx2_ext" = "xyes"])
 AM_CONDITIONAL([ENABLE_AVX512_BW],[test "x$ax_cv_support_avx512bw_ext" = "xyes"])
-
-if test "x$SIMD_FLAGS" = "x"; then
-AC_ARG_ENABLE(neon,
-  [AS_HELP_STRING([--disable-neon],
-                  [disable ARM NEON/AArch64 optimizations])],
-  [with_no_neon="yes"],
-  [with_no_neon="no"])
-AC_MSG_CHECKING(for --disable-neon)
-if test "x$with_no_neon" = "xno"; then
-  AC_MSG_RESULT(no)
-  AC_MSG_CHECKING([whether ${CXX} supports ARM NEON/AArch64 intrinsics])
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
-      [mneon_ok=yes],
-      [mneon_ok=no])
-  if test "x$mneon_ok" = "xyes"; then
-    SIMD_FLAGS="-DHAVE_NEON"
-  else
-    save_CXXFLAGS=$CXXFLAGS
-    CXXFLAGS="-march=native"
-    AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
-                      [mneon_ok=yes],
-                      [mneon_ok=no])
-    if test "x$mneon_ok" = "xyes"; then
-      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
-                        [mneon_ok=yes],
-                        [mneon_ok=no])
-      if test "x$mneon_ok" = "xyes"; then
-        SIMD_FLAGS="-march=native -DHAVE_NEON"
-      else
-        CXXFLAGS="-march=native -mfpu=neon"
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
-                          [mneon_ok=yes],
-                          [mneon_ok=no])
-        if test "x$mneon_ok" = "xyes"; then
-          SIMD_FLAGS="-march=native -mfpu=neon -DHAVE_NEON"
-        fi
-      fi
-    fi
-    CXXFLAGS=$save_CXXFLAGS
-  fi
-  AC_MSG_RESULT($mneon_ok)
-else
-  AC_MSG_RESULT(yes)
-  SIMD_FLAGS=
-fi
-fi
+AM_CONDITIONAL([ENABLE_NEON],[test "x$ax_cv_support_neon_ext" = "xyes"])
 
 AC_SUBST([PTHREAD_CFLAGS], [""])
 AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
