@@ -109,7 +109,26 @@ AS_IF([test "$enable_zlib" != "no"],[
 
 if test "${have_zlib}" != "no" ; then
 
-AX_CHECK_BZ2LIB([], [echo "recommended libbz2 not found: ugrep option -z cannot search .bz and .bz2 files"])
+AC_ARG_ENABLE([bzip2],[
+  --enable-bzip2          Use bzip2 to enable searching inside compressed files.
+                          @<:@defaults to enabled if bzip2 is installed@:>@
+  --disable-bzip2         Do not use bzip2])
+
+AS_IF([test "$enable_bzip2" != "no"],[
+  # Check for libbz2 library and header
+  AC_SEARCH_LIBS([BZ2_bzDecompressInit], [bz2], [
+    # Check bzip2 header
+    AC_CHECK_HEADER([bzlib.h], [
+      AC_DEFINE([HAVE_LIBBZ2], [1], [Use bzip2 library])
+    ], [
+      # bzip2 is optional by default, but required if --enable-bzip2 is given
+      AS_IF([test -z "$enable_bzip2" ],
+        [AC_MSG_WARN([libbz2 not found: ugrep option -z cannot search .bz and .bz2 files])],
+        [AC_MSG_ERROR([libbz2 not found. Is the devel package installed?])]
+      )
+    ])
+  ])
+])
 
 AX_CHECK_LZMALIB([], [echo "recommended liblzma not found: ugrep option -z cannot search .lzma and .xz files"])
 
