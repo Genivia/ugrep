@@ -10,7 +10,7 @@ AC_CONFIG_MACRO_DIR([m4])
 : ${CFLAGS="-Wall -Wextra -Wunused -O2"}
 
 AC_LANG([C++])
-AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])
+AX_CXX_COMPILE_STDCXX([11], [ext], [mandatory])
 
 AC_HEADER_DIRENT
 AC_STRUCT_DIRENT_D_INO
