@@ -181,7 +181,22 @@ AS_IF([test "$enable_zstd" != "no"],[
   )
 ])
 
-AX_CHECK_BROTLILIB([], [echo "optional brotli library not found: install if you want ugrep option -z to search .br files"])
+AC_ARG_ENABLE([brotli],[
+  --enable-brotli         Use libbrotlidec to enable searching inside BR compressed files.
+                          @<:@defaults to enabled if libbrotlidec is installed@:>@
+  --disable-brotli        Do not use libbrotlidec])
+
+AS_IF([test "$enable_brotli" != "no"],[
+  PKG_CHECK_MODULES([BROTLI], [libbrotlidec],
+    [AC_DEFINE([HAVE_LIBBROTLI], [1], [Use libbrotlidec compression library])
+    ],
+    # libbrotlidec is optional by default, but required if --enable-brotli is given
+    [AS_IF([test -z "$enable_brotli" ],
+      [AC_MSG_WARN([libbrotlidec not found: ugrep option -z cannot search .br files])],
+      [AC_MSG_ERROR([libbrotlidec not found. Is the devel package installed?])],
+    )]
+  )
+])
 
 AC_ARG_WITH(bzip3,
   [AS_HELP_STRING([--with-bzip3],

@@ -7,11 +7,13 @@ dist_noinst_SCRIPTS =
 
 bin_PROGRAMS   = ugrep
 ugrep_CPPFLAGS = \
+        $(BROTLI_CFLAGS) \
         $(ZSTD_CFLAGS) \
         $(LZ4_CFLAGS) \
         $(LZMA_CFLAGS) \
         -I$(top_srcdir)/include $(EXTRA_CFLAGS) $(PTHREAD_CFLAGS) -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\" -DWITH_NO_INDENT
 ugrep_CXXFLAGS = \
+        $(BROTLI_CFLAGS) \
         $(ZSTD_CFLAGS) \
         $(LZ4_CFLAGS) \
         $(LZMA_CFLAGS) \
@@ -33,6 +35,7 @@ ugrep_SOURCES  = \
 ugrep_LDADD    = \
         $(PTHREAD_LIBS) \
         libreflex.a \
+        $(BROTLI_LIBS) \
         $(ZSTD_LIBS) \
         $(LZ4_LIBS) \
         $(LZMA_LIBS) \
