@@ -130,7 +130,22 @@ AS_IF([test "$enable_bzip2" != "no"],[
   ])
 ])
 
-AX_CHECK_LZMALIB([], [echo "recommended liblzma not found: ugrep option -z cannot search .lzma and .xz files"])
+AC_ARG_ENABLE([lzma],[
+  --enable-lzma           Enable searching inside LZMA and XZ compressed files.
+                          @<:@defaults to enabled if liblz is installed@:>@
+  --disable-lzma          Do not use liblz])
+
+AS_IF([test "$enable_lzma" != "no"],[
+  PKG_CHECK_MODULES([LZMA], [liblzma],
+    [AC_DEFINE([HAVE_LIBLZMA], [1], [Use liblzma compression library])
+    ],
+    # liblzma is optional by default, but required if --enable-lzma is given
+    [AS_IF([test -z "$enable_lzma" ],
+      [AC_MSG_WARN([liblzma not found: ugrep option -z cannot search .lzma and .xz files])],
+      [AC_MSG_ERROR([liblzma not found. Is the devel package installed?])],
+    )]
+  )
+])
 
 AX_CHECK_LZ4LIB([], [echo "optional liblz4 not found: install if you want ugrep option -z to search .lz4 files"])
 
