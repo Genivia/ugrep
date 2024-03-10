@@ -7,6 +7,8 @@ dist_noinst_SCRIPTS =
 
 bin_PROGRAMS   = ugrep
 ugrep_CPPFLAGS = -I$(top_srcdir)/include $(EXTRA_CFLAGS) $(PTHREAD_CFLAGS) -DPLATFORM=\"$(PLATFORM)\" -DGREP_PATH=\"$(GREP_PATH)\" -DWITH_NO_INDENT
+ugrep_CXXFLAGS = \
+        $(PCRE2_CFLAGS)
 ugrep_SOURCES  = \
         ugrep.cpp \
         cnf.cpp \
@@ -19,7 +21,10 @@ ugrep_SOURCES  = \
         stats.cpp \
         vkey.cpp \
         zopen.c
-ugrep_LDADD    = $(PTHREAD_LIBS) libreflex.a
+ugrep_LDADD    = \
+        $(PTHREAD_LIBS) \
+        libreflex.a \
+        $(PCRE2_LIBS)
 
 noinst_HEADERS = \
         ugrep.hpp \

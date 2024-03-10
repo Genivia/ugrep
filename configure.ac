@@ -62,11 +62,23 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 ],[AC_MSG_RESULT(no)
 ])
 
-AX_CHECK_PCRE2([8], [], [echo "recommended PCRE2 library not found: checking for Boost.Regex"])
-
-if test "x$pcre2_cv_libpcre2" != "xyes" || test "x$pcre2_cv_pcre2_h" != "xyes"; then
-  AX_BOOST_REGEX
-fi
+PKG_CHECK_MODULES([PCRE2], [libpcre2-8],
+   [AC_DEFINE([HAVE_PCRE2], [1], [Use (8-bit) Perl Compatible Regular Expression Library])],
+   [
+      # Check for libboost-regex library and header, adds
+      AC_SEARCH_LIBS([regcompA], [boost_regex boost_regex-mt], [
+        # Check for boost regex header
+        AC_CHECK_HEADER([boost/regex.hpp], [
+          BOOST_REGEX_FOUND=true
+          AC_DEFINE([HAVE_BOOST_REGEX], [1], [Use Boost Regex library])
+          AC_DEFINE([BOOST_REGEX_STANDALONE], [1], [Signal to boost lib that it's being without the rest of boost])
+        ], [
+          AC_MSG_ERROR([PCRE2 not found and boost/regex.hpp not found])
+        ])
+      ], [
+        AC_MSG_ERROR([PCRE2 not found and libboost-regex not found])
+      ])]
+)
 
 AX_CHECK_ZLIB([], [echo "recommended zlib not found: ugrep option -z is disabled"])
 
