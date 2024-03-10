@@ -917,10 +917,10 @@ To list all shell files recursively, based on extensions and shebangs with `-l`
 ### Advanced examples
 
 To search for `main` in source code while ignoring strings and comment blocks
-we can use *negative patterns* with option `-N` to skip unwanted matches in
+you can use *negative patterns* with option `-N` to skip unwanted matches in
 C/C++ quoted strings and comment blocks:
 
-    ug -r -nkw -e 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
+    ug -r -nkw -e 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*(.*\n)*?.*\*+\/' myproject
 
 This is a lot of work to type in correctly!  If you are like me, I don't want
 to spend time fiddling with regex patterns when I am working on something more
@@ -936,21 +936,22 @@ and include symlinks to files and directories with `-R`:
 
     ug -R -tc,c++ -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
-What if we are only looking for the identifier `main` but not as a function
-`main(`?  We can use a negative pattern for this to skip unwanted `main\h*(`
-pattern matches:
+What if you only want to look for the identifier `main` but not as a function
+`main(`?  In this case, use a negative pattern for this to skip unwanted
+`main\h*(` pattern matches:
 
     ug -R -tc,c++ -nkw -e 'main' -N 'main\h*\(' -f c/zap_strings -f c/zap_comments myproject
 
 This uses the `-e` and `-N` options to explicitly specify a pattern and a
 negative pattern, respectively, which is essentially forming the pattern
 `main|(?^main\h*\()`, where `\h` matches space and tab.  In general, negative
-patterns are useful to filter out pattern matches we are not interested in.
+patterns are useful to filter out pattern matches that we are not interested
+in.
 
-As another example, we may want to search for the word `FIXME` in C/C++ comment
-blocks.  To do so we can first select the comment blocks with **ugrep**'s
-predefined `c/comments` pattern AND THEN select lines with `FIXME` using a
-pipe:
+As another example, let's say we may want to search for the word `FIXME` in
+C/C++ comment blocks.  To do so we can first select the comment blocks with
+**ugrep**'s predefined `c/comments` pattern AND THEN select lines with `FIXME`
+using a pipe:
 
     ug -R -tc,c++ -nk -f c/comments myproject | ug -w 'FIXME'
 
@@ -958,8 +959,8 @@ Filtering results with pipes is generally easier than using AND-OR logic that
 some search tools use.  This approach follows the Unix spirit to keep utilities
 simple and use them in combination for more complex tasks.
 
-Say we want to produce a sorted list of all identifiers found in Java source
-code while skipping strings and comments:
+Let's produce a sorted list of all identifiers found in Java source code while
+skipping strings and comments:
 
     ug -R -tjava -f java/names myproject | sort -u
 
@@ -1832,7 +1833,7 @@ U+0085, U+2028 and U+2029.
 
 To match C/C++ `/*...*/` multi-line comments:
 
-    ug '/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myfile.cpp
+    ug '/\*(.*\n)*?.*\*+\/' myfile.cpp
 
 To match C/C++ comments using the predefined `c/comments` patterns with
 `-f c/comments`, restricted to the matching part only with option `-o`:
