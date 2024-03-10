@@ -198,17 +198,22 @@ AS_IF([test "$enable_brotli" != "no"],[
   )
 ])
 
-AC_ARG_WITH(bzip3,
-  [AS_HELP_STRING([--with-bzip3],
-                  [to enable bzip3 library to decompress .bz3 files])],
-  [with_bzip3_library="$withval"],
-  [with_bzip3_library=""])
-if test "x$with_bzip3_library" != "x"; then
-  if test "x$with_bzip3" = "xyes"; then
-    unset with_bzip3
-  fi
-  AX_CHECK_BZIP3LIB([], [echo "optional libbzip3 not found: install if you want ugrep option -z to search .bz3 files"])
-fi
+AC_ARG_ENABLE([bzip3],[
+  --enable-bzip3          Use libbzip3 to enable searching inside BZ3 compressed files.
+                          @<:@defaults to enabled if libbzip3 is installed@:>@
+  --disable-bzip3         Do not use libbzip3])
+
+AS_IF([test "$enable_bzip3" != "no"],[
+  PKG_CHECK_MODULES([BZIP3], [libbzip3],
+    [AC_DEFINE([HAVE_LIBBZIP3], [1], [Use libbzip3 compression library])
+    ],
+    # libbzip3 is optional by default, but required if --enable-bzip3 is given
+    [AS_IF([test -z "$enable_bzip3" ],
+      [AC_MSG_WARN([libbzip3 not found: ugrep option -z cannot search .bz3 files])],
+      [AC_MSG_ERROR([libbzip3 not found. Is the devel package installed?])],
+    )]
+  )
+])
 
 AC_ARG_ENABLE(7zip,
   [AS_HELP_STRING([--disable-7zip],
