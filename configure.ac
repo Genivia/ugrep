@@ -164,7 +164,22 @@ AS_IF([test "$enable_lz4" != "no"],[
   )
 ])
 
-AX_CHECK_ZSTDLIB([], [echo "optional libzstd not found: install if you want ugrep option -z to search .zst files"])
+AC_ARG_ENABLE([zstd],[
+  --enable-zstd           Use libzstd to enable searching inside ZST compressed files.
+                          @<:@defaults to enabled if libzstd is installed@:>@
+  --disable-zstd          Do not use libzstd])
+
+AS_IF([test "$enable_zstd" != "no"],[
+  PKG_CHECK_MODULES([ZSTD], [libzstd],
+    [AC_DEFINE([HAVE_LIBZSTD], [1], [Use libzstd compression library])
+    ],
+    # libzstd is optional by default, but required if --enable-zstd is given
+    [AS_IF([test -z "$enable_zstd" ],
+      [AC_MSG_WARN([libzstd not found: ugrep option -z cannot search .zst files])],
+      [AC_MSG_ERROR([libzstd not found. Is the devel package installed?])],
+    )]
+  )
+])
 
 AX_CHECK_BROTLILIB([], [echo "optional brotli library not found: install if you want ugrep option -z to search .br files"])
 
