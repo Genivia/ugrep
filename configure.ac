@@ -1,4 +1,8 @@
-AC_INIT([ugrep],[4.5])
+AC_INIT([ugrep],
+  [5.0.0],
+  [https://github.com/Genivia/ugrep/issues],
+  [ugrep],
+  [https://ugrep.com/])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
 AC_COPYRIGHT([Copyright (C) 2019-2023 Robert van Engelen, Genivia Inc.])
