@@ -577,10 +577,17 @@ recursive search, showing only matches with up to 10 characters of context
 before and after:
 .IP
 $ ugrep -o -C20 -R -n -k -tjs FIXME
+
 .PP
-List the C/C++ comments in a file with line numbers:
+Find blocks of text between lines matching BEGIN and END by using a lazy
+quantifier `*?' to match only what is necessary and pattern `\\n' to match
+newlines:
 .IP
-$ ugrep -n -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile.cpp
+$ ugrep -n 'BEGIN.*\\n(.*\\n)*?.*END' myfile.txt
+.PP
+Likewise, list the C/C++ comments in a file and line numbers:
+.IP
+$ ugrep -n -e '//.*' -e '/\\*(.*\\n)*?.*\\*+\\/' myfile.cpp
 .PP
 The same, but using predefined pattern c++/comments:
 .IP

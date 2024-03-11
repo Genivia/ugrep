@@ -5280,9 +5280,16 @@ in markdown:
 
                   $ ugrep -o -C20 -R -n -k -tjs FIXME
 
-           List the C/C++ comments in a file with line numbers:
 
-                  $ ugrep -n -e '//.*' -e '/\*([^*]|(\*+[^*/]))*\*+\/' myfile.cpp
+           Find blocks of text between lines matching BEGIN and END by using a lazy
+           quantifier `*?' to match only what is necessary and pattern `\n' to match
+           newlines:
+
+                  $ ugrep -n 'BEGIN.*\n(.*\n)*?.*END' myfile.txt
+
+           Likewise, list the C/C++ comments in a file and line numbers:
+
+                  $ ugrep -n -e '//.*' -e '/\*(.*\n)*?.*\*+\/' myfile.cpp
 
            The same, but using predefined pattern c++/comments:
 
@@ -5394,7 +5401,7 @@ in markdown:
 
 
 
-    ugrep 5.0.0                     February 15, 2024                       UGREP(1)
+    ugrep 5.5.1                      March 11, 2024                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

@@ -944,13 +944,23 @@ void Pattern::parse2(
         iter = iter1;
     }
   }
-  for (Positions::const_iterator p = a_pos.begin(); p != a_pos.end(); ++p)
+  for (Positions::iterator p = a_pos.begin(); p != a_pos.end(); ++p)
   {
     for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
       if (at(k->loc()) == ')' && lookahead.find(k->loc()) != lookahead.end())
         pos_add(followpos[p->pos()], *k);
-    for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
-      pos_add(followpos[k->pos()], p->anchor(!nullable || k->pos() != p->pos()));
+    if (!lazypos.empty())
+    {
+      // make the starting anchors at positions a_pos lazy
+      for (Lazypos::const_iterator l = lazypos.begin(); l != lazypos.end(); ++l)
+        for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
+          pos_add(followpos[k->pos()], p->lazy(l->lazy()).anchor(!nullable || k->pos() != p->pos()));
+    }
+    else
+    {
+      for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
+        pos_add(followpos[k->pos()], p->anchor(!nullable || k->pos() != p->pos()));
+    }
     lastpos.clear();
     pos_add(lastpos, *p);
     if (nullable || firstpos.empty())

@@ -1,4 +1,4 @@
-.TH UGREP "1" "March 07, 2024" "ugrep 5.1.0" "User Commands"
+.TH UGREP "1" "March 11, 2024" "ugrep 5.5.1" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -1353,10 +1353,17 @@ recursive search, showing only matches with up to 10 characters of context
 before and after:
 .IP
 $ ugrep -o -C20 -R -n -k -tjs FIXME
+
 .PP
-List the C/C++ comments in a file with line numbers:
+Find blocks of text between lines matching BEGIN and END by using a lazy
+quantifier `*?' to match only what is necessary and pattern `\\n' to match
+newlines:
 .IP
-$ ugrep -n -e '//.*' -e '/\\*([^*]|(\\*+[^*/]))*\\*+\\/' myfile.cpp
+$ ugrep -n 'BEGIN.*\\n(.*\\n)*?.*END' myfile.txt
+.PP
+Likewise, list the C/C++ comments in a file and line numbers:
+.IP
+$ ugrep -n -e '//.*' -e '/\\*(.*\\n)*?.*\\*+\\/' myfile.cpp
 .PP
 The same, but using predefined pattern c++/comments:
 .IP
