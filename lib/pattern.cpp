@@ -3467,7 +3467,7 @@ void Pattern::graph_dfa(const DFA::State *start) const
           if (state != start && !state->accept && state->heads.empty() && state->tails.empty())
             ::fprintf(file, "\n/*STATE*/\t");
           ::fprintf(file, "N%p [label=\"", (void*)state);
-#if 1 // def DEBUG FIXME
+#ifdef DEBUG
           size_t k = 1;
           size_t n = std::sqrt(state->size()) + 0.5;
           const char *sep = "";
