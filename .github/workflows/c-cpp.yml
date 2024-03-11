@@ -15,7 +15,11 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Bootstrap autotools
-      run: autoreconf -i
+      id: bootstrap
+      run: |
+        autoconf '--trace=AC_INIT:tarball=$4-$2.tar.xz' >> $GITHUB_OUTPUT
+        autoconf '--trace=AC_INIT:version=$4-$2' >> $GITHUB_OUTPUT
+        autoreconf -i
 
     - name: configure
       run: ./configure
@@ -23,3 +27,11 @@ jobs:
 
     - name: Check Source Distribution (compile, install, test, uninstall, tarball)
       run: make -j`nproc` distcheck
+
+    - name: Upload Tarball as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: source-${{ steps.bootstrap.outputs.version }}
+        path: ${{ steps.bootstrap.outputs.tarball }}
+        compression-level: 0 # no compression
+        retention-days: 2 # save $ on temp storage
