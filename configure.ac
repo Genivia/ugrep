@@ -452,6 +452,7 @@ AC_CONFIG_FILES([
   Makefile
   src/Makefile
   patterns/Makefile
+  tests/dist/Makefile
 ])
 
 AC_OUTPUT

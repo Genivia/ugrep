@@ -1,8 +1,13 @@
 #!/bin/bash
 
-UGREP=${UGREP_ABS_PATH:-../src/ugrep}
-CONFIGH=${CONFIGH_ABS_PATH:-../config.h}
+set -o errexit
 
+src=${srcdir}/../tests
+out=${src}/out
+tmpdir=${1:-wdir}
+shift
+
+UGREP=./ugrep
 UG="$UGREP --color=always --sort $@"
 
 FILES="Hello.bat Hello.class Hello.java Hello.pdf Hello.sh Hello.txt empty.txt emptyline.txt"
@@ -126,20 +131,26 @@ DIFF="diff -U1 -"
 
 # prepare to test
 
-rm -rf dir1/ dir2/
+rm -rf $tmpdir
 
-mkdir -p dir1 dir2
+mkdir -p $tmpdir/dir1 $tmpdir/dir2
+if [ ${src##/} == ${src} ] ; then
+  # if src is relative, out is the parent
+  src_from_tmpdir=../../$src
+else
+  src_from_tmpdir=$src
+fi
 
-ln -s ../Hello.java dir1
-cp Hello.sh dir1
-cp Hello.bat dir1
-cp makefile dir1
-ln -s ../Hello.java dir2
-cp Hello.sh dir2
-cp Hello.bat dir2
-ln -s ../dir2 dir1
-ln -s ../dir1 dir2
-cat > dir1/.gitignore << END
+ln -s ${src_from_tmpdir}/Hello.java $tmpdir/dir1
+cp ${src}/Hello.sh $tmpdir/dir1
+cp ${src}/Hello.bat $tmpdir/dir1
+cp ${src}/makefile $tmpdir/dir1
+ln -s ${src_from_tmpdir}/Hello.java $tmpdir/dir2
+cp ${src}/Hello.sh $tmpdir/dir2
+cp ${src}/Hello.bat $tmpdir/dir2
+ln -s ../dir2 $tmpdir/dir1
+ln -s ../dir1 $tmpdir/dir2
+cat > $tmpdir/dir1/.gitignore << END
 # ignore shells
 *.sh
 # ignore dir2 (sub)directories
@@ -147,41 +158,53 @@ cat > dir1/.gitignore << END
 END
 
 # tests
+(
+cd $tmpdir
+UG=../$UG
+if [ ${src##/} == ${src} ] ; then
+  # if src is relative, out is the parent
+  out=../$out
+fi
 
 printf .
-$UG -rl                                  Hello dir1 | $DIFF out/dir.out               || ERR "-rl Hello dir1"
+$UG -rl                                  Hello dir1 | $DIFF $out/dir.out               || ERR "-rl Hello dir1"
 printf .
-$UG -Rl                                  Hello dir1 | $DIFF out/dir-S.out             || ERR "-Rl Hello dir1"
+$UG -Rl                                  Hello dir1 | $DIFF $out/dir-S.out             || ERR "-Rl Hello dir1"
 printf .
-$UG -Rl -Osh                             Hello dir1 | $DIFF out/dir-O.out             || ERR "-Rl -Osh Hello dir1"
+$UG -Rl -Osh                             Hello dir1 | $DIFF $out/dir-O.out             || ERR "-Rl -Osh Hello dir1"
 printf .
-$UG -Rl -M'#!/bin/sh'                    Hello dir1 | $DIFF out/dir-M.out             || ERR "-Rl -M'#!/bin/sh' Hello dir1"
+$UG -Rl -M'#!/bin/sh'                    Hello dir1 | $DIFF $out/dir-M.out             || ERR "-Rl -M'#!/bin/sh' Hello dir1"
 printf .
-$UG -Rl -tShell,make                     Hello dir1 | $DIFF out/dir-t.out             || ERR "-Rl -tShell,make Hello dir1"
+$UG -Rl -tShell,make                     Hello dir1 | $DIFF $out/dir-t.out             || ERR "-Rl -tShell,make Hello dir1"
 printf .
-$UG -1l                                  Hello dir1 | $DIFF out/dir-1.out             || ERR "-1l Hello dir1"
+$UG -1l                                  Hello dir1 | $DIFF $out/dir-1.out             || ERR "-1l Hello dir1"
 printf .
-$UG -2l                                  Hello dir1 | $DIFF out/dir-2.out             || ERR "-2l Hello dir1"
+$UG -2l                                  Hello dir1 | $DIFF $out/dir-2.out             || ERR "-2l Hello dir1"
 printf .
-$UG -Rl --include='*.sh'                 Hello dir1 | $DIFF out/dir--include.out      || ERR "-Rl --include='*.sh' Hello dir1"
+$UG -Rl --include='*.sh'                 Hello dir1 | $DIFF $out/dir--include.out      || ERR "-Rl --include='*.sh' Hello dir1"
 printf .
-$UG -Rl --exclude='*.sh'                 Hello dir1 | $DIFF out/dir--exclude.out      || ERR "-Rl --exclude='*.sh' Hello dir1"
+$UG -Rl --exclude='*.sh'                 Hello dir1 | $DIFF $out/dir--exclude.out      || ERR "-Rl --exclude='*.sh' Hello dir1"
 printf .
-$UG -Rl --exclude-dir='dir2'             Hello dir1 | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
+$UG -Rl --exclude-dir='dir2'             Hello dir1 | $DIFF $out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
 printf .
-$UG -Rl --include-dir='dir1'             Hello dir1 | $DIFF out/dir--include-dir.out  || ERR "-Rl --include-dir='dir1' Hello dir1"
+$UG -Rl --include-dir='dir1'             Hello dir1 | $DIFF $out/dir--include-dir.out  || ERR "-Rl --include-dir='dir1' Hello dir1"
 printf .
-$UG -Rl --exclude-dir='dir2'             Hello dir1 | $DIFF out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
+$UG -Rl --exclude-dir='dir2'             Hello dir1 | $DIFF $out/dir--exclude-dir.out  || ERR "-Rl --exclude-dir='dir2' Hello dir1"
 printf .
-$UG -Rl --include-from='dir1/.gitignore' Hello dir2 | $DIFF out/dir--include-from.out || ERR "-Rl --include-from='dir1/.gitignore' Hello dir2"
+$UG -Rl --include-from='dir1/.gitignore' Hello dir2 | $DIFF $out/dir--include-from.out || ERR "-Rl --include-from='dir1/.gitignore' Hello dir2"
 printf .
-$UG -Rl --exclude-from='dir1/.gitignore' Hello dir1 | $DIFF out/dir--exclude-from.out || ERR "-Rl --exclude-from='dir1/.gitignore' Hello dir1"
+$UG -Rl --exclude-from='dir1/.gitignore' Hello dir1 | $DIFF $out/dir--exclude-from.out || ERR "-Rl --exclude-from='dir1/.gitignore' Hello dir1"
 printf .
-$UG -Rl --ignore-files                   Hello dir1 | $DIFF out/dir--ignore-files.out || ERR "-Rl -ignore-files Hello Hello dir1"
+$UG -Rl --ignore-files                   Hello dir1 | $DIFF $out/dir--ignore-files.out || ERR "-Rl -ignore-files Hello Hello dir1"
 printf .
-$UG -Rl --filter='sh:head -n1'           Hello dir1 | $DIFF out/dir--filter.out       || ERR "-Rl --filter='sh:head -n1' Hello dir1"
+$UG -Rl --filter='sh:head -n1'           Hello dir1 | $DIFF $out/dir--filter.out       || ERR "-Rl --filter='sh:head -n1' Hello dir1"
+)
 
-rm -rf dir1 dir2
+rm -rf $tmpdir
+
+(
+UG="$(realpath $UGREP) --color=always --sort $@"
+cd $src
 
 for OPS in '' '-F' '-G' ; do
   printf .
@@ -492,6 +515,7 @@ for PAT in '\.' 'et' 'hendrerit' 'aliquam' 'sit amet aliquam' 'Nunc hendrerit at
   $UG -z -co "$PAT" archive.gz | $DIFF out/$FN-co.gz.out || ERR "-z -co '$PAT' archive.gz"
 done
 fi
+)
 
 # optional: verify SIMD, PM-4, Bitap, and Bloom filter optimizations
 # a=
@@ -506,8 +530,7 @@ fi
 #     done
 #   done
 # done
-
-rm -f out/column.out
+# rm -f out/column.out
 
 echo
 echo "ALL TESTS PASSED"

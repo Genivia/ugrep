@@ -1,4 +1,4 @@
-SUBDIRS = src patterns
+SUBDIRS = src patterns tests/dist
 
 man1_MANS = man/ug.1 man/ugrep.1
 
@@ -61,19 +61,3 @@ install-data-hook:
 		 echo "|                                                      |"; \
 		 echo "|                             https://ugrep.com        |"; \
 		 echo "|______________________________________________________|";
-
-
-.PHONY:		test
-
-test:		${UGREP}
-		@echo
-		@echo "*** SINGLE-THREADED TESTS ***"
-		@echo
-		cd $(top_srcdir)/tests && env UGREP_ABS_PATH=${UGREP} CONFIGH_ABS_PATH=${CONFIGH} ./verify.sh -J1
-		@echo
-		@echo "*** MULTI-THREADED TESTS ***"
-		@echo
-		cd $(top_srcdir)/tests && env UGREP_ABS_PATH=${UGREP} CONFIGH_ABS_PATH=${CONFIGH} ./verify.sh
-		@echo
-		@echo "OK"
-		@echo

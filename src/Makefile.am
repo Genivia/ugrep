@@ -76,6 +76,17 @@ uninstall-hook:
 	        $(DESTDIR)$(bindir)/ugrep+
 
 # ############################################################
+#                       Test Suite                           #
+# ############################################################
+
+AM_TESTS_ENVIRONMENT = \
+        CONFIGH=$(CONFIG_HEADER)
+
+TESTS = \
+        ../tests/verify-single-thread.sh \
+        ../tests/verify-multi-thread.sh
+
+# ############################################################
 #                       Shell completions                    #
 # ############################################################
 
