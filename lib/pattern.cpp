@@ -949,17 +949,17 @@ void Pattern::parse2(
     for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
       if (at(k->loc()) == ')' && lookahead.find(k->loc()) != lookahead.end())
         pos_add(followpos[p->pos()], *k);
-    if (!lazypos.empty())
+    if (lazypos.empty())
+    {
+      for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
+        pos_add(followpos[k->pos()], p->anchor(!nullable || k->pos() != p->pos()));
+    }
+    else
     {
       // make the starting anchors at positions a_pos lazy
       for (Lazypos::const_iterator l = lazypos.begin(); l != lazypos.end(); ++l)
         for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
           pos_add(followpos[k->pos()], p->lazy(l->lazy()).anchor(!nullable || k->pos() != p->pos()));
-    }
-    else
-    {
-      for (Positions::const_iterator k = lastpos.begin(); k != lastpos.end(); ++k)
-        pos_add(followpos[k->pos()], p->anchor(!nullable || k->pos() != p->pos()));
     }
     lastpos.clear();
     pos_add(lastpos, *p);
@@ -2189,9 +2189,10 @@ void Pattern::trim_lazy(Positions *pos, const Lazypos& lazypos) const
         if (p->lazy() == l->lazy())
           if (max < l->loc())
             max = l->loc();
-    for (Positions::iterator p = pos->begin(); p != pos->end(); ++p)
-      if (p->loc() > max)
-        *p = p->lazy(0);
+    if (max > 0)
+      for (Positions::iterator p = pos->begin(); p != pos->end(); ++p)
+        if (p->loc() > max)
+          *p = p->lazy(0);
   }
 #ifdef DEBUG
   DBGLOG("END trim_lazy({");
@@ -3466,7 +3467,7 @@ void Pattern::graph_dfa(const DFA::State *start) const
           if (state != start && !state->accept && state->heads.empty() && state->tails.empty())
             ::fprintf(file, "\n/*STATE*/\t");
           ::fprintf(file, "N%p [label=\"", (void*)state);
-#ifdef DEBUG
+#if 1 // def DEBUG FIXME
           size_t k = 1;
           size_t n = std::sqrt(state->size()) + 0.5;
           const char *sep = "";
