@@ -113,10 +113,10 @@ endif
 # This is a GNU-make feature
 .DELETE_ON_ERROR:
 
-dist_noinst_SCRIPTS += $(top_srcdir)/completions/fish/compgen
+dist_noinst_SCRIPTS += $(top_srcdir)/completions/fish/compgen.sh
 $(fishcompletion_DATA): ugrep
 	target=$@ ; cmdname=$${target##*/} ; cmdname=$${cmdname%%.fish} ; \
-	$(top_srcdir)/completions/fish/compgen ./$< $$cmdname > $@
+	$(top_srcdir)/completions/fish/compgen.sh ./$< $$cmdname > $@
 
 dist_noinst_SCRIPTS += $(top_srcdir)/completions/zsh/compgen
 $(zshcompletion_DATA): ugrep
