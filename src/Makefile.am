@@ -118,10 +118,10 @@ $(fishcompletion_DATA): ugrep
 	target=$@ ; cmdname=$${target##*/} ; cmdname=$${cmdname%%.fish} ; \
 	$(top_srcdir)/completions/fish/compgen.sh ./$< $$cmdname > $@
 
-dist_noinst_SCRIPTS += $(top_srcdir)/completions/zsh/compgen
+dist_noinst_SCRIPTS += $(top_srcdir)/completions/zsh/compgen.sh
 $(zshcompletion_DATA): ugrep
 	target=$@ ; cmdname=$${target##*/_} ; \
-	$(top_srcdir)/completions/zsh/compgen ./$< $$cmdname > $@
+	$(top_srcdir)/completions/zsh/compgen.sh ./$< $$cmdname > $@
 
 # ############################################################
 #                       RE/Flex Library                      #
