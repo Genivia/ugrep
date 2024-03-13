@@ -22,9 +22,16 @@ AC_STRUCT_DIRENT_D_TYPE
 
 AC_FUNC_MMAP
 
-AC_CHECK_HEADERS([sys/statvfs.h sys/time.h sys/param.h sys/cpuset.h sys/resource.h sched.h pthread.h])
+AC_CHECK_HEADERS([sys/statvfs.h sys/time.h sys/param.h sys/cpuset.h sys/resource.h sched.h])
+AC_CHECK_FUNCS([statvfs])
 
-AC_CHECK_FUNCS([statvfs sched_setaffinity cpuset_setaffinity pthread_setaffinity_np pthread_setschedprio setpriority])
+AX_PTHREAD
+
+# Check how thread affinity is set
+save_LIBS=$LIBS save_CFLAGS=$CFLAGS
+LIBS=$PTHREAD_LIBS CFLAGS=$PTHREAD_CFLAGS
+AC_CHECK_FUNCS([sched_setaffinity cpuset_setaffinity pthread_setaffinity_np pthread_setschedprio setpriority], [break])
+LIBS=$save_LIBS CFLAGS=$save_CFLAGS
 
 AC_CHECK_MEMBERS([struct stat.st_atim, struct stat.st_mtim, struct stat.st_ctim])
 AC_CHECK_MEMBERS([struct stat.st_atimespec, struct stat.st_mtimespec, struct stat.st_ctimespec])
@@ -424,9 +431,6 @@ AM_CONDITIONAL([ENABLE_SSE2],[test "x$ax_cv_support_sse2_ext" = "xyes"])
 AM_CONDITIONAL([ENABLE_AVX2],[test "x$ax_cv_support_avx2_ext" = "xyes"])
 AM_CONDITIONAL([ENABLE_AVX512_BW],[test "x$ax_cv_support_avx512bw_ext" = "xyes"])
 AM_CONDITIONAL([ENABLE_NEON],[test "x$ax_cv_support_neon_ext" = "xyes"])
-
-AC_SUBST([PTHREAD_CFLAGS], [""])
-AC_SUBST([PTHREAD_LIBS], ["-lpthread"])
 
 # Allow the manpage be accessed as either ug or ugrep
 AC_CONFIG_FILES([man/ugrep.1])

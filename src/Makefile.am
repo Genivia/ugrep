@@ -19,8 +19,10 @@ ugrep_CXXFLAGS = \
         $(ZSTD_CFLAGS) \
         $(LZ4_CFLAGS) \
         $(LZMA_CFLAGS) \
+        $(PTHREAD_CFLAGS) \
         $(PCRE2_CFLAGS)
 ugrep_CFLAGS = \
+        $(PTHREAD_CFLAGS) \
         $(ZLIB_CFLAGS)
 ugrep_SOURCES  = \
         ugrep.cpp \
