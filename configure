@@ -8949,8 +8949,6 @@ fi
     arm*)
       # enable arm >= 7 neon extensions with option -mfpu=neon
       if ! test "x$with_no_neon" = "xyes"; then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether ${CXX} supports NEON intrinsics" >&5
-printf %s "checking whether ${CXX} supports NEON intrinsics... " >&6; }
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether C++ compiler accepts -mfpu=neon" >&5
 printf %s "checking whether C++ compiler accepts -mfpu=neon... " >&6; }
 if test ${ax_cv_check_cxxflags___mfpu_neon+y}
@@ -8989,8 +8987,6 @@ else $as_nop
   SIMD_FLAGS=""
 fi
 
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $mneon_ok" >&5
-printf "%s\n" "$mneon_ok" >&6; }
       fi
     ;;
     aarch64*)
