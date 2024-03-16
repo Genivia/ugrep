@@ -48,7 +48,7 @@ AC_DEFUN([AX_BOOST_REGEX],
         BOOST_REGEX_OLD_LDFLAGS=$LDFLAGS
         BOOST_REGEX_OLD_CPPFLAGS=$CPPFLAGS
         if test -n "${BOOST_REGEX_HOME}"; then
-            CPPFLAGS="$LDFLAGS -L${BOOST_REGEX_HOME}/lib"
+            LDFLAGS="$LDFLAGS -L${BOOST_REGEX_HOME}/lib"
             CPPFLAGS="$CPPFLAGS -I${BOOST_REGEX_HOME}/include"
         fi
         AC_REQUIRE([AC_PROG_CC])

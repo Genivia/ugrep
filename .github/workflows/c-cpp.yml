@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Bootstrap autotools
+      run: autoreconf -i
     - name: configure
       run: ./configure
     - name: make
