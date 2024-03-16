@@ -92,17 +92,9 @@ host_triplet = @host@
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_regex.m4 \
-	$(top_srcdir)/m4/ax_check_brotlilib.m4 \
-	$(top_srcdir)/m4/ax_check_bz2lib.m4 \
 	$(top_srcdir)/m4/ax_check_bzip3lib.m4 \
-	$(top_srcdir)/m4/ax_check_lz4lib.m4 \
-	$(top_srcdir)/m4/ax_check_lzmalib.m4 \
-	$(top_srcdir)/m4/ax_check_pcre2.m4 \
-	$(top_srcdir)/m4/ax_check_zlib.m4 \
-	$(top_srcdir)/m4/ax_check_zstdlib.m4 \
-	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx_11.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/ax_pthread.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(top_srcdir)/configure \
@@ -113,7 +105,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
-CONFIG_CLEAN_FILES =
+CONFIG_CLEAN_FILES = man/ug.1
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -212,8 +204,8 @@ am__define_uniq_tagged_files = \
   done | $(am__uniquify_input)`
 DIST_SUBDIRS = lib lzma/C src
 am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
-	INSTALL.md README.md ar-lib compile config.guess config.sub \
-	depcomp install-sh missing
+	$(top_srcdir)/man/ugrep.1 INSTALL.md README.md ar-lib compile \
+	config.guess config.sub depcomp install-sh missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -249,9 +241,9 @@ am__relativize = \
     dir1=`echo "$$dir1" | sed -e "$$sed_rest"`; \
   done; \
   reldir="$$dir2"
-DIST_ARCHIVES = $(distdir).tar.gz
 GZIP_ENV = --best
-DIST_TARGETS = dist-gzip
+DIST_ARCHIVES = $(distdir).tar.xz
+DIST_TARGETS = dist-xz
 # Exists only to be overridden by the user if desired.
 AM_DISTCHECK_DVI_TARGET = dvi
 distuninstallcheck_listfiles = find . -type f -print
@@ -269,9 +261,12 @@ AWK = @AWK@
 BASH_COMPLETION_CFLAGS = @BASH_COMPLETION_CFLAGS@
 BASH_COMPLETION_DIR = @BASH_COMPLETION_DIR@
 BASH_COMPLETION_LIBS = @BASH_COMPLETION_LIBS@
+BROTLI_CFLAGS = @BROTLI_CFLAGS@
+BROTLI_LIBS = @BROTLI_LIBS@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CSCOPE = @CSCOPE@
 CTAGS = @CTAGS@
@@ -285,12 +280,14 @@ DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
+EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
 FISH_COMPLETION_CFLAGS = @FISH_COMPLETION_CFLAGS@
 FISH_COMPLETION_DIR = @FISH_COMPLETION_DIR@
 FISH_COMPLETION_LIBS = @FISH_COMPLETION_LIBS@
+GREP = @GREP@
 GREP_PATH = @GREP_PATH@
 HAVE_CXX11 = @HAVE_CXX11@
 INSTALL = @INSTALL@
@@ -303,6 +300,10 @@ LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LZ4_CFLAGS = @LZ4_CFLAGS@
+LZ4_LIBS = @LZ4_LIBS@
+LZMA_CFLAGS = @LZMA_CFLAGS@
+LZMA_LIBS = @LZMA_LIBS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
 OBJEXT = @OBJEXT@
@@ -314,11 +315,15 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PCRE2_CFLAGS = @PCRE2_CFLAGS@
+PCRE2_LIBS = @PCRE2_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PLATFORM = @PLATFORM@
+PTHREAD_CC = @PTHREAD_CC@
 PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
+PTHREAD_CXX = @PTHREAD_CXX@
 PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
@@ -329,7 +334,11 @@ SIMD_AVX512BW_FLAGS = @SIMD_AVX512BW_FLAGS@
 SIMD_FLAGS = @SIMD_FLAGS@
 STRIP = @STRIP@
 VERSION = @VERSION@
+ZLIB_CFLAGS = @ZLIB_CFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 ZSH_COMPLETION_DIR = @ZSH_COMPLETION_DIR@
+ZSTD_CFLAGS = @ZSTD_CFLAGS@
+ZSTD_LIBS = @ZSTD_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -342,6 +351,7 @@ am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
+ax_pthread_config = @ax_pthread_config@
 bindir = @bindir@
 build = @build@
 build_alias = @build_alias@
@@ -734,7 +744,6 @@ dist-bzip2: distdir
 dist-lzip: distdir
 	tardir=$(distdir) && $(am__tar) | lzip -c $${LZIP_OPT--9} >$(distdir).tar.lz
 	$(am__post_remove_distdir)
-
 dist-xz: distdir
 	tardir=$(distdir) && $(am__tar) | XZ_OPT=$${XZ_OPT--e} xz -c >$(distdir).tar.xz
 	$(am__post_remove_distdir)
@@ -1001,10 +1010,10 @@ all-local:	cp2bin
 
 .PHONY:		cp2bin
 
-# to copy the ugrep binary to the local ugrep/bin/ugrep and ugrep/bin/ug
+# to copy the ugrep binary to the local ugrep/bin/ugrep and ugrep/bin/ug (symlinks DO NOT WORK for ug with bash when installed)
 cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
-		rm -f $(top_builddir)/bin/ugrep$(EXEEXT)
-		mkdir -p $(top_builddir)/bin && \
+		@rm -f $(top_builddir)/bin/ugrep$(EXEEXT)
+		@mkdir -p $(top_builddir)/bin && \
 		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT) && \
 		  cd $(top_builddir)/bin && \
 		  rm -f ug$(EXEEXT) && \
@@ -1014,14 +1023,14 @@ cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
 		@echo
 
 install-exec-hook:
-		cp -f $(top_builddir)/bin/ugrep+ $(top_builddir)/bin/ug+ $(DESTDIR)$(bindir)
-		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
-		cd $(DESTDIR)$(bindir) && cp -f ugrep$(EXEEXT) ug$(EXEEXT)
+		@cp -f $(top_builddir)/bin/ugrep+ $(top_builddir)/bin/ug+ $(DESTDIR)$(bindir)
+		@rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT)
+		@cd $(DESTDIR)$(bindir) && cp -f ugrep$(EXEEXT) ug$(EXEEXT)
 
 install-data-hook:
-		mkdir -p $(DESTDIR)$(datadir)/ugrep && \
+		@mkdir -p $(DESTDIR)$(datadir)/ugrep && \
 		  cp -rf $(top_srcdir)/patterns $(DESTDIR)$(datadir)/ugrep/
-		cd $(DESTDIR)$(mandir)/man1 && \
+		@cd $(DESTDIR)$(mandir)/man1 && \
 		  rm -f ug.1 && \
 		  $(LN_S) ugrep.1 ug.1
 		@if [ "x$(bashcompletiondir)" != "x" ]; then \
@@ -1087,9 +1096,9 @@ install-data-hook:
 		 echo "|______________________________________________________|";
 
 uninstall-hook:
-		rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT) $(DESTDIR)$(bindir)/ugrep$(EXEEXT)
-		rm -f $(DESTDIR)$(bindir)/ug+ $(DESTDIR)$(bindir)/ugrep+
-		rm -rf $(DESTDIR)$(datadir)/ugrep
+		@rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT) $(DESTDIR)$(bindir)/ugrep$(EXEEXT)
+		@rm -f $(DESTDIR)$(bindir)/ug+ $(DESTDIR)$(bindir)/ugrep+
+		@rm -rf $(DESTDIR)$(datadir)/ugrep
 
 .PHONY:		test
 
@@ -1097,11 +1106,11 @@ test:		${UGREP}
 		@echo
 		@echo "*** SINGLE-THREADED TESTS ***"
 		@echo
-		cd $(top_srcdir)/tests && env UGREP_ABS_PATH=${UGREP} CONFIGH_ABS_PATH=${CONFIGH} ./verify.sh -J1
+		@cd $(top_srcdir)/tests && env UGREP_ABS_PATH=${UGREP} CONFIGH_ABS_PATH=${CONFIGH} ./verify.sh -J1
 		@echo
 		@echo "*** MULTI-THREADED TESTS ***"
 		@echo
-		cd $(top_srcdir)/tests && env UGREP_ABS_PATH=${UGREP} CONFIGH_ABS_PATH=${CONFIGH} ./verify.sh
+		@cd $(top_srcdir)/tests && env UGREP_ABS_PATH=${UGREP} CONFIGH_ABS_PATH=${CONFIGH} ./verify.sh
 		@echo
 		@echo "OK"
 		@echo

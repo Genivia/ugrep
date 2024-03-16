@@ -4414,7 +4414,7 @@ void Pattern::gen_match_hfa_start(DFA::State *start, HFA::State& index, HFA::Sta
       hfa_.states[start->index].insert(next_state->index);
       Char lo = edge->first;
       Char hi = edge->second.first;
-      DBGLOG("0 HFA %p: %u..%u -> %p", state, lo, hi, next_state);
+      DBGLOG("0 HFA %p: %u..%u -> %p", start, lo, hi, next_state);
       hashes[next_state][0].insert(lo, hi);
     }
   }

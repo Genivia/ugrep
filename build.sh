@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Build ugrep by invoking configure and make then test the binary
+
+# For help with configure options:
+# ./build.sh --help
+
 # help wanted?
 case $1 in
   --help|-h)

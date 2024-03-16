@@ -91,17 +91,9 @@ host_triplet = @host@
 subdir = lib
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_boost_regex.m4 \
-	$(top_srcdir)/m4/ax_check_brotlilib.m4 \
-	$(top_srcdir)/m4/ax_check_bz2lib.m4 \
 	$(top_srcdir)/m4/ax_check_bzip3lib.m4 \
-	$(top_srcdir)/m4/ax_check_lz4lib.m4 \
-	$(top_srcdir)/m4/ax_check_lzmalib.m4 \
-	$(top_srcdir)/m4/ax_check_pcre2.m4 \
-	$(top_srcdir)/m4/ax_check_zlib.m4 \
-	$(top_srcdir)/m4/ax_check_zstdlib.m4 \
-	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx_11.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/ax_pthread.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(am__DIST_COMMON)
@@ -230,9 +222,12 @@ AWK = @AWK@
 BASH_COMPLETION_CFLAGS = @BASH_COMPLETION_CFLAGS@
 BASH_COMPLETION_DIR = @BASH_COMPLETION_DIR@
 BASH_COMPLETION_LIBS = @BASH_COMPLETION_LIBS@
+BROTLI_CFLAGS = @BROTLI_CFLAGS@
+BROTLI_LIBS = @BROTLI_LIBS@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CSCOPE = @CSCOPE@
 CTAGS = @CTAGS@
@@ -246,12 +241,14 @@ DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
+EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
 FISH_COMPLETION_CFLAGS = @FISH_COMPLETION_CFLAGS@
 FISH_COMPLETION_DIR = @FISH_COMPLETION_DIR@
 FISH_COMPLETION_LIBS = @FISH_COMPLETION_LIBS@
+GREP = @GREP@
 GREP_PATH = @GREP_PATH@
 HAVE_CXX11 = @HAVE_CXX11@
 INSTALL = @INSTALL@
@@ -264,6 +261,10 @@ LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LZ4_CFLAGS = @LZ4_CFLAGS@
+LZ4_LIBS = @LZ4_LIBS@
+LZMA_CFLAGS = @LZMA_CFLAGS@
+LZMA_LIBS = @LZMA_LIBS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
 OBJEXT = @OBJEXT@
@@ -275,11 +276,15 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PCRE2_CFLAGS = @PCRE2_CFLAGS@
+PCRE2_LIBS = @PCRE2_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 PLATFORM = @PLATFORM@
+PTHREAD_CC = @PTHREAD_CC@
 PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
+PTHREAD_CXX = @PTHREAD_CXX@
 PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
@@ -290,7 +295,11 @@ SIMD_AVX512BW_FLAGS = @SIMD_AVX512BW_FLAGS@
 SIMD_FLAGS = @SIMD_FLAGS@
 STRIP = @STRIP@
 VERSION = @VERSION@
+ZLIB_CFLAGS = @ZLIB_CFLAGS@
+ZLIB_LIBS = @ZLIB_LIBS@
 ZSH_COMPLETION_DIR = @ZSH_COMPLETION_DIR@
+ZSTD_CFLAGS = @ZSTD_CFLAGS@
+ZSTD_LIBS = @ZSTD_LIBS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -303,6 +312,7 @@ am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
+ax_pthread_config = @ax_pthread_config@
 bindir = @bindir@
 build = @build@
 build_alias = @build_alias@
@@ -346,30 +356,45 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LIBRARIES = libreflex.a
 libreflex_a_CPPFLAGS = -I$(top_srcdir)/include $(SIMD_FLAGS) -DWITH_NO_INDENT -DWITH_NO_CODEGEN
-libreflex_a_SOURCES = $(top_srcdir)/include/reflex/abslexer.h \
-	$(top_srcdir)/include/reflex/absmatcher.h \
-	$(top_srcdir)/include/reflex/bits.h \
-	$(top_srcdir)/include/reflex/boostmatcher.h \
-	$(top_srcdir)/include/reflex/convert.h \
-	$(top_srcdir)/include/reflex/debug.h \
-	$(top_srcdir)/include/reflex/error.h \
-	$(top_srcdir)/include/reflex/flexlexer.h \
-	$(top_srcdir)/include/reflex/input.h \
-	$(top_srcdir)/include/reflex/matcher.h \
-	$(top_srcdir)/include/reflex/pattern.h \
-	$(top_srcdir)/include/reflex/posix.h \
-	$(top_srcdir)/include/reflex/ranges.h \
-	$(top_srcdir)/include/reflex/setop.h \
-	$(top_srcdir)/include/reflex/simd.h \
-	$(top_srcdir)/include/reflex/stdmatcher.h \
-	$(top_srcdir)/include/reflex/timer.h \
-	$(top_srcdir)/include/reflex/traits.h \
-	$(top_srcdir)/include/reflex/unicode.h \
-	$(top_srcdir)/include/reflex/utf8.h convert.cpp debug.cpp \
-	error.cpp input.cpp matcher.cpp matcher_avx2.cpp \
-	matcher_avx512bw.cpp pattern.cpp posix.cpp simd_avx2.cpp \
-	simd_avx512bw.cpp unicode.cpp utf8.cpp block_scripts.cpp \
-	language_scripts.cpp letter_scripts.cpp composer.cpp
+libreflex_a_SOURCES = \
+        $(top_srcdir)/include/reflex/abslexer.h \
+        $(top_srcdir)/include/reflex/absmatcher.h \
+        $(top_srcdir)/include/reflex/bits.h \
+        $(top_srcdir)/include/reflex/boostmatcher.h \
+        $(top_srcdir)/include/reflex/convert.h \
+        $(top_srcdir)/include/reflex/debug.h \
+        $(top_srcdir)/include/reflex/error.h \
+        $(top_srcdir)/include/reflex/flexlexer.h \
+        $(top_srcdir)/include/reflex/input.h \
+        $(top_srcdir)/include/reflex/matcher.h \
+        $(top_srcdir)/include/reflex/pattern.h \
+        $(top_srcdir)/include/reflex/posix.h \
+        $(top_srcdir)/include/reflex/ranges.h \
+        $(top_srcdir)/include/reflex/setop.h \
+        $(top_srcdir)/include/reflex/simd.h \
+        $(top_srcdir)/include/reflex/stdmatcher.h \
+        $(top_srcdir)/include/reflex/timer.h \
+        $(top_srcdir)/include/reflex/traits.h \
+        $(top_srcdir)/include/reflex/unicode.h \
+        $(top_srcdir)/include/reflex/utf8.h \
+        convert.cpp \
+        debug.cpp \
+        error.cpp \
+        input.cpp \
+        matcher.cpp \
+        matcher_avx2.cpp \
+        matcher_avx512bw.cpp \
+        pattern.cpp \
+        posix.cpp \
+        simd_avx2.cpp \
+        simd_avx512bw.cpp \
+        unicode.cpp \
+        utf8.cpp \
+        block_scripts.cpp \
+        language_scripts.cpp \
+        letter_scripts.cpp \
+        composer.cpp
+
 all: all-am
 
 .SUFFIXES:
@@ -443,15 +468,17 @@ $(am__depfiles_remade):
 am--depfiles: $(am__depfiles_remade)
 
 .cpp.o:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
