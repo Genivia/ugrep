@@ -92,28 +92,39 @@ if test "x$cross_compiling" = "xyes"; then
     i[[3456]]86*|x86_64*|amd64*)
       # enable SSE2/AVX2/AVX512BW extensions
       if ! test "x$with_no_sse2" = "xyes"; then
-        AX_CHECK_COMPILE_FLAG([-msse2],
-                              [msse2_ok=yes],
-                              [msse2_ok=no])
+        AC_MSG_CHECKING([whether ${CXX} supports SSE2 intrinsics])
+        save_CXXFLAGS=$CXXFLAGS
+        CXXFLAGS="-msse2"
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <emmintrin.h>]], [[__m128i n = _mm_set1_epi8(42);]])],
+                          [msse2_ok=yes],
+                          [msse2_ok=no])
+        CXXFLAGS=$save_CXXFLAGS
+        AC_MSG_RESULT($msse2_ok)
         if test "x$msse2_ok" = "xyes"; then
           SIMD_FLAGS="-msse2 -DHAVE_SSE2"
-          if ! test "x$with_no_avx2" = "xyes"; then
-            AX_CHECK_COMPILE_FLAG([-mavx512bw],
-                                  [mavx_ok=yes],
-                                  [mavx_ok=no])
+          if test "x$with_no_avx" = "xno"; then
+            AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
+            save_CXXFLAGS=$CXXFLAGS
+            CXXFLAGS="-mavx512bw"
+            AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m512 n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);]])],
+                              [mavx_ok=yes],
+                              [mavx_ok=no])
             if test "x$mavx_ok" = "xyes"; then
               SIMD_FLAGS="-msse2 -DHAVE_AVX512BW"
               SIMD_AVX2_FLAGS="-mavx2"
               SIMD_AVX512BW_FLAGS="-mavx512bw"
             else
-              AX_CHECK_COMPILE_FLAG([-mavx2],
-                                    [mavx_ok=yes],
-                                    [mavx_ok=no])
+              CXXFLAGS="-mavx2"
+              AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m256i n = _mm256_set1_epi8(42); (void)_mm256_movemask_epi8(_mm256_and_si256(n, n));]])],
+                                [mavx_ok=yes],
+                                [mavx_ok=no])
               if test "x$mavx_ok" = "xyes"; then
                 SIMD_FLAGS="-msse2 -DHAVE_AVX2"
                 SIMD_AVX2_FLAGS="-mavx2"
               fi
             fi
+            CXXFLAGS=$save_CXXFLAGS
+            AC_MSG_RESULT($mavx_ok)
           fi
         fi
       fi
@@ -123,9 +134,38 @@ if test "x$cross_compiling" = "xyes"; then
     arm*)
       # enable arm >= 7 neon extensions with option -mfpu=neon
       if ! test "x$with_no_neon" = "xyes"; then
-        AX_CHECK_COMPILE_FLAG([-mfpu=neon],
-                              [SIMD_FLAGS="-mfpu=neon -DHAVE_NEON"],
-                              [SIMD_FLAGS=""])
+        AC_MSG_CHECKING([whether ${CXX} supports ARM NEON/AArch64 intrinsics])
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+            [mneon_ok=yes],
+            [mneon_ok=no])
+        if test "x$mneon_ok" = "xyes"; then
+          SIMD_FLAGS="-DHAVE_NEON"
+        else
+          save_CXXFLAGS=$CXXFLAGS
+          CXXFLAGS="-mfpu=neon"
+          AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+                            [mneon_ok=yes],
+                            [mneon_ok=no])
+          if test "x$mneon_ok" = "xyes"; then
+            AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+                              [mneon_ok=yes],
+                              [mneon_ok=no])
+            if test "x$mneon_ok" = "xyes"; then
+              SIMD_FLAGS="-mfpu=neon -DHAVE_NEON"
+            else
+              # this is iffy,,,
+              CXXFLAGS="-march=native -mfpu=neon"
+              AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]], [[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+                                [mneon_ok=yes],
+                                [mneon_ok=no])
+              if test "x$mneon_ok" = "xyes"; then
+                SIMD_FLAGS="-march=native -mfpu=neon -DHAVE_NEON"
+              fi
+            fi
+          fi
+          CXXFLAGS=$save_CXXFLAGS
+        fi
+        AC_MSG_RESULT($mneon_ok)
       fi
     ;;
     aarch64*)
@@ -135,6 +175,55 @@ if test "x$cross_compiling" = "xyes"; then
       fi
     ;;
   esac
+
+# # cross compiling to a host CPU, check support for SIMD CPU extension compile flags
+# case $host_cpu in
+#   i[[3456]]86*|x86_64*|amd64*)
+#     # enable SSE2/AVX2/AVX512BW extensions
+#     if ! test "x$with_no_sse2" = "xyes"; then
+#       AX_CHECK_COMPILE_FLAG([-msse2],
+#                             [msse2_ok=yes],
+#                             [msse2_ok=no])
+#       if test "x$msse2_ok" = "xyes"; then
+#         SIMD_FLAGS="-msse2 -DHAVE_SSE2"
+#         if ! test "x$with_no_avx2" = "xyes"; then
+#           AX_CHECK_COMPILE_FLAG([-mavx512bw],
+#                                 [mavx_ok=yes],
+#                                 [mavx_ok=no])
+#           if test "x$mavx_ok" = "xyes"; then
+#             SIMD_FLAGS="-msse2 -DHAVE_AVX512BW"
+#             SIMD_AVX2_FLAGS="-mavx2"
+#             SIMD_AVX512BW_FLAGS="-mavx512bw"
+#           else
+#             AX_CHECK_COMPILE_FLAG([-mavx2],
+#                                   [mavx_ok=yes],
+#                                   [mavx_ok=no])
+#             if test "x$mavx_ok" = "xyes"; then
+#               SIMD_FLAGS="-msse2 -DHAVE_AVX2"
+#               SIMD_AVX2_FLAGS="-mavx2"
+#             fi
+#           fi
+#         fi
+#       fi
+#     fi
+#   ;;
+#   armv5*|armv6*)
+#   ;;
+#   arm*)
+#     # enable arm >= 7 neon extensions with option -mfpu=neon
+#     if ! test "x$with_no_neon" = "xyes"; then
+#       AX_CHECK_COMPILE_FLAG([-mfpu=neon],
+#                             [SIMD_FLAGS="-mfpu=neon -DHAVE_NEON"],
+#                             [SIMD_FLAGS=""])
+#     fi
+#   ;;
+#   aarch64*)
+#     # enable AArch64 neon extensions
+#     if ! test "x$with_no_neon" = "xyes"; then
+#       SIMD_FLAGS="-DHAVE_NEON"
+#     fi
+#   ;;
+# esac
 
 else
 
