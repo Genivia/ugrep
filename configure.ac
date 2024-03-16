@@ -92,13 +92,13 @@ if test "x$cross_compiling" = "xyes"; then
     i[[3456]]86*|x86_64*|amd64*)
       # enable SSE2/AVX2/AVX512BW extensions
       if ! test "x$with_no_sse2" = "xyes"; then
-        AX_CHECK_COMPILE_FLAG([-msse2],
+        AX_CHECK_COMPILE_FLAG(-msse2,
                               [msse2_ok=yes],
                               [msse2_ok=no])
         if test "x$msse2_ok" = "xyes"; then
           SIMD_FLAGS="-msse2 -DHAVE_SSE2"
           if ! test "x$with_no_avx2" = "xyes"; then
-            AX_CHECK_COMPILE_FLAG([-mavx512bw],
+            AX_CHECK_COMPILE_FLAG(-mavx512bw,
                                   [mavx_ok=yes],
                                   [mavx_ok=no])
             if test "x$mavx_ok" = "xyes"; then
@@ -106,7 +106,7 @@ if test "x$cross_compiling" = "xyes"; then
               SIMD_AVX2_FLAGS="-mavx2"
               SIMD_AVX512BW_FLAGS="-mavx512bw"
             else
-              AX_CHECK_COMPILE_FLAG([-mavx2],
+              AX_CHECK_COMPILE_FLAG(-mavx2,
                                     [mavx_ok=yes],
                                     [mavx_ok=no])
               if test "x$mavx_ok" = "xyes"; then
@@ -124,7 +124,7 @@ if test "x$cross_compiling" = "xyes"; then
       # enable arm >= 7 neon extensions with option -mfpu=neon
       if ! test "x$with_no_neon" = "xyes"; then
         AC_MSG_CHECKING([whether ${CXX} supports NEON intrinsics])
-        AX_CHECK_COMPILE_FLAG([-mfpu=neon],
+        AX_CHECK_COMPILE_FLAG(-mfpu=neon,
                               [SIMD_FLAGS="-mfpu=neon -DHAVE_NEON"],
                               [SIMD_FLAGS=""])
         AC_MSG_RESULT($mneon_ok)
