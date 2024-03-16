@@ -38,14 +38,20 @@
 #define VIIZIP_H
 
 // check if we are compiling for a windows OS, but not Cygwin or MinGW
-#if !defined(OS_WIN) && (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if !defined(OS_WIN) && (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__))
 # define OS_WIN
 #endif
 
 #ifdef OS_WIN
 #include <windows.h>
-/* POSIX read() and write() return type is ssize_t */
-typedef int ssize_t;
+#if !defined(_SSIZE_T_DEFINED) && !defined(__ssize_t_defined)
+#define _SSIZE_T_DEFINED
+#ifdef _NI_mswin64_
+typedef __int64             ssize_t;
+#else
+typedef int                 ssize_t;
+#endif
+#endif
 #endif
 
 #include <stdio.h>

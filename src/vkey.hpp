@@ -193,11 +193,16 @@ Unicode code point entry:
 #include "ugrep.hpp"
 
 #ifdef OS_WIN
-
+#if !defined(ENABLE_VIRTUAL_TERMINAL_INPUT)
+// This is hardcoded, but it should be detected (IsOS(OS_WIN2000ORGREATER))
+// #include <shlwapi.h>
+// static bool hasVirtualTerminal = IsOS(OS_WIN2000ORGREATER);
+#define ENABLE_VIRTUAL_TERMINAL_INPUT 0x200
 #ifdef ENABLE_VIRTUAL_TERMINAL_INPUT
 # define VKEY_WIN
 #else
 # define VKEY_DOS
+#endif
 #endif
 
 #else

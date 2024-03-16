@@ -1,12 +1,15 @@
 SUBDIRS = src patterns tests/dist
 
+if ENABLE_MANPAGE
 man1_MANS = man/ug.1 man/ugrep.1
+endif
 
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 
 UGREP = $(shell pwd)/$(top_builddir)/src/ugrep$(EXEEXT)
 CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 
+if ENABLE_COMPLETIONS
 if ENABLE_BASH_COMPLETION
 bashcompletiondir = $(BASH_COMPLETION_DIR)
 bashcompletion_DATA = \
@@ -14,6 +17,7 @@ bashcompletion_DATA = \
 	completions/bash/ug \
 	completions/bash/ugrep+ \
 	completions/bash/ug+
+endif
 endif
 
 

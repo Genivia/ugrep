@@ -53,6 +53,13 @@ AC_CANONICAL_HOST
 PLATFORM=${host}
 AC_SUBST(PLATFORM)
 
+AS_IF([test "$host_vendor" = "w64"],[
+    MSWIN_CONSOLE_CFLAGS="-mconsole -municode"
+    MSWIN_CONSOLE_LIBS="-lwsock32 -lmsvcr110 -Wl,--subsystem,console"
+])
+AC_SUBST(MSWIN_CONSOLE_CFLAGS)
+AC_SUBST(MSWIN_CONSOLE_LIBS)
+
 # F_RDAHEAD fcntl()
 AC_MSG_CHECKING(for F_RDAHEAD fcntl)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
@@ -237,6 +244,7 @@ AS_IF([test "$enable_7zip" != "no"],[
   AC_DEFINE(HAVE_7ZIP,1,[7zip decompression is enabled. This define is used in verify.sh only])
 ])
 
+AM_CONDITIONAL([ENABLE_COMPLETIONS],[test "$host_vendor" != "w64"])
 AC_ARG_WITH([bash-completion-dir],
   [AS_HELP_STRING([--with-bash-completion-dir[=PATH]],
                   [install the bash auto-completion script in this directory. @<:@default=yes@:>@])],
@@ -433,6 +441,7 @@ AM_CONDITIONAL([ENABLE_AVX512_BW],[test "x$ax_cv_support_avx512bw_ext" = "xyes"]
 AM_CONDITIONAL([ENABLE_NEON],[test "x$ax_cv_support_neon_ext" = "xyes"])
 
 # Allow the manpage be accessed as either ug or ugrep
+AM_CONDITIONAL([ENABLE_MANPAGE],[test "$host_vendor" != "w64"])
 AC_CONFIG_FILES([man/ugrep.1])
 AC_CONFIG_LINKS([man/ug.1:man/ugrep.1])
 

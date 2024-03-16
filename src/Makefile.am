@@ -19,6 +19,7 @@ ugrep_CXXFLAGS = \
         $(ZSTD_CFLAGS) \
         $(LZ4_CFLAGS) \
         $(LZMA_CFLAGS) \
+        $(MSWIN_CONSOLE_CFLAGS) \
         $(PTHREAD_CFLAGS) \
         $(PCRE2_CFLAGS)
 ugrep_CFLAGS = \
@@ -45,6 +46,7 @@ ugrep_LDADD    = \
         $(LZ4_LIBS) \
         $(LZMA_LIBS) \
         $(ZLIB_LIBS) \
+        $(MSWIN_CONSOLE_LIBS) \
         $(PCRE2_LIBS)
 
 noinst_HEADERS = \
@@ -92,6 +94,7 @@ TESTS = \
 #                       Shell completions                    #
 # ############################################################
 
+if ENABLE_COMPLETIONS
 if ENABLE_FISH_COMPLETION
 fishcompletiondir = $(FISH_COMPLETION_DIR)
 fishcompletion_DATA = \
@@ -116,14 +119,15 @@ endif
 .DELETE_ON_ERROR:
 
 dist_noinst_SCRIPTS += $(top_srcdir)/completions/fish/compgen.sh
-$(fishcompletion_DATA): ugrep
+$(fishcompletion_DATA): $(bin_PROGRAMS)
 	target=$@ ; cmdname=$${target##*/} ; cmdname=$${cmdname%%.fish} ; \
 	$(top_srcdir)/completions/fish/compgen.sh ./$< $$cmdname > $@
 
 dist_noinst_SCRIPTS += $(top_srcdir)/completions/zsh/compgen.sh
-$(zshcompletion_DATA): ugrep
+$(zshcompletion_DATA): $(bin_PROGRAMS)
 	target=$@ ; cmdname=$${target##*/_} ; \
 	$(top_srcdir)/completions/zsh/compgen.sh ./$< $$cmdname > $@
+endif
 
 # ############################################################
 #                       RE/Flex Library                      #
