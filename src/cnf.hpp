@@ -186,7 +186,7 @@ class CNF {
     // skip space
     static void skip_space(const char *& pattern)
     {
-      while (isspace(*pattern))
+      while (isspace(static_cast<unsigned char>(*pattern)))
         ++pattern;
     }
 
@@ -196,19 +196,19 @@ class CNF {
       switch (op)
       {
         case AND:
-          if (strncmp(pattern, "AND", 3) != 0 || !isspace(pattern[3]))
+          if (strncmp(pattern, "AND", 3) != 0 || !isspace(static_cast<unsigned char>(pattern[3])))
             break;
           pattern += 3;
           return true;
 
         case OR:
-          if (strncmp(pattern, "OR", 2) != 0 || !isspace(pattern[2]))
+          if (strncmp(pattern, "OR", 2) != 0 || !isspace(static_cast<unsigned char>(pattern[2])))
             break;
           pattern += 2;
           return true;
 
         case NOT:
-          if (strncmp(pattern, "NOT", 3) != 0 || !isspace(pattern[3]))
+          if (strncmp(pattern, "NOT", 3) != 0 || !isspace(static_cast<unsigned char>(pattern[3])))
             break;
           pattern += 3;
           return true;

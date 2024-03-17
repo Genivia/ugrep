@@ -537,7 +537,7 @@ void Pattern::init_options(const char *options)
         case 'z':
           for (const char *t = s += (s[1] == '='); *s != ';' && *s != '\0'; ++t)
           {
-            if (std::isspace(*t) || *t == ';' || *t == '\0')
+            if (std::isspace(static_cast<unsigned char>(*t)) || *t == ';' || *t == '\0')
             {
               if (t > s + 1)
                 opt_.z = std::string(s + 1, t - s - 1);

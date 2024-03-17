@@ -3691,13 +3691,13 @@ struct Grep {
       // find the command corresponding to the suffix
       while (true)
       {
-        while (isspace(*command))
+        while (isspace(static_cast<unsigned char>(*command)))
           ++command;
 
         if (*command == '*')
           default_command = strchr(command, ':');
 
-        if (strncmp(suffix, command, sep) == 0 && (command[sep] == ':' || command[sep] == ',' || isspace(command[sep])))
+        if (strncmp(suffix, command, sep) == 0 && (command[sep] == ':' || command[sep] == ',' || isspace(static_cast<unsigned char>(command[sep]))))
         {
           command = strchr(command, ':');
           break;
@@ -3751,12 +3751,12 @@ struct Grep {
 
             while (*arg != '\0' && *arg != ',')
             {
-              while (isspace(*arg))
+              while (isspace(static_cast<unsigned char>(*arg)))
                 ++arg;
 
               char *p = arg;
 
-              while (*p != '\0' && *p != ',' && !isspace(*p))
+              while (*p != '\0' && *p != ',' && !isspace(static_cast<unsigned char>(*p)))
                 ++p;
 
               if (p > arg)
@@ -5721,7 +5721,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 break;
 
               default:
-                if (isdigit(*arg))
+                if (isdigit(static_cast<unsigned char>(*arg)))
                   set_depth_long(arg);
                 else
                   usage("invalid option --", arg);
@@ -5955,7 +5955,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
           case 'Z':
             ++arg;
-            if (*arg == '=' || strncmp(arg, "best", 4) == 0 || isdigit(*arg) || strchr("+-~", *arg) != NULL)
+            if (*arg == '=' || strncmp(arg, "best", 4) == 0 || isdigit(static_cast<unsigned char>(*arg)) || strchr("+-~", *arg) != NULL)
             {
               flag_fuzzy = strtofuzzy(&arg[*arg == '='], "invalid argument -Z=");
               is_grouped = false;
@@ -7013,7 +7013,7 @@ void init(int argc, const char **argv)
         {
           for (size_t j = 0; type_table[j].type != NULL; ++j)
           {
-            if (islower(type_table[j].type[0]))
+            if (islower(static_cast<unsigned char>(type_table[j].type[0])))
             {
               const char *s = strstr(type_table[j].extensions, type.c_str());
               if (s != NULL && (s == type_table[j].extensions || *--s == ','))
@@ -7531,7 +7531,7 @@ void set_terminal_hyperlink()
 
       // get custom prefix in hyperlink or default file://
       const char *s = flag_hyperlink;
-      while (*s != '\0' && isalnum(*s))
+      while (*s != '\0' && isalnum(static_cast<unsigned char>(*s)))
         ++s;
 
       if (s == flag_hyperlink)
@@ -8125,7 +8125,7 @@ void ugrep()
         while (++i < regex.size() && regex[i] != '}')
           continue;
       }
-      else if (isupper(regex[i]))
+      else if (isupper(static_cast<unsigned char>(regex[i])))
       {
         flag_ignore_case = false;
         break;
@@ -13240,7 +13240,7 @@ void trim(std::string& line)
   size_t len = line.length();
   size_t pos;
 
-  for (pos = 0; pos < len && isspace(line.at(pos)); ++pos)
+  for (pos = 0; pos < len && isspace(static_cast<unsigned char>(line.at(pos))); ++pos)
     continue;
 
   if (pos > 0)
@@ -13248,7 +13248,7 @@ void trim(std::string& line)
 
   len -= pos;
 
-  for (pos = len; pos > 0 && isspace(line.at(pos - 1)); --pos)
+  for (pos = len; pos > 0 && isspace(static_cast<unsigned char>(line.at(pos - 1))); --pos)
     continue;
 
   if (len > pos)
@@ -13298,7 +13298,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
 
       while (*s != '\0' && *s != ':' && t - color < COLORLEN - 6)
       {
-        if (isdigit(*s))
+        if (isdigit(static_cast<unsigned char>(*s)))
         {
           if (sep)
             *t++ = ';';
@@ -13309,7 +13309,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
             offset = 30;
           }
           *t++ = *s++;
-          while (isdigit(*s) && t - color < COLORLEN - 2)
+          while (isdigit(static_cast<unsigned char>(*s)) && t - color < COLORLEN - 2)
             *t++ = *s++;
           sep = true;
           continue;
@@ -13379,7 +13379,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
           *t++ = '7';
           sep = true;
         }
-        else if (*s == ',' || *s == ';' || isspace(*s))
+        else if (*s == ',' || *s == ';' || isspace(static_cast<unsigned char>(*s)))
         {
           if (sep)
             *t++ = ';';
@@ -13413,7 +13413,7 @@ void set_color(const char *colors, const char *parameter, char color[COLORLEN])
 #else
 
       // traditional grep SGR parameters
-      while ((*s == ';' || isdigit(*s)) && t - color < COLORLEN - 2)
+      while ((*s == ';' || isdigit(static_cast<unsigned char>(*s))) && t - color < COLORLEN - 2)
         *t++ = *s++;
 
 #endif
@@ -13574,7 +13574,7 @@ void usage(const char *message, const char *arg, const char *valid)
       }
       else
       {
-        while (*e != '\0' && (*e == '-' || isalpha(*e)))
+        while (*e != '\0' && (*e == '-' || isalpha(static_cast<unsigned char>(*e))))
           ++e;
         std::cerr << std::string(s, e - s) << "'" << std::endl;
       }
@@ -14412,7 +14412,7 @@ void help(const char *what)
             if (((what[j] ^ str.at(i + j)) & ~0x20) != 0)
               break;
 
-          if (what[j] == '\0' || what[j] == '=' || isspace(what[j]))
+          if (what[j] == '\0' || what[j] == '=' || isspace(static_cast<unsigned char>(what[j])))
           {
             if (pass == 0 ? i < nl: i > nl)
             {

@@ -622,7 +622,7 @@ std::pair<const char*,size_t> Output::capture(reflex::AbstractMatcher *matcher, 
       if (bar == NULL || bar > end)
         bar = end;
 
-      if (isdigit(*arg))
+      if (isdigit(static_cast<unsigned char>(*arg)))
       {
         size_t index = strtoul(arg, NULL, 10);
 

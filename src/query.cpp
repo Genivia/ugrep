@@ -3663,7 +3663,7 @@ bool Query::print(const std::string& line)
         if (*ptr == '[')
         {
           ++ptr;
-          while (ptr < end && !isalpha(*ptr))
+          while (ptr < end && !isalpha(static_cast<unsigned char>(*ptr)))
             ++ptr;
         }
 
@@ -4266,7 +4266,7 @@ size_t Query::get_line_number()
         break;
 
       // found the line number?
-      if (isdigit(line.at(pos)))
+      if (isdigit(static_cast<unsigned char>(line.at(pos))))
         return static_cast<size_t>(strtoull(line.c_str() + pos, NULL, 10));
 
       ++pos;

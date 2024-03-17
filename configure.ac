@@ -57,21 +57,21 @@ AC_SUBST(PLATFORM)
 # Use SIMD CPU extensions and manage cross compilation
 ################################################################################
 
-# --disable-sse2 fallback option if cross compilation fails or if SSE2 is not supported
+# --disable-sse2 fallback option if cross compilation fails to disable SSE2 CPU extensions
 AC_ARG_ENABLE(sse2,
   [AS_HELP_STRING([--disable-sse2],
                   [disable SSE2 CPU extensions])],
   [with_no_sse2="yes"],
   [with_no_sse2="no"])
 
-# --disable-avx2 fallback option if cross compilation fails or if AVX2 is not supported
+# --disable-avx2 fallback option if cross compilation fails to disable AVX2/AVX512BW CPU extensions
 AC_ARG_ENABLE(avx2,
   [AS_HELP_STRING([--disable-avx2],
                   [disable AVX2/AVX512BW CPU extensions])],
   [with_no_avx2="yes"],
   [with_no_avx2="no"])
 
-# --disable-neon fallback option if cross compilation fails or if NEON is not supported
+# --disable-neon fallback option if cross compilation fails to disable NEON/AArch64 CPU extensions
 AC_ARG_ENABLE(neon,
   [AS_HELP_STRING([--disable-neon],
                  [disable NEON CPU extensions])],
@@ -87,7 +87,7 @@ SIMD_AVX512BW_FLAGS=
 
 if test "x$cross_compiling" = "xyes"; then
 
-  # cross compiling to a host CPU, check support for SIMD CPU extension compile flags
+  # cross compiling to a host CPU: check support for SIMD CPU extension compile flags
   case $host_cpu in
     i[[3456]]86*|x86_64*|amd64*)
       # enable SSE2/AVX2/AVX512BW extensions
@@ -102,8 +102,8 @@ if test "x$cross_compiling" = "xyes"; then
         AC_MSG_RESULT($msse2_ok)
         if test "x$msse2_ok" = "xyes"; then
           SIMD_FLAGS="-msse2 -DHAVE_SSE2"
-          if test "x$with_no_avx" = "xno"; then
-            AC_MSG_CHECKING([whether ${CXX} supports AVX intrinsics])
+          if ! test "x$with_no_avx2" = "xyes"; then
+            AC_MSG_CHECKING([whether ${CXX} supports AVX2/AVX512BW intrinsics])
             save_CXXFLAGS=$CXXFLAGS
             CXXFLAGS="-mavx512bw"
             AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <immintrin.h>]], [[__m512 n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);]])],

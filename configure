@@ -8769,7 +8769,7 @@ PLATFORM=${host}
 # Use SIMD CPU extensions and manage cross compilation
 ################################################################################
 
-# --disable-sse2 fallback option if cross compilation fails or if SSE2 is not supported
+# --disable-sse2 fallback option if cross compilation fails to disable SSE2 CPU extensions
 # Check whether --enable-sse2 was given.
 if test ${enable_sse2+y}
 then :
@@ -8779,7 +8779,7 @@ else $as_nop
 fi
 
 
-# --disable-avx2 fallback option if cross compilation fails or if AVX2 is not supported
+# --disable-avx2 fallback option if cross compilation fails to disable AVX2/AVX512BW CPU extensions
 # Check whether --enable-avx2 was given.
 if test ${enable_avx2+y}
 then :
@@ -8789,7 +8789,7 @@ else $as_nop
 fi
 
 
-# --disable-neon fallback option if cross compilation fails or if NEON is not supported
+# --disable-neon fallback option if cross compilation fails to disable NEON/AArch64 CPU extensions
 # Check whether --enable-neon was given.
 if test ${enable_neon+y}
 then :
@@ -8808,7 +8808,7 @@ SIMD_AVX512BW_FLAGS=
 
 if test "x$cross_compiling" = "xyes"; then
 
-  # cross compiling to a host CPU, check support for SIMD CPU extension compile flags
+  # cross compiling to a host CPU: check support for SIMD CPU extension compile flags
   case $host_cpu in
     i[3456]86*|x86_64*|amd64*)
       # enable SSE2/AVX2/AVX512BW extensions
@@ -8840,9 +8840,9 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 printf "%s\n" "$msse2_ok" >&6; }
         if test "x$msse2_ok" = "xyes"; then
           SIMD_FLAGS="-msse2 -DHAVE_SSE2"
-          if test "x$with_no_avx" = "xno"; then
-            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether ${CXX} supports AVX intrinsics" >&5
-printf %s "checking whether ${CXX} supports AVX intrinsics... " >&6; }
+          if ! test "x$with_no_avx2" = "xyes"; then
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether ${CXX} supports AVX2/AVX512BW intrinsics" >&5
+printf %s "checking whether ${CXX} supports AVX2/AVX512BW intrinsics... " >&6; }
             save_CXXFLAGS=$CXXFLAGS
             CXXFLAGS="-mavx512bw"
             cat confdefs.h - <<_ACEOF >conftest.$ac_ext

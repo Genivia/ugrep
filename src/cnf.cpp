@@ -113,7 +113,7 @@ void CNF::OpTree::parse3(const char *& pattern)
         if (level == 0)
         {
           ++lookahead;
-          parens = *lookahead == '\0' || *lookahead == '|' || *lookahead == ')' || isspace(*lookahead);
+          parens = *lookahead == '\0' || *lookahead == '|' || *lookahead == ')' || isspace(static_cast<unsigned char>(*lookahead));
 
           break;
         }
@@ -240,7 +240,7 @@ void CNF::OpTree::parse3(const char *& pattern)
         ++lookahead;
       }
 
-      if (level == 0 && (*lookahead == ')' || *lookahead == '|' || isspace(*lookahead)))
+      if (level == 0 && (*lookahead == ')' || *lookahead == '|' || isspace(static_cast<unsigned char>(*lookahead))))
         break;
     }
 
