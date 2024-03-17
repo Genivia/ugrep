@@ -78,7 +78,7 @@ AC_ARG_ENABLE(neon,
   [with_no_neon="yes"],
   [with_no_neon="no"])
 
-# SIMD_FLAGS applies to all ugrep source code
+# SIMD_FLAGS applies to all source code
 SIMD_FLAGS=
 # SIMD_AVX2_FLAGS applies to lib/matcher_avx2.cpp which is selected based on a runtime AVX2 check
 SIMD_AVX2_FLAGS=
@@ -280,23 +280,18 @@ else
       else
         save_CXXFLAGS=$CXXFLAGS
         CXXFLAGS="-mfpu=neon"
-        AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]],[[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
-                          [mneon_ok=yes],
-                          [mneon_ok=no])
+        AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]],[[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+                      [mneon_ok=yes],
+                      [mneon_ok=no])
         if test "x$mneon_ok" = "xyes"; then
+          SIMD_FLAGS="-mfpu=neon -DHAVE_NEON"
+        else
+          CXXFLAGS="-march=native -mfpu=neon"
           AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]],[[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
                         [mneon_ok=yes],
                         [mneon_ok=no])
           if test "x$mneon_ok" = "xyes"; then
-            SIMD_FLAGS="-mfpu=neon -DHAVE_NEON"
-          else
-            CXXFLAGS="-march=native -mfpu=neon"
-            AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]],[[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
-                          [mneon_ok=yes],
-                          [mneon_ok=no])
-            if test "x$mneon_ok" = "xyes"; then
-              SIMD_FLAGS="-march=native -mfpu=neon -DHAVE_NEON"
-            fi
+            SIMD_FLAGS="-march=native -mfpu=neon -DHAVE_NEON"
           fi
         fi
         CXXFLAGS=$save_CXXFLAGS

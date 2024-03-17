@@ -8799,7 +8799,7 @@ else $as_nop
 fi
 
 
-# SIMD_FLAGS applies to all ugrep source code
+# SIMD_FLAGS applies to all source code
 SIMD_FLAGS=
 # SIMD_AVX2_FLAGS applies to lib/matcher_avx2.cpp which is selected based on a runtime AVX2 check
 SIMD_AVX2_FLAGS=
@@ -9349,25 +9349,10 @@ fi
       else
         save_CXXFLAGS=$CXXFLAGS
         CXXFLAGS="-mfpu=neon"
-        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <arm_neon.h>
-int
-main (void)
-{
-uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_cpp "$LINENO"
-then :
-  mneon_ok=yes
-else $as_nop
-  mneon_ok=no
-fi
-rm -f conftest.err conftest.i conftest.$ac_ext
-        if test "x$mneon_ok" = "xyes"; then
+#       AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[#include <arm_neon.h>]],[[uint64x2_t n; uint64_t m = vgetq_lane_u64(n, 0);]])],
+#                         [mneon_ok=yes],
+#                         [mneon_ok=no])
+#       if test "x$mneon_ok" = "xyes"; then
           if test "$cross_compiling" = yes
 then :
   { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
@@ -9432,7 +9417,7 @@ fi
               SIMD_FLAGS="-march=native -mfpu=neon -DHAVE_NEON"
             fi
           fi
-        fi
+#       fi
         CXXFLAGS=$save_CXXFLAGS
       fi
       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $mneon_ok" >&5

@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # This script is used to prepare a new release update by software maintainers
-# - update version in ugrep.hpp source
-# - build ugrep to verify
+# - update version in src/ugrep.hpp
+# - rebuild ugrep to verify
 # - generate man page
 # - generate completion scripts
 # - update version in configure.ac
