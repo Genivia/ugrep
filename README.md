@@ -5,13 +5,15 @@ Why use ugrep?
 
 - Ugrep is a true drop-in replacement for GNU grep (assuming you [rename or symlink `ugrep` to `grep`, `egrep` and `fgrep`](#grep)), unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
 
-- Ugrep is fast, user-friendly, and equipped with a ton of new features that surpass other grep, benchmarks also show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) and will be getting even faster
+- Ugrep is fast, user-friendly, and equipped with a ton of new features that users wanted
 
-- An easy-to-use user manual with installation instructions at [ugrep.com](https://ugrep.com)
+- Benchmarks show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) using the high-performance DFA-based regex matcher [RE/flex](https://github.com/Genivia/RE-flex)
 
-- Ugrep includes an interactive TUI with built-in help and options to control searching and a file (pre)view split screen
+- A quick user guide with installation instructions at [ugrep.com](https://ugrep.com)
 
-*Option -Q opens a query TUI to search files as you type!*
+- Includes a TUI with built-in help, interactive search with search mode and options selection, and a file preview split screen
+
+*Option -Q opens a query TUI to search files as you type*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 
@@ -24,7 +26,7 @@ Development roadmap
 
 - add new and updated features, including [indexing (beta release)](https://github.com/Genivia/ugrep-indexer)
 
-- further increase performance and share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community, showing that ugrep is almost always faster than other grep tools
+- share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
 
 Overview
 --------
@@ -915,10 +917,10 @@ To list all shell files recursively, based on extensions and shebangs with `-l`
 ### Advanced examples
 
 To search for `main` in source code while ignoring strings and comment blocks
-we can use *negative patterns* with option `-N` to skip unwanted matches in
+you can use *negative patterns* with option `-N` to skip unwanted matches in
 C/C++ quoted strings and comment blocks:
 
-    ug -r -nkw -e 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myproject
+    ug -r -nkw -e 'main' -N '"(\\.|\\\r?\n|[^\\\n"])*"|//.*|/\*(.*\n)*?.*\*+\/' myproject
 
 This is a lot of work to type in correctly!  If you are like me, I don't want
 to spend time fiddling with regex patterns when I am working on something more
@@ -934,21 +936,22 @@ and include symlinks to files and directories with `-R`:
 
     ug -R -tc,c++ -nkw 'main' -f c/zap_strings -f c/zap_comments myproject
 
-What if we are only looking for the identifier `main` but not as a function
-`main(`?  We can use a negative pattern for this to skip unwanted `main\h*(`
-pattern matches:
+What if you only want to look for the identifier `main` but not as a function
+`main(`?  In this case, use a negative pattern for this to skip unwanted
+`main\h*(` pattern matches:
 
     ug -R -tc,c++ -nkw -e 'main' -N 'main\h*\(' -f c/zap_strings -f c/zap_comments myproject
 
 This uses the `-e` and `-N` options to explicitly specify a pattern and a
 negative pattern, respectively, which is essentially forming the pattern
 `main|(?^main\h*\()`, where `\h` matches space and tab.  In general, negative
-patterns are useful to filter out pattern matches we are not interested in.
+patterns are useful to filter out pattern matches that we are not interested
+in.
 
-As another example, we may want to search for the word `FIXME` in C/C++ comment
-blocks.  To do so we can first select the comment blocks with **ugrep**'s
-predefined `c/comments` pattern AND THEN select lines with `FIXME` using a
-pipe:
+As another example, let's say we may want to search for the word `FIXME` in
+C/C++ comment blocks.  To do so we can first select the comment blocks with
+**ugrep**'s predefined `c/comments` pattern AND THEN select lines with `FIXME`
+using a pipe:
 
     ug -R -tc,c++ -nk -f c/comments myproject | ug -w 'FIXME'
 
@@ -956,8 +959,8 @@ Filtering results with pipes is generally easier than using AND-OR logic that
 some search tools use.  This approach follows the Unix spirit to keep utilities
 simple and use them in combination for more complex tasks.
 
-Say we want to produce a sorted list of all identifiers found in Java source
-code while skipping strings and comments:
+Let's produce a sorted list of all identifiers found in Java source code while
+skipping strings and comments:
 
     ug -R -tjava -f java/names myproject | sort -u
 
@@ -1830,7 +1833,7 @@ U+0085, U+2028 and U+2029.
 
 To match C/C++ `/*...*/` multi-line comments:
 
-    ug '/\*([^*]|\n|(\*+([^*/]|\n)))*\*+\/' myfile.cpp
+    ug '/\*(.*\n)*?.*\*+\/' myfile.cpp
 
 To match C/C++ comments using the predefined `c/comments` patterns with
 `-f c/comments`, restricted to the matching part only with option `-o`:
@@ -5277,9 +5280,16 @@ in markdown:
 
                   $ ugrep -o -C20 -R -n -k -tjs FIXME
 
-           List the C/C++ comments in a file with line numbers:
 
-                  $ ugrep -n -e '//.*' -e '/\*([^*]|(\*+[^*/]))*\*+\/' myfile.cpp
+           Find blocks of text between lines matching BEGIN and END by using a lazy
+           quantifier `*?' to match only what is necessary and pattern `\n' to match
+           newlines:
+
+                  $ ugrep -n 'BEGIN.*\n(.*\n)*?.*END' myfile.txt
+
+           Likewise, list the C/C++ comments in a file and line numbers:
+
+                  $ ugrep -n -e '//.*' -e '/\*(.*\n)*?.*\*+\/' myfile.cpp
 
            The same, but using predefined pattern c++/comments:
 
@@ -5391,7 +5401,7 @@ in markdown:
 
 
 
-    ugrep 5.0.0                     February 15, 2024                       UGREP(1)
+    ugrep 5.5.1                      March 11, 2024                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

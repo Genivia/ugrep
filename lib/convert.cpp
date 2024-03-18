@@ -1452,7 +1452,7 @@ static void convert_escape(const char *pattern, size_t len, size_t& loc, size_t&
     }
     loc = pos + 1;
   }
-  else
+  else if (c != ' ' && c != '\t')
   {
     convert_escape_char(pattern, len, loc, pos, flags, signature, mod, par, regex, nl);
   }
