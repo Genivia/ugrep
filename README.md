@@ -3,7 +3,7 @@
 Why use ugrep?
 --------------
 
-- Ugrep is a true drop-in replacement for GNU grep (assuming you [rename or symlink `ugrep` to `grep`, `egrep` and `fgrep`](#grep)), unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
+- Ugrep is a true drop-in replacement for GNU grep (assuming you [copy or symlink `ug` to `grep`, `egrep` and `fgrep`](#grep)), unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
 
 - Ugrep is fast, user-friendly, and equipped with a ton of new features that users wanted
 

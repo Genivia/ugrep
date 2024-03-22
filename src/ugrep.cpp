@@ -247,9 +247,56 @@ struct stat output_stat;
 // container of inodes to detect directory cycles when symlinks are traversed with --dereference
 std::set<ino_t> visited;
 
-#ifdef HAVE_STATVFS
+// use statvfs() for --include-fs and --exclude-fs
+#if defined(HAVE_STATVFS)
+
 // containers of file system ids to exclude from recursive searches or include in recursive searches
 std::set<uint64_t> exclude_fs_ids, include_fs_ids;
+
+// the type of statvfs buffer to use
+typedef struct statvfs stat_fs_t;
+
+// wrapper to call statvfs()
+inline int stat_fs(const char *path, stat_fs_t *buf)
+{
+  return statvfs(path, buf);
+}
+
+#if defined(_AIX) || defined(__TOS_AIX__)
+// NetBSD compatible struct fsid_t with unsigned integers f_fsid.val[2]
+inline uint64_t fsid_to_uint64(fsid_t& fsid)
+{
+  return static_cast<uint64_t>(fsid.val[0]) | (static_cast<uint64_t>(fsid.val[1]) << 32);
+}
+#else
+// POSIX compliant unsigned integer f_fsid
+template<typename T>
+inline uint64_t fsid_to_uint64(T& fsid)
+{
+  return static_cast<uint64_t>(fsid);
+}
+#endif
+
+// if statvfs() is not available then use statfs() for --include-fs and --exclude-fs
+#elif defined(HAVE_STATFS)
+
+// containers of file system ids to exclude from recursive searches or include in recursive searches
+std::set<uint64_t> exclude_fs_ids, include_fs_ids;
+
+// the type of statfs buffer to use
+typedef struct statfs stat_fs_t;
+
+// wrapper to call statfs()
+inline int stat_fs(const char *path, stat_fs_t *buf)
+{
+  return statfs(path, buf);
+}
+
+inline uint64_t fsid_to_uint64(fsid_t& fsid)
+{
+  return static_cast<uint64_t>(fsid.val[0]) | (static_cast<uint64_t>(fsid.val[1]) << 32);
+}
+
 #endif
 
 #endif
@@ -6835,27 +6882,27 @@ void init(int argc, const char **argv)
   if (flag_min_count > 0 && flag_invert_match && !flag_quiet && !flag_files_with_matches && !flag_files_without_match && !flag_count)
     abort("--min-count is not permitted with --invert-match");
 
-#ifdef HAVE_STATVFS
+#if defined(HAVE_STATVFS) || defined(HAVE_STATFS)
 
   // --exclude-fs: add file system ids to exclude
   for (const auto& mounts : flag_exclude_fs)
   {
-    struct statvfs buf;
+    stat_fs_t buf;
 
     if (mounts.empty())
     {
       if (Static::arg_files.empty())
       {
         // --exclude-fs without MOUNT points and no targets for recursive search: only include the working dir FS
-        if (statvfs(".", &buf) == 0)
-          include_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
+        if (stat_fs(".", &buf) == 0)
+          include_fs_ids.insert(fsid_to_uint64(buf.f_fsid));
       }
       else
       {
         // --exclude-fs without MOUNT points: only include FS associated with the specified file and directory targets
         for (const auto& file : Static::arg_files)
-          if (statvfs(file, &buf) == 0)
-            include_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
+          if (stat_fs(file, &buf) == 0)
+            include_fs_ids.insert(fsid_to_uint64(buf.f_fsid));
       }
     }
     else
@@ -6871,8 +6918,8 @@ void init(int argc, const char **argv)
         {
           std::string mount(mounts.substr(from, size));
 
-          if (statvfs(mount.c_str(), &buf) == 0)
-            exclude_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
+          if (stat_fs(mount.c_str(), &buf) == 0)
+            exclude_fs_ids.insert(fsid_to_uint64(buf.f_fsid));
           else
             warning("--exclude-fs", mount.c_str());
         }
@@ -6888,13 +6935,13 @@ void init(int argc, const char **argv)
   // --include-fs: add file system ids to include
   for (const auto& mounts : flag_include_fs)
   {
-    struct statvfs buf;
+    stat_fs_t buf;
 
     if (mounts.empty())
     {
       // --include-fs without MOUNT points includes the working directory
-      if (statvfs(".", &buf) == 0)
-        include_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
+      if (stat_fs(".", &buf) == 0)
+        include_fs_ids.insert(fsid_to_uint64(buf.f_fsid));
     }
     else
     {
@@ -6909,8 +6956,8 @@ void init(int argc, const char **argv)
         {
           std::string mount(mounts.substr(from, size));
 
-          if (statvfs(mount.c_str(), &buf) == 0)
-            include_fs_ids.insert(static_cast<uint64_t>(buf.f_fsid));
+          if (stat_fs(mount.c_str(), &buf) == 0)
+            include_fs_ids.insert(fsid_to_uint64(buf.f_fsid));
           else
             warning("--include-fs", mount.c_str());
         }
@@ -9241,20 +9288,18 @@ void Grep::recurse(size_t level, const char *pathname)
 
 #else
 
-#ifdef HAVE_STATVFS
+#if defined(HAVE_STATVFS) || defined(HAVE_STATFS)
 
   if (!exclude_fs_ids.empty() || !include_fs_ids.empty())
   {
-    struct statvfs buf;
+    stat_fs_t buf;
 
-    if (statvfs(pathname, &buf) == 0)
+    if (stat_fs(pathname, &buf) == 0)
     {
-      uint64_t id = static_cast<uint64_t>(buf.f_fsid);
-
-      if (exclude_fs_ids.find(id) != exclude_fs_ids.end())
+      if (exclude_fs_ids.find(fsid_to_uint64(buf.f_fsid)) != exclude_fs_ids.end())
         return;
 
-      if (!include_fs_ids.empty() && include_fs_ids.find(id) == include_fs_ids.end())
+      if (!include_fs_ids.empty() && include_fs_ids.find(fsid_to_uint64(buf.f_fsid)) == include_fs_ids.end())
         return;
     }
   }
@@ -13811,7 +13856,7 @@ void help(std::ostream& out)
             search targets, i.e. excludes all other file systems.  Note that\n\
             --exclude-fs=MOUNTS take priority over --include-fs=MOUNTS.  This\n\
             option may be repeated.\n"
-#ifndef HAVE_STATVFS
+#if !defined(HAVE_STATVFS) && !defined(HAVE_STATFS)
             "\
             This option is not available in this build configuration of ugrep.\n"
 #endif
@@ -13981,7 +14026,7 @@ void help(std::ostream& out)
             recursive searches to the file system of the working directory,\n\
             same as --include-fs=. (dot). Note that --exclude-fs=MOUNTS take\n\
             priority over --include-fs=MOUNTS.  This option may be repeated.\n"
-#ifndef HAVE_STATVFS
+#if !defined(HAVE_STATVFS) && !defined(HAVE_STATFS)
             "\
             This option is not available in this build configuration of ugrep.\n"
 #endif

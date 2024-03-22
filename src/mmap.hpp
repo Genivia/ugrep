@@ -110,7 +110,7 @@ class MMap {
       if (mmap_base == MAP_FAILED)
         mmap_base = NULL;
       else
-        madvise(mmap_base, mmap_size, MADV_SEQUENTIAL);
+        madvise(reinterpret_cast<caddr_t>(mmap_base), mmap_size, MADV_SEQUENTIAL); // caddr_t is a pointer type cast from void*
     }
 
     if (mmap_base != NULL)

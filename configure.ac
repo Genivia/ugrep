@@ -18,9 +18,9 @@ AC_STRUCT_DIRENT_D_TYPE
 
 AC_FUNC_MMAP
 
-AC_CHECK_HEADERS([sys/statvfs.h sys/time.h sys/param.h sys/cpuset.h sys/resource.h sched.h])
+AC_CHECK_HEADERS([sys/time.h sys/statvfs.h sys/param.h sys/mount.h sys/cpuset.h sys/resource.h sched.h])
 
-AC_CHECK_FUNCS([statvfs])
+AC_CHECK_FUNCS([statfs statvfs])
 
 AX_PTHREAD
 

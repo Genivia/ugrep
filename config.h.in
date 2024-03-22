@@ -82,6 +82,9 @@
 /* Define to 1 if you have the `setpriority' function. */
 #undef HAVE_SETPRIORITY
 
+/* Define to 1 if you have the `statfs' function. */
+#undef HAVE_STATFS
+
 /* Define to 1 if you have the `statvfs' function. */
 #undef HAVE_STATVFS
 
@@ -130,6 +133,9 @@
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
 #undef HAVE_SYS_DIR_H
+
+/* Define to 1 if you have the <sys/mount.h> header file. */
+#undef HAVE_SYS_MOUNT_H
 
 /* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
    */

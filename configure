@@ -5531,22 +5531,28 @@ fi
 rm -f conftest.mmap conftest.txt
 
 
-ac_fn_cxx_check_header_compile "$LINENO" "sys/statvfs.h" "ac_cv_header_sys_statvfs_h" "$ac_includes_default"
-if test "x$ac_cv_header_sys_statvfs_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_SYS_STATVFS_H 1" >>confdefs.h
-
-fi
 ac_fn_cxx_check_header_compile "$LINENO" "sys/time.h" "ac_cv_header_sys_time_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_time_h" = xyes
 then :
   printf "%s\n" "#define HAVE_SYS_TIME_H 1" >>confdefs.h
 
 fi
+ac_fn_cxx_check_header_compile "$LINENO" "sys/statvfs.h" "ac_cv_header_sys_statvfs_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_statvfs_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SYS_STATVFS_H 1" >>confdefs.h
+
+fi
 ac_fn_cxx_check_header_compile "$LINENO" "sys/param.h" "ac_cv_header_sys_param_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_param_h" = xyes
 then :
   printf "%s\n" "#define HAVE_SYS_PARAM_H 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_header_compile "$LINENO" "sys/mount.h" "ac_cv_header_sys_mount_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_mount_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SYS_MOUNT_H 1" >>confdefs.h
 
 fi
 ac_fn_cxx_check_header_compile "$LINENO" "sys/cpuset.h" "ac_cv_header_sys_cpuset_h" "$ac_includes_default"
@@ -5569,6 +5575,12 @@ then :
 fi
 
 
+ac_fn_cxx_check_func "$LINENO" "statfs" "ac_cv_func_statfs"
+if test "x$ac_cv_func_statfs" = xyes
+then :
+  printf "%s\n" "#define HAVE_STATFS 1" >>confdefs.h
+
+fi
 ac_fn_cxx_check_func "$LINENO" "statvfs" "ac_cv_func_statvfs"
 if test "x$ac_cv_func_statvfs" = xyes
 then :

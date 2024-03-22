@@ -225,6 +225,10 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 # include <sys/param.h>
 #endif
 
+#ifdef HAVE_SYS_MOUNT_H
+# include <sys/mount.h>
+#endif
+
 #ifdef HAVE_SYS_CPUSET_H
 # include <sys/cpuset.h>
 #endif
