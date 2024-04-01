@@ -3773,6 +3773,7 @@ struct Grep {
         {
           int pid;
 
+          // fork to execute the specified --filter utility command on the input to produce filtered output
           if ((pid = fork()) == 0)
           {
             // child process
@@ -3790,6 +3791,17 @@ struct Grep {
             // dup the writing end of the pipe to stdout
             dup2(fd[1], STDOUT_FILENO);
             close(fd[1]);
+
+            // -q or -q: suppress error messages sent to stderr by the filter command by redirecting to /dev/null
+            if (flag_quiet || flag_no_messages)
+            {
+              int dev_null = open("/dev/null", O_WRONLY);
+              if (dev_null >= 0)
+              {
+                dup2(dev_null, STDERR_FILENO);
+                close(dev_null);
+              }
+            }
 
             // populate argv[] with the command and its arguments, thereby destroying flag_filter
             std::vector<const char*> args;
@@ -5932,7 +5944,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'q':
-            flag_quiet = true;
+            flag_quiet = flag_no_messages = true;
             break;
 
           case 'R':
@@ -7247,6 +7259,12 @@ void init(int argc, const char **argv)
   {
     abort("option --filter-magic-label: ", error.what());
   }
+
+#if defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
+  // --filter: Cygwin forked process may hang when searching with multiple threads, force one worker thread
+  if (!flag_filter.empty())
+    flag_jobs = 1;
+#endif
 }
 
 // check TTY info and set colors
@@ -13726,8 +13744,7 @@ void help(std::ostream& out)
             If -o or -u is specified, counts the number of patterns matched.\n\
             If -v is specified, counts the number of non-matching lines.  If\n\
             -m1, (with a comma or --min-count=1) is specified, counts only\n\
-            matching files without outputting zero matches.  If --tree is\n\
-            specified, outputs directories in a tree-like format.\n\
+            matching files without outputting zero matches.\n\
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the colors specified with option\n\
             --colors or the GREP_COLOR or GREP_COLORS environment variable.\n\
@@ -14064,15 +14081,13 @@ void help(std::ostream& out)
             Only the names of files not containing selected lines are written\n\
             to standard output.  Pathnames are listed once per file searched.\n\
             If the standard input is searched, the string ``(standard input)''\n\
-            is written.  If --tree is specified, outputs directories in a\n\
-            tree-like format.\n\
+            is written.\n\
     -l, --files-with-matches\n\
             Only the names of files containing selected lines are written to\n\
             standard output.  ugrep will only search a file until a match has\n\
             been found, making searches potentially less expensive.  Pathnames\n\
             are listed once per file searched.  If the standard input is\n\
-            searched, the string ``(standard input)'' is written.  If --tree is\n\
-            specified, outputs directories in a tree-like format.\n\
+            searched, the string ``(standard input)'' is written.\n\
     --label=LABEL\n\
             Displays the LABEL value when input is read from standard input\n\
             where a file name would normally be printed in the output.\n\
@@ -14262,9 +14277,10 @@ void help(std::ostream& out)
             Disables colors to mark up matches with TAG.  END marks the end of\n\
             a match if specified, otherwise TAG.  The default is `___'.\n\
     --tree, -^\n\
-            Output directories with matching files in a tree-like format when\n\
-            options -c, -l or -L are used.  This option is enabled by --pretty\n\
-            when the output is sent to a terminal.\n\
+            Output directories with matching files in a tree-like format for\n\
+            option -c or --count, -l or --files-with-matches, -L or\n\
+            --files-without-match.  This option is enabled by --pretty when the\n\
+            output is sent to a terminal.\n\
     -U, --ascii, --binary\n\
             Disables Unicode matching for ASCII and binary matching.  PATTERN\n\
             matches bytes, not Unicode characters.  For example, -U '\\xa3'\n\

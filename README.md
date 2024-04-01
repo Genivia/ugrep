@@ -1329,15 +1329,13 @@ using ugrep query selection mode (press Enter to select lines):
             Only the names of files not containing selected lines are written
             to standard output.  Pathnames are listed once per file searched.
             If the standard input is searched, the string ``(standard input)''
-            is written.  If --tree is specified, outputs directories in a
-            tree-like format.
+            is written.
     -l, --files-with-matches
             Only the names of files containing selected lines are written to
             standard output.  ugrep will only search a file until a match has
             been found, making searches potentially less expensive.  Pathnames
             are listed once per file searched.  If the standard input is
-            searched, the string ``(standard input)'' is written.  If --tree is
-            specified, outputs directories in a tree-like format.
+            searched, the string ``(standard input)'' is written.
     -R, --dereference-recursive
             Recursively read all files under each directory.  Follow all
             symbolic links to files and directories, unlike -r.
@@ -3019,8 +3017,7 @@ To exclude `fuse` and `tmpfs` type file systems from recursive searches:
             If -o or -u is specified, counts the number of patterns matched.
             If -v is specified, counts the number of non-matching lines.  If
             -m1, (with a comma or --min-count=1) is specified, counts only
-            matching files without outputting zero matches.  If --tree is
-            specified, outputs directories in a tree-like format.
+            matching files without outputting zero matches.
 
 To count the number of lines in a file:
 
@@ -3143,6 +3140,11 @@ To display the line and column numbers of matches in XML with `--xml`:
             When output is sent to a terminal, enables --color, --heading, -n,
             --sort, --tree and -T when not explicitly disabled.  WHEN can be
             `never', `always', or `auto'.  The default is `auto'.
+    --tree, -^
+            Output directories with matching files in a tree-like format for
+            option -c or --count, -l or --files-with-matches, -L or
+            --files-without-match.  This option is enabled by --pretty when the
+            output is sent to a terminal.
 
 To change the color palette, set the `GREP_COLORS` environment variable or use
 `--colors=COLORS`.  The value is a colon-separated list of ANSI SGR parameters
