@@ -2593,7 +2593,7 @@ struct Grep {
         // output --format-open
         if (matches == 0)
         {
-          // --format-open or --format-close: we must acquire lock early before Stats::found_part()
+          // --format-open or --format-close: we must out.acquire() lock before Stats::found_part()
           if (flag_format_open != NULL || flag_format_close != NULL)
             grep.out.acquire();
 
@@ -7277,13 +7277,12 @@ void terminal()
   }
   else if (!flag_quiet)
   {
-    // is output sent to a color TTY, to a pager, or to /dev/null?
-
     // check if standard output is a TTY
     flag_tty_term = isatty(STDOUT_FILENO) != 0;
 
 #ifndef OS_WIN
 
+    // if not to a TTY, is output sent to a pager or to /dev/null?
     if (!flag_tty_term)
     {
       output_stat_result = fstat(STDOUT_FILENO, &output_stat) == 0;
@@ -7433,14 +7432,21 @@ void terminal()
         // check whether we have a color terminal
         if (flag_tty_term)
         {
-          const char *term;
-          if (getenv("COLORTERM") != NULL ||
-              ((term = getenv("TERM")) != NULL &&
-               (strstr(term, "ansi") != NULL ||
-                strstr(term, "xterm") != NULL ||
-                strstr(term, "screen") != NULL ||
-                strstr(term, "color") != NULL)))
-            flag_color_term = true;
+          const char *val;
+
+          // if NO_COLOR is unset
+          if ((val = getenv("NO_COLOR")) == NULL || *val == '\0')
+          {
+            // check COLORTERM or if TERM supports color
+            if (getenv("COLORTERM") != NULL)
+              flag_color_term = true;
+            else if ((val = getenv("TERM")) != NULL &&
+                (strstr(val, "ansi") != NULL ||
+                 strstr(val, "xterm") != NULL ||
+                 strstr(val, "screen") != NULL ||
+                 strstr(val, "color") != NULL))
+              flag_color_term = true;
+          }
         }
 
 #endif
@@ -8245,6 +8251,9 @@ void ugrep()
     flag_format = NULL;
     flag_format_close = NULL;
     flag_format_end = NULL;
+
+    // disable sort, unnecessary
+    flag_sort_key = Sort::NA;
   }
 
   // -o and --format: enable -u to ungroup matches
@@ -8289,8 +8298,8 @@ void ugrep()
       flag_jobs = DEFAULT_MAX_JOBS;
   }
 
-  // --sort and --max-files: limit number of threads to --max-files to prevent unordered results, this is a special case
-  if (flag_sort_key != Sort::NA && flag_max_files > 0)
+  // --sort and --max-filea and not -l or -L or -c: limit number of threads to --max-files to prevent unordered results, this is a special case
+  if (flag_sort_key != Sort::NA && flag_max_files > 0 && !flag_files_with_matches && !flag_count)
     flag_jobs = std::min(flag_jobs, flag_max_files);
 
   // set the number of threads to the number of files or when recursing to the value of -J, --jobs
@@ -10123,8 +10132,8 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // option -q, -l, or -L
 
-        // --format: whether to out.acquire() early before Stats::found_part()
-        bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
+        // --format with open/close or --max-files: we must out.acquire() lock before Stats::found_part()
+        bool acquire = (flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL)) || (!flag_quiet && flag_max_files > 0);
 
         bool heading = flag_with_filename;
         size_t lineno = 0;
@@ -10176,7 +10185,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         if (matches > 0)
         {
-          // --format-open or format-close: we must acquire lock early before Stats::found_part()
+          // --format with open/close or --max-files: we must out.acquire() lock before Stats::found_part()
           if (acquire)
             out.acquire();
 
@@ -10214,8 +10223,8 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // option -c
 
-        // --format: whether to out.acquire() early before Stats::found_part()
-        bool acquire = flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL);
+        // --format with open/close or --max-files: we must out.acquire() lock before Stats::found_part()
+        bool acquire = (flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL)) || flag_max_files > 0;
         bool heading = flag_with_filename;
 
         if (!flag_match || !flag_invert_match)
@@ -10309,7 +10318,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         }
         else
         {
-          // --format-open or --format-close: we must acquire lock early before Stats::found_part()
+          // --format with open/close or --max-files: we must out.acquire() lock before Stats::found_part()
           if (acquire)
             out.acquire();
 
@@ -10354,7 +10363,7 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // option --format
 
-        // whether to out.acquire() early before Stats::found_part()
+        // --format with open/close: we must out.acquire() lock before Stats::found_part()
         bool acquire = flag_format_open != NULL || flag_format_close != NULL;
         bool heading = flag_with_filename;
 
