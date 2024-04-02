@@ -561,7 +561,7 @@ void Query::redraw()
     Screen::put( 2, 0, "\033[7mEsc\033[m   go back / exit");
     Screen::put( 3, 0, "\033[7mTab\033[m   cd dir / select file");
     Screen::put( 4, 0, "\033[7mS-Tab\033[m cd .. / deselect file");
-    Screen::put( 5, 0, "\033[7mEnter\033[m line selection mode");
+    Screen::put( 5, 0, "\033[7mEnter\033[m output selection mode");
     Screen::put( 6, 0, "");
     Screen::put( 7, 0, "\033[7mUp\033[m     \033[7mDown\033[m    scroll");
     Screen::put( 8, 0, "\033[7mPgUp\033[m   \033[7mPgDn\033[m    scroll page");
@@ -1417,10 +1417,6 @@ void Query::query_ui()
             }
             else
             {
-#ifdef __APPLE__
-              Screen::put(color_qe);
-              Screen::put(0, 0, "MacOS Terminal Preferences/Profiles/Keyboard: enable \"Use Option as Meta key\"");
-#endif
               Screen::alert();
             }
           }
@@ -3125,6 +3121,10 @@ bool Query::help()
           }
           else
           {
+#ifdef __APPLE__
+            Screen::put(color_qe);
+            Screen::put(0, 0, "MacOS Terminal->Preferences->Profiles->Keyboard: enable \"Use Option as Meta key\"");
+#endif
             Screen::alert();
           }
       }

@@ -56,7 +56,7 @@ class Output {
 
  protected:
 
-  static constexpr size_t SIZE = 32768;          // size of each buffer in the buffers container
+  static constexpr size_t SIZE = 32768;          // size of each output buffer in the buffers container
   static constexpr size_t STOP = UNDEFINED_SIZE; // if last == STOP, cancel output
   static constexpr int FLUSH   = 1;              // mode bit: flush each line of output
   static constexpr int HOLD    = 2;              // mode bit: hold output
@@ -631,7 +631,7 @@ class Output {
     {
       if (!eof)
       {
-        // if multi-threaded and lock is not owned already, then lock on master's mutex
+        // if multi-threaded and lock is not already owned, then lock on master's mutex
         acquire();
 
         // flush the buffers container to the designated output file, pipe, or stream
