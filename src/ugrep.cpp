@@ -402,6 +402,7 @@ size_t flag_width                  = 0;
 size_t flag_zmax                   = 1;
 const char *flag_binary_files      = "binary";
 const char *flag_color             = DEFAULT_COLOR;
+const char *flag_color_query       = NULL;
 const char *flag_colors            = NULL;
 const char *flag_config            = NULL;
 const char *flag_devices           = NULL;
@@ -7270,6 +7271,9 @@ void init(int argc, const char **argv)
 // check TTY info and set colors
 void terminal()
 {
+  // check if standard output is a TTY
+  flag_tty_term = isatty(STDOUT_FILENO) != 0;
+
   if (flag_query)
   {
     // -Q: disable --quiet
@@ -7277,9 +7281,6 @@ void terminal()
   }
   else if (!flag_quiet)
   {
-    // check if standard output is a TTY
-    flag_tty_term = isatty(STDOUT_FILENO) != 0;
-
 #ifndef OS_WIN
 
     // if not to a TTY, is output sent to a pager or to /dev/null?
@@ -7332,8 +7333,6 @@ void terminal()
   // whether to apply colors based on --tag, --query and --pretty
   if (flag_tag != NULL)
     flag_color = NULL;
-  else if ((flag_query || flag_pretty == Static::ALWAYS) && flag_color == Static::AUTO)
-    flag_color = Static::ALWAYS;
 
   if (!flag_quiet)
   {
@@ -7403,11 +7402,9 @@ void terminal()
       }
       else
       {
-        flag_color_term = flag_query;
-
 #ifdef OS_WIN
 
-        if (flag_tty_term || flag_query)
+        if (flag_tty_term)
         {
 #ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
           // assume we have a color terminal on Windows if isatty() is true
@@ -7451,8 +7448,20 @@ void terminal()
 
 #endif
 
-        if (!flag_color_term && flag_save_config == NULL && flag_color == Static::AUTO)
-          flag_color = NULL;
+        if (flag_query)
+        {
+          // --query: assume that a color terminal is used, save color to use with TUI output
+          if (flag_color_term || flag_color == Static::ALWAYS)
+            flag_color_query = flag_color;
+          flag_color = Static::ALWAYS;
+        }
+        else if (flag_color == Static::AUTO)
+        {
+          if (flag_pretty == Static::ALWAYS)
+            flag_color = Static::ALWAYS;
+          else if (!flag_color_term && flag_save_config == NULL)
+            flag_color = NULL;
+        }
 
         if (flag_color != NULL)
         {

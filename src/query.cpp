@@ -406,24 +406,24 @@ void Query::draw()
 {
   if (mode_ == Mode::QUERY)
   {
+    start_ = 0;
+
+    Screen::home();
+
+    if (row_ > 0)
+    {
+      char down[16];
+
+      snprintf(down, sizeof(down), "%3d ", row_);
+
+      Screen::normal();
+      Screen::put(down);
+
+      start_ = strlen(down);
+    }
+
     if (select_ == -1)
     {
-      start_ = 0;
-
-      Screen::home();
-
-      if (row_ > 0)
-      {
-        char down[16];
-
-        snprintf(down, sizeof(down), "%3d ", row_);
-
-        Screen::normal();
-        Screen::put(down);
-
-        start_ = strlen(down);
-      }
-
       if (!dirs_.empty())
       {
         int width = Screen::mbstring_width(dirs_.c_str());
@@ -512,7 +512,7 @@ void Query::draw()
     else
     {
       Screen::normal();
-      Screen::put(0, 0, "\033[7mEnter\033[m/\033[7mDel\033[m (de)select line  \033[7mA\033[mll  \033[7mC\033[mlear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quit & output");
+      Screen::put(0, start_, "\033[7mEnter\033[m/\033[7mDel\033[m (de)select line  \033[7mA\033[mll  \033[7mC\033[mlear  \033[7mEsc\033[m go back  \033[7m^Q\033[m quit & output");
     }
   }
 }
@@ -831,8 +831,8 @@ void Query::query()
   flag_query = false;
   terminal();
 
-  if (!flag_quiet)
-    print();
+  // print the selected output
+  print();
 
   // close the search pipe to terminate the search threads, if still open
   if (!eof_)
@@ -1980,11 +1980,11 @@ void Query::down()
   }
   if (row_ + 1 < rows_)
   {
-    ++row_;
     if (!flag_split)
     {
       Screen::normal();
       disp(row_ + maxrows_ - 2);
+      ++row_;
       Screen::pan_up();
       status(true);
       draw();
@@ -1992,6 +1992,7 @@ void Query::down()
     else
     {
       // split screen
+      ++row_;
       redraw();
     }
   }
@@ -3635,8 +3636,8 @@ bool Query::print(const std::string& line)
 
   const char *ptr = text;
 
-  // if output should not be colored or colors are turned off, then output the selected line without its CSI sequences
-  if (flag_color == NULL || Screen::mono)
+  // if colors are turned off, then output the selected line without its CSI sequences
+  if (flag_color_query == NULL || Screen::mono)
   {
     while (ptr < end)
     {

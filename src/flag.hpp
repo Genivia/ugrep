@@ -169,6 +169,7 @@ extern size_t flag_width;
 extern size_t flag_zmax;
 extern const char *flag_binary_files;
 extern const char *flag_color;
+extern const char *flag_color_query; // internal flag
 extern const char *flag_colors;
 extern const char *flag_config;
 extern const char *flag_devices;
