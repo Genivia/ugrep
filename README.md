@@ -4101,8 +4101,7 @@ in markdown:
                   -o or -u is specified, counts the number of patterns matched.  If
                   -v is specified, counts the number of non-matching lines.  If -m1,
                   (with a comma or --min-count=1) is specified, counts only matching
-                  files without outputting zero matches.  If --tree is specified,
-                  outputs directories in a tree-like format.
+                  files without outputting zero matches.
 
            --color[=WHEN], --colour[=WHEN]
                   Mark up the matching text with the colors specified with option
@@ -4470,16 +4469,14 @@ in markdown:
                   Only the names of files not containing selected lines are written
                   to standard output.  Pathnames are listed once per file searched.
                   If the standard input is searched, the string ``(standard input)''
-                  is written.  If --tree is specified, outputs directories in a
-                  tree-like format.
+                  is written.
 
            -l, --files-with-matches
                   Only the names of files containing selected lines are written to
                   standard output.  ugrep will only search a file until a match has
                   been found, making searches potentially less expensive.  Pathnames
                   are listed once per file searched.  If the standard input is
-                  searched, the string ``(standard input)'' is written.  If --tree
-                  is specified, outputs directories in a tree-like format.
+                  searched, the string ``(standard input)'' is written.
 
            --label=LABEL
                   Displays the LABEL value when input is read from standard input
@@ -4710,9 +4707,10 @@ in markdown:
                   a match if specified, otherwise TAG.  The default is `___'.
 
            --tree, -^
-                  Output directories with matching files in a tree-like format when
-                  options -c, -l or -L are used.  This option is enabled by --pretty
-                  when the output is sent to a terminal.
+                  Output directories with matching files in a tree-like format for
+                  option -c or --count, -l or --files-with-matches, -L or
+                  --files-without-match.  This option is enabled by --pretty when
+                  the output is sent to a terminal.
 
            -U, --ascii, --binary
                   Disables Unicode matching for ASCII and binary matching.  PATTERN
@@ -5403,7 +5401,7 @@ in markdown:
 
 
 
-    ugrep 5.5.1                      March 11, 2024                         UGREP(1)
+    ugrep 5.1.2                       April 3, 2024                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

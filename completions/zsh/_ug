@@ -104,7 +104,7 @@ local arguments=(
 {-t,--file-type=-}'[Search only files associated with TYPES, a comma-separated list of file types]:TYPES:(actionscript ada asm asp aspx autoconf automake awk Awk basic batch bison c c++ clojure cpp csharp css csv dart Dart delphi elisp elixir erlang fortran gif Gif go groovy gsp haskell html jade java jpeg Jpeg js json jsp julia kotlin less lex lisp lua m4 make markdown matlab node Node objc objc++ ocaml parrot pascal pdf Pdf perl Perl php Php png Png prolog python Python r rpm Rpm rst rtf Rtf ruby Ruby rust scala scheme shell Shell smalltalk sql svg swift tcl tex text tiff Tiff tt typescript verilog vhdl vim xml Xml yacc yaml zig )'
 --tabs'[Set the tab size to NUM to expand tabs for option -k]'
 --tag'[Disables colors to mark up matches with TAG]'
-{--tree,-^}'[Output directories with matching files in a tree-like format when options -c, -l or -L are used]'
+{--tree,-^}'[Output directories with matching files in a tree-like format for option -c or --count, -l or --files-with-matches, -L or --files-without-match]'
 {-U,--ascii,--binary}'[Disables Unicode matching for ASCII and binary matching]'
 {-u,--ungroup}'[Do not group multiple pattern matches on the same matched line]'
 {-V,--version}'[Display version with linked libraries and exit]'

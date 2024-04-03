@@ -100,7 +100,7 @@ complete -c ug -s T -l initial-tab -d 'Add a tab space to separate the file name
 complete -c ug -s t -l file-type -xa 'actionscript ada asm asp aspx autoconf automake awk Awk basic batch bison c c++ clojure cpp csharp css csv dart Dart delphi elisp elixir erlang fortran gif Gif go groovy gsp haskell html jade java jpeg Jpeg js json jsp julia kotlin less lex lisp lua m4 make markdown matlab node Node objc objc++ ocaml parrot pascal pdf Pdf perl Perl php Php png Png prolog python Python r rpm Rpm rst rtf Rtf ruby Ruby rust scala scheme shell Shell smalltalk sql svg swift tcl tex text tiff Tiff tt typescript verilog vhdl vim xml Xml yacc yaml zig ' -d 'Search only files associated with TYPES, a comma-separated list of file types'
 complete -c ug -l tabs -d 'Set the tab size to NUM to expand tabs for option -k'
 complete -c ug -l tag -d 'Disables colors to mark up matches with TAG'
-complete -c ug -l tree -s '^' -d 'Output directories with matching files in a tree-like format when options -c, -l or -L are used'
+complete -c ug -l tree -s '^' -d 'Output directories with matching files in a tree-like format for option -c or --count, -l or --files-with-matches, -L or --files-without-match'
 complete -c ug -s U -l ascii -l binary -d 'Disables Unicode matching for ASCII and binary matching'
 complete -c ug -s u -l ungroup -d 'Do not group multiple pattern matches on the same matched line'
 complete -c ug -s V -l version -d 'Display version with linked libraries and exit'

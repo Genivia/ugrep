@@ -1,4 +1,4 @@
-.TH UGREP "1" "March 13, 2024" "ugrep 5.1.1" "User Commands"
+.TH UGREP "1" "April 03, 2024" "ugrep 5.1.2" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -224,8 +224,7 @@ Only a count of selected lines is written to standard output.
 If \fB\-o\fR or \fB\-u\fR is specified, counts the number of patterns matched.
 If \fB\-v\fR is specified, counts the number of non\-matching lines.  If
 \fB\-m\fR1, (with a comma or \fB\-\-min\-count\fR=1) is specified, counts only
-matching files without outputting zero matches.  If \fB\-\-tree\fR is
-specified, outputs directories in a tree\-like format.
+matching files without outputting zero matches.
 .TP
 \fB\-\-color\fR[=\fIWHEN\fR], \fB\-\-colour\fR[=\fIWHEN\fR]
 Mark up the matching text with the colors specified with option
@@ -586,16 +585,14 @@ in counting columns, see also option \fB\-\-tabs\fR.
 Only the names of files not containing selected lines are written
 to standard output.  Pathnames are listed once per file searched.
 If the standard input is searched, the string ``(standard input)''
-is written.  If \fB\-\-tree\fR is specified, outputs directories in a
-tree\-like format.
+is written.
 .TP
 \fB\-l\fR, \fB\-\-files\-with\-matches\fR
 Only the names of files containing selected lines are written to
 standard output.  ugrep will only search a file until a match has
 been found, making searches potentially less expensive.  Pathnames
 are listed once per file searched.  If the standard input is
-searched, the string ``(standard input)'' is written.  If \fB\-\-tree\fR is
-specified, outputs directories in a tree\-like format.
+searched, the string ``(standard input)'' is written.
 .TP
 \fB\-\-label\fR=\fILABEL\fR
 Displays the LABEL value when input is read from standard input
@@ -824,9 +821,10 @@ Disables colors to mark up matches with TAG.  END marks the end of
 a match if specified, otherwise TAG.  The default is `___'.
 .TP
 \fB\-\-tree\fR, \-^
-Output directories with matching files in a tree\-like format when
-options \fB\-c\fR, \fB\-l\fR or \fB\-L\fR are used.  This option is enabled by \fB\-\-pretty\fR
-when the output is sent to a terminal.
+Output directories with matching files in a tree\-like format for
+option \fB\-c\fR or \fB\-\-count\fR, \fB\-l\fR or \fB\-\-files\-with\-matches\fR, \fB\-L\fR or
+\fB\-\-files\-without\-match\fR.  This option is enabled by \fB\-\-pretty\fR when the
+output is sent to a terminal.
 .TP
 \fB\-U\fR, \fB\-\-ascii\fR, \fB\-\-binary\fR
 Disables Unicode matching for ASCII and binary matching.  PATTERN
