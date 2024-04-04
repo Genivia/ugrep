@@ -1485,6 +1485,13 @@ AC_SUBST([am__untar])
 ]) # _AM_PROG_TAR
 
 m4_include([m4/ax_boost_regex.m4])
+m4_include([m4/ax_check_brotlilib.m4])
+m4_include([m4/ax_check_bz2lib.m4])
 m4_include([m4/ax_check_bzip3lib.m4])
+m4_include([m4/ax_check_lz4lib.m4])
+m4_include([m4/ax_check_lzmalib.m4])
+m4_include([m4/ax_check_pcre2.m4])
+m4_include([m4/ax_check_zlib.m4])
+m4_include([m4/ax_check_zstdlib.m4])
 m4_include([m4/ax_cxx_compile_stdcxx.m4])
 m4_include([m4/ax_pthread.m4])

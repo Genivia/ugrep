@@ -28,25 +28,25 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Use libbrotlidec compression library */
+/* Define to 1 if you have `brotli' library (-lbrotlidec -lbrotlienc) */
 #undef HAVE_LIBBROTLI
 
-/* Use bzip2 compression library */
+/* Define to 1 if you have `bz2' library (-lbz2) */
 #undef HAVE_LIBBZ2
 
 /* Define to 1 if you have `bzip3' library (-lbzip3) */
 #undef HAVE_LIBBZIP3
 
-/* Use liblz4 compression library */
+/* Define to 1 if you have `lz4' library (-llz4) */
 #undef HAVE_LIBLZ4
 
-/* Use liblzma compression library */
+/* Define to 1 if you have `lzma' library (-llzma) */
 #undef HAVE_LIBLZMA
 
-/* Use libz compression library */
+/* Define to 1 if you have `z' library (-lz) */
 #undef HAVE_LIBZ
 
-/* Use libzstd compression library */
+/* Define to 1 if you have `zstd' library (-lzstd) */
 #undef HAVE_LIBZSTD
 
 /* Define to 1 if you have a working `mmap' system call. */
@@ -58,7 +58,7 @@
 /* Define if O_NOATIME open flag is supported */
 #undef HAVE_O_NOATIME
 
-/* Use PCRE2 (Perl Compatible Regular Expression Library) */
+/* Define to 1 if you have `PCRE2' library (-lpcre2-8) */
 #undef HAVE_PCRE2
 
 /* Define if you have POSIX threads libraries and header files. */
