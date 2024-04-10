@@ -503,9 +503,12 @@ unrolled:
         if (cap_ == 0 && pos_ > cur_ && method == Const::FIND)
         {
           // use bit_[] to check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
-          while (++cur_ < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_])))
+          while (cur_ + 1 < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_ + 1])))
+          {
+            ++cur_;
             if (retry > 0)
               --retry;
+          }
         }
       }
       else if (jump >= Pattern::Const::LONG)

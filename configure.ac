@@ -1,4 +1,4 @@
-AC_INIT([ugrep],[5.1.3],[https://github.com/Genivia/ugrep/issues],[ugrep],[https://ugrep.com])
+AC_INIT([ugrep],[5.1.4],[https://github.com/Genivia/ugrep/issues],[ugrep],[https://ugrep.com])
 AM_INIT_AUTOMAKE([foreign subdir-objects dist-xz no-dist-gzip])
 AC_CONFIG_HEADERS([config.h])
 AC_COPYRIGHT([Copyright (C) 2019-2024 Robert van Engelen, Genivia Inc.])
@@ -500,7 +500,7 @@ fi
 
 AC_SUBST(EXTRA_CFLAGS)
 
-# Allow the manpage be accessed as either ug or ugrep
+# Allow the manpage to be accessed as either ug or ugrep
 AC_CONFIG_LINKS([man/ug.1:man/ugrep.1])
 
 AC_CONFIG_FILES([Makefile lib/Makefile src/Makefile lzma/C/Makefile])
