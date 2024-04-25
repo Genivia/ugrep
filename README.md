@@ -24,9 +24,11 @@ Development roadmap
 
 - #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 
-- add new and updated features, including [indexing (beta release)](https://github.com/Genivia/ugrep-indexer)
+- make ugrep run even faster, see for example [#385](https://github.com/Genivia/ugrep/issues/385)
 
-- share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks) with the community
+- add new and updated features, such as [indexing (beta release)](https://github.com/Genivia/ugrep-indexer)
+
+- share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks)
 
 Overview
 --------
