@@ -8777,7 +8777,7 @@ printf %s "checking whether ${CXX} supports AVX2/AVX512BW intrinsics... " >&6; }
 int
 main (void)
 {
-__m512 n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);
+__m512i n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);
   ;
   return 0;
 }
@@ -8976,7 +8976,7 @@ else $as_nop
 int
 main (void)
 {
-__m512 n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);
+__m512i n = _mm512_set1_epi8(42); (void)_mm512_cmpeq_epi8_mask(n, n);
   ;
   return 0;
 }
