@@ -27,132 +27,53 @@
 \******************************************************************************/
 
 /**
-@file      simd.h
-@brief     RE/flex SIMD intrinsics
+@file      simd_sse2.cpp
+@brief     RE/flex SIMD primitives compiled with -msse2 (and/or -mavx2)
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#ifndef SIMD_H
-#define SIMD_H
-
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-
-#if defined(HAVE_AVX512BW)
-# include <immintrin.h>
-#elif defined(HAVE_AVX2)
-# include <immintrin.h>
-#elif defined(HAVE_SSE2)
-# include <emmintrin.h>
-#elif defined(HAVE_NEON)
-# include <arm_neon.h>
-#endif
-
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-
-#ifdef _MSC_VER
-# include <intrin.h>
-#endif
-
-#ifdef _MSC_VER
-# define cpuidex __cpuidex
-#else
-# include <cpuid.h>
-# define cpuidex(CPUInfo, id, subid) __cpuid_count(id, subid, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3])
-#endif
-
-namespace reflex {
-
-// HW id
-extern uint64_t HW;
-
-// do we have AVX512BW?
-inline bool have_HW_AVX512BW()
-{
-  return HW & (1ULL << 62);
-}
-
-// do we have AVX2?
-inline bool have_HW_AVX2()
-{
-  return HW & (1ULL << 37);
-}
-
-// do we have SSE2?
-inline bool have_HW_SSE2()
-{
-  return HW & (1ULL << 26);
-}
-
-// support hyperthreading?
-inline bool have_HW_HTT()
-{
-  return HW & (1ULL << 28);
-}
-
-#ifdef _MSC_VER
-#pragma intrinsic(_BitScanForward)
-inline uint32_t ctz(uint32_t x)
-{
-  unsigned long r;
-  _BitScanForward(&r, x);
-  return r;
-}
-inline uint32_t popcount(uint32_t x)
-{
-  return __popcnt(x);
-}
-#ifdef _WIN64
-#pragma intrinsic(_BitScanForward64)
-inline uint32_t ctzl(uint64_t x)
-{
-  unsigned long r;
-  _BitScanForward64(&r, x);
-  return r;
-}
-inline uint32_t popcountl(uint64_t x)
-{
-  return static_cast<uint32_t>(__popcnt64(x));
-}
-#endif
-#else
-inline uint32_t ctz(uint32_t x)
-{
-  return __builtin_ctz(x);
-}
-inline uint32_t ctzl(uint64_t x)
-{
-  return __builtin_ctzl(x);
-}
-inline uint32_t popcount(uint32_t x)
-{
-  return __builtin_popcount(x);
-}
-inline uint32_t popcountl(uint64_t x)
-{
-  return __builtin_popcountl(x);
-}
-#endif
-
-// Partially count newlines in string b up to e, updates b close to e with uncounted part
-extern size_t simd_nlcount_sse2(const char*& b, const char *e);
-extern size_t simd_nlcount_avx2(const char*& b, const char *e);
-extern size_t simd_nlcount_avx512bw(const char*& b, const char *e);
-
-} // namespace reflex
-
-#elif defined(HAVE_NEON)
+#include <reflex/simd.h>
 
 namespace reflex {
 
 // Partially count newlines in string b up to e, updates b close to e with uncounted part
-extern size_t simd_nlcount_neon(const char*& b, const char *e);
+size_t simd_nlcount_sse2(const char*& b, const char *e)
+{
+#if defined(HAVE_SSE2)
+  const char *s = b;
+  e -= 64;
+  if (s > e)
+    return 0;
+  size_t n = 0;
+  // align on 16 bytes
+  while ((reinterpret_cast<std::ptrdiff_t>(s) & 0x0f) != 0)
+    n += (*s++ == '\n');
+  __m128i vlcn = _mm_set1_epi8('\n');
+  while (s <= e)
+  {
+    __m128i vlcm1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+    __m128i vlcm2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 16));
+    __m128i vlcm3 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 32));
+    __m128i vlcm4 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 48));
+    __m128i vlceq1 = _mm_cmpeq_epi8(vlcm1, vlcn);
+    __m128i vlceq2 = _mm_cmpeq_epi8(vlcm2, vlcn);
+    __m128i vlceq3 = _mm_cmpeq_epi8(vlcm3, vlcn);
+    __m128i vlceq4 = _mm_cmpeq_epi8(vlcm4, vlcn);
+    n += popcount(_mm_movemask_epi8(vlceq1))
+      +  popcount(_mm_movemask_epi8(vlceq2))
+      +  popcount(_mm_movemask_epi8(vlceq3))
+      +  popcount(_mm_movemask_epi8(vlceq4));
+    s += 64;
+  }
+  b = s;
+  return n;
+#else
+  (void)b;
+  (void)e;
+  return 0;
+#endif
+}
 
 } // namespace reflex
-
-#endif
-
-#endif

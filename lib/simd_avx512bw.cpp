@@ -34,12 +34,17 @@
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#include <reflex/absmatcher.h>
-#include <cstddef>
+#if defined(HAVE_AVX512BW)
+# if !defined(__AVX512BW__)
+#  error simd_avx512bw.cpp must be compiled with -mavx512bw or /arch:avx512.
+# endif
+#endif
+
+#include <reflex/simd.h>
 
 namespace reflex {
 
-// Partially count newlines in string b up to and including position e in b, updates b close to e with uncounted part
+// Partially count newlines in string b up to e, updates b close to e with uncounted part
 size_t simd_nlcount_avx512bw(const char*& b, const char *e)
 {
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))

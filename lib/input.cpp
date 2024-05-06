@@ -49,6 +49,10 @@
 # include <unistd.h> // off_t, fstat()
 #endif
 
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+#include <reflex/simd.h>
+#endif
+
 namespace reflex {
 
 const unsigned short codepages[38][256] =
@@ -1362,8 +1366,6 @@ void Input::file_encoding(unsigned short enc, const unsigned short *page)
 }
 
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-
-#include <reflex/simd.h>
 
 // simd.h get_HW()
 static uint64_t get_HW()

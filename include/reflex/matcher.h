@@ -30,12 +30,17 @@
 @file      matcher.h
 @brief     RE/flex matcher engine
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
 #ifndef REFLEX_MATCHER_H
 #define REFLEX_MATCHER_H
+
+#if !defined(HAVE_NEON)
+/// enable predict match patterns after strings longer than 4 chars (this is a bit slower on ARM NEON/AArch64)
+#define WITH_STRING_PM
+#endif
 
 #include <reflex/absmatcher.h>
 #include <reflex/pattern.h>
@@ -63,7 +68,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
       const Input&   input = Input(), ///< input character sequence for this matcher
       const char    *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      PatternMatcher<reflex::Pattern>(pattern, input, opt)
+      PatternMatcher<reflex::Pattern>(pattern, input)
   {
     reset(opt);
   }
@@ -73,7 +78,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
       const Input&  input = Input(), ///< input character sequence for this matcher
       const char   *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      PatternMatcher<reflex::Pattern>(pattern, input, opt)
+      PatternMatcher<reflex::Pattern>(pattern, input)
   {
     reset(opt);
   }
@@ -83,7 +88,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
       const Input&   input = Input(), ///< input character sequence for this matcher
       const char    *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      PatternMatcher<reflex::Pattern>(pattern, input, opt)
+      PatternMatcher<reflex::Pattern>(pattern, input)
   {
     reset(opt);
   }
@@ -93,7 +98,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
       const Input&       input = Input(), ///< input character sequence for this matcher
       const char        *opt = NULL)      ///< option string of the form `(A|N|T(=[[:digit:]])?|;)*`
     :
-      PatternMatcher<reflex::Pattern>(pattern, input, opt)
+      PatternMatcher<reflex::Pattern>(pattern, input)
   {
     reset(opt);
   }
@@ -105,13 +110,57 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
       tab_(matcher.tab_)
   {
     DBGLOG("Matcher::Matcher(matcher)");
+    init_advance();
   }
-  /// Assign a matcher.
+  /// Assign a matcher, the underlying pattern string is shared (not deep copied).
   Matcher& operator=(const Matcher& matcher) ///< matcher to copy
   {
     PatternMatcher<reflex::Pattern>::operator=(matcher);
     ded_ = matcher.ded_;
     tab_ = matcher.tab_;
+    init_advance();
+    return *this;
+  }
+  /// Set the pattern to use with this matcher (the given pattern is shared and must be persistent).
+  Matcher& pattern(const Pattern& pattern) ///< pattern object for this matcher
+    /// @returns this matcher
+  {
+    DBGLOG("Matcher::pattern()");
+    if (pat_ != &pattern)
+    {
+      PatternMatcher<reflex::Pattern>::pattern(pattern);
+      init_advance();
+    }
+    return *this;
+  }
+  /// Set the pattern to use with this matcher (the given pattern is shared and must be persistent).
+  Matcher& pattern(const Pattern *pattern) ///< pattern object for this matcher
+    /// @returns this matcher
+  {
+    DBGLOG("Matcher::pattern()");
+    if (pat_ != pattern)
+    {
+      PatternMatcher<reflex::Pattern>::pattern(pattern);
+      init_advance();
+    }
+    return *this;
+  }
+  /// Set the pattern from a regex string to use with this matcher.
+  Matcher& pattern(const char *pattern) ///< regex string to instantiate internal pattern object
+    /// @returns this matcher
+  {
+    DBGLOG("Matcher::pattern(\"%s\")", pattern);
+    PatternMatcher<reflex::Pattern>::pattern(pattern);
+    init_advance();
+    return *this;
+  }
+  /// Set the pattern from a regex string to use with this matcher.
+  Matcher& pattern(const std::string& pattern) ///< regex string to instantiate internal pattern object
+    /// @returns this matcher
+  {
+    DBGLOG("Matcher::pattern(\"%s\")", pattern.c_str());
+    PatternMatcher<reflex::Pattern>::pattern(pattern);
+    init_advance();
     return *this;
   }
   /// Polymorphic cloning.
@@ -126,6 +175,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     PatternMatcher<reflex::Pattern>::reset(opt);
     ded_ = 0;
     tab_.resize(0);
+    init_advance();
   }
   /// Returns captured text as a std::pair<const char*,size_t> with string pointer (non-0-terminated) and length.
   virtual std::pair<const char*,size_t> operator[](size_t n) const
@@ -410,14 +460,120 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   size_t simd_match_avx512bw(Method method);
   // match() with optimized AVX2 string search scheme defined in matcher_avx2.cpp
   size_t simd_match_avx2(Method method);
-  /// Returns true if able to advance to next possible match
-  bool advance()
-    /// @returns true if possible match found
-    ;
-  /// optimized AVX512BW version of advance() defined in matcher_avx512bw.cpp
-  bool simd_advance_avx512bw();
-  /// optimized AVX2 version of advance() defined in matcher_avx2.cpp
-  bool simd_advance_avx2();
+  /// Initialize specialized (+ SSE2/NEON) pattern search methods to advance the engine to a possible match
+  void init_advance();
+  /// Initialize specialized AVX2 pattern search methods to advance the engine to a possible match
+  void simd_init_advance_avx2();
+  /// Initialize specialized AVX512BW pattern search methods to advance the engine to a possible match
+  void simd_init_advance_avx512bw();
+  /// Default method is none (unset)
+  bool advance_none(size_t loc);
+  // Single needle (SSE2/NEON) methods
+  bool advance_pattern_pin1_pma(size_t loc);
+  bool advance_pattern_pin1_pmh(size_t loc);
+  // Generated multi-needle SSE2 or NEON methods
+  bool advance_pattern_pin2_one(size_t loc);
+  bool advance_pattern_pin2_pma(size_t loc);
+  bool advance_pattern_pin2_pmh(size_t loc);
+  bool advance_pattern_pin3_one(size_t loc);
+  bool advance_pattern_pin3_pma(size_t loc);
+  bool advance_pattern_pin3_pmh(size_t loc);
+  bool advance_pattern_pin4_one(size_t loc);
+  bool advance_pattern_pin4_pma(size_t loc);
+  bool advance_pattern_pin4_pmh(size_t loc);
+  bool advance_pattern_pin5_one(size_t loc);
+  bool advance_pattern_pin5_pma(size_t loc);
+  bool advance_pattern_pin5_pmh(size_t loc);
+  bool advance_pattern_pin6_one(size_t loc);
+  bool advance_pattern_pin6_pma(size_t loc);
+  bool advance_pattern_pin6_pmh(size_t loc);
+  bool advance_pattern_pin7_one(size_t loc);
+  bool advance_pattern_pin7_pma(size_t loc);
+  bool advance_pattern_pin7_pmh(size_t loc);
+  bool advance_pattern_pin8_one(size_t loc);
+  bool advance_pattern_pin8_pma(size_t loc);
+  bool advance_pattern_pin8_pmh(size_t loc);
+  // Single needle AVX2 methods
+  bool simd_advance_pattern_pin1_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin1_pmh_avx2(size_t loc);
+  // Generated AVX2 multi-needle methods
+  bool simd_advance_pattern_pin2_one_avx2(size_t loc);
+  bool simd_advance_pattern_pin2_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin2_pmh_avx2(size_t loc);
+  bool simd_advance_pattern_pin3_one_avx2(size_t loc);
+  bool simd_advance_pattern_pin3_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin3_pmh_avx2(size_t loc);
+  bool simd_advance_pattern_pin4_one_avx2(size_t loc);
+  bool simd_advance_pattern_pin4_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin4_pmh_avx2(size_t loc);
+  bool simd_advance_pattern_pin5_one_avx2(size_t loc);
+  bool simd_advance_pattern_pin5_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin5_pmh_avx2(size_t loc);
+  bool simd_advance_pattern_pin6_one_avx2(size_t loc);
+  bool simd_advance_pattern_pin6_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin6_pmh_avx2(size_t loc);
+  bool simd_advance_pattern_pin7_one_avx2(size_t loc);
+  bool simd_advance_pattern_pin7_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin7_pmh_avx2(size_t loc);
+  bool simd_advance_pattern_pin8_one_avx2(size_t loc);
+  bool simd_advance_pattern_pin8_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin8_pmh_avx2(size_t loc);
+  bool simd_advance_pattern_pin16_one_avx2(size_t loc);
+  bool simd_advance_pattern_pin16_pma_avx2(size_t loc);
+  bool simd_advance_pattern_pin16_pmh_avx2(size_t loc);
+  // Minimal long patterns
+  bool advance_pattern_min1(size_t loc);
+  bool advance_pattern_min2(size_t loc);
+  bool advance_pattern_min3(size_t loc);
+  bool advance_pattern_min4(size_t loc);
+  // Minimal long patterns
+  bool advance_pattern(size_t loc);
+  // One char methods
+  bool advance_char(size_t loc);
+  bool advance_char_pma(size_t loc);
+  bool advance_char_pmh(size_t loc);
+  // Few chars methods
+  template <uint8_t LEN> bool advance_chars(size_t loc);
+  template <uint8_t LEN> bool advance_chars_pma(size_t loc);
+  template <uint8_t LEN> bool advance_chars_pmh(size_t loc);
+  // Few chars AVX2 methods
+  template <uint8_t LEN> bool simd_advance_chars_avx2(size_t loc);
+  template <uint8_t LEN> bool simd_advance_chars_pma_avx2(size_t loc);
+  template <uint8_t LEN> bool simd_advance_chars_pmh_avx2(size_t loc);
+  // Few chars AVX512BW methods
+  template <uint8_t LEN> bool simd_advance_chars_avx512bw(size_t loc);
+  template <uint8_t LEN> bool simd_advance_chars_pma_avx512bw(size_t loc);
+  template <uint8_t LEN> bool simd_advance_chars_pmh_avx512bw(size_t loc);
+  // String methods
+  bool advance_string(size_t loc);
+#if defined(WITH_STRING_PM)
+  bool advance_string_pma(size_t loc);
+  bool advance_string_pmh(size_t loc);
+#endif
+  // String AVX2 metnods
+  bool simd_advance_string_avx2(size_t loc);
+#if defined(WITH_STRING_PM)
+  bool simd_advance_string_pma_avx2(size_t loc);
+  bool simd_advance_string_pmh_avx2(size_t loc);
+#endif
+  // String AVX512BW metnods
+  bool simd_advance_string_avx512bw(size_t loc);
+#if defined(WITH_STRING_PM)
+  bool simd_advance_string_pma_avx512bw(size_t loc);
+  bool simd_advance_string_pmh_avx512bw(size_t loc);
+#endif
+  // String NEON metnods
+  bool simd_advance_string_neon(const char *&s, const char *e);
+#if defined(WITH_STRING_PM)
+  bool simd_advance_string_pma_neon(const char *&s, const char *e);
+  bool simd_advance_string_pmh_neon(const char *&s, const char *e);
+#endif
+  // Fallback Boyer-Moore methods
+  bool advance_string_bm(size_t loc);
+#if defined(WITH_STRING_PM)
+  bool advance_string_bm_pma(size_t loc);
+  bool advance_string_bm_pmh(size_t loc);
+#endif
 #if !defined(WITH_NO_INDENT)
   /// Update indentation column counter for indent() and dedent().
   inline void newline()
@@ -455,6 +611,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   std::vector<int>  lap_; ///< lookahead position in input that heads a lookahead match (indexed by lookahead number)
   std::stack<Stops> stk_; ///< stack to push/pop stops
   FSM               fsm_; ///< local state for FSM code
+  bool (Matcher::*  adv_)(size_t loc); ///< advance FIND
   bool              mrk_; ///< indent \i or dedent \j in pattern found: should check and update indent stops
   bool              anc_; ///< match is anchored, advance slowly to retry when searching
 };

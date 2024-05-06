@@ -32,7 +32,8 @@ then
 echo
 echo "Bumping ugrep version to $1"
 
-sed "s/UGREP_VERSION \"[^\"]*\"/UGREP_VERSION \"$1\"/" src/ugrep.hpp > src/ugrep.tmp && mv -f src/ugrep.tmp src/ugrep.hpp || exit 1
+sed "s/define UGREP_VERSION \"[^\"]*\"/define UGREP_VERSION \"$1\"/" src/ugrep.hpp > src/ugrep.tmp && mv -f src/ugrep.tmp src/ugrep.hpp || exit 1
+sed "s/define UGREP_VERSION \"[^\"]*\"/define UGREP_VERSION \"$1\"/" src/ugrep-indexer.cpp > src/ugrep-indexer.tmp && mv -f src/ugrep-indexer.tmp src/ugrep-indexer.cpp || exit 1
 
 # this may be needed to reconfigure for glibtoolize for example
 # autoreconf -fvi

@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "5.1.4"
+#define UGREP_VERSION "6.0.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -65,7 +65,7 @@
 # define OS_WIN
 #endif
 
-#ifdef OS_WIN
+#ifdef OS_WIN // compiling for a windows OS
 
 // disable min/max macros to use std::min and std::max
 #define NOMINMAX
@@ -192,9 +192,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
   return 0;
 }
 
-#else
-
-// not compiling for a windows OS
+#else // not compiling for a windows OS
 
 #define _FILE_OFFSET_BITS 64
 

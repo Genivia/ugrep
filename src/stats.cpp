@@ -69,9 +69,9 @@ void Stats::report(FILE *output)
       fprintf(output, "Searched %zu line%s: %zu matching (%.4g%%)" NEWLINESTR, sl, (sl == 1 ? "" : "s"), fm, 100.0 * fm / sl);
   }
 
-  if (flag_index && indexed)
+  if (flag_index && indexed > 0)
   {
-    fprintf(stderr, "Skipped %zu of %zu indexed files with indexes not matching any search patterns\n", skipped, indexed);
+    fprintf(stderr, "Skipped %zu file%s of %zu (%.4g%%) not matching %zu indexes\n", skipped, (skipped == 1 ? "" : "s"), sf - ff, 100.0 * skipped / (sf - ff), indexed);
     if (changed > 0 || added > 0)
     {
       fprintf(output, "Detected outdated or missing index files, run ugrep-indexer to re-index:\n");

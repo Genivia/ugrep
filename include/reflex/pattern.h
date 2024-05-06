@@ -365,8 +365,8 @@ class Pattern {
     f |= pmh[h] & 4;
     h = hash(h, static_cast<uint8_t>(*++s));
     f |= pmh[h] & 8;
-    Pred m = 16;
     const char *e = s + n - 3;
+    Pred m = 16;
     while (f == 0 && ++s < e)
     {
       h = hash(h, static_cast<uint8_t>(*s));
@@ -1172,7 +1172,7 @@ class Pattern {
   Index                 cut_; ///< DFA s-t cut to improve predict match and HFA accuracy together with lbk_ and cbk_
   size_t                len_; ///< length of chr_[], less or equal to 255
   size_t                min_; ///< patterns after the prefix are at least this long but no more than 8
-  size_t                pin_; ///< number of needles
+  size_t                pin_; ///< number of needles, 0 to 16
   std::bitset<256>      cbk_; ///< characters to look back over when lbk_ > 0, never includes \n
   std::bitset<256>      fst_; ///< the beginning characters of the pattern
   char                  chr_[256];         ///< pattern prefix string or character needles for needle-based search
@@ -1183,7 +1183,7 @@ class Pattern {
   uint16_t              lbm_; ///< loopback minimum distance when lbk_ > 0
   uint16_t              lcp_; ///< primary least common character position in the pattern or 0xffff
   uint16_t              lcs_; ///< secondary least common character position in the pattern or 0xffff
-  size_t                bmd_; ///< Boyer-Moore jump distance on mismatch, B-M is enabled when bmd_ > 0
+  size_t                bmd_; ///< Boyer-Moore jump distance on mismatch, B-M is enabled when bmd_ > 0 (<= 255)
   uint8_t               bms_[256]; ///< Boyer-Moore skip array
   float                 pms_; ///< ms elapsed time to parse regex
   float                 vms_; ///< ms elapsed time to compile DFA vertices

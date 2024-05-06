@@ -1,0 +1,213 @@
+.TH UGREP-INDEXER "1" "May 06, 2024" "ugrep-indexer 6.0.0" "User Commands"
+.SH NAME
+\fBugrep-indexer\fR -- file indexer to accelerate recursive searching
+.SH SYNOPSIS
+.B ugrep-indexer [\fB-0\fR...\fB9\fR] [\fB-c\fR|\fB-d\fR|\fB-f\fR] [\fB-I\fR] [\fB-q\fR] [\fB-S\fR] [\fB-s\fR] [\fB-X\fR] [\fB-z\fR] [\fIPATH\fR]
+.SH DESCRIPTION
+The \fBugrep-indexer\fR utility recursively indexes files to accelerate
+recursive searching with the \fBug --index\fR \fIPATTERN\fR commands:
+.IP
+$ \fBugrep-indexer\fR [\fB-I\fR] [\fB-z\fR]
+.IP
+  ...
+.IP
+$ \fBug\fR \fB--index\fR [\fB-I\fR] [\fB-z\fR] [\fB-r\fR|\fB-R\fR] \fIOPTIONS\fR \fIPATTERN\fR
+.IP
+$ \fBugrep\fR \fB--index\fR [\fB-I\fR] [\fB-z\fR] [\fB-r\fR|\fB-R\fR] \fIOPTIONS\fR \fIPATTERN\fR
+.PP
+where option \fB-I\fR or \fB--ignore-binary\fR ignores binary files, which is
+recommended to limit indexing storage overhead and to reduce search time.
+Option \fB-z\fR or \fB--decompress\fR indexes and searches archives and
+compressed files.
+.PP
+Indexing speeds up searching file systems that are large and cold (not recently
+cached in RAM) and file systems that are generally slow to search.  Note that
+indexing may not speed up searching few files or recursively searching fast
+file systems.
+.PP
+Searching with \fBug --index\fR is safe and never skips modified files that may
+match after indexing; the \fBug --index\fR \fIPATTERN\fR command always
+searches files and directories that were added or modified after indexing.
+When option \fB--stats\fR is used with \fBug --index\fR, a search report is
+produced showing the number of files skipped not matching any indexes and the
+number of files and directories that were added or modified after indexing.
+Note that searching with \fBug --index\fR may significantly increase the
+start-up time when complex regex patterns are specified that contain large
+Unicode character classes combined with `*' or `+' repeats, which should be
+avoided.
+.PP
+\fBugrep-indexer\fR stores a hidden index file in each directory indexed.  The
+size of an index file depends on the number of files indexed and the specified
+indexing accuracy.  Higher accuracy produces larger index files to improve
+search performance by reducing false positives (a false positive is a match
+prediction for a file when the file does not match the regex pattern.)
+.PP
+\fBugrep-indexer\fR accepts an optional \fIPATH\fR to the root of the directory
+tree to index.  The default is to index the working directory tree.
+.PP
+\fBugrep-indexer\fR incrementally updates indexes.  To force reindexing,
+specify option \fB-f\fR or \fB--force\fR.  Indexes are deleted with option
+\fB-d\fR or \fB--delete\fR.
+.PP
+\fBugrep-indexer\fR may be stopped and restarted to continue indexing at any
+time.  Incomplete index files do not cause errors.
+.PP
+ASCII, UTF-8, UTF-16 and UTF-32 files are indexed and searched as text files
+unless their UTF encoding is invalid.  Files with other encodings are indexed
+as binary files and can be searched with non-Unicode regex patterns using
+\fBug --index \fB-U\fR.
+.PP
+When \fBugrep-indexer\fR option \fB-I\fR or \fB--ignore-binary\fR is specified,
+binary files are ignored and not indexed.  Avoid searching these non-indexed
+binary files with \fBug --index -I\fR using option \fB-I\fR.
+.PP
+\fBugrep-indexer\fR option \fB-X\fR or \fB--ignore-files\fR respects gitignore
+rules.  Likewise, avoid searching non-indexed ignored files with \fBug --index
+--ignore-files\fR using option \fB--ignore-files\fR.
+.PP
+Archives and compressed files are indexed with \fBugrep-indexer\fR option
+\fB-z\fR or \fB--decompress\fR.  Otherwise, archives and compressed files are
+indexed as binary files or are ignored with option \fB-I\fR or
+\fB--ignore-binary\fR.  Note that once an archive or compressed file is indexed
+as a binary file, it will not be reindexed with option \fB-z\fR to index the
+contents of the archive or compressed file.  Only files that are modified after
+indexing are reindexed, which is determined by comparing time stamps.
+.PP
+Symlinked files are indexed with \fBugrep-indexer\fR option \fB-S\fR or
+\fB--dereference-files\fR.  Symlinks to directories are never followed.  
+.PP
+To save a log file of the indexing process, specify option \fB-v\fR or
+\fB--verbose\fR and redirect standard output to a log file.  All messages and
+warnings are sent to standard output and captured by the log file.
+.PP
+A .ugrep-indexer configuration file with configuration options is loaded when
+present in the working directory or in the home directory.  A configuration
+option consists of the name of a long option and its argument when applicable.
+.PP
+The following options are available:
+.TP
+\fB\-0\fR, \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, ..., \fB\-9\fR, \fB\-\-accuracy\fR=\fIDIGIT\fR
+Specifies indexing accuracy.  A low accuracy reduces the indexing
+storage overhead at the cost of a higher rate of false positive
+pattern matches (more noise).  A high accuracy reduces the rate of
+false positive regex pattern matches (less noise) at the cost of an
+increased indexing storage overhead.  An accuracy between 2 and 7
+is recommended.  The default accuracy is 4.
+.TP
+\fB\-.\fR, \fB\-\-hidden\fR
+Index hidden files and directories.
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Display a help message and exit.
+.TP
+\fB\-c\fR, \fB\-\-check\fR
+Recursively check and report indexes without reindexing files.
+.TP
+\fB\-d\fR, \fB\-\-delete\fR
+Recursively remove index files.
+.TP
+\fB\-f\fR, \fB\-\-force\fR
+Force reindexing of files, even those that are already indexed.
+.TP
+\fB\-I\fR, \fB\-\-ignore\-binary\fR
+Do not index binary files.
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
+Quiet mode: do not display indexing statistics.
+.TP
+\fB\-S\fR, \fB\-\-dereference\-files\fR
+Follow symbolic links to files.  Symbolic links to directories are
+never followed.
+.TP
+\fB\-s\fR, \fB\-\-no\-messages\fR
+Silent mode: nonexistent and unreadable files are ignored, i.e.
+their error messages and warnings are suppressed.
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Display version and exit.
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Produce verbose output.  Files are marked A for archive, C for
+compressed, and B for binary or I for ignored binary.  Deletions
+are marked D.
+.TP
+\fB\-X\fR, \fB\-\-ignore\-files\fR, \fB\-\-ignore\-files\fR=\fIFILE\fR
+Do not index files and directories matching the globs in FILE
+encountered during indexing.  The default FILE is `.gitignore'.
+This option may be repeated to specify additional files.
+.TP
+\fB\-z\fR, \fB\-\-decompress\fR
+Index the contents of compressed files and archives.  When used
+with option \fB\-\-zmax\fR=\fINUM\fR, indexes the contents of compressed files
+and archives stored within archives up to NUM levels deep.
+Supported compression formats: gzip (.gz), compress (.Z), zip, 7z,
+bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
+lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
+lz4 (requires suffix .lz4),
+zstd (requires suffix .zst, .zstd, .tzst),
+brotli (requires suffix .br).
+.TP
+\fB\-\-zmax\fR=\fINUM\fR
+When used with option \fB\-z\fR (\fB\-\-decompress\fR), indexes the contents of
+compressed files and archives stored within archives by up to NUM
+expansion levels deep.  The default \fB\-\-zmax\fR=1 only permits indexing
+uncompressed files stored in cpio, pax, tar, zip and 7z archives;
+compressed files and archives are detected as binary files and are
+effectively ignored.  Specify \fB\-\-zmax\fR=2 to index compressed files
+and archives stored in cpio, pax, tar, zip and 7z archives.  NUM
+may range from 1 to 99 for up to 99 decompression and de\-archiving
+steps.  Increasing NUM values gradually degrades performance.
+.SH "EXIT STATUS"
+The \fBugrep-indexer\fR utility exits with one of the following values:
+.IP 0
+Indexes are up to date.
+.IP 1
+Indexing check \fB-c\fR detected missing and outdated index files.
+.SH EXAMPLES
+Recursively and incrementally index all non-binary files showing progress:
+.IP
+$ ugrep-indexer -I -v
+.PP
+Recursively and incrementally index all non-binary files, including non-binary
+files stored in archives and in compressed files, showing progress:
+.IP
+$ ugrep-indexer -z -I -v
+.PP
+Incrementally index all non-binary files, including archives and compressed
+files, show progress, follow symbolic links to files (but not to directories),
+but do not index files and directories matching the globs in .gitignore:
+.IP
+$ ugrep-indexer -z -I -v -S -X
+.PP
+Force re-indexing of all non-binary files, including archives and compressed
+files, follow symbolic links to files (but not to directories), but do not
+index files and directories matching the globs in .gitignore:
+.IP
+$ ugrep-indexer -f -z -I -v -S -X
+.PP
+Same, but decrease index file storage to a minimum by decreasing indexing
+accuracy from 4 (the default) to 0:
+.IP
+$ ugrep-indexer -f -0 -z -I -v -S -X
+.PP
+Increase search performance by increasing the indexing accuracy from 4
+(the default) to 7 at a cost of larger index files:
+.IP
+$ ugrep-indexer -f7zIvSX
+.PP
+Recursively delete all hidden ._UG#_Store index files to restore the directory
+tree to non-indexed:
+.IP
+$ ugrep-indexer -d
+.SH COPYRIGHT
+Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>
+.PP
+\fBugrep-indexer\fR is released under the BSD\-3 license.  All parts of the
+software have reasonable copyright terms permitting free redistribution.  This
+includes the ability to reuse all or parts of the ugrep source tree.
+.SH "SEE ALSO"
+ug(1), ugrep(1).
+.SH BUGS
+Report bugs at:
+.IP
+https://github.com/Genivia/ugrep-indexer/issues

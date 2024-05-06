@@ -27,132 +27,59 @@
 \******************************************************************************/
 
 /**
-@file      simd.h
-@brief     RE/flex SIMD intrinsics
+@file      simd_neon.cpp
+@brief     RE/flex SIMD primitives
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2016-2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
-#ifndef SIMD_H
-#define SIMD_H
-
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-
-#if defined(HAVE_AVX512BW)
-# include <immintrin.h>
-#elif defined(HAVE_AVX2)
-# include <immintrin.h>
-#elif defined(HAVE_SSE2)
-# include <emmintrin.h>
-#elif defined(HAVE_NEON)
-# include <arm_neon.h>
-#endif
-
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-
-#ifdef _MSC_VER
-# include <intrin.h>
-#endif
-
-#ifdef _MSC_VER
-# define cpuidex __cpuidex
-#else
-# include <cpuid.h>
-# define cpuidex(CPUInfo, id, subid) __cpuid_count(id, subid, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3])
-#endif
-
-namespace reflex {
-
-// HW id
-extern uint64_t HW;
-
-// do we have AVX512BW?
-inline bool have_HW_AVX512BW()
-{
-  return HW & (1ULL << 62);
-}
-
-// do we have AVX2?
-inline bool have_HW_AVX2()
-{
-  return HW & (1ULL << 37);
-}
-
-// do we have SSE2?
-inline bool have_HW_SSE2()
-{
-  return HW & (1ULL << 26);
-}
-
-// support hyperthreading?
-inline bool have_HW_HTT()
-{
-  return HW & (1ULL << 28);
-}
-
-#ifdef _MSC_VER
-#pragma intrinsic(_BitScanForward)
-inline uint32_t ctz(uint32_t x)
-{
-  unsigned long r;
-  _BitScanForward(&r, x);
-  return r;
-}
-inline uint32_t popcount(uint32_t x)
-{
-  return __popcnt(x);
-}
-#ifdef _WIN64
-#pragma intrinsic(_BitScanForward64)
-inline uint32_t ctzl(uint64_t x)
-{
-  unsigned long r;
-  _BitScanForward64(&r, x);
-  return r;
-}
-inline uint32_t popcountl(uint64_t x)
-{
-  return static_cast<uint32_t>(__popcnt64(x));
-}
-#endif
-#else
-inline uint32_t ctz(uint32_t x)
-{
-  return __builtin_ctz(x);
-}
-inline uint32_t ctzl(uint64_t x)
-{
-  return __builtin_ctzl(x);
-}
-inline uint32_t popcount(uint32_t x)
-{
-  return __builtin_popcount(x);
-}
-inline uint32_t popcountl(uint64_t x)
-{
-  return __builtin_popcountl(x);
-}
-#endif
-
-// Partially count newlines in string b up to e, updates b close to e with uncounted part
-extern size_t simd_nlcount_sse2(const char*& b, const char *e);
-extern size_t simd_nlcount_avx2(const char*& b, const char *e);
-extern size_t simd_nlcount_avx512bw(const char*& b, const char *e);
-
-} // namespace reflex
-
-#elif defined(HAVE_NEON)
+#include <reflex/simd.h>
 
 namespace reflex {
 
 // Partially count newlines in string b up to e, updates b close to e with uncounted part
-extern size_t simd_nlcount_neon(const char*& b, const char *e);
+size_t simd_nlcount_neon(const char*& b, const char *e)
+{
+#if defined(HAVE_NEON)
+  const char *s = b;
+  e -= 64;
+  if (s > e)
+    return 0;
+  size_t n = 0;
+  uint8x16_t vlcn = vdupq_n_u8('\n');
+  while (s <= e)
+  {
+    uint8x16_t vlcm0 = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+    uint8x16_t vleq0 = vceqq_u8(vlcm0, vlcn);
+    s += 16;
+    uint8x16_t vlcm1 = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+    uint8x16_t vleq1 = vceqq_u8(vlcm1, vlcn);
+    s += 16;
+    uint8x16_t vlcm2 = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+    uint8x16_t vleq2 = vceqq_u8(vlcm2, vlcn);
+    s += 16;
+    uint8x16_t vlcm3 = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+    uint8x16_t vleq3 = vceqq_u8(vlcm3, vlcn);
+    s += 16;
+#if defined(__aarch64__)
+    n += vaddvq_s8(vqabsq_s8(vreinterpretq_s8_u8(vaddq_u8(vleq0, vaddq_u8(vleq1, vaddq_u8(vleq2, vleq3))))));
+#else
+    // my homebrew horizontal sum (we have a very limited range 0..4 to sum to a total max 4x16=64 < 256)
+    uint64x2_t vsum = vreinterpretq_u64_s8(vqabsq_s8(vreinterpretq_s8_u8(vaddq_u8(vleq0, vaddq_u8(vleq1, vaddq_u8(vleq2, vleq3))))));
+    uint64_t sum0 = vgetq_lane_u64(vsum, 0) + vgetq_lane_u64(vsum, 1);
+    uint32_t sum1 = static_cast<uint32_t>(sum0) + (sum0 >> 32);
+    uint16_t sum2 = static_cast<uint16_t>(sum1) + (sum1 >> 16);
+    n += static_cast<uint8_t>(sum2) + (sum2 >> 8);
+#endif
+  }
+  b = s;
+  return n;
+#else
+  (void)b;
+  (void)e;
+  return 0;
+#endif
+}
 
 } // namespace reflex
-
-#endif
-
-#endif

@@ -726,11 +726,19 @@ unrolled:
           if (jump == 0)
           {
             // loop back to start state w/o full match: advance to avoid backtracking
-            if (cap_ == 0 && pos_ > cur_ && method == Const::FIND)
+            if (cap_ == 0 && method == Const::FIND)
             {
-              // use bit_[] to check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
-              while (++cur_ < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_])))
-                continue;
+              if (cur_ + 1 == pos_)
+              {
+                // matched one char in a loop, do not backtrack here
+                ++cur_;
+              }
+              else
+              {
+                // check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
+                while (cur_ + 1 < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_ + 1])))
+                  ++cur_;
+              }
             }
           }
           else if (jump >= Pattern::Const::LONG)
@@ -1091,8 +1099,8 @@ unrolled:
               }
             }
           }
-          txt_ = buf_ + cur_;
         }
+        txt_ = buf_ + cur_;
       }
       else
       {

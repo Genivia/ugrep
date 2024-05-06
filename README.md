@@ -24,9 +24,7 @@ Development roadmap
 
 - #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 
-- make ugrep run even faster, see for example [#385](https://github.com/Genivia/ugrep/issues/385)
-
-- add new and updated features, such as [indexing (beta release)](https://github.com/Genivia/ugrep-indexer)
+- make ugrep run even faster, see [#385](https://github.com/Genivia/ugrep/issues/385)
 
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks)
 
@@ -5395,15 +5393,15 @@ in markdown:
            have reasonable copyright terms permitting free redistribution.  This
            includes the ability to reuse all or parts of the ugrep source tree.
 
+    SEE ALSO
+           ugrep-indexer(1), grep(1), zgrep(1).
+
     BUGS
            Report bugs at: <https://github.com/Genivia/ugrep/issues>
 
-    SEE ALSO
-           grep(1).
 
 
-
-    ugrep 5.1.4                       April 9, 2024                         UGREP(1)
+    ugrep 6.0.0                        May 6, 2024                          UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

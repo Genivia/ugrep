@@ -27,68 +27,21 @@
 \******************************************************************************/
 
 /**
-@file      matcher.cpp, matcher_avx2.cpp, matcher_avx512bw.cpp
+@file      matcher.cpp regex engine
 @brief     RE/flex matcher engine
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2022, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
-
-#if defined(COMPILE_AVX512BW) && !defined(HAVE_AVX512BW)
-
-// appease ranlib "has no symbols"
-void matcher_not_compiled_with_avx512bw() { }
-
-#elif defined(COMPILE_AVX2) && !defined(HAVE_AVX2) && !defined(HAVE_AVX512BW)
-
-// appease ranlib "has no symbols"
-void matcher_not_compiled_with_avx2() { }
-
-#else
 
 #include <reflex/matcher.h>
 
 namespace reflex {
 
-/*
-   The simd_match_avx512bw() and simd_match_avx2() methods are AVX-optimized
-   versions of the match() method.  To compile these methods separately with
-   the appropriate compilation flags, this file is copied to
-   matcher_avx512bw.cpp and matcher_avx2.cpp then compiled with -mavx512bw
-   -DCOMPILE_AVX512BW -DHAVE_AVX512BW and with -mavx2 -DCOMPILE_AVX2
-   -DHAVE_AVX2, respectively.  Likewise, the simd_advance_avx512bw() and
-   simd_advance_avx2() methods are optimized versions and separately compiled.
-   This approach is preferred over maintaining three separate copies of source
-   code files with these methods that only slightly differ.  On the other hand,
-   combining these versions into one source file means more #if branches.
-
-   If -DHAVE_AVX512BW is not defined, -DCOMPILE_AVX512BW has no effect.
-   Likewise, if -DHAVE_AVX2 is not defined, -DCOMPILE_AVX2 has no effect.
-*/
-
-#if defined(COMPILE_AVX512BW)
-/// Compile an optimized AVX512BW version defined in matcher_avx2.cpp
-size_t Matcher::simd_match_avx512bw(Method method)
-{
-#elif defined(COMPILE_AVX2)
-/// Compile an optimized AVX2 version defined in matcher_avx512bw.cpp
-size_t Matcher::simd_match_avx2(Method method)
-{
-#else
 /// Returns true if input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
 size_t Matcher::match(Method method)
 {
   DBGLOG("BEGIN Matcher::match()");
-#if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
-  if (have_HW_AVX512BW())
-    return simd_match_avx512bw(method);
-  if (have_HW_AVX2())
-    return simd_match_avx2(method);
-#elif defined(HAVE_AVX2)
-  if (have_HW_AVX2())
-    return simd_match_avx2(method);
-#endif
-#endif
   reset_text();
   len_ = 0;         // split text length starts with 0
   anc_ = false;     // no word boundary anchor found and applied
@@ -499,15 +452,25 @@ unrolled:
       jump = Pattern::index_of(opcode);
       if (jump == 0)
       {
-        // loop back to start state w/o full match: advance to avoid backtracking, not used for lookback
-        if (cap_ == 0 && pos_ > cur_ && method == Const::FIND)
+        // loop back to start state w/o full match: advance to avoid backtracking
+        if (cap_ == 0 && method == Const::FIND)
         {
-          // use bit_[] to check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
-          while (cur_ + 1 < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_ + 1])))
+          if (cur_ + 1 == pos_)
           {
+            // matched one char in a loop, do not backtrack here
             ++cur_;
             if (retry > 0)
               --retry;
+          }
+          else
+          {
+            // check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
+            while (cur_ + 1 < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_ + 1])))
+            {
+              ++cur_;
+              if (retry > 0)
+                --retry;
+            }
           }
         }
       }
@@ -618,23 +581,15 @@ unrolled:
           DBGLOG("Find: try next pos %zu", cur_);
           goto scan;
         }
-        //
+        // anchor or boundary?
         if (anc_)
         {
           cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
           anc_ = false;
         }
-        if (pos_ > cur_) // if we didn't fail on META alone
+        if (cur_ < pos_) // if we didn't fail on META alone
         {
-          if (
-#if defined(COMPILE_AVX512BW)
-              simd_advance_avx512bw()
-#elif defined(COMPILE_AVX2)
-              simd_advance_avx2()
-#else
-              advance()
-#endif
-              )
+          if ((this->*adv_)(cur_ + 1))
           {
             if (pat_->lbk_ > 0)
             {
@@ -664,8 +619,8 @@ unrolled:
             return cap_ = 1;
           }
         }
-        txt_ = buf_ + cur_;
       }
+      txt_ = buf_ + cur_;
     }
     else
     {
@@ -693,18 +648,8 @@ unrolled:
         // if we found an empty match, we keep looking for non-empty matches when "N" is off
         if (cap_ != 0)
         {
-          if (
-#if defined(COMPILE_AVX512BW)
-              simd_advance_avx512bw()
-#elif defined(COMPILE_AVX2)
-              simd_advance_avx2()
-#else
-              advance()
-#endif
-             )
-          {
+          if ((this->*adv_)(cur_ + 1))
             goto scan;
-          }
           set_current(++cur_);
           // at end of input, no matches remain
           cap_ = 0;
@@ -720,8 +665,8 @@ unrolled:
       {
         // advance one char to keep searching at the next character position when we return
         set_current(++cur_);
+        DBGLOG("Accept empty match");
       }
-      DBGLOG("Accept empty match");
     }
     else
     {
@@ -753,2457 +698,2746 @@ unrolled:
   return cap_;
 }
 
-#if defined(COMPILE_AVX512BW)
-/// Compile an optimized AVX512BW version defined in matcher_avx512bw.cpp
-bool Matcher::simd_advance_avx512bw()
+/// Initialize specialized pattern search methods to advance the engine to a possible match
+void Matcher::init_advance()
 {
-#elif defined(COMPILE_AVX2)
-/// Compile an optimized AVX2 version defined in matcher_avx2.cpp
-bool Matcher::simd_advance_avx2()
-{
-#else
-/// advance input cursor position after mismatch to align input for the next match
-bool Matcher::advance()
-{
-#endif
-  size_t loc = cur_ + 1;
-  size_t min = pat_->min_;
-  const Pattern::Pred *pma = pat_->pma_;
-  const Pattern::Pred *pmh = pat_->pmh_;
+  adv_ = &Matcher::advance_none;
+  if (pat_ == NULL)
+    return;
   if (pat_->len_ == 0)
   {
-    if (min == 0)
+    if (pat_->min_ == 0 && opt_.N)
+      return;
+    switch (pat_->pin_)
     {
-      // if "N" is on (non-empty pattern matches only), then there is nothing to match
-      if (opt_.N)
-        return false;
-      // if "N" is off, then match an empty-matching pattern as if non-empty
-      min = 1;
+      case 1:
+        if (pat_->min_ < 4)
+          adv_ = &Matcher::advance_pattern_pin1_pma;
+        else
+          adv_ = &Matcher::advance_pattern_pin1_pmh;
+        break;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2) || defined(HAVE_NEON)
+      case 2:
+        if (pat_->min_ == 1)
+          adv_ = &Matcher::advance_pattern_pin2_one;
+        else if (pat_->min_ < 4)
+          adv_ = &Matcher::advance_pattern_pin2_pma;
+        else
+          adv_ = &Matcher::advance_pattern_pin2_pmh;
+        break;
+      case 3:
+        if (pat_->min_ == 1)
+          adv_ = &Matcher::advance_pattern_pin3_one;
+        else if (pat_->min_ < 4)
+          adv_ = &Matcher::advance_pattern_pin3_pma;
+        else
+          adv_ = &Matcher::advance_pattern_pin3_pmh;
+        break;
+      case 4:
+        if (pat_->min_ == 1)
+          adv_ = &Matcher::advance_pattern_pin4_one;
+        else if (pat_->min_ < 4)
+          adv_ = &Matcher::advance_pattern_pin4_pma;
+        else
+          adv_ = &Matcher::advance_pattern_pin4_pmh;
+        break;
+      case 5:
+        if (pat_->min_ == 1)
+          adv_ = &Matcher::advance_pattern_pin5_one;
+        else if (pat_->min_ < 4)
+          adv_ = &Matcher::advance_pattern_pin5_pma;
+        else
+          adv_ = &Matcher::advance_pattern_pin5_pmh;
+        break;
+      case 6:
+        if (pat_->min_ == 1)
+          adv_ = &Matcher::advance_pattern_pin6_one;
+        else if (pat_->min_ < 4)
+          adv_ = &Matcher::advance_pattern_pin6_pma;
+        else
+          adv_ = &Matcher::advance_pattern_pin6_pmh;
+        break;
+      case 7:
+        if (pat_->min_ == 1)
+          adv_ = &Matcher::advance_pattern_pin7_one;
+        else if (pat_->min_ < 4)
+          adv_ = &Matcher::advance_pattern_pin7_pma;
+        else
+          adv_ = &Matcher::advance_pattern_pin7_pmh;
+        break;
+      case 8:
+        if (pat_->min_ == 1)
+          adv_ = &Matcher::advance_pattern_pin8_one;
+        else if (pat_->min_ < 4)
+          adv_ = &Matcher::advance_pattern_pin8_pma;
+        else
+          adv_ = &Matcher::advance_pattern_pin8_pmh;
+        break;
+#endif
+      default:
+        if (pat_->min_ >= 4 || pat_->npy_ < 16 || (pat_->min_ >= 2 && pat_->npy_ >= 56))
+        {
+          switch (pat_->min_)
+          {
+            case 0:
+            case 1:
+              adv_ = &Matcher::advance_pattern_min1;
+              break;
+            case 2:
+              adv_ = &Matcher::advance_pattern_min2;
+              break;
+            case 3:
+              adv_ = &Matcher::advance_pattern_min3;
+              break;
+            default:
+              adv_ = &Matcher::advance_pattern_min4;
+              break;
+          }
+        }
+        else
+        {
+          adv_ = &Matcher::advance_pattern;
+        }
     }
-    if (loc + min > end_)
+  }
+  else if (pat_->len_ == 1)
+  {
+    if (pat_->min_ == 0)
+      adv_ = &Matcher::advance_char;
+    else if (pat_->min_ < 4)
+      adv_ = &Matcher::advance_char_pma;
+    else
+      adv_ = &Matcher::advance_char_pmh;
+  }
+  else if (pat_->len_ == 2)
+  {
+    if (pat_->min_ == 0)
+      adv_ = &Matcher::advance_chars<2>;
+    else if (pat_->min_ < 4)
+      adv_ = &Matcher::advance_chars_pma<2>;
+    else
+      adv_ = &Matcher::advance_chars_pmh<2>;
+  }
+  else if (pat_->len_ == 3)
+  {
+    if (pat_->min_ == 0)
+      adv_ = &Matcher::advance_chars<3>;
+    else if (pat_->min_ < 4)
+      adv_ = &Matcher::advance_chars_pma<3>;
+    else
+      adv_ = &Matcher::advance_chars_pmh<3>;
+  }
+  else if (pat_->bmd_ == 0)
+  {
+#if defined(WITH_STRING_PM)
+    if (pat_->min_ >= 4)
+      adv_ = &Matcher::advance_string_pmh;
+    else if (pat_->min_ > 0)
+      adv_ = &Matcher::advance_string_pma;
+    else
+#endif
+      adv_ = &Matcher::advance_string;
+  }
+  else
+  {
+#if defined(WITH_STRING_PM)
+    if (pat_->min_ >= 4)
+      adv_ = &Matcher::advance_string_bm_pmh;
+    else if (pat_->min_ > 0)
+      adv_ = &Matcher::advance_string_bm_pma;
+    else
+#endif
+      adv_ = &Matcher::advance_string_bm;
+  }
+#if defined(HAVE_AVX2)
+  // AVX2 runtime optimized function callback overrides
+  if (have_HW_AVX2())
+    return simd_init_advance_avx2();
+#endif
+#if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
+  // AVX512BW runtime optimized function callback overrides
+  if (have_HW_AVX512BW())
+    return simd_init_advance_avx512bw();
+#endif
+}
+
+/// Default method is none (unset)
+bool Matcher::advance_none(size_t)
+{
+  return false;
+}
+
+/// My "needle search" method when pin=1
+bool Matcher::advance_pattern_pin1_pma(size_t loc)
+{
+  const Pattern::Pred *pma = pat_->pma_;
+  const char *chr = pat_->chr_;
+  size_t min = pat_->min_;
+  uint16_t lcp = pat_->lcp_;
+  uint16_t lcs = pat_->lcs_;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  __m128i vlcp = _mm_set1_epi8(chr[0]);
+  __m128i vlcs = _mm_set1_epi8(chr[1]);
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - min + 1;
+    while (s <= e - 16)
     {
+      __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+      __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
+      __m128i veqlcp = _mm_cmpeq_epi8(vlcp, vstrlcp);
+      __m128i veqlcs = _mm_cmpeq_epi8(vlcs, vstrlcs);
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
+      while (mask != 0)
+      {
+        uint32_t offset = ctz(mask);
+        loc = s - lcp + offset - buf_;
+        if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
+        {
+          set_current(loc);
+          return true;
+        }
+        mask &= mask - 1;
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + min > end_)
+      return false;
+    if (loc + min + 15 > end_)
+      break;
+  }
+#elif defined(HAVE_NEON)
+  uint8x16_t vlcp = vdupq_n_u8(chr[0]);
+  uint8x16_t vlcs = vdupq_n_u8(chr[1]);
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - min + 1;
+    while (s <= e - 16)
+    {
+      uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+      uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
+      uint8x16_t vmasklcp8 = vceqq_u8(vlcp, vstrlcp);
+      uint8x16_t vmasklcs8 = vceqq_u8(vlcs, vstrlcs);
+      uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
+      uint64_t mask = vgetq_lane_u64(vmask64, 0);
+      if (mask != 0)
+      {
+        for (uint16_t i = 0; i < 8; ++i)
+        {
+          if ((mask & 0xff))
+          {
+            loc = s - lcp + i - buf_;
+            if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
+            {
+              set_current(loc);
+              return true;
+            }
+          }
+          mask >>= 8;
+        }
+      }
+      mask = vgetq_lane_u64(vmask64, 1);
+      if (mask != 0)
+      {
+        for (uint16_t i = 8; i < 16; ++i)
+        {
+          if ((mask & 0xff))
+          {
+            loc = s - lcp + i - buf_;
+            if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
+            {
+              set_current(loc);
+              return true;
+            }
+          }
+          mask >>= 8;
+        }
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + min > end_)
+      return false;
+    if (loc + min + 15 > end_)
+      break;
+  }
+#endif
+  char chr0 = chr[0];
+  char chr1 = chr[1];
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_;
+    if (s < e && (s = static_cast<const char*>(std::memchr(s, chr0, e - s))) != NULL)
+    {
+      s -= lcp;
+      loc = s - buf_;
+      if (s > e - 4 || (s[lcs] == chr1 && Pattern::predict_match(pma, s) == 0))
+      {
+        set_current(loc);
+        return true;
+      }
+      ++loc;
+    }
+    else
+    {
+      loc = e - buf_;
       set_current_and_peek_more(loc - 1);
       loc = cur_ + 1;
       if (loc + min > end_)
         return false;
     }
-    // look for a needle
-    if (pat_->pin_ == 1)
+  }
+}
+
+/// My "needle search" method when pin=1
+bool Matcher::advance_pattern_pin1_pmh(size_t loc)
+{
+  const Pattern::Pred *pmh = pat_->pmh_;
+  const char *chr = pat_->chr_;
+  size_t min = pat_->min_;
+  uint16_t lcp = pat_->lcp_;
+  uint16_t lcs = pat_->lcs_;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  __m128i vlcp = _mm_set1_epi8(chr[0]);
+  __m128i vlcs = _mm_set1_epi8(chr[1]);
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - min + 1;
+    while (s <= e - 16)
     {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-#if defined(COMPILE_AVX512BW) || defined(COMPILE_AVX2)
-      __m256i vlcp = _mm256_set1_epi8(chr[0]);
-      __m256i vlcs = _mm256_set1_epi8(chr[1]);
-      while (true)
+      __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+      __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
+      __m128i veqlcp = _mm_cmpeq_epi8(vlcp, vstrlcp);
+      __m128i veqlcs = _mm_cmpeq_epi8(vlcs, vstrlcs);
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
+      while (mask != 0)
       {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
+        uint32_t offset = ctz(mask);
+        loc = s - lcp + offset - buf_;
+        if (Pattern::predict_match(pmh, &buf_[loc], min))
         {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs, vstrlcs);
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-#elif defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-      __m128i vlcp = _mm_set1_epi8(chr[0]);
-      __m128i vlcs = _mm_set1_epi8(chr[1]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-          __m128i veqlcp = _mm_cmpeq_epi8(vlcp, vstrlcp);
-          __m128i veqlcs = _mm_cmpeq_epi8(vlcs, vstrlcs);
-          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-#elif defined(HAVE_NEON)
-      uint8x16_t vlcp = vdupq_n_u8(chr[0]);
-      uint8x16_t vlcs = vdupq_n_u8(chr[1]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-          uint8x16_t vmasklcp8 = vceqq_u8(vlcp, vstrlcp);
-          uint8x16_t vmasklcs8 = vceqq_u8(vlcs, vstrlcs);
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-#else
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_;
-        if (s < e && (s = static_cast<const char*>(std::memchr(s, chr[0], e - s))) != NULL)
-        {
-          s -= lcp;
-          loc = s - buf_;
-          set_current(loc);
-          if (min >= 4)
-          {
-            if (s + min > e || (s[lcs] == chr[1] && Pattern::predict_match(pmh, s, min)))
-              return true;
-          }
-          else
-          {
-            if (s > e - 4 || Pattern::predict_match(pma, s) == 0)
-              return true;
-          }
-          ++loc;
-        }
-        else
-        {
-          loc = e - buf_;
-          set_current_and_peek_more(loc - 1);
-          loc = cur_ + 1;
-          if (loc + min > end_)
-            return false;
-        }
-      }
-#endif
-    }
-#if defined(COMPILE_AVX512BW) || defined(COMPILE_AVX2)
-    // look for needles
-    else if (pat_->pin_ == 2)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m256i vlcp0 = _mm256_set1_epi8(chr[0]);
-      __m256i vlcp1 = _mm256_set1_epi8(chr[1]);
-      __m256i vlcs0 = _mm256_set1_epi8(chr[2]);
-      __m256i vlcs1 = _mm256_set1_epi8(chr[3]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
-        {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs1, vstrlcs));
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 3)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m256i vlcp0 = _mm256_set1_epi8(chr[0]);
-      __m256i vlcp1 = _mm256_set1_epi8(chr[1]);
-      __m256i vlcp2 = _mm256_set1_epi8(chr[2]);
-      __m256i vlcs0 = _mm256_set1_epi8(chr[3]);
-      __m256i vlcs1 = _mm256_set1_epi8(chr[4]);
-      __m256i vlcs2 = _mm256_set1_epi8(chr[5]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
-        {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs2, vstrlcs));
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 4)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m256i vlcp0 = _mm256_set1_epi8(chr[0]);
-      __m256i vlcp1 = _mm256_set1_epi8(chr[1]);
-      __m256i vlcp2 = _mm256_set1_epi8(chr[2]);
-      __m256i vlcp3 = _mm256_set1_epi8(chr[3]);
-      __m256i vlcs0 = _mm256_set1_epi8(chr[4]);
-      __m256i vlcs1 = _mm256_set1_epi8(chr[5]);
-      __m256i vlcs2 = _mm256_set1_epi8(chr[6]);
-      __m256i vlcs3 = _mm256_set1_epi8(chr[7]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
-        {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs3, vstrlcs));
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 5)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m256i vlcp0 = _mm256_set1_epi8(chr[0]);
-      __m256i vlcp1 = _mm256_set1_epi8(chr[1]);
-      __m256i vlcp2 = _mm256_set1_epi8(chr[2]);
-      __m256i vlcp3 = _mm256_set1_epi8(chr[3]);
-      __m256i vlcp4 = _mm256_set1_epi8(chr[4]);
-      __m256i vlcs0 = _mm256_set1_epi8(chr[5]);
-      __m256i vlcs1 = _mm256_set1_epi8(chr[6]);
-      __m256i vlcs2 = _mm256_set1_epi8(chr[7]);
-      __m256i vlcs3 = _mm256_set1_epi8(chr[8]);
-      __m256i vlcs4 = _mm256_set1_epi8(chr[9]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
-        {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs4, vstrlcs));
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 6)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m256i vlcp0 = _mm256_set1_epi8(chr[0]);
-      __m256i vlcp1 = _mm256_set1_epi8(chr[1]);
-      __m256i vlcp2 = _mm256_set1_epi8(chr[2]);
-      __m256i vlcp3 = _mm256_set1_epi8(chr[3]);
-      __m256i vlcp4 = _mm256_set1_epi8(chr[4]);
-      __m256i vlcp5 = _mm256_set1_epi8(chr[5]);
-      __m256i vlcs0 = _mm256_set1_epi8(chr[6]);
-      __m256i vlcs1 = _mm256_set1_epi8(chr[7]);
-      __m256i vlcs2 = _mm256_set1_epi8(chr[8]);
-      __m256i vlcs3 = _mm256_set1_epi8(chr[9]);
-      __m256i vlcs4 = _mm256_set1_epi8(chr[10]);
-      __m256i vlcs5 = _mm256_set1_epi8(chr[11]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
-        {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp5, vstrlcp));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs4, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs5, vstrlcs));
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 7)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m256i vlcp0 = _mm256_set1_epi8(chr[0]);
-      __m256i vlcp1 = _mm256_set1_epi8(chr[1]);
-      __m256i vlcp2 = _mm256_set1_epi8(chr[2]);
-      __m256i vlcp3 = _mm256_set1_epi8(chr[3]);
-      __m256i vlcp4 = _mm256_set1_epi8(chr[4]);
-      __m256i vlcp5 = _mm256_set1_epi8(chr[5]);
-      __m256i vlcp6 = _mm256_set1_epi8(chr[6]);
-      __m256i vlcs0 = _mm256_set1_epi8(chr[7]);
-      __m256i vlcs1 = _mm256_set1_epi8(chr[8]);
-      __m256i vlcs2 = _mm256_set1_epi8(chr[9]);
-      __m256i vlcs3 = _mm256_set1_epi8(chr[10]);
-      __m256i vlcs4 = _mm256_set1_epi8(chr[11]);
-      __m256i vlcs5 = _mm256_set1_epi8(chr[12]);
-      __m256i vlcs6 = _mm256_set1_epi8(chr[13]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
-        {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp5, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp6, vstrlcp));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs4, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs5, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs6, vstrlcs));
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 8)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m256i vlcp0 = _mm256_set1_epi8(chr[0]);
-      __m256i vlcp1 = _mm256_set1_epi8(chr[1]);
-      __m256i vlcp2 = _mm256_set1_epi8(chr[2]);
-      __m256i vlcp3 = _mm256_set1_epi8(chr[3]);
-      __m256i vlcp4 = _mm256_set1_epi8(chr[4]);
-      __m256i vlcp5 = _mm256_set1_epi8(chr[5]);
-      __m256i vlcp6 = _mm256_set1_epi8(chr[6]);
-      __m256i vlcp7 = _mm256_set1_epi8(chr[7]);
-      __m256i vlcs0 = _mm256_set1_epi8(chr[8]);
-      __m256i vlcs1 = _mm256_set1_epi8(chr[9]);
-      __m256i vlcs2 = _mm256_set1_epi8(chr[10]);
-      __m256i vlcs3 = _mm256_set1_epi8(chr[11]);
-      __m256i vlcs4 = _mm256_set1_epi8(chr[12]);
-      __m256i vlcs5 = _mm256_set1_epi8(chr[13]);
-      __m256i vlcs6 = _mm256_set1_epi8(chr[14]);
-      __m256i vlcs7 = _mm256_set1_epi8(chr[15]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
-        {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp5, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp6, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp7, vstrlcp));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs4, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs5, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs6, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs7, vstrlcs));
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 16)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m256i vlcp0 = _mm256_set1_epi8(chr[0]);
-      __m256i vlcp1 = _mm256_set1_epi8(chr[1]);
-      __m256i vlcp2 = _mm256_set1_epi8(chr[2]);
-      __m256i vlcp3 = _mm256_set1_epi8(chr[3]);
-      __m256i vlcp4 = _mm256_set1_epi8(chr[4]);
-      __m256i vlcp5 = _mm256_set1_epi8(chr[5]);
-      __m256i vlcp6 = _mm256_set1_epi8(chr[6]);
-      __m256i vlcp7 = _mm256_set1_epi8(chr[7]);
-      __m256i vlcp8 = _mm256_set1_epi8(chr[8]);
-      __m256i vlcp9 = _mm256_set1_epi8(chr[9]);
-      __m256i vlcpa = _mm256_set1_epi8(chr[10]);
-      __m256i vlcpb = _mm256_set1_epi8(chr[11]);
-      __m256i vlcpc = _mm256_set1_epi8(chr[12]);
-      __m256i vlcpd = _mm256_set1_epi8(chr[13]);
-      __m256i vlcpe = _mm256_set1_epi8(chr[14]);
-      __m256i vlcpf = _mm256_set1_epi8(chr[15]);
-      __m256i vlcs0 = _mm256_set1_epi8(chr[16]);
-      __m256i vlcs1 = _mm256_set1_epi8(chr[17]);
-      __m256i vlcs2 = _mm256_set1_epi8(chr[18]);
-      __m256i vlcs3 = _mm256_set1_epi8(chr[19]);
-      __m256i vlcs4 = _mm256_set1_epi8(chr[20]);
-      __m256i vlcs5 = _mm256_set1_epi8(chr[21]);
-      __m256i vlcs6 = _mm256_set1_epi8(chr[22]);
-      __m256i vlcs7 = _mm256_set1_epi8(chr[23]);
-      __m256i vlcs8 = _mm256_set1_epi8(chr[24]);
-      __m256i vlcs9 = _mm256_set1_epi8(chr[25]);
-      __m256i vlcsa = _mm256_set1_epi8(chr[26]);
-      __m256i vlcsb = _mm256_set1_epi8(chr[27]);
-      __m256i vlcsc = _mm256_set1_epi8(chr[28]);
-      __m256i vlcsd = _mm256_set1_epi8(chr[29]);
-      __m256i vlcse = _mm256_set1_epi8(chr[30]);
-      __m256i vlcsf = _mm256_set1_epi8(chr[31]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 32)
-        {
-          __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-          __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-          __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp);
-          __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp5, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp6, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp7, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp8, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcp9, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcpa, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcpb, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcpc, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcpd, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcpe, vstrlcp));
-          veqlcp = _mm256_or_si256(veqlcp, _mm256_cmpeq_epi8(vlcpf, vstrlcp));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs4, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs5, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs6, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs7, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs8, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcs9, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcsa, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcsb, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcsc, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcsd, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcse, vstrlcs));
-          veqlcs = _mm256_or_si256(veqlcs, _mm256_cmpeq_epi8(vlcsf, vstrlcs));
-          uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 32;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 31 > end_)
-          break;
-      }
-    }
-#elif defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-    // look for needles
-    else if (pat_->pin_ == 2)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m128i vlcp0 = _mm_set1_epi8(chr[0]);
-      __m128i vlcp1 = _mm_set1_epi8(chr[1]);
-      __m128i vlcs0 = _mm_set1_epi8(chr[2]);
-      __m128i vlcs1 = _mm_set1_epi8(chr[3]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-          __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp);
-          __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs));
-          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 3)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m128i vlcp0 = _mm_set1_epi8(chr[0]);
-      __m128i vlcp1 = _mm_set1_epi8(chr[1]);
-      __m128i vlcp2 = _mm_set1_epi8(chr[2]);
-      __m128i vlcs0 = _mm_set1_epi8(chr[3]);
-      __m128i vlcs1 = _mm_set1_epi8(chr[4]);
-      __m128i vlcs2 = _mm_set1_epi8(chr[5]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-          __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp);
-          __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs));
-          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 4)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m128i vlcp0 = _mm_set1_epi8(chr[0]);
-      __m128i vlcp1 = _mm_set1_epi8(chr[1]);
-      __m128i vlcp2 = _mm_set1_epi8(chr[2]);
-      __m128i vlcp3 = _mm_set1_epi8(chr[3]);
-      __m128i vlcs0 = _mm_set1_epi8(chr[4]);
-      __m128i vlcs1 = _mm_set1_epi8(chr[5]);
-      __m128i vlcs2 = _mm_set1_epi8(chr[6]);
-      __m128i vlcs3 = _mm_set1_epi8(chr[7]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-          __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp);
-          __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs));
-          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 5)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m128i vlcp0 = _mm_set1_epi8(chr[0]);
-      __m128i vlcp1 = _mm_set1_epi8(chr[1]);
-      __m128i vlcp2 = _mm_set1_epi8(chr[2]);
-      __m128i vlcp3 = _mm_set1_epi8(chr[3]);
-      __m128i vlcp4 = _mm_set1_epi8(chr[4]);
-      __m128i vlcs0 = _mm_set1_epi8(chr[5]);
-      __m128i vlcs1 = _mm_set1_epi8(chr[6]);
-      __m128i vlcs2 = _mm_set1_epi8(chr[7]);
-      __m128i vlcs3 = _mm_set1_epi8(chr[8]);
-      __m128i vlcs4 = _mm_set1_epi8(chr[9]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-          __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp);
-          __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs4, vstrlcs));
-          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 6)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m128i vlcp0 = _mm_set1_epi8(chr[0]);
-      __m128i vlcp1 = _mm_set1_epi8(chr[1]);
-      __m128i vlcp2 = _mm_set1_epi8(chr[2]);
-      __m128i vlcp3 = _mm_set1_epi8(chr[3]);
-      __m128i vlcp4 = _mm_set1_epi8(chr[4]);
-      __m128i vlcp5 = _mm_set1_epi8(chr[5]);
-      __m128i vlcs0 = _mm_set1_epi8(chr[6]);
-      __m128i vlcs1 = _mm_set1_epi8(chr[7]);
-      __m128i vlcs2 = _mm_set1_epi8(chr[8]);
-      __m128i vlcs3 = _mm_set1_epi8(chr[9]);
-      __m128i vlcs4 = _mm_set1_epi8(chr[10]);
-      __m128i vlcs5 = _mm_set1_epi8(chr[11]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-          __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp);
-          __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp5, vstrlcp));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs4, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs5, vstrlcs));
-          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 7)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m128i vlcp0 = _mm_set1_epi8(chr[0]);
-      __m128i vlcp1 = _mm_set1_epi8(chr[1]);
-      __m128i vlcp2 = _mm_set1_epi8(chr[2]);
-      __m128i vlcp3 = _mm_set1_epi8(chr[3]);
-      __m128i vlcp4 = _mm_set1_epi8(chr[4]);
-      __m128i vlcp5 = _mm_set1_epi8(chr[5]);
-      __m128i vlcp6 = _mm_set1_epi8(chr[6]);
-      __m128i vlcs0 = _mm_set1_epi8(chr[7]);
-      __m128i vlcs1 = _mm_set1_epi8(chr[8]);
-      __m128i vlcs2 = _mm_set1_epi8(chr[9]);
-      __m128i vlcs3 = _mm_set1_epi8(chr[10]);
-      __m128i vlcs4 = _mm_set1_epi8(chr[11]);
-      __m128i vlcs5 = _mm_set1_epi8(chr[12]);
-      __m128i vlcs6 = _mm_set1_epi8(chr[13]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-          __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp);
-          __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp5, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp6, vstrlcp));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs4, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs5, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs6, vstrlcs));
-          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 8)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      __m128i vlcp0 = _mm_set1_epi8(chr[0]);
-      __m128i vlcp1 = _mm_set1_epi8(chr[1]);
-      __m128i vlcp2 = _mm_set1_epi8(chr[2]);
-      __m128i vlcp3 = _mm_set1_epi8(chr[3]);
-      __m128i vlcp4 = _mm_set1_epi8(chr[4]);
-      __m128i vlcp5 = _mm_set1_epi8(chr[5]);
-      __m128i vlcp6 = _mm_set1_epi8(chr[6]);
-      __m128i vlcp7 = _mm_set1_epi8(chr[7]);
-      __m128i vlcs0 = _mm_set1_epi8(chr[8]);
-      __m128i vlcs1 = _mm_set1_epi8(chr[9]);
-      __m128i vlcs2 = _mm_set1_epi8(chr[10]);
-      __m128i vlcs3 = _mm_set1_epi8(chr[11]);
-      __m128i vlcs4 = _mm_set1_epi8(chr[12]);
-      __m128i vlcs5 = _mm_set1_epi8(chr[13]);
-      __m128i vlcs6 = _mm_set1_epi8(chr[14]);
-      __m128i vlcs7 = _mm_set1_epi8(chr[15]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-          __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-          __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp);
-          __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs);
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp4, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp5, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp6, vstrlcp));
-          veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp7, vstrlcp));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs4, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs5, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs6, vstrlcs));
-          veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs7, vstrlcs));
-          uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-          while (mask != 0)
-          {
-            uint32_t offset = ctz(mask);
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (Pattern::predict_match(pmh, &buf_[loc], min))
-                return true;
-            }
-            else
-            {
-              if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                return true;
-            }
-            mask &= mask - 1;
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-#elif defined(HAVE_NEON)
-    // look for needles
-    else if (pat_->pin_ == 2)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      uint8x16_t vlcp0 = vdupq_n_u8(chr[0]);
-      uint8x16_t vlcp1 = vdupq_n_u8(chr[1]);
-      uint8x16_t vlcs0 = vdupq_n_u8(chr[2]);
-      uint8x16_t vlcs1 = vdupq_n_u8(chr[3]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-          uint8x16_t vmasklcp8 = vorrq_u8(vceqq_u8(vlcp0, vstrlcp), vceqq_u8(vlcp1, vstrlcp));
-          uint8x16_t vmasklcs8 = vorrq_u8(vceqq_u8(vlcs0, vstrlcs), vceqq_u8(vlcs1, vstrlcs));
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 3)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      uint8x16_t vlcp0 = vdupq_n_u8(chr[0]);
-      uint8x16_t vlcp1 = vdupq_n_u8(chr[1]);
-      uint8x16_t vlcp2 = vdupq_n_u8(chr[2]);
-      uint8x16_t vlcs0 = vdupq_n_u8(chr[3]);
-      uint8x16_t vlcs1 = vdupq_n_u8(chr[4]);
-      uint8x16_t vlcs2 = vdupq_n_u8(chr[5]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-          uint8x16_t vmasklcp8 =
-            vorrq_u8(
-                vorrq_u8(
-                  vceqq_u8(vlcp0, vstrlcp),
-                  vceqq_u8(vlcp1, vstrlcp)),
-                vceqq_u8(vlcp2, vstrlcp));
-          uint8x16_t vmasklcs8 =
-            vorrq_u8(
-                vorrq_u8(
-                  vceqq_u8(vlcs0, vstrlcs),
-                  vceqq_u8(vlcs1, vstrlcs)),
-                vceqq_u8(vlcs2, vstrlcs));
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 4)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      uint8x16_t vlcp0 = vdupq_n_u8(chr[0]);
-      uint8x16_t vlcp1 = vdupq_n_u8(chr[1]);
-      uint8x16_t vlcp2 = vdupq_n_u8(chr[2]);
-      uint8x16_t vlcp3 = vdupq_n_u8(chr[3]);
-      uint8x16_t vlcs0 = vdupq_n_u8(chr[4]);
-      uint8x16_t vlcs1 = vdupq_n_u8(chr[5]);
-      uint8x16_t vlcs2 = vdupq_n_u8(chr[6]);
-      uint8x16_t vlcs3 = vdupq_n_u8(chr[7]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-          uint8x16_t vmasklcp8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vceqq_u8(vlcp0, vstrlcp),
-                  vceqq_u8(vlcp1, vstrlcp)),
-                vceqq_u8(vlcp2, vstrlcp)),
-              vceqq_u8(vlcp3, vstrlcp));
-          uint8x16_t vmasklcs8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vceqq_u8(vlcs0, vstrlcs),
-                  vceqq_u8(vlcs1, vstrlcs)),
-                vceqq_u8(vlcs2, vstrlcs)),
-              vceqq_u8(vlcs3, vstrlcs));
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 5)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      uint8x16_t vlcp0 = vdupq_n_u8(chr[0]);
-      uint8x16_t vlcp1 = vdupq_n_u8(chr[1]);
-      uint8x16_t vlcp2 = vdupq_n_u8(chr[2]);
-      uint8x16_t vlcp3 = vdupq_n_u8(chr[3]);
-      uint8x16_t vlcp4 = vdupq_n_u8(chr[4]);
-      uint8x16_t vlcs0 = vdupq_n_u8(chr[5]);
-      uint8x16_t vlcs1 = vdupq_n_u8(chr[6]);
-      uint8x16_t vlcs2 = vdupq_n_u8(chr[7]);
-      uint8x16_t vlcs3 = vdupq_n_u8(chr[8]);
-      uint8x16_t vlcs4 = vdupq_n_u8(chr[9]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-          uint8x16_t vmasklcp8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vorrq_u8(
-                    vceqq_u8(vlcp0, vstrlcp),
-                    vceqq_u8(vlcp1, vstrlcp)),
-                  vceqq_u8(vlcp2, vstrlcp)),
-                vceqq_u8(vlcp3, vstrlcp)),
-              vceqq_u8(vlcp4, vstrlcp));
-          uint8x16_t vmasklcs8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vorrq_u8(
-                    vceqq_u8(vlcs0, vstrlcs),
-                    vceqq_u8(vlcs1, vstrlcs)),
-                  vceqq_u8(vlcs2, vstrlcs)),
-                vceqq_u8(vlcs3, vstrlcs)),
-              vceqq_u8(vlcs4, vstrlcs));
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 6)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      uint8x16_t vlcp0 = vdupq_n_u8(chr[0]);
-      uint8x16_t vlcp1 = vdupq_n_u8(chr[1]);
-      uint8x16_t vlcp2 = vdupq_n_u8(chr[2]);
-      uint8x16_t vlcp3 = vdupq_n_u8(chr[3]);
-      uint8x16_t vlcp4 = vdupq_n_u8(chr[4]);
-      uint8x16_t vlcp5 = vdupq_n_u8(chr[5]);
-      uint8x16_t vlcs0 = vdupq_n_u8(chr[6]);
-      uint8x16_t vlcs1 = vdupq_n_u8(chr[7]);
-      uint8x16_t vlcs2 = vdupq_n_u8(chr[8]);
-      uint8x16_t vlcs3 = vdupq_n_u8(chr[9]);
-      uint8x16_t vlcs4 = vdupq_n_u8(chr[10]);
-      uint8x16_t vlcs5 = vdupq_n_u8(chr[11]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-          uint8x16_t vmasklcp8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vorrq_u8(
-                    vorrq_u8(
-                      vceqq_u8(vlcp0, vstrlcp),
-                      vceqq_u8(vlcp1, vstrlcp)),
-                    vceqq_u8(vlcp2, vstrlcp)),
-                  vceqq_u8(vlcp3, vstrlcp)),
-                vceqq_u8(vlcp4, vstrlcp)),
-              vceqq_u8(vlcp5, vstrlcp));
-          uint8x16_t vmasklcs8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vorrq_u8(
-                    vorrq_u8(
-                      vceqq_u8(vlcs0, vstrlcs),
-                      vceqq_u8(vlcs1, vstrlcs)),
-                    vceqq_u8(vlcs2, vstrlcs)),
-                  vceqq_u8(vlcs3, vstrlcs)),
-                vceqq_u8(vlcs4, vstrlcs)),
-              vceqq_u8(vlcs5, vstrlcs));
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 7)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      uint8x16_t vlcp0 = vdupq_n_u8(chr[0]);
-      uint8x16_t vlcp1 = vdupq_n_u8(chr[1]);
-      uint8x16_t vlcp2 = vdupq_n_u8(chr[2]);
-      uint8x16_t vlcp3 = vdupq_n_u8(chr[3]);
-      uint8x16_t vlcp4 = vdupq_n_u8(chr[4]);
-      uint8x16_t vlcp5 = vdupq_n_u8(chr[5]);
-      uint8x16_t vlcp6 = vdupq_n_u8(chr[6]);
-      uint8x16_t vlcs0 = vdupq_n_u8(chr[7]);
-      uint8x16_t vlcs1 = vdupq_n_u8(chr[8]);
-      uint8x16_t vlcs2 = vdupq_n_u8(chr[9]);
-      uint8x16_t vlcs3 = vdupq_n_u8(chr[10]);
-      uint8x16_t vlcs4 = vdupq_n_u8(chr[11]);
-      uint8x16_t vlcs5 = vdupq_n_u8(chr[12]);
-      uint8x16_t vlcs6 = vdupq_n_u8(chr[13]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-          uint8x16_t vmasklcp8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vorrq_u8(
-                    vorrq_u8(
-                      vorrq_u8(
-                        vceqq_u8(vlcp0, vstrlcp),
-                        vceqq_u8(vlcp1, vstrlcp)),
-                      vceqq_u8(vlcp2, vstrlcp)),
-                    vceqq_u8(vlcp3, vstrlcp)),
-                  vceqq_u8(vlcp4, vstrlcp)),
-                vceqq_u8(vlcp5, vstrlcp)),
-              vceqq_u8(vlcp6, vstrlcp));
-          uint8x16_t vmasklcs8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vorrq_u8(
-                    vorrq_u8(
-                      vorrq_u8(
-                        vceqq_u8(vlcs0, vstrlcs),
-                        vceqq_u8(vlcs1, vstrlcs)),
-                      vceqq_u8(vlcs2, vstrlcs)),
-                    vceqq_u8(vlcs3, vstrlcs)),
-                  vceqq_u8(vlcs4, vstrlcs)),
-                vceqq_u8(vlcs5, vstrlcs)),
-              vceqq_u8(vlcs6, vstrlcs));
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-    else if (pat_->pin_ == 8)
-    {
-      size_t lcp = pat_->lcp_;
-      size_t lcs = pat_->lcs_;
-      const char *chr = pat_->chr_;
-      uint8x16_t vlcp0 = vdupq_n_u8(chr[0]);
-      uint8x16_t vlcp1 = vdupq_n_u8(chr[1]);
-      uint8x16_t vlcp2 = vdupq_n_u8(chr[2]);
-      uint8x16_t vlcp3 = vdupq_n_u8(chr[3]);
-      uint8x16_t vlcp4 = vdupq_n_u8(chr[4]);
-      uint8x16_t vlcp5 = vdupq_n_u8(chr[5]);
-      uint8x16_t vlcp6 = vdupq_n_u8(chr[6]);
-      uint8x16_t vlcp7 = vdupq_n_u8(chr[7]);
-      uint8x16_t vlcs0 = vdupq_n_u8(chr[8]);
-      uint8x16_t vlcs1 = vdupq_n_u8(chr[9]);
-      uint8x16_t vlcs2 = vdupq_n_u8(chr[10]);
-      uint8x16_t vlcs3 = vdupq_n_u8(chr[11]);
-      uint8x16_t vlcs4 = vdupq_n_u8(chr[12]);
-      uint8x16_t vlcs5 = vdupq_n_u8(chr[13]);
-      uint8x16_t vlcs6 = vdupq_n_u8(chr[14]);
-      uint8x16_t vlcs7 = vdupq_n_u8(chr[15]);
-      while (true)
-      {
-        const char *s = buf_ + loc + lcp;
-        const char *e = buf_ + end_ + lcp - min + 1;
-        while (s <= e - 16)
-        {
-          uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-          uint8x16_t vmasklcp8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vorrq_u8(
-                    vorrq_u8(
-                      vorrq_u8(
-                        vorrq_u8(
-                          vceqq_u8(vlcp0, vstrlcp),
-                          vceqq_u8(vlcp1, vstrlcp)),
-                        vceqq_u8(vlcp2, vstrlcp)),
-                      vceqq_u8(vlcp3, vstrlcp)),
-                    vceqq_u8(vlcp4, vstrlcp)),
-                  vceqq_u8(vlcp5, vstrlcp)),
-                vceqq_u8(vlcp6, vstrlcp)),
-              vceqq_u8(vlcp7, vstrlcp));
-          uint8x16_t vmasklcs8 =
-            vorrq_u8(
-              vorrq_u8(
-                vorrq_u8(
-                  vorrq_u8(
-                    vorrq_u8(
-                      vorrq_u8(
-                        vorrq_u8(
-                          vceqq_u8(vlcs0, vstrlcs),
-                          vceqq_u8(vlcs1, vstrlcs)),
-                        vceqq_u8(vlcs2, vstrlcs)),
-                      vceqq_u8(vlcs3, vstrlcs)),
-                    vceqq_u8(vlcs4, vstrlcs)),
-                  vceqq_u8(vlcs5, vstrlcs)),
-                vceqq_u8(vlcs6, vstrlcs)),
-              vceqq_u8(vlcs7, vstrlcs));
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff))
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min >= 4)
-                {
-                  if (Pattern::predict_match(pmh, &buf_[loc], min))
-                    return true;
-                }
-                else
-                {
-                  if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
-                    return true;
-                }
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-        s -= lcp;
-        loc = s - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + min > end_)
-          return false;
-        if (loc + min + 15 > end_)
-          break;
-      }
-    }
-#endif
-    if (min >= 4 || pat_->npy_ < 16 || (min >= 2 && pat_->npy_ >= 56))
-    {
-      if (min >= 4)
-      {
-        const Pattern::Pred *bit = pat_->bit_;
-        Pattern::Pred state1 = ~0;
-        Pattern::Pred state2 = ~0;
-        Pattern::Pred mask = (1 << (min - 1));
-        while (true)
-        {
-          const char *s = buf_ + loc;
-          const char *e = buf_ + end_;
-          while (s < e - 1)
-          {
-            state2 = (state1 << 1) | bit[static_cast<uint8_t>(*s)];
-            ++s;
-            state1 = (state2 << 1) | bit[static_cast<uint8_t>(*s)];
-            if ((state1 & state2 & mask) == 0)
-              break;
-            ++s;
-          }
-          if ((state2 & mask) == 0)
-          {
-            state1 = state2;
-            state2 = ~0;
-            --s;
-          }
-          else if ((state1 & mask) != 0 && s == e - 1)
-          {
-            state1 = (state1 << 1) | bit[static_cast<uint8_t>(*s)];
-            if ((state1 & mask) != 0)
-              ++s;
-          }
-          if (s < e)
-          {
-            s -= min - 1;
-            loc = s - buf_;
-            if (Pattern::predict_match(pmh, s, min))
-            {
-              set_current(loc);
-              return true;
-            }
-            loc += min;
-          }
-          else
-          {
-            loc = s - buf_;
-            set_current_and_peek_more(loc - min);
-            loc = cur_ + min;
-            if (loc >= end_)
-              return false;
-          }
-        }
-      }
-      if (min == 3)
-      {
-        const Pattern::Pred *bit = pat_->bit_;
-        Pattern::Pred state = ~0;
-        while (true)
-        {
-          const char *s = buf_ + loc;
-          const char *e = buf_ + end_;
-          while (s < e)
-          {
-            state = (state << 1) | bit[static_cast<uint8_t>(*s)];
-            if ((state & 4) == 0)
-              break;
-            ++s;
-          }
-          if (s < e)
-          {
-            s -= 2;
-            loc = s - buf_;
-            if (s > e - 4 || Pattern::predict_match(pma, s) == 0)
-            {
-              set_current(loc);
-              return true;
-            }
-            loc += 3;
-          }
-          else
-          {
-            loc = s - buf_;
-            set_current_and_peek_more(loc - 3);
-            loc = cur_ + 3;
-            if (loc >= end_)
-              return false;
-          }
-        }
-      }
-      if (min == 2)
-      {
-        const Pattern::Pred *bit = pat_->bit_;
-        Pattern::Pred state = ~0;
-        while (true)
-        {
-          const char *s = buf_ + loc;
-          const char *e = buf_ + end_;
-          while (s < e)
-          {
-            state = (state << 1) | bit[static_cast<uint8_t>(*s)];
-            if ((state & 2) == 0)
-              break;
-            ++s;
-          }
-          if (s < e)
-          {
-            s -= 1;
-            loc = s - buf_;
-            if (s > e - 4 || Pattern::predict_match(pma, s) == 0)
-            {
-              set_current(loc);
-              return true;
-            }
-            loc += 2;
-          }
-          else
-          {
-            loc = s - buf_;
-            set_current_and_peek_more(loc - 2);
-            loc = cur_ + 2;
-            if (loc >= end_)
-              return false;
-          }
-        }
-      }
-      const Pattern::Pred *bit = pat_->bit_;
-      while (true)
-      {
-        const char *s = buf_ + loc;
-        const char *e = buf_ + end_ - 3;
-        bool f = true;
-        while (s < e &&
-            (f = ((bit[static_cast<uint8_t>(*s)] & 1) &&
-                  (bit[static_cast<uint8_t>(*++s)] & 1) &&
-                  (bit[static_cast<uint8_t>(*++s)] & 1) &&
-                  (bit[static_cast<uint8_t>(*++s)] & 1))))
-        {
-          ++s;
-        }
-        loc = s - buf_;
-        if (!f)
-        {
-          if (s < e && Pattern::predict_match(pma, s))
-          {
-            ++loc;
-            continue;
-          }
           set_current(loc);
           return true;
         }
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + 3 >= end_)
+        mask &= mask - 1;
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + min > end_)
+      return false;
+    if (loc + min + 15 > end_)
+      break;
+  }
+#elif defined(HAVE_NEON)
+  uint8x16_t vlcp = vdupq_n_u8(chr[0]);
+  uint8x16_t vlcs = vdupq_n_u8(chr[1]);
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - min + 1;
+    while (s <= e - 16)
+    {
+      uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+      uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
+      uint8x16_t vmasklcp8 = vceqq_u8(vlcp, vstrlcp);
+      uint8x16_t vmasklcs8 = vceqq_u8(vlcs, vstrlcs);
+      uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
+      uint64_t mask = vgetq_lane_u64(vmask64, 0);
+      if (mask != 0)
+      {
+        for (uint16_t i = 0; i < 8; ++i)
         {
-          set_current(loc);
-          return loc + min <= end_;
+          if ((mask & 0xff))
+          {
+            loc = s - lcp + i - buf_;
+            if (Pattern::predict_match(pmh, &buf_[loc], min))
+            {
+              set_current(loc);
+              return true;
+            }
+          }
+          mask >>= 8;
         }
       }
-    }
-    while (true)
-    {
-      const char *s = buf_ + loc;
-      const char *e = buf_ + end_ - 6;
-      bool f = true;
-      while (s < e &&
-          (f = (Pattern::predict_match(pma, s) &&
-                Pattern::predict_match(pma, ++s) &&
-                Pattern::predict_match(pma, ++s) &&
-                Pattern::predict_match(pma, ++s))))
+      mask = vgetq_lane_u64(vmask64, 1);
+      if (mask != 0)
       {
-        ++s;
+        for (uint16_t i = 8; i < 16; ++i)
+        {
+          if ((mask & 0xff))
+          {
+            loc = s - lcp + i - buf_;
+            if (Pattern::predict_match(pmh, &buf_[loc], min))
+            {
+              set_current(loc);
+              return true;
+            }
+          }
+          mask >>= 8;
+        }
       }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + min > end_)
+      return false;
+    if (loc + min + 15 > end_)
+      break;
+  }
+#endif
+  int chr0 = chr[0];
+  int chr1 = chr[1];
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_;
+    if (s < e && (s = static_cast<const char*>(std::memchr(s, chr0, e - s))) != NULL)
+    {
+      s -= lcp;
       loc = s - buf_;
-      if (!f)
+      if (s + min > e || (s[lcs] == chr1 && Pattern::predict_match(pmh, s, min)))
       {
         set_current(loc);
         return true;
       }
-      set_current_and_peek_more(loc - 1);
-      loc = cur_ + 1;
-      if (loc + 6 >= end_)
-      {
-        set_current(loc);
-        return loc + min <= end_;
-      }
-    }
-  }
-  const char *chr = pat_->chr_;
-  size_t len = pat_->len_; // actually never more than 255
-  if (len == 1)
-  {
-    while (true)
-    {
-      const char *s = buf_ + loc;
-      const char *e = buf_ + end_;
-      s = static_cast<const char*>(std::memchr(s, *chr, e - s));
-      if (s != NULL)
-      {
-        loc = s - buf_;
-        set_current(loc);
-        if (min >= 4)
-        {
-          if (s + 1 + min > e || Pattern::predict_match(pmh, s + 1, min))
-            return true;
-        }
-        else
-        {
-          if (min == 0 || s > e - 5 || Pattern::predict_match(pma, s + 1) == 0)
-            return true;
-        }
-        ++loc;
-      }
-      else
-      {
-        loc = e - buf_;
-        set_current_and_peek_more(loc - 1);
-        loc = cur_ + 1;
-        if (loc + len > end_)
-          return false;
-      }
-    }
-  }
-  size_t lcp = pat_->lcp_;
-  size_t lcs = pat_->lcs_;
-  while (true)
-  {
-    if (pat_->bmd_ == 0)
-    {
-      const char *s = buf_ + loc + lcp;
-      const char *e = buf_ + end_ + lcp - len + 1;
-#if defined(COMPILE_AVX512BW)
-      // implements AVX512BW string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
-      // enhanced with least frequent character matching
-      __m512i vlcp = _mm512_set1_epi8(chr[lcp]);
-      __m512i vlcs = _mm512_set1_epi8(chr[lcs]);
-      while (s <= e - 64)
-      {
-        __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
-        __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs - lcp));
-        uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
-        while (mask != 0)
-        {
-          uint32_t offset = ctzl(mask);
-          if (std::memcmp(s - lcp + offset, chr, len) == 0)
-          {
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
-                return true;
-            }
-            else
-            {
-              if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
-                return true;
-            }
-          }
-          mask &= mask - 1;
-        }
-        s += 64;
-      }
-#elif defined(COMPILE_AVX2)
-      // implements AVX2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
-      // enhanced with least frequent character matching
-      __m256i vlcp = _mm256_set1_epi8(chr[lcp]);
-      __m256i vlcs = _mm256_set1_epi8(chr[lcs]);
-      while (s <= e - 32)
-      {
-        __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-        __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-        __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
-        __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
-        uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-        while (mask != 0)
-        {
-          uint32_t offset = ctz(mask);
-          if (std::memcmp(s - lcp + offset, chr, len) == 0)
-          {
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
-                return true;
-            }
-            else
-            {
-              if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
-                return true;
-            }
-          }
-          mask &= mask - 1;
-        }
-        s += 32;
-      }
-#elif defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-      // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
-      // enhanced with least frequent character matching
-      __m128i vlcp = _mm_set1_epi8(chr[lcp]);
-      __m128i vlcs = _mm_set1_epi8(chr[lcs]);
-      while (s <= e - 16)
-      {
-        __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-        __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-        __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
-        __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
-        uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-        while (mask != 0)
-        {
-          uint32_t offset = ctz(mask);
-          if (std::memcmp(s - lcp + offset, chr, len) == 0)
-          {
-            loc = s - lcp + offset - buf_;
-            set_current(loc);
-            if (min >= 4)
-            {
-              if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
-                return true;
-            }
-            else
-            {
-              if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
-                return true;
-            }
-          }
-          mask &= mask - 1;
-        }
-        s += 16;
-      }
-#elif defined(HAVE_NEON)
-      // implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
-      // enhanced with least frequent character matching
-      uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
-      uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
-      if (min >= 4)
-      {
-        while (s <= e - 16)
-        {
-          uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
-          uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
-          uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
-          uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
-                  return true;
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff) && std::memcmp(s - lcp + i + 8, chr, len) == 0)
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
-                  return true;
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-      }
-      else
-      {
-        while (s <= e - 16)
-        {
-          uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-          uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
-          uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
-          uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
-          uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
-          uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
-          uint64_t mask = vgetq_lane_u64(vmask64, 0);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
-              {
-                loc = s - lcp + i - buf_;
-                set_current(loc);
-                if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
-                  return true;
-              }
-              mask >>= 8;
-            }
-          }
-          mask = vgetq_lane_u64(vmask64, 1);
-          if (mask != 0)
-          {
-            for (int i = 0; i < 8; ++i)
-            {
-              if ((mask & 0xff) && std::memcmp(s - lcp + i + 8, chr, len) == 0)
-              {
-                loc = s - lcp + i + 8 - buf_;
-                set_current(loc);
-                if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
-                  return true;
-              }
-              mask >>= 8;
-            }
-          }
-          s += 16;
-        }
-      }
-#endif
-      while (s < e)
-      {
-        do
-          s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
-        while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
-        if (s == NULL || s >= e)
-        {
-          s = e;
-          break;
-        }
-        if (len <= 2 || memcmp(s - lcp, chr, len) == 0)
-        {
-          loc = s - lcp - buf_;
-          set_current(loc);
-          if (min == 0)
-            return true;
-          if (min >= 4)
-          {
-            if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
-              return true;
-          }
-          else
-          {
-            if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
-              return true;
-          }
-        }
-        ++s;
-      }
-      loc = s - lcp - buf_;
-      set_current_and_peek_more(loc - 1);
-      loc = cur_ + 1;
-      if (loc + len > end_)
-        return false;
+      ++loc;
     }
     else
     {
-      // apply our improved Boyer-Moore scheme as a fallback
-      const char *s = buf_ + loc + len - 1;
-      const char *e = buf_ + end_;
-      const char *t = chr + len - 1;
-      size_t bmd = pat_->bmd_;
-      const uint8_t *bms = pat_->bms_;
-      while (s < e)
-      {
-        size_t k = 0;
-        do
-          s += k = bms[static_cast<uint8_t>(*s)];
-        while (k > 0 ? s < e : s[lcp - len + 1] != chr[lcp] && (s += bmd) < e);
-        if (s >= e)
-          break;
-        const char *p = t - 1;
-        const char *q = s - 1;
-        while (p >= chr && *p == *q)
-        {
-          --p;
-          --q;
-        }
-        if (p < chr)
-        {
-          loc = q - buf_ + 1;
-          set_current(loc);
-          if (min >= 4)
-          {
-            if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
-              return true;
-          }
-          else
-          {
-            if (min == 0 || loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
-              return true;
-          }
-        }
-        if (chr + bmd >= p)
-        {
-          s += bmd;
-        }
-        else
-        {
-          size_t k = bms[static_cast<uint8_t>(*q)];
-          if (p + k > t + bmd)
-            s += k - (t - p);
-          else
-            s += bmd;
-        }
-      }
-      s -= len - 1;
-      loc = s - buf_;
+      loc = e - buf_;
       set_current_and_peek_more(loc - 1);
       loc = cur_ + 1;
-      if (loc + len > end_)
+      if (loc + min > end_)
         return false;
     }
   }
 }
 
-} // namespace reflex
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+
+/// My "needle search" methods
+#define ADV_PAT_PIN_ONE(N, INIT, COMP) \
+bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
+{ \
+  const Pattern::Pred *pma = pat_->pma_; \
+  const char *chr = pat_->chr_; \
+  INIT \
+  while (true) \
+  { \
+    const char *s = buf_ + loc; \
+    const char *e = buf_ + end_; \
+    while (s <= e - 16) \
+    { \
+      __m128i vstr = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s)); \
+      __m128i veq = _mm_cmpeq_epi8(v0, vstr); \
+      COMP \
+      uint32_t mask = _mm_movemask_epi8(veq); \
+      while (mask != 0) \
+      { \
+        uint32_t offset = ctz(mask); \
+        loc = s + offset - buf_; \
+        if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0) \
+        { \
+          set_current(loc); \
+          return true; \
+        } \
+        mask &= mask - 1; \
+      } \
+      s += 16; \
+    } \
+    loc = s - buf_; \
+    set_current_and_peek_more(loc - 1); \
+    loc = cur_ + 1; \
+    if (loc + 1 > end_) \
+      return false; \
+    if (loc + 16 > end_) \
+      break; \
+  } \
+  return advance_pattern(loc); \
+}
+
+ADV_PAT_PIN_ONE(2, \
+    __m128i v0 = _mm_set1_epi8(chr[0]); \
+    __m128i v1 = _mm_set1_epi8(chr[1]); \
+  , \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v1, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(3, \
+    __m128i v0 = _mm_set1_epi8(chr[0]); \
+    __m128i v1 = _mm_set1_epi8(chr[1]); \
+    __m128i v2 = _mm_set1_epi8(chr[2]); \
+  , \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v1, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v2, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(4, \
+    __m128i v0 = _mm_set1_epi8(chr[0]); \
+    __m128i v1 = _mm_set1_epi8(chr[1]); \
+    __m128i v2 = _mm_set1_epi8(chr[2]); \
+    __m128i v3 = _mm_set1_epi8(chr[3]); \
+  , \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v1, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v2, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v3, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(5, \
+    __m128i v0 = _mm_set1_epi8(chr[0]); \
+    __m128i v1 = _mm_set1_epi8(chr[1]); \
+    __m128i v2 = _mm_set1_epi8(chr[2]); \
+    __m128i v3 = _mm_set1_epi8(chr[3]); \
+    __m128i v4 = _mm_set1_epi8(chr[4]); \
+  , \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v1, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v2, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v3, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v4, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(6, \
+    __m128i v0 = _mm_set1_epi8(chr[0]); \
+    __m128i v1 = _mm_set1_epi8(chr[1]); \
+    __m128i v2 = _mm_set1_epi8(chr[2]); \
+    __m128i v3 = _mm_set1_epi8(chr[3]); \
+    __m128i v4 = _mm_set1_epi8(chr[4]); \
+    __m128i v5 = _mm_set1_epi8(chr[5]); \
+  , \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v1, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v2, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v3, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v4, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v5, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(7, \
+    __m128i v0 = _mm_set1_epi8(chr[0]); \
+    __m128i v1 = _mm_set1_epi8(chr[1]); \
+    __m128i v2 = _mm_set1_epi8(chr[2]); \
+    __m128i v3 = _mm_set1_epi8(chr[3]); \
+    __m128i v4 = _mm_set1_epi8(chr[4]); \
+    __m128i v5 = _mm_set1_epi8(chr[5]); \
+    __m128i v6 = _mm_set1_epi8(chr[6]); \
+  , \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v1, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v2, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v3, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v4, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v5, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v6, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(8, \
+    __m128i v0 = _mm_set1_epi8(chr[0]); \
+    __m128i v1 = _mm_set1_epi8(chr[1]); \
+    __m128i v2 = _mm_set1_epi8(chr[2]); \
+    __m128i v3 = _mm_set1_epi8(chr[3]); \
+    __m128i v4 = _mm_set1_epi8(chr[4]); \
+    __m128i v5 = _mm_set1_epi8(chr[5]); \
+    __m128i v6 = _mm_set1_epi8(chr[6]); \
+    __m128i v7 = _mm_set1_epi8(chr[7]); \
+  , \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v1, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v2, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v3, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v4, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v5, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v6, vstr)); \
+    veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v7, vstr)); \
+  )
+
+/// My "needle search" methods
+#define ADV_PAT_PIN(N, INIT, COMP) \
+bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
+{ \
+  const Pattern::Pred *pma = pat_->pma_; \
+  const char *chr = pat_->chr_; \
+  size_t min = pat_->min_; \
+  uint16_t lcp = pat_->lcp_; \
+  uint16_t lcs = pat_->lcs_; \
+  INIT \
+  while (true) \
+  { \
+    const char *s = buf_ + loc + lcp; \
+    const char *e = buf_ + end_ + lcp - min + 1; \
+    while (s <= e - 16) \
+    { \
+      __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s)); \
+      __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp)); \
+      __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp); \
+      __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs); \
+      COMP \
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs)); \
+      while (mask != 0) \
+      { \
+        uint32_t offset = ctz(mask); \
+        loc = s - lcp + offset - buf_; \
+        if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0) \
+        { \
+          set_current(loc); \
+          return true; \
+        } \
+        mask &= mask - 1; \
+      } \
+      s += 16; \
+    } \
+    s -= lcp; \
+    loc = s - buf_; \
+    set_current_and_peek_more(loc - 1); \
+    loc = cur_ + 1; \
+    if (loc + min > end_) \
+      return false; \
+    if (loc + min + 15 > end_) \
+      break; \
+  } \
+  return advance_pattern(loc); \
+} \
+\
+bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
+{ \
+  const Pattern::Pred *pmh = pat_->pmh_; \
+  const char *chr = pat_->chr_; \
+  size_t min = pat_->min_; \
+  uint16_t lcp = pat_->lcp_; \
+  uint16_t lcs = pat_->lcs_; \
+  INIT \
+  while (true) \
+  { \
+    const char *s = buf_ + loc + lcp; \
+    const char *e = buf_ + end_ + lcp - min + 1; \
+    while (s <= e - 16) \
+    { \
+      __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s)); \
+      __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp)); \
+      __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp); \
+      __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs); \
+      COMP \
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs)); \
+      while (mask != 0) \
+      { \
+        uint32_t offset = ctz(mask); \
+        loc = s - lcp + offset - buf_; \
+        if (Pattern::predict_match(pmh, &buf_[loc], min)) \
+        { \
+          set_current(loc); \
+          return true; \
+        } \
+        mask &= mask - 1; \
+      } \
+      s += 16; \
+    } \
+    s -= lcp; \
+    loc = s - buf_; \
+    set_current_and_peek_more(loc - 1); \
+    loc = cur_ + 1; \
+    if (loc + min > end_) \
+      return false; \
+    if (loc + min + 15 > end_) \
+      break; \
+  } \
+  return advance_pattern_min4(loc); \
+}
+
+ADV_PAT_PIN(2, \
+    __m128i vlcp0 = _mm_set1_epi8(chr[0]); \
+    __m128i vlcp1 = _mm_set1_epi8(chr[1]); \
+    __m128i vlcs0 = _mm_set1_epi8(chr[2]); \
+    __m128i vlcs1 = _mm_set1_epi8(chr[3]); \
+  , \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(3, \
+    __m128i vlcp0 = _mm_set1_epi8(chr[0]); \
+    __m128i vlcp1 = _mm_set1_epi8(chr[1]); \
+    __m128i vlcp2 = _mm_set1_epi8(chr[2]); \
+    __m128i vlcs0 = _mm_set1_epi8(chr[3]); \
+    __m128i vlcs1 = _mm_set1_epi8(chr[4]); \
+    __m128i vlcs2 = _mm_set1_epi8(chr[5]); \
+  , \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(4, \
+    __m128i vlcp0 = _mm_set1_epi8(chr[0]); \
+    __m128i vlcp1 = _mm_set1_epi8(chr[1]); \
+    __m128i vlcp2 = _mm_set1_epi8(chr[2]); \
+    __m128i vlcp3 = _mm_set1_epi8(chr[3]); \
+    __m128i vlcs0 = _mm_set1_epi8(chr[4]); \
+    __m128i vlcs1 = _mm_set1_epi8(chr[5]); \
+    __m128i vlcs2 = _mm_set1_epi8(chr[6]); \
+    __m128i vlcs3 = _mm_set1_epi8(chr[7]); \
+  , \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(5, \
+    __m128i vlcp0 = _mm_set1_epi8(chr[0]); \
+    __m128i vlcp1 = _mm_set1_epi8(chr[1]); \
+    __m128i vlcp2 = _mm_set1_epi8(chr[2]); \
+    __m128i vlcp3 = _mm_set1_epi8(chr[3]); \
+    __m128i vlcp4 = _mm_set1_epi8(chr[4]); \
+    __m128i vlcs0 = _mm_set1_epi8(chr[5]); \
+    __m128i vlcs1 = _mm_set1_epi8(chr[6]); \
+    __m128i vlcs2 = _mm_set1_epi8(chr[7]); \
+    __m128i vlcs3 = _mm_set1_epi8(chr[8]); \
+    __m128i vlcs4 = _mm_set1_epi8(chr[9]); \
+  , \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp4, vstrlcp)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs4, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(6, \
+    __m128i vlcp0 = _mm_set1_epi8(chr[0]); \
+    __m128i vlcp1 = _mm_set1_epi8(chr[1]); \
+    __m128i vlcp2 = _mm_set1_epi8(chr[2]); \
+    __m128i vlcp3 = _mm_set1_epi8(chr[3]); \
+    __m128i vlcp4 = _mm_set1_epi8(chr[4]); \
+    __m128i vlcp5 = _mm_set1_epi8(chr[5]); \
+    __m128i vlcs0 = _mm_set1_epi8(chr[6]); \
+    __m128i vlcs1 = _mm_set1_epi8(chr[7]); \
+    __m128i vlcs2 = _mm_set1_epi8(chr[8]); \
+    __m128i vlcs3 = _mm_set1_epi8(chr[9]); \
+    __m128i vlcs4 = _mm_set1_epi8(chr[10]); \
+    __m128i vlcs5 = _mm_set1_epi8(chr[11]); \
+  , \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp4, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp5, vstrlcp)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs4, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs5, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(7, \
+    __m128i vlcp0 = _mm_set1_epi8(chr[0]); \
+    __m128i vlcp1 = _mm_set1_epi8(chr[1]); \
+    __m128i vlcp2 = _mm_set1_epi8(chr[2]); \
+    __m128i vlcp3 = _mm_set1_epi8(chr[3]); \
+    __m128i vlcp4 = _mm_set1_epi8(chr[4]); \
+    __m128i vlcp5 = _mm_set1_epi8(chr[5]); \
+    __m128i vlcp6 = _mm_set1_epi8(chr[6]); \
+    __m128i vlcs0 = _mm_set1_epi8(chr[7]); \
+    __m128i vlcs1 = _mm_set1_epi8(chr[8]); \
+    __m128i vlcs2 = _mm_set1_epi8(chr[9]); \
+    __m128i vlcs3 = _mm_set1_epi8(chr[10]); \
+    __m128i vlcs4 = _mm_set1_epi8(chr[11]); \
+    __m128i vlcs5 = _mm_set1_epi8(chr[12]); \
+    __m128i vlcs6 = _mm_set1_epi8(chr[13]); \
+  , \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp4, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp5, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp6, vstrlcp)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs4, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs5, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs6, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(8, \
+    __m128i vlcp0 = _mm_set1_epi8(chr[0]); \
+    __m128i vlcp1 = _mm_set1_epi8(chr[1]); \
+    __m128i vlcp2 = _mm_set1_epi8(chr[2]); \
+    __m128i vlcp3 = _mm_set1_epi8(chr[3]); \
+    __m128i vlcp4 = _mm_set1_epi8(chr[4]); \
+    __m128i vlcp5 = _mm_set1_epi8(chr[5]); \
+    __m128i vlcp6 = _mm_set1_epi8(chr[6]); \
+    __m128i vlcp7 = _mm_set1_epi8(chr[7]); \
+    __m128i vlcs0 = _mm_set1_epi8(chr[8]); \
+    __m128i vlcs1 = _mm_set1_epi8(chr[9]); \
+    __m128i vlcs2 = _mm_set1_epi8(chr[10]); \
+    __m128i vlcs3 = _mm_set1_epi8(chr[11]); \
+    __m128i vlcs4 = _mm_set1_epi8(chr[12]); \
+    __m128i vlcs5 = _mm_set1_epi8(chr[13]); \
+    __m128i vlcs6 = _mm_set1_epi8(chr[14]); \
+    __m128i vlcs7 = _mm_set1_epi8(chr[15]); \
+  , \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp1, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp2, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp3, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp4, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp5, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp6, vstrlcp)); \
+    veqlcp = _mm_or_si128(veqlcp, _mm_cmpeq_epi8(vlcp7, vstrlcp)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs1, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs2, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs3, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs4, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs5, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs6, vstrlcs)); \
+    veqlcs = _mm_or_si128(veqlcs, _mm_cmpeq_epi8(vlcs7, vstrlcs)); \
+  )
+
+#elif defined(HAVE_NEON)
+
+/// My "needle search" methods
+#define ADV_PAT_PIN_ONE(N, INIT, COMP) \
+bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
+{ \
+  const Pattern::Pred *pma = pat_->pma_; \
+  const char *chr = pat_->chr_; \
+  INIT \
+  while (true) \
+  { \
+    const char *s = buf_ + loc; \
+    const char *e = buf_ + end_; \
+    while (s <= e - 16) \
+    { \
+      uint8x16_t vstr = vld1q_u8(reinterpret_cast<const uint8_t*>(s)); \
+      COMP \
+      uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8); \
+      uint64_t mask = vgetq_lane_u64(vmask64, 0); \
+      if (mask != 0) \
+      { \
+        for (uint16_t i = 0; i < 8; ++i) \
+        { \
+          if ((mask & 0xff)) \
+          { \
+            loc = s + i - buf_; \
+            if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0) \
+            { \
+              set_current(loc); \
+              return true; \
+            } \
+          } \
+          mask >>= 8; \
+        } \
+      } \
+      mask = vgetq_lane_u64(vmask64, 1); \
+      if (mask != 0) \
+      { \
+        for (uint16_t i = 8; i < 16; ++i) \
+        { \
+          if ((mask & 0xff)) \
+          { \
+            loc = s + i - buf_; \
+            if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0) \
+            { \
+              set_current(loc); \
+              return true; \
+            } \
+          } \
+          mask >>= 8; \
+        } \
+      } \
+      s += 16; \
+    } \
+    loc = s - buf_; \
+    set_current_and_peek_more(loc - 1); \
+    loc = cur_ + 1; \
+    if (loc + 1 > end_) \
+      return false; \
+    if (loc + 16 > end_) \
+      break; \
+  } \
+  return advance_pattern(loc); \
+}
+
+ADV_PAT_PIN_ONE(2, \
+    uint8x16_t v0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t v1 = vdupq_n_u8(chr[1]); \
+  , \
+    uint8x16_t vmask8 = vorrq_u8(vceqq_u8(v0, vstr), vceqq_u8(v1, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(3, \
+    uint8x16_t v0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t v1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t v2 = vdupq_n_u8(chr[2]); \
+  , \
+    uint8x16_t vmask8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vceqq_u8(v0, vstr), \
+          vceqq_u8(v1, vstr)), \
+        vceqq_u8(v2, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(4, \
+    uint8x16_t v0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t v1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t v2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t v3 = vdupq_n_u8(chr[3]); \
+  , \
+    uint8x16_t vmask8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vceqq_u8(v0, vstr), \
+            vceqq_u8(v1, vstr)), \
+          vceqq_u8(v2, vstr)), \
+        vceqq_u8(v3, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(5, \
+    uint8x16_t v0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t v1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t v2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t v3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t v4 = vdupq_n_u8(chr[4]); \
+  , \
+    uint8x16_t vmask8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vceqq_u8(v0, vstr), \
+              vceqq_u8(v1, vstr)), \
+            vceqq_u8(v2, vstr)), \
+          vceqq_u8(v3, vstr)), \
+        vceqq_u8(v4, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(6, \
+    uint8x16_t v0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t v1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t v2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t v3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t v4 = vdupq_n_u8(chr[4]); \
+    uint8x16_t v5 = vdupq_n_u8(chr[5]); \
+  , \
+    uint8x16_t vmask8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vceqq_u8(v0, vstr), \
+                vceqq_u8(v1, vstr)), \
+              vceqq_u8(v2, vstr)), \
+            vceqq_u8(v3, vstr)), \
+          vceqq_u8(v4, vstr)), \
+        vceqq_u8(v5, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(7, \
+    uint8x16_t v0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t v1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t v2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t v3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t v4 = vdupq_n_u8(chr[4]); \
+    uint8x16_t v5 = vdupq_n_u8(chr[5]); \
+    uint8x16_t v6 = vdupq_n_u8(chr[6]); \
+  , \
+    uint8x16_t vmask8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vorrq_u8( \
+                  vceqq_u8(v0, vstr), \
+                  vceqq_u8(v1, vstr)), \
+                vceqq_u8(v2, vstr)), \
+              vceqq_u8(v3, vstr)), \
+            vceqq_u8(v4, vstr)), \
+          vceqq_u8(v5, vstr)), \
+        vceqq_u8(v6, vstr)); \
+  )
+
+ADV_PAT_PIN_ONE(8, \
+    uint8x16_t v0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t v1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t v2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t v3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t v4 = vdupq_n_u8(chr[4]); \
+    uint8x16_t v5 = vdupq_n_u8(chr[5]); \
+    uint8x16_t v6 = vdupq_n_u8(chr[6]); \
+    uint8x16_t v7 = vdupq_n_u8(chr[7]); \
+  , \
+    uint8x16_t vmask8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vorrq_u8( \
+                  vorrq_u8( \
+                    vceqq_u8(v0, vstr), \
+                    vceqq_u8(v1, vstr)), \
+                  vceqq_u8(v2, vstr)), \
+                vceqq_u8(v3, vstr)), \
+              vceqq_u8(v4, vstr)), \
+            vceqq_u8(v5, vstr)), \
+          vceqq_u8(v6, vstr)), \
+        vceqq_u8(v7, vstr)); \
+  )
+
+/// My "needle search" methods
+#define ADV_PAT_PIN(N, INIT, COMP) \
+bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
+{ \
+  const Pattern::Pred *pma = pat_->pma_; \
+  const char *chr = pat_->chr_; \
+  size_t min = pat_->min_; \
+  uint16_t lcp = pat_->lcp_; \
+  uint16_t lcs = pat_->lcs_; \
+  INIT \
+  while (true) \
+  { \
+    const char *s = buf_ + loc + lcp; \
+    const char *e = buf_ + end_ + lcp - min + 1; \
+    while (s <= e - 16) \
+    { \
+      uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s)); \
+      uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp)); \
+      COMP \
+      uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8)); \
+      uint64_t mask = vgetq_lane_u64(vmask64, 0); \
+      if (mask != 0) \
+      { \
+        for (uint16_t i = 0; i < 8; ++i) \
+        { \
+          if ((mask & 0xff)) \
+          { \
+            loc = s - lcp + i - buf_; \
+            if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0) \
+            { \
+              set_current(loc); \
+              return true; \
+            } \
+          } \
+          mask >>= 8; \
+        } \
+      } \
+      mask = vgetq_lane_u64(vmask64, 1); \
+      if (mask != 0) \
+      { \
+        for (uint16_t i = 8; i < 16; ++i) \
+        { \
+          if ((mask & 0xff)) \
+          { \
+            loc = s - lcp + i - buf_; \
+            if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0) \
+            { \
+              set_current(loc); \
+              return true; \
+            } \
+          } \
+          mask >>= 8; \
+        } \
+      } \
+      s += 16; \
+    } \
+    s -= lcp; \
+    loc = s - buf_; \
+    set_current_and_peek_more(loc - 1); \
+    loc = cur_ + 1; \
+    if (loc + min > end_) \
+      return false; \
+    if (loc + min + 15 > end_) \
+      break; \
+  } \
+  return advance_pattern(loc); \
+} \
+\
+bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
+{ \
+  const Pattern::Pred *pmh = pat_->pmh_; \
+  const char *chr = pat_->chr_; \
+  size_t min = pat_->min_; \
+  uint16_t lcp = pat_->lcp_; \
+  uint16_t lcs = pat_->lcs_; \
+  INIT \
+  while (true) \
+  { \
+    const char *s = buf_ + loc + lcp; \
+    const char *e = buf_ + end_ + lcp - min + 1; \
+    while (s <= e - 16) \
+    { \
+      uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s)); \
+      uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp)); \
+      COMP \
+      uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8)); \
+      uint64_t mask = vgetq_lane_u64(vmask64, 0); \
+      if (mask != 0) \
+      { \
+        for (uint16_t i = 0; i < 8; ++i) \
+        { \
+          if ((mask & 0xff)) \
+          { \
+            loc = s - lcp + i - buf_; \
+            if (Pattern::predict_match(pmh, &buf_[loc], min)) \
+            { \
+              set_current(loc); \
+              return true; \
+            } \
+          } \
+          mask >>= 8; \
+        } \
+      } \
+      mask = vgetq_lane_u64(vmask64, 1); \
+      if (mask != 0) \
+      { \
+        for (uint16_t i = 8; i < 16; ++i) \
+        { \
+          if ((mask & 0xff)) \
+          { \
+            loc = s - lcp + i - buf_; \
+            if (Pattern::predict_match(pmh, &buf_[loc], min)) \
+            { \
+              set_current(loc); \
+              return true; \
+            } \
+          } \
+          mask >>= 8; \
+        } \
+      } \
+      s += 16; \
+    } \
+    s -= lcp; \
+    loc = s - buf_; \
+    set_current_and_peek_more(loc - 1); \
+    loc = cur_ + 1; \
+    if (loc + min > end_) \
+      return false; \
+    if (loc + min + 15 > end_) \
+      break; \
+  } \
+  return advance_pattern_min4(loc); \
+}
+
+ADV_PAT_PIN(2, \
+    uint8x16_t vlcp0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t vlcp1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t vlcs0 = vdupq_n_u8(chr[2]); \
+    uint8x16_t vlcs1 = vdupq_n_u8(chr[3]); \
+  , \
+    uint8x16_t vmasklcp8 = vorrq_u8(vceqq_u8(vlcp0, vstrlcp), vceqq_u8(vlcp1, vstrlcp)); \
+    uint8x16_t vmasklcs8 = vorrq_u8(vceqq_u8(vlcs0, vstrlcs), vceqq_u8(vlcs1, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(3, \
+    uint8x16_t vlcp0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t vlcp1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t vlcp2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t vlcs0 = vdupq_n_u8(chr[3]); \
+    uint8x16_t vlcs1 = vdupq_n_u8(chr[4]); \
+    uint8x16_t vlcs2 = vdupq_n_u8(chr[5]); \
+  , \
+    uint8x16_t vmasklcp8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vceqq_u8(vlcp0, vstrlcp), \
+          vceqq_u8(vlcp1, vstrlcp)), \
+        vceqq_u8(vlcp2, vstrlcp)); \
+    uint8x16_t vmasklcs8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vceqq_u8(vlcs0, vstrlcs), \
+          vceqq_u8(vlcs1, vstrlcs)), \
+        vceqq_u8(vlcs2, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(4, \
+    uint8x16_t vlcp0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t vlcp1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t vlcp2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t vlcp3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t vlcs0 = vdupq_n_u8(chr[4]); \
+    uint8x16_t vlcs1 = vdupq_n_u8(chr[5]); \
+    uint8x16_t vlcs2 = vdupq_n_u8(chr[6]); \
+    uint8x16_t vlcs3 = vdupq_n_u8(chr[7]); \
+  , \
+    uint8x16_t vmasklcp8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vceqq_u8(vlcp0, vstrlcp), \
+            vceqq_u8(vlcp1, vstrlcp)), \
+          vceqq_u8(vlcp2, vstrlcp)), \
+        vceqq_u8(vlcp3, vstrlcp)); \
+    uint8x16_t vmasklcs8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vceqq_u8(vlcs0, vstrlcs), \
+            vceqq_u8(vlcs1, vstrlcs)), \
+          vceqq_u8(vlcs2, vstrlcs)), \
+        vceqq_u8(vlcs3, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(5, \
+    uint8x16_t vlcp0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t vlcp1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t vlcp2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t vlcp3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t vlcp4 = vdupq_n_u8(chr[4]); \
+    uint8x16_t vlcs0 = vdupq_n_u8(chr[5]); \
+    uint8x16_t vlcs1 = vdupq_n_u8(chr[6]); \
+    uint8x16_t vlcs2 = vdupq_n_u8(chr[7]); \
+    uint8x16_t vlcs3 = vdupq_n_u8(chr[8]); \
+    uint8x16_t vlcs4 = vdupq_n_u8(chr[9]); \
+  , \
+    uint8x16_t vmasklcp8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vceqq_u8(vlcp0, vstrlcp), \
+              vceqq_u8(vlcp1, vstrlcp)), \
+            vceqq_u8(vlcp2, vstrlcp)), \
+          vceqq_u8(vlcp3, vstrlcp)), \
+        vceqq_u8(vlcp4, vstrlcp)); \
+    uint8x16_t vmasklcs8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vceqq_u8(vlcs0, vstrlcs), \
+              vceqq_u8(vlcs1, vstrlcs)), \
+            vceqq_u8(vlcs2, vstrlcs)), \
+          vceqq_u8(vlcs3, vstrlcs)), \
+        vceqq_u8(vlcs4, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(6, \
+    uint8x16_t vlcp0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t vlcp1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t vlcp2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t vlcp3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t vlcp4 = vdupq_n_u8(chr[4]); \
+    uint8x16_t vlcp5 = vdupq_n_u8(chr[5]); \
+    uint8x16_t vlcs0 = vdupq_n_u8(chr[6]); \
+    uint8x16_t vlcs1 = vdupq_n_u8(chr[7]); \
+    uint8x16_t vlcs2 = vdupq_n_u8(chr[8]); \
+    uint8x16_t vlcs3 = vdupq_n_u8(chr[9]); \
+    uint8x16_t vlcs4 = vdupq_n_u8(chr[10]); \
+    uint8x16_t vlcs5 = vdupq_n_u8(chr[11]); \
+  , \
+    uint8x16_t vmasklcp8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vceqq_u8(vlcp0, vstrlcp), \
+                vceqq_u8(vlcp1, vstrlcp)), \
+              vceqq_u8(vlcp2, vstrlcp)), \
+            vceqq_u8(vlcp3, vstrlcp)), \
+          vceqq_u8(vlcp4, vstrlcp)), \
+        vceqq_u8(vlcp5, vstrlcp)); \
+    uint8x16_t vmasklcs8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vceqq_u8(vlcs0, vstrlcs), \
+                vceqq_u8(vlcs1, vstrlcs)), \
+              vceqq_u8(vlcs2, vstrlcs)), \
+            vceqq_u8(vlcs3, vstrlcs)), \
+          vceqq_u8(vlcs4, vstrlcs)), \
+        vceqq_u8(vlcs5, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(7, \
+    uint8x16_t vlcp0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t vlcp1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t vlcp2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t vlcp3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t vlcp4 = vdupq_n_u8(chr[4]); \
+    uint8x16_t vlcp5 = vdupq_n_u8(chr[5]); \
+    uint8x16_t vlcp6 = vdupq_n_u8(chr[6]); \
+    uint8x16_t vlcs0 = vdupq_n_u8(chr[7]); \
+    uint8x16_t vlcs1 = vdupq_n_u8(chr[8]); \
+    uint8x16_t vlcs2 = vdupq_n_u8(chr[9]); \
+    uint8x16_t vlcs3 = vdupq_n_u8(chr[10]); \
+    uint8x16_t vlcs4 = vdupq_n_u8(chr[11]); \
+    uint8x16_t vlcs5 = vdupq_n_u8(chr[12]); \
+    uint8x16_t vlcs6 = vdupq_n_u8(chr[13]); \
+  , \
+    uint8x16_t vmasklcp8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vorrq_u8( \
+                  vceqq_u8(vlcp0, vstrlcp), \
+                  vceqq_u8(vlcp1, vstrlcp)), \
+                vceqq_u8(vlcp2, vstrlcp)), \
+              vceqq_u8(vlcp3, vstrlcp)), \
+            vceqq_u8(vlcp4, vstrlcp)), \
+          vceqq_u8(vlcp5, vstrlcp)), \
+        vceqq_u8(vlcp6, vstrlcp)); \
+    uint8x16_t vmasklcs8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vorrq_u8( \
+                  vceqq_u8(vlcs0, vstrlcs), \
+                  vceqq_u8(vlcs1, vstrlcs)), \
+                vceqq_u8(vlcs2, vstrlcs)), \
+              vceqq_u8(vlcs3, vstrlcs)), \
+            vceqq_u8(vlcs4, vstrlcs)), \
+          vceqq_u8(vlcs5, vstrlcs)), \
+        vceqq_u8(vlcs6, vstrlcs)); \
+  )
+
+ADV_PAT_PIN(8, \
+    uint8x16_t vlcp0 = vdupq_n_u8(chr[0]); \
+    uint8x16_t vlcp1 = vdupq_n_u8(chr[1]); \
+    uint8x16_t vlcp2 = vdupq_n_u8(chr[2]); \
+    uint8x16_t vlcp3 = vdupq_n_u8(chr[3]); \
+    uint8x16_t vlcp4 = vdupq_n_u8(chr[4]); \
+    uint8x16_t vlcp5 = vdupq_n_u8(chr[5]); \
+    uint8x16_t vlcp6 = vdupq_n_u8(chr[6]); \
+    uint8x16_t vlcp7 = vdupq_n_u8(chr[7]); \
+    uint8x16_t vlcs0 = vdupq_n_u8(chr[8]); \
+    uint8x16_t vlcs1 = vdupq_n_u8(chr[9]); \
+    uint8x16_t vlcs2 = vdupq_n_u8(chr[10]); \
+    uint8x16_t vlcs3 = vdupq_n_u8(chr[11]); \
+    uint8x16_t vlcs4 = vdupq_n_u8(chr[12]); \
+    uint8x16_t vlcs5 = vdupq_n_u8(chr[13]); \
+    uint8x16_t vlcs6 = vdupq_n_u8(chr[14]); \
+    uint8x16_t vlcs7 = vdupq_n_u8(chr[15]); \
+  , \
+    uint8x16_t vmasklcp8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vorrq_u8( \
+                  vorrq_u8( \
+                    vceqq_u8(vlcp0, vstrlcp), \
+                    vceqq_u8(vlcp1, vstrlcp)), \
+                  vceqq_u8(vlcp2, vstrlcp)), \
+                vceqq_u8(vlcp3, vstrlcp)), \
+              vceqq_u8(vlcp4, vstrlcp)), \
+            vceqq_u8(vlcp5, vstrlcp)), \
+          vceqq_u8(vlcp6, vstrlcp)), \
+        vceqq_u8(vlcp7, vstrlcp)); \
+    uint8x16_t vmasklcs8 = \
+      vorrq_u8( \
+        vorrq_u8( \
+          vorrq_u8( \
+            vorrq_u8( \
+              vorrq_u8( \
+                vorrq_u8( \
+                  vorrq_u8( \
+                    vceqq_u8(vlcs0, vstrlcs), \
+                    vceqq_u8(vlcs1, vstrlcs)), \
+                  vceqq_u8(vlcs2, vstrlcs)), \
+                vceqq_u8(vlcs3, vstrlcs)), \
+              vceqq_u8(vlcs4, vstrlcs)), \
+            vceqq_u8(vlcs5, vstrlcs)), \
+          vceqq_u8(vlcs6, vstrlcs)), \
+        vceqq_u8(vlcs7, vstrlcs)); \
+  )
 
 #endif
+
+/// Minimal 1 char pattern using bitap and PM4
+bool Matcher::advance_pattern_min1(size_t loc)
+{
+  const Pattern::Pred *pma = pat_->pma_;
+  const Pattern::Pred *bit = pat_->bit_;
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_ - 3;
+    bool f = true;
+    while (s < e &&
+        (f = ((bit[static_cast<uint8_t>(*s)] & 1) &&
+              (bit[static_cast<uint8_t>(*++s)] & 1) &&
+              (bit[static_cast<uint8_t>(*++s)] & 1) &&
+              (bit[static_cast<uint8_t>(*++s)] & 1))))
+    {
+      ++s;
+    }
+    loc = s - buf_;
+    if (!f)
+    {
+      if (s < e && Pattern::predict_match(pma, s) != 0)
+      {
+        ++loc;
+        continue;
+      }
+      set_current(loc);
+      return true;
+    }
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + 3 >= end_)
+    {
+      set_current(loc);
+      return loc + 1 <= end_;
+    }
+  }
+}
+
+/// Minimal 2 char pattern using bitam and PM4
+bool Matcher::advance_pattern_min2(size_t loc)
+{
+  const Pattern::Pred *bit = pat_->bit_;
+  const Pattern::Pred *pma = pat_->pma_;
+  Pattern::Pred state = ~0;
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_;
+    while (s < e)
+    {
+      state = (state << 1) | bit[static_cast<uint8_t>(*s)];
+      if ((state & 2) == 0)
+        break;
+      ++s;
+    }
+    if (s < e)
+    {
+      s -= 1;
+      loc = s - buf_;
+      if (s > e - 4 || Pattern::predict_match(pma, s) == 0)
+      {
+        set_current(loc);
+        return true;
+      }
+      loc += 2;
+    }
+    else
+    {
+      loc = s - buf_;
+      set_current_and_peek_more(loc - 1);
+      loc = cur_ + 1;
+      if (loc + 2 > end_)
+        return false;
+    }
+  }
+}
+
+/// Minimal 3 char pattern using bitam and PM4
+bool Matcher::advance_pattern_min3(size_t loc)
+{
+  const Pattern::Pred *bit = pat_->bit_;
+  const Pattern::Pred *pma = pat_->pma_;
+  Pattern::Pred state = ~0;
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_;
+    while (s < e)
+    {
+      state = (state << 1) | bit[static_cast<uint8_t>(*s)];
+      if ((state & 4) == 0)
+        break;
+      ++s;
+    }
+    if (s < e)
+    {
+      s -= 2;
+      loc = s - buf_;
+      if (s > e - 4 || Pattern::predict_match(pma, s) == 0)
+      {
+        set_current(loc);
+        return true;
+      }
+      loc += 3;
+    }
+    else
+    {
+      loc = s - buf_;
+      set_current_and_peek_more(loc - 1);
+      loc = cur_ + 1;
+      if (loc + 3 > end_)
+        return false;
+    }
+  }
+}
+
+/// Minimal 4 char pattern using bitam and PM hashing
+bool Matcher::advance_pattern_min4(size_t loc)
+{
+  const Pattern::Pred *bit = pat_->bit_;
+  const Pattern::Pred *pmh = pat_->pmh_;
+  size_t min = pat_->min_;
+  Pattern::Pred state1 = ~0;
+  Pattern::Pred state2 = ~0;
+  Pattern::Pred mask = (1 << (min - 1));
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_;
+    while (s < e - 1)
+    {
+      state2 = (state1 << 1) | bit[static_cast<uint8_t>(*s)];
+      ++s;
+      state1 = (state2 << 1) | bit[static_cast<uint8_t>(*s)];
+      if ((state1 & state2 & mask) == 0)
+        break;
+      ++s;
+    }
+    if ((state2 & mask) == 0)
+    {
+      state1 = state2;
+      state2 = ~0;
+      --s;
+    }
+    else if ((state1 & mask) != 0 && s == e - 1)
+    {
+      state1 = (state1 << 1) | bit[static_cast<uint8_t>(*s)];
+      if ((state1 & mask) != 0)
+        ++s;
+    }
+    if (s < e)
+    {
+      s -= min - 1;
+      loc = s - buf_;
+      if (Pattern::predict_match(pmh, s, min))
+      {
+        set_current(loc);
+        return true;
+      }
+      loc += min;
+    }
+    else
+    {
+      loc = s - buf_;
+      set_current_and_peek_more(loc - 1);
+      loc = cur_ + 1;
+      if (loc + min > end_)
+        return false;
+    }
+  }
+}
+
+/// Minimal 1 char pattern using PM4
+bool Matcher::advance_pattern(size_t loc)
+{
+  const Pattern::Pred *pma = pat_->pma_;
+  size_t min = pat_->min_;
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_ - 6;
+    bool f = true;
+    while (s < e &&
+        (f = (Pattern::predict_match(pma, s) != 0 &&
+              Pattern::predict_match(pma, ++s) != 0 &&
+              Pattern::predict_match(pma, ++s) != 0 &&
+              Pattern::predict_match(pma, ++s) != 0)))
+    {
+      ++s;
+    }
+    loc = s - buf_;
+    if (!f)
+    {
+      set_current(loc);
+      return true;
+    }
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + 6 >= end_)
+    {
+      set_current(loc);
+      return loc + min <= end_;
+    }
+  }
+}
+
+/// One char
+bool Matcher::advance_char(size_t loc)
+{
+  char chr0 = pat_->chr_[0];
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_;
+    s = static_cast<const char*>(std::memchr(s, chr0, e - s));
+    if (s != NULL)
+    {
+      loc = s - buf_;
+      set_current(loc);
+      return true;
+    }
+    loc = e - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + 1 > end_)
+      return false;
+  }
+}
+
+/// One char followed by 1 to 3 minimal char pattern
+bool Matcher::advance_char_pma(size_t loc)
+{
+  const Pattern::Pred *pma = pat_->pma_;
+  char chr0 = pat_->chr_[0];
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_;
+    s = static_cast<const char*>(std::memchr(s, chr0, e - s));
+    if (s != NULL)
+    {
+      loc = s - buf_;
+      set_current(loc);
+      if (s > e - 5 || Pattern::predict_match(pma, s + 1) == 0)
+        return true;
+      ++loc;
+    }
+    else
+    {
+      loc = e - buf_;
+      set_current_and_peek_more(loc - 1);
+      loc = cur_ + 1;
+      if (loc + 1 > end_)
+        return false;
+    }
+  }
+}
+
+/// One char followed by 4 minimal char pattern
+bool Matcher::advance_char_pmh(size_t loc)
+{
+  const Pattern::Pred *pmh = pat_->pmh_;
+  char chr0 = pat_->chr_[0];
+  size_t min = pat_->min_;
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_;
+    s = static_cast<const char*>(std::memchr(s, chr0, e - s));
+    if (s != NULL)
+    {
+      loc = s - buf_;
+      if (s + 1 + min > e || Pattern::predict_match(pmh, s + 1, min))
+      {
+        set_current(loc);
+        return true;
+      }
+      ++loc;
+    }
+    else
+    {
+      loc = e - buf_;
+      set_current_and_peek_more(loc - 1);
+      loc = cur_ + 1;
+      if (loc + 1 > end_)
+        return false;
+    }
+  }
+}
+
+/// Few chars
+template <uint8_t LEN>
+bool Matcher::advance_chars(size_t loc)
+{
+  static const uint16_t lcp = 0;
+  static const uint16_t lcs = LEN - 1;
+  const char *chr = pat_->chr_;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    __m128i vlcp = _mm_set1_epi8(chr[lcp]);
+    __m128i vlcs = _mm_set1_epi8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+      __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
+      __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
+      __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
+      while (mask != 0)
+      {
+        uint32_t offset = ctz(mask);
+        loc = s - lcp + offset - buf_;
+        if (LEN == 2 ||
+            (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
+        {
+          set_current(loc);
+          return true;
+        }
+        mask &= mask - 1;
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN > end_)
+      return false;
+    if (loc + LEN + 15 > end_)
+      break;
+  }
+#elif defined(HAVE_NEON)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
+    uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+      uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
+      uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
+      uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
+      uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
+      uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
+      uint64_t mask = vgetq_lane_u64(vmask64, 0);
+      if (mask != 0)
+      {
+        for (uint16_t i = 0; i < 8; ++i)
+        {
+          if ((mask & 0xff) &&
+              (LEN == 2 ||
+               (LEN == 3 ? s[i + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + i, chr + 1, LEN - 2) == 0)))
+          {
+            loc = s - lcp + i - buf_;
+            set_current(loc);
+            return true;
+          }
+          mask >>= 8;
+        }
+      }
+      mask = vgetq_lane_u64(vmask64, 1);
+      if (mask != 0)
+      {
+        for (uint16_t i = 8; i < 16; ++i)
+        {
+          if ((mask & 0xff) &&
+              (LEN == 2 ||
+               (LEN == 3 ? s[i + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + i, chr + 1, LEN - 2) == 0)))
+          {
+            loc = s - lcp + i - buf_;
+            set_current(loc);
+            return true;
+          }
+          mask >>= 8;
+        }
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN > end_)
+      return false;
+    if (loc + LEN + 15 > end_)
+      break;
+  }
+#endif
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (LEN == 2 ||
+          (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 2) == 0))
+      {
+        loc = s - lcp - buf_;
+        set_current(loc);
+        return true;
+      }
+      ++s;
+    }
+    loc = s - lcp - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN > end_)
+      return false;
+  }
+}
+
+/// Few chars followed by 2 to 3 minimal char pattern
+template<uint8_t LEN>
+bool Matcher::advance_chars_pma(size_t loc)
+{
+  static const uint16_t lcp = 0;
+  static const uint16_t lcs = LEN - 1;
+  const Pattern::Pred *pma = pat_->pma_;
+  const char *chr = pat_->chr_;
+  size_t min = pat_->min_;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    __m128i vlcp = _mm_set1_epi8(chr[lcp]);
+    __m128i vlcs = _mm_set1_epi8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+      __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
+      __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
+      __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
+      while (mask != 0)
+      {
+        uint32_t offset = ctz(mask);
+        if (LEN == 2 ||
+            (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
+        {
+          loc = s - lcp + offset - buf_;
+          if (loc + LEN + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + LEN]) == 0)
+          {
+            set_current(loc);
+            return true;
+          }
+        }
+        mask &= mask - 1;
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN + min > end_)
+      return false;
+    if (loc + LEN + min + 15 > end_)
+      break;
+  }
+#elif defined(HAVE_NEON)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
+    uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+      uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
+      uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
+      uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
+      uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
+      uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
+      uint64_t mask = vgetq_lane_u64(vmask64, 0);
+      if (mask != 0)
+      {
+        for (uint16_t i = 0; i < 8; ++i)
+        {
+          if ((mask & 0xff) &&
+              (LEN == 2 ||
+               (LEN == 3 ? s[i + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + i, chr + 1, LEN - 2) == 0)))
+          {
+            loc = s - lcp + i - buf_;
+            if (loc + LEN + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + LEN]) == 0)
+            {
+              set_current(loc);
+              return true;
+            }
+          }
+          mask >>= 8;
+        }
+      }
+      mask = vgetq_lane_u64(vmask64, 1);
+      if (mask != 0)
+      {
+        for (uint16_t i = 8; i < 16; ++i)
+        {
+          if ((mask & 0xff) &&
+              (LEN == 2 ||
+               (LEN == 3 ? s[i + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + i, chr + 1, LEN - 2) == 0)))
+          {
+            loc = s - lcp + i - buf_;
+            if (loc + LEN + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + LEN]) == 0)
+            {
+              set_current(loc);
+              return true;
+            }
+          }
+          mask >>= 8;
+        }
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN + min > end_)
+      return false;
+    if (loc + LEN + min + 15 > end_)
+      break;
+  }
+#endif
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (LEN == 2 ||
+          (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 2) == 0))
+      {
+        loc = s - lcp - buf_;
+        if (loc + LEN + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + LEN]) == 0)
+        {
+          set_current(loc);
+          return true;
+        }
+      }
+      ++s;
+    }
+    loc = s - lcp - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN + min > end_)
+      return false;
+  }
+}
+
+/// Few chars followed by 4 minimal char pattern
+template<uint8_t LEN>
+bool Matcher::advance_chars_pmh(size_t loc)
+{
+  static const uint16_t lcp = 0;
+  static const uint16_t lcs = LEN - 1;
+  const Pattern::Pred *pmh = pat_->pmh_;
+  const char *chr = pat_->chr_;
+  size_t min = pat_->min_;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    __m128i vlcp = _mm_set1_epi8(chr[lcp]);
+    __m128i vlcs = _mm_set1_epi8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+      __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
+      __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
+      __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
+      while (mask != 0)
+      {
+        uint32_t offset = ctz(mask);
+        if (LEN == 2 ||
+            (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
+        {
+          loc = s - lcp + offset - buf_;
+          if (loc + LEN + min > end_ || Pattern::predict_match(pmh, &buf_[loc + LEN], min))
+          {
+            set_current(loc);
+            return true;
+          }
+        }
+        mask &= mask - 1;
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN + min > end_)
+      return false;
+    if (loc + LEN + min + 15 > end_)
+      break;
+  }
+#elif defined(HAVE_NEON)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
+    uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+      uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
+      uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
+      uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
+      uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
+      uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
+      uint64_t mask = vgetq_lane_u64(vmask64, 0);
+      if (mask != 0)
+      {
+        for (uint16_t i = 0; i < 8; ++i)
+        {
+          if ((mask & 0xff) &&
+              (LEN == 2 ||
+               (LEN == 3 ? s[i + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + i, chr + 1, LEN - 2) == 0)))
+          {
+            size_t loc = s - lcp + i - buf_;
+            if (loc + LEN + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + LEN], min))
+            {
+              set_current(loc);
+              return true;
+            }
+          }
+          mask >>= 8;
+        }
+      }
+      mask = vgetq_lane_u64(vmask64, 1);
+      if (mask != 0)
+      {
+        for (uint16_t i = 8; i < 16; ++i)
+        {
+          if ((mask & 0xff) &&
+              (LEN == 2 ||
+               (LEN == 3 ? s[i + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + i, chr + 1, LEN - 2) == 0)))
+          {
+            size_t loc = s - lcp + i - buf_;
+            if (loc + LEN + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + LEN], min))
+            {
+              set_current(loc);
+              return true;
+            }
+          }
+          mask >>= 8;
+        }
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN + min > end_)
+      return false;
+    if (loc + LEN + min + 15 > end_)
+      break;
+  }
+#endif
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - LEN + 1;
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (LEN == 2 ||
+          (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 2) == 0))
+      {
+        loc = s - lcp - buf_;
+        if (loc + LEN + min > end_ || Pattern::predict_match(pmh, &buf_[loc + LEN], min))
+        {
+          set_current(loc);
+          return true;
+        }
+      }
+      ++s;
+    }
+    loc = s - lcp - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + LEN + min > end_)
+      return false;
+  }
+}
+
+/// String
+bool Matcher::advance_string(size_t loc)
+{
+  const char *chr = pat_->chr_;
+  uint8_t len = pat_->len_;
+  uint16_t lcp = pat_->lcp_;
+  uint16_t lcs = pat_->lcs_;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    __m128i vlcp = _mm_set1_epi8(chr[lcp]);
+    __m128i vlcs = _mm_set1_epi8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+      __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
+      __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
+      __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
+      while (mask != 0)
+      {
+        uint32_t offset = ctz(mask);
+        if (std::memcmp(s - lcp + offset, chr, len) == 0)
+        {
+          loc = s - lcp + offset - buf_;
+          set_current(loc);
+          return true;
+        }
+        mask &= mask - 1;
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len > end_)
+      return false;
+    if (loc + len + 15 > end_)
+      break;
+  }
+#elif defined(HAVE_NEON)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    if (simd_advance_string_neon(s, e))
+      return true;
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len > end_)
+      return false;
+    if (loc + len + 15 > end_)
+      break;
+  }
+#endif
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (std::memcmp(s - lcp, chr, len) == 0)
+      {
+        loc = s - lcp - buf_;
+        set_current(loc);
+        return true;
+      }
+      ++s;
+    }
+    loc = s - lcp - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len > end_)
+      return false;
+  }
+}
+
+#if defined(WITH_STRING_PM)
+
+/// String followed by 1 to 3 minimal char pattern
+bool Matcher::advance_string_pma(size_t loc)
+{
+  const Pattern::Pred *pma = pat_->pma_;
+  const char *chr = pat_->chr_;
+  size_t len = pat_->len_;
+  size_t min = pat_->min_;
+  uint16_t lcp = pat_->lcp_;
+  uint16_t lcs = pat_->lcs_;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    __m128i vlcp = _mm_set1_epi8(chr[lcp]);
+    __m128i vlcs = _mm_set1_epi8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+      __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
+      __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
+      __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
+      while (mask != 0)
+      {
+        uint32_t offset = ctz(mask);
+        if (std::memcmp(s - lcp + offset, chr, len) == 0)
+        {
+          loc = s - lcp + offset - buf_;
+          if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+          {
+            set_current(loc);
+            return true;
+          }
+        }
+        mask &= mask - 1;
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len + min > end_)
+      return false;
+    if (loc + len + min + 15 > end_)
+      break;
+  }
+#elif defined(HAVE_NEON)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    if (simd_advance_string_pma_neon(s, e))
+      return true;
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len + min > end_)
+      return false;
+    if (loc + len + min + 15 > end_)
+      break;
+  }
+#endif
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (std::memcmp(s - lcp, chr, len) == 0)
+      {
+        loc = s - lcp - buf_;
+        if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+        {
+          set_current(loc);
+          return true;
+        }
+      }
+      ++s;
+    }
+    loc = s - lcp - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len + min > end_)
+      return false;
+  }
+}
+
+/// String followed by 4 minimal char pattern
+bool Matcher::advance_string_pmh(size_t loc)
+{
+  const Pattern::Pred *pmh = pat_->pmh_;
+  const char *chr = pat_->chr_;
+  size_t len = pat_->len_;
+  size_t min = pat_->min_;
+  uint16_t lcp = pat_->lcp_;
+  uint16_t lcs = pat_->lcs_;
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    __m128i vlcp = _mm_set1_epi8(chr[lcp]);
+    __m128i vlcs = _mm_set1_epi8(chr[lcs]);
+    while (s <= e - 16)
+    {
+      __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+      __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
+      __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
+      __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
+      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
+      while (mask != 0)
+      {
+        uint32_t offset = ctz(mask);
+        if (std::memcmp(s - lcp + offset, chr, len) == 0)
+        {
+          loc = s - lcp + offset - buf_;
+          if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
+          {
+            set_current(loc);
+            return true;
+          }
+        }
+        mask &= mask - 1;
+      }
+      s += 16;
+    }
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len + min > end_)
+      return false;
+    if (loc + len + min + 15 > end_)
+      break;
+  }
+#elif defined(HAVE_NEON)
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    if (simd_advance_string_pmh_neon(s, e))
+      return true;
+    s -= lcp;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len + min > end_)
+      return false;
+    if (loc + len + min + 15 > end_)
+      break;
+  }
+#endif
+  while (true)
+  {
+    const char *s = buf_ + loc + lcp;
+    const char *e = buf_ + end_ + lcp - len + 1;
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (std::memcmp(s - lcp, chr, len) == 0)
+      {
+        loc = s - lcp - buf_;
+        if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
+        {
+          set_current(loc);
+          return true;
+        }
+      }
+      ++s;
+    }
+    loc = s - lcp - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len + min > end_)
+      return false;
+  }
+}
+
+#endif // WITH_STRING_PM
+
+#if defined(HAVE_NEON)
+
+// Implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
+bool Matcher::simd_advance_string_neon(const char *&s, const char *e)
+{
+  uint16_t lcp = pat_->lcp_;
+  uint16_t lcs = pat_->lcs_;
+  size_t len = pat_->len_;
+  const char *chr = pat_->chr_;
+  uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
+  uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
+  while (s <= e - 16)
+  {
+    uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+    uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
+    uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
+    uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
+    uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
+    uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
+    uint64_t mask = vgetq_lane_u64(vmask64, 0);
+    if (mask != 0)
+    {
+      for (uint16_t i = 0; i < 8; ++i)
+      {
+        if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
+        {
+          size_t loc = s - lcp + i - buf_;
+          set_current(loc);
+          return true;
+        }
+        mask >>= 8;
+      }
+    }
+    mask = vgetq_lane_u64(vmask64, 1);
+    if (mask != 0)
+    {
+      for (uint16_t i = 8; i < 16; ++i)
+      {
+        if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
+        {
+          size_t loc = s - lcp + i - buf_;
+          set_current(loc);
+          return true;
+        }
+        mask >>= 8;
+      }
+    }
+    s += 16;
+  }
+  return false;
+}
+
+#if defined(WITH_STRING_PM)
+
+// Implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
+bool Matcher::simd_advance_string_pma_neon(const char *&s, const char *e)
+{
+  uint16_t lcp = pat_->lcp_;
+  uint16_t lcs = pat_->lcs_;
+  size_t len = pat_->len_;
+  const char *chr = pat_->chr_;
+  uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
+  uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
+  while (s <= e - 16)
+  {
+    uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+    uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
+    uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
+    uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
+    uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
+    uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
+    uint64_t mask = vgetq_lane_u64(vmask64, 0);
+    if (mask != 0)
+    {
+      for (uint16_t i = 0; i < 8; ++i)
+      {
+        if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
+        {
+          size_t loc = s - lcp + i - buf_;
+          if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+          {
+            set_current(loc);
+            return true;
+          }
+        }
+        mask >>= 8;
+      }
+    }
+    mask = vgetq_lane_u64(vmask64, 1);
+    if (mask != 0)
+    {
+      for (uint16_t i = 8; i < 16; ++i)
+      {
+        if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
+        {
+          size_t loc = s - lcp + i - buf_;
+          if (loc + len + 4 > end_ || Pattern::predict_match(pat_->pma_, &buf_[loc + len]) == 0)
+          {
+            set_current(loc);
+            return true;
+          }
+        }
+        mask >>= 8;
+      }
+    }
+    s += 16;
+  }
+  return false;
+}
+
+// Implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
+bool Matcher::simd_advance_string_pmh_neon(const char *&s, const char *e)
+{
+  uint16_t lcp = pat_->lcp_;
+  uint16_t lcs = pat_->lcs_;
+  size_t len = pat_->len_;
+  size_t min = pat_->min_; // min >= 4
+  const char *chr = pat_->chr_;
+  uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
+  uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
+  while (s <= e - 16)
+  {
+    uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
+    uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
+    uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
+    uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
+    uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
+    uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
+    uint64_t mask = vgetq_lane_u64(vmask64, 0);
+    if (mask != 0)
+    {
+      for (uint16_t i = 0; i < 8; ++i)
+      {
+        if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
+        {
+          size_t loc = s - lcp + i - buf_;
+          if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+          {
+            set_current(loc);
+            return true;
+          }
+        }
+        mask >>= 8;
+      }
+    }
+    mask = vgetq_lane_u64(vmask64, 1);
+    if (mask != 0)
+    {
+      for (uint16_t i = 8; i < 16; ++i)
+      {
+        if ((mask & 0xff) && std::memcmp(s - lcp + i, chr, len) == 0)
+        {
+          size_t loc = s - lcp + i - buf_;
+          if (loc + len + min > end_ || Pattern::predict_match(pat_->pmh_, &buf_[loc + len], min))
+          {
+            set_current(loc);
+            return true;
+          }
+        }
+        mask >>= 8;
+      }
+    }
+    s += 16;
+  }
+  return false;
+}
+
+#endif // WITH_STRING_PM
+
+#endif // HAVE_NEON
+
+/// My improved Boyer-Moore string search
+bool Matcher::advance_string_bm(size_t loc)
+{
+  const char *chr = pat_->chr_;
+  const uint8_t *bms = pat_->bms_;
+  size_t len = pat_->len_;
+  size_t bmd = pat_->bmd_;
+  uint16_t lcp = pat_->lcp_;
+  while (true)
+  {
+    const char *s = buf_ + loc + len - 1;
+    const char *e = buf_ + end_;
+    const char *t = chr + len - 1;
+    while (s < e)
+    {
+      size_t k = 0;
+      do
+        s += k = bms[static_cast<uint8_t>(*s)];
+      while (k > 0 ? s < e : s[lcp - len + 1] != chr[lcp] && (s += bmd) < e);
+      if (s >= e)
+        break;
+      const char *p = t - 1;
+      const char *q = s - 1;
+      while (p >= chr && *p == *q)
+      {
+        --p;
+        --q;
+      }
+      if (p < chr)
+      {
+        loc = q - buf_ + 1;
+        set_current(loc);
+        return true;
+      }
+      if (chr + bmd >= p)
+      {
+        s += bmd;
+      }
+      else
+      {
+        size_t k = bms[static_cast<uint8_t>(*q)];
+        if (p + k > t + bmd)
+          s += k - (t - p);
+        else
+          s += bmd;
+      }
+    }
+    s -= len - 1;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len > end_)
+      return false;
+  }
+}
+
+#if defined(WITH_STRING_PM)
+
+/// My improved Boyer-Moore string search followed by a 1 to 3 minimal char pattern, using PM4
+bool Matcher::advance_string_bm_pma(size_t loc)
+{
+  const char *chr = pat_->chr_;
+  const Pattern::Pred *pma = pat_->pma_;
+  const uint8_t *bms = pat_->bms_;
+  size_t len = pat_->len_;
+  size_t bmd = pat_->bmd_;
+  uint16_t lcp = pat_->lcp_;
+  while (true)
+  {
+    const char *s = buf_ + loc + len - 1;
+    const char *e = buf_ + end_;
+    const char *t = chr + len - 1;
+    while (s < e)
+    {
+      size_t k = 0;
+      do
+        s += k = bms[static_cast<uint8_t>(*s)];
+      while (k > 0 ? s < e : s[lcp - len + 1] != chr[lcp] && (s += bmd) < e);
+      if (s >= e)
+        break;
+      const char *p = t - 1;
+      const char *q = s - 1;
+      while (p >= chr && *p == *q)
+      {
+        --p;
+        --q;
+      }
+      if (p < chr)
+      {
+        loc = q - buf_ + 1;
+        if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+        {
+          set_current(loc);
+          return true;
+        }
+      }
+      if (chr + bmd >= p)
+      {
+        s += bmd;
+      }
+      else
+      {
+        size_t k = bms[static_cast<uint8_t>(*q)];
+        if (p + k > t + bmd)
+          s += k - (t - p);
+        else
+          s += bmd;
+      }
+    }
+    s -= len - 1;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len > end_)
+      return false;
+  }
+}
+
+/// My improved Boyer-Moore string search followed by a 4 minimal char pattern, using PM4
+bool Matcher::advance_string_bm_pmh(size_t loc)
+{
+  const char *chr = pat_->chr_;
+  const Pattern::Pred *pmh = pat_->pmh_;
+  const uint8_t *bms = pat_->bms_;
+  size_t bmd = pat_->bmd_;
+  size_t len = pat_->len_;
+  size_t min = pat_->min_;
+  uint16_t lcp = pat_->lcp_;
+  while (true)
+  {
+    const char *s = buf_ + loc + len - 1;
+    const char *e = buf_ + end_;
+    const char *t = chr + len - 1;
+    while (s < e)
+    {
+      size_t k = 0;
+      do
+        s += k = bms[static_cast<uint8_t>(*s)];
+      while (k > 0 ? s < e : s[lcp - len + 1] != chr[lcp] && (s += bmd) < e);
+      if (s >= e)
+        break;
+      const char *p = t - 1;
+      const char *q = s - 1;
+      while (p >= chr && *p == *q)
+      {
+        --p;
+        --q;
+      }
+      if (p < chr)
+      {
+        loc = q - buf_ + 1;
+        if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
+        {
+          set_current(loc);
+          return true;
+        }
+      }
+      if (chr + bmd >= p)
+      {
+        s += bmd;
+      }
+      else
+      {
+        size_t k = bms[static_cast<uint8_t>(*q)];
+        if (p + k > t + bmd)
+          s += k - (t - p);
+        else
+          s += bmd;
+      }
+    }
+    s -= len - 1;
+    loc = s - buf_;
+    set_current_and_peek_more(loc - 1);
+    loc = cur_ + 1;
+    if (loc + len > end_)
+      return false;
+  }
+}
+
+#endif // WITH_STRING_PM
+
+} // namespace reflex

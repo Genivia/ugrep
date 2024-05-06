@@ -755,14 +755,14 @@ inline bool getline(const char*& here, size_t& left, reflex::BufferedInput& buff
   return ch == EOF && line.empty();
 }
 
-// return true if s[0..n-1] contains a \0 (NUL) or a non-displayable invalid UTF-8 sequence, which depends on -U and -W
+// return true if s[0..n-1] contains a \0 (NUL) or a non-displayable invalid UTF-8 encoding sequence
 inline bool is_binary(const char *s, size_t n)
 {
-  // file is binary if it contains a \0 (NUL)
+  // file is binary if it contains a \0 (NUL) which is what grep checks
   if (memchr(s, '\0', n) != NULL)
     return true;
 
-  // not -U or -W: file is binary if it has invalid UTF-8
+  // not -U nor -W: file is binary if it has an invalid UTF-8 encoding
   if (!flag_binary || flag_with_hex)
   {
     if (n == 1)
@@ -3658,10 +3658,13 @@ struct Grep {
 #endif
     }
     else
-#endif
     {
       input = reflex::Input(file_in, flag_encoding_type);
     }
+#else
+    (void)find; // appease -Wunused
+    input = reflex::Input(file_in, flag_encoding_type);
+#endif
 
     return true;
   }
@@ -4020,6 +4023,7 @@ struct Grep {
     }
     else
     {
+      // assign input to the matcher to search
       matcher->input(input);
 
 #if !defined(HAVE_PCRE2) && defined(HAVE_BOOST_REGEX)
@@ -4066,12 +4070,14 @@ struct Grep {
     if (avail == 0)
       return false;
 
-    if (avail > 65536)
-      avail = 65536;
+    // check up to 32K ahead in buffer
+    if (avail > 32768)
+      avail = 32768;
 
     // do not cut off right after the first UTF-8 byte
-    if ((matcher->begin()[avail - 1] & 0xc0) == 0xc0)
-      --avail;
+    if (avail > 0 && (matcher->begin()[avail - 1] & 0xc0) == 0xc0)
+      if (--avail == 0)
+        return true;
 
     return is_binary(matcher->begin(), avail);
   }
@@ -8388,6 +8394,8 @@ void ugrep()
       usage("options --index and -Z (--fuzzy) are not compatible");
     if (flag_invert_match)
       usage("options --index and -v (--invert-match) are not compatible");
+    if (flag_encoding != NULL)
+      usage("options --index and --encoding are not compatible");
 
     // -c and --index: force --min-count larger than 0, because indexed search skips non-matching files
     if (flag_count && flag_min_count == 0)
@@ -10147,6 +10155,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool heading = flag_with_filename;
         size_t lineno = 0;
 
+        // skip line number counting, only count matching lines
+        if (!flag_multiline && flag_max_line == 0 && flag_stats == NULL)
+          matcher->lineno_skip(true);
+
         while (matcher->find())
         {
           size_t current_lineno = matcher->lineno();
@@ -10242,6 +10254,10 @@ void Grep::search(const char *pathname, uint16_t cost)
           {
             // -co or -cu: count the number of patterns matched
 
+            // skip line number counting, only count matching lines
+            if (!flag_multiline && flag_max_line == 0 && flag_stats == NULL)
+              matcher->lineno_skip(true);
+
             while (matcher->find())
             {
               // --range: max line exceeded?
@@ -10263,6 +10279,26 @@ void Grep::search(const char *pathname, uint16_t cost)
               // -m: max number of matches reached?
               if (flag_max_count > 0 && matches >= flag_max_count)
                 break;
+            }
+          }
+          else if (!flag_multiline && !flag_invert_match && flag_max_line == 0 && matchers == NULL && flag_stats == NULL)
+          {
+            // -c without -o/-u/-v/-K/-%: count the number of matching lines DO NOT KEEP LINE COUNT!
+
+            // skip line number counting, only count matching lines
+            matcher->lineno_skip(true);
+
+            while (matcher->find())
+            {
+              ++matches;
+
+              // -m: max number of matches reached?
+              if (flag_max_count > 0 && matches >= flag_max_count)
+                break;
+
+              // if the match does not span more than one line, then skip to end of the line (we count matching lines)
+              if (!matcher->at_bol())
+                matcher->skip('\n');
             }
           }
           else
@@ -10554,6 +10590,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool binary = false;
         bool nl = false;
 
+        // skip line number counting, only count matching lines
+        if (!flag_line_number && !flag_multiline && flag_max_line == 0 && flag_stats == NULL)
+          matcher->lineno_skip(true);
+
         while (matcher->find())
         {
           const char *begin = matcher->begin();
@@ -10685,33 +10725,36 @@ void Grep::search(const char *pathname, uint16_t cost)
           }
           else
           {
-            // echo multi-line matches line-by-line
-
-            const char *from = begin;
-            const char *to;
-
-            while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+            if (flag_multiline)
             {
-              out.str(match_ms);
-              out.str(from, to - from);
-              out.str(match_off);
-              out.chr('\n');
+              // echo multi-line matches line-by-line
+              const char *from = begin;
+              const char *to;
 
-              out.header(pathname, partname, heading, ++lineno, NULL, matcher->first() + (to - begin) + 1, flag_separator_bar, false);
+              while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+              {
+                out.str(match_ms);
+                out.str(from, to - from);
+                out.str(match_off);
+                out.chr('\n');
 
-              from = to + 1;
+                out.header(pathname, partname, heading, ++lineno, NULL, matcher->first() + (to - begin) + 1, flag_separator_bar, false);
+
+                from = to + 1;
+              }
+
+              size -= from - begin;
+              begin = from;
             }
-
-            size -= from - begin;
 
             if (size > 0)
             {
-              bool lf_only = from[size - 1] == '\n';
+              bool lf_only = begin[size - 1] == '\n';
               size -= lf_only;
               if (size > 0)
               {
                 out.str(match_ms);
-                out.str(from, size);
+                out.str(begin, size);
                 out.str(match_off);
               }
               out.nl(lf_only);
@@ -10746,6 +10789,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool binary = false;
         bool nl = false;
         bool stop = false;
+
+        // skip line number counting, only count matching lines
+        if (!flag_line_number && !flag_multiline && flag_max_line == 0 && flag_stats == NULL)
+          matcher->lineno_skip(true);
 
         // construct event handler functor with captured *this and some of the locals
         GrepHandler handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
@@ -11025,33 +11072,36 @@ void Grep::search(const char *pathname, uint16_t cost)
           }
           else
           {
-            // echo multi-line matches line-by-line
-
-            const char *from = begin;
-            const char *to;
-
-            while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+            if (flag_multiline)
             {
-              out.str(match_ms);
-              out.str(from, to - from);
-              out.str(match_off);
-              out.chr('\n');
+              // echo multi-line matches line-by-line
+              const char *from = begin;
+              const char *to;
 
-              out.header(pathname, partname, heading, ++lineno, NULL, matcher->first() + (to - begin) + 1, flag_separator_bar, false);
+              while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+              {
+                out.str(match_ms);
+                out.str(from, to - from);
+                out.str(match_off);
+                out.chr('\n');
 
-              from = to + 1;
+                out.header(pathname, partname, heading, ++lineno, NULL, matcher->first() + (to - begin) + 1, flag_separator_bar, false);
+
+                from = to + 1;
+              }
+
+              size -= from - begin;
+              begin = from;
             }
-
-            size -= from - begin;
 
             if (size > 0)
             {
-              bool lf_only = from[size - 1] == '\n';
+              bool lf_only = begin[size - 1] == '\n';
               size -= lf_only;
               if (size > 0)
               {
                 out.str(match_ms);
-                out.str(from, size);
+                out.str(begin, size);
                 out.str(match_off);
               }
               out.nl(lf_only);
@@ -11117,6 +11167,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         bool binary = false;
         bool stop = false;
         bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
+
+        // skip line number counting, only count matching lines
+        if (!flag_line_number && !flag_multiline && flag_max_line == 0 && flag_stats == NULL)
+          matcher->lineno_skip(true);
 
         // construct event handler functor with captured *this and some of the locals
         GrepHandler handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
@@ -11296,25 +11350,27 @@ void Grep::search(const char *pathname, uint16_t cost)
               }
               else
               {
-                // echo multi-line matches line-by-line
-
-                const char *from = begin;
-                const char *to;
-
-                while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                if (flag_multiline)
                 {
-                  out.str(match_ms);
-                  out.str(from, to - from);
-                  out.str(match_off);
-                  out.chr('\n');
+                  // echo multi-line matches line-by-line
+                  const char *from = begin;
+                  const char *to;
 
-                  out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                  while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                  {
+                    out.str(match_ms);
+                    out.str(from, to - from);
+                    out.str(match_off);
+                    out.chr('\n');
 
-                  from = to + 1;
+                    out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+
+                    from = to + 1;
+                  }
+
+                  size -= from - begin;
+                  begin = from;
                 }
-
-                size -= from - begin;
-                begin = from;
 
                 out.str(match_ms);
                 out.str(begin, size);
@@ -11871,25 +11927,27 @@ void Grep::search(const char *pathname, uint16_t cost)
               }
               else
               {
-                // echo multi-line matches line-by-line
-
-                const char *from = begin;
-                const char *to;
-
-                while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                if (flag_multiline)
                 {
-                  out.str(v_match_ms);
-                  out.str(from, to - from);
-                  out.str(match_off);
-                  out.chr('\n');
+                  // echo multi-line matches line-by-line
+                  const char *from = begin;
+                  const char *to;
 
-                  out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                  while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                  {
+                    out.str(v_match_ms);
+                    out.str(from, to - from);
+                    out.str(match_off);
+                    out.chr('\n');
 
-                  from = to + 1;
+                    out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+
+                    from = to + 1;
+                  }
+
+                  size -= from - begin;
+                  begin = from;
                 }
-
-                size -= from - begin;
-                begin = from;
 
                 out.str(v_match_ms);
                 out.str(begin, size);
@@ -12324,25 +12382,27 @@ void Grep::search(const char *pathname, uint16_t cost)
               }
               else
               {
-                // echo multi-line matches line-by-line
-
-                const char *from = begin;
-                const char *to;
-
-                while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                if (flag_multiline)
                 {
-                  out.str(match_ms);
-                  out.str(from, to - from);
-                  out.str(match_off);
-                  out.chr('\n');
+                  // echo multi-line matches line-by-line
+                  const char *from = begin;
+                  const char *to;
 
-                  out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+                  while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
+                  {
+                    out.str(match_ms);
+                    out.str(from, to - from);
+                    out.str(match_off);
+                    out.chr('\n');
 
-                  from = to + 1;
+                    out.header(pathname, partname, heading, ++lineno, NULL, first + (to - begin) + 1, flag_separator_bar, false);
+
+                    from = to + 1;
+                  }
+
+                  size -= from - begin;
+                  begin = from;
                 }
-
-                size -= from - begin;
-                begin = from;
 
                 out.str(match_ms);
                 out.str(begin, size);
@@ -13136,7 +13196,8 @@ done_search:
       if (flag_break && (matches > 0 || flag_any_line) && !flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL)
         out.nl();
 
-      Stats::score_matches(matches, matcher->lineno() > 0 ? matcher->lineno() - 1 : 0);
+      if (flag_stats != NULL)
+        Stats::score_matches(matches, matcher->lineno() > 0 ? matcher->lineno() - 1 : 0);
     }
 
     catch (EXIT_SEARCH&)
@@ -14826,6 +14887,10 @@ void version()
 #ifdef HAVE_LIBBZIP3
     ",bzip3" <<
 #endif
+#ifndef WITH_NO_7ZIP
+    ",7z" <<
+#endif
+    ",tar/pax/cpio/zip" <<
 #endif
     "\n"
     "License: BSD-3-Clause; ugrep user manual: <https://ugrep.com>\n"

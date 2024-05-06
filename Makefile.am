@@ -4,7 +4,7 @@ SUBDIRS += lzma/C
 endif
 SUBDIRS += src
 
-man1_MANS = man/ugrep.1
+man1_MANS = man/ugrep.1 man/ugrep-indexer.1
 
 EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 
@@ -31,10 +31,11 @@ all-local:	cp2bin
 .PHONY:		cp2bin
 
 # to copy the ugrep binary to the local ugrep/bin/ugrep and ugrep/bin/ug (symlinks DO NOT WORK for ug with bash when installed)
-cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT)
+cp2bin:		$(top_builddir)/src/ugrep$(EXEEXT) $(top_builddir)/src/ugrep-indexer$(EXEEXT)
 		@rm -f $(top_builddir)/bin/ugrep$(EXEEXT)
+		@rm -f $(top_builddir)/bin/ugrep-indexer$(EXEEXT)
 		@mkdir -p $(top_builddir)/bin && \
-		  cp -f $< $(top_builddir)/bin/ugrep$(EXEEXT) && \
+		  cp -f $^ $(top_builddir)/bin/ && \
 		  cd $(top_builddir)/bin && \
 		  rm -f ug$(EXEEXT) && \
 		  cp -f ugrep$(EXEEXT) ug$(EXEEXT)
@@ -117,6 +118,7 @@ install-data-hook:
 
 uninstall-hook:
 		@rm -f $(DESTDIR)$(bindir)/ug$(EXEEXT) $(DESTDIR)$(bindir)/ugrep$(EXEEXT)
+		@rm -f $(DESTDIR)$(bindir)/ugrep-indexer$(EXEEXT)
 		@rm -f $(DESTDIR)$(bindir)/ug+ $(DESTDIR)$(bindir)/ugrep+
 		@rm -rf $(DESTDIR)$(datadir)/ugrep
 
