@@ -348,6 +348,12 @@ steps further below.
 You can use the standard NetBSD package installer (pkgsrc):
 <http://cdn.netbsd.org/pub/pkgsrc/current/pkgsrc/textproc/ugrep/README.html>
 
+### OpenBSD
+
+    $ pkg_add ugrep
+
+Check <https://openports.pl/path/sysutils/ugrep> for version info.
+
 ### OpenSUSE
 
     $ zypper install ugrep
