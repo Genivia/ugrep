@@ -23,7 +23,7 @@ local arguments=(
 {--colors=-,--colours=-}'[Use COLORS to mark up text]'
 {--config,---}'[Use configuration FILE]'
 --no-config'[Do not automatically load the default .ugrep configuration file]'
---confirm'[Confirm actions in -Q query TUI]'
+--no-confirm'[Do not confirm actions in -Q query TUI]'
 --cpp'[Output file matches in C++]'
 --csv'[Output file matches in CSV]'
 {-D,--devices=-}'[If an input file is a device, FIFO or socket, use ACTION to process it]:ACTION:(read skip)'

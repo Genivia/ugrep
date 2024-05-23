@@ -16,7 +16,7 @@ complete -c ug -l color -l colour -d 'Mark up the matching text with the colors 
 complete -c ug -l colors -l colours -d 'Use COLORS to mark up text'
 complete -c ug -l config -l - -d 'Use configuration FILE'
 complete -c ug -l no-config -d 'Do not automatically load the default .ugrep configuration file.'
-complete -c ug -l confirm -d 'Confirm actions in -Q query TUI'
+complete -c ug -l no-confirm -d 'Do not confirm actions in -Q query TUI'
 complete -c ug -l cpp -d 'Output file matches in C++'
 complete -c ug -l csv -d 'Output file matches in CSV'
 complete -c ug -s D -l devices -xa 'read skip' -d 'If an input file is a device, FIFO or socket, use ACTION to process it'

@@ -35,6 +35,9 @@ export ENCODING=$($UGREP --encoding=list 2>&1 | sed -e 's/^.[a-z].*are//' -e '/h
 # add ':message:action' to --hexdump
 # add ':message:action' to --sort=KEY
 # add ':message:action' to -Z,--fuzzy=
+# add $matchers to options that are exclusive -E -F -G -P -Z
+# add '(1)*' to options that are repeatable
+# add '(-)' to {--help,-?} to kill completion
 # add final quote
 $UGREP --help 2>&1 \
     | sed -E -e 's/^[ ]{4}-/    \{-/' -e "/^[ ]{4}\{/s/$/\}/" \

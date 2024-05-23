@@ -236,3 +236,5 @@ printf '" -- $cur) )\n    compopt +o nospace\n}\n\n' >> ug
 printf '_comp_cmd_ugrep_encoding()\n{\n    COMPREPLY=( $(compgen -W "' >> ug
 $UGREP --encoding=list 2>&1 | sed -e 's/^.[a-z].*are//' -e '/help/d' -e "s/ '//g" -e "s/',\?/ /g" | tr '\n' ' ' | sed 's/ $//' >> ug
 printf '" -- $cur) )\n    compopt +o nospace\n}\n\n' >> ug
+
+cat ug
