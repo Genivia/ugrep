@@ -396,7 +396,7 @@ redo:
       {
         if (Pattern::is_opcode_halt(opcode))
         {
-          if (cap_ == 0 && back != Pattern::Const::IMAX)
+          if (back != Pattern::Const::IMAX)
           {
             pos_ = (txt_ - buf_) + bpos;
             pc = pat_->opc_ + back;
@@ -478,7 +478,7 @@ unrolled:
       {
         if (jump == Pattern::Const::HALT)
         {
-          if (cap_ == 0 && back != Pattern::Const::IMAX)
+          if (back != Pattern::Const::IMAX)
           {
             pc = pat_->opc_ + back;
             pos_ = (txt_ - buf_) + bpos;
@@ -849,15 +849,15 @@ void Matcher::init_advance()
 #endif
       adv_ = &Matcher::advance_string_bm;
   }
-#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2)
   // AVX2 runtime optimized function callback overrides
   if (have_HW_AVX2())
-    return simd_init_advance_avx2();
+    simd_init_advance_avx2();
 #endif
 #if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
   // AVX512BW runtime optimized function callback overrides
   if (have_HW_AVX512BW())
-    return simd_init_advance_avx512bw();
+    simd_init_advance_avx512bw();
 #endif
 }
 
@@ -2799,7 +2799,7 @@ bool Matcher::advance_chars_pmh(size_t loc)
 bool Matcher::advance_string(size_t loc)
 {
   const char *chr = pat_->chr_;
-  uint8_t len = pat_->len_;
+  size_t len = pat_->len_;
   uint16_t lcp = pat_->lcp_;
   uint16_t lcs = pat_->lcs_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)

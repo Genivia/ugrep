@@ -661,7 +661,7 @@ class AbstractMatcher {
     lno_ = n;
   }
   /// Updates and returns the starting line number of the match in the input character sequence.
-  inline size_t lineno()
+  size_t lineno()
     /// @returns line number
   {
 #if WITH_SPAN
@@ -677,45 +677,8 @@ class AbstractMatcher {
       }
       else
       {
-#if defined(HAVE_AVX512BW) && (!defined(_MSC_VER) || defined(_WIN64))
-        if (have_HW_AVX512BW())
-          n = simd_nlcount_avx512bw(s, t);
-        else if (have_HW_AVX2())
-          n = simd_nlcount_avx2(s, t);
-        else
-          n = simd_nlcount_sse2(s, t);
-#elif defined(HAVE_AVX2)
-        if (have_HW_AVX2())
-          n = simd_nlcount_avx2(s, t);
-        else
-          n = simd_nlcount_sse2(s, t);
-#elif defined(HAVE_SSE2)
-        n = simd_nlcount_sse2(s, t);
-#elif defined(HAVE_NEON)
-        n = simd_nlcount_neon(s, t);
-#endif
-        // clang/gcc 4-way auto-vectorizable loop
-        uint32_t n0 = 0, n1 = 0, n2 = 0, n3 = 0;
-        while (s < t - 3)
-        {
-          n0 += s[0] == '\n';
-          n1 += s[1] == '\n';
-          n2 += s[2] == '\n';
-          n3 += s[3] == '\n';
-          s += 4;
-        }
-        n += n0 + n1 + n2 + n3;
-        // epilogue
-        if (s < t)
-        {
-          n += *s == '\n';
-          if (++s < t)
-          {
-            n += *s == '\n';
-            if (++s < t)
-              n += *s == '\n';
-          }
-        }
+        // count line numbers
+        n = nlcount(s, t);
       }
       // if newlines are detected, then find begin of the last line to adjust bol
       if (n > 0)
@@ -1748,19 +1711,19 @@ class PatternMatcher : public AbstractMatcher {
     return *this;
   }
   /// Returns true if this matcher has a pattern.
-  bool has_pattern() const
+  inline bool has_pattern() const
     /// @returns true if this matcher has a pattern
   {
     return pat_ != NULL;
   }
   /// Returns true if this matcher has its own pattern not received from another matcher (responsible to delete).
-  bool own_pattern() const
+  inline bool own_pattern() const
     /// @returns true if this matcher has its own pattern
   {
     return own_ && pat_ != NULL;
   }
   /// Returns a reference to the pattern object associated with this matcher.
-  const Pattern& pattern() const
+  virtual const Pattern& pattern() const
     /// @returns reference to pattern object
   {
     ASSERT(pat_ != NULL);
@@ -1885,19 +1848,19 @@ class PatternMatcher<std::string> : public AbstractMatcher {
     return *this;
   }
   /// Returns true if this matcher has a pattern.
-  bool has_pattern() const
+  inline bool has_pattern() const
     /// @returns true if this matcher has a pattern
   {
     return pat_ != NULL;
   }
   /// Returns true if this matcher has its own pattern not received from another matcher (responsible to delete).
-  bool own_pattern() const
+  inline bool own_pattern() const
     /// @returns true if this matcher has its own pattern
   {
     return own_ && pat_ != NULL;
   }
   /// Returns a reference to the pattern string associated with this matcher.
-  const Pattern& pattern() const
+  virtual const Pattern& pattern() const
     /// @returns reference to pattern string
   {
     ASSERT(pat_ != NULL);

@@ -201,27 +201,27 @@ void Pattern::init(const char *options, const uint8_t *pred)
       size_t n = 2 + len_;
       if (len_ == 0)
       {
-        // get bitap parameters
+        // get bitap bit_[] parameters
         for (size_t i = 0; i < 256; ++i)
           bit_[i] = ~pred[i + n];
         n += 256;
       }
       if (min_ < 4)
       {
-        // get predict match pm4 parameters
+        // get predict match PM4 pma_[] parameters
         for (size_t i = 0; i < Const::HASH; ++i)
           pma_[i] = ~pred[i + n];
       }
       else
       {
-        // get predict match hash parameters
+        // get predict match hash pmh_[] parameters
         for (size_t i = 0; i < Const::HASH; ++i)
           pmh_[i] = ~pred[i + n];
       }
       n += Const::HASH;
       if ((pred[1] & 0x20) != 0)
       {
-        // get lookback parameters after s-t cut and first s-t cut pattern characters
+        // get lookback parameters lbk_ lbm_ and cbk_[] after s-t cut and first s-t cut pattern characters fst_[]
         lbk_ = pred[n + 0] | (pred[n + 1] << 8);
         lbm_ = pred[n + 2] | (pred[n + 3] << 8);
         for (size_t i = 0; i < 256; ++i)
@@ -232,28 +232,9 @@ void Pattern::init(const char *options, const uint8_t *pred)
       }
       else
       {
-        // get first pattern characters from bitap
+        // get first pattern characters fst_[] from bitap
         for (size_t i = 0; i < 256; ++i)
           fst_.set(i, (bit_[i] & 1) == 0);
-      }
-      if ((pred[1] & 0x40) != 0)
-      {
-        // get needle search paramaters (bmd_ == 0) when available
-        chr_[0] = pred[n];
-        chr_[1] = pred[n + 1];
-        npy_ = pred[n + 2];
-        pin_ = pred[n + 3];
-        lcp_ = pred[n + 4] | (pred[n + 5] << 8);
-        lcs_ = pred[n + 6] | (pred[n + 7] << 8);
-        n += 8;
-      }
-      else if ((pred[1] & 0x80) != 0)
-      {
-        // get BM parameters (bmd_ != 0) when available
-        bmd_ = pred[n];
-        lcp_ = pred[n + 1] | (pred[n + 2] << 8);
-        memcpy(bms_, pred + n + 3, 256);
-        n += 3 + 256;
       }
     }
   }
@@ -461,7 +442,6 @@ void Pattern::init(const char *options, const uint8_t *pred)
         }
       }
     }
-    DBGLOG("len=%zu lcp=%hu(%hu)", len_, lcp_, lcs_);
     uint16_t j;
     for (i = n - 1, j = i; j > 0; --j)
       if (chr_[j - 1] == chr_[i])
@@ -518,6 +498,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
         }
       }
     }
+    DBGLOG("len=%zu bmd=%zu lcp=%hu(%hu)", len_, bmd_, lcp_, lcs_);
   }
 }
 
@@ -4608,30 +4589,31 @@ bool Pattern::match_hfa_transitions(size_t level, const HFA::Hashes& hashes, con
 void Pattern::write_predictor(FILE *file) const
 {
   ::fprintf(file, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (len_ == 0) * 256 + Const::HASH + (lbk_ > 0) * 68);
-  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5) | ((bmd_ > 0) + 1) << 6)));
+  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5))));
+  // save match characters chr_[0..len_-1]
   for (size_t i = 0; i < len_; ++i)
     ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(chr_[i]));
   if (len_ == 0)
   {
-    // save bitap parameters
+    // save bitap bit_[] parameters
     for (Char i = 0; i < 256; ++i)
       ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~bit_[i]));
   }
   if (min_ < 4)
   {
-    // save predict match pm4 parameters
+    // save predict match PM4 pma_[] parameters
     for (Hash i = 0; i < Const::HASH; ++i)
       ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i]));
   }
   else
   {
-    // save predict match hash parameters
+    // save predict match hash pmh_[] parameters
     for (Hash i = 0; i < Const::HASH; ++i)
       ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(~pmh_[i]));
   }
   if (lbk_ > 0)
   {
-    // save lookback parameters after s-t cut and first s-t cut pattern characters
+    // save lookback parameters lbk_ lbm_ cbk_[] after s-t cut and first s-t cut pattern characters fst_[]
     ::fprintf(file, "\n  %3hhu,%3hhu,%3hhu,%3hhu,", static_cast<uint8_t>(lbk_ & 0xff), static_cast<uint8_t>(lbk_ >> 8), static_cast<uint8_t>(lbm_ & 0xff), static_cast<uint8_t>(lbm_ >> 8));
     for (size_t i = 0; i < 256; i += 8)
     {
@@ -4647,18 +4629,6 @@ void Pattern::write_predictor(FILE *file) const
         b |= fst_.test(i + j) << j;
       ::fprintf(file, "%s%3hhu,", (i & 0x7F) ? "" : "\n  ", b);
     }
-  }
-  if (bmd_ == 0)
-  {
-    // save needle search paramaters (bmd_ == 0) when available
-    ::fprintf(file, "\n  %3hhu,%3hhu,%3hhu,%3hhu,%3hhu,%3hhu,%3hhu,%3hhu,", static_cast<uint8_t>(chr_[0]), static_cast<uint8_t>(chr_[1]), static_cast<uint8_t>(npy_), static_cast<uint8_t>(pin_), static_cast<uint8_t>(lcp_ & 0xff), static_cast<uint8_t>(lcp_ >> 8), static_cast<uint8_t>(lcs_ & 0xff), static_cast<uint8_t>(lcs_ >> 8));
-  }
-  else
-  {
-    // save BM parameters (bmd_ != 0) when available
-    ::fprintf(file, "\n  %3hhu,%3hhu,%3hhu,", static_cast<uint8_t>(bmd_), static_cast<uint8_t>(lcp_ & 0xff), static_cast<uint8_t>(lcp_ >> 8));
-    for (size_t i = 0; i < 256; ++i)
-      ::fprintf(file, "%s%3hhu,", (i & 0xF) ? "" : "\n  ", static_cast<uint8_t>(bms_[i]));
   }
   ::fprintf(file, "\n};\n\n");
 }

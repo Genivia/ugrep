@@ -34,10 +34,9 @@ libreflex_a_SOURCES = \
 	matcher_avx512bw.cpp \
 	pattern.cpp \
 	posix.cpp \
-	simd_sse2.cpp \
+	simd.cpp \
 	simd_avx2.cpp \
 	simd_avx512bw.cpp \
-	simd_neon.cpp \
 	unicode.cpp \
 	utf8.cpp \
 	block_scripts.cpp \
@@ -45,10 +44,10 @@ libreflex_a_SOURCES = \
 	letter_scripts.cpp \
 	composer.cpp
 
-# separately compile matcher_avx2.cpp and matcher_avx512bw (with the same content as matcher.cpp) with AVX optimizations enabled
+# separately compile matcher_avx2.cpp and matcher_avx512bw with AVX2 optimizations enabled
 libreflex_a-matcher_avx2.$(OBJEXT)     : CXXFLAGS += $(SIMD_AVX2_FLAGS)
 libreflex_a-matcher_avx512bw.$(OBJEXT) : CXXFLAGS += $(SIMD_AVX512BW_FLAGS)
 
-# separately compile simd_avx2.cpp and simd_avx512bw.cpp with AVX optimizations enabled
+# separately compile simd_avx2.cpp and simd_avx512bw.cpp with AVX512BW optimizations enabled
 libreflex_a-simd_avx2.$(OBJEXT)     : CXXFLAGS += $(SIMD_AVX2_FLAGS)
 libreflex_a-simd_avx512bw.$(OBJEXT) : CXXFLAGS += $(SIMD_AVX512BW_FLAGS)

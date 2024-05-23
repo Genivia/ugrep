@@ -664,7 +664,7 @@ redo:
             c1 = get();
             if (Pattern::is_opcode_halt(opcode))
             {
-              if (cap_ == 0 && back != Pattern::Const::IMAX)
+              if (back != Pattern::Const::IMAX)
               {
                 pos_ = (txt_ - buf_) + bpos;
                 pc = pat_->opc_ + back;
@@ -745,7 +745,7 @@ unrolled:
           {
             if (jump == Pattern::Const::HALT)
             {
-              if (cap_ == 0 && back != Pattern::Const::IMAX)
+              if (back != Pattern::Const::IMAX)
               {
                 pc = pat_->opc_ + back;
                 pos_ = (txt_ - buf_) + bpos;

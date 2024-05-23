@@ -110,7 +110,7 @@ bool Matcher::simd_advance_chars_avx512bw(size_t loc)
       {
         uint32_t offset = ctzl(mask);
         if (LEN == 2 ||
-            (LEN == 3 ? s[offset - lcp + 1] == chr[1] : std::memcmp(s - lcp + offset, chr, LEN) == 0))
+            (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
         {
           loc = s - lcp + offset - buf_;
           set_current(loc);
@@ -156,7 +156,7 @@ bool Matcher::simd_advance_chars_pma_avx512bw(size_t loc)
       {
         uint32_t offset = ctzl(mask);
         if (LEN == 2 ||
-            (LEN == 3 ? s[offset - lcp + 1] == chr[1] : std::memcmp(s - lcp + offset, chr, LEN) == 0))
+            (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
         {
           loc = s - lcp + offset - buf_;
           if (loc + LEN + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + LEN]) == 0)
@@ -205,7 +205,7 @@ bool Matcher::simd_advance_chars_pmh_avx512bw(size_t loc)
       {
         uint32_t offset = ctzl(mask);
         if (LEN == 2 ||
-            (LEN == 3 ? s[offset - lcp + 1] == chr[1] : std::memcmp(s - lcp + offset, chr, LEN) == 0))
+            (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
         {
           loc = s - lcp + offset - buf_;
           if (loc + LEN + min > end_ || Pattern::predict_match(pmh, &buf_[loc + LEN], min))

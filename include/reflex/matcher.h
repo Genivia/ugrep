@@ -163,6 +163,13 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     init_advance();
     return *this;
   }
+  /// Returns a reference to the pattern associated with this matcher.
+  virtual const Pattern& pattern() const
+    /// @returns reference to pattern
+  {
+    ASSERT(pat_ != NULL);
+    return *pat_;
+  }
   /// Polymorphic cloning.
   virtual Matcher *clone()
   {

@@ -49,10 +49,6 @@
 # include <unistd.h> // off_t, fstat()
 #endif
 
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-#include <reflex/simd.h>
-#endif
-
 namespace reflex {
 
 const unsigned short codepages[38][256] =
@@ -1364,26 +1360,5 @@ void Input::file_encoding(unsigned short enc, const unsigned short *page)
     utfx_ = enc;
   }
 }
-
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-
-// simd.h get_HW()
-static uint64_t get_HW()
-{
-  int CPUInfo1[4] = { 0, 0, 0, 0 };
-  int CPUInfo7[4] = { 0, 0, 0, 0 };
-  cpuidex(CPUInfo1, 0, 0);
-  int n = CPUInfo1[0];
-  if (n <= 0)
-    return 0ULL;
-  cpuidex(CPUInfo1, 1, 0); // cpuid EAX=1
-  if (n >= 7)
-    cpuidex(CPUInfo7, 7, 0); // cpuid EAX=7, ECX=0
-  return static_cast<uint32_t>(CPUInfo1[2]) | (static_cast<uint64_t>(static_cast<uint32_t>(CPUInfo7[1])) << 32);
-}
-
-uint64_t HW = get_HW();
-
-#endif
 
 } // namespace reflex

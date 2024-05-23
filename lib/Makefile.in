@@ -122,11 +122,10 @@ am_libreflex_a_OBJECTS = libreflex_a-convert.$(OBJEXT) \
 	libreflex_a-matcher_avx2.$(OBJEXT) \
 	libreflex_a-matcher_avx512bw.$(OBJEXT) \
 	libreflex_a-pattern.$(OBJEXT) libreflex_a-posix.$(OBJEXT) \
-	libreflex_a-simd_sse2.$(OBJEXT) \
-	libreflex_a-simd_avx2.$(OBJEXT) \
+	libreflex_a-simd.$(OBJEXT) libreflex_a-simd_avx2.$(OBJEXT) \
 	libreflex_a-simd_avx512bw.$(OBJEXT) \
-	libreflex_a-simd_neon.$(OBJEXT) libreflex_a-unicode.$(OBJEXT) \
-	libreflex_a-utf8.$(OBJEXT) libreflex_a-block_scripts.$(OBJEXT) \
+	libreflex_a-unicode.$(OBJEXT) libreflex_a-utf8.$(OBJEXT) \
+	libreflex_a-block_scripts.$(OBJEXT) \
 	libreflex_a-language_scripts.$(OBJEXT) \
 	libreflex_a-letter_scripts.$(OBJEXT) \
 	libreflex_a-composer.$(OBJEXT)
@@ -159,10 +158,9 @@ am__depfiles_remade = ./$(DEPDIR)/libreflex_a-block_scripts.Po \
 	./$(DEPDIR)/libreflex_a-matcher_avx512bw.Po \
 	./$(DEPDIR)/libreflex_a-pattern.Po \
 	./$(DEPDIR)/libreflex_a-posix.Po \
+	./$(DEPDIR)/libreflex_a-simd.Po \
 	./$(DEPDIR)/libreflex_a-simd_avx2.Po \
 	./$(DEPDIR)/libreflex_a-simd_avx512bw.Po \
-	./$(DEPDIR)/libreflex_a-simd_neon.Po \
-	./$(DEPDIR)/libreflex_a-simd_sse2.Po \
 	./$(DEPDIR)/libreflex_a-unicode.Po \
 	./$(DEPDIR)/libreflex_a-utf8.Po
 am__mv = mv -f
@@ -386,10 +384,9 @@ libreflex_a_SOURCES = \
 	matcher_avx512bw.cpp \
 	pattern.cpp \
 	posix.cpp \
-	simd_sse2.cpp \
+	simd.cpp \
 	simd_avx2.cpp \
 	simd_avx512bw.cpp \
-	simd_neon.cpp \
 	unicode.cpp \
 	utf8.cpp \
 	block_scripts.cpp \
@@ -458,10 +455,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-matcher_avx512bw.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-pattern.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-posix.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-simd.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-simd_avx2.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-simd_avx512bw.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-simd_neon.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-simd_sse2.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-unicode.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-utf8.Po@am__quote@ # am--include-marker
 
@@ -613,19 +609,19 @@ libreflex_a-posix.obj: posix.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-posix.obj `if test -f 'posix.cpp'; then $(CYGPATH_W) 'posix.cpp'; else $(CYGPATH_W) '$(srcdir)/posix.cpp'; fi`
 
-libreflex_a-simd_sse2.o: simd_sse2.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-simd_sse2.o -MD -MP -MF $(DEPDIR)/libreflex_a-simd_sse2.Tpo -c -o libreflex_a-simd_sse2.o `test -f 'simd_sse2.cpp' || echo '$(srcdir)/'`simd_sse2.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-simd_sse2.Tpo $(DEPDIR)/libreflex_a-simd_sse2.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='simd_sse2.cpp' object='libreflex_a-simd_sse2.o' libtool=no @AMDEPBACKSLASH@
+libreflex_a-simd.o: simd.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-simd.o -MD -MP -MF $(DEPDIR)/libreflex_a-simd.Tpo -c -o libreflex_a-simd.o `test -f 'simd.cpp' || echo '$(srcdir)/'`simd.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-simd.Tpo $(DEPDIR)/libreflex_a-simd.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='simd.cpp' object='libreflex_a-simd.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-simd_sse2.o `test -f 'simd_sse2.cpp' || echo '$(srcdir)/'`simd_sse2.cpp
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-simd.o `test -f 'simd.cpp' || echo '$(srcdir)/'`simd.cpp
 
-libreflex_a-simd_sse2.obj: simd_sse2.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-simd_sse2.obj -MD -MP -MF $(DEPDIR)/libreflex_a-simd_sse2.Tpo -c -o libreflex_a-simd_sse2.obj `if test -f 'simd_sse2.cpp'; then $(CYGPATH_W) 'simd_sse2.cpp'; else $(CYGPATH_W) '$(srcdir)/simd_sse2.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-simd_sse2.Tpo $(DEPDIR)/libreflex_a-simd_sse2.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='simd_sse2.cpp' object='libreflex_a-simd_sse2.obj' libtool=no @AMDEPBACKSLASH@
+libreflex_a-simd.obj: simd.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-simd.obj -MD -MP -MF $(DEPDIR)/libreflex_a-simd.Tpo -c -o libreflex_a-simd.obj `if test -f 'simd.cpp'; then $(CYGPATH_W) 'simd.cpp'; else $(CYGPATH_W) '$(srcdir)/simd.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-simd.Tpo $(DEPDIR)/libreflex_a-simd.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='simd.cpp' object='libreflex_a-simd.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-simd_sse2.obj `if test -f 'simd_sse2.cpp'; then $(CYGPATH_W) 'simd_sse2.cpp'; else $(CYGPATH_W) '$(srcdir)/simd_sse2.cpp'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-simd.obj `if test -f 'simd.cpp'; then $(CYGPATH_W) 'simd.cpp'; else $(CYGPATH_W) '$(srcdir)/simd.cpp'; fi`
 
 libreflex_a-simd_avx2.o: simd_avx2.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-simd_avx2.o -MD -MP -MF $(DEPDIR)/libreflex_a-simd_avx2.Tpo -c -o libreflex_a-simd_avx2.o `test -f 'simd_avx2.cpp' || echo '$(srcdir)/'`simd_avx2.cpp
@@ -654,20 +650,6 @@ libreflex_a-simd_avx512bw.obj: simd_avx512bw.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='simd_avx512bw.cpp' object='libreflex_a-simd_avx512bw.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-simd_avx512bw.obj `if test -f 'simd_avx512bw.cpp'; then $(CYGPATH_W) 'simd_avx512bw.cpp'; else $(CYGPATH_W) '$(srcdir)/simd_avx512bw.cpp'; fi`
-
-libreflex_a-simd_neon.o: simd_neon.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-simd_neon.o -MD -MP -MF $(DEPDIR)/libreflex_a-simd_neon.Tpo -c -o libreflex_a-simd_neon.o `test -f 'simd_neon.cpp' || echo '$(srcdir)/'`simd_neon.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-simd_neon.Tpo $(DEPDIR)/libreflex_a-simd_neon.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='simd_neon.cpp' object='libreflex_a-simd_neon.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-simd_neon.o `test -f 'simd_neon.cpp' || echo '$(srcdir)/'`simd_neon.cpp
-
-libreflex_a-simd_neon.obj: simd_neon.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-simd_neon.obj -MD -MP -MF $(DEPDIR)/libreflex_a-simd_neon.Tpo -c -o libreflex_a-simd_neon.obj `if test -f 'simd_neon.cpp'; then $(CYGPATH_W) 'simd_neon.cpp'; else $(CYGPATH_W) '$(srcdir)/simd_neon.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-simd_neon.Tpo $(DEPDIR)/libreflex_a-simd_neon.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='simd_neon.cpp' object='libreflex_a-simd_neon.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-simd_neon.obj `if test -f 'simd_neon.cpp'; then $(CYGPATH_W) 'simd_neon.cpp'; else $(CYGPATH_W) '$(srcdir)/simd_neon.cpp'; fi`
 
 libreflex_a-unicode.o: unicode.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-unicode.o -MD -MP -MF $(DEPDIR)/libreflex_a-unicode.Tpo -c -o libreflex_a-unicode.o `test -f 'unicode.cpp' || echo '$(srcdir)/'`unicode.cpp
@@ -889,10 +871,9 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libreflex_a-matcher_avx512bw.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-pattern.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-posix.Po
+	-rm -f ./$(DEPDIR)/libreflex_a-simd.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-simd_avx2.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-simd_avx512bw.Po
-	-rm -f ./$(DEPDIR)/libreflex_a-simd_neon.Po
-	-rm -f ./$(DEPDIR)/libreflex_a-simd_sse2.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-unicode.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-utf8.Po
 	-rm -f Makefile
@@ -953,10 +934,9 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libreflex_a-matcher_avx512bw.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-pattern.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-posix.Po
+	-rm -f ./$(DEPDIR)/libreflex_a-simd.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-simd_avx2.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-simd_avx512bw.Po
-	-rm -f ./$(DEPDIR)/libreflex_a-simd_neon.Po
-	-rm -f ./$(DEPDIR)/libreflex_a-simd_sse2.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-unicode.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-utf8.Po
 	-rm -f Makefile
@@ -994,11 +974,11 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-# separately compile matcher_avx2.cpp and matcher_avx512bw (with the same content as matcher.cpp) with AVX optimizations enabled
+# separately compile matcher_avx2.cpp and matcher_avx512bw with AVX2 optimizations enabled
 libreflex_a-matcher_avx2.$(OBJEXT)     : CXXFLAGS += $(SIMD_AVX2_FLAGS)
 libreflex_a-matcher_avx512bw.$(OBJEXT) : CXXFLAGS += $(SIMD_AVX512BW_FLAGS)
 
-# separately compile simd_avx2.cpp and simd_avx512bw.cpp with AVX optimizations enabled
+# separately compile simd_avx2.cpp and simd_avx512bw.cpp with AVX512BW optimizations enabled
 libreflex_a-simd_avx2.$(OBJEXT)     : CXXFLAGS += $(SIMD_AVX2_FLAGS)
 libreflex_a-simd_avx512bw.$(OBJEXT) : CXXFLAGS += $(SIMD_AVX512BW_FLAGS)
 
