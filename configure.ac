@@ -390,6 +390,24 @@ AC_SUBST(ZSH_COMPLETION_DIR)
 AM_CONDITIONAL([ENABLE_ZSH_COMPLETION],[test "x$with_zsh_completion_dir" != "xno"])
 
 ################################################################################
+# Static or dynamic (default) linking
+################################################################################
+
+AC_ARG_ENABLE(static,
+  [AS_HELP_STRING([--enable-static],
+                  [build static ugrep binaries])],
+              [enable_static=yes],
+              [enable_static=no])
+AC_MSG_CHECKING(for --enable-static)
+if test "x$enable_static" == "xyes"; then
+  CFLAGS="$CFLAGS -static"
+  LDFLAGS="$LDFLAGS -static"
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_RESULT(no)
+fi
+
+################################################################################
 # Installation preferences
 ################################################################################
 
