@@ -422,6 +422,9 @@ from `/usr/local/lib`, causing a library load error when running `ugrep`.  To
 correct this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to
 your `~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
 
+**Note:** you can build static executables by supplying `--enable-static`
+as an argument to `./build.sh`.
+
 ### Other platforms: step 3 build
 
 Build `ugrep` on Unix-like systems with colors enabled by default:
