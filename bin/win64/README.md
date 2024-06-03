@@ -7,4 +7,4 @@ Windows 64 bit executables
 
 If you want ugrep to emulate GNU grep, then copy `ugrep.exe` to `grep.exe` and to `egrep.exe`, `fgrep.exe`.  
 
-The executables detect SSE2 and AVX2 automatically for optimized searching.
+The executables detect AVX2/AVX512BW automatically for optimized searching.

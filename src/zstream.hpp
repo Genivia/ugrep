@@ -1580,7 +1580,9 @@ class zstreambuf : public std::streambuf {
     if (num > len)
       num = len;
 
-    memcpy(buf, buf_ + cur_, num);
+    // move decompressed data to destination buf, which can be the same as the source buffer after get_buffer()
+    if (buf != buf_ + cur_)
+      memmove(buf, buf_ + cur_, num);
 
     cur_ += num;
 

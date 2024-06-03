@@ -54,11 +54,11 @@ scan:
   col_ = 0; // count columns for indent matching
 #endif
 find:
-  int c1 = got_;
+  int ch = got_;
   bool bol = at_bol(); // at begin of line?
 #if !defined(WITH_NO_CODEGEN)
   if (pat_->fsm_ != NULL)
-    fsm_.c1 = c1;
+    fsm_.ch = ch;
 #endif
 #if !defined(WITH_NO_INDENT)
 redo:
@@ -66,359 +66,367 @@ redo:
   lap_.resize(0);
   cap_ = 0;
   bool nul = method == Const::MATCH;
+  if (!opt_.W || at_wb())
+  {
+    // skip to next line and keep searching if matching on anchor ^ and not at begin of line
+    if (method == Const::FIND && pat_->bol_ && !bol)
+      if (skip('\n'))
+        goto scan;
 #if !defined(WITH_NO_CODEGEN)
-  if (pat_->fsm_ != NULL)
-  {
-    DBGLOG("FSM code %p", pat_->fsm_);
-    fsm_.bol = bol;
-    fsm_.nul = nul;
-    pat_->fsm_(*this);
-    nul = fsm_.nul;
-    c1 = fsm_.c1;
-  }
-  else
-#endif
-  if (pat_->opc_ != NULL)
-  {
-    const Pattern::Opcode *pc = pat_->opc_;
-    Pattern::Index back = Pattern::Const::IMAX; // where to jump back to
-    size_t bpos = 0; // backtrack position in the input
-    while (true)
+    if (pat_->fsm_ != NULL)
     {
-      Pattern::Index jump;
-      Pattern::Opcode opcode = *pc;
-      DBGLOG("Fetch: code[%zu] = 0x%08X", pc - pat_->opc_, opcode);
-      if (!Pattern::is_opcode_goto(opcode))
-      {
-        switch (opcode >> 24)
-        {
-          case 0xFE: // TAKE
-            cap_ = Pattern::long_index_of(opcode);
-            cur_ = pos_;
-            ++pc;
-            DBGLOG("Take: cap = %zu", cap_);
-            continue;
-          case 0xFD: // REDO
-            cap_ = Const::REDO;
-            DBGLOG("Redo");
-            cur_ = pos_;
-            ++pc;
-            continue;
-          case 0xFC: // TAIL
-            {
-              Pattern::Lookahead la = Pattern::lookahead_of(opcode);
-              DBGLOG("Tail: %u", la);
-              if (lap_.size() > la && lap_[la] >= 0)
-                cur_ = txt_ - buf_ + static_cast<size_t>(lap_[la]); // mind the (new) gap
-              ++pc;
-              continue;
-            }
-          case 0xFB: // HEAD
-            {
-              Pattern::Lookahead la = Pattern::lookahead_of(opcode);
-              DBGLOG("Head: lookahead[%u] = %zu", la, pos_ - (txt_ - buf_));
-              if (lap_.size() <= la)
-                lap_.resize(la + 1, -1);
-              lap_[la] = static_cast<int>(pos_ - (txt_ - buf_)); // mind the gap
-              ++pc;
-              continue;
-            }
-#if !defined(WITH_NO_INDENT)
-          case Pattern::META_DED - Pattern::META_MIN:
-            if (ded_ > 0)
-            {
-              jump = Pattern::index_of(opcode);
-              if (jump == Pattern::Const::LONG)
-                jump = Pattern::long_index_of(pc[1]);
-              DBGLOG("Dedent ded = %zu", ded_); // unconditional dedent matching \j
-              nul = true;
-              pc = pat_->opc_ + jump;
-              continue;
-            }
+      DBGLOG("FSM code %p", pat_->fsm_);
+      fsm_.bol = bol;
+      fsm_.nul = nul;
+      pat_->fsm_(*this);
+      nul = fsm_.nul;
+      ch = fsm_.ch;
+    }
+    else
 #endif
-        }
-        if (c1 == EOF)
-          break;
-        int c0 = c1;
-        c1 = get();
-        DBGLOG("Get: c1 = %d", c1);
-        // to jump to longest sequence of matching metas
-        jump = Pattern::Const::IMAX;
-        while (true)
+    if (pat_->opc_ != NULL)
+    {
+      const Pattern::Opcode *pc = pat_->opc_;
+      Pattern::Index back = Pattern::Const::IMAX; // where to jump back to
+      size_t bpos = 0; // backtrack position in the input
+      while (true)
+      {
+        Pattern::Index jump;
+        Pattern::Opcode opcode = *pc;
+        DBGLOG("Fetch: code[%zu] = 0x%08X", pc - pat_->opc_, opcode);
+        if (!Pattern::is_opcode_goto(opcode))
         {
-          if (jump == Pattern::Const::IMAX || back == Pattern::Const::IMAX)
+          switch (opcode >> 24)
           {
-            if (!Pattern::is_opcode_goto(opcode))
-            {
-              // we no longer have to pass through all if jump and back are set
-              switch (opcode >> 24)
+            case 0xFE: // TAKE
               {
-                case 0xFE: // TAKE
+                int c;
+                if (!opt_.W || (c = peek(), at_we(c, pos_)))
+                {
                   cap_ = Pattern::long_index_of(opcode);
-                  cur_ = pos_;
-                  if (c1 != EOF)
-                    --cur_; // must unget one char
-                  opcode = *++pc;
                   DBGLOG("Take: cap = %zu", cap_);
-                  continue;
-                case 0xFD: // REDO
-                  cap_ = Const::REDO;
-                  DBGLOG("Redo");
                   cur_ = pos_;
-                  if (c1 != EOF)
-                    --cur_; // must unget one char
-                  opcode = *++pc;
-                  continue;
-                case 0xFC: // TAIL
-                  {
-                    Pattern::Lookahead la = Pattern::lookahead_of(opcode);
-                    DBGLOG("Tail: %u", la);
-                    if (lap_.size() > la && lap_[la] >= 0)
-                      cur_ = txt_ - buf_ + static_cast<size_t>(lap_[la]); // mind the (new) gap
+                }
+              }
+              ++pc;
+              continue;
+            case 0xFD: // REDO
+              cap_ = Const::REDO;
+              DBGLOG("Redo");
+              cur_ = pos_;
+              ++pc;
+              continue;
+            case 0xFC: // TAIL
+              {
+                Pattern::Lookahead la = Pattern::lookahead_of(opcode);
+                DBGLOG("Tail: %u", la);
+                if (lap_.size() > la && lap_[la] >= 0)
+                  cur_ = txt_ - buf_ + static_cast<size_t>(lap_[la]); // mind the (new) gap
+                ++pc;
+                continue;
+              }
+            case 0xFB: // HEAD
+              {
+                Pattern::Lookahead la = Pattern::lookahead_of(opcode);
+                DBGLOG("Head: lookahead[%u] = %zu", la, pos_ - (txt_ - buf_));
+                if (lap_.size() <= la)
+                  lap_.resize(la + 1, -1);
+                lap_[la] = static_cast<int>(pos_ - (txt_ - buf_)); // mind the gap
+                ++pc;
+                continue;
+              }
+#if !defined(WITH_NO_INDENT)
+            case Pattern::META_DED - Pattern::META_MIN:
+              if (ded_ > 0)
+              {
+                jump = Pattern::index_of(opcode);
+                if (jump == Pattern::Const::LONG)
+                  jump = Pattern::long_index_of(pc[1]);
+                DBGLOG("Dedent ded = %zu", ded_); // unconditional dedent matching \j
+                nul = true;
+                pc = pat_->opc_ + jump;
+                continue;
+              }
+#endif
+          }
+          if (ch == EOF)
+            break;
+          ch = get();
+          DBGLOG("Get: ch = %d", ch);
+          // to jump to longest sequence of matching metas
+          jump = Pattern::Const::IMAX;
+          while (true)
+          {
+            if (jump == Pattern::Const::IMAX || back == Pattern::Const::IMAX)
+            {
+              if (!Pattern::is_opcode_goto(opcode))
+              {
+                // we no longer have to pass through all if jump and back are set
+                switch (opcode >> 24)
+                {
+                  case 0xFE: // TAKE
+                    if (!opt_.W || at_we(ch, pos_ - 1))
+                    {
+                      cap_ = Pattern::long_index_of(opcode);
+                      DBGLOG("Take: cap = %zu", cap_);
+                      cur_ = pos_;
+                      if (ch != EOF)
+                        --cur_; // must unget one char
+                    }
                     opcode = *++pc;
                     continue;
-                  }
-                case 0xFB: // HEAD
-                  opcode = *++pc;
-                  continue;
+                  case 0xFD: // REDO
+                    cap_ = Const::REDO;
+                    DBGLOG("Redo");
+                    cur_ = pos_;
+                    if (ch != EOF)
+                      --cur_; // must unget one char
+                    opcode = *++pc;
+                    continue;
+                  case 0xFC: // TAIL
+                    {
+                      Pattern::Lookahead la = Pattern::lookahead_of(opcode);
+                      DBGLOG("Tail: %u", la);
+                      if (lap_.size() > la && lap_[la] >= 0)
+                        cur_ = txt_ - buf_ + static_cast<size_t>(lap_[la]); // mind the (new) gap
+                      opcode = *++pc;
+                      continue;
+                    }
+                  case 0xFB: // HEAD
+                    opcode = *++pc;
+                    continue;
 #if !defined(WITH_NO_INDENT)
-                case Pattern::META_DED - Pattern::META_MIN:
-                  DBGLOG("DED? %d", c1);
-                  if (jump == Pattern::Const::IMAX && back == Pattern::Const::IMAX && bol && dedent())
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_IND - Pattern::META_MIN:
-                  DBGLOG("IND? %d", c1);
-                  if (jump == Pattern::Const::IMAX && back == Pattern::Const::IMAX && bol && indent())
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_UND - Pattern::META_MIN:
-                  DBGLOG("UND");
-                  if (mrk_)
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  mrk_ = false;
-                  ded_ = 0;
-                  opcode = *++pc;
-                  continue;
+                  case Pattern::META_DED - Pattern::META_MIN:
+                    DBGLOG("DED? %d", ch);
+                    if (jump == Pattern::Const::IMAX && back == Pattern::Const::IMAX && bol && dedent())
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_IND - Pattern::META_MIN:
+                    DBGLOG("IND? %d", ch);
+                    if (jump == Pattern::Const::IMAX && back == Pattern::Const::IMAX && bol && indent())
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_UND - Pattern::META_MIN:
+                    DBGLOG("UND");
+                    if (mrk_)
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    mrk_ = false;
+                    ded_ = 0;
+                    opcode = *++pc;
+                    continue;
 #endif
-                case Pattern::META_EOB - Pattern::META_MIN:
-                  DBGLOG("EOB? %d", c1);
-                  if (jump == Pattern::Const::IMAX && c1 == EOF)
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_BOB - Pattern::META_MIN:
-                  DBGLOG("BOB? %d", at_bob());
-                  if (jump == Pattern::Const::IMAX && at_bob())
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_EOL - Pattern::META_MIN:
-                  DBGLOG("EOL? %d", c1);
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX && (c1 == EOF || c1 == '\n' || (c1 == '\r' && peek() == '\n')))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_BOL - Pattern::META_MIN:
-                  DBGLOG("BOL? %d", bol);
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX && bol)
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_EWE - Pattern::META_MIN:
-                  DBGLOG("EWE? %d %d %d", c0, c1, isword(c0) && !isword(c1));
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX && (isword(c0) || opt_.W) && !isword(c1))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_BWE - Pattern::META_MIN:
-                  DBGLOG("BWE? %d %d %d", c0, c1, !isword(c0) && isword(c1));
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX && !isword(c0) && isword(c1))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_EWB - Pattern::META_MIN:
-                  DBGLOG("EWB? %d", at_eow());
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX && isword(got_) &&
-                      !isword(static_cast<unsigned char>(txt_[len_])))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_BWB - Pattern::META_MIN:
-                  DBGLOG("BWB? %d", at_bow());
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX && !isword(got_) &&
-                      (opt_.W || isword(static_cast<unsigned char>(txt_[len_]))))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_NWE - Pattern::META_MIN:
-                  DBGLOG("NWE? %d %d %d", c0, c1, isword(c0) == isword(c1));
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX && isword(c0) == isword(c1))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_NWB - Pattern::META_MIN:
-                  DBGLOG("NWB? %d %d", at_bow(), at_eow());
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX &&
-                      isword(got_) == isword(static_cast<unsigned char>(txt_[len_])))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_WBE - Pattern::META_MIN:
-                  DBGLOG("WBE? %d %d %d", c0, c1, isword(c0) != isword(c1));
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX && isword(c0) != isword(c1))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case Pattern::META_WBB - Pattern::META_MIN:
-                  DBGLOG("WBB? %d %d", at_bow(), at_eow());
-                  anc_ = true;
-                  if (jump == Pattern::Const::IMAX &&
-                      isword(got_) != isword(static_cast<unsigned char>(txt_[len_])))
-                  {
-                    jump = Pattern::index_of(opcode);
-                    if (jump == Pattern::Const::LONG)
-                      jump = Pattern::long_index_of(*++pc);
-                  }
-                  opcode = *++pc;
-                  continue;
-                case 0xFF: // LONG
-                  opcode = *++pc;
-                  continue;
+                  case Pattern::META_EOB - Pattern::META_MIN:
+                    DBGLOG("EOB? %d", ch);
+                    if (jump == Pattern::Const::IMAX && ch == EOF)
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_BOB - Pattern::META_MIN:
+                    DBGLOG("BOB? %d", at_bob());
+                    if (jump == Pattern::Const::IMAX && at_bob())
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_EOL - Pattern::META_MIN:
+                    DBGLOG("EOL? %d", ch);
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX &&
+                        (ch == EOF || ch == '\n' || (ch == '\r' && peek() == '\n')))
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_BOL - Pattern::META_MIN:
+                    DBGLOG("BOL? %d", bol);
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && bol)
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_EWE - Pattern::META_MIN:
+                    DBGLOG("EWE? %d", at_ewe(ch));
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && at_ewe(ch))
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_BWE - Pattern::META_MIN:
+                    DBGLOG("BWE? %d", at_bwe(ch));
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && at_bwe(ch))
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_EWB - Pattern::META_MIN:
+                    DBGLOG("EWB? %d", at_ewb());
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && at_ewb())
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_BWB - Pattern::META_MIN:
+                    DBGLOG("BWB? %d", at_bwb());
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && at_bwb())
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_NWE - Pattern::META_MIN:
+                    DBGLOG("NWE? %d", at_nwe(ch));
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && at_nwe(ch))
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_NWB - Pattern::META_MIN:
+                    DBGLOG("NWB? %d", at_nwb());
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && at_nwb())
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_WBE - Pattern::META_MIN:
+                    DBGLOG("WBE? %d", at_wbe(ch));
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && at_wbe(ch))
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case Pattern::META_WBB - Pattern::META_MIN:
+                    DBGLOG("WBB? %d", at_wbb());
+                    anc_ = true;
+                    if (jump == Pattern::Const::IMAX && at_wbb())
+                    {
+                      jump = Pattern::index_of(opcode);
+                      if (jump == Pattern::Const::LONG)
+                        jump = Pattern::long_index_of(*++pc);
+                    }
+                    opcode = *++pc;
+                    continue;
+                  case 0xFF: // LONG
+                    opcode = *++pc;
+                    continue;
+                }
               }
-            }
-            else if (c1 != EOF && !Pattern::is_opcode_halt(opcode))
-            {
-              if (jump == Pattern::Const::IMAX)
-                break;
-              if (back == Pattern::Const::IMAX)
+              else if (ch != EOF && !Pattern::is_opcode_halt(opcode))
               {
-                back = static_cast<Pattern::Index>(pc - pat_->opc_);
-                bpos = pos_ - (txt_ - buf_) - 1;
-                DBGLOG("Backtrack point: back = %u pos = %zu", back, bpos);
+                if (jump == Pattern::Const::IMAX)
+                  break;
+                if (back == Pattern::Const::IMAX)
+                {
+                  back = static_cast<Pattern::Index>(pc - pat_->opc_);
+                  bpos = pos_ - (txt_ - buf_) - 1;
+                  DBGLOG("Backtrack point: back = %u pos = %zu", back, bpos);
+                }
+                pc = pat_->opc_ + jump;
+                opcode = *pc;
               }
-              pc = pat_->opc_ + jump;
-              opcode = *pc;
             }
+            if (jump == Pattern::Const::IMAX)
+            {
+              if (back != Pattern::Const::IMAX)
+              {
+                pc = pat_->opc_ + back;
+                opcode = *pc;
+                back = Pattern::Const::IMAX;
+              }
+              break;
+            }
+            DBGLOG("Try jump = %u", jump);
+            if (back == Pattern::Const::IMAX)
+            {
+              back = static_cast<Pattern::Index>(pc - pat_->opc_);
+              bpos = pos_ - (txt_ - buf_) - 1;
+              DBGLOG("Backtrack point: back = %u pos = %zu", back, bpos);
+            }
+            pc = pat_->opc_ + jump;
+            opcode = *pc;
+            jump = Pattern::Const::IMAX;
           }
-          if (jump == Pattern::Const::IMAX)
+          if (ch == EOF)
+            break;
+        }
+        else
+        {
+          if (Pattern::is_opcode_halt(opcode))
           {
             if (back != Pattern::Const::IMAX)
             {
+              pos_ = (txt_ - buf_) + bpos;
               pc = pat_->opc_ + back;
-              opcode = *pc;
+              DBGLOG("Backtrack: back = %u pos = %zu ch = %d", back, pos_, ch);
               back = Pattern::Const::IMAX;
+              continue;
             }
             break;
           }
-          DBGLOG("Try jump = %u", jump);
-          if (back == Pattern::Const::IMAX)
-          {
-            back = static_cast<Pattern::Index>(pc - pat_->opc_);
-            bpos = pos_ - (txt_ - buf_) - 1;
-            DBGLOG("Backtrack point: back = %u pos = %zu", back, bpos);
-          }
-          pc = pat_->opc_ + jump;
-          opcode = *pc;
-          jump = Pattern::Const::IMAX;
+          if (ch == EOF)
+            break;
+          ch = get();
+          DBGLOG("Get: ch = %d (0x%x) at pos %zu", ch, ch, pos_ - 1);
+          if (ch == EOF)
+            break;
         }
-        if (c1 == EOF)
-          break;
-      }
-      else
-      {
-        if (Pattern::is_opcode_halt(opcode))
-        {
-          if (back != Pattern::Const::IMAX)
-          {
-            pos_ = (txt_ - buf_) + bpos;
-            pc = pat_->opc_ + back;
-            DBGLOG("Backtrack: back = %u pos = %zu c1 = %d", back, pos_, c1);
-            back = Pattern::Const::IMAX;
-            continue;
-          }
-          break;
-        }
-        if (c1 == EOF)
-          break;
-        c1 = get();
-        DBGLOG("Get: c1 = %d (0x%x) at pos %zu", c1, c1, pos_ - 1);
-        if (c1 == EOF)
-          break;
-      }
-      Pattern::Opcode lo = c1 << 24;
-      Pattern::Opcode hi = lo | 0x00FFFFFF;
-unrolled:
-      if (hi < opcode || lo > (opcode << 8))
-      {
-        opcode = *++pc;
+        Pattern::Opcode lo = ch << 24;
+        Pattern::Opcode hi = lo | 0x00FFFFFF;
+  unrolled:
         if (hi < opcode || lo > (opcode << 8))
         {
           opcode = *++pc;
@@ -440,7 +448,11 @@ unrolled:
                     if (hi < opcode || lo > (opcode << 8))
                     {
                       opcode = *++pc;
-                      goto unrolled;
+                      if (hi < opcode || lo > (opcode << 8))
+                      {
+                        opcode = *++pc;
+                        goto unrolled;
+                      }
                     }
                   }
                 }
@@ -448,49 +460,49 @@ unrolled:
             }
           }
         }
-      }
-      jump = Pattern::index_of(opcode);
-      if (jump == 0)
-      {
-        // loop back to start state w/o full match: advance to avoid backtracking
-        if (cap_ == 0 && method == Const::FIND)
+        jump = Pattern::index_of(opcode);
+        if (jump == 0)
         {
-          if (cur_ + 1 == pos_)
+          // loop back to start state w/o full match: advance to avoid backtracking
+          if (cap_ == 0 && method == Const::FIND)
           {
-            // matched one char in a loop, do not backtrack here
-            ++cur_;
-            if (retry > 0)
-              --retry;
-          }
-          else
-          {
-            // check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
-            while (cur_ + 1 < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_ + 1])))
+            if (cur_ + 1 == pos_)
             {
+              // matched one char in a loop, do not backtrack here
               ++cur_;
               if (retry > 0)
                 --retry;
             }
+            else
+            {
+              // check each char in buf_[cur_+1..pos_-1] if it is a starting char, if not then increase cur_
+              while (cur_ + 1 < pos_ && !pat_->fst_.test(static_cast<uint8_t>(buf_[cur_ + 1])))
+              {
+                ++cur_;
+                if (retry > 0)
+                  --retry;
+              }
+            }
           }
         }
-      }
-      else if (jump >= Pattern::Const::LONG)
-      {
-        if (jump == Pattern::Const::HALT)
+        else if (jump >= Pattern::Const::LONG)
         {
-          if (back != Pattern::Const::IMAX)
+          if (jump == Pattern::Const::HALT)
           {
-            pc = pat_->opc_ + back;
-            pos_ = (txt_ - buf_) + bpos;
-            DBGLOG("Backtrack: back = %u pos = %zu c1 = %d", back, pos_, c1);
-            back = Pattern::Const::IMAX;
-            continue;
+            if (back != Pattern::Const::IMAX)
+            {
+              pc = pat_->opc_ + back;
+              pos_ = (txt_ - buf_) + bpos;
+              DBGLOG("Backtrack: back = %u pos = %zu ch = %d", back, pos_, ch);
+              back = Pattern::Const::IMAX;
+              continue;
+            }
+            break;
           }
-          break;
+          jump = Pattern::long_index_of(pc[1]);
         }
-        jump = Pattern::long_index_of(pc[1]);
+        pc = pat_->opc_ + jump;
       }
-      pc = pat_->opc_ + jump;
     }
   }
 #if !defined(WITH_NO_INDENT)
@@ -613,9 +625,13 @@ unrolled:
             }
             if (!pat_->one_)
               goto scan;
+            size_t k = cur_ + pat_->len_;
+            ch = k < end_ ? static_cast<unsigned char>(buf_[k]) : EOF;
+            if (opt_.W && (!at_wb() || !(at_end() || at_we(ch, k))))
+              goto scan;
             txt_ = buf_ + cur_;
             len_ = pat_->len_;
-            set_current(cur_ + len_);
+            set_current(k);
             return cap_ = 1;
           }
         }

@@ -26,11 +26,12 @@ RUN apt-get install -y \
     libbz2-dev \
     liblzma-dev \
     liblz4-dev \
-    libzstd-dev
+    libzstd-dev \
+    libbrotli-dev
 
-RUN cd / &&\
+RUN cd / && \
     git clone https://github.com/Genivia/ugrep
 
-RUN cd ugrep &&\
-    ./build.sh &&\
+RUN cd ugrep && \
+    ./build.sh && \
     make install

@@ -1040,9 +1040,9 @@ install-data-hook:
 		fi
 		@if [ "x$(zshcompletiondir)" != "x" ]; then \
 		  cd $(DESTDIR)$(zshcompletiondir) && \
-		    sed -e 's/^#compdef ug/#compdef ug+/' _ug > _ug+ && \
-		    sed -e 's/^#compdef ug/#compdef ugrep/' _ug > _ugrep && \
-		    sed -e 's/^#compdef ug/#compdef ugrep+/' _ug > _ugrep+; \
+		    $(LN_S) -f _ug _ug+ && \
+		    $(LN_S) -f _ug _ugrep && \
+		    $(LN_S) -f _ug _ugrep+; \
 		fi
 		@echo " ______________________________________________________ "; \
 		 echo "|                                                      |"; \

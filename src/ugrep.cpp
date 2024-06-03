@@ -7386,12 +7386,25 @@ void terminal()
       }
     }
 
-    // --tree: check UTF-8 terminal support
+    // --tree: check UTF-8 terminal support, this is a guess on LANG or LC_CTYPE or LC_ALL
     if (flag_tree && (flag_query || flag_files_with_matches || flag_files_without_match || flag_count))
     {
       const char *lang = getenv("LANG");
 
-      if (lang != NULL && strstr(lang, "UTF-8"))
+      if (lang == NULL || strstr(lang, "UTF-8") == NULL)
+      {
+        lang = getenv("LC_CTYPE");
+
+        if (lang == NULL || strstr(lang, "UTF-8") == NULL)
+        {
+          lang = getenv("LC_ALL");
+
+          if (lang == NULL || strstr(lang, "UTF-8") == NULL)
+            lang = NULL;
+        }
+      }
+
+      if (lang != NULL)
       {
         Output::Tree::bar = "│ ";
         Output::Tree::ptr = "╰╴";
@@ -8001,9 +8014,6 @@ void ugrep()
   // -f: get patterns from file
   if (!flag_file.empty())
   {
-    bool line_regexp = flag_line_regexp;
-    bool word_regexp = flag_word_regexp;
-
     // -F: make newline-separated lines in regex literal with \Q and \E
     const char *Q = flag_fixed_strings ? "\\Q" : "";
     const char *E = flag_fixed_strings ? "\\E|" : flag_basic_regexp ? "\\|" : "|";
@@ -8014,11 +8024,6 @@ void ugrep()
       // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
       Q = "";
       E = flag_basic_regexp ? "\\|" : "|";
-
-      // -x and -w do not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
-      line_regexp = false;
-      word_regexp = false;
-
       regex.append(E);
     }
 
@@ -8105,10 +8110,11 @@ void ugrep()
         regex.pop_back();
     }
 
-    // -x or -w: if no PATTERN is specified, then apply -x or -w to all -f FILE patterns
+    // -x or -w: apply to all -f FILE patterns
     if (regex.empty())
     {
-      if (line_regexp)
+      // -x: empty regex matches empty lines with ^$
+      if (flag_line_regexp)
         regex.assign("^$");
     }
     else
@@ -8117,17 +8123,18 @@ void ugrep()
       const char *xleft = flag_basic_regexp ? "^\\(" : "^(?:";
       const char *xright = flag_basic_regexp ? "\\)$" : ")$";
 #if defined(HAVE_PCRE2)
-      const char *wleft = flag_basic_regexp ? "\\<\\(" : flag_perl_regexp ? "(?<!\\w)(?:" : "\\<(";
-      const char *wright = flag_basic_regexp ? "\\)\\>" : flag_perl_regexp ? ")(?!\\w)" : ")\\>";
+      // PCRE2_EXTRA_MATCH_WORD does not work and \b(?:regex)\b is not correct anyway, so we roll out our own
+      const char *wleft = flag_perl_regexp ? "(?<!\\w)(?:" : NULL;
+      const char *wright = flag_perl_regexp ? ")(?!\\w)" : NULL;
 #else // Boost.Regex
-      const char *wleft = flag_basic_regexp ? "\\<\\(" : flag_perl_regexp ? "(?<![[:word:]])(?:" : "\\<(";
-      const char *wright = flag_basic_regexp ? "\\)\\>" : flag_perl_regexp ? ")(?![[:word:]])" : ")\\>";
+      const char *wleft = flag_perl_regexp ? "(?<![[:word:]])(?:" : NULL;
+      const char *wright = flag_perl_regexp ? ")(?![[:word:]])" : NULL;
 #endif
 
-      if (line_regexp)
+      if (flag_line_regexp)
         regex.insert(0, xleft).append(xright); // make the regex line-anchored
-      else if (word_regexp)
-        regex.insert(0, wleft).append(wright); // make the regex word-anchored
+      else if (flag_word_regexp && wleft != NULL && wright != NULL)
+        regex.insert(0, wleft).append(wright); // make the regex word-anchored (or done with matcher option W)
     }
   }
 
@@ -8367,7 +8374,7 @@ void ugrep()
   if (flag_empty)
     matcher_options.push_back('N');
 
-  // -w: match whole words, i.e. make \< and \> match only left side and right side of a word boundary, respectively
+  // -w: match whole words
   if (flag_word_regexp)
     matcher_options.push_back('W');
 
@@ -8412,7 +8419,7 @@ void ugrep()
       if (flag_invert_match)
         matcher_options.clear();
       else // -x and --match: only match empty lines (set LineMatcher option W)
-        matcher_options.push_back('W');
+        matcher_options.push_back('X');
 
       // do not invert when searching
       flag_invert_match = false;
@@ -8450,8 +8457,9 @@ void ugrep()
     // -P: Perl matching with PCRE2 or Boost.Regex
 #if defined(HAVE_PCRE2)
     // construct the PCRE2 JIT-optimized NFA-based Perl pattern matcher
+    uint32_t options = flag_binary ? (PCRE2_NEVER_UTF | PCRE2_NEVER_UCP) : (PCRE2_UTF | PCRE2_UCP);
     Static::string_pattern.assign(flag_binary ? reflex::PCRE2Matcher::convert(regex, convert_flags, &flag_multiline) : reflex::PCRE2UTFMatcher::convert(regex, convert_flags, &flag_multiline));
-    Static::matcher = std::unique_ptr<reflex::AbstractMatcher>(new reflex::PCRE2Matcher(Static::string_pattern, reflex::Input(), matcher_options.c_str(), flag_binary ? (PCRE2_NEVER_UTF | PCRE2_NEVER_UCP) : (PCRE2_UTF | PCRE2_UCP)));
+    Static::matcher = std::unique_ptr<reflex::AbstractMatcher>(new reflex::PCRE2Matcher(Static::string_pattern, reflex::Input(), matcher_options.c_str(), options));
     Static::matchers.clear();
 
     if (!Static::bcnf.singleton_or_undefined())
@@ -8469,7 +8477,7 @@ void ugrep()
           if (j)
           {
             subregex.assign(pattern_options).append(*j);
-            submatchers.emplace_back(new reflex::PCRE2Matcher((flag_binary ? reflex::PCRE2Matcher::convert(subregex, convert_flags) : reflex::PCRE2UTFMatcher::convert(subregex, convert_flags)), reflex::Input(), matcher_options.c_str(), flag_binary ? (PCRE2_NEVER_UTF | PCRE2_NEVER_UCP) : (PCRE2_UTF | PCRE2_UCP)));
+            submatchers.emplace_back(new reflex::PCRE2Matcher((flag_binary ? reflex::PCRE2Matcher::convert(subregex, convert_flags) : reflex::PCRE2UTFMatcher::convert(subregex, convert_flags)), reflex::Input(), matcher_options.c_str(), options));
           }
           else
           {
@@ -13855,8 +13863,8 @@ void help(std::ostream& out)
             unless --config=FILE or --no-config is specified.\n\
     --no-config\n\
             Do not automatically load the default .ugrep configuration file.\n\
-    --confirm\n\
-            Confirm actions in -Q query TUI.  The default is confirm.\n\
+    --no-confirm\n\
+            Do not confirm actions in -Q query TUI.  The default is confirm.\n\
     --cpp\n\
             Output file matches in C++.  See also options --format and -u.\n\
     --csv\n\
@@ -14277,7 +14285,7 @@ void help(std::ostream& out)
             Press Enter to select lines to output.  Press ALT-l for option -l\n\
             to list files, ALT-n for -n, etc.  Non-option commands include\n\
             ALT-] to increase context and ALT-} to increase fuzzyness.  See\n\
-            also options --confirm, --delay, --split and --view.\n\
+            also options --no-confirm, --delay, --split and --view.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  Only search a file until a match\n\
             has been found.\n\
@@ -14383,12 +14391,8 @@ void help(std::ostream& out)
     -w, --word-regexp\n\
             The PATTERN is searched for as a word, such that the matching text\n\
             is preceded by a non-word character and is followed by a non-word\n\
-            character.  Word characters are letters, digits and the\n\
-            underscore.  With option -P, word characters are Unicode letters,\n\
-            digits and underscore.  This option has no effect if -x is also\n\
-            specified.  If a PATTERN is specified, or -e PATTERN or -N PATTERN,\n\
-            then this option has no effect on -f FILE patterns to allow -f FILE\n\
-            patterns to narrow or widen the scope of the PATTERN search.\n\
+            character.  Word-like characters are Unicode letters, digits and\n\
+            connector punctuations such as underscore.\n\
     --width[=NUM]\n\
             Truncate the output to NUM visible characters per line.  The width\n\
             of the terminal window is used if NUM is not specified.  Note that\n\
@@ -14399,10 +14403,7 @@ void help(std::ostream& out)
             line from the hex output use option --hexdump.  See also option -U.\n\
     -x, --line-regexp\n\
             Select only those matches that exactly match the whole line, as if\n\
-            the patterns are surrounded by ^ and $.  If a PATTERN is specified,\n\
-            or -e PATTERN or -N PATTERN, then this option has no effect on\n\
-            -f FILE patterns to allow -f FILE patterns to narrow or widen the\n\
-            scope of the PATTERN search.\n\
+            the patterns are surrounded by ^ and $.\n\
     --xml\n\
             Output file matches in XML.  If -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
@@ -14509,11 +14510,17 @@ void help(std::ostream& out)
 // print a helpful information for WHAT, if specified, and exit
 void help(const char *what)
 {
+  // strip = from =WHAT
   if (what != NULL && *what == '=')
     ++what;
 
+  // strip --no from --no-WHAT
   if (what != NULL && strncmp(what, "--no", 4) == 0)
     what += 4;
+
+  // strip one dash from --WHAT
+  if (what != NULL && strncmp(what, "--", 2) == 0)
+    ++what;
 
   if (what == NULL || *what == '\0')
   {

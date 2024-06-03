@@ -75,9 +75,9 @@ forces empty matches for compatibility with other grep tools.
 .PP
 Option \fB-f\fR \fIFILE\fR matches patterns specified in \fIFILE\fR.
 .PP
-By default Unicode patterns are matched.  Option \fB-U\fR (\fB--binary\fR)
-disables Unicode matching for ASCII and binary pattern matching.  Non-Unicode
-matching is generally more efficient.
+By default Unicode patterns are matched.  Option \fB-U\fR (\fB--ascii\fR or
+\fB--binary\fR) disables Unicode matching for ASCII and binary pattern
+matching.  Non-Unicode matching is more efficient.
 .PP
 \fBugrep\fR accepts input of various encoding formats and normalizes the output
 to UTF-8.  When a UTF byte order mark is present in the input, the input is
@@ -554,10 +554,6 @@ $ ugrep -wi -e amount --and '\d+(\.\d+)?' myfile.txt
 List all Unicode words in a file:
 .IP
 $ ugrep -o '\\w+' myfile.txt
-.PP
-List all ASCII words in a file:
-.IP
-$ ugrep -o '[[:word:]]+' myfile.txt
 .PP
 List the laughing face emojis (Unicode code points U+1F600 to U+1F60F):
 .IP

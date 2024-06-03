@@ -45,10 +45,10 @@
 /// DFA compaction: -1 == reverse order edge compression (best); 1 == edge compression; 0 == no edge compression.
 /** Edge compression reorders edges to produce fewer tests when executed in the compacted order.
     For example ([a-cg-ik]|d|[e-g]|j|y|[x-z]) after reverse edge compression has only 2 edges:
-    c1 = m.FSM_CHAR();
-    if ('x' <= c1 && c1 <= 'z') goto S3;
-    if ('a' <= c1 && c1 <= 'k') goto S3;
-    return m.FSM_HALT(c1);
+    c = m.FSM_CHAR();
+    if ('x' <= c && c <= 'z') goto S3;
+    if ('a' <= c && c <= 'k') goto S3;
+    return m.FSM_HALT(c);
 */
 #define WITH_COMPACT_DFA -1
 
@@ -177,6 +177,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
   bmd_ = 0;
   npy_ = 0;
   one_ = false;
+  bol_ = false;
   vno_ = 0;
   eno_ = 0;
   hno_ = 0;
@@ -197,6 +198,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
       len_ = pred[0];
       min_ = pred[1] & 0x0f;
       one_ = pred[1] & 0x10;
+      bol_ = pred[1] & 0x40;
       memcpy(chr_, pred + 2, len_);
       size_t n = 2 + len_;
       if (len_ == 0)
@@ -658,6 +660,7 @@ void Pattern::parse(
       loc = 0;
     }
   }
+  bol_ = at(loc) == '^';
   do
   {
     Location end = loc;
@@ -762,6 +765,8 @@ void Pattern::parse(
     }
     else
     {
+      if (at(loc) != '^')
+        bol_ = false;
       parse2(
           true,
           loc,
@@ -2990,8 +2995,8 @@ void Pattern::gencode_dfa(const DFA::State *start) const
       ::fprintf(file,
           "void reflex_code_%s(reflex::Matcher& m)\n"
           "{\n"
-          "  int c0 = 0, c1 = 0;\n"
-          "  m.FSM_INIT(c1);\n", opt_.n.empty() ? "FSM" : opt_.n.c_str());
+          "  int c = 0;\n"
+          "  m.FSM_INIT(c);\n", opt_.n.empty() ? "FSM" : opt_.n.c_str());
       for (const DFA::State *state = start; state != NULL; state = state->next)
       {
         ::fprintf(file, "\nS%u:\n", state->index);
@@ -3007,8 +3012,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
           ::fprintf(file, "  m.FSM_HEAD(%u);\n", *i);
         if (state->edges.rbegin() != state->edges.rend() && state->edges.rbegin()->first == META_DED)
           ::fprintf(file, "  if (m.FSM_DENT()) goto S%u;\n", state->edges.rbegin()->second.second->index);
-        bool peek = false; // if we need to read a character into c1
-        bool prev = false; // if we need to keep the previous character in c0
+        bool peek = false; // if we need to read a character into c
         for (DFA::State::Edges::const_reverse_iterator i = state->edges.rbegin(); i != state->edges.rend(); ++i)
         {
 #if WITH_COMPACT_DFA == -1
@@ -3022,13 +3026,12 @@ void Pattern::gencode_dfa(const DFA::State *start) const
           {
             do
             {
-              if (lo == META_EOB || lo == META_EOL)
+              if (lo == META_EOB || lo == META_EOL || lo == META_EWE || lo == META_BWE || lo == META_NWE || lo == META_WBE)
+              {
                 peek = true;
-              else if (lo == META_EWE || lo == META_BWE || lo == META_NWE || lo == META_WBE)
-                prev = peek = true;
-              if (prev && peek)
                 break;
-              check_dfa_closure(i->second.second, 1, peek, prev);
+              }
+              check_dfa_closure(i->second.second, 1, peek);
             } while (++lo <= hi);
           }
           else
@@ -3054,10 +3057,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
             target_index = i->second.second->index;
           if (read)
           {
-            if (prev)
-              ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
-            else
-              ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
+            ::fprintf(file, "  c = m.FSM_CHAR();\n");
             read = false;
           }
           if (is_meta(lo))
@@ -3068,14 +3068,6 @@ void Pattern::gencode_dfa(const DFA::State *start) const
               {
                 case META_EOB:
                 case META_EOL:
-                  ::fprintf(file, "  ");
-                  if (elif)
-                    ::fprintf(file, "else ");
-                  ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
-                  gencode_dfa_closure(file, i->second.second, 2, peek);
-                  ::fprintf(file, "  }\n");
-                  elif = true;
-                  break;
                 case META_EWE:
                 case META_BWE:
                 case META_NWE:
@@ -3083,7 +3075,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
                   ::fprintf(file, "  ");
                   if (elif)
                     ::fprintf(file, "else ");
-                  ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
+                  ::fprintf(file, "if (m.FSM_META_%s(c)) {\n", meta_label[lo - META_MIN]);
                   gencode_dfa_closure(file, i->second.second, 2, peek);
                   ::fprintf(file, "  }\n");
                   elif = true;
@@ -3106,7 +3098,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
               break;
             if (lo == hi)
             {
-              ::fprintf(file, "  if (c1 == ");
+              ::fprintf(file, "  if (c == ");
               print_char(file, lo);
               ::fprintf(file, ")");
             }
@@ -3114,20 +3106,20 @@ void Pattern::gencode_dfa(const DFA::State *start) const
             {
               ::fprintf(file, "  if (");
               print_char(file, lo);
-              ::fprintf(file, " <= c1)");
+              ::fprintf(file, " <= c)");
             }
             else
             {
               ::fprintf(file, "  if (");
               print_char(file, lo);
-              ::fprintf(file, " <= c1 && c1 <= ");
+              ::fprintf(file, " <= c && c <= ");
               print_char(file, hi);
               ::fprintf(file, ")");
             }
             if (target_index == Const::IMAX)
             {
               if (peek)
-                ::fprintf(file, " return m.FSM_HALT(c1);\n");
+                ::fprintf(file, " return m.FSM_HALT(c);\n");
               else
                 ::fprintf(file, " return m.FSM_HALT();\n");
             }
@@ -3146,10 +3138,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
           {
             if (read)
             {
-              if (prev)
-                ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
-              else
-                ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
+              ::fprintf(file, "  c = m.FSM_CHAR();\n");
               read = false;
             }
             do
@@ -3158,14 +3147,6 @@ void Pattern::gencode_dfa(const DFA::State *start) const
               {
                 case META_EOB:
                 case META_EOL:
-                  ::fprintf(file, "  ");
-                  if (elif)
-                    ::fprintf(file, "else ");
-                  ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
-                  gencode_dfa_closure(file, i->second.second, 2, peek);
-                  ::fprintf(file, "  }\n");
-                  elif = true;
-                  break;
                 case META_EWE:
                 case META_BWE:
                 case META_NWE:
@@ -3173,7 +3154,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
                   ::fprintf(file, "  ");
                   if (elif)
                     ::fprintf(file, "else ");
-                  ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
+                  ::fprintf(file, "if (m.FSM_META_%s(c)) {\n", meta_label[lo - META_MIN]);
                   gencode_dfa_closure(file, i->second.second, 2, peek);
                   ::fprintf(file, "  }\n");
                   elif = true;
@@ -3199,10 +3180,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
             target_index = i->second.second->index;
           if (read)
           {
-            if (prev)
-              ::fprintf(file, "  c0 = c1, c1 = m.FSM_CHAR();\n");
-            else
-              ::fprintf(file, "  c1 = m.FSM_CHAR();\n");
+            ::fprintf(file, "  c = m.FSM_CHAR();\n");
             read = false;
           }
           if (!is_meta(lo))
@@ -3212,7 +3190,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
               break;
             if (lo == hi)
             {
-              ::fprintf(file, "  if (c1 == ");
+              ::fprintf(file, "  if (c == ");
               print_char(file, lo);
               ::fprintf(file, ")");
             }
@@ -3220,20 +3198,20 @@ void Pattern::gencode_dfa(const DFA::State *start) const
             {
               ::fprintf(file, "  if (");
               print_char(file, lo);
-              ::fprintf(file, " <= c1)");
+              ::fprintf(file, " <= c)");
             }
             else
             {
               ::fprintf(file, "  if (");
               print_char(file, lo);
-              ::fprintf(file, " <= c1 && c1 <= ");
+              ::fprintf(file, " <= c && c <= ");
               print_char(file, hi);
               ::fprintf(file, ")");
             }
             if (target_index == Const::IMAX)
             {
               if (peek)
-                ::fprintf(file, " return m.FSM_HALT(c1);\n");
+                ::fprintf(file, " return m.FSM_HALT(c);\n");
               else
                 ::fprintf(file, " return m.FSM_HALT();\n");
             }
@@ -3245,7 +3223,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
         }
 #endif
         if (peek)
-          ::fprintf(file, "  return m.FSM_HALT(c1);\n");
+          ::fprintf(file, "  return m.FSM_HALT(c);\n");
         else
           ::fprintf(file, "  return m.FSM_HALT();\n");
       }
@@ -3263,7 +3241,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
 }
 
 #ifndef WITH_NO_CODEGEN
-void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, bool& prev) const
+void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek) const
 {
   if (nest > 5)
     return;
@@ -3280,13 +3258,12 @@ void Pattern::check_dfa_closure(const DFA::State *state, int nest, bool& peek, b
     {
       do
       {
-        if (lo == META_EOB || lo == META_EOL)
+        if (lo == META_EOB || lo == META_EOL || lo == META_EWE || lo == META_BWE || lo == META_NWE || lo == META_WBE)
+        {
           peek = true;
-        else if (lo == META_EWE || lo == META_BWE || lo == META_NWE || lo == META_WBE)
-          prev = peek = true;
-        if (prev && peek)
           break;
-        check_dfa_closure(i->second.second, nest + 1, peek, prev);
+        }
+        check_dfa_closure(i->second.second, nest + 1, peek);
       } while (++lo <= hi);
     }
   }
@@ -3300,14 +3277,14 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
   if (state->redo)
   {
     if (peek)
-      ::fprintf(file, "%*sm.FSM_REDO(c1);\n", 2*nest, "");
+      ::fprintf(file, "%*sm.FSM_REDO(c);\n", 2*nest, "");
     else
       ::fprintf(file, "%*sm.FSM_REDO();\n", 2*nest, "");
   }
   else if (state->accept > 0)
   {
     if (peek)
-      ::fprintf(file, "%*sm.FSM_TAKE(%u, c1);\n", 2*nest, "", state->accept);
+      ::fprintf(file, "%*sm.FSM_TAKE(%u, c);\n", 2*nest, "", state->accept);
     else
       ::fprintf(file, "%*sm.FSM_TAKE(%u);\n", 2*nest, "", state->accept);
   }
@@ -3332,14 +3309,6 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
         {
           case META_EOB:
           case META_EOL:
-            ::fprintf(file, "%*s", 2*nest, "");
-            if (elif)
-              ::fprintf(file, "else ");
-            ::fprintf(file, "if (m.FSM_META_%s(c1)) {\n", meta_label[lo - META_MIN]);
-            gencode_dfa_closure(file, i->second.second, nest + 1, peek);
-            ::fprintf(file, "%*s}\n", 2*nest, "");
-            elif = true;
-            break;
           case META_EWE:
           case META_BWE:
           case META_NWE:
@@ -3347,7 +3316,7 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
             ::fprintf(file, "%*s", 2*nest, "");
             if (elif)
               ::fprintf(file, "else ");
-            ::fprintf(file, "if (m.FSM_META_%s(c0, c1)) {\n", meta_label[lo - META_MIN]);
+            ::fprintf(file, "if (m.FSM_META_%s(c)) {\n", meta_label[lo - META_MIN]);
             gencode_dfa_closure(file, i->second.second, nest + 1, peek);
             ::fprintf(file, "%*s}\n", 2*nest, "");
             elif = true;
@@ -3375,7 +3344,7 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
       ::fprintf(file, "%*s", 2*nest, "");
       if (lo == hi)
       {
-        ::fprintf(file, "if (c1 == ");
+        ::fprintf(file, "if (c == ");
         print_char(file, lo);
         ::fprintf(file, ")");
       }
@@ -3383,20 +3352,20 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
       {
         ::fprintf(file, "if (");
         print_char(file, lo);
-        ::fprintf(file, " <= c1)");
+        ::fprintf(file, " <= c)");
       }
       else
       {
         ::fprintf(file, "if (");
         print_char(file, lo);
-        ::fprintf(file, " <= c1 && c1 <= ");
+        ::fprintf(file, " <= c && c <= ");
         print_char(file, hi);
         ::fprintf(file, ")");
       }
       if (target_index == Const::IMAX)
       {
         if (peek)
-          ::fprintf(file, " return m.FSM_HALT(c1);\n");
+          ::fprintf(file, " return m.FSM_HALT(c);\n");
         else
           ::fprintf(file, " return m.FSM_HALT();\n");
       }
@@ -3423,7 +3392,7 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
       ::fprintf(file, "%*s", 2*nest, "");
       if (lo == hi)
       {
-        ::fprintf(file, "if (c1 == ");
+        ::fprintf(file, "if (c == ");
         print_char(file, lo);
         ::fprintf(file, ")");
       }
@@ -3431,20 +3400,20 @@ void Pattern::gencode_dfa_closure(FILE *file, const DFA::State *state, int nest,
       {
         ::fprintf(file, "if (");
         print_char(file, lo);
-        ::fprintf(file, " <= c1)");
+        ::fprintf(file, " <= c)");
       }
       else
       {
         ::fprintf(file, "if (");
         print_char(file, lo);
-        ::fprintf(file, " <= c1 && c1 <= ");
+        ::fprintf(file, " <= c && c <= ");
         print_char(file, hi);
         ::fprintf(file, ")");
       }
       if (target_index == Const::IMAX)
       {
         if (peek)
-          ::fprintf(file, " return m.FSM_HALT(c1);\n");
+          ::fprintf(file, " return m.FSM_HALT(c);\n");
         else
           ::fprintf(file, " return m.FSM_HALT();\n");
       }
@@ -4589,7 +4558,7 @@ bool Pattern::match_hfa_transitions(size_t level, const HFA::Hashes& hashes, con
 void Pattern::write_predictor(FILE *file) const
 {
   ::fprintf(file, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (len_ == 0) * 256 + Const::HASH + (lbk_ > 0) * 68);
-  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5))));
+  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5) | (bol_ << 6))));
   // save match characters chr_[0..len_-1]
   for (size_t i = 0; i < len_; ++i)
     ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xF) ? "" : "\n  ", static_cast<uint8_t>(chr_[i]));

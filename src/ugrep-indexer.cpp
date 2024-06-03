@@ -28,19 +28,19 @@
 
 /**
 @file      ugrep-indexer.cpp
-@brief     file indexer for the ugrep search utility
+@brief     file system indexer for the ugrep search utility
 @author    Robert van Engelen - engelen@genivia.com
 @copyright (c) 2023, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "6.0.0"
+#define UGREP_VERSION "6.1.0"
 
 // use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD
 
-// ignore hidden files and directories in archives, but ugrep will never find them!
+// ignore hidden files and directories in archives, but ugrep will never find them anymore when searching hidden!
 // #define WITH_SKIP_HIDDEN_ARCHIVES
 
 // check if we are compiling for a windows OS, but not Cygwin or MinGW
@@ -56,7 +56,7 @@
 
 #ifdef OS_WIN // compiling for a windows OS
 
-// disable min/max macros to use std::min and std::max
+// disable legacy min/max macros so we can use std::min and std::max
 #define NOMINMAX
 
 #include <windows.h>
@@ -72,6 +72,7 @@
 #include <cstdint>
 #include <string>
 
+// 64 bits off_t and fseeko
 #define off_t int64_t
 #define fseeko _fseeki64
 #define ftruncate _chsize_s
@@ -105,7 +106,7 @@ std::wstring utf8_decode(const std::string &str)
   return wstr;
 }
 
-// open Unicode wide string UTF-8 encoded filename
+// open UTF-8 encoded Unicode filename
 int fopenw_s(FILE **file, const char *filename, const char *mode)
 {
   *file = NULL;
@@ -173,7 +174,7 @@ inline uint64_t file_size(const WIN32_FIND_DATAW& ffd)
 #define PATHSEPCHR '/'
 #define PATHSEPSTR "/"
 
-// open Unicode wide string UTF-8 encoded filename
+// open UTF-8 encoded Unicode filename
 int fopenw_s(FILE **file, const char *filename, const char *mode)
 {
   *file = NULL;
@@ -271,8 +272,9 @@ inline unsigned noise_percentage(int accuracy)
 typedef std::vector<std::string> StrVec;
 
 // fixed constant strings
-const char ugrep_index_filename[] = "._UG#_Store";
-const char ugrep_index_file_magic[5] = "UG#\x03";
+static const char ugrep_index_filename[] = "._UG#_Store";
+static const char ugrep_index_file_magic[5] = "UG#\x03";
+static const char ugrep_indexer_config_filename[] = ".ugrep-indexer";
 
 // command-line optional PATH argument
 const char *arg_pathname = NULL;
@@ -710,7 +712,7 @@ void usage(const char *message, const char *arg = NULL)
   else
   {
     ++warnings;
-    std::cerr << "ugrep-indexer: .ugrep-indexer configuration file: " << message << (arg != NULL ? arg : "") << '\n';
+    std::cerr << "ugrep-indexer: " << ugrep_indexer_config_filename << " configuration file: " << message << (arg != NULL ? arg : "") << '\n';
   }
 }
 
@@ -1186,31 +1188,35 @@ void cat(const std::string& pathname, std::stack<Entry>& dir_entries, std::vecto
 
 #endif
 
-  // check for ignore files, read them and push globs on the ignore_stack
-  if (!flag_ignore_files.empty() && !dir_only)
+  if (!dir_only)
   {
-    std::string ignore_filename;
-
-    for (const auto& ignore : flag_ignore_files)
+    // check for ignore files, read them and push globs on the ignore_stack
+    if (!flag_ignore_files.empty())
     {
-      ignore_filename.assign(pathname).append(PATHSEPSTR).append(ignore);
+      std::string filepath;
 
-      FILE *file = NULL;
-
-      if (fopenw_s(&file, ignore_filename.c_str(), "r") == 0)
+      for (const auto& ignore : flag_ignore_files)
       {
-        // push globs imported from the ignore file to the back of the vectors
-        ignore_stack.emplace();
+        filepath.assign(pathname).append(PATHSEPSTR).append(ignore);
 
-        // mark dir_entries stack with an empty pathname as a sentinel to pop the ignore_stack afterwards
-        dir_entries.emplace("");
-        import_globs(file, ignore_stack.top().files, ignore_stack.top().dirs);
-        fclose(file);
+        FILE *file = NULL;
+
+        if (fopenw_s(&file, filepath.c_str(), "r") == 0)
+        {
+          // push globs imported from the ignore file to the back of the vectors
+          ignore_stack.emplace();
+
+          // mark dir_entries stack with an empty pathname as a sentinel to pop the ignore_stack afterwards
+          dir_entries.emplace("");
+          import_globs(file, ignore_stack.top().files, ignore_stack.top().dirs);
+          fclose(file);
+        }
       }
     }
   }
 
   ++num_dirs;
+
   std::string entry_pathname;
 
 #ifdef OS_WIN
@@ -1973,11 +1979,11 @@ void options(int argc, const char **argv)
 }
 
 // load .ugrep-indexer config file when present in the working or home directory
-void load_config()
+void load_config(const char *config_filename)
 {
   // open a local config file or in the home directory
   FILE *file = NULL;
-  if (fopenw_s(&file, ".ugrep-indexer", "r") != 0)
+  if (fopenw_s(&file, config_filename, "r") != 0)
   {
 #ifdef OS_WIN
     const char *home_dir = getenv("USERPROFILE");
@@ -1988,9 +1994,9 @@ void load_config()
     if (home_dir != NULL)
     {
       // open a config file in the home directory
-      std::string config_file;
-      config_file.assign(home_dir).append(PATHSEPSTR).append(".ugrep-indexer");
-      if (fopenw_s(&file, config_file.c_str(), "r") != 0)
+      std::string config_filepath;
+      config_filepath.assign(home_dir).append(PATHSEPSTR).append(config_filename);
+      if (fopenw_s(&file, config_filepath.c_str(), "r") != 0)
         file = NULL;
     }
   }
@@ -2024,15 +2030,18 @@ void load_config()
       }
     }
 
+    // bail out when config file has errors
     if (warnings > 0)
       exit(EXIT_FAILURE);
 
+    // reset flag
     flag_usage_warnings = false;
 
     fclose(file);
   }
 }
 
+// where the magic happens
 int main(int argc, const char **argv)
 {
 #if !defined(OS_WIN) && defined(HAVE_LIBZ) && defined(WITH_DECOMPRESSION_THREAD)
@@ -2040,7 +2049,7 @@ int main(int argc, const char **argv)
   signal(SIGPIPE, SIG_IGN);
 #endif
 
-  load_config();
+  load_config(ugrep_indexer_config_filename);
 
   options(argc, argv);
 

@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 06, 2024" "ugrep 6.0.0" "User Commands"
+.TH UGREP "1" "June 03, 2024" "ugrep 6.1.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -60,9 +60,9 @@ forces empty matches for compatibility with other grep tools.
 .PP
 Option \fB-f\fR \fIFILE\fR matches patterns specified in \fIFILE\fR.
 .PP
-By default Unicode patterns are matched.  Option \fB-U\fR (\fB--binary\fR)
-disables Unicode matching for ASCII and binary pattern matching.  Non-Unicode
-matching is generally more efficient.
+By default Unicode patterns are matched.  Option \fB-U\fR (\fB--ascii\fR or
+\fB--binary\fR) disables Unicode matching for ASCII and binary pattern
+matching.  Non-Unicode matching is more efficient.
 .PP
 \fBugrep\fR accepts input of various encoding formats and normalizes the output
 to UTF-8.  When a UTF byte order mark is present in the input, the input is
@@ -261,8 +261,8 @@ unless \fB\-\-config\fR=\fIFILE\fR or \fB\-\-no\-config\fR is specified.
 \fB\-\-no\-config\fR
 Do not automatically load the default .ugrep configuration file.
 .TP
-\fB\-\-confirm\fR
-Confirm actions in \fB\-Q\fR query TUI.  The default is confirm.
+\fB\-\-no\-confirm\fR
+Do not confirm actions in \fB\-Q\fR query TUI.  The default is confirm.
 .TP
 \fB\-\-cpp\fR
 Output file matches in C++.  See also options \fB\-\-format\fR and \fB\-u\fR.
@@ -714,7 +714,7 @@ Shift\-Tab to navigate directories and to select a file to search.
 Press Enter to select lines to output.  Press ALT\-l for option \fB\-l\fR
 to list files, ALT\-n for \fB\-n\fR, etc.  Non\-option commands include
 ALT\-] to increase context and ALT\-} to increase fuzzyness.  See
-also options \fB\-\-confirm\fR, \fB\-\-delay\fR, \fB\-\-split\fR and \fB\-\-view\fR.
+also options \fB\-\-no\-confirm\fR, \fB\-\-delay\fR, \fB\-\-split\fR and \fB\-\-view\fR.
 .TP
 \fB\-q\fR, \fB\-\-quiet\fR, \fB\-\-silent\fR
 Quiet mode: suppress all output.  Only search a file until a match
@@ -855,12 +855,8 @@ combine option \fB\-\-hexdump\fR with option \fB\-W\fR.  See also option \fB\-U\
 \fB\-w\fR, \fB\-\-word\-regexp\fR
 The PATTERN is searched for as a word, such that the matching text
 is preceded by a non\-word character and is followed by a non\-word
-character.  Word characters are letters, digits and the
-underscore.  With option \fB\-P\fR, word characters are Unicode letters,
-digits and underscore.  This option has no effect if \fB\-x\fR is also
-specified.  If a PATTERN is specified, or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR,
-then this option has no effect on \fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR
-patterns to narrow or widen the scope of the PATTERN search.
+character.  Word\-like characters are Unicode letters, digits and
+connector punctuations such as underscore.
 .TP
 \fB\-\-width\fR[=\fINUM\fR]
 Truncate the output to NUM visible characters per line.  The width
@@ -874,10 +870,7 @@ line from the hex output use option \fB\-\-hexdump\fR.  See also option \fB\-U\f
 .TP
 \fB\-x\fR, \fB\-\-line\-regexp\fR
 Select only those matches that exactly match the whole line, as if
-the patterns are surrounded by ^ and $.  If a PATTERN is specified,
-or \fB\-e\fR \fIPATTERN\fR or \fB\-N\fR \fIPATTERN\fR, then this option has no effect on
-\fB\-f\fR \fIFILE\fR patterns to allow \fB\-f\fR \fIFILE\fR patterns to narrow or widen the
-scope of the PATTERN search.
+the patterns are surrounded by ^ and $.
 .TP
 \fB\-\-xml\fR
 Output file matches in XML.  If \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is specified,
@@ -1328,10 +1321,6 @@ $ ugrep -wi -e amount --and '\d+(\.\d+)?' myfile.txt
 List all Unicode words in a file:
 .IP
 $ ugrep -o '\\w+' myfile.txt
-.PP
-List all ASCII words in a file:
-.IP
-$ ugrep -o '[[:word:]]+' myfile.txt
 .PP
 List the laughing face emojis (Unicode code points U+1F600 to U+1F60F):
 .IP

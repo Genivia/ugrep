@@ -154,11 +154,13 @@ class AbstractMatcher {
         A(false),
         N(false),
         W(false),
+        X(false),
         T(8)
     { }
     bool A; ///< accept any/all (?^X) negative patterns as Const::REDO accept index codes
     bool N; ///< nullable, find may return empty match (N/A to scan, split, matches)
-    bool W; ///< half-check for "whole words", check only left of \< and right of \> for non-word character
+    bool W; ///< reflex::Matcher matches whole words as if bound by \< and \>
+    bool X; ///< reflex::LineMatcher matches empty lines
     char T; ///< tab size, must be a power of 2, default is 8, for column count and indent \i, \j, and \k
   };
   /// AbstractMatcher::Iterator class for scanning, searching, and splitting input character sequences.
@@ -356,7 +358,8 @@ class AbstractMatcher {
     {
       opt_.A = false; // when true: accept any/all (?^X) negative patterns as Const::REDO accept index codes
       opt_.N = false; // when true: find may return empty match (N/A to scan, split, matches)
-      opt_.W = false; // when true: half-check for "whole words", check only left of \< and right of \> for non-word character
+      opt_.W = false; // when true: reflex::Matcher matches whole words as if bound by \< and \>
+      opt_.X = false; // when true: reflex::LineMatcher matches empty lines
       opt_.T = 8;     // tab size 1, 2, 4, or 8
       if (opt)
       {
@@ -372,6 +375,9 @@ class AbstractMatcher {
               break;
             case 'W':
               opt_.W = true;
+              break;
+            case 'X':
+              opt_.X = true;
               break;
             case 'T':
               opt_.T = isdigit(*(s += (s[1] == '=') + 1)) ? static_cast<char>(*s - '0') : 0;
@@ -926,13 +932,13 @@ class AbstractMatcher {
     else if (got_ == '\n')
       got_ = Const::UNK;
   }
-  /// Returns true if this matcher matched text that begins a word.
+  /// Returns true if this matcher matched text that begins an ASCII word.
   inline bool at_bow()
     /// @returns true if this matcher matched text that begins a word
   {
     return !isword(got_) && isword(txt_ < buf_ + end_ ? static_cast<unsigned char>(*txt_) : peek_more());
   }
-  /// Returns true if this matcher matched text that ends a word.
+  /// Returns true if this matcher matched text that ends an ASCII word.
   inline bool at_eow()
     /// @returns true if this matcher matched text that ends a word
   {

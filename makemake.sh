@@ -40,6 +40,7 @@ sed "s/define UGREP_VERSION \"[^\"]*\"/define UGREP_VERSION \"$1\"/" src/ugrep-i
 
 ./build.sh || exit 1
 ./man.sh $1
+pushd completions/bash ; ./compgen.sh > /dev/null ; popd || exit 1
 pushd completions/fish ; ./compgen.sh > /dev/null ; popd || exit 1
 pushd completions/zsh  ; ./compgen.sh > /dev/null ; popd || exit 1
 

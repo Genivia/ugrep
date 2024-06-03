@@ -665,8 +665,12 @@ void CNF::report(FILE *output) const
       fprintf(output, " does not match");
     else
       fprintf(output, " matches");
-    if (flag_files)
+    if (flag_line_regexp)
       fprintf(output, " a line");
+    else if (flag_word_regexp)
+      fprintf(output, " a word");
+    if (flag_files)
+      fprintf(output, " on a line");
 
     if (!terms.empty())
     {
@@ -709,8 +713,12 @@ void CNF::report(FILE *output) const
             fprintf(output, " does not match");
           else
             fprintf(output, " matches");
-          if (flag_files)
+          if (flag_line_regexp)
             fprintf(output, " a line");
+          else if (flag_word_regexp)
+            fprintf(output, " a word");
+          if (flag_files)
+            fprintf(output, " on a line");
         }
 
         or_sep = true;

@@ -1,4 +1,4 @@
-# step 1: create a debian or ubuntu container for ugrep named "ugrep"
+# step 1: create a debian or ubuntu minimized container for ugrep named "ugrep"
 # docker -D build --no-cache -t ugrep .
 #
 # step 2: run bash in the container, e.g. to run ugrep from the command line
@@ -22,7 +22,8 @@ RUN apt-get update && \
         libbz2-dev \
         liblzma-dev \
         liblz4-dev \
-        libzstd-dev && \
+        libzstd-dev \
+        libbrotli-dev && \
     git clone --depth=1 https://github.com/Genivia/ugrep && \
     cd ugrep && \
     ./build.sh && \
@@ -38,5 +39,6 @@ RUN apt-get update && \
         libbz2-dev \
         liblzma-dev \
         liblz4-dev \
-        libzstd-dev && \
+        libzstd-dev \
+        libbrotli-dev && \
     rm -rf /var/lib/apt/lists/*

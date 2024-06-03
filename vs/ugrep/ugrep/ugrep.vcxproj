@@ -37,6 +37,7 @@
     <ClCompile Include="..\zlib-1.2.11\inftrees.c" />
     <ClCompile Include="..\zlib-1.2.11\zutil.c" />
     <ClCompile Include="lib\block_scripts.cpp" />
+    <ClCompile Include="lib\composer.cpp" />
     <ClCompile Include="lib\convert.cpp" />
     <ClCompile Include="lib\debug.cpp" />
     <ClCompile Include="lib\error.cpp" />
@@ -54,7 +55,11 @@
     </ClCompile>
     <ClCompile Include="lib\pattern.cpp" />
     <ClCompile Include="lib\posix.cpp" />
-    <ClCompile Include="lib\simd_avx2.cpp" />
+    <ClCompile Include="lib\simd.cpp" />
+    <ClCompile Include="lib\simd_avx2.cpp">
+      <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+    </ClCompile>
     <ClCompile Include="lib\simd_avx512bw.cpp" />
     <ClCompile Include="lib\unicode.cpp" />
     <ClCompile Include="lib\utf8.cpp" />
@@ -218,7 +223,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WITH_NO_INDENT;WITH_NO_CODEGEN;HAVE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;WITH_NO_HIDDEN;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.37\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib;$(ProjectDir)\lzma\C;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.42\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib;$(ProjectDir)\lzma\C;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>
       </DisableSpecificWarnings>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -246,7 +251,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;WITH_NO_INDENT;WITH_NO_CODEGEN;HAVE_AVX2;HAVE_PCRE2;PCRE2_STATIC;HAVE_LIBZ;HAVE_LIBBZ2;HAVE_LIBLZMA;HAVE_LIBLZ4;HAVE_LIBZSTD;WITH_COLOR;WITH_NO_HIDDEN;ZLIB_WINAPI;NO_GZCOMPRESS;LZMA_API_STATIC;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.37\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib;$(ProjectDir)\lzma\C</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\include;$(ProjectDir)\..\pcre2-10.42\src;$(ProjectDir)\..\zlib-1.2.11;$(ProjectDir)\..\bzip2-1.0.5;$(ProjectDir)\..\api;$(ProjectDir)\..\lz4-dev\lib;$(ProjectDir)\..\zstd-dev\lib;$(ProjectDir)\lzma\C</AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
     </ClCompile>

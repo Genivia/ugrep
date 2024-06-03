@@ -778,7 +778,11 @@ static void insert_posix_class(const char *pattern, size_t len, size_t& pos, con
     else if (name[0] == 'A' && name[1] == 's')
       name = const_cast<char*>("ASCII");
   }
-  const int *wc = Posix::range(name);
+  const int *wc = NULL;
+  if ((flags & convert_flag::unicode))
+    wc = Unicode::range(name);
+  if (wc == NULL)
+    wc = Posix::range(name);
   if (wc == NULL)
     throw regex_error(regex_error::invalid_class, pattern, pos);
   if (*buf == '^')

@@ -403,31 +403,22 @@ You can always add these later, when you need these features:
   the [zstd](http://facebook.github.io/zstd) library (optional, not required),
   e.g. with `sudo apt-get install -y libzstd-dev`.  To search `.br` files,
   install the [brotli](https://github.com/google/brotli) library (optional, not
-  required), e.g. with `sudo apt-get install -y brotli`.  To search `.bz3`
-  files, install the [bzip3](https://github.com/kspalaiologos/bzip3) library
-  (optional, not required), e.g. with `sudo apt-get install -y bzip3`.
+  required), e.g. with `sudo apt-get install -y libbrotli-dev`.  To search
+  `.bz3` files, install the [bzip3](https://github.com/kspalaiologos/bzip3)
+  library (optional, not required), e.g. with `sudo apt-get install -y bzip3`.
 
 **Note:** even if your system has command line utilities, such as `bzip2`, that
 does not necessarily mean that the development libraries such as `libbz2` are
 installed.  The *development libraries* should be installed.
-
-After installing one or more of these libraries, re-execute the commands to
-rebuild `ugrep`:
-
-    $ cd ugrep
-    $ ./build.sh
 
 **Note:** some Linux systems may not be configured to load dynamic libraries
 from `/usr/local/lib`, causing a library load error when running `ugrep`.  To
 correct this, add `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"` to
 your `~/.bashrc` file.  Or run `sudo ldconfig /usr/local/lib`.
 
-**Note:** you can build static executables by supplying `--enable-static`
-as an argument to `./build.sh`.
-
 ### Other platforms: step 3 build
 
-Build `ugrep` on Unix-like systems with colors enabled by default:
+Execute the `./build.sh` script to build `ugrep`:
 
     $ cd ugrep
     $ ./build.sh
@@ -441,24 +432,36 @@ Note that `ug` is the same as `ugrep` but also loads the configuration file
 .ugrep when present in the working directory or home directory.  This means
 that you can define your default options for `ug` in .ugrep.
 
-To build `ugrep` with specific hard defaults enabled, such as a pager:
+Alternative paths to installed or local libraries may be specified with
+`./build.sh`.  To get help on the available build options:
 
-    $ cd ugrep
+    $ ./build.sh --help
+
+You can build static executables by specifying:
+
+    $ ./build.sh --enable-static
+
+**Note:** this may fail if libraries don't link statically, such as brotli.
+In that case try `./build.sh --enable-static --without-brotli`.
+
+You can build `ugrep` with customized defaults enabled, such as a pager:
+
     $ ./build.sh --enable-pager
 
 Options to select defaults for builds include:
 
+- `--help` display build options
+- `--enable-static` build static executables, if possible
 - `--enable-hidden` always search hidden files and directories
 - `--enable-pager` always use a pager to display output on terminals
 - `--enable-pretty` colorize output to terminals and add filename headings
 - `--disable-auto-color` disable automatic colors, requires ugrep option `--color=auto` to show colors
 - `--disable-mmap` disable memory mapped files
 - `--disable-sse2` disable SSE2 and AVX optimizations
-- `--disable-avx` disable AVX optimizations, but compile with SSE2 when supported
+- `--disable-avx2` disable AVX2 and AVX512BW optimizations, but compile with SSE2 when supported
 - `--disable-neon` disable ARM NEON/AArch64 optimizations
 - `--with-grep-path` the default `-f` path if `GREP_PATH` is not defined
 - `--with-grep-colors` the default colors if `GREP_COLORS` is not defined
-- `--help` display build options
 
 After the build completes, copy `ugrep/bin/ugrep` and `ugrep/bin/ug` to a
 convenient location, for example in your `~/bin` directory. Or, if you may want
@@ -1189,7 +1192,7 @@ the top of the file, followed by the long options to override the defaults.
             Shift-Tab to navigate directories and to select a file to search.
             Press Enter to select lines to output.  Press ALT-l for option -l
             to list files, ALT-n for -n, etc.  Non-option commands include
-            ALT-] to increase context.  See also options --confirm, --delay,
+            ALT-] to increase context.  See also options --no-confirm, --delay,
             --split and --view.
     --no-confirm
             Do not confirm actions in -Q query TUI.  The default is confirm.
@@ -1643,18 +1646,11 @@ same line, like XOR:
     -w, --word-regexp
             The PATTERN is searched for as a word, such that the matching text
             is preceded by a non-word character and is followed by a non-word
-            character.  Word characters are letters, digits, and the
-            underscore.  With option -P, word characters are Unicode letters,
-            digits, and underscore.  This option has no effect if -x is also
-            specified.  If a PATTERN is specified, or -e PATTERN or -N PATTERN,
-            then this option has no effect on -f FILE patterns to allow -f FILE
-            patterns to narrow or widen the scope of the PATTERN search.
+            character.  Word-like characters are Unicode letters, digits and
+            connector punctuations such as underscore.
     -x, --line-regexp
             Select only those matches that exactly match the whole line, as if
-            the patterns are surrounded by ^ and $.  If a PATTERN is specified,
-            or -e PATTERN or -N PATTERN, then this option does not apply to
-            -f FILE patterns to allow -f FILE patterns to narrow or widen the
-            scope of the PATTERN search.
+            the patterns are surrounded by ^ and $.
 
 See also [Boolean query patterns with -%, -%%, --and, --not](#bool) for
 more powerful Boolean query options than the traditional GNU/BSD grep options.
@@ -3944,9 +3940,9 @@ in markdown:
 
            Option -f FILE matches patterns specified in FILE.
 
-           By default Unicode patterns are matched.  Option -U (--binary) disables
-           Unicode matching for ASCII and binary pattern matching.  Non-Unicode
-           matching is generally more efficient.
+           By default Unicode patterns are matched.  Option -U (--ascii or --binary)
+           disables Unicode matching for ASCII and binary pattern matching.  Non-
+           Unicode matching is more efficient.
 
            ugrep accepts input of various encoding formats and normalizes the output
            to UTF-8.  When a UTF byte order mark is present in the input, the input
@@ -4149,8 +4145,8 @@ in markdown:
            --no-config
                   Do not automatically load the default .ugrep configuration file.
 
-           --confirm
-                  Confirm actions in -Q query TUI.  The default is confirm.
+           --no-confirm
+                  Do not confirm actions in -Q query TUI.  The default is confirm.
 
            --cpp  Output file matches in C++.  See also options --format and -u.
 
@@ -4607,8 +4603,8 @@ in markdown:
                   select a file to search.  Press Enter to select lines to output.
                   Press ALT-l for option -l to list files, ALT-n for -n, etc.
                   Non-option commands include ALT-] to increase context and ALT-} to
-                  increase fuzzyness.  See also options --confirm, --delay, --split
-                  and --view.
+                  increase fuzzyness.  See also options --no-confirm, --delay,
+                  --split and --view.
 
            -q, --quiet, --silent
                   Quiet mode: suppress all output.  Only search a file until a match
@@ -4752,13 +4748,8 @@ in markdown:
            -w, --word-regexp
                   The PATTERN is searched for as a word, such that the matching text
                   is preceded by a non-word character and is followed by a non-word
-                  character.  Word characters are letters, digits and the
-                  underscore.  With option -P, word characters are Unicode letters,
-                  digits and underscore.  This option has no effect if -x is also
-                  specified.  If a PATTERN is specified, or -e PATTERN or -N
-                  PATTERN, then this option has no effect on -f FILE patterns to
-                  allow -f FILE patterns to narrow or widen the scope of the PATTERN
-                  search.
+                  character.  Word-like characters are Unicode letters, digits and
+                  connector punctuations such as underscore.
 
            --width[=NUM]
                   Truncate the output to NUM visible characters per line.  The width
@@ -4773,10 +4764,7 @@ in markdown:
 
            -x, --line-regexp
                   Select only those matches that exactly match the whole line, as if
-                  the patterns are surrounded by ^ and $.  If a PATTERN is
-                  specified, or -e PATTERN or -N PATTERN, then this option has no
-                  effect on -f FILE patterns to allow -f FILE patterns to narrow or
-                  widen the scope of the PATTERN search.
+                  the patterns are surrounded by ^ and $.
 
            --xml  Output file matches in XML.  If -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
@@ -5265,10 +5253,6 @@ in markdown:
 
                   $ ugrep -o '\w+' myfile.txt
 
-           List all ASCII words in a file:
-
-                  $ ugrep -o '[[:word:]]+' myfile.txt
-
            List the laughing face emojis (Unicode code points U+1F600 to U+1F60F):
 
                   $ ugrep -o '[\x{1F600}-\x{1F60F}]' myfile.txt
@@ -5410,7 +5394,7 @@ in markdown:
 
 
 
-    ugrep 6.0.0                        May 6, 2024                          UGREP(1)
+    ugrep 6.1.0                       June 3, 2024                          UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

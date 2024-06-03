@@ -83,9 +83,15 @@ Tables::Tables()
   range["Control"]                = range["Cc"];
   range["Format"]                 = range["Cf"];
 
-  range["d"] = range["Decimal_Digit_Number"];
-  range["l"] = range["Lowercase_Letter"];
-  range["u"] = range["Uppercase_Letter"];
+  range["Cntrl"] = range["C"];
+  range["Digit"] = range["Nd"];
+  range["Lower"] = range["Ll"];
+  range["Punct"] = range["P"];
+  range["Upper"] = range["Lu"];
+
+  range["d"] = range["Digit"];
+  range["l"] = range["Lower"];
+  range["u"] = range["Upper"];
   range["s"] = range["Space"];
   range["w"] = range["Word"];
 }

@@ -138,8 +138,8 @@ find:
           // option N also finds empty lines
           if (n == 0 && !opt_.N)
             goto find;
-          // option W only finds empty lines
-          if (n > 0 && opt_.W)
+          // option X only finds empty lines
+          if (n > 0 && opt_.X)
             goto find;
           break;
         case Const::SPLIT:

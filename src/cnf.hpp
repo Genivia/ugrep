@@ -273,11 +273,12 @@ class CNF {
     const char *xleft = flag_basic_regexp ? "^\\(" : "^(?:";
     const char *xright = flag_basic_regexp ? "\\)$" : ")$";
 #if defined(HAVE_PCRE2)
-    const char *wleft = flag_basic_regexp ? "\\<\\(" : flag_perl_regexp ? "(?<!\\w)(?:" : "\\<(";
-    const char *wright = flag_basic_regexp ? "\\)\\>" : flag_perl_regexp ? ")(?!\\w)" : ")\\>";
+    // PCRE2_EXTRA_MATCH_WORD does not work and \b(?:regex)\b is not correct anyway, so we roll out our own
+    const char *wleft = flag_perl_regexp ? "(?<!\\w)(?:" : NULL;
+    const char *wright = flag_perl_regexp ? ")(?!\\w)" : NULL;
 #else // Boost.Regex
-    const char *wleft = flag_basic_regexp ? "\\<\\(" : flag_perl_regexp ? "(?<![[:word:]])(?:" : "\\<(";
-    const char *wright = flag_basic_regexp ? "\\)\\>" : flag_perl_regexp ? ")(?![[:word:]])" : ")\\>";
+    const char *wleft = flag_perl_regexp ? "(?<![[:word:]])(?:" : NULL;
+    const char *wright = flag_perl_regexp ? ")(?![[:word:]])" : NULL;
 #endif
 
     // patterns that start with ^ or end with $ are already anchored
@@ -288,15 +289,16 @@ class CNF {
     }
     else if (flag_line_regexp)
     {
+      // make the regex line-anchored
       if (!pattern.empty())
         pattern.insert(0, xleft).append(xright);
       else
         pattern.assign("^$");
     }
-    else if (flag_word_regexp)
+    else if (!pattern.empty() && flag_word_regexp && wleft != NULL && wright != NULL)
     {
-      if (!pattern.empty())
-        pattern.insert(0, wleft).append(wright);
+      // make the regex word-anchored (or done with matcher option W instead of \< and \>)
+      pattern.insert(0, wleft).append(wright);
     }
   }
 

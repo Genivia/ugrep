@@ -941,8 +941,7 @@ class Pattern {
   void check_dfa_closure(
       const DFA::State *state,
       int               nest,
-      bool&             peek,
-      bool&             prev) const;
+      bool&             peek) const;
   void gencode_dfa_closure(
       FILE             *fd,
       const DFA::State *start,
@@ -1192,6 +1191,7 @@ class Pattern {
   float                 ams_; ///< ms elapsed time to analyze DFA for predict match and HFA
   size_t                npy_; ///< entropy derived from the bitap array bit_[]
   bool                  one_; ///< true if matching one string stored in chr_[] without meta/anchors
+  bool                  bol_; ///< true if matching all patterns at the begin of a line with anchor ^
 };
 
 } // namespace reflex
