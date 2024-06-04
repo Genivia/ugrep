@@ -399,7 +399,7 @@ AC_ARG_ENABLE(static,
               [enable_static=$enableval],
               [enable_static=no])
 AC_MSG_CHECKING(for --enable-static)
-if test "x$enable_static" == "xyes"; then
+if test "x$enable_static" = "xyes"; then
   CFLAGS="$CFLAGS -static"
   LDFLAGS="$LDFLAGS -static"
   AC_MSG_RESULT(yes)
