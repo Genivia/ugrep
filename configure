@@ -11057,7 +11057,7 @@ fi
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for --enable-static" >&5
 printf %s "checking for --enable-static... " >&6; }
-if test "x$enable_static" == "xyes"; then
+if test "x$enable_static" = "xyes"; then
   CFLAGS="$CFLAGS -static"
   LDFLAGS="$LDFLAGS -static"
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
