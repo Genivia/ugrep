@@ -11049,7 +11049,7 @@ fi
 # Check whether --enable-static was given.
 if test ${enable_static+y}
 then :
-  enableval=$enable_static; enable_static=yes
+  enableval=$enable_static; enable_static=$enableval
 else case e in #(
   e) enable_static=no ;;
 esac
