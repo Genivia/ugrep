@@ -1,0 +1,47 @@
+name: Autobuild-Static
+
+on: [ push, pull_request ]
+
+jobs:
+  autobuild-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Build Environment
+        run: |
+          sudo apt install --no-install-recommends libbz2-dev liblzma-dev libpcre2-dev libz-dev liblz4-dev libzstd-dev
+          sudo apt install linux-libc-dev-arm64-cross g++-aarch64-linux-gnu
+      - name: Update autoconf
+        run: autoreconf -fi
+      - name: Configure AMD64
+        run: ./configure --enable-static --without-brotli || (cat config.log; exit 1)
+      - name: Make AMD64
+        run: make -k -j
+      - name: Set variables
+        id: vars
+        run: |
+          MYSHA="unknown"
+          MYSHA=$(git rev-parse --short ${{ github.sha }})
+          echo "COMMIT_SHORT_MYSHA=$MYSHA" >> $GITHUB_ENV
+          MYDATE=$(date +%y%m%d%H%m)
+          echo "COMMIT_SHORT_MYDATE=$MYDATE" >> $GITHUB_ENV
+      - name: Upload zip for AMD64
+        uses: actions/upload-artifact@v4
+        with:
+          name: ugrep_amd64_${{ env.COMMIT_SHORT_MYSHA }}_${{ env.COMMIT_SHORT_MYDATE }}.zip
+          path: |
+            bin/ug*
+            man/*.1
+      - name: Make clean
+        run: make clean
+      - name: Configure ARM64
+        run: ./configure --enable-static --without-brotli --build x86_64-pc-linux-gnu --host aarch64-linux-gnu || (cat config.log; exit 1)
+      - name: Make AMD64
+        run: make -k -j
+      - name: Upload zip for ARM64
+        uses: actions/upload-artifact@v4
+        with:
+          name: ugrep_arm64_${{ env.COMMIT_SHORT_MYSHA }}_${{ env.COMMIT_SHORT_MYDATE }}.zip
+          path: |
+            bin/ug*
+            man/*.1
