@@ -6,7 +6,7 @@
 # It's perfect for running ugrep in a compact container.
 #
 # Build the ugrep image:
-#   $ docker build -t ugrep .
+#   $ docker build -f Dockerfile-minimized -t ugrep .
 #
 # Execute ugrep in the container (The / of the host is accessible in /mnt directory in the container):
 #   $ docker run -v /:/mnt -it ugrep --help
