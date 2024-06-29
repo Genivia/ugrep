@@ -1,44 +1,78 @@
-# step 1: create a debian or ubuntu minimized container for ugrep named "ugrep"
-# docker -D build --no-cache -t ugrep .
 #
-# step 2: run bash in the container, e.g. to run ugrep from the command line
-# docker run -it ugrep bash
-# or
-# docker run -it --mount type=bind,source=$PWD,target=/mnt ugrep bash
+# Dockerfile to build and run ugrep in a container (production/minimized environment).
 #
-# step 3: run ugrep in the container
+# This file creates the bare essentials to run ugrep in a container, with nothing else.
+# It's a minimized environment, with no development tools, no git, no make, etc.
+# It's perfect for running ugrep in a compact container.
+#
+# Build the ugrep image:
+#   $ docker build -f Dockerfile-minimized -t ugrep .
+#
+# Execute ugrep in the container (The / of the host is accessible in /mnt directory in the container):
+#   $ docker run -v /:/mnt -it ugrep --help
+# or run bash in the container instead:
+#   $ docker run -v /:/mnt --entrypoint /bin/bash -it ugrep
+#   $ ugrep --help
 
-# debian or ubuntu
-FROM ubuntu
+FROM ubuntu AS builder
 
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-        make \
-        git \
-        clang \
-        ca-certificates \
-        libpcre2-dev \
-        libz-dev \
-        libbz2-dev \
-        liblzma-dev \
-        liblz4-dev \
-        libzstd-dev \
-        libbrotli-dev && \
-    git clone --depth=1 https://github.com/Genivia/ugrep && \
-    cd ugrep && \
-    ./build.sh && \
-    make install && \
-    ugrep -V && \
-    cd ../ && \
-    rm -rf ugrep && \
-    apt-get remove -y \
-        make \
-        git \
-        libpcre2-dev \
-        libz-dev \
-        libbz2-dev \
-        liblzma-dev \
-        liblz4-dev \
-        libzstd-dev \
-        libbrotli-dev && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update
+
+RUN apt-get install -y --no-install-recommends \
+    autoconf \
+    automake \
+    build-essential \
+    ca-certificates \
+    pkg-config \
+    make \
+    vim \
+    git \
+    clang \
+    wget \
+    unzip \
+    libpcre2-dev \
+    libz-dev \
+    libbz2-dev \
+    liblzma-dev \
+    liblz4-dev \
+    libzstd-dev \
+    libbrotli-dev
+
+WORKDIR /ugrep
+
+# Clone ugrep from GitHub
+RUN git clone --single-branch --depth=1 https://github.com/Genivia/ugrep /ugrep
+
+# Local build of ugrep
+# If you want to build ugrep from a local source, uncomment the following line:
+# ADD . /ugrep
+
+RUN autoreconf -fi
+RUN ./build.sh
+
+
+
+# Create a tarball with the necessary libraries to run ugrep in a minimized environment
+# Some large libraries are excluded to keep the image size small
+RUN tar -czvf /libs.tar.gz \
+    --exclude=/lib/x86_64-linux-gnu/libclang* \
+    --exclude=/lib/x86_64-linux-gnu/libicudata* \
+    --exclude=/lib/x86_64-linux-gnu/libtsan* \
+    /lib/x86_64-linux-gnu/*.so* /lib64/*
+
+# Use clean new image (alpine is small and compact compared to ubuntu)
+FROM alpine AS production
+
+
+# Copy libraries from the builder image
+COPY --from=builder /libs.tar.gz /
+RUN tar -C / -xzvf /libs.tar.gz
+RUN rm /libs.tar.gz
+
+# TODO: find a way to make `make install` work instead of calling install manually
+WORKDIR /ugrep
+COPY --from=builder /ugrep/bin/ug* ./
+RUN install -d /usr/local/bin/ && install -D /ugrep/* /usr/local/bin/
+RUN ugrep --version
+
+ENTRYPOINT [ "ugrep" ]
