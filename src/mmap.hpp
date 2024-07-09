@@ -77,7 +77,7 @@ class MMap {
   }
 
   // attempt to mmap the given file-based input, return true if successful with base and size
-  bool file(reflex::Input& input, const char*& base, size_t& size)
+  bool file(reflex::Input& input, const char *& base, size_t& size)
   {
     base = NULL;
     size = 0;

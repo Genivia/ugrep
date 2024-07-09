@@ -60,7 +60,9 @@
 #ifdef _MSC_VER
 # define cpuidex __cpuidex
 #else
-# include <cpuid.h>
+# ifndef __cpuid_count
+#  include <cpuid.h>
+# endif
 # define cpuidex(CPUInfo, id, subid) __cpuid_count(id, subid, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3])
 #endif
 

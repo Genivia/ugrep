@@ -163,7 +163,6 @@ void Matcher::simd_init_advance_avx2()
 // My "needle search" method when pin=1
 bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
 {
-  const Pattern::Pred *pma = pat_->pma_;
   const char *chr = pat_->chr_;
   size_t min = pat_->min_;
   uint16_t lcp = pat_->lcp_;
@@ -186,7 +185,7 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
         uint32_t offset = ctz(mask);
         loc = s - lcp + offset - buf_;
         set_current(loc);
-        if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0)
+        if (loc + 4 > end_ || pat_->predict_match(&buf_[loc]))
           return true;
         mask &= mask - 1;
       }
@@ -207,7 +206,6 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
 // My "needle search" method when pin=1
 bool Matcher::simd_advance_pattern_pin1_pmh_avx2(size_t loc)
 {
-  const Pattern::Pred *pmh = pat_->pmh_;
   const char *chr = pat_->chr_;
   size_t min = pat_->min_;
   uint16_t lcp = pat_->lcp_;
@@ -230,7 +228,7 @@ bool Matcher::simd_advance_pattern_pin1_pmh_avx2(size_t loc)
         uint32_t offset = ctz(mask);
         loc = s - lcp + offset - buf_;
         set_current(loc);
-        if (Pattern::predict_match(pmh, &buf_[loc], min))
+        if (pat_->predict_match(&buf_[loc], min))
           return true;
         mask &= mask - 1;
       }
@@ -252,7 +250,6 @@ bool Matcher::simd_advance_pattern_pin1_pmh_avx2(size_t loc)
 #define ADV_PAT_PIN_ONE(N, INIT, COMP) \
 bool Matcher::simd_advance_pattern_pin##N##_one_avx2(size_t loc) \
 { \
-  const Pattern::Pred *pma = pat_->pma_; \
   const char *chr = pat_->chr_; \
   INIT \
   while (true) \
@@ -269,7 +266,7 @@ bool Matcher::simd_advance_pattern_pin##N##_one_avx2(size_t loc) \
       { \
         uint32_t offset = ctz(mask); \
         loc = s + offset - buf_; \
-        if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0) \
+        if (loc + 4 > end_ || pat_->predict_match(&buf_[loc])) \
         { \
           set_current(loc); \
           return true; \
@@ -419,7 +416,6 @@ ADV_PAT_PIN_ONE(16, \
 #define ADV_PAT_PIN(N, INIT, COMP) \
 bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
 { \
-  const Pattern::Pred *pma = pat_->pma_; \
   const char *chr = pat_->chr_; \
   size_t min = pat_->min_; \
   uint16_t lcp = pat_->lcp_; \
@@ -441,7 +437,7 @@ bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
       { \
         uint32_t offset = ctz(mask); \
         loc = s - lcp + offset - buf_; \
-        if (loc + 4 > end_ || Pattern::predict_match(pma, &buf_[loc]) == 0) \
+        if (loc + 4 > end_ || pat_->predict_match(&buf_[loc])) \
         { \
           set_current(loc); \
           return true; \
@@ -464,7 +460,6 @@ bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
 \
 bool Matcher::simd_advance_pattern_pin##N##_pmh_avx2(size_t loc) \
 { \
-  const Pattern::Pred *pmh = pat_->pmh_; \
   const char *chr = pat_->chr_; \
   size_t min = pat_->min_; \
   uint16_t lcp = pat_->lcp_; \
@@ -486,7 +481,7 @@ bool Matcher::simd_advance_pattern_pin##N##_pmh_avx2(size_t loc) \
       { \
         uint32_t offset = ctz(mask); \
         loc = s - lcp + offset - buf_; \
-        if (Pattern::predict_match(pmh, &buf_[loc], min)) \
+        if (pat_->predict_match(&buf_[loc], min)) \
         { \
           set_current(loc); \
           return true; \
@@ -779,7 +774,6 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
 {
   static const uint16_t lcp = 0;
   static const uint16_t lcs = LEN - 1;
-  const Pattern::Pred *pma = pat_->pma_;
   const char *chr = pat_->chr_;
   size_t min = pat_->min_;
   while (true)
@@ -802,7 +796,7 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
             (LEN == 3 ? s[offset + 1 - lcp] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
         {
           loc = s - lcp + offset - buf_;
-          if (loc + LEN + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + LEN]) == 0)
+          if (loc + LEN + 4 > end_ || pat_->predict_match(&buf_[loc + LEN]))
           {
             set_current(loc);
             return true;
@@ -830,7 +824,6 @@ bool Matcher::simd_advance_chars_pmh_avx2(size_t loc)
 {
   static const uint16_t lcp = 0;
   static const uint16_t lcs = LEN - 1;
-  const Pattern::Pred *pmh = pat_->pmh_;
   const char *chr = pat_->chr_;
   size_t min = pat_->min_;
   while (true)
@@ -854,7 +847,7 @@ bool Matcher::simd_advance_chars_pmh_avx2(size_t loc)
         {
           loc = s - lcp + offset - buf_;
           set_current(loc);
-          if (loc + LEN + min > end_ || Pattern::predict_match(pmh, &buf_[loc + LEN], min))
+          if (loc + LEN + min > end_ || pat_->predict_match(&buf_[loc + LEN], min))
             return true;
         }
         mask &= mask - 1;
@@ -923,7 +916,6 @@ bool Matcher::simd_advance_string_avx2(size_t loc)
 /// Implements AVX2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
 bool Matcher::simd_advance_string_pma_avx2(size_t loc)
 {
-  const Pattern::Pred *pma = pat_->pma_;
   const char *chr = pat_->chr_;
   size_t len = pat_->len_;
   size_t min = pat_->min_;
@@ -948,7 +940,7 @@ bool Matcher::simd_advance_string_pma_avx2(size_t loc)
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
         {
           loc = s - lcp + offset - buf_;
-          if (loc + len + 4 > end_ || Pattern::predict_match(pma, &buf_[loc + len]) == 0)
+          if (loc + len + 4 > end_ || pat_->predict_match(&buf_[loc + len]))
           {
             set_current(loc);
             return true;
@@ -973,7 +965,6 @@ bool Matcher::simd_advance_string_pma_avx2(size_t loc)
 /// Implements AVX2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
 bool Matcher::simd_advance_string_pmh_avx2(size_t loc)
 {
-  const Pattern::Pred *pmh = pat_->pmh_;
   const char *chr = pat_->chr_;
   size_t len = pat_->len_;
   size_t min = pat_->min_;
@@ -999,7 +990,7 @@ bool Matcher::simd_advance_string_pmh_avx2(size_t loc)
         {
           loc = s - lcp + offset - buf_;
           set_current(loc);
-          if (loc + len + min > end_ || Pattern::predict_match(pmh, &buf_[loc + len], min))
+          if (loc + len + min > end_ || pat_->predict_match(&buf_[loc + len], min))
             return true;
         }
         mask &= mask - 1;

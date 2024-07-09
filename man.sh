@@ -598,7 +598,7 @@ The same, but using predefined pattern cpp/zap_strings:
 .IP
 $ ugrep -e FIXME -f cpp/zap_strings myfile.cpp
 .PP
-Find lines with `FIXME' or `TODO', showing line numberes:
+Find lines with `FIXME' or `TODO', showing line numbers:
 .IP
 $ ugrep -n -e FIXME -e TODO myfile.cpp
 .PP
@@ -679,7 +679,7 @@ Display options related to "fuzzy" searching:
 $ ugrep --help fuzzy
 .PP
 .SH COPYRIGHT
-Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>
+Copyright (c) 2021,2024 Robert A. van Engelen <engelen@acm.org>
 .PP
 \fBugrep\fR is released under the BSD\-3 license.  All parts of the software
 have reasonable copyright terms permitting free redistribution.  This includes

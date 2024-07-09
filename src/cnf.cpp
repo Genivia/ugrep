@@ -151,10 +151,14 @@ void CNF::OpTree::parse3(const char *& pattern)
 
     if (parens)
     {
+      // skip ( and spacing
       ++pattern;
+      skip_space(pattern);
 
+      // new AND term, only parse when pattern isn't an empty ()
       list.emplace_back(AND);
-      list.back().parse1(pattern);
+      if (*pattern != ')')
+        list.back().parse1(pattern);
 
       if (*pattern == ')')
         ++pattern;
@@ -240,7 +244,10 @@ void CNF::OpTree::parse3(const char *& pattern)
         ++lookahead;
       }
 
-      if (level == 0 && (*lookahead == ')' || *lookahead == '|' || isspace(static_cast<unsigned char>(*lookahead))))
+      if (level == 0 &&
+          (*lookahead == ')' ||
+           *lookahead == '|' ||
+           isspace(static_cast<unsigned char>(*lookahead))))
         break;
     }
 
@@ -373,7 +380,7 @@ void CNF::OpTree::normalize(bool invert)
   }
 }
 
-// convert CNF-normalized operator tree to terms, a CNF AND-list of OR-term lists
+// convert CNF-normalized operator tree to terms, a CNF AND-list of ALT-term lists
 void CNF::OpTree::convert(Terms& terms)
 {
   if (op == OpTree::AND)
@@ -466,26 +473,16 @@ void CNF::OpTree::add_to(Terms& terms) const
   }
 }
 
-// add an OR pattern or OR-NOT pattern, optionally negated (option -N)
+// add an ALT pattern or ALT-NOT pattern, optionally negated (option -N)
 void CNF::new_pattern(PATTERN mask, const char *pattern)
 {
   if (terms.empty())
     terms.emplace_back();
 
-  if (flag_bool && !(mask & PATTERN::NEG))
+  if (flag_bool)
   {
-    // --bool --not
-    if ((mask & PATTERN::NOT))
-    {
-      std::string not_pattern;
-      not_pattern.assign("-(").append(pattern).append(")");
-      compile(not_pattern.c_str());
-    }
-    else
-    {
-      // --bool
-      compile(pattern);
-    }
+    // --bool: compile to CNF
+    compile(pattern);
   }
   else
   {
@@ -541,7 +538,7 @@ void CNF::new_pattern(PATTERN mask, const char *pattern)
   }
 }
 
-// prune empty OR terms and OR terms with empty patterns that match anything
+// prune empty ALT terms and ALT terms with empty patterns that match anything
 void CNF::prune()
 {
   // -x: empty patterns match empty lines
@@ -554,7 +551,7 @@ void CNF::prune()
 
   while (i != e)
   {
-    // erase empty term and erase NULL term without OR NOT terms, unless the first term and -f FILE is specified
+    // erase empty term and erase NULL term without ALT-NOT terms, unless the first term and -f FILE is specified
     if ((i->empty() || (i->size() == 1 && (!i->front() || i->front()->empty()))) && (i != s || flag_file.empty()))
       terms.erase(i++);
     else
@@ -565,7 +562,7 @@ void CNF::prune()
 // split the patterns at \n and \r newlines, when present
 void CNF::split()
 {
-  // --bool: spacing means AND
+  // --bool: newlines not present (already converted)
   if (flag_bool)
     return;
 
@@ -730,7 +727,7 @@ void CNF::report(FILE *output) const
   fprintf(output, NEWLINESTR);
 }
 
-// return all OR terms of the CNF joined together
+// return all ALT terms of the CNF joined together
 std::string CNF::adjoin() const
 {
   std::string adjoined;
@@ -738,7 +735,7 @@ std::string CNF::adjoin() const
 
   if (flag_files)
   {
-    // --files: join all OR and OR NOT terms
+    // --files: join all ALT and ALT-NOT terms
     for (const auto& i : terms)
       for (const auto& j : i)
         if (j && !j->empty())
@@ -757,7 +754,7 @@ std::string CNF::adjoin() const
       }
     }
 
-    // --lines: join all OR terms unless all of them are paired with OR NOT terms
+    // --lines: join all ALT terms unless all of them are paired with ALT-NOT terms
     if (!allnot)
       for (const auto& i : terms)
         if (i.front() && !i.front()->empty())
@@ -775,7 +772,7 @@ std::string CNF::adjoin() const
   return adjoined;
 }
 
-// return the first OR terms of the CNF
+// return the first ALT terms of the CNF
 std::string CNF::first() const
 {
   if (!terms.empty() && terms.front().front())

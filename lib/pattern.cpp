@@ -388,7 +388,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
     }
     // number of needles required
     uint16_t n = nlcp > nlcs ? nlcp : nlcs;
-    DBGLOG("min=%zu lcp=%hu(%hu) pin=%hu nlcp=%hu(%hu) freq=%hu(%hu) freqsum=%hu npy=%zu", min, lcp_, lcs_, n, nlcp, nlcs, freqlcp, freqlcs, freqsum, npy_);
+    DBGLOG("min=%zu lcp=%hu(%hu) pin=%hu nlcp=%hu(%hu) freq=%hu(%hu) npy=%zu", min, lcp_, lcs_, n, nlcp, nlcs, freqlcp, freqlcs, npy_);
     // determine if a needle-based search is worthwhile, below or meeting the thresholds
     if (n <= pinmax && freqlcp <= freqmax)
     {

@@ -355,28 +355,28 @@ class Pattern {
     return ams_;
   }
   /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4).
-  static inline bool predict_match(const Pred pmh[], const char *s, size_t n)
+  inline bool predict_match(const char *s, size_t n) const
   {
     Hash h = static_cast<uint8_t>(*s);
-    Pred f = pmh[h] & 1;
+    Pred f = pmh_[h] & 1;
     h = hash(h, static_cast<uint8_t>(*++s));
-    f |= pmh[h] & 2;
+    f |= pmh_[h] & 2;
     h = hash(h, static_cast<uint8_t>(*++s));
-    f |= pmh[h] & 4;
+    f |= pmh_[h] & 4;
     h = hash(h, static_cast<uint8_t>(*++s));
-    f |= pmh[h] & 8;
+    f |= pmh_[h] & 8;
     const char *e = s + n - 3;
     Pred m = 16;
     while (f == 0 && ++s < e)
     {
       h = hash(h, static_cast<uint8_t>(*s));
-      f = pmh[h] & m;
+      f = pmh_[h] & m;
       m <<= 1;
     }
     return f == 0;
   }
-  /// Returns zero when match is predicted (removed shift distance return, now just returns 0 or 1).
-  static inline size_t predict_match(const Pred pma[], const char *s)
+  /// Returns true when match is predicted using my PM4 logic.
+  inline bool predict_match(const char *s) const
   {
     uint8_t b0 = s[0];
     uint8_t b1 = s[1];
@@ -385,13 +385,9 @@ class Pattern {
     Hash h1 = hash(b0, b1);
     Hash h2 = hash(h1, b2);
     Hash h3 = hash(h2, b3);
-    Pred a0 = pma[b0];
-    Pred a1 = pma[h1];
-    Pred a2 = pma[h2];
-    Pred a3 = pma[h3];
-    Pred p = (a0 & 0xc0) | (a1 & 0x30) | (a2 & 0x0c) | (a3 & 0x03);
+    Pred p = (pma_[b0] & 0xc0) | (pma_[h1] & 0x30) | (pma_[h2] & 0x0c) | (pma_[h3] & 0x03);
     Pred m = ((((((p >> 2) | p) >> 2) | p) >> 1) | p);
-    return m == 0xff;
+    return m != 0xff;
   }
   /// Relative frequency of English letters with upper/lower-case ratio = 0.0563, punctuation and UTF-8 bytes.
   static uint8_t frequency(uint8_t c)

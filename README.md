@@ -1616,12 +1616,11 @@ same line, like XOR:
 ### Search this but not that with -v, -e, -N, -f, -L, -w, -x
 
     -e PATTERN, --regexp=PATTERN
-            Specify a PATTERN used during the search of the input: an input
-            line is selected if it matches any of the specified patterns.
-            Note that longer patterns take precedence over shorter patterns.
-            This option is most useful when multiple -e options are used to
-            specify multiple patterns, when a pattern begins with a dash (`-'),
-            to specify a pattern after option -f or after the FILE arguments.
+            Specify a PATTERN to search the input.  An input line is selected
+            if it matches any of the specified patterns.  This option is useful
+            when multiple -e options are used to specify multiple patterns, or
+            when a pattern begins with a dash (`-'), or to specify a pattern
+            after option -f or after the FILE arguments.
     -f FILE, --file=FILE
             Read newline-separated patterns from FILE.  White space in patterns
             is significant.  Empty lines in FILE are ignored.  If FILE does not
@@ -4189,11 +4188,10 @@ in markdown:
 
            -e PATTERN, --regexp=PATTERN
                   Specify a PATTERN to search the input.  An input line is selected
-                  if it matches any of the specified patterns.  Note that longer
-                  patterns take precedence over shorter patterns.  This option is
-                  most useful when multiple -e options are used to specify multiple
-                  patterns, when a pattern begins with a dash (`-'), to specify a
-                  pattern after option -f or after the FILE arguments.
+                  if it matches any of the specified patterns.  This option is
+                  useful when multiple -e options are used to specify multiple
+                  patterns, or when a pattern begins with a dash (`-'), or to
+                  specify a pattern after option -f or after the FILE arguments.
 
            --encoding=ENCODING
                   The encoding format of the input.  The default ENCODING is binary
@@ -5297,7 +5295,7 @@ in markdown:
 
                   $ ugrep -e FIXME -f cpp/zap_strings myfile.cpp
 
-           Find lines with `FIXME' or `TODO', showing line numberes:
+           Find lines with `FIXME' or `TODO', showing line numbers:
 
                   $ ugrep -n -e FIXME -e TODO myfile.cpp
 
@@ -5380,7 +5378,7 @@ in markdown:
                   $ ugrep --help fuzzy
 
     COPYRIGHT
-           Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>
+           Copyright (c) 2021,2024 Robert A. van Engelen <engelen@acm.org>
 
            ugrep is released under the BSD-3 license.  All parts of the software
            have reasonable copyright terms permitting free redistribution.  This
@@ -5394,7 +5392,7 @@ in markdown:
 
 
 
-    ugrep 6.1.0                       June 3, 2024                          UGREP(1)
+    ugrep 6.2.0                       July 9, 2024                          UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

@@ -50,7 +50,7 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
   template<typename T>
   static std::string convert(T regex, convert_flag_type flags = convert_flag::none, bool *multiline = NULL)
   {
-    return reflex::convert(regex, "imPRsx!#<>=&|'(0123456789*:abcdefghnrstvwxzABCDGHKNQRSVWXZ0123456789?+", flags, multiline);
+    return reflex::convert(regex, "iJmnPRsUx!#<>=&|'(0123456789*:abcdefghnrstvwxzABCDGHKNQRSVWXZ0123456789?+", flags, multiline);
   }
   /// Default constructor.
   PCRE2Matcher()
@@ -465,7 +465,7 @@ class PCRE2UTFMatcher : public PCRE2Matcher {
   template<typename T>
   static std::string convert(T regex, convert_flag_type flags = convert_flag::none, bool *multiline = NULL)
   {
-    return reflex::convert(regex, "imPRsx!#<>=&|'(0123456789*:abcdefghknprstvwxzABCDGHKNPQRSVWXZ0123456789?+", flags, multiline);
+    return reflex::convert(regex, "iJmnPRsUx!#<>=&|'(0123456789*:abcdefghknprstvwxzABCDGHKNPQRSVWXZ0123456789?+", flags, multiline);
   }
   /// Default constructor.
   PCRE2UTFMatcher() : PCRE2Matcher()

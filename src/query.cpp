@@ -888,39 +888,18 @@ void Query::query_ui()
   // if -e PATTERN specified, collect patterns on the line to edit
   if (!flag_regexp.empty())
   {
-    std::string pattern;
-
-    if (flag_regexp.size() == 1)
-    {
-      pattern = flag_regexp.front();
-    }
-    else
-    {
-      int sep = flag_fixed_strings && !flag_bool ? '\n' : '|';
-
-      for (auto& regex : flag_regexp)
-      {
-        if (!regex.empty())
-        {
-          if (!pattern.empty())
-            pattern.push_back(sep);
-          pattern.append(regex);
-        }
-      }
-    }
-
-    flag_regexp.clear();
-
-    size_t num = pattern.size();
+    size_t num = flag_regexp.size();
     if (num >= sizeof(Line))
       num = sizeof(Line) - 1;
 
-    pattern.copy(line_, num);
+    flag_regexp.copy(line_, num);
     line_[num] = '\0';
 
     len_ = line_len();
 
     move(len_);
+
+    flag_regexp.clear();
   }
 
   set_prompt();

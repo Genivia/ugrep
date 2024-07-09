@@ -45,7 +45,7 @@
 namespace reflex {
 
 // Partially count newlines in string b up to e, updates b close to e with uncounted part
-size_t simd_nlcount_avx2(const char*& b, const char *e)
+size_t simd_nlcount_avx2(const char *& b, const char *e)
 {
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512BW)
   const char *s = b;

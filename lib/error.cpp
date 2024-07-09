@@ -69,13 +69,16 @@ std::string regex_error::regex_error_message_code(regex_error_type code, const c
 
 std::string regex_error::regex_error_message(const char *message, const char *pattern, size_t pos)
 {
+  const char *p = strrchr(pattern, '\n');
+  if (p != NULL)
+    pattern = p + 1;
   size_t l = strlen(pattern);
   if (pos > l)
     pos = l;
   l = strlen(message);
   size_t n = pos / 40;
   size_t k = pos % 40 + (n == 0 ? 0 : 20);
-  const char *p = n == 0 ? pattern : pattern + 40 * n - 20;
+  p = n == 0 ? pattern : pattern + 40 * n - 20;
   while (p > pattern && (*p & 0xc0) == 0x80)
   {
     --p;

@@ -1,4 +1,4 @@
-.TH UGREP "1" "June 03, 2024" "ugrep 6.1.0" "User Commands"
+.TH UGREP "1" "July 09, 2024" "ugrep 6.2.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -307,11 +307,10 @@ the default.
 .TP
 \fB\-e\fR \fIPATTERN\fR, \fB\-\-regexp\fR=\fIPATTERN\fR
 Specify a PATTERN to search the input.  An input line is selected
-if it matches any of the specified patterns.  Note that longer
-patterns take precedence over shorter patterns.  This option is
-most useful when multiple \fB\-e\fR options are used to specify multiple
-patterns, when a pattern begins with a dash (`\-'), to specify a
-pattern after option \fB\-f\fR or after the FILE arguments.
+if it matches any of the specified patterns.  This option is useful
+when multiple \fB\-e\fR options are used to specify multiple patterns, or
+when a pattern begins with a dash (`\-'), or to specify a pattern
+after option \fB\-f\fR or after the FILE arguments.
 .TP
 \fB\-\-encoding\fR=\fIENCODING\fR
 The encoding format of the input.  The default ENCODING is binary
@@ -1365,7 +1364,7 @@ The same, but using predefined pattern cpp/zap_strings:
 .IP
 $ ugrep -e FIXME -f cpp/zap_strings myfile.cpp
 .PP
-Find lines with `FIXME' or `TODO', showing line numberes:
+Find lines with `FIXME' or `TODO', showing line numbers:
 .IP
 $ ugrep -n -e FIXME -e TODO myfile.cpp
 .PP
@@ -1446,7 +1445,7 @@ Display options related to "fuzzy" searching:
 $ ugrep --help fuzzy
 .PP
 .SH COPYRIGHT
-Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>
+Copyright (c) 2021,2024 Robert A. van Engelen <engelen@acm.org>
 .PP
 \fBugrep\fR is released under the BSD\-3 license.  All parts of the software
 have reasonable copyright terms permitting free redistribution.  This includes
