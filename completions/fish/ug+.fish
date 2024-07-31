@@ -57,7 +57,7 @@ complete -c ug+ -l include -d 'Only search files whose name matches GLOB, same a
 complete -c ug+ -l include-dir -d 'Only directories whose name matches GLOB are included in recursive searches, same as -g GLOB/'
 complete -c ug+ -l include-from -d 'Read the globs from FILE and search only files and directories whose name matches one or more globs'
 complete -c ug+ -l include-fs -d 'Only file systems specified by MOUNTS are included in recursive searches'
-complete -c ug+ -l index -d 'Perform index-based recursive search'
+complete -c ug+ -l index -d 'Perform fast index-based recursive search'
 complete -c ug+ -s J -r -l jobs -d 'Specifies the number of threads spawned to search files'
 complete -c ug+ -s j -l smart-case -d 'Perform case insensitive matching, unless a pattern is specified with a literal upper case ASCII letter'
 complete -c ug+ -l json -d 'Output file matches in JSON'

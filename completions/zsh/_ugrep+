@@ -64,7 +64,7 @@ $matchers{-G,--basic-regexp}'[Interpret patterns as basic regular expressions (B
 '(1)*'--include-dir=-'[Only directories whose name matches GLOB are included in recursive searches, same as -g GLOB/]'
 '(1)*'--include-from=-'[Read the globs from FILE and search only files and directories whose name matches one or more globs]'
 '(1)*'--include-fs=-'[Only file systems specified by MOUNTS are included in recursive searches]'
---index'[Perform index-based recursive search]'
+--index'[Perform fast index-based recursive search]'
 {-J,--jobs=-}'[Specifies the number of threads spawned to search files]:NUM:( )'
 {-j,--smart-case}'[Perform case insensitive matching, unless a pattern is specified with a literal upper case ASCII letter]'
 --json'[Output file matches in JSON]'

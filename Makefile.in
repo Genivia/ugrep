@@ -176,11 +176,14 @@ am__installdirs = "$(DESTDIR)$(man1dir)" \
 NROFF = nroff
 MANS = $(man1_MANS)
 am__dist_bashcompletion_DATA_DIST =  \
-	$(top_builddir)/completions/bash/ug
+	$(top_builddir)/completions/bash/ug \
+	$(top_builddir)/completions/bash/ugrep-indexer
 am__dist_fishcompletion_DATA_DIST =  \
-	$(top_builddir)/completions/fish/ug.fish
+	$(top_builddir)/completions/fish/ug.fish \
+	$(top_builddir)/completions/fish/ugrep-indexer.fish
 am__dist_zshcompletion_DATA_DIST =  \
-	$(top_builddir)/completions/zsh/_ug
+	$(top_builddir)/completions/zsh/_ug \
+	$(top_builddir)/completions/zsh/_ugrep-indexer
 DATA = $(dist_bashcompletion_DATA) $(dist_fishcompletion_DATA) \
 	$(dist_zshcompletion_DATA)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
@@ -391,11 +394,11 @@ EXTRA_DIST = README.md LICENSE.txt CONTRIBUTING.md CODE_OF_CONDUCT.md
 UGREP = $(shell pwd)/$(top_builddir)/bin/ugrep$(EXEEXT)
 CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 @ENABLE_BASH_COMPLETION_TRUE@bashcompletiondir = $(BASH_COMPLETION_DIR)
-@ENABLE_BASH_COMPLETION_TRUE@dist_bashcompletion_DATA = $(top_builddir)/completions/bash/ug
+@ENABLE_BASH_COMPLETION_TRUE@dist_bashcompletion_DATA = $(top_builddir)/completions/bash/ug $(top_builddir)/completions/bash/ugrep-indexer
 @ENABLE_FISH_COMPLETION_TRUE@fishcompletiondir = $(FISH_COMPLETION_DIR)
-@ENABLE_FISH_COMPLETION_TRUE@dist_fishcompletion_DATA = $(top_builddir)/completions/fish/ug.fish
+@ENABLE_FISH_COMPLETION_TRUE@dist_fishcompletion_DATA = $(top_builddir)/completions/fish/ug.fish $(top_builddir)/completions/fish/ugrep-indexer.fish
 @ENABLE_ZSH_COMPLETION_TRUE@zshcompletiondir = $(ZSH_COMPLETION_DIR)
-@ENABLE_ZSH_COMPLETION_TRUE@dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug
+@ENABLE_ZSH_COMPLETION_TRUE@dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug $(top_builddir)/completions/zsh/_ugrep-indexer
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 

@@ -30,7 +30,7 @@
 @file      ugrep.cpp
 @brief     a pattern search utility
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019,2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 User manual:
@@ -431,6 +431,7 @@ const char *flag_tag               = NULL;
 const char *flag_view              = "";
 std::string              flag_filter;
 std::string              flag_hyperlink_prefix;
+std::string              flag_hyperlink_host;
 std::string              flag_hyperlink_path;
 std::string              flag_regexp;
 std::set<std::string>    flag_config_files;
@@ -818,7 +819,7 @@ inline void read_line(reflex::AbstractMatcher *matcher, const std::string& line)
 // copy color buffers
 inline void copy_color(char to[COLORLEN], const char from[COLORLEN])
 {
-  size_t len = std::min(strlen(from), static_cast<size_t>(COLORLEN - 1));
+  size_t len = std::min<size_t>(strlen(from), COLORLEN - 1);
 
   memcpy(to, from, len);
   to[len] = '\0';
@@ -1407,7 +1408,7 @@ struct Zthread {
           memmove(buf, buf + BLOCKSIZE, static_cast<size_t>(len));
 
           // check if archived file meets selection criteria
-          size_t minlen = static_cast<size_t>(std::min(static_cast<uint64_t>(len), size)); // size_t is OK: len is streamsize but non-negative
+          size_t minlen = static_cast<size_t>(std::min<uint64_t>(len, size)); // size_t is OK: len is streamsize but non-negative
           is_selected = select_matching(archive.c_str(), path.c_str(), buf, minlen, is_regular);
 
           // if extended headers are present
@@ -1470,7 +1471,7 @@ struct Zthread {
 
           while (len > 0 && !stop)
           {
-            size_t len_out = static_cast<size_t>(std::min(static_cast<uint64_t>(len), size)); // size_t is OK: len is streamsize but non-negative
+            size_t len_out = static_cast<size_t>(std::min<uint64_t>(len, size)); // size_t is OK: len is streamsize but non-negative
 
             if (ok)
             {
@@ -1690,7 +1691,7 @@ struct Zthread {
 
           while (len > 0 && !stop)
           {
-            size_t n = std::min(static_cast<size_t>(len), size);
+            size_t n = std::min<size_t>(len, size);
             char *b = reinterpret_cast<char*>(buf);
 
             path.append(b, n);
@@ -1742,7 +1743,7 @@ struct Zthread {
           }
 
           // check if archived file meets selection criteria
-          size_t minlen = std::min(static_cast<size_t>(len), filesize);
+          size_t minlen = std::min<size_t>(len, filesize);
           is_selected = select_matching(archive.c_str(), path.c_str(), buf, minlen, is_regular);
 
           // if the pipe is closed, then get a new pipe to search the next part in the archive
@@ -1785,7 +1786,7 @@ struct Zthread {
 
           while (len > 0 && !stop)
           {
-            size_t len_out = std::min(static_cast<size_t>(len), size); // size_t is OK: len is streamsize but non-negative
+            size_t len_out = std::min<size_t>(len, size); // size_t is OK: len is streamsize but non-negative
 
             if (ok)
             {
@@ -5596,6 +5597,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_ignore_case = false;
                 else if (strcmp(arg, "no-ignore-files") == 0)
                   flag_ignore_files.clear();
+                else if (strcmp(arg, "no-index") == 0)
+                  flag_index = NULL;
                 else if (strcmp(arg, "no-initial-tab") == 0)
                   flag_initial_tab = false;
                 else if (strcmp(arg, "no-invert-match") == 0)
@@ -5635,7 +5638,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp=, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-config, --no-confirm, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-filter, --no-glob-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp=, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-config, --no-confirm, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-filter, --no-glob-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files, --no-index, --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -7649,7 +7652,8 @@ void set_terminal_hyperlink()
       gethostname(host, sizeof(host));
 #endif
 
-      flag_hyperlink_path.assign(host).append("/").append(path);
+      flag_hyperlink_host.assign(host);
+      flag_hyperlink_path.append(path);
 
       free(cwd);
 
@@ -8268,8 +8272,16 @@ void ugrep()
     flag_after_context = flag_before_context = 0;
 
   // --depth: if -R or -r is not specified then enable -r
-  if ((flag_min_depth > 0 || flag_max_depth > 0) && flag_directories_action == Action::UNSP)
+  if (flag_min_depth > 0 || flag_max_depth > 0)
     flag_directories_action = Action::RECURSE;
+
+  // --index: enable -r if -r or -R is not enabled, reject -dskip
+  if (flag_index != NULL)
+  {
+    if (flag_directories_action == Action::SKIP)
+      usage("option --index searches recursively, but option -dskip is specified");
+    flag_directories_action = Action::RECURSE;
+  }
 
   // -p (--no-dereference) and -S (--dereference): -p takes priority over -S and -R
   if (flag_no_dereference)
@@ -8410,10 +8422,6 @@ void ugrep()
   // --format-begin
   if (flag_format_begin != NULL)
     Output(Static::output).format(flag_format_begin, 0);
-
-  // --index: index search is not applicable to non-recursive searching
-  if (flag_directories_action != Action::RECURSE)
-    flag_index = NULL;
 
   // --index: search is only possible with compatible options
   if (flag_index != NULL)
@@ -10995,7 +11003,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             lineno += matcher->lines() - 1;
           }
-          else if (flag_before_context + flag_after_context > 0)
+          else
           {
             if (restline_size > 0)
             {
@@ -11024,76 +11032,100 @@ void Grep::search(const char *pathname, uint16_t cost)
             }
             else
             {
-              // do not include additional lines in the match output
-              const char *to = static_cast<const char*>(memchr(begin, '\n', size));
-              if (to != NULL)
-                size = to - begin;
-
-              // length of the match is the number of UTF-8-encoded Unicode characters
-              size_t length = utf8nlen(begin, size);
-              size_t fit_length = length;
-
-              if (fit_length > width)
+              while (true)
               {
-                if (fit_length > width + 4)
-                  fit_length = width;
-                width = 0;
-              }
-              else
-              {
-                width -= fit_length;
-              }
-
-              if (!nl)
-              {
-                const char *bol = matcher->bol();
-                size_t border = matcher->border();
-                size_t margin = utf8nlen(bol, border);
-                size_t before = flag_before_context * fit_length / (flag_before_context + flag_after_context);
-
-                if (before < flag_before_context)
-                  before = flag_before_context - before;
-                else
-                  before = 0;
-
-                if (margin > before)
+                // check for additional lines in the match output
+                size_t rest = 0;
+                const char *to = static_cast<const char*>(memchr(begin, '\n', size));
+                if (to != NULL)
                 {
-                  out.str(color_se);
-                  out.str("...", 3);
-                  out.str(color_off);
-                  out.str(color_cx);
-                  out.utf8strn(utf8skipn(bol, border, margin - before), border, before);
-                  out.str(color_off);
-                  width -= before;
+                  rest = size;
+                  size = to - begin;
+                  rest -= size;
+                }
+
+                // length of the match is the number of UTF-8-encoded Unicode characters
+                size_t length = utf8nlen(begin, size);
+                size_t fit_length = length;
+
+                if (fit_length > width)
+                {
+                  if (fit_length > width + 4)
+                    fit_length = width;
+                  width = 0;
                 }
                 else
                 {
-                  if (border > 0)
-                  {
-                    out.str(color_cx);
-                    out.str(bol, border);
-                    out.str(color_off);
-                  }
-                  if (margin >= 3)
-                    width -= margin - 3;
+                  width -= fit_length;
+                }
+
+                if (!nl)
+                {
+                  const char *bol = matcher->bol();
+                  size_t border = matcher->border();
+                  size_t margin = utf8nlen(bol, border);
+                  size_t before = flag_before_context * fit_length / (flag_before_context + flag_after_context);
+
+                  if (before < flag_before_context)
+                    before = flag_before_context - before;
                   else
-                    width += 3 - margin;
-                }
-              }
+                    before = 0;
 
-              out.str(match_ms);
-              if (fit_length == length)
-              {
-                out.str(begin, size);
+                  if (margin > before)
+                  {
+                    out.str(color_se);
+                    out.str("...", 3);
+                    out.str(color_off);
+                    out.str(color_cx);
+                    out.utf8strn(utf8skipn(bol, border, margin - before), border, before);
+                    out.str(color_off);
+                    width -= before;
+                  }
+                  else
+                  {
+                    if (border > 0)
+                    {
+                      out.str(color_cx);
+                      out.str(bol, border);
+                      out.str(color_off);
+                    }
+                    if (margin >= 3)
+                      width -= margin - 3;
+                    else
+                      width += 3 - margin;
+                  }
+                }
+
+                out.str(match_ms);
+                if (fit_length == length)
+                {
+                  out.str(begin, size);
+                }
+                else
+                {
+                  out.utf8strn(begin, size, fit_length);
+                  out.str("[+", 2);
+                  out.num(length - fit_length);
+                  out.chr(']');
+                }
+                out.str(match_off);
+
+                // no more additional lines to output?
+                if (to == NULL)
+                  break;
+
+                out.nl();
+
+                // output header and repeat to output a multiline match after previous newline
+                if (!flag_no_header)
+                  out.header(pathname, partname, heading, ++lineno, matcher, matcher->first() + (to - begin), flag_separator_bar, false);
+
+                begin = to + 1;
+                size = rest - 1;
+                width = flag_before_context + flag_after_context;
+
+                nl = true;
               }
-              else
-              {
-                out.utf8strn(begin, size, fit_length);
-                out.str("[+", 2);
-                out.num(length - fit_length);
-                out.chr(']');
-              }
-              out.str(match_off);
 
               const char *eol = matcher->eol(); // warning: call eol() before bol() and end()
               const char *end = matcher->end();
@@ -11104,47 +11136,6 @@ void Grep::search(const char *pathname, uint16_t cost)
             }
 
             nl = true;
-          }
-          else
-          {
-            if (flag_multiline)
-            {
-              // echo multi-line matches line-by-line
-              const char *from = begin;
-              const char *to;
-
-              while ((to = static_cast<const char*>(memchr(from, '\n', size - (from - begin)))) != NULL)
-              {
-                out.str(match_ms);
-                out.str(from, to - from);
-                out.str(match_off);
-                out.chr('\n');
-
-                out.header(pathname, partname, heading, ++lineno, NULL, matcher->first() + (to - begin) + 1, flag_separator_bar, false);
-
-                from = to + 1;
-              }
-
-              size -= from - begin;
-              begin = from;
-            }
-
-            if (size > 0)
-            {
-              bool lf_only = begin[size - 1] == '\n';
-              size -= lf_only;
-              if (size > 0)
-              {
-                out.str(match_ms);
-                out.str(begin, size);
-                out.str(match_off);
-              }
-              out.nl(lf_only);
-            }
-            else
-            {
-              nl = true;
-            }
           }
         }
 
@@ -13878,6 +13869,8 @@ void help(std::ostream& out)
             (invert), `u' (underline).  Parameter `hl' enables file name\n\
             hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters\n\
             when option -v is specified.  Selectively overrides GREP_COLORS.\n\
+            Legacy grep single parameter codes may be specified, for example\n\
+            --colors='7;32' or --colors=ig to set ms (match selected).\n\
     --config[=FILE], ---[FILE]\n\
             Use configuration FILE.  The default FILE is `.ugrep'.  The working\n\
             directory is checked first for FILE, then the home directory.  The\n\
@@ -14159,17 +14152,17 @@ void help(std::ostream& out)
 #endif
             "\
     --index\n\
-            Perform index-based recursive search.  This option assumes, but\n\
-            does not require, that files are indexed with ugrep-indexer.  This\n\
-            option accelerates recursive searching by skipping non-matching\n\
-            files, archives and compressed files when indexed.  Significant\n\
+            Perform fast index-based recursive search.  This option assumes,\n\
+            but does not require, that files are indexed with ugrep-indexer.\n\
+            This option also enables option -r or --recursive.  Skips indexed\n\
+            non-matching files, archives and compressed files.  Significant\n\
             acceleration may be achieved on cold (not file-cached) and large\n\
             file systems, or any file system that is slow to search.  Note that\n\
-            the start-up time to search is increased, which may be significant\n\
-            when complex search patterns are specified that contain large\n\
-            Unicode character classes combined with `*' or `+' repeats, which\n\
-            should be avoided.  Option -U (--ascii) improves performance.\n\
-            Option --stats displays an index search report.\n\
+            the start-up time to search may be increased when complex search\n\
+            patterns are specified that contain large Unicode character classes\n\
+            combined with `*' or `+' repeats, which should be avoided.  Option\n\
+            -U (--ascii) improves performance.  Option --stats displays an\n\
+            index search report.\n\
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
             default an optimum number of threads is spawned to search files\n\

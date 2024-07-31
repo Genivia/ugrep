@@ -35,7 +35,7 @@
 */
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "6.2.0"
+#define UGREP_VERSION "6.3.0"
 
 // use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD
@@ -806,10 +806,10 @@ bool is_binary(const char *s, size_t n)
   return false;
 }
 
-// prime 61 file indexing hash function
-inline uint16_t indexhash(uint16_t h, uint8_t b)
+// prime 61 mod 2^16 file indexing hash function
+inline uint32_t indexhash(uint32_t h, uint8_t b)
 {
-  return (h << 6) - h - h - h + b;
+  return static_cast<uint16_t>((h << 6) - h - h - h + b);
 }
 
 // index a file to produce hashes[0..hashes_size-1] table, noise, and archive/binary file detection flags
@@ -924,7 +924,7 @@ bool index(Stream& stream, const char *pathname, uint8_t *hashes, size_t& hashes
     while (true)
     {
       // compute 8 staggered Bloom filters, hashing 1-grams to 8-grams for N^2 = 64 Bloom hash functions
-      uint16_t h = window[0];
+      uint32_t h = window[0];
       hashes[h] &= ~0x01;
       h = indexhash(h, window[1]);
       hashes[h] &= ~0x02;
@@ -961,7 +961,7 @@ bool index(Stream& stream, const char *pathname, uint8_t *hashes, size_t& hashes
 
   for (size_t i = 0; i < winlen; ++i)
   {
-    uint16_t h = window[i];
+    uint32_t h = window[i];
     hashes[h] &= ~0x01;
     for (size_t j = i + 1, k = 0x02; j < winlen; ++j, k <<= 1)
     {

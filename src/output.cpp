@@ -30,7 +30,7 @@
 @file      output.cpp
 @brief     Output management
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019,2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -236,25 +236,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
   bool hyp = pathname != Static::LABEL_STANDARD_INPUT && color_hl != NULL; // include hyperlinks
 
   if (hyp)
-  {
-    str(color_hl);
-    str(flag_hyperlink_prefix);
-    str("://", 3);
-    uri(flag_hyperlink_path);
-    chr('/');
-    uri(pathname);
-    if (!(heading && flag_heading) && flag_hyperlink_line)
-    {
-      chr(':');
-      num(lineno);
-      if (flag_column_number)
-      {
-        chr(':');
-        num(columno);
-      }
-    }
-    str(color_st);
-  }
+    open_hyperlink(pathname, !(heading && flag_heading) && flag_hyperlink_line, lineno, columno);
 
   // when a separator is needed
   bool sep = false;
@@ -281,10 +263,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
     {
       // --hyperlink: close link
       if (hyp)
-      {
-        str(color_hl);
-        str(color_st);
-      }
+        close_hyperlink();
 
       str(color_fn);
       str(color_del);
@@ -293,25 +272,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
 
       // --hyperlink: open link
       if (hyp)
-      {
-        str(color_hl);
-        str(flag_hyperlink_prefix);
-        str("://", 3);
-        uri(flag_hyperlink_path);
-        chr('/');
-        uri(pathname);
-        if (flag_hyperlink_line)
-        {
-          chr(':');
-          num(lineno);
-          if (flag_column_number)
-          {
-            chr(':');
-            num(columno);
-          }
-        }
-        str(color_st);
-      }
+        open_hyperlink(pathname, flag_hyperlink_line, lineno, columno);
 
       // the next headers should not include this pathname
       heading = false;
@@ -380,10 +341,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
 
   // --hyperlink: close link
   if (hyp)
-  {
-    str(color_hl);
-    str(color_st);
-  }
+    close_hyperlink();
 
   if (flag_byte_offset)
   {
@@ -500,15 +458,7 @@ void Output::header(const char *pathname, const std::string& partname)
     str(color_fn);
 
     if (hyp)
-    {
-      str(color_hl);
-      str(flag_hyperlink_prefix);
-      str("://", 3);
-      uri(flag_hyperlink_path);
-      chr('/');
-      uri(pathname);
-      str(color_st);
-    }
+      open_hyperlink(pathname);
 
     if (nul)
       chr('\0');
@@ -527,15 +477,7 @@ void Output::header(const char *pathname, const std::string& partname)
     str(color_fn);
 
     if (hyp)
-    {
-      str(color_hl);
-      str(flag_hyperlink_prefix);
-      str("://", 3);
-      uri(flag_hyperlink_path);
-      chr('/');
-      uri(pathname);
-      str(color_st);
-    }
+      open_hyperlink(pathname);
 
     if (nul)
       chr('\0');
@@ -546,10 +488,7 @@ void Output::header(const char *pathname, const std::string& partname)
       chr('\0');
 
     if (hyp)
-    {
-      str(color_hl);
-      str(color_st);
-    }
+      close_hyperlink();
   }
 
   if (!partname.empty())
@@ -573,23 +512,12 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
   str(color_fn);
 
   if (pathname != Static::LABEL_STANDARD_INPUT && color_hl != NULL)
-  {
-    str(color_hl);
-    str(flag_hyperlink_prefix);
-    str("://", 3);
-    uri(flag_hyperlink_path);
-    chr('/');
-    uri(pathname);
-    str(color_st);
-  }
+    open_hyperlink(pathname);
 
   str(pathname);
 
   if (pathname != Static::LABEL_STANDARD_INPUT && color_hl != NULL)
-  {
-    str(color_hl);
-    str(color_st);
-  }
+    close_hyperlink();
 
   if (!partname.empty())
   {

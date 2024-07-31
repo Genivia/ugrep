@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 09, 2024" "ugrep 6.2.0" "User Commands"
+.TH UGREP "1" "July 31, 2024" "ugrep 6.3.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -249,6 +249,8 @@ font properties `n' (normal), `f' (faint), `h' (highlight), `i'
 (invert), `u' (underline).  Parameter `hl' enables file name
 hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters
 when option \fB\-v\fR is specified.  Selectively overrides GREP_COLORS.
+Legacy grep single parameter codes may be specified, for example
+\fB\-\-colors\fR='7;32' or \fB\-\-colors\fR=ig to set ms (match selected).
 .TP
 \fB\-\-config\fR[=\fIFILE\fR], \fB\-\-\-\fR[\fIFILE\fR]
 Use configuration FILE.  The default FILE is `.ugrep'.  The working
@@ -546,17 +548,17 @@ same as \fB\-\-include\-fs\fR=. (dot). Note that \fB\-\-exclude\-fs\fR=\fIMOUNTS
 priority over \fB\-\-include\-fs\fR=\fIMOUNTS\fR.  This option may be repeated.
 .TP
 \fB\-\-index\fR
-Perform index\-based recursive search.  This option assumes, but
-does not require, that files are indexed with ugrep\-indexer.  This
-option accelerates recursive searching by skipping non\-matching
-files, archives and compressed files when indexed.  Significant
+Perform fast index\-based recursive search.  This option assumes,
+but does not require, that files are indexed with ugrep\-indexer.
+This option also enables option \fB\-r\fR or \fB\-\-recursive\fR.  Skips indexed
+non\-matching files, archives and compressed files.  Significant
 acceleration may be achieved on cold (not file\-cached) and large
 file systems, or any file system that is slow to search.  Note that
-the start\-up time to search is increased, which may be significant
-when complex search patterns are specified that contain large
-Unicode character classes combined with `*' or `+' repeats, which
-should be avoided.  Option \fB\-U\fR (\fB\-\-ascii\fR) improves performance.
-Option \fB\-\-stats\fR displays an index search report.
+the start\-up time to search may be increased when complex search
+patterns are specified that contain large Unicode character classes
+combined with `*' or `+' repeats, which should be avoided.  Option
+\fB\-U\fR (\fB\-\-ascii\fR) improves performance.  Option \fB\-\-stats\fR displays an
+index search report.
 .TP
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
 Specifies the number of threads spawned to search files.  By

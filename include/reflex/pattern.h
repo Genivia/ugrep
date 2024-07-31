@@ -71,7 +71,7 @@ class Pattern {
   friend class FuzzyMatcher; ///< permit access by the reflex::FuzzyMatcher engine
  public:
   typedef uint8_t  Pred;   ///< predict match bits
-  typedef uint16_t Hash;   ///< hash value type, max value is Const::HASH
+  typedef uint32_t Hash;   ///< hash value type, max value is Const::HASH
   typedef uint32_t Index;  ///< index into opcodes array Pattern::opc_ and subpattern indexing
   typedef uint32_t Accept; ///< group capture index
   typedef uint32_t Opcode; ///< 32 bit opcode word
@@ -358,7 +358,7 @@ class Pattern {
   inline bool predict_match(const char *s, size_t n) const
   {
     Hash h = static_cast<uint8_t>(*s);
-    Pred f = pmh_[h] & 1;
+    Hash f = pmh_[h] & 1;
     h = hash(h, static_cast<uint8_t>(*++s));
     f |= pmh_[h] & 2;
     h = hash(h, static_cast<uint8_t>(*++s));
@@ -366,7 +366,7 @@ class Pattern {
     h = hash(h, static_cast<uint8_t>(*++s));
     f |= pmh_[h] & 8;
     const char *e = s + n - 3;
-    Pred m = 16;
+    Hash m = 16;
     while (f == 0 && ++s < e)
     {
       h = hash(h, static_cast<uint8_t>(*s));
@@ -946,11 +946,14 @@ class Pattern {
   void graph_dfa(const DFA::State *start) const;
   void export_code() const;
   void analyze_dfa(DFA::State *start);
-  void gen_predict_match(std::set<DFA::State*> states);
-  void gen_predict_match_start(std::set<DFA::State*> states, std::map<DFA::State*,ORanges<Hash> >& hashes);
+  void gen_min(std::set<DFA::State*>& states);
+  void gen_min_start(std::set<DFA::State*>& states, std::set<DFA::State*>& next);
+  void gen_min_transitions(size_t level, std::set<DFA::State*>& next);
+  void gen_predict_match(std::set<DFA::State*>& states);
+  void gen_predict_match_start(std::set<DFA::State*>& states, std::map<DFA::State*,ORanges<Hash> >& hashes);
   void gen_predict_match_transitions(size_t level, DFA::State *state, const ORanges<Hash>& labels, std::map<DFA::State*,ORanges<Hash> >& hashes);
-  void gen_match_hfa(DFA::State* start);
-  void gen_match_hfa_start(DFA::State* start, HFA::State& index, HFA::StateHashes& hashes);
+  void gen_match_hfa(DFA::State *start);
+  void gen_match_hfa_start(DFA::State *start, HFA::State& index, HFA::StateHashes& hashes);
   bool gen_match_hfa_transitions(size_t level, size_t& max_level, DFA::State *state, const HFA::HashRanges& previous, HFA::State& index, HFA::StateHashes& hashes);
  public:
   bool has_hfa() const
@@ -961,8 +964,8 @@ class Pattern {
  private:
   bool match_hfa_transitions(size_t level, const HFA::Hashes& hashes, const uint8_t *indexed, size_t size, HFA::VisitSet& visit, HFA::VisitSet& next_visit, bool& accept) const;
   void write_predictor(FILE *fd) const;
-  void write_namespace_open(FILE* fd) const;
-  void write_namespace_close(FILE* fd) const;
+  void write_namespace_open(FILE *fd) const;
+  void write_namespace_close(FILE *fd) const;
   size_t find_at(
       Location loc,
       char     c) const
@@ -1145,7 +1148,7 @@ class Pattern {
   /// file indexing hash 0 <= indexhash() < 65536, must be additive: indexhash(x,b+1) = indexhash(x,b)+1 modulo 2^16.
   static inline Hash indexhash(Hash h, uint8_t b)
   {
-    return (h << 6) - h - h - h + b;
+    return static_cast<uint16_t>((h << 6) - h - h - h + b);
   }
   Option                opt_; ///< pattern compiler options
   HFA                   hfa_; ///< indexing hash finite state automaton

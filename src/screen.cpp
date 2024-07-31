@@ -30,7 +30,7 @@
 @file      screen.cpp
 @brief     ANSI SGR code controlled screen API - static, not thread safe
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019,2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 

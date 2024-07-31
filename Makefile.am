@@ -13,17 +13,17 @@ CONFIGH = $(shell pwd)/$(top_builddir)/config.h
 
 if ENABLE_BASH_COMPLETION
 bashcompletiondir = $(BASH_COMPLETION_DIR)
-dist_bashcompletion_DATA = $(top_builddir)/completions/bash/ug
+dist_bashcompletion_DATA = $(top_builddir)/completions/bash/ug $(top_builddir)/completions/bash/ugrep-indexer
 endif
 
 if ENABLE_FISH_COMPLETION
 fishcompletiondir = $(FISH_COMPLETION_DIR)
-dist_fishcompletion_DATA = $(top_builddir)/completions/fish/ug.fish
+dist_fishcompletion_DATA = $(top_builddir)/completions/fish/ug.fish $(top_builddir)/completions/fish/ugrep-indexer.fish
 endif
 
 if ENABLE_ZSH_COMPLETION
 zshcompletiondir = $(ZSH_COMPLETION_DIR)
-dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug
+dist_zshcompletion_DATA = $(top_builddir)/completions/zsh/_ug $(top_builddir)/completions/zsh/_ugrep-indexer
 endif
 
 all-local:	cp2bin

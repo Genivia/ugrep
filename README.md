@@ -3133,6 +3133,8 @@ To display the line and column numbers of matches in XML with `--xml`:
             (invert), `u' (underline).  Parameter `hl' enables file name
             hyperlinks.  Parameter `rv' reverses the `sl=' and `cx=' parameters
             when option -v is specified.  Selectively overrides GREP_COLORS.
+            Legacy grep single parameter codes may be specified, for example
+            --colors='7;32' or --colors=ig to set ms (match selected).
     --tag[=TAG[,END]]
             Disables colors to mark up matches with TAG.  END marks the end of
             a match if specified, otherwise TAG.  The default is `___'.
@@ -4130,7 +4132,9 @@ in markdown:
                   `i' (invert), `u' (underline).  Parameter `hl' enables file name
                   hyperlinks.  Parameter `rv' reverses the `sl=' and `cx='
                   parameters when option -v is specified.  Selectively overrides
-                  GREP_COLORS.
+                  GREP_COLORS.  Legacy grep single parameter codes may be specified,
+                  for example --colors='7;32' or --colors=ig to set ms (match
+                  selected).
 
            --config[=FILE], ---[FILE]
                   Use configuration FILE.  The default FILE is `.ugrep'.  The
@@ -4435,17 +4439,17 @@ in markdown:
                   priority over --include-fs=MOUNTS.  This option may be repeated.
 
            --index
-                  Perform index-based recursive search.  This option assumes, but
-                  does not require, that files are indexed with ugrep-indexer.  This
-                  option accelerates recursive searching by skipping non-matching
-                  files, archives and compressed files when indexed.  Significant
+                  Perform fast index-based recursive search.  This option assumes,
+                  but does not require, that files are indexed with ugrep-indexer.
+                  This option also enables option -r or --recursive.  Skips indexed
+                  non-matching files, archives and compressed files.  Significant
                   acceleration may be achieved on cold (not file-cached) and large
                   file systems, or any file system that is slow to search.  Note
-                  that the start-up time to search is increased, which may be
-                  significant when complex search patterns are specified that
-                  contain large Unicode character classes combined with `*' or `+'
-                  repeats, which should be avoided.  Option -U (--ascii) improves
-                  performance.  Option --stats displays an index search report.
+                  that the start-up time to search may be increased when complex
+                  search patterns are specified that contain large Unicode character
+                  classes combined with `*' or `+' repeats, which should be avoided.
+                  Option -U (--ascii) improves performance.  Option --stats displays
+                  an index search report.
 
            -J NUM, --jobs=NUM
                   Specifies the number of threads spawned to search files.  By
@@ -5392,7 +5396,7 @@ in markdown:
 
 
 
-    ugrep 6.2.0                       July 9, 2024                          UGREP(1)
+    ugrep 6.3.0                       July 31, 2024                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

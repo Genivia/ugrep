@@ -1,0 +1,22 @@
+#compdef ugrep-indexer
+
+# zsh completions for 'ugrep-indexer'
+
+local arguments=(
+{--accuracy=-,-0,-1,-2,-3,-4,-5,-6,-7,-8,-9}'[Specifies indexing accuracy, the default is 4]'
+{--hidden,-.}'[Index hidden files and directories]'
+'(-)'{--help,-?}'[Display a help message and exit]'
+{-c,--check}'[Recursively check and report indexes without reindexing files]'
+{-d,--delete}'[Recursively remove index files]'
+{-f,--force}'[Force reindexing of files]'
+{-I,--ignore-binary}'[Do not index binary files]'
+{-q,--quiet,--silent}'[Quiet mode: do not display indexing statistics]'
+{-S,--dereference-files}'[Follow symbolic links to files]'
+{-s,--no-messages}'[Silent mode: nonexistent and unreadable files are ignored, i.e. their error messages and warnings are suppressed]'
+{-V,--version}'[Display version with linked libraries and exit]'
+{-v,--verbose}'[Produce verbose output]'
+'(1)*'{-X,--ignore-files}'[Do not index files and directories matching the globs in FILE encountered during indexing]'
+{-z,--decompress}'[Index the contents of compressed files and archives]'
+--zmax=-'[When used with option -z (--decompress), indexes the contents of compressed files and archives stored within archives by up to NUM expansion levels deep]'
+)
+_arguments -s -S $arguments

@@ -30,7 +30,7 @@
 @file      ugrep.hpp
 @brief     a pattern search utility
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019,2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "6.2.0"
+#define UGREP_VERSION "6.3.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP

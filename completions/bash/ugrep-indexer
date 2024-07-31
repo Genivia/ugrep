@@ -1,0 +1,93 @@
+# bash completion for ugrep-indexer
+# recommended: add the following lines to ~/.inputrc
+# set colored-stats on
+# set colored-completion-prefix on
+
+if ! declare -F _init_completion >/dev/null 2>&1; then
+    return
+fi
+
+_comp_cmd_ugrep_indexer()
+{
+    local IFS=$' \t\n'
+    local cur prev words cword
+    _init_completion -s || return
+
+    if [[ $cword -eq 1 && "${words[1]}" == "" ]]; then
+        _comp_cmd_ugrep_indexer_usage
+        return
+    fi
+
+    local i
+    for i in "${!words[@]}"; do
+        if [ "${words[$i]}" = "--" ]; then
+            if [ $cword -gt $i ]; then
+                _filedir
+                return
+            fi
+            words=( "${words[@]:0:$i}" )
+            break
+        fi
+    done
+
+    case $cur in
+    --*)
+        # complete long options by generating them
+        COMPREPLY=( $(compgen -W "$(_parse_help _comp_cmd_ugrep_indexer_help)" -- $cur) )
+        if [[ ! "${COMPREPLY[@]}" =~ "=" ]]; then
+            # add space after long options that do not end with a =
+            compopt +o nospace
+        fi
+        return
+        ;;
+    -?*)
+        # add space after short option(s)
+        COMPREPLY=( $cur )
+        compopt +o nospace
+        return
+        ;;
+    -)
+        _comp_cmd_ugrep_indexer_usage
+        return
+        ;;
+    esac
+
+    _filedir
+} &&
+    complete -o nospace -F _comp_cmd_ugrep_indexer ugrep-indexer
+
+_comp_cmd_ugrep_indexer_usage()
+{
+    local -a usage
+    local line i=1
+    usage[0]="Usage:"
+    # generate list of options, concat the first sentence to them
+    while read -r line; do
+        # truncate to screen width
+        usage[$i]=${line:0:$COLUMNS}
+        (( ++i ))
+    done < <(_comp_cmd_ugrep_indexer_help)
+    COMPREPLY=( "${usage[@]}" )
+    compopt -o nosort
+}
+
+_comp_cmd_ugrep_indexer_help()
+{
+cat <<'END'
+--accuracy=DIGIT, -0, -1, -2, -3, -4, -5, -6, -7, -8, -9 Specifies indexing accuracy.
+-., --hidden Index hidden files and directories.
+-?, --help Display a help message and exit.
+-c, --check Recursively check and report indexes without reindexing files.
+-d, --delete Recursively remove index files.
+-f, --force Force reindexing of files.
+-I, --ignore-binary Do not index binary files.
+-q, --quiet, --silent Quiet mode: do not display indexing statistics.
+-S, --dereference-files Follow symbolic links to files.
+-s, --no-messages Silent mode: nonexistent and unreadable files are ignored, i.e.  their error messages and warnings are suppressed.
+-V, --version Display version and exit.
+-v, --verbose Produce verbose output.
+-X, --ignore-files, --ignore-files=FILE Do not index files and directories matching the globs in FILE encountered during indexing.
+-z, --decompress Index the contents of compressed files and archives.
+--zmax=NUM When used with option -z (--decompress), indexes the contents of compressed files and archives stored within archives by up to NUM expansion levels deep.
+END
+}

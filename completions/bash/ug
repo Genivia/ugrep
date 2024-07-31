@@ -267,7 +267,7 @@ cat <<'END'
 --include-dir=GLOB Only directories whose name matches GLOB are included in recursive searches, same as -g GLOB/.
 --include-from=FILE Read the globs from FILE and search only files and directories whose name matches one or more globs.
 --include-fs=MOUNTS Only file systems specified by MOUNTS are included in recursive searches.
---index Perform index-based recursive search.
+--index Perform fast index-based recursive search.
 -J NUM, --jobs=NUM Specifies the number of threads spawned to search files.
 -j, --smart-case Perform case insensitive matching, unless a pattern is specified with a literal upper case ASCII letter.
 --json Output file matches in JSON.

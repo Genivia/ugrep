@@ -30,7 +30,7 @@
 @file      output.hpp
 @brief     Output management
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2023, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019,2024, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -552,6 +552,40 @@ class Output {
     chr('0' + (b >> 6));
     chr('0' + ((b >> 3) & 7));
     chr('0' + (b & 7));
+  }
+
+  // open a hyperlink
+  inline void open_hyperlink(const char *pathname, bool linkpos = false, size_t lineno = 0, size_t columno = 0)
+  {
+    str(color_hl);
+    str(flag_hyperlink_prefix);
+    str("://", 3);
+    uri(flag_hyperlink_host);
+    if (*pathname != '/')
+    {
+      chr('/');
+      uri(flag_hyperlink_path);
+      chr('/');
+    }
+    uri(pathname);
+    if (linkpos)
+    {
+      chr(':');
+      num(lineno);
+      if (flag_column_number)
+      {
+        chr(':');
+        num(columno);
+      }
+    }
+    str(color_st);
+  }
+
+  // close the hyperlink
+  inline void close_hyperlink()
+  {
+    str(color_hl);
+    str(color_st);
   }
 
   // output a newline (platform-specific conditional "\r\n" or "\n"); flush if --line-buffered
