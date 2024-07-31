@@ -3895,12 +3895,12 @@ in markdown:
                  [--hexdump|--csv|--json|--xml] [-I] [-z] [--zmax=NUM] [FILE ...]
 
     DESCRIPTION
-           The ugrep utility searches any given input files, selecting lines that
-           match one or more patterns specified as regular expressions or as fixed
-           strings.  A pattern matches multiple input lines when the pattern's
-           regular expression matches one or more newlines.  An empty pattern
-           matches every line.  Each input line that matches at least one of the
-           patterns is written to the standard output.
+           The ugrep utility searches any given input files, selecting files and
+           lines that match one or more patterns specified as regular expressions or
+           as fixed strings.  A pattern matches multiple input lines when the
+           pattern's regular expression matches one or more newlines.  An empty
+           pattern matches every line.  Each input line that matches at least one of
+           the patterns is written to the standard output.
 
            The ug command is intended for interactive searching, using a .ugrep
            configuration file located in the working directory or home directory,
@@ -5669,6 +5669,8 @@ If something is not working, then please check the [tutorial](#tutorial) and
 the [man page](#man).  If you can't find it there and it looks like a bug, then
 [report an issue](https://github.com/Genivia/ugrep/issues) on GitHub.  Bug
 reports are quickly addressed.
+
+*Copyright (c) Robert van Engelen, 2024*
 
 [ci-image]: https://github.com/Genivia/ugrep/actions/workflows/c-cpp.yml/badge.svg
 [ci-url]: https://github.com/Genivia/ugrep/actions/workflows/c-cpp.yml

@@ -25,12 +25,12 @@ cat >> man/ugrep.1 << 'END'
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pretty\fR] [\fB--pager\fR[=\fICOMMAND\fR]]
       [\fB--hexdump\fR|\fB--csv\fR|\fB--json\fR|\fB--xml\fR] [\fB-I\fR] [\fB-z\fR] [\fB--zmax\fR=\fINUM\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
-The \fBugrep\fR utility searches any given input files, selecting lines that
-match one or more patterns specified as regular expressions or as fixed
-strings.  A pattern matches multiple input lines when the pattern's regular
-expression matches one or more newlines.  An empty pattern matches every line.
-Each input line that matches at least one of the patterns is written to the
-standard output.
+The \fBugrep\fR utility searches any given input files, selecting files and
+lines that match one or more patterns specified as regular expressions or as
+fixed strings.  A pattern matches multiple input lines when the pattern's
+regular expression matches one or more newlines.  An empty pattern matches
+every line.  Each input line that matches at least one of the patterns is
+written to the standard output.
 .PP
 The \fBug\fR command is intended for interactive searching, using a .ugrep
 configuration file located in the working directory or home directory, see
