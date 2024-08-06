@@ -7,6 +7,12 @@
 [ <b>README<b> | <a href="https://ugrep.com">User&nbsp;Guide</a> | <a href="https://github.com/Genivia/ugrep-indexer">Indexing</a> | <a href="https://github.com/Genivia/ugrep-benchmarks">Benchmarks</a> | <a href="https://github.com/Genivia/ugrep/discussions/categories/q-a">Q&amp;A</a> ]
 </p>
 
+<p align="center">
+<i>option -Q opens a query TUI to search files as you type!</i>
+<br>
+<img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
+</p>
+
 Why use ugrep?
 --------------
 
@@ -19,12 +25,6 @@ Why use ugrep?
 - A quick user guide with installation instructions at [ugrep.com](https://ugrep.com)
 
 - Includes a TUI with built-in help, interactive search with search mode and options selection, and a file preview split screen
-
-<p align="center">
-*Option -Q opens a query TUI to search files as you type*
-<br>
-<img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
-</p>
 
 Development roadmap
 -------------------
