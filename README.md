@@ -1,4 +1,11 @@
+<p align="center">
 [![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
+</p>
+<h1 align="center">The ugrep file pattern searcher</h1>
+<hr>
+<p align="center">
+[ <b>README<b> | <a href="https://ugrep.com">User&nbsp;Guide</a> | <a href="https://github.com/Genivia/ugrep-indexer">Indexing</a> | <a href="https://github.com/Genivia/ugrep-benchmarks">Benchmarks</a> | <a href="https://github.com/Genivia/ugrep/discussions/categories/q-a">Q&amp;A</a> ]
+</p>
 
 Why use ugrep?
 --------------
@@ -13,9 +20,11 @@ Why use ugrep?
 
 - Includes a TUI with built-in help, interactive search with search mode and options selection, and a file preview split screen
 
+<p align="center">
 *Option -Q opens a query TUI to search files as you type*
 <br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
+</p>
 
 Development roadmap
 -------------------
@@ -3394,11 +3403,14 @@ field                   | output
 `%p`                    | the directory path to the file
 `%z`                    | the pathname in a (compressed) archive, without `{` and `}`
 `%H`                    | if option `-H` is used: the quoted pathname and separator, `\"` and `\\` replace `"` and `\`
+`%+`                    | if option `-+` or `--heading` is used: `%F` and a newline character, suppress all `%F` and `%H` afterward
 `%[TEXT]H`              | if option `-H` is used: `TEXT`, the quoted pathname and separator, `\"` and `\\` replace `"` and `\`
 `%h`                    | the quoted file pathname, `\"` and `\\` replace `"` and `\`
 `%N`                    | if option `-n` is used: the line number and separator
 `%[TEXT]N`              | if option `-n` is used: `TEXT`, the line number and separator
 `%n`                    | the line number of the match
+`%l`                    | the last line number of the match (multi-line matching)
+`%L`                    | the number of lines matched (multi-line matching)
 `%K`                    | if option `-k` is used: the column number and separator
 `%[TEXT]K`              | if option `-k` is used: `TEXT`, the column number and separator
 `%k`                    | the column number of the match
@@ -3418,8 +3430,8 @@ field                   | output
 `%S`                    | if not the first match: separator, see also `%[SEP]$`
 `%[TEXT]S`              | if not the first match: `TEXT` and separator, see also `%[SEP]$`
 `%s`                    | the separator, see also `%[TEXT]S` and `%[SEP]$`
-`%~`                    | a newline character
-`%+`                    | if option `--heading` is used: `%F` and a newline character, suppress all `%F` and `%H` afterward
+`%~`                    | a newline (LF or CRLF in Windows)
+`%R`                    | if option `--break` or `--heading` is used: a newline
 `%m`                    | the number of matches, sequential (or number of matching files with `--format-end`)
 `%M`                    | the number of matching lines (or number of matching files with `--format-end`)
 `%O`                    | the matching line is output as is (a raw string of bytes)
@@ -3434,28 +3446,52 @@ field                   | output
 `%v`                    | the match formatted as a quoted CSV string
 `%X`                    | the matching line formatted as XML character data
 `%x`                    | the match formatted as XML character data
+`%Y`                    | the matching line formatted in hex
+`%y`                    | the match formatted in hex
+`%A`                    | byte range of the match in hex
 `%w`                    | the width of the match, counting (wide) characters
 `%d`                    | the size of the match, counting bytes
 `%e`                    | the ending byte offset of the match
 `%Z`                    | the edit distance cost of an approximate match with option `-Z`
 `%u`                    | select unique lines only unless option -u is used
+`%[hhhh]U`              | U+hhhh Unicode code point
 `%1` `%2` ... `%9`      | the first regex group capture of the match, and so on up to group `%9`, requires option `-P`
-`%[NUM]#`               | the regex group capture `NUM`; requires option `-P`
+`%[NUM]#`               | the group capture `NUM`; requires option `-P`
 `%[NUM]b`               | the byte offset of the group capture `NUM`; requires option `-P`
 `%[NUM]e`               | the ending byte offset of the group capture `NUM`; requires option `-P`
 `%[NUM]d`               | the byte length of the group capture `NUM`; requires option `-P`
+`%[NUM]j`               | the group capture `NUM` as JSON; requires option `-P`
+`%[NUM]q`               | the group capture `NUM` quoted; requires option `-P`
+`%[NUM]x`               | the group capture `NUM` as XML; requires option `-P`
+`%[NUM]y`               | the group capture `NUM` as hex; requires option `-P`
+`%[NUM]v`               | the group capture `NUM` as CSV; requires option `-P`
 `%[NUM1\|NUM2\|...]#`   | the first group capture `NUM` that matched; requires option `-P`
 `%[NUM1\|NUM2\|...]b`   | the byte offset of the first group capture `NUM` that matched; requires option `-P`.
 `%[NUM1\|NUM2\|...]e`   | the ending byte offset of the first group capture `NUM` that matched; requires option `-P`.
 `%[NUM1\|NUM2\|...]d`   | the byte length of the first group capture `NUM` that matched; requires option `-P`.
+`%[NUM1\|NUM2\|...]j`   | the first group capture `NUM` that matched, as JSON; requires option `-P`
+`%[NUM1\|NUM2\|...]q`   | the first group capture `NUM` that matched, quoted; requires option `-P`
+`%[NUM1\|NUM2\|...]x`   | the first group capture `NUM` that matched, as XML; requires option `-P`
+`%[NUM1\|NUM2\|...]y`   | the first group capture `NUM` that matched, as hex; requires option `-P`
+`%[NUM1\|NUM2\|...]v`   | the first group capture `NUM` that matched, as CSV; requires option `-P`
 `%[NAME]#`              | the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
 `%[NAME]b`              | the byte offset of the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`.
 `%[NAME]e`              | the ending byte offset of the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`.
 `%[NAME]d`              | the byte length of the `NAME`d group capture; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`.
+`%[NAME]j`              | the `NAME`d group capture as JSON; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME]q`              | the `NAME`d group capture quoted; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME]x`              | the `NAME`d group capture as XML; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME]y`              | the `NAME`d group capture as hex; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME]v`              | the `NAME`d group capture as CSV; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
 `%[NAME1\|NAME2\|...]#` | the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
 `%[NAME1\|NAME2\|...]b` | the byte offset of the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
 `%[NAME1\|NAME2\|...]e` | the ending byte offset of the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
 `%[NAME1\|NAME2\|...]d` | the byte length of the first `NAME`d group capture that matched; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]j` | the first `NAME`d group capture that matched, as JSON; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]q` | the first `NAME`d group capture that matched, quoted; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]x` | the first `NAME`d group capture that matched, as XML; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]y` | the first `NAME`d group capture that matched, as hex; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
+`%[NAME1\|NAME2\|...]v` | the first `NAME`d group capture that matched, as CSV; requires option `-P` and capturing pattern `(?<NAME>PATTERN)`
 `%G`                    | list of group capture indices/names of the match (see note)
 `%[TEXT1\|TEXT2\|...]G` | list of TEXT indexed by group capture indices that matched; requires option `-P`
 `%g`                    | the group capture index of the match or 1 (see note)
@@ -3464,8 +3500,8 @@ field                   | output
 
 Note:
 
-- Formatted output is written without a terminating newline, unless `%~` or `\n`
-  is explicitly specified in the format string.
+- Formatted output is written without a terminating newline, unless `%~` is
+  explicitly specified in the format string.
 - The `[TEXT]` part of a field is optional and may be omitted.  When present,
   the argument must be placed in `[]` brackets, for example `%[,]F` to output a
   comma, the pathname, and a separator, when option `-H` is used.
