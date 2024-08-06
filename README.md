@@ -5,9 +5,8 @@
 <h1 align="center">The ugrep file pattern searcher</h1>
 <p align="center">
 [ <b>README</b> | <a href="https://ugrep.com">User&nbsp;Guide</a> | <a href="https://github.com/Genivia/ugrep-indexer">Indexing</a> | <a href="https://github.com/Genivia/ugrep-benchmarks">Benchmarks</a> | <a href="https://github.com/Genivia/ugrep/discussions/categories/q-a">Q&amp;A</a> ]
-</p>
-
-<p align="center">
+<br>
+<br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
 <br>
 <i>option -Q opens a query TUI to search files as you type!</i>
@@ -16,15 +15,11 @@
 Why use ugrep?
 --------------
 
-- Ugrep is a true drop-in replacement for GNU grep (assuming you [copy or symlink `ug` to `grep`, `egrep` and `fgrep`](#grep)), unlike many other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
+- ugrep is fast, user-friendly, and equipped with a ton of new features that users wanted
 
-- Ugrep is fast, user-friendly, and equipped with a ton of new features that users wanted
+- ugrep includes a TUI with built-in help, interactive search with search mode and options selection, and a file preview split screen
 
-- Benchmarks show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) using the high-performance DFA-based regex matcher [RE/flex](https://github.com/Genivia/RE-flex)
-
-- A quick user guide with installation instructions at [ugrep.com](https://ugrep.com)
-
-- Includes a TUI with built-in help, interactive search with search mode and options selection, and a file preview split screen
+- ugrep is a true drop-in replacement for GNU grep, assuming you [copy or symlink `ug` to `grep`, `egrep` and `fgrep`](#grep), unlike most other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
 
 Development roadmap
 -------------------
