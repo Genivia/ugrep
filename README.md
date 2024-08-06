@@ -4,13 +4,13 @@
 </p>
 <h1 align="center">The ugrep file pattern searcher</h1>
 <p align="center">
-[ <b>README<b> | <a href="https://ugrep.com">User&nbsp;Guide</a> | <a href="https://github.com/Genivia/ugrep-indexer">Indexing</a> | <a href="https://github.com/Genivia/ugrep-benchmarks">Benchmarks</a> | <a href="https://github.com/Genivia/ugrep/discussions/categories/q-a">Q&amp;A</a> ]
+[ <b>README</b> | <a href="https://ugrep.com">User&nbsp;Guide</a> | <a href="https://github.com/Genivia/ugrep-indexer">Indexing</a> | <a href="https://github.com/Genivia/ugrep-benchmarks">Benchmarks</a> | <a href="https://github.com/Genivia/ugrep/discussions/categories/q-a">Q&amp;A</a> ]
 </p>
 
 <p align="center">
-<i>option -Q opens a query TUI to search files as you type!</i>
-<br>
 <img src="https://www.genivia.com/images/scranim.gif" width="438" alt="">
+<br>
+<i>option -Q opens a query TUI to search files as you type!</i>
 </p>
 
 Why use ugrep?
