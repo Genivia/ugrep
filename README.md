@@ -1,8 +1,8 @@
 <p align="center">
-[![build status][ci-image]][ci-url] [![license][bsd-3-image]][bsd-3-url]
+<a href="https://github.com/Genivia/ugrep/actions/workflows/c-cpp.yml"><img src="https://github.com/Genivia/ugrep/actions/workflows/c-cpp.yml/badge.svg"></a>
+<a href="https://opensource.org/licenses/BSD-3-Clause"><img src="https://img.shields.io/badge/license-BSD%203--Clause-blue.svg"></a>
 </p>
 <h1 align="center">The ugrep file pattern searcher</h1>
-<hr>
 <p align="center">
 [ <b>README<b> | <a href="https://ugrep.com">User&nbsp;Guide</a> | <a href="https://github.com/Genivia/ugrep-indexer">Indexing</a> | <a href="https://github.com/Genivia/ugrep-benchmarks">Benchmarks</a> | <a href="https://github.com/Genivia/ugrep/discussions/categories/q-a">Q&amp;A</a> ]
 </p>
@@ -5708,7 +5708,3 @@ reports are quickly addressed.
 
 *Copyright (c) Robert van Engelen, 2024*
 
-[ci-image]: https://github.com/Genivia/ugrep/actions/workflows/c-cpp.yml/badge.svg
-[ci-url]: https://github.com/Genivia/ugrep/actions/workflows/c-cpp.yml
-[bsd-3-image]: https://img.shields.io/badge/license-BSD%203--Clause-blue.svg
-[bsd-3-url]: https://opensource.org/licenses/BSD-3-Clause
