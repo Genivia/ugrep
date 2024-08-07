@@ -211,6 +211,35 @@ void Output::Dump::line()
   pstar = false;
 }
 
+// output color when set
+void Output::color(const char *arg)
+{
+  if (arg != NULL)
+  {
+    static const char *colors[10] = {
+      color_sl,
+      color_cx,
+      color_mt,
+      color_ms,
+      color_mc,
+      color_fn,
+      color_ln,
+      color_cn,
+      color_bn,
+      color_se,
+    };
+    static const char *codes = "sl cx mt ms mc fn ln cn bn se ";
+    char code[4] = { arg[0], arg[1], ' ', 0 };
+    const char *s = strstr(codes, code);
+    if (s != NULL)
+      str(colors[(s - codes) / 3]);
+  }
+  else
+  {
+    str(color_off);
+  }
+}
+
 // output the header part of the match, preceding the matched line
 void Output::header(const char *pathname, const std::string& partname, bool& heading, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *separator, bool newline)
 {
@@ -595,31 +624,42 @@ void Output::format(const char *format, size_t matches)
   const char *s = format;
   while (*s != '\0')
   {
-    const char *a = NULL;
+    int width = 0;
+    const char *arg = NULL;
     const char *t = s;
+
     while (*s != '\0' && *s != '%')
       ++s;
     str(t, s - t);
     if (*s == '\0' || *(s + 1) == '\0')
       break;
     ++s;
+    if (*s == '{')
+    {
+      char *r = NULL;
+      width = strtol(s + 1, &r, 10);
+      if (r != NULL && *r == '}')
+        s = r + 1;
+    }
     if (*s == '[')
     {
-      a = ++s;
+      arg = ++s;
       while (*s != '\0' && *s != ']')
         ++s;
       if (*s == '\0' || *(s + 1) == '\0')
         break;
       ++s;
     }
+
     int c = *s;
+
     switch (c)
     {
       case 'T':
         if (flag_initial_tab)
         {
-          if (a)
-            str(a, s - a - 1);
+          if (arg)
+            str(arg, s - arg - 1);
           chr('\t');
         }
         break;
@@ -627,8 +667,8 @@ void Output::format(const char *format, size_t matches)
       case 'S':
         if (matches > 1)
         {
-          if (a)
-            str(a, s - a - 1);
+          if (arg)
+            str(arg, s - arg - 1);
           if (sep != NULL)
             str(sep, len);
           else
@@ -637,8 +677,8 @@ void Output::format(const char *format, size_t matches)
         break;
 
       case '$':
-        sep = a;
-        len = s - a - 1;
+        sep = arg;
+        len = s - arg - 1;
         break;
 
       case 't':
@@ -652,6 +692,11 @@ void Output::format(const char *format, size_t matches)
           str(flag_separator);
         break;
 
+      case 'R':
+        if (!flag_break)
+          break;
+        // FALLTHROUGH
+
       case '~':
 #ifdef OS_WIN
         chr('\r');
@@ -660,17 +705,26 @@ void Output::format(const char *format, size_t matches)
         break;
 
       case 'm':
-        num(matches);
+        num(matches, width);
+        break;
+
+      case 'U':
+        if (arg != NULL)
+          wchr(strtol(arg, NULL, 16));
+        break;
+
+      case '=':
+        color(arg);
         break;
 
       case '<':
-        if (matches <= 1 && a)
-          str(a, s - a - 1);
+        if (matches <= 1 && arg != NULL)
+          str(arg, s - arg - 1);
         break;
 
       case '>':
-        if (matches > 1 && a)
-          str(a, s - a - 1);
+        if (matches > 1 && arg != NULL)
+          str(arg, s - arg - 1);
         break;
 
       case ',':
@@ -705,6 +759,8 @@ bool Output::format(const char *format, const char *pathname, const std::string&
 
   while (*s != '\0')
   {
+    bool plus = false;
+    int width = 0;
     const char *arg = NULL;
     const char *t = s;
 
@@ -714,6 +770,14 @@ bool Output::format(const char *format, const char *pathname, const std::string&
     if (*s == '\0' || *(s + 1) == '\0')
       break;
     ++s;
+    if (*s == '{')
+    {
+      char *r = NULL;
+      plus = (s[1] == '+');
+      width = strtol(s + 1, &r, 10);
+      if (r != NULL && *r == '}')
+        s = r + 1;
+    }
     if (*s == '[')
     {
       arg = ++s;
@@ -851,7 +915,7 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          num(matcher->lineno(), (arg == NULL && flag_initial_tab ? 6 : 1));
+          num(matcher->lineno(), (arg == NULL && flag_initial_tab ? 6 : width));
           if (sep != NULL)
             str(sep, len);
           else
@@ -860,7 +924,15 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'n':
-        num(matcher->lineno());
+        num(matcher->lineno(), width);
+        break;
+
+      case 'L':
+        num(matcher->lines(), width);
+        break;
+
+      case 'l':
+        num(matcher->lineno_end(), width);
         break;
 
       case 'K':
@@ -868,7 +940,7 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          num(matcher->columno() + 1, (arg == NULL && flag_initial_tab ? 3 : 1));
+          num(matcher->columno() + 1, (arg == NULL && flag_initial_tab ? 3 : width));
           if (sep != NULL)
             str(sep, len);
           else
@@ -877,7 +949,13 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'k':
-        num(matcher->columno() + 1);
+        num(matcher->columno() + 1, width);
+        break;
+
+      case 'A':
+        hex(matcher->first(), 8);
+        chr('-');
+        hex(matcher->last() - 1, 8);
         break;
 
       case 'B':
@@ -885,7 +963,7 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          num(matcher->first());
+          num(matcher->first(), width);
           if (sep != NULL)
             str(sep, len);
           else
@@ -898,11 +976,11 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         {
           std::pair<const char*,size_t> cap = capture(matcher, arg);
           if (cap.first != NULL)
-            num(cap.first - matcher->text() + matcher->first());
+            num(cap.first - matcher->text() + matcher->first(), width);
         }
         else
         {
-          num(matcher->first());
+          num(matcher->first(), width);
         }
         break;
 
@@ -939,7 +1017,7 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'w':
-        num(matcher->wsize());
+        num(matcher->wsize(), width);
         break;
 
       case 'd':
@@ -947,11 +1025,11 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         {
           std::pair<const char*,size_t> cap = capture(matcher, arg);
           if (cap.first != NULL)
-            num(cap.second);
+            num(cap.second, width);
         }
         else
         {
-          num(matcher->size());
+          num(matcher->size(), width);
         }
         break;
 
@@ -960,11 +1038,11 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         {
           std::pair<const char*,size_t> cap = capture(matcher, arg);
           if (cap.first != NULL)
-            num(cap.first + cap.second - matcher->text() + matcher->first());
+            num(cap.first + cap.second - matcher->text() + matcher->first(), width);
         }
         else
         {
-          num(matcher->last());
+          num(matcher->last(), width);
         }
         break;
 
@@ -1075,27 +1153,49 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         break;
 
       case 'M':
-        num(matches);
+        num(matches, width);
         break;
 
       case 'm':
-        num(matching == NULL ? matches : *matching);
+        num(matching == NULL ? matches : *matching, width);
         break;
 
       case 'O':
-        mat(matcher);
+        mat(matcher, width);
         break;
 
       case 'o':
-        str(matcher->begin(), matcher->size());
+        if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            str(cap.first, width > 0 ? std::min<size_t>(cap.second, width) : cap.second);
+        }
+        else
+        {
+          size_t n;
+          const char *s = match_context(matcher, plus, width, n);
+          str(s, n);
+        }
         break;
 
       case 'Q':
-        quote(matcher);
+        quote(matcher, width);
         break;
 
       case 'q':
-        quote(matcher->begin(), matcher->size());
+        if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            quote(cap.first, width > 0 ? std::min<size_t>(cap.second, width) : cap.second);
+        }
+        else
+        {
+          size_t n;
+          const char *s = match_context(matcher, plus, width, n);
+          quote(s, n);
+        }
         break;
 
       case 'C':
@@ -1104,16 +1204,30 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         else if (flag_count)
           chr('"'), num(matches), chr('"');
         else
-          cpp(matcher);
+          cpp(matcher, width);
         break;
 
       case 'c':
         if (flag_files_with_matches)
+        {
           str(flag_invert_match ? "\"false\"" : "\"true\"");
+        }
         else if (flag_count)
+        {
           chr('"'), num(matches), chr('"');
+        }
+        else if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            cpp(cap.first, width > 0 ? std::min<size_t>(cap.second, width) : cap.second);
+        }
         else
-          cpp(matcher->begin(), matcher->size());
+        {
+          size_t n;
+          const char *s = match_context(matcher, plus, width, n);
+          cpp(s, n);
+        }
         break;
 
       case 'V':
@@ -1122,16 +1236,30 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         else if (flag_count)
           num(matches);
         else
-          csv(matcher);
+          csv(matcher, width);
         break;
 
       case 'v':
         if (flag_files_with_matches)
+        {
           str(flag_invert_match ? "false" : "true");
+        }
         else if (flag_count)
+        {
           num(matches);
+        }
+        else if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            csv(cap.first, width > 0 ? std::min<size_t>(cap.second, width) : cap.second);
+        }
         else
-          csv(matcher->begin(), matcher->size());
+        {
+          size_t n;
+          const char *s = match_context(matcher, plus, width, n);
+          csv(s, n);
+        }
         break;
 
       case 'J':
@@ -1140,16 +1268,30 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         else if (flag_count)
           num(matches);
         else
-          json(matcher);
+          json(matcher, width);
         break;
 
       case 'j':
         if (flag_files_with_matches)
+        {
           str(flag_invert_match ? "false" : "true");
+        }
         else if (flag_count)
+        {
           num(matches);
+        }
+        else if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            json(cap.first, width > 0 ? std::min<size_t>(cap.second, width) : cap.second);
+        }
         else
-          json(matcher->begin(), matcher->size());
+        {
+          size_t n;
+          const char *s = match_context(matcher, plus, width, n);
+          json(s, n);
+        }
         break;
 
       case 'X':
@@ -1158,16 +1300,62 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         else if (flag_count)
           num(matches);
         else
-          xml(matcher);
+          xml(matcher, width);
         break;
 
       case 'x':
         if (flag_files_with_matches)
+        {
           str(flag_invert_match ? "false" : "true");
+        }
         else if (flag_count)
+        {
           num(matches);
+        }
+        else if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            xml(cap.first, width > 0 ? std::min<size_t>(cap.second, width) : cap.second);
+        }
         else
-          xml(matcher->begin(), matcher->size());
+        {
+          size_t n;
+          const char *s = match_context(matcher, plus, width, n);
+          xml(s, n);
+        }
+        break;
+
+      case 'Y':
+        if (flag_files_with_matches)
+          hex(flag_invert_match ? 0 : 1);
+        else if (flag_count)
+          hex(matches);
+        else
+          hex(matcher, width);
+        break;
+
+      case 'y':
+        if (flag_files_with_matches)
+        {
+          str(flag_invert_match ? "false" : "true");
+        }
+        else if (flag_count)
+        {
+          num(matches);
+        }
+        else if (arg != NULL)
+        {
+          std::pair<const char*,size_t> cap = capture(matcher, arg);
+          if (cap.first != NULL)
+            hex(cap.first, width > 0 ? std::min<size_t>(cap.second, width) : cap.second);
+        }
+        else
+        {
+          size_t n;
+          const char *s = match_context(matcher, plus, width, n);
+          hex(s, n);
+        }
         break;
 
       case 'Z':
@@ -1178,9 +1366,9 @@ bool Output::format(const char *format, const char *pathname, const std::string&
             // -Z: we used the fuzzy matcher to search, so a dynamic cast is fine
             reflex::FuzzyMatcher *fuzzy_matcher = dynamic_cast<reflex::FuzzyMatcher*>(matcher);
             if (!flag_files_with_matches && !flag_count)
-              num(fuzzy_matcher->edits());
+              num(fuzzy_matcher->edits(), width);
             else
-              num(fuzzy_matcher->distance() & 0xff);
+              num(fuzzy_matcher->distance() & 0xff, width);
           }
           else
           {
@@ -1200,11 +1388,25 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         len = s - arg - 1;
         break;
 
+      case 'R':
+        if (!flag_break)
+          break;
+        // FALLTHROUGH
+
       case '~':
 #ifdef OS_WIN
         chr('\r');
 #endif
         chr('\n');
+        break;
+
+      case 'U':
+        if (arg != NULL)
+          wchr(strtol(arg, NULL, 16));
+        break;
+
+      case '=':
+        color(arg);
         break;
 
       case '<':
@@ -1229,7 +1431,7 @@ bool Output::format(const char *format, const char *pathname, const std::string&
       {
         std::pair<const char*,size_t> cap = capture(matcher, arg);
         if (cap.first != NULL)
-          str(cap.first, cap.second);
+          str(cap.first, width > 0 ? std::min<size_t>(cap.second, width) : cap.second);
         break;
       }
 
@@ -1266,6 +1468,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
 
   while (*s != '\0')
   {
+    int width = 0;
     const char *arg = NULL;
     const char *t = s;
 
@@ -1275,6 +1478,13 @@ void Output::format_invert(const char *format, const char *pathname, const std::
     if (*s == '\0' || *(s + 1) == '\0')
       break;
     ++s;
+    if (*s == '{')
+    {
+      char *r = NULL;
+      width = strtol(s + 1, &r, 10);
+      if (r != NULL && *r == '}')
+        s = r + 1;
+    }
     if (*s == '[')
     {
       arg = ++s;
@@ -1412,7 +1622,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          num(lineno, (arg == NULL && flag_initial_tab ? 6 : 1));
+          num(lineno, (arg == NULL && flag_initial_tab ? 6 : width));
           if (sep != NULL)
             str(sep, len);
           else
@@ -1421,7 +1631,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case 'n':
-        num(lineno);
+        num(lineno, width);
         break;
 
       case 'K':
@@ -1441,12 +1651,18 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         chr('1');
         break;
 
+      case 'A':
+        hex(offset, 8);
+        chr('-');
+        hex(offset + size - 1, 8);
+        break;
+
       case 'B':
         if (flag_byte_offset)
         {
           if (arg != NULL)
             str(arg, s - arg - 1);
-          num(offset);
+          num(offset, width);
           if (sep != NULL)
             str(sep, len);
           else
@@ -1455,7 +1671,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case 'b':
-        num(offset);
+        num(offset, width);
         break;
 
       case 'T':
@@ -1495,16 +1711,16 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         size_t n = 0;
         for (const char *p = ptr; p < ptr + size; ++p)
           n += (*p & 0xC0) != 0x80;
-        num(n);
+        num(n, width);
         break;
       }
 
       case 'd':
-        num(size);
+        num(size, width);
         break;
 
       case 'e':
-        num(offset + size);
+        num(offset + size, width);
         break;
 
       case 'G':
@@ -1512,7 +1728,7 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         break;
 
       case 'm':
-        num(matches);
+        num(matches, width);
         break;
 
       case 'O':
@@ -1565,6 +1781,16 @@ void Output::format_invert(const char *format, const char *pathname, const std::
           xml(ptr, size);
         break;
 
+      case 'Y':
+      case 'y':
+        if (flag_files_with_matches)
+          str(flag_invert_match ? "false" : "true");
+        else if (flag_count)
+          num(matches);
+        else
+          hex(ptr, size);
+        break;
+
       case 'Z':
         break;
 
@@ -1576,11 +1802,25 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         len = s - arg - 1;
         break;
 
+      case 'R':
+        if (!flag_break)
+          break;
+        // FALLTHROUGH
+
       case '~':
 #ifdef OS_WIN
         chr('\r');
 #endif
         chr('\n');
+        break;
+
+      case 'U':
+        if (arg != NULL)
+          wchr(strtol(arg, NULL, 16));
+        break;
+
+      case '=':
+        color(arg);
         break;
 
       case '<':
@@ -1770,6 +2010,23 @@ void Output::csv(const char *data, size_t size)
   str(t, s - t);
 
   chr('"');
+}
+
+// output in hex
+void Output::hex(const char *data, size_t size)
+{
+  const char *s = data;
+  const char *e = data + size;
+
+  if (s < e)
+  {
+    hex(static_cast<uint8_t>(*s++), 2);
+    while (s < e)
+    {
+      chr(' ');
+      hex(static_cast<uint8_t>(*s++), 2);
+    }
+  }
 }
 
 // output quoted string in JSON

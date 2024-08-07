@@ -5291,6 +5291,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_decompress = true;
                 else if (strncmp(arg, "delay=", 6) == 0)
                   flag_delay = strtonum(getloptarg(argc, argv, arg + 6, i), "invalid argument --delay=");
+                else if (strcmp(arg, "depth") == 0) // legacy form --depth NUM
+                  set_depth_long(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "depth=", 6) == 0)
                   set_depth_long(getloptarg(argc, argv, arg + 6, i));
                 else if (strcmp(arg, "dereference") == 0)
@@ -5309,7 +5311,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_directories = strarg(getloptarg(argc, argv, arg + 12, i));
                 else if (strcmp(arg, "dotall") == 0)
                   flag_dotall = true;
-                else if (strcmp(arg, "delay") == 0 || strcmp(arg, "depth") == 0)
+                else if (strcmp(arg, "delay") == 0)
                   usage("missing argument for --", arg);
                 else
                   usage("invalid option --", arg, "--decompress, --delay=, --depth=, --dereference, --dereference-files, --dereference-recursive, --devices=, --directories= or --dotall");
@@ -6887,8 +6889,9 @@ void init(int argc, const char **argv)
   }
   else if (flag_only_line_number)
   {
-    flag_format_open  = "%+";
-    flag_format       = "%F%n%s%K%B\n%u";
+    flag_format_open  = "%[fn]=%+%=";
+    flag_format       = "%[fn]=%F%=%[ln]=%n%=%[se]=%s%=%[cn]=%K%=%[bn]=%B%=\n%u";
+    flag_format_close = "%R";
   }
 
   // --replace clashes with --format
@@ -7080,7 +7083,7 @@ void init(int argc, const char **argv)
           }
         }
 
-        // if not found a valid type, then find an unambiguous type with the specified filename suffix 
+        // if not found a valid type, then find an unambiguous type with the specified filename suffix
         if (!found && valid)
         {
           for (size_t j = 0; type_table[j].type != NULL; ++j)
@@ -14611,43 +14614,66 @@ void help(const char *what)
 \n\
  field       output                      field       output\n\
  ----------  --------------------------  ----------  --------------------------\n\
- %a          basename                    %%          %\n\
- %b          byte offset                 %~          newline\n\
- %B %[...]B  ... + byte offset, if -b    %+          %F as heading/break, if -+\n\
- %c          matching pattern, as C/C++  %[...]<     ... if %m = 1\n\
- %C          matching line, as C/C++     %[...]>     ... if %m > 1\n\
- %d          byte size                   %,          , if %m > 1, same as %[,]>\n\
- %e          end offset                  %:          : if %m > 1, same as %[:]>\n\
- %f          pathname                    %;          ; if %m > 1, same as %[;]>\n\
- %F %[...]F  ... + pathname, if -H       %|          | if %m > 1, same as %[|]>\n\
- %h          \"pathname\"                  %[...]$     assign ... to separator\n\
- %H %[...]H  ... + \"pathname\", if -H     --------------------------------------\n\
- %j          matching pattern, as JSON   \n\
- %J          matching line, as JSON      \n\
- %k          line number                 \n\
- %K %[...]K  ... + column number, if -k  \n\
- %m          number of matches           Fields that require -P for captures:\n\
- %M          number of matching lines    \n\
- %n          line number                 field       output\n\
- %N %[...]N  ... + line number, if -n    ----------  --------------------------\n\
- %o          matching pattern, also %0   %1 %2...%9  group capture\n\
- %O          matching line               %[n]#       nth group capture\n\
- %p          path                        %[n]b       nth capture byte offset\n\
- %q          quoted matching pattern     %[n]d       nth capture byte size\n\
- %Q          quoted matching line        %[n]e       nth capture end offset\n\
- %s          separator, : by default     %[name]#    named group capture\n\
- %S %[...]S  ... + separator, if %m > 1  %[name]b    named capture byte offset\n\
- %t          tab                         %[name]d    named capture byte size\n\
- %T %[...]T  ... + tab, if -T            %[name]e    named capture end offset\n\
- %u          unique lines, unless -u     %[n|...]#   capture n,... that matched\n\
- %v          matching pattern, as CSV    %[n|...]b   capture n,... byte offset\n\
- %V          matching line, as CSV       %[n|...]d   capture n,... byte size\n\
- %w          match width in wide chars   %[n|...]e   capture n,... end offset\n\
- %x          matching pattern, as XML    %g          capture number or name\n\
- %X          matching line, as XML       %G          all capture numbers/names\n\
+ %%          %                           %[...]<     text ... if %m = 1\n\
+ %~          newline (LF or CRLF)        %[...]>     text ... if %m > 1\n\
+ %a          basename of matching file   %,          , if %m > 1, same as %[,]>\n\
+ %A          byte range in hex of match  %:          : if %m > 1, same as %[:]>\n\
+ %b          byte offset of a match      %;          ; if %m > 1, same as %[;]>\n\
+ %B %[...]B  ... + byte offset, if -b    %|          | if %m > 1, same as %[|]>\n\
+ %c          matching pattern as C/C++   %[...]$     assign ... to separator\n\
+ %C          matching line as C/C++      %[ms]=...%= color of ms ... color off\n\
+ %d          byte size of a match        --------------------------------------\n\
+ %e          end offset of a match       \n\
+ %f          pathname of matching file   Fields that require -P for captures:\n\
+ %F %[...]F  ... + pathname, if -H       \n\
+ %+          %F as heading/break, if -+  field       output\n\
+ %h          quoted \"pathname\"           ----------  --------------------------\n\
+ %H %[...]H  ... + \"pathname\", if -H     %1 %2...%9  group capture\n\
+ %j          matching pattern as JSON    %[n]#       nth group capture\n\
+ %J          matching line as JSON       %[n]b       nth capture byte offset\n\
+ %k          column number of a match    %[n]d       nth capture byte size\n\
+ %K %[...]K  ... + column number, if -k  %[n]e       nth capture end offset\n\
+ %l          last line number of match   %[n]j       nth capture as JSON\n\
+ %L          number of lines of a match  %[n]q       nth capture quoted\n\
+ %m          number of matches           %[n]x       nth capture as XML\n\
+ %M          number of matching lines    %[n]y       nth capture as hex\n\
+ %n          line number of a match      %[n]v       nth capture as CSV\n\
+ %N %[...]N  ... + line number, if -n    %[name]#    named group capture\n\
+ %o          matching pattern, also %0   %[name]b    named capture byte offset\n\
+ %O          matching line               %[name]d    named capture byte size\n\
+ %p          path to matching file       %[name]e    named capture end offset\n\
+ %q          quoted matching pattern     %[name]j    named capture as JSON\n\
+ %Q          quoted matching line        %[name]q    named capture quoted\n\
+ %R          newline, if --break         %[name]x    named capture as XML\n\
+ %s          separator (: by default)    %[name]y    named capture as hex\n\
+ %S %[...]S  ... + separator, if %m > 1  %[name]v    named capture as CSV\n\
+ %t          tab                         %[n|...]#   capture n,... that matched\n\
+ %T %[...]T  ... + tab, if -T            %[n|...]b   capture n,... byte offset\n\
+ %u          unique lines, unless -u     %[n|...]d   capture n,... byte size\n\
+ %[hhhh]U    U+hhhh Unicode code point   %[n|...]e   capture n,... end offset\n\
+ %v          matching pattern as CSV     %[n|...]j   capture n,... as JSON\n\
+ %V          matching line as CSV        %[n|...]q   capture n,... quoted\n\
+ %w          match width in wide chars   %[n|...]x   capture n,... as XML\n\
+ %x          matching pattern as XML     %[n|...]y   capture n,... as hex\n\
+ %X          matching line as XML        %[n|...]v   capture n,... as CSV\n\
+ %y          matching pattern as hex     %g          capture number or name\n\
+ %Y          matching line as hex        %G          all capture numbers/names\n\
  %z          path in archive             %[t|...]g   text t indexed by capture\n\
  %Z          edit distance cost, if -Z   %[t|...]G   all t indexed by captures\n\
  --------------------------------------  --------------------------------------\n\
+\n\
+Option -o changes the output of the %O and %Q fields to output the match only.\n\
+\n\
+Options -c, -l and -o change the output of %C, %J, %X and %Y accordingly.\n\
+\n\
+Numeric fields such as %n are padded with spaces when %{width}n is specified.\n\
+\n\
+Matching line fields such as %O are cut to width when %{width}O is specified or\n\
+when %{-width}O is specified to cut from the end of the line.\n\
+\n\
+Character context on a matching line before or after a match is output when\n\
+%{-width}o or %{+width}o is specified for match fields such as %o, where\n\
+%{width}o without a +/- sign cuts the match to the specified width.\n\
 \n\
 ";
     }

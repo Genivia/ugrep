@@ -3391,6 +3391,8 @@ The following fields may be used in the `FORMAT` string:
 
 field                   | output
 ----------------------- | ------------------------------------------------------
+`%%`                    | the percentage sign
+`%~`                    | a newline (LF or CRLF in Windows)
 `%F`                    | if option `-H` is used: the file pathname and separator
 `%[TEXT]F`              | if option `-H` is used: `TEXT`, the file pathname and separator
 `%f`                    | the file pathname
@@ -3409,6 +3411,7 @@ field                   | output
 `%K`                    | if option `-k` is used: the column number and separator
 `%[TEXT]K`              | if option `-k` is used: `TEXT`, the column number and separator
 `%k`                    | the column number of the match
+`%A`                    | byte range (offset and end) of a match in hex
 `%B`                    | if option `-b` is used: the byte offset and separator
 `%[TEXT]B`              | if option `-b` is used: `TEXT`, the byte offset and separator
 `%b`                    | the byte offset of the match
@@ -3425,7 +3428,6 @@ field                   | output
 `%S`                    | if not the first match: separator, see also `%[SEP]$`
 `%[TEXT]S`              | if not the first match: `TEXT` and separator, see also `%[SEP]$`
 `%s`                    | the separator, see also `%[TEXT]S` and `%[SEP]$`
-`%~`                    | a newline (LF or CRLF in Windows)
 `%R`                    | if option `--break` or `--heading` is used: a newline
 `%m`                    | the number of matches, sequential (or number of matching files with `--format-end`)
 `%M`                    | the number of matching lines (or number of matching files with `--format-end`)
@@ -3450,6 +3452,8 @@ field                   | output
 `%Z`                    | the edit distance cost of an approximate match with option `-Z`
 `%u`                    | select unique lines only unless option -u is used
 `%[hhhh]U`              | U+hhhh Unicode code point
+`%[CODE]=`              | a color CODE, such as `ms`, see [colors](#color)
+`%=`                    | turn color off
 `%1` `%2` ... `%9`      | the first regex group capture of the match, and so on up to group `%9`, requires option `-P`
 `%[NUM]#`               | the group capture `NUM`; requires option `-P`
 `%[NUM]b`               | the byte offset of the group capture `NUM`; requires option `-P`
@@ -3491,15 +3495,25 @@ field                   | output
 `%[TEXT1\|TEXT2\|...]G` | list of TEXT indexed by group capture indices that matched; requires option `-P`
 `%g`                    | the group capture index of the match or 1 (see note)
 `%[TEXT1\|TEXT2\|...]g` | the first TEXT indexed by the first group capture index that matched; requires option `-P`
-`%%`                    | the percentage sign
 
 Note:
 
 - Formatted output is written without a terminating newline, unless `%~` is
   explicitly specified in the format string.
+- Option `-o` changes the output of the `%O` and `%Q` fields to output the
+  match only.
+- Options `-c`, `-l` and `-o` change the output of `%C`, `%J`, `%X` and `%Y`
+  accordingly
 - The `[TEXT]` part of a field is optional and may be omitted.  When present,
   the argument must be placed in `[]` brackets, for example `%[,]F` to output a
   comma, the pathname, and a separator, when option `-H` is used.
+- Numeric fields such as `%n` are padded with spaces when `%{width}n` is
+  specified.
+- Matching line fields such as `%O` are cut to width when `%{width}O` is
+  specified or when `%{-width}O` is specified to cut from the end of the line.
+- Character context on a matching line before or after a match is output when
+  `%{-width}o` or `%{+width}o` is specified for match fields such as `%o`,
+  where `%{width}o` without a +/- sign cuts the match to the specified width.
 - Fields `%[SEP]$` and `%u` are switches and do not write anything to the
   output.
 - The separator used by `%F`, `%H`, `%N`, `%K`, `%B`, `%S`, and `%G` may be
@@ -5427,7 +5441,7 @@ in markdown:
 
 
 
-    ugrep 6.3.0                       July 31, 2024                         UGREP(1)
+    ugrep 6.4.0                      August 7, 2024                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

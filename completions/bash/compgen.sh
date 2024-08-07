@@ -199,15 +199,27 @@ _comp_cmd_ugrep()
 
 _comp_cmd_ugrep_usage()
 {
-    local -a usage
-    local line i=1
-    usage[0]="Usage:"
-    # generate list of options, concat the first sentence to them
-    while read -r line; do
-        # truncate to screen width
-        usage[$i]=${line:0:$COLUMNS}
-        (( ++i ))
-    done < <(_comp_cmd_ugrep_help)
+    local -a usage=()
+    local line i=0
+    case $COMP_TYPE in
+    33|63|64)
+        # generate list of options, concat the first sentence to them
+        usage[0]="Usage:"
+        while read -r line; do
+            # truncate to screen width
+            (( ++i ))
+            usage[$i]=${line:0:$COLUMNS}
+        done < <(_comp_cmd_ugrep_help)
+        ;;
+    37)
+        # generate list of options
+        while read -r line; do
+            # keep initial option only, remove the rest
+            usage[$i]=${line%%[[, ]*}
+            (( ++i ))
+        done < <(_comp_cmd_ugrep_help)
+        ;;
+    esac
     COMPREPLY=( "${usage[@]}" )
     compopt -o nosort
 }
