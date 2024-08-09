@@ -17,9 +17,15 @@ Why use ugrep?
 
 - ugrep is fast, user-friendly, and equipped with a ton of new features that users wanted
 
-- ugrep includes a TUI with built-in help, interactive search with search mode and options selection, and a file preview split screen
+- includes an interactive TUI with built-in help, Google-like search with AND/OR/NOT patterns, fuzzy search, searches (nested) zip/7z/tar/pax/cpio archives, tarballs and compressed files gz/Z/bz/bz2/lzma/xz/lz4/zstd/brotli, search and hexdump binary files, search documents such as PDF, doc, docx, and output in JSON, XML, CSV or your own customized format
 
-- ugrep is a true drop-in replacement for GNU grep, assuming you [copy or symlink `ug` to `grep`, `egrep` and `fgrep`](#grep), unlike most other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
+- Unicode extended regex pattern syntax with multi-line pattern matching without requiring special command-line options
+
+- includes a file indexer to speed up searching slow and cold file systems
+
+- a true drop-in replacement for GNU grep (assuming you [copy or symlink `ug` to `grep`, `egrep` and `fgrep`](#grep)), unlike other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
+
+- benchmarks show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) using the high-performance DFA-based regex matcher [RE/flex](https://github.com/Genivia/RE-flex)
 
 Development roadmap
 -------------------
