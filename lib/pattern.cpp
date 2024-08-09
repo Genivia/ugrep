@@ -636,7 +636,7 @@ void Pattern::parse(
 {
   DBGLOG("BEGIN parse()");
   if (rex_.size() > Position::MAXLOC)
-    throw regex_error(regex_error::exceeds_length, rex_, Position::MAXLOC);
+    error(regex_error::exceeds_length, Position::MAXLOC);
   Location   len = static_cast<Location>(rex_.size());
   Location   loc = 0;
   Accept     choice = 1;
@@ -773,6 +773,8 @@ void Pattern::parse(
           t = target_state;
           ++eno_;
           ++vno_;
+          if (vno_ > DFA::MAX_STATES)
+            error(regex_error::exceeds_limits, loc);
         }
         else
         {
@@ -2118,6 +2120,8 @@ void Pattern::compile(
     if (state->accept > 0 && state->accept <= end_.size())
       acc_[state->accept - 1] = true;
     ++vno_;
+    if (vno_ > DFA::MAX_STATES)
+      error(regex_error::exceeds_limits, rex_.size());
   }
   delete[] table;
   vms_ = timer_elapsed(vt) - ems_;
@@ -2791,7 +2795,7 @@ void Pattern::encode_dfa(DFA::State *start)
 #endif
     nop_ += static_cast<Index>(state->heads.size() + state->tails.size() + (state->accept > 0 || state->redo));
     if (!valid_goto_index(nop_))
-      throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
+      error(regex_error::exceeds_limits, rex_.size());
   }
   if (nop_ > Const::LONG)
   {
@@ -2853,7 +2857,7 @@ void Pattern::encode_dfa(DFA::State *start)
 #endif
       nop_ += static_cast<Index>(state->heads.size() + state->tails.size() + (state->accept > 0 || state->redo));
       if (!valid_goto_index(nop_))
-        throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
+        error(regex_error::exceeds_limits, rex_.size());
     }
   }
   Opcode *opcode = new Opcode[nop_];
@@ -2872,13 +2876,13 @@ void Pattern::encode_dfa(DFA::State *start)
     for (Lookaheads::const_iterator i = state->tails.begin(); i != state->tails.end(); ++i)
     {
       if (!valid_lookahead_index(static_cast<Index>(*i)))
-        throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
+        error(regex_error::exceeds_limits, rex_.size());
       opcode[pc++] = opcode_tail(static_cast<Index>(*i));
     }
     for (Lookaheads::const_iterator i = state->heads.begin(); i != state->heads.end(); ++i)
     {
       if (!valid_lookahead_index(static_cast<Index>(*i)))
-        throw regex_error(regex_error::exceeds_limits, rex_, rex_.size());
+        error(regex_error::exceeds_limits, rex_.size());
       opcode[pc++] = opcode_head(static_cast<Index>(*i));
     }
 #if WITH_COMPACT_DFA == -1
@@ -3906,7 +3910,7 @@ void Pattern::analyze_dfa(DFA::State *start)
           count = static_cast<uint16_t>(next_chars.count()); // never more than 256
         }
         // save the previous metrics
-        cut_states = states;
+        cut_states.swap(states);
         cut_fin_states = fin_states;
         cut_count = count + fin_count;
         cut_chars += chars;

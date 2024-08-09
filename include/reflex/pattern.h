@@ -676,16 +676,17 @@ class Pattern {
       Tree::Node *tnode;  ///< the corresponding tree DFA node, when applicable
 #endif
       Edges       edges;  ///< state transitions
+      Lookaheads  heads;  ///< lookahead head set
+      Lookaheads  tails;  ///< lookahead tail set
       Index       first;  ///< index of this state in the opcode table in the first assembly pass, also used in breadth-first search to cut DFA for predict match
       Index       index;  ///< index of this state in the opcode table, also used in HFA construction
       Accept      accept; ///< nonzero if final state, the index of an accepted/captured subpattern
-      Lookaheads  heads;  ///< lookahead head set
-      Lookaheads  tails;  ///< lookahead tail set
       bool        redo;   ///< true if this is a final state of a negative pattern
     };
     typedef std::list<State*> List;
     static const uint16_t ALLOC = 1024;           ///< allocate 1024 DFA states at a time, to improve performance
     static const uint16_t MAX_DEPTH = 256;        ///< analyze DFA up to states this deep to improve predict match
+    static const Index MAX_STATES = Const::GMAX;  ///< maximum number of states
     static const Index DEAD_PATH = 1;             ///< state marker "path always and only reaches backedges" (a dead end)
     static const Index KEEP_PATH = MAX_DEPTH;     ///< state marker "required path" (from a newline edge)
     static const Index LOOP_PATH = MAX_DEPTH + 1; ///< state marker "path reaches a backedge" (collect lookback chars)
@@ -1161,8 +1162,8 @@ class Pattern {
   std::string           rex_; ///< regular expression string
   std::vector<Location> end_; ///< entries point to the subpattern's ending '|' or '\0'
   std::vector<bool>     acc_; ///< true if subpattern n is accepting (state is reachable)
-  size_t                vno_; ///< number of finite state machine vertices |V|
-  size_t                eno_; ///< number of finite state machine edges |E|
+  size_t                vno_; ///< number of finite state machine vertices |V| (nodes)
+  size_t                eno_; ///< number of finite state machine edges |E| (arrows)
   size_t                hno_; ///< number of indexing hash tables (HFA edges)
   const Opcode         *opc_; ///< points to the table with compiled finite state machine opcodes
   FSM                   fsm_; ///< function pointer to FSM code

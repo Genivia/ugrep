@@ -8047,16 +8047,15 @@ void ugrep()
   if (!flag_file.empty())
   {
     // -F: make newline-separated lines in regex literal with \Q and \E
-    const char *Q = flag_fixed_strings ? "\\Q" : "";
-    const char *E = flag_fixed_strings ? "\\E|" : flag_basic_regexp ? "\\|" : "|";
+    bool fixed_strings = flag_fixed_strings;
+    const char *bar = flag_basic_regexp ? "\\|" : "|";
 
     // PATTERN or -e PATTERN: add an ending '|' (or BRE '\|') to the regex to concatenate sub-expressions
     if (!regex.empty())
     {
       // -F does not apply to patterns in -f FILE when PATTERN or -e PATTERN is specified
-      Q = "";
-      E = flag_basic_regexp ? "\\|" : "|";
-      regex.append(E);
+      fixed_strings = false;
+      regex.append(bar);
     }
 
     // -f: read patterns from the specified file or files
@@ -8101,7 +8100,11 @@ void ugrep()
 
         // add line to the regex if not empty
         if (!line.empty())
-          regex.append(Q).append(line).append(E);
+        {
+          if (fixed_strings)
+            CNF::quote(line);
+          regex.append(line).append(bar);
+        }
       }
 
       if (file != stdin)
@@ -8142,32 +8145,8 @@ void ugrep()
         regex.pop_back();
     }
 
-    // -x or -w: apply to all -f FILE patterns
-    if (regex.empty())
-    {
-      // -x: empty regex matches empty lines with ^$
-      if (flag_line_regexp)
-        regex.assign("^$");
-    }
-    else
-    {
-      // -G requires \( \) instead of ( ) and -P requires (?<!\w) (?!\w) instead of \< and \>
-      const char *xleft = flag_basic_regexp ? "^\\(" : "^(?:";
-      const char *xright = flag_basic_regexp ? "\\)$" : ")$";
-#if defined(HAVE_PCRE2)
-      // PCRE2_EXTRA_MATCH_WORD does not work and \b(?:regex)\b is not correct anyway, so we roll out our own
-      const char *wleft = flag_perl_regexp ? "(?<!\\w)(?:" : NULL;
-      const char *wright = flag_perl_regexp ? ")(?!\\w)" : NULL;
-#else // Boost.Regex
-      const char *wleft = flag_perl_regexp ? "(?<![[:word:]])(?:" : NULL;
-      const char *wright = flag_perl_regexp ? ")(?![[:word:]])" : NULL;
-#endif
-
-      if (flag_line_regexp)
-        regex.insert(0, xleft).append(xright); // make the regex line-anchored
-      else if (flag_word_regexp && wleft != NULL && wright != NULL)
-        regex.insert(0, wleft).append(wright); // make the regex word-anchored (or done with matcher option W)
-    }
+    // -x or -w: add line or word anchors
+    CNF::anchor(regex);
   }
 
   // patterns ^, $ and ^$ are special cases to optimize for search
