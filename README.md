@@ -272,20 +272,6 @@ directory or home directory.
 
 ### Windows
 
-Practical hints on using `ugrep.exe` and `ug.exe` on the Windows command line:
-
-- when quoting patterns and arguments on the command line, do not use single
-  `'` quotes but use `"` instead; most Windows command utilities consider
-  the single `'` quotes part of the command-line argument!
-- file and directory globs are best specified with option `-g/GLOB` instead of
-  the usual `GLOB` command line arguments to select files and directories to
-  search, especially for recursive searches;
-- when specifying an empty pattern `""` to match all input, this may be ignored
-  by some Windows command interpreters such as Powershell, in that case you
-  must specify option `--match` instead;
-- to match newlines in patterns, you may want to use `\R` instead of `\n` to
-  match any Unicode newlines, such as `\r\n` pairs and single `\r` and `\n`.
-
 Install with [Winget](https://learn.microsoft.com/en-us/windows/package-manager/)
 `winget install Genivia.ugrep`
 
@@ -295,15 +281,31 @@ Or install with [Chocolatey](https://community.chocolatey.org/packages/ugrep)
 Or install with [Scoop](https://scoop.sh) `scoop install ugrep`
 
 Or download the full-featured `ugrep.exe` executable as release artifact from
-<https://github.com/Genivia/ugrep/releases>.  Then copy `ugrep.exe` to `ug.exe`
-if you also want the `ug` command intended for interactive use, which loads the
-.ugrep configuration file when present in the working directory or home
-directory.
+<https://github.com/Genivia/ugrep/releases>.  The zipped release contains the
+main `ugrep.exe` binary as well as `ug.exe`. The `ug` command, intended for 
+interactive use, loads and reads in settings from the _`.ugrep`_ configuration 
+file (when present in the working directory or home directory).
 
 Add `ugrep.exe` and `ug.exe` to your execution path: go to *Settings* and
 search for "Path" in *Find a Setting*.  Select *environment variables* ->
 *Path* -> *New* and add the directory where you placed the `ugrep.exe` and
 `ug.exe` executables.
+
+
+>[!TIP]
+> _Practical hints on using `ugrep.exe` and `ug.exe` on the Windows command line:_
+>
+>- when quoting patterns and arguments on the command line, do not use single
+>`'` quotes but use `"` instead; most Windows command utilities consider
+>the single `'` quotes part of the command-line argument!
+>- file and directory globs are best specified with option `-g/GLOB` instead of
+>the usual `GLOB` command line arguments to select files and directories to
+>search, especially for recursive searches;
+>- when specifying an empty pattern `""` to match all input, this may be ignored
+>by some Windows command interpreters such as Powershell, in that case you
+>must specify option `--match` instead;
+>- to match newlines in patterns, you may want to use `\R` instead of `\n` to
+>match any Unicode newlines, such as `\r\n` pairs and single `\r` and `\n`.
 
 ### Alpine Linux
 
