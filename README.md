@@ -295,10 +295,10 @@ Or install with [Chocolatey](https://community.chocolatey.org/packages/ugrep)
 Or install with [Scoop](https://scoop.sh) `scoop install ugrep`
 
 Or download the full-featured `ugrep.exe` executable as release artifact from
-<https://github.com/Genivia/ugrep/releases>.  Then copy `ugrep.exe` to `ug.exe`
-if you also want the `ug` command intended for interactive use, which loads the
-.ugrep configuration file when present in the working directory or home
-directory.
+<https://github.com/Genivia/ugrep/releases>.  The zipped release contains the
+main `ugrep.exe` binary as well as `ug.exe`. The `ug` command, intended for 
+interactive use, loads and reads in settings from the _`.ugrep`_ configuration 
+file (when present in the working directory or home directory).
 
 Add `ugrep.exe` and `ug.exe` to your execution path: go to *Settings* and
 search for "Path" in *Find a Setting*.  Select *environment variables* ->
