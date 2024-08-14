@@ -23,7 +23,7 @@ Why use ugrep?
 
 - includes a file indexer to speed up searching slow and cold file systems
 
-- a true drop-in replacement for GNU grep (assuming you [copy or symlink `ug` to `grep`, `egrep` and `fgrep`](#grep)), unlike other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use a different, incompatible regex matcher i.e. Perl regex versus POSIX regex grep (ugrep supports both)
+- a true drop-in replacement for GNU grep (assuming you [copy or symlink `ug` to `grep`, and to `egrep` and to `fgrep`](#grep)), unlike other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use an incompatible regex matcher, i.e. Perl regex only versus POSIX BRE (grep) and ERE (egrep) when ugrep supports all regex modes
 
 - benchmarks show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) using the high-performance DFA-based regex matcher [RE/flex](https://github.com/Genivia/RE-flex)
 
