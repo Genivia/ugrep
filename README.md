@@ -34,7 +34,7 @@ Development roadmap
 
 - #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 
-- make ugrep run even faster, see [#385](https://github.com/Genivia/ugrep/issues/385)
+- make ugrep run even faster, see [#421](https://github.com/Genivia/ugrep/issues/421)
 
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks)
 
