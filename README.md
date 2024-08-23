@@ -55,29 +55,29 @@ Overview
 
 - Built-in help: `ug --help`, where `ug --help WHAT` displays options related to `WHAT` you are looking for
 
-  >[!TIP]
-  >`ug --help regex`, `ug --help globs`, `ug --help fuzzy`, `ug --help format`.
+>[!TIP]
+>`ug --help regex`, `ug --help globs`, `ug --help fuzzy`, `ug --help format`.
 
 - User-friendly with customizable [configuration files](#config) used by the `ug` command intended for interactive use that loads a .ugrep configuration file with your preferences
 
       ug PATTERN ...                         ugrep --config PATTERN ...
 
-  >[!TIP]
-  >`ug --save-config ...options-you-want-to-save...` saves a .ugrep config file in the working directory so that the next time you run `ug` there it uses these options.  Do this in your home directory to save a .ugrep config file with options you generally want to use.
+>[!TIP]
+>`ug --save-config ...options-you-want-to-save...` saves a .ugrep config file in the working directory so that the next time you run `ug` there it uses these options.  Do this in your home directory to save a .ugrep config file with options you generally want to use.
 
 - Interactive [query TUI](#query), press F1 or CTRL-Z for help and TAB/SHIFT-TAB to navigate to dirs and files
 
       ug -Q                                  ug -Q -e PATTERN
 
-  >[!TIP]
-  >`-Q` replaces `PATTERN` on the command line to let you enter patterns interactively in the TUI.  In the TUI use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.
+>[!TIP]
+>`-Q` replaces `PATTERN` on the command line to let you enter patterns interactively in the TUI.  In the TUI use ALT+letter keys to toggle short "letter options" on/off, for example ALT-n (option `-n`) to show/hide line numbers.
 
 - Search the contents of [archives](#archives) (zip, tar, pax, jar, cpio, 7z) and [compressed files](#archives) (gz, Z, bz, bz2, lzma, xz, lz4, zstd, brotli)
 
       ug -z PATTERN ...                      ug -z --zmax=2 PATTERN ...
 
-  >[!TIP]
-  >specify `-z --zmax=2` to search compressed files and archives nested within archives.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps to search nested archives
+>[!TIP]
+>specify `-z --zmax=2` to search compressed files and archives nested within archives.  The `--zmax` argument may range from 1 (default) to 99 for up to 99 decompression and de-archiving steps to search nested archives
 
 - Search with Google-like [Boolean query patterns](#bool) using `-%` patterns with `AND` (or just space), `OR` (or a bar `|`), `NOT` (or a dash `-`), using quotes to match exactly, and grouping with `( )` (shown on the left side below); or with options `-e` (as an "or"), `--and`, `--andnot`, and `--not` regex patterns (shown on the right side below):
 
@@ -89,8 +89,8 @@ Overview
 
   where `A`, `B` and `C` are arbitrary regex patterns (use option `-F` to search strings)
 
-  >[!TIP]
-  >specify option `-%%` (`--bool --files`) to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
+>[!TIP]
+>specify option `-%%` (`--bool --files`) to apply the Boolean query to files as a whole: a file matches if all Boolean conditions are satisfied by matching patterns file-wide.  Otherwise, Boolean conditions apply to single lines by default, since grep utilities are generally line-based pattern matchers.  Option `--stats` displays the query in human-readable form after the search completes.
 
 - Search pdf, doc, docx, e-book, and more with `ug+` [using filters](#filter) associated with filename extensions:
 
@@ -105,29 +105,29 @@ Overview
       ug --filter='pem:openssl x509 -text,cer,crt,der:openssl x509 -text -inform der' PATTERN ...
       ug --filter='latin1:iconv -f LATIN1 -t UTF-8' PATTERN ...
 
-  >[!TIP]
-  >the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata
+>[!TIP]
+>the `ug+` command is the same as the `ug` command, but also uses filters to search PDFs, documents, and image metadata
 
 - Display horizontal context with option `-o` (`--only-matching`) and context options `-ABC`, e.g. to find matches in very long lines, such as Javascript and JSON sources:
 
       ug -o -C20 -nk PATTERN longlines.js
 
-  >[!TIP]
-  >`-o -C20` fits all matches with context in 20 characters before and 20 charactess after a match (i.e. 40 Unicode characters total), `-nk` outputs line and column numbers.
+>[!TIP]
+>`-o -C20` fits all matches with context in 20 characters before and 20 charactess after a match (i.e. 40 Unicode characters total), `-nk` outputs line and column numbers.
 
 - Find approximate pattern matches with [fuzzy search](#fuzzy), within the specified Levenshtein distance
 
       ug -Z PATTERN ...                      ug -Z3 PATTTERN ...
 
-  >[!TIP]
-  >`-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
+>[!TIP]
+>`-Zn` matches up to `n` extra, missing or replaced characters, `-Z+n` matches up to `n` extra characters, `-Z-n` matches with up to `n` missing characters and `-Z~n` matches up to `n` replaced characters.  `-Z` defaults to `-Z1`.
 
 - Fzf-like search with regex (or fixed strings with `-F`), fuzzy matching with up to 4 extra characters with `-Z+4` and words only with `-w`, using `-%%` for file-wide Boolean searches
 
       ug -Q -%% -l -w -Z+4 --sort=best
 
-  >[!TIP]
-  >`-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
+>[!TIP]
+>`-l` lists the matching files in the TUI, press `TAB` then `ALT-y` to view a file, `SHIFT-TAB` and `Alt-l` to go back to view the list of matching files ordered by best match
 
 - Search [binary files](#binary) and display hexdumps with binary pattern matches (Unicode text or `-U` for byte patterns)
 
@@ -135,8 +135,8 @@ Overview
       ug -X -U BYTEPATTERN ...               ug -X TEXTPATTERN ...
       ug -W -U BYTEPATTERN ...               ug -W TEXTPATTERN ...
 
-  >[!TIP]
-  >`--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.
+>[!TIP]
+>`--hexdump=4chC1` displays `4` columns of hex without a character column `c`, no hex spacing `h`, and with one extra hex line `C1` before and after a match.
 
 - Include files to search by [file types or file "magic bytes"](#magic) or exclude them with `^`
 
@@ -158,15 +158,15 @@ Overview
 
       ug -. PATTERN ...                      ug -g'.*,.*/' PATTERN ...
 
-  >[!TIP]
-  >specify `hidden` in your .ugrep to always search hidden files with `ug`.
+>[!TIP]
+>specify `hidden` in your .ugrep to always search hidden files with `ug`.
 
 - Exclude files specified by [.gitignore](#ignore) etc.
 
       ug --ignore-files PATTERN ...          ug --ignore-files=.ignore PATTERN ...
 
-  >[!TIP]
-  >specify `ignore-files` in your .ugrep to always ignore them with `ug`.  Add additional `ignore-files=...` as desired.
+>[!TIP]
+>specify `ignore-files` in your .ugrep to always ignore them with `ug`.  Add additional `ignore-files=...` as desired.
 
 - Search patterns excluding [negative patterns](#not) ("match this but not that")
 
@@ -189,8 +189,8 @@ Overview
       ug --csv PATTERN ...                   ug --json PATTERN ...
       ug --xml PATTERN ...                   ug --format='file=%f line=%n match=%O%~' PATTERN ...
 
-  >[!TIP]
-  >`ug --help format` displays help on format `%` fields for customized output.
+>[!TIP]
+>`ug --help format` displays help on format `%` fields for customized output.
 
 - Search with PCRE's Perl-compatible regex patterns and display or replace [subpattern matches](#replace)
 
@@ -202,8 +202,8 @@ Overview
       ug --replace='(%m:%o)' PATTERN ...     ug -y --replace='(%m:%o)' PATTERN ...
       ug -P --replace='%1' PATTERN ...       ug -y -P --replace='%1' PATTERN ...
 
-  >[!TIP]
-  >`ug --help format` displays help on format `%` fields to optionally use with `--replace`.
+>[!TIP]
+>`ug --help format` displays help on format `%` fields to optionally use with `--replace`.
 
 - Search files with a specific [encoding](#encoding) format such as ISO-8859-1 thru 16, CP 437, CP 850, MACROMAN, KOI8, etc.
 
