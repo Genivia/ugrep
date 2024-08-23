@@ -92,7 +92,7 @@ complete -c ug -l replace -d 'Replace matching patterns in the output by FORMAT 
 complete -c ug -s S -l dereference-files -d 'When -r is specified, follow symbolic links to files, but not to directories'
 complete -c ug -s s -l no-messages -d 'Silent mode: nonexistent and unreadable files are ignored and their error messages and warnings are suppressed'
 complete -c ug -l save-config -d 'Save configuration FILE to include OPTIONS'
-complete -c ug -l separator -d 'Use SEP as field separator between file name, line number, column number, byte offset and the matched line'
+complete -c ug -l separator -l context-separator -d 'Use SEP as field separator between file name, line number, column number, byte offset and the matched line'
 complete -c ug -l split -d 'Split the -Q query TUI screen on startup'
 complete -c ug -l sort -xa 'name best size changed created used rname rbest rsize rchanged rcreated rused' -d 'Displays matching files in the order specified by KEY in recursive searches'
 complete -c ug -l stats -d 'Output statistics on the number of files and directories searched and the inclusion and exclusion constraints applied'

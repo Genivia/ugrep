@@ -119,7 +119,7 @@ size_t nlcount(const char *s, const char *t)
 #if defined(__aarch64__)
       n += vaddvq_s8(vqabsq_s8(vreinterpretq_s8_u8(vaddq_u8(vleq0, vaddq_u8(vleq1, vaddq_u8(vleq2, vleq3))))));
 #else
-      // my homebrew horizontal sum (we have a very limited range 0..4 to sum to a total max 4x16=64 < 256)
+      // my horizontal sum method (we have a very limited range 0..4 to sum to a total max 4x16=64 < 256)
       uint64x2_t vsum = vreinterpretq_u64_s8(vqabsq_s8(vreinterpretq_s8_u8(vaddq_u8(vleq0, vaddq_u8(vleq1, vaddq_u8(vleq2, vleq3))))));
       uint64_t sum0 = vgetq_lane_u64(vsum, 0) + vgetq_lane_u64(vsum, 1);
       uint32_t sum1 = static_cast<uint32_t>(sum0) + (sum0 >> 32);
@@ -152,6 +152,263 @@ size_t nlcount(const char *s, const char *t)
     }
   }
   return n;
+}
+
+// Check if valid UTF-8 encoding and does not include a NUL, but pass surrogates and 3/4 byte overlongs
+bool isutf8(const char *s, const char *e)
+{
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+
+  if (s <= e - 16)
+  {
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2)
+    if (s <= e - 32 && have_HW_AVX2())
+    {
+      if (!simd_isutf8_avx2(s, e))
+        return false;
+    }
+    else
+#endif
+    {
+      // prep step: scan ASCII w/o NUL first for speed, then check remaining UTF-8
+      const __m128i v0 = _mm_setzero_si128();
+      while (s <= e - 16)
+      {
+        __m128i vc = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+        __m128i vm = _mm_cmpgt_epi8(vc, v0);
+        if (_mm_movemask_epi8(vm) != 0xffff)
+        {
+          // non-ASCII, return false if a NUL was found
+          vm = _mm_cmpeq_epi8(vc, v0);
+          if (_mm_movemask_epi8(vm) != 0x0000)
+            return false;
+          break;
+        }
+        s += 16;
+      }
+      // my UTF-8 validation method
+      // 224ms to check 1,000,000,000 bytes on a Intel quad core i7 2.9 GHz 16GB 2133 MHz LPDDR3
+      //
+      // scalar code:
+      //   int8_t p = 0, q = 0, r = 0;
+      //   while (s < e)
+      //   {
+      //     int8_t c = static_cast<int8_t>(*s++);
+      //     if (!(c > 0 || (c > -63 && c < -11)))
+      //       return false;
+      //     if ((-(c < -64) ^ (p | q | r)) & 0x80)
+      //       return false;
+      //     r = (q & (q << 1));
+      //     q = (p & (p << 1));
+      //     p = (c & (c << 1));
+      //   }
+      //   return (p | q | r) & 0x80;
+      //
+      const __m128i vxc0 = _mm_set1_epi8(0xc0);
+      const __m128i vxc1 = _mm_set1_epi8(0xc1);
+      const __m128i vxf5 = _mm_set1_epi8(0xf5);
+      __m128i vp = v0;
+      __m128i vq = v0;
+      __m128i vr = v0;
+      while (s <= e - 16)
+      {
+        // step 1: check valid signed byte ranges
+        //   c = s[i]
+        //   if (!(c > 0 || (c > -63 && c < -11)))
+        //     return false
+        //
+        __m128i vc = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
+        __m128i vt = _mm_and_si128(_mm_cmpgt_epi8(vc, vxc1), _mm_cmplt_epi8(vc, vxf5));
+        vt = _mm_or_si128(vt, _mm_cmplt_epi8(vc, vxc0));
+        vt = _mm_or_si128(vt, _mm_cmpgt_epi8(vc, v0));
+        if (_mm_movemask_epi8(vt) != 0xffff)
+          return false;
+        //
+        //   step 2: check UTF-8 multi-byte sequences of 2, 3 and 4 bytes long
+        //     if ((-(c < -64) ^ (p | q | r)) & 0x80)
+        //       return false
+        //     r = (q & (q << 1))
+        //     q = (p & (p << 1))
+        //     p = (c & (c << 1))
+        //
+        //   possible values of c after step 1 and subsequent values of p, q, r:
+        //     c at 1st byte   p at 2nd byte   q at 3rd byte   r at 4th byte
+        //       0xxxxxxx        0xxxxxxx        0xxxxxxx        0xxxxxxx
+        //       10xxxxxx        00xxxxxx        00xxxxxx        00xxxxxx
+        //       110xxxxx        100xxxxx        000xxxxx        000xxxxx
+        //       1110xxxx        1100xxxx        1000xxxx        0000xxxx
+        //       11110xxx        11100xxx        11000xxx        10000xxx
+        //
+        //   byte vectors vc, vp, vq, vr and previous values:
+        //                             | c | c | c | c | ... | c |
+        //                     | old p | p | p | p | p | ... | p |
+        //             | old q | old q | q | q | q | q | ... | q |
+        //     | old r | old r | old r | r | r | r | r | ... | r |
+        //
+        //   shift vectors vp, vq, vr to align to compute bitwise-or vp | vq | vr -> vt:
+        //                 |     c |     c |     c | c | ... | c | = vc
+        //                 | old p |     p |     p | p | ... | p |
+        //                 | old q | old q |     q | q | ... | q |
+        //                 | old r | old r | old r | r | ... | r |
+        //                   -----   -----   -----   -   ---   -   or
+        //                 |     t |     t |     t | t | ... | t | = vt
+        //
+        //   SSE2 code to perform r = (q & (q << 1)); q = (p & (p << 1)); p = (c & (c << 1));
+        //   shift parts of the old vp, vq, vr and new vp, vq, vr in vt using psrldq and por
+        //   then check if ((-(c < -64) ^ (p | q | r))) bit 7 is 0
+        //
+        vt = _mm_bsrli_si128(vp, 15);
+        vp = _mm_and_si128(vc, _mm_add_epi8(vc, vc));
+        vt = _mm_or_si128(vt, _mm_bsrli_si128(vq, 14));
+        vq = _mm_and_si128(vp, _mm_add_epi8(vp, vp));
+        vt = _mm_or_si128(vt, _mm_bsrli_si128(vr, 13));
+        vr = _mm_and_si128(vq, _mm_add_epi8(vq, vq));
+        vt = _mm_or_si128(vt, _mm_bslli_si128(vp, 1));
+        vt = _mm_or_si128(vt, _mm_bslli_si128(vq, 2));
+        vt = _mm_or_si128(vt, _mm_bslli_si128(vr, 3));
+        vt = _mm_xor_si128(vt, _mm_cmplt_epi8(vc, vxc0));
+        if (_mm_movemask_epi8(vt) != 0x0000)
+          return false;
+        s += 16;
+      }
+      // do not end in the middle of a UTF-8 multibyte sequence, backtrack when necessary (this will terminate)
+      while ((*--s & 0xc0) == 0x80)
+        continue;
+    }
+  }
+
+#elif defined(HAVE_NEON)
+
+  if (s <= e - 16)
+  {
+    // prep step: scan ASCII first for speed, then check remaining UTF-8
+    const int8x16_t v0 = vdupq_n_s8(0);
+    while (s <= e - 16)
+    {
+      int8x16_t vc = vld1q_s8(reinterpret_cast<const int8_t*>(s));
+      int64x2_t vm = vreinterpretq_s64_u8(vcgtq_s8(vc, v0));
+      if ((vgetq_lane_s64(vm, 0) & vgetq_lane_s64(vm, 1)) != -1LL)
+      {
+        // non-ASCII, return false if a NUL was found
+        vm = vreinterpretq_s64_u8(vceqq_s8(vc, v0));
+        if ((vgetq_lane_s64(vm, 0) | vgetq_lane_s64(vm, 1)) != 0LL)
+          return false;
+        break;
+      }
+      s += 16;
+    }
+    // my UTF-8 validation method
+    // 134ms to check 1,000,000,000 bytes on Apple M1 Pro (AArch64)
+    //
+    // scalar code:
+    //   int8_t p = 0, q = 0, r = 0;
+    //   while (s < e)
+    //   {
+    //     int8_t c = static_cast<int8_t>(*s++);
+    //     if (!(c > 0 || (c > -63 && c < -11)))
+    //       return false;
+    //     if ((-(c < -64) ^ (p | q | r)) & 0x80)
+    //       return false;
+    //     r = (q & (q << 1));
+    //     q = (p & (p << 1));
+    //     p = (c & (c << 1));
+    //   }
+    //   return (p | q | r) & 0x80;
+    //
+    const int8x16_t vxc0 = vdupq_n_s8(0xc0);
+    const int8x16_t vxc1 = vdupq_n_s8(0xc1);
+    const int8x16_t vxf5 = vdupq_n_s8(0xf5);
+    int8x16_t vp = v0;
+    int8x16_t vq = v0;
+    int8x16_t vr = v0;
+    while (s <= e - 16)
+    {
+      // step 1: check valid signed byte ranges
+      //   c = s[i]
+      //   if (!(c > 0 || (c > -63 && c < -11)))
+      //     return false
+      //
+      int8x16_t vc = vld1q_s8(reinterpret_cast<const int8_t*>(s));
+      int8x16_t vt = vandq_s8(vreinterpretq_s8_u8(vcgtq_s8(vc, vxc1)), vreinterpretq_s8_u8(vcltq_s8(vc, vxf5)));
+      vt = vorrq_s8(vt, vreinterpretq_s8_u8(vcltq_s8(vc, vxc0)));
+      vt = vorrq_s8(vt, vreinterpretq_s8_u8(vcgtq_s8(vc, v0)));
+      int64x2_t vm = vreinterpretq_s64_s8(vt);
+      if ((vgetq_lane_s64(vm, 0) & vgetq_lane_s64(vm, 1)) != -1LL)
+        return false;
+      //
+      //   step 2: check UTF-8 multi-byte sequences of 2, 3 and 4 bytes long
+      //     if ((-(c < -64) ^ (p | q | r)) & 0x80)
+      //       return false
+      //     r = (q & (q << 1))
+      //     q = (p & (p << 1))
+      //     p = (c & (c << 1))
+      //
+      //   possible values of c after step 1 and subsequent values of p, q, r:
+      //     c at 1st byte   p at 2nd byte   q at 3rd byte   r at 4th byte
+      //       0xxxxxxx        0xxxxxxx        0xxxxxxx        0xxxxxxx
+      //       10xxxxxx        00xxxxxx        00xxxxxx        00xxxxxx
+      //       110xxxxx        100xxxxx        000xxxxx        000xxxxx
+      //       1110xxxx        1100xxxx        1000xxxx        0000xxxx
+      //       11110xxx        11100xxx        11000xxx        10000xxx
+      //
+      //   byte vectors vc, vp, vq, vr and previous values:
+      //                             | c | c | c | c | ... | c | = vc
+      //                     | old p | p | p | p | p | ... | p | = vp
+      //             | old q | old q | q | q | q | q | ... | q | = vq
+      //     | old r | old r | old r | r | r | r | r | ... | r | = vr
+      //
+      //   shift vectors vp, vq, vr to align to compute bitwise-or vp | vq | vr -> vt:
+      //                 |     c |     c |     c | c | ... | c | = vc
+      //                 | old p |     p |     p | p | ... | p |
+      //                 | old q | old q |     q | q | ... | q |
+      //                 | old r | old r | old r | r | ... | r |
+      //                   -----   -----   -----   -   ---   -   or
+      //                 |     t |     t |     t | t | ... | t | = vt
+      //
+      //   optimized code to perform r = (q & (q << 1)); q = (p & (p << 1)); p = (c & (c << 1));
+      //   shift parts of the old vp, vq, vr and new vp, vq, vr in vt using EXT
+      //   then check if ((-(c < -64) ^ (p | q | r))) bit 7 is 0
+      //
+      int8x16_t vo = vp;
+      vp = vandq_s8(vc, vshlq_n_s8(vc, 1));
+      vt = vextq_s8(vo, vp, 15);
+      vo = vq;
+      vq = vandq_s8(vp, vshlq_n_s8(vp, 1));
+      vt = vorrq_s8(vt, vextq_s8(vo, vq, 14));
+      vo = vr;
+      vr = vandq_s8(vq, vshlq_n_s8(vq, 1));
+      vt = vorrq_s8(vt, vextq_s8(vo, vr, 13));
+      vt = veorq_s8(vt, vreinterpretq_s8_u8(vcltq_s8(vc, vxc0)));
+      vm = vreinterpretq_s64_s8(vt);
+      if (((vgetq_lane_s64(vm, 0) | vgetq_lane_s64(vm, 1)) & 0x8080808080808080LL) != 0)
+        return false;
+      s += 16;
+    }
+    // do not end in the middle of a UTF-8 multibyte sequence, backtrack when necessary (this will terminate)
+    while ((*--s & 0xc0) == 0x80)
+      continue;
+  }
+
+#endif
+
+  while (s < e)
+  {
+    int8_t c;
+    while (s < e && (c = static_cast<int8_t>(*s)) > 0)
+      ++s;
+    if (s++ >= e)
+      break;
+    // U+0080 ~ U+07ff <-> c2 80 ~ df bf (disallow 2 byte overlongs)
+    if (c < -62 || c > -12 || s >= e || (*s++ & 0xc0) != 0x80)
+      return false;
+    // U+0800 ~ U+ffff <-> e0 a0 80 ~ ef bf bf (quick but allows surrogates and 3 byte overlongs)
+    if (c >= -32 && (s >= e || (*s++ & 0xc0) != 0x80))
+      return false;
+    // U+010000 ~ U+10ffff <-> f0 90 80 80 ~ f4 8f bf bf (quick but allows 4 byte overlongs)
+    if (c >= -16 && (s >= e || (*s++ & 0xc0) != 0x80))
+      return false;
+  }
+  return true;
 }
 
 } // namespace reflex

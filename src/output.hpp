@@ -403,10 +403,16 @@ class Output {
     return s;
   }
 
+  // get length of string s of byte length n cut to length k
+  inline size_t utf8cut(const char *s, size_t n, size_t k)
+  {
+    return utf8pos(s, n, k) - s;
+  }
+
   // output a UTF-8 multibyte string s of byte length n for up to k UTF-8-encoded characters
   inline void utf8strn(const char *s, size_t n, size_t k)
   {
-    str(s, utf8pos(s, n, k) - s);
+    str(s, utf8cut(s, n, k));
   }
 
   // output a URI-encoded string s
@@ -446,13 +452,14 @@ class Output {
       {
         const char *e = matcher->eol();
         const char *c = matcher->end();
-        n = utf8pos(c, e - c, width) - c;
+        n = utf8cut(c, e - c, width);
         return c;
       }
       else // {width}
       {
-        n = std::min<size_t>(matcher->size(), width);
-        return matcher->begin();
+        const char *s = matcher->begin();
+        n = utf8cut(s, matcher->size(), width);
+        return s;
       }
     }
     else // {-width}
@@ -470,13 +477,34 @@ class Output {
   {
     if (flag_only_matching)
     {
-      str(matcher->begin(), matcher->size());
+      const char *s = matcher->begin();
+      size_t n = matcher->size();
+      if (flag_hex || (flag_with_hex && !reflex::isutf8(s, s + n)))
+      {
+        if (w > 0 && static_cast<size_t>(w) < n)
+          n = w;
+        hex(s, n);
+      }
+      else
+      {
+        if (w > 0)
+          s = match_context(matcher, false, w, n);
+        str(s, n);
+      }
     }
     else
     {
       const char *e = matcher->eol(); // warning: must call eol() before bol()
       const char *b = matcher->bol();
-      if (w > 0)
+      if (flag_hex || (flag_with_hex && !reflex::isutf8(b, e)))
+      {
+        if (w > 0 && b + w < e)
+          e = b + w;
+        else if (w < 0 && e + w > b)
+          b = e + w;
+        hex(b, e - b);
+      }
+      else if (w > 0)
       {
         utf8strn(b, e - b, w);
       }
@@ -494,7 +522,9 @@ class Output {
   {
     if (flag_only_matching)
     {
-      quote(matcher->begin(), matcher->size());
+      size_t n = matcher->size();
+      const char *s = (w > 0 ? match_context(matcher, false, w, n) : matcher->begin());
+      quote(s, n);
     }
     else
     {

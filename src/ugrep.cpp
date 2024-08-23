@@ -756,40 +756,15 @@ inline bool getline(const char *& here, size_t& left, reflex::BufferedInput& buf
   return ch == EOF && line.empty();
 }
 
-// return true if s[0..n-1] contains a \0 (NUL) or a non-displayable invalid UTF-8 encoding sequence
+// return true if s[0..n-1] contains a \0 (NUL) or a non-displayable invalid UTF-8 encoding
 inline bool is_binary(const char *s, size_t n)
 {
-  // file is binary if it contains a \0 (NUL) which is what grep checks
-  if (memchr(s, '\0', n) != NULL)
-    return true;
-
-  // not -U nor -W: file is binary if it has an invalid UTF-8 encoding
+  // not -U or -W: file is binary if it has a \0 (NUL) or an invalid UTF-8 encoding
   if (!flag_binary || flag_with_hex)
-  {
-    if (n == 1)
-      return (*s & 0xc0) == 0x80;
+    return !reflex::isutf8(s, s + n);
 
-    const char *e = s + n;
-
-    while (s < e)
-    {
-      while (s < e && !(*s & 0x80))
-        ++s;
-
-      if (s >= e)
-        return false;
-
-      unsigned char c = static_cast<unsigned char>(*s);
-      if (c < 0xc2 || c > 0xf4 || ++s >= e || (*s & 0xc0) != 0x80)
-        return true;
-
-      if (++s < e && (*s & 0xc0) == 0x80)
-        if (++s < e && (*s & 0xc0) == 0x80)
-          ++s;
-    }
-  }
-
-  return false;
+  // otherwise, file is binary if it contains a \0 (NUL) which is what GNU grep checks
+  return memchr(s, '\0', n) != NULL;
 }
 
 // check if a file's inode is the current output file
@@ -4063,22 +4038,25 @@ struct Grep {
     return true;
   }
 
-  // after opening a file with init_read, check if its initial part (up to 64K or what could be read) is binary
+  // after opening a file with init_read, check if its initial part is binary
   bool init_is_binary()
   {
-    size_t avail = matcher->avail();
+    // check up to 64K in buffer for binary data, the buffer is a window over the input file
+    size_t avail = std::min<size_t>(matcher->avail(), 65536);
 
     if (avail == 0)
       return false;
 
-    // check up to 32K ahead in buffer
-    if (avail > 32768)
-      avail = 32768;
-
-    // do not cut off right after the first UTF-8 byte
-    if (avail > 0 && (matcher->begin()[avail - 1] & 0xc0) == 0xc0)
-      if (--avail == 0)
+    // do not cut off the last UTF-8 sequence, ignore it, otherwise we risk failing the UTF-8 check
+    const char *buf = matcher->begin();
+    if ((buf[avail - 1] & 0x80) == 0x80)
+    {
+      size_t n = std::min<size_t>(avail, 4); // note: 1 <= n <= 4 bytes to check
+      while (n > 0 && (buf[--avail] & 0xc0) == 0x80)
+        --n;
+      if ((buf[avail] & 0xc0) != 0xc0)
         return true;
+    }
 
     return is_binary(matcher->begin(), avail);
   }
@@ -5261,9 +5239,9 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "colour=", 7) == 0)
                   flag_color = strarg(getloptarg(argc, argv, arg + 7, i));
                 else if (strncmp(arg, "colors=", 7) == 0)
-                  flag_colors = strarg(getloptarg(argc, argv, arg + 7, i));
+                  flag_colors = strarg(arg + 7);
                 else if (strncmp(arg, "colours=", 8) == 0)
-                  flag_colors = strarg(getloptarg(argc, argv, arg + 8, i));
+                  flag_colors = strarg(arg + 8);
                 else if (strcmp(arg, "column-number") == 0)
                   flag_column_number = true;
                 else if (strcmp(arg, "config") == 0 || strncmp(arg, "config=", 7) == 0)
@@ -5274,16 +5252,18 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_after_context = flag_before_context = strtonum(getloptarg(argc, argv, "", i), "invalid argument --context=");
                 else if (strncmp(arg, "context=", 8) == 0)
                   flag_after_context = flag_before_context = strtonum(getloptarg(argc, argv, arg + 8, i), "invalid argument --context=");
+                else if (strncmp(arg, "context-separator=", 18) == 0)
+                  flag_separator_dash = strarg(arg + 18);
                 else if (strcmp(arg, "count") == 0)
                   flag_count = true;
                 else if (strcmp(arg, "cpp") == 0)
                   flag_cpp = true;
                 else if (strcmp(arg, "csv") == 0)
                   flag_csv = true;
-                else if (strcmp(arg, "colors") == 0 || strcmp(arg, "colours") == 0)
+                else if (strcmp(arg, "colors") == 0 || strcmp(arg, "colours") == 0 || strcmp(arg, "context-separator") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--color, --colors=, --column-number, --config, --confirm, --context=, --count, --cpp or --csv");
+                  usage("invalid option --", arg, "--color, --colors=, --column-number, --config, --confirm, --context=, context-separator=, --count, --cpp or --csv");
                 break;
 
               case 'd':
@@ -5372,13 +5352,13 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "format=", 7) == 0)
                   flag_format = strarg(getloptarg(argc, argv, arg + 7, i));
                 else if (strncmp(arg, "format-begin=", 13) == 0)
-                  flag_format_begin = strarg(getloptarg(argc, argv, arg + 13, i));
+                  flag_format_begin = strarg(arg + 13);
                 else if (strncmp(arg, "format-close=", 13) == 0)
-                  flag_format_close = strarg(getloptarg(argc, argv, arg + 13, i));
+                  flag_format_close = strarg(arg + 13);
                 else if (strncmp(arg, "format-end=", 11) == 0)
-                  flag_format_end = strarg(getloptarg(argc, argv, arg + 11, i));
+                  flag_format_end = strarg(arg + 11);
                 else if (strncmp(arg, "format-open=", 12) == 0)
-                  flag_format_open = strarg(getloptarg(argc, argv, arg + 12, i));
+                  flag_format_open = strarg(arg + 12);
                 else if (strcmp(arg, "fuzzy") == 0)
                   flag_fuzzy = 1;
                 else if (strncmp(arg, "fuzzy=", 6) == 0)
@@ -5408,7 +5388,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "group-separator") == 0)
                   flag_group_separator = "--";
                 else if (strncmp(arg, "group-separator=", 16) == 0)
-                  flag_group_separator = strarg(getloptarg(argc, argv, arg + 16, i));
+                  flag_group_separator = strarg(arg + 16);
                 else if (strcmp(arg, "glob") == 0)
                   usage("missing argument for --", arg);
                 else
@@ -5425,11 +5405,11 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "hexdump") == 0)
                   flag_hexdump = "2";
                 else if (strncmp(arg, "hexdump=", 8) == 0)
-                  flag_hexdump = strarg(getloptarg(argc, argv, arg + 8, i));
+                  flag_hexdump = strarg(arg + 8);
                 else if (strcmp(arg, "hidden") == 0)
                   flag_hidden = true;
                 else if (strncmp(arg, "hyperlink=", 10) == 0)
-                  flag_hyperlink = strarg(getloptarg(argc, argv, arg + 10, i));
+                  flag_hyperlink = strarg(arg + 10);
                 else if (strcmp(arg, "hyperlink") == 0)
                   flag_hyperlink = "";
                 else
@@ -5490,7 +5470,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 if (strcmp(arg, "label") == 0) // legacy form --label LABEL
                   flag_label = strarg(getloptarg(argc, argv, "", i));
                 else if (strncmp(arg, "label=", 6) == 0)
-                  flag_label = strarg(getloptarg(argc, argv, arg + 6, i));
+                  flag_label = strarg(arg + 6);
                 else if (strcmp(arg, "line-buffered") == 0)
                   flag_line_buffered = true;
                 else if (strcmp(arg, "line-number") == 0)
@@ -5706,7 +5686,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "separator") == 0)
                   flag_separator = NULL;
                 else if (strncmp(arg, "separator=", 10) == 0)
-                  flag_separator = strarg(getloptarg(argc, argv, arg + 10, i));
+                  flag_separator = strarg(arg + 10);
                 else if (strcmp(arg, "silent") == 0)
                   flag_quiet = flag_no_messages = true;
                 else if (strcmp(arg, "smart-case") == 0)
@@ -5720,7 +5700,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "stats") == 0)
                   flag_stats = "";
                 else if (strncmp(arg, "stats=", 6) == 0)
-                  flag_stats = strarg(getloptarg(argc, argv, arg + 6, i));
+                  flag_stats = strarg(arg + 6);
                 else
                   usage("invalid option --", arg, "--save-config, --separator, --silent, --smart-case, --sort, --split or --stats");
                 break;
@@ -13592,7 +13572,7 @@ const char *getoptarg(int argc, const char **argv, const char *arg, int& i)
   return "";
 }
 
-// get long option argument after =
+// get required non-empty long option argument after =
 const char *getloptarg(int argc, const char **argv, const char *arg, int& i)
 {
   if (*arg != '\0')
@@ -14317,10 +14297,11 @@ void help(std::ostream& out)
             the saved configuration file.  A configuration file may be modified\n\
             manually to specify one or more config[=FILE] to indirectly load\n\
             the specified FILE, but recursive config loading is not allowed.\n\
-    --separator[=SEP]\n\
+    --separator[=SEP], --context-separator=SEP\n\
             Use SEP as field separator between file name, line number, column\n\
-            number, byte offset and the matched line.  The default is a colon\n\
-            (`:') and a bar (`|') for multi-line pattern matches.\n\
+            number, byte offset and the matched line.  The default separator is\n\
+            a colon (`:') and a bar (`|') for multi-line pattern matches, and a\n\
+            dash (`-') for context lines.  See also --group-separator.\n\
     --split\n\
             Split the -Q query TUI screen on startup.\n\
     --sort[=KEY]\n\
@@ -14614,36 +14595,38 @@ void help(const char *what)
  %K %[...]K  ... + column number, if -k  %[n]e       nth capture end offset\n\
  %l          last line number of match   %[n]j       nth capture as JSON\n\
  %L          number of lines of a match  %[n]q       nth capture quoted\n\
- %m          number of matches           %[n]x       nth capture as XML\n\
- %M          number of matching lines    %[n]y       nth capture as hex\n\
- %n          line number of a match      %[n]v       nth capture as CSV\n\
+ %m          number of matches           %[n]v       nth capture as CSV\n\
+ %M          number of matching lines    %[n]x       nth capture as XML\n\
+ %n          line number of a match      %[n]y       nth capture as hex\n\
  %N %[...]N  ... + line number, if -n    %[name]#    named group capture\n\
  %o          matching pattern, also %0   %[name]b    named capture byte offset\n\
  %O          matching line               %[name]d    named capture byte size\n\
  %p          path to matching file       %[name]e    named capture end offset\n\
  %q          quoted matching pattern     %[name]j    named capture as JSON\n\
  %Q          quoted matching line        %[name]q    named capture quoted\n\
- %R          newline, if --break         %[name]x    named capture as XML\n\
- %s          separator (: by default)    %[name]y    named capture as hex\n\
- %S %[...]S  ... + separator, if %m > 1  %[name]v    named capture as CSV\n\
+ %R          newline, if --break         %[name]v    named capture as CSV\n\
+ %s          separator (: by default)    %[name]x    named capture as XML\n\
+ %S %[...]S  ... + separator, if %m > 1  %[name]y    named capture as hex\n\
  %t          tab                         %[n|...]#   capture n,... that matched\n\
  %T %[...]T  ... + tab, if -T            %[n|...]b   capture n,... byte offset\n\
  %u          unique lines, unless -u     %[n|...]d   capture n,... byte size\n\
  %[hhhh]U    U+hhhh Unicode code point   %[n|...]e   capture n,... end offset\n\
  %v          matching pattern as CSV     %[n|...]j   capture n,... as JSON\n\
  %V          matching line as CSV        %[n|...]q   capture n,... quoted\n\
- %w          match width in wide chars   %[n|...]x   capture n,... as XML\n\
- %x          matching pattern as XML     %[n|...]y   capture n,... as hex\n\
- %X          matching line as XML        %[n|...]v   capture n,... as CSV\n\
+ %w          match width in wide chars   %[n|...]v   capture n,... as CSV\n\
+ %x          matching pattern as XML     %[n|...]x   capture n,... as XML\n\
+ %X          matching line as XML        %[n|...]y   capture n,... as hex\n\
  %y          matching pattern as hex     %g          capture number or name\n\
  %Y          matching line as hex        %G          all capture numbers/names\n\
  %z          path in archive             %[t|...]g   text t indexed by capture\n\
  %Z          edit distance cost, if -Z   %[t|...]G   all t indexed by captures\n\
  --------------------------------------  --------------------------------------\n\
 \n\
-Option -o changes the output of the %O and %Q fields to output the match only.\n\
+Options -X and -W change the %o and %O fields to output hex and hex/text.\n\
 \n\
-Options -c, -l and -o change the output of %C, %J, %X and %Y accordingly.\n\
+Option -o changes the %O and %Q fields to output the match only.\n\
+\n\
+Options -c, -l and -o change the output of %C, %J, %V, %X and %Y accordingly.\n\
 \n\
 Numeric fields such as %n are padded with spaces when %{width}n is specified.\n\
 \n\

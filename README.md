@@ -454,9 +454,8 @@ You can build static executables by specifying:
 
     $ ./build.sh --enable-static
 
->[!TIP]
->This may fail if libraries don't link statically, such as brotli.  In that
->case try `./build.sh --enable-static --without-brotli`.
+This may fail if libraries don't link statically, such as brotli.  In that case
+try `./build.sh --enable-static --without-brotli`.
 
 You can build `ugrep` with customized defaults enabled, such as a pager:
 

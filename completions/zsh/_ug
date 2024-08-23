@@ -99,7 +99,7 @@ $matchers{-P,--perl-regexp}'[Interpret PATTERN as a Perl regular expression usin
 {-S,--dereference-files}'[When -r is specified, follow symbolic links to files, but not to directories]'
 {-s,--no-messages}'[Silent mode: nonexistent and unreadable files are ignored and their error messages and warnings are suppressed]'
 --save-config'[Save configuration FILE to include OPTIONS]'
---separator'[Use SEP as field separator between file name, line number, column number, byte offset and the matched line]'
+{--separator,--context-separator=-}'[Use SEP as field separator between file name, line number, column number, byte offset and the matched line]'
 --split'[Split the -Q query TUI screen on startup]'
 --sort=-'[Displays matching files in the order specified by KEY in recursive searches]:KEY:(name best size changed created used rname rbest rsize rchanged rcreated rused)'
 --stats'[Output statistics on the number of files and directories searched and the inclusion and exclusion constraints applied]'

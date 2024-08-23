@@ -1,4 +1,4 @@
-.TH UGREP-INDEXER "1" "August 08, 2024" "ugrep-indexer 6.4.1" "User Commands"
+.TH UGREP-INDEXER "1" "August 23, 2024" "ugrep-indexer 6.5.0" "User Commands"
 .SH NAME
 \fBugrep-indexer\fR -- file indexer to accelerate recursive searching
 .SH SYNOPSIS
@@ -137,9 +137,11 @@ encountered during indexing.  The default FILE is `.gitignore'.
 This option may be repeated to specify additional files.
 .TP
 \fB\-z\fR, \fB\-\-decompress\fR
-Index the contents of compressed files and archives.  When used
-with option \fB\-\-zmax\fR=\fINUM\fR, indexes the contents of compressed files
-and archives stored within archives up to NUM levels deep.
+Index the contents of compressed files and archives.  Hidden files
+in archives are ignored unless option \fB\-.\fR or \fB\-\-hidden\fR is specified.
+Option \fB\-I\fR or \fB\-\-ignore\-binary\fR ignores compressed binary files.  When
+used with option \fB\-\-zmax\fR=\fINUM\fR, indexes the contents of compressed
+files and archives stored within archives up to NUM levels deep.
 Supported compression formats: gzip (.gz), compress (.Z), zip, 7z,
 bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),

@@ -92,7 +92,7 @@ complete -c ugrep+ -l replace -d 'Replace matching patterns in the output by FOR
 complete -c ugrep+ -s S -l dereference-files -d 'When -r is specified, follow symbolic links to files, but not to directories'
 complete -c ugrep+ -s s -l no-messages -d 'Silent mode: nonexistent and unreadable files are ignored and their error messages and warnings are suppressed'
 complete -c ugrep+ -l save-config -d 'Save configuration FILE to include OPTIONS'
-complete -c ugrep+ -l separator -d 'Use SEP as field separator between file name, line number, column number, byte offset and the matched line'
+complete -c ugrep+ -l separator -l context-separator -d 'Use SEP as field separator between file name, line number, column number, byte offset and the matched line'
 complete -c ugrep+ -l split -d 'Split the -Q query TUI screen on startup'
 complete -c ugrep+ -l sort -xa 'name best size changed created used rname rbest rsize rchanged rcreated rused' -d 'Displays matching files in the order specified by KEY in recursive searches'
 complete -c ugrep+ -l stats -d 'Output statistics on the number of files and directories searched and the inclusion and exclusion constraints applied'

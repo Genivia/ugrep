@@ -20,7 +20,7 @@
 # sed -i .bak 's/lib_LIBRARIES/noinst_LIBRARIES/' lib/Makefile.am
 # rm -f lib/Makefile.am.bak
 
-if fgrep -r FIXME include lib src
+if fgrep -r -I FIXME include lib src
 then
   echo "FIXME in code base"
   exit 1

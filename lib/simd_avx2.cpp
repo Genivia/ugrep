@@ -78,4 +78,74 @@ size_t simd_nlcount_avx2(const char *& b, const char *e)
 #endif
 }
 
+// Partially check if valid UTF-8 encoding
+bool simd_isutf8_avx2(const char *& b, const char *e)
+{
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512BW)
+  const char *s = b;
+  // prep step: scan ASCII w/o NUL first for speed, then check remaining UTF-8
+  const __m256i v00 = _mm256_setzero_si256();
+  while (s <= e - 32)
+  {
+    __m256i vc = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
+    __m256i vm = _mm256_cmpgt_epi8(vc, v00);
+    if (_mm256_movemask_epi8(vm) != 0xffffffff)
+    {
+      vm = _mm256_cmpeq_epi8(vc, v00);
+      if (_mm256_movemask_epi8(vm) != 0x00000000)
+        return false;
+      break;
+    }
+    s += 32;
+  }
+  // my UTF-8 validation method
+  // 117ms to check 1,000,000,000 bytes on a Intel quad core i7 2.9 GHz 16GB 2133 MHz LPDDR3
+  const __m256i vxc0 = _mm256_set1_epi8(0xc0);
+  const __m256i vxc1 = _mm256_set1_epi8(0xc1);
+  const __m256i vxf5 = _mm256_set1_epi8(0xf5);
+  const __m256i v0 = _mm256_setzero_si256();
+  __m256i vp = v0;
+  __m256i vq = v0;
+  __m256i vr = v0;
+  while (s <= e - 32)
+  {
+    __m256i vc = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
+    __m256i vt = _mm256_and_si256(_mm256_cmpgt_epi8(vc, vxc1), _mm256_cmpgt_epi8(vxf5, vc));
+    vt = _mm256_or_si256(vt, _mm256_cmpgt_epi8(vxc0, vc));
+    vt = _mm256_or_si256(vt, _mm256_cmpgt_epi8(vc, v0));
+    if (_mm256_movemask_epi8(vt) != 0xffffffff)
+      return false;
+    __m256i vo = vp;
+    vp = _mm256_and_si256(vc, _mm256_add_epi8(vc, vc));
+    // vt = [vp,vo] >> 15*8 split in 128 bit lanes:
+    // vthi = [vphi,vplo] >> 15*8
+    // vtlo = [vplo,vohi] >> 15*8
+    vt = _mm256_alignr_epi8(vp, _mm256_permute2x128_si256(vp, vo, 0x03), 15);
+    vo = vq;
+    vq = _mm256_and_si256(vp, _mm256_add_epi8(vp, vp));
+    // vt = [vq,vo] >> 14*8 split in 128 bit lanes:
+    // vthi |= [vqhi,vqlo] >> 14*8
+    // vtlo |= [vqlo,vohi] >> 14*8
+    vt = _mm256_or_si256(vt, _mm256_alignr_epi8(vq, _mm256_permute2x128_si256(vq, vo, 0x03), 14));
+    vo = vr;
+    vr = _mm256_and_si256(vq, _mm256_add_epi8(vq, vq));
+    // vt = [vr,vo] >> 13*8 split in 128 bit lanes:
+    // vthi |= [vrhi,vrlo] >> 13*8
+    // vtlo |= [vrlo,vohi] >> 13*8
+    vt = _mm256_or_si256(vt, _mm256_alignr_epi8(vr, _mm256_permute2x128_si256(vr, vo, 0x03), 13));
+    vt = _mm256_xor_si256(vt, _mm256_cmpgt_epi8(vxc0, vc));
+    if (_mm256_movemask_epi8(vt) != 0x00000000)
+      return false;
+    s += 32;
+  }
+  while ((*--s & 0xc0) == 0x80)
+    continue;
+  b = s;
+#else
+  (void)b;
+  (void)e;
+#endif
+  return true;
+}
+
 } // namespace reflex

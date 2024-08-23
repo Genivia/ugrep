@@ -314,7 +314,7 @@ cat <<'END'
 -S, --dereference-files When -r is specified, follow symbolic links to files, but not to directories.
 -s, --no-messages Silent mode: nonexistent and unreadable files are ignored and their error messages and warnings are suppressed.
 --save-config[=FILE] [OPTIONS] Save configuration FILE to include OPTIONS.
---separator[=SEP] Use SEP as field separator between file name, line number, column number, byte offset and the matched line.
+--separator[=SEP], --context-separator=SEP Use SEP as field separator between file name, line number, column number, byte offset and the matched line.
 --split Split the -Q query TUI screen on startup.
 --sort[=KEY] Displays matching files in the order specified by KEY in recursive searches.
 --stats Output statistics on the number of files and directories searched and the inclusion and exclusion constraints applied.

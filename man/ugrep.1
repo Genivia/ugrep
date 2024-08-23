@@ -1,4 +1,4 @@
-.TH UGREP "1" "August 08, 2024" "ugrep 6.4.1" "User Commands"
+.TH UGREP "1" "August 23, 2024" "ugrep 6.5.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -757,10 +757,11 @@ the saved configuration file.  A configuration file may be modified
 manually to specify one or more config[=\fIFILE\fR] to indirectly load
 the specified FILE, but recursive config loading is not allowed.
 .TP
-\fB\-\-separator\fR[=\fISEP\fR]
+\fB\-\-separator\fR[=\fISEP\fR], \fB\-\-context\-separator\fR=\fISEP\fR
 Use SEP as field separator between file name, line number, column
-number, byte offset and the matched line.  The default is a colon
-(`:') and a bar (`|') for multi\-line pattern matches.
+number, byte offset and the matched line.  The default separator is
+a colon (`:') and a bar (`|') for multi\-line pattern matches, and a
+dash (`\-') for context lines.  See also \fB\-\-group\-separator\fR.
 .TP
 \fB\-\-split\fR
 Split the \fB\-Q\fR query TUI screen on startup.
