@@ -678,7 +678,8 @@ void Output::format(const char *format, size_t matches)
 
       case '$':
         sep = arg;
-        len = s - arg - 1;
+        if (arg != NULL)
+          len = s - arg - 1;
         break;
 
       case 't':
@@ -907,6 +908,47 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         else
         {
           quote(pathname, strlen(pathname));
+        }
+        break;
+
+      case 'I':
+        if (flag_with_filename && (heading || !partname.empty()))
+        {
+          if (arg != NULL)
+            str(arg, s - arg - 1);
+          if (!partname.empty())
+          {
+            std::string name;
+            if (heading)
+              name = pathname;
+            name.push_back('{');
+            name.append(partname);
+            name.push_back('}');
+            xml(name.c_str(), name.size());
+          }
+          else
+          {
+            xml(pathname, strlen(pathname));
+          }
+          if (sep != NULL)
+            str(sep, len);
+          else
+            str(flag_separator);
+        }
+        break;
+
+      case 'i':
+        if (!partname.empty())
+        {
+          std::string name(pathname);
+          name.push_back('{');
+          name.append(partname);
+          name.push_back('}');
+          xml(name.c_str(), name.size());
+        }
+        else
+        {
+          xml(pathname, strlen(pathname));
         }
         break;
 
@@ -1413,7 +1455,8 @@ bool Output::format(const char *format, const char *pathname, const std::string&
 
       case '$':
         sep = arg;
-        len = s - arg - 1;
+        if (arg != NULL)
+          len = s - arg - 1;
         break;
 
       case 'R':
@@ -1637,6 +1680,47 @@ void Output::format_invert(const char *format, const char *pathname, const std::
         }
         break;
 
+      case 'I':
+        if (flag_with_filename && (heading || !partname.empty()))
+        {
+          if (arg != NULL)
+            str(arg, s - arg - 1);
+          if (!partname.empty())
+          {
+            std::string name;
+            if (heading)
+              name = pathname;
+            name.push_back('{');
+            name.append(partname);
+            name.push_back('}');
+            xml(name.c_str(), name.size());
+          }
+          else
+          {
+            xml(pathname, strlen(pathname));
+          }
+          if (sep != NULL)
+            str(sep, len);
+          else
+            str(flag_separator);
+        }
+        break;
+
+      case 'i':
+        if (!partname.empty())
+        {
+          std::string name(pathname);
+          name.push_back('{');
+          name.append(partname);
+          name.push_back('}');
+          xml(name.c_str(), name.size());
+        }
+        else
+        {
+          xml(pathname, strlen(pathname));
+        }
+        break;
+
       case 'N':
         if (flag_line_number)
         {
@@ -1819,7 +1903,8 @@ void Output::format_invert(const char *format, const char *pathname, const std::
 
       case '$':
         sep = arg;
-        len = s - arg - 1;
+        if (arg != NULL)
+          len = s - arg - 1;
         break;
 
       case 'R':

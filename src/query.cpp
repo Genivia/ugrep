@@ -810,10 +810,13 @@ void Query::query()
 
   get_flags();
 
-  // if --view is empty (default), then try the PAGER or EDITOR environment variable as viewer or use the default viewer
+  // if --view is empty (default), then try the PAGER, VISUAL or EDITOR environment variable as viewer or use the default viewer
   if (flag_view != NULL && *flag_view == '\0')
   {
     flag_view = getenv("PAGER");
+
+    if (flag_view == NULL)
+      flag_view = getenv("VISUAL");
 
     if (flag_view == NULL)
       flag_view = getenv("EDITOR");

@@ -109,7 +109,7 @@ complete -c ug+ -l view -d 'Use COMMAND to view/edit a file in -Q query TUI by p
 complete -c ug+ -s W -l with-hex -d 'Output binary matches in hexadecimal, leaving text matches alone'
 complete -c ug+ -s w -l word-regexp -d 'The PATTERN is searched for as a word, such that the matching text is preceded by a non-word character and is followed by a non-word character'
 complete -c ug+ -l width -d 'Truncate the output to NUM visible characters per line'
-complete -c ug+ -s X -l hex -d 'Output matches in hexadecimal'
+complete -c ug+ -s X -l hex -d 'Output matches and matching lines in hexadecimal'
 complete -c ug+ -s x -l line-regexp -d 'Select only those matches that exactly match the whole line, as if the patterns are surrounded by ^ and $'
 complete -c ug+ -l xml -d 'Output file matches in XML'
 complete -c ug+ -s Y -l empty -d 'Permits empty matches'

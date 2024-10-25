@@ -331,7 +331,7 @@ cat <<'END'
 -W, --with-hex Output binary matches in hexadecimal, leaving text matches alone.
 -w, --word-regexp The PATTERN is searched for as a word, such that the matching text is preceded by a non-word character and is followed by a non-word character.
 --width[=NUM] Truncate the output to NUM visible characters per line.
--X, --hex Output matches in hexadecimal.
+-X, --hex Output matches and matching lines in hexadecimal.
 -x, --line-regexp Select only those matches that exactly match the whole line, as if the patterns are surrounded by ^ and $.
 --xml Output file matches in XML.
 -Y, --empty Permits empty matches.

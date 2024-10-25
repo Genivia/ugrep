@@ -34,7 +34,7 @@ Development roadmap
 
 - #1 priority is quality assurance to continue to make sure ugrep has no bugs and is reliable
 
-- make ugrep run even faster, see [#421](https://github.com/Genivia/ugrep/issues/421)
+- make ugrep run even faster, see for example [#432](https://github.com/Genivia/ugrep/issues/432), [#421](https://github.com/Genivia/ugrep/issues/421)
 
 - share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks)
 
@@ -2596,6 +2596,16 @@ meaning; any name or string that does not contain a `:` or `,` may be used.
 
 ### Searching and displaying binary files with -U, -W, and -X
 
+    --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]
+            Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
+            default is 2 columns or 16 octets per line.  Argument `a' outputs a
+            `*' for all hex lines that are identical to the previous hex line,
+            `b' removes all space breaks, `c' removes the character column, `h'
+            removes hex spacing, `A' includes up to NUM hex lines after a
+            match, `B' includes up to NUM hex lines before a match and `C'
+            includes up to NUM hex lines before and after a match.  Arguments
+            `A', `B' and `C' are the same as options -A, -B and -C when used
+            with --hexdump.  See also options -U, -W and -X.
     -U, --ascii, --binary
             Disables Unicode matching for binary file matching, forcing PATTERN
             to match bytes, not Unicode characters.  For example, -U '\xa3'
@@ -2603,30 +2613,21 @@ meaning; any name or string that does not contain a `:` or `,` may be used.
             represented by the UTF-8 sequence C2 A3.  See also --dotall.
     -W, --with-hex
             Output binary matches in hexadecimal, leaving text matches alone.
-            This option is equivalent to the --binary-files=with-hex option
-            with --hexdump=2C.  To omit the matching line from the hex output,
-            combine option --hexdump with option -W.  See also option -U.
+            This option is equivalent to the --binary-files=with-hex option.
+            To omit the matching line from the hex output, use both options -W
+            and --hexdump.  See also options -U.
     -X, --hex
-            Output matches in hexadecimal.  This option is equivalent to the
-            --binary-files=hex option with --hexdump=2C.  To omit the matching
+            Output matches and matching lines in hexadecimal.  This option is
+            equivalent to the --binary-files=hex option.  To omit the matching
             line from the hex output use option --hexdump.  See also option -U.
-    --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]
-            Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
-            default is 2 columns or 16 octets per line.  Option `a' outputs a
-            `*' for all hex lines that are identical to the previous hex line,
-            `b' removes all space breaks, `c' removes the character column, `h'
-            removes hex spacing, `A' includes up to NUM hex lines after the
-            match, `B' includes up to NUM hex lines before the match and `C'
-            includes up to NUM hex lines.  When NUM is omitted, the matching
-            line is included in the output.  See also options -U, -W and -X.
     --dotall
             Dot `.' in regular expressions matches anything, including newline.
             Note that `.*' matches all input and should not be used.
 
 Note that `--hexdump` differs from `-X` by omitting the matching line from the
 hex output, showing only the matching pattern using a minimal number of hex
-lines.  Option `-X` is the same as `--hexdump=2C` to display the matching line
-as hex `C` context.
+lines.  Additional match context hex lines are output with the `-ABC` context
+options or with `--hexdump=C3` to output 3 hex lines as context, for example.
 
 To search a file for ASCII words, displaying text lines as usual while binary
 content is shown in hex with `-U` and `-W`:
@@ -3384,8 +3385,8 @@ option           | format string (within quotes)
 option           | format string (within quotes)
 ---------------- | -----------------------------
 `--format-begin` | `'<grep>%~'`
-`--format-open`  | `'  <file%[]$%[ name=]H>%~'`
-`--format`       | `'    <match%[\"]$%[ line=\"]N%[ column=\"]K%[ offset=\"]B>%X</match>%~%u'`
+`--format-open`  | `'  <file%["]$%[ name="]I>%~'`
+`--format`       | `'    <match%["]$%[ line="]N%[ column="]K%[ offset="]B>%X</match>%~%u'`
 `--format-close` | `'  </file>%~'`
 `--format-end`   | `'</grep>%~'`
 
@@ -3412,6 +3413,9 @@ field                   | output
 `%+`                    | if option `-+` or `--heading` is used: `%F` and a newline character, suppress all `%F` and `%H` afterward
 `%[TEXT]H`              | if option `-H` is used: `TEXT`, the quoted pathname and separator, `\"` and `\\` replace `"` and `\`
 `%h`                    | the quoted file pathname, `\"` and `\\` replace `"` and `\`
+`%I`                    | if option `-H` is used: the pathname in XML and separator
+`%[TEXT]I`              | if option `-H` is used: `TEXT`, the pathname as XML and separator
+`%i`                    | the file pathnames as XML
 `%N`                    | if option `-n` is used: the line number and separator
 `%[TEXT]N`              | if option `-n` is used: `TEXT`, the line number and separator
 `%n`                    | the line number of the match
@@ -4409,14 +4413,14 @@ in markdown:
 
            --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]
                   Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
-                  default is 2 columns or 16 octets per line.  Option `a' outputs a
-                  `*' for all hex lines that are identical to the previous hex line,
-                  `b' removes all space breaks, `c' removes the character column,
-                  `h' removes hex spacing, `A' includes up to NUM hex lines after
-                  the match, `B' includes up to NUM hex lines before the match and
-                  `C' includes up to NUM hex lines.  When NUM is omitted, the
-                  matching line is included in the output.  See also options -U, -W
-                  and -X.
+                  default is 2 columns or 16 octets per line.  Argument `a' outputs
+                  a `*' for all hex lines that are identical to the previous hex
+                  line, `b' removes all space breaks, `c' removes the character
+                  column, `h' removes hex spacing, `A' includes up to NUM hex lines
+                  after a match, `B' includes up to NUM hex lines before a match and
+                  `C' includes up to NUM hex lines before and after a match.
+                  Arguments `A', `B' and `C' are the same as options -A, -B and -C
+                  when used with --hexdump.  See also options -U, -W and -X.
 
            --hidden, -.
                   Search hidden files and directories.
@@ -4654,13 +4658,13 @@ in markdown:
                   -e.  Press F1 or CTRL-Z to view the help screen.  Press F2 or
                   CTRL-Y to invoke a command to view or edit the file shown at the
                   top of the screen.  The command can be specified with option
-                  --view, or defaults to environment variable PAGER when defined, or
-                  EDITOR.  Press Tab and Shift-Tab to navigate directories and to
-                  select a file to search.  Press Enter to select lines to output.
-                  Press ALT-l for option -l to list files, ALT-n for -n, etc.
-                  Non-option commands include ALT-] to increase context and ALT-} to
-                  increase fuzzyness.  See also options --no-confirm, --delay,
-                  --split and --view.
+                  --view and defaults to environment variable PAGER when defined, or
+                  VISUAL or EDITOR.  Press Tab or Shift-Tab to navigate directories
+                  and to select a file to search.  Press Enter to select lines to
+                  output.  Press ALT-l for option -l to list files, ALT-n for -n,
+                  etc.  Non-option commands include ALT-] to increase context and
+                  ALT-} to increase fuzzyness.  See also options --no-confirm,
+                  --delay, --split and --view.
 
            -q, --quiet, --silent
                   Quiet mode: suppress all output.  Only search a file until a match
@@ -4703,11 +4707,12 @@ in markdown:
                   indirectly load the specified FILE, but recursive config loading
                   is not allowed.
 
-           --separator[=SEP], --separator-context=SEP
+           --separator[=SEP], --context-separator=SEP
                   Use SEP as field separator between file name, line number, column
-                  number, byte offset and the matched line.  The default is a colon
-                  (`:') or a bar (`|') for multi-line pattern matches, and a dash
-                  (`-') for ontext lines.
+                  number, byte offset and the matched line.  The default separator
+                  is a colon (`:') and a bar (`|') for multi-line pattern matches,
+                  and a dash (`-') for context lines.  See also option
+                  --group-separator.
 
            --split
                   Split the -Q query TUI screen on startup.
@@ -4798,9 +4803,9 @@ in markdown:
 
            -W, --with-hex
                   Output binary matches in hexadecimal, leaving text matches alone.
-                  This option is equivalent to the --binary-files=with-hex option
-                  with --hexdump=2C.  To omit the matching line from the hex output,
-                  combine option --hexdump with option -W.  See also option -U.
+                  This option is equivalent to the --binary-files=with-hex option.
+                  To omit the matching line from the hex output, use both options -W
+                  and --hexdump.  See also options -U.
 
            -w, --word-regexp
                   The PATTERN is searched for as a word, such that the matching text
@@ -4814,8 +4819,8 @@ in markdown:
                   double wide characters in the output may result in wider lines.
 
            -X, --hex
-                  Output matches in hexadecimal.  This option is equivalent to the
-                  --binary-files=hex option with --hexdump=2C.  To omit the matching
+                  Output matches and matching lines in hexadecimal.  This option is
+                  equivalent to the --binary-files=hex option.  To omit the matching
                   line from the hex output use option --hexdump.  See also option
                   -U.
 
@@ -5106,6 +5111,12 @@ in markdown:
 
            %h     the quoted file pathname, \" and \\ replace " and \.
 
+           %[TEXT]I
+                  if option -H is used: TEXT, the pathname as XML character data and
+                  separator.
+
+           %i     the file pathname as XML character data.
+
            %[TEXT]N
                   if option -n is used: TEXT, the line number and separator.
 
@@ -5248,7 +5259,7 @@ in markdown:
 
            %[SEP]$ and %u are switches and do not send anything to the output.
 
-           The separator used by the %F, %H, %N, %K, %B, %S and %G fields may be
+           The separator used by the %F, %H, %I, %N, %K, %B, %S and %G fields may be
            changed by preceding the field by %[SEP]$.  When [SEP] is not provided,
            this reverts the separator to the default separator or the separator
            specified with --separator.
@@ -5451,7 +5462,7 @@ in markdown:
 
 
 
-    ugrep 6.5.0                      August 23, 2024                        UGREP(1)
+    ugrep 7.0.0                     October 24, 2024                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

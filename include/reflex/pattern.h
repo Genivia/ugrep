@@ -43,6 +43,7 @@
 #include <reflex/input.h>
 #include <reflex/ranges.h>
 #include <reflex/setop.h>
+#include <cstdint>
 #include <cctype>
 #include <cstring>
 #include <iostream>
@@ -53,6 +54,10 @@
 #include <array>
 #include <bitset>
 #include <vector>
+#include <stack>
+
+// ugrep 7.0: use vectorized bitap (hashed) with AVX2, but it is not faster (in our extensive emperical testing)
+// #define WITH_BITAP_AVX2
 
 // ugrep 3.7.0a: use a map to construct fixed string pattern trees
 // #define WITH_TREE_MAP
@@ -70,21 +75,24 @@ class Pattern {
   friend class Matcher;      ///< permit access by the reflex::Matcher engine
   friend class FuzzyMatcher; ///< permit access by the reflex::FuzzyMatcher engine
  public:
+  typedef uint8_t  Bitap;  ///< bitap bitmask, may change in a future update
   typedef uint8_t  Pred;   ///< predict match bits
-  typedef uint32_t Hash;   ///< hash value type, max value is Const::HASH
+  typedef uint16_t Hash;   ///< hash value type, max value is Const::HASH
   typedef uint32_t Index;  ///< index into opcodes array Pattern::opc_ and subpattern indexing
   typedef uint32_t Accept; ///< group capture index
   typedef uint32_t Opcode; ///< 32 bit opcode word
   typedef void (*FSM)(class Matcher&); ///< function pointer to FSM code
   /// Common constants.
   struct Const {
-    static const Index  IMAX = 0xFFFFFFFF; ///< max index, also serves as a marker
-    static const Index  GMAX = 0xFEFFFF;   ///< max goto index
-    static const Accept AMAX = 0xFDFFFF;   ///< max accept
-    static const Index  LMAX = 0xFAFFFF;   ///< max lookahead index
-    static const Index  LONG = 0xFFFE;     ///< LONG marker for 64 bit opcodes, must be HALT-1
-    static const Index  HALT = 0xFFFF;     ///< HALT marker for GOTO opcodes, must be 16 bit max
+    static const Index  IMAX = 0xffffffff; ///< max index, also serves as a marker
+    static const Index  GMAX = 0xfeffff;   ///< max goto index
+    static const Accept AMAX = 0xfdffff;   ///< max accept
+    static const Index  LMAX = 0xfaffff;   ///< max lookahead index
+    static const Index  LONG = 0xfffe;     ///< LONG marker for 64 bit opcodes, must be HALT-1
+    static const Index  HALT = 0xffff;     ///< HALT marker for GOTO opcodes, must be 16 bit max
     static const Hash   HASH = 0x1000;     ///< size of the predict match array
+    static const Hash   BTAP = 0x0800;     ///< size of the bitap hashed character pairs array
+    static const Bitap  BITS = 8;          ///< number of bitap bits, may change in a future update
   };
   /// Construct an unset pattern.
   Pattern()
@@ -357,20 +365,22 @@ class Pattern {
   /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4).
   inline bool predict_match(const char *s, size_t n) const
   {
-    Hash h = static_cast<uint8_t>(*s);
-    Hash f = pmh_[h] & 1;
+    uint32_t h = static_cast<uint8_t>(*s);
+    uint32_t f = pmh_[h] & 1;
     h = hash(h, static_cast<uint8_t>(*++s));
     f |= pmh_[h] & 2;
     h = hash(h, static_cast<uint8_t>(*++s));
     f |= pmh_[h] & 4;
     h = hash(h, static_cast<uint8_t>(*++s));
     f |= pmh_[h] & 8;
+    if (f != 0)
+      return false;
     const char *e = s + n - 3;
-    Hash m = 16;
-    while (f == 0 && ++s < e)
+    uint32_t m = 16;
+    while (++s < e)
     {
       h = hash(h, static_cast<uint8_t>(*s));
-      f = pmh_[h] & m;
+      f |= pmh_[h] & m;
       m <<= 1;
     }
     return f == 0;
@@ -378,14 +388,14 @@ class Pattern {
   /// Returns true when match is predicted using my PM4 logic.
   inline bool predict_match(const char *s) const
   {
-    uint8_t b0 = s[0];
-    uint8_t b1 = s[1];
-    uint8_t b2 = s[2];
-    uint8_t b3 = s[3];
-    Hash h1 = hash(b0, b1);
-    Hash h2 = hash(h1, b2);
-    Hash h3 = hash(h2, b3);
-    Pred p = (pma_[b0] & 0xc0) | (pma_[h1] & 0x30) | (pma_[h2] & 0x0c) | (pma_[h3] & 0x03);
+    uint8_t c0 = static_cast<uint8_t>(s[0]);
+    uint8_t c1 = static_cast<uint8_t>(s[1]);
+    uint8_t c2 = static_cast<uint8_t>(s[2]);
+    uint8_t c3 = static_cast<uint8_t>(s[3]);
+    uint32_t h1 = hash(c0, c1);
+    uint32_t h2 = hash(h1, c2);
+    uint32_t h3 = hash(h2, c3);
+    Pred p = (pma_[c0] & 0xc0) | (pma_[h1] & 0x30) | (pma_[h2] & 0x0c) | (pma_[h3] & 0x03);
     Pred m = ((((((p >> 2) | p) >> 2) | p) >> 1) | p);
     return m != 0xff;
   }
@@ -456,8 +466,8 @@ class Pattern {
     bool   any()                      const { return b[0] | b[1] | b[2] | b[3] | b[4]; }
     bool   intersects(const Chars& c) const { return (b[0] & c.b[0]) | (b[1] & c.b[1]) | (b[2] & c.b[2]) | (b[3] & c.b[3]) | (b[4] & c.b[4]); }
     bool   contains(const Chars& c)   const { return !(c - *this).any(); }
-    bool   contains(Char c)           const { return b[c >> 6] & (1ULL << (c & 0x3F)); }
-    Chars& add(Char c)                      { b[c >> 6] |= 1ULL << (c & 0x3F); return *this; }
+    bool   contains(Char c)           const { return b[c >> 6] & (1ULL << (c & 0x3f)); }
+    Chars& add(Char c)                      { b[c >> 6] |= 1ULL << (c & 0x3f); return *this; }
     Chars& add(Char lo, Char hi)            { while (lo <= hi) add(lo++); return *this; }
     Chars& flip()                           { b[0] = ~b[0]; b[1] = ~b[1]; b[2] = ~b[2]; b[3] = ~b[3]; b[4] = ~b[4]; return *this; }
     Chars& flip256()                        { b[0] = ~b[0]; b[1] = ~b[1]; b[2] = ~b[2]; b[3] = ~b[3]; return *this; }
@@ -488,9 +498,9 @@ class Pattern {
   /// Finite state machine construction position information.
   struct Position {
     typedef uint64_t        value_type;
-    static const Iter       MAXITER = 0xFFFF;
-    static const Location   MAXLOC  = 0xFFFFFFFFUL;
-    static const value_type NPOS    = 0xFFFFFFFFFFFFFFFFULL;
+    static const Iter       MAXITER = 0xffff;
+    static const Location   MAXLOC  = 0xffffffffUL;
+    static const value_type NPOS    = 0xffffffffffffffffULL;
     static const value_type RES1    = 1ULL << 48; ///< reserved
     static const value_type RES2    = 1ULL << 49; ///< reserved
     static const value_type RES3    = 1ULL << 50; ///< reserved
@@ -509,11 +519,11 @@ class Pattern {
     Position ticked(bool b)          const { return b ? Position(k | TICKED) : Position(k & ~TICKED); }
     Position anchor(bool b)          const { return b ? Position(k | ANCHOR) : Position(k & ~ANCHOR); }
     Position accept(bool b)          const { return b ? Position(k | ACCEPT) : Position(k & ~ACCEPT); }
-    Position lazy(Lazy l)            const { return Position((k & 0x00FFFFFFFFFFFFFFULL) | static_cast<value_type>(l) << 56); }
-    Position pos()                   const { return Position(k & 0x0000FFFFFFFFFFFFULL); }
+    Position lazy(Lazy l)            const { return Position((k & 0x00ffffffffffffffULL) | static_cast<value_type>(l) << 56); }
+    Position pos()                   const { return Position(k & 0x0000ffffffffffffULL); }
     Location loc()                   const { return static_cast<Location>(k); }
     Accept   accepts()               const { return static_cast<Accept>(k); }
-    Iter     iter()                  const { return static_cast<Index>((k >> 32) & 0xFFFF); }
+    Iter     iter()                  const { return static_cast<Index>((k >> 32) & 0xffff); }
     bool     negate()                const { return (k & NEGATE) != 0; }
     bool     ticked()                const { return (k & TICKED) != 0; }
     bool     anchor()                const { return (k & ANCHOR) != 0; }
@@ -683,6 +693,112 @@ class Pattern {
       Accept      accept; ///< nonzero if final state, the index of an accepted/captured subpattern
       bool        redo;   ///< true if this is a final state of a negative pattern
     };
+    // transitive closure of DFA meta edges; no follow metas to accepting states and no follow cycles
+    struct MetaEdgesClosure {
+      MetaEdgesClosure(State& state)
+      {
+        edge = state.edges.begin();
+        end = state.edges.end();
+        accept = state.accept > 0 || state.edges.empty();
+        walk();
+      }
+      MetaEdgesClosure(State *state)
+      {
+        edge = state->edges.begin();
+        end = state->edges.end();
+        accept = state->accept > 0 || state->edges.empty();
+        walk();
+      }
+      ~MetaEdgesClosure()
+      {
+        // clean up markers
+        while (!done())
+          ++edge;
+      }
+      MetaEdgesClosure& operator++()
+      {
+        ++edge;
+        walk();
+        return *this;
+      }
+      Char lo() const
+      {
+        return edge->first;
+      }
+      Char hi() const
+      {
+        return edge->second.first;
+      }
+      State *state() const
+      {
+        return edge->second.second; // target state is non-NULL by walk()
+      }
+      bool accepting() const
+      {
+        return accept;
+      }
+      bool next_accepting() const
+      {
+        if (state() == NULL || state()->accept > 0 || state()->edges.empty())
+          return true;
+        return is_meta(state()->edges.rbegin()->first) && MetaEdgesClosure(state()).find_accepting();
+      }
+      bool find_accepting()
+      {
+        while (!done())
+          ++edge;
+        return accepting();
+      }
+      bool done()
+      {
+        while (edge == end)
+        {
+          if (stack.empty())
+            return true;
+          // restore previous iterators
+          edge = stack.top().first;
+          end = stack.top().second;
+          stack.pop();
+          // unmark state visited
+          state()->index = 0;
+          ++edge;
+        }
+        return false;
+      }
+      void walk()
+      {
+        if (done())
+          return;
+        // walk the DFA graph acyclicly until non-meta edge to a non-NULL state
+        while (is_meta(lo()) || state() == NULL)
+        {
+          // find non-empty non-visited non-accepting state on a meta edge
+          State *next_state;
+          do
+          {
+            next_state = state();
+            if (next_state == NULL || next_state->accept > 0 || next_state->edges.empty())
+              accept = true;
+            else if (next_state->index != 1)
+              break;
+            ++edge;
+            if (done())
+              return;
+          } while (is_meta(lo()) || next_state == NULL);
+          // save current iterators
+          stack.push(std::pair<State::Edges::const_iterator,State::Edges::const_iterator>(edge,end));
+          // mark state as visited
+          next_state->index = 1;
+          // new iterators
+          edge = next_state->edges.begin();
+          end = next_state->edges.end();
+        }
+      }
+      std::stack<std::pair<State::Edges::const_iterator,State::Edges::const_iterator> > stack;
+      State::Edges::const_iterator edge;
+      State::Edges::const_iterator end;
+      bool accept;
+    };
     typedef std::list<State*> List;
     static const uint16_t ALLOC = 1024;           ///< allocate 1024 DFA states at a time, to improve performance
     static const uint16_t MAX_DEPTH = 256;        ///< analyze DFA up to states this deep to improve predict match
@@ -824,13 +940,13 @@ class Pattern {
     META_EWE = 0x108, ///< end of word at end         `x\>`
     // line and buffer boundaries
     META_BOL = 0x109, ///< begin of line              `^`
-    META_EOL = 0x10A, ///< end of line                `$`
-    META_BOB = 0x10B, ///< begin of buffer            `\A`
-    META_EOB = 0x10C, ///< end of buffer              `\Z`
+    META_EOL = 0x10a, ///< end of line                `$`
+    META_BOB = 0x10b, ///< begin of buffer            `\A`
+    META_EOB = 0x10c, ///< end of buffer              `\Z`
     // indent boundaries
-    META_UND = 0x10D, ///< undent boundary            `\k`
-    META_IND = 0x10E, ///< indent boundary            `\i` (must be one but the largest META code)
-    META_DED = 0x10F, ///< dedent boundary            `\j` (must be the largest META code)
+    META_UND = 0x10d, ///< undent boundary            `\k`
+    META_IND = 0x10e, ///< indent boundary            `\i` (must be one but the largest META code)
+    META_DED = 0x10f, ///< dedent boundary            `\j` (must be the largest META code)
     // end of boundaries
     META_MAX          ///< max meta characters
   };
@@ -910,7 +1026,7 @@ class Pattern {
       const Positions& pos,
       Positions&       pos1) const;
   void greedy(Positions& pos) const;
-  void trim_anchors(Positions& follow, const Position p) const;
+  void trim_anchors(Positions& follow) const;
   void trim_lazy(Positions *pos, const Lazypos& lazypos) const;
   void compile_transition(
       DFA::State *state,
@@ -948,11 +1064,9 @@ class Pattern {
   void export_code() const;
   void analyze_dfa(DFA::State *start);
   void gen_min(std::set<DFA::State*>& states);
-  void gen_min_start(std::set<DFA::State*>& states, std::set<DFA::State*>& next);
-  void gen_min_transitions(size_t level, std::set<DFA::State*>& next);
   void gen_predict_match(std::set<DFA::State*>& states);
-  void gen_predict_match_start(std::set<DFA::State*>& states, std::map<DFA::State*,ORanges<Hash> >& hashes);
-  void gen_predict_match_transitions(size_t level, DFA::State *state, const ORanges<Hash>& labels, std::map<DFA::State*,ORanges<Hash> >& hashes);
+  void gen_predict_match_start(std::set<DFA::State*>& states, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& first_hashes);
+  void gen_predict_match_transitions(size_t level, DFA::State *state, const std::pair<ORanges<Hash>,ORanges<Char> >& previous, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& level_hashes);
   void gen_match_hfa(DFA::State *start);
   void gen_match_hfa_start(DFA::State *start, HFA::State& index, HFA::StateHashes& hashes);
   bool gen_match_hfa_transitions(size_t level, size_t& max_level, DFA::State *state, const HFA::HashRanges& previous, HFA::State& index, HFA::StateHashes& hashes);
@@ -1040,23 +1154,23 @@ class Pattern {
   }
   static inline Opcode opcode_long(Index index)
   {
-    return 0xFF000000 | (index & 0xFFFFFF); // index <= Const::GMAX (0xFEFFFF max)
+    return 0xff000000 | (index & 0xffffff); // index <= Const::GMAX (0xfeffff max)
   }
   static inline Opcode opcode_take(Index index)
   {
-    return 0xFE000000 | (index & 0xFFFFFF); // index <= Const::AMAX (0xFDFFFF max)
+    return 0xfe000000 | (index & 0xffffff); // index <= Const::AMAX (0xfdffff max)
   }
   static inline Opcode opcode_redo()
   {
-    return 0xFD000000;
+    return 0xfd000000;
   }
   static inline Opcode opcode_tail(Index index)
   {
-    return 0xFC000000 | (index & 0xFFFFFF); // index <= Const::LMAX (0xFAFFFF max)
+    return 0xfc000000 | (index & 0xffffff); // index <= Const::LMAX (0xfaffff max)
   }
   static inline Opcode opcode_head(Index index)
   {
-    return 0xFB000000 | (index & 0xFFFFFF); // index <= Const::LMAX (0xFAFFFF max)
+    return 0xfb000000 | (index & 0xffffff); // index <= Const::LMAX (0xfaffff max)
   }
   static inline Opcode opcode_goto(
       Char  lo,
@@ -1067,45 +1181,45 @@ class Pattern {
   }
   static inline Opcode opcode_halt()
   {
-    return 0x00FFFFFF;
+    return 0x00ffffff;
   }
   static inline bool is_opcode_long(Opcode opcode)
   {
-    return (opcode & 0xFF000000) == 0xFF000000;
+    return (opcode & 0xff000000) == 0xff000000;
   }
   static inline bool is_opcode_take(Opcode opcode)
   {
-    return (opcode & 0xFE000000) == 0xFE000000;
+    return (opcode & 0xfe000000) == 0xfe000000;
   }
   static inline bool is_opcode_redo(Opcode opcode)
   {
-    return opcode == 0xFD000000;
+    return opcode == 0xfd000000;
   }
   static inline bool is_opcode_tail(Opcode opcode)
   {
-    return (opcode & 0xFF000000) == 0xFC000000;
+    return (opcode & 0xff000000) == 0xfc000000;
   }
   static inline bool is_opcode_head(Opcode opcode)
   {
-    return (opcode & 0xFF000000) == 0xFB000000;
+    return (opcode & 0xff000000) == 0xfb000000;
   }
   static inline bool is_opcode_halt(Opcode opcode)
   {
-    return opcode == 0x00FFFFFF;
+    return opcode == 0x00ffffff;
   }
   static inline bool is_opcode_goto(Opcode opcode)
   {
-    return (opcode << 8) >= (opcode & 0xFF000000);
+    return (opcode << 8) >= (opcode & 0xff000000);
   }
   static inline bool is_opcode_meta(Opcode opcode)
   {
-    return (opcode & 0x00FF0000) == 0x00000000 && (opcode >> 24) > 0;
+    return (opcode & 0x00ff0000) == 0x00000000 && (opcode >> 24) > 0;
   }
   static inline bool is_opcode_goto(
       Opcode        opcode,
       unsigned char c)
   {
-    return c >= (opcode >> 24) && c <= ((opcode >> 16) & 0xFF);
+    return c >= (opcode >> 24) && c <= ((opcode >> 16) & 0xff);
   }
   static inline Char meta_of(Opcode opcode)
   {
@@ -1117,19 +1231,19 @@ class Pattern {
   }
   static inline Char hi_of(Opcode opcode)
   {
-    return is_opcode_meta(opcode) ? meta_of(opcode) : (opcode >> 16) & 0xFF;
+    return is_opcode_meta(opcode) ? meta_of(opcode) : (opcode >> 16) & 0xff;
   }
   static inline Index index_of(Opcode opcode)
   {
-    return opcode & 0xFFFF;
+    return opcode & 0xffff;
   }
   static inline Index long_index_of(Opcode opcode)
   {
-    return opcode & 0xFFFFFF;
+    return opcode & 0xffffff;
   }
   static inline Lookahead lookahead_of(Opcode opcode)
   {
-    return opcode & 0xFFFF;
+    return opcode & 0xffff;
   }
   /// convert to lower case if c is a letter a-z, A-Z.
   static inline Char lowercase(Char c)
@@ -1142,12 +1256,17 @@ class Pattern {
     return static_cast<unsigned char>(c & ~0x20);
   }
   /// predict match hash 0 <= hash() < Const::HASH.
-  static inline Hash hash(Hash h, uint8_t b)
+  static inline uint32_t hash(uint32_t h, uint8_t b)
   {
     return ((h << 3) ^ b) & (Const::HASH - 1);
   }
+  /// bitap character pairs hash
+  static inline uint32_t bihash(uint8_t a, uint8_t b)
+  {
+    return (a ^ (b << 6)) & (Const::BTAP - 1);
+  }
   /// file indexing hash 0 <= indexhash() < 65536, must be additive: indexhash(x,b+1) = indexhash(x,b)+1 modulo 2^16.
-  static inline Hash indexhash(Hash h, uint8_t b)
+  static inline uint32_t indexhash(Hash h, uint8_t b)
   {
     return static_cast<uint16_t>((h << 6) - h - h - h + b);
   }
@@ -1168,16 +1287,22 @@ class Pattern {
   const Opcode         *opc_; ///< points to the table with compiled finite state machine opcodes
   FSM                   fsm_; ///< function pointer to FSM code
   Index                 nop_; ///< number of opcodes generated
-  Index                 cut_; ///< DFA s-t cut to improve predict match and HFA accuracy together with lbk_ and cbk_
+  Index                 cut_; ///< DFA s-t cut to improve predict match and HFA accuracy with lbk_ and cbk_
   size_t                len_; ///< length of chr_[], less or equal to 255
   size_t                min_; ///< patterns after the prefix are at least this long but no more than 8
   size_t                pin_; ///< number of needles, 0 to 16
   std::bitset<256>      cbk_; ///< characters to look back over when lbk_ > 0, never includes \n
   std::bitset<256>      fst_; ///< the beginning characters of the pattern
-  char                  chr_[256];         ///< pattern prefix string or character needles for needle-based search
-  Pred                  bit_[256];         ///< bitap array
-  Pred                  pmh_[Const::HASH]; ///< predict-match hash array
-  Pred                  pma_[Const::HASH]; ///< predict-match array
+  char                  chr_[256]; ///< pattern prefix string or character needles for needle-based search
+  Bitap                 bit_[256]; ///< bitsets of characters for the first positions (one position per bit)
+  Bitap                 tap_[Const::BTAP]; ///< bitap hashed character pairs array
+#ifdef WITH_BITAP_AVX2 // in case vectorized bitap (hashed) is faster than serial version (typically not!)
+#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
+  uint16_t              vtp_[Const::BTAP * 4]; ///< AVX2 vectorized bitap hashed character pairs array
+#endif
+#endif
+  Pred                  pmh_[Const::HASH]; ///< predict-match bloom filter hash up to first 8 positions
+  Pred                  pma_[Const::HASH]; ///< predict-match 4 (PM4) array
   uint16_t              lbk_; ///< lookback distance or 0xffff unlimited lookback or 0 for no lookback (empty cbk_)
   uint16_t              lbm_; ///< loopback minimum distance when lbk_ > 0
   uint16_t              lcp_; ///< primary least common character position in the pattern or 0xffff
@@ -1189,7 +1314,7 @@ class Pattern {
   float                 ems_; ///< ms elapsed time to compile DFA edges
   float                 wms_; ///< ms elapsed time to assemble code words
   float                 ams_; ///< ms elapsed time to analyze DFA for predict match and HFA
-  size_t                npy_; ///< entropy derived from the bitap array bit_[]
+  uint16_t              npy_; ///< entropy derived from the bitap array bit_[]
   bool                  one_; ///< true if matching one string stored in chr_[] without meta/anchors
   bool                  bol_; ///< true if matching all patterns at the begin of a line with anchor ^
 };

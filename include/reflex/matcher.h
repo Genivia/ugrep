@@ -37,11 +37,6 @@
 #ifndef REFLEX_MATCHER_H
 #define REFLEX_MATCHER_H
 
-#if !defined(HAVE_NEON)
-/// enable predict match patterns after strings longer than 4 chars (this is a bit slower on ARM NEON/AArch64)
-#define WITH_STRING_PM
-#endif
-
 #include <reflex/absmatcher.h>
 #include <reflex/pattern.h>
 #include <stack>
@@ -400,61 +395,51 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// FSM code META EOL.
   inline bool FSM_META_EOL(int c)
   {
-    anc_ = true;
     return c == EOF || c == '\n' || (c == '\r' && peek() == '\n');
   }
   /// FSM code META BOL.
   inline bool FSM_META_BOL()
   {
-    anc_ = true;
     return fsm_.bol;
   }
   /// FSM code META EWE.
   inline bool FSM_META_EWE(int c)
   {
-    anc_ = true;
     return at_ewe(c);
   }
   /// FSM code META BWE.
   inline bool FSM_META_BWE(int c)
   {
-    anc_ = true;
     return at_bwe(c);
   }
   /// FSM code META EWB.
   inline bool FSM_META_EWB()
   {
-    anc_ = true;
     return at_ewb();
   }
   /// FSM code META BWB.
   inline bool FSM_META_BWB()
   {
-    anc_ = true;
     return at_bwb();
   }
   /// FSM code META NWE.
   inline bool FSM_META_NWE(int c)
   {
-    anc_ = true;
     return at_nwe(c);
   }
   /// FSM code META NWB.
   inline bool FSM_META_NWB()
   {
-    anc_ = true;
     return at_nwb();
   }
   /// FSM code META WBE.
   inline bool FSM_META_WBE(int c)
   {
-    anc_ = true;
     return at_wbe(c);
   }
   /// FSM code META WBB.
   inline bool FSM_META_WBB()
   {
-    anc_ = true;
     return at_wbb();
   }
  protected:
@@ -1290,42 +1275,42 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     return isword(c);
 #endif
   }
-  /// Check end of word at match end boundary MATCH\>.
+  /// Check end of word at match end boundary MATCH\> at pos.
   inline bool at_ewe(int c) ///< character last read with get()
   {
     return at_we(c, pos_) && at_ew(c);
   }
-  /// Check begin of word at match end boundary MATCH\<.
+  /// Check begin of word at match end boundary MATCH\< at pos.
   inline bool at_bwe(int c) ///< character last read with get()
   {
     return !at_we(c, pos_) && !at_ew(c);
   }
-  /// Check end of word at match begin boundary \>MATCH (after split with len_ > 0 or len_ = 0 for find).
+  /// Check end of word at match begin boundary \>MATCH after matching (SPLIT len_ > 0 or len_ = 0 for FIND).
   inline bool at_ewb()
   {
     return !at_bw() && !at_wb();
   }
-  /// Check begin of word at match begin boundary \<MATCH (after split with len_ > 0 or len_ = 0 for find).
+  /// Check begin of word at match begin boundary \<MATCH after matching (SPLIT len_ > 0 or len_ = 0 for FIND).
   inline bool at_bwb()
   {
     return at_bw() && at_wb();
   }
-  /// Check not a word boundary at match end MATCH\B.
+  /// Check not a word boundary at match end MATCH\B at pos.
   inline bool at_nwe(int c) ///< character last read with get()
   {
     return at_we(c, pos_) != at_ew(c);
   }
-  /// Check not a word boundary at match begin \BMATCH (after split with len_ > 0 or len_ = 0 for find).
+  /// Check not a word boundary at match begin \BMATCH after matching (SPLIT len_ > 0 or len_ = 0 for FIND).
   inline bool at_nwb()
   {
     return at_bw() != at_wb();
   }
-  /// Check word boundary at match end MATCH\b.
+  /// Check word boundary at match end MATCH\b at pos.
   inline bool at_wbe(int c) ///< character last read with get()
   {
     return at_we(c, pos_) == at_ew(c);
   }
-  /// Check word boundary at match begin \bMATCH (after split with len_ > 0 or len_ = 0 for find).
+  /// Check word boundary at match begin \bMATCH after matching (SPLIT len_ > 0 or len_ = 0 for FIND).
   inline bool at_wbb()
   {
     return at_bw() == at_wb();
@@ -1346,66 +1331,71 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   void simd_init_advance_avx512bw();
   /// Default method is none (unset)
   bool advance_none(size_t loc);
-  // Single needle (SSE2/NEON) methods
+  // Single needle SSE2/NEON methods
+  bool advance_pattern_pin1_one(size_t loc);
   bool advance_pattern_pin1_pma(size_t loc);
-  bool advance_pattern_pin1_pmh(size_t loc);
-  // Generated multi-needle SSE2 or NEON methods
+  template <uint8_t MIN> bool advance_pattern_pin1_pmh(size_t loc);
+  // Generated multi-needle SSE2/NEON methods
   bool advance_pattern_pin2_one(size_t loc);
   bool advance_pattern_pin2_pma(size_t loc);
-  bool advance_pattern_pin2_pmh(size_t loc);
+  template <uint8_t MIN> bool advance_pattern_pin2_pmh(size_t loc);
   bool advance_pattern_pin3_one(size_t loc);
   bool advance_pattern_pin3_pma(size_t loc);
-  bool advance_pattern_pin3_pmh(size_t loc);
+  template <uint8_t MIN> bool advance_pattern_pin3_pmh(size_t loc);
   bool advance_pattern_pin4_one(size_t loc);
   bool advance_pattern_pin4_pma(size_t loc);
-  bool advance_pattern_pin4_pmh(size_t loc);
+  template <uint8_t MIN> bool advance_pattern_pin4_pmh(size_t loc);
   bool advance_pattern_pin5_one(size_t loc);
   bool advance_pattern_pin5_pma(size_t loc);
-  bool advance_pattern_pin5_pmh(size_t loc);
+  template <uint8_t MIN> bool advance_pattern_pin5_pmh(size_t loc);
   bool advance_pattern_pin6_one(size_t loc);
   bool advance_pattern_pin6_pma(size_t loc);
-  bool advance_pattern_pin6_pmh(size_t loc);
+  template <uint8_t MIN> bool advance_pattern_pin6_pmh(size_t loc);
   bool advance_pattern_pin7_one(size_t loc);
   bool advance_pattern_pin7_pma(size_t loc);
-  bool advance_pattern_pin7_pmh(size_t loc);
+  template <uint8_t MIN> bool advance_pattern_pin7_pmh(size_t loc);
   bool advance_pattern_pin8_one(size_t loc);
   bool advance_pattern_pin8_pma(size_t loc);
-  bool advance_pattern_pin8_pmh(size_t loc);
+  template <uint8_t MIN> bool advance_pattern_pin8_pmh(size_t loc);
   // Single needle AVX2 methods
   bool simd_advance_pattern_pin1_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin1_pmh_avx2(size_t loc);
+  template <uint8_t MIN> bool simd_advance_pattern_pin1_pmh_avx2(size_t loc);
   // Generated AVX2 multi-needle methods
   bool simd_advance_pattern_pin2_one_avx2(size_t loc);
   bool simd_advance_pattern_pin2_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin2_pmh_avx2(size_t loc);
+  template <uint8_t MIN> bool simd_advance_pattern_pin2_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin3_one_avx2(size_t loc);
   bool simd_advance_pattern_pin3_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin3_pmh_avx2(size_t loc);
+  template <uint8_t MIN> bool simd_advance_pattern_pin3_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin4_one_avx2(size_t loc);
   bool simd_advance_pattern_pin4_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin4_pmh_avx2(size_t loc);
+  template <uint8_t MIN> bool simd_advance_pattern_pin4_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin5_one_avx2(size_t loc);
   bool simd_advance_pattern_pin5_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin5_pmh_avx2(size_t loc);
+  template <uint8_t MIN> bool simd_advance_pattern_pin5_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin6_one_avx2(size_t loc);
   bool simd_advance_pattern_pin6_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin6_pmh_avx2(size_t loc);
+  template <uint8_t MIN> bool simd_advance_pattern_pin6_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin7_one_avx2(size_t loc);
   bool simd_advance_pattern_pin7_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin7_pmh_avx2(size_t loc);
+  template <uint8_t MIN> bool simd_advance_pattern_pin7_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin8_one_avx2(size_t loc);
   bool simd_advance_pattern_pin8_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin8_pmh_avx2(size_t loc);
+  template <uint8_t MIN> bool simd_advance_pattern_pin8_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin16_one_avx2(size_t loc);
   bool simd_advance_pattern_pin16_pma_avx2(size_t loc);
-  bool simd_advance_pattern_pin16_pmh_avx2(size_t loc);
-  // Minimal long patterns
+  template <uint8_t MIN> bool simd_advance_pattern_pin16_pmh_avx2(size_t loc);
+  // Minimal patterns
   bool advance_pattern_min1(size_t loc);
   bool advance_pattern_min2(size_t loc);
   bool advance_pattern_min3(size_t loc);
-  bool advance_pattern_min4(size_t loc);
-  // Minimal long patterns
-  bool advance_pattern(size_t loc);
+  template <uint8_t MIN> bool advance_pattern_min4(size_t loc);
+#ifdef WITH_BITAP_AVX2 // use in case vectorized bitap (hashed) is faster than serial version (typically not!!)
+  // Minimal 4 byte long patterns using bitap hashed pairs with AVX2
+  template <uint8_t MIN> bool simd_advance_pattern_min4_avx2(size_t loc);
+#endif
+  // Minimal patterns
+  bool advance_pattern_pma(size_t loc);
   // One char methods
   bool advance_char(size_t loc);
   bool advance_char_pma(size_t loc);
@@ -1424,34 +1414,24 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   template <uint8_t LEN> bool simd_advance_chars_pmh_avx512bw(size_t loc);
   // String methods
   bool advance_string(size_t loc);
-#if defined(WITH_STRING_PM)
   bool advance_string_pma(size_t loc);
   bool advance_string_pmh(size_t loc);
-#endif
   // String AVX2 metnods
   bool simd_advance_string_avx2(size_t loc);
-#if defined(WITH_STRING_PM)
   bool simd_advance_string_pma_avx2(size_t loc);
   bool simd_advance_string_pmh_avx2(size_t loc);
-#endif
   // String AVX512BW metnods
   bool simd_advance_string_avx512bw(size_t loc);
-#if defined(WITH_STRING_PM)
   bool simd_advance_string_pma_avx512bw(size_t loc);
   bool simd_advance_string_pmh_avx512bw(size_t loc);
-#endif
   // String NEON metnods
   bool simd_advance_string_neon(const char *&s, const char *e);
-#if defined(WITH_STRING_PM)
   bool simd_advance_string_pma_neon(const char *&s, const char *e);
   bool simd_advance_string_pmh_neon(const char *&s, const char *e);
-#endif
   // Fallback Boyer-Moore methods
   bool advance_string_bm(size_t loc);
-#if defined(WITH_STRING_PM)
   bool advance_string_bm_pma(size_t loc);
   bool advance_string_bm_pmh(size_t loc);
-#endif
 #if !defined(WITH_NO_INDENT)
   /// Update indentation column counter for indent() and dedent().
   inline void newline()
@@ -1491,7 +1471,6 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   FSM               fsm_; ///< local state for FSM code
   bool (Matcher::*  adv_)(size_t loc); ///< advance FIND function pointer
   bool              mrk_; ///< indent \i or dedent \j in pattern found: should check and update indent stops
-  bool              anc_; ///< match is anchored, advance slowly to retry when searching
 };
 
 } // namespace reflex

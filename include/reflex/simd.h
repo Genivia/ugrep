@@ -49,6 +49,9 @@
 # include <emmintrin.h>
 #elif defined(HAVE_NEON)
 # include <arm_neon.h>
+# if defined(__ARM_ACLE)
+#  include <arm_acle.h>
+# endif
 #endif
 
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
@@ -148,14 +151,28 @@ extern bool simd_isutf8_avx2(const char *& b, const char *e);
 
 } // namespace reflex
 
+#elif defined(HAVE_NEON)
+
+// If we have hardware clz (but it is rather slow)
+#if defined(__ARM_ACLE) && defined(__ARM_FEATURE_CLZ)
+inline uint32_t ctz(uint32_t x)
+{
+  return __clz(__rbit(x));
+}
+inline uint32_t ctzl(uint64_t x)
+{
+  return __clzl(__rbitl(x));
+}
+#endif
+
 #endif
 
 namespace reflex {
 
-// Count newlines in string s up to t
-extern size_t nlcount(const char *s, const char *t);
+/// Count newlines in string s up to position e in the string
+extern size_t nlcount(const char *s, const char *e);
 
-// Check if valid UTF-8 encoding and does not include a NUL, but accept surrogates and 3/4 byte overlongs
+/// Check if valid UTF-8 encoding and does not include a NUL, but accept surrogates and 3/4 byte overlongs
 extern bool isutf8(const char *s, const char *e);
 
 } // namespace reflex

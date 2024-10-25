@@ -2200,6 +2200,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         break;
       case '^':
         anc = true;
+        beg = false;
         break;
       case '$':
         if (beg && (flags & convert_flag::lex))

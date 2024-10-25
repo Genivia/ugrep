@@ -89,16 +89,16 @@ bool simd_isutf8_avx2(const char *& b, const char *e)
   {
     __m256i vc = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
     __m256i vm = _mm256_cmpgt_epi8(vc, v00);
-    if (_mm256_movemask_epi8(vm) != 0xffffffff)
+    if (_mm256_movemask_epi8(vm) != -1)
     {
       vm = _mm256_cmpeq_epi8(vc, v00);
-      if (_mm256_movemask_epi8(vm) != 0x00000000)
+      if (_mm256_movemask_epi8(vm) != 0)
         return false;
       break;
     }
     s += 32;
   }
-  // my UTF-8 validation method
+  // my UTF-8 check method
   // 117ms to check 1,000,000,000 bytes on a Intel quad core i7 2.9 GHz 16GB 2133 MHz LPDDR3
   const __m256i vxc0 = _mm256_set1_epi8(0xc0);
   const __m256i vxc1 = _mm256_set1_epi8(0xc1);
@@ -113,8 +113,7 @@ bool simd_isutf8_avx2(const char *& b, const char *e)
     __m256i vt = _mm256_and_si256(_mm256_cmpgt_epi8(vc, vxc1), _mm256_cmpgt_epi8(vxf5, vc));
     vt = _mm256_or_si256(vt, _mm256_cmpgt_epi8(vxc0, vc));
     vt = _mm256_or_si256(vt, _mm256_cmpgt_epi8(vc, v0));
-    if (_mm256_movemask_epi8(vt) != 0xffffffff)
-      return false;
+    __m256i vm = vt;
     __m256i vo = vp;
     vp = _mm256_and_si256(vc, _mm256_add_epi8(vc, vc));
     // vt = [vp,vo] >> 15*8 split in 128 bit lanes:
@@ -133,8 +132,9 @@ bool simd_isutf8_avx2(const char *& b, const char *e)
     // vthi |= [vrhi,vrlo] >> 13*8
     // vtlo |= [vrlo,vohi] >> 13*8
     vt = _mm256_or_si256(vt, _mm256_alignr_epi8(vr, _mm256_permute2x128_si256(vr, vo, 0x03), 13));
-    vt = _mm256_xor_si256(vt, _mm256_cmpgt_epi8(vxc0, vc));
-    if (_mm256_movemask_epi8(vt) != 0x00000000)
+    vt = _mm256_xor_si256(vt, _mm256_cmpgt_epi8(vc, vxc1));
+    vm = _mm256_and_si256(vm, vt);
+    if (_mm256_movemask_epi8(vm) != -1)
       return false;
     s += 32;
   }

@@ -56,6 +56,10 @@ namespace reflex {
 /**
 Dynamic bit vectors are stored in Bits objects, which can be manipulated
 with the usual bit-operations (`|` (bitor), `&` (bitand), `^` (bitxor)).
+Supports comparison relations on bit vectors, check if all bits set, check if
+any bits are set, flip bits, shift bits left or right, count bits, check if a
+bit vectors intersects another, check if a bit vector contains another.
+find_first bit, find_next bit.
 
 Example:
 

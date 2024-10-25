@@ -82,20 +82,31 @@ size_t nlcount(const char *s, const char *t)
       while ((reinterpret_cast<std::ptrdiff_t>(s) & 0x0f) != 0)
         n += (*s++ == '\n');
       __m128i vlcn = _mm_set1_epi8('\n');
+      __m128i v0 = _mm_setzero_si128();
       while (s <= e)
       {
         __m128i vlcm1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
         __m128i vlcm2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 16));
         __m128i vlcm3 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 32));
         __m128i vlcm4 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + 48));
-        __m128i vlceq1 = _mm_cmpeq_epi8(vlcm1, vlcn);
-        __m128i vlceq2 = _mm_cmpeq_epi8(vlcm2, vlcn);
-        __m128i vlceq3 = _mm_cmpeq_epi8(vlcm3, vlcn);
-        __m128i vlceq4 = _mm_cmpeq_epi8(vlcm4, vlcn);
-        n += popcount(_mm_movemask_epi8(vlceq1))
-          +  popcount(_mm_movemask_epi8(vlceq2))
-          +  popcount(_mm_movemask_epi8(vlceq3))
-          +  popcount(_mm_movemask_epi8(vlceq4));
+        // take absolute value of comparisons to get 0 or 1 per byte
+        __m128i vlceq1 = _mm_sub_epi8(v0, _mm_cmpeq_epi8(vlcm1, vlcn));
+        __m128i vlceq2 = _mm_sub_epi8(v0, _mm_cmpeq_epi8(vlcm2, vlcn));
+        __m128i vlceq3 = _mm_sub_epi8(v0, _mm_cmpeq_epi8(vlcm3, vlcn));
+        __m128i vlceq4 = _mm_sub_epi8(v0, _mm_cmpeq_epi8(vlcm4, vlcn));
+        // sum all up (we have a limited range 0..4 to sum to a total max 4x16=64 < 256)
+        // more than two times faster than four popcounts over four movemasks for SSE2 (not for AVX2)
+        __m128i vsum = _mm_add_epi8(_mm_add_epi8(vlceq1, vlceq2), _mm_add_epi8(vlceq3, vlceq4));
+        uint16_t sum =
+          _mm_extract_epi16(vsum, 0) +
+          _mm_extract_epi16(vsum, 1) +
+          _mm_extract_epi16(vsum, 2) +
+          _mm_extract_epi16(vsum, 3) +
+          _mm_extract_epi16(vsum, 4) +
+          _mm_extract_epi16(vsum, 5) +
+          _mm_extract_epi16(vsum, 6) +
+          _mm_extract_epi16(vsum, 7);
+        n += static_cast<uint8_t>(sum) + (sum >> 8);
         s += 64;
       }
     }
@@ -119,8 +130,8 @@ size_t nlcount(const char *s, const char *t)
 #if defined(__aarch64__)
       n += vaddvq_s8(vqabsq_s8(vreinterpretq_s8_u8(vaddq_u8(vleq0, vaddq_u8(vleq1, vaddq_u8(vleq2, vleq3))))));
 #else
-      // my horizontal sum method (we have a very limited range 0..4 to sum to a total max 4x16=64 < 256)
-      uint64x2_t vsum = vreinterpretq_u64_s8(vqabsq_s8(vreinterpretq_s8_u8(vaddq_u8(vleq0, vaddq_u8(vleq1, vaddq_u8(vleq2, vleq3))))));
+      // my horizontal sum method (we have a limited range 0..4 to sum to a total max 4x16=64 < 256)
+      uint64x2_t vsum = vreinterpretq_u64_s8(vqabsq_s8(vreinterpretq_s8_u8(vaddq_u8(vaddq_u8(vleq0, vleq1), vaddq_u8(vleq2, vleq3)))));
       uint64_t sum0 = vgetq_lane_u64(vsum, 0) + vgetq_lane_u64(vsum, 1);
       uint32_t sum1 = static_cast<uint32_t>(sum0) + (sum0 >> 32);
       uint16_t sum2 = static_cast<uint16_t>(sum1) + (sum1 >> 16);
@@ -186,17 +197,17 @@ bool isutf8(const char *s, const char *e)
         }
         s += 16;
       }
-      // my UTF-8 validation method
-      // 224ms to check 1,000,000,000 bytes on a Intel quad core i7 2.9 GHz 16GB 2133 MHz LPDDR3
+      // my UTF-8 check method
+      // 204ms to check 1,000,000,000 bytes on a Intel quad core i7 2.9 GHz 16GB 2133 MHz LPDDR3
       //
       // scalar code:
       //   int8_t p = 0, q = 0, r = 0;
       //   while (s < e)
       //   {
       //     int8_t c = static_cast<int8_t>(*s++);
-      //     if (!(c > 0 || (c > -63 && c < -11)))
+      //     if (!(c > 0 || c < -64 || (c > -63 && c < -11)))
       //       return false;
-      //     if ((-(c < -64) ^ (p | q | r)) & 0x80)
+      //     if (((-(c > -63) ^ (p | q | r)) & 0x80) != 0x80)
       //       return false;
       //     r = (q & (q << 1));
       //     q = (p & (p << 1));
@@ -212,20 +223,19 @@ bool isutf8(const char *s, const char *e)
       __m128i vr = v0;
       while (s <= e - 16)
       {
-        // step 1: check valid signed byte ranges
+        // step 1: check valid signed byte ranges, including continuation bytes 0x80 to 0xbf
         //   c = s[i]
-        //   if (!(c > 0 || (c > -63 && c < -11)))
+        //   if (!(c > 0 || c < -64 || (c > -63 && c < -11)))
         //     return false
         //
         __m128i vc = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
         __m128i vt = _mm_and_si128(_mm_cmpgt_epi8(vc, vxc1), _mm_cmplt_epi8(vc, vxf5));
         vt = _mm_or_si128(vt, _mm_cmplt_epi8(vc, vxc0));
         vt = _mm_or_si128(vt, _mm_cmpgt_epi8(vc, v0));
-        if (_mm_movemask_epi8(vt) != 0xffff)
-          return false;
+        __m128i vm = vt;
         //
         //   step 2: check UTF-8 multi-byte sequences of 2, 3 and 4 bytes long
-        //     if ((-(c < -64) ^ (p | q | r)) & 0x80)
+        //     if (((-(c > -63) ^ (p | q | r)) & 0x80) != 0x80)
         //       return false
         //     r = (q & (q << 1))
         //     q = (p & (p << 1))
@@ -255,7 +265,7 @@ bool isutf8(const char *s, const char *e)
         //
         //   SSE2 code to perform r = (q & (q << 1)); q = (p & (p << 1)); p = (c & (c << 1));
         //   shift parts of the old vp, vq, vr and new vp, vq, vr in vt using psrldq and por
-        //   then check if ((-(c < -64) ^ (p | q | r))) bit 7 is 0
+        //   then check if ((-(c > -63) ^ (p | q | r))) bit 7 is 1 in a combined test with step 1
         //
         vt = _mm_bsrli_si128(vp, 15);
         vp = _mm_and_si128(vc, _mm_add_epi8(vc, vc));
@@ -266,8 +276,9 @@ bool isutf8(const char *s, const char *e)
         vt = _mm_or_si128(vt, _mm_bslli_si128(vp, 1));
         vt = _mm_or_si128(vt, _mm_bslli_si128(vq, 2));
         vt = _mm_or_si128(vt, _mm_bslli_si128(vr, 3));
-        vt = _mm_xor_si128(vt, _mm_cmplt_epi8(vc, vxc0));
-        if (_mm_movemask_epi8(vt) != 0x0000)
+        vt = _mm_xor_si128(vt, _mm_cmpgt_epi8(vc, vxc1));
+        vm = _mm_and_si128(vm, vt);
+        if (_mm_movemask_epi8(vm) != 0xffff)
           return false;
         s += 16;
       }
@@ -297,17 +308,17 @@ bool isutf8(const char *s, const char *e)
       }
       s += 16;
     }
-    // my UTF-8 validation method
-    // 134ms to check 1,000,000,000 bytes on Apple M1 Pro (AArch64)
+    // my UTF-8 check method
+    // 116ms to check 1,000,000,000 bytes on Apple M1 Pro (AArch64)
     //
     // scalar code:
     //   int8_t p = 0, q = 0, r = 0;
     //   while (s < e)
     //   {
     //     int8_t c = static_cast<int8_t>(*s++);
-    //     if (!(c > 0 || (c > -63 && c < -11)))
+    //     if (!(c > 0 || c < -64 || (c > -63 && c < -11)))
     //       return false;
-    //     if ((-(c < -64) ^ (p | q | r)) & 0x80)
+    //     if (((-(c > -63) ^ (p | q | r)) & 0x80) != 0x80)
     //       return false;
     //     r = (q & (q << 1));
     //     q = (p & (p << 1));
@@ -323,9 +334,9 @@ bool isutf8(const char *s, const char *e)
     int8x16_t vr = v0;
     while (s <= e - 16)
     {
-      // step 1: check valid signed byte ranges
+      // step 1: check valid signed byte ranges, including continuation bytes 0x80 to 0xbf
       //   c = s[i]
-      //   if (!(c > 0 || (c > -63 && c < -11)))
+      //   if (!(c > 0 || c < -64 || (c > -63 && c < -11)))
       //     return false
       //
       int8x16_t vc = vld1q_s8(reinterpret_cast<const int8_t*>(s));
@@ -333,11 +344,9 @@ bool isutf8(const char *s, const char *e)
       vt = vorrq_s8(vt, vreinterpretq_s8_u8(vcltq_s8(vc, vxc0)));
       vt = vorrq_s8(vt, vreinterpretq_s8_u8(vcgtq_s8(vc, v0)));
       int64x2_t vm = vreinterpretq_s64_s8(vt);
-      if ((vgetq_lane_s64(vm, 0) & vgetq_lane_s64(vm, 1)) != -1LL)
-        return false;
       //
       //   step 2: check UTF-8 multi-byte sequences of 2, 3 and 4 bytes long
-      //     if ((-(c < -64) ^ (p | q | r)) & 0x80)
+      //     if (((-(c > -63) ^ (p | q | r)) & 0x80) != 0x80)
       //       return false
       //     r = (q & (q << 1))
       //     q = (p & (p << 1))
@@ -367,7 +376,7 @@ bool isutf8(const char *s, const char *e)
       //
       //   optimized code to perform r = (q & (q << 1)); q = (p & (p << 1)); p = (c & (c << 1));
       //   shift parts of the old vp, vq, vr and new vp, vq, vr in vt using EXT
-      //   then check if ((-(c < -64) ^ (p | q | r))) bit 7 is 0
+      //   then check if ((-(c > -63) ^ (p | q | r))) bit 7 is 1 in a combined test with step 1
       //
       int8x16_t vo = vp;
       vp = vandq_s8(vc, vshlq_n_s8(vc, 1));
@@ -378,9 +387,9 @@ bool isutf8(const char *s, const char *e)
       vo = vr;
       vr = vandq_s8(vq, vshlq_n_s8(vq, 1));
       vt = vorrq_s8(vt, vextq_s8(vo, vr, 13));
-      vt = veorq_s8(vt, vreinterpretq_s8_u8(vcltq_s8(vc, vxc0)));
-      vm = vreinterpretq_s64_s8(vt);
-      if (((vgetq_lane_s64(vm, 0) | vgetq_lane_s64(vm, 1)) & 0x8080808080808080LL) != 0)
+      vt = veorq_s8(vt, vreinterpretq_s8_u8(vcgtq_s8(vc, vxc1)));
+      vm = vandq_s64(vm, vreinterpretq_s64_s8(vt));
+      if (((vgetq_lane_s64(vm, 0) & vgetq_lane_s64(vm, 1)) & 0x8080808080808080LL) != 0x8080808080808080LL)
         return false;
       s += 16;
     }

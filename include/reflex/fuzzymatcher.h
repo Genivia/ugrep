@@ -316,7 +316,6 @@ class FuzzyMatcher : public Matcher {
     reset_text();
     SaveState sst(ded_);
     len_ = 0; // split text length starts with 0
-    anc_ = false; // no word boundary anchor found and applied
 scan:
     txt_ = buf_ + cur_;
 #if !defined(WITH_NO_INDENT)
@@ -414,6 +413,8 @@ redo:
               break;
             ch = get();
             DBGLOG("Get: ch = %d (0x%x)", ch, ch);
+            // count down to halt cycling on lone meta edges in repetitions, 5 should suffice
+            int metas = 5;
             // to jump to longest sequence of matching metas
             jump = Pattern::Const::IMAX;
             while (true)
@@ -492,8 +493,9 @@ redo:
 #endif
                     case Pattern::META_EOB - Pattern::META_MIN:
                       DBGLOG("EOB? %d", ch);
-                      if (jump == Pattern::Const::IMAX && ch == EOF)
+                      if (metas > 0 && jump == Pattern::Const::IMAX && ch == EOF)
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -502,8 +504,9 @@ redo:
                       continue;
                     case Pattern::META_BOB - Pattern::META_MIN:
                       DBGLOG("BOB? %d", at_bob());
-                      if (jump == Pattern::Const::IMAX && at_bob())
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_bob())
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -512,9 +515,10 @@ redo:
                       continue;
                     case Pattern::META_EOL - Pattern::META_MIN:
                       DBGLOG("EOL? %d", ch);
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && (ch == EOF || ch == '\n' || (ch == '\r' && peek() == '\n')))
+                      if (metas > 0 && jump == Pattern::Const::IMAX &&
+                          (ch == EOF || ch == '\n' || (ch == '\r' && peek() == '\n')))
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -523,9 +527,9 @@ redo:
                       continue;
                     case Pattern::META_BOL - Pattern::META_MIN:
                       DBGLOG("BOL? %d", bol);
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && bol)
+                      if (metas > 0 && jump == Pattern::Const::IMAX && bol)
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -534,9 +538,9 @@ redo:
                       continue;
                     case Pattern::META_EWE - Pattern::META_MIN:
                       DBGLOG("EWE? %d", at_ewe(ch));
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && at_ewe(ch))
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_ewe(ch))
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -545,9 +549,9 @@ redo:
                       continue;
                     case Pattern::META_BWE - Pattern::META_MIN:
                       DBGLOG("BWE? %d", at_bwe(ch));
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && at_bwe(ch))
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_bwe(ch))
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -556,9 +560,9 @@ redo:
                       continue;
                     case Pattern::META_EWB - Pattern::META_MIN:
                       DBGLOG("EWB? %d", at_ewb());
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && at_ewb())
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_ewb())
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -567,9 +571,9 @@ redo:
                       continue;
                     case Pattern::META_BWB - Pattern::META_MIN:
                       DBGLOG("BWB? %d", at_bwb());
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && at_bwb())
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_bwb())
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -578,9 +582,9 @@ redo:
                       continue;
                     case Pattern::META_NWE - Pattern::META_MIN:
                       DBGLOG("NWE? %d", at_nwe(ch));
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && at_nwe(ch))
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_nwe(ch))
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -589,9 +593,9 @@ redo:
                       continue;
                     case Pattern::META_NWB - Pattern::META_MIN:
                       DBGLOG("NWB? %d", at_nwb());
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && at_nwb())
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_nwb())
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -600,9 +604,9 @@ redo:
                       continue;
                     case Pattern::META_WBE - Pattern::META_MIN:
                       DBGLOG("WBE? %d", at_wbe(ch));
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && at_wbe(ch))
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_wbe(ch))
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -611,9 +615,9 @@ redo:
                       continue;
                     case Pattern::META_WBB - Pattern::META_MIN:
                       DBGLOG("WBB? %d", at_wbb());
-                      anc_ = true;
-                      if (jump == Pattern::Const::IMAX && at_wbb())
+                      if (metas > 0 && jump == Pattern::Const::IMAX && at_wbb())
                       {
+                        --metas;
                         jump = Pattern::index_of(opcode);
                         if (jump == Pattern::Const::LONG)
                           jump = Pattern::long_index_of(*++pc);
@@ -635,27 +639,25 @@ redo:
                     bpos = pos_ - (txt_ - buf_) - 1;
                     DBGLOG("Backtrack point: back = %u pos = %zu", back, bpos);
                   }
-                  pc = pat_->opc_ + jump;
-                  opcode = *pc;
                 }
               }
               if (jump == Pattern::Const::IMAX)
               {
-                if (back != Pattern::Const::IMAX)
+                if (back != Pattern::Const::IMAX && bpos + 1 == pos_ - (txt_ - buf_))
                 {
                   pc = pat_->opc_ + back;
                   opcode = *pc;
+                  DBGLOG("Backtrack 1: back = %u pos = %zu ch = %d", back, pos_, ch);
                   back = Pattern::Const::IMAX;
                 }
                 break;
               }
-              DBGLOG("Try jump = %u", jump);
-              if (back == Pattern::Const::IMAX)
+              if (back == static_cast<Pattern::Index>(pc - pat_->opc_))
               {
-                back = static_cast<Pattern::Index>(pc - pat_->opc_);
                 bpos = pos_ - (txt_ - buf_) - 1;
-                DBGLOG("Backtrack point: back = %u pos = %zu", back, bpos);
+                DBGLOG("Backtrack update point: back = %u pos = %zu", back, bpos);
               }
+              DBGLOG("Try jump = %u", jump);
               pc = pat_->opc_ + jump;
               opcode = *pc;
               jump = Pattern::Const::IMAX;
@@ -665,21 +667,21 @@ redo:
           }
           else
           {
-            if (ch == EOF)
-              break;
-            ch = get();
             if (Pattern::is_opcode_halt(opcode))
             {
               if (back != Pattern::Const::IMAX)
               {
                 pos_ = (txt_ - buf_) + bpos;
                 pc = pat_->opc_ + back;
-                DBGLOG("Backtrack: back = %u pos = %zu ch = %d", back, pos_, ch);
+                DBGLOG("Backtrack 2: back = %u pos = %zu ch = %d", back, pos_, ch);
                 back = Pattern::Const::IMAX;
                 continue;
               }
               break;
             }
+            if (ch == EOF)
+              break;
+            ch = get();
             DBGLOG("Get: ch = %d (0x%x) at pos %zu", ch, ch, pos_ - 1);
             if (bin_ || (ch & 0xC0) != 0x80 || ch == EOF)
             {
@@ -755,7 +757,7 @@ unrolled:
               {
                 pc = pat_->opc_ + back;
                 pos_ = (txt_ - buf_) + bpos;
-                DBGLOG("Backtrack: back = %u pos = %zu ch = %d", back, pos_, ch);
+                DBGLOG("Backtrack 3: back = %u pos = %zu ch = %d", back, pos_, ch);
                 back = Pattern::Const::IMAX;
                 continue;
               }
@@ -1050,11 +1052,6 @@ unrolled:
       {
         if (!at_end())
         {
-          if (anc_)
-          {
-            cur_ = txt_ - buf_; // reset current to pattern start when a word boundary was encountered
-            anc_ = false;
-          }
           // fuzzy search with find() can safely advance on a single prefix char of the regex
           if (pos_ > cur_)
           {

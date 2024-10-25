@@ -373,6 +373,10 @@ if option \fB-H\fR is used: \fITEXT\fR, the quoted pathname and separator, \\"
 and \\\\ replace " and \\.
 .IP \fB%h\fR
 the quoted file pathname, \\" and \\\\ replace " and \\.
+.IP \fB%[\fR\fITEXT\fR\fB]I\fR
+if option \fB-H\fR is used: \fITEXT\fR, the pathname as XML character data and separator.
+.IP \fB%i\fR
+the file pathname as XML character data.
 .IP \fB%[\fR\fITEXT\fR\fB]N\fR
 if option \fB-n\fR is used: \fITEXT\fR, the line number and separator.
 .IP \fB%n\fR
@@ -496,8 +500,8 @@ When present, the argument must be placed in \fB[]\fR brackets, for example
 \fB%[\fR\fISEP\fR\fB]$\fR and \fB%u\fR are switches and do not send anything to
 the output.
 .PP
-The separator used by the \fB%F\fR, \fB%H\fR, \fB%N\fR, \fB%K\fR, \fB%B\fR,
-\fB%S\fR and \fB%G\fR fields may be changed by preceding the field by
+The separator used by the \fB%F\fR, \fB%H\fR, \fB%I\fR, \fB%N\fR, \fB%K\fR,
+\fB%B\fR, \fB%S\fR and \fB%G\fR fields may be changed by preceding the field by
 \fB%[\fR\fISEP\fR\fB]$\fR.  When \fB[\fR\fISEP\fR\fB]\fR is not provided, this
 reverts the separator to the default separator or the separator specified with
 \fB--separator\fR.

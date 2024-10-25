@@ -976,7 +976,7 @@ class Output {
   char                         *cur_;     // current position in the current buffer
   int                           mode_;    // bitmask 1 if line buffered 2 if hold
   size_t                        cols_;    // number of columns output so far, if --width
-  ANSI                          ansi_;    // ANSI escape sequence
+  ANSI                          ansi_;    // ANSI escape sequence state machine state
   bool                          skip_;    // skip until next newline in buffers, if --width
 
 };

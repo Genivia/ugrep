@@ -37,6 +37,7 @@
 #ifndef REFLEX_UTF8_H
 #define REFLEX_UTF8_H
 
+#include <cstddef>
 #include <cstring>
 #include <string>
 

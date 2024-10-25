@@ -35,7 +35,7 @@
 */
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "6.5.0"
+#define UGREP_VERSION "7.0.0"
 
 // use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD
@@ -720,6 +720,18 @@ void usage(const char *message, const char *arg = NULL)
   }
 }
 
+#ifdef HAVE_LIBZ
+// decompression error, function used by
+void cannot_decompress(const char *pathname, const char *message)
+{
+  ++warnings;
+  if (flag_no_messages)
+    return;
+  printf("ugrep-indexer: warning: cannot decompress %s: %s\n", pathname, message != NULL ? message : "");
+  fflush(stdout);
+}
+#endif
+
 // display a warning message unless option -s (--no-messages)
 void warning(const char *message, const char *arg = NULL)
 {
@@ -746,18 +758,6 @@ void error(const char *message, const char *arg)
   printf("ugrep-indexer: error: %s%s%s: %s\n", message, arg != NULL ? " " : "", arg != NULL ? arg : "", errmsg);
   fflush(stdout);
 }
-
-#ifdef HAVE_LIBZ
-// decompression error, function used by
-void cannot_decompress(const char *pathname, const char *message)
-{
-  ++warnings;
-  if (!flag_verbose || flag_no_messages)
-    return;
-  printf("ugrep-indexer: warning: cannot decompress %s: %s\n", pathname, message != NULL ? message : "");
-  fflush(stdout);
-}
-#endif
 
 // convert unsigned decimal to non-negative size_t, produce error when conversion fails
 size_t strtonum(const char *string, const char *message)
@@ -1790,7 +1790,7 @@ void indexer(const char *pathname)
         printf("%13" PRIu64 " directories ignored with --ignore-files\n%13" PRIu64 " files ignored with --ignore-files\n", ign_dirs, ign_files);
       printf("%13" PRIu64 " symbolic links skipped\n%13" PRIu64 " devices skipped\n", num_links, num_other);
       if (warnings > 0)
-        printf("%13zu warnings\n", warnings);
+        printf("%13zu warnings and errors\n", warnings);
       if (add_dirs == 0 && add_files == 0 && mod_files == 0 && del_files == 0)
         printf("\nChecked: indexes are fresh and up to date\n\n");
       else
@@ -1809,7 +1809,7 @@ void indexer(const char *pathname)
       printf("%13" PRIu64 " directories ignored with --ignore-files\n%13" PRIu64 " files ignored with --ignore-files\n", ign_dirs, ign_files);
     printf("%13" PRIu64 " symbolic links skipped\n%13" PRIu64 " devices skipped\n", num_links, num_other);
     if (!flag_quiet && warnings > 0)
-      printf("%13zu warnings\n", warnings);
+      printf("%13zu warnings and errors\n", warnings);
     if (sum_hashes_size > 0)
       printf("%13" PRId64 " bytes indexing storage increase at %" PRId64 " bytes/file\n\n", sum_hashes_size, sum_hashes_size / num_files);
     else
