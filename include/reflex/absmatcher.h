@@ -1469,10 +1469,10 @@ class AbstractMatcher {
 #endif
       txt_ = newbuf + (txt_ - buf_);
       lpb_ = newbuf + (lpb_ - buf_);
+      bol_ = newbuf + (bol_ - buf_);
       buf_ = newbuf;
     }
-    bol_ = buf_;
-    cpb_ = buf_;
+    cpb_ = bol_;
 #else
     size_t gap = txt_ - buf_;
     if (max_ - end_ + gap >= need)

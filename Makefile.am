@@ -97,16 +97,14 @@ install-data-hook:
 		 echo "| Aliases to consider:                                 |"; \
 		 echo "|   alias uq     = 'ug -Q'                             |"; \
 		 echo "|   alias uz     = 'ug -z'                             |"; \
+		 echo "|   alias ux     = 'ug -U --hexdump'                   |"; \
 		 echo "|   alias ugit   = 'ug --ignore-files'                 |"; \
 		 echo "|   alias grep   = 'ug -G'                             |"; \
 		 echo "|   alias egrep  = 'ug -E'                             |"; \
 		 echo "|   alias fgrep  = 'ug -F'                             |"; \
-		 echo "|   alias pgrep  = 'ug -P'                             |"; \
 		 echo "|   alias zgrep  = 'ug -zG'                            |"; \
 		 echo "|   alias zegrep = 'ug -zE'                            |"; \
 		 echo "|   alias zfgrep = 'ug -zF'                            |"; \
-		 echo "|   alias zpgrep = 'ug -zP'                            |"; \
-		 echo "|   alias ux     = 'ugrep -U --hexdump'                |"; \
 		 echo "|   alias zxgrep = 'ugrep -zU --hexdump'               |"; \
 		 echo "|   alias xdump  = 'ugrep --hexdump \"\"'                |"; \
 		 echo "|   alias zmore  = 'ugrep+ -z -I -+ --pager \"\"'        |"; \
