@@ -11149,7 +11149,7 @@ void Grep::search(const char *pathname, uint16_t cost)
       }
       else if (flag_before_context == 0 && flag_after_context == 0 && !flag_any_line && !flag_invert_match)
       {
-        // options -ABC, -y, -v are not specified
+        // options -ABC, -y, -v are not specified, --hexdump context is supported (including with options -ABC)
 
         size_t lineno = 0;
         size_t matching = 0;
@@ -11170,6 +11170,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         // register the event handler to update restline on buffer shift
         matcher->set_handler(&handler);
 
+        // --hexdump: keep -B NUM+1 before context times hex column bytes in the buffer when shifting
+        if (flag_hex_before > 0)
+          matcher->set_reserve(flag_hex_before * flag_hex_columns);
+
         // the rest of the matching line
         restline_data = NULL;
         restline_size = 0;
@@ -11188,6 +11192,8 @@ void Grep::search(const char *pathname, uint16_t cost)
                 if (flag_hex_after > 0)
                 {
                   size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
+                  if (restline_last + right > matcher->first())
+                    right = matcher->first() - restline_last;
                   if (right < restline_size)
                     restline_size = right;
                 }
@@ -11309,7 +11315,14 @@ void Grep::search(const char *pathname, uint16_t cost)
                   border = begin - bol;
                 }
 
-                size_t left = flag_hex_before * flag_hex_columns + (first % flag_hex_columns) - flag_hex_columns;
+                size_t left = 0;
+                if (restline_last + restline_size < first)
+                {
+                  left = flag_hex_before * flag_hex_columns + (first % flag_hex_columns) - flag_hex_columns;
+                  if (restline_last + restline_size + left > first)
+                    left = first - (restline_last + restline_size);
+                }
+
                 if (begin > bol + left)
                 {
                   bol = begin - left;

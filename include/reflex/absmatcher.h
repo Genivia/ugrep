@@ -426,6 +426,7 @@ class AbstractMatcher {
 #endif
     cno_ = 0;
     num_ = 0;
+    res_ = 0;
     own_ = true;
     eof_ = false;
     mat_ = false;
@@ -466,9 +467,14 @@ class AbstractMatcher {
   }
 #if WITH_SPAN
   /// Set event handler functor to invoke when the buffer contents are shifted out, e.g. for logging the data searched.
-  void set_handler(Handler *handler)
+  inline void set_handler(Handler *handler)
   {
     evh_ = handler;
+  }
+  /// Set reserved bytes for buffer shifting
+  inline void set_reserve(size_t n)
+  {
+    res_ = n;
   }
   /// Get the buffered context before the matching line.
   inline Context before()
@@ -569,6 +575,7 @@ class AbstractMatcher {
 #endif
       cno_ = 0;
       num_ = 0;
+      res_ = 0;
       own_ = false;
       eof_ = true;
       mat_ = false;
@@ -1422,10 +1429,10 @@ class AbstractMatcher {
       bol_ = txt_;
     }
     size_t gap = bol_ - buf_;
-    if (gap > 4096)
+    if (gap > res_)
     {
-      // make the new end_ address page-aligned to read input, retain some data before bol
-      gap -= 4096 - ((reinterpret_cast<std::ptrdiff_t>(buf_ + end_) - gap) & 4095);
+      // keep reserved bytes before the current line in the buffer, when nonzero (default is zero)
+      gap -= res_;
       // invoke user-defined handler when defined
       if (evh_ != NULL)
         (*evh_)(*this, buf_, gap, num_);
@@ -1447,7 +1454,7 @@ class AbstractMatcher {
     else
     {
       size_t newmax = end_ + need;
-      // adjust max to page-sized
+      // adjust max to ignore last byte
       --max_;
       while (max_ < newmax)
         max_ *= 2;
@@ -1655,6 +1662,7 @@ class AbstractMatcher {
 #endif
   size_t      cno_; ///< column number count (cached)
   size_t      num_; ///< character count of the input till bol_
+  size_t      res_; ///< reserve bytes to keep in the buffer before bol_ when shifting, use only w/o evh_() set
   bool        own_; ///< true if AbstractMatcher::buf_ was allocated and should be deleted
   bool        eof_; ///< input has reached EOF
   bool        mat_; ///< true if AbstractMatcher::matches() was successful

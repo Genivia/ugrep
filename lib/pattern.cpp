@@ -3876,7 +3876,7 @@ void Pattern::analyze_dfa(DFA::State *start)
             fin_count += hi - lo + 1;
             continue;
           }
-          if (next_state->first == 0 || next_state->first > cut_depth + 1)
+          if (next_state->first == 0 || next_state->first > cut_depth + 1U)
             next_chars.insert(lo, hi);
           if (next_state->first == 0)
           {
@@ -3886,7 +3886,7 @@ void Pattern::analyze_dfa(DFA::State *start)
           {
             chars.insert(lo, hi);
             // has a backedge to a state after the new cut?
-            if (cut_depth == 0 || next_state->first > cut_depth + 1)
+            if (cut_depth == 0 || next_state->first > cut_depth + 1U)
               has_backedge = true;
             backedge = true; // has a backedge to a previous state
             continue;
@@ -3957,7 +3957,7 @@ void Pattern::analyze_dfa(DFA::State *start)
               if ((lo > '\n' || hi < '\n') && !edge.next_accepting())
               {
                 DFA::State *next_state = edge.state();
-                if (next_state->first == 0 || next_state->first > depth + 1)
+                if (next_state->first == 0 || next_state->first > depth + 1U)
                   next_chars.insert(lo, hi);
               }
             }
