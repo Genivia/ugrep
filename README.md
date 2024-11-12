@@ -4763,7 +4763,8 @@ in markdown:
 
            --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value
-                  of NUM may be 1, 2, 4, or 8.  The default tab size is 8.
+                  of NUM may be 1 (no expansion), 2, 4, or 8.  The default size is
+                  8.
 
            --tag[=TAG[,END]]
                   Disables colors to mark up matches with TAG.  END marks the end of
@@ -5458,7 +5459,7 @@ in markdown:
 
 
 
-    ugrep 7.0.2                     October 27, 2024                        UGREP(1)
+    ugrep 7.0.3                     November 10, 2024                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

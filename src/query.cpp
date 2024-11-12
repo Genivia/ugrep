@@ -2429,6 +2429,10 @@ void Query::view()
 
       FILE *pager = NULL;
 
+#ifdef OS_WIN
+      std::wstring wcommand;
+#endif
+
       if (flag_stdin && filename == flag_label)
       {
         // standard input is viewed via a pipe to the pager
@@ -2463,12 +2467,35 @@ void Query::view()
       }
       else
       {
-        // view file in the pager
+        // view file in the pager using system() call
         command.append(" \"").append(filename).append("\"");
+
+#ifdef OS_WIN
+        // Windows system() does not support non-ASCII, instead we use a wide string with _wsystem()
+        wcommand = utf8_decode(command);
+
+        // flush before calling _wsystem(), according to the Window's system API documentation
+        _flushall();
+#endif
       }
 
-      // pipe to pager was OK or execute the command
-      if ((flag_stdin && filename == flag_label) || !partname.empty() ? pager != NULL : system(command.c_str()) == 0)
+      // pipe to pager was OK or executing the command is OK
+      bool ok;
+
+      if ((flag_stdin && filename == flag_label) || !partname.empty())
+      {
+        ok = (pager != NULL);
+      }
+      else
+      {
+#ifdef OS_WIN
+        ok = (_wsystem(wcommand.c_str()) == 0);
+#else
+        ok = (system(command.c_str()) == 0);
+#endif
+      }
+
+      if (ok)
       {
 #ifdef OS_WIN
         if (strcmp(flag_view, "more") == 0)

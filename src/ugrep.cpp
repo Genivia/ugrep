@@ -7264,6 +7264,9 @@ void init(int argc, const char **argv)
   // --filter: Cygwin forked process may hang when searching with multiple threads, force one worker thread
   if (!flag_filter.empty())
     flag_jobs = 1;
+#elif defined(OS_WIN)
+  if (!flag_filter.empty())
+    abort("--filter: not supported for ", PLATFORM);
 #endif
 }
 
@@ -14389,7 +14392,7 @@ void help(std::ostream& out)
   out << ".\n\
     --tabs[=NUM]\n\
             Set the tab size to NUM to expand tabs for option -k.  The value of\n\
-            NUM may be 1, 2, 4, or 8.  The default tab size is 8.\n\
+            NUM may be 1 (no expansion), 2, 4, or 8.  The default size is 8.\n\
     --tag[=TAG[,END]]\n\
             Disables colors to mark up matches with TAG.  END marks the end of\n\
             a match if specified, otherwise TAG.  The default is `___'.\n\
