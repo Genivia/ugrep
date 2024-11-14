@@ -317,6 +317,7 @@ class VKey {
   // Windows console state
   static HANDLE hConIn;
   static DWORD  oldInMode;
+  static UINT   oldOutputCP;
 
 #else
 

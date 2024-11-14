@@ -780,14 +780,15 @@ bool VKey::setup(int mode)
   inMode |= ENABLE_WINDOW_INPUT;
 
 #ifdef VKEY_WIN
-  inMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
+  inMode |= ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_EXTENDED_FLAGS;
 #endif
 
   if (!SetConsoleMode(hConIn, inMode))
     return false;
 
 #ifdef CP_UTF8
-  SetConsoleCP(CP_UTF8);
+  oldOutputCP = GetConsoleOutputCP();
+  SetConsoleOutputCP(CP_UTF8);
 #endif
 
 #else
@@ -844,6 +845,10 @@ void VKey::cleanup()
     CloseHandle(hConIn);
   }
 
+#ifdef CP_UTF8
+  SetConsoleOutputCP(oldOutputCP);
+#endif
+
 #else
 
   tcsetattr(tty, TCSAFLUSH, &oldterm);
@@ -898,6 +903,7 @@ void VKey::map_fn_key(unsigned num, const char *keys)
 // Windows console state
 HANDLE VKey::hConIn;
 DWORD  VKey::oldInMode;
+UINT   VKey::oldOutputCP;
 
 #else
 

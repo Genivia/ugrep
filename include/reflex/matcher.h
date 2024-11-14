@@ -50,7 +50,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   template<typename T>
   static std::string convert(T regex, convert_flag_type flags = convert_flag::none, bool *multiline = NULL)
   {
-    return reflex::convert(regex, "imsx#=^:abcdefhijklnrstuvwxzABDHLNQSUW<>?", flags, multiline);
+    return reflex::convert(regex, "imsx#=^:abcdefhijklnrstuvwxzABDHLNQSUW0<>?", flags, multiline);
   }
   /// Default constructor.
   Matcher() : PatternMatcher<reflex::Pattern>()

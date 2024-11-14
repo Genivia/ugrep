@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "7.0.3"
+#define UGREP_VERSION "7.0.4"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -132,8 +132,12 @@ inline std::string utf8_encode(const std::wstring &wstr)
   if (wstr.empty())
     return std::string();
   int size = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), NULL, 0, NULL, NULL);
-  std::string str(size, 0);
-  WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), &str[0], size, NULL, NULL);
+  std::string str;
+  if (size >= 0)
+  {
+    str.resize(size);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], static_cast<int>(wstr.size()), &str[0], size, NULL, NULL);
+  }
   return str;
 }
 
@@ -143,8 +147,12 @@ inline std::wstring utf8_decode(const std::string &str)
   if (str.empty())
     return std::wstring();
   int size = MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), NULL, 0);
-  std::wstring wstr(size, 0);
-  MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), &wstr[0], size);
+  std::wstring wstr;
+  if (size >= 0)
+  {
+    wstr.resize(size);
+    MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), &wstr[0], size);
+  }
   return wstr;
 }
 

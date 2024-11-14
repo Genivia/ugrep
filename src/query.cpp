@@ -2421,11 +2421,16 @@ void Query::view()
 
     if (found)
     {
+
+      Screen::clear();
+      Screen::put("Waiting on ");
+      Screen::put(command.c_str());
+      Screen::put(" to finish");
+      Screen::home();
+
       // -n: add +line_number
       if (line_number > 0)
         command.append(" +").append(std::to_string(line_number));
-
-      Screen::clear();
 
       FILE *pager = NULL;
 
@@ -2475,7 +2480,7 @@ void Query::view()
         wcommand = utf8_decode(command);
 
         // flush before calling _wsystem(), according to the Window's system API documentation
-        _flushall();
+        // _flushall(); removed because this may cause the TUI to freeze
 #endif
       }
 
