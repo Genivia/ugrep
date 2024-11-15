@@ -12,4 +12,8 @@ fi
 if [ -x "$(command -v exiftool)" ] ; then
   filters="${filters}${filters:+,}gif,jpg,jpeg,mpg,mpeg,png,tiff:exiftool %"
 fi
-ugrep --filter="${filters}" "$@"
+if [ -n "$filters" ]; then
+  ug --filter="${filters}" "$@"
+else
+  ug "$@"
+fi
