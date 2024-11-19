@@ -3331,6 +3331,10 @@ struct Grep {
 
   Grep(FILE *file, reflex::AbstractMatcher *matcher, Static::Matchers *matchers)
     :
+      filename(NULL),
+      restline_data(NULL),
+      restline_size(0),
+      restline_last(0),
       out(file),
       matcher(matcher),
       matchers(matchers),
@@ -3568,7 +3572,7 @@ struct Grep {
       file_in = Static::source;
 
 #ifdef OS_WIN
-      _setmode(fileno(Static::source), _O_BINARY);
+      (void)_setmode(fileno(Static::source), _O_BINARY);
 #endif
     }
     else if (fopenw_s(&file_in, pathname, "rb") != 0)
@@ -3645,12 +3649,9 @@ struct Grep {
     return true;
   }
 
-  // return true on success, create a pipe to replace file input if filtering files in a forked process
+  // --filter: return true on success, create a pipe to replace file input if filtering files in a forked process
   bool filter(FILE*& in, const char *pathname)
   {
-#ifndef OS_WIN
-
-    // --filter
     if (!flag_filter.empty() && in != NULL)
     {
       const char *basename = strrchr(pathname, PATHSEPCHR);
@@ -3715,12 +3716,13 @@ struct Grep {
       const char *command = flag_filter.c_str();
       const char *default_command = NULL;
 
-      // find the command corresponding to the suffix
+      // find the command corresponding to the first matching suffix specified in the filter
       while (true)
       {
         while (isspace(static_cast<unsigned char>(*command)))
           ++command;
 
+        // wildcard *:command is considered only when no matching suffix was found
         if (*command == '*')
           default_command = strchr(command, ':');
 
@@ -3737,7 +3739,7 @@ struct Grep {
         ++command;
       }
 
-      // if no matching command, use the *:command if specified
+      // if no matching command, use the wildcard *:command when specified
       if (command == NULL)
         command = default_command;
 
@@ -3749,8 +3751,80 @@ struct Grep {
 
         int fd[2];
 
-        if (pipe(fd) == 0)
+#ifdef OS_WIN
+        // CreateProcess requires an inherited pipe handle specific to Windows
+        bool ok = pipe_inherit(fd) == 0;
+#else
+        bool ok = pipe(fd) == 0;
+#endif
+
+        if (ok)
         {
+#ifdef OS_WIN
+
+          std::wstring wcommand(utf8_decode(command));
+          size_t pathname_pos = 0;
+
+          // replace all % by the pathname, except when quoted
+          while (true)
+          {
+            size_t size = wcommand.size();
+
+            for (; pathname_pos < size && wcommand[pathname_pos] != L'%'; ++pathname_pos)
+              if (wcommand[pathname_pos] == L'"')
+                while (++pathname_pos < size && wcommand[pathname_pos] != L'"')
+                  continue;
+
+            if (pathname_pos >= size)
+              break;
+
+            std::wstring wpathname(utf8_decode(in == stdin ? "-" : pathname));
+            wcommand.replace(pathname_pos, 1, wpathname);
+            pathname_pos += wpathname.size();
+          }
+
+          // set up inherited stdin, stdout and stderr for the child process
+          STARTUPINFOW si;
+          memset(&si, 0, sizeof(STARTUPINFOW));
+          si.cb = sizeof(STARTUPINFOW);
+          si.dwFlags = STARTF_USESTDHANDLES;
+          si.hStdInput = reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(in)));
+          si.hStdOutput = reinterpret_cast<HANDLE>(_get_osfhandle(fd[1]));
+          if (!flag_quiet && !flag_no_messages)
+            si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+          if (in != stdin)
+            SetHandleInformation(si.hStdInput, HANDLE_FLAG_INHERIT, 1);
+
+          PROCESS_INFORMATION pi;
+          memset(&pi, 0, sizeof(PROCESS_INFORMATION));
+
+          // use buffer to allow CreateProcessW to change the command and arguments to pass them as argc argv
+          wchar_t *wbuffer = new wchar_t[wcommand.size() + 1];
+          wcscpy(wbuffer, wcommand.c_str());
+
+          if (CreateProcessW(NULL, wbuffer, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+          {
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+          }
+          else
+          {
+            const char *end;
+
+            for (end = command; *end != '\0' && *end != ','; ++end)
+              if (*end == '"')
+                while (*++end != '\0' && *end != '"')
+                  continue;
+
+            std::string arg(command, end - command);
+            errno = GetLastError();
+            warning("--filter: cannot create process for command", arg.c_str());
+          }
+
+          delete[] wbuffer;
+
+#else
+
           int pid;
 
           // fork to execute the specified --filter utility command on the input to produce filtered output
@@ -3783,7 +3857,7 @@ struct Grep {
               }
             }
 
-            // populate argv[] with the command and its arguments, thereby destroying flag_filter
+            // populate argv[] with the command and its arguments, destroying flag_filter in the child process
             std::vector<const char*> args;
 
             char *arg = const_cast<char*>(command);
@@ -3793,31 +3867,48 @@ struct Grep {
               while (isspace(static_cast<unsigned char>(*arg)))
                 ++arg;
 
-              char *p = arg;
+              char *sep = arg;
 
-              while (*p != '\0' && *p != ',' && !isspace(static_cast<unsigned char>(*p)))
-                ++p;
-
-              if (p > arg)
+              if (*arg == '"')
               {
-                if (p - arg == 1 && *arg == '%')
+                // "quoted argument" separated by space
+                ++sep;
+
+                while (*sep != '\0' &&
+                    (*sep != '"' ||
+                     (sep[1] != '\0' && sep[1] != ',' && !isspace(static_cast<unsigned char>(sep[1])))))
+                  ++sep;
+
+                if (*sep == '"')
+                {
+                  ++arg;
+                  *sep++ = '\0';
+                }
+              }
+              else
+              {
+                // space-separated argument
+                while (*sep != '\0' && *sep != ',' && !isspace(static_cast<unsigned char>(*sep)))
+                  ++sep;
+              }
+
+              if (sep > arg)
+              {
+                if (sep - arg == 1 && *arg == '%')
                   args.push_back(in == stdin ? "-" : pathname);
                 else
                   args.push_back(arg);
               }
 
-              if (*p == '\0')
+              if (*sep == ',')
+                *sep = '\0';
+
+              if (*sep == '\0')
                 break;
 
-              if (*p == ',')
-              {
-                *p = '\0';
-                break;
-              }
+              *sep = '\0';
 
-              *p = '\0';
-
-              arg = p + 1;
+              arg = sep + 1;
             }
 
             // silently bail out if there is no command
@@ -3836,11 +3927,13 @@ struct Grep {
             error("--filter: cannot exec", argv[0]);
           }
 
+#endif
+
           // close the writing end of the pipe
           close(fd[1]);
 
           // close the file and use the reading end of the pipe
-          if (in != stdin)
+          if (in != NULL && in != stdin)
             fclose(in);
           in = fdopen(fd[0], "r");
         }
@@ -3856,8 +3949,6 @@ struct Grep {
         }
       }
     }
-
-#endif
 
     return true;
   }
@@ -5451,7 +5542,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "invert-match") == 0)
                   flag_invert_match = true;
                 else
-                  usage("invalid option --", arg, "--ignore-case, --ignore-files, --include=, --include-dir=, --include-from=, --include-fs=, --initial-tab or --invert-match");
+                  usage("invalid option --", arg, "--iglob=, --ignore-case, --ignore-files, --include=, --include-dir=, --include-from=, --include-fs=, --initial-tab or --invert-match");
                 break;
 
               case 'j':
@@ -7151,24 +7242,31 @@ void init(int argc, const char **argv)
 
     while (true)
     {
-      size_t to = extensions.find(',', from);
-      size_t size = (to == std::string::npos ? extensions.size() : to) - from;
+      size_t to;
 
-      if (size > 0)
+      for (to = from; to < extensions.size() && extensions[to] != ','; ++to)
       {
-        bool negate = size > 1 && (extensions[from] == '!' || extensions[from] == '^');
-
-        if (negate)
-        {
-          ++from;
-          --size;
-        }
-
-        flag_glob.emplace_back(glob.assign(negate ? "^*." : "*.").append(extensions.substr(from, size)));
+        if (extensions[to] == '[')
+          while (++to < extensions.size() && extensions[to] != ']')
+            to += extensions[to] == '\\';
+        else if (extensions[to] == '\\')
+          ++to;
       }
 
-      if (to == std::string::npos)
+      size_t size = to - from;
+
+      if (size == 0)
         break;
+
+      bool negate = size > 1 && (extensions[from] == '!' || extensions[from] == '^');
+
+      if (negate)
+      {
+        ++from;
+        --size;
+      }
+
+      flag_glob.emplace_back(glob.assign(negate ? "^*." : "*.").append(extensions.substr(from, size)));
 
       from = to + 1;
     }
@@ -7264,9 +7362,6 @@ void init(int argc, const char **argv)
   // --filter: Cygwin forked process may hang when searching with multiple threads, force one worker thread
   if (!flag_filter.empty())
     flag_jobs = 1;
-#elif defined(OS_WIN)
-  if (!flag_filter.empty())
-    abort("--filter: not supported for ", PLATFORM);
 #endif
 }
 
@@ -7622,9 +7717,11 @@ void set_terminal_hyperlink()
   {
     // get current working directory path in hyperlink
     char *cwd = getcwd0();
+
     if (cwd != NULL)
     {
       char *path = cwd;
+
       if (*path == PATHSEPCHR)
         ++path;
 
@@ -7649,6 +7746,7 @@ void set_terminal_hyperlink()
 
       // get custom prefix in hyperlink or default file://
       const char *s = flag_hyperlink;
+
       while (*s != '\0' && isalnum(static_cast<unsigned char>(*s)))
         ++s;
 
@@ -7692,35 +7790,42 @@ void ugrep()
 
     while (true)
     {
-      size_t to = globs.find(',', from);
-      size_t size = (to == std::string::npos ? globs.size() : to) - from;
+      size_t to;
 
-      if (size > 0)
+      for (to = from; to < globs.size() && globs[to] != ','; ++to)
       {
-        bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
-
-        if (negate)
-        {
-          ++from;
-          --size;
-          flag_all_exclude.emplace_back(globs.substr(from, size));
-          if (globs[from + size - 1] == '/')
-            ++flag_exclude_iglob_dir_size;
-          else
-            ++flag_exclude_iglob_size;
-        }
-        else
-        {
-          flag_all_include.emplace_back(globs.substr(from, size));
-          if (globs[from + size - 1] == '/')
-            ++flag_include_iglob_dir_size;
-          else
-            ++flag_include_iglob_size;
-        }
+        if (globs[to] == '[')
+          while (++to < globs.size() && globs[to] != ']')
+            to += globs[to] == '\\';
+        else if (globs[to] == '\\')
+          ++to;
       }
 
-      if (to == std::string::npos)
+      size_t size = to - from;
+
+      if (size == 0)
         break;
+
+      bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
+
+      if (negate)
+      {
+        ++from;
+        --size;
+        flag_all_exclude.emplace_back(globs.substr(from, size));
+        if (globs[from + size - 1] == '/')
+          ++flag_exclude_iglob_dir_size;
+        else
+          ++flag_exclude_iglob_size;
+      }
+      else
+      {
+        flag_all_include.emplace_back(globs.substr(from, size));
+        if (globs[from + size - 1] == '/')
+          ++flag_include_iglob_dir_size;
+        else
+          ++flag_include_iglob_size;
+      }
 
       from = to + 1;
     }
@@ -7733,27 +7838,34 @@ void ugrep()
 
     while (true)
     {
-      size_t to = globs.find(',', from);
-      size_t size = (to == std::string::npos ? globs.size() : to) - from;
+      size_t to;
 
-      if (size > 0)
+      for (to = from; to < globs.size() && globs[to] != ','; ++to)
       {
-        bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
-
-        if (negate)
-        {
-          ++from;
-          --size;
-          flag_all_exclude.emplace_back(globs.substr(from, size));
-        }
-        else
-        {
-          flag_all_include.emplace_back(globs.substr(from, size));
-        }
+        if (globs[to] == '[')
+          while (++to < globs.size() && globs[to] != ']')
+            to += globs[to] == '\\';
+        else if (globs[to] == '\\')
+          ++to;
       }
 
-      if (to == std::string::npos)
+      size_t size = to - from;
+
+      if (size == 0)
         break;
+
+      bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
+
+      if (negate)
+      {
+        ++from;
+        --size;
+        flag_all_exclude.emplace_back(globs.substr(from, size));
+      }
+      else
+      {
+        flag_all_include.emplace_back(globs.substr(from, size));
+      }
 
       from = to + 1;
     }
@@ -9514,7 +9626,7 @@ void Grep::recurse(size_t level, const char *pathname)
                 buffer[basename_size] = '\0';
 
                 // hashes table size, zero to skip empty files and binary files when -I is specified
-                size_t hashes_size = 0;
+                uint32_t hashes_size = 0;
                 uint8_t logsize = header[1] & 0x1f;
                 if (logsize > 0)
                   for (hashes_size = 1; logsize > 0; --logsize)
@@ -9733,7 +9845,7 @@ void Grep::recurse(size_t level, const char *pathname)
                   buffer[basename_size] = '\0';
 
                   // hashes table size, zero to skip empty files and binary files when -I is specified
-                  size_t hashes_size = 0;
+                  uint32_t hashes_size = 0;
                   uint8_t logsize = header[1] & 0x1f;
                   if (logsize > 0)
                     for (hashes_size = 1; logsize > 0; --logsize)
@@ -10214,7 +10326,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // -v: invert
         if (flag_invert_match)
-          matches = !matches;
+          matches = (matches == 0);
 
         if (matches > 0)
         {
@@ -14017,15 +14129,15 @@ void help(std::ostream& out)
             "\
     --filter=COMMANDS\n\
             Filter files through the specified COMMANDS first before searching.\n\
-            COMMANDS is a comma-separated list of `exts:command [option ...]',\n\
+            COMMANDS is a comma-separated list of `exts:command arguments',\n\
             where `exts' is a comma-separated list of filename extensions and\n\
             `command' is a filter utility.  Files matching one of `exts' are\n\
-            filtered.  When `exts' is a `*', all files are filtered.  One or\n\
-            more `option' separated by spacing may be specified, which are\n\
-            passed verbatim to the command.  A `%' as `option' expands into the\n\
-            pathname to search.  For example, --filter='pdf:pdftotext % -'\n\
+            filtered.  A `*' matches any file.  The specified `command' may\n\
+            include arguments separated by spaces.  An argument may be quoted\n\
+            to include spacing, commas or a `%'.  A `%' argument expands into\n\
+            the pathname to search.  For example, --filter='pdf:pdftotext % -'\n\
             searches PDF files.  The `%' expands into a `-' when searching\n\
-            standard input.  When a `%' is not specified, a filter utility\n\
+            standard input.  When a `%' is not specified, the filter command\n\
             should read from standard input and write to standard output.\n\
             Option --label=.ext may be used to specify extension `ext' when\n\
             searching standard input.  This option may be repeated.\n\
