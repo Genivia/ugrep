@@ -165,7 +165,7 @@ int Query::line_wsize()
   return num;
 }
 
-// draw a textual part of the query search line, this function is called by draw()
+// draw the textual part of the query search line, this function is called by draw()
 void Query::display(int col, int len)
 {
   const char *ptr = line_ptr(col);
@@ -179,7 +179,17 @@ void Query::display(int col, int len)
   int prev = ' ';
   if (!Screen::mono)
   {
-    if (!flag_fixed_strings)
+    if (globbing_)
+    {
+      for (const char *look = line_; look < ptr; ++look)
+      {
+        if (*look == (list ? ']' : '['))
+          list = !list, look += (*look == '[') + (look[1] == '!' || look[1] == '^' || look[1] == '\\');
+        else if (*look == '\\')
+          ++look;
+      }
+    }
+    else if (!flag_fixed_strings)
     {
       for (const char *look = line_; look < ptr; ++look)
       {
@@ -256,7 +266,56 @@ void Query::display(int col, int len)
       }
       else if (!Screen::mono)
       {
-        if (!flag_fixed_strings)
+        if (globbing_)
+        {
+          if (ch == '[' && !list)
+          {
+            list = true;
+            Screen::put(ptr, next - ptr);
+            Screen::normal();
+            Screen::put(color_qm);
+            Screen::put(ch);
+            Screen::normal();
+            Screen::put(color_ql);
+            ptr = ++next;
+            next += (*next == '!' || *next == '^');
+            next += (*next == '\\');
+          }
+          else if (ch == ']' && list)
+          {
+            list = false;
+            Screen::put(ptr, next - ptr);
+            Screen::normal();
+            Screen::put(color_qm);
+            Screen::put(ch);
+            Screen::normal();
+            Screen::put(color_qr);
+            ptr = next + 1;
+          }
+          else if ((ch == '*' || ch == '?' || ch == ',') && !list)
+          {
+            Screen::put(ptr, next - ptr);
+            Screen::normal();
+            Screen::put(color_qm);
+            Screen::put(ch);
+            Screen::normal();
+            Screen::put(color_qr);
+            ptr = next + 1;
+          }
+          else if (ch == '\\' && !list)
+          {
+            Screen::put(ptr, next - ptr);
+            Screen::normal();
+            Screen::put(color_ql);
+            Screen::put(ch);
+            if (next + 1 < end)
+              Screen::put(next[1]);
+            Screen::normal();
+            Screen::put(color_qr);
+            ptr = ++next + 1;
+          }
+        }
+        else if (!flag_fixed_strings)
         {
           if (ch == '[' && !list && !literal && !braced)
           {
@@ -419,7 +478,7 @@ void Query::draw()
       Screen::normal();
       Screen::put(down);
 
-      start_ = strlen(down);
+      start_ = static_cast<int>(strlen(down));
     }
 
     if (select_ == -1)
@@ -3046,7 +3105,7 @@ bool Query::help()
   bool ctrl_o = false; // CTRL-O is pressed
   bool restart = false; // META key pressed, restart search when exiting the help screen
 
-  while (true)
+  while (mode_ == Mode::HELP)
   {
     int key;
 
@@ -3406,6 +3465,13 @@ void Query::meta(int key)
 
       if (key == 'g')
       {
+        if (mode_ != Mode::QUERY && !globbing_)
+        {
+          mode_ = Mode::QUERY;
+          Screen::clear();
+          redraw();
+        }
+        
         if (mode_ == Mode::QUERY)
         {
           if (!globbing_)
@@ -3439,7 +3505,7 @@ void Query::meta(int key)
         }
         else
         {
-          message("\033[7mM-g\033[m GLOBS should be entered in the query view screen, \033[7mESC\033[m to go back\033[m");
+          mode_ = Mode::QUERY;
         }
       }
 #if !defined(HAVE_PCRE2) && !defined(HAVE_BOOST_REGEX)
