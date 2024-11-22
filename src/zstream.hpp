@@ -175,6 +175,13 @@ class zstreambuf : public std::streambuf {
     // constructor
     ZipInfo(const char *pathname, FILE *file, const unsigned char *buf = NULL, size_t len = 0)
       :
+        version(0),
+        flag(0),
+        method(Compression::STORE),
+        mtime(0),
+        crc(0),
+        size(0),
+        usize(0),
         pathname_(pathname),
         file_(file),
         z_strm_(NULL),

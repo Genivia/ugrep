@@ -119,7 +119,7 @@ class CNF {
   // compile --bool search query into operator tree, normalize to CNF, and populate CNF AND-list of ALT-term lists
   void compile(const char *pattern)
   {
-    OpTree(pattern, terms);
+    (void)OpTree(pattern, terms);
   }
 
   // return the CNF AND-list of ALT-term lists

@@ -17,7 +17,7 @@ Why use ugrep?
 
 - ugrep is fast, user-friendly, and equipped with a ton of new features that users wanted
 
-- includes an interactive TUI with built-in help, Google-like search with AND/OR/NOT patterns, fuzzy search, searches (nested) zip/7z/tar/pax/cpio archives, tarballs and compressed files gz/Z/bz/bz2/lzma/xz/lz4/zstd/brotli, search and hexdump binary files, search documents such as PDF, doc, docx, and output in JSON, XML, CSV or your own customized format
+- includes an interactive TUI with built-in help, Google-like search with AND/OR/NOT patterns, fuzzy search, search (nested) zip/7z/tar/pax/cpio archives, tarballs and compressed files gz/Z/bz/bz2/lzma/xz/lz4/zstd/brotli, search and hexdump binary files, search documents such as PDF, doc, docx, and output in JSON, XML, CSV or your own customized format
 
 - Unicode extended regex pattern syntax with multi-line pattern matching without requiring special command-line options
 
@@ -4325,15 +4325,15 @@ in markdown:
            --filter=COMMANDS
                   Filter files through the specified COMMANDS first before
                   searching.  COMMANDS is a comma-separated list of `exts:command
-                  [option ...]', where `exts' is a comma-separated list of filename
+                  arguments', where `exts' is a comma-separated list of filename
                   extensions and `command' is a filter utility.  Files matching one
-                  of `exts' are filtered.  When `exts' is a `*', all files are
-                  filtered.  One or more `option' separated by spacing may be
-                  specified, which are passed verbatim to the command.  A `%' as
-                  `option' expands into the pathname to search.  For example,
+                  of `exts' are filtered.  A `*' matches any file.  The specified
+                  `command' may include arguments separated by spaces.  An argument
+                  may be quoted to include spacing, commas or a `%'.  A `%' argument
+                  expands into the pathname to search.  For example,
                   --filter='pdf:pdftotext % -' searches PDF files.  The `%' expands
                   into a `-' when searching standard input.  When a `%' is not
-                  specified, a filter utility should read from standard input and
+                  specified, the filter command should read from standard input and
                   write to standard output.  Option --label=.ext may be used to
                   specify extension `ext' when searching standard input.  This
                   option may be repeated.
@@ -5459,7 +5459,7 @@ in markdown:
 
 
 
-    ugrep 7.0.4                     November 12, 2024                       UGREP(1)
+    ugrep 7.1.0                     November 19, 2024                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

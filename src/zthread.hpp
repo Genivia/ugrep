@@ -60,6 +60,7 @@ inline int pipe(int fd[2])
     fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), _O_WRONLY);
     return 0;
   }
+  errno = GetLastError();
   return -1;
 }
 

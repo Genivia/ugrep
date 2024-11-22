@@ -176,7 +176,7 @@ void Query::display(int col, int len)
   bool list = false;
   bool braced = false;
   bool literal = false;
-  int prev = ' ';
+  int prev = -1;
   if (!Screen::mono)
   {
     if (globbing_)
@@ -292,15 +292,18 @@ void Query::display(int col, int len)
             Screen::put(color_qr);
             ptr = next + 1;
           }
-          else if ((ch == '*' || ch == '?' || ch == ',') && !list)
+          else if (strchr("!*,?^", ch) != NULL && !list)
           {
-            Screen::put(ptr, next - ptr);
-            Screen::normal();
-            Screen::put(color_qm);
-            Screen::put(ch);
-            Screen::normal();
-            Screen::put(color_qr);
-            ptr = next + 1;
+            if ((ch != '!' && ch != '^') || prev == ',' || prev == -1)
+            {
+              Screen::put(ptr, next - ptr);
+              Screen::normal();
+              Screen::put(color_qm);
+              Screen::put(ch);
+              Screen::normal();
+              Screen::put(color_qr);
+              ptr = next + 1;
+            }
           }
           else if (ch == '\\' && !list)
           {
@@ -411,14 +414,12 @@ void Query::display(int col, int len)
               Screen::put(color_qr);
             ptr = next + 1;
           }
-          else if (!literal && flag_fixed_strings)
+          else if (!literal)
           {
-            if (prev == ' ' || prev == '|' || prev == '(')
+            if (prev == ' ' || prev == '|' || prev == '(' || prev == -1)
             {
               if (ch == '-' ||
-                  ch == '|' ||
-                  (ch == '(' && strchr(next, ')') != NULL) ||
-                  ch == ')' ||
+                  (flag_fixed_strings && (ch == '(' || ch == ')' || ch == '|')) ||
                   strncmp(next, "AND ", 4) == 0 ||
                   strncmp(next, "OR ", 3) == 0 ||
                   strncmp(next, "NOT ", 4) == 0)
@@ -428,17 +429,17 @@ void Query::display(int col, int len)
                 Screen::put(color_qm);
                 ptr = next;
                 if (isalpha(ch))
-                  next += 2 + (next[2] != ' ');
+                  next += 1 + (next[2] != ' ');
+                Screen::put(ptr, next - ptr + 1);
+                Screen::normal();
+                Screen::put(color_qr);
+                ptr = next + 1;
                 ch = ' ';
               }
-              else
-              {
-                Screen::put(ptr, next - ptr);
-                Screen::normal();
-                ptr = next;
-              }
             }
-            else if (ch == '|' || (ch == ')' && (next + 1 >= end || next[1] == ' ' || next[1] == '|' || next[1] == ')')))
+            else if (flag_fixed_strings &&
+                (ch == '|' ||
+                 (ch == ')' && (next + 1 >= end || next[1] == ' ' || next[1] == '|' || next[1] == ')'))))
             {
               Screen::put(ptr, next - ptr);
               Screen::normal();
@@ -2152,13 +2153,12 @@ void Query::back()
 
   if (compare_dir && flag_tree)
   {
-    if (ref == 0)
-      return;
-
-    --ref;
-
-    while (ref > 0 && view_[ref].size() > 1)
-      --ref;
+    if (ref > 0)
+    {
+      do
+        --ref;
+      while (ref > 0 && view_[ref].size() > 1);
+    }
   }
   else
   {
@@ -2811,6 +2811,12 @@ void Query::select()
     history_.emplace();
     history_.top().save(line_, col_, row_, flags_, mark_);
 
+    if (flag_directories_action != Action::RECURSE)
+    {
+      flags_[18].flag = flag_dereference;
+      flags_[19].flag = !flag_dereference;
+    }
+
     mark_.reset();
 
     size_t n = pathname.find(PATHSEPCHR, 1); // ignore PATHSEPCHR at front when present
@@ -2870,7 +2876,7 @@ void Query::deselect()
       return;
     }
 
-    if (selected_file_.empty() && !Static::arg_files.empty())
+    if (!Static::arg_files.empty())
     {
       message("cannot chdir .. because file or directory arguments are present");
       return;

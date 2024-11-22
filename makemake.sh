@@ -55,6 +55,7 @@ autoconf
 automake
 touch config.h.in
 ./configure
+make
 
 echo OK
 

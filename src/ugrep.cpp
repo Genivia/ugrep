@@ -3726,6 +3726,7 @@ struct Grep {
         if (*command == '*')
           default_command = strchr(command, ':');
 
+        // match filter filename extension (case sensitive)
         if (strncmp(suffix, command, sep) == 0 && (command[sep] == ':' || command[sep] == ',' || isspace(static_cast<unsigned char>(command[sep]))))
         {
           command = strchr(command, ':');
@@ -3752,10 +3753,10 @@ struct Grep {
         int fd[2];
 
 #ifdef OS_WIN
-        // CreateProcess requires an inherited pipe handle specific to Windows
-        bool ok = pipe_inherit(fd) == 0;
+        // Windows CreateProcess requires an "inherited" pipe handle specific to Windows
+        bool ok = (pipe_inherit(fd) == 0);
 #else
-        bool ok = pipe(fd) == 0;
+        bool ok = (pipe(fd) == 0);
 #endif
 
         if (ok)
@@ -5126,9 +5127,9 @@ static void save_config()
 
   fprintf(file, "### SEARCH PATTERNS ###\n\n");
 
-  fprintf(file, "# Enable case-insensitive search, default: no-ignore-case\n%s\n\n", flag_ignore_case.is_undefined() ? "# no-ignore-case" : flag_ignore_case ? "ignore-case" : "no-ignore-case");
-  fprintf(file, "# Enable smart case, default: no-smart-case\n%s\n\n", flag_smart_case.is_undefined() ? "# no-smart-case" : flag_smart_case ? "smart-case" : "no-smart-case");
-  fprintf(file, "# Enable empty pattern matches, default: no-empty\n%s\n\n", flag_empty.is_undefined() ? "# no-empty" : flag_empty ? "empty" : "no-empty");
+  fprintf(file, "# Enable case-insensitive search, default: no-ignore-case\n%signore-case\n\n", flag_ignore_case.is_undefined() ? "# " : flag_ignore_case ? "" : "no-");
+  fprintf(file, "# Enable smart case, default: no-smart-case\n%ssmart-case\n\n", flag_smart_case.is_undefined() ? "# " : flag_smart_case ? "" : "no-");
+  fprintf(file, "# Enable empty pattern matches, default: no-empty\n%sempty\n\n", flag_empty.is_undefined() ? "# " : flag_empty ? "" : "no-");
   fprintf(file, "# Force option -c (--count) to return nonzero matches with --min-count=1, default: --min-count=0\n");
   if (flag_min_count == 0)
     fprintf(file, "# min-count=1\n\n");
@@ -5137,8 +5138,8 @@ static void save_config()
 
   fprintf(file, "### SEARCH TARGETS ###\n\n");
 
-  fprintf(file, "# Enable case-insensitive glob matching, default: no-glob-ignore-case\n%sglob-ignore-case\n\n", flag_glob_ignore_case ? "" : "# ");
-  fprintf(file, "# Search hidden files and directories, default: no-hidden\n%s\n\n", flag_hidden ? "hidden" : "no-hidden");
+  fprintf(file, "# Case-insensitive glob matching, default: no-glob-ignore-case\n%sglob-ignore-case\n\n", flag_glob_ignore_case ? "" : "# ");
+  fprintf(file, "# Search hidden files and directories, default: no-hidden\n%shidden\n\n", flag_hidden ? "" : "# ");
   fprintf(file, "# Ignore binary files, default: no-ignore-binary\n%signore-binary\n\n", strcmp(flag_binary_files, "without-match") == 0 ? "" : "# ");
   if (!flag_include_fs.empty())
   {

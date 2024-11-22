@@ -35,7 +35,7 @@
 */
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "7.0.4"
+#define UGREP_VERSION "7.1.0"
 
 // use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD
@@ -2051,7 +2051,7 @@ void load_config(const char *config_filename)
 int main(int argc, const char **argv)
 {
 #if !defined(OS_WIN) && defined(HAVE_LIBZ) && defined(WITH_DECOMPRESSION_THREAD)
-  // ignore SIGPIPE, should never happen, but just in case
+  // ignore SIGPIPE
   signal(SIGPIPE, SIG_IGN);
 #endif
 
