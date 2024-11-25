@@ -86,6 +86,7 @@ class StdMatcher : public PatternMatcher<std::regex> {
       PatternMatcher<std::regex>(matcher),
       flg_(matcher.flg_)
   { }
+  using PatternMatcher::operator=;
   /// Assign a matcher.
   StdMatcher& operator=(const StdMatcher& matcher) ///< matcher to copy
   {

@@ -133,8 +133,9 @@ class PCRE2Matcher : public PatternMatcher<std::string> {
     if (opc_ != NULL)
       pcre2_code_free(opc_);
   }
+  using PatternMatcher::operator=;
   /// Assign a matcher.
-  PCRE2Matcher& operator=(const PCRE2Matcher& matcher) ///< matcher to copy
+  virtual PCRE2Matcher& operator=(const PCRE2Matcher& matcher) ///< matcher to copy
   {
     PatternMatcher<std::string>::operator=(matcher);
     pattern(matcher);
@@ -488,6 +489,7 @@ class PCRE2UTFMatcher : public PCRE2Matcher {
     :
       PCRE2Matcher(pattern, input, opt, PCRE2_UTF | PCRE2_UCP)
   { }
+  using PCRE2Matcher::operator=;
 };
 
 } // namespace reflex

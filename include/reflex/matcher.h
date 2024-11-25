@@ -107,8 +107,9 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     DBGLOG("Matcher::Matcher(matcher)");
     init_advance();
   }
+  using PatternMatcher::operator=;
   /// Assign a matcher, the underlying pattern string is shared (not deep copied).
-  Matcher& operator=(const Matcher& matcher) ///< matcher to copy
+  virtual Matcher& operator=(const Matcher& matcher) ///< matcher to copy
   {
     PatternMatcher<reflex::Pattern>::operator=(matcher);
     ded_ = matcher.ded_;
@@ -116,8 +117,9 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     init_advance();
     return *this;
   }
+  using PatternMatcher::pattern;
   /// Set the pattern to use with this matcher (the given pattern is shared and must be persistent).
-  Matcher& pattern(const Pattern& pattern) ///< pattern object for this matcher
+  virtual Matcher& pattern(const Pattern& pattern) ///< pattern object for this matcher
     /// @returns this matcher
   {
     DBGLOG("Matcher::pattern()");
@@ -129,7 +131,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     return *this;
   }
   /// Set the pattern to use with this matcher (the given pattern is shared and must be persistent).
-  Matcher& pattern(const Pattern *pattern) ///< pattern object for this matcher
+  virtual Matcher& pattern(const Pattern *pattern) ///< pattern object for this matcher
     /// @returns this matcher
   {
     DBGLOG("Matcher::pattern()");
@@ -141,7 +143,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     return *this;
   }
   /// Set the pattern from a regex string to use with this matcher.
-  Matcher& pattern(const char *pattern) ///< regex string to instantiate internal pattern object
+  virtual Matcher& pattern(const char *pattern) ///< regex string to instantiate internal pattern object
     /// @returns this matcher
   {
     DBGLOG("Matcher::pattern(\"%s\")", pattern);
@@ -150,7 +152,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     return *this;
   }
   /// Set the pattern from a regex string to use with this matcher.
-  Matcher& pattern(const std::string& pattern) ///< regex string to instantiate internal pattern object
+  virtual Matcher& pattern(const std::string& pattern) ///< regex string to instantiate internal pattern object
     /// @returns this matcher
   {
     DBGLOG("Matcher::pattern(\"%s\")", pattern.c_str());

@@ -89,8 +89,9 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
       PatternMatcher<boost::regex>(matcher),
       flg_(matcher.flg_)
   { }
+  using PatternMatcher::operator=;
   /// Assign a matcher.
-  BoostMatcher& operator=(const BoostMatcher& matcher) ///< matcher to copy
+  virtual BoostMatcher& operator=(const BoostMatcher& matcher) ///< matcher to copy
   {
     PatternMatcher<boost::regex>::operator=(matcher);
     flg_ = matcher.flg_;

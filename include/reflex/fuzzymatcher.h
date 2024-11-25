@@ -118,8 +118,9 @@ class FuzzyMatcher : public Matcher {
     DBGLOG("FuzzyMatcher::FuzzyMatcher(matcher)");
     bpt_.resize(max_);
   }
+  using Matcher::operator=;
   /// Assign a matcher.
-  FuzzyMatcher& operator=(const FuzzyMatcher& matcher) ///< matcher to copy
+  virtual FuzzyMatcher& operator=(const FuzzyMatcher& matcher) ///< matcher to copy
   {
     Matcher::operator=(matcher);
     max_ = matcher.max_;
