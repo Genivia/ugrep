@@ -120,7 +120,7 @@ static std::string unicode_class(const char *s, int esc, convert_flag_type flags
       {
         if (wc[0] > 0xDFFF)
         {
-          // exclude U+D800 to U+DFFF
+          // exclude surrogates U+D800 to U+DFFF
           regex.assign(utf8(0x00, 0xD7FF, esc, par, !(flags & convert_flag::permissive))).push_back('|');
           if (wc[0] > 0xE000)
             regex.append(utf8(0xE000, wc[0] - 1, esc, par, !(flags & convert_flag::permissive))).push_back('|');
@@ -136,7 +136,7 @@ static std::string unicode_class(const char *s, int esc, convert_flag_type flags
       {
         if (last <= 0xD800 && wc[0] > 0xDFFF)
         {
-          // exclude U+D800 to U+DFFF
+          // exclude surrogates U+D800 to U+DFFF
           if (last < 0xD800)
             regex.append(utf8(last, 0xD7FF, esc, par, !(flags & convert_flag::permissive))).push_back('|');
           if (wc[0] > 0xE000)
@@ -152,7 +152,7 @@ static std::string unicode_class(const char *s, int esc, convert_flag_type flags
       {
         if (last <= 0xD800)
         {
-          // exclude U+D800 to U+DFFF
+          // exclude surrogates U+D800 to U+DFFF
           if (last < 0xD800)
             regex.append(utf8(last, 0xD7FF, esc, par, !(flags & convert_flag::permissive))).push_back('|');
           regex.append(utf8(0xE000, 0x10FFFF, esc, par, !(flags & convert_flag::permissive))).push_back('|');
@@ -402,7 +402,7 @@ static std::string convert_ranges(const char *pattern, size_t pos, ORanges<int>&
 {
   if (ranges.find('\n') != ranges.end())
     nl = true;
-  if (is_modified(mod, 'i'))
+  if (is_modified(mod, 'i') || (is_modified(mod, 'a') && is_modified(mod, 'u') && ranges.hi() > 0x7F))
     convert_anycase_ranges(ranges);
   if (is_modified(mod, 'u') && ranges.hi() > 0x7F)
     return convert_unicode_ranges(ranges, flags, signature, par);
@@ -551,7 +551,7 @@ static void insert_escape_class(const char *pattern, size_t pos, convert_flag_ty
     wc = Posix::range(name);
   if (wc == NULL)
     throw regex_error(regex_error::invalid_class, pattern, pos);
-  if (std::islower(static_cast<unsigned char>(c)))
+  if (c >= 'a' && c <= 'z')
   {
     if (wc[0] <= '\n' && wc[1] >= '\n' && (flags & convert_flag::notnewline))
     {
@@ -573,7 +573,7 @@ static void insert_escape_class(const char *pattern, size_t pos, convert_flag_ty
       {
         if (last <= 0xD800 && wc[0] > 0xDFFF)
         {
-          // exclude U+D800 to U+DFFF
+          // exclude surrogates U+D800 to U+DFFF
           if (last < 0xD800)
             ranges.insert(last, 0xD7FF);
           if (wc[0] > 0xE000)
@@ -590,7 +590,7 @@ static void insert_escape_class(const char *pattern, size_t pos, convert_flag_ty
     {
       if (last <= 0xD800)
       {
-        // exclude U+D800 to U+DFFF
+        // exclude surrogates U+D800 to U+DFFF
         if (last < 0xD800)
           ranges.insert(last, 0xD7FF);
         ranges.insert(0xE000, 0x10FFFF);
@@ -697,7 +697,7 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
         {
           if (last <= 0xD800 && wc[0] > 0xDFFF)
           {
-            // exclude U+D800 to U+DFFF
+            // exclude surrogates U+D800 to U+DFFF
             if (last < 0xD800)
               ranges.insert(last, 0xD7FF);
             if (wc[0] > 0xE000)
@@ -714,7 +714,7 @@ static int insert_escape(const char *pattern, size_t len, size_t& pos, convert_f
       {
         if (last <= 0xD800)
         {
-          // exclude U+D800 to U+DFFF
+          // exclude surrogates U+D800 to U+DFFF
           if (last < 0xD800)
             ranges.insert(last, 0xD7FF);
           ranges.insert(0xE000, 0x10FFFF);
@@ -871,6 +871,9 @@ static void subtract_list(const char *pattern, size_t len, size_t& pos, convert_
   {
     ++pos;
     insert_list(pattern, len, pos, flags, mod, subtract, macros);
+    // always convert case-insensitive Unicode negated character classes (modifier 'a')
+    if (is_modified(mod, 'a'))
+      convert_anycase_ranges(subtract);
     ranges -= subtract;
   }
   else if (pattern[pos] == '{' && macros != NULL)
@@ -881,6 +884,9 @@ static void subtract_list(const char *pattern, size_t len, size_t& pos, convert_
       throw regex_error(regex_error::invalid_class_range, pattern, pos);
     size_t subpos = 1;
     insert_list(list.c_str(), list.size(), subpos, flags, mod, subtract, macros);
+    // always convert case-insensitive Unicode negated character classes (modifier 'a')
+    if (is_modified(mod, 'a'))
+      convert_anycase_ranges(subtract);
     ranges -= subtract;
     if (subpos + 1 < list.size())
       throw regex_error(regex_error::invalid_class_range, pattern, pos);
@@ -919,7 +925,8 @@ static void extend_list(const char *pattern, size_t len, size_t& pos, convert_fl
 
 static void negate_list(convert_flag_type flags, const std::map<size_t,std::string>& mod, ORanges<int>& ranges)
 {
-  if (is_modified(mod, 'i'))
+  // always convert case-insensitive Unicode negated character classes (modifier 'a')
+  if (is_modified(mod, 'a'))
     convert_anycase_ranges(ranges);
   if (is_modified(mod, 'u'))
   {
@@ -959,6 +966,8 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
       c = insert_escape(pattern, len, pos, flags, mod, ranges);
       if (range)
       {
+        if (pc >= 'a' && pc <= 'z' && is_modified(mod, 'a'))
+          pc = lowercase(pc);
         if (c == -1 || pc > c)
           throw regex_error(regex_error::invalid_class_range, pattern, pos);
         ranges.insert(pc, c);
@@ -1042,6 +1051,8 @@ static void insert_list(const char *pattern, size_t len, size_t& pos, convert_fl
       }
       if (range)
       {
+        if (pc >= 'a' && pc <= 'z' && is_modified(mod, 'a'))
+          pc = uppercase(pc);
         if (c == -1 || pc > c)
           throw regex_error(regex_error::invalid_class_range, pattern, pos);
         ranges.insert(pc, c);
@@ -1098,7 +1109,7 @@ static void convert_escape_char(const char *pattern, size_t len, size_t& loc, si
   else if (std::strchr(regex_meta, c) == NULL)
   {
     char buf[3] = { '^', static_cast<char>(lowercase(c)), '\0' };
-    bool invert = std::isupper(static_cast<unsigned char>(c)) != 0;
+    bool invert = (c >= 'A' && c <= 'Z');
     if (c == 'n' || (invert && strchr("DHLUWX", c) != NULL))
       nl = true;
     const char *name = buf + !invert;
@@ -1512,6 +1523,8 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
       {
         if (supports_modifier(signature, pattern[k]))
         {
+          if (pattern[k] == 'i')
+            mod[lev].push_back('a'); // convert case-insensitive Unicode negated character classes
           mods.push_back(pattern[k]);
         }
         else if (pattern[k] == 'm')
@@ -1526,11 +1539,19 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
       else
       {
         if (supports_modifier(signature, pattern[k]))
+        {
+          if (pattern[k] == 'i')
+            mod[lev].push_back('A');
           unmods.push_back(pattern[k]);
+        }
         else if (pattern[k] == 'm')
+        {
           throw regex_error(regex_error::invalid_modifier, pattern, pos);
+        }
         else
+        {
           disable_modifier(pattern[k], pattern, k, mod, lev);
+        }
       }
       ++k;
     }
@@ -1724,16 +1745,28 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
                   else if (!invert)
                   {
                     if (supports_modifier(signature, pattern[k]))
+                    {
+                      if (pattern[k] == 'i')
+                        mod[lev].push_back('a'); // convert case-insensitive Unicode negated character classes
                       mods.push_back(pattern[k]);
+                    }
                     else
+                    {
                       enable_modifier(pattern[k], pattern, k, mod, lev);
+                    }
                   }
                   else
                   {
                     if (supports_modifier(signature, pattern[k]))
+                    {
+                      if (pattern[k] == 'i')
+                        mod[lev].push_back('A');
                       unmods.push_back(pattern[k]);
+                    }
                     else
+                    {
                       disable_modifier(pattern[k], pattern, k, mod, lev);
+                    }
                   }
                   ++k;
                 }
@@ -2017,7 +2050,6 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             ++pos;
             loc = pos;
             const std::string& subregex = expand(macros, pattern, len, pos);
-            int c;
             if ((flags & convert_flag::lex) && pos + 5 < len && pattern[pos + 1] == '{' && ((c = pattern[pos + 2]) == '+' || c == '|' || c == '&' || c == '-') && pattern[pos + 3] == '}')
             {
               size_t subpos = 0;

@@ -146,15 +146,15 @@ class zstreambuf : public std::streambuf {
         viifree(viizip);
       }
 
-      // next 7zip file to decompress and get its info, return 0 if OK, if none return 1 or -1 on error
-      int get(std::string& name, time_t& mtime, uint64_t& usize)
+      // next 7zip file to decompress and get its ZipInfo, return 0 if OK, if none return 1 or -1 on error
+      int get(ZipInfo& zipinfo)
       {
         char buf[PATH_MAX];
-        int res = viiget(viizip, buf, PATH_MAX, &mtime, &usize);
+        int res = viiget(viizip, buf, PATH_MAX, &zipinfo.mtime, &zipinfo.usize);
         if (res)
           return res;
 
-        name.assign(buf);
+        zipinfo.name.assign(buf);
 
         return 0;
       }
@@ -260,7 +260,7 @@ class zstreambuf : public std::streambuf {
         if (!znew_)
           return true;
 
-        int res = sz_strm_->get(name, mtime, usize);
+        int res = sz_strm_->get(*this);
         if (res < 0)
         {
           cannot_decompress(pathname_, "corrupt 7zip archive");

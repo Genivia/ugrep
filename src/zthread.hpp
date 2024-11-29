@@ -233,10 +233,12 @@ struct Zthread {
       pipe_fd[0] = -1;
 
       // if extracting and the decompression filter thread is not yet waiting, then wait until decompression thread closed its end of the pipe
-      std::unique_lock<std::mutex> lock(pipe_mutex);
-      if (!is_waiting)
-        pipe_close.wait(lock);
-      lock.unlock();
+      {
+        std::unique_lock<std::mutex> lock(pipe_mutex);
+        if (!is_waiting)
+          pipe_close.wait(lock);
+        lock.unlock();
+      }
 
       // partnameref is not assigned yet, used only when this decompression thread is chained
       is_assigned = false;

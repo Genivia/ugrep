@@ -1342,15 +1342,15 @@ void Query::query_ui()
         case VKey::FN(4):
           if (mark_.row >= 0)
           {
-            int row;
-            if (mark_.restore(line_, col_, row, flags_))
+            int old_row;
+            if (mark_.restore(old_row))
             {
               globbing_ = false;
               set_prompt();
               len_ = line_len();
               search();
             }
-            jump(row);
+            jump(old_row);
           }
           else
           {
@@ -1398,8 +1398,15 @@ void Query::query_ui()
 
         case VKey::CTRL_X: // CTRL-X or F3: set bookmark and save state
         case VKey::FN(3):
-          mark_.save(line_, col_, (select_ >= 0 ? select_ : row_), flags_);
-          status(true);
+          if (select_ == -1)
+          {
+            mark_.save();
+            status(true);
+          }
+          else
+          {
+            Screen::alert();
+          }
           break;
 
         case VKey::CTRL_Y: // CTRL-Y or F2: view (or edit) file
@@ -2809,7 +2816,7 @@ void Query::select()
       files_.swap(Static::arg_files);
 
     history_.emplace();
-    history_.top().save(line_, col_, row_, flags_, mark_);
+    history_.top().save();
 
     if (flag_directories_action != Action::RECURSE)
     {
@@ -2967,8 +2974,8 @@ void Query::deselect()
 
   if (!history_.empty())
   {
-    int row;
-    history_.top().restore(line_, col_, row, flags_, mark_);
+    int old_row;
+    history_.top().restore(old_row);
     history_.pop();
     if (history_.empty())
       files_.swap(Static::arg_files);
@@ -2976,7 +2983,7 @@ void Query::deselect()
     set_prompt();
     len_ = line_len();
     search();
-    jump(row);
+    jump(old_row);
   }
   else
   {
@@ -3048,15 +3055,15 @@ void Query::unselect()
   {
     while (history_.size() > 1)
       history_.pop();
-    int row;
-    history_.top().restore(line_, col_, row, flags_, mark_);
+    int old_row;
+    history_.top().restore(old_row);
     history_.pop();
     files_.swap(Static::arg_files);
     globbing_ = false;
     set_prompt();
     len_ = line_len();
     search();
-    jump(row);
+    jump(old_row);
   }
   else
   {

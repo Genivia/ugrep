@@ -105,7 +105,7 @@ class Query {
       return row != -1;
     }
 
-    void save(const Line& line_, int col_, int row_, const Flags flags_[])
+    void save()
     {
       memcpy(line, line_, sizeof(Line));
       col = col_;
@@ -115,9 +115,9 @@ class Query {
         set.push_back(flags_[i].flag);
     }
 
-    bool restore(Line& line_, int& col_, int& row_, Flags flags_[])
+    bool restore(int& old_row)
     {
-      row_ = 0;
+      old_row = 0;
 
       if (row < 0)
         return false;
@@ -126,7 +126,7 @@ class Query {
 
       memcpy(line_, line, sizeof(Line));
       col_ = col;
-      row_ = row;
+      old_row = row;
       for (int i = 0; flags_[i].text != NULL; ++i)
       {
         if (flags_[i].flag != set[i])
@@ -149,15 +149,15 @@ class Query {
   // history to restore pattern, bookmark and option upon SHIFT-TAB
   struct History : public State {
 
-    void save(const Line& line_, int col_, int row_, const Flags flags_[], const State& mark_)
+    void save()
     {
-      State::save(line_, col_, row_, flags_);
+      State::save();
       mark = mark_;
     }
 
-    void restore(Line& line_, int& col_, int& row_, Flags flags_[], State& mark_)
+    void restore(int& old_row)
     {
-      State::restore(line_, col_, row_, flags_);
+      State::restore(old_row);
       mark_ = mark;
     }
 

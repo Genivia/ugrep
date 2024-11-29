@@ -3451,7 +3451,7 @@ bool Matcher::advance_string_bm(size_t loc)
       }
       else
       {
-        size_t k = bms[static_cast<uint8_t>(*q)];
+        k = bms[static_cast<uint8_t>(*q)];
         if (p + k > t + bmd)
           s += k - (t - p);
         else
@@ -3510,7 +3510,7 @@ bool Matcher::advance_string_bm_pma(size_t loc)
       }
       else
       {
-        size_t k = bms[static_cast<uint8_t>(*q)];
+        k = bms[static_cast<uint8_t>(*q)];
         if (p + k > t + bmd)
           s += k - (t - p);
         else
@@ -3570,7 +3570,7 @@ bool Matcher::advance_string_bm_pmh(size_t loc)
       }
       else
       {
-        size_t k = bms[static_cast<uint8_t>(*q)];
+        k = bms[static_cast<uint8_t>(*q)];
         if (p + k > t + bmd)
           s += k - (t - p);
         else

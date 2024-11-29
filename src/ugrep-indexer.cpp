@@ -35,7 +35,7 @@
 */
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "7.1.0"
+#define UGREP_VERSION "7.1.1"
 
 // use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD
@@ -277,7 +277,7 @@ static const char ugrep_index_file_magic[5] = "UG#\x03";
 static const char ugrep_indexer_config_filename[] = ".ugrep-indexer";
 
 // command-line optional PATH argument
-const char *arg_pathname = NULL;
+const char *arg_path = NULL;
 
 // command-line options
 int    flag_accuracy          = 4;     // -0 ... -9 (--accuracy) default is -4
@@ -1434,7 +1434,7 @@ void deleter(const char *pathname)
 }
 
 // recursively index files
-void indexer(const char *pathname)
+void indexer(const char *path)
 {
   if (!flag_no_messages && !flag_check && !flag_quiet)
   {
@@ -1473,11 +1473,11 @@ void indexer(const char *pathname)
   float sum_noise = 0;
   uint8_t hashes[65536];
 
-  // pathname to the directory tree to index or .
-  if (pathname == NULL)
+  // argument path to the directory tree to index or .
+  if (path == NULL)
     dir_entries.emplace();
   else
-    dir_entries.emplace(pathname);
+    dir_entries.emplace(path);
 
   // recurse subdirectories
   while (!dir_entries.empty())
@@ -1947,13 +1947,13 @@ void options(int argc, const char **argv)
         }
       }
     }
-    else if (arg_pathname == NULL)
+    else if (arg_path == NULL)
     {
-      arg_pathname = arg;
+      arg_path = arg;
     }
     else
     {
-      usage("argument PATH already specified as ", arg_pathname);
+      usage("argument PATH already specified as ", arg_path);
     }
   }
 
@@ -2060,9 +2060,9 @@ int main(int argc, const char **argv)
   options(argc, argv);
 
   if (flag_delete)
-    deleter(arg_pathname);
+    deleter(arg_path);
   else
-    indexer(arg_pathname);
+    indexer(arg_path);
 
   return EXIT_SUCCESS;
 }
