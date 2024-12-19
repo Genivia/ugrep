@@ -38,7 +38,7 @@ sed "s/define UGREP_VERSION \"[^\"]*\"/define UGREP_VERSION \"$1\"/" src/ugrep-i
 # this may be needed to reconfigure for glibtoolize for example
 # autoreconf -fvi
 
-./build.sh || exit 1
+./build.sh --with-bzip3 || exit 1
 ./man.sh $1
 pushd completions/bash ; ./compgen.sh > /dev/null ; popd || exit 1
 pushd completions/fish ; ./compgen.sh > /dev/null ; popd || exit 1

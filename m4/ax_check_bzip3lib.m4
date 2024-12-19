@@ -105,11 +105,15 @@ then
   AC_LANG_PUSH([C])
   AC_CHECK_LIB([bzip3], [bz3_new], [bzip3_cv_libbzip3=yes], [bzip3_cv_libbzip3=no])
   AC_CHECK_HEADER([libbz3.h], [bzip3_cv_libbz3_h=yes], [bzip3_cv_libbz3_h=no])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[@%:@include <libbz3.h>]],
+                                     [[struct bz3_state *s=0; uint8_t *b=0; bz3_decode_block(s,b,0,0,0)]])],
+      [bzip3_cv_libbz3_v150=yes],
+      [bzip3_cv_libbz3_v150=no])
   AC_LANG_POP([C])
-  if test "$bzip3_cv_libbzip3" = "yes" && test "$bzip3_cv_libbz3_h" = "yes"
+  if test "$bzip3_cv_libbzip3" = "yes" && test "$bzip3_cv_libbz3_h" = "yes" && test "$bzip3_cv_libbz3_v150" = "yes"
   then
     #
-    # If both library and header were found, action-if-found
+    # If both library and header were found and version >= 1.5.0, action-if-found
     #
     m4_ifblank([$1],[
                 CPPFLAGS="$CPPFLAGS -I${BZIP3_HOME}/include"

@@ -9714,11 +9714,10 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <boost/regex.hpp>
-
 int
 main (void)
 {
-boost::regex r(); return 0;
+boost::regex r()
   ;
   return 0;
 }
@@ -10758,16 +10757,35 @@ else case e in #(
 esac
 fi
 
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <libbz3.h>
+int
+main (void)
+{
+struct bz3_state *s=0; uint8_t *b=0; bz3_decode_block(s,b,0,0,0)
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  bzip3_cv_libbz3_v150=yes
+else case e in #(
+  e) bzip3_cv_libbz3_v150=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
   ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
 ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
-  if test "$bzip3_cv_libbzip3" = "yes" && test "$bzip3_cv_libbz3_h" = "yes"
+  if test "$bzip3_cv_libbzip3" = "yes" && test "$bzip3_cv_libbz3_h" = "yes" && test "$bzip3_cv_libbz3_v150" = "yes"
   then
     #
-    # If both library and header were found, action-if-found
+    # If both library and header were found and version >= 1.5.0, action-if-found
     #
 
                 CPPFLAGS="$CPPFLAGS -I${BZIP3_HOME}/include"
