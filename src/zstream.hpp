@@ -1199,7 +1199,7 @@ class zstreambuf : public std::streambuf {
         file_ = NULL;
       }
 #else
-      cannot_decompress("unsupported compression format", pathname);
+      cannot_decompress(pathname, "unsupported compression format");
       file_ = NULL;
 #endif
     }
@@ -1227,7 +1227,7 @@ class zstreambuf : public std::streambuf {
         file_ = NULL;
       }
 #else
-      cannot_decompress("unsupported compression format", pathname);
+      cannot_decompress(pathname, "unsupported compression format");
       file_ = NULL;
 #endif
     }
@@ -1254,7 +1254,7 @@ class zstreambuf : public std::streambuf {
         file_ = NULL;
       }
 #else
-      cannot_decompress("unsupported compression format", pathname);
+      cannot_decompress(pathname, "unsupported compression format");
       file_ = NULL;
 #endif
     }
@@ -1281,7 +1281,7 @@ class zstreambuf : public std::streambuf {
         file_ = NULL;
       }
 #else
-      cannot_decompress("unsupported compression format", pathname);
+      cannot_decompress(pathname, "unsupported compression format");
       file_ = NULL;
 #endif
     }
@@ -1308,7 +1308,7 @@ class zstreambuf : public std::streambuf {
         file_ = NULL;
       }
 #else
-      cannot_decompress("unsupported compression format", pathname);
+      cannot_decompress(pathname, "unsupported compression format");
       file_ = NULL;
 #endif
     }
@@ -1354,7 +1354,7 @@ class zstreambuf : public std::streambuf {
         file_ = NULL;
       }
 #else
-      cannot_decompress("unsupported compression format", pathname);
+      cannot_decompress(pathname, "unsupported compression format");
       file_ = NULL;
 #endif
     }
@@ -1371,7 +1371,7 @@ class zstreambuf : public std::streambuf {
       catch (const std::invalid_argument&)
       {
         /* non-seekable and password-protected 7zip files cannot be decompressed */
-        cannot_decompress("7zip archive: encrypted data or 7z input is not seekable", pathname);
+        cannot_decompress(pathname, "7zip archive: encrypted data or 7z input is not seekable");
         file_ = NULL;
       }
 
@@ -1387,14 +1387,14 @@ class zstreambuf : public std::streambuf {
         file_ = NULL;
       }
 #else
-      cannot_decompress("unsupported compression format", pathname);
+      cannot_decompress(pathname, "unsupported compression format");
       file_ = NULL;
 #endif
     }
     else if (is_rar(pathname))
     {
       // perhaps RAR can be supported sometime in the future?
-      cannot_decompress("unsupported compression format", pathname);
+      cannot_decompress(pathname, "unsupported compression format");
       file_ = NULL;
     }
     else

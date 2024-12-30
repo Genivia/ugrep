@@ -639,6 +639,8 @@ void open_pager()
     if (Static::output == NULL)
       error("cannot open pipe to pager", flag_pager);
 
+    Static::errout = Static::output;
+
     // enable --heading if not explicitly disabled (enables --break later)
     if (flag_heading.is_undefined())
       flag_heading = true;
@@ -4539,6 +4541,9 @@ FILE *Static::source = stdin;
 // redirectable output destination is standard output by default or a pipe
 FILE *Static::output = stdout;
 
+// redirectable error output destination is standard error by default or a pipe
+FILE *Static::errout = stderr;
+
 // full home directory path
 const char *Static::home_dir = NULL;
 
@@ -4981,11 +4986,11 @@ static void save_config()
   if (!flag_no_messages && strcmp(flag_save_config, "-") != 0)
   {
     if (flag_config == NULL)
-      fprintf(stderr, "ugrep: saving configuration file %s\n", flag_save_config);
+      fprintf(Static::errout, "ugrep: saving configuration file %s\n", flag_save_config);
     else if (exists && strcmp(flag_config, flag_save_config) == 0)
-      fprintf(stderr, "ugrep: updating configuration file %s\n", flag_save_config);
+      fprintf(Static::errout, "ugrep: updating configuration file %s\n", flag_save_config);
     else
-      fprintf(stderr, "ugrep: saving configuration file %s with options based on %s\n", flag_save_config, flag_config);
+      fprintf(Static::errout, "ugrep: saving configuration file %s with options based on %s\n", flag_save_config, flag_config);
   }
 
   if (fopen_smart(&file, flag_save_config, "w") != 0)
@@ -6886,7 +6891,7 @@ void init(int argc, const char **argv)
 
     if (ret != 0)
     {
-      // the specified file or directory does not exist
+      // the specified FILE does not exist
       warning(NULL, *file);
 
       file = Static::arg_files.erase(file);
@@ -6902,9 +6907,10 @@ void init(int argc, const char **argv)
         if (Static::arg_files.empty())
           exit(EXIT_ERROR);
       }
+#ifdef WITH_WARN_UNREADABLE_FILE_ARG
       else if ((buf.st_mode & S_IRUSR) == 0)
       {
-        // the specified file or directory is not readable
+        // the specified file or directory is not readable, even when executing as su
         errno = EACCES;
         warning("cannot read", *file);
 
@@ -6912,6 +6918,7 @@ void init(int argc, const char **argv)
         if (Static::arg_files.empty())
           exit(EXIT_ERROR);
       }
+#endif
       else
       {
         // use threads to descent into a directory
@@ -9048,7 +9055,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
       if (level > MAX_DEPTH)
       {
         if (!flag_no_messages)
-          fprintf(stderr, "%sugrep: %s%s%s recursion depth hit hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
+          fprintf(Static::errout, "%sugrep: %s%s%s recursion depth hit hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
         return Type::SKIP;
       }
 
@@ -9245,7 +9252,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
             if (level > MAX_DEPTH)
             {
               if (!flag_no_messages)
-                fprintf(stderr, "%sugrep: %s%s%s recursion depth hit hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
+                fprintf(Static::errout, "%sugrep: %s%s%s recursion depth hit hard limit of %d\n", color_off, color_high, pathname, color_off, MAX_DEPTH);
               return Type::SKIP;
             }
 
@@ -9670,7 +9677,7 @@ void Grep::recurse(size_t level, const char *pathname)
                   {
                     skip->second = false;
                     if (*flag_index == 'l')
-                      fprintf(stderr, "INDEX LOG: %s" PATHSEPSTR "%s\n", pathname, skip->first.c_str());
+                      fprintf(Static::errout, "INDEX LOG: %s" PATHSEPSTR "%s\n", pathname, skip->first.c_str());
                   }
                   else
                   {
@@ -9686,7 +9693,7 @@ void Grep::recurse(size_t level, const char *pathname)
                   // not -I: do not skip non-indexed binary files (marked empty in index) that we need to search
                   skip->second = false;
                   if (*flag_index == 'l')
-                    fprintf(stderr, "INDEX LOG: %s" PATHSEPSTR "%s (not indexed binary)\n", pathname, skip->first.c_str());
+                    fprintf(Static::errout, "INDEX LOG: %s" PATHSEPSTR "%s (not indexed binary)\n", pathname, skip->first.c_str());
                 }
               }
 
@@ -9704,7 +9711,7 @@ void Grep::recurse(size_t level, const char *pathname)
           // a new file that was not indexed
           Stats::score_added();
           if (*flag_index == 'l')
-            fprintf(stderr, "INDEX LOG: %s (not indexed)\n", entry_pathname.c_str());
+            fprintf(Static::errout, "INDEX LOG: %s (not indexed)\n", entry_pathname.c_str());
         }
         else if (skip->second)
         {
@@ -9715,7 +9722,7 @@ void Grep::recurse(size_t level, const char *pathname)
             // search the file that was changed after indexing
             Stats::score_changed();
             if (*flag_index == 'l')
-              fprintf(stderr, "INDEX LOG: %s (changed)\n", entry_pathname.c_str());
+              fprintf(Static::errout, "INDEX LOG: %s (changed)\n", entry_pathname.c_str());
           }
           else
           {
@@ -9889,7 +9896,7 @@ void Grep::recurse(size_t level, const char *pathname)
                         skip->second = false;
                         Stats::score_changed();
                         if (*flag_index == 'l')
-                          fprintf(stderr, "INDEX LOG: %s (changed)\n", index_pathname.c_str());
+                          fprintf(Static::errout, "INDEX LOG: %s (changed)\n", index_pathname.c_str());
                       }
                     }
                   }
@@ -9915,7 +9922,7 @@ void Grep::recurse(size_t level, const char *pathname)
                       {
                         skip->second = false;
                         if (*flag_index == 'l')
-                          fprintf(stderr, "INDEX LOG: %s\n", index_pathname.c_str());
+                          fprintf(Static::errout, "INDEX LOG: %s\n", index_pathname.c_str());
                       }
                       else
                       {
@@ -9931,7 +9938,7 @@ void Grep::recurse(size_t level, const char *pathname)
                       // not -I: do not skip non-indexed binary files (marked empty in index) that we need to search
                       skip->second = false;
                       if (*flag_index == 'l')
-                        fprintf(stderr, "INDEX LOG: %s (not indexed binary)\n", index_pathname.c_str());
+                        fprintf(Static::errout, "INDEX LOG: %s (not indexed binary)\n", index_pathname.c_str());
                     }
                   }
                 }
@@ -9952,7 +9959,7 @@ void Grep::recurse(size_t level, const char *pathname)
           // a new file that was not indexed
           Stats::score_added();
           if (*flag_index == 'l')
-            fprintf(stderr, "INDEX LOG: %s (not indexed)\n", entry_pathname.c_str());
+            fprintf(Static::errout, "INDEX LOG: %s (not indexed)\n", entry_pathname.c_str());
         }
         else if (skip->second)
         {
@@ -15084,7 +15091,7 @@ void version()
 void is_directory(const char *pathname)
 {
   if (!flag_no_messages)
-    fprintf(stderr, "%sugrep: %s%s%s is a directory\n", color_off, color_high, pathname, color_off);
+    fprintf(Static::errout, "%sugrep: %s%s%s is a directory\n", color_off, color_high, pathname, color_off);
 }
 
 #ifdef HAVE_LIBZ
@@ -15093,9 +15100,8 @@ void cannot_decompress(const char *pathname, const char *message)
 {
   if (!flag_no_messages)
   {
-    fprintf(stderr, "%sugrep: %swarning:%s %scannot decompress %s:%s %s%s%s\n", color_off, color_warning, color_off, color_high, pathname, color_off, color_message, message != NULL ? message : "", color_off);
+    fprintf(Static::errout, "%sugrep: cannot decompress %s%s%s: %s\n", color_off, color_fn, pathname, color_off, message != NULL ? message : "");
   }
-  ++Static::warnings;
 }
 #endif
 
@@ -15116,7 +15122,7 @@ void warning(const char *message, const char *arg)
       errmsg = strerror(errno);
 #endif
     }
-    fprintf(stderr, "%sugrep: %swarning:%s %s%s%s%s%c%s %s%s%s\n", color_off, color_warning, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", errmsg != NULL ? ':' : ' ', color_off, color_message, errmsg != NULL ? errmsg : "", color_off);
+    fprintf(Static::errout, "%sugrep: %swarning:%s %s%s%s%s%c%s %s%s%s\n", color_off, color_warning, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", errmsg != NULL ? ':' : ' ', color_off, color_message, errmsg != NULL ? errmsg : "", color_off);
   }
   ++Static::warnings;
 }
@@ -15131,20 +15137,20 @@ void error(const char *message, const char *arg)
 #else
   const char *errmsg = strerror(errno);
 #endif
-  fprintf(stderr, "%sugrep: %serror:%s %s%s%s%s:%s %s%s%s\n\n", color_off, color_error, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", color_off, color_message, errmsg, color_off);
+  fprintf(Static::errout, "%sugrep: %serror:%s %s%s%s%s:%s %s%s%s\n\n", color_off, color_error, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", color_off, color_message, errmsg, color_off);
   exit(EXIT_ERROR);
 }
 
 // print to standard error: abort message with exception details, then exit
 void abort(const char *message)
 {
-  fprintf(stderr, "%sugrep: %s%s%s\n\n", color_off, color_error, message, color_off);
+  fprintf(Static::errout, "%sugrep: %s%s%s\n\n", color_off, color_error, message, color_off);
   exit(EXIT_ERROR);
 }
 
 // print to standard error: abort message with exception details, then exit
 void abort(const char *message, const std::string& what)
 {
-  fprintf(stderr, "%sugrep: %s%s%s%s%s%s\n\n", color_off, color_error, message != NULL ? message : "", color_off, color_high, what.c_str(), color_off);
+  fprintf(Static::errout, "%sugrep: %s%s%s%s%s%s\n\n", color_off, color_error, message != NULL ? message : "", color_off, color_high, what.c_str(), color_off);
   exit(EXIT_ERROR);
 }

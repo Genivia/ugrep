@@ -52,6 +52,9 @@
 // drain stdin until eof to prevent broken pipe signal
 // #define WITH_STDIN_DRAIN
 
+// quick warn about unreadable file/dir arguments before searching by checking stat S_IRUSR
+// #define WITH_WARN_UNREADABLE_FILE_ARG
+
 // enable easy-to-use abbreviated ANSI SGR color codes with WITH_EASY_GREP_COLORS
 // semicolons are not required and abbreviations can be mixed with numeric ANSI SGR codes
 // foreground colors: k=black, r=red, g=green, y=yellow b=blue, m=magenta, c=cyan, w=white
@@ -520,6 +523,9 @@ struct Static {
 
   // redirectable output destination is standard output by default or a pipe
   static FILE *output;
+
+  // redirectable error output destination is standard error by default or a pipe
+  static FILE *errout;
 
   // full home directory path or NULL to expand ~ in options with path arguments
   static const char *home_dir;
