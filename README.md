@@ -4869,7 +4869,8 @@ in markdown:
                   (.Z), zip, 7z, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz,
                   .tbz2, .tb2, .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz,
                   .txz), lz4 (requires suffix .lz4), zstd (requires suffix .zst,
-                  .zstd, .tzst), brotli (requires suffix .br).
+                  .zstd, .tzst), brotli (requires suffix .br), bzip3 (requires
+                  suffix .bz3).
 
            --zmax=NUM
                   When used with option -z (--decompress), searches the contents of
@@ -5459,7 +5460,7 @@ in markdown:
 
 
 
-    ugrep 7.1.1                     November 29, 2024                       UGREP(1)
+    ugrep 7.1.2                     December 30, 2024                       UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

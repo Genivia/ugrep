@@ -71,7 +71,7 @@ void Stats::report(FILE *output)
 
   if (flag_index && indexed > 0)
   {
-    fprintf(stderr, "Skipped %zu file%s of %zu (%.4g%%) not matching %zu indexes\n", skipped, (skipped == 1 ? "" : "s"), sf - ff, 100.0 * skipped / (sf - ff), indexed);
+    fprintf(output, "Skipped %zu file%s of %zu (%.4g%%) not matching %zu indexes\n", skipped, (skipped == 1 ? "" : "s"), sf - ff, 100.0 * skipped / (sf - ff), indexed);
     if (changed > 0 || added > 0)
     {
       fprintf(output, "Detected outdated or missing index files, run ugrep-indexer to re-index:\n");
