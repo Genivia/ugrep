@@ -715,15 +715,17 @@ void Pattern::parse(
 #endif
   timer_type t;
   timer_start(t);
-  if (at(0) == '(' && at(1) == '?')
+  // parse (?imsux) directives that apply to the pattern as a whole
+  while (at(loc) == '(' && at(loc + 1) == '?')
   {
-    loc = 2;
+    Location back = loc;
+    loc += 2;
     while (at(loc) == '-' || std::isalnum(at(loc)))
       ++loc;
     if (at(loc) == ')')
     {
       bool active = true;
-      loc = 2;
+      loc = back + 2;
       Char c;
       while ((c = at(loc)) != ')')
       {
@@ -748,7 +750,8 @@ void Pattern::parse(
     }
     else
     {
-      loc = 0;
+      loc = back;
+      break;
     }
   }
   // assume bol unless pattern is empty, reset flag later when no ^ is used at the start of (sub)patterns
@@ -1756,17 +1759,20 @@ void Pattern::compile(
       {
         // combine the tree DFA transitions with the regex DFA transition moves
         Chars chars;
-        for (DFA::State::Edges::iterator t = state->tnode->edges.begin(); t != state->tnode->edges.end(); ++t)
-          chars.add(t->first);
         if (opt_.i)
         {
-          for (DFA::State::Edges::iterator t = state->tnode->edges.find('a'); t != state->tnode->edges.end(); ++t)
+          for (DFA::State::Edges::iterator t = state->tnode->edges.begin(); t != state->tnode->edges.end(); ++t)
           {
             Char c = t->first;
-            if (c > 'z')
-              break;
-            chars.add(uppercase(c));
+            chars.add(c);
+            if (c >= 'a' && c <= 'z')
+              chars.add(uppercase(c));
           }
+        }
+        else
+        {
+          for (DFA::State::Edges::iterator t = state->tnode->edges.begin(); t != state->tnode->edges.end(); ++t)
+            chars.add(t->first);
         }
         Moves::iterator i = moves.begin();
         Positions pos;
@@ -1902,12 +1908,15 @@ void Pattern::compile(
           chars.add(t->first);
         if (opt_.i)
         {
-          for (std::map<Char,Tree::Node>::iterator t = state->tnode->edges.find('a'); t != state->tnode->edges.end(); ++t)
+          for (std::map<Char,Tree::Node>::iterator t = state->tnode->edges.begin(); t != state->tnode->edges.end(); ++t)
           {
             Char c = t->first;
-            if (c > 'z')
-              break;
-            chars.add(uppercase(c));
+            if (c >= 'a')
+            {
+              if (c > 'z')
+                break;
+              chars.add(uppercase(c));
+            }
           }
         }
         Moves::iterator i = moves.begin();
@@ -2240,8 +2249,8 @@ void Pattern::trim_anchors(Positions& follow) const
 {
 #ifdef DEBUG
   DBGLOG("trim_anchors({");
-  for (Positions::const_iterator q = follow.begin(); q != follow.end(); ++q)
-    DBGLOGPOS(*q);
+  for (Positions::const_iterator i = follow.begin(); i != follow.end(); ++i)
+    DBGLOGPOS(*i);
   DBGLOGA(" })");
 #endif
   Positions::iterator q = follow.begin();
@@ -2263,8 +2272,8 @@ void Pattern::trim_anchors(Positions& follow) const
   }
 #ifdef DEBUG
   DBGLOGA(" = {");
-  for (Positions::const_iterator q = follow.begin(); q != follow.end(); ++q)
-    DBGLOGPOS(*q);
+  for (Positions::const_iterator i = follow.begin(); i != follow.end(); ++i)
+    DBGLOGPOS(*i);
   DBGLOG(" }");
 #endif
 }
