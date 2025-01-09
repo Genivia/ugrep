@@ -30,7 +30,7 @@
 @file      pattern.cpp
 @brief     RE/flex regular expression pattern compiler
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2023, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 

@@ -1,4 +1,4 @@
-AC_INIT([ugrep],[7.1.2],[https://github.com/Genivia/ugrep/issues],[ugrep],[https://ugrep.com])
+AC_INIT([ugrep],[7.1.3],[https://github.com/Genivia/ugrep/issues],[ugrep],[https://ugrep.com])
 AM_INIT_AUTOMAKE([foreign subdir-objects dist-xz no-dist-gzip])
 AC_CONFIG_HEADERS([config.h])
 AC_COPYRIGHT([Copyright (C) 2019-2024 Robert van Engelen, Genivia Inc.])
@@ -74,7 +74,7 @@ AC_ARG_ENABLE(avx2,
 # --disable-neon fallback option if cross compilation fails to disable NEON/AArch64 CPU extensions
 AC_ARG_ENABLE(neon,
   [AS_HELP_STRING([--disable-neon],
-                 [disable NEON CPU extensions])],
+                 [disable NEON/AArch64 CPU extensions])],
   [with_no_neon="yes"],
   [with_no_neon="no"])
 

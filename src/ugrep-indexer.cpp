@@ -30,12 +30,12 @@
 @file      ugrep-indexer.cpp
 @brief     file system indexer for the ugrep search utility
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2023,2024 Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2023,2025 Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "7.1.2"
+#define UGREP_VERSION "7.1.3"
 
 // use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD

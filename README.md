@@ -5446,7 +5446,7 @@ in markdown:
                   $ ugrep --help fuzzy
 
     COPYRIGHT
-           Copyright (c) 2021,2024 Robert A. van Engelen <engelen@acm.org>
+           Copyright (c) 2021,2025 Robert A. van Engelen <engelen@acm.org>
 
            ugrep is released under the BSD-3 license.  All parts of the software
            have reasonable copyright terms permitting free redistribution.  This
@@ -5460,7 +5460,7 @@ in markdown:
 
 
 
-    ugrep 7.1.2                     December 30, 2024                       UGREP(1)
+    ugrep 7.1.3                      January 9, 2025                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
@@ -5734,5 +5734,5 @@ the [man page](#man).  If you can't find it there and it looks like a bug, then
 [report an issue](https://github.com/Genivia/ugrep/issues) on GitHub.  Bug
 reports are quickly addressed.
 
-*Copyright (c) Robert van Engelen, 2024*
+*Copyright (c) Robert van Engelen, 2025*
 

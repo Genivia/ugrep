@@ -683,7 +683,7 @@ Display options related to "fuzzy" searching:
 $ ugrep --help fuzzy
 .PP
 .SH COPYRIGHT
-Copyright (c) 2021,2024 Robert A. van Engelen <engelen@acm.org>
+Copyright (c) 2021,2025 Robert A. van Engelen <engelen@acm.org>
 .PP
 \fBugrep\fR is released under the BSD\-3 license.  All parts of the software
 have reasonable copyright terms permitting free redistribution.  This includes
@@ -868,7 +868,7 @@ tree to non-indexed:
 .IP
 $ ugrep-indexer -d
 .SH COPYRIGHT
-Copyright (c) 2021-2024 Robert A. van Engelen <engelen@acm.org>
+Copyright (c) 2021-2025 Robert A. van Engelen <engelen@acm.org>
 .PP
 \fBugrep-indexer\fR is released under the BSD\-3 license.  All parts of the
 software have reasonable copyright terms permitting free redistribution.  This
