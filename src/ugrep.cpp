@@ -4615,6 +4615,7 @@ const Encoding encoding_table[] = {
 const Type type_table[] = {
   { "actionscript", "as,mxml", NULL,                                                  NULL },
   { "ada",          "ada,adb,ads", NULL,                                              NULL },
+  { "adoc",         "adoc", NULL,                                                     NULL },
   { "asm",          "asm,s,S", NULL,                                                  NULL },
   { "asp",          "asp", NULL,                                                      NULL },
   { "aspx",         "master,ascx,asmx,aspx,svc", NULL,                                NULL },
@@ -4700,7 +4701,7 @@ const Type type_table[] = {
   { "swift",        "swift", NULL,                                                    NULL },
   { "tcl",          "tcl,itcl,itk", NULL,                                             NULL },
   { "tex",          "tex,cls,sty,bib", NULL,                                          NULL },
-  { "text",         "text,txt,TXT,md,rst", NULL,                                      NULL },
+  { "text",         "text,txt,TXT,md,rst,adoc", NULL,                                 NULL },
   { "tiff",         "tif,tiff", NULL,                                                 NULL },
   { "Tiff",         "tif,tiff", NULL,                                                 "\\x49\\x49\\x2a\\x00|\\x4d\\x4d\\x00\\x2a" },
   { "tt",           "tt,tt2,ttml", NULL,                                              NULL },
