@@ -7701,7 +7701,7 @@ save_CFLAGS=$CFLAGS
 LIBS=$PTHREAD_LIBS
 CFLAGS=$PTHREAD_CFLAGS
 
-  for ac_func in sched_setaffinity cpuset_setaffinity pthread_setaffinity_np pthread_setschedprio setpriority
+  for ac_func in pthread_set_qos_class_self_np sched_setaffinity cpuset_setaffinity pthread_setaffinity_np pthread_setschedprio setpriority
 do :
   as_ac_var=`printf "%s\n" "ac_cv_func_$ac_func" | sed "$as_sed_sh"`
 ac_fn_cxx_check_func "$LINENO" "$ac_func" "$as_ac_var"

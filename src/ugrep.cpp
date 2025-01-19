@@ -539,7 +539,7 @@ static void set_this_thread_affinity_and_priority(size_t cpu)
 
   (void)SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu);
 
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) && defined(HAVE_PTHREAD_SET_QOS_CLASS_SELF_NP)
 
   (void)pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
 
@@ -5646,6 +5646,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   ;
                 else if (strcmp(arg, "no-confirm") == 0)
                   flag_confirm = false;
+                else if (strcmp(arg, "no-count") == 0)
+                  flag_count = false;
                 else if (strcmp(arg, "no-decompress") == 0)
                   flag_decompress = false;
                 else if (strcmp(arg, "no-dereference") == 0)
@@ -5658,6 +5660,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_empty = false;
                 else if (strcmp(arg, "no-filename") == 0)
                   flag_no_filename = true;
+                else if (strcmp(arg, "no-files-with-matches") == 0)
+                  flag_files_with_matches = false;
                 else if (strcmp(arg, "no-filter") == 0)
                   flag_filter.clear();
                 else if (strcmp(arg, "no-glob-ignore-case") == 0)
@@ -5717,7 +5721,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp=, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-config, --no-confirm, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-filter, --no-glob-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files, --no-index, --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp=, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-config, --no-confirm, --no-count, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-files-with-matches, --no-filter, --no-glob-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files, --no-index, --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
                 break;
 
               case 'o':
@@ -8321,7 +8325,11 @@ void ugrep()
     }
   }
 
-  // -j: case insensitive search if regex does not contain an upper case letter
+  // -i: disable -j (unconditional overrides conditional)
+  if (flag_ignore_case)
+    flag_smart_case = false;
+
+  // -j: smart case insensitive search if regex does not contain an upper case letter
   if (flag_smart_case)
   {
     flag_ignore_case = true;
@@ -14849,7 +14857,7 @@ Character context on a matching line before or after a match is output when\n\
  [[:name:]]  one char in POSIX class:    ^           begin of line anchor\n\
     alnum      a-z,A-Z,0-9               $           end of line anchor\n\
     alpha      a-z,A-Z                   \\A          begin of file anchor\n\
-    ascii      ASCII char \\x00-\\x7f      \\Z          end of file anchodr\n\
+    ascii      ASCII char \\x00-\\x7f      \\Z          end of file anchor\n\
     blank      space or tab              \\b          word boundary\n\
     cntrl      control characters        \\B          non-word boundary\n\
     digit      0-9                       \\<          start of word boundary\n\

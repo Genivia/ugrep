@@ -29,7 +29,7 @@ save_LIBS=$LIBS
 save_CFLAGS=$CFLAGS
 LIBS=$PTHREAD_LIBS
 CFLAGS=$PTHREAD_CFLAGS
-AC_CHECK_FUNCS([sched_setaffinity cpuset_setaffinity pthread_setaffinity_np pthread_setschedprio setpriority],[break])
+AC_CHECK_FUNCS([pthread_set_qos_class_self_np sched_setaffinity cpuset_setaffinity pthread_setaffinity_np pthread_setschedprio setpriority],[break])
 LIBS=$save_LIBS
 CFLAGS=$save_CFLAGS
 

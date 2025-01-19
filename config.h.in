@@ -73,6 +73,9 @@
 /* Define to 1 if you have the 'pthread_setschedprio' function. */
 #undef HAVE_PTHREAD_SETSCHEDPRIO
 
+/* Define to 1 if you have the 'pthread_set_qos_class_self_np' function. */
+#undef HAVE_PTHREAD_SET_QOS_CLASS_SELF_NP
+
 /* Define to 1 if you have the <sched.h> header file. */
 #undef HAVE_SCHED_H
 
