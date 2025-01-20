@@ -13981,7 +13981,9 @@ void help(std::ostream& out)
             If -o or -u is specified, counts the number of patterns matched.\n\
             If -v is specified, counts the number of non-matching lines.  If\n\
             -m1, (with a comma or --min-count=1) is specified, counts only\n\
-            matching files without outputting zero matches.\n\
+            matching files without outputting zero matches. Specifying -l on\n\
+            the command line suppresses the count, and only the filename is \n\
+            printed.\n\
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the colors specified with option\n\
             --colors or the GREP_COLOR or GREP_COLORS environment variable.\n\
@@ -14347,8 +14349,9 @@ void help(std::ostream& out)
     -m [MIN,][MAX], --min-count=MIN, --max-count=MAX\n\
             Require MIN matches, stop after MAX matches when specified.  Output\n\
             MIN to MAX matches.  For example, -m1 outputs the first match and\n\
-            -cm1, (with a comma) counts nonzero matches.  If -u is specified,\n\
-            each individual match counts.  See also option -K.\n\
+            -cm1, (with a comma) counts nonzero matches.  If -u (--ungroup) is\n\
+            specified, each individual match counts.  See also option -K \n\
+            (--range).\n\
     --match\n\
             Match all input.  Same as specifying an empty pattern to search.\n\
     --max-files=NUM\n\
