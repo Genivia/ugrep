@@ -1000,6 +1000,22 @@ size_t Input::file_get(char *s, size_t n)
       if (size_ + s >= t)
         size_ -= t - s;
       return t - s;
+    case file_encoding::null_data:
+    {
+      char *r = t;
+      t += ::fread(t, 1, n, file_);
+      while (r < t)
+      {
+        if (*r == '\0')
+          *r = '\n';
+        else if (*r == '\n')
+          *r = '\0';
+        ++r;
+      }
+      if (size_ + s >= t)
+        size_ -= t - s;
+      return t - s;
+    }
     default:
       t += ::fread(t, 1, n, file_);
       if (size_ + s >= t)

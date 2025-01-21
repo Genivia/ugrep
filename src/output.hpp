@@ -794,6 +794,38 @@ class Output {
         // if multi-threaded and lock is not already owned, then lock on master's mutex
         acquire();
 
+        // --null-data: swap NUL with LF in the output by converting these characters in the output buffers
+        if (flag_null_data)
+        {
+          for (Buffers::iterator i = buffers_.begin(); i != buf_; ++i)
+          {
+            char *data = i->data;
+
+            for (size_t k = 0; k < SIZE; ++k)
+            {
+              if (data[k] == '\0')
+                data[k] = '\n';
+              else if (data[k] == '\n')
+                data[k] = '\0';
+            }
+          }
+
+          size_t num = cur_ - buf_->data;
+
+          if (num > 0)
+          {
+            char *data = buf_->data;
+
+            for (size_t k = 0; k < num; ++k)
+            {
+              if (data[k] == '\0')
+                data[k] = '\n';
+              else if (data[k] == '\n')
+                data[k] = '\0';
+            }
+          }
+        }
+
         // flush the buffers container to the designated output file, pipe, or stream
         for (Buffers::iterator i = buffers_.begin(); i != buf_; ++i)
         {

@@ -317,7 +317,8 @@ class Input {
     static const file_encoding_type koi8_r     = 35; ///< KOI8-R
     static const file_encoding_type koi8_u     = 36; ///< KOI8-U
     static const file_encoding_type koi8_ru    = 37; ///< KOI8-RU
-    static const file_encoding_type custom     = 38; ///< custom code page
+    static const file_encoding_type null_data  = 38; ///< swap NUL with LF
+    static const file_encoding_type custom     = 39; ///< custom code page
   };
   /// FILE* handler functor base class to handle FILE* errors and non-blocking FILE* reads
   struct Handler {

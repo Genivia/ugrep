@@ -701,15 +701,18 @@ ignoring them, respectively.  See [grep equivalence](#equivalence).
 
 ### Equivalence to GNU/BSD grep
 
-**ugrep** is equivalent to GNU/BSD grep when the following options are used:
+When the `ugrep` executable file is copied to `grep`, `egrep`, `fgrep`,
+`zgrep`, `zegrep` and `zfgrep` executables then those executables will behave
+as GNU grep equivalents.  This behavior is implicit and automatic, essentially
+using the following translations:
 
-    grep   = ugrep -G -U -Y -. --sort -Dread -dread
-    egrep  = ugrep -E -U -Y -. --sort -Dread -dread
-    fgrep  = ugrep -F -U -Y -. --sort -Dread -dread
+    grep   = ugrep -G -U -Y -. --sort
+    egrep  = ugrep -E -U -Y -. --sort
+    fgrep  = ugrep -F -U -Y -. --sort
 
-    zgrep  = ugrep -z -G -U -Y -. --sort -Dread -dread
-    zegrep = ugrep -z -E -U -Y -. --sort -Dread -dread
-    zfgrep = ugrep -z -F -U -Y -. --sort -Dread -dread
+    zgrep  = ugrep -z -G -U -Y -. --sort
+    zegrep = ugrep -z -E -U -Y -. --sort
+    zfgrep = ugrep -z -F -U -Y -. --sort
 
 where:
 
@@ -728,8 +731,17 @@ where:
 - `--sort` specifies output sorted by pathname, showing sorted matching files
   first followed by sorted recursive matches in subdirectories.  Otherwise,
   matching files are reported in no particular order to improve performance;
-- `-Dread` and `-dread` are the GNU/BSD grep defaults but are not recommended,
-  see [improvements](#improvements) for an explanation.
+
+There are two minor differences with GNU/BSD grep that are intended to make
+ugrep more user-friendly:
+
+- GNU/BSD grep defaults to `-Dread` and `-dread` which are not recommended, see
+  [improvements](#improvements) for an explanation.
+- options `-Z` and `-z` are reserved in ugrep for archive and compressed file
+  search and for fuzzy search, respectively.  Whereas GNU/BDS grep `-Z` is the
+  same as `--null` and `-z` is the same as `--null-data`.  Therefore, please
+  use the long options `--null` and `--null-data` when replacing GNU/BSD grep
+  with ugrep.
 
 🔝 [Back to table of contents](#toc)
 

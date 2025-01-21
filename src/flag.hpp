@@ -107,6 +107,7 @@ extern bool flag_no_filename;
 extern bool flag_no_messages;
 extern bool flag_not;
 extern bool flag_null;
+extern bool flag_null_data;
 extern bool flag_only_line_number;
 extern bool flag_only_matching;
 extern bool flag_perl_regexp;

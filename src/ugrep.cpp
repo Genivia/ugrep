@@ -340,6 +340,7 @@ bool flag_no_header                = false;
 bool flag_no_messages              = false;
 bool flag_not                      = false;
 bool flag_null                     = false;
+bool flag_null_data                = false;
 bool flag_only_line_number         = false;
 bool flag_only_matching            = false;
 bool flag_perl_regexp              = false;
@@ -761,8 +762,12 @@ inline bool getline(const char *& here, size_t& left, reflex::BufferedInput& buf
 // return true if s[0..n-1] contains a \0 (NUL) or a non-displayable invalid UTF-8 encoding
 inline bool is_binary(const char *s, size_t n)
 {
-  // not -U or -W: file is binary if it has a \0 (NUL) or an invalid UTF-8 encoding
-  if (!flag_binary || flag_with_hex)
+  // not --null-data or --encoding=null-data that permit NUL in the input and non-UTF-8 like GNU grep
+  if (flag_encoding_type == reflex::Input::file_encoding::null_data)
+    return false;
+
+  // not -a and -U or -W: file is binary if it has a \0 (NUL) or an invalid UTF-8 encoding
+  if (!flag_text && (!flag_binary || flag_with_hex))
     return !reflex::isutf8(s, s + n);
 
   // otherwise, file is binary if it contains a \0 (NUL) which is what GNU grep checks
@@ -4608,6 +4613,7 @@ const Encoding encoding_table[] = {
   { "KOI8-R",      reflex::Input::file_encoding::koi8_r     },
   { "KOI8-U",      reflex::Input::file_encoding::koi8_u     },
   { "KOI8-RU",     reflex::Input::file_encoding::koi8_ru    },
+  { "null-data",   reflex::Input::file_encoding::null_data  },
   { NULL, 0 }
 };
 
@@ -5658,6 +5664,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_dotall = false;
                 else if (strcmp(arg, "no-empty") == 0)
                   flag_empty = false;
+                else if (strcmp(arg, "no-encoding") == 0)
+                  flag_encoding = NULL;
                 else if (strcmp(arg, "no-filename") == 0)
                   flag_no_filename = true;
                 else if (strcmp(arg, "no-files-with-matches") == 0)
@@ -5718,10 +5726,12 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_view = NULL;
                 else if (strcmp(arg, "null") == 0)
                   flag_null = true;
+                else if (strcmp(arg, "null-data") == 0)
+                  flag_null_data = true;
                 else if (strcmp(arg, "neg-regexp") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--neg-regexp=, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-config, --no-confirm, --no-count, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-empty, --no-filename, --no-files-with-matches, --no-filter, --no-glob-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files, --no-index, --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view or --null");
+                  usage("invalid option --", arg, "--neg-regexp=, --not, --no-any-line, --no-ascii, --no-binary, --no-bool, --no-break, --no-byte-offset, --no-color, --no-config, --no-confirm, --no-count, --no-decompress, --no-dereference, --no-dereference-files, --no-dotall, --no-encoding, --no-empty, --no-filename, --no-files-with-matches, --no-filter, --no-glob-ignore-case, --no-group-separator, --no-heading, --no-hidden, --no-hyperlink, --no-ignore-binary, --no-ignore-case, --no-ignore-files, --no-index, --no-initial-tab, --no-invert-match, --no-line-number, --no-only-line-number, --no-only-matching, --no-messages, --no-mmap, --no-pager, --no-pretty, --no-smart-case, --no-sort, --no-split, --no-stats, --no-tree, --no-ungroup, --no-view, --null or --null-data");
                 break;
 
               case 'o':
@@ -6125,7 +6135,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case '0':
-            flag_null = true;
+            flag_null_data = flag_null;
+            flag_null = !flag_null;
             break;
 
           case '1':
@@ -6601,6 +6612,10 @@ void init(int argc, const char **argv)
 
     // encoding is the file encoding used by all input files, if no BOM is present
     flag_encoding_type = encoding_table[i].encoding;
+  }
+  else if (flag_null_data)
+  {
+    flag_encoding_type = reflex::Input::file_encoding::null_data;
   }
 
   // --binary-files: normalize by assigning flags
@@ -13911,7 +13926,7 @@ void help(std::ostream& out)
             Process a binary file as if it were text.  This is equivalent to\n\
             the --binary-files=text option.  This option might output binary\n\
             garbage to the terminal, which can have problematic consequences if\n\
-            the terminal driver interprets some of it as commands.\n\
+            the terminal driver interprets some of it as terminal commands.\n\
     --all, -@\n\
             Search all files except hidden: cancel previous file and directory\n\
             search restrictions and cancel --ignore-binary and --ignore-files\n\
@@ -13987,9 +14002,9 @@ void help(std::ostream& out)
             the match.  See also options -A, -B and -y.\n\
     -c, --count\n\
             Only a count of selected lines is written to standard output.\n\
-            If -o or -u is specified, counts the number of patterns matched.\n\
-            If -v is specified, counts the number of non-matching lines.  If\n\
-            -m1, (with a comma or --min-count=1) is specified, counts only\n\
+            When -o or -u is specified, counts the number of patterns matched.\n\
+            When -v is specified, counts the number of non-matching lines.\n\
+            When -m1, (with a comma or --min-count=1) is specified, counts only\n\
             matching files without outputting zero matches.\n\
     --color[=WHEN], --colour[=WHEN]\n\
             Mark up the matching text with the colors specified with option\n\
@@ -14029,21 +14044,21 @@ void help(std::ostream& out)
     --cpp\n\
             Output file matches in C++.  See also options --format and -u.\n\
     --csv\n\
-            Output file matches in CSV.  If -H, -n, -k, or -b is specified,\n\
+            Output file matches in CSV.  When -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
     -D ACTION, --devices=ACTION\n\
             If an input file is a device, FIFO or socket, use ACTION to process\n\
             it.  By default, ACTION is `skip', which means that devices are\n\
-            silently skipped.  If ACTION is `read', devices read just as if\n\
+            silently skipped.  When ACTION is `read', devices read just as if\n\
             they were ordinary files.\n\
     -d ACTION, --directories=ACTION\n\
             If an input file is a directory, use ACTION to process it.  By\n\
             default, ACTION is `skip', i.e., silently skip directories unless\n\
-            specified on the command line.  If ACTION is `read', warn when\n\
-            directories are read as input.  If ACTION is `recurse', read all\n\
+            specified on the command line.  When ACTION is `read', warn when\n\
+            directories are read as input.  When ACTION is `recurse', read all\n\
             files under each directory, recursively, following symbolic links\n\
             only if they are on the command line.  This is equivalent to the -r\n\
-            option.  If ACTION is `dereference-recurse', read all files under\n\
+            option.  When ACTION is `dereference-recurse', read all files under\n\
             each directory, recursively, following symbolic links.  This is\n\
             equivalent to the -R option.\n\
     --delay=DELAY\n\
@@ -14067,8 +14082,9 @@ void help(std::ostream& out)
             after option -f or after the FILE arguments.\n\
     --encoding=ENCODING\n\
             The encoding format of the input.  The default ENCODING is binary\n\
-            and UTF-8 which are the same.  Note that option -U specifies binary\n\
-            PATTERN matching (text matching is the default.)  ENCODING can be:\n\
+            or UTF-8 which are treated the same.  Therefore, --encoding=binary\n\
+            has no effect.  Note that option -U or --binary specifies binary\n\
+            PATTERN matching (text matching is the default).  ENCODING can be:\n\
            ";
   size_t k = 10;
   for (int i = 0; encoding_table[i].format != NULL; ++i)
@@ -14188,7 +14204,7 @@ void help(std::ostream& out)
             --include-dir='glob' and --exclude-dir='glob'.  A leading `/'\n\
             matches the working directory.  Option --iglob performs\n\
             case-insensitive name matching.  This option may be repeated and\n\
-            may be combined with options -M, -O and -t to expand searches.  See\n\
+            may be combined with options -M, -O and -t.  For more details, see\n\
             `ugrep --help globs' and `man ugrep' section GLOBBING for details.\n\
     --glob-ignore-case\n\
             Perform case-insensitive glob matching in general.\n\
@@ -14317,7 +14333,7 @@ void help(std::ostream& out)
             Perform case insensitive matching, unless a pattern is specified\n\
             with a literal upper case ASCII letter.\n\
     --json\n\
-            Output file matches in JSON.  If -H, -n, -k, or -b is specified,\n\
+            Output file matches in JSON.  When -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
     -K [MIN,][MAX], --range=[MIN,][MAX], --min-line=MIN, --max-line=MAX\n\
             Start searching at line MIN, stop at line MAX when specified.\n\
@@ -14351,19 +14367,19 @@ void help(std::ostream& out)
             the MAGIC regex pattern.  When matching, the file will be searched.\n\
             When MAGIC is preceded by a `!' or a `^', skip files with matching\n\
             MAGIC signatures.  This option may be repeated and may be combined\n\
-            with options -O and -t to expand the search.  Every file on the\n\
-            search path is read, making searches potentially more expensive.\n\
+            with options -O and -t.  Every file on the search path is read,\n\
+            making recursive searches potentially more expensive.\n\
     -m [MIN,][MAX], --min-count=MIN, --max-count=MAX\n\
             Require MIN matches, stop after MAX matches when specified.  Output\n\
             MIN to MAX matches.  For example, -m1 outputs the first match and\n\
-            -cm1, (with a comma) counts nonzero matches.  If -u is specified,\n\
-            each individual match counts.  See also option -K.\n\
+            -cm1, (with a comma) counts nonzero matches.  When -u or --ungroup\n\
+            is specified, each individual match counts.  See also option -K.\n\
     --match\n\
             Match all input.  Same as specifying an empty pattern to search.\n\
     --max-files=NUM\n\
             Restrict the number of files matched to NUM.  Note that --sort or\n\
             -J1 may be specified to produce replicable results.  If --sort is\n\
-            specified, the number of threads spawned is limited to NUM.\n\
+            specified, then the number of threads spawned is limited to NUM.\n\
     --mmap[=MAX]\n\
             Use memory maps to search files.  By default, memory maps are used\n\
             under certain conditions to improve performance.  When MAX is\n\
@@ -14384,16 +14400,31 @@ void help(std::ostream& out)
             `A' that have no `B', specify -e A --andnot -e B.  Option --stats\n\
             displays the search patterns applied.  See also options --and,\n\
             --andnot, --bool, --files and --lines.\n\
+    --null, -0\n\
+            Output a zero byte after the file name.  This option can be used\n\
+            with commands such as `find -print0' and `xargs -0' to process\n\
+            arbitrary file names, even those that contain newlines.  See also\n\
+            options -H or --with-filename and --null-data.\n\
+    --null-data, -00\n\
+            Input and output are treated as sequences of lines with each line\n\
+            terminated by a zero byte instead of a newline; effectively swaps\n\
+            NUL with LF in the input and the output.  When combined with option\n\
+            --encoding=ENCODING, output each line terminated by a zero byte\n\
+            without affecting the input specified as per ENCODING.  Instead of\n\
+            option --null-data, option --encoding=null-data treats the input as\n\
+            a sequence of lines terminated by a zero byte without affecting the\n\
+            output.  Option --null-data is not compatible with UTF-16/32 input.\n\
+            See also options --encoding and --null.\n\
     -O EXTENSIONS, --file-extension=EXTENSIONS\n\
             Only search files whose filename extensions match the specified\n\
             comma-separated list of EXTENSIONS, same as -g '*.ext' for each\n\
             `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a `^',\n\
             skip files whose filename extensions matches `ext', same as\n\
             -g '^*.ext'.  This option may be repeated and may be combined with\n\
-            options -g, -M and -t to expand the recursive search.\n\
+            options -g, -M and -t.\n\
     -o, --only-matching\n\
-            Only the matching part of a pattern match is output.  If -A, -B or\n\
-            -C is specified, fits the match and its context on a line within\n\
+            Only the matching part of a pattern match is output.  When -A, -B\n\
+            or -C is specified, fits the match and its context on a line within\n\
             the specified number of columns.\n\
     --only-line-number\n\
             Only the line number of a matching line is output.  The line number\n\
@@ -14442,10 +14473,12 @@ void help(std::ostream& out)
             command to view or edit the file shown at the top of the screen.\n\
             The command can be specified with option --view and defaults to\n\
             environment variable PAGER when defined, or VISUAL or EDITOR.\n\
-            Press Tab or Shift-Tab to navigate directories and to select a file\n\
-            to search.  Press Enter to select lines to output.  Press ALT-l for\n\
+            Press TAB or SHIFT-TAB to navigate directories and to select a file\n\
+            to search.  Press ENTER to select lines to output.  Press ALT-l for\n\
             option -l to list files, ALT-n for -n, etc.  Non-option commands\n\
             include ALT-] to increase context and ALT-} to increase fuzzyness.\n\
+            If ALT or OPTION keys are not available, then press CTRL-O + KEY to\n\
+            switch option `KEY', or press F1 or CTRL-Z for help and press KEY.\n\
             See also options --no-confirm, --delay, --split and --view.\n\
     -q, --quiet, --silent\n\
             Quiet mode: suppress all output.  Only search a file until a match\n\
@@ -14558,7 +14591,7 @@ void help(std::ostream& out)
     --width[=NUM]\n\
             Truncate the output to NUM visible characters per line.  The width\n\
             of the terminal window is used if NUM is not specified.  Note that\n\
-            double wide characters in the output may result in wider lines.\n\
+            double-width characters in the output may result in wider lines.\n\
     -X, --hex\n\
             Output matches and matching lines in hexadecimal.  This option is\n\
             equivalent to the --binary-files=hex option.  To omit the matching\n\
@@ -14567,13 +14600,13 @@ void help(std::ostream& out)
             Select only those matches that exactly match the whole line, as if\n\
             the patterns are surrounded by ^ and $.\n\
     --xml\n\
-            Output file matches in XML.  If -H, -n, -k, or -b is specified,\n\
+            Output file matches in XML.  When -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
     -Y, --empty\n\
-            Permits empty matches.  By default, empty matches are disabled,\n\
-            unless a pattern begins with `^' or ends with `$'.  With this\n\
-            option, empty-matching patterns such as x? and x*, match all input,\n\
-            not only lines containing the character `x'.\n\
+            Empty-matching patterns match all lines.  By default, empty matches\n\
+            are not output, unless a pattern begins with `^' or ends with `$'.\n\
+            With this option, empty-matching patterns, such as x? and x*, match\n\
+            all lines, not only lines with an `x'.\n\
     -y, --any-line, --passthru\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
             context with a `-' separator.  See also options -A, -B and -C.\n\
@@ -14598,7 +14631,7 @@ void help(std::ostream& out)
             .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching\n\
             pathnames of files in archives are output in braces.  When used\n\
             with option --zmax=NUM, searches the contents of compressed files\n\
-            and archives stored within archives up to NUM levels.  If -g, -O,\n\
+            and archives stored within archives up to NUM levels.  When -g, -O,\n\
             -M, or -t is specified, searches files stored in archives whose\n\
             filenames match globs, match filename extensions, match file\n\
             signature magic bytes, or match file types, respectively.\n"
@@ -14653,10 +14686,6 @@ void help(std::ostream& out)
             This option is not available in this build configuration of ugrep.\n"
 #endif
             "\
-    -0, --null\n\
-            Output a zero-byte (NUL) after the file name.  This option can be\n\
-            used with commands such as `find -print0' and `xargs -0' to process\n\
-            arbitrary file names.\n\
 \n\
     Long options may start with `--no-' to disable, when applicable.\n\
 \n\
@@ -15049,7 +15078,7 @@ void version()
 #if defined(HAVE_PCRE2)
   uint32_t tmp = 0;
 #endif
-  std::cout << "ugrep " UGREP_VERSION " " PLATFORM << (flag_grep ? " (grep emu mode)" : "") <<
+  std::cout << "ugrep " UGREP_VERSION " " PLATFORM << (flag_grep ? " (grep alias mode)" : "") <<
 #if defined(HAVE_AVX512BW)
     (reflex::have_HW_AVX512BW() ? " +avx512" : (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)")) <<
 #elif defined(HAVE_AVX2)

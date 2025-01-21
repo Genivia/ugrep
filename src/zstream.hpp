@@ -364,6 +364,8 @@ class zstreambuf : public std::streambuf {
           // Zip64 Extended Information Extra Field
           usize = u64(data + num + 4);
           size = u64(data + num + 12);
+          // reset flag bit 3, we check this bit later
+          flag &= ~8;
         }
         else if (id == 0x7075)
         {
@@ -527,7 +529,15 @@ class zstreambuf : public std::streambuf {
 
 #endif
       }
-      else if (method != Compression::STORE || (flag & 8) != 0)
+      else if (method == Compression::STORE)
+      {
+        if ((flag & 8) != 0)
+        {
+          cannot_decompress(pathname_, "zip STORE data size unknown");
+          return false;
+        }
+      }
+      else
       {
         std::string message("unsupported zip compression method ");
         message.append(std::to_string(static_cast<uint16_t>(method)));
@@ -859,7 +869,7 @@ class zstreambuf : public std::streambuf {
 #endif
       else
       {
-        // copy the stored zip data until the stored data size is reduced to zero
+        // STORE method: copy the stored zip data until the stored data size is reduced to zero
         if (size > 0)
         {
           if (zcur_ < zlen_ || read())
@@ -2680,7 +2690,7 @@ class zstreambuf : public std::streambuf {
     }
     else if (file_ != NULL)
     {
-      // pass through, without decompression, i.e. the STORE method
+      // pass through, without decompression
       num = fread(buf, 1, len, file_);
 
       // end of file or error?
