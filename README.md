@@ -665,63 +665,68 @@ or enable Xref integration with **ugrep** manually:
 Using ugrep to replace GNU/BSD grep
 -----------------------------------
 
-Out-of-the-box **ugrep** supports all standard GNU/BSD grep command-line
-options and improves many of them too.  For details see [notable improvements
-over grep](#improvements).
+**ugrep** supports all standard GNU/BSD grep command-line options and improves
+many of them too.  See [notable improvements over grep](#improvements).
 
 If you want to stick exactly to GNU/BSD grep ASCII/LATIN1 non-UTF Unicode
 patterns, use option `-U` to disable full Unicode pattern matching.
 
 In fact, executing `ugrep` with options `-U`, `-Y`, `-.` and `--sort` makes it
-behave exactly like `egrep`, matching only ASCII/LATIN1 non-UTF Unicode
-patterns, permitting empty patterns to match and search hidden files instead of
-ignoring them, respectively.  See [grep equivalence](#equivalence).
+behave like `egrep`, matching only ASCII/LATIN1 non-UTF Unicode patterns,
+permitting empty patterns to match and search hidden files instead of ignoring
+them, respectively.  See [grep equivalence](#equivalence).
 
 - You can create [convenient grep aliases](#aliases) with or without options
-  `-U`, `-Y`, `-.` and `--sort` or include other options as desired.
+  `-Y`, `-.` and `--sort` or include other options as desired.
 
-- Or you can create `grep`, `egrep` and `fgrep` executables by copying `ugrep`
-  to those names.  When the `ugrep` (or `ugrep.exe`) executable is copied as
-  `grep` (`grep.exe`), `egrep` (`egrep.exe`), `fgrep` (`fgrep.exe`), then
-  option `-U`, `-Y` and `-.` are automatically enabled together with either
-  `-G` for `grep`, `-E` for `egrep` and `-F` for `fgrep`.  In addition, when
-  copied as `zgrep`, `zegrep` and `zfgrep`, option `-z` is enabled.  For
-  example, when `ugrep` is copied as `zegrep`, options `-z`, `-E`, `-Y`, `-.`
-  and `--sort` are enabled.
+- You can also create `grep`, `egrep` and `fgrep` executables by symlinking or
+  copying `ugrep` to those names.  When the `ugrep` (or `ugrep.exe`) executable
+  is copied as `grep` (`grep.exe`), `egrep` (`egrep.exe`), `fgrep`
+  (`fgrep.exe`), then options `-Y` and `-.` are automatically enabled together
+  with either `-G` for `grep`, `-E` for `egrep` and `-F` for `fgrep`.  In
+  addition, when copied as `zgrep`, `zegrep` and `zfgrep`, option
+  `--decompress` is enabled.  For example, when `ugrep` is copied as `zegrep`,
+  options `--decompress`, `-E`, `-Y`, `-.` and `--sort` are enabled.
 
-- Likewise, symlinks and hard links to `ugrep` work fine too to create `grep`,
-  `egrep` and `fgrep` replacements.  For example, to create a symlink `egrep`:
+- Likewise, symlinks and hard links can be used to create `grep`, `egrep` and
+  `fgrep` replacements in the usual installation directories.  For example:
 
+      sudo ln -s `which ugrep` /opt/local/bin/grep
       sudo ln -s `which ugrep` /opt/local/bin/egrep
+      sudo ln -s `which ugrep` /opt/local/bin/fgrep
+      sudo ln -s `which ugrep` /opt/local/bin/zgrep
+      sudo ln -s `which ugrep` /opt/local/bin/zegrep
+      sudo ln -s `which ugrep` /opt/local/bin/zfgrep
 
   The `/opt/local/bin` is just an example and may or may not be in your `$path`
-  and may or may not be found when executing `egrep` depending on your `$path`.
+  and may or may not be found, so please adjust as necessary.  **Caution:**
+  *bash does not obey the linked name when executing the program, reverting to
+  the name `ugrep` instead, which negates all internal compatibility settings.
+  To avoid this, copy the executable instead of linking.*
+
+When linking or copying `ugrep` to `grep`, `egrep`, `fgrep`, `zgrep`, `zegrep`,
+`zfgrep`, options `-z` and `-Z` are reassigned for compatibility to
+`--null-data` and `--null`, respectively.
 
 <a name="equivalence"/>
 
 ### Equivalence to GNU/BSD grep
 
-When the `ugrep` executable file is copied to `grep`, `egrep`, `fgrep`,
-`zgrep`, `zegrep` and `zfgrep` executables then those executables will behave
-as GNU grep equivalents.  This behavior is implicit and automatic, essentially
-using the following translations:
+When the `ugrep` executable file is symlinked or copied to `grep`, `egrep`,
+`fgrep`, `zgrep`, `zegrep` and `zfgrep` executables, then those executables
+will behave as GNU grep equivalents.  This behavior is implicit and automatic,
+essentially using the following translations:
 
-    grep   = ugrep -G -U -Y -. --sort
-    egrep  = ugrep -E -U -Y -. --sort
-    fgrep  = ugrep -F -U -Y -. --sort
+    grep   = ugrep -G -Y -. --sort
+    egrep  = ugrep -E -Y -. --sort
+    fgrep  = ugrep -F -Y -. --sort
 
-    zgrep  = ugrep -z -G -U -Y -. --sort
-    zegrep = ugrep -z -E -U -Y -. --sort
-    zfgrep = ugrep -z -F -U -Y -. --sort
+    zgrep  = ugrep -z -G -Y -. --sort
+    zegrep = ugrep -z -E -Y -. --sort
+    zfgrep = ugrep -z -F -Y -. --sort
 
-where:
+please note that:
 
-- `-U` disables Unicode wide-character pattern matching, so for example the
-  pattern `\xa3` matches byte A3 instead of the Unicode code point U+00A3
-  represented by the UTF-8 sequence C2 A3.  By default in ugrep, `\xa3` matches
-  U+00A3.  We do not recommend to use `-U` for text pattern searches, only for
-  binary searches or to search latin-1 (iso-8859-1) files without reporting
-  these files as binary (since ugrep v3.5.0).
 - `-Y` enables empty matches, so for example the pattern `a*` matches every
   line instead of a sequence of `a`'s.  By default in ugrep, the pattern `a*`
   matches a sequence of `a`'s.  Moreover, in ugrep the pattern `a*b*c*` matches
@@ -731,17 +736,13 @@ where:
 - `--sort` specifies output sorted by pathname, showing sorted matching files
   first followed by sorted recursive matches in subdirectories.  Otherwise,
   matching files are reported in no particular order to improve performance;
+- options `-z` and `-Z` are reassigned to `--null-data` and `--null` and no
+  longer enable `--decompress` and `--fuzzy` searching modes.
 
-There are two minor differences with GNU/BSD grep that are intended to make
-ugrep more user-friendly:
+There is one minor difference with GNU/BSD grep:
 
 - GNU/BSD grep defaults to `-Dread` and `-dread` which are not recommended, see
   [improvements](#improvements) for an explanation.
-- options `-Z` and `-z` are reserved in ugrep for archive and compressed file
-  search and for fuzzy search, respectively.  Whereas GNU/BDS grep `-Z` is the
-  same as `--null` and `-z` is the same as `--null-data`.  Therefore, please
-  use the long options `--null` and `--null-data` when replacing GNU/BSD grep
-  with ugrep.
 
 🔝 [Back to table of contents](#toc)
 
@@ -1230,8 +1231,9 @@ This option starts a user interface to enter search patterns interactively:
   enable or disable the ugrep option.  For example, pressing Alt-c enables
   option `-c` to count matches.  Pressing Alt-c again disables `-c`.  Options
   can be toggled with the Alt key while searching or when viewing the help
-  screen.  If Alt/Meta keys are not supported (e.g. X11 xterm), then press
-  CTRL-O followed by the key corresponding to the option.
+  screen.  If Alt/Meta keys are not working (e.g. X11 xterm), then press
+  CTRL-O followed by the key corresponding to the option.  Alt keys may work
+  in xterm by adding `xterm*metaSendsEscape: true` to ~/.Xdefaults`.
 - Press Alt-g to enter or edit option `-g` file and directory matching globs, a
   comma-separated list of gitignore-style glob patterns.  Presssing ESC returns
   control to the query pattern prompt (the globs are saved).  When a glob is

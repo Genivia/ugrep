@@ -5488,6 +5488,8 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_glob.emplace_back(getloptarg(argc, argv, arg + 5, i));
                 else if (strcmp(arg, "glob-ignore-case") == 0)
                   flag_glob_ignore_case = true;
+                else if (strcmp(arg, "grep") == 0)
+                  flag_grep = true;
                 else if (strcmp(arg, "group-separator") == 0)
                   flag_group_separator = "--";
                 else if (strncmp(arg, "group-separator=", 16) == 0)
@@ -5495,7 +5497,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "glob") == 0)
                   usage("missing argument for --", arg);
                 else
-                  usage("invalid option --", arg, "--glob=, --glob-ignore-case or --group-separator");
+                  usage("invalid option --", arg, "--glob=, --glob-ignore-case, --grep or --group-separator");
                 break;
 
               case 'h':
@@ -6108,7 +6110,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'Y':
-            flag_grep = true;
+            flag_empty = true;
             break;
 
           case 'y':
@@ -6116,22 +6118,32 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'Z':
-            ++arg;
-            if (*arg == '=' || strncmp(arg, "best", 4) == 0 || isdigit(static_cast<unsigned char>(*arg)) || strchr("+-~", *arg) != NULL)
+            if (flag_grep)
             {
-              flag_fuzzy = strtofuzzy(&arg[*arg == '='], "invalid argument -Z=");
-              is_grouped = false;
+              flag_null = true;
             }
             else
             {
-              flag_fuzzy = 1;
-              --arg;
+              ++arg;
+              if (*arg == '=' || strncmp(arg, "best", 4) == 0 || isdigit(static_cast<unsigned char>(*arg)) || strchr("+-~", *arg) != NULL)
+              {
+                flag_fuzzy = strtofuzzy(&arg[*arg == '='], "invalid argument -Z=");
+                is_grouped = false;
+              }
+              else
+              {
+                flag_fuzzy = 1;
+                --arg;
+              }
             }
             break;
 
 
           case 'z':
-            flag_decompress = true;
+            if (flag_grep)
+              flag_null_data = true;
+            else
+              flag_decompress = true;
             break;
 
           case '0':
@@ -6379,7 +6391,7 @@ void init(int argc, const char **argv)
   }
   else if (strncmp(program, "grep", len) == 0)
   {
-    // the 'grep' command is equivalent to 'ugrep -GY. --sort'
+    // the 'grep' command is equivalent to 'ugrep --grep -G -. --sort'
     flag_basic_regexp = true;
     flag_grep = true;
     flag_hidden = true;
@@ -6387,14 +6399,14 @@ void init(int argc, const char **argv)
   }
   else if (strncmp(program, "egrep", len) == 0)
   {
-    // the 'egrep' command is equivalent to 'ugrep -Y. --sort'
+    // the 'egrep' command is equivalent to 'ugrep --grep -E -. --sort'
     flag_grep = true;
     flag_hidden = true;
     flag_sort = "name";
   }
   else if (strncmp(program, "fgrep", len) == 0)
   {
-    // the 'fgrep' command is equivalent to 'ugrep -FY. --sort'
+    // the 'fgrep' command is equivalent to 'ugrep --grep -F -. --sort'
     flag_fixed_strings = true;
     flag_grep = true;
     flag_hidden = true;
@@ -6402,7 +6414,7 @@ void init(int argc, const char **argv)
   }
   else if (strncmp(program, "zgrep", len) == 0)
   {
-    // the 'zgrep' command is equivalent to 'ugrep -zGY. --sort'
+    // the 'zgrep' command is equivalent to 'ugrep --decompress --grep -G -. --sort'
     flag_decompress = true;
     flag_basic_regexp = true;
     flag_grep = true;
@@ -6411,7 +6423,7 @@ void init(int argc, const char **argv)
   }
   else if (strncmp(program, "zegrep", len) == 0)
   {
-    // the 'zegrep' command is equivalent to 'ugrep -zY. --sort'
+    // the 'zegrep' command is equivalent to 'ugrep --decompress --grep -E -. --sort'
     flag_decompress = true;
     flag_grep = true;
     flag_hidden = true;
@@ -6419,7 +6431,7 @@ void init(int argc, const char **argv)
   }
   else if (strncmp(program, "zfgrep", len) == 0)
   {
-    // the 'zfgrep' command is equivalent to 'ugrep -zFY. --sort'
+    // the 'zfgrep' command is equivalent to 'ugrep --decompress --grep -F -. --sort'
     flag_decompress = true;
     flag_fixed_strings = true;
     flag_grep = true;
@@ -6481,7 +6493,7 @@ void init(int argc, const char **argv)
 #endif
   }
 
-  // -Y: enable --empty
+  // --grep: enable -Y
   if (flag_grep)
     flag_empty = true;
 
@@ -14228,8 +14240,8 @@ void help(std::ostream& out)
             Display a help message on options related to WHAT when specified.\n\
             In addition, `--help regex' displays an overview of regular\n\
             expressions, `--help globs' displays an overview of glob syntax and\n\
-            conventions.  `--help fuzzy' displays details of fuzzy search with\n\
-            option -Z and `--help format' displays a list of --format fields.\n\
+            conventions, `--help fuzzy' displays details of fuzzy search, and\n\
+            `--help format' displays a list of option --format=FORMAT fields.\n\
     --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]\n\
             Output matches in 1 to 8 columns of 8 hexadecimal octets.  The\n\
             default is 2 columns or 16 octets per line.  Argument `a' outputs a\n\
@@ -14239,13 +14251,16 @@ void help(std::ostream& out)
             match, `B' includes up to NUM hex lines before a match and `C'\n\
             includes up to NUM hex lines before and after a match.  Arguments\n\
             `A', `B' and `C' are the same as options -A, -B and -C when used\n\
-            with --hexdump.  See also options -U, -W and -X.\n\
+            with --hexdump.  See also options -U, -W and -X.\n";
+  if (!flag_grep)
+    out << "\
     --hidden, -.\n\
             Search "
 #ifdef OS_WIN
             "Windows system and "
 #endif
-            "hidden files and directories.\n\
+            "hidden files and directories.\n";
+  out << "\
     --hyperlink[=[PREFIX][+]]\n\
             Hyperlinks are enabled for file names when colors are enabled.\n\
             Same as --colors=hl.  When PREFIX is specified, replaces file://\n\
@@ -14400,12 +14415,14 @@ void help(std::ostream& out)
             `A' that have no `B', specify -e A --andnot -e B.  Option --stats\n\
             displays the search patterns applied.  See also options --and,\n\
             --andnot, --bool, --files and --lines.\n\
-    --null, -0\n\
+    --null, -0";
+  out << (flag_grep ? ", -Z" : "") << "\n\
             Output a zero byte after the file name.  This option can be used\n\
             with commands such as `find -print0' and `xargs -0' to process\n\
             arbitrary file names, even those that contain newlines.  See also\n\
             options -H or --with-filename and --null-data.\n\
-    --null-data, -00\n\
+    --null-data, -00";
+  out << (flag_grep ? ", -z" : "") << "\n\
             Input and output are treated as sequences of lines with each line\n\
             terminated by a zero byte instead of a newline; effectively swaps\n\
             NUL with LF in the input and the output.  When combined with option\n\
@@ -14601,15 +14618,20 @@ void help(std::ostream& out)
             the patterns are surrounded by ^ and $.\n\
     --xml\n\
             Output file matches in XML.  When -H, -n, -k, or -b is specified,\n\
-            additional values are output.  See also options --format and -u.\n\
+            additional values are output.  See also options --format and -u.\n";
+  if (!flag_grep)
+    out << "\
     -Y, --empty\n\
             Empty-matching patterns match all lines.  By default, empty matches\n\
             are not output, unless a pattern begins with `^' or ends with `$'.\n\
             With this option, empty-matching patterns, such as x? and x*, match\n\
-            all lines, not only lines with an `x'.\n\
+            all lines, not only lines with an `x'.\n";
+  out << "\
     -y, --any-line, --passthru\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
-            context with a `-' separator.  See also options -A, -B and -C.\n\
+            context with a `-' separator.  See also options -A, -B and -C.\n";
+  if (!flag_grep)
+    out << "\
     -Z[best][+-~][MAX], --fuzzy[=[best][+-~][MAX]]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             The default is -Z1: one deletion, insertion or substitution is\n\
@@ -14672,7 +14694,7 @@ void help(std::ostream& out)
 #endif
             "\
     --zmax=NUM\n\
-            When used with option -z (--decompress), searches the contents of\n\
+            When used with option -z or --decompress, searches the contents of\n\
             compressed files and archives stored within archives by up to NUM\n\
             expansion stages.  The default --zmax=1 only permits searching\n\
             uncompressed files stored in cpio, pax, tar, zip and 7z archives;\n\
@@ -14685,8 +14707,8 @@ void help(std::ostream& out)
             "\
             This option is not available in this build configuration of ugrep.\n"
 #endif
-            "\
-\n\
+            ;
+  out << "\n\
     Long options may start with `--no-' to disable, when applicable.\n\
 \n\
     The ugrep utility exits with one of the following values:\n\
@@ -15078,7 +15100,10 @@ void version()
 #if defined(HAVE_PCRE2)
   uint32_t tmp = 0;
 #endif
-  std::cout << "ugrep " UGREP_VERSION " " PLATFORM << (flag_grep ? " (grep alias mode)" : "") <<
+  std::cout << "ugrep " UGREP_VERSION;
+  if (flag_grep)
+    std::cout << " (" << (flag_basic_regexp ? "" : flag_fixed_strings ? "f" : "e") << "grep compat)";
+  std::cout << " " PLATFORM <<
 #if defined(HAVE_AVX512BW)
     (reflex::have_HW_AVX512BW() ? " +avx512" : (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)")) <<
 #elif defined(HAVE_AVX2)

@@ -125,6 +125,6 @@ $matchers{-P,--perl-regexp}'[Interpret PATTERN as a Perl regular expression usin
 {-y,--any-line,--passthru}'[Any line is output (passthru)]'
 $matchers{-Z-,--fuzzy=-}'[Fuzzy mode: report approximate pattern matches within MAX errors]:DIST:(1 +1 -1 \~1 +-1 +~1 +-~1 -~1 best1 best+1 best-1 best~1 best+-1 best+~1 best+-~1 best-~1)'
 {-z,--decompress}'[Search compressed files and archives]'
---zmax=-'[When used with option -z (--decompress), searches the contents of compressed files and archives stored within archives by up to NUM expansion stages]'
+--zmax=-'[When used with option -z or --decompress, searches the contents of compressed files and archives stored within archives by up to NUM expansion stages]'
 )
 _arguments -s -S $arguments

@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 21, 2025" "ugrep 7.1.4" "User Commands"
+.TH UGREP "1" "January 22, 2025" "ugrep 7.1.5" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -462,8 +462,8 @@ when the output is sent to a terminal.
 Display a help message on options related to WHAT when specified.
 In addition, `\fB\-\-help\fR regex' displays an overview of regular
 expressions, `\fB\-\-help\fR globs' displays an overview of glob syntax and
-conventions.  `\fB\-\-help\fR fuzzy' displays details of fuzzy search with
-option \fB\-Z\fR and `\fB\-\-help\fR format' displays a list of \fB\-\-format\fR fields.
+conventions, `\fB\-\-help\fR fuzzy' displays details of fuzzy search, and
+`\fB\-\-help\fR format' displays a list of option \fB\-\-format\fR=\fIFORMAT\fR fields.
 .TP
 \fB\-\-hexdump\fR[=[1\-8][a][bch][A[\fINUM\fR]][B[\fINUM\fR]][C[\fINUM\fR]]]
 Output matches in 1 to 8 columns of 8 hexadecimal octets.  The
@@ -944,7 +944,7 @@ brotli (requires suffix .br),
 bzip3 (requires suffix .bz3).
 .TP
 \fB\-\-zmax\fR=\fINUM\fR
-When used with option \fB\-z\fR (\fB\-\-decompress\fR), searches the contents of
+When used with option \fB\-z\fR or \fB\-\-decompress\fR, searches the contents of
 compressed files and archives stored within archives by up to NUM
 expansion stages.  The default \fB\-\-zmax\fR=1 only permits searching
 uncompressed files stored in cpio, pax, tar, zip and 7z archives;
