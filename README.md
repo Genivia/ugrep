@@ -668,16 +668,15 @@ Using ugrep to replace GNU/BSD grep
 **ugrep** supports all standard GNU/BSD grep command-line options and improves
 many of them too.  See [notable improvements over grep](#improvements).
 
-If you want to stick exactly to GNU/BSD grep ASCII/LATIN1 non-UTF Unicode
-patterns, use option `-U` to disable full Unicode pattern matching.
-
 In fact, executing `ugrep` with options `-U`, `-Y`, `-.` and `--sort` makes it
-behave like `egrep`, matching only ASCII/LATIN1 non-UTF Unicode patterns,
-permitting empty patterns to match and search hidden files instead of ignoring
-them, respectively.  See [grep equivalence](#equivalence).
+behave like `egrep`, permitting empty patterns to match and search hidden files
+instead of ignoring them.  See [grep equivalence](#equivalence).
 
 - You can create [convenient grep aliases](#aliases) with or without options
-  `-Y`, `-.` and `--sort` or include other options as desired.
+  `-Y`, `-.` and `--sort` or include other options as desired.  If you really
+  must stick exactly to GNU/BSD grep ASCII/LATIN1 patterns, use options `-U`
+  and `--grep` to disable Unicode pattern matching and to reassign options `-z`
+  and `-Z` to `--null-data` and `--null`, respectively.
 
 - You can also create `grep`, `egrep` and `fgrep` executables by symlinking or
   copying `ugrep` to those names.  When the `ugrep` (or `ugrep.exe`) executable
@@ -698,15 +697,15 @@ them, respectively.  See [grep equivalence](#equivalence).
       sudo ln -s `which ugrep` /opt/local/bin/zegrep
       sudo ln -s `which ugrep` /opt/local/bin/zfgrep
 
-  The `/opt/local/bin` is just an example and may or may not be in your `$path`
+  The `/opt/local/bin` here is an example and may or may not be in your `$path`
   and may or may not be found, so please adjust as necessary.  **Caution:**
   *bash does not obey the linked name when executing the program, reverting to
   the name `ugrep` instead, which negates all internal compatibility settings.
-  To avoid this, copy the executable instead of linking.*
+  To avoid this, copy the executables instead of linking!*
 
 When linking or copying `ugrep` to `grep`, `egrep`, `fgrep`, `zgrep`, `zegrep`,
-`zfgrep`, options `-z` and `-Z` are reassigned for compatibility to
-`--null-data` and `--null`, respectively.
+`zfgrep`, options `-z` and `-Z` are reassigned for compatibility to GNU/BSD
+grep options `--null-data` and `--null`, respectively.
 
 <a name="equivalence"/>
 
@@ -4083,7 +4082,7 @@ in markdown:
                   Process a binary file as if it were text.  This is equivalent to
                   the --binary-files=text option.  This option might output binary
                   garbage to the terminal, which can have problematic consequences
-                  if the terminal driver interprets some of it as commands.
+                  if the terminal driver interprets some of it as terminal commands.
 
            --all, -@
                   Search all files except hidden: cancel previous file and directory
@@ -4171,11 +4170,11 @@ in markdown:
                   the match.  See also options -A, -B and -y.
 
            -c, --count
-                  Only a count of selected lines is written to standard output.  If
-                  -o or -u is specified, counts the number of patterns matched.  If
-                  -v is specified, counts the number of non-matching lines.  If -m1,
-                  (with a comma or --min-count=1) is specified, counts only matching
-                  files without outputting zero matches.
+                  Only a count of selected lines is written to standard output.
+                  When -o or -u is specified, counts the number of patterns matched.
+                  When -v is specified, counts the number of non-matching lines.
+                  When -m1, (with a comma or --min-count=1) is specified, counts
+                  only matching files without outputting zero matches.
 
            --color[=WHEN], --colour[=WHEN]
                   Mark up the matching text with the colors specified with option
@@ -4221,23 +4220,23 @@ in markdown:
 
            --cpp  Output file matches in C++.  See also options --format and -u.
 
-           --csv  Output file matches in CSV.  If -H, -n, -k, or -b is specified,
+           --csv  Output file matches in CSV.  When -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
 
            -D ACTION, --devices=ACTION
                   If an input file is a device, FIFO or socket, use ACTION to
                   process it.  By default, ACTION is `skip', which means that
-                  devices are silently skipped.  If ACTION is `read', devices read
+                  devices are silently skipped.  When ACTION is `read', devices read
                   just as if they were ordinary files.
 
            -d ACTION, --directories=ACTION
                   If an input file is a directory, use ACTION to process it.  By
                   default, ACTION is `skip', i.e., silently skip directories unless
-                  specified on the command line.  If ACTION is `read', warn when
-                  directories are read as input.  If ACTION is `recurse', read all
+                  specified on the command line.  When ACTION is `read', warn when
+                  directories are read as input.  When ACTION is `recurse', read all
                   files under each directory, recursively, following symbolic links
                   only if they are on the command line.  This is equivalent to the
-                  -r option.  If ACTION is `dereference-recurse', read all files
+                  -r option.  When ACTION is `dereference-recurse', read all files
                   under each directory, recursively, following symbolic links.  This
                   is equivalent to the -R option.
 
@@ -4267,17 +4266,18 @@ in markdown:
 
            --encoding=ENCODING
                   The encoding format of the input.  The default ENCODING is binary
-                  and UTF-8 which are the same.  Note that option -U specifies
-                  binary PATTERN matching (text matching is the default.)  ENCODING
-                  can be: `binary', `ASCII', `UTF-8', `UTF-16', `UTF-16BE',
-                  `UTF-16LE', `UTF-32', `UTF-32BE', `UTF-32LE', `LATIN1',
-                  `ISO-8859-1', `ISO-8859-2', `ISO-8859-3', `ISO-8859-4',
-                  `ISO-8859-5', `ISO-8859-6', `ISO-8859-7', `ISO-8859-8',
-                  `ISO-8859-9', `ISO-8859-10', `ISO-8859-11', `ISO-8859-13',
-                  `ISO-8859-14', `ISO-8859-15', `ISO-8859-16', `MAC', `MACROMAN',
-                  `EBCDIC', `CP437', `CP850', `CP858', `CP1250', `CP1251', `CP1252',
-                  `CP1253', `CP1254', `CP1255', `CP1256', `CP1257', `CP1258',
-                  `KOI8-R', `KOI8-U', `KOI8-RU'.
+                  or UTF-8 which are treated the same.  Therefore, --encoding=binary
+                  has no effect.  Note that option -U or --binary specifies binary
+                  PATTERN matching (text matching is the default).  ENCODING can be:
+                  `binary', `ASCII', `UTF-8', `UTF-16', `UTF-16BE', `UTF-16LE',
+                  `UTF-32', `UTF-32BE', `UTF-32LE', `LATIN1', `ISO-8859-1',
+                  `ISO-8859-2', `ISO-8859-3', `ISO-8859-4', `ISO-8859-5',
+                  `ISO-8859-6', `ISO-8859-7', `ISO-8859-8', `ISO-8859-9',
+                  `ISO-8859-10', `ISO-8859-11', `ISO-8859-13', `ISO-8859-14',
+                  `ISO-8859-15', `ISO-8859-16', `MAC', `MACROMAN', `EBCDIC',
+                  `CP437', `CP850', `CP858', `CP1250', `CP1251', `CP1252', `CP1253',
+                  `CP1254', `CP1255', `CP1256', `CP1257', `CP1258', `KOI8-R',
+                  `KOI8-U', `KOI8-RU', `null-data'.
 
            --exclude=GLOB
                   Exclude files whose name matches GLOB, same as -g ^GLOB.  GLOB can
@@ -4385,9 +4385,8 @@ in markdown:
                   --include-dir='glob' and --exclude-dir='glob'.  A leading `/'
                   matches the working directory.  Option --iglob performs
                   case-insensitive name matching.  This option may be repeated and
-                  may be combined with options -M, -O and -t to expand searches.
-                  See `ugrep --help globs' and `man ugrep' section GLOBBING for
-                  details.
+                  may be combined with options -M, -O and -t.  For more details, see
+                  `ugrep --help globs' and `man ugrep' section GLOBBING for details.
 
            --glob-ignore-case
                   Perform case-insensitive glob matching in general.
@@ -4417,8 +4416,8 @@ in markdown:
                   Display a help message on options related to WHAT when specified.
                   In addition, `--help regex' displays an overview of regular
                   expressions, `--help globs' displays an overview of glob syntax
-                  and conventions.  `--help fuzzy' displays details of fuzzy search
-                  with option -Z and `--help format' displays a list of --format
+                  and conventions, `--help fuzzy' displays details of fuzzy search,
+                  and `--help format' displays a list of option --format=FORMAT
                   fields.
 
            --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]]
@@ -4433,7 +4432,8 @@ in markdown:
                   when used with --hexdump.  See also options -U, -W and -X.
 
            --hidden, -.
-                  Search hidden files and directories.
+                  Search hidden files and directories (enabled by default in grep
+                  compatibility mode).
 
            --hyperlink[=[PREFIX][+]]
                   Hyperlinks are enabled for file names when colors are enabled.
@@ -4529,7 +4529,7 @@ in markdown:
                   Perform case insensitive matching, unless a pattern is specified
                   with a literal upper case ASCII letter.
 
-           --json Output file matches in JSON.  If -H, -n, -k, or -b is specified,
+           --json Output file matches in JSON.  When -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
 
            -K [MIN,][MAX], --range=[MIN,][MAX], --min-line=MIN, --max-line=MAX
@@ -4571,14 +4571,15 @@ in markdown:
                   MAGIC regex pattern.  When matching, the file will be searched.
                   When MAGIC is preceded by a `!' or a `^', skip files with matching
                   MAGIC signatures.  This option may be repeated and may be combined
-                  with options -O and -t to expand the search.  Every file on the
-                  search path is read, making searches potentially more expensive.
+                  with options -O and -t.  Every file on the search path is read,
+                  making recursive searches potentially more expensive.
 
            -m [MIN,][MAX], --min-count=MIN, --max-count=MAX
                   Require MIN matches, stop after MAX matches when specified.
                   Output MIN to MAX matches.  For example, -m1 outputs the first
-                  match and -cm1, (with a comma) counts nonzero matches.  If -u is
-                  specified, each individual match counts.  See also option -K.
+                  match and -cm1, (with a comma) counts nonzero matches.  When -u or
+                  --ungroup is specified, each individual match counts.  See also
+                  option -K.
 
            --match
                   Match all input.  Same as specifying an empty pattern to search.
@@ -4586,7 +4587,7 @@ in markdown:
            --max-files=NUM
                   Restrict the number of files matched to NUM.  Note that --sort or
                   -J1 may be specified to produce replicable results.  If --sort is
-                  specified, the number of threads spawned is limited to NUM.
+                  specified, then the number of threads spawned is limited to NUM.
 
            --mmap[=MAX]
                   Use memory maps to search files.  By default, memory maps are used
@@ -4612,18 +4613,35 @@ in markdown:
                   --stats displays the search patterns applied.  See also options
                   --and, --andnot, --bool, --files and --lines.
 
+           --null, -0
+                  Output a zero byte after the file name.  This option can be used
+                  with commands such as `find -print0' and `xargs -0' to process
+                  arbitrary file names, even those that contain newlines.  See also
+                  options -H or --with-filename and --null-data.
+
+           --null-data, -00
+                  Input and output are treated as sequences of lines with each line
+                  terminated by a zero byte instead of a newline; effectively swaps
+                  NUL with LF in the input and the output.  When combined with
+                  option --encoding=ENCODING, output each line terminated by a zero
+                  byte without affecting the input specified as per ENCODING.
+                  Instead of option --null-data, option --encoding=null-data treats
+                  the input as a sequence of lines terminated by a zero byte without
+                  affecting the output.  Option --null-data is not compatible with
+                  UTF-16/32 input.  See also options --encoding and --null.
+
            -O EXTENSIONS, --file-extension=EXTENSIONS
                   Only search files whose filename extensions match the specified
                   comma-separated list of EXTENSIONS, same as -g '*.ext' for each
                   `ext' in EXTENSIONS.  When an `ext' is preceded by a `!' or a `^',
                   skip files whose filename extensions matches `ext', same as -g
                   '^*.ext'.  This option may be repeated and may be combined with
-                  options -g, -M and -t to expand the recursive search.
+                  options -g, -M and -t.
 
            -o, --only-matching
-                  Only the matching part of a pattern match is output.  If -A, -B or
-                  -C is specified, fits the match and its context on a line within
-                  the specified number of columns.
+                  Only the matching part of a pattern match is output.  When -A, -B
+                  or -C is specified, fits the match and its context on a line
+                  within the specified number of columns.
 
            --only-line-number
                   Only the line number of a matching line is output.  The line
@@ -4669,12 +4687,14 @@ in markdown:
                   CTRL-Y to invoke a command to view or edit the file shown at the
                   top of the screen.  The command can be specified with option
                   --view and defaults to environment variable PAGER when defined, or
-                  VISUAL or EDITOR.  Press Tab or Shift-Tab to navigate directories
-                  and to select a file to search.  Press Enter to select lines to
+                  VISUAL or EDITOR.  Press TAB or SHIFT-TAB to navigate directories
+                  and to select a file to search.  Press ENTER to select lines to
                   output.  Press ALT-l for option -l to list files, ALT-n for -n,
                   etc.  Non-option commands include ALT-] to increase context and
-                  ALT-} to increase fuzzyness.  See also options --no-confirm,
-                  --delay, --split and --view.
+                  ALT-} to increase fuzzyness.  If ALT or OPTION keys are not
+                  available, then press CTRL-O + KEY to switch option `KEY', or
+                  press F1 or CTRL-Z for help and press KEY.  See also options
+                  --no-confirm, --delay, --split and --view.
 
            -q, --quiet, --silent
                   Quiet mode: suppress all output.  Only search a file until a match
@@ -4760,20 +4780,20 @@ in markdown:
                   files of the specified type.  Specifying the initial part of a
                   type name suffices when the choice is unambiguous.  This option
                   may be repeated.  The possible file types can be (-tlist displays
-                  a list): `actionscript', `ada', `asm', `asp', `aspx', `autoconf',
-                  `automake', `awk', `Awk', `basic', `batch', `bison', `c', `c++',
-                  `clojure', `cpp', `csharp', `css', `csv', `dart', `Dart',
-                  `delphi', `elisp', `elixir', `erlang', `fortran', `gif', `Gif',
-                  `go', `groovy', `gsp', `haskell', `html', `jade', `java', `jpeg',
-                  `Jpeg', `js', `json', `jsp', `julia', `kotlin', `less', `lex',
-                  `lisp', `lua', `m4', `make', `markdown', `matlab', `node', `Node',
-                  `objc', `objc++', `ocaml', `parrot', `pascal', `pdf', `Pdf',
-                  `perl', `Perl', `php', `Php', `png', `Png', `prolog', `python',
-                  `Python', `r', `rpm', `Rpm', `rst', `rtf', `Rtf', `ruby', `Ruby',
-                  `rust', `scala', `scheme', `shell', `Shell', `smalltalk', `sql',
-                  `svg', `swift', `tcl', `tex', `text', `tiff', `Tiff', `tt',
-                  `typescript', `verilog', `vhdl', `vim', `xml', `Xml', `yacc',
-                  `yaml', `zig'.
+                  a list): `actionscript', `ada', `adoc', `asm', `asp', `aspx',
+                  `autoconf', `automake', `awk', `Awk', `basic', `batch', `bison',
+                  `c', `c++', `clojure', `cpp', `csharp', `css', `csv', `dart',
+                  `Dart', `delphi', `elisp', `elixir', `erlang', `fortran', `gif',
+                  `Gif', `go', `groovy', `gsp', `haskell', `html', `jade', `java',
+                  `jpeg', `Jpeg', `js', `json', `jsp', `julia', `kotlin', `less',
+                  `lex', `lisp', `lua', `m4', `make', `markdown', `matlab', `node',
+                  `Node', `objc', `objc++', `ocaml', `parrot', `pascal', `pdf',
+                  `Pdf', `perl', `Perl', `php', `Php', `png', `Png', `prolog',
+                  `python', `Python', `r', `rpm', `Rpm', `rst', `rtf', `Rtf',
+                  `ruby', `Ruby', `rust', `scala', `scheme', `shell', `Shell',
+                  `smalltalk', `sql', `svg', `swift', `tcl', `tex', `text', `tiff',
+                  `Tiff', `tt', `typescript', `verilog', `vhdl', `vim', `xml',
+                  `Xml', `yacc', `yaml', `zig'.
 
            --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value
@@ -4827,7 +4847,7 @@ in markdown:
            --width[=NUM]
                   Truncate the output to NUM visible characters per line.  The width
                   of the terminal window is used if NUM is not specified.  Note that
-                  double wide characters in the output may result in wider lines.
+                  double-width characters in the output may result in wider lines.
 
            -X, --hex
                   Output matches and matching lines in hexadecimal.  This option is
@@ -4839,14 +4859,15 @@ in markdown:
                   Select only those matches that exactly match the whole line, as if
                   the patterns are surrounded by ^ and $.
 
-           --xml  Output file matches in XML.  If -H, -n, -k, or -b is specified,
+           --xml  Output file matches in XML.  When -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
 
            -Y, --empty
-                  Permits empty matches.  By default, empty matches are disabled,
-                  unless a pattern begins with `^' or ends with `$'.  With this
-                  option, empty-matching patterns such as x? and x*, match all
-                  input, not only lines containing the character `x'.
+                  Empty-matching patterns match all lines.  Normally, empty matches
+                  are not output, unless a pattern begins with `^' or ends with `$'.
+                  With this option, empty-matching patterns, such as x? and x*,
+                  match all lines, not only lines with an `x' (enabled by default in
+                  grep compatibility mode).
 
            -y, --any-line, --passthru
                   Any line is output (passthru).  Non-matching lines are output as
@@ -4876,8 +4897,8 @@ in markdown:
                   matching pathnames of files in archives are output in braces.
                   When used with option --zmax=NUM, searches the contents of
                   compressed files and archives stored within archives up to NUM
-                  levels.  If -g, -O, -M, or -t is specified, searches files stored
-                  in archives whose filenames match globs, match filename
+                  levels.  When -g, -O, -M, or -t is specified, searches files
+                  stored in archives whose filenames match globs, match filename
                   extensions, match file signature magic bytes, or match file types,
                   respectively.  Supported compression formats: gzip (.gz), compress
                   (.Z), zip, 7z, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz,
@@ -4887,7 +4908,7 @@ in markdown:
                   suffix .bz3).
 
            --zmax=NUM
-                  When used with option -z (--decompress), searches the contents of
+                  When used with option -z or --decompress, searches the contents of
                   compressed files and archives stored within archives by up to NUM
                   expansion stages.  The default --zmax=1 only permits searching
                   uncompressed files stored in cpio, pax, tar, zip and 7z archives;
@@ -4896,11 +4917,6 @@ in markdown:
                   and archives stored in cpio, pax, tar, zip and 7z archives.  NUM
                   may range from 1 to 99 for up to 99 decompression and de-archiving
                   steps.  Increasing NUM values gradually degrades performance.
-
-           -0, --null
-                  Output a zero-byte (NUL) after the file name.  This option can be
-                  used with commands such as `find -print0' and `xargs -0' to
-                  process arbitrary file names.
 
     EXIT STATUS
            The ugrep utility exits with one of the following values:
@@ -5474,7 +5490,7 @@ in markdown:
 
 
 
-    ugrep 7.1.3                      January 9, 2025                        UGREP(1)
+    ugrep 7.2.0                     January 23, 2025                        UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

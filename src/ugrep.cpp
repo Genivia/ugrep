@@ -14708,6 +14708,8 @@ void help(std::ostream& out)
             This option is not available in this build configuration of ugrep.\n"
 #endif
             ;
+  if (flag_grep)
+    out << "\nGrep compatibility mode: -Z and -z reassigned to --null and --null-data.\n";
   out << "\n\
     Long options may start with `--no-' to disable, when applicable.\n\
 \n\
