@@ -54,7 +54,7 @@ $matchers{-G,--basic-regexp}'[Interpret patterns as basic regular expressions (B
 {--heading,-+}'[Group matches per file]'
 '(-)'{--help,-?}'[Display a help message on options related to WHAT when specified]'
 --hexdump=-'[Output matches in 1 to 8 columns of 8 hexadecimal octets]:NUM:(1a 2a 4ah 6ah 8ah 1aC1 2aC1 4ahC1 6ahC1 8ahC1)'
-{--hidden,-.}'[Search hidden files and directories]'
+{--hidden,-.}'[Search hidden files and directories (enabled by default in grep compatibility mode)]'
 --hyperlink'[Hyperlinks are enabled for file names when colors are enabled]'
 {-I,--ignore-binary}'[Ignore matches in binary files]'
 {-i,--ignore-case}'[Perform case insensitive matching]'

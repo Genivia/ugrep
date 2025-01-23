@@ -14251,16 +14251,14 @@ void help(std::ostream& out)
             match, `B' includes up to NUM hex lines before a match and `C'\n\
             includes up to NUM hex lines before and after a match.  Arguments\n\
             `A', `B' and `C' are the same as options -A, -B and -C when used\n\
-            with --hexdump.  See also options -U, -W and -X.\n";
-  if (!flag_grep)
-    out << "\
+            with --hexdump.  See also options -U, -W and -X.\n\
     --hidden, -.\n\
             Search "
 #ifdef OS_WIN
             "Windows system and "
 #endif
-            "hidden files and directories.\n";
-  out << "\
+            "hidden files and directories\n\
+            (enabled by default in grep compatibility mode).\n\
     --hyperlink[=[PREFIX][+]]\n\
             Hyperlinks are enabled for file names when colors are enabled.\n\
             Same as --colors=hl.  When PREFIX is specified, replaces file://\n\
@@ -14618,21 +14616,20 @@ void help(std::ostream& out)
             the patterns are surrounded by ^ and $.\n\
     --xml\n\
             Output file matches in XML.  When -H, -n, -k, or -b is specified,\n\
-            additional values are output.  See also options --format and -u.\n";
-  if (!flag_grep)
-    out << "\
+            additional values are output.  See also options --format and -u.\n\
     -Y, --empty\n\
-            Empty-matching patterns match all lines.  By default, empty matches\n\
+            Empty-matching patterns match all lines.  Normally, empty matches\n\
             are not output, unless a pattern begins with `^' or ends with `$'.\n\
             With this option, empty-matching patterns, such as x? and x*, match\n\
-            all lines, not only lines with an `x'.\n";
-  out << "\
+            all lines, not only lines with an `x' (enabled by default in grep\n\
+            compatibility mode).\n\
     -y, --any-line, --passthru\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
-            context with a `-' separator.  See also options -A, -B and -C.\n";
+            context with a `-' separator.  See also options -A, -B and -C.\n\
+    ";
   if (!flag_grep)
-    out << "\
-    -Z[best][+-~][MAX], --fuzzy[=[best][+-~][MAX]]\n\
+    out << "-Z[best][+-~][MAX], ";
+  out << "--fuzzy[=[best][+-~][MAX]]\n\
             Fuzzy mode: report approximate pattern matches within MAX errors.\n\
             The default is -Z1: one deletion, insertion or substitution is\n\
             allowed.  If `+`, `-' and/or `~' is specified, then `+' allows\n\
@@ -14647,7 +14644,10 @@ void help(std::ostream& out)
             match the first character, replace it with a `.' or `.?'.  Option\n\
             -U applies fuzzy matching to ASCII and bytes instead of Unicode\n\
             text.  No whitespace may be given between -Z and its argument.\n\
-    -z, --decompress\n\
+    ";
+  if (!flag_grep)
+    out << "-z, ";
+  out << "--decompress\n\
             Search compressed files and archives.  Archives (.cpio, .pax, .tar)\n\
             and compressed archives (e.g. .zip, .7z, .taz, .tgz, .tpz, .tbz,\n\
             .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching\n\

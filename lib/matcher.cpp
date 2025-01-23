@@ -2347,7 +2347,11 @@ bool Matcher::advance_pattern_min4(size_t loc)
     if (loc + 2 >= end_)
     {
       if (loc + 1 >= end_)
-        return false;
+      {
+        loc -= MIN - 1;
+        set_current(loc);
+        return loc + MIN <= end_;
+      }
       --loc;
       state1 = state2;
     }

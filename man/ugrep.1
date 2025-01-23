@@ -1,4 +1,4 @@
-.TH UGREP "1" "January 22, 2025" "ugrep 7.1.5" "User Commands"
+.TH UGREP "1" "January 23, 2025" "ugrep 7.1.6" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -477,7 +477,8 @@ includes up to NUM hex lines before and after a match.  Arguments
 with \fB\-\-hexdump\fR.  See also options \fB\-U\fR, \fB\-W\fR and \fB\-X\fR.
 .TP
 \fB\-\-hidden\fR, \fB\-.\fR
-Search hidden files and directories.
+Search hidden files and directories
+(enabled by default in grep compatibility mode).
 .TP
 \fB\-\-hyperlink\fR[=[\fIPREFIX\fR][+]]
 Hyperlinks are enabled for file names when colors are enabled.
@@ -900,10 +901,11 @@ Output file matches in XML.  When \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR 
 additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
-Empty\-matching patterns match all lines.  By default, empty matches
+Empty\-matching patterns match all lines.  Normally, empty matches
 are not output, unless a pattern begins with `^' or ends with `$'.
 With this option, empty\-matching patterns, such as x? and x*, match
-all lines, not only lines with an `x'.
+all lines, not only lines with an `x' (enabled by default in grep
+compatibility mode).
 .TP
 \fB\-y\fR, \fB\-\-any\-line\fR, \fB\-\-passthru\fR
 Any line is output (passthru).  Non\-matching lines are output as

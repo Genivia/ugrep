@@ -269,7 +269,7 @@ cat <<'END'
 --heading, -+ Group matches per file.
 --help [WHAT], -? [WHAT] Display a help message on options related to WHAT when specified.
 --hexdump[=[1-8][a][bch][A[NUM]][B[NUM]][C[NUM]]] Output matches in 1 to 8 columns of 8 hexadecimal octets.
---hidden, -. Search hidden files and directories.
+--hidden, -. Search hidden files and directories (enabled by default in grep compatibility mode).
 --hyperlink[=[PREFIX][+]] Hyperlinks are enabled for file names when colors are enabled.
 -I, --ignore-binary Ignore matches in binary files.
 -i, --ignore-case Perform case insensitive matching.

@@ -47,7 +47,7 @@ complete -c ugrep+ -s h -l no-filename -d 'Never print filenames with output lin
 complete -c ugrep+ -l heading -s '+' -d 'Group matches per file'
 complete -c ugrep+ -l help -s '?' -d 'Display a help message on options related to WHAT when specified'
 complete -c ugrep+ -l hexdump -xa '1a 2a 4ah 6ah 8ah 1aC1 2aC1 4ahC1 6ahC1 8ahC1' -d 'Output matches in 1 to 8 columns of 8 hexadecimal octets'
-complete -c ugrep+ -l hidden -s '.' -d 'Search hidden files and directories'
+complete -c ugrep+ -l hidden -s '.' -d 'Search hidden files and directories (enabled by default in grep compatibility mode)'
 complete -c ugrep+ -l hyperlink -d 'Hyperlinks are enabled for file names when colors are enabled'
 complete -c ugrep+ -s I -l ignore-binary -d 'Ignore matches in binary files'
 complete -c ugrep+ -s i -l ignore-case -d 'Perform case insensitive matching'
