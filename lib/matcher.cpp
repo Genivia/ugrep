@@ -1084,7 +1084,7 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
     {
       loc = e - buf_;
       set_current_and_peek_more(loc - 1);
-      loc = cur_ + 1;
+      loc = cur_ - lcp + 1;
       if (loc + min > end_)
         return false;
     }
@@ -1225,7 +1225,7 @@ bool Matcher::advance_pattern_pin1_pmh(size_t loc)
     {
       loc = e - buf_;
       set_current_and_peek_more(loc - 1);
-      loc = cur_ + 1;
+      loc = cur_ - lcp + 1;
       if (loc + MIN > end_)
         return false;
     }
@@ -2317,10 +2317,10 @@ bool Matcher::advance_pattern_min4(size_t loc)
   uint32_t state1 = ~0;
   uint32_t state2 = ~0;
   uint32_t mask = 1 << (MIN - 1);
+  const char *s = buf_ + loc;
+  const char *e = buf_ + end_ - 2;
   while (true)
   {
-    const char *s = buf_ + loc;
-    const char *e = buf_ + end_ - 2;
     uint8_t c0 = static_cast<uint8_t>(*s);
     while (s < e)
     {
@@ -2341,18 +2341,22 @@ bool Matcher::advance_pattern_min4(size_t loc)
         return true;
       }
     }
-    loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
-    if (loc + 2 >= end_)
+    size_t ahead = s - buf_;
+    set_current_and_peek_more(ahead - 1);
+    s = buf_ + cur_ + 1;
+    e = buf_ + end_ - 2;
+    if (s >= e)
     {
-      if (loc + 1 >= end_)
+      if (s + 1 >= e)
       {
-        loc -= MIN - 1;
+        s -= MIN - 1;
+        // if s points in the buffer before the original buffer loc, then we didn't make any progress
+        if (s > buf_ + loc)
+          loc = s - buf_;
         set_current(loc);
         return loc + MIN <= end_;
       }
-      --loc;
+      --s;
       state1 = state2;
     }
   }
