@@ -45,6 +45,45 @@ size_t Matcher::match(Method method)
   reset_text();
   len_ = 0;         // split text length starts with 0
   size_t retry = 0; // retry regex match at lookback positions for predicted matches
+  if (method == Const::FIND)
+  {
+    // advance to find a possible match at or after cur in the buffer
+    txt_ = buf_ + cur_;
+    if ((this->*adv_)(cur_))
+    {
+      if (pat_->lbk_ > 0)
+      {
+        // go back over lookback chars (never includes \n) from cur-1 back to txt (at most)
+        const char *s = buf_ + cur_;
+        if (s > txt_)
+        {
+          size_t n = std::min<size_t>(pat_->lbk_ == 0xffff ? SIZE_MAX : pat_->lbk_, s - txt_);
+          while (n-- > 0 && pat_->cbk_.test(static_cast<unsigned char>(*--s)))
+            ++retry;
+          cur_ -= retry;
+          // don't retry at minimal look back distances that are too short for pattern to match
+          if (retry > pat_->lbm_)
+            retry -= pat_->lbm_;
+          else
+            retry = 0;
+        }
+      }
+      else if (pat_->one_)
+      {
+        // one string match, no need to perform a regex match
+        size_t k = cur_ + pat_->len_;
+        int ch = k < end_ ? static_cast<unsigned char>(buf_[k]) : EOF;
+        if (!opt_.W || (at_wb() && (at_end() || at_we(ch, k))))
+        {
+          txt_ = buf_ + cur_;
+          len_ = pat_->len_;
+          set_current(k);
+          return cap_ = 1;
+        }
+      }
+    }
+    set_current(cur_);
+  }
 scan:
   txt_ = buf_ + cur_;
 #if !defined(WITH_NO_INDENT)
@@ -599,24 +638,25 @@ redo:
           {
             if (pat_->lbk_ > 0)
             {
-              // look back and try/retry matching, over lookback chars (never includes \n)
-              size_t n = pat_->lbk_ == 0xffff ? SIZE_MAX : pat_->lbk_;
+              // go back and retry matching over lookback chars (never includes \n) from cur-1 to txt+1 (at most)
               const char *s = buf_ + cur_;
-              const char *e = txt_;
-              while (n-- > 0 && --s > e && pat_->cbk_.test(static_cast<unsigned char>(*s)))
-                ++retry;
-              cur_ -= retry;
-              // not at or before the begin of the last match
-              s = buf_ + cur_;
-              // don't retry at minimal look back distances that are too short for pattern to match
-              if (retry > pat_->lbm_)
-                retry -= pat_->lbm_;
-              else
-                retry = 0;
+              if (s > txt_ + 1)
+              {
+                size_t n = std::min<size_t>(pat_->lbk_ == 0xffff ? SIZE_MAX : pat_->lbk_, s - txt_ - 1);
+                while (n-- > 0 && pat_->cbk_.test(static_cast<unsigned char>(*--s)))
+                  ++retry;
+                cur_ -= retry;
+                // don't retry at minimal look back distances that are too short for pattern to match
+                if (retry > pat_->lbm_)
+                  retry -= pat_->lbm_;
+                else
+                  retry = 0;
+              }
               set_current(cur_);
               DBGLOG("Find: look back %zu to pos %zu", retry, cur_);
               goto scan;
             }
+            // if not one string match then perform a regex match, else we're done
             if (!pat_->one_)
               goto scan;
             size_t k = cur_ + pat_->len_;
@@ -658,6 +698,7 @@ redo:
         // if we found an empty match, we keep looking for non-empty matches when "N" is off
         if (cap_ != 0)
         {
+          // note that lbk is zero (no lookback), because we can't make a DFA cut for empty-matching patterns
           if ((this->*adv_)(cur_ + 1))
             goto scan;
           set_current(++cur_);
@@ -918,19 +959,17 @@ bool Matcher::advance_none(size_t)
   return false;
 }
 
-/// My homegrown "needle search" method when needle pin=1 and min=0 or 1
+/// My homegrown "needle search" method when needle pin=1 and min=0 or 1 therefore lcp=0
 bool Matcher::advance_pattern_pin1_one(size_t loc)
 {
   const char *chr = pat_->chr_;
-  uint16_t lcp = pat_->lcp_;
-  char chr0 = chr[0];
+  const char chr0 = chr[0];
   while (true)
   {
-    const char *s = buf_ + loc + lcp;
+    const char *s = buf_ + loc;
     const char *e = buf_ + end_;
     if (s < e && (s = static_cast<const char*>(std::memchr(s, chr0, e - s))) != NULL)
     {
-      s -= lcp;
       loc = s - buf_;
       if (s > e - 4 || pat_->predict_match(s))
       {
@@ -942,8 +981,8 @@ bool Matcher::advance_pattern_pin1_one(size_t loc)
     else
     {
       loc = e - buf_;
-      set_current_and_peek_more(loc - 1);
-      loc = cur_ + 1;
+      set_current_and_peek_more(loc);
+      loc = cur_;
       if (loc + 1 > end_)
         return false;
     }
@@ -954,9 +993,9 @@ bool Matcher::advance_pattern_pin1_one(size_t loc)
 bool Matcher::advance_pattern_pin1_pma(size_t loc)
 {
   const char *chr = pat_->chr_;
-  size_t min = pat_->min_;
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
+  const size_t min = pat_->min_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
   __m128i vlcp = _mm_set1_epi8(chr[0]);
   __m128i vlcs = _mm_set1_epi8(chr[1]);
@@ -985,8 +1024,8 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + min > end_)
       return false;
     if (loc + min + 15 > end_)
@@ -1055,16 +1094,16 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + min > end_)
       return false;
     if (loc + min + 15 > end_)
       break;
   }
 #endif
-  char chr0 = chr[0];
-  char chr1 = chr[1];
+  const char chr0 = chr[0];
+  const char chr1 = chr[1];
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -1082,9 +1121,9 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
     }
     else
     {
-      loc = e - buf_;
-      set_current_and_peek_more(loc - 1);
-      loc = cur_ - lcp + 1;
+      loc = std::max<size_t>(loc, e - lcp - buf_);
+      set_current_and_peek_more(loc);
+      loc = cur_;
       if (loc + min > end_)
         return false;
     }
@@ -1096,8 +1135,8 @@ template <uint8_t MIN>
 bool Matcher::advance_pattern_pin1_pmh(size_t loc)
 {
   const char *chr = pat_->chr_;
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
   __m128i vlcp = _mm_set1_epi8(chr[0]);
   __m128i vlcs = _mm_set1_epi8(chr[1]);
@@ -1126,8 +1165,8 @@ bool Matcher::advance_pattern_pin1_pmh(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + MIN > end_)
       return false;
     if (loc + MIN + 15 > end_)
@@ -1196,16 +1235,16 @@ bool Matcher::advance_pattern_pin1_pmh(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + MIN > end_)
       return false;
     if (loc + MIN + 15 > end_)
       break;
   }
 #endif
-  int chr0 = chr[0];
-  int chr1 = chr[1];
+  const int chr0 = chr[0];
+  const int chr1 = chr[1];
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -1223,9 +1262,9 @@ bool Matcher::advance_pattern_pin1_pmh(size_t loc)
     }
     else
     {
-      loc = e - buf_;
-      set_current_and_peek_more(loc - 1);
-      loc = cur_ - lcp + 1;
+      loc = std::max<size_t>(loc, e - lcp - buf_);
+      set_current_and_peek_more(loc);
+      loc = cur_;
       if (loc + MIN > end_)
         return false;
     }
@@ -1234,7 +1273,7 @@ bool Matcher::advance_pattern_pin1_pmh(size_t loc)
 
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
 
-/// My homegrown "needle search" methods
+/// My homegrown "needle search" methods for pins with min=0 or 1
 #define ADV_PAT_PIN_ONE(N, INIT, COMP) \
 bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
 { \
@@ -1264,14 +1303,14 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
       s += 16; \
     } \
     loc = s - buf_; \
-    set_current_and_peek_more(loc - 1); \
-    loc = cur_ + 1; \
+    set_current_and_peek_more(loc); \
+    loc = cur_; \
     if (loc + 1 > end_) \
       return false; \
     if (loc + 16 > end_) \
       break; \
   } \
-  return advance_pattern_pma(loc); \
+  return advance_pattern_min1(loc); \
 }
 
 ADV_PAT_PIN_ONE(2, \
@@ -1365,14 +1404,14 @@ ADV_PAT_PIN_ONE(8, \
     veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v7, vstr)); \
   )
 
-/// My homegrown "needle search" methods
+/// My homegrown "needle search" methods for pins with min=2 or 3 (pma) and min>=4 (pmh)
 #define ADV_PAT_PIN(N, INIT, COMP) \
 bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
 { \
   const char *chr = pat_->chr_; \
-  size_t min = pat_->min_; \
-  uint16_t lcp = pat_->lcp_; \
-  uint16_t lcs = pat_->lcs_; \
+  const size_t min = pat_->min_; \
+  const uint16_t lcp = pat_->lcp_; \
+  const uint16_t lcs = pat_->lcs_; \
   INIT \
   while (true) \
   { \
@@ -1400,8 +1439,8 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
       s += 16; \
     } \
     loc = s - lcp - buf_; \
-    set_current_and_peek_more(loc - 1); \
-    loc = cur_ + 1; \
+    set_current_and_peek_more(loc); \
+    loc = cur_; \
     if (loc + min > end_) \
       return false; \
     if (loc + min + 15 > end_) \
@@ -1414,8 +1453,8 @@ template <uint8_t MIN> \
 bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
 { \
   const char *chr = pat_->chr_; \
-  uint16_t lcp = pat_->lcp_; \
-  uint16_t lcs = pat_->lcs_; \
+  const uint16_t lcp = pat_->lcp_; \
+  const uint16_t lcs = pat_->lcs_; \
   INIT \
   while (true) \
   { \
@@ -1443,8 +1482,8 @@ bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
       s += 16; \
     } \
     loc = s - lcp - buf_; \
-    set_current_and_peek_more(loc - 1); \
-    loc = cur_ + 1; \
+    set_current_and_peek_more(loc); \
+    loc = cur_; \
     if (loc + MIN > end_) \
       return false; \
     if (loc + MIN + 15 > end_) \
@@ -1609,7 +1648,7 @@ ADV_PAT_PIN(8, \
 
 #elif defined(HAVE_NEON)
 
-/// My homegrown "needle search" methods
+/// My homegrown "needle search" methods for pins with min=0 or 1
 #define ADV_PAT_PIN_ONE(N, INIT, COMP) \
 bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
 { \
@@ -1673,14 +1712,14 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
       s += 16; \
     } \
     loc = s - buf_; \
-    set_current_and_peek_more(loc - 1); \
-    loc = cur_ + 1; \
+    set_current_and_peek_more(loc); \
+    loc = cur_; \
     if (loc + 1 > end_) \
       return false; \
     if (loc + 16 > end_) \
       break; \
   } \
-  return advance_pattern_pma(loc); \
+  return advance_pattern_min1(loc); \
 }
 
 ADV_PAT_PIN_ONE(2, \
@@ -1813,14 +1852,14 @@ ADV_PAT_PIN_ONE(8, \
         vceqq_u8(v7, vstr)); \
   )
 
-/// My homegrown "needle search" methods
+/// My homegrown "needle search" methods for pins with min=2 or 3 (pma) and min>=4 (pmh)
 #define ADV_PAT_PIN(N, INIT, COMP) \
 bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
 { \
   const char *chr = pat_->chr_; \
-  size_t min = pat_->min_; \
-  uint16_t lcp = pat_->lcp_; \
-  uint16_t lcs = pat_->lcs_; \
+  const size_t min = pat_->min_; \
+  const uint16_t lcp = pat_->lcp_; \
+  const uint16_t lcs = pat_->lcs_; \
   INIT \
   while (true) \
   { \
@@ -1881,8 +1920,8 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
       s += 16; \
     } \
     loc = s - lcp - buf_; \
-    set_current_and_peek_more(loc - 1); \
-    loc = cur_ + 1; \
+    set_current_and_peek_more(loc); \
+    loc = cur_; \
     if (loc + min > end_) \
       return false; \
     if (loc + min + 15 > end_) \
@@ -1895,8 +1934,8 @@ template <uint8_t MIN> \
 bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
 { \
   const char *chr = pat_->chr_; \
-  uint16_t lcp = pat_->lcp_; \
-  uint16_t lcs = pat_->lcs_; \
+  const uint16_t lcp = pat_->lcp_; \
+  const uint16_t lcs = pat_->lcs_; \
   INIT \
   while (true) \
   { \
@@ -1957,8 +1996,8 @@ bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
       s += 16; \
     } \
     loc = s - lcp - buf_; \
-    set_current_and_peek_more(loc - 1); \
-    loc = cur_ + 1; \
+    set_current_and_peek_more(loc); \
+    loc = cur_; \
     if (loc + MIN > end_) \
       return false; \
     if (loc + MIN + 15 > end_) \
@@ -2201,7 +2240,7 @@ ADV_PAT_PIN(8, \
 
 #endif
 
-/// Minimal 1 byte long patterns using 4-way bitap hashed pairs then PM4
+/// Minimal 1 byte long patterns with min=0 or 1 using 4-way bitap hashed pairs then PM4
 bool Matcher::advance_pattern_min1(size_t loc)
 {
   const Pattern::Pred *tap = pat_->tap_;
@@ -2239,17 +2278,28 @@ bool Matcher::advance_pattern_min1(size_t loc)
       return true;
     }
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + 4 >= end_)
     {
+      s = buf_ + loc;
+      e = buf_ + end_;
+      while (s < e)
+      {
+        uint8_t c1 = s + 1 < e ? static_cast<uint8_t>(s[1]) : 0;
+        if (!(tap[Pattern::bihash(c0, c1)] & 1))
+          break;
+        c0 = c1;
+        ++s;
+      }
+      loc = s - buf_;
       set_current(loc);
       return loc + 1 <= end_;
     }
   }
 }
 
-/// Minimal 2 byte long patterns using bitap hashed pairs and PM4
+/// Minimal 2 byte long patterns with min=2 using bitap hashed pairs and PM4
 bool Matcher::advance_pattern_min2(size_t loc)
 {
   const Pattern::Pred *tap = pat_->tap_;
@@ -2272,14 +2322,23 @@ bool Matcher::advance_pattern_min2(size_t loc)
       }
     }
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + 1 >= end_)
+    {
+      uint8_t c1 = 0; // reached the end
+      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
+      if ((state & 2) == 0)
+      {
+        set_current(loc - 1);
+        return true;
+      }
       return false;
+    }
   }
 }
 
-/// Minimal 3 byte long pattern using bitap hashed pairs and PM4
+/// Minimal 3 byte long pattern with min=3 using bitap hashed pairs and PM4
 bool Matcher::advance_pattern_min3(size_t loc)
 {
   const Pattern::Pred *tap = pat_->tap_;
@@ -2302,10 +2361,19 @@ bool Matcher::advance_pattern_min3(size_t loc)
       }
     }
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + 1 >= end_)
+    {
+      uint8_t c1 = 0; // reached the end
+      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
+      if ((state & 4) == 0)
+      {
+        set_current(loc - 2);
+        return true;
+      }
       return false;
+    }
   }
 }
 
@@ -2342,61 +2410,78 @@ bool Matcher::advance_pattern_min4(size_t loc)
       }
     }
     size_t ahead = s - buf_;
-    set_current_and_peek_more(ahead - 1);
-    s = buf_ + cur_ + 1;
+    set_current_and_peek_more(ahead);
+    s = buf_ + cur_;
     e = buf_ + end_ - 2;
     if (s >= e)
     {
-      if (s + 1 >= e)
+      uint8_t c0 = static_cast<uint8_t>(*s);
+      if (s == e + 1)
       {
-        s -= MIN - 1;
-        // if s points in the buffer before the original buffer loc, then we didn't make any progress
-        if (s > buf_ + loc)
-          loc = s - buf_;
-        set_current(loc);
-        return loc + MIN <= end_;
+        uint8_t c1 = 0; // reached the end
+        state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
+        if ((state2 & mask) == 0 && pat_->predict_match(s - MIN + 1, MIN))
+        {
+          loc = s - buf_ - MIN + 1;
+          set_current(loc);
+          return true;
+        }
       }
-      --s;
-      state1 = state2;
+      else if (s < e + 1)
+      {
+        uint8_t c1 = static_cast<uint8_t>(*++s);
+        state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
+        c0 = 0; // reached the end
+        state1 = (state2 << 1) | tap[Pattern::bihash(c1, c0)];
+        if ((state2 & mask) == 0 && pat_->predict_match(s - MIN, MIN))
+        {
+          loc = s - buf_ - MIN;
+          set_current(loc);
+          return true;
+        }
+        if ((state1 & mask) == 0 && pat_->predict_match(s - MIN + 1, MIN))
+        {
+          loc = s - buf_ - MIN + 1;
+          set_current(loc);
+          return true;
+        }
+      }
+      return false;
     }
   }
 }
 
-/// Minimal 1 byte long pattern using PM4
+/// Minimal 1 byte long pattern with min=0 or 1 using PM4
 bool Matcher::advance_pattern_pma(size_t loc)
 {
   while (true)
   {
     const char *s = buf_ + loc;
     const char *e = buf_ + end_;
-    while (s < e - 6 &&
-        !pat_->predict_match(s) &&
-        !pat_->predict_match(++s) &&
-        !pat_->predict_match(++s) &&
-        !pat_->predict_match(++s))
+    while (s < e - 6)
     {
-      ++s;
+      if (pat_->predict_match(s++) ||
+          pat_->predict_match(s++) ||
+          pat_->predict_match(s++) ||
+          pat_->predict_match(s++))
+      {
+        loc = s - buf_ - 1;
+        set_current(loc);
+        return true;
+      }
     }
     loc = s - buf_;
-    if (s < e)
-    {
-      set_current(loc);
-      return true;
-    }
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + 6 >= end_)
-    {
-      set_current(loc);
-      return loc + pat_->min_ <= end_;
-    }
+      return advance_pattern_min1(loc);
   }
 }
 
 /// One char
 bool Matcher::advance_char(size_t loc)
 {
-  char chr0 = pat_->chr_[0];
+  const char chr0 = pat_->chr_[0];
   while (true)
   {
     const char *s = buf_ + loc;
@@ -2409,8 +2494,8 @@ bool Matcher::advance_char(size_t loc)
       return true;
     }
     loc = e - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + 1 > end_)
       return false;
   }
@@ -2419,7 +2504,7 @@ bool Matcher::advance_char(size_t loc)
 /// One char followed by 1 to 4 characters
 bool Matcher::advance_char_pma(size_t loc)
 {
-  char chr0 = pat_->chr_[0];
+  const char chr0 = pat_->chr_[0];
   while (true)
   {
     const char *s = buf_ + loc;
@@ -2438,8 +2523,8 @@ bool Matcher::advance_char_pma(size_t loc)
     else
     {
       loc = e - buf_;
-      set_current_and_peek_more(loc - 1);
-      loc = cur_ + 1;
+      set_current_and_peek_more(loc);
+      loc = cur_;
       if (loc + 1 > end_)
         return false;
     }
@@ -2449,8 +2534,8 @@ bool Matcher::advance_char_pma(size_t loc)
 /// One char followed by 4 to 8 characters
 bool Matcher::advance_char_pmh(size_t loc)
 {
-  char chr0 = pat_->chr_[0];
-  size_t min = pat_->min_;
+  const char chr0 = pat_->chr_[0];
+  const size_t min = pat_->min_;
   while (true)
   {
     const char *s = buf_ + loc;
@@ -2469,8 +2554,8 @@ bool Matcher::advance_char_pmh(size_t loc)
     else
     {
       loc = e - buf_;
-      set_current_and_peek_more(loc - 1);
-      loc = cur_ + 1;
+      set_current_and_peek_more(loc);
+      loc = cur_;
       if (loc + 1 > end_)
         return false;
     }
@@ -2481,8 +2566,8 @@ bool Matcher::advance_char_pmh(size_t loc)
 template <uint8_t LEN>
 bool Matcher::advance_chars(size_t loc)
 {
-  static const uint16_t lcp = 0;
-  static const uint16_t lcs = LEN - 1;
+  const uint16_t lcp = 0;
+  const uint16_t lcs = LEN - 1;
   const char *chr = pat_->chr_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
   while (true)
@@ -2513,8 +2598,8 @@ bool Matcher::advance_chars(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN > end_)
       return false;
     if (loc + LEN + 15 > end_)
@@ -2582,8 +2667,8 @@ bool Matcher::advance_chars(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN > end_)
       return false;
     if (loc + LEN + 15 > end_)
@@ -2614,8 +2699,8 @@ bool Matcher::advance_chars(size_t loc)
       ++s;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN > end_)
       return false;
   }
@@ -2625,10 +2710,10 @@ bool Matcher::advance_chars(size_t loc)
 template<uint8_t LEN>
 bool Matcher::advance_chars_pma(size_t loc)
 {
-  static const uint16_t lcp = 0;
-  static const uint16_t lcs = LEN - 1;
+  const uint16_t lcp = 0;
+  const uint16_t lcs = LEN - 1;
   const char *chr = pat_->chr_;
-  size_t min = pat_->min_;
+  const size_t min = pat_->min_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
   while (true)
   {
@@ -2661,8 +2746,8 @@ bool Matcher::advance_chars_pma(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN + min > end_)
       return false;
     if (loc + LEN + min + 15 > end_)
@@ -2736,8 +2821,8 @@ bool Matcher::advance_chars_pma(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN + min > end_)
       return false;
     if (loc + LEN + min + 15 > end_)
@@ -2771,8 +2856,8 @@ bool Matcher::advance_chars_pma(size_t loc)
       ++s;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN + min > end_)
       return false;
   }
@@ -2782,10 +2867,10 @@ bool Matcher::advance_chars_pma(size_t loc)
 template<uint8_t LEN>
 bool Matcher::advance_chars_pmh(size_t loc)
 {
-  static const uint16_t lcp = 0;
-  static const uint16_t lcs = LEN - 1;
+  const uint16_t lcp = 0;
+  const uint16_t lcs = LEN - 1;
   const char *chr = pat_->chr_;
-  size_t min = pat_->min_;
+  const size_t min = pat_->min_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
   while (true)
   {
@@ -2818,8 +2903,8 @@ bool Matcher::advance_chars_pmh(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN + min > end_)
       return false;
     if (loc + LEN + min + 15 > end_)
@@ -2893,8 +2978,8 @@ bool Matcher::advance_chars_pmh(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN + min > end_)
       return false;
     if (loc + LEN + min + 15 > end_)
@@ -2928,8 +3013,8 @@ bool Matcher::advance_chars_pmh(size_t loc)
       ++s;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN + min > end_)
       return false;
   }
@@ -2939,7 +3024,7 @@ bool Matcher::advance_chars_pmh(size_t loc)
 bool Matcher::advance_string(size_t loc)
 {
   const char *chr = pat_->chr_;
-  size_t len = pat_->len_;
+  const size_t len = pat_->len_;
   uint16_t lcp = pat_->lcp_;
   uint16_t lcs = pat_->lcs_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
@@ -2971,8 +3056,8 @@ bool Matcher::advance_string(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len > end_)
       return false;
     if (loc + len + 15 > end_)
@@ -2986,8 +3071,8 @@ bool Matcher::advance_string(size_t loc)
     if (simd_advance_string_neon(s, e))
       return true;
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len > end_)
       return false;
     if (loc + len + 15 > end_)
@@ -3017,8 +3102,8 @@ bool Matcher::advance_string(size_t loc)
       ++s;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len > end_)
       return false;
   }
@@ -3028,10 +3113,10 @@ bool Matcher::advance_string(size_t loc)
 bool Matcher::advance_string_pma(size_t loc)
 {
   const char *chr = pat_->chr_;
-  size_t len = pat_->len_;
-  size_t min = pat_->min_;
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
+  const size_t len = pat_->len_;
+  const size_t min = pat_->min_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
   // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
   while (true)
@@ -3064,8 +3149,8 @@ bool Matcher::advance_string_pma(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len + min > end_)
       return false;
     if (loc + len + min + 15 > end_)
@@ -3079,8 +3164,8 @@ bool Matcher::advance_string_pma(size_t loc)
     if (simd_advance_string_pma_neon(s, e))
       return true;
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len + min > end_)
       return false;
     if (loc + len + min + 15 > end_)
@@ -3113,8 +3198,8 @@ bool Matcher::advance_string_pma(size_t loc)
       ++s;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len + min > end_)
       return false;
   }
@@ -3124,10 +3209,10 @@ bool Matcher::advance_string_pma(size_t loc)
 bool Matcher::advance_string_pmh(size_t loc)
 {
   const char *chr = pat_->chr_;
-  size_t len = pat_->len_;
-  size_t min = pat_->min_;
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
+  const size_t len = pat_->len_;
+  const size_t min = pat_->min_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
   // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
   while (true)
@@ -3160,8 +3245,8 @@ bool Matcher::advance_string_pmh(size_t loc)
       s += 16;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len + min > end_)
       return false;
     if (loc + len + min + 15 > end_)
@@ -3175,8 +3260,8 @@ bool Matcher::advance_string_pmh(size_t loc)
     if (simd_advance_string_pmh_neon(s, e))
       return true;
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len + min > end_)
       return false;
     if (loc + len + min + 15 > end_)
@@ -3209,8 +3294,8 @@ bool Matcher::advance_string_pmh(size_t loc)
       ++s;
     }
     loc = s - lcp - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len + min > end_)
       return false;
   }
@@ -3221,9 +3306,9 @@ bool Matcher::advance_string_pmh(size_t loc)
 // Implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
 bool Matcher::simd_advance_string_neon(const char *&s, const char *e)
 {
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
-  size_t len = pat_->len_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
+  const size_t len = pat_->len_;
   const char *chr = pat_->chr_;
   uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
   uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
@@ -3283,9 +3368,9 @@ bool Matcher::simd_advance_string_neon(const char *&s, const char *e)
 // Implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
 bool Matcher::simd_advance_string_pma_neon(const char *&s, const char *e)
 {
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
-  size_t len = pat_->len_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
+  const size_t len = pat_->len_;
   const char *chr = pat_->chr_;
   uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
   uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
@@ -3351,10 +3436,10 @@ bool Matcher::simd_advance_string_pma_neon(const char *&s, const char *e)
 // Implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
 bool Matcher::simd_advance_string_pmh_neon(const char *&s, const char *e)
 {
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
-  size_t len = pat_->len_;
-  size_t min = pat_->min_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
+  const size_t len = pat_->len_;
+  const size_t min = pat_->min_;
   const char *chr = pat_->chr_;
   uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
   uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
@@ -3424,9 +3509,9 @@ bool Matcher::advance_string_bm(size_t loc)
 {
   const char *chr = pat_->chr_;
   const uint8_t *bms = pat_->bms_;
-  size_t len = pat_->len_;
-  size_t bmd = pat_->bmd_;
-  uint16_t lcp = pat_->lcp_;
+  const size_t len = pat_->len_;
+  const size_t bmd = pat_->bmd_;
+  const uint16_t lcp = pat_->lcp_;
   while (true)
   {
     const char *s = buf_ + loc + len - 1;
@@ -3468,8 +3553,8 @@ bool Matcher::advance_string_bm(size_t loc)
     }
     s -= len - 1;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len > end_)
       return false;
   }
@@ -3480,9 +3565,9 @@ bool Matcher::advance_string_bm_pma(size_t loc)
 {
   const char *chr = pat_->chr_;
   const uint8_t *bms = pat_->bms_;
-  size_t len = pat_->len_;
-  size_t bmd = pat_->bmd_;
-  uint16_t lcp = pat_->lcp_;
+  const size_t len = pat_->len_;
+  const size_t bmd = pat_->bmd_;
+  const uint16_t lcp = pat_->lcp_;
   while (true)
   {
     const char *s = buf_ + loc + len - 1;
@@ -3527,8 +3612,8 @@ bool Matcher::advance_string_bm_pma(size_t loc)
     }
     s -= len - 1;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len > end_)
       return false;
   }
@@ -3539,10 +3624,10 @@ bool Matcher::advance_string_bm_pmh(size_t loc)
 {
   const char *chr = pat_->chr_;
   const uint8_t *bms = pat_->bms_;
-  size_t bmd = pat_->bmd_;
-  size_t len = pat_->len_;
-  size_t min = pat_->min_;
-  uint16_t lcp = pat_->lcp_;
+  const size_t bmd = pat_->bmd_;
+  const size_t len = pat_->len_;
+  const size_t min = pat_->min_;
+  const uint16_t lcp = pat_->lcp_;
   while (true)
   {
     const char *s = buf_ + loc + len - 1;
@@ -3587,8 +3672,8 @@ bool Matcher::advance_string_bm_pmh(size_t loc)
     }
     s -= len - 1;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len > end_)
       return false;
   }

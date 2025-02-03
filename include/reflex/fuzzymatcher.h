@@ -1054,7 +1054,7 @@ unrolled:
         if (!at_end())
         {
           // fuzzy search with find() can safely advance on a single prefix char of the regex
-          if (pos_ > cur_)
+          if (cur_ < pos_)
           {
             // this part is based on advance() in matcher.cpp, limited to advancing ahead till the one of the first pattern char(s) match
             size_t loc = cur_ + 1;
@@ -1075,8 +1075,8 @@ unrolled:
                     goto scan;
                   }
                   loc = e - buf_;
-                  set_current_and_peek_more(loc - 1);
-                  loc = cur_ + 1;
+                  set_current_and_peek_more(loc);
+                  loc = cur_;
                   if (loc >= end_)
                     break;
                 }
@@ -1096,8 +1096,8 @@ unrolled:
                   goto scan;
                 }
                 loc = e - buf_;
-                set_current_and_peek_more(loc - 1);
-                loc = cur_ + 1;
+                set_current_and_peek_more(loc);
+                loc = cur_;
                 if (loc + pat_->len_ > end_)
                   break;
               }

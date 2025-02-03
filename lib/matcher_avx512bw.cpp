@@ -90,8 +90,8 @@ void Matcher::simd_init_advance_avx512bw()
 template<uint8_t LEN>
 bool Matcher::simd_advance_chars_avx512bw(size_t loc)
 {
-  static const uint16_t lcp = 0;
-  static const uint16_t lcs = LEN - 1;
+  const uint16_t lcp = 0;
+  const uint16_t lcs = LEN - 1;
   const char *chr = pat_->chr_;
   while (true)
   {
@@ -120,8 +120,8 @@ bool Matcher::simd_advance_chars_avx512bw(size_t loc)
     }
     s -= lcp;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN > end_)
       return false;
     if (loc + LEN + 63 > end_)
@@ -134,10 +134,10 @@ bool Matcher::simd_advance_chars_avx512bw(size_t loc)
 template<uint8_t LEN>
 bool Matcher::simd_advance_chars_pma_avx512bw(size_t loc)
 {
-  static const uint16_t lcp = 0;
-  static const uint16_t lcs = LEN - 1;
+  const uint16_t lcp = 0;
+  const uint16_t lcs = LEN - 1;
   const char *chr = pat_->chr_;
-  size_t min = pat_->min_;
+  const size_t min = pat_->min_;
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -168,8 +168,8 @@ bool Matcher::simd_advance_chars_pma_avx512bw(size_t loc)
     }
     s -= lcp;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN + min > end_)
       return false;
     if (loc + LEN + min + 63 > end_)
@@ -182,8 +182,8 @@ bool Matcher::simd_advance_chars_pma_avx512bw(size_t loc)
 template<uint8_t LEN>
 bool Matcher::simd_advance_chars_pmh_avx512bw(size_t loc)
 {
-  static const uint16_t lcp = 0;
-  static const uint16_t lcs = LEN - 1;
+  const uint16_t lcp = 0;
+  const uint16_t lcs = LEN - 1;
   const char *chr = pat_->chr_;
   size_t min = pat_->min_;
   while (true)
@@ -216,8 +216,8 @@ bool Matcher::simd_advance_chars_pmh_avx512bw(size_t loc)
     }
     s -= lcp;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + LEN + min > end_)
       return false;
     if (loc + LEN + min + 63 > end_)
@@ -230,9 +230,9 @@ bool Matcher::simd_advance_chars_pmh_avx512bw(size_t loc)
 bool Matcher::simd_advance_string_avx512bw(size_t loc)
 {
   const char *chr = pat_->chr_;
-  size_t len = pat_->len_;
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
+  const size_t len = pat_->len_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -259,8 +259,8 @@ bool Matcher::simd_advance_string_avx512bw(size_t loc)
     }
     s -= lcp;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len > end_)
       return false;
     if (loc + len + 63 > end_)
@@ -273,10 +273,10 @@ bool Matcher::simd_advance_string_avx512bw(size_t loc)
 bool Matcher::simd_advance_string_pma_avx512bw(size_t loc)
 {
   const char *chr = pat_->chr_;
-  size_t len = pat_->len_;
-  size_t min = pat_->min_;
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
+  const size_t len = pat_->len_;
+  const size_t min = pat_->min_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -306,8 +306,8 @@ bool Matcher::simd_advance_string_pma_avx512bw(size_t loc)
     }
     s -= lcp;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len + min > end_)
       return false;
     if (loc + len + min + 63 > end_)
@@ -320,10 +320,10 @@ bool Matcher::simd_advance_string_pma_avx512bw(size_t loc)
 bool Matcher::simd_advance_string_pmh_avx512bw(size_t loc)
 {
   const char *chr = pat_->chr_;
-  size_t len = pat_->len_;
-  size_t min = pat_->min_;
-  uint16_t lcp = pat_->lcp_;
-  uint16_t lcs = pat_->lcs_;
+  const size_t len = pat_->len_;
+  const size_t min = pat_->min_;
+  const uint16_t lcp = pat_->lcp_;
+  const uint16_t lcs = pat_->lcs_;
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -353,8 +353,8 @@ bool Matcher::simd_advance_string_pmh_avx512bw(size_t loc)
     }
     s -= lcp;
     loc = s - buf_;
-    set_current_and_peek_more(loc - 1);
-    loc = cur_ + 1;
+    set_current_and_peek_more(loc);
+    loc = cur_;
     if (loc + len + min > end_)
       return false;
     if (loc + len + min + 63 > end_)
