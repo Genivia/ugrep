@@ -2667,12 +2667,10 @@ void Pattern::compile_list(Location loc, Chars& chars, const Mods modifiers) con
         {
           if (is_modified(ModConst::i, modifiers, loc))
           {
+            if (lo >= 'a' && lo <= 'z' && c >= 'A' && c <= 'Z')
+              c = lowercase(c);
             Char a = lo;
             Char b = c;
-            if (a >= 'a' && a <= 'z' && b <= 'z')
-              a = uppercase(a);
-            if (b >= 'a' && b <= 'z' && a <= uppercase(b))
-              b = uppercase(b);
             if (a > b)
               error(regex_error::invalid_class_range, loc);
             chars.add(a, b);

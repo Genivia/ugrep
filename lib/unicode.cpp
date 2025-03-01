@@ -30,7 +30,7 @@
 @file      unicode.cpp
 @brief     Get Unicode character class ranges and UTF-8 regex translations
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -114,6 +114,24 @@ int compose(int prev, int next)
       if (p[0] == prev)
         return p[1];
   return -1;
+}
+
+int toupper(int c)
+{
+  return Tables::toupper(c);
+}
+
+int tolower(int c)
+{
+  return Tables::tolower(c);
+}
+
+int invcase(int c)
+{
+  int a = toupper(c);
+  if (a == c)
+    a = tolower(c);
+  return a;
 }
 
 } // namespace Unicode

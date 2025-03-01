@@ -66,7 +66,7 @@ $matchers{-G,--basic-regexp}'[Interpret patterns as basic regular expressions (B
 '(1)*'--include-fs=-'[Only file systems specified by MOUNTS are included in recursive searches]'
 --index'[Perform fast index-based recursive search]'
 {-J,--jobs=-}'[Specifies the number of threads spawned to search files]:NUM:( )'
-{-j,--smart-case}'[Perform case insensitive matching, unless a pattern is specified with a literal upper case ASCII letter]'
+{-j,--smart-case}'[Perform case insensitive matching, unless a pattern is specified with a literal upper case letter]'
 --json'[Output file matches in JSON]'
 {-K,--range=-,--min-line=-,--max-line=-}'[Start searching at line MIN, stop at line MAX when specified]:MIN,MAX:( )'
 {-k,--column-number}'[The column number of a pattern match is displayed in front of the respective matched line, starting at column 1]'

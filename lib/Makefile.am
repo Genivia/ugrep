@@ -42,6 +42,7 @@ libreflex_a_SOURCES = \
 	block_scripts.cpp \
 	language_scripts.cpp \
 	letter_scripts.cpp \
+	letter_case.cpp \
 	composer.cpp
 
 # separately compile matcher_avx2.cpp and matcher_avx512bw with AVX2 optimizations enabled

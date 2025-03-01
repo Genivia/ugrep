@@ -83,6 +83,7 @@ After this, you may want to test ugrep and install it (optional):
 #include <reflex/matcher.h>
 #include <reflex/linematcher.h>
 #include <reflex/fuzzymatcher.h>
+#include <reflex/unicode.h>
 #include <iomanip>
 #include <cctype>
 #include <limits>
@@ -6600,7 +6601,7 @@ void init(int argc, const char **argv)
       exit(EXIT_ERROR);
     }
 
-    // scan the encoding_table[] for a matching encoding, case insensitive ASCII
+    // scan the encoding_table[] for a matching encoding, case insensitive
     for (i = 0; encoding_table[i].format != NULL; ++i)
     {
       for (j = 0; flag_encoding[j] != '\0' && encoding_table[i].format[j] != '\0'; ++j)
@@ -8356,26 +8357,31 @@ void ugrep()
   if (flag_ignore_case)
     flag_smart_case = false;
 
-  // -j: smart case insensitive search if regex does not contain an upper case letter
+  // -j: smart case insensitive search if regex does not contain a Unicode upper case letter
   if (flag_smart_case)
   {
     flag_ignore_case = true;
 
-    for (size_t i = 0; i < regex.size(); ++i)
+    for (const char *s = regex.c_str(); *s != '\0'; ++s)
     {
-      if (regex[i] == '\\')
+      if (*s == '\\')
       {
-        ++i;
+        ++s;
       }
-      else if (regex[i] == '{')
+      else if (*s == '{')
       {
-        while (++i < regex.size() && regex[i] != '}')
+        while (*++s != '\0' && *s != '}')
           continue;
       }
-      else if (isupper(static_cast<unsigned char>(regex[i])))
+      else
       {
-        flag_ignore_case = false;
-        break;
+        int c = reflex::utf8(s, &s);
+        if (reflex::Unicode::tolower(c) != c)
+        {
+          flag_ignore_case = false;
+          break;
+        }
+        --s;
       }
     }
   }
@@ -8506,7 +8512,7 @@ void ugrep()
   // set reflex::Pattern options to enable multiline mode
   std::string pattern_options("(?m");
 
-  // -i: case insensitive reflex::Pattern option, applies to ASCII only
+  // -i: case insensitive reflex::Pattern option
   if (flag_ignore_case)
     pattern_options.push_back('i');
 
@@ -8773,7 +8779,7 @@ void ugrep()
 
     if (flag_fuzzy > 0)
     {
-      // -U: disable fuzzy Unicode matching, ASCII/binary only with -Z MAX edit distance
+      // -U or --binary: disable fuzzy Unicode matching, ASCII/binary matching with -Z MAX edit distance
       uint16_t max = static_cast<uint16_t>(flag_fuzzy) | (flag_binary ? reflex::FuzzyMatcher::BIN : 0);
       Static::matcher = std::unique_ptr<reflex::AbstractMatcher>(new reflex::FuzzyMatcher(Static::reflex_pattern, max, reflex::Input(), matcher_options.c_str()));
 
@@ -14269,8 +14275,7 @@ void help(std::ostream& out)
             --binary-files=without-match option.\n\
     -i, --ignore-case\n\
             Perform case insensitive matching.  By default, ugrep is case\n\
-            sensitive.  By default, this option applies to ASCII letters only.\n\
-            Use options -P and -i for Unicode case insensitive matching.\n\
+            sensitive.\n\
     --ignore-files[=FILE]\n\
             Ignore files and directories matching the globs in each FILE that\n\
             is encountered in recursive searches.  The default FILE is\n\
@@ -14335,7 +14340,7 @@ void help(std::ostream& out)
             the start-up time to search may be increased when complex search\n\
             patterns are specified that contain large Unicode character classes\n\
             combined with `*' or `+' repeats, which should be avoided.  Option\n\
-            -U (--ascii) improves performance.  Option --stats displays an\n\
+            -U or --ascii improves performance.  Option --stats displays an\n\
             index search report.\n\
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
@@ -14344,7 +14349,7 @@ void help(std::ostream& out)
             same order as specified.\n\
     -j, --smart-case\n\
             Perform case insensitive matching, unless a pattern is specified\n\
-            with a literal upper case ASCII letter.\n\
+            with a literal upper case letter.\n\
     --json\n\
             Output file matches in JSON.  When -H, -n, -k, or -b is specified,\n\
             additional values are output.  See also options --format and -u.\n\
@@ -14654,9 +14659,11 @@ void help(std::ostream& out)
             pathnames of files in archives are output in braces.  When used\n\
             with option --zmax=NUM, searches the contents of compressed files\n\
             and archives stored within archives up to NUM levels.  When -g, -O,\n\
-            -M, or -t is specified, searches files stored in archives whose\n\
-            filenames match globs, match filename extensions, match file\n\
-            signature magic bytes, or match file types, respectively.\n"
+            -M, or -t is specified, searches archives for files that match the\n\
+            specified globs, file extensions, file signature magic bytes, or\n\
+            file types, respectively; a side-effect of these options is that\n\
+            the compressed files and archives searched are only those with\n\
+            filename extensions that match known compression and archive types.\n"
 #ifndef HAVE_LIBZ
             "\
             This option is not available in this build configuration of ugrep.\n"
@@ -15062,7 +15069,7 @@ example, specify -g \"*foo.*\" or -g\"*foo.*\" or \"-g*foo.*\".\n\
 No whitespace may be given between -Z and its argument.\n\
 \n\
 Insertions, deletions and/or substitutions are applied to Unicode characters,\n\
-except when option -U is specified for binary/ASCII pattern search.\n\
+except when option -U is specified for ASCII/binary pattern search.\n\
 \n\
 The 'best' prefix outputs the best matching lines with the lowest cost (minimal\n\
 edit distance) per file.  For example, if a file has an exact match anywhere,\n\

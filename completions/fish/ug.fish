@@ -59,7 +59,7 @@ complete -c ug -l include-from -d 'Read the globs from FILE and search only file
 complete -c ug -l include-fs -d 'Only file systems specified by MOUNTS are included in recursive searches'
 complete -c ug -l index -d 'Perform fast index-based recursive search'
 complete -c ug -s J -r -l jobs -d 'Specifies the number of threads spawned to search files'
-complete -c ug -s j -l smart-case -d 'Perform case insensitive matching, unless a pattern is specified with a literal upper case ASCII letter'
+complete -c ug -s j -l smart-case -d 'Perform case insensitive matching, unless a pattern is specified with a literal upper case letter'
 complete -c ug -l json -d 'Output file matches in JSON'
 complete -c ug -s K -r -l range -l min-line -l max-line -d 'Start searching at line MIN, stop at line MAX when specified'
 complete -c ug -s k -l column-number -d 'The column number of a pattern match is displayed in front of the respective matched line, starting at column 1'

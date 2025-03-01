@@ -30,7 +30,7 @@
 @file      convert.h
 @brief     RE/flex regex converter
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -69,7 +69,7 @@ namespace convert_flag {
   const convert_flag_type dotall     = 0x0080; ///< convert `.` (dot) to match all, same as `(?s)`
   const convert_flag_type freespace  = 0x0100; ///< convert regex by removing spacing, same as `(?x)`
   const convert_flag_type notnewline = 0x0200; ///< inverted character classes and \s do not match newline `\n`
-  const convert_flag_type permissive = 0x0400; ///< convert Unicode to compact UTF-8 patterns, permits some invalid UTF-8 sequences
+  const convert_flag_type permissive = 0x0400; ///< convert Unicode to more compact UTF-8 patterns, permits some invalid UTF-8 sequences
   const convert_flag_type closing    = 0x8000; ///< permit matching ) literally when it has no opening (
 }
 

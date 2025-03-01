@@ -1,4 +1,4 @@
-.TH UGREP "1" "February 03, 2025" "ugrep 7.2.2" "User Commands"
+.TH UGREP "1" "March 01, 2025" "ugrep 7.3.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -492,8 +492,7 @@ Ignore matches in binary files.  This option is equivalent to the
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
 Perform case insensitive matching.  By default, ugrep is case
-sensitive.  By default, this option applies to ASCII letters only.
-Use options \fB\-P\fR and \fB\-i\fR for Unicode case insensitive matching.
+sensitive.
 .TP
 \fB\-\-ignore\-files\fR[=\fIFILE\fR]
 Ignore files and directories matching the globs in each FILE that
@@ -560,7 +559,7 @@ file systems, or any file system that is slow to search.  Note that
 the start\-up time to search may be increased when complex search
 patterns are specified that contain large Unicode character classes
 combined with `*' or `+' repeats, which should be avoided.  Option
-\fB\-U\fR (\fB\-\-ascii\fR) improves performance.  Option \fB\-\-stats\fR displays an
+\fB\-U\fR or \fB\-\-ascii\fR improves performance.  Option \fB\-\-stats\fR displays an
 index search report.
 .TP
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
@@ -571,7 +570,7 @@ same order as specified.
 .TP
 \fB\-j\fR, \fB\-\-smart\-case\fR
 Perform case insensitive matching, unless a pattern is specified
-with a literal upper case ASCII letter.
+with a literal upper case letter.
 .TP
 \fB\-\-json\fR
 Output file matches in JSON.  When \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR is specified,
@@ -934,9 +933,11 @@ and compressed archives (e.g. .zip, .7z, .taz, .tgz, .tpz, .tbz,
 pathnames of files in archives are output in braces.  When used
 with option \fB\-\-zmax\fR=\fINUM\fR, searches the contents of compressed files
 and archives stored within archives up to NUM levels.  When \fB\-g\fR, \fB\-O\fR,
-\fB\-M\fR, or \fB\-t\fR is specified, searches files stored in archives whose
-filenames match globs, match filename extensions, match file
-signature magic bytes, or match file types, respectively.
+\fB\-M\fR, or \fB\-t\fR is specified, searches archives for files that match the
+specified globs, file extensions, file signature magic bytes, or
+file types, respectively; a side\-effect of these options is that
+the compressed files and archives searched are only those with
+filename extensions that match known compression and archive types.
 Supported compression formats: gzip (.gz), compress (.Z), zip, 7z,
 bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),

@@ -30,7 +30,7 @@
 @file      unicode.h
 @brief     Get Unicode character class ranges and UTF-8 regex translations
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2020, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -48,6 +48,8 @@ class Tables : public Posix::Tables {
   Tables();
   typedef std::map<int,const int*> Compose;
   Compose compose;
+  static int toupper(int c);
+  static int tolower(int c);
  private:
   void block_scripts();
   void language_scripts();
@@ -55,8 +57,16 @@ class Tables : public Posix::Tables {
   void composer();
 };
 
+/// Return table entry pointer to [lo,hi] range of characters for the given Unicode class name, or return NULL
 const int * range(const char *);
+
+/// Normalize Unicode by composition of prev and next characters into one, or return -1
 int compose(int, int);
+
+/// Unicode translations between lower case and upper case letters
+int toupper(int c);
+int tolower(int c);
+int invcase(int c);
 
 } // namespace Unicode
 

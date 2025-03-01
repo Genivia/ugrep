@@ -128,6 +128,7 @@ am_libreflex_a_OBJECTS = libreflex_a-convert.$(OBJEXT) \
 	libreflex_a-block_scripts.$(OBJEXT) \
 	libreflex_a-language_scripts.$(OBJEXT) \
 	libreflex_a-letter_scripts.$(OBJEXT) \
+	libreflex_a-letter_case.$(OBJEXT) \
 	libreflex_a-composer.$(OBJEXT)
 libreflex_a_OBJECTS = $(am_libreflex_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -152,6 +153,7 @@ am__depfiles_remade = ./$(DEPDIR)/libreflex_a-block_scripts.Po \
 	./$(DEPDIR)/libreflex_a-error.Po \
 	./$(DEPDIR)/libreflex_a-input.Po \
 	./$(DEPDIR)/libreflex_a-language_scripts.Po \
+	./$(DEPDIR)/libreflex_a-letter_case.Po \
 	./$(DEPDIR)/libreflex_a-letter_scripts.Po \
 	./$(DEPDIR)/libreflex_a-matcher.Po \
 	./$(DEPDIR)/libreflex_a-matcher_avx2.Po \
@@ -392,6 +394,7 @@ libreflex_a_SOURCES = \
 	block_scripts.cpp \
 	language_scripts.cpp \
 	letter_scripts.cpp \
+	letter_case.cpp \
 	composer.cpp
 
 all: all-am
@@ -449,6 +452,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-error.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-input.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-language_scripts.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-letter_case.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-letter_scripts.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-matcher.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libreflex_a-matcher_avx2.Po@am__quote@ # am--include-marker
@@ -721,6 +725,20 @@ libreflex_a-letter_scripts.obj: letter_scripts.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-letter_scripts.obj `if test -f 'letter_scripts.cpp'; then $(CYGPATH_W) 'letter_scripts.cpp'; else $(CYGPATH_W) '$(srcdir)/letter_scripts.cpp'; fi`
 
+libreflex_a-letter_case.o: letter_case.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-letter_case.o -MD -MP -MF $(DEPDIR)/libreflex_a-letter_case.Tpo -c -o libreflex_a-letter_case.o `test -f 'letter_case.cpp' || echo '$(srcdir)/'`letter_case.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-letter_case.Tpo $(DEPDIR)/libreflex_a-letter_case.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='letter_case.cpp' object='libreflex_a-letter_case.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-letter_case.o `test -f 'letter_case.cpp' || echo '$(srcdir)/'`letter_case.cpp
+
+libreflex_a-letter_case.obj: letter_case.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-letter_case.obj -MD -MP -MF $(DEPDIR)/libreflex_a-letter_case.Tpo -c -o libreflex_a-letter_case.obj `if test -f 'letter_case.cpp'; then $(CYGPATH_W) 'letter_case.cpp'; else $(CYGPATH_W) '$(srcdir)/letter_case.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-letter_case.Tpo $(DEPDIR)/libreflex_a-letter_case.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='letter_case.cpp' object='libreflex_a-letter_case.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o libreflex_a-letter_case.obj `if test -f 'letter_case.cpp'; then $(CYGPATH_W) 'letter_case.cpp'; else $(CYGPATH_W) '$(srcdir)/letter_case.cpp'; fi`
+
 libreflex_a-composer.o: composer.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libreflex_a_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT libreflex_a-composer.o -MD -MP -MF $(DEPDIR)/libreflex_a-composer.Tpo -c -o libreflex_a-composer.o `test -f 'composer.cpp' || echo '$(srcdir)/'`composer.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libreflex_a-composer.Tpo $(DEPDIR)/libreflex_a-composer.Po
@@ -865,6 +883,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libreflex_a-error.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-input.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-language_scripts.Po
+	-rm -f ./$(DEPDIR)/libreflex_a-letter_case.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-letter_scripts.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-matcher.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-matcher_avx2.Po
@@ -928,6 +947,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libreflex_a-error.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-input.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-language_scripts.Po
+	-rm -f ./$(DEPDIR)/libreflex_a-letter_case.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-letter_scripts.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-matcher.Po
 	-rm -f ./$(DEPDIR)/libreflex_a-matcher_avx2.Po

@@ -1,13 +1,13 @@
-AC_INIT([ugrep],[7.2.2],[https://github.com/Genivia/ugrep/issues],[ugrep],[https://ugrep.com])
+AC_INIT([ugrep],[7.3.0],[https://github.com/Genivia/ugrep/issues],[ugrep],[https://ugrep.com])
 AM_INIT_AUTOMAKE([foreign subdir-objects dist-xz no-dist-gzip])
 AC_CONFIG_HEADERS([config.h])
-AC_COPYRIGHT([Copyright (C) 2019-2024 Robert van Engelen, Genivia Inc.])
+AC_COPYRIGHT([Copyright (C) 2019-2025 Robert van Engelen, Genivia Inc.])
 
 AC_CONFIG_MACRO_DIR([m4])
 
 # if CXXFLAGS is undefined, set it to our preferred default flags
-: ${CXXFLAGS="-Wall -Wextra -Wunused -O2"}
-: ${CFLAGS="-Wall -Wextra -Wunused -O2"}
+: ${CXXFLAGS="-Wall -Wextra -Wunused -O2 -fvisibility=hidden"}
+: ${CFLAGS="-Wall -Wextra -Wunused -O2 -fvisibility=hidden"}
 
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX([11],[ext],[mandatory])
