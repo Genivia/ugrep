@@ -296,7 +296,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
           for (DFA::State::Edges::iterator t = state->edges.begin(); t != state->edges.end(); ++t)
           {
             Char c = t->first;
-            if (c >= 'a' && c <= 'z')
+            if (islowercase(c))
             {
               state->edges[uppercase(c)] = DFA::State::Edge(uppercase(c), t->second.second);
               ++eno_;
@@ -828,7 +828,7 @@ void Pattern::parse(
               c = static_cast<Char>(s - abtnvfr + '\a');
           }
         }
-        else if (c >= 'A' && c <= 'Z' && opt_.i)
+        else if (isuppercase(c) && opt_.i)
         {
           c = lowercase(c);
         }
@@ -1736,7 +1736,7 @@ void Pattern::compile(
             Char c = t->first;
             DFA::State *target_state = last_state = last_state->next = dfa_.state(t->second.second);
             state->edges[c] = DFA::State::Edge(c, target_state);
-            if (c >= 'a' && c <= 'z')
+            if (islowercase(c))
             {
               state->edges[uppercase(c)] = DFA::State::Edge(uppercase(c), target_state);
               ++eno_;
@@ -1765,7 +1765,7 @@ void Pattern::compile(
           {
             Char c = t->first;
             chars.add(c);
-            if (c >= 'a' && c <= 'z')
+            if (islowercase(c))
               chars.add(uppercase(c));
           }
         }
@@ -1791,9 +1791,9 @@ void Pattern::compile(
               {
                 if (common.contains(c))
                 {
-                  if (std::isalpha(c))
+                  if (isanycase(c))
                   {
-                    if (c >= 'a' && c <= 'z')
+                    if (islowercase(c))
                     {
                       pos = i->second;
                       DFA::State *target_state = last_state = last_state->next = dfa_.state(state->tnode->edges[c].second, pos);
@@ -1853,7 +1853,7 @@ void Pattern::compile(
               if (chars.contains(c))
               {
                 DFA::State *target_state = last_state = last_state->next = dfa_.state(state->tnode->edges[c].second);
-                if (std::isalpha(c))
+                if (isanycase(c))
                 {
                   state->edges[lowercase(c)] = DFA::State::Edge(lowercase(c), target_state);
                   state->edges[uppercase(c)] = DFA::State::Edge(uppercase(c), target_state);
@@ -1893,7 +1893,7 @@ void Pattern::compile(
           DFA::State *target_state = last_state = last_state->next = dfa_.state(&t->second);
           state->edges[c] = DFA::State::Edge(c, target_state);
           ++eno_;
-          if (opt_.i && c >= 'a' && c <= 'z')
+          if (opt_.i && islowercase(c))
           {
             state->edges[uppercase(c)] = DFA::State::Edge(uppercase(c), target_state);
             ++eno_;
@@ -1911,12 +1911,8 @@ void Pattern::compile(
           for (std::map<Char,Tree::Node>::iterator t = state->tnode->edges.begin(); t != state->tnode->edges.end(); ++t)
           {
             Char c = t->first;
-            if (c >= 'a')
-            {
-              if (c > 'z')
-                break;
+            if (islowercase(c))
               chars.add(uppercase(c));
-            }
           }
         }
         Moves::iterator i = moves.begin();
@@ -1936,9 +1932,9 @@ void Pattern::compile(
               {
                 if (common.contains(c))
                 {
-                  if (std::isalpha(c))
+                  if (isanycase(c))
                   {
-                    if (c >= 'a' && c <= 'z')
+                    if (islowercase(c))
                     {
                       pos = i->second;
                       DFA::State *target_state = last_state = last_state->next = dfa_.state(&state->tnode->edges[c], pos);
@@ -1996,7 +1992,7 @@ void Pattern::compile(
             if (chars.contains(c))
             {
               DFA::State *target_state = last_state = last_state->next = dfa_.state(&state->tnode->edges[c]);
-              if (opt_.i && std::isalpha(c))
+              if (opt_.i && isanycase(c))
               {
                 state->edges[lowercase(c)] = DFA::State::Edge(lowercase(c), target_state);
                 state->edges[uppercase(c)] = DFA::State::Edge(uppercase(c), target_state);
@@ -2027,7 +2023,7 @@ void Pattern::compile(
               {
                 Char c = (i << 4) + j;
                 DFA::State *target_state = last_state = last_state->next = dfa_.state(p[j]);
-                if (opt_.i && std::isalpha(c))
+                if (opt_.i && isanycase(c))
                 {
                   state->edges[lowercase(c)] = DFA::State::Edge(lowercase(c), target_state);
                   state->edges[uppercase(c)] = DFA::State::Edge(uppercase(c), target_state);
@@ -2083,9 +2079,9 @@ void Pattern::compile(
               {
                 if (common.contains(c))
                 {
-                  if (std::isalpha(c))
+                  if (isanycase(c))
                   {
-                    if (c >= 'a' && c <= 'z')
+                    if (islowercase(c))
                     {
                       pos = i->second;
                       DFA::State *target_state = last_state = last_state->next = dfa_.state(state->tnode->edge[c >> 4][c & 0xf], pos);
@@ -2143,7 +2139,7 @@ void Pattern::compile(
             if (chars.contains(c))
             {
               DFA::State *target_state = last_state = last_state->next = dfa_.state(state->tnode->edge[c >> 4][c & 0xf]);
-              if (opt_.i && std::isalpha(c))
+              if (opt_.i && isanycase(c))
               {
                 state->edges[lowercase(c)] = DFA::State::Edge(lowercase(c), target_state);
                 state->edges[uppercase(c)] = DFA::State::Edge(uppercase(c), target_state);
@@ -2456,10 +2452,10 @@ void Pattern::compile_transition(
           Chars chars;
           if (literal)
           {
-            if (std::isalpha(c) && is_modified(ModConst::i, modifiers, loc))
+            if (isanycase(c) && is_modified(ModConst::i, modifiers, loc))
             {
-              chars.add(uppercase(c));
               chars.add(lowercase(c));
+              chars.add(uppercase(c));
             }
             else
             {
@@ -2499,10 +2495,10 @@ void Pattern::compile_transition(
                   switch (escape_at(loc))
                   {
                     case '\0': // no escape at current loc
-                      if (std::isalpha(c) && is_modified(ModConst::i, modifiers, loc))
+                      if (isanycase(c) && is_modified(ModConst::i, modifiers, loc))
                       {
-                        chars.add(uppercase(c));
                         chars.add(lowercase(c));
+                        chars.add(uppercase(c));
                       }
                       else
                       {
@@ -2539,10 +2535,10 @@ void Pattern::compile_transition(
                       break;
                     default:
                       c = parse_esc(loc, &chars);
-                      if (c <= 'z' && std::isalpha(c) && is_modified(ModConst::i, modifiers, loc))
+                      if (isanycase(c) && is_modified(ModConst::i, modifiers, loc))
                       {
-                        chars.add(uppercase(c));
                         chars.add(lowercase(c));
+                        chars.add(uppercase(c));
                       }
                   }
                 }
@@ -2667,7 +2663,7 @@ void Pattern::compile_list(Location loc, Chars& chars, const Mods modifiers) con
         {
           if (is_modified(ModConst::i, modifiers, loc))
           {
-            if (lo >= 'a' && lo <= 'z' && c >= 'A' && c <= 'Z')
+            if (islowercase(lo) && isuppercase(c))
               c = lowercase(c);
             Char a = lo;
             Char b = c;
@@ -2691,10 +2687,10 @@ void Pattern::compile_list(Location loc, Chars& chars, const Mods modifiers) con
         }
         else
         {
-          if (std::isalpha(c) && is_modified(ModConst::i, modifiers, loc))
+          if (isanycase(c) && is_modified(ModConst::i, modifiers, loc))
           {
-            chars.add(uppercase(c));
             chars.add(lowercase(c));
+            chars.add(uppercase(c));
           }
           else
           {

@@ -32,10 +32,11 @@ regular expression matches one or more newlines.  An empty pattern matches
 every line.  Each input line that matches at least one of the patterns is
 written to the standard output.
 .PP
-The \fBug\fR command is intended for interactive searching, using a .ugrep
-configuration file located in the working directory or home directory, see
-CONFIGURATION.  \fBug\fR is equivalent to \fBugrep --config --pretty --sort\fR
-to load a .ugrep file, enhance the terminal output, and sort files by name.
+The \fBug\fR command is intended for interactive searching, using a `.ugrep'
+configuration file located in the working directory or, if not found, in the
+home directory, see CONFIGURATION.  \fBug\fR is equivalent to \fBugrep --config
+--pretty --sort\fR to load a configuration file, enhance the terminal output,
+and to sort files by name.
 .PP
 The \fBugrep+\fR and \fBug+\fR commands are the same as the \fBugrep\fR and
 \fBug\fR commands, but also use filters to search pdfs, documents, e-books,
@@ -179,10 +180,10 @@ An error occurred.
 If \fB-q\fR or \fB--quiet\fR or \fB--silent\fR is used and a line is selected,
 the exit status is 0 even if an error occurred.
 .SH CONFIGURATION
-The \fBug\fR command is intended for context-dependent interactive searching
-and is equivalent to the \fBugrep --config --pretty --sort\fR command to load
-the default configuration file `.ugrep' when present in the working directory
-or in the home directory.
+The \fBug\fR command is intended for interactive searching and is equivalent to
+the \fBugrep --config --pretty --sort\fR command to load the `.ugrep`
+configuration file located in the working directory or, when not found, in the
+home directory.
 .PP
 A configuration file contains `NAME=VALUE' pairs per line, where `NAME` is the
 name of a long option (without `--') and `=VALUE' is an argument, which is
@@ -191,8 +192,8 @@ starting with a `#' are ignored.
 .PP
 The \fB--config\fR=\fIFILE\fR option and its abbreviated form
 \fB---\fR\fIFILE\fR load the specified configuration file located in the
-working directory or, when not found, located in the home directory.  An error
-is produced when \fIFILE\fR is not found or cannot be read.
+working directory or, when not found, in the home directory.  An error is
+produced when \fIFILE\fR is not found or cannot be read.
 .PP
 Command line options are parsed in the following order: the configuration file
 is loaded first, followed by the remaining options and arguments on the command
@@ -200,9 +201,10 @@ line.
 .PP
 The \fB--save-config\fR option saves a `.ugrep' configuration file to the
 working directory with a subset of the options specified on the command line.
-The \fB--save-config\fR=\fIFILE\fR option saves the configuration to
-\fIFILE\fR.  The configuration is written to standard output when \fIFILE\fR is
-a `-'.
+Only part of the specified options are saved that do not cause searches to fail
+when combined with other options.  The \fB--save-config\fR=\fIFILE\fR option
+saves the configuration to \fIFILE\fR.  The configuration is written to
+standard output when \fIFILE\fR is a `-'.
 .SH GLOBBING
 Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
 \fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,

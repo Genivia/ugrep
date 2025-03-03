@@ -30,7 +30,7 @@
 @file      ugrep.cpp
 @brief     file pattern searcher
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019,2025, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 
 User manual:
@@ -4550,7 +4550,7 @@ FILE *Static::output = stdout;
 // redirectable error output destination is standard error by default or a pipe
 FILE *Static::errout = stderr;
 
-// full home directory path
+// full home directory path or NULL to expand ~ in options with path arguments
 const char *Static::home_dir = NULL;
 
 // Grep object handle, to cancel the search with cancel_ugrep()
@@ -4859,37 +4859,48 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
   // if config file was parsed before, then only try parsing the home dir config file
   bool home = flag_config_files.find(flag_config) != flag_config_files.end();
 
-  // open a local config file or in the home directory
+  // open a config file in the working dir or in the home directory
   std::string config_file(flag_config);
   FILE *file = NULL;
+
   if (home || fopen_smart(&file, flag_config, "r") != 0)
   {
     file = NULL;
+
+    // if not in the working directory, then check the home directory
     if (Static::home_dir != NULL && *flag_config != '~' && *flag_config != PATHSEPCHR)
     {
       // check the home directory for the configuration file, parse only if not parsed before
       config_file.assign(Static::home_dir).append(PATHSEPSTR).append(flag_config);
       if (flag_config_files.find(config_file) != flag_config_files.end() ||
           fopen_smart(&file, config_file.c_str(), "r") != 0)
-      {
         file = NULL;
-      }
-      else
-      {
-        // new config file in the home dir to parse, add to the set
-        flag_config_files.insert(config_file);
-      }
     }
-  }
-  else
-  {
-    // new config file to parse, add to the set
-    flag_config_files.insert(flag_config);
+
+#if defined(WITH_XDG_CONFIG_HOME) && !defined(OS_WIN)
+    // if the default configuration file is to be used, then check XDG_CONFIG_HOME/ugrep/config first
+    if (file == NULL && strcmp(flag_config, ".ugrep") == 0)
+    {
+      // get XDG_CONFIG_HOME path, defaults to $HOME/.config/ugrep/config when present
+      const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
+      if (xdg_config_home == NULL || *xdg_config_home == '\0')
+        xdg_config_home = ".config";
+
+      // check if $XDG_CONFIG_HOME/ugrep/config or $HOME/.config/ugrep/config is present to parse
+      config_file.assign(xdg_config_home).append(PATHSEPSTR).append("ugrep").append(PATHSEPSTR).append("config");
+      if (flag_config_files.find(config_file) != flag_config_files.end() ||
+          fopen_smart(&file, config_file.c_str(), "r") != 0)
+        file = NULL;
+    }
+#endif
   }
 
   // parse config file
   if (file != NULL)
   {
+    // add config file path to the set
+    flag_config_files.insert(config_file);
+
     reflex::BufferedInput input(file);
 
     std::string line;
@@ -4993,12 +5004,16 @@ static void save_config()
   // if not saved to standard output ("-"), then inform user
   if (!flag_no_messages && strcmp(flag_save_config, "-") != 0)
   {
-    if (flag_config == NULL)
-      fprintf(Static::errout, "ugrep: saving configuration file %s\n", flag_save_config);
-    else if (exists && strcmp(flag_config, flag_save_config) == 0)
-      fprintf(Static::errout, "ugrep: updating configuration file %s\n", flag_save_config);
-    else
-      fprintf(Static::errout, "ugrep: saving configuration file %s with options based on %s\n", flag_save_config, flag_config);
+    fprintf(Static::errout, "ugrep: %s configuration file %s", exists ? "updating" : "saving", flag_save_config);
+
+    if (!flag_config_files.empty())
+    {
+      fprintf(Static::errout, " with options based on");
+      for (const auto& i : flag_config_files)
+        fprintf(Static::errout, " %s", i.c_str());
+    }
+
+    fprintf(Static::errout, "\n");
   }
 
   if (fopen_smart(&file, flag_save_config, "w") != 0)
@@ -14053,8 +14068,8 @@ void help(std::ostream& out)
             directory is checked first for FILE, then the home directory.  The\n\
             options specified in the configuration FILE are parsed first,\n\
             followed by the remaining options specified on the command line.\n\
-            The ug command automatically loads a `.ugrep' configuration file,\n\
-            unless --config=FILE or --no-config is specified.\n\
+            The ug command automatically loads a `.ugrep' configuration file\n\
+            when present, unless --config=FILE or --no-config is specified.\n\
     --no-config\n\
             Do not automatically load the default .ugrep configuration file.\n\
     --no-confirm\n\
@@ -14531,8 +14546,8 @@ void help(std::ostream& out)
             OPTIONS are saved that do not cause searches to fail when combined\n\
             with other options.  Additional options may be specified by editing\n\
             the saved configuration file.  A configuration file may be modified\n\
-            manually to specify one or more config[=FILE] to indirectly load\n\
-            the specified FILE, but recursive config loading is not allowed.\n\
+            by adding one or more config=FILE to include configuration files,\n\
+            but recursive configuration file inclusion is not permitted.\n\
     --separator[=SEP], --context-separator=SEP\n\
             Use SEP as field separator between file name, line number, column\n\
             number, byte offset and the matched line.  The default separator is\n\

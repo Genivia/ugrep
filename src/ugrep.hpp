@@ -30,7 +30,7 @@
 @file      ugrep.hpp
 @brief     file pattern searcher
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019,2025, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -62,6 +62,9 @@
 // bright colors: +k, +r, +g, +y, +b, +m, +c, +w, +K, +R, +G, +Y, +B, +M, +C, +W
 // modifiers: h=highlight, u=underline, i=invert, f=faint, n=normal, H=highlight off, U=underline off, I=invert off
 #define WITH_EASY_GREP_COLORS
+
+// use $XDG_CONFIG_HOME/ugrep/config for ug (or ugrep --config) when no .ugrep files are found, migh be confusing!
+// #define WITH_XDG_CONFIG_HOME
 
 // check if we are compiling for a windows OS, but not Cygwin or MinGW
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)

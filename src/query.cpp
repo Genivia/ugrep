@@ -30,7 +30,7 @@
 @file      query.cpp
 @brief     Query engine TUI
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019,2025, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 

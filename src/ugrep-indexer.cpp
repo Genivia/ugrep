@@ -30,7 +30,7 @@
 @file      ugrep-indexer.cpp
 @brief     file system indexer for the ugrep search utility
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2023,2025 Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2023-2025 Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 

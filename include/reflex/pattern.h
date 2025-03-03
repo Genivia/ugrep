@@ -1245,6 +1245,21 @@ class Pattern {
   {
     return opcode & 0xffff;
   }
+  /// check if lower case
+  static inline bool islowercase(Char c)
+  {
+    return (c >= 'a' && c <= 'z');
+  }
+  /// check if upper case
+  static inline bool isuppercase(Char c)
+  {
+    return (c >= 'A' && c <= 'Z');
+  }
+  /// check if lower or upper case
+  static inline bool isanycase(Char c)
+  {
+    return islowercase(c) || isuppercase(c);
+  }
   /// convert to lower case if c is a letter a-z, A-Z.
   static inline Char lowercase(Char c)
   {
