@@ -210,11 +210,11 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
   std::wstring wfilename(utf8_decode(filename));
   HANDLE hFile;
   if (strchr(mode, 'a') == NULL && strchr(mode, 'w') == NULL)
-    hFile = CreateFileW(wfilename.c_str(), (strchr(mode, '+') == NULL ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE), FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    hFile = CreateFileW(wfilename.c_str(), (strchr(mode, '+') == NULL ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE), FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   else if (strchr(mode, 'a') == NULL)
-    hFile = CreateFileW(wfilename.c_str(), (strchr(mode, '+') == NULL ? GENERIC_WRITE : GENERIC_READ | GENERIC_WRITE), FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    hFile = CreateFileW(wfilename.c_str(), (strchr(mode, '+') == NULL ? GENERIC_WRITE : GENERIC_READ | GENERIC_WRITE), FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   else
-    hFile = CreateFileW(wfilename.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    hFile = CreateFileW(wfilename.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == INVALID_HANDLE_VALUE)
     return errno = (GetLastError() == ERROR_ACCESS_DENIED ? EACCES : ENOENT);
   int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), _O_RDONLY);
