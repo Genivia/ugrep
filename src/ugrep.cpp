@@ -6348,7 +6348,14 @@ void init(int argc, const char **argv)
     if (strcmp(argv[i], "--") == 0)
       break;
 
-    if (strncmp(argv[i], "--config", 8) == 0)
+    if (strcmp(argv[1], "-e") == 0 ||
+        strcmp(argv[1], "-g") == 0 ||
+        strcmp(argv[1], "-N") == 0 ||
+        strcmp(argv[1], "--regexp") == 0)
+    {
+      ++i;
+    }
+    else if (strncmp(argv[i], "--config", 8) == 0)
     {
       if (flag_config != NULL)
         std::cerr << "ugrep: warning: multiple configurations specified, ignoring extra " << argv[i] << '\n';
