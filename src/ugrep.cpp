@@ -4700,6 +4700,7 @@ const Type type_table[] = {
   { "rust",         "rs", NULL,                                                       NULL },
   { "scala",        "scala", NULL,                                                    NULL },
   { "scheme",       "scm,ss", NULL,                                                   NULL },
+  { "seed7",        "s7d,s7i", NULL,                                                  NULL },
   { "shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", NULL,                       NULL },
   { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", NULL,                       "#!\\h*/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
   { "smalltalk",    "st", NULL,                                                       NULL },

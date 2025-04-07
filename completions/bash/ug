@@ -346,13 +346,13 @@ END
 
 _comp_cmd_ugrep_file_type()
 {
-    COMPREPLY=( $(compgen -W "actionscript ada adoc asm asp aspx autoconf automake awk Awk basic batch bison c c++ clojure cpp csharp css csv dart Dart delphi elisp elixir erlang fortran gif Gif go groovy gsp haskell html jade java jpeg Jpeg js json jsp julia kotlin less lex lisp lua m4 make markdown matlab node Node objc objc++ ocaml parrot pascal pdf Pdf perl Perl php Php png Png prolog python Python r rpm Rpm rst rtf Rtf ruby Ruby rust scala scheme shell Shell smalltalk sql svg swift tcl tex text tiff Tiff tt typescript verilog vhdl vim xml Xml yacc yaml zig" -- $cur) )
+    COMPREPLY=( $(compgen -W "actionscript ada adoc asm asp aspx autoconf automake awk Awk basic batch bison c c++ clojure cpp csharp css csv dart Dart delphi elisp elixir erlang fortran gif Gif go groovy gsp haskell html jade java jpeg Jpeg js json jsp julia kotlin less lex lisp lua m4 make markdown matlab node Node objc objc++ ocaml parrot pascal pdf Pdf perl Perl php Php png Png prolog python Python r rpm Rpm rst rtf Rtf ruby Ruby rust scala scheme seed7 shell Shell smalltalk sql svg swift tcl tex text tiff Tiff tt typescript verilog vhdl vim xml Xml yacc yaml zig" -- $cur) )
     compopt +o nospace
 }
 
 _comp_cmd_ugrep_file_type_t()
 {
-    COMPREPLY=( $(compgen -W "-tactionscript -tada -tadoc -tasm -tasp -taspx -tautoconf -tautomake -tawk -tAwk -tbasic -tbatch -tbison -tc -tc++ -tclojure -tcpp -tcsharp -tcss -tcsv -tdart -tDart -tdelphi -telisp -telixir -terlang -tfortran -tgif -tGif -tgo -tgroovy -tgsp -thaskell -thtml -tjade -tjava -tjpeg -tJpeg -tjs -tjson -tjsp -tjulia -tkotlin -tless -tlex -tlisp -tlua -tm4 -tmake -tmarkdown -tmatlab -tnode -tNode -tobjc -tobjc++ -tocaml -tparrot -tpascal -tpdf -tPdf -tperl -tPerl -tphp -tPhp -tpng -tPng -tprolog -tpython -tPython -tr -trpm -tRpm -trst -trtf -tRtf -truby -tRuby -trust -tscala -tscheme -tshell -tShell -tsmalltalk -tsql -tsvg -tswift -ttcl -ttex -ttext -ttiff -tTiff -ttt -ttypescript -tverilog -tvhdl -tvim -txml -tXml -tyacc -tyaml -tzig" -- $cur) )
+    COMPREPLY=( $(compgen -W "-tactionscript -tada -tadoc -tasm -tasp -taspx -tautoconf -tautomake -tawk -tAwk -tbasic -tbatch -tbison -tc -tc++ -tclojure -tcpp -tcsharp -tcss -tcsv -tdart -tDart -tdelphi -telisp -telixir -terlang -tfortran -tgif -tGif -tgo -tgroovy -tgsp -thaskell -thtml -tjade -tjava -tjpeg -tJpeg -tjs -tjson -tjsp -tjulia -tkotlin -tless -tlex -tlisp -tlua -tm4 -tmake -tmarkdown -tmatlab -tnode -tNode -tobjc -tobjc++ -tocaml -tparrot -tpascal -tpdf -tPdf -tperl -tPerl -tphp -tPhp -tpng -tPng -tprolog -tpython -tPython -tr -trpm -tRpm -trst -trtf -tRtf -truby -tRuby -trust -tscala -tscheme -tseed7 -tshell -tShell -tsmalltalk -tsql -tsvg -tswift -ttcl -ttex -ttext -ttiff -tTiff -ttt -ttypescript -tverilog -tvhdl -tvim -txml -tXml -tyacc -tyaml -tzig" -- $cur) )
     compopt +o nospace
 }
 
@@ -361,4 +361,3 @@ _comp_cmd_ugrep_encoding()
     COMPREPLY=( $(compgen -W "binary ASCII UTF-8 UTF-16 UTF-16BE UTF-16LE UTF-32 UTF-32BE UTF-32LE LATIN1 ISO-8859-1 ISO-8859-2 ISO-8859-3 ISO-8859-4 ISO-8859-5 ISO-8859-6 ISO-8859-7 ISO-8859-8 ISO-8859-9 ISO-8859-10 ISO-8859-11 ISO-8859-13 ISO-8859-14 ISO-8859-15 ISO-8859-16 MAC MACROMAN EBCDIC CP437 CP850 CP858 CP1250 CP1251 CP1252 CP1253 CP1254 CP1255 CP1256 CP1257 CP1258 KOI8-R KOI8-U KOI8-RU null-data" -- $cur) )
     compopt +o nospace
 }
-

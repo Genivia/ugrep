@@ -282,8 +282,8 @@ Or install with [Scoop](https://scoop.sh) `scoop install ugrep`
 
 Or download the full-featured `ugrep.exe` executable as release artifact from
 <https://github.com/Genivia/ugrep/releases>.  The zipped release contains the
-main `ugrep.exe` binary as well as `ug.exe`. The `ug` command, intended for 
-interactive use, loads and reads in settings from the _`.ugrep`_ configuration 
+main `ugrep.exe` binary as well as `ug.exe`. The `ug` command, intended for
+interactive use, loads and reads in settings from the _`.ugrep`_ configuration
 file (when present in the working directory or home directory).
 
 Add `ugrep.exe` and `ug.exe` to your execution path: go to *Settings* and
@@ -4790,10 +4790,10 @@ in markdown:
                   `Node', `objc', `objc++', `ocaml', `parrot', `pascal', `pdf',
                   `Pdf', `perl', `Perl', `php', `Php', `png', `Png', `prolog',
                   `python', `Python', `r', `rpm', `Rpm', `rst', `rtf', `Rtf',
-                  `ruby', `Ruby', `rust', `scala', `scheme', `shell', `Shell',
-                  `smalltalk', `sql', `svg', `swift', `tcl', `tex', `text', `tiff',
-                  `Tiff', `tt', `typescript', `verilog', `vhdl', `vim', `xml',
-                  `Xml', `yacc', `yaml', `zig'.
+                  `ruby', `Ruby', `rust', `scala', `scheme', `seed7', `shell',
+                  `Shell', `smalltalk', `sql', `svg', `swift', `tcl', `tex',
+                  `text', `tiff', `Tiff', `tt', `typescript', `verilog', `vhdl',
+                  `vim', `xml', `Xml', `yacc', `yaml', `zig'.
 
            --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value
@@ -5765,4 +5765,3 @@ the [man page](#man).  If you can't find it there and it looks like a bug, then
 reports are quickly addressed.
 
 *Copyright (c) Robert van Engelen, 2025*
-
