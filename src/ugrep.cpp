@@ -1,5 +1,5 @@
 /******************************************************************************\
-* Copyright (c) 2019, Robert van Engelen, Genivia Inc. All rights reserved.    *
+* Copyright (c) 2019, 2025, Robert van Engelen, Genivia Inc. All rights reserved.    *
 *                                                                              *
 * Redistribution and use in source and binary forms, with or without           *
 * modification, are permitted provided that the following conditions are met:  *
@@ -4700,7 +4700,7 @@ const Type type_table[] = {
   { "rust",         "rs", NULL,                                                       NULL },
   { "scala",        "scala", NULL,                                                    NULL },
   { "scheme",       "scm,ss", NULL,                                                   NULL },
-  { "seed7",        "s7d,s7i", NULL,                                                  NULL },
+  { "seed7",        "sd7,s7i", NULL,                                                  NULL },
   { "shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", NULL,                       NULL },
   { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", NULL,                       "#!\\h*/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
   { "smalltalk",    "st", NULL,                                                       NULL },
