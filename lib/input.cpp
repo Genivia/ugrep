@@ -1035,6 +1035,7 @@ bool Input::file_ready()
     fd_set rfds, efds;
     FD_ZERO(&rfds);
     FD_ZERO(&efds);
+    FD_SET(0, &rfds);
     FD_SET(0, &efds);
     tv.tv_sec = 1;
     tv.tv_usec = 0;
