@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "7.3.0"
+#define UGREP_VERSION "7.4.0"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -49,8 +49,8 @@
 // use a lock-free job queue, which is appears to be SLOWER than a standard simple lock-based queue for each worker
 // #define WITH_LOCK_FREE_JOB_QUEUE
 
-// drain stdin until eof to prevent broken pipe signal
-// #define WITH_STDIN_DRAIN
+// drain stdin until eof to keep reading from stdin such as a pipe (and prevent broken pipe signal)
+#define WITH_STDIN_DRAIN
 
 // quick warn about unreadable file/dir arguments before searching by checking stat S_IRUSR
 // #define WITH_WARN_UNREADABLE_FILE_ARG
@@ -67,7 +67,7 @@
 // #define WITH_XDG_CONFIG_HOME
 
 // check if we are compiling for a windows OS, but not Cygwin or MinGW
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # define OS_WIN
 #endif
 

@@ -209,6 +209,7 @@ extern std::vector<std::string> flag_file_type;
 extern std::vector<std::string> flag_file_extension;
 extern std::vector<std::string> flag_file_magic;
 extern std::vector<std::string> flag_filter_magic_label;
+extern std::vector<std::string> flag_from;
 extern std::vector<std::string> flag_glob;
 extern std::vector<std::string> flag_iglob;
 extern std::vector<std::string> flag_include;

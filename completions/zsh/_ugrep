@@ -44,6 +44,7 @@ $matchers{-F,--fixed-strings}'[Interpret pattern as a set of fixed strings, sepa
 --filter-magic-label=-'[Associate LABEL with files whose signature "magic bytes" match the MAGIC regex pattern]'
 --format=-'[Output FORMAT-formatted matches]'
 --free-space'[Spacing (blanks and tabs) in regular expressions are ignored]'
+--from=-'[Read additional pathnames of files to search from FILE]'
 $matchers{-G,--basic-regexp}'[Interpret patterns as basic regular expressions (BREs)]'
 '(1)*'{-g,--glob=-,--iglob=-}'[Only search files whose name matches the specified comma-separated list of GLOBS, same as --include=glob for each glob in GLOBS]:GLOB:( )'
 --glob-ignore-case'[Perform case-insensitive glob matching in general]'

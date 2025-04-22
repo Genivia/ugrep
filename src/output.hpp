@@ -733,11 +733,18 @@ class Output {
     mode_ |= FLUSH;
   }
 
-  // flush if output is line buffered to flush each line, unless we have to wait to acquire the output lock
+  // try to flush if we do not have to wait to acquire the output lock
+  inline void try_flush()
+  {
+    if (sync == NULL || sync->try_acquire(lock_))
+      flush();
+  }
+
+  // flush if output is line buffered, unless we have to wait to acquire the output lock
   inline void check_flush()
   {
-    if (mode_ == FLUSH && (sync == NULL || sync->try_acquire(lock_)))
-      flush();
+    if (mode_ == FLUSH)
+      try_flush();
   }
 
   // hold the output and do not flush, buffer all output until further notice
@@ -783,6 +790,90 @@ class Output {
     if (sync != NULL)
       sync->acquire(lock_, slot_);
   }
+
+  // discard buffered output
+  void discard()
+  {
+    buf_ = buffers_.begin();
+    cur_ = buf_->data;
+  }
+
+  // flush output and release sync slot, if one was assigned with sync_on()
+  void release()
+  {
+    if ((mode_ & HOLD) == 0)
+      flush();
+    else
+      discard();
+
+    mode_ = flag_line_buffered ? FLUSH : 0;
+
+    if (sync != NULL)
+      sync->release(lock_);
+  }
+
+  // end output in ORDERED mode (--sort)
+  void end()
+  {
+    if (sync != NULL)
+      sync->finish(lock_, slot_);
+  }
+
+  // cancel output
+  void cancel()
+  {
+    eof = true;
+
+    if (sync != NULL)
+      sync->cancel();
+  }
+
+  // true if output was cancelled()
+  bool cancelled()
+  {
+    return sync != NULL && sync->cancelled();
+  }
+
+  // output color when set
+  void color(const char *arg);
+
+  // output the header part of the match, preceding the matched line
+  void header(const char *pathname, const std::string& partname, bool& heading, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *sep, bool newline);
+
+  // output the pathname header for --files_with_matches and --count
+  void header(const char *pathname, const std::string& partname);
+
+  // output "Binary file ... matches"
+  void binary_file_matches(const char *pathname, const std::string& partname);
+
+  // output format with option --format-begin and --format-end
+  void format(const char *format, size_t matches);
+
+  // output formatted match with options --format, --format-open, --format-close, returns false when nothing is output
+  bool format(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool& heading, bool body, bool next);
+
+  // output formatted inverted match with options -v --format, --format-open, --format-close
+  void format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool& heading, bool next);
+
+  // output a quoted string with escapes for \ and "
+  void quote(const char *data, size_t size);
+
+  // output quoted string in C/C++
+  void cpp(const char *data, size_t size);
+
+  // output quoted string in CSV
+  void csv(const char *data, size_t size);
+
+  // output in hex
+  void hex(const char *data, size_t size);
+
+  // output quoted string in JSON
+  void json(const char *data, size_t size);
+
+  // output in XML
+  void xml(const char *data, size_t size);
+
+ protected:
 
   // acquire lock and flush the buffers, if not held back
   void flush()
@@ -879,90 +970,6 @@ class Output {
 
   // flush a block of data as truncated lines limited to --width columns
   bool flush_truncated_lines(const char *data, size_t size);
-
-  // discard buffered output
-  void discard()
-  {
-    buf_ = buffers_.begin();
-    cur_ = buf_->data;
-  }
-
-  // flush output and release sync slot, if one was assigned with sync_on()
-  void release()
-  {
-    if ((mode_ & HOLD) == 0)
-      flush();
-    else
-      discard();
-
-    mode_ = flag_line_buffered ? FLUSH : 0;
-
-    if (sync != NULL)
-      sync->release(lock_);
-  }
-
-  // end output in ORDERED mode (--sort)
-  void end()
-  {
-    if (sync != NULL)
-      sync->finish(lock_, slot_);
-  }
-
-  // cancel output
-  void cancel()
-  {
-    eof = true;
-
-    if (sync != NULL)
-      sync->cancel();
-  }
-
-  // true if output was cancelled()
-  bool cancelled()
-  {
-    return sync != NULL && sync->cancelled();
-  }
-
-  // output color when set
-  void color(const char *arg);
-
-  // output the header part of the match, preceding the matched line
-  void header(const char *pathname, const std::string& partname, bool& heading, size_t lineno, reflex::AbstractMatcher *matcher, size_t byte_offset, const char *sep, bool newline);
-
-  // output the pathname header for --files_with_matches and --count
-  void header(const char *pathname, const std::string& partname);
-
-  // output "Binary file ... matches"
-  void binary_file_matches(const char *pathname, const std::string& partname);
-
-  // output format with option --format-begin and --format-end
-  void format(const char *format, size_t matches);
-
-  // output formatted match with options --format, --format-open, --format-close, returns false when nothing is output
-  bool format(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t *matching, reflex::AbstractMatcher *matcher, bool& heading, bool body, bool next);
-
-  // output formatted inverted match with options -v --format, --format-open, --format-close
-  void format_invert(const char *format, const char *pathname, const std::string& partname, size_t matches, size_t lineno, size_t offset, const char *ptr, size_t size, bool& heading, bool next);
-
-  // output a quoted string with escapes for \ and "
-  void quote(const char *data, size_t size);
-
-  // output quoted string in C/C++
-  void cpp(const char *data, size_t size);
-
-  // output quoted string in CSV
-  void csv(const char *data, size_t size);
-
-  // output in hex
-  void hex(const char *data, size_t size);
-
-  // output quoted string in JSON
-  void json(const char *data, size_t size);
-
-  // output in XML
-  void xml(const char *data, size_t size);
-
- protected:
 
   // next buffer, allocate one if needed (when multi-threaded and lock is owned by another thread)
   void next()

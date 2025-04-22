@@ -1,12 +1,12 @@
-.TH UGREP "1" "March 03, 2025" "ugrep 7.3.0" "User Commands"
+.TH UGREP "1" "April 21, 2025" "ugrep 7.4.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [\fB-i\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
-      [\fB-F\fR|\fB-G\fR|\fB-P\fR|\fB-Z\fR] [\fB-U\fR] [\fB-m\fR [\fIMIN,\fR][\fIMAX\fR]] [\fB--bool\fR [\fB--files\fR|\fB--lines\fR]]
-      [\fB-r\fR|\fB-R\fR|\fB-1\fR|...|\fB-9\fR|\fB-10\fR|...] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
-      [\fB-l\fR|\fB-c\fR] [\fB-o\fR] [\fB-n\fR] [\fB-k\fR] [\fB-b\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C \fR\fINUM\fR] [\fB-y\fR]
+[\fIOPTIONS\fR] [\fB-i\fR|\fB-j\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
+      [\fB-E\fR|\fB-F\fR|\fB-G\fR|\fB-P\fR|\fB-Z\fR] [\fB-U\fR] [\fB-m\fR [\fIMIN,\fR][\fIMAX\fR]] [\fB--bool\fR [\fB--files\fR|\fB--lines\fR]]
+      [\fB-r\fR|\fB-R\fR|\fB-1\fR|...|\fB-9\fR|\fB-10\fR|\fB-11\fR|...] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
+      [\fB-q\fR|\fB-l\fR|\fB-c\fR|\fB-o\fR] [\fB-v\fR] [\fB-n\fR] [\fB-k\fR] [\fB-b\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C \fR\fINUM\fR] [\fB-y\fR]
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pretty\fR] [\fB--pager\fR[=\fICOMMAND\fR]]
       [\fB--hexdump\fR|\fB--csv\fR|\fB--json\fR|\fB--xml\fR] [\fB-I\fR] [\fB-z\fR] [\fB--zmax\fR=\fINUM\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
@@ -41,11 +41,9 @@ search queries with option \fB-%\fR (\fB--bool\fR) to match lines and \fB-%%\fR
 (\fB--fixed-strings\fR), \fB-G\fR (\fB--basic-regexp\fR) and \fB-P\fR
 (\fB--perl-regexp\fR) specify other pattern syntaxes.
 .PP
-Option \fB-i\fR (\fB--ignore-case\fR) ignores case in ASCII patterns.  When
-combined with option \fB-P\fR, ignores case in Unicode patterns.  Option
+Option \fB-i\fR (\fB--ignore-case\fR) ignores letter case in patterns.  Option
 \fB-j\fR (\fB--smart-case\fR) enables \fB-i\fR only if the search patterns are
-specified
-in lower case.
+specified in lower case.
 .PP
 Fuzzy (approximate) search is specified with option \fB-Z\fR (\fB--fuzzy\fR)
 with an optional argument to control character insertions, deletions, and/or
@@ -100,22 +98,23 @@ Compressed files and archives are searched with option \fB-z\fR
 the contents of compressed files and archives stored within archives up to
 \fINUM\fR levels.
 .PP
+Output to a terminal for viewing is enhanced with \fB--pretty\fR, which is
+enabled by default with the \fBug\fR command.
+.PP
 A query terminal user interface (TUI) is opened with \fB-Q\fR (\fB--query\fR)
 to interactively specify search patterns and view search results.  A
 \fIPATTERN\fR argument requires \fB-e PATTERN\fR to start the query TUI with
 the specified pattern.
 .PP
-Output to a terminal for viewing is enhanced with \fB--pretty\fR, which is
-enabled by default with the \fBug\fR command.
-.PP
-A terminal output pager is enabled with \fB--pager\fR.
+A terminal output pager is enabled with \fB--pager\fR that accepts an
+optional \fICOMMAND\fR to view the output.
 .PP
 Customized output is produced with option \fB--format\fR or \fB--replace\fR.
 Try \fBug --help format\fR for help with custom formatting of the output.
-Predefined formats include CSV with option \fB--csv\fR, JSON with option
-\fB--json\fR, and XML with option \fB--xml\fR.  Hexdumps are output with option
-\fB-X\fR (\fB--hex\fR) or with option \fB--hexdump\fR to customize hexdumps.
-See also section FORMAT.
+See also section FORMAT.  Predefined formats include CSV with option
+\fB--csv\fR, JSON with option \fB--json\fR, and XML with option \fB--xml\fR.
+Hexdumps are output with option \fB-X\fR (\fB--hex\fR) or with option
+\fB--hexdump\fR to customize hexdumps.
 .PP
 A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
 arguments, allowing filenames to begin with a `-' character.
@@ -312,7 +311,7 @@ the default.
 Specify a PATTERN to search the input.  An input line is selected
 if it matches any of the specified patterns.  This option is useful
 when multiple \fB\-e\fR options are used to specify multiple patterns, or
-when a pattern begins with a dash (`\-'), or to specify a pattern
+when a pattern starts with a dash (`\-'), or to specify a pattern
 after option \fB\-f\fR or after the FILE arguments.
 .TP
 \fB\-\-encoding\fR=\fIENCODING\fR
@@ -342,7 +341,7 @@ quoted to prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-exclude\-dir\fR=\fIGLOB\fR
 Exclude directories whose name matches GLOB from recursive
-searches, same as \fB\-g\fR ^GLOB/.  GLOB can use **, *, ?, and [...] as
+searches, same as \fB\-g\fR ^GLOB/.  GLOB may use **, *, ?, and [...] as
 wildcards and \\ to quote a wildcard or backslash character
 literally.  When GLOB contains a `/', full pathnames are matched.
 Otherwise basenames are matched.  Note that \fB\-\-exclude\-dir\fR patterns
@@ -351,7 +350,7 @@ to prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-exclude\-from\fR=\fIFILE\fR
 Read the globs from FILE and skip files and directories whose name
-matches one or more globs.  A glob can use **, *, ?, and [...] as
+matches one or more globs.  A glob may use **, *, ?, and [...] as
 wildcards and \\ to quote a wildcard or backslash character
 literally.  When a glob contains a `/', full pathnames are matched.
 Otherwise basenames are matched.  When a glob ends with a `/',
@@ -419,21 +418,28 @@ is also enabled.  Context options \fB\-A\fR, \fB\-B\fR, \fB\-C\fR and \fB\-y\fR 
 \fB\-\-free\-space\fR
 Spacing (blanks and tabs) in regular expressions are ignored.
 .TP
+\fB\-\-from\fR=\fIFILE\fR
+Read additional pathnames of files to search from FILE.  When FILE
+is a `\-', standard input is read.  This option is useful with `find
+... \fB\-p\fRrint | ugrep \fB\-\-from\fR=\fI\-\fR ...' to search specific files.
+.TP
 \fB\-G\fR, \fB\-\-basic\-regexp\fR
 Interpret patterns as basic regular expressions (BREs).
 .TP
 \fB\-g\fR \fIGLOBS\fR, \fB\-\-glob\fR=\fIGLOBS\fR, \fB\-\-iglob\fR=\fIGLOBS\fR
 Only search files whose name matches the specified comma\-separated
-list of GLOBS, same as \fB\-\-include\fR=glob for each `glob' in GLOBS.
+list of GLOBS, same as \fB\-\-include\fR='glob' for each `glob' in GLOBS.
 When a `glob' is preceded by a `!' or a `^', skip files whose name
 matches `glob', same as \fB\-\-exclude\fR='glob'.  When `glob' contains a
-`/', full pathnames are matched.  Otherwise basenames are matched.
-When `glob' ends with a `/', directories are matched, same as
-\fB\-\-include\-dir\fR='glob' and \fB\-\-exclude\-dir\fR='glob'.  A leading `/'
-matches the working directory.  Option \fB\-\-iglob\fR performs
-case\-insensitive name matching.  This option may be repeated and
-may be combined with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR.  For more details, see
-`ugrep \fB\-\-help\fR globs' and `man ugrep' section GLOBBING for details.
+`/', full pathnames are matched and option \fB\-r\fR is enabled to recurse
+into directories if \fB\-d\fR, \fB\-r\fR or \fB\-R\fR is not already specified.
+Otherwise basenames are matched.  When `glob' ends with a `/',
+directories are matched, same as \fB\-\-include\-dir\fR='glob' and
+\fB\-\-exclude\-dir\fR='glob'.  A leading `./' or just `/' matches the
+working directory.  Option \fB\-\-iglob\fR=\fIGLOBS\fR performs case\-insensitive
+name matching.  This option may be repeated and may be combined
+with options \fB\-M\fR, \fB\-O\fR and \fB\-t\fR.  For more details, see `ugrep \fB\-\-help\fR
+globs' and `man ugrep' section GLOBBING for details.
 .TP
 \fB\-\-glob\-ignore\-case\fR
 Perform case\-insensitive glob matching in general.
@@ -512,26 +518,30 @@ Do not ignore files, i.e. cancel \fB\-\-ignore\-files\fR when specified.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Only search files whose name matches GLOB, same as \fB\-g\fR \fIGLOB\fR.  GLOB
-can use **, *, ?, and [...] as wildcards and \\ to quote a wildcard
+may use **, *, ?, and [...] as wildcards and \\ to quote a wildcard
 or backslash character literally.  When GLOB contains a `/', full
-pathnames are matched.  Otherwise basenames are matched.  When GLOB
-ends with a `/', directories are included as if \fB\-\-include\-dir\fR is
-specified.  Otherwise files are included.  Note that \fB\-\-exclude\fR
-patterns take priority over \fB\-\-include\fR patterns.  GLOB should be
-quoted to prevent shell globbing.  This option may be repeated.
+pathnames are matched and option \fB\-r\fR is enabled to recurse into
+directories if \fB\-d\fR, \fB\-r\fR or \fB\-R\fR is not already specified.  Otherwise
+basenames are matched.  When GLOB ends with a `/', directories are
+included as if \fB\-\-include\-dir\fR is specified.  Otherwise files are
+included.  Note that \fB\-\-exclude\fR patterns take priority over
+\fB\-\-include\fR patterns.  GLOB should be quoted to prevent shell
+globbing.  This option may be repeated.
 .TP
 \fB\-\-include\-dir\fR=\fIGLOB\fR
 Only directories whose name matches GLOB are included in recursive
-searches, same as \fB\-g\fR \fIGLOB\fR/.  GLOB can use **, *, ?, and [...] as
+searches, same as \fB\-g\fR \fIGLOB\fR/.  GLOB may use **, *, ?, and [...] as
 wildcards and \\ to quote a wildcard or backslash character
-literally.  When GLOB contains a `/', full pathnames are matched.
-Otherwise basenames are matched.  Note that \fB\-\-exclude\-dir\fR patterns
-take priority over \fB\-\-include\-dir\fR patterns.  GLOB should be quoted
-to prevent shell globbing.  This option may be repeated.
+literally.  When GLOB contains a `/', full pathnames are matched
+and option \fB\-r\fR is enabled to recurse into directories if \fB\-d\fR, \fB\-r\fR or
+\fB\-R\fR is not already specified.  Otherwise basenames are matched.
+Note that \fB\-\-exclude\-dir\fR patterns take priority over \fB\-\-include\-dir\fR
+patterns.  GLOB should be quoted to prevent shell globbing.  This
+option may be repeated.
 .TP
 \fB\-\-include\-from\fR=\fIFILE\fR
 Read the globs from FILE and search only files and directories
-whose name matches one or more globs.  A glob can use **, *, ?, and
+whose name matches one or more globs.  A glob may use **, *, ?, and
 [...] as wildcards and \\ to quote a wildcard or backslash
 character literally.  When a glob contains a `/', full pathnames
 are matched.  Otherwise basenames are matched.  When a glob ends
@@ -729,7 +739,7 @@ the default is 3 (300ms delay).  No whitespace may be given between
 \fB\-e\fR \fIPATTERN\fR, i.e. a PATTERN argument requires option \fB\-e\fR.  Press F1
 or CTRL\-Z to view the help screen.  Press F2 or CTRL\-Y to invoke a
 command to view or edit the file shown at the top of the screen.
-The command can be specified with option \fB\-\-view\fR and defaults to
+This command can be specified with option \fB\-\-view\fR and defaults to
 environment variable PAGER when defined, or VISUAL or EDITOR.
 Press TAB or SHIFT\-TAB to navigate directories and to select a file
 to search.  Press ENTER to select lines to output.  Press ALT\-l for
@@ -831,10 +841,10 @@ repeated.  The possible file types can be (\fB\-t\fRlist displays a list):
 `parrot', `pascal', `pdf', `Pdf', `perl', `Perl', `php',
 `Php', `png', `Png', `prolog', `python', `Python', `r',
 `rpm', `Rpm', `rst', `rtf', `Rtf', `ruby', `Ruby',
-`rust', `scala', `scheme', `shell', `Shell', `smalltalk', `sql',
-`svg', `swift', `tcl', `tex', `text', `tiff', `Tiff',
-`tt', `typescript', `verilog', `vhdl', `vim', `xml', `Xml',
-`yacc', `yaml', `zig'.
+`rust', `scala', `scheme', `seed7', `shell', `Shell', `smalltalk',
+`sql', `svg', `swift', `tcl', `tex', `text', `tiff',
+`Tiff', `tt', `typescript', `verilog', `vhdl', `vim', `xml',
+`Xml', `yacc', `yaml', `zig'.
 .TP
 \fB\-\-tabs\fR[=\fINUM\fR]
 Set the tab size to NUM to expand tabs for option \fB\-k\fR.  The value of
@@ -902,10 +912,11 @@ additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
 \fB\-Y\fR, \fB\-\-empty\fR
 Empty\-matching patterns match all lines.  Normally, empty matches
-are not output, unless a pattern begins with `^' or ends with `$'.
-With this option, empty\-matching patterns, such as x? and x*, match
-all lines, not only lines with an `x' (enabled by default in grep
-compatibility mode).
+are not output, unless a pattern starts with `^' or ends with `$'.
+With this option, empty\-matching patterns, such as x*y?, x*y*z*,
+and x*(y?|z) match all lines, not only the expected pattern.
+This option is enabled by default in grep compatibility mode;
+specify option \fB\-\-no\-empty\fR to prevent matching all lines.
 .TP
 \fB\-y\fR, \fB\-\-any\-line\fR, \fB\-\-passthru\fR
 Any line is output (passthru).  Non\-matching lines are output as
@@ -935,15 +946,15 @@ pathnames of files in archives are output in braces.  When used
 with option \fB\-\-zmax\fR=\fINUM\fR, searches the contents of compressed files
 and archives stored within archives up to NUM levels.  When \fB\-g\fR, \fB\-O\fR,
 \fB\-M\fR, or \fB\-t\fR is specified, searches archives for files that match the
-specified globs, file extensions, file signature magic bytes, or
-file types, respectively; a side\-effect of these options is that
+specified globs, filename extensions, file signature magic bytes,
+or file types, respectively; a side\-effect of these options is that
 the compressed files and archives searched are only those with
 filename extensions that match known compression and archive types.
 Supported compression formats: gzip (.gz), compress (.Z), zip, 7z,
-bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
-lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
+bzip2 (.bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
+xz (.xz, .txz) and lzma (requires suffix .lzma, .tlz),
+zstd (.zst, .zstd, .tzst),
 lz4 (requires suffix .lz4),
-zstd (requires suffix .zst, .zstd, .tzst),
 brotli (requires suffix .br),
 bzip3 (requires suffix .bz3).
 .TP
@@ -995,11 +1006,11 @@ when combined with other options.  The \fB--save-config\fR=\fIFILE\fR option
 saves the configuration to \fIFILE\fR.  The configuration is written to
 standard output when \fIFILE\fR is a `-'.
 .SH GLOBBING
-Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
-\fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
-\fB--exclude-from\fR and \fB--ignore-files\fR to match pathnames and basenames
-in recursive searches.  Glob arguments for these options should be quoted to
-prevent shell globbing.
+Globbing is used by options \fB-g\fR (\fB--glob\fR and \fB--iglob\fR),
+\fB--include\fR, \fB--include-dir\fR, \fB--include-from\fR, \fB--exclude\fR,
+\fB--exclude-dir\fR, \fB--exclude-from\fR and \fB--ignore-files\fR to match
+pathnames or basenames in recursive searches.  Glob arguments for these
+options should be quoted to prevent shell globbing.
 .PP
 Globbing supports gitignore syntax and the corresponding matching rules, except
 that a glob normally matches files but not directories.  If a glob ends in a
@@ -1008,8 +1019,8 @@ path separator `/', then it matches directories but not files, as if
 a path separator `/', the full pathname is matched.  Otherwise the basename of
 a file or directory is matched.  For example, \fB*.h\fR matches foo.h and
 bar/foo.h.  \fBbar/*.h\fR matches bar/foo.h but not foo.h and not
-bar/bar/foo.h.  Use a leading `/' to force \fB/*.h\fR to match foo.h but not
-bar/foo.h.
+bar/bar/foo.h.  Use a leading `./' or just `/' to force \fB/*.h\fR to match
+foo.h in the working directory but not bar/foo.h.
 .PP
 When a glob starts with a `^' or a `!' as in \fB-g\fR^\fIGLOB\fR, the match is
 negated.  Likewise, a `!' (but not a `^') may be used with globs in the files
@@ -1029,7 +1040,7 @@ Matches one character not a,b,c,d,e,/.
 .IP \fB[!abc-e]\fR
 Matches one character not a,b,c,d,e,/.
 .IP \fB/\fR
-When used at the start of a glob, matches if pathname has no /.
+When used at the start of a glob, matches the working directory.
 When used at the end of a glob, matches directories only.
 .IP \fB**/\fR
 Matches zero or more directories.
@@ -1082,6 +1093,7 @@ by a previous glob pattern specified in the files associated with
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
 option \fB-f\fR to open a pattern file, when the pattern file does not exist.
+Defaults to /usr/local/share/ugrep/patterns when \fBGREP_PATH\fR is undefined.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
@@ -1147,7 +1159,8 @@ TUI regex lists and literals.
 .IP \fBqb=\fR
 TUI regex braces.
 .SH FORMAT
-Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
+Option \fB--format\fR=\fIFORMAT\fR specifies an output format for matches.
+Option \fB--replace\fR=\fIFORMAT\fR only replaces the matching patterns.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:
 .IP \fB%[\fR\fITEXT\fR\fB]F\fR
 if option \fB-H\fR is used: \fITEXT\fR, the file pathname and separator.
@@ -1340,11 +1353,11 @@ $ ugrep -cowi patricia myfile.txt
 .PP
 List lines with `amount' and a decimal, ignoring case (space is AND):
 .IP
-$ ugrep -i -% 'amount \d+(\.\d+)?' myfile.txt
+$ ugrep -i -% 'amount \\d+(\\.\\d+)?' myfile.txt
 .PP
-Alternative query:
+The same Boolean search query, but with options \fB-e\fR and \fB--and\fR:
 .IP
-$ ugrep -wi -e amount --and '\d+(\.\d+)?' myfile.txt
+$ ugrep -wi -e amount --and '\\d+(\\.\\d+)?' myfile.txt
 .PP
 List all Unicode words in a file:
 .IP
@@ -1368,7 +1381,6 @@ recursive search, showing only matches with up to 10 characters of context
 before and after:
 .IP
 $ ugrep -o -C20 -R -n -k -tjs FIXME
-
 .PP
 Find blocks of text between lines matching BEGIN and END by using a lazy
 quantifier `*?' to match only what is necessary and pattern `\\n' to match
@@ -1457,13 +1469,14 @@ recursively below up to two levels deeper (3 levels total):
 .IP
 $ ugrep -3 -l -tRpm '' rpm/
 .PP
-Monitor the system log for bug reports and ungroup multiple matches on a line:
+Monitor the system log for bug reports and ungroup multiple matches from
+matching lines into separate lines:
 .IP
 $ tail -f /var/log/system.log | ugrep -u -i -w bug
 .PP
 Interactive fuzzy search with Boolean search queries:
 .IP
-$ ugrep -Q -l -% -Z3 --sort=best
+$ ugrep -Q -l -% -Z2 --sort=best
 .PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
@@ -1474,7 +1487,7 @@ Display options related to "fuzzy" searching:
 $ ugrep --help fuzzy
 .PP
 .SH COPYRIGHT
-Copyright (c) 2021,2025 Robert A. van Engelen <engelen@acm.org>
+Copyright (c) 2021-2025 Robert A. van Engelen <engelen@acm.org>
 .PP
 \fBugrep\fR is released under the BSD\-3 license.  All parts of the software
 have reasonable copyright terms permitting free redistribution.  This includes

@@ -30,7 +30,7 @@
 @file      glob.cpp
 @brief     gitignore-style pathname globbing
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2019-2019, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2019-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -45,7 +45,12 @@
 //    one for the last deep ** wildcard)
 //  - linear time complexity in the length of the text for usual cases, with
 //    worst-case quadratic time
-//  - performs case-insensitive matching when the ic flag is set to true
+//  - performs case-insensitive matching when the icase flag is set to true
+//  - the lead option matches the leading path part of the glob against the
+//    pathname, for example the glob foo/bar/baz matches pathname foo/bar
+//  - the path option matches the path part but not the basename of a pathname,
+//    for example, the glob foo/bar/baz matches pathname foo/bar/baz/file.txt
+//    and the glob ./ (or just /) matches pathname file.txt
 //
 //  Pathnames are normalized by removing any leading ./ and / from the pathname
 //
@@ -56,7 +61,7 @@
 //  [a-z]  matches one character in the selected range of characters
 //  [^a-z] matches one character not in the selected range of characters
 //  [!a-z] same as [^a-z]
-//  /      when at the begin of the glob matches if the pathname has no /
+//  /      when at the start of the glob matches the working directory
 //  **/    matches zero or more directories
 //  /**    when at the end of the glob matches everything after the /
 //  \?     matches a ? (or any character specified after the backslash)
@@ -78,8 +83,8 @@
 //  a/**      matches a/x, a/y, a/x/y      but not a, b/x
 //  a\?b      matches a?b                  but not a, b, ab, axb, a/b
 
-// check if we are on a windows OS
-#if defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__BORLANDC__)
+// check if we are natively compiling for a Windows OS (not Cygwin and not MinGW)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # define OS_WIN
 #endif
 
@@ -93,10 +98,10 @@
 #define PATHSEP '/'
 #endif
 
-static int utf8(const char **s, bool ic = false);
+static int utf8(const char **s, bool icase = false);
 
-// match text against glob, return true or false, perform case-insensitive match if ic is true
-static bool match(const char *text, const char *glob, bool ic)
+// match text against glob, return true or false, perform case-insensitive match if icase=true, partial when part=true, path only when path=true
+static bool match(const char *text, const char *glob, bool icase, bool lead, bool path)
 {
   // to iteratively backtrack on *
   const char *text1_backup = NULL;
@@ -128,7 +133,7 @@ static bool match(const char *text, const char *glob, bool ic)
           text2_backup = text;
           glob2_backup = glob;
           if (*text != '/')
-            glob++;
+            ++glob;
           continue;
         }
 
@@ -143,13 +148,13 @@ static bool match(const char *text, const char *glob, bool ic)
           break;
 
         utf8(&text);
-        glob++;
+        ++glob;
         continue;
 
       case '[':
       {
-        // match character class, ignoring case if ic is true
-        int chr = utf8(&text, ic), last = 0x10ffff;
+        // match character class, ignoring case if icase is true
+        int chr = utf8(&text, icase), last = 0x10ffff;
 
         // match anything except /
         if (chr == PATHSEP)
@@ -160,10 +165,10 @@ static bool match(const char *text, const char *glob, bool ic)
 
         // inverted character class
         if (reverse)
-          glob++;
-        glob++;
+          ++glob;
+        ++glob;
 
-        int lc = chr, uc = (ic && lc >= 'a' && lc <= 'z' ? toupper(chr) : chr);
+        int lc = chr, uc = (icase && lc >= 'a' && lc <= 'z' ? toupper(chr) : chr);
 
         if (lc == uc)
         {
@@ -186,27 +191,36 @@ static bool match(const char *text, const char *glob, bool ic)
           break;
 
         if (*glob)
-          glob++;
+          ++glob;
         continue;
       }
 
+      case '/':
+        if (*text != PATHSEP)
+          break;
+        ++text;
+        ++glob;
+        continue;
+
       case '\\':
         // literal match \-escaped character
-        glob++;
+        ++glob;
         // FALLTHROUGH
 
       default:
-#ifdef OS_WIN
-        if ((ic ? tolower(*glob) != tolower(*text) : *glob != *text) && !(*glob == '/' && *text == '\\'))
-#else
-        if (ic ? tolower(*glob) != tolower(*text) : *glob != *text)
-#endif
+        if (icase ?
+            tolower(static_cast<unsigned char>(*glob)) != tolower(static_cast<unsigned char>(*text)) :
+            *glob != *text)
           break;
 
-        text++;
-        glob++;
+        ++text;
+        ++glob;
         continue;
     }
+
+    // the path option matches the path up to but not including the basename
+    if (path && *glob == '\0' && *text == PATHSEP && strchr(text + 1, PATHSEP) == NULL)
+      return true;
 
     if (glob1_backup != NULL && *text1_backup != PATHSEP)
     {
@@ -228,61 +242,67 @@ static bool match(const char *text, const char *glob, bool ic)
   }
 
   while (*glob == '*')
-    glob++;
-  return *glob == '\0';
+    ++glob;
+  return (*glob == '\0' && !path) || (*glob == '/' && lead);
 }
  
-// pathname or basename glob matching, returns true or false, perform case-insensitive match if ic is true
-bool glob_match(const char *pathname, const char *basename, const char *glob, bool ic)
+// pathname or basename glob matching, returns true or false, perform case-insensitive match if icase is true
+bool glob_match(const char *pathname, const char *basename, const char *glob, bool icase, bool lead, bool path)
 {
   // if pathname starts with ./ then skip this
   while (pathname[0] == '.' && pathname[1] == PATHSEP)
     pathname += 2;
-  // if pathname starts with / then skip it
+  // if pathname starts with / then skip /
   while (pathname[0] == PATHSEP)
     ++pathname;
 
   // match pathname if glob contains a / or match the basename otherwise
   if (strchr(glob, '/') != NULL)
   {
-    // a leading ./ or / in the glob means globbing the pathname after removing the ./ or /
+    // remove leading ./ or /
     if (glob[0] == '.' && glob[1] == '/')
       glob += 2;
     else if (glob[0] == '/')
       ++glob;
-    return match(pathname, glob, ic);
+
+    if (*glob != '\0')
+      return match(pathname, glob, icase, lead, path);
+
+    // the path option matches the path up to but not including the basename, check the ./ glob case (glob is empty)
+    return *pathname == '\0' || (path && strchr(pathname, PATHSEP) == NULL);
   }
 
-  return match(basename, glob, ic);
+  // match basename, unless matching an empty path to the basename which always matches
+  return path || match(basename, glob, icase, false, false);
 }
 
-// return wide character of UTF-8 multi-byte sequence, return ASCII lower case if ic is true
-static int utf8(const char **s, bool ic)
+// return wide character of UTF-8 multi-byte sequence, return ASCII lower case if icase is true
+static int utf8(const char **s, bool icase)
 {
-  int c1, c2, c3, c = (unsigned char)**s;
+  int c1, c2, c3, c = static_cast<unsigned char>(**s);
   if (c != '\0')
-    (*s)++;
+    ++*s;
   if (c < 0x80)
-    return ic ? tolower(c) : c;
-  c1 = (unsigned char)**s;
+    return icase ? tolower(c) : c;
+  c1 = static_cast<unsigned char>(**s);
   if (c < 0xC0 || (c == 0xC0 && c1 != 0x80) || c == 0xC1 || (c1 & 0xC0) != 0x80)
     return 0xFFFD;
   if (c1 != '\0')
-    (*s)++;
+    ++*s;
   c1 &= 0x3F;
   if (c < 0xE0)
     return (((c & 0x1F) << 6) | c1);
-  c2 = (unsigned char)**s;
+  c2 = static_cast<unsigned char>(**s);
   if ((c == 0xE0 && c1 < 0x20) || (c2 & 0xC0) != 0x80)
     return 0xFFFD;
   if (c2 != '\0')
-    (*s)++;
+    ++*s;
   c2 &= 0x3F;
   if (c < 0xF0)
     return (((c & 0x0F) << 12) | (c1 << 6) | c2);
-  c3 = (unsigned char)**s;
+  c3 = static_cast<unsigned char>(**s);
   if (c3 != '\0')
-    (*s)++;
+    ++*s;
   if ((c == 0xF0 && c1 < 0x10) || (c == 0xF4 && c1 >= 0x10) || c >= 0xF5 || (c3 & 0xC0) != 0x80)
     return 0xFFFD;
   return (((c & 0x07) << 18) | (c1 << 12) | (c2 << 6) | (c3 & 0x3F));

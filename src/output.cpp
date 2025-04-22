@@ -537,7 +537,7 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
     return;
 
   str(color_off);
-  str("Binary file ", 12);
+  str("Binary file ");
   str(color_fn);
 
   if (pathname != Static::LABEL_STANDARD_INPUT && color_hl != NULL)
@@ -556,8 +556,7 @@ void Output::binary_file_matches(const char *pathname, const std::string& partna
   }
 
   str(color_off);
-
-  str(" matches", 8);
+  str(" matches");
   nl();
 
   mode_ |= BINARY;

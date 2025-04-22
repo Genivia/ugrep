@@ -30,7 +30,7 @@
 @file      matcher_avx2.cpp
 @brief     RE/flex matcher engine
 @author    Robert van Engelen - engelen@genivia.com
-@copyright (c) 2016-2024, Robert van Engelen, Genivia Inc. All rights reserved.
+@copyright (c) 2016-2025, Robert van Engelen, Genivia Inc. All rights reserved.
 @copyright (c) BSD-3 License - see LICENSE.txt
 */
 
@@ -192,8 +192,10 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
   const size_t min = pat_->min_;
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
-  __m256i vlcp = _mm256_set1_epi8(chr[0]);
-  __m256i vlcs = _mm256_set1_epi8(chr[1]);
+  const char chr0 = chr[0];
+  const char chr1 = chr[1];
+  __m256i vlcp = _mm256_set1_epi8(chr0);
+  __m256i vlcs = _mm256_set1_epi8(chr1);
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -208,23 +210,35 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
       while (mask != 0)
       {
         uint32_t offset = ctz(mask);
-        loc = s - lcp + offset - buf_;
-        set_current(loc);
-        if (loc + 4 > end_ || pat_->predict_match(&buf_[loc]))
+        size_t k = s - lcp + offset - buf_;
+        set_current(k);
+        if (k + 4 > end_ || pat_->predict_match(&buf_[k]))
           return true;
         mask &= mask - 1;
       }
       s += 32;
     }
-    loc = s - lcp - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + min > end_)
-      return false;
-    if (loc + min + 31 > end_)
-      break;
+    e = buf_ + end_;
+    if (s < e && (s = static_cast<const char*>(std::memchr(s, chr0, e - s))) != NULL)
+    {
+      s -= lcp;
+      loc = s - buf_;
+      if (s > e - 4 || (s[lcs] == chr1 && pat_->predict_match(s)))
+      {
+        set_current(loc);
+        return true;
+      }
+      ++loc;
+    }
+    else
+    {
+      loc = std::max<size_t>(loc, e - lcp - buf_);
+      set_current_and_peek_more(loc);
+      loc = cur_;
+      if (loc + min > end_ && eof_)
+        return false;
+    }
   }
-  return advance_pattern_pin1_pma(loc);
 }
 
 // My homegrown "needle search" method when needle pin=1
@@ -234,8 +248,10 @@ bool Matcher::simd_advance_pattern_pin1_pmh_avx2(size_t loc)
   const char *chr = pat_->chr_;
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
-  __m256i vlcp = _mm256_set1_epi8(chr[0]);
-  __m256i vlcs = _mm256_set1_epi8(chr[1]);
+  const char chr0 = chr[0];
+  const char chr1 = chr[1];
+  __m256i vlcp = _mm256_set1_epi8(chr0);
+  __m256i vlcs = _mm256_set1_epi8(chr1);
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -250,23 +266,35 @@ bool Matcher::simd_advance_pattern_pin1_pmh_avx2(size_t loc)
       while (mask != 0)
       {
         uint32_t offset = ctz(mask);
-        loc = s - lcp + offset - buf_;
-        set_current(loc);
-        if (pat_->predict_match(&buf_[loc], MIN))
+        size_t k = s - lcp + offset - buf_;
+        set_current(k);
+        if (pat_->predict_match(&buf_[k], MIN))
           return true;
         mask &= mask - 1;
       }
       s += 32;
     }
-    loc = s - lcp - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + MIN > end_)
-      return false;
-    if (loc + MIN + 31 > end_)
-      break;
+    e = buf_ + end_;
+    if (s < e && (s = static_cast<const char*>(std::memchr(s, chr0, e - s))) != NULL)
+    {
+      s -= lcp;
+      loc = s - buf_;
+      if (s + MIN > e || (s[lcs] == chr1 && pat_->predict_match(s, MIN)))
+      {
+        set_current(loc);
+        return true;
+      }
+      ++loc;
+    }
+    else
+    {
+      loc = std::max<size_t>(loc, e - lcp - buf_);
+      set_current_and_peek_more(loc);
+      loc = cur_;
+      if (loc + MIN > end_ && eof_)
+        return false;
+    }
   }
-  return advance_pattern_pin1_pmh<MIN>(loc);
 }
 
 // My homegrown "needle search" methods
@@ -288,25 +316,31 @@ bool Matcher::simd_advance_pattern_pin##N##_one_avx2(size_t loc) \
       while (mask != 0) \
       { \
         uint32_t offset = ctz(mask); \
-        loc = s + offset - buf_; \
-        if (loc + 4 > end_ || pat_->predict_match(&buf_[loc])) \
+        size_t k = s + offset - buf_; \
+        if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
         { \
-          set_current(loc); \
+          set_current(k); \
           return true; \
         } \
         mask &= mask - 1; \
       } \
       s += 32; \
     } \
+    while (s < e - 3) \
+    { \
+      if (pat_->predict_match(s++)) \
+      { \
+        size_t k = s - buf_ - 1; \
+        set_current(k); \
+        return true; \
+      } \
+    } \
     loc = s - buf_; \
     set_current_and_peek_more(loc); \
     loc = cur_; \
-    if (loc + 1 > end_) \
-      return false; \
-    if (loc + 32 > end_) \
-      break; \
+    if (loc + 3 >= end_) \
+      return true; \
   } \
-  return advance_pattern_pma(loc); \
 }
 
 ADV_PAT_PIN_ONE(2, \
@@ -459,25 +493,35 @@ bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
       while (mask != 0) \
       { \
         uint32_t offset = ctz(mask); \
-        loc = s - lcp + offset - buf_; \
-        if (loc + 4 > end_ || pat_->predict_match(&buf_[loc])) \
+        size_t k = s - lcp + offset - buf_; \
+        if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
         { \
-          set_current(loc); \
+          set_current(k); \
           return true; \
         } \
         mask &= mask - 1; \
       } \
       s += 32; \
     } \
-    loc = s - lcp - buf_; \
+    s -= lcp; \
+    e = buf_ + end_ - 3; \
+    while (s < e) \
+    { \
+      if (pat_->predict_match(s++)) \
+      { \
+        size_t k = s - buf_ - 1; \
+        set_current(k); \
+        return true; \
+      } \
+    } \
+    loc = s - buf_; \
     set_current_and_peek_more(loc); \
     loc = cur_; \
-    if (loc + min > end_) \
+    if (loc + min > end_ && eof_) \
       return false; \
-    if (loc + min + 31 > end_) \
-      break; \
+    if (loc + 3 >= end_) \
+      return true; \
   } \
-  return advance_pattern_pma(loc); \
 } \
 \
 template <uint8_t MIN> \
@@ -502,25 +546,33 @@ bool Matcher::simd_advance_pattern_pin##N##_pmh_avx2(size_t loc) \
       while (mask != 0) \
       { \
         uint32_t offset = ctz(mask); \
-        loc = s - lcp + offset - buf_; \
-        if (pat_->predict_match(&buf_[loc], MIN)) \
+        size_t k = s - lcp + offset - buf_; \
+        if (pat_->predict_match(&buf_[k], MIN)) \
         { \
-          set_current(loc); \
+          set_current(k); \
           return true; \
         } \
         mask &= mask - 1; \
       } \
       s += 32; \
     } \
-    loc = s - lcp - buf_; \
+    s -= lcp; \
+    e = buf_ + end_ - MIN + 1; \
+    while (s < e) \
+    { \
+      if (pat_->predict_match(s++, MIN)) \
+      { \
+        size_t k = s - buf_ - 1; \
+        set_current(k); \
+        return true; \
+      } \
+    } \
+    loc = s - buf_; \
     set_current_and_peek_more(loc); \
     loc = cur_; \
-    if (loc + MIN > end_) \
+    if (loc + MIN > end_ && eof_) \
       return false; \
-    if (loc + MIN + 31 > end_) \
-      break; \
   } \
-  return advance_pattern_min4<MIN>(loc); \
 }
 
 ADV_PAT_PIN(2, \
@@ -785,26 +837,26 @@ bool Matcher::simd_advance_pattern_min4_avx2(size_t loc)
       uint32_t mask = _mm_extract_epi32(_mm_shuffle_epi8(vstate, vselect), 0);
       if ((mask & 0x00000008) == 0 && pat_->predict_match(s - MIN + 0, MIN))
       {
-        loc = s - buf_ - MIN + 0;
-        set_current(loc);
+        size_t k = s - buf_ - MIN + 0;
+        set_current(k);
         return true;
       }
       if ((mask & 0x00000404) == 0 && pat_->predict_match(s - MIN + 1, MIN))
       {
-        loc = s - buf_ - MIN + 1;
-        set_current(loc);
+        size_t k = s - buf_ - MIN + 1;
+        set_current(k);
         return true;
       }
       if ((mask & 0x00020202) == 0 && pat_->predict_match(s - MIN + 2, MIN))
       {
-        loc = s - buf_ - MIN + 2;
-        set_current(loc);
+        size_t k = s - buf_ - MIN + 2;
+        set_current(k);
         return true;
       }
       if ((mask & 0x01010101) == 0 && pat_->predict_match(s - MIN + 3, MIN))
       {
-        loc = s - buf_ - MIN + 3;
-        set_current(loc);
+        size_t k = s - buf_ - MIN + 3;
+        set_current(k);
         return true;
       }
       // butterfly-or:
@@ -853,23 +905,39 @@ bool Matcher::simd_advance_chars_avx2(size_t loc)
         if (LEN == 2 ||
             (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
         {
-          loc = s - lcp + offset - buf_;
-          set_current(loc);
+          size_t k = s - lcp + offset - buf_;
+          set_current(k);
           return true;
         }
         mask &= mask - 1;
       }
       s += 32;
     }
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (LEN == 2 ||
+          (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 1) == 0))
+      {
+        size_t k = s - lcp - buf_;
+        set_current(k);
+        return true;
+      }
+      ++s;
+    }
     loc = s - lcp - buf_;
     set_current_and_peek_more(loc);
     loc = cur_;
-    if (loc + LEN > end_)
+    if (loc + LEN > end_ && eof_)
       return false;
-    if (loc + LEN + 31 > end_)
-      break;
   }
-  return advance_chars<LEN>(loc);
 }
 
 /// Few chars followed by 2 to 3 minimal char pattern
@@ -883,7 +951,7 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
   while (true)
   {
     const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - LEN + 1;
+    const char *e = buf_ + end_ + lcp - LEN - min + 1;
     __m256i vlcp = _mm256_set1_epi8(chr[lcp]);
     __m256i vlcs = _mm256_set1_epi8(chr[lcs]);
     while (s <= e - 32)
@@ -899,10 +967,10 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
         if (LEN == 2 ||
             (LEN == 3 ? s[offset + 1 - lcp] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
         {
-          loc = s - lcp + offset - buf_;
-          if (loc + LEN + 4 > end_ || pat_->predict_match(&buf_[loc + LEN]))
+          size_t k = s - lcp + offset - buf_;
+          if (k + LEN + 4 > end_ || pat_->predict_match(&buf_[k + LEN]))
           {
-            set_current(loc);
+            set_current(k);
             return true;
           }
         }
@@ -910,15 +978,34 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
       }
       s += 32;
     }
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (LEN == 2 ||
+          (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 1) == 0))
+      {
+        size_t k = s - lcp - buf_;
+        if (k + LEN + 4 > end_ || pat_->predict_match(&buf_[k + LEN]))
+        {
+          set_current(k);
+          return true;
+        }
+      }
+      ++s;
+    }
     loc = s - lcp - buf_;
     set_current_and_peek_more(loc);
     loc = cur_;
-    if (loc + LEN + min > end_)
+    if (loc + LEN + min > end_ && eof_)
       return false;
-    if (loc + LEN + min + 31 > end_)
-      break;
   }
-  return advance_chars_pma<LEN>(loc);
 }
 
 /// Few chars followed by 4 minimal char pattern
@@ -932,7 +1019,7 @@ bool Matcher::simd_advance_chars_pmh_avx2(size_t loc)
   while (true)
   {
     const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - LEN + 1;
+    const char *e = buf_ + end_ + lcp - LEN - min + 1;
     __m256i vlcp = _mm256_set1_epi8(chr[lcp]);
     __m256i vlcs = _mm256_set1_epi8(chr[lcs]);
     while (s <= e - 32)
@@ -948,24 +1035,43 @@ bool Matcher::simd_advance_chars_pmh_avx2(size_t loc)
         if (LEN == 2 ||
             (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
         {
-          loc = s - lcp + offset - buf_;
-          set_current(loc);
-          if (loc + LEN + min > end_ || pat_->predict_match(&buf_[loc + LEN], min))
+          size_t k = s - lcp + offset - buf_;
+          set_current(k);
+          if (k + LEN + min > end_ || pat_->predict_match(&buf_[k + LEN], min))
             return true;
         }
         mask &= mask - 1;
       }
       s += 32;
     }
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (LEN == 2 ||
+          (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 1) == 0))
+      {
+        size_t k = s - lcp - buf_;
+        if (pat_->predict_match(&buf_[k + LEN], min))
+        {
+          set_current(k);
+          return true;
+        }
+      }
+      ++s;
+    }
     loc = s - lcp - buf_;
     set_current_and_peek_more(loc);
     loc = cur_;
-    if (loc + LEN + min > end_)
+    if (loc + LEN + min > end_ && eof_)
       return false;
-    if (loc + LEN + min + 31 > end_)
-      break;
   }
-  return advance_chars_pmh<LEN>(loc);
 }
 
 /// Implements AVX2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
@@ -993,23 +1099,38 @@ bool Matcher::simd_advance_string_avx2(size_t loc)
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
         {
-          loc = s - lcp + offset - buf_;
-          set_current(loc);
+          size_t k = s - lcp + offset - buf_;
+          set_current(k);
           return true;
         }
         mask &= mask - 1;
       }
       s += 32;
     }
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (std::memcmp(s - lcp, chr, len) == 0)
+      {
+        size_t k = s - lcp - buf_;
+        set_current(k);
+        return true;
+      }
+      ++s;
+    }
     loc = s - lcp - buf_;
     set_current_and_peek_more(loc);
     loc = cur_;
-    if (loc + len > end_)
+    if (loc + len > end_ && eof_)
       return false;
-    if (loc + len + 31 > end_)
-      break;
   }
-  return advance_string(loc);
 }
 
 /// Implements AVX2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
@@ -1023,7 +1144,7 @@ bool Matcher::simd_advance_string_pma_avx2(size_t loc)
   while (true)
   {
     const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - len + 1;
+    const char *e = buf_ + end_ + lcp - len - min + 1;
     __m256i vlcp = _mm256_set1_epi8(chr[lcp]);
     __m256i vlcs = _mm256_set1_epi8(chr[lcs]);
     while (s <= e - 32)
@@ -1038,10 +1159,10 @@ bool Matcher::simd_advance_string_pma_avx2(size_t loc)
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
         {
-          loc = s - lcp + offset - buf_;
-          if (loc + len + 4 > end_ || pat_->predict_match(&buf_[loc + len]))
+          size_t k = s - lcp + offset - buf_;
+          if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
           {
-            set_current(loc);
+            set_current(k);
             return true;
           }
         }
@@ -1049,15 +1170,33 @@ bool Matcher::simd_advance_string_pma_avx2(size_t loc)
       }
       s += 32;
     }
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (std::memcmp(s - lcp, chr, len) == 0)
+      {
+        size_t k = s - lcp - buf_;
+        if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
+        {
+          set_current(k);
+          return true;
+        }
+      }
+      ++s;
+    }
     loc = s - lcp - buf_;
     set_current_and_peek_more(loc);
     loc = cur_;
-    if (loc + len + min > end_)
+    if (loc + len + min > end_ && eof_)
       return false;
-    if (loc + len + min + 31 > end_)
-      break;
   }
-  return advance_string_pma(loc);
 }
 
 /// Implements AVX2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
@@ -1071,7 +1210,7 @@ bool Matcher::simd_advance_string_pmh_avx2(size_t loc)
   while (true)
   {
     const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - len + 1;
+    const char *e = buf_ + end_ + lcp - len - min + 1;
     __m256i vlcp = _mm256_set1_epi8(chr[lcp]);
     __m256i vlcs = _mm256_set1_epi8(chr[lcs]);
     while (s <= e - 32)
@@ -1086,24 +1225,42 @@ bool Matcher::simd_advance_string_pmh_avx2(size_t loc)
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
         {
-          loc = s - lcp + offset - buf_;
-          set_current(loc);
-          if (loc + len + min > end_ || pat_->predict_match(&buf_[loc + len], min))
+          size_t k = s - lcp + offset - buf_;
+          set_current(k);
+          if (k + len + min > end_ || pat_->predict_match(&buf_[k + len], min))
             return true;
         }
         mask &= mask - 1;
       }
       s += 32;
     }
+    while (s < e)
+    {
+      do
+        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
+      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
+      if (s == NULL || s >= e)
+      {
+        s = e;
+        break;
+      }
+      if (std::memcmp(s - lcp, chr, len) == 0)
+      {
+        size_t k = s - lcp - buf_;
+        if (pat_->predict_match(&buf_[k + len], min))
+        {
+          set_current(k);
+          return true;
+        }
+      }
+      ++s;
+    }
     loc = s - lcp - buf_;
     set_current_and_peek_more(loc);
     loc = cur_;
-    if (loc + len + min > end_)
+    if (loc + len + min > end_ && eof_)
       return false;
-    if (loc + len + min + 31 > end_)
-      break;
   }
-  return advance_string_pmh(loc);
 }
 
 #else

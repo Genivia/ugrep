@@ -35,4 +35,4 @@
 */
 
 // pathname or basename glob matching, returns true or false, perform case-insensitive match if ic is true
-bool glob_match(const char *pathname, const char *basename, const char *glob, bool ic = false);
+bool glob_match(const char *pathname, const char *basename, const char *glob, bool icase = false, bool lead = false, bool path = false);

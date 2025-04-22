@@ -18,10 +18,10 @@ cat >> man/ugrep.1 << 'END'
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
 .B ugrep
-[\fIOPTIONS\fR] [\fB-i\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
-      [\fB-F\fR|\fB-G\fR|\fB-P\fR|\fB-Z\fR] [\fB-U\fR] [\fB-m\fR [\fIMIN,\fR][\fIMAX\fR]] [\fB--bool\fR [\fB--files\fR|\fB--lines\fR]]
-      [\fB-r\fR|\fB-R\fR|\fB-1\fR|...|\fB-9\fR|\fB-10\fR|...] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
-      [\fB-l\fR|\fB-c\fR] [\fB-o\fR] [\fB-n\fR] [\fB-k\fR] [\fB-b\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C \fR\fINUM\fR] [\fB-y\fR]
+[\fIOPTIONS\fR] [\fB-i\fR|\fB-j\fR] [\fB-Q\fR|\fIPATTERN\fR] [\fB-e\fR \fIPATTERN\fR] [\fB-N\fR \fIPATTERN\fR] [\fB-f\fR \fIFILE\fR]
+      [\fB-E\fR|\fB-F\fR|\fB-G\fR|\fB-P\fR|\fB-Z\fR] [\fB-U\fR] [\fB-m\fR [\fIMIN,\fR][\fIMAX\fR]] [\fB--bool\fR [\fB--files\fR|\fB--lines\fR]]
+      [\fB-r\fR|\fB-R\fR|\fB-1\fR|...|\fB-9\fR|\fB-10\fR|\fB-11\fR|...] [\fB-t\fR \fITYPES\fR] [\fB-g\fR \fIGLOBS\fR] [\fB--sort\fR[=\fIKEY\fR]]
+      [\fB-q\fR|\fB-l\fR|\fB-c\fR|\fB-o\fR] [\fB-v\fR] [\fB-n\fR] [\fB-k\fR] [\fB-b\fR] [\fB-A\fR \fINUM\fR] [\fB-B\fR \fINUM\fR] [\fB-C \fR\fINUM\fR] [\fB-y\fR]
       [\fB--color\fR[=\fIWHEN\fR]|\fB--colour\fR[=\fIWHEN\fR]] [\fB--pretty\fR] [\fB--pager\fR[=\fICOMMAND\fR]]
       [\fB--hexdump\fR|\fB--csv\fR|\fB--json\fR|\fB--xml\fR] [\fB-I\fR] [\fB-z\fR] [\fB--zmax\fR=\fINUM\fR] [\fIFILE\fR \fI...\fR]
 .SH DESCRIPTION
@@ -56,11 +56,9 @@ search queries with option \fB-%\fR (\fB--bool\fR) to match lines and \fB-%%\fR
 (\fB--fixed-strings\fR), \fB-G\fR (\fB--basic-regexp\fR) and \fB-P\fR
 (\fB--perl-regexp\fR) specify other pattern syntaxes.
 .PP
-Option \fB-i\fR (\fB--ignore-case\fR) ignores case in ASCII patterns.  When
-combined with option \fB-P\fR, ignores case in Unicode patterns.  Option
+Option \fB-i\fR (\fB--ignore-case\fR) ignores letter case in patterns.  Option
 \fB-j\fR (\fB--smart-case\fR) enables \fB-i\fR only if the search patterns are
-specified
-in lower case.
+specified in lower case.
 .PP
 Fuzzy (approximate) search is specified with option \fB-Z\fR (\fB--fuzzy\fR)
 with an optional argument to control character insertions, deletions, and/or
@@ -115,22 +113,23 @@ Compressed files and archives are searched with option \fB-z\fR
 the contents of compressed files and archives stored within archives up to
 \fINUM\fR levels.
 .PP
+Output to a terminal for viewing is enhanced with \fB--pretty\fR, which is
+enabled by default with the \fBug\fR command.
+.PP
 A query terminal user interface (TUI) is opened with \fB-Q\fR (\fB--query\fR)
 to interactively specify search patterns and view search results.  A
 \fIPATTERN\fR argument requires \fB-e PATTERN\fR to start the query TUI with
 the specified pattern.
 .PP
-Output to a terminal for viewing is enhanced with \fB--pretty\fR, which is
-enabled by default with the \fBug\fR command.
-.PP
-A terminal output pager is enabled with \fB--pager\fR.
+A terminal output pager is enabled with \fB--pager\fR that accepts an
+optional \fICOMMAND\fR to view the output.
 .PP
 Customized output is produced with option \fB--format\fR or \fB--replace\fR.
 Try \fBug --help format\fR for help with custom formatting of the output.
-Predefined formats include CSV with option \fB--csv\fR, JSON with option
-\fB--json\fR, and XML with option \fB--xml\fR.  Hexdumps are output with option
-\fB-X\fR (\fB--hex\fR) or with option \fB--hexdump\fR to customize hexdumps.
-See also section FORMAT.
+See also section FORMAT.  Predefined formats include CSV with option
+\fB--csv\fR, JSON with option \fB--json\fR, and XML with option \fB--xml\fR.
+Hexdumps are output with option \fB-X\fR (\fB--hex\fR) or with option
+\fB--hexdump\fR to customize hexdumps.
 .PP
 A `--' signals the end of options; the rest of the parameters are \fIFILE\fR
 arguments, allowing filenames to begin with a `-' character.
@@ -206,11 +205,11 @@ when combined with other options.  The \fB--save-config\fR=\fIFILE\fR option
 saves the configuration to \fIFILE\fR.  The configuration is written to
 standard output when \fIFILE\fR is a `-'.
 .SH GLOBBING
-Globbing is used by options \fB-g\fR, \fB--include\fR, \fB--include-dir\fR,
-\fB--include-from\fR, \fB--exclude\fR, \fB--exclude-dir\fR,
-\fB--exclude-from\fR and \fB--ignore-files\fR to match pathnames and basenames
-in recursive searches.  Glob arguments for these options should be quoted to
-prevent shell globbing.
+Globbing is used by options \fB-g\fR (\fB--glob\fR and \fB--iglob\fR),
+\fB--include\fR, \fB--include-dir\fR, \fB--include-from\fR, \fB--exclude\fR,
+\fB--exclude-dir\fR, \fB--exclude-from\fR and \fB--ignore-files\fR to match
+pathnames or basenames in recursive searches.  Glob arguments for these
+options should be quoted to prevent shell globbing.
 .PP
 Globbing supports gitignore syntax and the corresponding matching rules, except
 that a glob normally matches files but not directories.  If a glob ends in a
@@ -219,8 +218,8 @@ path separator `/', then it matches directories but not files, as if
 a path separator `/', the full pathname is matched.  Otherwise the basename of
 a file or directory is matched.  For example, \fB*.h\fR matches foo.h and
 bar/foo.h.  \fBbar/*.h\fR matches bar/foo.h but not foo.h and not
-bar/bar/foo.h.  Use a leading `/' to force \fB/*.h\fR to match foo.h but not
-bar/foo.h.
+bar/bar/foo.h.  Use a leading `./' or just `/' to force \fB/*.h\fR to match
+foo.h in the working directory but not bar/foo.h.
 .PP
 When a glob starts with a `^' or a `!' as in \fB-g\fR^\fIGLOB\fR, the match is
 negated.  Likewise, a `!' (but not a `^') may be used with globs in the files
@@ -240,7 +239,7 @@ Matches one character not a,b,c,d,e,/.
 .IP \fB[!abc-e]\fR
 Matches one character not a,b,c,d,e,/.
 .IP \fB/\fR
-When used at the start of a glob, matches if pathname has no /.
+When used at the start of a glob, matches the working directory.
 When used at the end of a glob, matches directories only.
 .IP \fB**/\fR
 Matches zero or more directories.
@@ -293,6 +292,7 @@ by a previous glob pattern specified in the files associated with
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
 option \fB-f\fR to open a pattern file, when the pattern file does not exist.
+Defaults to /usr/local/share/ugrep/patterns when \fBGREP_PATH\fR is undefined.
 .IP \fBGREP_COLOR\fR
 May be used to specify ANSI SGR parameters to highlight matches when option
 \fB--color\fR is used, e.g. 1;35;40 shows pattern matches in bold magenta text
@@ -358,7 +358,8 @@ TUI regex lists and literals.
 .IP \fBqb=\fR
 TUI regex braces.
 .SH FORMAT
-Option \fB--format\fR=\fIFORMAT\fR specifies an output format for file matches.
+Option \fB--format\fR=\fIFORMAT\fR specifies an output format for matches.
+Option \fB--replace\fR=\fIFORMAT\fR only replaces the matching patterns.
 Fields may be used in \fIFORMAT\fR, which expand into the following values:
 .IP \fB%[\fR\fITEXT\fR\fB]F\fR
 if option \fB-H\fR is used: \fITEXT\fR, the file pathname and separator.
@@ -551,11 +552,11 @@ $ ugrep -cowi patricia myfile.txt
 .PP
 List lines with `amount' and a decimal, ignoring case (space is AND):
 .IP
-$ ugrep -i -% 'amount \d+(\.\d+)?' myfile.txt
+$ ugrep -i -% 'amount \\d+(\\.\\d+)?' myfile.txt
 .PP
-Alternative query:
+The same Boolean search query, but with options \fB-e\fR and \fB--and\fR:
 .IP
-$ ugrep -wi -e amount --and '\d+(\.\d+)?' myfile.txt
+$ ugrep -wi -e amount --and '\\d+(\\.\\d+)?' myfile.txt
 .PP
 List all Unicode words in a file:
 .IP
@@ -579,7 +580,6 @@ recursive search, showing only matches with up to 10 characters of context
 before and after:
 .IP
 $ ugrep -o -C20 -R -n -k -tjs FIXME
-
 .PP
 Find blocks of text between lines matching BEGIN and END by using a lazy
 quantifier `*?' to match only what is necessary and pattern `\\n' to match
@@ -668,13 +668,14 @@ recursively below up to two levels deeper (3 levels total):
 .IP
 $ ugrep -3 -l -tRpm '' rpm/
 .PP
-Monitor the system log for bug reports and ungroup multiple matches on a line:
+Monitor the system log for bug reports and ungroup multiple matches from
+matching lines into separate lines:
 .IP
 $ tail -f /var/log/system.log | ugrep -u -i -w bug
 .PP
 Interactive fuzzy search with Boolean search queries:
 .IP
-$ ugrep -Q -l -% -Z3 --sort=best
+$ ugrep -Q -l -% -Z2 --sort=best
 .PP
 Display all words in a MacRoman-encoded file that has CR newlines:
 .IP
@@ -685,7 +686,7 @@ Display options related to "fuzzy" searching:
 $ ugrep --help fuzzy
 .PP
 .SH COPYRIGHT
-Copyright (c) 2021,2025 Robert A. van Engelen <engelen@acm.org>
+Copyright (c) 2021-2025 Robert A. van Engelen <engelen@acm.org>
 .PP
 \fBugrep\fR is released under the BSD\-3 license.  All parts of the software
 have reasonable copyright terms permitting free redistribution.  This includes

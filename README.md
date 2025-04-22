@@ -2053,17 +2053,18 @@ comments:
             .tbz2, .tb2, .tz2, .tlz, .txz, .tzst) are searched and matching
             pathnames of files in archives are output in braces.  When used
             with option --zmax=NUM, searches the contents of compressed files
-            and archives stored within archives up to NUM levels.  If -g, -O,
-            -M, or -t is specified, searches files stored in archives whose
-            filenames match globs, match filename extensions, match file
-            signature magic bytes, or match file types, respectively.
+            and archives stored within archives up to NUM levels.  When -g, -O,
+            -M, or -t is specified, searches archives for files that match the
+            specified globs, filename extensions, file signature magic bytes,
+            or file types, respectively; a side-effect of these options is that
+            the compressed files and archives searched are only those with
+            filename extensions that match known compression and archive types.
             Supported compression formats: gzip (.gz), compress (.Z), zip, 7z,
-            bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
-            lzma and xz (requires suffix .lzma, .tlz, .xz, .txz),
+            bzip2 (.bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
+            xz (.xz, .txz) and lzma (requires suffix .lzma, .tlz),
+            zstd (.zst, .zstd, .tzst),
             lz4 (requires suffix .lz4),
-            zstd (requires suffix .zst, .zstd, .tzst),
-            brotli (requires suffix .br),
-            bzip3 (requires suffix .bz3).
+            brotli (requires suffix .br).
     --zmax=NUM
             When used with option -z (--decompress), searches the contents of
             compressed files and archives stored within archives by up to NUM
@@ -2121,32 +2122,30 @@ When option `-z` is used with options `-g`, `-O`, `-M`, or `-t` to search cpio,
 jar, pax, tar, zip and 7z archives, archived files that match the filename
 selection criteria are searched only.
 
-The gzip, compress, and zip formats are automatically detected, which is useful
-when reading gzip-compressed data from standard input, e.g. input redirected
-from a pipe.  Other compression formats require a filename suffix: `.bz`,
-`.bz2`, or `.bzip2` for bzip2, `.lzma` for lzma, `.xz` for xz, `.lz4` for lz4,
-`.zst` or `.zstd` for zstd, `.br` for brotli and `.bz3` for bzip3.  Also the
-compressed tar archive shorthands `.taz`, `.tgz` and `.tpz` for gzip, `.tbz`,
-`.tbz2`, `.tb2`, and `.tz2` for bzip2, `.tlz` for lzma, `.txz` for xz, and
-`.tzst` for zstd are recognized.  To search these formats with ugrep from
-standard input, use option `--label='stdin.bz2'` for bzip2,
-`--label='stdin.lzma'` for lzma, `--label='stdin.xz'` for xz,
-`--label='stdin.lz4` for lz4 and `--label='stdin.zst` for zstd and so on.  The
-name `stdin` is arbitrary and may be omitted:
+The gzip, compress, zip, bzip2, xz, and zstd formats are automatically
+detected, which is useful when reading compressed data from standard input,
+e.g. input redirected from a pipe.  Other compression formats require a
+filename suffix: `.lzma` for lzma, `.lz4` for lz4, `.br` for brotli and `.bz3`
+for bzip3.  Also the compressed tar archive shorthands `.taz`, `.tgz` and
+`.tpz` for gzip, `.tbz`, `.tbz2`, `.tb2`, and `.tz2` for bzip2, `.tlz` for
+lzma, `.txz` for xz, and `.tzst` for zstd are recognized.  To search these
+formats with ugrep from standard input, use option `--label='stdin.bz2'` for
+bzip2, `--label='stdin.lzma'` for lzma, `--label='stdin.lz4` for lz4 and so on.
+The name `stdin` is arbitrary and may be omitted:
 
-format    | filename suffix         | tar/pax archive short suffix    | suffix required? | ugrep from stdin | library      |
+format    | filename suffix         | tar/pax archive short suffix    | suffix required? | detect on stdin  | library      |
 --------- | ----------------------- | ------------------------------- | ---------------- | ---------------- | ------------ |
 gzip      | `.gz`                   | `.taz`, `.tgz`, `.tpz`          | no               | automatic        | libz         |
 compress  | `.Z`                    | `.taZ`, `.tZ`                   | no               | automatic        | *built-in*   |
 zip       | `.zip`, `.zipx`, `.ZIP` |                                 | no               | automatic        | libz         |
+bzip2     | `.bz`, `.bz2`, `.bzip2` | `.tb2`, `.tbz`, `.tbz2`, `.tz2` | no               | automatic        | libbz2       |
+xz        | `.xz`                   | `.txz`                          | no               | automatic        | liblzma      |
+zstd      | `.zst`, `.zstd`         | `.tzst`                         | no               | automatic        | libzstd      |
 7zip      | `.7z`                   |                                 | yes              | `--label=.7z`    | *built-in*   |
-bzip2     | `.bz`, `.bz2`, `.bzip2` | `.tb2`, `.tbz`, `.tbz2`, `.tz2` | yes              | `--label=.bz2`   | libbz2       |
-lzma      | `.lzma`                 | `.tlz`                          | yes              | `--label=.lzma`  | liblzma      |
-xz        | `.xz`                   | `.txz`                          | yes              | `--label=.xz`    | liblzma      |
-lz4       | `.lz4`                  |                                 | yes              | `--label=.lz4`   | liblz4       |
-zstd      | `.zst`, `.zstd`         | `.tzst`                         | yes              | `--label=.zst`   | libzstd      |
 brotli    | `.br`                   |                                 | yes              | `--label=.br`    | libbrotlidec |
 bzip3     | `.bz3`                  |                                 | yes              | `--label=.bz3`   | libbzip3     |
+lzma      | `.lzma`                 | `.tlz`                          | yes              | `--label=.lzma`  | liblzma      |
+lz4       | `.lz4`                  |                                 | yes              | `--label=.lz4`   | liblz4       |
 
 The gzip, bzip2, xz, lz4 and zstd formats support concatenated compressed
 files.  Concatenated compressed files are searched as one single file.
@@ -2189,12 +2188,12 @@ To recursively search C++ files including compressed files for the word
 
     ug -z -r -tc++ -Fw my_function -f cpp/zap_comments
 
-To search bzip2, lzma, xz, lz4 and zstd compressed data on standard input,
+To search lzma, lz4, brotli, and bzip3 compressed data on standard input,
 option `--label` may be used to specify the extension corresponding to the
 compression format to force decompression when the bzip2 extension is not
 available to ugrep, for example:
 
-    cat myfile.bz2 | ugrep -z --label='stdin.bz2' 'xyz'
+    cat myfile.lz4 | ugrep -z --label='stdin.lz4' 'xyz'
 
 To search file `main.cpp` in `project.zip` for `TODO` and `FIXME` lines:
 
@@ -2824,6 +2823,10 @@ implicit:
             previously-specified exclusions by including matching files.  Lines
             starting with a `#' and empty lines in FILE are ignored.  When FILE
             is a `-', standard input is read.  This option may be repeated.
+    --from=FILE
+            Read additional pathnames of files to search from FILE.  When FILE
+            is a `-', standard input is read.  This option is useful with `find
+            ... -print | ugrep --from=- ...' to search specific files.
     --ignore-files[=FILE]
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
@@ -3954,10 +3957,10 @@ in markdown:
            ugrep, ug -- file pattern searcher
 
     SYNOPSIS
-           ugrep [OPTIONS] [-i] [-Q|PATTERN] [-e PATTERN] [-N PATTERN] [-f FILE]
-                 [-F|-G|-P|-Z] [-U] [-m [MIN,][MAX]] [--bool [--files|--lines]]
-                 [-r|-R|-1|...|-9|-10|...] [-t TYPES] [-g GLOBS] [--sort[=KEY]]
-                 [-l|-c] [-o] [-n] [-k] [-b] [-A NUM] [-B NUM] [-C NUM] [-y]
+           ugrep [OPTIONS] [-i|-j] [-Q|PATTERN] [-e PATTERN] [-N PATTERN] [-f FILE]
+                 [-E|-F|-G|-P|-Z] [-U] [-m [MIN,][MAX]] [--bool [--files|--lines]]
+                 [-r|-R|-1|...|-9|-10|-11|...] [-t TYPES] [-g GLOBS] [--sort[=KEY]]
+                 [-q|-l|-c|-o] [-v] [-n] [-k] [-b] [-A NUM] [-B NUM] [-C NUM] [-y]
                  [--color[=WHEN]|--colour[=WHEN]] [--pretty] [--pager[=COMMAND]]
                  [--hexdump|--csv|--json|--xml] [-I] [-z] [--zmax=NUM] [FILE ...]
 
@@ -3969,10 +3972,11 @@ in markdown:
            pattern matches every line.  Each input line that matches at least one of
            the patterns is written to the standard output.
 
-           The ug command is intended for interactive searching, using a .ugrep
-           configuration file located in the working directory or home directory,
-           see CONFIGURATION.  ug is equivalent to ugrep --config --pretty --sort to
-           load a .ugrep file, enhance the terminal output, and sort files by name.
+           The ug command is intended for interactive searching, using a `.ugrep'
+           configuration file located in the working directory or, if not found, in
+           the home directory, see CONFIGURATION.  ug is equivalent to ugrep
+           --config --pretty --sort to load a configuration file, enhance the
+           terminal output, and to sort files by name.
 
            The ugrep+ and ug+ commands are the same as the ugrep and ug commands,
            but also use filters to search pdfs, documents, e-books, and image
@@ -3990,9 +3994,9 @@ in markdown:
            --files) to match files.  Options -F (--fixed-strings), -G (--basic-
            regexp) and -P (--perl-regexp) specify other pattern syntaxes.
 
-           Option -i (--ignore-case) ignores case in ASCII patterns.  When combined
-           with option -P, ignores case in Unicode patterns.  Option -j (--smart-
-           case) enables -i only if the search patterns are specified in lower case.
+           Option -i (--ignore-case) ignores letter case in patterns.  Option -j
+           (--smart-case) enables -i only if the search patterns are specified in
+           lower case.
 
            Fuzzy (approximate) search is specified with option -Z (--fuzzy) with an
            optional argument to control character insertions, deletions, and/or
@@ -4046,21 +4050,22 @@ in markdown:
            When used with option --zmax=NUM, searches the contents of compressed
            files and archives stored within archives up to NUM levels.
 
+           Output to a terminal for viewing is enhanced with --pretty, which is
+           enabled by default with the ug command.
+
            A query terminal user interface (TUI) is opened with -Q (--query) to
            interactively specify search patterns and view search results.  A PATTERN
            argument requires -e PATTERN to start the query TUI with the specified
            pattern.
 
-           Output to a terminal for viewing is enhanced with --pretty, which is
-           enabled by default with the ug command.
-
-           A terminal output pager is enabled with --pager.
+           A terminal output pager is enabled with --pager that accepts an optional
+           COMMAND to view the output.
 
            Customized output is produced with option --format or --replace.  Try ug
-           --help format for help with custom formatting of the output.  Predefined
-           formats include CSV with option --csv, JSON with option --json, and XML
-           with option --xml.  Hexdumps are output with option -X (--hex) or with
-           option --hexdump to customize hexdumps.  See also section FORMAT.
+           --help format for help with custom formatting of the output.  See also
+           section FORMAT.  Predefined formats include CSV with option --csv, JSON
+           with option --json, and XML with option --xml.  Hexdumps are output with
+           option -X (--hex) or with option --hexdump to customize hexdumps.
 
            A `--' signals the end of options; the rest of the parameters are FILE
            arguments, allowing filenames to begin with a `-' character.
@@ -4209,8 +4214,8 @@ in markdown:
                   directory.  The options specified in the configuration FILE are
                   parsed first, followed by the remaining options specified on the
                   command line.  The ug command automatically loads a `.ugrep'
-                  configuration file, unless --config=FILE or --no-config is
-                  specified.
+                  configuration file when present, unless --config=FILE or
+                  --no-config is specified.
 
            --no-config
                   Do not automatically load the default .ugrep configuration file.
@@ -4261,7 +4266,7 @@ in markdown:
                   Specify a PATTERN to search the input.  An input line is selected
                   if it matches any of the specified patterns.  This option is
                   useful when multiple -e options are used to specify multiple
-                  patterns, or when a pattern begins with a dash (`-'), or to
+                  patterns, or when a pattern starts with a dash (`-'), or to
                   specify a pattern after option -f or after the FILE arguments.
 
            --encoding=ENCODING
@@ -4291,7 +4296,7 @@ in markdown:
 
            --exclude-dir=GLOB
                   Exclude directories whose name matches GLOB from recursive
-                  searches, same as -g ^GLOB/.  GLOB can use **, *, ?, and [...] as
+                  searches, same as -g ^GLOB/.  GLOB may use **, *, ?, and [...] as
                   wildcards and \ to quote a wildcard or backslash character
                   literally.  When GLOB contains a `/', full pathnames are matched.
                   Otherwise basenames are matched.  Note that --exclude-dir patterns
@@ -4300,7 +4305,7 @@ in markdown:
 
            --exclude-from=FILE
                   Read the globs from FILE and skip files and directories whose name
-                  matches one or more globs.  A glob can use **, *, ?, and [...] as
+                  matches one or more globs.  A glob may use **, *, ?, and [...] as
                   wildcards and \ to quote a wildcard or backslash character
                   literally.  When a glob contains a `/', full pathnames are
                   matched.  Otherwise basenames are matched.  When a glob ends with
@@ -4372,21 +4377,28 @@ in markdown:
            --free-space
                   Spacing (blanks and tabs) in regular expressions are ignored.
 
+           --from=FILE
+                  Read additional pathnames of files to search from FILE.  When FILE
+                  is a `-', standard input is read.  This option is useful with
+                  `find
+
            -G, --basic-regexp
                   Interpret patterns as basic regular expressions (BREs).
 
            -g GLOBS, --glob=GLOBS, --iglob=GLOBS
                   Only search files whose name matches the specified comma-separated
-                  list of GLOBS, same as --include=glob for each `glob' in GLOBS.
+                  list of GLOBS, same as --include='glob' for each `glob' in GLOBS.
                   When a `glob' is preceded by a `!' or a `^', skip files whose name
                   matches `glob', same as --exclude='glob'.  When `glob' contains a
-                  `/', full pathnames are matched.  Otherwise basenames are matched.
-                  When `glob' ends with a `/', directories are matched, same as
-                  --include-dir='glob' and --exclude-dir='glob'.  A leading `/'
-                  matches the working directory.  Option --iglob performs
-                  case-insensitive name matching.  This option may be repeated and
-                  may be combined with options -M, -O and -t.  For more details, see
-                  `ugrep --help globs' and `man ugrep' section GLOBBING for details.
+                  `/', full pathnames are matched and option -r is enabled to
+                  recurse into directories if -d, -r or -R is not already specified.
+                  Otherwise basenames are matched.  When `glob' ends with a `/',
+                  directories are matched, same as --include-dir='glob' and
+                  --exclude-dir='glob'.  A leading `./' or just `/' matches the
+                  working directory.  Option --iglob=GLOBS performs case-insensitive
+                  name matching.  This option may be repeated and may be combined
+                  with options -M, -O and -t.  For more details, see `ugrep --help
+                  globs' and `man ugrep' section GLOBBING for details.
 
            --glob-ignore-case
                   Perform case-insensitive glob matching in general.
@@ -4448,8 +4460,7 @@ in markdown:
 
            -i, --ignore-case
                   Perform case insensitive matching.  By default, ugrep is case
-                  sensitive.  By default, this option applies to ASCII letters only.
-                  Use options -P and -i for Unicode case insensitive matching.
+                  sensitive.
 
            --ignore-files[=FILE]
                   Ignore files and directories matching the globs in each FILE that
@@ -4468,26 +4479,30 @@ in markdown:
 
            --include=GLOB
                   Only search files whose name matches GLOB, same as -g GLOB.  GLOB
-                  can use **, *, ?, and [...] as wildcards and \ to quote a wildcard
+                  may use **, *, ?, and [...] as wildcards and \ to quote a wildcard
                   or backslash character literally.  When GLOB contains a `/', full
-                  pathnames are matched.  Otherwise basenames are matched.  When
-                  GLOB ends with a `/', directories are included as if --include-dir
-                  is specified.  Otherwise files are included.  Note that --exclude
-                  patterns take priority over --include patterns.  GLOB should be
-                  quoted to prevent shell globbing.  This option may be repeated.
+                  pathnames are matched and option -r is enabled to recurse into
+                  directories if -d, -r or -R is not already specified.  Otherwise
+                  basenames are matched.  When GLOB ends with a `/', directories are
+                  included as if --include-dir is specified.  Otherwise files are
+                  included.  Note that --exclude patterns take priority over
+                  --include patterns.  GLOB should be quoted to prevent shell
+                  globbing.  This option may be repeated.
 
            --include-dir=GLOB
                   Only directories whose name matches GLOB are included in recursive
-                  searches, same as -g GLOB/.  GLOB can use **, *, ?, and [...] as
+                  searches, same as -g GLOB/.  GLOB may use **, *, ?, and [...] as
                   wildcards and \ to quote a wildcard or backslash character
-                  literally.  When GLOB contains a `/', full pathnames are matched.
-                  Otherwise basenames are matched.  Note that --exclude-dir patterns
-                  take priority over --include-dir patterns.  GLOB should be quoted
-                  to prevent shell globbing.  This option may be repeated.
+                  literally.  When GLOB contains a `/', full pathnames are matched
+                  and option -r is enabled to recurse into directories if -d, -r or
+                  -R is not already specified.  Otherwise basenames are matched.
+                  Note that --exclude-dir patterns take priority over --include-dir
+                  patterns.  GLOB should be quoted to prevent shell globbing.  This
+                  option may be repeated.
 
            --include-from=FILE
                   Read the globs from FILE and search only files and directories
-                  whose name matches one or more globs.  A glob can use **, *, ?,
+                  whose name matches one or more globs.  A glob may use **, *, ?,
                   and [...] as wildcards and \ to quote a wildcard or backslash
                   character literally.  When a glob contains a `/', full pathnames
                   are matched.  Otherwise basenames are matched.  When a glob ends
@@ -4516,8 +4531,8 @@ in markdown:
                   that the start-up time to search may be increased when complex
                   search patterns are specified that contain large Unicode character
                   classes combined with `*' or `+' repeats, which should be avoided.
-                  Option -U (--ascii) improves performance.  Option --stats displays
-                  an index search report.
+                  Option -U or --ascii improves performance.  Option --stats
+                  displays an index search report.
 
            -J NUM, --jobs=NUM
                   Specifies the number of threads spawned to search files.  By
@@ -4527,7 +4542,7 @@ in markdown:
 
            -j, --smart-case
                   Perform case insensitive matching, unless a pattern is specified
-                  with a literal upper case ASCII letter.
+                  with a literal upper case letter.
 
            --json Output file matches in JSON.  When -H, -n, -k, or -b is specified,
                   additional values are output.  See also options --format and -u.
@@ -4685,7 +4700,7 @@ in markdown:
                   specified with -e PATTERN, i.e. a PATTERN argument requires option
                   -e.  Press F1 or CTRL-Z to view the help screen.  Press F2 or
                   CTRL-Y to invoke a command to view or edit the file shown at the
-                  top of the screen.  The command can be specified with option
+                  top of the screen.  This command can be specified with option
                   --view and defaults to environment variable PAGER when defined, or
                   VISUAL or EDITOR.  Press TAB or SHIFT-TAB to navigate directories
                   and to select a file to search.  Press ENTER to select lines to
@@ -4733,9 +4748,9 @@ in markdown:
                   the OPTIONS are saved that do not cause searches to fail when
                   combined with other options.  Additional options may be specified
                   by editing the saved configuration file.  A configuration file may
-                  be modified manually to specify one or more config[=FILE] to
-                  indirectly load the specified FILE, but recursive config loading
-                  is not allowed.
+                  be modified by adding one or more config=FILE to include
+                  configuration files, but recursive configuration file inclusion is
+                  not permitted.
 
            --separator[=SEP], --context-separator=SEP
                   Use SEP as field separator between file name, line number, column
@@ -4791,9 +4806,9 @@ in markdown:
                   `Pdf', `perl', `Perl', `php', `Php', `png', `Png', `prolog',
                   `python', `Python', `r', `rpm', `Rpm', `rst', `rtf', `Rtf',
                   `ruby', `Ruby', `rust', `scala', `scheme', `seed7', `shell',
-                  `Shell', `smalltalk', `sql', `svg', `swift', `tcl', `tex',
-                  `text', `tiff', `Tiff', `tt', `typescript', `verilog', `vhdl',
-                  `vim', `xml', `Xml', `yacc', `yaml', `zig'.
+                  `Shell', `smalltalk', `sql', `svg', `swift', `tcl', `tex', `text',
+                  `tiff', `Tiff', `tt', `typescript', `verilog', `vhdl', `vim',
+                  `xml', `Xml', `yacc', `yaml', `zig'.
 
            --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value
@@ -4864,10 +4879,11 @@ in markdown:
 
            -Y, --empty
                   Empty-matching patterns match all lines.  Normally, empty matches
-                  are not output, unless a pattern begins with `^' or ends with `$'.
-                  With this option, empty-matching patterns, such as x? and x*,
-                  match all lines, not only lines with an `x' (enabled by default in
-                  grep compatibility mode).
+                  are not output, unless a pattern starts with `^' or ends with `$'.
+                  With this option, empty-matching patterns, such as x*y?, x*y*z*,
+                  and x*(y?|z) match all lines, not only the expected pattern.  This
+                  option is enabled by default in grep compatibility mode; specify
+                  option --no-empty to prevent matching all lines.
 
            -y, --any-line, --passthru
                   Any line is output (passthru).  Non-matching lines are output as
@@ -4897,15 +4913,17 @@ in markdown:
                   matching pathnames of files in archives are output in braces.
                   When used with option --zmax=NUM, searches the contents of
                   compressed files and archives stored within archives up to NUM
-                  levels.  When -g, -O, -M, or -t is specified, searches files
-                  stored in archives whose filenames match globs, match filename
-                  extensions, match file signature magic bytes, or match file types,
-                  respectively.  Supported compression formats: gzip (.gz), compress
-                  (.Z), zip, 7z, bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz,
-                  .tbz2, .tb2, .tz2), lzma and xz (requires suffix .lzma, .tlz, .xz,
-                  .txz), lz4 (requires suffix .lz4), zstd (requires suffix .zst,
-                  .zstd, .tzst), brotli (requires suffix .br), bzip3 (requires
-                  suffix .bz3).
+                  levels.  When -g, -O, -M, or -t is specified, searches archives
+                  for files that match the specified globs, filename extensions,
+                  file signature magic bytes, or file types, respectively; a
+                  side-effect of these options is that the compressed files and
+                  archives searched are only those with filename extensions that
+                  match known compression and archive types.  Supported compression
+                  formats: gzip (.gz), compress (.Z), zip, 7z, bzip2 (.bz, .bz2,
+                  .bzip2, .tbz, .tbz2, .tb2, .tz2), xz (.xz, .txz) and lzma
+                  (requires suffix .lzma, .tlz), zstd (.zst, .zstd, .tzst), lz4
+                  (requires suffix .lz4), brotli (requires suffix .br), bzip3
+                  (requires suffix .bz3).
 
            --zmax=NUM
                   When used with option -z or --decompress, searches the contents of
@@ -4931,10 +4949,10 @@ in markdown:
            status is 0 even if an error occurred.
 
     CONFIGURATION
-           The ug command is intended for context-dependent interactive searching
-           and is equivalent to the ugrep --config --pretty --sort command to load
-           the default configuration file `.ugrep' when present in the working
-           directory or in the home directory.
+           The ug command is intended for interactive searching and is equivalent to
+           the ugrep --config --pretty --sort command to load the `.ugrep`
+           configuration file located in the working directory or, when not found,
+           in the home directory.
 
            A configuration file contains `NAME=VALUE' pairs per line, where `NAME`
            is the name of a long option (without `--') and `=VALUE' is an argument,
@@ -4943,8 +4961,8 @@ in markdown:
 
            The --config=FILE option and its abbreviated form ---FILE load the
            specified configuration file located in the working directory or, when
-           not found, located in the home directory.  An error is produced when FILE
-           is not found or cannot be read.
+           not found, in the home directory.  An error is produced when FILE is not
+           found or cannot be read.
 
            Command line options are parsed in the following order: the configuration
            file is loaded first, followed by the remaining options and arguments on
@@ -4952,14 +4970,17 @@ in markdown:
 
            The --save-config option saves a `.ugrep' configuration file to the
            working directory with a subset of the options specified on the command
-           line.  The --save-config=FILE option saves the configuration to FILE.
-           The configuration is written to standard output when FILE is a `-'.
+           line.  Only part of the specified options are saved that do not cause
+           searches to fail when combined with other options.  The --save-
+           config=FILE option saves the configuration to FILE.  The configuration is
+           written to standard output when FILE is a `-'.
 
     GLOBBING
-           Globbing is used by options -g, --include, --include-dir, --include-from,
-           --exclude, --exclude-dir, --exclude-from and --ignore-files to match
-           pathnames and basenames in recursive searches.  Glob arguments for these
-           options should be quoted to prevent shell globbing.
+           Globbing is used by options -g (--glob and --iglob), --include,
+           --include-dir, --include-from, --exclude, --exclude-dir, --exclude-from
+           and --ignore-files to match pathnames or basenames in recursive searches.
+           Glob arguments for these options should be quoted to prevent shell
+           globbing.
 
            Globbing supports gitignore syntax and the corresponding matching rules,
            except that a glob normally matches files but not directories.  If a glob
@@ -4968,8 +4989,8 @@ in markdown:
            a path separator `/', the full pathname is matched.  Otherwise the
            basename of a file or directory is matched.  For example, *.h matches
            foo.h and bar/foo.h.  bar/*.h matches bar/foo.h but not foo.h and not
-           bar/bar/foo.h.  Use a leading `/' to force /*.h to match foo.h but not
-           bar/foo.h.
+           bar/bar/foo.h.  Use a leading `./' or just `/' to force /*.h to match
+           foo.h in the working directory but not bar/foo.h.
 
            When a glob starts with a `^' or a `!' as in -g^GLOB, the match is
            negated.  Likewise, a `!' (but not a `^') may be used with globs in the
@@ -4992,7 +5013,7 @@ in markdown:
            [!abc-e]
                   Matches one character not a,b,c,d,e,/.
 
-           /      When used at the start of a glob, matches if pathname has no /.
+           /      When used at the start of a glob, matches the working directory.
                   When used at the end of a glob, matches directories only.
 
            **/    Matches zero or more directories.
@@ -5050,7 +5071,8 @@ in markdown:
            GREP_PATH
                   May be used to specify a file path to pattern files.  The file
                   path is used by option -f to open a pattern file, when the pattern
-                  file does not exist.
+                  file does not exist.  Defaults to /usr/local/share/ugrep/patterns
+                  when GREP_PATH is undefined.
 
            GREP_COLOR
                   May be used to specify ANSI SGR parameters to highlight matches
@@ -5119,8 +5141,9 @@ in markdown:
            qb=    TUI regex braces.
 
     FORMAT
-           Option --format=FORMAT specifies an output format for file matches.
-           Fields may be used in FORMAT, which expand into the following values:
+           Option --format=FORMAT specifies an output format for matches.  Option
+           --replace=FORMAT only replaces the matching patterns.  Fields may be used
+           in FORMAT, which expand into the following values:
 
            %[TEXT]F
                   if option -H is used: TEXT, the file pathname and separator.
@@ -5339,11 +5362,11 @@ in markdown:
 
            List lines with `amount' and a decimal, ignoring case (space is AND):
 
-                  $ ugrep -i -% 'amount +(.+)?' myfile.txt
+                  $ ugrep -i -% 'amount \d+(\.\d+)?' myfile.txt
 
-           Alternative query:
+           The same Boolean search query, but with options -e and --and:
 
-                  $ ugrep -wi -e amount --and '+(.+)?' myfile.txt
+                  $ ugrep -wi -e amount --and '\d+(\.\d+)?' myfile.txt
 
            List all Unicode words in a file:
 
@@ -5368,7 +5391,6 @@ in markdown:
            context before and after:
 
                   $ ugrep -o -C20 -R -n -k -tjs FIXME
-
 
            Find blocks of text between lines matching BEGIN and END by using a lazy
            quantifier `*?' to match only what is necessary and pattern `\n' to match
@@ -5458,14 +5480,14 @@ in markdown:
 
                   $ ugrep -3 -l -tRpm '' rpm/
 
-           Monitor the system log for bug reports and ungroup multiple matches on a
-           line:
+           Monitor the system log for bug reports and ungroup multiple matches from
+           matching lines into separate lines:
 
                   $ tail -f /var/log/system.log | ugrep -u -i -w bug
 
            Interactive fuzzy search with Boolean search queries:
 
-                  $ ugrep -Q -l -% -Z3 --sort=best
+                  $ ugrep -Q -l -% -Z2 --sort=best
 
            Display all words in a MacRoman-encoded file that has CR newlines:
 
@@ -5476,7 +5498,7 @@ in markdown:
                   $ ugrep --help fuzzy
 
     COPYRIGHT
-           Copyright (c) 2021,2025 Robert A. van Engelen <engelen@acm.org>
+           Copyright (c) 2021-2025 Robert A. van Engelen <engelen@acm.org>
 
            ugrep is released under the BSD-3 license.  All parts of the software
            have reasonable copyright terms permitting free redistribution.  This
@@ -5490,7 +5512,7 @@ in markdown:
 
 
 
-    ugrep 7.2.2                     February 3, 2025                        UGREP(1)
+    ugrep 7.4.0                      April 21, 2025                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
@@ -5765,3 +5787,4 @@ the [man page](#man).  If you can't find it there and it looks like a bug, then
 reports are quickly addressed.
 
 *Copyright (c) Robert van Engelen, 2025*
+

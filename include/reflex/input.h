@@ -320,9 +320,13 @@ class Input {
     static const file_encoding_type null_data  = 38; ///< swap NUL with LF
     static const file_encoding_type custom     = 39; ///< custom code page
   };
-  /// FILE* handler functor base class to handle FILE* errors and non-blocking FILE* reads
+  /// FILE* handler functor base class to analyze FILE* input, handle errors and non-blocking FILE* reads
   struct Handler {
-    virtual int operator()(FILE*) = 0;
+    virtual size_t operator()(
+        FILE*, ///< open file
+        char*, ///< pointer to buffer with data read from file, may be changed by handler
+        size_t ///< length of the buffered data, should be returned by the functor, or shorter to ignore or zero to force EOF and stop reading
+        ) = 0;
     virtual ~Handler() { };
   };
   /// Stream buffer for reflex::Input, derived from std::streambuf.
@@ -714,8 +718,17 @@ class Input {
       while (true)
       {
         size_t k = file_get(s, n);
-        if (k > 0 || feof(file_) || handler_ == NULL || (*handler_)(file_) == 0)
+        // invoke handler when set, pass FILE* and buffer pointer and size, handler returns equal or lesser size
+        if (handler_ != NULL)
+          k = (*handler_)(file_, s, k);
+        if (k > 0)
           return k;
+        // if a non-recoverable error occurred, then return 0, permit non-blocking IO errors to continue
+        if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
+          return 0;
+        // wait until non-blocking IO is ready for reading, or EOF
+        if (!file_ready())
+          return 0;
       }
     }
     if (istream_)
@@ -758,11 +771,31 @@ class Input {
   void file_size();
   /// Called by size() for a std::istream.
   void istream_size();
-  /// Implements get() on a FILE*.
+  /// Implements get() on a FILE*, is non-blocking if file is non-blocking, get() blocks to read at least one byte.
   size_t file_get(
       char  *s, ///< points to the string buffer to fill with input
       size_t n) ///< size of buffer pointed to by s
       ;
+  /// Read n bytes into buffer s from file, block when IO is non-blocking, return false when fewer bytes read on failure or eof.
+  bool file_read(
+      char  *s, ///< points to the string buffer to file with input
+      size_t n) ///< size of the buffer pointed to by s
+  {
+    if (file_ == NULL)
+      return false;
+    while (true)
+    {
+      size_t k = ::fread(s, 1, n, file_);
+      s += k;
+      n -= k;
+      if (n == 0)
+        return true;
+      if (!file_ready())
+        return false;
+    }
+  }
+  /// Wait for non-blocking file input to be ready and return true or return false for eof and errors, ignore EINTR
+  bool file_ready();
   /// Set FILE* handler
   void set_handler(Handler *handler)
   {

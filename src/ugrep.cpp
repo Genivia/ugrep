@@ -1,5 +1,5 @@
 /******************************************************************************\
-* Copyright (c) 2019, 2025, Robert van Engelen, Genivia Inc. All rights reserved.    *
+* Copyright (c) 2019, Robert van Engelen, Genivia Inc. All rights reserved.    *
 *                                                                              *
 * Redistribution and use in source and binary forms, with or without           *
 * modification, are permitted provided that the following conditions are met:  *
@@ -140,7 +140,6 @@ After this, you may want to test ugrep and install it (optional):
 
 #include <signal.h>
 #include <dirent.h>
-#include <sys/select.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -443,6 +442,7 @@ std::vector<std::string> flag_file_type;
 std::vector<std::string> flag_file_extension;
 std::vector<std::string> flag_file_magic;
 std::vector<std::string> flag_filter_magic_label;
+std::vector<std::string> flag_from;
 std::vector<std::string> flag_glob;
 std::vector<std::string> flag_iglob;
 std::vector<std::string> flag_include;
@@ -686,76 +686,11 @@ inline bool getline(reflex::BufferedInput& input, std::string& line)
 
   line.erase();
 
-  while ((ch = input.get()) != EOF && ch != '\n')
+  while ((ch = input.get()) != EOF && ch != '\n' && ch != '\0')
     line.push_back(ch);
 
   if (!line.empty() && line.back() == '\r')
     line.pop_back();
-
-  return ch == EOF && line.empty();
-}
-
-// read a line from mmap memory, returns true when eof
-inline bool getline(const char *& here, size_t& left)
-{
-  // read line from mmap memory
-  if (left == 0)
-    return true;
-
-  const char *s = static_cast<const char*>(memchr(here, '\n', left));
-  if (s == NULL)
-    s = here + left;
-  else
-    ++s;
-
-  left -= s - here;
-  here = s;
-
-  return false;
-}
-
-// read a line from mmap memory or from buffered input or from unbuffered input, returns true when eof
-inline bool getline(const char *& here, size_t& left, reflex::BufferedInput& buffered_input, reflex::Input& input, std::string& line)
-{
-  if (here != NULL)
-  {
-    // read line from mmap memory
-    if (left == 0)
-      return true;
-    const char *s = static_cast<const char*>(memchr(here, '\n', left));
-    if (s == NULL)
-      s = here + left;
-    else
-      ++s;
-    line.assign(here, s - here);
-    left -= s - here;
-    here = s;
-    return false;
-  }
-
-  int ch;
-
-  line.erase();
-
-  if (buffered_input.assigned())
-  {
-    // read line from buffered input
-    while ((ch = buffered_input.get()) != EOF)
-    {
-      line.push_back(ch);
-      if (ch == '\n')
-        break;
-    }
-    return ch == EOF && line.empty();
-  }
-
-  // read line from unbuffered input
-  while ((ch = input.get()) != EOF)
-  {
-    line.push_back(ch);
-    if (ch == '\n')
-      break;
-  }
 
   return ch == EOF && line.empty();
 }
@@ -773,6 +708,12 @@ inline bool is_binary(const char *s, size_t n)
 
   // otherwise, file is binary if it contains a \0 (NUL) which is what GNU grep checks
   return memchr(s, '\0', n) != NULL;
+}
+
+// return true if -X or if -W and match s[0..n-1] is binary
+inline bool check_binary(const char *s, size_t n)
+{
+  return (flag_hex || (flag_with_hex && is_binary(s, n)));
 }
 
 // check if a file's inode is the current output file
@@ -2074,6 +2015,7 @@ struct Grep {
     {
       return a.cost > b.cost || (a.cost == b.cost && a.pathname > b.pathname);
     }
+
   };
 
   // a job in the job queue
@@ -2104,6 +2046,7 @@ struct Grep {
     std::string pathname;
     uint16_t    cost;
     size_t      slot;
+
   };
 
 #ifdef WITH_LOCK_FREE_JOB_QUEUE
@@ -2202,6 +2145,7 @@ struct Grep {
     std::condition_variable queue_data;  // cv to control the job queue
     std::condition_variable queue_full;  // cv to control the job queue
     std::atomic_size_t      todo;        // number of jobs in the queue
+
   };
 
 #else
@@ -2313,51 +2257,44 @@ struct Grep {
     std::mutex              queue_mutex; // job queue mutex
     std::condition_variable queue_work;  // cv to control the job queue
     std::atomic_size_t      todo;        // number of jobs in the queue, atomic for job stealing
+
   };
 
 #endif
 
 #ifndef OS_WIN
 
-  // extend the reflex::Input::Handler to handle nonblocking stdin from a TTY or from a slow pipe
+  // extend the reflex::Input::Handler to handle nonblocking stdin from a character device (TTY) or from a pipe
   struct StdInHandler : public reflex::Input::Handler {
 
-    StdInHandler(Grep *grep)
+    StdInHandler(Grep& grep)
       :
         grep(grep)
     { }
 
-    Grep *grep;
+    Grep& grep;
 
-    int operator()(FILE *file)
+    size_t operator()(FILE*, char *buf, size_t len)
     {
-      grep->out.flush();
-
-      while (true)
+      if (len == 0)
       {
-        struct timeval tv;
-        fd_set rfds, efds;
-        FD_ZERO(&rfds);
-        FD_ZERO(&efds);
-        FD_SET(0, &rfds);
-        FD_SET(0, &efds);
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
-        int r = ::select(fileno(file) + 1, &rfds, NULL, &efds, &tv);
-        if (r < 0 && errno != EINTR)
-          return 0;
-        if (r > 0 && FD_ISSET(fileno(file), &efds))
-          return 0;
-        if (r > 0)
-          break;
+        // could not read input data, but we aren't at EOF yet (i.e. non-blocking read returned zero)
+
+        // invoke buffer shift GrepHandler when set, to output the rest of a matching line and its context
+        grep.matcher->handle();
+
+        // flush output
+        grep.out.try_flush();
+      }
+      else if (!flag_text && !flag_hex && !flag_with_hex && flag_encoding_type != reflex::Input::file_encoding::null_data && !grep.binfile)
+      {
+        // simpler form of binary file detection without Unicode UTF-8 validation, like GNU grep
+        grep.binfile = (memchr(buf, 0, len) != NULL);
       }
 
-      // clear EAGAIN and EINTR error on the nonblocking stdin
-      clearerr(file);
-
-      // no error
-      return 1;
+      return len;
     }
+
   };
 
 #endif
@@ -2365,41 +2302,22 @@ struct Grep {
   // extend the reflex::AbstractMatcher::Handler with a grep object reference and references to some of the grep::search locals
   struct GrepHandler : public reflex::AbstractMatcher::Handler {
 
-    GrepHandler(Grep& grep, const char *& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    GrepHandler(Grep& grep, const char *& pathname)
       :
         grep(grep),
-        pathname(pathname),
-        lineno(lineno),
-        heading(heading),
-        binfile(binfile),
-        hex(hex),
-        binary(binary),
-        matches(matches),
-        stop(stop)
+        pathname(pathname)
     { }
 
     Grep&         grep;     // grep object
-    const char *& pathname; // grep::search argument pathname
-    size_t&       lineno;   // grep::search lineno local variable
-    bool&         heading;  // grep::search heading local variable
-    bool&         binfile;  // grep::search binfile local variable
-    bool&         hex;      // grep::search hex local variable
-    bool&         binary;   // grep::search binary local variable
-    size_t&       matches;  // grep::search matches local variable
-    bool&         stop;     // grep::search stop local variable
+    const char *& pathname; // grep::search() argument pathname reference (pointer may be changed)
 
-    // define a reflex::AbstractMatcher functor to handle buffer shifts by moving restline string from the buffer to a temporary string buffer
+    // define a reflex::AbstractMatcher functor to handle buffer shifts
     virtual void operator()(reflex::AbstractMatcher&, const char*, size_t, size_t) override
     {
-      // if the rest of the line was not output yet, then save it in a temporary string buffer to output later
-      if (grep.restline_data != NULL)
-      {
-        grep.restline.assign(grep.restline_data, grep.restline_size);
-        grep.restline_data = grep.restline.c_str();
-      }
+      grep.output_or_save_restline(false, flag_hex_after > 0);
     }
 
-    // get the start of the after/before context, if present
+    // get the start of the after/before context lines, if present
     void begin_before(reflex::AbstractMatcher& matcher, const char *buf, size_t len, size_t num, const char *& ptr, size_t& size, size_t& offset)
     {
       ptr = NULL;
@@ -2411,7 +2329,7 @@ struct Grep {
         return;
 
       size_t current = matcher.lineno();
-      size_t between = current - lineno;
+      size_t between = current - grep.lineno;
 
       if (between > 1)
       {
@@ -2435,11 +2353,11 @@ struct Grep {
         size = e - s;
         offset = s - buf + num;
 
-        ++lineno;
+        ++grep.lineno;
       }
     }
 
-    // advance to the next before context, if present
+    // advance to the next before context line, if present
     void next_before(const char *buf, size_t len, size_t num, const char *& ptr, size_t& size, size_t& offset)
     {
       if (ptr == NULL)
@@ -2465,17 +2383,34 @@ struct Grep {
         size = eol - pos;
         offset = pos - buf + num;
 
-        ++lineno;
+        ++grep.lineno;
       }
     }
+
+  };
+
+  // extend event GrepHandler for --only-matching with context
+  struct OnlyMatchingContextGrepHandler : public GrepHandler {
+
+   OnlyMatchingContextGrepHandler(Grep& grep, const char *& pathname)
+      :
+        GrepHandler(grep, pathname)
+    { }
+
+    // define a reflex::AbstractMatcher functor to handle buffer shifts by saving the restline used for context
+    virtual void operator()(reflex::AbstractMatcher&, const char*, size_t, size_t) override
+    {
+      grep.save_restline();
+    }
+
   };
 
   // extend event GrepHandler to output invert match lines for -v
   struct InvertMatchGrepHandler : public GrepHandler {
 
-    InvertMatchGrepHandler(Grep& grep, const char *& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    InvertMatchGrepHandler(Grep& grep, const char *& pathname)
       :
-        GrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
+        GrepHandler(grep, pathname)
     { }
 
     // functor invoked by the reflex::AbstractMatcher when the buffer contents are shifted out, also called explicitly in grep::search
@@ -2485,48 +2420,52 @@ struct Grep {
       size_t size;
       size_t offset;
 
+      // if no gap to shift buffer, then let gap span the buffer until the begin of the matching line (bol)
+      if (len == 0)
+        len = matcher.before().len;
+
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
       while (ptr != NULL)
       {
         // --range: max line exceeded?
-        if (flag_max_line > 0 && lineno > flag_max_line)
+        if (flag_max_line > 0 && grep.lineno > flag_max_line)
           break;
 
         // --max-files: max reached?
-        if (matches == 0 && !Stats::found_part())
+        if (grep.matches == 0 && !Stats::found_part())
         {
-          stop = true;
+          grep.stop = true;
           break;
         }
 
         // --max-count: max number of matches reached?
-        if (flag_max_count > 0 && matches >= flag_max_count)
+        if (flag_max_count > 0 && grep.matches >= flag_max_count)
           break;
 
         // output blocked?
         if (grep.out.eof)
           break;
 
-        ++matches;
+        ++grep.matches;
 
         if (flag_with_hex)
-          binary = false;
+          grep.binary = false;
 
-        binary = binary || flag_hex || (flag_with_hex && is_binary(ptr, size));
+        grep.binary = grep.binary || check_binary(ptr, size);
 
-        if (binfile || (binary && !flag_hex && !flag_with_hex))
+        if (grep.binfile || (grep.binary && !flag_hex && !flag_with_hex))
           break;
 
-        if (hex && !binary)
+        if (grep.hex && !grep.binary)
           grep.out.dump.done();
 
         if (!flag_no_header)
-          grep.out.header(pathname, grep.partname, heading, lineno, NULL, offset, flag_separator, binary);
+          grep.out.header(pathname, grep.partname, grep.heading, grep.lineno, NULL, offset, flag_separator, grep.binary);
 
-        hex = binary;
+        grep.hex = grep.binary;
 
-        if (binary)
+        if (grep.binary)
         {
           grep.out.dump.hex(Output::Dump::HEX_LINE, offset, ptr, size);
         }
@@ -2550,14 +2489,15 @@ struct Grep {
         next_before(buf, len, num, ptr, size, offset);
       }
     }
+
   };
 
   // extend event GrepHandler to output formatted invert match lines for --format -v
   struct FormatInvertMatchGrepHandler : public GrepHandler {
 
-    FormatInvertMatchGrepHandler(Grep& grep, const char *& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    FormatInvertMatchGrepHandler(Grep& grep, const char *& pathname)
       :
-        GrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
+        GrepHandler(grep, pathname)
     { }
 
     // functor invoked by the reflex::AbstractMatcher when the buffer contents are shifted out, also called explicitly in grep::search
@@ -2567,16 +2507,20 @@ struct Grep {
       size_t size;
       size_t offset;
 
+      // if no gap to shift buffer, then let gap span the buffer until the begin of the matching line (bol)
+      if (len == 0)
+        len = matcher.before().len;
+
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
       while (ptr != NULL)
       {
         // --range: max line exceeded?
-        if (flag_max_line > 0 && lineno > flag_max_line)
+        if (flag_max_line > 0 && grep.lineno > flag_max_line)
           break;
 
         // output --format-open
-        if (matches == 0)
+        if (grep.matches == 0)
         {
           // --format-open or --format-close: we must out.acquire() lock before Stats::found_part()
           if (flag_format_open != NULL || flag_format_close != NULL)
@@ -2585,38 +2529,39 @@ struct Grep {
           // --max-files: max reached?
           if (!Stats::found_part())
           {
-            stop = true;
+            grep.stop = true;
             break;
           }
 
           if (flag_format_open != NULL)
-            grep.out.format(flag_format_open, pathname, grep.partname, Stats::found_parts(), NULL, &matcher, heading, false, Stats::found_parts() > 1);
+            grep.out.format(flag_format_open, pathname, grep.partname, Stats::found_parts(), NULL, &matcher, grep.heading, false, Stats::found_parts() > 1);
         }
 
         // --max-count: max number of matches reached?
-        if (flag_max_count > 0 && matches >= flag_max_count)
+        if (flag_max_count > 0 && grep.matches >= flag_max_count)
           break;
 
         // output blocked?
         if (grep.out.eof)
           break;
 
-        ++matches;
+        ++grep.matches;
 
         // output --format
-        grep.out.format_invert(flag_format, pathname, grep.partname, matches, lineno, offset, ptr, size - (size > 0 && ptr[size - 1] == '\n'), heading, matches > 1);
+        grep.out.format_invert(flag_format, pathname, grep.partname, grep.matches, grep.lineno, offset, ptr, size - (size > 0 && ptr[size - 1] == '\n'), grep.heading, grep.matches > 1);
 
         next_before(buf, len, num, ptr, size, offset);
       }
     }
+
   };
 
   // extend event GrepHandler to output any context lines for -y
   struct AnyLineGrepHandler : public GrepHandler {
 
-    AnyLineGrepHandler(Grep& grep, const char *& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    AnyLineGrepHandler(Grep& grep, const char *& pathname)
       :
-        GrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
+        GrepHandler(grep, pathname)
     { }
 
     // functor invoked by the reflex::AbstractMatcher when the buffer contents are shifted out, also called explicitly in grep::search
@@ -2626,43 +2571,13 @@ struct Grep {
       size_t size;
       size_t offset;
 
+      // if no gap to shift buffer, then let gap span the buffer until the begin of the matching line (bol)
+      if (len == 0)
+        len = matcher.before().len;
+
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
-      // output the rest of the matching line before the context lines
-      if (grep.restline_data != NULL)
-      {
-        if (lineno != matcher.lineno() || flag_ungroup)
-        {
-          if (binary)
-          {
-            grep.out.dump.hex(flag_invert_match ? Output::Dump::HEX_CONTEXT_LINE : Output::Dump::HEX_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
-            grep.out.dump.done();
-          }
-          else
-          {
-            bool lf_only = false;
-            if (grep.restline_size > 0)
-            {
-              lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
-              grep.restline_size -= lf_only;
-              if (grep.restline_size > 0)
-              {
-                grep.out.str(flag_invert_match ? color_cx : color_sl);
-                grep.out.str(grep.restline_data, grep.restline_size);
-                grep.out.str(color_off);
-              }
-            }
-            grep.out.nl(lf_only);
-          }
-
-          grep.restline_data = NULL;
-        }
-        else
-        {
-          // save restline before the buffer shifts
-          GrepHandler::operator()(matcher, buf, len, num);
-        }
-      }
+      grep.output_or_save_restline(flag_invert_match);
 
       // context colors with or without -v
       short v_hex_context_line = flag_invert_match ? Output::Dump::HEX_LINE : Output::Dump::HEX_CONTEXT_LINE;
@@ -2672,23 +2587,23 @@ struct Grep {
       while (ptr != NULL)
       {
         // --range: max line exceeded?
-        if (flag_max_line > 0 && lineno > flag_max_line)
+        if (flag_max_line > 0 && grep.lineno > flag_max_line)
           break;
 
-        if (matches == 0 && flag_invert_match)
+        if (grep.matches == 0 && flag_invert_match)
         {
           // --max-files: max reached?
           if (!Stats::found_part())
           {
-            stop = true;
+            grep.stop = true;
             break;
           }
         }
 
         // --max-count: max number of matches reached?
-        if (flag_invert_match && flag_max_count > 0 && matches >= flag_max_count)
+        if (flag_invert_match && flag_max_count > 0 && grep.matches >= flag_max_count)
         {
-          stop = true;
+          grep.stop = true;
           break;
         }
 
@@ -2697,25 +2612,25 @@ struct Grep {
           break;
 
         if (flag_with_hex)
-          binary = false;
+          grep.binary = false;
 
         if (flag_invert_match)
-          ++matches;
+          ++grep.matches;
 
-        binary = binary || flag_hex || (flag_with_hex && is_binary(ptr, size));
+        grep.binary = grep.binary || check_binary(ptr, size);
 
-        if (binfile || (binary && !flag_hex && !flag_with_hex))
+        if (grep.binfile || (grep.binary && !flag_hex && !flag_with_hex))
           break;
 
-        if (hex && !binary)
+        if (grep.hex && !grep.binary)
           grep.out.dump.done();
 
         if (!flag_no_header)
-          grep.out.header(pathname, grep.partname, heading, lineno, NULL, offset, separator, binary);
+          grep.out.header(pathname, grep.partname, grep.heading, grep.lineno, NULL, offset, separator, grep.binary);
 
-        hex = binary;
+        grep.hex = grep.binary;
 
-        if (binary)
+        if (grep.binary)
         {
           grep.out.dump.hex(v_hex_context_line, offset, ptr, size);
         }
@@ -2739,6 +2654,7 @@ struct Grep {
         next_before(buf, len, num, ptr, size, offset);
       }
     }
+
   };
 
   // extend event AnyLineGrepHandler to output specific context lines for -ABC without -v
@@ -2784,9 +2700,9 @@ struct Grep {
 
     };
 
-    ContextGrepHandler(Grep& grep, const char *& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    ContextGrepHandler(Grep& grep, const char *& pathname)
       :
-        AnyLineGrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
+        AnyLineGrepHandler(grep, pathname)
     { }
 
     // output the before context
@@ -2795,7 +2711,7 @@ struct Grep {
       // the group separator indicates lines skipped between contexts, like GNU grep
       if (state.after_lineno > 0 && state.after_lineno + state.after_length < grep.matcher->lineno() - state.before_length)
       {
-        if (hex)
+        if (grep.hex)
           grep.out.dump.done();
 
         if (flag_group_separator != NULL)
@@ -2829,19 +2745,19 @@ struct Grep {
           size_t j = (state.before_index + i) % state.before_length;
           const ContextState::Line& before_line = state.before_lines[j];
 
-          if (hex && !before_line.binary)
+          if (grep.hex && !before_line.binary)
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, heading, before_lineno + i, NULL, before_line.offset, flag_separator_dash, before_line.binary);
+            grep.out.header(pathname, grep.partname, grep.heading, before_lineno + i, NULL, before_line.offset, flag_separator_dash, before_line.binary);
 
-          hex = before_line.binary;
+          grep.hex = before_line.binary;
 
           // lines are always saved at the moment, so ptr is NULL, but we may optimize this in the future to not always save
           const char *ptr = before_line.ptr != NULL ? before_line.ptr : before_line.line.c_str();
           size_t size = before_line.size;
 
-          if (hex)
+          if (grep.hex)
           {
             grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, before_line.offset, ptr, size);
           }
@@ -2884,55 +2800,26 @@ struct Grep {
       size_t size;
       size_t offset;
 
+      // if no gap to shift buffer, then let gap span the buffer until the begin of the matching line (bol)
+      if (len == 0)
+        len = matcher.before().len;
+
       // if we only need the before context, then look for it right before the current lineno
       if (state.after_length >= flag_after_context)
       {
         size_t current = matcher.lineno();
-        if (lineno + flag_before_context + 1 < current)
-           lineno = current - flag_before_context - 1;
+        if (grep.lineno + flag_before_context + 1 < current)
+          grep.lineno = current - flag_before_context - 1;
       }
 
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
-      // output the rest of the matching line before the context lines
-      if (grep.restline_data != NULL)
-      {
-        if (lineno != matcher.lineno() || flag_ungroup)
-        {
-          if (binary)
-          {
-            grep.out.dump.hex(Output::Dump::HEX_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
-          }
-          else
-          {
-            bool lf_only = false;
-            if (grep.restline_size > 0)
-            {
-              lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
-              grep.restline_size -= lf_only;
-              if (grep.restline_size > 0)
-              {
-                grep.out.str(color_sl);
-                grep.out.str(grep.restline_data, grep.restline_size);
-                grep.out.str(color_off);
-              }
-            }
-            grep.out.nl(lf_only);
-          }
-
-          grep.restline_data = NULL;
-        }
-        else
-        {
-          // save restline before the buffer shifts
-          GrepHandler::operator()(matcher, buf, len, num);
-        }
-      }
+      grep.output_or_save_restline();
 
       while (ptr != NULL)
       {
         // --range: max line exceeded?
-        if (flag_max_line > 0 && lineno > flag_max_line)
+        if (flag_max_line > 0 && grep.lineno > flag_max_line)
           break;
 
         // output blocked?
@@ -2940,26 +2827,26 @@ struct Grep {
           break;
 
         if (flag_with_hex)
-          binary = false;
+          grep.binary = false;
 
-        binary = binary || flag_hex || (flag_with_hex && is_binary(ptr, size));
+        grep.binary = grep.binary || check_binary(ptr, size);
 
-        if (binfile || (binary && !flag_hex && !flag_with_hex))
+        if (grep.binfile || (grep.binary && !flag_hex && !flag_with_hex))
           break;
 
         if (state.after_lineno > 0 && state.after_length < flag_after_context)
         {
           ++state.after_length;
 
-          if (hex && !binary)
+          if (grep.hex && !grep.binary)
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, heading, lineno, NULL, offset, flag_separator_dash, binary);
+            grep.out.header(pathname, grep.partname, grep.heading, grep.lineno, NULL, offset, flag_separator_dash, grep.binary);
 
-          hex = binary;
+          grep.hex = grep.binary;
 
-          if (binary)
+          if (grep.binary)
           {
             grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, offset, ptr, size);
           }
@@ -2986,7 +2873,7 @@ struct Grep {
             ++state.before_length;
 
           state.before_index %= state.before_length;
-          state.before_lines[state.before_index].binary = binary;
+          state.before_lines[state.before_index].binary = grep.binary;
           state.before_lines[state.before_index].offset = offset;
           state.before_lines[state.before_index].ptr    = ptr;
           state.before_lines[state.before_index].size   = size;
@@ -3074,18 +2961,18 @@ struct Grep {
 
     };
 
-    InvertContextGrepHandler(Grep& grep, const char *& pathname, size_t& lineno, bool& heading, bool& binfile, bool& hex, bool& binary, size_t& matches, bool& stop)
+    InvertContextGrepHandler(Grep& grep, const char *& pathname)
       :
-        AnyLineGrepHandler(grep, pathname, lineno, heading, binfile, hex, binary, matches, stop)
+        AnyLineGrepHandler(grep, pathname)
     { }
 
     // output the inverted before context
     void output_before_context()
     {
       // the group separator indicates lines skipped between contexts, like GNU grep
-      if (state.after_lineno > 0 && state.after_lineno + flag_after_context + flag_before_context < lineno && flag_group_separator != NULL)
+      if (state.after_lineno > 0 && state.after_lineno + flag_after_context + flag_before_context < grep.lineno && flag_group_separator != NULL)
       {
-        if (hex)
+        if (grep.hex)
           grep.out.dump.done();
 
         if (flag_query && !flag_text)
@@ -3109,7 +2996,7 @@ struct Grep {
       if (state.before_length > 0)
       {
         // the first line number of the before context
-        size_t before_lineno = lineno - state.before_length;
+        size_t before_lineno = grep.lineno - state.before_length;
 
         for (size_t i = 0; i < state.before_length; ++i)
         {
@@ -3117,13 +3004,13 @@ struct Grep {
           const InvertContextState::Line& before_line = state.before_lines[j];
           size_t offset = before_line.matches.empty() ? before_line.offset : before_line.matches.front().offset;
 
-          if (hex && !before_line.binary)
+          if (grep.hex && !before_line.binary)
             grep.out.dump.done();
 
           if (!flag_no_header)
-            grep.out.header(pathname, grep.partname, heading, before_lineno + i, NULL, offset, flag_separator_dash, before_line.binary);
+            grep.out.header(pathname, grep.partname, grep.heading, before_lineno + i, NULL, offset, flag_separator_dash, before_line.binary);
 
-          hex = before_line.binary;
+          grep.hex = before_line.binary;
 
           const char *ptr = before_line.line.c_str();
           size_t size = before_line.line.size();
@@ -3131,7 +3018,7 @@ struct Grep {
 
           for (const auto& match : before_line.matches)
           {
-            if (hex)
+            if (grep.hex)
             {
               grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, match.offset - (match.pos - pos), ptr + pos, match.pos - pos);
               grep.out.dump.hex(Output::Dump::HEX_CONTEXT_MATCH, match.offset, ptr + match.pos, match.size);
@@ -3160,7 +3047,7 @@ struct Grep {
             pos = match.pos + match.size;
           }
 
-          if (hex)
+          if (grep.hex)
           {
             grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, before_line.offset + pos, ptr + pos, size - pos);
           }
@@ -3186,7 +3073,7 @@ struct Grep {
       // reset the context state
       state.before_index = 0;
       state.before_length = 0;
-      state.after_lineno = lineno + 1;
+      state.after_lineno = grep.lineno + 1;
     }
 
     // add context line with the first match to the inverted before context
@@ -3197,7 +3084,7 @@ struct Grep {
 
       state.before_index %= state.before_length;
 
-      state.before_lines[state.before_index].binary  = binary;
+      state.before_lines[state.before_index].binary  = grep.binary;
       state.before_lines[state.before_index].columno = columno;
       state.before_lines[state.before_index].offset  = offset;
       state.before_lines[state.before_index].line.assign(bol, eol - bol);
@@ -3224,91 +3111,62 @@ struct Grep {
       size_t size;
       size_t offset;
 
+      // if no gap to shift buffer, then let gap span the buffer until the begin of the matching line (bol)
+      if (len == 0)
+        len = matcher.before().len;
+
       begin_before(matcher, buf, len, num, ptr, size, offset);
 
-      // output the rest of the "after" matching line
-      if (grep.restline_data != NULL)
-      {
-        if (lineno != matcher.lineno() || flag_ungroup)
-        {
-          if (binary)
-          {
-            grep.out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, grep.restline_last, grep.restline_data, grep.restline_size);
-          }
-          else
-          {
-            bool lf_only = false;
-            if (grep.restline_size > 0)
-            {
-              lf_only = grep.restline_data[grep.restline_size - 1] == '\n';
-              grep.restline_size -= lf_only;
-              if (grep.restline_size > 0)
-              {
-                grep.out.str(color_cx);
-                grep.out.str(grep.restline_data, grep.restline_size);
-                grep.out.str(color_off);
-              }
-            }
-            grep.out.nl(lf_only);
-          }
-
-          grep.restline_data = NULL;
-        }
-        else
-        {
-          // save restline before the buffer shifts
-          GrepHandler::operator()(matcher, buf, len, num);
-        }
-      }
+      grep.output_or_save_restline(true);
 
       if (ptr != NULL)
         output_before_context();
 
       while (ptr != NULL)
       {
-        state.after_lineno = lineno + 1;
+        state.after_lineno = grep.lineno + 1;
 
         // --range: max line exceeded?
-        if (flag_max_line > 0 && lineno > flag_max_line)
+        if (flag_max_line > 0 && grep.lineno > flag_max_line)
           break;
 
-        if (matches == 0)
+        if (grep.matches == 0)
         {
           // --max-files: max reached?
           if (!Stats::found_part())
           {
-            stop = true;
+            grep.stop = true;
             break;
           }
         }
 
         // --max-count: max number of matches reached?
-        if (flag_max_count > 0 && matches >= flag_max_count)
+        if (flag_max_count > 0 && grep.matches >= flag_max_count)
           break;
 
         // output blocked?
         if (grep.out.eof)
           break;
 
-        ++matches;
+        ++grep.matches;
 
         if (flag_with_hex)
-          binary = false;
+          grep.binary = false;
 
-        binary = binary || flag_hex || (flag_with_hex && is_binary(ptr, size));
+        grep.binary = grep.binary || check_binary(ptr, size);
 
-        if (binfile || (binary && !flag_hex && !flag_with_hex))
+        if (grep.binfile || (grep.binary && !flag_hex && !flag_with_hex))
           break;
 
-        if (hex && !binary)
+        if (grep.hex && !grep.binary)
           grep.out.dump.done();
 
         if (!flag_no_header)
-          grep.out.header(pathname, grep.partname, heading, lineno, NULL, offset, flag_separator, binary);
+          grep.out.header(pathname, grep.partname, grep.heading, grep.lineno, NULL, offset, flag_separator, grep.binary);
 
-        hex = binary;
+        grep.hex = grep.binary;
 
-        if (binary)
+        if (grep.binary)
         {
           grep.out.dump.hex(Output::Dump::HEX_LINE, offset, ptr, size);
         }
@@ -3348,7 +3206,7 @@ struct Grep {
       matchers(matchers),
       file_in(NULL)
 #ifndef OS_WIN
-    , stdin_handler(this)
+    , stdin_handler(*this)
 #endif
 #ifdef HAVE_LIBZ
 #ifdef WITH_DECOMPRESSION_THREAD
@@ -3600,8 +3458,6 @@ struct Grep {
         int fl = fcntl(fd, F_GETFL);
         if (fl >= 0)
           fcntl(fd, F_SETFL, fl | O_NONBLOCK);
-        else
-          clearerr(file_in);
       }
     }
 #endif
@@ -4036,41 +3892,16 @@ struct Grep {
 #endif
 #endif
 
-#ifdef WITH_STDIN_DRAIN
-#ifndef OS_WIN
-    // drain stdin until eof
-    if (file_in == stdin && !feof(stdin))
+#if defined(WITH_STDIN_DRAIN) && !defined(OS_WIN)
+
+    // drain stdin when non-seekable file such as a pipe until eof
+    if (file_in == stdin && !feof(stdin) && fseek(stdin, 0, SEEK_END) < 0 && errno != EINVAL)
     {
-      if (fseek(stdin, 0, SEEK_END) < 0 && errno != EINVAL)
-      {
-        char buf[16384];
-        while (true)
-        {
-          if (fread(buf, 1, sizeof(buf), stdin) == sizeof(buf))
-            continue;
-          if (feof(stdin))
-            break;
-          if (errno != EINTR)
-            break;
-          if (!(fcntl(0, F_GETFL) & O_NONBLOCK))
-            break;
-          struct timeval tv;
-          fd_set rfds, efds;
-          FD_ZERO(&rfds);
-          FD_ZERO(&efds);
-          FD_SET(0, &rfds);
-          FD_SET(0, &efds);
-          tv.tv_sec = 1;
-          tv.tv_usec = 0;
-          int r = ::select(1, &rfds, NULL, &efds, &tv);
-          if (r < 0 && errno != EINTR)
-            break;
-          if (r > 0 && FD_ISSET(0, &efds))
-            break;
-        }
-      }
+      char buf[16384];
+      while (input.get(buf, sizeof(buf)) > 0)
+        continue;
     }
-#endif
+
 #endif
 
     // close the current input file
@@ -4088,6 +3919,16 @@ struct Grep {
   // specify input to read for matcher, when input is a regular file then try mmap for zero copy overhead
   bool init_read()
   {
+    // initialize Grep search and output variables
+    interactive = false;
+    binfile = false;
+    lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
+    heading = flag_with_filename;
+    hex = false;
+    binary = false;
+    matches = 0;
+    stop = false;
+
     const char *base;
     size_t size;
 
@@ -4105,30 +3946,45 @@ struct Grep {
 #if !defined(HAVE_PCRE2) && defined(HAVE_BOOST_REGEX)
       // buffer all input to work around Boost.Regex partial matching bug, but this may throw std::bad_alloc if the file is too large
       if (flag_perl_regexp)
+      {
         matcher->buffer();
+      }
+      else
 #endif
 
 #ifndef OS_WIN
-      if (input == stdin)
+      if (input == stdin && !flag_quiet && !flag_files_with_matches && !flag_count)
       {
         struct stat buf;
-        bool interactive = fstat(0, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode));
 
-        // if input is a TTY or pipe, then make stdin nonblocking and register a stdin handler to continue reading and to flush results to output
-        if (interactive)
+        // if input is a character device (TTY) or a pipe, then make stdin nonblocking and register a stdin handler to continue reading and flush results to output
+        if (fstat(0, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode)))
         {
-          if (fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK) == -1)
-            clearerr(stdin);
-          else
+          interactive = (fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK) != -1);
+          if (interactive)
             matcher->in.set_handler(&stdin_handler);
         }
       }
+#else
+      { }
 #endif
     }
 
-    // -I: do not match binary
-    if (flag_binary_without_match && init_is_binary())
-      return false;
+    // when non-blocking do not check init_is_binary(), wait until handler detects binary files
+    if (!interactive)
+    {
+      if (flag_binary_without_match)
+      {
+        // -I: do not match binary files
+        if (init_is_binary())
+          return false;
+      }
+      else if (!flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL && !flag_text && !flag_hex && !flag_with_hex)
+      {
+        // not -q, -l, -c, --format, -a -X, -W: check if initial part of the file is binary
+        binfile = init_is_binary();
+      }
+    }
 
     // --range=[MIN,][MAX]: start searching at line MIN
     for (size_t i = flag_min_line; i > 1; --i)
@@ -4138,11 +3994,11 @@ struct Grep {
     return true;
   }
 
-  // after opening a file with init_read, check if its initial part is binary
+  // initial part of a file is binary
   bool init_is_binary()
   {
-    // check up to 64K in buffer for binary data, the buffer is a window over the input file
-    size_t avail = std::min<size_t>(matcher->avail(), 65536);
+    // check buffer for binary data, the buffer is a 256K window over the input file
+    size_t avail = matcher->avail();
     if (avail == 0)
       return false;
 
@@ -4160,6 +4016,66 @@ struct Grep {
     return is_binary(matcher->begin(), avail);
   }
 
+  // output the rest of the matching line or save it for later, uses lineno of previous match to check
+  void output_or_save_restline(bool invert = false, bool hex_context = false)
+  {
+    if (restline_data != NULL)
+    {
+      if (flag_ungroup || lineno != matcher->lineno())
+        output_restline(invert, hex_context);
+      else
+        save_restline();
+    }
+  }
+
+  // output the rest of the matching line or save it for later, this is necessary when the buffer shifts
+  void output_restline(bool invert = false, bool hex_context = false)
+  {
+    if (restline_data != NULL)
+    {
+      if (binary)
+      {
+        // --hexdump with ABC context: if binary then show hex context
+        if (hex_context)
+        {
+          size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
+          if (restline_last + right > matcher->first())
+            right = matcher->first() - restline_last;
+          if (right < restline_size)
+            restline_size = right;
+        }
+
+        out.dump.hex(invert ? Output::Dump::HEX_CONTEXT_LINE : Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
+      }
+      else
+      {
+        bool lf_only = false;
+        if (restline_size > 0)
+        {
+          lf_only = restline_data[restline_size - 1] == '\n';
+          restline_size -= lf_only;
+          if (restline_size > 0)
+          {
+            out.str(invert ? color_cx : color_sl);
+            out.str(restline_data, restline_size);
+            out.str(color_off);
+          }
+        }
+        out.nl(lf_only);
+      }
+
+      restline_data = NULL;
+    }
+  }
+
+  // save the rest of the line to a string buffer to output later, may self-assign, so swap with a temp string
+  void save_restline()
+  {
+    std::string temp(restline_data, restline_size);
+    temp.swap(restline);
+    restline_data = restline.c_str();
+  }
+
   const char                    *filename;      // the name of the file being searched
   std::string                    partname;      // the name of an extracted file from an archive
   std::string                    restline;      // a buffer to store the rest of a line to search
@@ -4174,6 +4090,14 @@ struct Grep {
   MMap                           mmap;          // mmap state
   reflex::Input                  input;         // input to the matcher
   FILE                          *file_in;       // the current input file
+  bool                           interactive;   // search non-blocking standard input (e.g. TTY or pipe)
+  bool                           binfile;       // the file being searched is a binary file
+  size_t                         lineno;        // the line number of the last match
+  bool                           heading;       // heading on/off, initially set to --with-filename
+  bool                           hex;           // the match is output in hex
+  bool                           binary;        // the match is binary as per option -X or -W
+  size_t                         matches;       // number of matches
+  bool                           stop;          // stop searching when --max-files max reached
 #ifndef OS_WIN
   StdInHandler                   stdin_handler; // a handler to handle nonblocking stdin from a TTY or a slow pipe
 #endif
@@ -5479,6 +5403,10 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                   flag_format_end = strarg(arg + 11);
                 else if (strncmp(arg, "format-open=", 12) == 0)
                   flag_format_open = strarg(arg + 12);
+                else if (strcmp(arg, "from") == 0) // legacy form --from FILE
+                  flag_from.emplace_back(getloptarg(argc, argv, "", i));
+                else if (strncmp(arg, "from=", 5) == 0)
+                  flag_from.emplace_back(getloptarg(argc, argv, arg + 5, i));
                 else if (strcmp(arg, "fuzzy") == 0)
                   flag_fuzzy = 1;
                 else if (strncmp(arg, "fuzzy=", 6) == 0)
@@ -6884,25 +6812,41 @@ void init(int argc, const char **argv)
     if (strcmp(flag_index, "safe") != 0 && strcmp(flag_index, "fast") != 0 && strcmp(flag_index, "log") != 0)
       usage("invalid argument --index=MODE, valid arguments are 'safe', 'fast' and 'log'");
 
-  if (!flag_stdin && Static::arg_files.empty())
+  // --from=FILE: add file pathnames to search from FILE as if specified on the command line
+  for (const auto& from : flag_from)
   {
-    // if no FILE specified when reading standard input from a TTY then enable -R if not already -r or -R
-    if (isatty(STDIN_FILENO) && (flag_directories_action == Action::UNSP || flag_directories_action == Action::RECURSE))
+    if (!from.empty())
     {
-      if (flag_directories_action == Action::UNSP)
-        flag_directories_action = Action::RECURSE;
+      FILE *file = NULL;
 
-      // recursive search with worker threads
-      flag_all_threads = true;
-    }
-    else
-    {
-      // if no FILE specified then read standard input
-      flag_stdin = true;
+      if (fopen_smart(&file, from.c_str(), "r") != 0)
+        error("option --from: cannot read", from.c_str());
+
+      // read globs from the specified file or files
+      reflex::BufferedInput input(file);
+      std::string line;
+
+      while (true)
+      {
+        // read the next line
+        if (getline(input, line))
+          break;
+
+        if (!line.empty())
+        {
+          // push file pathnames imported from the file to the back of the arg files vector, saving std::string first in a list
+          arg_strings.emplace_back();
+          arg_strings.back().swap(line);
+          Static::arg_files.push_back(arg_strings.back().c_str());
+        }
+      }
+
+      if (file != stdin)
+        fclose(file);
     }
   }
 
-  // check FILE arguments, warn about non-existing and non-readable files and directories
+  // check all FILE arguments, warn about non-existing and non-readable files and directories
   auto file = Static::arg_files.begin();
   while (file != Static::arg_files.end())
   {
@@ -6994,6 +6938,24 @@ void init(int argc, const char **argv)
 #endif
   }
 
+  if (!flag_stdin && Static::arg_files.empty())
+  {
+    // if no FILE specified when reading standard input from a TTY then enable -R if not already -r or -R
+    if (isatty(STDIN_FILENO) && (flag_directories_action == Action::UNSP || flag_directories_action == Action::RECURSE))
+    {
+      if (flag_directories_action == Action::UNSP)
+        flag_directories_action = Action::RECURSE;
+
+      // recursive search with worker threads
+      flag_all_threads = true;
+    }
+    else
+    {
+      // if no FILE specified then read standard input
+      flag_stdin = true;
+    }
+  }
+
   // normalize --cpp, --csv, --json, --xml to their corresponding --format
   if (flag_cpp)
   {
@@ -7081,7 +7043,7 @@ void init(int argc, const char **argv)
 
         if (size > 0)
         {
-          std::string mount(mounts.substr(from, size));
+          std::string mount(mounts, from, size);
 
           if (stat_fs(mount.c_str(), &buf) == 0)
             exclude_fs_ids.insert(fsid_to_uint64(buf.f_fsid));
@@ -7119,7 +7081,7 @@ void init(int argc, const char **argv)
 
         if (size > 0)
         {
-          std::string mount(mounts.substr(from, size));
+          std::string mount(mounts, from, size);
 
           if (stat_fs(mount.c_str(), &buf) == 0)
             include_fs_ids.insert(fsid_to_uint64(buf.f_fsid));
@@ -7137,7 +7099,7 @@ void init(int argc, const char **argv)
 
 #endif
 
-  // --exclude-from: add globs to the exclude and exclude-dir lists
+  // --exclude-from=FILE: add globs to the exclude and exclude-dir lists
   for (const auto& from : flag_exclude_from)
   {
     if (!from.empty())
@@ -7155,7 +7117,7 @@ void init(int argc, const char **argv)
     }
   }
 
-  // --include-from: add globs to the include and include-dir lists
+  // --include-from=FILE: add globs to the include and include-dir lists
   for (const auto& from : flag_include_from)
   {
     if (!from.empty())
@@ -7193,7 +7155,7 @@ void init(int argc, const char **argv)
           --size;
         }
 
-        std::string type(types.substr(from, size));
+        std::string type(types, from, size);
 
         size_t i = 0;
         bool found = false;
@@ -7319,18 +7281,21 @@ void init(int argc, const char **argv)
 
       size_t size = to - from;
 
-      if (size == 0)
-        break;
-
-      bool negate = size > 1 && (extensions[from] == '!' || extensions[from] == '^');
-
-      if (negate)
+      if (size > 0)
       {
-        ++from;
-        --size;
+        bool negate = size > 1 && (extensions[from] == '!' || extensions[from] == '^');
+
+        if (negate)
+        {
+          ++from;
+          --size;
+        }
+
+        flag_glob.emplace_back(glob.assign(negate ? "^*." : "*.").append(extensions, from, size));
       }
 
-      flag_glob.emplace_back(glob.assign(negate ? "^*." : "*.").append(extensions.substr(from, size)));
+      if (to >= extensions.size())
+        break;
 
       from = to + 1;
     }
@@ -7838,14 +7803,10 @@ void ugrep()
   Output::Tree::depth = 0;
 
   // clear internal combined all-include and all-exclude globs
-  flag_all_include.clear();
   flag_all_exclude.clear();
-
-  // all globs are case-sensitive by default, unless --glob-ignore-case and --iglob are specified
-  flag_include_iglob_size = 0;
-  flag_exclude_iglob_size = 0;
-  flag_include_iglob_dir_size = 0;
-  flag_exclude_iglob_dir_size = 0;
+  flag_all_include.clear();
+  flag_all_exclude_dir.clear();
+  flag_all_include_dir.clear();
 
   // --iglob: add case-insensitive globs to all-include-iglob/all-exclude-iglob if not --glob-ignore-case
   for (const auto& globs : flag_iglob)
@@ -7867,33 +7828,40 @@ void ugrep()
 
       size_t size = to - from;
 
-      if (size == 0)
+      if (size > 0)
+      {
+        bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
+
+        if (negate)
+        {
+          ++from;
+          --size;
+          if (globs[from + size - 1] == '/')
+            flag_all_exclude_dir.emplace_back(globs, from, size - 1);
+          else
+            flag_all_exclude.emplace_back(globs, from, size);
+        }
+        else
+        {
+          if (globs[from + size - 1] == '/')
+            flag_all_include_dir.emplace_back(globs, from, size - 1);
+          else
+            flag_all_include.emplace_back(globs, from, size);
+        }
+      }
+
+      if (to >= globs.size())
         break;
-
-      bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
-
-      if (negate)
-      {
-        ++from;
-        --size;
-        flag_all_exclude.emplace_back(globs.substr(from, size));
-        if (globs[from + size - 1] == '/')
-          ++flag_exclude_iglob_dir_size;
-        else
-          ++flag_exclude_iglob_size;
-      }
-      else
-      {
-        flag_all_include.emplace_back(globs.substr(from, size));
-        if (globs[from + size - 1] == '/')
-          ++flag_include_iglob_dir_size;
-        else
-          ++flag_include_iglob_size;
-      }
 
       from = to + 1;
     }
   }
+
+  // all --iglob globs are case-sensitive
+  flag_include_iglob_size = flag_all_include.size();
+  flag_exclude_iglob_size = flag_all_exclude.size();
+  flag_include_iglob_dir_size = flag_all_include_dir.size();
+  flag_exclude_iglob_dir_size = flag_all_exclude_dir.size();
 
   // -g, --glob: add globs to all-include/all-exclude
   for (const auto& globs : flag_glob)
@@ -7915,89 +7883,180 @@ void ugrep()
 
       size_t size = to - from;
 
-      if (size == 0)
+      if (size > 0)
+      {
+        bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
+
+        if (negate)
+        {
+          ++from;
+          --size;
+          if (globs[from + size - 1] == '/')
+            flag_all_exclude_dir.emplace_back(globs, from, size - 1);
+          else
+            flag_all_exclude.emplace_back(globs, from, size);
+        }
+        else
+        {
+          if (globs[from + size - 1] == '/')
+            flag_all_include_dir.emplace_back(globs, from, size - 1);
+          else
+            flag_all_include.emplace_back(globs, from, size);
+        }
+      }
+
+      if (to >= globs.size())
         break;
-
-      bool negate = size > 1 && (globs[from] == '!' || globs[from] == '^');
-
-      if (negate)
-      {
-        ++from;
-        --size;
-        flag_all_exclude.emplace_back(globs.substr(from, size));
-      }
-      else
-      {
-        flag_all_include.emplace_back(globs.substr(from, size));
-      }
 
       from = to + 1;
     }
   }
 
-  // populate the internal combined all-include and all-exclude globs
-  flag_all_include.insert(flag_all_include.begin(), flag_include.begin(), flag_include.end());
-  flag_all_exclude.insert(flag_all_exclude.begin(), flag_exclude.begin(), flag_exclude.end());
-  flag_all_include_dir = flag_include_dir;
-  flag_all_exclude_dir = flag_exclude_dir;
+  // populate the internal combined all-include and all-exclude globs by appending --include and --exclude
+  flag_all_exclude.insert(flag_all_exclude.end(), flag_exclude.begin(), flag_exclude.end());
+  flag_all_include.insert(flag_all_include.end(), flag_include.begin(), flag_include.end());
+  // same for dirs
+  flag_all_exclude_dir.insert(flag_all_exclude_dir.end(), flag_exclude_dir.begin(), flag_exclude_dir.end());
+  flag_all_include_dir.insert(flag_all_include_dir.end(), flag_include_dir.begin(), flag_include_dir.end());
 
-  // all excluded files: normalize by moving directory globs (globs ending in a path separator /) to --exclude-dir
+  // all excluded files: normalize by moving directory globs (globs ending in a path separator /) to --exclude-dir and remove consecutive duplicates
+  std::string *last = NULL;
   auto i = flag_all_exclude.begin();
   while (i != flag_all_exclude.end())
   {
-    if (i->empty())
+    // remove empty and duplicate --exclude globs
+    if (i->empty() || (last != NULL && i->compare(*last) == 0))
     {
       i = flag_all_exclude.erase(i);
+      if (static_cast<size_t>(std::distance(flag_all_exclude.begin(), i)) < flag_exclude_iglob_size)
+        --flag_exclude_iglob_size;
     }
     else if (i->back() == '/')
     {
+      // move directory glob (ending in a /) from --exclude to --exclude-dir (these are all case sensitive)
       flag_all_exclude_dir.emplace_back(*i);
       i = flag_all_exclude.erase(i);
     }
     else
     {
-      ++i;
+      last = &*i++;
     }
   }
 
-  // all included files: normalize by moving directory globs (globs ending in a path separator /) to --include-dir
+  // if all --include files have paths, then add them to --include-dir to speed up searching
+  std::vector<std::string> all_include_dir_from_iglob;
+  std::vector<std::string> all_include_dir_from_glob;
+
+  // all included files: normalize by moving or adding directory globs (globs ending in a path separator /) to --include-dir and remove consecutive duplicates
+  bool add_wdir = false;
+  last = NULL;
   i = flag_all_include.begin();
   while (i != flag_all_include.end())
   {
-    if (i->empty())
+    // remove empty and duplicate --include globs
+    if (i->empty() || (last != NULL && i->compare(*last) == 0))
     {
       i = flag_all_include.erase(i);
+      if (static_cast<size_t>(std::distance(flag_all_include.begin(), i)) < flag_include_iglob_size)
+        --flag_include_iglob_size;
     }
     else
     {
       if (i->back() == '/')
       {
+        // move directory glob (ending in a /) from --include to --include-dir (these are all case sensitive)
         flag_all_include_dir.emplace_back(*i);
         i = flag_all_include.erase(i);
       }
       else
       {
-        // if an include file glob starts with a dot, then enable searching hidden files and directories
-        if (i->front() == '.' || i->find(PATHSEPSTR ".") != std::string::npos)
+        size_t last_sep = i->find_last_of('/');
+
+        // if include file has a path, then add the path part to the include-dirs, respect case (in)sensitivity
+        if (last_sep != std::string::npos)
+        {
+          size_t first_sep = i->find_first_of('/');
+
+          if (first_sep == last_sep && (first_sep == 0 || (first_sep == 1 && i->front() == '.')))
+          {
+            add_wdir = true;
+          }
+          else if (static_cast<size_t>(std::distance(flag_all_include.begin(), i)) < flag_include_iglob_size)
+          {
+            all_include_dir_from_iglob.emplace_back(*i, 0, last_sep);
+            if (first_sep == last_sep)
+              all_include_dir_from_iglob.back().insert(0, "./");
+          }
+          else
+          {
+            all_include_dir_from_glob.emplace_back(*i, 0, last_sep);
+            if (first_sep == last_sep)
+              all_include_dir_from_glob.back().insert(0, "./");
+          }
+        }
+
+        // if an include file glob starts with a dot, then enable --hidden
+        if (last_sep != std::string::npos ? i->at(last_sep + 1) == '.' : i->front() == '.')
           flag_hidden = true;
 
-        ++i;
+        last = &*i++;
       }
     }
   }
+  
+  // update include-dir to search case insensitive directories collected from --iglob
+  flag_include_iglob_dir_size += all_include_dir_from_iglob.size();
+  flag_all_include_dir.insert(flag_all_include_dir.begin(), all_include_dir_from_iglob.begin(), all_include_dir_from_iglob.end());
 
-  // if an include dir glob starts with a dot, then enable searching hidden files and directories
+  // search the working dir?
+  if (add_wdir)
+    flag_all_include_dir.emplace_back("./");
+
+  // update include-dir to search case sensitive directories collected from --include, --glob
+  flag_all_include_dir.insert(flag_all_include_dir.end(), all_include_dir_from_glob.begin(), all_include_dir_from_glob.end());
+
+  // all excluded-dir: normalize by removing trailing path separators and removing consecutive duplicates
+  last = NULL;
+  i = flag_all_exclude_dir.begin();
+  while (i != flag_all_exclude_dir.end())
+  {
+    while ((i->size() > 2 || (i->size() == 2 && i->front() != '.')) && i->back() == '/')
+      i->pop_back();
+    if (last != NULL && i->compare(*last) == 0)
+      i = flag_all_exclude_dir.erase(i);
+    else
+      last = &*i++;
+  }
+
+  // all included-dir: normalize by removing trailing path separators and removing consecutive duplicates
+  last = NULL;
+  i = flag_all_include_dir.begin();
+  while (i != flag_all_include_dir.end())
+  {
+    while ((i->size() > 2 || (i->size() == 2 && i->front() != '.')) && i->back() == '/')
+      i->pop_back();
+    if (last != NULL && i->compare(*last) == 0)
+      i = flag_all_include_dir.erase(i);
+    else
+      last = &*i++;
+  }
+
+  // if an include (sub)dir glob starts with a dot, then enable --hidden
   if (!flag_hidden)
   {
     for (const auto& dir : flag_all_include_dir)
     {
-      if (dir.front() == '.' || dir.find(PATHSEPSTR ".") != std::string::npos)
+      if ((dir.front() == '.' && dir.compare(0, 2, "./") != 0) || dir.find("/.") != std::string::npos)
       {
         flag_hidden = true;
         break;
       }
     }
   }
+
+  // if --include-dir is nonempty, and -d unspecified, then we should recurse into directories
+  if (!flag_all_include_dir.empty() && flag_directories_action == Action::UNSP)
+    flag_directories_action = Action::RECURSE;
 
 #ifdef HAVE_LIBZ
 #ifdef WITH_DECOMPRESSION_THREAD
@@ -8088,16 +8147,6 @@ void ugrep()
   }
 #endif
 #endif
-
-  // all excluded-dirs: normalize by removing trailing path separators
-  for (auto& i : flag_all_exclude_dir)
-    while (i.size() > 1 && i.back() == '/')
-      i.pop_back();
-
-  // all included-dirs: normalize by removing trailing path separators
-  for (auto& i : flag_all_include_dir)
-    while (i.size() > 1 && i.back() == '/')
-      i.pop_back();
 
   // keep track which globs are case-insensitive when --glob-ignore-case is specified, i.e. not --ignore-file globs
   if (flag_glob_ignore_case)
@@ -8557,11 +8606,11 @@ void ugrep()
   // reflex::Matcher options
   std::string matcher_options;
 
-  // -Y: literally match closing ) like GNU grep when not paired with ( unless -P or -F
+  // grep compatibility mode: literally match closing ) like GNU grep when not paired with ( unless -P or -F
   if (flag_grep && !flag_perl_regexp && !flag_fixed_strings)
     convert_flags |= reflex::convert_flag::closing;
 
-  // --empty: permit empty pattern matches
+  // -Y or --empty: permit empty pattern matches
   if (flag_empty)
     matcher_options.push_back('N');
 
@@ -9154,14 +9203,15 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           bool ok = false;
           for (const auto& glob : flag_all_include_dir)
           {
-            bool ignore_case = &glob < &flag_all_include_dir.front() + flag_include_iglob_size;
+            bool ignore_case = &glob < &flag_all_include_dir.front() + flag_include_iglob_dir_size;
             if (glob.front() == '!')
             {
               if (ok && glob_match(pathname, basename, glob.c_str() + 1, ignore_case))
                 ok = false;
             }
-            else if (!ok && glob_match(pathname, basename, glob.c_str(), ignore_case))
+            else if (!ok && glob_match(pathname, basename, glob.c_str(), ignore_case, true))
             {
+              // the pathname matches the leading --include-dir glob, OK to descent into directory
               ok = true;
             }
           }
@@ -9179,7 +9229,27 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     if (flag_min_depth > 0 && level <= flag_min_depth)
       return Type::SKIP;
 
-    bool ok = true;
+    bool ok;
+
+    if (!flag_all_include_dir.empty())
+    {
+      // only include paths to the file to search that match an --include-dir path glob
+      ok = false;
+      for (const auto& glob : flag_all_include_dir)
+      {
+        bool ignore_case = &glob < &flag_all_include_dir.front() + flag_include_iglob_dir_size;
+        if (glob.front() != '!' && glob_match(pathname, basename, glob.c_str(), ignore_case, false, true))
+        {
+          // pathname matches the --include-dir path glob
+          ok = true;
+          break;
+        }
+      }
+      if (!ok)
+        return Type::SKIP;
+    }
+
+    ok = true;
 
     if (!flag_all_exclude.empty())
     {
@@ -9287,10 +9357,10 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     // is it a symlink? If dir entry unknown and following then set to symlink = true to call stat() below
     bool symlink = type != DIRENT_TYPE_UNKNOWN ? type == DIRENT_TYPE_LNK : follow ? true : S_ISLNK(buf.st_mode);
     // if we got a symlink, use stat() to check if pathname is a directory or a regular file, we also stat when following and when sorting by stat info such as modification time
-    if (( ( (type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) ||         /* type is known and not symlink */
-            (!follow && !symlink)                                               /* or not following and not symlink */
+    if (( ( (type != DIRENT_TYPE_UNKNOWN && type != DIRENT_TYPE_LNK) ||    // type is known and not symlink
+            (!follow && !symlink)                                          // or not following and not symlink
           ) &&
-          (flag_sort_key == Sort::NA || flag_sort_key == Sort::NAME)            /* and we're not sorting or by name */
+          (flag_sort_key == Sort::NA || flag_sort_key == Sort::NAME)       // and we're not sorting or by name
         ) ||
         stat(pathname, &buf) == 0)
     {
@@ -9347,7 +9417,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
 
               if (!flag_all_include_dir.empty())
               {
-                // include directories whose pathname matches any one of the --include-dir globs unless negated with !
+                // include directories whose name matches any one of the --include-dir globs unless negated with !
                 bool ok = false;
                 for (const auto& glob : flag_all_include_dir)
                 {
@@ -9357,8 +9427,9 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
                     if (ok && glob_match(pathname, basename, glob.c_str() + 1, ignore_case))
                       ok = false;
                   }
-                  else if (!ok && glob_match(pathname, basename, glob.c_str(), ignore_case))
+                  else if (!ok && glob_match(pathname, basename, glob.c_str(), ignore_case, true))
                   {
+                    // the pathname matches the leading --include-dir glob, OK to descent into directory
                     ok = true;
                   }
                 }
@@ -9385,7 +9456,27 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           if (flag_min_depth > 0 && level <= flag_min_depth)
             return Type::SKIP;
 
-          bool ok = true;
+          bool ok;
+
+          if (!flag_all_include_dir.empty())
+          {
+            // only include paths to the file to search that match an --include-dir path glob
+            ok = false;
+            for (const auto& glob : flag_all_include_dir)
+            {
+              bool ignore_case = &glob < &flag_all_include_dir.front() + flag_include_iglob_dir_size;
+              if (glob.front() != '!' && glob_match(pathname, basename, glob.c_str(), ignore_case, false, true))
+              {
+                // pathname matches the --include-dir path glob
+                ok = true;
+                break;
+              }
+            }
+            if (!ok)
+              return Type::SKIP;
+          }
+
+          ok = true;
 
           if (!flag_all_exclude.empty())
           {
@@ -10318,8 +10409,6 @@ void Grep::search(const char *pathname, uint16_t cost)
 
     try
     {
-      size_t matches = 0;
-
       // --files: reset the matching[] bitmask used in cnf_matching() for each matcher in matchers
       if (flag_files && matchers != NULL)
       {
@@ -10349,10 +10438,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         // --format with open/close or --max-files: we must out.acquire() lock before Stats::found_part()
         bool acquire = (flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL)) || (!flag_quiet && flag_max_files > 0);
 
-        bool heading = flag_with_filename;
-        size_t lineno = 0;
-
-        // skip line number counting, only count matching lines
+        // skip accurate line number counting, only count matching lines
         if (!flag_multiline && flag_max_line == 0 && flag_stats == NULL)
           matcher->lineno_skip(true);
 
@@ -10443,15 +10529,15 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // --format with open/close or --max-files: we must out.acquire() lock before Stats::found_part()
         bool acquire = (flag_format != NULL && (flag_format_open != NULL || flag_format_close != NULL)) || flag_max_files > 0;
-        bool heading = flag_with_filename;
 
+        // not --match to match all or not -v
         if (!flag_match || !flag_invert_match)
         {
           if (flag_ungroup || flag_only_matching)
           {
             // -co or -cu: count the number of patterns matched
 
-            // skip line number counting, only count matching lines
+            // skip accurate line number counting, only count matching lines
             if (!flag_multiline && flag_max_line == 0 && flag_stats == NULL)
               matcher->lineno_skip(true);
 
@@ -10480,9 +10566,9 @@ void Grep::search(const char *pathname, uint16_t cost)
           }
           else if (!flag_multiline && !flag_invert_match && flag_max_line == 0 && matchers == NULL && flag_stats == NULL)
           {
-            // -c without -o/-u/-v/-K/-%: count the number of matching lines DO NOT KEEP LINE COUNT!
+            // -c without -o/-u/-v/-K/-%: count the number of matching lines
 
-            // skip line number counting, only count matching lines
+            // skip accurate line number counting, only count matching lines
             matcher->lineno_skip(true);
 
             while (matcher->find())
@@ -10501,8 +10587,6 @@ void Grep::search(const char *pathname, uint16_t cost)
           else
           {
             // -c without -o/-u: count the number of matching lines
-
-            size_t lineno = 0;
 
             while (matcher->find())
             {
@@ -10607,21 +10691,13 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         // --format with open/close: we must out.acquire() lock before Stats::found_part()
         bool acquire = flag_format_open != NULL || flag_format_close != NULL;
-        bool heading = flag_with_filename;
 
         if (flag_invert_match)
         {
-          // FormatInvertMatchHandler requires lineno to be set precisely, i.e. after skipping --range lines
-          size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-          bool binfile = false; // unused
-          bool hex = false;     // unused
-          bool binary = false;  // unused
-          bool stop = false;
-
           // construct event handler functor with captured *this and some of the locals
-          FormatInvertMatchGrepHandler invert_match_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
+          FormatInvertMatchGrepHandler invert_match_handler(*this, pathname);
 
-          // register the event handler to output non-matching lines
+          // register the event handler to output non-matching lines, matcher resets to NULL when a new input source is assigned
           matcher->set_handler(&invert_match_handler);
 
           // to get the context from the invert_match handler explicitly
@@ -10678,8 +10754,8 @@ void Grep::search(const char *pathname, uint16_t cost)
         }
         else
         {
-          size_t lineno = 0;
-          size_t matching = 0; // format match counter per match, differs from matches counter per line
+          // counter for format field %m matches
+          size_t format_matching = 0;
 
           while (matcher->find())
           {
@@ -10705,7 +10781,10 @@ void Grep::search(const char *pathname, uint16_t cost)
 
               // --min-count: require at least min-count matches
               if (flag_min_count > 0 && matches < flag_min_count)
+              {
+                lineno = current_lineno;
                 continue;
+              }
 
               // output --format-open=FORMAT for the first (or --min-count) match found
               if (matches == flag_min_count + (flag_min_count == 0))
@@ -10747,7 +10826,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             // output --format=FORMAT
             // if the match does not span more than one line, then skip to end of the line
-            if (!out.format(flag_format, pathname, partname, matches, &matching, matcher, heading, matches > 1 || current_lineno == lineno, matches > 1))
+            if (!out.format(flag_format, pathname, partname, matches, &format_matching, matcher, heading, matches > 1 || current_lineno == lineno, matches > 1))
               if (!flag_multiline && !matcher->at_bol())
                 if (!matcher->skip('\n'))
                   break;
@@ -10779,15 +10858,11 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // option -o without -ABC
 
-        size_t lineno = 0;
-        size_t matching = 0;
-        bool heading = flag_with_filename;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
-        bool hex = false;
-        bool binary = false;
+        // counter for replace field %m matches
+        size_t replace_matching = 0;
         bool nl = false;
 
-        // skip line number counting, only count matching lines
+        // skip accurate line number counting, only count matching lines
         if (!flag_line_number && !flag_multiline && flag_max_line == 0 && flag_stats == NULL)
           matcher->lineno_skip(true);
 
@@ -10796,7 +10871,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           const char *begin = matcher->begin();
           size_t size = matcher->size();
 
-          binary = flag_hex || (flag_with_hex && is_binary(begin, size));
+          binary = check_binary(begin, size);
 
           if (hex && !binary)
           {
@@ -10808,13 +10883,13 @@ void Grep::search(const char *pathname, uint16_t cost)
             nl = false;
           }
 
-          size_t current_lineno = matcher->lineno();
-
           if (nl)
           {
             out.nl();
             nl = false;
           }
+
+          size_t current_lineno = matcher->lineno();
 
           // --range: max line exceeded?
           if (flag_max_line > 0 && current_lineno > flag_max_line)
@@ -10836,14 +10911,13 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           if (lineno != current_lineno || flag_ungroup)
           {
+            lineno = current_lineno;
+
             ++matches;
 
             // --min-count: require at least min-count matches
             if (flag_min_count > 0 && matches < flag_min_count)
-            {
-              lineno = current_lineno;
               continue;
-            }
 
             // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches > flag_max_count)
@@ -10877,8 +10951,6 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           if (!flag_no_header)
             out.header(pathname, partname, heading, current_lineno, matcher, matcher->first(), flag_separator, binary);
-
-          lineno = current_lineno;
 
           // --min-count: require at least min-count matches
           if (flag_min_count > 0 && matches < flag_min_count)
@@ -10917,7 +10989,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           {
             // output --replace=FORMAT
             out.str(match_ms);
-            out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+            out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
             out.str(match_off);
           }
           else
@@ -10979,22 +11051,16 @@ void Grep::search(const char *pathname, uint16_t cost)
 
         size_t count = 0;
         size_t width = flag_before_context + flag_after_context;
-        size_t lineno = 0;
-        bool heading = flag_with_filename;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
-        bool hex = false;
-        bool binary = false;
         bool nl = false;
-        bool stop = false;
 
-        // skip line number counting, only count matching lines
+        // skip accurate line number counting, only count matching lines
         if (!flag_line_number && !flag_multiline && flag_max_line == 0 && flag_stats == NULL)
           matcher->lineno_skip(true);
 
-        // construct event handler functor with captured *this and some of the locals
-        GrepHandler handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
+        // construct event handler functor with captured *this and some of the locals to save the restline when the buffer shifts
+        OnlyMatchingContextGrepHandler handler(*this, pathname);
 
-        // register the event handler to update restline on buffer shift
+        // register the event handler to update restline on buffer shift, matcher resets to NULL when a new input source is assigned
         matcher->set_handler(&handler);
 
         // the rest of the matching line
@@ -11007,7 +11073,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           const char *begin = matcher->begin();
           size_t size = matcher->size();
 
-          binary = flag_hex || (flag_with_hex && is_binary(begin, size));
+          binary = check_binary(begin, size);
 
           if (hex && !binary)
           {
@@ -11018,8 +11084,6 @@ void Grep::search(const char *pathname, uint16_t cost)
             out.nl();
             nl = false;
           }
-
-          size_t current_lineno = matcher->lineno();
 
           if (nl)
           {
@@ -11060,6 +11124,8 @@ void Grep::search(const char *pathname, uint16_t cost)
             nl = false;
           }
 
+          size_t current_lineno = matcher->lineno();
+
           // --range: max line exceeded?
           if (flag_max_line > 0 && current_lineno > flag_max_line)
             break;
@@ -11080,14 +11146,13 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           if (lineno != current_lineno || flag_ungroup)
           {
+            lineno = current_lineno;
+
             ++matches;
 
             // --min-count: require at least min-count matches
             if (flag_min_count > 0 && matches < flag_min_count)
-            {
-              lineno = current_lineno;
               continue;
-            }
 
             // --max-count: max number of matches reached?
             if (flag_max_count > 0 && matches > flag_max_count)
@@ -11119,10 +11184,11 @@ void Grep::search(const char *pathname, uint16_t cost)
             goto done_search;
           }
 
-          if (!flag_no_header)
-            out.header(pathname, partname, heading, current_lineno, matcher, matcher->first(), flag_separator, binary);
+          size_t first = matcher->first();
+          size_t last = matcher->last();
 
-          lineno = current_lineno;
+          if (!flag_no_header)
+            out.header(pathname, partname, heading, current_lineno, matcher, first, flag_separator, binary);
 
           // --min-count: require at least min-count matches
           if (flag_min_count > 0 && matches < flag_min_count)
@@ -11134,8 +11200,8 @@ void Grep::search(const char *pathname, uint16_t cost)
           {
             if (flag_hex || flag_with_hex)
             {
-              out.dump.next(matcher->first());
-              out.dump.hex(Output::Dump::HEX_MATCH, matcher->first(), begin, size);
+              out.dump.next(first);
+              out.dump.hex(Output::Dump::HEX_MATCH, first, begin, size);
             }
             else
             {
@@ -11161,11 +11227,11 @@ void Grep::search(const char *pathname, uint16_t cost)
           {
             if (restline_size > 0)
             {
-              size_t first = matcher->first();
               if (first - restline_last < restline_size)
                 restline_size = first - restline_last;
 
               size_t after = utf8nlen(restline_data, restline_size);
+
               if (after > width)
                 after = width;
 
@@ -11177,6 +11243,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                 out.utf8strn(restline_data, restline_size, after);
                 out.str(color_off);
               }
+
               restline_size = 0;
             }
 
@@ -11272,7 +11339,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                 // output header and repeat to output a multiline match after previous newline
                 if (!flag_no_header)
-                  out.header(pathname, partname, heading, ++lineno, matcher, matcher->first() + (to - begin), flag_separator_bar, false);
+                  out.header(pathname, partname, heading, ++lineno, matcher, first + (to - begin), flag_separator_bar, false);
 
                 begin = to + 1;
                 size = rest - 1;
@@ -11286,7 +11353,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
               restline_data = end;
               restline_size = eol - end;
-              restline_last = matcher->last();
+              restline_last = last;
             }
 
             nl = true;
@@ -11339,23 +11406,18 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // options -ABC, -y, -v are not specified, --hexdump context is supported (including with options -ABC)
 
-        size_t lineno = 0;
-        size_t matching = 0;
-        bool heading = flag_with_filename;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
-        bool hex = false;
-        bool binary = false;
-        bool stop = false;
+        // counter for replace field %m matches
+        size_t replace_matching = 0;
         bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
-        // skip line number counting, only count matching lines
+        // skip accurate line number counting, only count matching lines
         if (!flag_line_number && !flag_multiline && flag_max_line == 0 && flag_stats == NULL)
           matcher->lineno_skip(true);
 
-        // construct event handler functor with captured *this and some of the locals
-        GrepHandler handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
+        // construct event handler functor with captured *this and some of the locals to output or save restline when the buffer shifts
+        GrepHandler handler(*this, pathname);
 
-        // register the event handler to update restline on buffer shift
+        // register the event handler to update restline on buffer shift, matcher resets to NULL when a new input source is assigned
         matcher->set_handler(&handler);
 
         // --hexdump: keep -B NUM+1 before context times hex column bytes in the buffer when shifting
@@ -11373,43 +11435,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           if (lineno != current_lineno || flag_ungroup)
           {
-            if (restline_data != NULL)
-            {
-              if (binary)
-              {
-                if (flag_hex_after > 0)
-                {
-                  size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
-                  if (restline_last + right > matcher->first())
-                    right = matcher->first() - restline_last;
-                  if (right < restline_size)
-                    restline_size = right;
-                }
-
-                out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
-
-                if (lineno + 1 < current_lineno)
-                  out.dump.done();
-              }
-              else
-              {
-                bool lf_only = false;
-                if (restline_size > 0)
-                {
-                  lf_only = restline_data[restline_size - 1] == '\n';
-                  restline_size -= lf_only;
-                  if (restline_size > 0)
-                  {
-                    out.str(color_sl);
-                    out.str(restline_data, restline_size);
-                    out.str(color_off);
-                  }
-                }
-                out.nl(lf_only);
-              }
-
-              restline_data = NULL;
-            }
+            output_restline(false, flag_hex_after > 0);
 
             // --range: max line exceeded?
             if (flag_max_line > 0 && current_lineno > flag_max_line)
@@ -11446,8 +11472,9 @@ void Grep::search(const char *pathname, uint16_t cost)
                 goto exit_search;
             }
 
-            binary = flag_hex || (flag_with_hex && is_binary(bol, eol - bol));
+            binary = check_binary(bol, eol - bol);
 
+            // --hexdump with ABC context: if binary then show hex context
             if (binary && (flag_hex_after > 0 || flag_hex_before > 0))
             {
               const char *aft = matcher->aft((flag_hex_after + flag_hex_before) * flag_hex_columns);
@@ -11478,6 +11505,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             size_t border = matcher->border();
             size_t first = matcher->first();
+            size_t last = matcher->last();
             const char *begin = matcher->begin();
             const char *end = matcher->end();
             size_t size = matcher->size();
@@ -11494,6 +11522,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             if (binary)
             {
+              // --hexdump with ABC context: if binary then show hex context
               if (flag_hex_before > 0)
               {
                 const char *bef = matcher->bef(flag_hex_before * flag_hex_columns);
@@ -11523,21 +11552,22 @@ void Grep::search(const char *pathname, uint16_t cost)
 
               if (flag_ungroup)
               {
+                // --hexdump with ABC context: if binary then show hex context
                 if (flag_hex_after > 0)
                 {
-                  size_t right = flag_hex_after * flag_hex_columns - ((matcher->last() - 1) % flag_hex_columns) - 1;
+                  size_t right = flag_hex_after * flag_hex_columns - ((last - 1) % flag_hex_columns) - 1;
                   if (end + right < eol)
                     eol = end + right;
                 }
 
-                out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end);
+                out.dump.hex(Output::Dump::HEX_LINE, last, end, eol - end);
                 out.dump.done();
               }
               else
               {
                 restline_data = end;
                 restline_size = eol - end;
-                restline_last = matcher->last();
+                restline_last = last;
               }
 
               lineno += matcher->lines() - 1;
@@ -11555,8 +11585,10 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(match_ms);
-                out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
                 out.str(match_off);
+
+                lineno += matcher->lines() - 1;
               }
               else
               {
@@ -11614,7 +11646,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 restline_data = end;
                 restline_size = eol - end;
-                restline_last = matcher->last();
+                restline_last = last;
               }
             }
 
@@ -11649,6 +11681,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                     if (restline_last + restline_size > first)
                       restline_size = first - restline_last;
 
+                    // --hexdump with ABC context: if binary then show hex context
                     if (flag_hex_after > 0)
                     {
                       size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
@@ -11670,6 +11703,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                     if (restline_data != NULL)
                     {
+                      // --hexdump with ABC context: if binary then show hex context
                       if (flag_hex_before > 0)
                       {
                         size_t left = flag_hex_before * flag_hex_columns + (first % flag_hex_columns) - flag_hex_columns;
@@ -11678,8 +11712,8 @@ void Grep::search(const char *pathname, uint16_t cost)
                           if (!flag_no_header)
                             out.header(pathname, partname, heading, current_lineno, matcher, first, flag_separator_bar, binary);
 
-                          restline_data = restline_data + restline_size - left;
-                          restline_last = restline_last + restline_size - left;
+                          restline_data += restline_size - left;
+                          restline_last += restline_size - left;
                           restline_size = left;
                         }
                       }
@@ -11694,15 +11728,18 @@ void Grep::search(const char *pathname, uint16_t cost)
                 }
                 else
                 {
-                  out.str(color_sl);
-                  out.str(restline_data, first - restline_last);
-                  out.str(color_off);
+                  if (restline_data != NULL)
+                  {
+                    out.str(color_sl);
+                    out.str(restline_data, first - restline_last);
+                    out.str(color_off);
+                  }
 
                   if (flag_replace != NULL)
                   {
                     // output --replace=FORMAT
                     out.str(match_ms);
-                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -11743,6 +11780,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                 if (lines == 1)
                 {
+                  // --hexdump with ABC context: if binary then show hex context
                   if (binary && (flag_hex_after > 0 || flag_hex_before > 0))
                   {
                     const char *aft = matcher->aft((flag_hex_after + flag_hex_before) * flag_hex_columns);
@@ -11759,8 +11797,9 @@ void Grep::search(const char *pathname, uint16_t cost)
                 }
                 else
                 {
-                  binary = flag_hex || (flag_with_hex && is_binary(end, eol - end));
+                  binary = check_binary(end, eol - end);
 
+                  // --hexdump with ABC context: if binary then show hex context
                   if (binary && (flag_hex_after > 0 || flag_hex_before > 0))
                   {
                     const char *aft = matcher->aft((flag_hex_after + flag_hex_before) * flag_hex_columns);
@@ -11785,14 +11824,15 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     if (binary)
                     {
+                      // --hexdump with ABC context: if binary then show hex context
                       if (flag_hex_after > 0)
                       {
-                        size_t right = flag_hex_after * flag_hex_columns - ((matcher->last() - 1) % flag_hex_columns) - 1;
+                        size_t right = flag_hex_after * flag_hex_columns - ((last - 1) % flag_hex_columns) - 1;
                         if (end + right < eol)
                           eol = end + right;
                       }
 
-                      out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end);
+                      out.dump.hex(Output::Dump::HEX_LINE, last, end, eol - end);
                       out.dump.done();
                     }
                     else
@@ -11837,38 +11877,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         if (flag_min_count > 0 && matches < flag_min_count)
           goto exit_search;
 
-        if (restline_data != NULL)
-        {
-          if (binary)
-          {
-            if (flag_hex_after > 0)
-            {
-              size_t right = flag_hex_after * flag_hex_columns - ((restline_last - 1) % flag_hex_columns) - 1;
-              if (right < restline_size)
-                restline_size = right;
-            }
-
-            out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
-          }
-          else
-          {
-            bool lf_only = false;
-            if (restline_size > 0)
-            {
-              lf_only = restline_data[restline_size - 1] == '\n';
-              restline_size -= lf_only;
-              if (restline_size > 0)
-              {
-                out.str(color_sl);
-                out.str(restline_data, restline_size);
-                out.str(color_off);
-              }
-            }
-            out.nl(lf_only);
-          }
-
-          restline_data = NULL;
-        }
+        output_restline(false, flag_hex_after > 0);
 
         if (binary)
           out.dump.done();
@@ -11877,18 +11886,10 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // option -v without -ABC, -y
 
-        // InvertMatchHandler requires lineno to be set precisely, i.e. after skipping --range lines
-        size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-        bool heading = flag_with_filename;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
-        bool hex = false;
-        bool binary = false;
-        bool stop = false;
+        // construct event handler functor with captured *this and some of the locals to output or save restline when the buffer shifts
+        InvertMatchGrepHandler invert_match_handler(*this, pathname);
 
-        // construct event handler functor with captured *this and some of the locals
-        InvertMatchGrepHandler invert_match_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
-
-        // register the event handler to output non-matching lines
+        // register the event handler to output non-matching lines, matcher resets to NULL when a new input source is assigned
         matcher->set_handler(&invert_match_handler);
 
         // to get the context from the invert_match handler explicitly
@@ -11964,14 +11965,8 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // option -y
 
-        // AnyLineGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
-        size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-        size_t matching = 0;
-        bool heading = flag_with_filename;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
-        bool hex = false;
-        bool binary = false;
-        bool stop = false;
+        // counter for replace field %m matches
+        size_t replace_matching = 0;
         bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
         // to output the rest of the matching line
@@ -11979,10 +11974,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         restline_size = 0;
         restline_last = 0;
 
-        // construct event handler functor with captured *this and some of the locals
-        AnyLineGrepHandler any_line_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
+        // construct event handler functor with captured *this and some of the locals to output or save restline when the buffer shifts
+        AnyLineGrepHandler any_line_handler(*this, pathname);
 
-        // register the event handler functor to output non-matching lines
+        // register the event handler functor to output non-matching lines, matcher resets to NULL when a new input source is assigned
         matcher->set_handler(&any_line_handler);
 
         // to output colors with or without -v
@@ -12001,31 +11996,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           if (lineno != current_lineno) /* || flag_ungroup) // logically OK but dead code because -y */
           {
-            if (restline_data != NULL)
-            {
-              if (binary)
-              {
-                out.dump.hex(v_hex_line, restline_last, restline_data, restline_size);
-              }
-              else
-              {
-                bool lf_only = false;
-                if (restline_size > 0)
-                {
-                  lf_only = restline_data[restline_size - 1] == '\n';
-                  restline_size -= lf_only;
-                  if (restline_size > 0)
-                  {
-                    out.str(v_color_sl);
-                    out.str(restline_data, restline_size);
-                    out.str(color_off);
-                  }
-                }
-                out.nl(lf_only);
-              }
-
-              restline_data = NULL;
-            }
+            output_restline(flag_invert_match);
 
             const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
             const char *bol = matcher->bol();
@@ -12095,7 +12066,7 @@ void Grep::search(const char *pathname, uint16_t cost)
             if (out.eof)
               goto exit_search;
 
-            binary = flag_hex || (flag_with_hex && is_binary(bol, eol - bol));
+            binary = check_binary(bol, eol - bol);
 
             if (binfile || (binary && !flag_hex && !flag_with_hex))
             {
@@ -12122,6 +12093,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             size_t border = matcher->border();
             size_t first = matcher->first();
+            size_t last = matcher->last();
             const char *begin = matcher->begin();
             const char *end = matcher->end();
             size_t size = matcher->size();
@@ -12143,14 +12115,14 @@ void Grep::search(const char *pathname, uint16_t cost)
 
               if (false) /* flag_ungroup) // logically OK but dead code because -y */
               {
-                out.dump.hex(v_hex_line, matcher->last(), end, eol - end);
+                out.dump.hex(v_hex_line, last, end, eol - end);
                 out.dump.done();
               }
               else
               {
                 restline_data = end;
                 restline_size = eol - end;
-                restline_last = matcher->last();
+                restline_last = last;
               }
 
               lineno += matcher->lines() - 1;
@@ -12168,7 +12140,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(v_match_ms);
-                out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
                 out.str(match_off);
 
                 lineno += matcher->lines() - 1;
@@ -12229,7 +12201,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 restline_data = end;
                 restline_size = eol - end;
-                restline_last = matcher->last();
+                restline_last = last;
               }
             }
 
@@ -12259,20 +12231,25 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                 if (binary)
                 {
-                  out.dump.hex(v_hex_line, restline_last, restline_data, first - restline_last);
+                  if (restline_data != NULL)
+                    out.dump.hex(v_hex_line, restline_last, restline_data, first - restline_last);
+
                   out.dump.hex(v_hex_match, first, begin, size);
                 }
                 else
                 {
-                  out.str(v_color_sl);
-                  out.str(restline_data, first - restline_last);
-                  out.str(color_off);
+                  if (restline_data != NULL)
+                  {
+                    out.str(v_color_sl);
+                    out.str(restline_data, first - restline_last);
+                    out.str(color_off);
+                  }
 
                   if (flag_replace != NULL)
                   {
                     // output --replace=FORMAT
                     out.str(v_match_ms);
-                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -12308,18 +12285,18 @@ void Grep::search(const char *pathname, uint16_t cost)
                   }
                 }
 
+                const char *eol = matcher->eol(true); // warning: call eol() before end()
+                const char *end = matcher->end();
+
                 if (lines == 1)
                 {
-                  restline_data += last - restline_last;
-                  restline_size -= last - restline_last;
+                  restline_data = end;
+                  restline_size = eol - end;
                   restline_last = last;
                 }
                 else
                 {
-                  const char *eol = matcher->eol(true); // warning: call eol() before end()
-                  const char *end = matcher->end();
-
-                  binary = flag_hex || (flag_with_hex && is_binary(end, eol - end));
+                  binary = check_binary(end, eol - end);
 
                   if (hex && !binary)
                     out.dump.done();
@@ -12335,7 +12312,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     if (binary)
                     {
-                      out.dump.hex(v_hex_line, matcher->last(), end, eol - end);
+                      out.dump.hex(v_hex_line, last, end, eol - end);
                       out.dump.done();
                     }
                     else
@@ -12380,31 +12357,7 @@ void Grep::search(const char *pathname, uint16_t cost)
         if (flag_min_count > 0 && matches < flag_min_count)
           matches = 0;
 
-        if (restline_data != NULL)
-        {
-          if (binary)
-          {
-            out.dump.hex(v_hex_line, restline_last, restline_data, restline_size);
-          }
-          else
-          {
-            bool lf_only = false;
-            if (restline_size > 0)
-            {
-              lf_only = restline_data[restline_size - 1] == '\n';
-              restline_size -= lf_only;
-              if (restline_size > 0)
-              {
-                out.str(v_color_sl);
-                out.str(restline_data, restline_size);
-                out.str(color_off);
-              }
-            }
-            out.nl(lf_only);
-          }
-
-          restline_data = NULL;
-        }
+        output_restline(flag_invert_match);
 
         // get the remaining context after the last match to output
         context = matcher->after();
@@ -12427,14 +12380,8 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // options -ABC without -v
 
-        // ContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
-        size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
-        size_t matching = 0;
-        bool heading = flag_with_filename;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
-        bool hex = false;
-        bool binary = false;
-        bool stop = false;
+        // counter for replace field %m matches
+        size_t replace_matching = 0;
         bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
         // to output the rest of the matching line
@@ -12442,10 +12389,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         restline_size = 0;
         restline_last = 0;
 
-        // construct event handler functor with captured *this and some of the locals
-        ContextGrepHandler context_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
+        // construct event handler functor with captured *this and some of the locals to output or save restline when the buffer shifts
+        ContextGrepHandler context_handler(*this, pathname);
 
-        // register the event handler functor to output non-matching lines
+        // register the event handler functor to output non-matching lines, matcher resets to NULL when a new input source is assigned
         matcher->set_handler(&context_handler);
 
         // to get the context from the context handler explicitly
@@ -12457,31 +12404,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           if (lineno != current_lineno || flag_ungroup)
           {
-            if (restline_data != NULL)
-            {
-              if (binary)
-              {
-                out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
-              }
-              else
-              {
-                bool lf_only = false;
-                if (restline_size > 0)
-                {
-                  lf_only = restline_data[restline_size - 1] == '\n';
-                  restline_size -= lf_only;
-                  if (restline_size > 0)
-                  {
-                    out.str(color_sl);
-                    out.str(restline_data, restline_size);
-                    out.str(color_off);
-                  }
-                }
-                out.nl(lf_only);
-              }
-
-              restline_data = NULL;
-            }
+            output_restline();
 
             const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
             const char *bol = matcher->bol();
@@ -12538,7 +12461,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             context_handler.output_before_context();
 
-            binary = flag_hex || (flag_with_hex && is_binary(bol, eol - bol));
+            binary = check_binary(bol, eol - bol);
 
             if (binfile || (binary && !flag_hex && !flag_with_hex))
             {
@@ -12560,6 +12483,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             size_t border = matcher->border();
             size_t first = matcher->first();
+            size_t last = matcher->last();
             const char *begin = matcher->begin();
             const char *end = matcher->end();
             size_t size = matcher->size();
@@ -12581,14 +12505,14 @@ void Grep::search(const char *pathname, uint16_t cost)
 
               if (flag_ungroup)
               {
-                out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end);
+                out.dump.hex(Output::Dump::HEX_LINE, last, end, eol - end);
                 out.dump.done();
               }
               else
               {
                 restline_data = end;
                 restline_size = eol - end;
-                restline_last = matcher->last();
+                restline_last = last;
               }
 
               lineno += matcher->lines() - 1;
@@ -12606,7 +12530,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 // output --replace=FORMAT
                 out.str(match_ms);
-                out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+                out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
                 out.str(match_off);
 
                 lineno += matcher->lines() - 1;
@@ -12667,7 +12591,7 @@ void Grep::search(const char *pathname, uint16_t cost)
               {
                 restline_data = end;
                 restline_size = eol - end;
-                restline_last = matcher->last();
+                restline_last = last;
               }
             }
 
@@ -12712,7 +12636,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(match_ms);
-                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -12748,18 +12672,18 @@ void Grep::search(const char *pathname, uint16_t cost)
                   }
                 }
 
+                const char *eol = matcher->eol(true); // warning: call eol() before end()
+                const char *end = matcher->end();
+
                 if (lines == 1)
                 {
-                  restline_data += last - restline_last;
-                  restline_size -= last - restline_last;
+                  restline_data = end;
+                  restline_size = eol - end;
                   restline_last = last;
                 }
                 else
                 {
-                  const char *eol = matcher->eol(true); // warning: call eol() before end()
-                  const char *end = matcher->end();
-
-                  binary = flag_hex || (flag_with_hex && is_binary(end, eol - end));
+                  binary = check_binary(end, eol - end);
 
                   if (hex && !binary)
                     out.dump.done();
@@ -12775,7 +12699,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     if (binary)
                     {
-                      out.dump.hex(Output::Dump::HEX_LINE, matcher->last(), end, eol - end);
+                      out.dump.hex(Output::Dump::HEX_LINE, last, end, eol - end);
                       out.dump.done();
                     }
                     else
@@ -12818,31 +12742,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           context_handler.set_after_lineno(lineno + 1);
         }
 
-        if (restline_data != NULL)
-        {
-          if (binary)
-          {
-            out.dump.hex(Output::Dump::HEX_LINE, restline_last, restline_data, restline_size);
-          }
-          else
-          {
-            bool lf_only = false;
-            if (restline_size > 0)
-            {
-              lf_only = restline_data[restline_size - 1] == '\n';
-              restline_size -= lf_only;
-              if (restline_size > 0)
-              {
-                out.str(color_sl);
-                out.str(restline_data, restline_size);
-                out.str(color_off);
-              }
-            }
-            out.nl(lf_only);
-          }
-
-          restline_data = NULL;
-        }
+        output_restline();
 
         // get the remaining context after the last match to output
         context = matcher->after();
@@ -12865,17 +12765,11 @@ void Grep::search(const char *pathname, uint16_t cost)
       {
         // options -ABC with -v
 
-        // InvertContextGrepHandler requires lineno to be set precisely, i.e. after skipping --range lines
-        size_t lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
+        size_t after = flag_after_context;
         size_t last_lineno = lineno;
         size_t next_lineno = lineno + 1;
-        size_t matching = 0;
-        size_t after = flag_after_context;
-        bool heading = flag_with_filename;
-        bool binfile = !flag_text && !flag_hex && !flag_with_hex && !flag_binary_without_match && init_is_binary();
-        bool hex = false;
-        bool binary = false;
-        bool stop = false;
+        // counter for replace field %m matches
+        size_t replace_matching = 0;
         bool colorize = flag_color != NULL || flag_replace != NULL || flag_tag != NULL;
 
         // to output the rest of the matching line
@@ -12883,10 +12777,10 @@ void Grep::search(const char *pathname, uint16_t cost)
         restline_size = 0;
         restline_last = 0;
 
-        // construct event handler functor with captured *this and some of the locals
-        InvertContextGrepHandler invert_context_handler(*this, pathname, lineno, heading, binfile, hex, binary, matches, stop);
+        // construct event handler functor with captured *this and some of the locals to output or save restline when the buffer shifts
+        InvertContextGrepHandler invert_context_handler(*this, pathname);
 
-        // register the event handler functor to output non-matching lines
+        // register the event handler functor to output non-matching lines, matcher resets to NULL when a new input source is assigned
         matcher->set_handler(&invert_context_handler);
 
         // to get the context from the context handler explicitly
@@ -12908,31 +12802,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
           if (lineno != current_lineno)
           {
-            if (restline_data != NULL)
-            {
-              if (binary)
-              {
-                out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, restline_size);
-              }
-              else
-              {
-                bool lf_only = false;
-                if (restline_size > 0)
-                {
-                  lf_only = restline_data[restline_size - 1] == '\n';
-                  restline_size -= lf_only;
-                  if (restline_size > 0)
-                  {
-                    out.str(color_cx);
-                    out.str(restline_data, restline_size);
-                    out.str(color_off);
-                  }
-                }
-                out.nl(lf_only);
-              }
-
-              restline_data = NULL;
-            }
+            output_restline(true);
 
             const char *eol = matcher->eol(true); // warning: call eol() before bol() and end()
             const char *bol = matcher->bol();
@@ -12993,7 +12863,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
             if (after < flag_after_context)
             {
-              binary = flag_hex || (flag_with_hex && is_binary(bol, eol - bol));
+              binary = check_binary(bol, eol - bol);
 
               if (binfile || (binary && !flag_hex && !flag_with_hex))
               {
@@ -13021,6 +12891,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
               size_t border = matcher->border();
               size_t first = matcher->first();
+              size_t last = matcher->last();
               const char *begin = matcher->begin();
               const char *end = matcher->end();
               size_t size = matcher->size();
@@ -13042,7 +12913,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                   restline_data = end;
                   restline_size = eol - end;
-                  restline_last = matcher->last();
+                  restline_last = last;
                 }
               }
               else
@@ -13058,7 +12929,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                 {
                   // output --replace=FORMAT
                   out.str(match_mc);
-                  out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+                  out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
                   out.str(match_off);
                 }
                 else
@@ -13095,12 +12966,12 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                 restline_data = end;
                 restline_size = eol - end;
-                restline_last = matcher->last();
+                restline_last = last;
               }
             }
             else if (flag_before_context > 0)
             {
-              binary = flag_hex || (flag_with_hex && is_binary(bol, eol - bol));
+              binary = check_binary(bol, eol - bol);
 
               if (binfile || (binary && !flag_hex && !flag_with_hex))
               {
@@ -13180,7 +13051,8 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                 if (binary)
                 {
-                  out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, first - restline_last);
+                  if (restline_data != NULL)
+                    out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, first - restline_last);
                   out.dump.hex(Output::Dump::HEX_CONTEXT_MATCH, first, begin, size);
                 }
                 else
@@ -13193,7 +13065,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   {
                     // output --replace=FORMAT
                     out.str(match_mc);
-                    out.format(flag_replace, pathname, partname, matches, &matching, matcher, heading, matches > 1, matches > 1);
+                    out.format(flag_replace, pathname, partname, matches, &replace_matching, matcher, heading, matches > 1, matches > 1);
                     out.str(match_off);
                   }
                   else
@@ -13240,7 +13112,7 @@ void Grep::search(const char *pathname, uint16_t cost)
                   const char *eol = matcher->eol(true); // warning: call eol() before end()
                   const char *end = matcher->end();
 
-                  binary = flag_hex || (flag_with_hex && is_binary(end, eol - end));
+                  binary = check_binary(end, eol - end);
 
                   if (hex && !binary)
                     out.dump.done();
@@ -13261,31 +13133,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           }
           else
           {
-            if (restline_data != NULL)
-            {
-              if (binary)
-              {
-                out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, restline_size);
-              }
-              else
-              {
-                bool lf_only = false;
-                if (restline_size > 0)
-                {
-                  lf_only = restline_data[restline_size - 1] == '\n';
-                  restline_size -= lf_only;
-                  if (restline_size > 0)
-                  {
-                    out.str(color_cx);
-                    out.str(restline_data, restline_size);
-                    out.str(color_off);
-                  }
-                }
-                out.nl(lf_only);
-              }
-
-              restline_data = NULL;
-            }
+            output_restline(true);
 
             if (flag_before_context > 0)
             {
@@ -13305,7 +13153,7 @@ void Grep::search(const char *pathname, uint16_t cost)
 
                 const char *end = matcher->end();
 
-                binary = flag_hex || (flag_with_hex && is_binary(end, eol - end));
+                binary = check_binary(end, eol - end);
 
                 if (binfile || (binary && !flag_hex && !flag_with_hex))
                 {
@@ -13363,31 +13211,7 @@ void Grep::search(const char *pathname, uint16_t cost)
           lineno = next_lineno - 1;
         }
 
-        if (restline_data != NULL)
-        {
-          if (binary)
-          {
-            out.dump.hex(Output::Dump::HEX_CONTEXT_LINE, restline_last, restline_data, restline_size);
-          }
-          else
-          {
-            bool lf_only = false;
-            if (restline_size > 0)
-            {
-              lf_only = restline_data[restline_size - 1] == '\n';
-              restline_size -= lf_only;
-              if (restline_size > 0)
-              {
-                out.str(color_cx);
-                out.str(restline_data, restline_size);
-                out.str(color_off);
-              }
-            }
-            out.nl(lf_only);
-          }
-
-          restline_data = NULL;
-        }
+        output_restline(true);
 
         // get the remaining context after the last match to output
         context = matcher->after();
@@ -14119,7 +13943,7 @@ void help(std::ostream& out)
             Specify a PATTERN to search the input.  An input line is selected\n\
             if it matches any of the specified patterns.  This option is useful\n\
             when multiple -e options are used to specify multiple patterns, or\n\
-            when a pattern begins with a dash (`-'), or to specify a pattern\n\
+            when a pattern starts with a dash (`-'), or to specify a pattern\n\
             after option -f or after the FILE arguments.\n\
     --encoding=ENCODING\n\
             The encoding format of the input.  The default ENCODING is binary\n\
@@ -14152,7 +13976,7 @@ void help(std::ostream& out)
             quoted to prevent shell globbing.  This option may be repeated.\n\
     --exclude-dir=GLOB\n\
             Exclude directories whose name matches GLOB from recursive\n\
-            searches, same as -g ^GLOB/.  GLOB can use **, *, ?, and [...] as\n\
+            searches, same as -g ^GLOB/.  GLOB may use **, *, ?, and [...] as\n\
             wildcards and \\ to quote a wildcard or backslash character\n\
             literally.  When GLOB contains a `/', full pathnames are matched.\n\
             Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
@@ -14160,7 +13984,7 @@ void help(std::ostream& out)
             to prevent shell globbing.  This option may be repeated.\n\
     --exclude-from=FILE\n\
             Read the globs from FILE and skip files and directories whose name\n\
-            matches one or more globs.  A glob can use **, *, ?, and [...] as\n\
+            matches one or more globs.  A glob may use **, *, ?, and [...] as\n\
             wildcards and \\ to quote a wildcard or backslash character\n\
             literally.  When a glob contains a `/', full pathnames are matched.\n\
             Otherwise basenames are matched.  When a glob ends with a `/',\n\
@@ -14233,20 +14057,26 @@ void help(std::ostream& out)
             is also enabled.  Context options -A, -B, -C and -y are ignored.\n\
     --free-space\n\
             Spacing (blanks and tabs) in regular expressions are ignored.\n\
+    --from=FILE\n\
+            Read additional pathnames of files to search from FILE.  When FILE\n\
+            is a `-', standard input is read.  This option is useful with `find\n\
+            ... -print | ugrep --from=- ...' to search specific files.\n\
     -G, --basic-regexp\n\
             Interpret patterns as basic regular expressions (BREs).\n\
     -g GLOBS, --glob=GLOBS, --iglob=GLOBS\n\
             Only search files whose name matches the specified comma-separated\n\
-            list of GLOBS, same as --include=glob for each `glob' in GLOBS.\n\
+            list of GLOBS, same as --include='glob' for each `glob' in GLOBS.\n\
             When a `glob' is preceded by a `!' or a `^', skip files whose name\n\
             matches `glob', same as --exclude='glob'.  When `glob' contains a\n\
-            `/', full pathnames are matched.  Otherwise basenames are matched.\n\
-            When `glob' ends with a `/', directories are matched, same as\n\
-            --include-dir='glob' and --exclude-dir='glob'.  A leading `/'\n\
-            matches the working directory.  Option --iglob performs\n\
-            case-insensitive name matching.  This option may be repeated and\n\
-            may be combined with options -M, -O and -t.  For more details, see\n\
-            `ugrep --help globs' and `man ugrep' section GLOBBING for details.\n\
+            `/', full pathnames are matched and option -r is enabled to recurse\n\
+            into directories if -d, -r or -R is not already specified.\n\
+            Otherwise basenames are matched.  When `glob' ends with a `/',\n\
+            directories are matched, same as --include-dir='glob' and\n\
+            --exclude-dir='glob'.  A leading `./' or just `/' matches the\n\
+            working directory.  Option --iglob=GLOBS performs case-insensitive\n\
+            name matching.  This option may be repeated and may be combined\n\
+            with options -M, -O and -t.  For more details, see `ugrep --help\n\
+            globs' and `man ugrep' section GLOBBING for details.\n\
     --glob-ignore-case\n\
             Perform case-insensitive glob matching in general.\n\
     --group-separator[=SEP]\n\
@@ -14314,24 +14144,28 @@ void help(std::ostream& out)
             Do not ignore files, i.e. cancel --ignore-files when specified.\n\
     --include=GLOB\n\
             Only search files whose name matches GLOB, same as -g GLOB.  GLOB\n\
-            can use **, *, ?, and [...] as wildcards and \\ to quote a wildcard\n\
+            may use **, *, ?, and [...] as wildcards and \\ to quote a wildcard\n\
             or backslash character literally.  When GLOB contains a `/', full\n\
-            pathnames are matched.  Otherwise basenames are matched.  When GLOB\n\
-            ends with a `/', directories are included as if --include-dir is\n\
-            specified.  Otherwise files are included.  Note that --exclude\n\
-            patterns take priority over --include patterns.  GLOB should be\n\
-            quoted to prevent shell globbing.  This option may be repeated.\n\
+            pathnames are matched and option -r is enabled to recurse into\n\
+            directories if -d, -r or -R is not already specified.  Otherwise\n\
+            basenames are matched.  When GLOB ends with a `/', directories are\n\
+            included as if --include-dir is specified.  Otherwise files are\n\
+            included.  Note that --exclude patterns take priority over\n\
+            --include patterns.  GLOB should be quoted to prevent shell\n\
+            globbing.  This option may be repeated.\n\
     --include-dir=GLOB\n\
             Only directories whose name matches GLOB are included in recursive\n\
-            searches, same as -g GLOB/.  GLOB can use **, *, ?, and [...] as\n\
+            searches, same as -g GLOB/.  GLOB may use **, *, ?, and [...] as\n\
             wildcards and \\ to quote a wildcard or backslash character\n\
-            literally.  When GLOB contains a `/', full pathnames are matched.\n\
-            Otherwise basenames are matched.  Note that --exclude-dir patterns\n\
-            take priority over --include-dir patterns.  GLOB should be quoted\n\
-            to prevent shell globbing.  This option may be repeated.\n\
+            literally.  When GLOB contains a `/', full pathnames are matched\n\
+            and option -r is enabled to recurse into directories if -d, -r or\n\
+            -R is not already specified.  Otherwise basenames are matched.\n\
+            Note that --exclude-dir patterns take priority over --include-dir\n\
+            patterns.  GLOB should be quoted to prevent shell globbing.  This\n\
+            option may be repeated.\n\
     --include-from=FILE\n\
             Read the globs from FILE and search only files and directories\n\
-            whose name matches one or more globs.  A glob can use **, *, ?, and\n\
+            whose name matches one or more globs.  A glob may use **, *, ?, and\n\
             [...] as wildcards and \\ to quote a wildcard or backslash\n\
             character literally.  When a glob contains a `/', full pathnames\n\
             are matched.  Otherwise basenames are matched.  When a glob ends\n\
@@ -14514,7 +14348,7 @@ void help(std::ostream& out)
             -e PATTERN, i.e. a PATTERN argument requires option -e.  Press F1\n\
             or CTRL-Z to view the help screen.  Press F2 or CTRL-Y to invoke a\n\
             command to view or edit the file shown at the top of the screen.\n\
-            The command can be specified with option --view and defaults to\n\
+            This command can be specified with option --view and defaults to\n\
             environment variable PAGER when defined, or VISUAL or EDITOR.\n\
             Press TAB or SHIFT-TAB to navigate directories and to select a file\n\
             to search.  Press ENTER to select lines to output.  Press ALT-l for\n\
@@ -14647,10 +14481,11 @@ void help(std::ostream& out)
             additional values are output.  See also options --format and -u.\n\
     -Y, --empty\n\
             Empty-matching patterns match all lines.  Normally, empty matches\n\
-            are not output, unless a pattern begins with `^' or ends with `$'.\n\
-            With this option, empty-matching patterns, such as x? and x*, match\n\
-            all lines, not only lines with an `x' (enabled by default in grep\n\
-            compatibility mode).\n\
+            are not output, unless a pattern starts with `^' or ends with `$'.\n\
+            With this option, empty-matching patterns, such as x*y?, x*y*z*,\n\
+            and x*(y?|z) match all lines, not only the expected pattern.\n\
+            This option is enabled by default in grep compatibility mode;\n\
+            specify option --no-empty to prevent matching all lines.\n\
     -y, --any-line, --passthru\n\
             Any line is output (passthru).  Non-matching lines are output as\n\
             context with a `-' separator.  See also options -A, -B and -C.\n\
@@ -14683,8 +14518,8 @@ void help(std::ostream& out)
             with option --zmax=NUM, searches the contents of compressed files\n\
             and archives stored within archives up to NUM levels.  When -g, -O,\n\
             -M, or -t is specified, searches archives for files that match the\n\
-            specified globs, file extensions, file signature magic bytes, or\n\
-            file types, respectively; a side-effect of these options is that\n\
+            specified globs, filename extensions, file signature magic bytes,\n\
+            or file types, respectively; a side-effect of these options is that\n\
             the compressed files and archives searched are only those with\n\
             filename extensions that match known compression and archive types.\n"
 #ifndef HAVE_LIBZ
@@ -14698,19 +14533,19 @@ void help(std::ostream& out)
 #endif
 #ifdef HAVE_LIBBZ2
             ",\n\
-            bzip2 (requires suffix .bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2)"
+            bzip2 (.bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2)"
 #endif
 #ifdef HAVE_LIBLZMA
             ",\n\
-            lzma and xz (requires suffix .lzma, .tlz, .xz, .txz)"
+            xz (.xz, .txz) and lzma (requires suffix .lzma, .tlz)"
+#endif
+#ifdef HAVE_LIBZSTD
+            ",\n\
+            zstd (.zst, .zstd, .tzst)"
 #endif
 #ifdef HAVE_LIBLZ4
             ",\n\
             lz4 (requires suffix .lz4)"
-#endif
-#ifdef HAVE_LIBZSTD
-            ",\n\
-            zstd (requires suffix .zst, .zstd, .tzst)"
 #endif
 #ifdef HAVE_LIBBROTLI
             ",\n\
@@ -15022,6 +14857,7 @@ Gitignore-style globbing is performed by all glob-related options: -g (--glob),\
  [^abc-e]    one character not a,b,c,d,e,/\n\
  [!abc-e]    one character not a,b,c,d,e,/\n\
  /           when used at the start of a glob, matches working directory\n\
+             when used at the end of a glob, matches directories only\n\
  **/         zero or more directories\n\
  /**         when at the end of a glob, matches everything after the /\n\
  \\?          a ? or any other character specified after the backslash\n\
@@ -15030,13 +14866,14 @@ A glob pattern starting with a ^ or a ! inverts the matching.  Instead of\n\
 matching a filename or directory name, the directory or file is ignored and\n\
 excluded from the search.\n\
 \n\
-When a glob pattern contains a /, the full pathname is matched.  Otherwise, the\n\
-basename of a file or directory is matched in recursive searches.\n\
+When a glob pattern contains a /, the full pathname is matched from the working\n\
+directory down.  Otherwise, the basename of a file or directory is matched in\n\
+recursive searches.\n\
 \n\
-When a glob pattern begins with a /, files and directories are matched at the\n\
-working directory, not recursively.\n\
+When a glob pattern starts with ./ or just a single /, the glob is matched at\n\
+the working directory.\n\
 \n\
-When a glob pattern ends with a /, only directories are matched, not files.\n\
+When a glob pattern ends with a /, directories are matched.\n\
 \n\
 Option -g (--glob) performs glob matching with the specified glob pattern or\n\
 a set of comma-separated globs.  When a glob is preceded with a ^ or !, the\n\
@@ -15113,7 +14950,7 @@ IMPORTANT:\n\
 \n\
 Fuzzy search anchors each pattern match at the beginning character of the\n\
 specified regex pattern.  This significantly improves search performance and\n\
-prevents overmatching.  For example, the regex pattern `[1-9]buzz' begins with\n\
+prevents overmatching.  For example, the regex pattern `[1-9]buzz' starts with\n\
 a nonzero digit at which all matches are anchored.  Replace the beginning of a\n\
 regex pattern with a wildcard to match any character, for example `.buzz', or\n\
 make the first characters of the regex pattern optional, for example\n\
@@ -15194,9 +15031,7 @@ void is_directory(const char *pathname)
 void cannot_decompress(const char *pathname, const char *message)
 {
   if (!flag_no_messages)
-  {
     fprintf(Static::errout, "%sugrep: cannot decompress %s%s%s: %s\n", color_off, color_fn, pathname, color_off, message != NULL ? message : "");
-  }
 }
 #endif
 

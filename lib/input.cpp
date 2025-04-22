@@ -47,6 +47,7 @@
 # define fseeko _fseeki64
 #else
 # include <unistd.h> // off_t, fstat()
+# include <sys/select.h>
 #endif
 
 namespace reflex {
@@ -659,91 +660,88 @@ void Input::file_init()
 #endif
   // assume plain (ASCII, binary or UTF-8 without BOM) content by default
   utfx_ = file_encoding::plain;
-  while (true)
+  // check first UTF BOM byte using a blocking read
+  if (file_read(utf8_, 1))
   {
-    // check first UTF BOM byte
-    if (::fread(utf8_, 1, 1, file_) == 1)
+    ulen_ = 1;
+    if (utf8_[0] == '\0' || utf8_[0] == '\xef' || utf8_[0] == '\xfe' || utf8_[0] == '\xff')
     {
-      ulen_ = 1;
-      if (utf8_[0] == '\0' || utf8_[0] == '\xef' || utf8_[0] == '\xfe' || utf8_[0] == '\xff')
+      // check second UTF BOM byte using a blocking read
+      if (file_read(utf8_ + 1, 1))
       {
-        // check second UTF BOM byte
-        if (::fread(utf8_ + 1, 1, 1, file_) == 1)
+        ulen_ = 2;
+        if (utf8_[0] == '\0' && utf8_[1] == '\0')  // UTF-32 big endian BOM 0000XXXX?
         {
-          ulen_ = 2;
-          if (utf8_[0] == '\0' && utf8_[1] == '\0')  // UTF-32 big endian BOM 0000XXXX?
+          // check third UTF BOM byte using a blocking read
+          if (file_read(utf8_ + 2, 2))
           {
-            if (::fread(utf8_ + 2, 2, 1, file_) == 1)
-            {
-              ulen_ = 4;
-              if (utf8_[2] == '\xfe' && utf8_[3] == '\xff') // UTF-32 big endian BOM 0000FEFF?
-              {
-                size_ = 0;
-                ulen_ = 0;
-                utfx_ = file_encoding::utf32be;
-              }
-            }
-          }
-          else if (utf8_[0] == '\xfe' && utf8_[1] == '\xff') // UTF-16 big endian BOM FEFF?
-          {
-            size_ = 0;
-            ulen_ = 0;
-            utfx_ = file_encoding::utf16be;
-          }
-          else if (utf8_[0] == '\xff' && utf8_[1] == '\xfe') // UTF-16 or UTF-32 little endian BOM FFFEXXXX?
-          {
-            if (::fread(utf8_ + 2, 2, 1, file_) == 1)
+            ulen_ = 4;
+            if (utf8_[2] == '\xfe' && utf8_[3] == '\xff') // UTF-32 big endian BOM 0000FEFF?
             {
               size_ = 0;
-              if (utf8_[2] == '\0' && utf8_[3] == '\0') // UTF-32 little endian BOM FFFE0000?
+              ulen_ = 0;
+              utfx_ = file_encoding::utf32be;
+            }
+          }
+        }
+        else if (utf8_[0] == '\xfe' && utf8_[1] == '\xff') // UTF-16 big endian BOM FEFF?
+        {
+          size_ = 0;
+          ulen_ = 0;
+          utfx_ = file_encoding::utf16be;
+        }
+        else if (utf8_[0] == '\xff' && utf8_[1] == '\xfe') // UTF-16 or UTF-32 little endian BOM FFFEXXXX?
+        {
+          // check third UTF BOM byte using a blocking read
+          if (file_read(utf8_ + 2, 2))
+          {
+            size_ = 0;
+            if (utf8_[2] == '\0' && utf8_[3] == '\0') // UTF-32 little endian BOM FFFE0000?
+            {
+              ulen_ = 0;
+              utfx_ = file_encoding::utf32le;
+            }
+            else
+            {
+              int c = static_cast<unsigned char>(utf8_[2]) | static_cast<unsigned char>(utf8_[3]) << 8;
+              if (c < 0x80)
               {
-                ulen_ = 0;
-                utfx_ = file_encoding::utf32le;
+                uidx_ = 2;
+                ulen_ = 1;
               }
               else
               {
-                int c = static_cast<unsigned char>(utf8_[2]) | static_cast<unsigned char>(utf8_[3]) << 8;
-                if (c < 0x80)
+                if (c >= 0xD800 && c < 0xE000)
                 {
-                  uidx_ = 2;
-                  ulen_ = 1;
+                  // UTF-16 surrogate pair
+                  if (c < 0xDC00 && file_read(utf8_, 2) && (static_cast<unsigned char>(utf8_[1]) & 0xFC) == 0xDC)
+                    c = 0x010000 - 0xDC00 + ((c - 0xD800) << 10) + (static_cast<unsigned char>(utf8_[0]) | static_cast<unsigned char>(utf8_[1]) << 8);
+                  else
+                    c = REFLEX_NONCHAR;
                 }
-                else
-                {
-                  if (c >= 0xD800 && c < 0xE000)
-                  {
-                    // UTF-16 surrogate pair
-                    if (c < 0xDC00 && ::fread(utf8_, 2, 1, file_) == 1 && (static_cast<unsigned char>(utf8_[1]) & 0xFC) == 0xDC)
-                      c = 0x010000 - 0xDC00 + ((c - 0xD800) << 10) + (static_cast<unsigned char>(utf8_[0]) | static_cast<unsigned char>(utf8_[1]) << 8);
-                    else
-                      c = REFLEX_NONCHAR;
-                  }
-                  ulen_ = static_cast<unsigned short>(utf8(c, utf8_)); // always a short unsigned int
-                }
-                utfx_ = file_encoding::utf16le;
+                ulen_ = static_cast<unsigned short>(utf8(c, utf8_)); // always a short unsigned int
               }
+              utfx_ = file_encoding::utf16le;
             }
           }
-          else if (utf8_[0] == '\xef' && utf8_[1] == '\xbb') // UTF-8 BOM EFBBXX?
+        }
+        else if (utf8_[0] == '\xef' && utf8_[1] == '\xbb') // UTF-8 BOM EFBBXX?
+        {
+          // check third UTF BOM byte using a blocking read
+          if (file_read(utf8_ + 2, 1))
           {
-            if (::fread(utf8_ + 2, 1, 1, file_) == 1)
+            ulen_ = 3;
+            if (utf8_[2] == '\xbf') // UTF-8 BOM EFBBBF?
             {
-              ulen_ = 3;
-              if (utf8_[2] == '\xbf') // UTF-8 BOM EFBBBF?
-              {
-                if (size_ >= 3)
-                  size_ -= 3;
-                ulen_ = 0;
-                utfx_ = file_encoding::utf8;
-              }
+              if (size_ >= 3)
+                size_ -= 3;
+              ulen_ = 0;
+              utfx_ = file_encoding::utf8;
             }
           }
         }
       }
-      break;
     }
-    if (handler_ == NULL || feof(file_) || (*handler_)(file_) == 0)
-      break;
   }
 }
 
@@ -770,7 +768,7 @@ size_t Input::file_get(char *s, size_t n)
   switch (utfx_)
   {
     case file_encoding::utf16be:
-      while (n > 0 && ::fread(buf, 2, 1, file_) == 1)
+      while (n > 0 && ::fread(buf, 1, 1, file_) == 1 && file_read(reinterpret_cast<char*>(buf) + 1, 1))
       {
         int c = buf[0] << 8 | buf[1];
         if (c < 0x80)
@@ -782,8 +780,8 @@ size_t Input::file_get(char *s, size_t n)
         {
           if (c >= 0xD800 && c < 0xE000)
           {
-            // UTF-16 surrogate pair
-            if (c < 0xDC00 && ::fread(buf + 2, 2, 1, file_) == 1 && (buf[2] & 0xFC) == 0xDC)
+            // UTF-16 surrogate pair, complete the pair using a blocking read
+            if (c < 0xDC00 && file_read(reinterpret_cast<char*>(buf) + 2, 2) && (buf[2] & 0xFC) == 0xDC)
               c = 0x010000 - 0xDC00 + ((c - 0xD800) << 10) + (buf[2] << 8 | buf[3]);
             else
               c = REFLEX_NONCHAR;
@@ -809,7 +807,7 @@ size_t Input::file_get(char *s, size_t n)
         size_ -= t - s;
       return t - s;
     case file_encoding::utf16le:
-      while (n > 0 && ::fread(buf, 2, 1, file_) == 1)
+      while (n > 0 && ::fread(buf, 1, 1, file_) == 1 && file_read(reinterpret_cast<char*>(buf) + 1, 1))
       {
         int c = buf[0] | buf[1] << 8;
         if (c < 0x80)
@@ -821,8 +819,8 @@ size_t Input::file_get(char *s, size_t n)
         {
           if (c >= 0xD800 && c < 0xE000)
           {
-            // UTF-16 surrogate pair
-            if (c < 0xDC00 && ::fread(buf + 2, 2, 1, file_) == 1 && (buf[3] & 0xFC) == 0xDC)
+            // UTF-16 surrogate pair, complete the pair using a blocking read
+            if (c < 0xDC00 && file_read(reinterpret_cast<char*>(buf) + 2, 2) && (buf[3] & 0xFC) == 0xDC)
               c = 0x010000 - 0xDC00 + ((c - 0xD800) << 10) + (buf[2] | buf[3] << 8);
             else
               c = REFLEX_NONCHAR;
@@ -848,7 +846,7 @@ size_t Input::file_get(char *s, size_t n)
         size_ -= t - s;
       return t - s;
     case file_encoding::utf32be:
-      while (n > 0 && ::fread(buf, 4, 1, file_) == 1)
+      while (n > 0 && ::fread(buf, 1, 1, file_) == 1 && file_read(reinterpret_cast<char*>(buf) + 1, 3))
       {
         int c = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
         if (c < 0x80)
@@ -879,7 +877,7 @@ size_t Input::file_get(char *s, size_t n)
         size_ -= t - s;
       return t - s;
     case file_encoding::utf32le:
-      while (n > 0 && ::fread(buf, 4, 1, file_) == 1)
+      while (n > 0 && ::fread(buf, 1, 1, file_) == 1 && file_read(reinterpret_cast<char*>(buf) + 1, 3))
       {
         int c = buf[0] | buf[1] << 8 | buf[2] << 16 | buf[3] << 24;
         if (c < 0x80)
@@ -1022,6 +1020,31 @@ size_t Input::file_get(char *s, size_t n)
         size_ -= t - s;
       return t - s;
   }
+}
+
+bool Input::file_ready()
+{
+  if (file_ == NULL || feof(file_))
+    return false;
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+  return true;
+#else
+  while (true)
+  {
+    struct timeval tv;
+    fd_set rfds, efds;
+    FD_ZERO(&rfds);
+    FD_ZERO(&efds);
+    FD_SET(0, &efds);
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    int r = ::select(fileno(file_) + 1, &rfds, NULL, &efds, &tv);
+    if (r < 0 && errno != EINTR)
+      return false;
+    if (r > 0)
+      return FD_ISSET(fileno(file_), &efds) == 0;
+  }
+#endif
 }
 
 void Input::wstring_size()

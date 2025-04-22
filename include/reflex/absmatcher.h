@@ -138,7 +138,7 @@ class AbstractMatcher {
         num(num)
     { }
     const char *buf; ///< pointer to buffer
-    size_t      len; ///< length of buffered context
+    size_t      len; ///< length of buffered context up to the matching line (bol_)
     size_t      num; ///< number of bytes shifted out so far, when buffer shifted
   };
   /// Event handler functor base class to invoke when the buffer contents are shifted out, e.g. for logging the data searched.
@@ -471,6 +471,12 @@ class AbstractMatcher {
   {
     evh_ = handler;
   }
+  /// Invoke handler explicitly (externally) with zero shift distance.
+  inline void handle()
+  {
+    if (evh_)
+      (*evh_)(*this, buf_, 0, num_);
+  }
   /// Set reserved bytes for buffer shifting
   inline void set_reserve(size_t n)
   {
@@ -503,7 +509,7 @@ class AbstractMatcher {
     DBGLOG("AbstractMatcher::interactive()");
     (void)buffer(1);
   }
-  /// Flush the buffer's remaining content.
+  /// Flush and delete the buffer's remaining content.
   inline void flush()
   {
     DBGLOG("AbstractMatcher::flush()");
@@ -583,7 +589,6 @@ class AbstractMatcher {
     }
     return *this;
   }
-  
   /// Returns nonzero capture index (i.e. true) if the entire input matches this matcher's pattern (and internally caches the true/false result to permit repeat invocations).
   inline size_t matches()
     /// @returns nonzero capture index if the entire input matched this matcher's pattern, zero (i.e. false) otherwise
@@ -674,7 +679,7 @@ class AbstractMatcher {
     return utf8(txt_);
   }
 #if WITH_SPAN
-  /// Set or reset mode to count matching lines only and skip other (e.g. for speed).
+  /// Set or reset mode to count matching lines only and skip all other (e.g. for speed).
   inline void lineno_skip(bool f = false)
   {
     cml_ = f;
@@ -1056,23 +1061,19 @@ class AbstractMatcher {
 #if WITH_FAST_GET
     return pos_ < end_ ? static_cast<unsigned char>(buf_[pos_]) : peek_more();
 #else
-    if (pos_ < end_)
-      return static_cast<unsigned char>(buf_[pos_]);
-    if (eof_)
-      return EOF;
     while (true)
     {
-      if (end_ + blk_ + 1 >= max_)
-        (void)grow();
-      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
       if (pos_ < end_)
         return static_cast<unsigned char>(buf_[pos_]);
-      DBGLOGN("peek(): EOF");
-      if (!wrap())
-      {
-        eof_ = true;
+      if (eof_)
         return EOF;
-      }
+      if (end_ + blk_ + 1 >= max_)
+        (void)grow();
+      size_t n = get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
+      if (n == 0)
+        eof_ = !wrap();
+      else
+        end_ += n;
     }
 #endif
   }
@@ -1541,23 +1542,19 @@ class AbstractMatcher {
 #if WITH_FAST_GET
     return pos_ < end_ ? static_cast<unsigned char>(buf_[pos_++]) : get_more();
 #else
-    if (pos_ < end_)
-      return static_cast<unsigned char>(buf_[pos_++]);
-    if (eof_)
-      return EOF;
     while (true)
     {
-      if (end_ + blk_ + 1 >= max_)
-        (void)grow();
-      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
       if (pos_ < end_)
         return static_cast<unsigned char>(buf_[pos_++]);
-      DBGLOGN("get(): EOF");
-      if (!wrap())
-      {
-        eof_ = true;
+      if (eof_)
         return EOF;
-      }
+      if (end_ + blk_ + 1 >= max_)
+        (void)grow();
+      size_t n = get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
+      if (n == 0)
+        eof_ = !wrap();
+      else
+        end_ += n;
     }
 #endif
   }
@@ -1594,49 +1591,43 @@ class AbstractMatcher {
     else
       txt_ = buf_; // old txt_ position was shifted out, set to the begin of the buffer
   }
-  /// Get the next character and grow the buffer to make more room if necessary.
+  /// Get the next character and grow the buffer to make more room if necessary, unless EOF.
   inline int get_more()
     /// @returns the character read (unsigned char 0..255) or EOF (-1)
   {
     DBGLOG("AbstractMatcher::get_more()");
-    if (eof_)
-      return EOF;
-    while (true)
+    while (!eof_)
     {
       if (end_ + blk_ + 1 >= max_)
         (void)grow();
-      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
+      size_t n = get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
+      if (n == 0)
+        eof_ = !wrap();
+      else
+        end_ += n;
       if (pos_ < end_)
         return static_cast<unsigned char>(buf_[pos_++]);
-      DBGLOGN("get_more(): EOF");
-      if (!wrap())
-      {
-        eof_ = true;
-        return EOF;
-      }
     }
+    return EOF;
   }
-  /// Peek at the next character and grow the buffer to make more room if necessary.
+  /// Peek at the next character and grow the buffer to make more room if necessary, unless EOF.
   inline int peek_more()
     /// @returns the character (unsigned char 0..255) or EOF (-1)
   {
     DBGLOG("AbstractMatcher::peek_more()");
-    if (eof_)
-      return EOF;
-    while (true)
+    while (!eof_)
     {
       if (end_ + blk_ + 1 >= max_)
         (void)grow();
-      end_ += get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
+      size_t n = get(buf_ + end_, blk_ > 0 ? blk_ : max_ - end_ - 1);
+      if (n == 0)
+        eof_ = !wrap();
+      else
+        end_ += n;
       if (pos_ < end_)
         return static_cast<unsigned char>(buf_[pos_]);
-      DBGLOGN("peek_more(): EOF");
-      if (!wrap())
-      {
-        eof_ = true;
-        return EOF;
-      }
     }
+    return EOF;
   }
   Option      opt_; ///< options for matcher engines
   char       *buf_; ///< input character sequence buffer
@@ -1662,7 +1653,7 @@ class AbstractMatcher {
 #endif
   size_t      cno_; ///< column number count (cached)
   size_t      num_; ///< character count of the input till bol_
-  size_t      res_; ///< reserve bytes to keep in the buffer before bol_ when shifting, use only w/o evh_() set
+  size_t      res_; ///< reserve bytes to keep in the buffer before bol_ when shifting
   bool        own_; ///< true if AbstractMatcher::buf_ was allocated and should be deleted
   bool        eof_; ///< input has reached EOF
   bool        mat_; ///< true if AbstractMatcher::matches() was successful

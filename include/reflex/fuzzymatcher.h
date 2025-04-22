@@ -782,11 +782,11 @@ unrolled:
               // text insertions are allowed
               while (err_ < max_)
               {
-                ++err_;
-                ch = get();
                 // reached the end?
+                ch = get();
                 if (ch == EOF)
                   break;
+                ++err_;
                 // skip one (multibyte) char
                 if (!bin_ && ch >= 0xC0)
                 {
@@ -1077,7 +1077,7 @@ unrolled:
                   loc = e - buf_;
                   set_current_and_peek_more(loc);
                   loc = cur_;
-                  if (loc >= end_)
+                  if (loc >= end_ && eof_)
                     break;
                 }
               }
@@ -1098,7 +1098,7 @@ unrolled:
                 loc = e - buf_;
                 set_current_and_peek_more(loc);
                 loc = cur_;
-                if (loc + pat_->len_ > end_)
+                if (loc + pat_->len_ > end_ && eof_)
                   break;
               }
             }

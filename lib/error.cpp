@@ -47,7 +47,7 @@ std::string regex_error::regex_error_message_code(regex_error_type code, const c
     "mismatched { }",
     "mismatched [ ]",
     "mismatched quotation",
-    "empty expression",
+    "empty (sub)expression",
     "empty character class",
     "invalid character class",
     "invalid character class range",

@@ -37,6 +37,7 @@ complete -c ugrep -l filter -d 'Filter files through the specified COMMANDS firs
 complete -c ugrep -l filter-magic-label -d 'Associate LABEL with files whose signature "magic bytes" match the MAGIC regex pattern'
 complete -c ugrep -l format -d 'Output FORMAT-formatted matches'
 complete -c ugrep -l free-space -d 'Spacing (blanks and tabs) in regular expressions are ignored'
+complete -c ugrep -l from -d 'Read additional pathnames of files to search from FILE'
 complete -c ugrep -s G -l basic-regexp -d 'Interpret patterns as basic regular expressions (BREs)'
 complete -c ugrep -s g -r -l glob -l iglob -d 'Only search files whose name matches the specified comma-separated list of GLOBS, same as --include=glob for each glob in GLOBS'
 complete -c ugrep -l glob-ignore-case -d 'Perform case-insensitive glob matching in general'

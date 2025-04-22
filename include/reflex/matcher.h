@@ -1427,9 +1427,9 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   bool simd_advance_string_pma_avx512bw(size_t loc);
   bool simd_advance_string_pmh_avx512bw(size_t loc);
   // String NEON metnods
-  bool simd_advance_string_neon(const char *&s, const char *e);
-  bool simd_advance_string_pma_neon(const char *&s, const char *e);
-  bool simd_advance_string_pmh_neon(const char *&s, const char *e);
+  bool simd_advance_string_neon(const char *& s, const char *e);
+  bool simd_advance_string_pma_neon(const char *& s, const char *e);
+  bool simd_advance_string_pmh_neon(const char *& s, const char *e);
   // Fallback Boyer-Moore methods
   bool advance_string_bm(size_t loc);
   bool advance_string_bm_pma(size_t loc);
