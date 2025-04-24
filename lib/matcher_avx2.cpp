@@ -232,7 +232,8 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
     }
     else
     {
-      loc = std::max<size_t>(loc, e - lcp - buf_);
+      if (e > buf_ + loc + lcp)
+        loc = e - buf_ - lcp;
       set_current_and_peek_more(loc);
       loc = cur_;
       if (loc + min > end_ && eof_)
@@ -288,7 +289,8 @@ bool Matcher::simd_advance_pattern_pin1_pmh_avx2(size_t loc)
     }
     else
     {
-      loc = std::max<size_t>(loc, e - lcp - buf_);
+      if (e > buf_ + loc + lcp)
+        loc = e - buf_ - lcp;
       set_current_and_peek_more(loc);
       loc = cur_;
       if (loc + MIN > end_ && eof_)
