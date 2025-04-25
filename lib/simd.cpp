@@ -402,7 +402,7 @@ bool isutf8(const char *s, const char *e)
 
   while (s < e)
   {
-    int8_t c;
+    int8_t c = 0;
     while (s < e && (c = static_cast<int8_t>(*s)) > 0)
       ++s;
     if (s++ >= e)

@@ -597,7 +597,7 @@ class AbstractMatcher {
     {
       mat_ = match(Const::MATCH);
       if (!at_end())
-        mat_ = 0;
+        mat_ = false;
     }
     return mat_;
   }

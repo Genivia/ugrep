@@ -1211,7 +1211,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     }
     return !std::isalnum(static_cast<unsigned char>(c));
 #else
-    return !isword(got_);
+    return isword(got_) == 0;
 #endif
   }
   /// Check if a word ends after the match.
@@ -1232,7 +1232,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     return !std::isalnum(static_cast<unsigned char>(c));
 #else
     (void)k;
-    return !isword(c);
+    return isword(c) == 0;
 #endif
   }
   /// Check if match begins a word (after split with len_ > 0 or len_ = 0 for find).
@@ -1249,7 +1249,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     }
     return std::isalnum(static_cast<unsigned char>(c));
 #else
-    return isword(static_cast<unsigned char>(txt_[len_]))
+    return isword(static_cast<unsigned char>(txt_[len_])) != 0
 #endif
   }
   /// Check if match ends a word.
@@ -1274,7 +1274,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     }
     return std::isalnum(static_cast<unsigned char>(c));
 #else
-    return isword(c);
+    return isword(c) != 0;
 #endif
   }
   /// Check end of word at match end boundary MATCH\> at pos.

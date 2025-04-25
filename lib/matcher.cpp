@@ -2419,7 +2419,7 @@ bool Matcher::advance_pattern_min4(size_t loc)
     e = buf_ + end_ - 2;
     if (s >= e && eof_)
     {
-      uint8_t c0 = static_cast<uint8_t>(*s);
+      c0 = static_cast<uint8_t>(*s);
       if (s == e + 1)
       {
         uint8_t c1 = 0; // reached the end
