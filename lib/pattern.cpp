@@ -4000,13 +4000,13 @@ void Pattern::analyze_dfa(DFA::State *start)
       chars += next_chars;
       states.swap(next_states);
       // are we done?
-      if (count <= fin_count)
+      if (count <= fin_count || (!is_more && cut_span < 2))
       {
         if (is_more)
           ++cut_span;
         if (min_count < cut_count && min_count < best_min_count)
         {
-          if (cut_span >= 2 && prev_min_count < 0xffff && prev_min_count > 8 && min_count <= 8)
+          if (cut_span >= 2 && prev_min_count < 0xffff && prev_min_count >= 64 && min_count <= 8)
           {
             // save final best metrics when last character matters, update similar to search branch above
             best_cut_states.swap(states);

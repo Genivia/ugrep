@@ -1620,8 +1620,8 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             // translate \X to match any valid UTF-8 even beyond
             regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xdf][\\x80-\\xbf]|\\xe0[\\xa0-\\xbf][\\x80-\\xbf]|[\\xe1-\\xec][\\x80-\\xbf][\\x80-\\xbf]|\\xed[\\x80-\\x9f][\\x80-\\xbf]|[\\xee\\xef][\\x80-\\xbf][\\x80-\\xbf]|\\xf0[\\x90-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|[\\xf1-\\xf3][\\x80-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|\\xf4[\\x80-\\x8f][\\x80-\\xbf][\\x80-\\xbf]").push_back(')');
 #else
-            // translate \X to match any valid UTF-8 encoding
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xf4][\\x80-\\xbf]{1,3}").push_back(')');
+            // translate \X to match any valid UTF-8 encoding (including overruns)
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xf4][\\x80-\\xbf]+").push_back(')');
 #endif
             loc = pos + 1;
           }
@@ -2141,9 +2141,9 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
             else
             {
               if (is_modified(mod, 's'))
-                regex.append(par).append("[^\\x80-\\xbf][\\x80-\\xbf]{0,3})");
+                regex.append(par).append("[^\\x80-\\xbf][\\x80-\\xbf]*)");
               else
-                regex.append(par).append("[^\\n\\x80-\\xbf][\\x80-\\xbf]{0,3})");
+                regex.append(par).append("[^\\n\\x80-\\xbf][\\x80-\\xbf]*)");
             }
             loc = pos + 1;
           }
