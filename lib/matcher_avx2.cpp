@@ -837,25 +837,25 @@ bool Matcher::simd_advance_pattern_min4_avx2(size_t loc)
       vc0 = vc1;
       // get most significant bit of each byte, check each 2nd byte of the 4x32 bit words
       uint32_t mask = _mm_extract_epi32(_mm_shuffle_epi8(vstate, vselect), 0);
-      if ((mask & 0x00000008) == 0 && pat_->predict_match(s - MIN + 0, MIN))
+      if ((mask & 0x00000008) == 0 && s >= buf_ + MIN - 0 && pat_->predict_match(s - MIN + 0, MIN))
       {
         size_t k = s - buf_ - MIN + 0;
         set_current(k);
         return true;
       }
-      if ((mask & 0x00000404) == 0 && pat_->predict_match(s - MIN + 1, MIN))
+      if ((mask & 0x00000404) == 0 && s >= buf_ + MIN - 1 && pat_->predict_match(s - MIN + 1, MIN))
       {
         size_t k = s - buf_ - MIN + 1;
         set_current(k);
         return true;
       }
-      if ((mask & 0x00020202) == 0 && pat_->predict_match(s - MIN + 2, MIN))
+      if ((mask & 0x00020202) == 0 && s >= buf_ + MIN - 2 && pat_->predict_match(s - MIN + 2, MIN))
       {
         size_t k = s - buf_ - MIN + 2;
         set_current(k);
         return true;
       }
-      if ((mask & 0x01010101) == 0 && pat_->predict_match(s - MIN + 3, MIN))
+      if ((mask & 0x01010101) == 0 && s >= buf_ + MIN - 3 && pat_->predict_match(s - MIN + 3, MIN))
       {
         size_t k = s - buf_ - MIN + 3;
         set_current(k);

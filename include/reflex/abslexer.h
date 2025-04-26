@@ -71,6 +71,12 @@ class AbstractLexer {
         M(pattern, input, opt),
         lexer_(lexer)
     { }
+    /// Assign a matcher, the underlying pattern object is shared (not deep copied).
+    virtual Matcher& operator=(const Matcher& matcher)
+    {
+      M::operator=(matcher);
+      lexer_ = matcher.lexer_;
+    }
    protected:
     /// Returns true if matcher should wrap input after EOF (lexer wrap() should return 0 to wrap input after EOF).
     virtual bool wrap()
