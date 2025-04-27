@@ -1212,38 +1212,38 @@ bool Output::format(const char *format, const char *pathname, const std::string&
           std::pair<const char*,size_t> cap = capture(matcher, arg);
           if (cap.first != NULL)
           {
-            const char *s = cap.first;
+            const char *p = cap.first;
             size_t n = cap.second;
-            if (flag_hex || (flag_with_hex && !reflex::isutf8(s, s + n)))
+            if (flag_hex || (flag_with_hex && !reflex::isutf8(p, p + n)))
             {
               if (width > 0 && static_cast<size_t>(width) < n)
                 n = width;
-              hex(s, n);
+              hex(p, n);
             }
             else
             {
               if (width > 0)
-                utf8strn(s, n, width);
+                utf8strn(p, n, width);
               else
-                str(s, n);
+                str(p, n);
             }
           }
         }
         else
         {
-          const char *s = matcher->begin();
+          const char *p = matcher->begin();
           size_t n = matcher->size();
-          if (flag_hex || (flag_with_hex && !reflex::isutf8(s, s + n)))
+          if (flag_hex || (flag_with_hex && !reflex::isutf8(p, p + n)))
           {
             if (width > 0 && static_cast<size_t>(width) < n)
               n = width;
-            hex(s, n);
+            hex(p, n);
           }
           else
           {
             if (width != 0)
-              s = match_context(matcher, plus, width, n);
-            str(s, n);
+              p = match_context(matcher, plus, width, n);
+            str(p, n);
           }
         }
         break;
@@ -1261,9 +1261,9 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         }
         else
         {
-          size_t n;
-          const char *s = match_context(matcher, plus, width, n);
-          quote(s, n);
+          size_t size;
+          const char *context = match_context(matcher, plus, width, size);
+          quote(context, size);
         }
         break;
 
@@ -1293,9 +1293,9 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         }
         else
         {
-          size_t n;
-          const char *s = match_context(matcher, plus, width, n);
-          cpp(s, n);
+          size_t size;
+          const char *context = match_context(matcher, plus, width, size);
+          cpp(context, size);
         }
         break;
 
@@ -1325,9 +1325,9 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         }
         else
         {
-          size_t n;
-          const char *s = match_context(matcher, plus, width, n);
-          csv(s, n);
+          size_t size;
+          const char *context = match_context(matcher, plus, width, size);
+          csv(context, size);
         }
         break;
 
@@ -1357,9 +1357,9 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         }
         else
         {
-          size_t n;
-          const char *s = match_context(matcher, plus, width, n);
-          json(s, n);
+          size_t size;
+          const char *context = match_context(matcher, plus, width, size);
+          json(context, size);
         }
         break;
 
@@ -1389,9 +1389,9 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         }
         else
         {
-          size_t n;
-          const char *s = match_context(matcher, plus, width, n);
-          xml(s, n);
+          size_t size;
+          const char *context = match_context(matcher, plus, width, size);
+          xml(context, size);
         }
         break;
 
@@ -1421,9 +1421,9 @@ bool Output::format(const char *format, const char *pathname, const std::string&
         }
         else
         {
-          size_t n;
-          const char *s = match_context(matcher, plus, width, n);
-          hex(s, n);
+          size_t size;
+          const char *context = match_context(matcher, plus, width, size);
+          hex(context, size);
         }
         break;
 

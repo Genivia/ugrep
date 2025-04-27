@@ -941,8 +941,8 @@ struct Zthread {
         {
           if (is_chained)
           {
-            // use lock and wait for partname ready
-            std::unique_lock<std::mutex> lock(pipe_mutex);
+            // wait for partname ready
+            lock.lock();
             // notify the decompression filter thread of the new pipe
             pipe_ready.notify_one();
             // wait for the partname to be set by the next decompression thread in the ztchain
@@ -976,7 +976,7 @@ struct Zthread {
         pipe_ready.notify_one();
 
         // when an error occurred, we still need to notify the receiver in case it is waiting on the partname
-        std::unique_lock<std::mutex> lock(pipe_mutex);
+        lock.lock();
         is_assigned = true;
         part_ready.notify_one();
         lock.unlock();
@@ -3732,48 +3732,48 @@ struct Grep {
               while (isspace(static_cast<unsigned char>(*arg)))
                 ++arg;
 
-              char *sep = arg;
+              char *s = arg;
 
               if (*arg == '"')
               {
                 // "quoted argument" separated by space
-                ++sep;
+                ++s;
 
-                while (*sep != '\0' &&
-                    (*sep != '"' ||
-                     (sep[1] != '\0' && sep[1] != ',' && !isspace(static_cast<unsigned char>(sep[1])))))
-                  ++sep;
+                while (*s != '\0' &&
+                    (*s != '"' ||
+                     (s[1] != '\0' && s[1] != ',' && !isspace(static_cast<unsigned char>(s[1])))))
+                  ++s;
 
-                if (*sep == '"')
+                if (*s == '"')
                 {
                   ++arg;
-                  *sep++ = '\0';
+                  *s++ = '\0';
                 }
               }
               else
               {
                 // space-separated argument
-                while (*sep != '\0' && *sep != ',' && !isspace(static_cast<unsigned char>(*sep)))
-                  ++sep;
+                while (*s != '\0' && *s != ',' && !isspace(static_cast<unsigned char>(*s)))
+                  ++s;
               }
 
-              if (sep > arg)
+              if (s > arg)
               {
-                if (sep - arg == 1 && *arg == '%')
+                if (s - arg == 1 && *arg == '%')
                   args.push_back(in == stdin ? "-" : pathname);
                 else
                   args.push_back(arg);
               }
 
-              if (*sep == ',')
-                *sep = '\0';
+              if (*s == ',')
+                *s = '\0';
 
-              if (*sep == '\0')
+              if (*s == '\0')
                 break;
 
-              *sep = '\0';
+              *s = '\0';
 
-              arg = sep + 1;
+              arg = s + 1;
             }
 
             // silently bail out if there is no command
@@ -6567,8 +6567,8 @@ void init(int argc, const char **argv)
     {
       std::string msg("invalid argument --encoding=ENCODING, valid arguments are");
 
-      for (int i = 0; encoding_table[i].format != NULL; ++i)
-        msg.append(" '").append(encoding_table[i].format).append("',");
+      for (j = 0; encoding_table[j].format != NULL; ++j)
+        msg.append(" '").append(encoding_table[j].format).append("',");
       msg.pop_back();
 
       usage(msg.c_str());
@@ -6847,20 +6847,20 @@ void init(int argc, const char **argv)
   }
 
   // check all FILE arguments, warn about non-existing and non-readable files and directories
-  auto file = Static::arg_files.begin();
-  while (file != Static::arg_files.end())
+  auto arg_file = Static::arg_files.begin();
+  while (arg_file != Static::arg_files.end())
   {
 #ifdef OS_WIN
 
-    DWORD attr = GetFileAttributesW(utf8_decode(*file).c_str());
+    DWORD attr = GetFileAttributesW(utf8_decode(*arg_file).c_str());
 
     if (attr == INVALID_FILE_ATTRIBUTES)
     {
-      // FILE does not exist
+      // argument FILE does not exist
       errno = ENOENT;
-      warning(NULL, *file);
+      warning(NULL, *arg_file);
 
-      file = Static::arg_files.erase(file);
+      arg_file = Static::arg_files.erase(arg_file);
       if (Static::arg_files.empty())
         exit(EXIT_ERROR);
     }
@@ -6872,11 +6872,11 @@ void init(int argc, const char **argv)
         if (flag_directories_action == Action::UNSP)
           flag_all_threads = true;
 
-        // remove trailing path separators, if any (*file points to argv[])
-        trim_pathname_arg(*file);
+        // remove trailing path separators, if any (*arg_file points to argv[])
+        trim_pathname_arg(*arg_file);
       }
 
-      ++file;
+      ++arg_file;
     }
 
 #else
@@ -6885,16 +6885,16 @@ void init(int argc, const char **argv)
     int ret;
 
     if (flag_no_dereference)
-      ret = lstat(*file, &buf);
+      ret = lstat(*arg_file, &buf);
     else
-      ret = stat(*file, &buf);
+      ret = stat(*arg_file, &buf);
 
     if (ret != 0)
     {
-      // the specified FILE does not exist
-      warning(NULL, *file);
+      // the specified argument FILE does not exist
+      warning(NULL, *arg_file);
 
-      file = Static::arg_files.erase(file);
+      arg_file = Static::arg_files.erase(arg_file);
       if (Static::arg_files.empty())
         exit(EXIT_ERROR);
     }
@@ -6903,18 +6903,18 @@ void init(int argc, const char **argv)
       if (flag_no_dereference && S_ISLNK(buf.st_mode))
       {
         // -p: skip symlinks
-        file = Static::arg_files.erase(file);
+        arg_file = Static::arg_files.erase(arg_file);
         if (Static::arg_files.empty())
           exit(EXIT_ERROR);
       }
 #ifdef WITH_WARN_UNREADABLE_FILE_ARG
       else if ((buf.st_mode & S_IRUSR) == 0)
       {
-        // the specified file or directory is not readable, even when executing as su
+        // the specified argument FILE or directory is not readable, even when executing as su
         errno = EACCES;
-        warning("cannot read", *file);
+        warning("cannot read", *arg_file);
 
-        file = Static::arg_files.erase(file);
+        arg_file = Static::arg_files.erase(arg_file);
         if (Static::arg_files.empty())
           exit(EXIT_ERROR);
       }
@@ -6927,11 +6927,11 @@ void init(int argc, const char **argv)
           if (flag_directories_action == Action::UNSP)
             flag_all_threads = true;
 
-          // remove trailing path separators, if any (*file points to argv[])
-          trim_pathname_arg(*file);
+          // remove trailing path separators, if any (*arg_file points to argv[])
+          trim_pathname_arg(*arg_file);
         }
 
-        ++file;
+        ++arg_file;
       }
     }
 
@@ -7027,8 +7027,8 @@ void init(int argc, const char **argv)
       else
       {
         // --exclude-fs without MOUNT points: only include FS associated with the specified file and directory targets
-        for (const auto& file : Static::arg_files)
-          if (stat_fs(file, &buf) == 0)
+        for (const auto& target : Static::arg_files)
+          if (stat_fs(target, &buf) == 0)
             include_fs_ids.insert(fsid_to_uint64(buf.f_fsid));
       }
     }
@@ -7921,25 +7921,25 @@ void ugrep()
 
   // all excluded files: normalize by moving directory globs (globs ending in a path separator /) to --exclude-dir and remove consecutive duplicates
   std::string *last = NULL;
-  auto i = flag_all_exclude.begin();
-  while (i != flag_all_exclude.end())
+  auto it = flag_all_exclude.begin();
+  while (it != flag_all_exclude.end())
   {
     // remove empty and duplicate --exclude globs
-    if (i->empty() || (last != NULL && i->compare(*last) == 0))
+    if (it->empty() || (last != NULL && it->compare(*last) == 0))
     {
-      i = flag_all_exclude.erase(i);
-      if (static_cast<size_t>(std::distance(flag_all_exclude.begin(), i)) < flag_exclude_iglob_size)
+      it = flag_all_exclude.erase(it);
+      if (static_cast<size_t>(std::distance(flag_all_exclude.begin(), it)) < flag_exclude_iglob_size)
         --flag_exclude_iglob_size;
     }
-    else if (i->back() == '/')
+    else if (it->back() == '/')
     {
       // move directory glob (ending in a /) from --exclude to --exclude-dir (these are all case sensitive)
-      flag_all_exclude_dir.emplace_back(*i);
-      i = flag_all_exclude.erase(i);
+      flag_all_exclude_dir.emplace_back(*it);
+      it = flag_all_exclude.erase(it);
     }
     else
     {
-      last = &*i++;
+      last = &*it++;
     }
   }
 
@@ -7950,56 +7950,56 @@ void ugrep()
   // all included files: normalize by moving or adding directory globs (globs ending in a path separator /) to --include-dir and remove consecutive duplicates
   bool add_wdir = false;
   last = NULL;
-  i = flag_all_include.begin();
-  while (i != flag_all_include.end())
+  it = flag_all_include.begin();
+  while (it != flag_all_include.end())
   {
     // remove empty and duplicate --include globs
-    if (i->empty() || (last != NULL && i->compare(*last) == 0))
+    if (it->empty() || (last != NULL && it->compare(*last) == 0))
     {
-      i = flag_all_include.erase(i);
-      if (static_cast<size_t>(std::distance(flag_all_include.begin(), i)) < flag_include_iglob_size)
+      it = flag_all_include.erase(it);
+      if (static_cast<size_t>(std::distance(flag_all_include.begin(), it)) < flag_include_iglob_size)
         --flag_include_iglob_size;
     }
     else
     {
-      if (i->back() == '/')
+      if (it->back() == '/')
       {
         // move directory glob (ending in a /) from --include to --include-dir (these are all case sensitive)
-        flag_all_include_dir.emplace_back(*i);
-        i = flag_all_include.erase(i);
+        flag_all_include_dir.emplace_back(*it);
+        it = flag_all_include.erase(it);
       }
       else
       {
-        size_t last_sep = i->find_last_of('/');
+        size_t last_sep = it->find_last_of('/');
 
         // if include file has a path, then add the path part to the include-dirs, respect case (in)sensitivity
         if (last_sep != std::string::npos)
         {
-          size_t first_sep = i->find_first_of('/');
+          size_t first_sep = it->find_first_of('/');
 
-          if (first_sep == last_sep && (first_sep == 0 || (first_sep == 1 && i->front() == '.')))
+          if (first_sep == last_sep && (first_sep == 0 || (first_sep == 1 && it->front() == '.')))
           {
             add_wdir = true;
           }
-          else if (static_cast<size_t>(std::distance(flag_all_include.begin(), i)) < flag_include_iglob_size)
+          else if (static_cast<size_t>(std::distance(flag_all_include.begin(), it)) < flag_include_iglob_size)
           {
-            all_include_dir_from_iglob.emplace_back(*i, 0, last_sep);
+            all_include_dir_from_iglob.emplace_back(*it, 0, last_sep);
             if (first_sep == last_sep)
               all_include_dir_from_iglob.back().insert(0, "./");
           }
           else
           {
-            all_include_dir_from_glob.emplace_back(*i, 0, last_sep);
+            all_include_dir_from_glob.emplace_back(*it, 0, last_sep);
             if (first_sep == last_sep)
               all_include_dir_from_glob.back().insert(0, "./");
           }
         }
 
         // if an include file glob starts with a dot, then enable --hidden
-        if (last_sep != std::string::npos ? i->at(last_sep + 1) == '.' : i->front() == '.')
+        if (last_sep != std::string::npos ? it->at(last_sep + 1) == '.' : it->front() == '.')
           flag_hidden = true;
 
-        last = &*i++;
+        last = &*it++;
       }
     }
   }
@@ -8017,28 +8017,28 @@ void ugrep()
 
   // all excluded-dir: normalize by removing trailing path separators and removing consecutive duplicates
   last = NULL;
-  i = flag_all_exclude_dir.begin();
-  while (i != flag_all_exclude_dir.end())
+  it = flag_all_exclude_dir.begin();
+  while (it != flag_all_exclude_dir.end())
   {
-    while ((i->size() > 2 || (i->size() == 2 && i->front() != '.')) && i->back() == '/')
-      i->pop_back();
-    if (last != NULL && i->compare(*last) == 0)
-      i = flag_all_exclude_dir.erase(i);
+    while ((it->size() > 2 || (it->size() == 2 && it->front() != '.')) && it->back() == '/')
+      it->pop_back();
+    if (last != NULL && it->compare(*last) == 0)
+      it = flag_all_exclude_dir.erase(it);
     else
-      last = &*i++;
+      last = &*it++;
   }
 
   // all included-dir: normalize by removing trailing path separators and removing consecutive duplicates
   last = NULL;
-  i = flag_all_include_dir.begin();
-  while (i != flag_all_include_dir.end())
+  it = flag_all_include_dir.begin();
+  while (it != flag_all_include_dir.end())
   {
-    while ((i->size() > 2 || (i->size() == 2 && i->front() != '.')) && i->back() == '/')
-      i->pop_back();
-    if (last != NULL && i->compare(*last) == 0)
-      i = flag_all_include_dir.erase(i);
+    while ((it->size() > 2 || (it->size() == 2 && it->front() != '.')) && it->back() == '/')
+      it->pop_back();
+    if (last != NULL && it->compare(*last) == 0)
+      it = flag_all_include_dir.erase(it);
     else
-      last = &*i++;
+      last = &*it++;
   }
 
   // if an include (sub)dir glob starts with a dot, then enable --hidden
