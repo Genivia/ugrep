@@ -2318,7 +2318,7 @@ bool Matcher::advance_pattern_min2(size_t loc)
       uint8_t c1 = static_cast<uint8_t>(*++s);
       state = (state << 1) | tap[Pattern::bihash(c0, c1)];
       c0 = c1;
-      if ((state & 2) == 0 && s >= buf_ + 2 && (s > e - 2 || pat_->predict_match(s - 2)))
+      if ((state & 2) == 0 && (s > e - 2 || pat_->predict_match(s - 2)))
       {
         size_t k = s - buf_ - 2;
         set_current(k);
@@ -2326,17 +2326,19 @@ bool Matcher::advance_pattern_min2(size_t loc)
       }
     }
     loc = s - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
+    size_t m = std::min<size_t>(1, loc); // to clamp loc - 1
+    set_current_and_peek_more(loc - m); // clamp loc - 1
+    loc = cur_ + m;
     if (loc + 1 >= end_ && eof_)
     {
       uint8_t c1 = 0; // reached the end
       state = (state << 1) | tap[Pattern::bihash(c0, c1)];
-      if ((state & 2) == 0 && loc >= 1)
+      if ((state & 2) == 0)
       {
         set_current(loc - 1);
         return true;
       }
+      set_current(loc);
       return false;
     }
   }
@@ -2357,7 +2359,7 @@ bool Matcher::advance_pattern_min3(size_t loc)
       uint8_t c1 = static_cast<uint8_t>(*++s);
       state = (state << 1) | tap[Pattern::bihash(c0, c1)];
       c0 = c1;
-      if ((state & 4) == 0 && s >= buf_ + 3 && (s > e - 1 || pat_->predict_match(s - 3)))
+      if ((state & 4) == 0 && (s > e - 1 || pat_->predict_match(s - 3)))
       {
         size_t k = s - buf_ - 3;
         set_current(k);
@@ -2365,17 +2367,19 @@ bool Matcher::advance_pattern_min3(size_t loc)
       }
     }
     loc = s - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
+    size_t m = std::min<size_t>(2, loc); // to clamp loc - 2
+    set_current_and_peek_more(loc - m); // clamp loc - 2
+    loc = cur_ + m;
     if (loc + 1 >= end_ && eof_)
     {
       uint8_t c1 = 0; // reached the end
       state = (state << 1) | tap[Pattern::bihash(c0, c1)];
-      if ((state & 4) == 0 && loc >= 2)
+      if ((state & 4) == 0)
       {
         set_current(loc - 2);
         return true;
       }
+      set_current(loc);
       return false;
     }
   }
@@ -2400,13 +2404,13 @@ bool Matcher::advance_pattern_min4(size_t loc)
       state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
       c0 = static_cast<uint8_t>(*++s);
       state1 = (state2 << 1) | tap[Pattern::bihash(c1, c0)];
-      if ((state2 & mask) == 0 && s >= buf_ + MIN + 1 && pat_->predict_match(s - MIN - 1, MIN))
+      if ((state2 & mask) == 0 && pat_->predict_match(s - MIN - 1, MIN))
       {
         size_t k = s - buf_ - MIN - 1;
         set_current(k);
         return true;
       }
-      if ((state1 & mask) == 0 && s >= buf_ + MIN && pat_->predict_match(s - MIN, MIN))
+      if ((state1 & mask) == 0 && pat_->predict_match(s - MIN, MIN))
       {
         size_t k = s - buf_ - MIN;
         set_current(k);
@@ -2414,8 +2418,9 @@ bool Matcher::advance_pattern_min4(size_t loc)
       }
     }
     size_t ahead = s - buf_;
-    set_current_and_peek_more(ahead);
-    s = buf_ + cur_;
+    size_t m = std::min<size_t>(MIN - 1, ahead); // to clamp ahead - MIN + 1
+    set_current_and_peek_more(ahead - m); // clamp ahead - MIN + 1
+    s = buf_ + cur_ + m;
     e = buf_ + end_ - 2;
     if (s >= e && eof_)
     {
@@ -2424,7 +2429,7 @@ bool Matcher::advance_pattern_min4(size_t loc)
       {
         uint8_t c1 = 0; // reached the end
         state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
-        if ((state2 & mask) == 0 && s >= buf_ + MIN - 1 && pat_->predict_match(s - MIN + 1, MIN))
+        if ((state2 & mask) == 0 && pat_->predict_match(s - MIN + 1, MIN))
         {
           size_t k = s - buf_ - MIN + 1;
           set_current(k);
@@ -2437,19 +2442,20 @@ bool Matcher::advance_pattern_min4(size_t loc)
         state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
         c0 = 0; // reached the end
         state1 = (state2 << 1) | tap[Pattern::bihash(c1, c0)];
-        if ((state2 & mask) == 0 && s >= buf_ + MIN && pat_->predict_match(s - MIN, MIN))
+        if ((state2 & mask) == 0 && pat_->predict_match(s - MIN, MIN))
         {
           size_t k = s - buf_ - MIN;
           set_current(k);
           return true;
         }
-        if ((state1 & mask) == 0 && s >= buf_ + MIN - 1 && pat_->predict_match(s - MIN + 1, MIN))
+        if ((state1 & mask) == 0 && pat_->predict_match(s - MIN + 1, MIN))
         {
           size_t k = s - buf_ - MIN + 1;
           set_current(k);
           return true;
         }
       }
+      set_current(ahead);
       return false;
     }
   }

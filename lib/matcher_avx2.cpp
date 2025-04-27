@@ -807,10 +807,10 @@ bool Matcher::simd_advance_pattern_min4_avx2(size_t loc)
   const __m128i vmod = _mm_set1_epi32(btap - 1);
   const __m128i vselect = _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 13, 9, 5, 1);
   const __m128i voffset = _mm_set_epi32(0, btap, 2 * btap, 3 * btap);
-  uint32_t state0 = ~0U << (8 - (MIN - 1));
-  uint32_t state1 = ~0U << (8 - (MIN - 2));
-  uint32_t state2 = ~0U << (8 - (MIN - 3));
-  uint32_t state3 = ~0U << (8 - (MIN - 4));
+  uint32_t state0 = ~0u << (8 - (MIN - 1));
+  uint32_t state1 = ~0u << (8 - (MIN - 2));
+  uint32_t state2 = ~0u << (8 - (MIN - 3));
+  uint32_t state3 = ~0u << (8 - (MIN - 4));
   if (MIN <= 6)
     state3 = state2;
   if (MIN <= 5)
@@ -837,25 +837,25 @@ bool Matcher::simd_advance_pattern_min4_avx2(size_t loc)
       vc0 = vc1;
       // get most significant bit of each byte, check each 2nd byte of the 4x32 bit words
       uint32_t mask = _mm_extract_epi32(_mm_shuffle_epi8(vstate, vselect), 0);
-      if ((mask & 0x00000008) == 0 && s >= buf_ + MIN - 0 && pat_->predict_match(s - MIN + 0, MIN))
+      if ((mask & 0x00000008) == 0 && pat_->predict_match(s - MIN + 0, MIN))
       {
         size_t k = s - buf_ - MIN + 0;
         set_current(k);
         return true;
       }
-      if ((mask & 0x00000404) == 0 && s >= buf_ + MIN - 1 && pat_->predict_match(s - MIN + 1, MIN))
+      if ((mask & 0x00000404) == 0 && pat_->predict_match(s - MIN + 1, MIN))
       {
         size_t k = s - buf_ - MIN + 1;
         set_current(k);
         return true;
       }
-      if ((mask & 0x00020202) == 0 && s >= buf_ + MIN - 2 && pat_->predict_match(s - MIN + 2, MIN))
+      if ((mask & 0x00020202) == 0 && pat_->predict_match(s - MIN + 2, MIN))
       {
         size_t k = s - buf_ - MIN + 2;
         set_current(k);
         return true;
       }
-      if ((mask & 0x01010101) == 0 && s >= buf_ + MIN - 3 && pat_->predict_match(s - MIN + 3, MIN))
+      if ((mask & 0x01010101) == 0 && pat_->predict_match(s - MIN + 3, MIN))
       {
         size_t k = s - buf_ - MIN + 3;
         set_current(k);
@@ -872,8 +872,9 @@ bool Matcher::simd_advance_pattern_min4_avx2(size_t loc)
       s += 4;
     }
     loc = s - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
+    size_t m =  std::min<size_t>(MIN, loc); // to clamp loc - MIN
+    set_current_and_peek_more(loc - m); // clamp loc - MIN
+    loc = cur_ + m;
     if (loc + 3 >= end_)
       return advance_pattern_min4<MIN>(loc - MIN);
   }
