@@ -1606,7 +1606,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
           if (!is_modified(mod, 'u') || !supports_escape(signature, 'R'))
           {
             // translate \R to match Unicode line break U+000D U+000A | [U+000A - U+000D] | U+0085 | U+2028 | U+2029
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("\\r\\n|[\\x0a-\\x0d]|\\xc2\\x85|\\xe2\\x80[\\xa8\\xa9]").push_back(')');
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("\\r\\n|[\\x0a-\\x0d]|\\xc2\\x85|\\xe2\\x80[\\xa8\\xa9])");
             loc = pos + 1;
           }
           beg = false;
@@ -1616,12 +1616,12 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
         {
           if (!is_modified(mod, 'u') || !supports_escape(signature, 'X'))
           {
-#ifndef WITH_UTF8_UNRESTRICTED
-            // translate \X to match any valid UTF-8 even beyond
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xdf][\\x80-\\xbf]|\\xe0[\\xa0-\\xbf][\\x80-\\xbf]|[\\xe1-\\xec][\\x80-\\xbf][\\x80-\\xbf]|\\xed[\\x80-\\x9f][\\x80-\\xbf]|[\\xee\\xef][\\x80-\\xbf][\\x80-\\xbf]|\\xf0[\\x90-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|[\\xf1-\\xf3][\\x80-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|\\xf4[\\x80-\\x8f][\\x80-\\xbf][\\x80-\\xbf]").push_back(')');
+#ifdef WITH_UTF8_UNRESTRICTED
+            // translate \X to match any valid UTF-8 encoding (more loose, includes overruns)
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xf4][\\x80-\\xbf]+)");
 #else
-            // translate \X to match any valid UTF-8 encoding (including overruns)
-            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xf4][\\x80-\\xbf]+").push_back(')');
+            // translate \X to match valid UTF-8
+            regex.append(&pattern[loc], pos - loc - 1).append(par).append("[\\x00-\\x7f]|[\\xc2-\\xdf][\\x80-\\xbf]|\\xe0[\\xa0-\\xbf][\\x80-\\xbf]|[\\xe1-\\xec][\\x80-\\xbf][\\x80-\\xbf]|\\xed[\\x80-\\x9f][\\x80-\\xbf]|[\\xee\\xef][\\x80-\\xbf][\\x80-\\xbf]|\\xf0[\\x90-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|[\\xf1-\\xf3][\\x80-\\xbf][\\x80-\\xbf][\\x80-\\xbf]|\\xf4[\\x80-\\x8f][\\x80-\\xbf][\\x80-\\xbf])");
 #endif
             loc = pos + 1;
           }
@@ -1988,7 +1988,7 @@ std::string convert(const char *pattern, const char *signature, convert_flag_typ
               }
               ++pos;
             }
-            regex.append(&pattern[loc], pos - loc).append("\\E").push_back(')');
+            regex.append(&pattern[loc], pos - loc).append("\\E)");
             if (k < pos)
               beg = false;
           }

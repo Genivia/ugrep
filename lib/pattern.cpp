@@ -4063,11 +4063,12 @@ void Pattern::analyze_dfa(DFA::State *start)
         cut_fin_count = best_cut_fin_count;
       }
     }
-#ifdef WITH_CUT_CYCLE // perhaps for future improvements, experimental, needs marking of states to run in linear time
+#ifdef WITH_CUT_CYCLE // TODO perhaps for future improvements, experimental: needs marking of states to run in linear time!
     bool cut_cycle = false;
     if (cut_backedge)
     {
       // depth-first search up to cut_depth to detect cycles, this improves lbk_ = 0xffff for actual cycles, not loops
+      // important: DFA::MetaEdgesClosure should be used instead of edge iterator, because we could have cycles via matas
       std::vector<std::pair<DFA::State*,DFA::State::Edges::iterator> > visit; // depth-first states visited
       visit.emplace_back(start, start->edges.begin());
       while (!cut_cycle && !visit.empty())
@@ -4082,7 +4083,7 @@ void Pattern::analyze_dfa(DFA::State *start)
             continue;
           for (std::vector<std::pair<DFA::State*,DFA::State::Edges::iterator> >::iterator it = visit.begin(); it != visit.end(); ++it)
             if (next_state == it->first)
-              cut_cycle = true;
+              cut_cycle = true; // cycle detected
           if (visit.size() <= cut_depth + 1 && !next_state->edges.empty())
             visit.emplace_back(next_state, next_state->edges.begin());
         }

@@ -362,7 +362,7 @@ class Pattern {
   {
     return ams_;
   }
-  /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4).
+  /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4 and n >= 4).
   inline bool predict_match(const char *s, size_t n) const
   {
     uint32_t h = static_cast<uint8_t>(*s);

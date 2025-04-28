@@ -36,7 +36,7 @@ exit 1
 fi
 
 echo
-echo "make -j clean all"
+echo "make clean all"
 echo
 
 make clean
