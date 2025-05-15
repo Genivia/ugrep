@@ -69,12 +69,12 @@ class LineMatcher : public AbstractMatcher {
     return *this;
   }
   /// Polymorphic cloning.
-  virtual LineMatcher *clone()
+  virtual LineMatcher *clone() REFLEX_OVERRIDE
   {
     return new LineMatcher(*this);
   }
   /// Reset this matcher's state to the initial state and when assigned new input.
-  virtual void reset(const char *opt = NULL)
+  virtual void reset(const char *opt = NULL) REFLEX_OVERRIDE
   {
     DBGLOG("LineMatcher::reset()");
     AbstractMatcher::reset(opt);
@@ -83,19 +83,21 @@ class LineMatcher : public AbstractMatcher {
   /// Returns a pair <text(),size() for any n
   virtual std::pair<const char*,size_t> operator[](size_t) ///< ignored
     /// @returns pair.
-    const
+    const REFLEX_OVERRIDE
   {
     return std::pair<const char*,size_t>(txt_, len_);
   }
   /// Returns (0,NULL)
   virtual std::pair<size_t,const char*> group_id()
     /// @returns a pair of size_t and string
+    REFLEX_OVERRIDE
   {
     return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
   }
   /// Returns (0,NULL)
   virtual std::pair<size_t,const char*> group_next_id()
     /// @returns a pair of size_t and string
+    REFLEX_OVERRIDE
   {
     return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
   }
@@ -103,6 +105,7 @@ class LineMatcher : public AbstractMatcher {
   /// The match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
   virtual size_t match(Method method) ///< match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero when input matched a line
+    REFLEX_OVERRIDE
   {
     DBGLOG("BEGIN LineMatcher::match(%d)", method);
     reset_text();

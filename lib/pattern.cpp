@@ -4362,7 +4362,7 @@ void Pattern::analyze_dfa(DFA::State *start)
     {
       if (pmh_[i] != 0xff)
       {
-        if (isprint(pmh_[i]))
+        if (isprint(i))
           DBGLOGN("pmh['%c'] = %02x", i, pmh_[i]);
         else
           DBGLOGN("pmh[%3d] = %02x", i, pmh_[i]);
@@ -4372,7 +4372,7 @@ void Pattern::analyze_dfa(DFA::State *start)
     {
       if (pma_[i] != 0xff)
       {
-        if (isprint(pma_[i]))
+        if (isprint(i))
           DBGLOGN("pma['%c'] = %02x", i, pma_[i]);
         else
           DBGLOGN("pma[%3d] = %02x", i, pma_[i]);

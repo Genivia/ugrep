@@ -37,6 +37,21 @@
 #ifndef REFLEX_ABSMATCHER_H
 #define REFLEX_ABSMATCHER_H
 
+/// Permit legacy C++ compilation of override (ignored) and C++11 override (applied).
+#if __cplusplus < 201103L
+#define REFLEX_OVERRIDE
+#else
+#define REFLEX_OVERRIDE override
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define REFLEX_LIKELY(x)   __builtin_expect(!!(x), 1)
+#define REFLEX_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+#define REFLEX_LIKELY(x)   (x)
+#define REFLEX_UNLIKELY(x) (x)
+#endif
+
 /// This compile-time option may speed up buffer reallocation with realloc() instead of new and delete.
 #ifndef WITH_REALLOC
 #define WITH_REALLOC 1

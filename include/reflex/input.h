@@ -323,9 +323,9 @@ class Input {
   /// FILE* handler functor base class to analyze FILE* input, handle errors and non-blocking FILE* reads
   struct Handler {
     virtual size_t operator()(
-        FILE*, ///< open file
-        char*, ///< pointer to buffer with data read from file, may be changed by handler
-        size_t ///< length of the buffered data, should be returned by the functor, or shorter to ignore or zero to force EOF and stop reading
+        FILE  *file, ///< open file
+        char  *buf,  ///< pointer to buffer with data read from file, may be changed by handler
+        size_t len   ///< length of the buffered data, should be returned by the functor, or shorter to ignore or zero to force EOF and stop reading
         ) = 0;
     virtual ~Handler() { };
   };

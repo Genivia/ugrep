@@ -121,6 +121,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// Set the pattern to use with this matcher (the given pattern is shared and must be persistent).
   virtual Matcher& pattern(const Pattern& pattern) ///< pattern object for this matcher
     /// @returns this matcher
+    REFLEX_OVERRIDE
   {
     DBGLOG("Matcher::pattern()");
     if (pat_ != &pattern)
@@ -133,6 +134,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// Set the pattern to use with this matcher (the given pattern is shared and must be persistent).
   virtual Matcher& pattern(const Pattern *pattern) ///< pattern object for this matcher
     /// @returns this matcher
+    REFLEX_OVERRIDE
   {
     DBGLOG("Matcher::pattern()");
     if (pat_ != pattern)
@@ -145,6 +147,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// Set the pattern from a regex string to use with this matcher.
   virtual Matcher& pattern(const char *pattern) ///< regex string to instantiate internal pattern object
     /// @returns this matcher
+    REFLEX_OVERRIDE
   {
     DBGLOG("Matcher::pattern(\"%s\")", pattern);
     PatternMatcher<reflex::Pattern>::pattern(pattern);
@@ -154,6 +157,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// Set the pattern from a regex string to use with this matcher.
   virtual Matcher& pattern(const std::string& pattern) ///< regex string to instantiate internal pattern object
     /// @returns this matcher
+    REFLEX_OVERRIDE
   {
     DBGLOG("Matcher::pattern(\"%s\")", pattern.c_str());
     PatternMatcher<reflex::Pattern>::pattern(pattern);
@@ -161,19 +165,20 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     return *this;
   }
   /// Returns a reference to the pattern associated with this matcher.
-  virtual const Pattern& pattern() const
+  virtual const Pattern& pattern()
     /// @returns reference to pattern
+    const REFLEX_OVERRIDE
   {
     ASSERT(pat_ != NULL);
     return *pat_;
   }
   /// Polymorphic cloning.
-  virtual Matcher *clone()
+  virtual Matcher *clone() REFLEX_OVERRIDE
   {
     return new Matcher(*this);
   }
   /// Reset this matcher's state to the initial state.
-  virtual void reset(const char *opt = NULL)
+  virtual void reset(const char *opt = NULL) REFLEX_OVERRIDE
   {
     DBGLOG("Matcher::reset()");
     PatternMatcher<reflex::Pattern>::reset(opt);
@@ -182,7 +187,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
     init_advance();
   }
   /// Returns captured text as a std::pair<const char*,size_t> with string pointer (non-0-terminated) and length.
-  virtual std::pair<const char*,size_t> operator[](size_t n) const
+  virtual std::pair<const char*,size_t> operator[](size_t n) const REFLEX_OVERRIDE
   {
     if (n == 0)
       return std::pair<const char*,size_t>(txt_, len_);
@@ -191,12 +196,14 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
   virtual std::pair<size_t,const char*> group_id()
     /// @returns a pair of size_t and string
+    REFLEX_OVERRIDE
   {
     return std::pair<size_t,const char*>(accept(), static_cast<const char*>(NULL)); // cast to appease MSVC 2010
   }
   /// Returns the next group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (0,NULL) when no more groups matched
   virtual std::pair<size_t,const char*> group_next_id()
     /// @returns (0,NULL)
+    REFLEX_OVERRIDE
   {
     return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
   }
@@ -1320,6 +1327,7 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   /// Returns true if input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
   virtual size_t match(Method method) ///< Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero if input matched the pattern
+    REFLEX_OVERRIDE
     ;
   /// match() with optimized AVX512BW string search scheme defined in matcher_avx512bw.cpp
   size_t simd_match_avx512bw(Method method);

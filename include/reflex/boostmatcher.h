@@ -98,12 +98,12 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
     return *this;
   }
   /// Polymorphic cloning.
-  virtual BoostMatcher *clone()
+  virtual BoostMatcher *clone() REFLEX_OVERRIDE
   {
     return new BoostMatcher(*this);
   }
   /// Reset this matcher's state to the initial state and when assigned new input.
-  virtual void reset(const char *opt = NULL)
+  virtual void reset(const char *opt = NULL) REFLEX_OVERRIDE
   {
     DBGLOG("BoostMatcher::reset()");
     itr_ = fin_ = boost::cregex_iterator();
@@ -122,6 +122,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   /// Set the pattern to use with this matcher (the given pattern is shared and must be persistent).
   virtual PatternMatcher& pattern(const Pattern& pattern) ///< boost::regex for this matcher
     /// @returns this matcher.
+    REFLEX_OVERRIDE
   {
     itr_ = fin_;
     return PatternMatcher::pattern(pattern);
@@ -129,6 +130,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   /// Set the pattern to use with this matcher (the given pattern is shared and must be persistent).
   virtual PatternMatcher& pattern(const Pattern *pattern) ///< boost::regex for this matcher
     /// @returns this matcher.
+    REFLEX_OVERRIDE
   {
     itr_ = fin_;
     return PatternMatcher::pattern(pattern);
@@ -136,6 +138,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   /// Set the pattern from a regex string to use with this matcher.
   virtual PatternMatcher& pattern(const char *pattern) ///< regex string to instantiate internal pattern object
     /// @returns this matcher.
+    REFLEX_OVERRIDE
   {
     itr_ = fin_;
     return PatternMatcher::pattern(pattern);
@@ -143,6 +146,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   /// Set the pattern from a regex string to use with this matcher.
   virtual PatternMatcher& pattern(const std::string& pattern) ///< regex string to instantiate internal pattern object
     /// @returns this matcher.
+    REFLEX_OVERRIDE
   {
     itr_ = fin_;
     return PatternMatcher::pattern(pattern);
@@ -150,7 +154,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   /// Returns a pair of pointer and length of the captured match for n > 0 capture index or <text(),size() for n == 0.
   virtual std::pair<const char*,size_t> operator[](size_t n) ///< nth capture index > 0 or 0
     /// @returns pair.
-    const
+    const REFLEX_OVERRIDE
   {
     if (n == 0)
       return std::pair<const char*,size_t>(txt_, len_);
@@ -161,6 +165,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   /// Returns the group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (1,NULL) by default
   virtual std::pair<size_t,const char*> group_id()
     /// @returns a pair of size_t and string
+    REFLEX_OVERRIDE
   {
     grp_ = 1;
     if (itr_ == fin_ || (*itr_).size() <= 1)
@@ -172,6 +177,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   /// Returns the next group capture identifier containing the group capture index >0 and name (or NULL) of a named group capture, or (0,NULL) when no more groups matched
   virtual std::pair<size_t,const char*> group_next_id()
     /// @returns a pair of size_t and string
+    REFLEX_OVERRIDE
   {
     if (itr_ == fin_)
       return std::pair<size_t,const char*>(0, static_cast<const char*>(NULL)); // cast to appease MSVC 2010
@@ -187,6 +193,7 @@ class BoostMatcher : public PatternMatcher<boost::regex> {
   /// The match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH, implemented with boost::regex.
   virtual size_t match(Method method) ///< match method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero when input matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
+    REFLEX_OVERRIDE
   {
     DBGLOG("BEGIN BoostMatcher::match(%d)", method);
     reset_text();

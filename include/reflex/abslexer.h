@@ -76,6 +76,7 @@ class AbstractLexer {
     {
       M::operator=(matcher);
       lexer_ = matcher.lexer_;
+      return *this;
     }
    protected:
     /// Returns true if matcher should wrap input after EOF (lexer wrap() should return 0 to wrap input after EOF).
