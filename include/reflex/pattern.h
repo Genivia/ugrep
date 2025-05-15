@@ -746,7 +746,10 @@ class Pattern {
       bool find_accepting()
       {
         while (!done())
+        {
           ++edge;
+          walk();
+        }
         return accepting();
       }
       bool done()
