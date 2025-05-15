@@ -132,7 +132,7 @@ redo:
         Pattern::Index jump;
         Pattern::Opcode opcode = *pc;
         DBGLOG("Fetch: code[%zu] = 0x%08X", pc - pat_->opc_, opcode);
-        if (!Pattern::is_opcode_goto(opcode))
+        if (REFLEX_UNLIKELY(!Pattern::is_opcode_goto(opcode)))
         {
           switch (opcode >> 24)
           {
@@ -445,7 +445,7 @@ redo:
         }
         else
         {
-          if (Pattern::is_opcode_halt(opcode))
+          if (REFLEX_UNLIKELY(Pattern::is_opcode_halt(opcode)))
           {
             if (back != Pattern::Const::IMAX)
             {
@@ -457,38 +457,38 @@ redo:
             }
             break;
           }
-          if (ch == EOF)
+          if (REFLEX_UNLIKELY(ch == EOF))
             break;
           ch = get();
           DBGLOG("Get: ch = %d (0x%x) at pos %zu", ch, ch, pos_ - 1);
-          if (ch == EOF)
+          if (REFLEX_UNLIKELY(ch == EOF))
             break;
         }
         Pattern::Opcode lo = ch << 24;
         Pattern::Opcode hi = lo | 0x00ffffff;
   unrolled:
-        if (hi < opcode || lo > (opcode << 8))
+        if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
         {
           opcode = *++pc;
-          if (hi < opcode || lo > (opcode << 8))
+          if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
           {
             opcode = *++pc;
-            if (hi < opcode || lo > (opcode << 8))
+            if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
             {
               opcode = *++pc;
-              if (hi < opcode || lo > (opcode << 8))
+              if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
               {
                 opcode = *++pc;
-                if (hi < opcode || lo > (opcode << 8))
+                if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                 {
                   opcode = *++pc;
-                  if (hi < opcode || lo > (opcode << 8))
+                  if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                   {
                     opcode = *++pc;
-                    if (hi < opcode || lo > (opcode << 8))
+                    if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                     {
                       opcode = *++pc;
-                      if (hi < opcode || lo > (opcode << 8))
+                      if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                       {
                         opcode = *++pc;
                         goto unrolled;
@@ -501,7 +501,7 @@ redo:
           }
         }
         jump = Pattern::index_of(opcode);
-        if (jump == 0)
+        if (REFLEX_UNLIKELY(jump == 0))
         {
           // loop back to start state w/o full match: advance to avoid backtracking
           if (cap_ == 0 && method == Const::FIND)
@@ -525,7 +525,7 @@ redo:
             }
           }
         }
-        else if (jump >= Pattern::Const::LONG)
+        else if (REFLEX_UNLIKELY(jump >= Pattern::Const::LONG))
         {
           if (jump == Pattern::Const::HALT)
           {
@@ -1012,7 +1012,7 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
       __m128i veqlcp = _mm_cmpeq_epi8(vlcp, vstrlcp);
       __m128i veqlcs = _mm_cmpeq_epi8(vlcs, vstrlcs);
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         size_t k = s - lcp + offset - buf_;
@@ -1036,7 +1036,7 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
       uint8x16_t vmasklcs8 = vceqq_u8(vlcs, vstrlcs);
       uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
       uint64_t mask = vgetq_lane_u64(vmask64, 0);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -1059,7 +1059,7 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
         } while (mask != 0);
       }
       mask = vgetq_lane_u64(vmask64, 1);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp + 8 - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -1131,7 +1131,7 @@ bool Matcher::advance_pattern_pin1_pmh(size_t loc)
       __m128i veqlcp = _mm_cmpeq_epi8(vlcp, vstrlcp);
       __m128i veqlcs = _mm_cmpeq_epi8(vlcs, vstrlcs);
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         size_t k = s - lcp + offset - buf_;
@@ -1155,7 +1155,7 @@ bool Matcher::advance_pattern_pin1_pmh(size_t loc)
       uint8x16_t vmasklcs8 = vceqq_u8(vlcs, vstrlcs);
       uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
       uint64_t mask = vgetq_lane_u64(vmask64, 0);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -1178,7 +1178,7 @@ bool Matcher::advance_pattern_pin1_pmh(size_t loc)
         } while (mask != 0);
       }
       mask = vgetq_lane_u64(vmask64, 1);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp  + 8 - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -1245,7 +1245,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
       __m128i veq = _mm_cmpeq_epi8(v0, vstr); \
       COMP \
       uint32_t mask = _mm_movemask_epi8(veq); \
-      while (mask != 0) \
+      while (REFLEX_UNLIKELY(mask != 0)) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s + offset - buf_; \
@@ -1387,7 +1387,7 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
       __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs); \
       COMP \
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs)); \
-      while (mask != 0) \
+      while (REFLEX_UNLIKELY(mask != 0)) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s - lcp + offset - buf_; \
@@ -1440,7 +1440,7 @@ bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
       __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs); \
       COMP \
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs)); \
-      while (mask != 0) \
+      while (REFLEX_UNLIKELY(mask != 0)) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s - lcp + offset - buf_; \
@@ -1644,7 +1644,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
       COMP \
       uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8); \
       uint64_t mask = vgetq_lane_u64(vmask64, 0); \
-      if (mask != 0) \
+      if (REFLEX_UNLIKELY(mask != 0)) \
       { \
         size_t k = s - buf_; \
         if (static_cast<uint32_t>(mask) == 0) \
@@ -1667,7 +1667,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
         } while (mask != 0); \
       } \
       mask = vgetq_lane_u64(vmask64, 1); \
-      if (mask != 0) \
+      if (REFLEX_UNLIKELY(mask != 0)) \
       { \
         size_t k = s + 8 - buf_; \
         if (static_cast<uint32_t>(mask) == 0) \
@@ -1858,7 +1858,7 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
       COMP \
       uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8)); \
       uint64_t mask = vgetq_lane_u64(vmask64, 0); \
-      if (mask != 0) \
+      if (REFLEX_UNLIKELY(mask != 0)) \
       { \
         size_t k = s - lcp - buf_; \
         if (static_cast<uint32_t>(mask) == 0) \
@@ -1881,7 +1881,7 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
         } while (mask != 0); \
       } \
       mask = vgetq_lane_u64(vmask64, 1); \
-      if (mask != 0) \
+      if (REFLEX_UNLIKELY(mask != 0)) \
       { \
         size_t k = s - lcp + 8 - buf_; \
         if (static_cast<uint32_t>(mask) == 0) \
@@ -1944,7 +1944,7 @@ bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
       COMP \
       uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8)); \
       uint64_t mask = vgetq_lane_u64(vmask64, 0); \
-      if (mask != 0) \
+      if (REFLEX_UNLIKELY(mask != 0)) \
       { \
         size_t k = s - lcp - buf_; \
         if (static_cast<uint32_t>(mask) == 0) \
@@ -1967,7 +1967,7 @@ bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
         } while (mask != 0); \
       } \
       mask = vgetq_lane_u64(vmask64, 1); \
-      if (mask != 0) \
+      if (REFLEX_UNLIKELY(mask != 0)) \
       { \
         size_t k = s - lcp + 8 - buf_; \
         if (static_cast<uint32_t>(mask) == 0) \
@@ -2593,7 +2593,7 @@ bool Matcher::advance_chars(size_t loc)
       __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
       __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         size_t k = s - lcp + offset - buf_;
@@ -2619,7 +2619,7 @@ bool Matcher::advance_chars(size_t loc)
       uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
       uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
       uint64_t mask = vgetq_lane_u64(vmask64, 0);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -2641,7 +2641,7 @@ bool Matcher::advance_chars(size_t loc)
         } while (mask != 0);
       }
       mask = vgetq_lane_u64(vmask64, 1);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp + 8 - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -2714,7 +2714,7 @@ bool Matcher::advance_chars_pma(size_t loc)
       __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
       __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (LEN == 2 ||
@@ -2743,7 +2743,7 @@ bool Matcher::advance_chars_pma(size_t loc)
       uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
       uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
       uint64_t mask = vgetq_lane_u64(vmask64, 0);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -2768,7 +2768,7 @@ bool Matcher::advance_chars_pma(size_t loc)
         } while (mask != 0);
       }
       mask = vgetq_lane_u64(vmask64, 1);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp + 8 - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -2847,7 +2847,7 @@ bool Matcher::advance_chars_pmh(size_t loc)
       __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
       __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (LEN == 2 ||
@@ -2876,7 +2876,7 @@ bool Matcher::advance_chars_pmh(size_t loc)
       uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
       uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
       uint64_t mask = vgetq_lane_u64(vmask64, 0);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -2901,7 +2901,7 @@ bool Matcher::advance_chars_pmh(size_t loc)
         } while (mask != 0);
       }
       mask = vgetq_lane_u64(vmask64, 1);
-      if (mask != 0)
+      if (REFLEX_UNLIKELY(mask != 0))
       {
         size_t k = s - lcp + 8 - buf_;
         if (static_cast<uint32_t>(mask) == 0)
@@ -2980,7 +2980,7 @@ bool Matcher::advance_string(size_t loc)
       __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
       __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
@@ -3047,7 +3047,7 @@ bool Matcher::advance_string_pma(size_t loc)
       __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
       __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
@@ -3120,7 +3120,7 @@ bool Matcher::advance_string_pmh(size_t loc)
       __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
       __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
@@ -3190,7 +3190,7 @@ bool Matcher::simd_advance_string_neon(const char *& s, const char *e)
     uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
     uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
     uint64_t mask = vgetq_lane_u64(vmask64, 0);
-    if (mask != 0)
+    if (REFLEX_UNLIKELY(mask != 0))
     {
       size_t k = s - lcp - buf_;
       if (static_cast<uint32_t>(mask) == 0)
@@ -3210,7 +3210,7 @@ bool Matcher::simd_advance_string_neon(const char *& s, const char *e)
       } while (mask != 0);
     }
     mask = vgetq_lane_u64(vmask64, 1);
-    if (mask != 0)
+    if (REFLEX_UNLIKELY(mask != 0))
     {
       size_t k = s - lcp + 8 - buf_;
       if (static_cast<uint32_t>(mask) == 0)
@@ -3252,7 +3252,7 @@ bool Matcher::simd_advance_string_pma_neon(const char *& s, const char *e)
     uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
     uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
     uint64_t mask = vgetq_lane_u64(vmask64, 0);
-    if (mask != 0)
+    if (REFLEX_UNLIKELY(mask != 0))
     {
       size_t k = s - lcp - buf_;
       if (static_cast<uint32_t>(mask) == 0)
@@ -3275,7 +3275,7 @@ bool Matcher::simd_advance_string_pma_neon(const char *& s, const char *e)
       } while (mask != 0);
     }
     mask = vgetq_lane_u64(vmask64, 1);
-    if (mask != 0)
+    if (REFLEX_UNLIKELY(mask != 0))
     {
       size_t k = s - lcp + 8 - buf_;
       if (static_cast<uint32_t>(mask) == 0)
@@ -3321,7 +3321,7 @@ bool Matcher::simd_advance_string_pmh_neon(const char *& s, const char *e)
     uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
     uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
     uint64_t mask = vgetq_lane_u64(vmask64, 0);
-    if (mask != 0)
+    if (REFLEX_UNLIKELY(mask != 0))
     {
       size_t k = s - lcp - buf_;
       if (static_cast<uint32_t>(mask) == 0)
@@ -3344,7 +3344,7 @@ bool Matcher::simd_advance_string_pmh_neon(const char *& s, const char *e)
       } while (mask != 0);
     }
     mask = vgetq_lane_u64(vmask64, 1);
-    if (mask != 0)
+    if (REFLEX_UNLIKELY(mask != 0))
     {
       size_t k = s - lcp + 8 - buf_;
       if (static_cast<uint32_t>(mask) == 0)

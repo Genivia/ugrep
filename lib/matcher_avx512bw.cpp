@@ -104,7 +104,7 @@ bool Matcher::simd_advance_chars_avx512bw(size_t loc)
       __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
       __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs - lcp));
       uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctzl(mask);
         if (LEN == 2 ||
@@ -164,7 +164,7 @@ bool Matcher::simd_advance_chars_pma_avx512bw(size_t loc)
       __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
       __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs - lcp));
       uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctzl(mask);
         if (LEN == 2 ||
@@ -230,7 +230,7 @@ bool Matcher::simd_advance_chars_pmh_avx512bw(size_t loc)
       __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
       __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs - lcp));
       uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctzl(mask);
         if (LEN == 2 ||
@@ -295,7 +295,7 @@ bool Matcher::simd_advance_string_avx512bw(size_t loc)
       __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
       __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs - lcp));
       uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctzl(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
@@ -353,7 +353,7 @@ bool Matcher::simd_advance_string_pma_avx512bw(size_t loc)
       __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
       __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs - lcp));
       uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctzl(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
@@ -417,7 +417,7 @@ bool Matcher::simd_advance_string_pmh_avx512bw(size_t loc)
       __m512i vlcpm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s));
       __m512i vlcsm = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(s + lcs - lcp));
       uint64_t mask = _mm512_cmpeq_epi8_mask(vlcp, vlcpm) & _mm512_cmpeq_epi8_mask(vlcs, vlcsm);
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctzl(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)

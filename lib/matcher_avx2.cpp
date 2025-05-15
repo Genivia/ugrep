@@ -207,7 +207,7 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
       __m256i veqlcp = _mm256_cmpeq_epi8(vlcp, vstrlcp);
       __m256i veqlcs = _mm256_cmpeq_epi8(vlcs, vstrlcs);
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         size_t k = s - lcp + offset - buf_;
@@ -264,7 +264,7 @@ bool Matcher::simd_advance_pattern_pin1_pmh_avx2(size_t loc)
       __m256i veqlcp = _mm256_cmpeq_epi8(vlcp, vstrlcp);
       __m256i veqlcs = _mm256_cmpeq_epi8(vlcs, vstrlcs);
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         size_t k = s - lcp + offset - buf_;
@@ -315,7 +315,7 @@ bool Matcher::simd_advance_pattern_pin##N##_one_avx2(size_t loc) \
       __m256i veq = _mm256_cmpeq_epi8(v0, vstr); \
       COMP \
       uint32_t mask = _mm256_movemask_epi8(veq); \
-      while (mask != 0) \
+      while (REFLEX_UNLIKELY(mask != 0)) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s + offset - buf_; \
@@ -492,7 +492,7 @@ bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
       __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs); \
       COMP \
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs)); \
-      while (mask != 0) \
+      while (REFLEX_UNLIKELY(mask != 0)) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s - lcp + offset - buf_; \
@@ -545,7 +545,7 @@ bool Matcher::simd_advance_pattern_pin##N##_pmh_avx2(size_t loc) \
       __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs); \
       COMP \
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs)); \
-      while (mask != 0) \
+      while (REFLEX_UNLIKELY(mask != 0)) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s - lcp + offset - buf_; \
@@ -902,7 +902,7 @@ bool Matcher::simd_advance_chars_avx2(size_t loc)
       __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
       __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (LEN == 2 ||
@@ -964,7 +964,7 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
       __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
       __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (LEN == 2 ||
@@ -1032,7 +1032,7 @@ bool Matcher::simd_advance_chars_pmh_avx2(size_t loc)
       __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
       __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (LEN == 2 ||
@@ -1097,7 +1097,7 @@ bool Matcher::simd_advance_string_avx2(size_t loc)
       __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
       __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
@@ -1157,7 +1157,7 @@ bool Matcher::simd_advance_string_pma_avx2(size_t loc)
       __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
       __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
@@ -1223,7 +1223,7 @@ bool Matcher::simd_advance_string_pmh_avx2(size_t loc)
       __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
       __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
       uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-      while (mask != 0)
+      while (REFLEX_UNLIKELY(mask != 0))
       {
         uint32_t offset = ctz(mask);
         if (std::memcmp(s - lcp + offset, chr, len) == 0)

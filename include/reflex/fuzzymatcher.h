@@ -133,7 +133,7 @@ class FuzzyMatcher : public Matcher {
     return *this;
   }
   /// Polymorphic cloning.
-  virtual FuzzyMatcher *clone()
+  virtual FuzzyMatcher *clone() REFLEX_OVERRIDE
   {
     return new FuzzyMatcher(*this);
   }
@@ -312,6 +312,7 @@ class FuzzyMatcher : public Matcher {
   /// Returns true if input fuzzy-matched the pattern using method Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH.
   virtual size_t match(Method method) ///< Const::SCAN, Const::FIND, Const::SPLIT, or Const::MATCH
     /// @returns nonzero if input matched the pattern
+    REFLEX_OVERRIDE
   {
     DBGLOG("BEGIN FuzzyMatcher::match()");
     reset_text();
@@ -354,7 +355,7 @@ redo:
           Pattern::Opcode opcode = *pc;
           Pattern::Index jump;
           DBGLOG("Fetch: code[%zu] = 0x%08X", pc - pat_->opc_, opcode);
-          if (!Pattern::is_opcode_goto(opcode))
+          if (REFLEX_UNLIKELY(!Pattern::is_opcode_goto(opcode)))
           {
             // save backtrack point (DFA and relative position in the match)
             pc0 = pc;
@@ -668,7 +669,7 @@ redo:
           }
           else
           {
-            if (Pattern::is_opcode_halt(opcode))
+            if (REFLEX_UNLIKELY(Pattern::is_opcode_halt(opcode)))
             {
               if (back != Pattern::Const::IMAX)
               {
@@ -680,49 +681,47 @@ redo:
               }
               break;
             }
-            if (ch == EOF)
+            if (REFLEX_UNLIKELY(ch == EOF))
               break;
             ch = get();
             DBGLOG("Get: ch = %d (0x%x) at pos %zu", ch, ch, pos_ - 1);
-            if (bin_ || (ch & 0xC0) != 0x80 || ch == EOF)
+            if (REFLEX_UNLIKELY(bin_ || (ch & 0xC0) != 0x80 || ch == EOF))
             {
               // save backtrack point (DFA and relative position in the match)
               pc0 = pc;
               len0 = pos_ - (txt_ - buf_);
             }
-            if (ch == EOF)
+            if (REFLEX_UNLIKELY(ch == EOF))
               break;
           }
-          {
-            Pattern::Opcode lo = ch << 24;
-            Pattern::Opcode hi = lo | 0x00FFFFFF;
+          Pattern::Opcode lo = ch << 24;
+          Pattern::Opcode hi = lo | 0x00FFFFFF;
 unrolled:
-            if (hi < opcode || lo > (opcode << 8))
+          if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
+          {
+            opcode = *++pc;
+            if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
             {
               opcode = *++pc;
-              if (hi < opcode || lo > (opcode << 8))
+              if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
               {
                 opcode = *++pc;
-                if (hi < opcode || lo > (opcode << 8))
+                if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                 {
                   opcode = *++pc;
-                  if (hi < opcode || lo > (opcode << 8))
+                  if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                   {
                     opcode = *++pc;
-                    if (hi < opcode || lo > (opcode << 8))
+                    if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                     {
                       opcode = *++pc;
-                      if (hi < opcode || lo > (opcode << 8))
+                      if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                       {
                         opcode = *++pc;
-                        if (hi < opcode || lo > (opcode << 8))
+                        if (REFLEX_LIKELY(hi < opcode || lo > (opcode << 8)))
                         {
                           opcode = *++pc;
-                          if (hi < opcode || lo > (opcode << 8))
-                          {
-                            opcode = *++pc;
-                            goto unrolled;
-                          }
+                          goto unrolled;
                         }
                       }
                     }
@@ -732,7 +731,7 @@ unrolled:
             }
           }
           jump = Pattern::index_of(opcode);
-          if (jump == 0)
+          if (REFLEX_UNLIKELY(jump == 0))
           {
             // loop back to start state w/o full match: advance to avoid backtracking
             if (cap_ == 0 && method == Const::FIND)
@@ -750,7 +749,7 @@ unrolled:
               }
             }
           }
-          else if (jump >= Pattern::Const::LONG)
+          else if (REFLEX_UNLIKELY(jump >= Pattern::Const::LONG))
           {
             if (jump == Pattern::Const::HALT)
             {
