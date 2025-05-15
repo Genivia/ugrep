@@ -5512,7 +5512,7 @@ in markdown:
 
 
 
-    ugrep 7.4.2                      April 27, 2025                         UGREP(1)
+    ugrep 7.4.3                       May 15, 2025                          UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
