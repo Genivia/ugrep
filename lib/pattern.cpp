@@ -210,50 +210,15 @@ void Pattern::init(const char *options, const uint8_t *pred)
         for (int i = 0; i < 256; ++i)
           bit_[i] = ~pred[i + n];
         n += 256;
-        if ((pred[1] & 0x80) != 0)
-        {
-          // load tap_[] parameters
-          for (int i = 0; i < Const::BTAP; ++i)
-            tap_[i] = ~pred[i + n];
-          n += Const::BTAP;
-        }
-        else
-        {
-          // lossly (uncorrelated) populate tap_[] from bit_[] when missing, for backward compatibility
-          std::memset(tap_, 0xff, sizeof(tap_));
-          for (size_t k = 0; k < min_; ++k)
-          {
-            Bitap mask = 1 << k;
-            if (k + 1 < min_)
-            {
-              for (Char ch = 0; ch < 256; ++ch)
-                if ((bit_[ch] & mask) == 0)
-                  for (Char next_ch = 0; next_ch < 256; ++next_ch)
-                    tap_[bihash(ch, next_ch)] &= ~(~(bit_[next_ch] >> 1) & mask);
-            }
-            else
-            {
-              for (Char ch = 0; ch < 256; ++ch)
-                if ((bit_[ch] & mask) == 0)
-                  for (Char next_ch = 0; next_ch < 256; ++next_ch)
-                    tap_[bihash(ch, next_ch)] &= ~mask;
-            }
-          }
-        }
+        // load tap_[] parameters
+        for (int i = 0; i < Const::BTAP; ++i)
+          tap_[i] = ~pred[i + n];
+        n += Const::BTAP;
       }
-      if (min_ < 4)
-      {
-        // load predict match PM4 pma_[] parameters
-        for (int i = 0; i < Const::HASH; ++i)
-          pma_[i] = ~pred[i + n];
-      }
-      else
-      {
-        // load predict match hash pmh_[] parameters
-        for (int i = 0; i < Const::HASH; ++i)
-          pmh_[i] = ~pred[i + n];
-      }
-      n += Const::HASH;
+      // load predict match array pma_[] parameters
+      for (int i = 0; i < Const::HASH; ++i)
+        pma_[i] = ~pred[2 * i + n] + (~pred[2 * i + n + 1] << 8);
+      n += 2 * Const::HASH;
       if ((pred[1] & 0x20) != 0)
       {
         // load lookback parameters lbk_ lbm_ and cbk_[] after s-t cut and first s-t cut pattern characters fst_[]
@@ -332,7 +297,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
   {
     if (min_ > 0)
     {
-      if (min_ < 8)
+      if (min_ < Const::BITS)
       {
         Bitap mask = ~((1 << min_) - 1);
         for (Char i = 0; i < 256; ++i)
@@ -361,7 +326,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
       if (have_HW_AVX512BW() || have_HW_AVX2())
       {
         // vectorized bitap hashed pairs array for AVX2
-        uint32_t shift = 8 - (min_ - 1);
+        uint32_t shift = Const::BITS - (min_ - 1);
         for (Hash j = 0; j < 4 * Const::BTAP; j += Const::BTAP, ++shift)
           for (Hash i = 0; i < Const::BTAP; ++i)
             vtp_[i + j] = tap_[i] << shift;
@@ -396,7 +361,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
     uint16_t nlcs = 65535; // max and undefined
     uint16_t freqlcp = 255; // max and undefined
     uint16_t freqlcs = 255; // max and undefined
-    size_t min = std::max<size_t>(1, min_);
+    uint16_t min = std::max<uint16_t>(1, min_);
     uint8_t score[8][3];  // max freq, unique needle position k < min, number of pins n <= pinmax
     size_t scores = 0;
     for (uint8_t k = 0; k < min; ++k)
@@ -405,7 +370,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
       uint8_t n = 0;
       uint16_t max = 0;
       uint16_t sum = 0;
-      // at position k count the matching characters and find the usm and max character frequency
+      // at position k count the matching characters and find the sum and max character frequency
       for (uint16_t i = 0; i < 256 && n <= pinmax; ++i)
       {
         if ((bit_[i] & mask) == 0)
@@ -505,7 +470,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
         chr_[k] = chr_[k - 1];
       pin_ = n;
     }
-    DBGLOG("min=%zu lcp=%hu(%hu) pin=%zu nlcp=%hu(%hu) freq=%hu(%hu) npy=%hu cut=%u lbk=%u lbm=%u", min, lcp_, lcs_, pin_, nlcp, nlcs, freqlcp, freqlcs, npy_, cut_, lbk_, lbm_);
+    DBGLOG("min=%hu lcp=%hu(%hu) pin=%hu nlcp=%hu(%hu) freq=%hu(%hu) npy=%hu cut=%u lbk=%u lbm=%u", min, lcp_, lcs_, pin_, nlcp, nlcs, freqlcp, freqlcs, npy_, cut_, lbk_, lbm_);
   }
   else if (len_ > 1)
   {
@@ -594,7 +559,7 @@ void Pattern::init(const char *options, const uint8_t *pred)
         }
       }
     }
-    DBGLOG("len=%zu min=%zu bmd=%zu lcp=%hu(%hu)", len_, min_, bmd_, lcp_, lcs_);
+    DBGLOG("len=%hu min=%hu bmd=%hu lcp=%hu(%hu)", len_, min_, bmd_, lcp_, lcs_);
   }
 }
 
@@ -4100,7 +4065,7 @@ void Pattern::analyze_dfa(DFA::State *start)
     if (cut_depth > 0 || cut_backedge)
     {
       cut_ = cut_depth + 1;
-      std::set<DFA::State*> sweep[8]; // sweep depth 8 is max of min_ (or 16 if HFA uses cuts, but it does not)
+      std::set<DFA::State*> sweep[Const::BITS]; // sweep depth 8 is max of min_ (or 16 if HFA uses cuts, but it does not)
       // include final states in the cut states
       cut_states.insert(cut_fin_states.begin(), cut_fin_states.end());
       // new start states
@@ -4342,7 +4307,6 @@ void Pattern::analyze_dfa(DFA::State *start)
   min_ = 0;
   std::memset(bit_, 0xff, sizeof(bit_));
   std::memset(tap_, 0xff, sizeof(tap_));
-  std::memset(pmh_, 0xff, sizeof(pmh_));
   std::memset(pma_, 0xff, sizeof(pma_));
   if (!start_states.empty())
   {
@@ -4360,17 +4324,7 @@ void Pattern::analyze_dfa(DFA::State *start)
     }
     for (Hash i = 0; i < Const::HASH; ++i)
     {
-      if (pmh_[i] != 0xff)
-      {
-        if (isprint(i))
-          DBGLOGN("pmh['%c'] = %02x", i, pmh_[i]);
-        else
-          DBGLOGN("pmh[%3d] = %02x", i, pmh_[i]);
-      }
-    }
-    for (Hash i = 0; i < Const::HASH; ++i)
-    {
-      if (pma_[i] != 0xff)
+      if (pma_[i] != (1 << (8 * Const::PM_M)) - 1)
       {
         if (isprint(i))
           DBGLOGN("pma['%c'] = %02x", i, pma_[i]);
@@ -4380,14 +4334,14 @@ void Pattern::analyze_dfa(DFA::State *start)
     }
 #endif
   }
-  DBGLOG("min=%zu len=%zu", min_, len_);
+  DBGLOG("min=%hu len=%hu", min_, len_);
   DBGLOG("END Pattern::analyze_dfa()");
 }
 
 void Pattern::gen_min(std::set<DFA::State*>& states)
 {
-  // find min between 0 and 8
-  min_ = 8;
+  // find min between 0 and Const::BITS
+  min_ = Const::BITS;
   std::set<DFA::State*> prev, next(states);
   for (size_t level = 0; level < min_; ++level)
   {
@@ -4425,11 +4379,11 @@ void Pattern::gen_min(std::set<DFA::State*>& states)
 
 void Pattern::gen_predict_match(std::set<DFA::State*>& states)
 {
-  // find min between 0 and 8 then populate bitap and hashes (bounded by min)
+  // find min between 0 and Const::BITS then populate bitap and hashes (bounded by min)
   gen_min(states);
-  std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > > hashes[8];
+  std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > > hashes[Const::BITS];
   gen_predict_match_start(states, hashes[0]);
-  for (size_t level = 1; level < std::max<size_t>(min_, 4) && !hashes[level - 1].empty(); ++level)
+  for (uint16_t level = 1; level < Const::BITS && !hashes[level - 1].empty(); ++level)
     for (std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >::iterator from = hashes[level - 1].begin(); from != hashes[level - 1].end(); ++from)
       gen_predict_match_transitions(level, from->first, from->second, hashes[level]);
 }
@@ -4450,16 +4404,15 @@ void Pattern::gen_predict_match_start(std::set<DFA::State*>& states, std::map<DF
       Char hi = edge.hi();
       DBGLOG("PM start %p: %u~%u %s", state, lo, hi, next_accept ? "accept" : "");
       first_hashes[next_state].first.insert(lo, hi);
-      Bitap mask = ~(1 << 6);
+      Pred pma_mask = ~(1 << (8 * sizeof(Pred) - 2));
       if (next_accept)
-        mask &= ~(1 << 7);
+        pma_mask &= ~(1 << (8 * sizeof(Pred) - 1));
       for (Char ch = lo; ch <= hi; ++ch)
       {
         bit_[ch] &= ~1;
-        pmh_[ch] &= ~1;
-        pma_[ch] &= mask;
+        pma_[ch] &= pma_mask;
       }
-      // this is the last state to populate bitap
+      // this is the first and last state to populate bitap
       if (min_ <= 1)
       {
         if (next_accept)
@@ -4492,7 +4445,7 @@ void Pattern::gen_predict_match_start(std::set<DFA::State*>& states, std::map<DF
     it->second.second = it->second.first;
 }
 
-void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, const std::pair<ORanges<Hash>,ORanges<Char> >& previous, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& level_hashes)
+void Pattern::gen_predict_match_transitions(uint16_t level, DFA::State *state, const std::pair<ORanges<Hash>,ORanges<Char> >& previous, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& level_hashes)
 {
   for (DFA::MetaEdgesClosure edge(state); !edge.done(); ++edge)
   {
@@ -4500,8 +4453,11 @@ void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, con
     // ignore states before the cut, since we don't use them for bitap and hashing
     if (lbk_ > 0 && next_state->first > 0 && next_state->first <= cut_)
       continue;
+    // previous level hashes are completely saturated, or highly saturated after 4 levels, then next hashes will be saturated too
+    bool next_saturated = (level + 1 > 4 && level + 1 < Const::BITS ? previous.first.count() >= Const::HASH / 8 : previous.first.size() == 1 && previous.first.lo() == 0 && previous.first.hi() == Const::HASH - 1);
+    // next state is accepting (closed over metas)
     bool next_accept = edge.next_accepting();
-    std::pair<ORanges<Hash>,ORanges<Char> > *next_hashes = level + 1 < std::max<size_t>(min_, 4) ? &level_hashes[next_state] : NULL;
+    std::pair<ORanges<Hash>,ORanges<Char> > *next_hashes = (level + 1 < Const::BITS && !next_accept) ? &level_hashes[next_state] : NULL;
     Char lo = edge.lo();
     Char hi = edge.hi();
     DBGLOG("PM level %zu %p: %u~%u %s%s", level, state, lo, hi, next_accept ? "accept " : "", next_hashes ? "nexthashes" : "");
@@ -4523,10 +4479,11 @@ void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, con
           for (Char prev_ch = prev_lo; prev_ch < prev_hi; ++prev_ch)
             tap_[(prev_ch ^ ch) & (Const::BTAP - 1)] &= mask;
       }
-      if (level + 1 < min_ && next_hashes != NULL)
+      if (level + 1 < min_)
       {
-        // pass character range to the next state
-        next_hashes->second.insert(lo, hi);
+        // pass character range for bitap to the next state
+        if (next_hashes != NULL)
+          next_hashes->second.insert(lo, hi);
       }
       else
       {
@@ -4555,32 +4512,55 @@ void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, con
         }
       }
     }
-    if (level < 4)
+    if (level < Const::PM_M)
     {
-      // populate PM4 hashes for level 0 to 3
-      uint8_t pmh_mask = ~(1 << level);
-      uint8_t pma_mask = ~(1 << (6 - 2 * level));
-      if (level == 3 || next_accept)
-        pma_mask &= ~(1 << (7 - 2 * level));
-      if (next_hashes != NULL)
+      // populate predict match hashes
+      Pred pma_comb = (level + 1 == Const::PM_K && !next_accept ? 1 << (8 * sizeof(Pred) - 2 * Const::PM_K) : 0);
+      Pred pma_mask = ~(1 << (8 * sizeof(Pred) - 2 - 2 * level));
+      if (level + 1 == Const::PM_K || level + 1 == Const::PM_M || next_saturated || next_accept)
+        pma_mask &= ~(1 << (8 * sizeof(Pred) - 1 - 2 * level));
+      if (!next_saturated && next_hashes != NULL)
       {
+        ORanges<Hash>& next_hashes_first = next_hashes->first;
         for (ORanges<Hash>::iterator prev_range = previous.first.begin(); prev_range != previous.first.end(); ++prev_range)
         {
           Hash prev_lo = prev_range->first;
           Hash prev_hi = prev_range->second;
           for (Hash prev = prev_lo; prev < prev_hi; ++prev)
           {
-            for (Char ch = lo; ch <= hi; ++ch)
+            Hash lo_h = hash(prev, static_cast<uint8_t>(lo));
+            Hash hi_h = hash(prev, static_cast<uint8_t>(hi));
+            if (lo_h <= hi_h)
             {
-              Hash h = hash(prev, static_cast<uint8_t>(ch));
-              pmh_[h] &= pmh_mask;
-              pma_[h] &= pma_mask;
-              next_hashes->first.insert(h);
+              next_hashes_first.insert(lo_h, hi_h);
+              for (Hash h = lo_h; h <= hi_h; ++h)
+              {
+                Pred pma_keep = pma_[h] & pma_comb;
+                pma_[h] &= pma_mask;
+                pma_[h] |= pma_keep;
+              }
+            }
+            else
+            {
+              next_hashes_first.insert(lo_h, Const::HASH - 1);
+              next_hashes_first.insert(0, hi_h);
+              for (Hash h = lo_h; h < Const::HASH; ++h)
+              {
+                Pred pma_keep = pma_[h] & pma_comb;
+                pma_[h] &= pma_mask;
+                pma_[h] |= pma_keep;
+              }
+              for (Hash h = 0; h <= hi_h; ++h)
+              {
+                Pred pma_keep = pma_[h] & pma_comb;
+                pma_[h] &= pma_mask;
+                pma_[h] |= pma_keep;
+              }
             }
           }
         }
       }
-      else
+      else 
       {
         for (ORanges<Hash>::iterator prev_range = previous.first.begin(); prev_range != previous.first.end(); ++prev_range)
         {
@@ -4588,48 +4568,31 @@ void Pattern::gen_predict_match_transitions(size_t level, DFA::State *state, con
           Hash prev_hi = prev_range->second;
           for (Hash prev = prev_lo; prev < prev_hi; ++prev)
           {
-            for (Char ch = lo; ch <= hi; ++ch)
+            Hash lo_h = hash(prev, static_cast<uint8_t>(lo));
+            Hash hi_h = hash(prev, static_cast<uint8_t>(hi));
+            if (lo_h <= hi_h)
             {
-              Hash h = hash(prev, static_cast<uint8_t>(ch));
-              pmh_[h] &= pmh_mask;
-              pma_[h] &= pma_mask;
+              for (Hash h = lo_h; h <= hi_h; ++h)
+              {
+                Pred pma_keep = pma_[h] & pma_comb;
+                pma_[h] &= pma_mask;
+                pma_[h] |= pma_keep;
+              }
             }
-          }
-        }
-      }
-    }
-    else if (level < min_)
-    {
-      uint8_t pmh_mask = ~(1 << level);
-      if (next_hashes != NULL)
-      {
-        for (ORanges<Hash>::iterator prev_range = previous.first.begin(); prev_range != previous.first.end(); ++prev_range)
-        {
-          Hash prev_lo = prev_range->first;
-          Hash prev_hi = prev_range->second;
-          for (Hash prev = prev_lo; prev < prev_hi; ++prev)
-          {
-            for (Char ch = lo; ch <= hi; ++ch)
+            else
             {
-              Hash h = hash(prev, static_cast<uint8_t>(ch));
-              pmh_[h] &= pmh_mask;
-              next_hashes->first.insert(h);
-            }
-          }
-        }
-      }
-      else
-      {
-        for (ORanges<Hash>::iterator prev_range = previous.first.begin(); prev_range != previous.first.end(); ++prev_range)
-        {
-          Hash prev_lo = prev_range->first;
-          Hash prev_hi = prev_range->second;
-          for (Hash prev = prev_lo; prev < prev_hi; ++prev)
-          {
-            for (Char ch = lo; ch <= hi; ++ch)
-            {
-              Hash h = hash(prev, static_cast<uint8_t>(ch));
-              pmh_[h] &= pmh_mask;
+              for (Hash h = lo_h; h < Const::HASH; ++h)
+              {
+                Pred pma_keep = pma_[h] & pma_comb;
+                pma_[h] &= pma_mask;
+                pma_[h] |= pma_keep;
+              }
+              for (Hash h = 0; h <= hi_h; ++h)
+              {
+                Pred pma_keep = pma_[h] & pma_comb;
+                pma_[h] &= pma_mask;
+                pma_[h] |= pma_keep;
+              }
             }
           }
         }
@@ -4817,8 +4780,8 @@ bool Pattern::match_hfa_transitions(size_t level, const HFA::Hashes& hashes, con
 #ifndef WITH_NO_CODEGEN
 void Pattern::write_predictor(FILE *file) const
 {
-  ::fprintf(file, "extern const reflex::Pattern::Pred reflex_pred_%s[%zu] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (len_ == 0) * (256 + Const::BTAP) + Const::HASH + (lbk_ > 0) * 68);
-  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5) | (bol_ << 6) | 0x80)));
+  ::fprintf(file, "// reflex::Pattern FSM code or opcode constructor also takes a search pattern prediction table:\nextern const uint8_t reflex_pred_%s[%u] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (len_ == 0) * (256 + Const::BTAP) + 2 * Const::HASH + (lbk_ > 0) * 68);
+  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5) | (bol_ << 6))));
   // save match characters chr_[0..len_-1]
   for (size_t i = 0; i < len_; ++i)
     ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xf) ? "" : "\n  ", static_cast<uint8_t>(chr_[i]));
@@ -4831,18 +4794,9 @@ void Pattern::write_predictor(FILE *file) const
     for (int i = 0; i < Const::BTAP; ++i)
       ::fprintf(file, "%s%3hhu,", (i & 0xf) ? "" : "\n  ", static_cast<uint8_t>(~tap_[i]));
   }
-  if (min_ < 4)
-  {
-    // save predict match PM4 pma_[] parameters
-    for (int i = 0; i < Const::HASH; ++i)
-      ::fprintf(file, "%s%3hhu,", (i & 0xf) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i]));
-  }
-  else
-  {
-    // save predict match hash pmh_[] parameters
-    for (int i = 0; i < Const::HASH; ++i)
-      ::fprintf(file, "%s%3hhu,", (i & 0xf) ? "" : "\n  ", static_cast<uint8_t>(~pmh_[i]));
-  }
+  // save predict match array pma_[] parameters
+  for (int i = 0; i < Const::HASH; ++i)
+    ::fprintf(file, "%s%3hhu,%3hhu,", (i & 0x7) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i] & 0xff), static_cast<uint8_t>(~pma_[i] >> 8));
   if (lbk_ > 0)
   {
     // save lookback parameters lbk_ lbm_ cbk_[] after s-t cut and first s-t cut pattern characters fst_[]

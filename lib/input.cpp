@@ -47,7 +47,11 @@
 # define fseeko _fseeki64
 #else
 # include <unistd.h> // off_t, fstat()
-# include <sys/select.h>
+# if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64)) && (defined(__MINGW32__) || defined(__MINGW64__)) && defined(_UCRT)
+#  include <winsock2.h>
+# else
+#  include <sys/select.h>
+# endif
 #endif
 
 namespace reflex {

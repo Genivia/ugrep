@@ -751,47 +751,10 @@ redo:
 
 // expand code for all pin minimal cases
 #define INIT_ADV_PAT_PIN_CASE(PIN) \
-  switch (pat_->min_) \
-  { \
-    case 0: \
-    case 1: \
-      adv_ = &Matcher::advance_pattern_pin##PIN##_one; \
-      break; \
-    case 2: \
-    case 3: \
-      adv_ = &Matcher::advance_pattern_pin##PIN##_pma; \
-      break; \
-    case 4: \
-      adv_ = &Matcher::advance_pattern_pin##PIN##_pmh<4>; \
-      break; \
-    case 5: \
-      adv_ = &Matcher::advance_pattern_pin##PIN##_pmh<5>; \
-      break; \
-    case 6: \
-      adv_ = &Matcher::advance_pattern_pin##PIN##_pmh<6>; \
-      break; \
-    case 7: \
-      adv_ = &Matcher::advance_pattern_pin##PIN##_pmh<7>; \
-      break; \
-    case 8: \
-      adv_ = &Matcher::advance_pattern_pin##PIN##_pmh<8>; \
-      break; \
-  }
-
-// in init_advance(): select advance_pattern_min1() or advance_pattern_pma() based on the machine, heuristically
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-# define MAX_PATTERN_MIN1_NPY 33
-# define MAX_PATTERN_MIN2_NPY 36
-# define MAX_PATTERN_MIN3_NPY 47
-#elif defined(HAVE_NEON) && defined(__aarch64__)
-# define MAX_PATTERN_MIN1_NPY 30
-# define MAX_PATTERN_MIN2_NPY 24
-# define MAX_PATTERN_MIN3_NPY 36
-#else
-# define MAX_PATTERN_MIN1_NPY 50
-# define MAX_PATTERN_MIN2_NPY 56
-# define MAX_PATTERN_MIN3_NPY 56
-#endif
+  if (pat_->min_ <= 1) \
+    adv_ = &Matcher::advance_pattern_pin##PIN##_one; \
+  else \
+    adv_ = &Matcher::advance_pattern_pin##PIN##_pma;
 
 /// Initialize specialized pattern search methods to advance the engine to a possible match
 void Matcher::init_advance()
@@ -806,32 +769,10 @@ void Matcher::init_advance()
     switch (pat_->pin_)
     {
       case 1:
-        switch (pat_->min_)
-        {
-          case 0:
-          case 1:
-            adv_ = &Matcher::advance_pattern_pin1_one;
-            break;
-          case 2:
-          case 3:
-            adv_ = &Matcher::advance_pattern_pin1_pma;
-            break;
-          case 4:
-            adv_ = &Matcher::advance_pattern_pin1_pmh<4>;
-            break;
-          case 5:
-            adv_ = &Matcher::advance_pattern_pin1_pmh<5>;
-            break;
-          case 6:
-            adv_ = &Matcher::advance_pattern_pin1_pmh<6>;
-            break;
-          case 7:
-            adv_ = &Matcher::advance_pattern_pin1_pmh<7>;
-            break;
-          case 8:
-            adv_ = &Matcher::advance_pattern_pin1_pmh<8>;
-            break;
-        }
+        if (pat_->min_ <= 1)
+          adv_ = &Matcher::advance_pattern_pin1_one;
+        else
+          adv_ = &Matcher::advance_pattern_pin1_pma;
         break;
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2) || defined(HAVE_NEON)
       case 2:
@@ -861,38 +802,18 @@ void Matcher::init_advance()
         {
           case 0:
           case 1:
-            if (pat_->npy_ <= MAX_PATTERN_MIN1_NPY)
-              adv_ = &Matcher::advance_pattern_min1;
-            else
-              adv_ = &Matcher::advance_pattern_pma;
+            adv_ = &Matcher::advance_pattern_min1;
             break;
           case 2:
-            if (pat_->npy_ <= MAX_PATTERN_MIN2_NPY)
-              adv_ = &Matcher::advance_pattern_min2;
-            else
-              adv_ = &Matcher::advance_pattern_pma;
+            adv_ = &Matcher::advance_pattern_min2;
             break;
+#if !defined(WITH_PM3_PM5)
           case 3:
-            if (pat_->npy_ <= MAX_PATTERN_MIN3_NPY)
-              adv_ = &Matcher::advance_pattern_min3;
-            else
-              adv_ = &Matcher::advance_pattern_pma;
+            adv_ = &Matcher::advance_pattern_min3;
             break;
-          case 4:
-            adv_ = &Matcher::advance_pattern_min4<4>;
-            break;
-          case 5:
-            adv_ = &Matcher::advance_pattern_min4<5>;
-            break;
-          case 6:
-            adv_ = &Matcher::advance_pattern_min4<6>;
-            break;
-          case 7:
-            adv_ = &Matcher::advance_pattern_min4<7>;
-            break;
-          case 8:
-            adv_ = &Matcher::advance_pattern_min4<8>;
-            break;
+#endif
+          default:
+            adv_ = &Matcher::advance_pattern_mink;
         }
     }
   }
@@ -900,46 +821,36 @@ void Matcher::init_advance()
   {
     if (pat_->min_ == 0)
       adv_ = &Matcher::advance_char;
-    else if (pat_->min_ < 4)
-      adv_ = &Matcher::advance_char_pma;
     else
-      adv_ = &Matcher::advance_char_pmh;
+      adv_ = &Matcher::advance_char_pma;
   }
   else if (pat_->len_ == 2)
   {
     if (pat_->min_ == 0)
       adv_ = &Matcher::advance_chars<2>;
-    else if (pat_->min_ < 4)
-      adv_ = &Matcher::advance_chars_pma<2>;
     else
-      adv_ = &Matcher::advance_chars_pmh<2>;
+      adv_ = &Matcher::advance_chars_pma<2>;
   }
   else if (pat_->len_ == 3)
   {
     if (pat_->min_ == 0)
       adv_ = &Matcher::advance_chars<3>;
-    else if (pat_->min_ < 4)
-      adv_ = &Matcher::advance_chars_pma<3>;
     else
-      adv_ = &Matcher::advance_chars_pmh<3>;
+      adv_ = &Matcher::advance_chars_pma<3>;
   }
   else if (pat_->bmd_ == 0)
   {
-    if (pat_->min_ >= 4)
-      adv_ = &Matcher::advance_string_pmh;
-    else if (pat_->min_ > 0)
-      adv_ = &Matcher::advance_string_pma;
-    else
+    if (pat_->min_ == 0)
       adv_ = &Matcher::advance_string;
+    else
+      adv_ = &Matcher::advance_string_pma;
   }
   else
   {
-    if (pat_->min_ >= 4)
-      adv_ = &Matcher::advance_string_bm_pmh;
-    else if (pat_->min_ > 0)
-      adv_ = &Matcher::advance_string_bm_pma;
-    else
+    if (pat_->min_ == 0)
       adv_ = &Matcher::advance_string_bm;
+    else
+      adv_ = &Matcher::advance_string_bm_pma;
   }
 #if defined(HAVE_AVX512BW) || defined(HAVE_AVX2)
   // AVX2 runtime optimized function callback overrides
@@ -971,7 +882,7 @@ bool Matcher::advance_pattern_pin1_one(size_t loc)
     if (s < e && (s = static_cast<const char*>(std::memchr(s, chr0, e - s))) != NULL)
     {
       loc = s - buf_;
-      if (s > e - 4 || pat_->predict_match(s))
+      if (REFLEX_UNLIKELY(s > e - Pattern::Const::PM_M) || pat_->predict_match(s))
       {
         set_current(loc);
         return true;
@@ -989,11 +900,11 @@ bool Matcher::advance_pattern_pin1_one(size_t loc)
   }
 }
 
-/// My homegrown "needle search" method when needle pin=1 and min=2 or 3
+/// My homegrown "needle search" method when needle pin=1
 bool Matcher::advance_pattern_pin1_pma(size_t loc)
 {
   const char *chr = pat_->chr_;
-  const size_t min = pat_->min_;
+  const uint16_t min = pat_->min_;
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
   const char chr0 = chr[0];
@@ -1016,7 +927,7 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
       {
         uint32_t offset = ctz(mask);
         size_t k = s - lcp + offset - buf_;
-        if (k + 4 > end_ || pat_->predict_match(&buf_[k]))
+        if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k]))
         {
           set_current(k);
           return true;
@@ -1048,7 +959,7 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
         {
           if ((mask & 0xff))
           {
-            if (k + 4 > end_ || pat_->predict_match(&buf_[k]))
+            if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k]))
             {
               set_current(k);
               return true;
@@ -1071,7 +982,7 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
         {
           if ((mask & 0xff))
           {
-            if (k + 4 > end_ || pat_->predict_match(&buf_[k]))
+            if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k]))
             {
               set_current(k);
               return true;
@@ -1089,7 +1000,7 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
     {
       s -= lcp;
       loc = s - buf_;
-      if (s > e - 4 || (s[lcs] == chr1 && pat_->predict_match(s)))
+      if (REFLEX_UNLIKELY(s > e - Pattern::Const::PM_M) || (s[lcs] == chr1 && pat_->predict_match(s)))
       {
         set_current(loc);
         return true;
@@ -1103,125 +1014,6 @@ bool Matcher::advance_pattern_pin1_pma(size_t loc)
       set_current_and_peek_more(loc);
       loc = cur_;
       if (loc + min > end_ && eof_)
-        return false;
-    }
-  }
-}
-
-/// My homegrown "needle search" method when needle pin=1 and min>=4
-template <uint8_t MIN>
-bool Matcher::advance_pattern_pin1_pmh(size_t loc)
-{
-  const char *chr = pat_->chr_;
-  const uint16_t lcp = pat_->lcp_;
-  const uint16_t lcs = pat_->lcs_;
-  const int chr0 = chr[0];
-  const int chr1 = chr[1];
-  while (true)
-  {
-    const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - MIN + 1;
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-    __m128i vlcp = _mm_set1_epi8(chr0);
-    __m128i vlcs = _mm_set1_epi8(chr1);
-    while (s <= e - 16)
-    {
-      __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-      __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-      __m128i veqlcp = _mm_cmpeq_epi8(vlcp, vstrlcp);
-      __m128i veqlcs = _mm_cmpeq_epi8(vlcs, vstrlcs);
-      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs));
-      while (REFLEX_UNLIKELY(mask != 0))
-      {
-        uint32_t offset = ctz(mask);
-        size_t k = s - lcp + offset - buf_;
-        if (pat_->predict_match(&buf_[k], MIN))
-        {
-          set_current(k);
-          return true;
-        }
-        mask &= mask - 1;
-      }
-      s += 16;
-    }
-#elif defined(HAVE_NEON)
-    uint8x16_t vlcp = vdupq_n_u8(chr0);
-    uint8x16_t vlcs = vdupq_n_u8(chr1);
-    while (s <= e - 16)
-    {
-      uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-      uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp));
-      uint8x16_t vmasklcp8 = vceqq_u8(vlcp, vstrlcp);
-      uint8x16_t vmasklcs8 = vceqq_u8(vlcs, vstrlcs);
-      uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8));
-      uint64_t mask = vgetq_lane_u64(vmask64, 0);
-      if (REFLEX_UNLIKELY(mask != 0))
-      {
-        size_t k = s - lcp - buf_;
-        if (static_cast<uint32_t>(mask) == 0)
-        {
-          mask >>= 32;
-          k += 4;
-        }
-        do
-        {
-          if ((mask & 0xff))
-          {
-            if (pat_->predict_match(&buf_[k], MIN))
-            {
-              set_current(k);
-              return true;
-            }
-          }
-          mask >>= 8;
-          ++k;
-        } while (mask != 0);
-      }
-      mask = vgetq_lane_u64(vmask64, 1);
-      if (REFLEX_UNLIKELY(mask != 0))
-      {
-        size_t k = s - lcp  + 8 - buf_;
-        if (static_cast<uint32_t>(mask) == 0)
-        {
-          mask >>= 32;
-          k += 4;
-        }
-        do
-        {
-          if ((mask & 0xff))
-          {
-            if (pat_->predict_match(&buf_[k], MIN))
-            {
-              set_current(k);
-              return true;
-            }
-          }
-          mask >>= 8;
-          ++k;
-        } while (mask != 0);
-      }
-      s += 16;
-    }
-#endif
-    e = buf_ + end_;
-    if (s < e && (s = static_cast<const char*>(std::memchr(s, chr0, e - s))) != NULL)
-    {
-      s -= lcp;
-      loc = s - buf_;
-      if (s + MIN > e || (s[lcs] == chr1 && pat_->predict_match(s, MIN)))
-      {
-        set_current(loc);
-        return true;
-      }
-      ++loc;
-    }
-    else
-    {
-      if (e > buf_ + loc + lcp)
-        loc = e - buf_ - lcp;
-      set_current_and_peek_more(loc);
-      loc = cur_;
-      if (loc + MIN > end_ && eof_)
         return false;
     }
   }
@@ -1249,7 +1041,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s + offset - buf_; \
-        if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
+        if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k])) \
         { \
           set_current(k); \
           return true; \
@@ -1258,7 +1050,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
       } \
       s += 16; \
     } \
-    while (s < e - 3) \
+    while (s < e - (Pattern::Const::PM_M - 1)) \
     { \
       if (pat_->predict_match(s++)) \
       { \
@@ -1270,7 +1062,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
     loc = s - buf_; \
     set_current_and_peek_more(loc); \
     loc = cur_; \
-    if (loc + 3 >= end_) \
+    if (loc + (Pattern::Const::PM_M - 1) >= end_) \
       return true; \
   } \
 }
@@ -1366,12 +1158,12 @@ ADV_PAT_PIN_ONE(8, \
     veq = _mm_or_si128(veq, _mm_cmpeq_epi8(v7, vstr)); \
   )
 
-/// My homegrown "needle search" methods for pins with min=2 or 3 (pma) and min>=4 (pmh)
+/// My homegrown "needle search" methods for pins
 #define ADV_PAT_PIN(N, INIT, COMP) \
 bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
 { \
   const char *chr = pat_->chr_; \
-  const size_t min = pat_->min_; \
+  const uint16_t min = pat_->min_; \
   const uint16_t lcp = pat_->lcp_; \
   const uint16_t lcs = pat_->lcs_; \
   INIT \
@@ -1391,7 +1183,7 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s - lcp + offset - buf_; \
-        if (k + min + 3 > end_ || pat_->predict_match(&buf_[k])) \
+        if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k])) \
         { \
           set_current(k); \
           return true; \
@@ -1401,7 +1193,7 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
       s += 16; \
     } \
     s -= lcp; \
-    e = buf_ + end_ - 3; \
+    e = buf_ + end_ - (Pattern::Const::PM_M - 1); \
     while (s < e) \
     { \
       if (pat_->predict_match(s++)) \
@@ -1416,59 +1208,8 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
     loc = cur_; \
     if (loc + min > end_ && eof_) \
       return false; \
-    if (loc + 3 >= end_) \
+    if (loc + (Pattern::Const::PM_M - 1) >= end_) \
       return true; \
-  } \
-} \
-\
-template <uint8_t MIN> \
-bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
-{ \
-  const char *chr = pat_->chr_; \
-  const uint16_t lcp = pat_->lcp_; \
-  const uint16_t lcs = pat_->lcs_; \
-  INIT \
-  while (true) \
-  { \
-    const char *s = buf_ + loc + lcp; \
-    const char *e = buf_ + end_ + lcp - MIN + 1; \
-    while (s <= e - 16) \
-    { \
-      __m128i vstrlcp = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s)); \
-      __m128i vstrlcs = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp)); \
-      __m128i veqlcp = _mm_cmpeq_epi8(vlcp0, vstrlcp); \
-      __m128i veqlcs = _mm_cmpeq_epi8(vlcs0, vstrlcs); \
-      COMP \
-      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(veqlcp, veqlcs)); \
-      while (REFLEX_UNLIKELY(mask != 0)) \
-      { \
-        uint32_t offset = ctz(mask); \
-        size_t k = s - lcp + offset - buf_; \
-        if (pat_->predict_match(&buf_[k], MIN)) \
-        { \
-          set_current(k); \
-          return true; \
-        } \
-        mask &= mask - 1; \
-      } \
-      s += 16; \
-    } \
-    s -= lcp; \
-    e = buf_ + end_ - MIN + 1; \
-    while (s < e) \
-    { \
-      if (pat_->predict_match(s++, MIN)) \
-      { \
-        size_t k = s - buf_ - 1; \
-        set_current(k); \
-        return true; \
-      } \
-    } \
-    loc = s - buf_; \
-    set_current_and_peek_more(loc); \
-    loc = cur_; \
-    if (loc + MIN > end_ && eof_) \
-      return false; \
   } \
 }
 
@@ -1656,7 +1397,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
         { \
           if ((mask & 0xff) != 0) \
           { \
-            if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
+            if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k])) \
             { \
               set_current(k); \
               return true; \
@@ -1679,7 +1420,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
         { \
           if ((mask & 0xff) != 0) \
           { \
-            if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
+            if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k])) \
             { \
               set_current(k); \
               return true; \
@@ -1691,7 +1432,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
       } \
       s += 16; \
     } \
-    while (s < e - 3) \
+    while (s < e - (Pattern::Const::PM_M - 1)) \
     { \
       if (pat_->predict_match(s++)) \
       { \
@@ -1703,7 +1444,7 @@ bool Matcher::advance_pattern_pin##N##_one(size_t loc) \
     loc = s - buf_; \
     set_current_and_peek_more(loc); \
     loc = cur_; \
-    if (loc + 3 >= end_) \
+    if (loc + (Pattern::Const::PM_M - 1) >= end_) \
       return true; \
   } \
 }
@@ -1838,12 +1579,12 @@ ADV_PAT_PIN_ONE(8, \
         vceqq_u8(v7, vstr)); \
   )
 
-/// My homegrown "needle search" methods for pins with min=2 or 3 (pma) and min>=4 (pmh)
+/// My homegrown "needle search" methods for pins
 #define ADV_PAT_PIN(N, INIT, COMP) \
 bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
 { \
   const char *chr = pat_->chr_; \
-  const size_t min = pat_->min_; \
+  const uint16_t min = pat_->min_; \
   const uint16_t lcp = pat_->lcp_; \
   const uint16_t lcs = pat_->lcs_; \
   INIT \
@@ -1870,7 +1611,7 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
         { \
           if ((mask & 0xff) != 0) \
           { \
-            if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
+            if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k])) \
             { \
               set_current(k); \
               return true; \
@@ -1893,7 +1634,7 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
         { \
           if ((mask & 0xff) != 0) \
           { \
-            if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
+            if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k])) \
             { \
               set_current(k); \
               return true; \
@@ -1906,7 +1647,7 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
       s += 16; \
     } \
     s -= lcp; \
-    e = buf_ + end_ - 3; \
+    e = buf_ + end_ - (Pattern::Const::PM_M - 1); \
     while (s < e) \
     { \
       if (pat_->predict_match(s++)) \
@@ -1921,92 +1662,8 @@ bool Matcher::advance_pattern_pin##N##_pma(size_t loc) \
     loc = cur_; \
     if (loc + min > end_ && eof_) \
       return false; \
-    if (loc + 3 >= end_) \
+    if (loc + (Pattern::Const::PM_M - 1) >= end_) \
       return true; \
-  } \
-} \
-\
-template <uint8_t MIN> \
-bool Matcher::advance_pattern_pin##N##_pmh(size_t loc) \
-{ \
-  const char *chr = pat_->chr_; \
-  const uint16_t lcp = pat_->lcp_; \
-  const uint16_t lcs = pat_->lcs_; \
-  INIT \
-  while (true) \
-  { \
-    const char *s = buf_ + loc + lcp; \
-    const char *e = buf_ + end_ + lcp - MIN + 1; \
-    while (s <= e - 16) \
-    { \
-      uint8x16_t vstrlcp = vld1q_u8(reinterpret_cast<const uint8_t*>(s)); \
-      uint8x16_t vstrlcs = vld1q_u8(reinterpret_cast<const uint8_t*>(s + lcs - lcp)); \
-      COMP \
-      uint64x2_t vmask64 = vreinterpretq_u64_u8(vandq_u8(vmasklcp8, vmasklcs8)); \
-      uint64_t mask = vgetq_lane_u64(vmask64, 0); \
-      if (REFLEX_UNLIKELY(mask != 0)) \
-      { \
-        size_t k = s - lcp - buf_; \
-        if (static_cast<uint32_t>(mask) == 0) \
-        { \
-          mask >>= 32; \
-          k += 4; \
-        } \
-        do \
-        { \
-          if ((mask & 0xff) != 0) \
-          { \
-            if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
-            { \
-              set_current(k); \
-              return true; \
-            } \
-          } \
-          mask >>= 8; \
-          ++k; \
-        } while (mask != 0); \
-      } \
-      mask = vgetq_lane_u64(vmask64, 1); \
-      if (REFLEX_UNLIKELY(mask != 0)) \
-      { \
-        size_t k = s - lcp + 8 - buf_; \
-        if (static_cast<uint32_t>(mask) == 0) \
-        { \
-          mask >>= 32; \
-          k += 4; \
-        } \
-        do \
-        { \
-          if ((mask & 0xff) != 0) \
-          { \
-            if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
-            { \
-              set_current(k); \
-              return true; \
-            } \
-          } \
-          mask >>= 8; \
-          ++k; \
-        } while (mask != 0); \
-      } \
-      s += 16; \
-    } \
-    s -= lcp; \
-    e = buf_ + end_ - MIN + 1; \
-    while (s < e) \
-    { \
-      if (pat_->predict_match(s++, MIN)) \
-      { \
-        size_t k = s - buf_ - 1; \
-        set_current(k); \
-        return true; \
-      } \
-    } \
-    loc = s - buf_; \
-    set_current_and_peek_more(loc); \
-    loc = cur_; \
-    if (loc + MIN > end_ && eof_) \
-      return false; \
   } \
 }
 
@@ -2244,14 +1901,14 @@ ADV_PAT_PIN(8, \
 
 #endif
 
-/// Minimal 1 byte long patterns with min=0 or 1 using 4-way bitap hashed pairs then PM4
+/// Minimal 1 byte long patterns with min=0 or 1 using 4-way bitap hashed pairs and PM
 bool Matcher::advance_pattern_min1(size_t loc)
 {
-  const Pattern::Pred *tap = pat_->tap_;
+  const Pattern::Bitap *tap = pat_->tap_;
   while (true)
   {
     const char *s = buf_ + loc;
-    const char *e = buf_ + end_ - 4;
+    const char *e = buf_ + end_ - (Pattern::Const::PM_M + 2);
     uint8_t c0 = static_cast<uint8_t>(buf_[loc]);
     while (s < e)
     {
@@ -2259,216 +1916,15 @@ bool Matcher::advance_pattern_min1(size_t loc)
       uint8_t c2 = static_cast<uint8_t>(s[2]);
       uint8_t c3 = static_cast<uint8_t>(s[3]);
       uint8_t c4 = static_cast<uint8_t>(s[4]);
-      if (!(tap[Pattern::bihash(c0, c1)] &
-            tap[Pattern::bihash(c1, c2)] &
-            tap[Pattern::bihash(c2, c3)] &
-            tap[Pattern::bihash(c3, c4)] & 1))
+      if ((!(tap[Pattern::bihash(c0, c1)] & 1) && pat_->predict_match_quick(&s[0])) ||
+          (!(tap[Pattern::bihash(c1, c2)] & 1) && pat_->predict_match_quick(&s[1])) ||
+          (!(tap[Pattern::bihash(c2, c3)] & 1) && pat_->predict_match_quick(&s[2])) ||
+          (!(tap[Pattern::bihash(c3, c4)] & 1) && pat_->predict_match_quick(&s[3])))
         break;
       c0 = c4;
       s += 4;
     }
     if (s < e)
-    {
-      if (!pat_->predict_match(s) &&
-          ++s <= e && !pat_->predict_match(s) &&
-          ++s <= e && !pat_->predict_match(s) &&
-          ++s <= e && !pat_->predict_match(s))
-      {
-        loc = s - buf_ + 1;
-        continue;
-      }
-      size_t k = s - buf_;
-      set_current(k);
-      return true;
-    }
-    loc = s - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + 4 >= end_)
-    {
-      s = buf_ + loc;
-      e = buf_ + end_;
-      while (s < e)
-      {
-        uint8_t c1 = s + 1 < e ? static_cast<uint8_t>(s[1]) : 0;
-        if (!(tap[Pattern::bihash(c0, c1)] & 1))
-          break;
-        c0 = c1;
-        ++s;
-      }
-      loc = s - buf_;
-      set_current(loc);
-      return loc + 1 <= end_;
-    }
-  }
-}
-
-/// Minimal 2 byte long patterns with min=2 using bitap hashed pairs and PM4
-bool Matcher::advance_pattern_min2(size_t loc)
-{
-  const Pattern::Pred *tap = pat_->tap_;
-  uint32_t state = ~0;
-  while (true)
-  {
-    const char *s = buf_ + loc;
-    const char *e = buf_ + end_ - 1;
-    uint8_t c0 = static_cast<uint8_t>(*s);
-    while (s < e)
-    {
-      uint8_t c1 = static_cast<uint8_t>(*++s);
-      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
-      c0 = c1;
-      if ((state & 2) == 0 && (s > e - 2 || pat_->predict_match(s - 2)))
-      {
-        size_t k = s - buf_ - 2;
-        set_current(k);
-        return true;
-      }
-    }
-    loc = s - buf_;
-    size_t m = std::min<size_t>(1, loc); // to clamp loc - 1
-    set_current_and_peek_more(loc - m); // clamp loc - 1
-    loc = cur_ + m;
-    if (loc + 1 >= end_ && eof_)
-    {
-      uint8_t c1 = 0; // reached the end
-      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
-      if ((state & 2) == 0)
-      {
-        set_current(loc - 1);
-        return true;
-      }
-      set_current(loc);
-      return false;
-    }
-  }
-}
-
-/// Minimal 3 byte long pattern with min=3 using bitap hashed pairs and PM4
-bool Matcher::advance_pattern_min3(size_t loc)
-{
-  const Pattern::Pred *tap = pat_->tap_;
-  uint32_t state = ~0;
-  while (true)
-  {
-    const char *s = buf_ + loc;
-    const char *e = buf_ + end_ - 1;
-    uint8_t c0 = static_cast<uint8_t>(*s);
-    while (s < e)
-    {
-      uint8_t c1 = static_cast<uint8_t>(*++s);
-      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
-      c0 = c1;
-      if ((state & 4) == 0 && (s > e - 1 || pat_->predict_match(s - 3)))
-      {
-        size_t k = s - buf_ - 3;
-        set_current(k);
-        return true;
-      }
-    }
-    loc = s - buf_;
-    size_t m = std::min<size_t>(2, loc); // to clamp loc - 2
-    set_current_and_peek_more(loc - m); // clamp loc - 2
-    loc = cur_ + m;
-    if (loc + 1 >= end_ && eof_)
-    {
-      uint8_t c1 = 0; // reached the end
-      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
-      if ((state & 4) == 0)
-      {
-        set_current(loc - 2);
-        return true;
-      }
-      set_current(loc);
-      return false;
-    }
-  }
-}
-
-/// Minimal 4 byte long patterns (MIN>=4) using bitap hashed pairs and Bloom filter hashing
-template <uint8_t MIN>
-bool Matcher::advance_pattern_min4(size_t loc)
-{
-  const Pattern::Pred *tap = pat_->tap_;
-  uint32_t state1 = ~0;
-  uint32_t state2 = ~0;
-  uint32_t mask = 1 << (MIN - 1);
-  const char *s = buf_ + loc;
-  const char *e = buf_ + end_ - 2;
-  while (true)
-  {
-    uint8_t c0 = static_cast<uint8_t>(*s);
-    while (s < e)
-    {
-      uint8_t c1 = static_cast<uint8_t>(*++s);
-      state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
-      c0 = static_cast<uint8_t>(*++s);
-      state1 = (state2 << 1) | tap[Pattern::bihash(c1, c0)];
-      if ((state2 & mask) == 0 && pat_->predict_match(s - MIN - 1, MIN))
-      {
-        size_t k = s - buf_ - MIN - 1;
-        set_current(k);
-        return true;
-      }
-      if ((state1 & mask) == 0 && pat_->predict_match(s - MIN, MIN))
-      {
-        size_t k = s - buf_ - MIN;
-        set_current(k);
-        return true;
-      }
-    }
-    size_t ahead = s - buf_;
-    size_t m = std::min<size_t>(MIN - 1, ahead); // to clamp ahead - MIN + 1
-    set_current_and_peek_more(ahead - m); // clamp ahead - MIN + 1
-    s = buf_ + cur_ + m;
-    e = buf_ + end_ - 2;
-    if (s >= e && eof_)
-    {
-      c0 = static_cast<uint8_t>(*s);
-      if (s == e + 1)
-      {
-        uint8_t c1 = 0; // reached the end
-        state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
-        if ((state2 & mask) == 0 && pat_->predict_match(s - MIN + 1, MIN))
-        {
-          size_t k = s - buf_ - MIN + 1;
-          set_current(k);
-          return true;
-        }
-      }
-      else if (s < e + 1)
-      {
-        uint8_t c1 = static_cast<uint8_t>(*++s);
-        state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
-        c0 = 0; // reached the end
-        state1 = (state2 << 1) | tap[Pattern::bihash(c1, c0)];
-        if ((state2 & mask) == 0 && pat_->predict_match(s - MIN, MIN))
-        {
-          size_t k = s - buf_ - MIN;
-          set_current(k);
-          return true;
-        }
-        if ((state1 & mask) == 0 && pat_->predict_match(s - MIN + 1, MIN))
-        {
-          size_t k = s - buf_ - MIN + 1;
-          set_current(k);
-          return true;
-        }
-      }
-      set_current(ahead);
-      return false;
-    }
-  }
-}
-
-/// Minimal 1 byte long pattern with min=0 or 1 using PM4
-bool Matcher::advance_pattern_pma(size_t loc)
-{
-  while (true)
-  {
-    const char *s = buf_ + loc;
-    const char *e = buf_ + end_;
-    while (s < e - 6)
     {
       if (pat_->predict_match(s++) ||
           pat_->predict_match(s++) ||
@@ -2479,12 +1935,254 @@ bool Matcher::advance_pattern_pma(size_t loc)
         set_current(k);
         return true;
       }
+      loc = s - buf_;
+    }
+    else
+    {
+      loc = s - buf_;
+      set_current_and_peek_more(loc);
+      loc = cur_;
+      if (loc + Pattern::Const::PM_M + 2 >= end_)
+      {
+        s = buf_ + loc;
+        e = buf_ + end_;
+        c0 = static_cast<uint8_t>(s[0]);
+        while (s < e)
+        {
+          uint8_t c1 = s + 1 < e ? static_cast<uint8_t>(s[1]) : 0;
+          if (!(tap[Pattern::bihash(c0, c1)] & 1))
+          {
+            size_t k = s - buf_;
+            set_current(k);
+            return true;
+          }
+          c0 = c1;
+          ++s;
+        }
+        loc = s - buf_;
+        set_current(loc);
+        return false;
+      }
+    }
+  }
+}
+
+/// Minimal 2 byte long patterns with min=2 using bitap hashed pairs then PM
+bool Matcher::advance_pattern_min2(size_t loc)
+{
+  const Pattern::Bitap *tap = pat_->tap_;
+  uint32_t state = ~0;
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_ - (Pattern::Const::PM_M - 1);
+    uint8_t c0 = static_cast<uint8_t>(*s);
+    while (s < e)
+    {
+      uint8_t c1 = static_cast<uint8_t>(*++s);
+      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
+      c0 = c1;
+      if ((state & 2) == 0 && pat_->predict_match(s - 2))
+      {
+        size_t k = s - buf_ - 2;
+        set_current(k);
+        return true;
+      }
     }
     loc = s - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + 6 >= end_)
-      return advance_pattern_min1(loc);
+    size_t m = std::min<size_t>(1, loc); // to clamp loc - 1
+    set_current_and_peek_more(loc - m); // clamp loc - 1
+    loc = cur_ + m;
+    if (loc + (Pattern::Const::PM_M - 1) >= end_ && eof_)
+    {
+      // keep going, we may have matches in the last bytes
+      s = buf_ + loc;
+      e = buf_ + end_ - 1;
+      c0 = static_cast<uint8_t>(s[0]);
+      while (s < e)
+      {
+        uint8_t c1 = static_cast<uint8_t>(*++s);
+        state = (state << 1) | tap[Pattern::bihash(c0, c1)];
+        c0 = c1;
+        if ((state & 2) == 0)
+        {
+          size_t k = s - buf_ - 2;
+          set_current(k);
+          return true;
+        }
+      }
+      uint8_t c1 = 0; // reached the end
+      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
+      if ((state & 2) == 0)
+      {
+        size_t k = s - buf_ - 1;
+        set_current(k);
+        return true;
+      }
+      loc = s - buf_;
+      set_current(loc);
+      return false;
+    }
+  }
+}
+
+#if !defined(WITH_PM3_PM5)
+/// Minimal 3 byte long pattern with min=3 using bitap hashed pairs then PM4+PM4
+bool Matcher::advance_pattern_min3(size_t loc)
+{
+  const Pattern::Bitap *tap = pat_->tap_;
+  uint32_t state = ~0;
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_ - (Pattern::Const::PM_M - 2);
+    uint8_t c0 = static_cast<uint8_t>(*s);
+    while (s < e)
+    {
+      uint8_t c1 = static_cast<uint8_t>(*++s);
+      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
+      c0 = c1;
+      if ((state & 4) == 0 && pat_->predict_match(s - 3))
+      {
+        size_t k = s - buf_ - 3;
+        set_current(k);
+        return true;
+      }
+    }
+    loc = s - buf_;
+    size_t m = std::min<size_t>(2, loc); // to clamp loc - 2
+    set_current_and_peek_more(loc - m); // clamp loc - 2
+    loc = cur_ + m;
+    if (loc + (Pattern::Const::PM_M - 2) >= end_ && eof_)
+    {
+      // keep going, we may have matches in the last bytes
+      s = buf_ + loc;
+      e = buf_ + end_ - 1;
+      c0 = static_cast<uint8_t>(s[0]);
+      while (s < e)
+      {
+        uint8_t c1 = static_cast<uint8_t>(*++s);
+        state = (state << 1) | tap[Pattern::bihash(c0, c1)];
+        c0 = c1;
+        if ((state & 4) == 0)
+        {
+          size_t k = s - buf_ - 3;
+          set_current(k);
+          return true;
+        }
+      }
+      uint8_t c1 = 0; // reached the end
+      state = (state << 1) | tap[Pattern::bihash(c0, c1)];
+      if ((state & 4) == 0)
+      {
+        size_t k = s - buf_ - 2;
+        set_current(k);
+        return true;
+      }
+      loc = s - buf_;
+      set_current(loc);
+      return false;
+    }
+  }
+}
+#endif
+
+/// Minimal k byte long patterns (MIN>=k) using bitap hashed pairs and PMk+PMx
+bool Matcher::advance_pattern_mink(size_t loc)
+{
+  const Pattern::Bitap *tap = pat_->tap_;
+  const uint16_t min = pat_->min_;
+  const uint16_t sub = (min < Pattern::Const::PM_M + 2 ? Pattern::Const::PM_M + 2 - min : 0);
+  const uint32_t mask = 1 << (min - 1);
+  uint32_t state1 = ~0;
+  uint32_t state2 = ~0;
+  while (true)
+  {
+    const char *s = buf_ + loc;
+    const char *e = buf_ + end_ - sub;
+    uint8_t c0 = static_cast<uint8_t>(*s);
+    while (s < e)
+    {
+      uint8_t c1 = static_cast<uint8_t>(*++s);
+      state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
+      c0 = static_cast<uint8_t>(*++s);
+      state1 = (state2 << 1) | tap[Pattern::bihash(c1, c0)];
+      if ((state2 & mask) == 0 && pat_->predict_match_min(s - min - 1))
+      {
+        size_t k = s - buf_ - min - 1;
+        set_current(k);
+        return true;
+      }
+      if ((state1 & mask) == 0 && pat_->predict_match_min(s - min))
+      {
+        size_t k = s - buf_ - min;
+        set_current(k);
+        return true;
+      }
+    }
+    loc = s - buf_;
+    size_t m = std::min<size_t>(min - 1, loc); // to clamp loc - min + 1
+    set_current_and_peek_more(loc - m); // clamp loc - min + 1
+    loc = cur_ + m;
+    if (loc + sub >= end_ && eof_)
+    {
+      // keep going, we may have a match in the last bytes
+      s = buf_ + loc;
+      e = buf_ + end_ - 2;
+      c0 = static_cast<uint8_t>(s[0]);
+      while (s < e)
+      {
+        uint8_t c1 = static_cast<uint8_t>(*++s);
+        state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
+        c0 = static_cast<uint8_t>(*++s);
+        state1 = (state2 << 1) | tap[Pattern::bihash(c1, c0)];
+        if ((state2 & mask) == 0)
+        {
+          size_t k = s - buf_ - min - 1;
+          set_current(k);
+          return true;
+        }
+        if ((state1 & mask) == 0)
+        {
+          size_t k = s - buf_ - min;
+          set_current(k);
+          return true;
+        }
+      }
+      if (s == e + 1)
+      {
+        uint8_t c1 = 0; // reached the end
+        state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
+        if ((state2 & mask) == 0)
+        {
+          size_t k = s - buf_ - min + 1;
+          set_current(k);
+          return true;
+        }
+      }
+      else if (s < e + 1)
+      {
+        uint8_t c1 = static_cast<uint8_t>(*++s);
+        state2 = (state1 << 1) | tap[Pattern::bihash(c0, c1)];
+        c0 = 0; // reached the end
+        state1 = (state2 << 1) | tap[Pattern::bihash(c1, c0)];
+        if ((state2 & mask) == 0)
+        {
+          size_t k = s - buf_ - min;
+          set_current(k);
+          return true;
+        }
+        if ((state1 & mask) == 0)
+        {
+          size_t k = s - buf_ - min + 1;
+          set_current(k);
+          return true;
+        }
+      }
+      loc = s - buf_;
+      set_current(loc);
+      return false;
+    }
   }
 }
 
@@ -2511,7 +2209,7 @@ bool Matcher::advance_char(size_t loc)
   }
 }
 
-/// One char followed by 1 to 4 characters
+/// One char followed by some pattern
 bool Matcher::advance_char_pma(size_t loc)
 {
   const char chr0 = pat_->chr_[0];
@@ -2523,38 +2221,7 @@ bool Matcher::advance_char_pma(size_t loc)
     if (s != NULL)
     {
       loc = s - buf_;
-      if (s > e - 5 || pat_->predict_match(s + 1))
-      {
-        set_current(loc);
-        return true;
-      }
-      ++loc;
-    }
-    else
-    {
-      loc = e - buf_;
-      set_current_and_peek_more(loc);
-      loc = cur_;
-      if (loc + 1 > end_ && eof_)
-        return false;
-    }
-  }
-}
-
-/// One char followed by 4 to 8 characters
-bool Matcher::advance_char_pmh(size_t loc)
-{
-  const char chr0 = pat_->chr_[0];
-  const size_t min = pat_->min_;
-  while (true)
-  {
-    const char *s = buf_ + loc;
-    const char *e = buf_ + end_;
-    s = static_cast<const char*>(std::memchr(s, chr0, e - s));
-    if (s != NULL)
-    {
-      loc = s - buf_;
-      if (s + 1 + min > e || pat_->predict_match(s + 1, min))
+      if (REFLEX_UNLIKELY(s > e - Pattern::Const::PM_M - 1) || pat_->predict_match(s + 1))
       {
         set_current(loc);
         return true;
@@ -2692,14 +2359,14 @@ bool Matcher::advance_chars(size_t loc)
   }
 }
 
-/// Few (2 or 3) chars followed by 1 to 4 characters
+/// Few (2 or 3) chars followed by a pattern
 template<uint8_t LEN>
 bool Matcher::advance_chars_pma(size_t loc)
 {
   const uint16_t lcp = 0;
   const uint16_t lcs = LEN - 1;
   const char *chr = pat_->chr_;
-  const size_t min = pat_->min_;
+  const uint16_t min = pat_->min_;
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -2721,7 +2388,7 @@ bool Matcher::advance_chars_pma(size_t loc)
             (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 1) == 0))
         {
           size_t k = s - lcp + offset - buf_;
-          if (k + LEN + 4 > end_ || pat_->predict_match(&buf_[k + LEN]))
+          if (REFLEX_UNLIKELY(k + LEN + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + LEN]))
           {
             set_current(k);
             return true;
@@ -2757,7 +2424,7 @@ bool Matcher::advance_chars_pma(size_t loc)
               (LEN == 2 ||
                (LEN == 3 ? buf_[k + 1] == chr[1] : std::memcmp(&buf_[k + 1], chr + 1, LEN - 1) == 0)))
           {
-            if (k + LEN + 4 > end_ || pat_->predict_match(&buf_[k + LEN]))
+            if (REFLEX_UNLIKELY(k + LEN + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + LEN]))
             {
               set_current(k);
               return true;
@@ -2782,7 +2449,7 @@ bool Matcher::advance_chars_pma(size_t loc)
               (LEN == 2 ||
                (LEN == 3 ? buf_[k + 1] == chr[1] : std::memcmp(&buf_[k + 1], chr + 1, LEN - 1) == 0)))
           {
-            if (k + LEN + 4 > end_ || pat_->predict_match(&buf_[k + LEN]))
+            if (REFLEX_UNLIKELY(k + LEN + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + LEN]))
             {
               set_current(k);
               return true;
@@ -2809,140 +2476,7 @@ bool Matcher::advance_chars_pma(size_t loc)
           (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 1) == 0))
       {
         size_t k = s - lcp - buf_;
-        if (k + LEN + 4 > end_ || pat_->predict_match(&buf_[k + LEN]))
-        {
-          set_current(k);
-          return true;
-        }
-      }
-      ++s;
-    }
-    loc = s - lcp - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + LEN + min > end_ && eof_)
-      return false;
-  }
-}
-
-/// Few (2 or 3) chars followed by 4 to 8 characters
-template<uint8_t LEN>
-bool Matcher::advance_chars_pmh(size_t loc)
-{
-  const uint16_t lcp = 0;
-  const uint16_t lcs = LEN - 1;
-  const char *chr = pat_->chr_;
-  const size_t min = pat_->min_;
-  while (true)
-  {
-    const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - LEN - min + 1;
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-    __m128i vlcp = _mm_set1_epi8(chr[lcp]);
-    __m128i vlcs = _mm_set1_epi8(chr[lcs]);
-    while (s <= e - 16)
-    {
-      __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-      __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-      __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
-      __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
-      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-      while (REFLEX_UNLIKELY(mask != 0))
-      {
-        uint32_t offset = ctz(mask);
-        if (LEN == 2 ||
-            (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 1) == 0))
-        {
-          size_t k = s - lcp + offset - buf_;
-          if (pat_->predict_match(&buf_[k + LEN], min))
-          {
-            set_current(k);
-            return true;
-          }
-        }
-        mask &= mask - 1;
-      }
-      s += 16;
-    }
-#elif defined(HAVE_NEON)
-    uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
-    uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
-    while (s <= e - 16)
-    {
-      uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-      uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
-      uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
-      uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
-      uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
-      uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
-      uint64_t mask = vgetq_lane_u64(vmask64, 0);
-      if (REFLEX_UNLIKELY(mask != 0))
-      {
-        size_t k = s - lcp - buf_;
-        if (static_cast<uint32_t>(mask) == 0)
-        {
-          mask >>= 32;
-          k += 4;
-        }
-        do
-        {
-          if ((mask & 0xff) &&
-              (LEN == 2 ||
-               (LEN == 3 ? buf_[k + 1] == chr[1] : std::memcmp(&buf_[k + 1], chr + 1, LEN - 1) == 0)))
-          {
-            if (pat_->predict_match(&buf_[k + LEN], min))
-            {
-              set_current(k);
-              return true;
-            }
-          }
-          mask >>= 8;
-          ++k;
-        } while (mask != 0);
-      }
-      mask = vgetq_lane_u64(vmask64, 1);
-      if (REFLEX_UNLIKELY(mask != 0))
-      {
-        size_t k = s - lcp + 8 - buf_;
-        if (static_cast<uint32_t>(mask) == 0)
-        {
-          mask >>= 32;
-          k += 4;
-        }
-        do
-        {
-          if ((mask & 0xff) &&
-              (LEN == 2 ||
-               (LEN == 3 ? buf_[k + 1] == chr[1] : std::memcmp(&buf_[k + 1], chr + 1, LEN - 1) == 0)))
-          {
-            if (pat_->predict_match(&buf_[k + LEN], min))
-            {
-              set_current(k);
-              return true;
-            }
-          }
-          mask >>= 8;
-          ++k;
-        } while (mask != 0);
-      }
-      s += 16;
-    }
-#endif
-    while (s < e)
-    {
-      do
-        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
-      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
-      if (s == NULL || s >= e)
-      {
-        s = e;
-        break;
-      }
-      if (LEN == 2 ||
-          (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 1) == 0))
-      {
-        size_t k = s - lcp - buf_;
-        if (pat_->predict_match(&buf_[k + LEN], min))
+        if (REFLEX_UNLIKELY(k + LEN + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + LEN]))
         {
           set_current(k);
           return true;
@@ -2962,7 +2496,7 @@ bool Matcher::advance_chars_pmh(size_t loc)
 bool Matcher::advance_string(size_t loc)
 {
   const char *chr = pat_->chr_;
-  const size_t len = pat_->len_;
+  const uint16_t len = pat_->len_;
   uint16_t lcp = pat_->lcp_;
   uint16_t lcs = pat_->lcs_;
   while (true)
@@ -3028,8 +2562,8 @@ bool Matcher::advance_string(size_t loc)
 bool Matcher::advance_string_pma(size_t loc)
 {
   const char *chr = pat_->chr_;
-  const size_t len = pat_->len_;
-  const size_t min = pat_->min_;
+  const uint16_t len = pat_->len_;
+  const uint16_t min = pat_->min_;
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
   while (true)
@@ -3053,7 +2587,7 @@ bool Matcher::advance_string_pma(size_t loc)
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
         {
           size_t k = s - lcp + offset - buf_;
-          if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
+          if (REFLEX_UNLIKELY(k + len + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + len]))
           {
             set_current(k);
             return true;
@@ -3081,80 +2615,7 @@ bool Matcher::advance_string_pma(size_t loc)
       if (std::memcmp(s - lcp, chr, len) == 0)
       {
         size_t k = s - lcp - buf_;
-        if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
-        {
-          set_current(k);
-          return true;
-        }
-      }
-      ++s;
-    }
-    loc = s - lcp - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + len + min > end_ && eof_)
-      return false;
-  }
-}
-
-/// String followed by 4 to 8 characters
-bool Matcher::advance_string_pmh(size_t loc)
-{
-  const char *chr = pat_->chr_;
-  const size_t len = pat_->len_;
-  const size_t min = pat_->min_;
-  const uint16_t lcp = pat_->lcp_;
-  const uint16_t lcs = pat_->lcs_;
-  while (true)
-  {
-    const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - len - min + 1;
-#if defined(HAVE_AVX512BW) || defined(HAVE_AVX2) || defined(HAVE_SSE2)
-    // implements SSE2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
-    __m128i vlcp = _mm_set1_epi8(chr[lcp]);
-    __m128i vlcs = _mm_set1_epi8(chr[lcs]);
-    while (s <= e - 16)
-    {
-      __m128i vlcpm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s));
-      __m128i vlcsm = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + lcs - lcp));
-      __m128i vlcpeq = _mm_cmpeq_epi8(vlcp, vlcpm);
-      __m128i vlcseq = _mm_cmpeq_epi8(vlcs, vlcsm);
-      uint32_t mask = _mm_movemask_epi8(_mm_and_si128(vlcpeq, vlcseq));
-      while (REFLEX_UNLIKELY(mask != 0))
-      {
-        uint32_t offset = ctz(mask);
-        if (std::memcmp(s - lcp + offset, chr, len) == 0)
-        {
-          size_t k = s - lcp + offset - buf_;
-          if (pat_->predict_match(&buf_[k + len], min))
-          {
-            set_current(k);
-            return true;
-          }
-        }
-        mask &= mask - 1;
-      }
-      s += 16;
-    }
-#elif defined(HAVE_NEON)
-    // slightly faster when abstracted into a routine
-    if (simd_advance_string_pmh_neon(s, e))
-      return true;
-#endif
-    while (s < e)
-    {
-      do
-        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
-      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
-      if (s == NULL || s >= e)
-      {
-        s = e;
-        break;
-      }
-      if (std::memcmp(s - lcp, chr, len) == 0)
-      {
-        size_t k = s - lcp - buf_;
-        if (pat_->predict_match(&buf_[k + len], min))
+        if (REFLEX_UNLIKELY(k + len + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + len]))
         {
           set_current(k);
           return true;
@@ -3177,7 +2638,7 @@ bool Matcher::simd_advance_string_neon(const char *& s, const char *e)
 {
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
-  const size_t len = pat_->len_;
+  const uint16_t len = pat_->len_;
   const char *chr = pat_->chr_;
   uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
   uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
@@ -3239,7 +2700,7 @@ bool Matcher::simd_advance_string_pma_neon(const char *& s, const char *e)
 {
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
-  const size_t len = pat_->len_;
+  const uint16_t len = pat_->len_;
   const char *chr = pat_->chr_;
   uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
   uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
@@ -3264,7 +2725,7 @@ bool Matcher::simd_advance_string_pma_neon(const char *& s, const char *e)
       {
         if ((mask & 0xff) && std::memcmp(&buf_[k], chr, len) == 0)
         {
-          if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
+          if (REFLEX_UNLIKELY(k + len + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + len]))
           {
             set_current(k);
             return true;
@@ -3287,76 +2748,7 @@ bool Matcher::simd_advance_string_pma_neon(const char *& s, const char *e)
       {
         if ((mask & 0xff) && std::memcmp(&buf_[k], chr, len) == 0)
         {
-          if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
-          {
-            set_current(k);
-            return true;
-          }
-        }
-        mask >>= 8;
-        ++k;
-      } while (mask != 0);
-    }
-    s += 16;
-  }
-  return false;
-}
-
-// Implements NEON/AArch64 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html 64 bit optimized
-bool Matcher::simd_advance_string_pmh_neon(const char *& s, const char *e)
-{
-  const uint16_t lcp = pat_->lcp_;
-  const uint16_t lcs = pat_->lcs_;
-  const size_t len = pat_->len_;
-  const size_t min = pat_->min_;
-  const char *chr = pat_->chr_;
-  uint8x16_t vlcp = vdupq_n_u8(chr[lcp]);
-  uint8x16_t vlcs = vdupq_n_u8(chr[lcs]);
-  while (s <= e - 16)
-  {
-    uint8x16_t vlcpm = vld1q_u8(reinterpret_cast<const uint8_t*>(s));
-    uint8x16_t vlcsm = vld1q_u8(reinterpret_cast<const uint8_t*>(s) + lcs - lcp);
-    uint8x16_t vlcpeq = vceqq_u8(vlcp, vlcpm);
-    uint8x16_t vlcseq = vceqq_u8(vlcs, vlcsm);
-    uint8x16_t vmask8 = vandq_u8(vlcpeq, vlcseq);
-    uint64x2_t vmask64 = vreinterpretq_u64_u8(vmask8);
-    uint64_t mask = vgetq_lane_u64(vmask64, 0);
-    if (REFLEX_UNLIKELY(mask != 0))
-    {
-      size_t k = s - lcp - buf_;
-      if (static_cast<uint32_t>(mask) == 0)
-      {
-        mask >>= 32;
-        k += 4;
-      }
-      do
-      {
-        if ((mask & 0xff) && std::memcmp(&buf_[k], chr, len) == 0)
-        {
-          if (pat_->predict_match(&buf_[k + len], min))
-          {
-            set_current(k);
-            return true;
-          }
-        }
-        mask >>= 8;
-        ++k;
-      } while (mask != 0);
-    }
-    mask = vgetq_lane_u64(vmask64, 1);
-    if (REFLEX_UNLIKELY(mask != 0))
-    {
-      size_t k = s - lcp + 8 - buf_;
-      if (static_cast<uint32_t>(mask) == 0)
-      {
-        mask >>= 32;
-        k += 4;
-      }
-      do
-      {
-        if ((mask & 0xff) && std::memcmp(&buf_[k], chr, len) == 0)
-        {
-          if (pat_->predict_match(&buf_[k + len], min))
+          if (REFLEX_UNLIKELY(k + len + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + len]))
           {
             set_current(k);
             return true;
@@ -3378,8 +2770,8 @@ bool Matcher::advance_string_bm(size_t loc)
 {
   const char *chr = pat_->chr_;
   const uint8_t *bms = pat_->bms_;
-  const size_t len = pat_->len_;
-  const size_t bmd = pat_->bmd_;
+  const uint16_t len = pat_->len_;
+  const uint16_t bmd = pat_->bmd_;
   const uint16_t lcp = pat_->lcp_;
   while (true)
   {
@@ -3429,13 +2821,13 @@ bool Matcher::advance_string_bm(size_t loc)
   }
 }
 
-/// My homegrown improved Boyer-Moore string search followed by 1 to 3 minimal byte long patterns, using PM4
+/// My homegrown improved Boyer-Moore string search followed by minimal 1 byte long patterns, using PM
 bool Matcher::advance_string_bm_pma(size_t loc)
 {
   const char *chr = pat_->chr_;
   const uint8_t *bms = pat_->bms_;
-  const size_t len = pat_->len_;
-  const size_t bmd = pat_->bmd_;
+  const uint16_t len = pat_->len_;
+  const uint16_t bmd = pat_->bmd_;
   const uint16_t lcp = pat_->lcp_;
   while (true)
   {
@@ -3460,67 +2852,7 @@ bool Matcher::advance_string_bm_pma(size_t loc)
       if (p < chr)
       {
         k = q - buf_ + 1;
-        if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
-        {
-          set_current(k);
-          return true;
-        }
-      }
-      if (chr + bmd >= p)
-      {
-        s += bmd;
-      }
-      else
-      {
-        k = bms[static_cast<uint8_t>(*q)];
-        if (p + k > t + bmd)
-          s += k - (t - p);
-        else
-          s += bmd;
-      }
-    }
-    s -= len - 1;
-    loc = s - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + len > end_ && eof_)
-      return false;
-  }
-}
-
-/// My homegrown improved Boyer-Moore string search followed by 4 minimal bytes long patterns
-bool Matcher::advance_string_bm_pmh(size_t loc)
-{
-  const char *chr = pat_->chr_;
-  const uint8_t *bms = pat_->bms_;
-  const size_t bmd = pat_->bmd_;
-  const size_t len = pat_->len_;
-  const size_t min = pat_->min_;
-  const uint16_t lcp = pat_->lcp_;
-  while (true)
-  {
-    const char *s = buf_ + loc + len - 1;
-    const char *e = buf_ + end_;
-    const char *t = chr + len - 1;
-    while (s < e)
-    {
-      size_t k = 0;
-      do
-        s += k = bms[static_cast<uint8_t>(*s)];
-      while (k > 0 ? s < e : s[lcp - len + 1] != chr[lcp] && (s += bmd) < e);
-      if (s >= e)
-        break;
-      const char *p = t - 1;
-      const char *q = s - 1;
-      while (p >= chr && *p == *q)
-      {
-        --p;
-        --q;
-      }
-      if (p < chr)
-      {
-        k = q - buf_ + 1;
-        if (k + len + min > end_ || pat_->predict_match(&buf_[k + len], min))
+        if (REFLEX_UNLIKELY(k + len + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + len]))
         {
           set_current(k);
           return true;

@@ -47,32 +47,10 @@ namespace reflex {
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512BW)
 
 #define SIMD_INIT_ADV_PAT_PIN_CASE_AVX2(PIN) \
-  switch (pat_->min_) \
-  { \
-    case 0: \
-    case 1: \
-      adv_ = &Matcher::simd_advance_pattern_pin##PIN##_one_avx2; \
-      break; \
-    case 2: \
-    case 3: \
-      adv_ = &Matcher::simd_advance_pattern_pin##PIN##_pma_avx2; \
-      break; \
-    case 4: \
-      adv_ = &Matcher::simd_advance_pattern_pin##PIN##_pmh_avx2<4>; \
-      break; \
-    case 5: \
-      adv_ = &Matcher::simd_advance_pattern_pin##PIN##_pmh_avx2<5>; \
-      break; \
-    case 6: \
-      adv_ = &Matcher::simd_advance_pattern_pin##PIN##_pmh_avx2<6>; \
-      break; \
-    case 7: \
-      adv_ = &Matcher::simd_advance_pattern_pin##PIN##_pmh_avx2<7>; \
-      break; \
-    case 8: \
-      adv_ = &Matcher::simd_advance_pattern_pin##PIN##_pmh_avx2<8>; \
-      break; \
-  }
+  if (pat_->min_ <= 0) \
+    adv_ = &Matcher::simd_advance_pattern_pin##PIN##_one_avx2; \
+  else \
+    adv_ = &Matcher::simd_advance_pattern_pin##PIN##_pma_avx2;
 
 // AVX2 runtime optimized function callback overrides
 void Matcher::simd_init_advance_avx2()
@@ -82,28 +60,8 @@ void Matcher::simd_init_advance_avx2()
     switch (pat_->pin_)
     {
       case 1:
-        switch (pat_->min_)
-        {
-          case 2:
-          case 3:
-            adv_ = &Matcher::simd_advance_pattern_pin1_pma_avx2;
-            break;
-          case 4:
-            adv_ = &Matcher::simd_advance_pattern_pin1_pmh_avx2<4>;
-            break;
-          case 5:
-            adv_ = &Matcher::simd_advance_pattern_pin1_pmh_avx2<5>;
-            break;
-          case 6:
-            adv_ = &Matcher::simd_advance_pattern_pin1_pmh_avx2<6>;
-            break;
-          case 7:
-            adv_ = &Matcher::simd_advance_pattern_pin1_pmh_avx2<7>;
-            break;
-          case 8:
-            adv_ = &Matcher::simd_advance_pattern_pin1_pmh_avx2<8>;
-            break;
-        }
+        if (pat_->min_ >= 2)
+          adv_ = &Matcher::simd_advance_pattern_pin1_pma_avx2;
         break;
       case 2:
         SIMD_INIT_ADV_PAT_PIN_CASE_AVX2(2);
@@ -160,28 +118,22 @@ void Matcher::simd_init_advance_avx2()
   {
     if (pat_->min_ == 0)
       adv_ = &Matcher::simd_advance_chars_avx2<2>;
-    else if (pat_->min_ < 4)
-      adv_ = &Matcher::simd_advance_chars_pma_avx2<2>;
     else
-      adv_ = &Matcher::simd_advance_chars_pmh_avx2<2>;
+      adv_ = &Matcher::simd_advance_chars_pma_avx2<2>;
   }
   else if (pat_->len_ == 3)
   {
     if (pat_->min_ == 0)
       adv_ = &Matcher::simd_advance_chars_avx2<3>;
-    else if (pat_->min_ < 4)
-      adv_ = &Matcher::simd_advance_chars_pma_avx2<3>;
     else
-      adv_ = &Matcher::simd_advance_chars_pmh_avx2<3>;
+      adv_ = &Matcher::simd_advance_chars_pma_avx2<3>;
   }
   else if (pat_->bmd_ == 0)
   {
-    if (pat_->min_ >= 4)
-      adv_ = &Matcher::simd_advance_string_pmh_avx2;
-    else if (pat_->min_ > 0)
-      adv_ = &Matcher::simd_advance_string_pma_avx2;
-    else
+    if (pat_->min_ == 0)
       adv_ = &Matcher::simd_advance_string_avx2;
+    else
+      adv_ = &Matcher::simd_advance_string_pma_avx2;
   }
 }
 
@@ -189,7 +141,7 @@ void Matcher::simd_init_advance_avx2()
 bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
 {
   const char *chr = pat_->chr_;
-  const size_t min = pat_->min_;
+  const uint16_t min = pat_->min_;
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
   const char chr0 = chr[0];
@@ -212,7 +164,7 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
         uint32_t offset = ctz(mask);
         size_t k = s - lcp + offset - buf_;
         set_current(k);
-        if (k + 4 > end_ || pat_->predict_match(&buf_[k]))
+        if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k]))
           return true;
         mask &= mask - 1;
       }
@@ -223,7 +175,7 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
     {
       s -= lcp;
       loc = s - buf_;
-      if (s > e - 4 || (s[lcs] == chr1 && pat_->predict_match(s)))
+      if (REFLEX_UNLIKELY(s > e - Pattern::Const::PM_M) || (s[lcs] == chr1 && pat_->predict_match(s)))
       {
         set_current(loc);
         return true;
@@ -237,63 +189,6 @@ bool Matcher::simd_advance_pattern_pin1_pma_avx2(size_t loc)
       set_current_and_peek_more(loc);
       loc = cur_;
       if (loc + min > end_ && eof_)
-        return false;
-    }
-  }
-}
-
-// My homegrown "needle search" method when needle pin=1
-template <uint8_t MIN>
-bool Matcher::simd_advance_pattern_pin1_pmh_avx2(size_t loc)
-{
-  const char *chr = pat_->chr_;
-  const uint16_t lcp = pat_->lcp_;
-  const uint16_t lcs = pat_->lcs_;
-  const char chr0 = chr[0];
-  const char chr1 = chr[1];
-  __m256i vlcp = _mm256_set1_epi8(chr0);
-  __m256i vlcs = _mm256_set1_epi8(chr1);
-  while (true)
-  {
-    const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - MIN + 1;
-    while (s <= e - 32)
-    {
-      __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-      __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-      __m256i veqlcp = _mm256_cmpeq_epi8(vlcp, vstrlcp);
-      __m256i veqlcs = _mm256_cmpeq_epi8(vlcs, vstrlcs);
-      uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs));
-      while (REFLEX_UNLIKELY(mask != 0))
-      {
-        uint32_t offset = ctz(mask);
-        size_t k = s - lcp + offset - buf_;
-        set_current(k);
-        if (pat_->predict_match(&buf_[k], MIN))
-          return true;
-        mask &= mask - 1;
-      }
-      s += 32;
-    }
-    e = buf_ + end_;
-    if (s < e && (s = static_cast<const char*>(std::memchr(s, chr0, e - s))) != NULL)
-    {
-      s -= lcp;
-      loc = s - buf_;
-      if (s + MIN > e || (s[lcs] == chr1 && pat_->predict_match(s, MIN)))
-      {
-        set_current(loc);
-        return true;
-      }
-      ++loc;
-    }
-    else
-    {
-      if (e > buf_ + loc + lcp)
-        loc = e - buf_ - lcp;
-      set_current_and_peek_more(loc);
-      loc = cur_;
-      if (loc + MIN > end_ && eof_)
         return false;
     }
   }
@@ -319,7 +214,7 @@ bool Matcher::simd_advance_pattern_pin##N##_one_avx2(size_t loc) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s + offset - buf_; \
-        if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
+        if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k])) \
         { \
           set_current(k); \
           return true; \
@@ -328,7 +223,7 @@ bool Matcher::simd_advance_pattern_pin##N##_one_avx2(size_t loc) \
       } \
       s += 32; \
     } \
-    while (s < e - 3) \
+    while (s < e - (Pattern::Const::PM_M - 1)) \
     { \
       if (pat_->predict_match(s++)) \
       { \
@@ -340,7 +235,7 @@ bool Matcher::simd_advance_pattern_pin##N##_one_avx2(size_t loc) \
     loc = s - buf_; \
     set_current_and_peek_more(loc); \
     loc = cur_; \
-    if (loc + 3 >= end_) \
+    if (loc + (Pattern::Const::PM_M - 1) >= end_) \
       return true; \
   } \
 }
@@ -476,7 +371,7 @@ ADV_PAT_PIN_ONE(16, \
 bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
 { \
   const char *chr = pat_->chr_; \
-  const size_t min = pat_->min_; \
+  const uint16_t min = pat_->min_; \
   const uint16_t lcp = pat_->lcp_; \
   const uint16_t lcs = pat_->lcs_; \
   INIT \
@@ -496,7 +391,7 @@ bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
       { \
         uint32_t offset = ctz(mask); \
         size_t k = s - lcp + offset - buf_; \
-        if (k + 4 > end_ || pat_->predict_match(&buf_[k])) \
+        if (REFLEX_UNLIKELY(k + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k])) \
         { \
           set_current(k); \
           return true; \
@@ -506,7 +401,7 @@ bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
       s += 32; \
     } \
     s -= lcp; \
-    e = buf_ + end_ - 3; \
+    e = buf_ + end_ - (Pattern::Const::PM_M - 1); \
     while (s < e) \
     { \
       if (pat_->predict_match(s++)) \
@@ -521,59 +416,8 @@ bool Matcher::simd_advance_pattern_pin##N##_pma_avx2(size_t loc) \
     loc = cur_; \
     if (loc + min > end_ && eof_) \
       return false; \
-    if (loc + 3 >= end_) \
+    if (loc + (Pattern::Const::PM_M - 1) >= end_) \
       return true; \
-  } \
-} \
-\
-template <uint8_t MIN> \
-bool Matcher::simd_advance_pattern_pin##N##_pmh_avx2(size_t loc) \
-{ \
-  const char *chr = pat_->chr_; \
-  const uint16_t lcp = pat_->lcp_; \
-  const uint16_t lcs = pat_->lcs_; \
-  INIT \
-  while (true) \
-  { \
-    const char *s = buf_ + loc + lcp; \
-    const char *e = buf_ + end_ + lcp - MIN + 1; \
-    while (s <= e - 32) \
-    { \
-      __m256i vstrlcp = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s)); \
-      __m256i vstrlcs = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp)); \
-      __m256i veqlcp = _mm256_cmpeq_epi8(vlcp0, vstrlcp); \
-      __m256i veqlcs = _mm256_cmpeq_epi8(vlcs0, vstrlcs); \
-      COMP \
-      uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(veqlcp, veqlcs)); \
-      while (REFLEX_UNLIKELY(mask != 0)) \
-      { \
-        uint32_t offset = ctz(mask); \
-        size_t k = s - lcp + offset - buf_; \
-        if (pat_->predict_match(&buf_[k], MIN)) \
-        { \
-          set_current(k); \
-          return true; \
-        } \
-        mask &= mask - 1; \
-      } \
-      s += 32; \
-    } \
-    s -= lcp; \
-    e = buf_ + end_ - MIN + 1; \
-    while (s < e) \
-    { \
-      if (pat_->predict_match(s++, MIN)) \
-      { \
-        size_t k = s - buf_ - 1; \
-        set_current(k); \
-        return true; \
-      } \
-    } \
-    loc = s - buf_; \
-    set_current_and_peek_more(loc); \
-    loc = cur_; \
-    if (loc + MIN > end_ && eof_) \
-      return false; \
   } \
 }
 
@@ -822,7 +666,7 @@ bool Matcher::simd_advance_pattern_min4_avx2(size_t loc)
   while (true)
   {
     const char *s = buf_ + loc;
-    const char *e = buf_ + end_ - 3;
+    const char *e = buf_ + end_ - 7;
     while (s < e)
     {
       __m128i vc1 = _mm_cvtepu8_epi32(_mm_loadu_si32(reinterpret_cast<const uint32_t*>(s)));
@@ -837,25 +681,25 @@ bool Matcher::simd_advance_pattern_min4_avx2(size_t loc)
       vc0 = vc1;
       // get most significant bit of each byte, check each 2nd byte of the 4x32 bit words
       uint32_t mask = _mm_extract_epi32(_mm_shuffle_epi8(vstate, vselect), 0);
-      if ((mask & 0x00000008) == 0 && pat_->predict_match(s - MIN + 0, MIN))
+      if ((mask & 0x00000008) == 0 && pat_->predict_match(s - MIN + 0))
       {
         size_t k = s - buf_ - MIN + 0;
         set_current(k);
         return true;
       }
-      if ((mask & 0x00000404) == 0 && pat_->predict_match(s - MIN + 1, MIN))
+      if ((mask & 0x00000404) == 0 && pat_->predict_match(s - MIN + 1))
       {
         size_t k = s - buf_ - MIN + 1;
         set_current(k);
         return true;
       }
-      if ((mask & 0x00020202) == 0 && pat_->predict_match(s - MIN + 2, MIN))
+      if ((mask & 0x00020202) == 0 && pat_->predict_match(s - MIN + 2))
       {
         size_t k = s - buf_ - MIN + 2;
         set_current(k);
         return true;
       }
-      if ((mask & 0x01010101) == 0 && pat_->predict_match(s - MIN + 3, MIN))
+      if ((mask & 0x01010101) == 0 && pat_->predict_match(s - MIN + 3))
       {
         size_t k = s - buf_ - MIN + 3;
         set_current(k);
@@ -875,8 +719,8 @@ bool Matcher::simd_advance_pattern_min4_avx2(size_t loc)
     size_t m =  std::min<size_t>(MIN, loc); // to clamp loc - MIN
     set_current_and_peek_more(loc - m); // clamp loc - MIN
     loc = cur_ + m;
-    if (loc + 3 >= end_)
-      return advance_pattern_min4<MIN>(loc - MIN);
+    if (loc + 7 >= end_)
+      return advance_pattern_min4(loc - MIN);
   }
 }
 
@@ -950,7 +794,7 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
   const uint16_t lcp = 0;
   const uint16_t lcs = LEN - 1;
   const char *chr = pat_->chr_;
-  const size_t min = pat_->min_;
+  const uint16_t min = pat_->min_;
   while (true)
   {
     const char *s = buf_ + loc + lcp;
@@ -971,7 +815,7 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
             (LEN == 3 ? s[offset + 1 - lcp] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
         {
           size_t k = s - lcp + offset - buf_;
-          if (k + LEN + 4 > end_ || pat_->predict_match(&buf_[k + LEN]))
+          if (REFLEX_UNLIKELY(k + LEN + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + LEN]))
           {
             set_current(k);
             return true;
@@ -995,73 +839,7 @@ bool Matcher::simd_advance_chars_pma_avx2(size_t loc)
           (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 1) == 0))
       {
         size_t k = s - lcp - buf_;
-        if (k + LEN + 4 > end_ || pat_->predict_match(&buf_[k + LEN]))
-        {
-          set_current(k);
-          return true;
-        }
-      }
-      ++s;
-    }
-    loc = s - lcp - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + LEN + min > end_ && eof_)
-      return false;
-  }
-}
-
-/// Few chars followed by 4 minimal char pattern
-template<uint8_t LEN>
-bool Matcher::simd_advance_chars_pmh_avx2(size_t loc)
-{
-  const uint16_t lcp = 0;
-  const uint16_t lcs = LEN - 1;
-  const char *chr = pat_->chr_;
-  const size_t min = pat_->min_;
-  while (true)
-  {
-    const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - LEN - min + 1;
-    __m256i vlcp = _mm256_set1_epi8(chr[lcp]);
-    __m256i vlcs = _mm256_set1_epi8(chr[lcs]);
-    while (s <= e - 32)
-    {
-      __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-      __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-      __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
-      __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
-      uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-      while (REFLEX_UNLIKELY(mask != 0))
-      {
-        uint32_t offset = ctz(mask);
-        if (LEN == 2 ||
-            (LEN == 3 ? s[offset + 1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp + offset, chr + 1, LEN - 2) == 0))
-        {
-          size_t k = s - lcp + offset - buf_;
-          set_current(k);
-          if (k + LEN + min > end_ || pat_->predict_match(&buf_[k + LEN], min))
-            return true;
-        }
-        mask &= mask - 1;
-      }
-      s += 32;
-    }
-    while (s < e)
-    {
-      do
-        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
-      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
-      if (s == NULL || s >= e)
-      {
-        s = e;
-        break;
-      }
-      if (LEN == 2 ||
-          (LEN == 3 ? s[1 - lcp] == chr[1] : std::memcmp(s + 1 - lcp, chr + 1, LEN - 1) == 0))
-      {
-        size_t k = s - lcp - buf_;
-        if (pat_->predict_match(&buf_[k + LEN], min))
+        if (REFLEX_UNLIKELY(k + LEN + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + LEN]))
         {
           set_current(k);
           return true;
@@ -1081,7 +859,7 @@ bool Matcher::simd_advance_chars_pmh_avx2(size_t loc)
 bool Matcher::simd_advance_string_avx2(size_t loc)
 {
   const char *chr = pat_->chr_;
-  const size_t len = pat_->len_;
+  const uint16_t len = pat_->len_;
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
   while (true)
@@ -1140,8 +918,8 @@ bool Matcher::simd_advance_string_avx2(size_t loc)
 bool Matcher::simd_advance_string_pma_avx2(size_t loc)
 {
   const char *chr = pat_->chr_;
-  const size_t len = pat_->len_;
-  const size_t min = pat_->min_;
+  const uint16_t len = pat_->len_;
+  const uint16_t min = pat_->min_;
   const uint16_t lcp = pat_->lcp_;
   const uint16_t lcs = pat_->lcs_;
   while (true)
@@ -1163,7 +941,7 @@ bool Matcher::simd_advance_string_pma_avx2(size_t loc)
         if (std::memcmp(s - lcp + offset, chr, len) == 0)
         {
           size_t k = s - lcp + offset - buf_;
-          if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
+          if (REFLEX_UNLIKELY(k + len + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + len]))
           {
             set_current(k);
             return true;
@@ -1186,71 +964,7 @@ bool Matcher::simd_advance_string_pma_avx2(size_t loc)
       if (std::memcmp(s - lcp, chr, len) == 0)
       {
         size_t k = s - lcp - buf_;
-        if (k + len + 4 > end_ || pat_->predict_match(&buf_[k + len]))
-        {
-          set_current(k);
-          return true;
-        }
-      }
-      ++s;
-    }
-    loc = s - lcp - buf_;
-    set_current_and_peek_more(loc);
-    loc = cur_;
-    if (loc + len + min > end_ && eof_)
-      return false;
-  }
-}
-
-/// Implements AVX2 string search scheme based on http://0x80.pl/articles/simd-friendly-karp-rabin.html
-bool Matcher::simd_advance_string_pmh_avx2(size_t loc)
-{
-  const char *chr = pat_->chr_;
-  const size_t len = pat_->len_;
-  const size_t min = pat_->min_;
-  const uint16_t lcp = pat_->lcp_;
-  const uint16_t lcs = pat_->lcs_;
-  while (true)
-  {
-    const char *s = buf_ + loc + lcp;
-    const char *e = buf_ + end_ + lcp - len - min + 1;
-    __m256i vlcp = _mm256_set1_epi8(chr[lcp]);
-    __m256i vlcs = _mm256_set1_epi8(chr[lcs]);
-    while (s <= e - 32)
-    {
-      __m256i vlcpm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s));
-      __m256i vlcsm = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + lcs - lcp));
-      __m256i vlcpeq = _mm256_cmpeq_epi8(vlcp, vlcpm);
-      __m256i vlcseq = _mm256_cmpeq_epi8(vlcs, vlcsm);
-      uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(vlcpeq, vlcseq));
-      while (REFLEX_UNLIKELY(mask != 0))
-      {
-        uint32_t offset = ctz(mask);
-        if (std::memcmp(s - lcp + offset, chr, len) == 0)
-        {
-          size_t k = s - lcp + offset - buf_;
-          set_current(k);
-          if (k + len + min > end_ || pat_->predict_match(&buf_[k + len], min))
-            return true;
-        }
-        mask &= mask - 1;
-      }
-      s += 32;
-    }
-    while (s < e)
-    {
-      do
-        s = static_cast<const char*>(std::memchr(s, chr[lcp], e - s));
-      while (s != NULL && s[lcs - lcp] != chr[lcs] && ++s < e);
-      if (s == NULL || s >= e)
-      {
-        s = e;
-        break;
-      }
-      if (std::memcmp(s - lcp, chr, len) == 0)
-      {
-        size_t k = s - lcp - buf_;
-        if (pat_->predict_match(&buf_[k + len], min))
+        if (REFLEX_UNLIKELY(k + len + Pattern::Const::PM_M > end_) || pat_->predict_match(&buf_[k + len]))
         {
           set_current(k);
           return true;

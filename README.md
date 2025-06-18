@@ -4120,10 +4120,10 @@ in markdown:
 
            -b, --byte-offset
                   The offset in bytes of a pattern match is displayed in front of
-                  the respective matched line.  When -u is specified, displays the
-                  offset for each pattern matched on the same line.  Byte offsets
-                  are exact for ASCII, UTF-8 and raw binary input.  Otherwise, the
-                  byte offset in the UTF-8 normalized input is displayed.
+                  the respective matched line.  When -u or --ungroup is specified,
+                  displays the offset for each pattern matched on the same line.
+                  Byte offsets are exact for ASCII, UTF-8 and raw binary input.
+                  Otherwise, the offset in the UTF-8-normalized input is displayed.
 
            --binary-files=TYPE
                   Controls searching and reporting pattern matches in binary files.
@@ -4135,8 +4135,9 @@ in markdown:
                   problematic consequences if the terminal driver interprets some of
                   it as commands.  `hex' reports all matches in hexadecimal.
                   `with-hex' only reports binary matches in hexadecimal, leaving
-                  text matches alone.  A match is considered binary when matching a
-                  zero byte or invalid UTF.  Short options are -a, -I, -U, -W and
+                  text matches alone.  Files having NUL (zero) bytes are binary and
+                  files with invalid UTF encoding are binary unless option -U or
+                  --ascii or --binary is specified.  Short options are -a, -I, -W,
                   -X.
 
            --bool, -%, -%%
@@ -4272,9 +4273,9 @@ in markdown:
            --encoding=ENCODING
                   The encoding format of the input.  The default ENCODING is binary
                   or UTF-8 which are treated the same.  Therefore, --encoding=binary
-                  has no effect.  Note that option -U or --binary specifies binary
-                  PATTERN matching (text matching is the default).  ENCODING can be:
-                  `binary', `ASCII', `UTF-8', `UTF-16', `UTF-16BE', `UTF-16LE',
+                  has no effect.  Contrast this with option -U or --ascii or
+                  --binary that specifies raw binary PATTERN matching.  ENCODING can
+                  be: `binary', `ASCII', `UTF-8', `UTF-16', `UTF-16BE', `UTF-16LE',
                   `UTF-32', `UTF-32BE', `UTF-32LE', `LATIN1', `ISO-8859-1',
                   `ISO-8859-2', `ISO-8859-3', `ISO-8859-4', `ISO-8859-5',
                   `ISO-8859-6', `ISO-8859-7', `ISO-8859-8', `ISO-8859-9',
@@ -4456,7 +4457,9 @@ in markdown:
 
            -I, --ignore-binary
                   Ignore matches in binary files.  This option is equivalent to the
-                  --binary-files=without-match option.
+                  --binary-files=without-match option.  Files having NUL (zero)
+                  bytes are binary.  Also files with invalid UTF encoding are binary
+                  unless option -U or --ascii or --binary is specified.
 
            -i, --ignore-case
                   Perform case insensitive matching.  By default, ugrep is case
@@ -4531,8 +4534,8 @@ in markdown:
                   that the start-up time to search may be increased when complex
                   search patterns are specified that contain large Unicode character
                   classes combined with `*' or `+' repeats, which should be avoided.
-                  Option -U or --ascii improves performance.  Option --stats
-                  displays an index search report.
+                  Option -U or --ascii or --binary improves performance.  Option
+                  --stats displays an index search report.
 
            -J NUM, --jobs=NUM
                   Specifies the number of threads spawned to search files.  By
@@ -4827,10 +4830,10 @@ in markdown:
 
            -U, --ascii, --binary
                   Disables Unicode matching for ASCII and binary matching.  PATTERN
-                  matches bytes, not Unicode characters.  For example, -U '\xa3'
-                  matches byte A3 (hex) instead of the Unicode code point U+00A3
-                  represented by the UTF-8 sequence C2 A3.  See also option
-                  --dotall.
+                  matches bytes.  For example, -U '\xa3' matches byte A3 (hex)
+                  instead of the Unicode code point U+00A3 represented by the UTF-8
+                  sequence C2 A3.  Input is not flagged as "binary" for having
+                  invalid UTF, only for having NUL (zero) bytes.
 
            -u, --ungroup
                   Do not group multiple pattern matches on the same matched line.
@@ -4922,8 +4925,7 @@ in markdown:
                   formats: gzip (.gz), compress (.Z), zip, 7z, bzip2 (.bz, .bz2,
                   .bzip2, .tbz, .tbz2, .tb2, .tz2), xz (.xz, .txz) and lzma
                   (requires suffix .lzma, .tlz), zstd (.zst, .zstd, .tzst), lz4
-                  (requires suffix .lz4), brotli (requires suffix .br), bzip3
-                  (requires suffix .bz3).
+                  (requires suffix .lz4), brotli (requires suffix .br).
 
            --zmax=NUM
                   When used with option -z or --decompress, searches the contents of
@@ -5512,7 +5514,7 @@ in markdown:
 
 
 
-    ugrep 7.4.3                       May 15, 2025                          UGREP(1)
+    ugrep 7.5.0                       June 18, 2025                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

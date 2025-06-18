@@ -35,7 +35,7 @@
 */
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "7.4.3"
+#define UGREP_VERSION "7.5.0"
 
 // use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD
@@ -1258,24 +1258,27 @@ void cat(const std::string& pathname, std::stack<Entry>& dir_entries, std::vecto
       if ((cFileName[0] != '.' && (attr & (FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM)) == 0) ||
           (flag_hidden && cFileName[1] != '\0' && cFileName[1] != '.'))
       {
-        if ((attr & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+        if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0)
         {
-          /* TODO consider following symlink, but ugrep.exe doesn't do that yet either
-          if (flag_dereference_files && (attr & (FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_DEVICE)) == 0 && !dir_only)
+          // check if this is a dir to index and not a symlink
+          if (((ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0 ||
+                ffd.dwReserved0 != IO_REPARSE_TAG_SYMLINK) &&
+              (dir_only || include_dir(entry_pathname.c_str(), cFileName.c_str())))
           {
-          }
-          */
-        }
-        else if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0)
-        {
-          if (dir_only || include_dir(entry_pathname.c_str(), cFileName.c_str()))
             dir_entries.emplace(entry_pathname, cFileName.size(), modified_time(ffd), file_size(ffd));
+          }
           else
+          {
             ++ign_dirs;
+          }
         }
         else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 && !dir_only)
         {
-          if (include_file(entry_pathname.c_str(), cFileName.c_str()))
+          // check if this is a file to index and not a symlink unless -S is specified
+          if ((flag_dereference_files ||
+                (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0 ||
+                ffd.dwReserved0 != IO_REPARSE_TAG_SYMLINK) &&
+              include_file(entry_pathname.c_str(), cFileName.c_str()))
           {
             uint64_t file_time = modified_time(ffd);
             last_time = std::max(last_time, file_time);

@@ -1344,104 +1344,76 @@ class Matcher : public PatternMatcher<reflex::Pattern> {
   // Single needle SSE2/NEON methods
   bool advance_pattern_pin1_one(size_t loc);
   bool advance_pattern_pin1_pma(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_pin1_pmh(size_t loc);
   // Generated multi-needle SSE2/NEON methods
   bool advance_pattern_pin2_one(size_t loc);
   bool advance_pattern_pin2_pma(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_pin2_pmh(size_t loc);
   bool advance_pattern_pin3_one(size_t loc);
   bool advance_pattern_pin3_pma(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_pin3_pmh(size_t loc);
   bool advance_pattern_pin4_one(size_t loc);
   bool advance_pattern_pin4_pma(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_pin4_pmh(size_t loc);
   bool advance_pattern_pin5_one(size_t loc);
   bool advance_pattern_pin5_pma(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_pin5_pmh(size_t loc);
   bool advance_pattern_pin6_one(size_t loc);
   bool advance_pattern_pin6_pma(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_pin6_pmh(size_t loc);
   bool advance_pattern_pin7_one(size_t loc);
   bool advance_pattern_pin7_pma(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_pin7_pmh(size_t loc);
   bool advance_pattern_pin8_one(size_t loc);
   bool advance_pattern_pin8_pma(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_pin8_pmh(size_t loc);
   // Single needle AVX2 methods
   bool simd_advance_pattern_pin1_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin1_pmh_avx2(size_t loc);
   // Generated AVX2 multi-needle methods
   bool simd_advance_pattern_pin2_one_avx2(size_t loc);
   bool simd_advance_pattern_pin2_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin2_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin3_one_avx2(size_t loc);
   bool simd_advance_pattern_pin3_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin3_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin4_one_avx2(size_t loc);
   bool simd_advance_pattern_pin4_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin4_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin5_one_avx2(size_t loc);
   bool simd_advance_pattern_pin5_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin5_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin6_one_avx2(size_t loc);
   bool simd_advance_pattern_pin6_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin6_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin7_one_avx2(size_t loc);
   bool simd_advance_pattern_pin7_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin7_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin8_one_avx2(size_t loc);
   bool simd_advance_pattern_pin8_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin8_pmh_avx2(size_t loc);
   bool simd_advance_pattern_pin16_one_avx2(size_t loc);
   bool simd_advance_pattern_pin16_pma_avx2(size_t loc);
-  template <uint8_t MIN> bool simd_advance_pattern_pin16_pmh_avx2(size_t loc);
   // Minimal patterns
   bool advance_pattern_min1(size_t loc);
   bool advance_pattern_min2(size_t loc);
   bool advance_pattern_min3(size_t loc);
-  template <uint8_t MIN> bool advance_pattern_min4(size_t loc);
+  bool advance_pattern_mink(size_t loc);
 #ifdef WITH_BITAP_AVX2 // use in case vectorized bitap (hashed) is faster than serial version (typically not!!)
   // Minimal 4 byte long patterns using bitap hashed pairs with AVX2
   template <uint8_t MIN> bool simd_advance_pattern_min4_avx2(size_t loc);
 #endif
-  // Minimal patterns
-  bool advance_pattern_pma(size_t loc);
   // One char methods
   bool advance_char(size_t loc);
   bool advance_char_pma(size_t loc);
-  bool advance_char_pmh(size_t loc);
   // Few chars methods
   template <uint8_t LEN> bool advance_chars(size_t loc);
   template <uint8_t LEN> bool advance_chars_pma(size_t loc);
-  template <uint8_t LEN> bool advance_chars_pmh(size_t loc);
   // Few chars AVX2 methods
   template <uint8_t LEN> bool simd_advance_chars_avx2(size_t loc);
   template <uint8_t LEN> bool simd_advance_chars_pma_avx2(size_t loc);
-  template <uint8_t LEN> bool simd_advance_chars_pmh_avx2(size_t loc);
   // Few chars AVX512BW methods
   template <uint8_t LEN> bool simd_advance_chars_avx512bw(size_t loc);
   template <uint8_t LEN> bool simd_advance_chars_pma_avx512bw(size_t loc);
-  template <uint8_t LEN> bool simd_advance_chars_pmh_avx512bw(size_t loc);
   // String methods
   bool advance_string(size_t loc);
   bool advance_string_pma(size_t loc);
-  bool advance_string_pmh(size_t loc);
   // String AVX2 metnods
   bool simd_advance_string_avx2(size_t loc);
   bool simd_advance_string_pma_avx2(size_t loc);
-  bool simd_advance_string_pmh_avx2(size_t loc);
   // String AVX512BW metnods
   bool simd_advance_string_avx512bw(size_t loc);
   bool simd_advance_string_pma_avx512bw(size_t loc);
-  bool simd_advance_string_pmh_avx512bw(size_t loc);
   // String NEON metnods
   bool simd_advance_string_neon(const char *& s, const char *e);
   bool simd_advance_string_pma_neon(const char *& s, const char *e);
-  bool simd_advance_string_pmh_neon(const char *& s, const char *e);
   // Fallback Boyer-Moore methods
   bool advance_string_bm(size_t loc);
   bool advance_string_bm_pma(size_t loc);
-  bool advance_string_bm_pmh(size_t loc);
 #if !defined(WITH_NO_INDENT)
   /// Update indentation column counter for indent() and dedent().
   inline void newline()

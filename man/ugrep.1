@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 15, 2025" "ugrep 7.4.3" "User Commands"
+.TH UGREP "1" "June 18, 2025" "ugrep 7.5.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -167,10 +167,10 @@ the match or shortens the match.  See also options \fB\-A\fR, \fB\-C\fR and \fB\
 .TP
 \fB\-b\fR, \fB\-\-byte\-offset\fR
 The offset in bytes of a pattern match is displayed in front of the
-respective matched line.  When \fB\-u\fR is specified, displays the offset
-for each pattern matched on the same line.  Byte offsets are exact
-for ASCII, UTF\-8 and raw binary input.  Otherwise, the byte offset
-in the UTF\-8 normalized input is displayed.
+respective matched line.  When \fB\-u\fR or \fB\-\-ungroup\fR is specified,
+displays the offset for each pattern matched on the same line.
+Byte offsets are exact for ASCII, UTF\-8 and raw binary input.
+Otherwise, the offset in the UTF\-8\-normalized input is displayed.
 .TP
 \fB\-\-binary\-files\fR=\fITYPE\fR
 Controls searching and reporting pattern matches in binary files.
@@ -182,8 +182,9 @@ which might output binary garbage to the terminal, which can have
 problematic consequences if the terminal driver interprets some of
 it as commands.  `hex' reports all matches in hexadecimal.
 `with\-hex' only reports binary matches in hexadecimal, leaving text
-matches alone.  A match is considered binary when matching a zero
-byte or invalid UTF.  Short options are \fB\-a\fR, \fB\-I\fR, \fB\-U\fR, \fB\-W\fR and \fB\-X\fR.
+matches alone.  Files having NUL (zero) bytes are binary and files
+with invalid UTF encoding are binary unless option \fB\-U\fR or \fB\-\-ascii\fR
+or \fB\-\-binary\fR is specified.  Short options are \fB\-a\fR, \fB\-I\fR, \fB\-W\fR, \fB\-X\fR.
 .TP
 \fB\-\-bool\fR, \fB\-%\fR, \fB\-%\fR%
 Specifies Boolean query patterns.  A Boolean query pattern is
@@ -317,8 +318,8 @@ after option \fB\-f\fR or after the FILE arguments.
 \fB\-\-encoding\fR=\fIENCODING\fR
 The encoding format of the input.  The default ENCODING is binary
 or UTF\-8 which are treated the same.  Therefore, \fB\-\-encoding\fR=binary
-has no effect.  Note that option \fB\-U\fR or \fB\-\-binary\fR specifies binary
-PATTERN matching (text matching is the default).  ENCODING can be:
+has no effect.  Contrast this with option \fB\-U\fR or \fB\-\-ascii\fR or \fB\-\-binary\fR
+that specifies raw binary PATTERN matching.  ENCODING can be:
 `binary', `ASCII', `UTF\-8', `UTF\-16', `UTF\-16BE', `UTF\-16LE',
 `UTF\-32', `UTF\-32BE', `UTF\-32LE', `LATIN1', `ISO\-8859\-1',
 `ISO\-8859\-2', `ISO\-8859\-3', `ISO\-8859\-4', `ISO\-8859\-5',
@@ -495,7 +496,9 @@ the hyperlink and when option \fB\-k\fR is specified, the column number.
 .TP
 \fB\-I\fR, \fB\-\-ignore\-binary\fR
 Ignore matches in binary files.  This option is equivalent to the
-\fB\-\-binary\-files\fR=without\-match option.
+\fB\-\-binary\-files\fR=without\-match option.  Files having NUL (zero) bytes
+are binary.  Also files with invalid UTF encoding are binary unless
+option \fB\-U\fR or \fB\-\-ascii\fR or \fB\-\-binary\fR is specified.
 .TP
 \fB\-i\fR, \fB\-\-ignore\-case\fR
 Perform case insensitive matching.  By default, ugrep is case
@@ -570,8 +573,8 @@ file systems, or any file system that is slow to search.  Note that
 the start\-up time to search may be increased when complex search
 patterns are specified that contain large Unicode character classes
 combined with `*' or `+' repeats, which should be avoided.  Option
-\fB\-U\fR or \fB\-\-ascii\fR improves performance.  Option \fB\-\-stats\fR displays an
-index search report.
+\fB\-U\fR or \fB\-\-ascii\fR or \fB\-\-binary\fR improves performance.  Option \fB\-\-stats\fR
+displays an index search report.
 .TP
 \fB\-J\fR \fINUM\fR, \fB\-\-jobs\fR=\fINUM\fR
 Specifies the number of threads spawned to search files.  By
@@ -862,9 +865,10 @@ output is sent to a terminal.
 .TP
 \fB\-U\fR, \fB\-\-ascii\fR, \fB\-\-binary\fR
 Disables Unicode matching for ASCII and binary matching.  PATTERN
-matches bytes, not Unicode characters.  For example, \fB\-U\fR '\\xa3'
-matches byte A3 (hex) instead of the Unicode code point U+00A3
-represented by the UTF\-8 sequence C2 A3.  See also option \fB\-\-dotall\fR.
+matches bytes.  For example, \fB\-U\fR '\\xa3' matches byte A3 (hex)
+instead of the Unicode code point U+00A3 represented by the UTF\-8
+sequence C2 A3.  Input is not flagged as "binary" for having
+invalid UTF, only for having NUL (zero) bytes.
 .TP
 \fB\-u\fR, \fB\-\-ungroup\fR
 Do not group multiple pattern matches on the same matched line.
@@ -955,8 +959,7 @@ bzip2 (.bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 xz (.xz, .txz) and lzma (requires suffix .lzma, .tlz),
 zstd (.zst, .zstd, .tzst),
 lz4 (requires suffix .lz4),
-brotli (requires suffix .br),
-bzip3 (requires suffix .bz3).
+brotli (requires suffix .br).
 .TP
 \fB\-\-zmax\fR=\fINUM\fR
 When used with option \fB\-z\fR or \fB\-\-decompress\fR, searches the contents of

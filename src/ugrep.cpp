@@ -702,8 +702,8 @@ inline bool is_binary(const char *s, size_t n)
   if (flag_encoding_type == reflex::Input::file_encoding::null_data)
     return false;
 
-  // not -a and -U or -W: file is binary if it has a \0 (NUL) or an invalid UTF-8 encoding
-  if (!flag_text && (!flag_binary || flag_with_hex))
+  // not -a and -U or -W: file is binary if it has a \0 (NUL) or an invalid UTF-8 encoding when --encoding is unset
+  if (!flag_text && (!flag_binary || flag_with_hex) && flag_encoding_type == reflex::Input::file_encoding::plain)
     return !reflex::isutf8(s, s + n);
 
   // otherwise, file is binary if it contains a \0 (NUL) which is what GNU grep checks
@@ -3256,7 +3256,7 @@ struct Grep {
   virtual void ugrep();
 
   // search file or directory for pattern matches
-  Type select(size_t level, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument = false);
+  Type select(size_t level, const char *pathname, const char *basename, int type, uint32_t attr, ino_t& inode, uint64_t& info, bool is_argument = false);
 
   // recurse a directory
   virtual void recurse(size_t level, const char *pathname);
@@ -3920,7 +3920,6 @@ struct Grep {
   bool init_read()
   {
     // initialize Grep search and output variables
-    interactive = false;
     binfile = false;
     lineno = flag_min_line > 0 ? flag_min_line - 1 : 0;
     heading = flag_with_filename;
@@ -3928,6 +3927,9 @@ struct Grep {
     binary = false;
     matches = 0;
     stop = false;
+
+    // "interactive" and possibly slow input from a standard input device or pipe
+    bool interactive = false;
 
     const char *base;
     size_t size;
@@ -3957,8 +3959,8 @@ struct Grep {
       {
         struct stat buf;
 
-        // if input is a character device (TTY) or a pipe, then make stdin nonblocking and register a stdin handler to continue reading and flush results to output
-        if (fstat(0, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode)))
+        // if input is a character device (e.g. TTY) or a pipe, then make stdin nonblocking and register a stdin handler to continue reading and flush results to output, don't check for invalid Unicode input
+        if (fstat(0, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode)  | S_ISSOCK(buf.st_mode)))
         {
           interactive = (fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK) != -1);
           if (interactive)
@@ -3966,11 +3968,13 @@ struct Grep {
         }
       }
 #else
-      { }
+      // for Windows we don't check for invalid Unicode input, no stdin handler
+      if (input == stdin && !flag_quiet && !flag_files_with_matches && !flag_count)
+        interactive = true;
 #endif
     }
 
-    // when non-blocking do not check init_is_binary(), wait until handler detects binary files
+    // when non-blocking do not check init_is_binary(), wait until handler detects binary files that have NUL bytes
     if (!interactive)
     {
       if (flag_binary_without_match)
@@ -4090,7 +4094,6 @@ struct Grep {
   MMap                           mmap;          // mmap state
   reflex::Input                  input;         // input to the matcher
   FILE                          *file_in;       // the current input file
-  bool                           interactive;   // search non-blocking standard input (e.g. TTY or pipe)
   bool                           binfile;       // the file being searched is a binary file
   size_t                         lineno;        // the line number of the last match
   bool                           heading;       // heading on/off, initially set to --with-filename
@@ -6867,7 +6870,7 @@ void init(int argc, const char **argv)
     else
     {
       // use threads to descent into a directory
-      if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0 && (attr & FILE_ATTRIBUTE_REPARSE_POINT) == 0)
+      if ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0)
       {
         if (flag_directories_action == Action::UNSP)
           flag_all_threads = true;
@@ -6940,11 +6943,16 @@ void init(int argc, const char **argv)
 
   if (!flag_stdin && Static::arg_files.empty())
   {
-    // if no FILE specified when reading standard input from a TTY then enable -R if not already -r or -R
-    if (isatty(STDIN_FILENO) && (flag_directories_action == Action::UNSP || flag_directories_action == Action::RECURSE))
+    if (!flag_from.empty())
     {
-      if (flag_directories_action == Action::UNSP)
-        flag_directories_action = Action::RECURSE;
+      // all --from=FILE are empty, warn (don't search recursively)
+      for (const auto& from : flag_from)
+        warning("--from: empty", from.c_str());
+    }
+    else if (isatty(STDIN_FILENO) && (flag_directories_action == Action::UNSP || flag_directories_action == Action::RECURSE))
+    {
+      // if no FILE specified when reading standard input from a TTY then enable -r if not already -r or -R
+      flag_directories_action = Action::RECURSE;
 
       // recursive search with worker threads
       flag_all_threads = true;
@@ -7561,8 +7569,25 @@ void terminal()
             flag_color_term = SetConsoleMode(hConOut, outMode) != 0;
           }
 #endif
-        }
+          const char *val;
 
+          // no color when NO_COLOR is set or when ConEmuANSI is OFF
+          if (((val = getenv("NO_COLOR")) != NULL && *val != '\0') ||
+              ((val = getenv("ConEmuANSI")) != NULL && strcmp(val, "OFF") == 0))
+          {
+            flag_color_term = false;
+          }
+          else if (!flag_color_term)
+          {
+            // try ANSICON or COLORTERM or ConEmuANSI is ON
+            if (getenv("ANSICON") != NULL ||
+                getenv("COLORTERM") != NULL ||
+                ((val = getenv("ConEmuANSI")) != NULL && strcmp(val, "ON") == 0))
+            {
+              flag_color_term = true;
+            }
+          }
+        }
 #else
 
         // check whether we have a color terminal
@@ -8486,7 +8511,7 @@ void ugrep()
     flag_directories_action = Action::RECURSE;
   }
 
-  // -p (--no-dereference) and -S (--dereference): -p takes priority over -S and -R
+  // -p (--no-dereference) and -S (--dereference-files): -p takes priority over -S and -R
   if (flag_no_dereference)
     flag_dereference = flag_dereference_files = false;
 
@@ -9070,7 +9095,10 @@ void Grep::ugrep()
   }
   else
   {
-#ifndef OS_WIN
+#ifdef OS_WIN
+    const DWORD attr = INVALID_FILE_ATTRIBUTES;
+#else
+    const uint32_t attr = 0;
     std::pair<std::set<ino_t>::iterator,bool> vino;
 #endif
 
@@ -9095,7 +9123,7 @@ void Grep::ugrep()
       uint64_t info;
 
       // search file or recursively search directory based on selection criteria
-      switch (select(1, pathname, basename, DIRENT_TYPE_UNKNOWN, inode, info, true))
+      switch (select(1, pathname, basename, DIRENT_TYPE_UNKNOWN, attr, inode, info, true))
       {
         case Type::DIRECTORY:
           if (flag_directories_action != Action::SKIP)
@@ -9126,14 +9154,16 @@ void Grep::ugrep()
 }
 
 // select file or directory to search for pattern matches, return SKIP, DIRECTORY or OTHER
-Grep::Type Grep::select(size_t level, const char *pathname, const char *basename, int type, ino_t& inode, uint64_t& info, bool is_argument)
+Grep::Type Grep::select(size_t level, const char *pathname, const char *basename, int type, uint32_t attr, ino_t& inode, uint64_t& info, bool is_argument)
 {
   if (*basename == '.' && !flag_hidden && !is_argument)
     return Type::SKIP;
 
 #ifdef OS_WIN
 
-  DWORD attr = GetFileAttributesW(utf8_decode(pathname).c_str());
+  // use file attributes from FindFirstFileW() WIN32_FIND_DATAW dwFileAttributes otherwise attr == INVALID_FILE_ATTRIBUTES
+  if (attr == INVALID_FILE_ATTRIBUTES)
+    attr = GetFileAttributesW(utf8_decode(pathname).c_str());
 
   if (attr == INVALID_FILE_ATTRIBUTES)
   {
@@ -9141,10 +9171,6 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
     warning("cannot read", pathname);
     return Type::SKIP;
   }
-
-  // skip FILE_ATTRIBUTE_REPARSE_POINT even when it is a symlink
-  if ((attr & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
-    return Type::SKIP;
 
   // skip hidden and system files unless explicitly searched with --hidden
   if (!flag_hidden && !is_argument && ((attr & FILE_ATTRIBUTE_HIDDEN) || (attr & FILE_ATTRIBUTE_SYSTEM)))
@@ -9345,6 +9371,8 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
   }
 
 #else
+
+  (void)attr;
 
   struct stat buf;
 
@@ -9740,7 +9768,16 @@ void Grep::recurse(size_t level, const char *pathname)
       }
 
       ino_t inode = 0;
-      Type type = select(level + 1, entry_pathname.c_str(), cFileName.c_str(), DIRENT_TYPE_UNKNOWN, inode, info);
+      Type type = select(level + 1, entry_pathname.c_str(), cFileName.c_str(), DIRENT_TYPE_UNKNOWN, ffd.dwFileAttributes, inode, info);
+
+      // check if we're recursing on a symlink to skip them when -p or -r is specified
+      if (!flag_dereference && (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 && ffd.dwReserved0 == IO_REPARSE_TAG_SYMLINK)
+      {
+        if (type == Type::DIRECTORY)
+          type = Type::SKIP;
+        else if (type == Type::OTHER && !flag_dereference_files)
+          type = Type::SKIP;
+      }
 
       // --index: search indexed files quickly, but only when necessary on demand
       if (type == Type::OTHER && Static::index_pattern != NULL)
@@ -9949,10 +9986,10 @@ void Grep::recurse(size_t level, const char *pathname)
       // search entry_pathname, unless searchable directory into which we should recurse
 #if defined(HAVE_STRUCT_DIRENT_D_TYPE) && defined(HAVE_STRUCT_DIRENT_D_INO)
       inode = dirent->d_ino;
-      type = select(level + 1, entry_pathname.c_str(), dirent->d_name, dirent->d_type, inode, info);
+      type = select(level + 1, entry_pathname.c_str(), dirent->d_name, dirent->d_type, 0, inode, info);
 #else
       inode = 0;
-      type = select(level + 1, entry_pathname.c_str(), dirent->d_name, DIRENT_TYPE_UNKNOWN, inode, info);
+      type = select(level + 1, entry_pathname.c_str(), dirent->d_name, DIRENT_TYPE_UNKNOWN, 0, inode, info);
 #endif
 
       if (flag_sort_key == Sort::LIST)
@@ -13818,10 +13855,10 @@ void help(std::ostream& out)
             the match or shortens the match.  See also options -A, -C and -y.\n\
     -b, --byte-offset\n\
             The offset in bytes of a pattern match is displayed in front of the\n\
-            respective matched line.  When -u is specified, displays the offset\n\
-            for each pattern matched on the same line.  Byte offsets are exact\n\
-            for ASCII, UTF-8 and raw binary input.  Otherwise, the byte offset\n\
-            in the UTF-8 normalized input is displayed.\n\
+            respective matched line.  When -u or --ungroup is specified,\n\
+            displays the offset for each pattern matched on the same line.\n\
+            Byte offsets are exact for ASCII, UTF-8 and raw binary input.\n\
+            Otherwise, the offset in the UTF-8-normalized input is displayed.\n\
     --binary-files=TYPE\n\
             Controls searching and reporting pattern matches in binary files.\n\
             TYPE can be `binary', `without-match`, `text`, `hex` and\n\
@@ -13832,8 +13869,9 @@ void help(std::ostream& out)
             problematic consequences if the terminal driver interprets some of\n\
             it as commands.  `hex' reports all matches in hexadecimal.\n\
             `with-hex' only reports binary matches in hexadecimal, leaving text\n\
-            matches alone.  A match is considered binary when matching a zero\n\
-            byte or invalid UTF.  Short options are -a, -I, -U, -W and -X.\n\
+            matches alone.  Files having NUL (zero) bytes are binary and files\n\
+            with invalid UTF encoding are binary unless option -U or --ascii\n\
+            or --binary is specified.  Short options are -a, -I, -W, -X.\n\
     --bool, -%, -%%\n\
             Specifies Boolean query patterns.  A Boolean query pattern is\n\
             composed of `AND', `OR', `NOT' operators and grouping with `(' `)'.\n\
@@ -13948,8 +13986,8 @@ void help(std::ostream& out)
     --encoding=ENCODING\n\
             The encoding format of the input.  The default ENCODING is binary\n\
             or UTF-8 which are treated the same.  Therefore, --encoding=binary\n\
-            has no effect.  Note that option -U or --binary specifies binary\n\
-            PATTERN matching (text matching is the default).  ENCODING can be:\n\
+            has no effect.  Contrast this with option -U or --ascii or --binary\n\
+            that specifies raw binary PATTERN matching.  ENCODING can be:\n\
            ";
   size_t k = 10;
   for (int i = 0; encoding_table[i].format != NULL; ++i)
@@ -14125,7 +14163,9 @@ void help(std::ostream& out)
             the hyperlink and when option -k is specified, the column number.\n\
     -I, --ignore-binary\n\
             Ignore matches in binary files.  This option is equivalent to the\n\
-            --binary-files=without-match option.\n\
+            --binary-files=without-match option.  Files having NUL (zero) bytes\n\
+            are binary.  Also files with invalid UTF encoding are binary unless\n\
+            option -U or --ascii or --binary is specified.\n\
     -i, --ignore-case\n\
             Perform case insensitive matching.  By default, ugrep is case\n\
             sensitive.\n\
@@ -14197,8 +14237,8 @@ void help(std::ostream& out)
             the start-up time to search may be increased when complex search\n\
             patterns are specified that contain large Unicode character classes\n\
             combined with `*' or `+' repeats, which should be avoided.  Option\n\
-            -U or --ascii improves performance.  Option --stats displays an\n\
-            index search report.\n\
+            -U or --ascii or --binary improves performance.  Option --stats\n\
+            displays an index search report.\n\
     -J NUM, --jobs=NUM\n\
             Specifies the number of threads spawned to search files.  By\n\
             default an optimum number of threads is spawned to search files\n\
@@ -14442,9 +14482,10 @@ void help(std::ostream& out)
             output is sent to a terminal.\n\
     -U, --ascii, --binary\n\
             Disables Unicode matching for ASCII and binary matching.  PATTERN\n\
-            matches bytes, not Unicode characters.  For example, -U '\\xa3'\n\
-            matches byte A3 (hex) instead of the Unicode code point U+00A3\n\
-            represented by the UTF-8 sequence C2 A3.  See also option --dotall.\n\
+            matches bytes.  For example, -U '\\xa3' matches byte A3 (hex)\n\
+            instead of the Unicode code point U+00A3 represented by the UTF-8\n\
+            sequence C2 A3.  Input is not flagged as \"binary\" for having\n\
+            invalid UTF, only for having NUL (zero) bytes.\n\
     -u, --ungroup\n\
             Do not group multiple pattern matches on the same matched line.\n\
             Output the matched line again for each additional pattern match.\n\

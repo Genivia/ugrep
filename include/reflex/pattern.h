@@ -64,6 +64,10 @@
 // ugrep 3.7.0b: use a DFA as a tree to bypass DFA construction step when possible
 #define WITH_TREE_DFA
 
+// Predict-match PM3+PM5 or PM4+PM4 chains (default PM4), benchmarking results favor PM3+PM5
+#define WITH_PM3_PM5
+// #define WITH_PM4_PM4
+
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # pragma warning( disable : 4290 )
 #endif
@@ -75,8 +79,8 @@ class Pattern {
   friend class Matcher;      ///< permit access by the reflex::Matcher engine
   friend class FuzzyMatcher; ///< permit access by the reflex::FuzzyMatcher engine
  public:
-  typedef uint8_t  Bitap;  ///< bitap bitmask, may change in a future update
-  typedef uint8_t  Pred;   ///< predict match bits
+  typedef uint8_t  Bitap;  ///< bitap bitmask, unsigned 8, 16 or 32 bit for 8, 16 or 32 BITS (number of characters matched)
+  typedef uint16_t Pred;   ///< predict match bits for PM3+PM5 or PM4+PM4 to store 2x8 bits
   typedef uint16_t Hash;   ///< hash value type, max value is Const::HASH
   typedef uint32_t Index;  ///< index into opcodes array Pattern::opc_ and subpattern indexing
   typedef uint32_t Accept; ///< group capture index
@@ -90,9 +94,19 @@ class Pattern {
     static const Index  LMAX = 0xfaffff;   ///< max lookahead index
     static const Index  LONG = 0xfffe;     ///< LONG marker for 64 bit opcodes, must be HALT-1
     static const Index  HALT = 0xffff;     ///< HALT marker for GOTO opcodes, must be 16 bit max
-    static const Hash   HASH = 0x1000;     ///< size of the predict match array
-    static const Hash   BTAP = 0x0800;     ///< size of the bitap hashed character pairs array
-    static const Bitap  BITS = 8;          ///< number of bitap bits, may change in a future update
+    static const Hash   HASH = 0x2000;     ///< size of the predict match array (16K bytes)
+    static const Hash   BTAP = 0x4000;     ///< size of the bitap hashed character pairs array (16K bytes)
+    static const Bitap  BITS = 8;          ///< number of bitap bits <= 8*sizeof(Bitap) >= PM_M, may change in a future update
+#if defined(WITH_PM3_PM5)
+    static const Pred   PM_K = 3;          ///< first predict-match step
+    static const Pred   PM_M = 8;          ///< total predict-match length 3+5 of PM3+PM5
+#elif defined(WITH_PM4_PM4)
+    static const Pred   PM_K = 4;          ///< first predict-match step
+    static const Pred   PM_M = 8;          ///< total predict-match length 4+4 of PM4+PM4
+#else
+    static const Pred   PM_K = 4;          ///< first predict-match step
+    static const Pred   PM_M = 4;          ///< total predict-match length 4 of PM4
+#endif
   };
   /// Construct an unset pattern.
   Pattern()
@@ -362,30 +376,76 @@ class Pattern {
   {
     return ams_;
   }
-  /// Returns true when match is predicted, based on s[0..3..e-1] (e >= s + 4 and n >= 4).
-  inline bool predict_match(const char *s, size_t n) const
+#if defined(WITH_PM3_PM5)
+  /// Returns true when match is predicted using my PM3+PM5 logic for min>=1.
+  inline bool predict_match(const char *s) const
   {
-    uint32_t h = static_cast<uint8_t>(*s);
-    uint32_t f = pmh_[h] & 1;
-    h = hash(h, static_cast<uint8_t>(*++s));
-    f |= pmh_[h] & 2;
-    h = hash(h, static_cast<uint8_t>(*++s));
-    f |= pmh_[h] & 4;
-    h = hash(h, static_cast<uint8_t>(*++s));
-    f |= pmh_[h] & 8;
-    if (f != 0)
+    uint8_t c0 = static_cast<uint8_t>(s[0]);
+    uint8_t c1 = static_cast<uint8_t>(s[1]);
+    uint8_t c2 = static_cast<uint8_t>(s[2]);
+    uint32_t h1 = hash(c0, c1);
+    uint32_t h2 = hash(h1, c2);
+    Pred p0 = (pma_[c0] & 0xc000) | (pma_[h1] & 0x3000) | (pma_[h2] & 0x0c00);
+    Pred m0 = ((((p0 >> 2) | p0) >> 1) | p0);
+    if (m0 >= 0xfc00)
       return false;
-    const char *e = s + n - 3;
-    uint32_t m = 16;
-    while (++s < e)
-    {
-      h = hash(h, static_cast<uint8_t>(*s));
-      f |= pmh_[h] & m;
-      m <<= 1;
-    }
-    return f == 0;
+    if (m0 != 0xf680)
+      return true;
+    uint8_t c3 = static_cast<uint8_t>(s[3]);
+    uint8_t c4 = static_cast<uint8_t>(s[4]);
+    uint8_t c5 = static_cast<uint8_t>(s[5]);
+    uint8_t c6 = static_cast<uint8_t>(s[6]);
+    uint8_t c7 = static_cast<uint8_t>(s[7]);
+    uint32_t h3 = hash(h2, c3);
+    uint32_t h4 = hash(h3, c4);
+    uint32_t h5 = hash(h4, c5);
+    uint32_t h6 = hash(h5, c6);
+    uint32_t h7 = hash(h6, c7);
+    Pred p1 = (pma_[h3] & 0x0300) | (pma_[h4] & 0x00c0) | (pma_[h5] & 0x0030) | (pma_[h6] & 0x000c) | (pma_[h7] & 0x0003);
+    Pred m1 = ((((((((p1 >> 2) | p1) >> 2) | p1) >> 2) | p1) >> 1) | p1);
+    return m1 != 0x03ff;
   }
-  /// Returns true when match is predicted using my PM4 logic.
+  /// Returns true when match is predicted using my PM3 logic for min>=1 prior to PM3+PM5.
+  inline bool predict_match_quick(const char *s) const
+  {
+    uint8_t c0 = static_cast<uint8_t>(s[0]);
+    uint8_t c1 = static_cast<uint8_t>(s[1]);
+    uint8_t c2 = static_cast<uint8_t>(s[2]);
+    uint32_t h1 = hash(c0, c1);
+    uint32_t h2 = hash(h1, c2);
+    Pred p0 = (pma_[c0] & 0xc000) | (pma_[h1] & 0x3000) | (pma_[h2] & 0x0c00);
+    Pred m0 = ((((p0 >> 2) | p0) >> 1) | p0);
+    return m0 < 0xfc00;
+  }
+  /// Returns true when match is predicted using my PM3+PM5 logic for min>=3.
+  inline bool predict_match_min(const char *s) const
+  {
+    uint8_t c0 = static_cast<uint8_t>(s[0]);
+    uint8_t c1 = static_cast<uint8_t>(s[1]);
+    uint8_t c2 = static_cast<uint8_t>(s[2]);
+    uint32_t h1 = hash(c0, c1);
+    uint32_t h2 = hash(h1, c2);
+    Pred p0 = (pma_[c0] & 0x4000) | (pma_[h1] & 0x1000) | (pma_[h2] & 0x0400);
+    if (p0 > 0x0400)
+      return false;
+    if (p0 == 0)
+      return true;
+    uint8_t c3 = static_cast<uint8_t>(s[3]);
+    uint8_t c4 = static_cast<uint8_t>(s[4]);
+    uint8_t c5 = static_cast<uint8_t>(s[5]);
+    uint8_t c6 = static_cast<uint8_t>(s[6]);
+    uint8_t c7 = static_cast<uint8_t>(s[7]);
+    uint32_t h3 = hash(h2, c3);
+    uint32_t h4 = hash(h3, c4);
+    uint32_t h5 = hash(h4, c5);
+    uint32_t h6 = hash(h5, c6);
+    uint32_t h7 = hash(h6, c7);
+    Pred p1 = (pma_[h3] & 0x0300) | (pma_[h4] & 0x00c0) | (pma_[h5] & 0x0030) | (pma_[h6] & 0x000c) | (pma_[h7] & 0x0003);
+    Pred m1 = ((((((((p1 >> 2) | p1) >> 2) | p1) >> 2) | p1) >> 1) | p1);
+    return m1 != 0x03ff;
+  }
+#elif defined(WITH_PM4_PM4)
+  /// Returns true when match is predicted using my PM4+PM4 logic for min>=1.
   inline bool predict_match(const char *s) const
   {
     uint8_t c0 = static_cast<uint8_t>(s[0]);
@@ -395,10 +455,99 @@ class Pattern {
     uint32_t h1 = hash(c0, c1);
     uint32_t h2 = hash(h1, c2);
     uint32_t h3 = hash(h2, c3);
-    Pred p = (pma_[c0] & 0xc0) | (pma_[h1] & 0x30) | (pma_[h2] & 0x0c) | (pma_[h3] & 0x03);
-    Pred m = ((((((p >> 2) | p) >> 2) | p) >> 1) | p);
-    return m != 0xff;
+    Pred p0 = (pma_[c0] & 0xc000) | (pma_[h1] & 0x3000) | (pma_[h2] & 0x0c00) | (pma_[h3] & 0x0300);
+    Pred m0 = ((((((p0 >> 2) | p0) >> 2) | p0) >> 1) | p0);
+    if (m0 >= 0xff00)
+      return false;
+    if (m0 != 0xfde8)
+      return true;
+    uint8_t c4 = static_cast<uint8_t>(s[4]);
+    uint8_t c5 = static_cast<uint8_t>(s[5]);
+    uint8_t c6 = static_cast<uint8_t>(s[6]);
+    uint8_t c7 = static_cast<uint8_t>(s[7]);
+    uint32_t h4 = hash(h3, c4);
+    uint32_t h5 = hash(h4, c5);
+    uint32_t h6 = hash(h5, c6);
+    uint32_t h7 = hash(h6, c7);
+    Pred p1 = (pma_[h4] & 0x00c0) | (pma_[h5] & 0x0030) | (pma_[h6] & 0x000c) | (pma_[h7] & 0x0003);
+    Pred m1 = ((((((p1 >> 2) | p1) >> 2) | p1) >> 1) | p1);
+    return m1 != 0x00ff;
   }
+  /// Returns true when match is predicted using my PM4 logic for min>=1 prior to PM4+PM4.
+  inline bool predict_match_quick(const char *s) const
+  {
+    uint8_t c0 = static_cast<uint8_t>(s[0]);
+    uint8_t c1 = static_cast<uint8_t>(s[1]);
+    uint8_t c2 = static_cast<uint8_t>(s[2]);
+    uint8_t c3 = static_cast<uint8_t>(s[3]);
+    uint32_t h1 = hash(c0, c1);
+    uint32_t h2 = hash(h1, c2);
+    uint32_t h3 = hash(h2, c3);
+    Pred p0 = (pma_[c0] & 0xc000) | (pma_[h1] & 0x3000) | (pma_[h2] & 0x0c00) | (pma_[h3] & 0x0300);
+    Pred m0 = ((((((p0 >> 2) | p0) >> 2) | p0) >> 1) | p0);
+    return m0 < 0xff00;
+  }
+  /// Returns true when match is predicted using my PM4+PM4 logic for min>=4.
+  inline bool predict_match_min(const char *s) const
+  {
+    uint8_t c0 = static_cast<uint8_t>(s[0]);
+    uint8_t c1 = static_cast<uint8_t>(s[1]);
+    uint8_t c2 = static_cast<uint8_t>(s[2]);
+    uint8_t c3 = static_cast<uint8_t>(s[3]);
+    uint32_t h1 = hash(c0, c1);
+    uint32_t h2 = hash(h1, c2);
+    uint32_t h3 = hash(h2, c3);
+    Pred p0 = (pma_[c0] & 0x4000) | (pma_[h1] & 0x1000) | (pma_[h2] & 0x0400) | (pma_[h3] & 0x0300);
+    if (p0 > 0x0100)
+      return false;
+    if (p0 == 0)
+      return true;
+    uint8_t c4 = static_cast<uint8_t>(s[4]);
+    uint8_t c5 = static_cast<uint8_t>(s[5]);
+    uint8_t c6 = static_cast<uint8_t>(s[6]);
+    uint8_t c7 = static_cast<uint8_t>(s[7]);
+    uint32_t h4 = hash(h3, c4);
+    uint32_t h5 = hash(h4, c5);
+    uint32_t h6 = hash(h5, c6);
+    uint32_t h7 = hash(h6, c7);
+    Pred p1 = (pma_[h4] & 0x00c0) | (pma_[h5] & 0x0030) | (pma_[h6] & 0x000c) | (pma_[h7] & 0x0003);
+    Pred m1 = ((((((p1 >> 2) | p1) >> 2) | p1) >> 1) | p1);
+    return m1 != 0x00ff;
+  }
+#else
+  /// Returns true when match is predicted using my PM4 logic for min>=1.
+  inline bool predict_match(const char *s) const
+  {
+    uint8_t c0 = static_cast<uint8_t>(s[0]);
+    uint8_t c1 = static_cast<uint8_t>(s[1]);
+    uint8_t c2 = static_cast<uint8_t>(s[2]);
+    uint8_t c3 = static_cast<uint8_t>(s[3]);
+    uint32_t h1 = hash(c0, c1);
+    uint32_t h2 = hash(h1, c2);
+    uint32_t h3 = hash(h2, c3);
+    Pred p0 = (pma_[c0] & 0xc000) | (pma_[h1] & 0x3000) | (pma_[h2] & 0x0c00) | (pma_[h3] & 0x0300);
+    Pred m0 = ((((((p0 >> 2) | p0) >> 2) | p0) >> 1) | p0);
+    return m0 < 0xff00;
+  }
+  /// Returns true when match is predicted (not used)
+  inline bool predict_match_quick(const char *) const
+  {
+    return true;
+  }
+  /// Returns true when match is predicted using my PM4 logic for min>=4.
+  inline bool predict_match_min(const char *s) const
+  {
+    uint8_t c0 = static_cast<uint8_t>(s[0]);
+    uint8_t c1 = static_cast<uint8_t>(s[1]);
+    uint8_t c2 = static_cast<uint8_t>(s[2]);
+    uint8_t c3 = static_cast<uint8_t>(s[3]);
+    uint32_t h1 = hash(c0, c1);
+    uint32_t h2 = hash(h1, c2);
+    uint32_t h3 = hash(h2, c3);
+    Pred p0 = (pma_[c0] & 0x4000) | (pma_[h1] & 0x1000) | (pma_[h2] & 0x0400) | (pma_[h3] & 0x0300);
+    return p0 <= 0x0100;
+  }
+#endif
   /// Relative frequency of English letters with upper/lower-case ratio = 0.0563, punctuation and UTF-8 bytes.
   static uint8_t frequency(uint8_t c)
   {
@@ -745,7 +894,7 @@ class Pattern {
       }
       bool find_accepting()
       {
-        while (!done())
+        while (!done() && !accepting())
         {
           ++edge;
           walk();
@@ -1069,7 +1218,7 @@ class Pattern {
   void gen_min(std::set<DFA::State*>& states);
   void gen_predict_match(std::set<DFA::State*>& states);
   void gen_predict_match_start(std::set<DFA::State*>& states, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& first_hashes);
-  void gen_predict_match_transitions(size_t level, DFA::State *state, const std::pair<ORanges<Hash>,ORanges<Char> >& previous, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& level_hashes);
+  void gen_predict_match_transitions(uint16_t level, DFA::State *state, const std::pair<ORanges<Hash>,ORanges<Char> >& previous, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& level_hashes);
   void gen_match_hfa(DFA::State *start);
   void gen_match_hfa_start(DFA::State *start, HFA::State& index, HFA::StateHashes& hashes);
   bool gen_match_hfa_transitions(size_t level, size_t& max_level, DFA::State *state, const HFA::HashRanges& previous, HFA::State& index, HFA::StateHashes& hashes);
@@ -1273,15 +1422,15 @@ class Pattern {
   {
     return static_cast<unsigned char>(c & ~0x20);
   }
-  /// predict match hash 0 <= hash() < Const::HASH.
+  /// predict match hash 0 <= hash() < Const::HASH, must be additive: hash(h,b+1) = hash(h,b)+1 modulo Const::HASH.
   static inline uint32_t hash(uint32_t h, uint8_t b)
   {
-    return ((h << 3) ^ b) & (Const::HASH - 1);
+    return ((h << 3) - h + b) & (Const::HASH - 1);
   }
-  /// bitap character pairs hash
+  /// bitap character pairs hash.
   static inline uint32_t bihash(uint8_t a, uint8_t b)
   {
-    return (a ^ (b << 6)) & (Const::BTAP - 1);
+    return (a ^ (static_cast<uint32_t>(b) << 6)) & (Const::BTAP - 1);
   }
   /// file indexing hash 0 <= indexhash() < 65536, must be additive: indexhash(x,b+1) = indexhash(x,b)+1 modulo 2^16.
   static inline uint32_t indexhash(Hash h, uint8_t b)
@@ -1299,16 +1448,16 @@ class Pattern {
   std::string           rex_; ///< regular expression string
   std::vector<Location> end_; ///< entries point to the subpattern's ending '|' or '\0'
   std::vector<bool>     acc_; ///< true if subpattern n is accepting (state is reachable)
-  size_t                vno_; ///< number of finite state machine vertices |V| (nodes)
-  size_t                eno_; ///< number of finite state machine edges |E| (arrows)
-  size_t                hno_; ///< number of indexing hash tables (HFA edges)
+  uint32_t              vno_; ///< number of finite state machine vertices |V| (nodes)
+  uint32_t              eno_; ///< number of finite state machine edges |E| (arrows)
+  uint32_t              hno_; ///< number of indexing hash tables (HFA edges)
   const Opcode         *opc_; ///< points to the table with compiled finite state machine opcodes
   FSM                   fsm_; ///< function pointer to FSM code
   Index                 nop_; ///< number of opcodes generated
   Index                 cut_; ///< DFA s-t cut to improve predict match and HFA accuracy with lbk_ and cbk_
-  size_t                len_; ///< length of chr_[], less or equal to 255
-  size_t                min_; ///< patterns after the prefix are at least this long but no more than 8
-  size_t                pin_; ///< number of needles, 0 to 16
+  uint16_t              len_; ///< length of chr_[], less or equal to 255
+  uint16_t              min_; ///< patterns after the prefix are at least this long but no more than Const::BITS
+  uint16_t              pin_; ///< number of needles, 0 to 16
   std::bitset<256>      cbk_; ///< characters to look back over when lbk_ > 0, never includes \n
   std::bitset<256>      fst_; ///< the beginning characters of the pattern
   char                  chr_[256]; ///< pattern prefix string or character needles for needle-based search
@@ -1319,13 +1468,12 @@ class Pattern {
   uint16_t              vtp_[Const::BTAP * 4]; ///< AVX2 vectorized bitap hashed character pairs array
 #endif
 #endif
-  Pred                  pmh_[Const::HASH]; ///< predict-match bloom filter hash up to first 8 positions
-  Pred                  pma_[Const::HASH]; ///< predict-match 4 (PM4) array
+  Pred                  pma_[Const::HASH]; ///< predict-match array
   uint16_t              lbk_; ///< lookback distance or 0xffff unlimited lookback or 0 for no lookback (empty cbk_)
   uint16_t              lbm_; ///< loopback minimum distance when lbk_ > 0
   uint16_t              lcp_; ///< primary least common character position in the pattern or 0xffff
   uint16_t              lcs_; ///< secondary least common character position in the pattern or 0xffff
-  size_t                bmd_; ///< Boyer-Moore jump distance on mismatch, B-M is enabled when bmd_ > 0 (<= 255)
+  uint16_t              bmd_; ///< Boyer-Moore jump distance on mismatch, B-M is enabled when bmd_ > 0 (<= 255)
   uint8_t               bms_[256]; ///< Boyer-Moore skip array
   float                 pms_; ///< ms elapsed time to parse regex
   float                 vms_; ///< ms elapsed time to compile DFA vertices
