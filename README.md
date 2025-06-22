@@ -15,17 +15,17 @@
 Why use ugrep?
 --------------
 
-- ugrep is fast, user-friendly, and equipped with a ton of new features that users wanted
+- ugrep is compatible to GNU/BSD grep, but much faster and with a ton of new features
+
+- ugrep is a drop-in replacement for BSD and GNU grep ([copy or symlink `ug` to `grep`, and to `egrep` and to `fgrep`](#grep)), unlike other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use an incompatible regex matcher, i.e. Perl regex only versus POSIX BRE (grep) and ERE (egrep) when ugrep supports all regex modes
+
+- [ugrep is typically faster](https://github.com/Genivia/ugrep-benchmarks) than rg, ag, and GNU grep using the high-performance regex engine [RE/flex](https://github.com/Genivia/RE-flex)
+
+- full Unicode extended regex pattern syntax with multi-line pattern matching without any special command-line options
 
 - includes an interactive TUI with built-in help, Google-like search with AND/OR/NOT patterns, fuzzy search, search (nested) zip/7z/tar/pax/cpio archives, tarballs and compressed files gz/Z/bz/bz2/lzma/xz/lz4/zstd/brotli, search and hexdump binary files, search documents such as PDF, doc, docx, and output in JSON, XML, CSV or your own customized format
 
-- Unicode extended regex pattern syntax with multi-line pattern matching without requiring special command-line options
-
 - includes a file indexer to speed up searching slow and cold file systems
-
-- a true drop-in replacement for GNU grep (assuming you [copy or symlink `ug` to `grep`, and to `egrep` and to `fgrep`](#grep)), unlike other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use an incompatible regex matcher, i.e. Perl regex only versus POSIX BRE (grep) and ERE (egrep) when ugrep supports all regex modes
-
-- benchmarks show that [ugrep is (one of) the fastest grep](https://github.com/Genivia/ugrep-benchmarks) using the high-performance DFA-based regex matcher [RE/flex](https://github.com/Genivia/RE-flex)
 
 Development roadmap
 -------------------
