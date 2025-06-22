@@ -144,6 +144,20 @@ static const char *posix_class[] = {
   "Word",
 };
 
+#ifndef WITH_NO_CODEGEN
+static uint8_t gethex(const char *& ptr)
+{
+  int hi = *ptr++ - '0';
+  hi -= (hi > 9) * ('a' - '9' - 1);
+  int lo = *ptr++ - '0';
+  lo -= (lo > 9) * ('a' - '9' - 1);
+  int byte = (hi << 4) + lo;
+  if (hi < 0 || lo < 0 || byte > 255)
+    throw regex_error::load_tables;
+  return static_cast<uint8_t>(byte);
+}
+#endif
+
 const std::string Pattern::operator[](Accept choice) const
 {
   if (choice == 0)
@@ -168,7 +182,7 @@ void Pattern::error(regex_error_type code, size_t pos) const
     throw err;
 }
 
-void Pattern::init(const char *options, const uint8_t *pred)
+void Pattern::init(const char *options, const char *pred)
 {
   init_options(options);
   nop_ = 0;
@@ -198,44 +212,110 @@ void Pattern::init(const char *options, const uint8_t *pred)
   {
     if (pred != NULL)
     {
-      len_ = pred[0];
-      min_ = pred[1] & 0x0f;
-      one_ = pred[1] & 0x10;
-      bol_ = pred[1] & 0x40;
-      memcpy(chr_, pred + 2, len_);
-      size_t n = 2 + len_;
+#ifndef WITH_NO_CODEGEN
+      len_ = gethex(pred);
+      uint8_t mode = gethex(pred);
+      min_ = mode & 0x0f;
+      one_ = mode & 0x10;
+      bol_ = mode & 0x40;
       if (len_ == 0)
       {
         // load bit_[] parameters
         for (int i = 0; i < 256; ++i)
-          bit_[i] = ~pred[i + n];
-        n += 256;
-        // load tap_[] parameters
-        for (int i = 0; i < Const::BTAP; ++i)
-          tap_[i] = ~pred[i + n];
-        n += Const::BTAP;
+          bit_[i] = gethex(pred);
+        if (min_ > 7)
+        {
+          // load tap_[] parameters uncompressed
+          for (int i = 0; i < Const::BTAP; ++i)
+            tap_[i] = gethex(pred);
+        }
+        else
+        {
+          // load tap_[] parameters compressed
+          int i = 0;
+          while (i < Const::BTAP)
+          {
+            uint8_t byte = gethex(pred);
+            if ((byte & 128) != 0)
+            {
+              while (byte-- > 127 && i < Const::BTAP)
+                tap_[i++] = 0xff;
+            }
+            else
+            {
+              tap_[i++] = byte;
+            }
+          }
+        }
       }
-      // load predict match array pma_[] parameters
-      for (int i = 0; i < Const::HASH; ++i)
-        pma_[i] = ~pred[2 * i + n] + (~pred[2 * i + n + 1] << 8);
-      n += 2 * Const::HASH;
-      if ((pred[1] & 0x20) != 0)
+      else
+      {
+        for (int i = 0; i < len_; ++i)
+          chr_[i] = gethex(pred);
+      }
+      if (len_ == 0 || min_ > 0)
+      {
+        // load predict match array pma_[] parameters compressed
+        int i = 0;
+        while (i < Const::HASH)
+        {
+          uint8_t byte = gethex(pred);
+          if ((byte & 0xc0) == 64)
+          {
+            byte = (byte & 0x3f) + 1;
+            while (byte-- > 0 && i < Const::HASH)
+              pma_[i++] = 0xff00;
+          }
+          else
+          {
+            pma_[i++] = byte << 8;
+          }
+        }
+        i = 0;
+        while (i < Const::HASH)
+        {
+          uint8_t byte = gethex(pred);
+          if ((byte & 0xc0) == 64)
+          {
+            byte = (byte & 0x3f) + 1;
+            while (byte-- > 0 && i < Const::HASH)
+              pma_[i++] |= 0xff;
+          }
+          else
+          {
+            pma_[i++] |= byte;
+          }
+        }
+      }
+      if ((mode & 0x20) != 0)
       {
         // load lookback parameters lbk_ lbm_ and cbk_[] after s-t cut and first s-t cut pattern characters fst_[]
-        lbk_ = pred[n + 0] | (pred[n + 1] << 8);
-        lbm_ = pred[n + 2] | (pred[n + 3] << 8);
-        for (int i = 0; i < 256; ++i)
-          cbk_.set(i, pred[n + 4 + (i >> 3)] & (1 << (i & 7)));
-        for (int i = 0; i < 256; ++i)
-          fst_.set(i, pred[n + 4 + 32 + (i >> 3)] & (1 << (i & 7)));
-        n += 4 + 32 + 32;
+        lbk_ = gethex(pred);
+        lbk_ |= gethex(pred) << 8;
+        lbm_ = gethex(pred);
+        lbm_ |= gethex(pred) << 8;
+        for (int i = 0; i < 256; i += 8)
+        {
+          uint8_t byte = gethex(pred);
+          for (int j = 0; j < 8; ++j)
+            cbk_.set(i + j, byte & (1 << j));
+        }
+        for (int i = 0; i < 256; i += 8)
+        {
+          uint8_t byte = gethex(pred);
+          for (int j = 0; j < 8; ++j)
+            fst_.set(i, byte & (1 << j));
+        }
       }
       else
       {
         // load first pattern characters fst_[] from bit_[]
-        for (size_t i = 0; i < 256; ++i)
+        for (int i = 0; i < 256; ++i)
           fst_.set(i, (bit_[i] & 1) == 0);
       }
+#else
+      throw regex_error::load_tables;
+#endif
     }
   }
   else
@@ -3051,7 +3131,7 @@ void Pattern::gencode_dfa(const DFA::State *start) const
       else
         err = reflex::fopen_s(&file, filename.c_str(), "w");
       if (err || file == NULL)
-        throw regex_error(regex_error::cannot_save_tables, filename);
+        throw regex_error(regex_error::save_tables, filename);
       ::fprintf(file,
           "#include <reflex/matcher.h>\n\n"
           "#if defined(OS_WIN)\n"
@@ -4327,9 +4407,9 @@ void Pattern::analyze_dfa(DFA::State *start)
       if (pma_[i] != (1 << (8 * Const::PM_M)) - 1)
       {
         if (isprint(i))
-          DBGLOGN("pma['%c'] = %02x", i, pma_[i]);
+          DBGLOGN("pma['%c'] = %04x", i, pma_[i]);
         else
-          DBGLOGN("pma[%3d] = %02x", i, pma_[i]);
+          DBGLOGN("pma[%3d] = %04x", i, pma_[i]);
       }
     }
 #endif
@@ -4383,9 +4463,10 @@ void Pattern::gen_predict_match(std::set<DFA::State*>& states)
   gen_min(states);
   std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > > hashes[Const::BITS];
   gen_predict_match_start(states, hashes[0]);
+  bool saturated = false; // PM hashes are saturated, e.g. \w{8,} explodes the hash space use and we can stop populating more
   for (uint16_t level = 1; level < Const::BITS && !hashes[level - 1].empty(); ++level)
     for (std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >::iterator from = hashes[level - 1].begin(); from != hashes[level - 1].end(); ++from)
-      gen_predict_match_transitions(level, from->first, from->second, hashes[level]);
+      gen_predict_match_transitions(level, from->first, from->second, hashes[level], saturated);
 }
 
 void Pattern::gen_predict_match_start(std::set<DFA::State*>& states, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& first_hashes)
@@ -4445,7 +4526,7 @@ void Pattern::gen_predict_match_start(std::set<DFA::State*>& states, std::map<DF
     it->second.second = it->second.first;
 }
 
-void Pattern::gen_predict_match_transitions(uint16_t level, DFA::State *state, const std::pair<ORanges<Hash>,ORanges<Char> >& previous, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& level_hashes)
+void Pattern::gen_predict_match_transitions(uint16_t level, DFA::State *state, const std::pair<ORanges<Hash>,ORanges<Char> >& previous, std::map<DFA::State*,std::pair<ORanges<Hash>,ORanges<Char> > >& level_hashes, bool& saturated)
 {
   for (DFA::MetaEdgesClosure edge(state); !edge.done(); ++edge)
   {
@@ -4454,7 +4535,7 @@ void Pattern::gen_predict_match_transitions(uint16_t level, DFA::State *state, c
     if (lbk_ > 0 && next_state->first > 0 && next_state->first <= cut_)
       continue;
     // previous level hashes are completely saturated, or highly saturated after 4 levels, then next hashes will be saturated too
-    bool next_saturated = (level + 1 > 4 && level + 1 < Const::BITS ? previous.first.count() >= Const::HASH / 8 : previous.first.size() == 1 && previous.first.lo() == 0 && previous.first.hi() == Const::HASH - 1);
+    bool next_saturated = saturated || (previous.first.size() == 1 && previous.first.lo() == 0 && previous.first.hi() == Const::HASH - 1);
     // next state is accepting (closed over metas)
     bool next_accept = edge.next_accepting();
     std::pair<ORanges<Hash>,ORanges<Char> > *next_hashes = (level + 1 < Const::BITS && !next_accept) ? &level_hashes[next_state] : NULL;
@@ -4512,13 +4593,14 @@ void Pattern::gen_predict_match_transitions(uint16_t level, DFA::State *state, c
         }
       }
     }
-    if (level < Const::PM_M)
+    if (level < Const::PM_M && !saturated)
     {
       // populate predict match hashes
-      Pred pma_comb = (level + 1 == Const::PM_K && !next_accept ? 1 << (8 * sizeof(Pred) - 2 * Const::PM_K) : 0);
-      Pred pma_mask = ~(1 << (8 * sizeof(Pred) - 2 - 2 * level));
-      if (level + 1 == Const::PM_K || level + 1 == Const::PM_M || next_saturated || next_accept)
-        pma_mask &= ~(1 << (8 * sizeof(Pred) - 1 - 2 * level));
+      Pred pma_mask = ~(1 << (8 * sizeof(Pred) - 2 - 2 * level)); // bit pair 10: matching
+      if (level + 1 == Const::PM_M || next_saturated || next_accept)
+        pma_mask &= ~(1 << (8 * sizeof(Pred) - 1 - 2 * level)); // bit pair 00: matching and accepting
+      else if (level + 1 == Const::PM_K)
+        pma_mask = ~(1 << (8 * sizeof(Pred) - 1 - 2 * level)); // bit pair 01 (or 00): combine next PM (or leave accepting)
       if (!next_saturated && next_hashes != NULL)
       {
         ORanges<Hash>& next_hashes_first = next_hashes->first;
@@ -4534,28 +4616,16 @@ void Pattern::gen_predict_match_transitions(uint16_t level, DFA::State *state, c
             {
               next_hashes_first.insert(lo_h, hi_h);
               for (Hash h = lo_h; h <= hi_h; ++h)
-              {
-                Pred pma_keep = pma_[h] & pma_comb;
                 pma_[h] &= pma_mask;
-                pma_[h] |= pma_keep;
-              }
             }
             else
             {
               next_hashes_first.insert(lo_h, Const::HASH - 1);
               next_hashes_first.insert(0, hi_h);
               for (Hash h = lo_h; h < Const::HASH; ++h)
-              {
-                Pred pma_keep = pma_[h] & pma_comb;
                 pma_[h] &= pma_mask;
-                pma_[h] |= pma_keep;
-              }
               for (Hash h = 0; h <= hi_h; ++h)
-              {
-                Pred pma_keep = pma_[h] & pma_comb;
                 pma_[h] &= pma_mask;
-                pma_[h] |= pma_keep;
-              }
             }
           }
         }
@@ -4573,30 +4643,19 @@ void Pattern::gen_predict_match_transitions(uint16_t level, DFA::State *state, c
             if (lo_h <= hi_h)
             {
               for (Hash h = lo_h; h <= hi_h; ++h)
-              {
-                Pred pma_keep = pma_[h] & pma_comb;
                 pma_[h] &= pma_mask;
-                pma_[h] |= pma_keep;
-              }
             }
             else
             {
               for (Hash h = lo_h; h < Const::HASH; ++h)
-              {
-                Pred pma_keep = pma_[h] & pma_comb;
                 pma_[h] &= pma_mask;
-                pma_[h] |= pma_keep;
-              }
               for (Hash h = 0; h <= hi_h; ++h)
-              {
-                Pred pma_keep = pma_[h] & pma_comb;
                 pma_[h] &= pma_mask;
-                pma_[h] |= pma_keep;
-              }
             }
           }
         }
       }
+      saturated = next_saturated;
     }
   }
 }
@@ -4780,43 +4839,125 @@ bool Pattern::match_hfa_transitions(size_t level, const HFA::Hashes& hashes, con
 #ifndef WITH_NO_CODEGEN
 void Pattern::write_predictor(FILE *file) const
 {
-  ::fprintf(file, "// reflex::Pattern FSM code or opcode constructor also takes a search pattern prediction table:\nextern const uint8_t reflex_pred_%s[%u] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str(), 2 + len_ + (len_ == 0) * (256 + Const::BTAP) + 2 * Const::HASH + (lbk_ > 0) * 68);
-  ::fprintf(file, "\n  %3hhu,%3hhu,", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5) | (bol_ << 6))));
+  const char *nl = "\"\n  \"";
+  ::fprintf(file, "// reflex::Pattern FSM C++ code or opcode constructor also takes a search pattern prediction table:\nextern const char reflex_pred_%s[] = {", opt_.n.empty() ? "FSM" : opt_.n.c_str());
+  ::fprintf(file, "\n  \"%02x%02x", static_cast<uint8_t>(len_), (static_cast<uint8_t>(min_ | (one_ << 4) | ((lbk_ > 0) << 5) | (bol_ << 6))));
   // save match characters chr_[0..len_-1]
   for (size_t i = 0; i < len_; ++i)
-    ::fprintf(file, "%s%3hhu,", ((i + 2) & 0xf) ? "" : "\n  ", static_cast<uint8_t>(chr_[i]));
+    ::fprintf(file, "%s%02x", ((i + 2) % 32) ? "" : nl, static_cast<uint8_t>(chr_[i]));
+  int span = 0, k = 0;
   if (len_ == 0)
   {
     // save bit_[] parameters
     for (int i = 0; i < 256; ++i)
-      ::fprintf(file, "%s%3hhu,", (i & 0xf) ? "" : "\n  ", static_cast<uint8_t>(~bit_[i]));
-    // save tap_[] parameters
-    for (int i = 0; i < Const::BTAP; ++i)
-      ::fprintf(file, "%s%3hhu,", (i & 0xf) ? "" : "\n  ", static_cast<uint8_t>(~tap_[i]));
+      ::fprintf(file, "%s%02x", (i % 32) ? "" : nl, static_cast<uint8_t>(~bit_[i]));
+    if (min_ > 7)
+    {
+      // save tap_[] parameters uncompressed
+      for (int i = 0; i < Const::BTAP; ++i)
+        ::fprintf(file, "%s%02x", (i % 32) ? "" : nl, static_cast<uint8_t>(tap_[i]));
+    }
+    else
+    {
+      // save tap_[] parameters compressed
+      for (int i = 0; i <= Const::BTAP; ++i)
+      {
+        int byte = i < Const::BTAP ? static_cast<uint8_t>(tap_[i]) : -1;
+        if (byte != 0xff)
+        {
+          if (--span >= 0)
+          {
+            while (span >= 128)
+            {
+              ::fprintf(file, "%sff", (k++ % 32) ? "" : nl);
+              span -= 128;
+            }
+            ::fprintf(file, "%s%02x", (k++ % 32) ? "" : nl, static_cast<uint8_t>(span | 128));
+          }
+          if (byte >= 0)
+            ::fprintf(file, "%s%02x", (k++ % 32) ? "" : nl, byte & 0x7f);
+          span = 0;
+        }
+        else
+        {
+          ++span;
+        }
+      }
+    }
   }
-  // save predict match array pma_[] parameters
-  for (int i = 0; i < Const::HASH; ++i)
-    ::fprintf(file, "%s%3hhu,%3hhu,", (i & 0x7) ? "" : "\n  ", static_cast<uint8_t>(~pma_[i] & 0xff), static_cast<uint8_t>(~pma_[i] >> 8));
+  if (len_ == 0 || min_ > 0)
+  {
+    // save predict match array pma_[] parameters compressed using "free" bits to mark and count 0xff sequences
+    span = 0;
+    for (int i = 0; i <= Const::HASH; ++i)
+    {
+      int hi_byte = i < Const::HASH ? static_cast<uint8_t>(pma_[i] >> 8) : -1;
+      if (hi_byte != 0xff)
+      {
+        if (--span >= 0)
+        {
+          while (span >= 64)
+          {
+            ::fprintf(file, "%s7f", (k++ % 32) ? "" : nl);
+            span -= 64;
+          }
+          ::fprintf(file, "%s%02x", (k++ % 32) ? "" : nl, static_cast<uint8_t>(span | 64));
+        }
+        if (hi_byte >= 0)
+          ::fprintf(file, "%s%02x", (k++ % 32) ? "" : nl, hi_byte);
+        span = 0;
+      }
+      else
+      {
+        ++span;
+      }
+    }
+    span = 0;
+    for (int i = 0; i <= Const::HASH; ++i)
+    {
+      int lo_byte = i < Const::HASH ? static_cast<uint8_t>(pma_[i] & 0xff) : -1;
+      if (lo_byte != 0xff)
+      {
+        if (--span >= 0)
+        {
+          while (span >= 64)
+          {
+            ::fprintf(file, "%s7f", (k++ % 32) ? "" : nl);
+            span -= 64;
+          }
+          ::fprintf(file, "%s%02x", (k++ % 32) ? "" : nl, static_cast<uint8_t>(span | 64));
+        }
+        if (lo_byte >= 0)
+          ::fprintf(file, "%s%02x", (k++ % 32) ? "" : nl, lo_byte);
+        span = 0;
+      }
+      else
+      {
+        ++span;
+      }
+    }
+  }
   if (lbk_ > 0)
   {
     // save lookback parameters lbk_ lbm_ cbk_[] after s-t cut and first s-t cut pattern characters fst_[]
-    ::fprintf(file, "\n  %3hhu,%3hhu,%3hhu,%3hhu,", static_cast<uint8_t>(lbk_ & 0xff), static_cast<uint8_t>(lbk_ >> 8), static_cast<uint8_t>(lbm_ & 0xff), static_cast<uint8_t>(lbm_ >> 8));
+    ::fprintf(file, "\"\n  \"%02x%02x%02x%02x%s", static_cast<uint8_t>(lbk_ & 0xff), static_cast<uint8_t>(lbk_ >> 8), static_cast<uint8_t>(lbm_ & 0xff), static_cast<uint8_t>(lbm_ >> 8), nl);
     for (int i = 0; i < 256; i += 8)
     {
-      uint8_t b = 0;
+      uint8_t byte = 0;
       for (int j = 0; j < 8; ++j)
-        b |= cbk_.test(i + j) << j;
-      ::fprintf(file, "%s%3hhu,", (i & 0x7f) ? "" : "\n  ", b);
+        byte |= cbk_.test(i + j) << j;
+      ::fprintf(file, "%02x", byte);
     }
+    ::fprintf(file, "%s", nl);
     for (size_t i = 0; i < 256; i += 8)
     {
-      uint8_t b = 0;
+      uint8_t byte = 0;
       for (int j = 0; j < 8; ++j)
-        b |= fst_.test(i + j) << j;
-      ::fprintf(file, "%s%3hhu,", (i & 0x7f) ? "" : "\n  ", b);
+        byte |= fst_.test(i + j) << j;
+      ::fprintf(file, "%02x", byte);
     }
   }
-  ::fprintf(file, "\n};\n\n");
+  ::fprintf(file, "\"\n};\n\n");
 }
 #endif
 

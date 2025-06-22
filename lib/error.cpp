@@ -62,7 +62,8 @@ std::string regex_error::regex_error_message_code(regex_error_type code, const c
     "exceeds length limit",
     "exceeds complexity limits",
     "undefined name",
-    "cannot save tables file",
+    "cannot save tables",
+    "cannot load tables",
   };
   return regex_error_message(messages[code], pattern, pos);
 }
