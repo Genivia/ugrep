@@ -22,6 +22,8 @@ AC_CHECK_HEADERS([sys/time.h sys/statvfs.h sys/param.h sys/mount.h sys/cpuset.h 
 
 AC_CHECK_FUNCS([statfs statvfs])
 
+AC_CHECK_FUNCS([strncasecmp strnicmp _strnicmp])
+
 AX_PTHREAD
 
 # Check how thread affinity is set

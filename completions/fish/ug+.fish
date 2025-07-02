@@ -86,7 +86,7 @@ complete -c ug+ -l files -o '%%' -d 'Boolean file matching mode, the opposite of
 complete -c ug+ -s P -l perl-regexp -d 'Interpret PATTERN as a Perl regular expression using PCRE2'
 complete -c ug+ -s p -l no-dereference -d 'If -R or -r is specified, do not follow symbolic links, even when symbolic links are specified on the command line'
 complete -c ug+ -l pager -d 'When output is sent to the terminal, uses COMMAND to page through the output'
-complete -c ug+ -l pretty -d 'When output is sent to a terminal, enables --color, --heading, -n, --sort, --tree and -T when not explicitly disabled'
+complete -c ug+ -l pretty -d 'When output is sent to the terminal, enables options --color, --heading, -n, --sort, --tree and -T when not explicitly disabled'
 complete -c ug+ -s Q -l query -d 'Query mode: start a TUI to perform interactive searches'
 complete -c ug+ -s q -l quiet -l silent -d 'Quiet mode: suppress all output'
 complete -c ug+ -s R -l dereference-recursive -d 'Recursively read all files under each directory, following symbolic links to files and directories, unlike -r'

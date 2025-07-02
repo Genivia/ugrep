@@ -1,4 +1,4 @@
-.TH UGREP "1" "June 18, 2025" "ugrep 7.5.0" "User Commands"
+.TH UGREP "1" "July 02, 2025" "ugrep 7.5.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -398,7 +398,8 @@ searches PDF files.  The `%' expands into a `\-' when searching
 standard input.  When a `%' is not specified, the filter command
 should read from standard input and write to standard output.
 Option \fB\-\-label\fR=.ext may be used to specify extension `ext' when
-searching standard input.  This option may be repeated.
+searching standard input.  Note that `exts` filename extension
+matching is case insensitive.  This option may be repeated.
 .TP
 \fB\-\-filter\-magic\-label\fR=[+]LABEL:MAGIC
 Associate LABEL with files whose signature "magic bytes" match the
@@ -464,7 +465,7 @@ when there is only one file (or only standard input) to search.
 \fB\-\-heading\fR, \fB\-+\fR
 Group matches per file.  Adds a heading and a line break between
 results from different files.  This option is enabled by \fB\-\-pretty\fR
-when the output is sent to a terminal.
+when the output is sent to the terminal.
 .TP
 \fB\-\-help\fR [\fIWHAT\fR], \fB\-?\fR [\fIWHAT\fR]
 Display a help message on options related to WHAT when specified.
@@ -685,7 +686,9 @@ without affecting the input specified as per ENCODING.  Instead of
 option \fB\-\-null\-data\fR, option \fB\-\-encoding\fR=null\-data treats the input as
 a sequence of lines terminated by a zero byte without affecting the
 output.  Option \fB\-\-null\-data\fR is not compatible with UTF\-16/32 input.
-See also options \fB\-\-encoding\fR and \fB\-\-null\fR.
+Since ugrep matches multiple lines when patterns are specified
+containing a newline `\\n' or `\\R', this option is not required for
+multi\-line matching.  See also options \fB\-\-encoding\fR and \fB\-\-null\fR.
 .TP
 \fB\-O\fR \fIEXTENSIONS\fR, \fB\-\-file\-extension\fR=\fIEXTENSIONS\fR
 Only search files whose filename extensions match the specified
@@ -728,9 +731,9 @@ the output.  COMMAND defaults to environment variable PAGER when
 defined or `less'.  Enables \fB\-\-heading\fR and \fB\-\-line\-buffered\fR.
 .TP
 \fB\-\-pretty\fR[=\fIWHEN\fR]
-When output is sent to a terminal, enables \fB\-\-color\fR, \fB\-\-heading\fR, \fB\-n\fR,
-\fB\-\-sort\fR, \fB\-\-tree\fR and \fB\-T\fR when not explicitly disabled.  WHEN can be
-`never', `always', or `auto'.  The default is `auto'.
+When output is sent to the terminal, enables options \fB\-\-color\fR,
+\fB\-\-heading\fR, \fB\-n\fR, \fB\-\-sort\fR, \fB\-\-tree\fR and \fB\-T\fR when not explicitly disabled.
+WHEN can be `never', `always', or `auto'.  The default is `auto'.
 .TP
 \fB\-Q\fR[=\fIDELAY\fR], \fB\-\-query\fR[=\fIDELAY\fR]
 Query mode: start a TUI to perform interactive searches.  This mode
@@ -861,7 +864,7 @@ a match if specified, otherwise TAG.  The default is `___'.
 Output directories with matching files in a tree\-like format for
 option \fB\-c\fR or \fB\-\-count\fR, \fB\-l\fR or \fB\-\-files\-with\-matches\fR, \fB\-L\fR or
 \fB\-\-files\-without\-match\fR.  This option is enabled by \fB\-\-pretty\fR when the
-output is sent to a terminal.
+output is sent to the terminal.
 .TP
 \fB\-U\fR, \fB\-\-ascii\fR, \fB\-\-binary\fR
 Disables Unicode matching for ASCII and binary matching.  PATTERN
@@ -959,7 +962,8 @@ bzip2 (.bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 xz (.xz, .txz) and lzma (requires suffix .lzma, .tlz),
 zstd (.zst, .zstd, .tzst),
 lz4 (requires suffix .lz4),
-brotli (requires suffix .br).
+brotli (requires suffix .br),
+bzip3 (requires suffix .bz3).
 .TP
 \fB\-\-zmax\fR=\fINUM\fR
 When used with option \fB\-z\fR or \fB\-\-decompress\fR, searches the contents of

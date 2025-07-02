@@ -5610,6 +5610,26 @@ then :
 fi
 
 
+ac_fn_cxx_check_func "$LINENO" "strncasecmp" "ac_cv_func_strncasecmp"
+if test "x$ac_cv_func_strncasecmp" = xyes
+then :
+  printf "%s\n" "#define HAVE_STRNCASECMP 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_func "$LINENO" "strnicmp" "ac_cv_func_strnicmp"
+if test "x$ac_cv_func_strnicmp" = xyes
+then :
+  printf "%s\n" "#define HAVE_STRNICMP 1" >>confdefs.h
+
+fi
+ac_fn_cxx_check_func "$LINENO" "_strnicmp" "ac_cv_func__strnicmp"
+if test "x$ac_cv_func__strnicmp" = xyes
+then :
+  printf "%s\n" "#define HAVE__STRNICMP 1" >>confdefs.h
+
+fi
+
+
 
 
 

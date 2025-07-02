@@ -93,7 +93,7 @@ $matchers{-G,--basic-regexp}'[Interpret patterns as basic regular expressions (B
 $matchers{-P,--perl-regexp}'[Interpret PATTERN as a Perl regular expression using PCRE2]'
 {-p,--no-dereference}'[If -R or -r is specified, do not follow symbolic links, even when symbolic links are specified on the command line]'
 --pager'[When output is sent to the terminal, uses COMMAND to page through the output]'
---pretty'[When output is sent to a terminal, enables --color, --heading, -n, --sort, --tree and -T when not explicitly disabled]'
+--pretty'[When output is sent to the terminal, enables options --color, --heading, -n, --sort, --tree and -T when not explicitly disabled]'
 {-Q,--query}'[Query mode: start a TUI to perform interactive searches]'
 {-q,--quiet,--silent}'[Quiet mode: suppress all output]'
 {-R,--dereference-recursive}'[Recursively read all files under each directory, following symbolic links to files and directories, unlike -r]'

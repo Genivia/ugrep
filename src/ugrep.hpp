@@ -99,6 +99,18 @@
 // POSIX read() and write() return type is ssize_t
 typedef int ssize_t;
 
+// POSIX strcasecmp
+inline int strcasecmp(const char *s1, const char *s2)
+{
+  return stricmp(s1, s2);
+}
+
+// POSIX strncasecmp
+inline int strncasecmp(const char *s1, const char *s2, size_t n)
+{
+  return strnicmp(s1, s2, n);
+}
+
 // POSIX pipe() emulation
 inline int pipe(int fd[2])
 {
@@ -236,15 +248,24 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 
 #define _FILE_OFFSET_BITS 64
 
-#include <unistd.h>
 #include <cerrno>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
+#include <unistd.h>
+#include <sys/stat.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
+#endif
+
+#ifndef HAVE_STRNCASECMP
+# if defined(HAVE_STRNICMP)
+#  define strncasecmp strnicmp
+# elif defined(HAVE__STRNICMP)
+#  define strncasecmp _strnicmp
+# endif
 #endif
 
 #ifdef HAVE_SYS_STATVFS_H
@@ -502,6 +523,15 @@ struct Static {
 
   // unique address and label to identify standard input path
   static const char *LABEL_STANDARD_INPUT;
+
+#ifndef OS_WIN
+
+  // output file stat() result is available and S_ISREG (regular file)
+  static bool output_stat_result;
+  static bool output_stat_regular;
+  static struct stat output_stat;
+
+#endif
 
   // unique address to identify color and pretty WHEN arguments
   static const char *NEVER;

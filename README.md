@@ -19,7 +19,7 @@ Why use ugrep?
 
 - ugrep is a drop-in replacement for BSD and GNU grep ([copy or symlink `ug` to `grep`, and to `egrep` and to `fgrep`](#grep)), unlike other popular grep claiming to be "grep alternatives" or "replacements" when those actually implement incompatible command-line options and use an incompatible regex matcher, i.e. Perl regex only versus POSIX BRE (grep) and ERE (egrep) when ugrep supports all regex modes
 
-- [ugrep is typically faster](https://github.com/Genivia/ugrep-benchmarks) than rg, ag, and GNU grep using the high-performance regex engine [RE/flex](https://github.com/Genivia/RE-flex)
+- [ugrep is typically faster](https://github.com/Genivia/ugrep-benchmarks) than rg, ag, and GNU grep
 
 - full Unicode extended regex pattern syntax with multi-line pattern matching without any special command-line options
 
@@ -30,11 +30,11 @@ Why use ugrep?
 Development roadmap
 -------------------
 
-*if something should be improved or added to ugrep, then let me know!*
+- quality assurance by [testing and validation](https://github.com/Genivia/ugrep-testing) to make sure ugrep is reliable
 
-- #1 priority is quality assurance to make sure ugrep is reliable, see [testing and validation](https://github.com/Genivia/ugrep-testing)
+- make ugrep run even faster with future updates and post [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks)
 
-- make ugrep run even faster and share [reproducible performance results](https://github.com/Genivia/ugrep-benchmarks)
+- consider new features requested by users when useful to support a broad use case
 
 Overview
 --------
@@ -2411,15 +2411,15 @@ directories, for the word `login` in shell scripts:
 
     --filter=COMMANDS
             Filter files through the specified COMMANDS first before searching.
-            COMMANDS is a comma-separated list of `exts:command [option ...]',
+            COMMANDS is a comma-separated list of `exts:command arguments',
             where `exts' is a comma-separated list of filename extensions and
             `command' is a filter utility.  Files matching one of `exts' are
-            filtered.  When `exts' is a `*', all files are filtered.  One or
-            more `option' separated by spacing may be specified, which are
-            passed verbatim to the command.  A `%' as `option' expands into the
-            pathname to search.  For example, --filter='pdf:pdftotext % -'
+            filtered.  A `*' matches any file.  The specified `command' may
+            include arguments separated by spaces.  An argument may be quoted
+            to include spacing, commas or a `%'.  A `%' argument expands into
+            the pathname to search.  For example, --filter='pdf:pdftotext % -'
             searches PDF files.  The `%' expands into a `-' when searching
-            standard input.  When a `%' is not specified, a filter utility
+            standard input.  When a `%' is not specified, the filter command
             should read from standard input and write to standard output.
             Option --label=.ext may be used to specify extension `ext' when
             searching standard input.  This option may be repeated.

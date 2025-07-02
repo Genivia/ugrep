@@ -106,6 +106,12 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the 'strncasecmp' function. */
+#undef HAVE_STRNCASECMP
+
+/* Define to 1 if you have the 'strnicmp' function. */
+#undef HAVE_STRNICMP
+
 /* Define to 1 if 'd_ino' is a member of 'struct dirent'. */
 #undef HAVE_STRUCT_DIRENT_D_INO
 
@@ -164,6 +170,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the '_strnicmp' function. */
+#undef HAVE__STRNICMP
 
 /* Name of package */
 #undef PACKAGE

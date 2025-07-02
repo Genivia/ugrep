@@ -140,8 +140,6 @@ After this, you may want to test ugrep and install it (optional):
 
 #include <signal.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #endif
 
@@ -239,10 +237,10 @@ const char *color_message = ""; // stderr error or warning message text
 
 #ifndef OS_WIN
 
-// output file stat is available when stat() result is true
-bool output_stat_result  = false;
-bool output_stat_regular = false;
-struct stat output_stat;
+// output file stat() result is available and S_ISREG (regular file)
+bool Static::output_stat_result  = false;
+bool Static::output_stat_regular = false;
+struct stat Static::output_stat;
 
 // container of inodes to detect directory cycles when symlinks are traversed with --dereference
 std::set<ino_t> visited;
@@ -716,13 +714,13 @@ inline bool check_binary(const char *s, size_t n)
   return (flag_hex || (flag_with_hex && is_binary(s, n)));
 }
 
-// check if a file's inode is the current output file
+// check if a file's inode is the current output file, to avoid searching the file we write to
 inline bool is_output(ino_t inode)
 {
 #ifdef OS_WIN
   return false; // TODO check that two FILE* on Windows are the same, is this possible?
 #else
-  return output_stat_regular && inode == output_stat.st_ino;
+  return Static::output_stat_regular && inode == Static::output_stat.st_ino;
 #endif
 }
 
@@ -3590,8 +3588,9 @@ struct Grep {
         if (*command == '*')
           default_command = strchr(command, ':');
 
-        // match filter filename extension (case sensitive)
-        if (strncmp(suffix, command, sep) == 0 && (command[sep] == ':' || command[sep] == ',' || isspace(static_cast<unsigned char>(command[sep]))))
+        // match filter filename extension (case insensitive)
+        bool ext_match = strncasecmp(suffix, command, sep) == 0;
+        if (ext_match && (command[sep] == ':' || command[sep] == ',' || isspace(static_cast<unsigned char>(command[sep]))))
         {
           command = strchr(command, ':');
           break;
@@ -5003,7 +5002,7 @@ static void save_config()
 # Only change the TUI regex syntax highlighting to use background colors:\n\
 #   colors=gp=hg:qr=hwB:qm=hwG:ql=hwC:qb=hwM\n\n");
 
-  fprintf(file, "# Enable color output to a terminal\n%s\n\n", flag_color != NULL ? "color" : "no-color");
+  fprintf(file, "# Enable color output to the terminal\n%s\n\n", flag_color != NULL ? "color" : "no-color");
   if (flag_hyperlink != NULL && *flag_hyperlink == '\0')
     fprintf(file, "# Enable hyperlinks in color output\nhyperlink\n\n");
   else if (flag_hyperlink != NULL)
@@ -5032,7 +5031,7 @@ static void save_config()
 
   fprintf(file, "# Enable pretty output to the terminal, default: pretty\n%s\n\n", flag_pretty != NULL ? "pretty" : "no-pretty");
 
-  fprintf(file, "# Enable directory tree output to a terminal for -l (--files-with-matches) and -c (--count)\n%s\n\n", flag_tree ? "tree" : "no-tree");
+  fprintf(file, "# Enable directory tree output to the terminal for -l (--files-with-matches) and -c (--count)\n%s\n\n", flag_tree ? "tree" : "no-tree");
 
   if (flag_heading.is_defined() && flag_heading != (flag_pretty != NULL))
     fprintf(file, "# Enable headings (enabled with --pretty)\n%s\n\n", flag_heading ? "heading" : "no-heading");
@@ -7420,16 +7419,16 @@ void terminal()
     // if not to a TTY, is output sent to a pager or to /dev/null?
     if (!flag_tty_term)
     {
-      output_stat_result = fstat(STDOUT_FILENO, &output_stat) == 0;
-      output_stat_regular = output_stat_result && S_ISREG(output_stat.st_mode);
+      Static::output_stat_result = fstat(STDOUT_FILENO, &Static::output_stat) == 0;
+      Static::output_stat_regular = Static::output_stat_result && S_ISREG(Static::output_stat.st_mode);
 
       // if output is sent to /dev/null, then enable -q (i.e. "cheat" like GNU grep!)
       struct stat dev_null_stat;
-      if (output_stat_result &&
-          S_ISCHR(output_stat.st_mode) &&
+      if (Static::output_stat_result &&
+          S_ISCHR(Static::output_stat.st_mode) &&
           stat("/dev/null", &dev_null_stat) == 0 &&
-          output_stat.st_dev == dev_null_stat.st_dev &&
-          output_stat.st_ino == dev_null_stat.st_ino)
+          Static::output_stat.st_dev == dev_null_stat.st_dev &&
+          Static::output_stat.st_ino == dev_null_stat.st_ino)
       {
         flag_quiet = true;
       }
@@ -7437,6 +7436,10 @@ void terminal()
 
 #endif
   }
+
+  // if not to a TTY or --quiet then disable --pager
+  if (!flag_tty_term || flag_quiet)
+    flag_pager = NULL;
 
   // --color=WHEN: normalize WHEN argument
   if (flag_color != NULL)
@@ -14076,7 +14079,8 @@ void help(std::ostream& out)
             standard input.  When a `%' is not specified, the filter command\n\
             should read from standard input and write to standard output.\n\
             Option --label=.ext may be used to specify extension `ext' when\n\
-            searching standard input.  This option may be repeated.\n\
+            searching standard input.  Note that `exts` filename extension\n\
+            matching is case insensitive.  This option may be repeated.\n\
     --filter-magic-label=[+]LABEL:MAGIC\n\
             Associate LABEL with files whose signature \"magic bytes\" match the\n\
             MAGIC regex pattern.  Only files that have no filename extension\n\
@@ -14132,7 +14136,7 @@ void help(std::ostream& out)
     --heading, -+\n\
             Group matches per file.  Adds a heading and a line break between\n\
             results from different files.  This option is enabled by --pretty\n\
-            when the output is sent to a terminal.\n\
+            when the output is sent to the terminal.\n\
     --help [WHAT], -? [WHAT]\n\
             Display a help message on options related to WHAT when specified.\n\
             In addition, `--help regex' displays an overview of regular\n\
@@ -14331,7 +14335,9 @@ void help(std::ostream& out)
             option --null-data, option --encoding=null-data treats the input as\n\
             a sequence of lines terminated by a zero byte without affecting the\n\
             output.  Option --null-data is not compatible with UTF-16/32 input.\n\
-            See also options --encoding and --null.\n\
+            Since ugrep matches multiple lines when patterns are specified\n\
+            containing a newline `\\n' or `\\R', this option is not required for\n\
+            multi-line matching.  See also options --encoding and --null.\n\
     -O EXTENSIONS, --file-extension=EXTENSIONS\n\
             Only search files whose filename extensions match the specified\n\
             comma-separated list of EXTENSIONS, same as -g '*.ext' for each\n\
@@ -14375,9 +14381,9 @@ void help(std::ostream& out)
             the output.  COMMAND defaults to environment variable PAGER when\n\
             defined or `" DEFAULT_PAGER_COMMAND "'.  Enables --heading and --line-buffered.\n\
     --pretty[=WHEN]\n\
-            When output is sent to a terminal, enables --color, --heading, -n,\n\
-            --sort, --tree and -T when not explicitly disabled.  WHEN can be\n\
-            `never', `always', or `auto'.  The default is `auto'.\n\
+            When output is sent to the terminal, enables options --color,\n\
+            --heading, -n, --sort, --tree and -T when not explicitly disabled.\n\
+            WHEN can be `never', `always', or `auto'.  The default is `auto'.\n\
     -Q[=DELAY], --query[=DELAY]\n\
             Query mode: start a TUI to perform interactive searches.  This mode\n\
             requires an ANSI capable terminal.  An optional DELAY argument may\n\
@@ -14479,7 +14485,7 @@ void help(std::ostream& out)
             Output directories with matching files in a tree-like format for\n\
             option -c or --count, -l or --files-with-matches, -L or\n\
             --files-without-match.  This option is enabled by --pretty when the\n\
-            output is sent to a terminal.\n\
+            output is sent to the terminal.\n\
     -U, --ascii, --binary\n\
             Disables Unicode matching for ASCII and binary matching.  PATTERN\n\
             matches bytes.  For example, -U '\\xa3' matches byte A3 (hex)\n\
@@ -14875,9 +14881,12 @@ Option -% matches lines satisfying the Boolean query.  The double short option\n
 -%% matches files satisfying the Boolean query.\n\
 \n\
 See also options --and, --andnot, --not to specify sub-patterns as command-line\n\
-arguments with options as logical operators.\n\
+arguments with these options as logical operators and option -e as logical OR.\n\
 \n\
 Option --stats displays the options and patterns applied to the matching files.\n\
+\n\
+NOTE: always quote regex patterns to prevent the shell from expanding globs.\n\
+NOTE: a pattern starting with a `-' requires option -e as in -e '-PATTERN'.\n\
 \n\
 ";
     }
@@ -14932,8 +14941,6 @@ default file is .gitignore.  When one ore more ignore files are encountered in\n
 recursive searches, the search is narrowed accordingly by excluding files and\n\
 directories matching the globs.\n\
 \n\
-RELATED:\n\
-\n\
 Option -O (--file-extension) matches filename extensions, or ignores extensions\n\
 when preceded with a ^ or !.\n\
 \n\
@@ -14943,10 +14950,8 @@ with corresponding glob patterns.\n\
 \n\
 Option --stats displays the search path globs applied to the matching files.\n\
 \n\
-IMPORTANT:\n\
-\n\
-Always quote glob patterns to prevent the shell from expanding the globs.  For\n\
-example, specify -g \"*foo.*\" or -g\"*foo.*\" or \"-g*foo.*\".\n\
+NOTE: always quote glob patterns to prevent the shell from expanding globs.\n\
+For example, specify -g \"*foo.*\" or -g\"*foo.*\" or \"-g*foo.*\".\n\
 \n\
 ";
     }
@@ -14979,17 +14984,13 @@ passes over an input file to determine the minimal edit distance, which reduces\
 performance significantly.  This option cannot be used with standard input or\n\
 with Boolean queries.\n\
 \n\
-RELATED:\n\
-\n\
 Option --sort=best sorts the directory output by best fuzzy match based on edit\n\
 distance, i.e. files with at least one exact match are output first, followed\n\
 by files with at least a match that is one edit distance from exact, and so on.\n\
 This sort option requires two passes over each input file, which reduces\n\
 performance significantly.\n\
 \n\
-IMPORTANT:\n\
-\n\
-Fuzzy search anchors each pattern match at the beginning character of the\n\
+NOTE: Fuzzy search anchors each pattern match at the beginning character of the\n\
 specified regex pattern.  This significantly improves search performance and\n\
 prevents overmatching.  For example, the regex pattern `[1-9]buzz' starts with\n\
 a nonzero digit at which all matches are anchored.  Replace the beginning of a\n\
