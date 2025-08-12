@@ -2395,6 +2395,7 @@ void Query::view()
       (command == "less"       ||
        command == "moar-pager" ||
        command == "moar"       ||
+       command == "moor"       ||
        command == "more"       ||
        command == "most"       ||
        command == "w3m"        ||
