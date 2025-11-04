@@ -54,7 +54,17 @@ std::string Path::from_dir(const std::string& dir, const std::string& path)
 {
   // C++17's std::filesystem::path may be used to implement our Path if present
 
+#ifdef OS_WIN
+  char drive;
+
+  drive = path.front();
+  if (path.length() >= 2 &&
+      path[1] == ':' &&
+      ((drive >= 'A' && drive <= 'Z') ||
+       (drive >= 'a' && drive <= 'z')))
+#else
   if (path.front() == PATHSEPCHR)
+#endif
     return path;
 
   std::string fullpath;
