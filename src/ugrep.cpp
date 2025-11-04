@@ -78,6 +78,7 @@ After this, you may want to test ugrep and install it (optional):
 #include "glob.hpp"
 #include "mmap.hpp"
 #include "output.hpp"
+#include "path.hpp"
 #include "query.hpp"
 #include "stats.hpp"
 #include <reflex/matcher.h>
@@ -9698,7 +9699,7 @@ void Grep::recurse(size_t level, const char *pathname)
 
     for (const auto& ignore_file : flag_ignore_files)
     {
-      ignore_filename.assign(pathname).append(PATHSEPSTR).append(ignore_file);
+      ignore_filename.assign(Path::from_dir(pathname, ignore_file));
 
       FILE *file = NULL;
       if (fopenw_s(&file, ignore_filename.c_str(), "r") == 0)

@@ -242,6 +242,7 @@ inline uint64_t file_size(const struct stat& buf)
 
 #include "reflex/input.h"
 #include "glob.hpp"
+#include "path.hpp"
 #include <cctype>
 #include <cinttypes>
 #include <iostream>
@@ -1203,7 +1204,7 @@ void cat(const std::string& pathname, std::stack<Entry>& dir_entries, std::vecto
 
       for (const auto& ignore : flag_ignore_files)
       {
-        filepath.assign(pathname).append(PATHSEPSTR).append(ignore);
+        filepath.assign(Path::from_dir(pathname, ignore));
 
         FILE *file = NULL;
 

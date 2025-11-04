@@ -36,6 +36,8 @@ ugrep_SOURCES = \
 	mmap.hpp \
 	output.hpp \
 	output.cpp \
+	path.hpp \
+	path.cpp \
 	query.hpp \
 	query.cpp \
 	screen.hpp \
@@ -62,6 +64,8 @@ ugrep_indexer_SOURCES  = \
 	ugrep-indexer.cpp \
 	glob.hpp \
 	glob.cpp \
+	path.hpp \
+	path.cpp \
 	zopen.h \
 	zopen.c \
 	zstream.hpp \

@@ -510,6 +510,7 @@
     <ClInclude Include="..\src\glob.hpp" />
     <ClInclude Include="..\src\mmap.hpp" />
     <ClInclude Include="..\src\output.hpp" />
+    <ClInclude Include="..\src\path.hpp" />
     <ClInclude Include="..\src\query.hpp" />
     <ClInclude Include="..\src\screen.hpp" />
     <ClInclude Include="..\src\stats.hpp" />
@@ -541,6 +542,7 @@
     <ClCompile Include="..\src\cnf.cpp" />
     <ClCompile Include="..\src\glob.cpp" />
     <ClCompile Include="..\src\output.cpp" />
+    <ClCompile Include="..\src\path.cpp" />
     <ClCompile Include="..\src\query.cpp" />
     <ClCompile Include="..\src\screen.cpp" />
     <ClCompile Include="..\src\stats.cpp" />

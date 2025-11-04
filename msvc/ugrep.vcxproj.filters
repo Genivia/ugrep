@@ -106,6 +106,9 @@
     <ClInclude Include="..\src\query.hpp">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\path.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\output.hpp">
       <Filter>src</Filter>
     </ClInclude>
@@ -157,6 +160,9 @@
       <Filter>lib</Filter>
     </ClCompile>
     <ClCompile Include="..\src\output.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\path.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\lib\posix.cpp">

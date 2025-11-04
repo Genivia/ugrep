@@ -113,9 +113,9 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_ugrep_OBJECTS = ugrep-ugrep.$(OBJEXT) ugrep-cnf.$(OBJEXT) \
 	ugrep-glob.$(OBJEXT) ugrep-output.$(OBJEXT) \
-	ugrep-query.$(OBJEXT) ugrep-screen.$(OBJEXT) \
-	ugrep-stats.$(OBJEXT) ugrep-vkey.$(OBJEXT) \
-	ugrep-zopen.$(OBJEXT)
+	ugrep-path.$(OBJEXT) ugrep-query.$(OBJEXT) \
+	ugrep-screen.$(OBJEXT) ugrep-stats.$(OBJEXT) \
+	ugrep-vkey.$(OBJEXT) ugrep-zopen.$(OBJEXT)
 ugrep_OBJECTS = $(am_ugrep_OBJECTS)
 am__DEPENDENCIES_1 =
 ugrep_DEPENDENCIES = $(am__DEPENDENCIES_1) \
@@ -124,7 +124,8 @@ am__dirstamp = $(am__leading_dot)dirstamp
 am_ugrep_indexer_OBJECTS =  \
 	$(top_builddir)/lib/ugrep_indexer-input.$(OBJEXT) \
 	ugrep_indexer-ugrep-indexer.$(OBJEXT) \
-	ugrep_indexer-glob.$(OBJEXT) ugrep_indexer-zopen.$(OBJEXT)
+	ugrep_indexer-glob.$(OBJEXT) ugrep_indexer-path.$(OBJEXT) \
+	ugrep_indexer-zopen.$(OBJEXT)
 ugrep_indexer_OBJECTS = $(am_ugrep_indexer_OBJECTS)
 ugrep_indexer_DEPENDENCIES = $(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -145,10 +146,12 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade =  \
 	$(top_builddir)/lib/$(DEPDIR)/ugrep_indexer-input.Po \
 	./$(DEPDIR)/ugrep-cnf.Po ./$(DEPDIR)/ugrep-glob.Po \
-	./$(DEPDIR)/ugrep-output.Po ./$(DEPDIR)/ugrep-query.Po \
-	./$(DEPDIR)/ugrep-screen.Po ./$(DEPDIR)/ugrep-stats.Po \
-	./$(DEPDIR)/ugrep-ugrep.Po ./$(DEPDIR)/ugrep-vkey.Po \
-	./$(DEPDIR)/ugrep-zopen.Po ./$(DEPDIR)/ugrep_indexer-glob.Po \
+	./$(DEPDIR)/ugrep-output.Po ./$(DEPDIR)/ugrep-path.Po \
+	./$(DEPDIR)/ugrep-query.Po ./$(DEPDIR)/ugrep-screen.Po \
+	./$(DEPDIR)/ugrep-stats.Po ./$(DEPDIR)/ugrep-ugrep.Po \
+	./$(DEPDIR)/ugrep-vkey.Po ./$(DEPDIR)/ugrep-zopen.Po \
+	./$(DEPDIR)/ugrep_indexer-glob.Po \
+	./$(DEPDIR)/ugrep_indexer-path.Po \
 	./$(DEPDIR)/ugrep_indexer-ugrep-indexer.Po \
 	./$(DEPDIR)/ugrep_indexer-zopen.Po
 am__mv = mv -f
@@ -373,6 +376,8 @@ ugrep_SOURCES = \
 	mmap.hpp \
 	output.hpp \
 	output.cpp \
+	path.hpp \
+	path.cpp \
 	query.hpp \
 	query.cpp \
 	screen.hpp \
@@ -402,6 +407,8 @@ ugrep_indexer_SOURCES = \
 	ugrep-indexer.cpp \
 	glob.hpp \
 	glob.cpp \
+	path.hpp \
+	path.cpp \
 	zopen.h \
 	zopen.c \
 	zstream.hpp \
@@ -514,6 +521,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-cnf.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-glob.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-output.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-path.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-query.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-screen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-stats.Po@am__quote@ # am--include-marker
@@ -521,6 +529,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-vkey.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep-zopen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep_indexer-glob.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep_indexer-path.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep_indexer-ugrep-indexer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ugrep_indexer-zopen.Po@am__quote@ # am--include-marker
 
@@ -646,6 +655,20 @@ ugrep-output.obj: output.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep-output.obj `if test -f 'output.cpp'; then $(CYGPATH_W) 'output.cpp'; else $(CYGPATH_W) '$(srcdir)/output.cpp'; fi`
 
+ugrep-path.o: path.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ugrep-path.o -MD -MP -MF $(DEPDIR)/ugrep-path.Tpo -c -o ugrep-path.o `test -f 'path.cpp' || echo '$(srcdir)/'`path.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ugrep-path.Tpo $(DEPDIR)/ugrep-path.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='path.cpp' object='ugrep-path.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep-path.o `test -f 'path.cpp' || echo '$(srcdir)/'`path.cpp
+
+ugrep-path.obj: path.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ugrep-path.obj -MD -MP -MF $(DEPDIR)/ugrep-path.Tpo -c -o ugrep-path.obj `if test -f 'path.cpp'; then $(CYGPATH_W) 'path.cpp'; else $(CYGPATH_W) '$(srcdir)/path.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ugrep-path.Tpo $(DEPDIR)/ugrep-path.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='path.cpp' object='ugrep-path.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep-path.obj `if test -f 'path.cpp'; then $(CYGPATH_W) 'path.cpp'; else $(CYGPATH_W) '$(srcdir)/path.cpp'; fi`
+
 ugrep-query.o: query.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ugrep-query.o -MD -MP -MF $(DEPDIR)/ugrep-query.Tpo -c -o ugrep-query.o `test -f 'query.cpp' || echo '$(srcdir)/'`query.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ugrep-query.Tpo $(DEPDIR)/ugrep-query.Po
@@ -743,6 +766,20 @@ ugrep_indexer-glob.obj: glob.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='glob.cpp' object='ugrep_indexer-glob.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_indexer_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep_indexer-glob.obj `if test -f 'glob.cpp'; then $(CYGPATH_W) 'glob.cpp'; else $(CYGPATH_W) '$(srcdir)/glob.cpp'; fi`
+
+ugrep_indexer-path.o: path.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_indexer_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ugrep_indexer-path.o -MD -MP -MF $(DEPDIR)/ugrep_indexer-path.Tpo -c -o ugrep_indexer-path.o `test -f 'path.cpp' || echo '$(srcdir)/'`path.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ugrep_indexer-path.Tpo $(DEPDIR)/ugrep_indexer-path.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='path.cpp' object='ugrep_indexer-path.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_indexer_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep_indexer-path.o `test -f 'path.cpp' || echo '$(srcdir)/'`path.cpp
+
+ugrep_indexer-path.obj: path.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_indexer_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ugrep_indexer-path.obj -MD -MP -MF $(DEPDIR)/ugrep_indexer-path.Tpo -c -o ugrep_indexer-path.obj `if test -f 'path.cpp'; then $(CYGPATH_W) 'path.cpp'; else $(CYGPATH_W) '$(srcdir)/path.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ugrep_indexer-path.Tpo $(DEPDIR)/ugrep_indexer-path.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='path.cpp' object='ugrep_indexer-path.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(ugrep_indexer_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ugrep_indexer-path.obj `if test -f 'path.cpp'; then $(CYGPATH_W) 'path.cpp'; else $(CYGPATH_W) '$(srcdir)/path.cpp'; fi`
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -876,6 +913,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/ugrep-cnf.Po
 	-rm -f ./$(DEPDIR)/ugrep-glob.Po
 	-rm -f ./$(DEPDIR)/ugrep-output.Po
+	-rm -f ./$(DEPDIR)/ugrep-path.Po
 	-rm -f ./$(DEPDIR)/ugrep-query.Po
 	-rm -f ./$(DEPDIR)/ugrep-screen.Po
 	-rm -f ./$(DEPDIR)/ugrep-stats.Po
@@ -883,6 +921,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/ugrep-vkey.Po
 	-rm -f ./$(DEPDIR)/ugrep-zopen.Po
 	-rm -f ./$(DEPDIR)/ugrep_indexer-glob.Po
+	-rm -f ./$(DEPDIR)/ugrep_indexer-path.Po
 	-rm -f ./$(DEPDIR)/ugrep_indexer-ugrep-indexer.Po
 	-rm -f ./$(DEPDIR)/ugrep_indexer-zopen.Po
 	-rm -f Makefile
@@ -934,6 +973,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/ugrep-cnf.Po
 	-rm -f ./$(DEPDIR)/ugrep-glob.Po
 	-rm -f ./$(DEPDIR)/ugrep-output.Po
+	-rm -f ./$(DEPDIR)/ugrep-path.Po
 	-rm -f ./$(DEPDIR)/ugrep-query.Po
 	-rm -f ./$(DEPDIR)/ugrep-screen.Po
 	-rm -f ./$(DEPDIR)/ugrep-stats.Po
@@ -941,6 +981,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/ugrep-vkey.Po
 	-rm -f ./$(DEPDIR)/ugrep-zopen.Po
 	-rm -f ./$(DEPDIR)/ugrep_indexer-glob.Po
+	-rm -f ./$(DEPDIR)/ugrep_indexer-path.Po
 	-rm -f ./$(DEPDIR)/ugrep_indexer-ugrep-indexer.Po
 	-rm -f ./$(DEPDIR)/ugrep_indexer-zopen.Po
 	-rm -f Makefile
