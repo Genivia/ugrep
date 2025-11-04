@@ -59,6 +59,23 @@ std::string Path::from_dir(const std::string& dir, const std::string& path)
 
   std::string fullpath;
 
+  if (path.front() == '~')
+  {
+    const char *home;
+#ifdef OS_WIN
+    home = getenv("USERPROFILE");
+#else
+    home = getenv("HOME");
+#endif
+    if (home != NULL)
+      fullpath.assign(home);
+    else
+      fullpath.assign(dir);
+    fullpath.append(path.c_str() + 1);
+
+    return fullpath;
+  }
+
   fullpath.assign(dir).append(PATHSEPSTR).append(path);
 
   return fullpath;
