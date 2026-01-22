@@ -4800,16 +4800,17 @@ in markdown:
                   `autoconf', `automake', `awk', `Awk', `basic', `batch', `bison',
                   `c', `c3', `c++', `clojure', `coffeescript', `cpp', `csharp',
                   `css', `csv',`dart', `Dart', `delphi', `elisp', `elixir', `erlang',
-                  `fortran', `gif', `Gif', `go', `groovy', `gsp', `haskell', `html',
-                  `jade', `java',`jpeg', `Jpeg', `js', `json', `jsp', `julia',
-                  `kotlin', `less',`lex', `lisp', `lua', `m4', `make', `markdown',
-                  `matlab', `node', `Node', `objc', `objc++', `ocaml', `parrot',
-                  `pascal', `pdf',`Pdf', `perl', `Perl', `php', `Php', `png', `Png',
-                  `prolog', `python', `Python', `r', `rpm', `Rpm', `rst', `rtf',
-                  `Rtf', `ruby', `Ruby', `rust', `scala', `scheme', `seed7', `shell',
-                  `Shell', `smalltalk', `sql', `svg', `swift', `tcl', `tex', `text',
-                  `tiff', `Tiff', `tt', `typescript', `vala`, `verilog', `vhdl',
-                  `vim', `xml', `Xml', `yacc', `yaml', `zig'.
+                  `faust', `fennel', `fortran', `gif', `Gif', `go', `groovy', `gsp',
+                  `haskell', `html', `jade', `java',`jpeg', `Jpeg', `js', `json',
+                  `jsp', `julia', `kotlin', `less',`lex', `lisp', `lua', `m4',
+                  `make', `markdown', `matlab', `node', `Node', `objc', `objc++',
+                  `ocaml', `parrot', `pascal', `pdf',`Pdf', `perl', `Perl',
+                  `php', `Php', `png', `Png', `prolog', `python', `Python',
+                  `r', `rpm', `Rpm', `rst', `rtf', `Rtf', `ruby', `Ruby', `rust',
+                  `scala', `scheme', `seed7', `shell', `Shell', `smalltalk', `sql',
+                  `svg', `swift', `tcl', `tex', `text', `tiff', `Tiff', `tt',
+                  `typescript', `vala`, `verilog', `vhdl', `vim', `xml', `Xml',
+                  `yacc', `yaml', `zig'.
 
            --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value

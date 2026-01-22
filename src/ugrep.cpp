@@ -4574,6 +4574,8 @@ const Type type_table[] = {
   { "elisp",        "el", NULL,                                                       NULL },
   { "elixir",       "ex,exs", NULL,                                                   NULL },
   { "erlang",       "erl,hrl", NULL,                                                  NULL },
+  { "faust",        "dsp,lib", NULL,                                                  NULL },
+  { "fennel",       "fnl", NULL,                                                      NULL },
   { "fortran",      "for,ftn,fpp,f,F,f77,F77,f90,F90,f95,F95,f03,F03", NULL,          NULL },
   { "gif",          "gif", NULL,                                                      NULL },
   { "Gif",          "gif", NULL,                                                      "GIF87a|GIF89a" },
