@@ -347,13 +347,13 @@ END
 
 _comp_cmd_ugrep_file_type()
 {
-    COMPREPLY=( $(compgen -W "actionscript ada adoc asm asp aspx autoconf automake awk Awk basic batch bison c c3 c++ clojure coffeescript cpp csharp css csv dart Dart delphi elisp elixir erlang faust fennel fortran gif Gif go groovy gsp haskell html jade java jpeg Jpeg js json jsp julia kotlin less lex lisp lua m4 make markdown matlab node Node objc objc++ ocaml parrot pascal pdf Pdf perl Perl php Php png Png prolog python Python r rpm Rpm rst rtf Rtf ruby Ruby rust scala scheme seed7 shell Shell smalltalk sql svg swift tcl tex text tiff Tiff tt typescript vala verilog vhdl vim xml Xml yacc yaml zig" -- $cur) )
+    COMPREPLY=( $(compgen -W "actionscript ada adoc asm asp aspx autoconf automake awk Awk basic batch bison c c3 c++ clojure coffeescript cpp csharp css csv dart Dart delphi elisp elixir erlang faust fennel fortran gif Gif go groovy gsp haskell html jade java jpeg Jpeg js json jsp julia kotlin less lex lisp lua m4 make markdown matlab nim nix node Node objc objc++ ocaml org parrot pascal pdf Pdf perl Perl php Php png Png prolog python Python r rpm Rpm rst rtf Rtf ruby Ruby rust scala scheme seed7 shell Shell smalltalk sql svg swift tcl tex text tiff Tiff tt typescript vala verilog vhdl vim xml Xml yacc yaml zig" -- $cur) )
     compopt +o nospace
 }
 
 _comp_cmd_ugrep_file_type_t()
 {
-    COMPREPLY=( $(compgen -W "-tactionscript -tada -tadoc -tasm -tasp -taspx -tautoconf -tautomake -tawk -tAwk -tbasic -tbatch -tbison -tc -tc3 -tc++ -tclojure -tcoffeescript -tcpp -tcsharp -tcss -tcsv -tdart -tDart -tdelphi -telisp -telixir -terlang -tfaust -tfennel -tfortran -tgif -tGif -tgo -tgroovy -tgsp -thaskell -thtml -tjade -tjava -tjpeg -tJpeg -tjs -tjson -tjsp -tjulia -tkotlin -tless -tlex -tlisp -tlua -tm4 -tmake -tmarkdown -tmatlab -tnode -tNode -tobjc -tobjc++ -tocaml -tparrot -tpascal -tpdf -tPdf -tperl -tPerl -tphp -tPhp -tpng -tPng -tprolog -tpython -tPython -tr -trpm -tRpm -trst -trtf -tRtf -truby -tRuby -trust -tscala -tscheme -tseed7 -tshell -tShell -tsmalltalk -tsql -tsvg -tswift -ttcl -ttex -ttext -ttiff -tTiff -ttt -ttypescript -tvala -tverilog -tvhdl -tvim -txml -tXml -tyacc -tyaml -tzig" -- $cur) )
+    COMPREPLY=( $(compgen -W "-tactionscript -tada -tadoc -tasm -tasp -taspx -tautoconf -tautomake -tawk -tAwk -tbasic -tbatch -tbison -tc -tc3 -tc++ -tclojure -tcoffeescript -tcpp -tcsharp -tcss -tcsv -tdart -tDart -tdelphi -telisp -telixir -terlang -tfaust -tfennel -tfortran -tgif -tGif -tgo -tgroovy -tgsp -thaskell -thtml -tjade -tjava -tjpeg -tJpeg -tjs -tjson -tjsp -tjulia -tkotlin -tless -tlex -tlisp -tlua -tm4 -tmake -tmarkdown -tmatlab -tnim -tnix -tnode -tNode -tobjc -tobjc++ -tocaml -torg -tparrot -tpascal -tpdf -tPdf -tperl -tPerl -tphp -tPhp -tpng -tPng -tprolog -tpython -tPython -tr -trpm -tRpm -trst -trtf -tRtf -truby -tRuby -trust -tscala -tscheme -tseed7 -tshell -tShell -tsmalltalk -tsql -tsvg -tswift -ttcl -ttex -ttext -ttiff -tTiff -ttt -ttypescript -tvala -tverilog -tvhdl -tvim -txml -tXml -tyacc -tyaml -tzig" -- $cur) )
     compopt +o nospace
 }
 
