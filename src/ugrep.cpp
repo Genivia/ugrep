@@ -4622,7 +4622,7 @@ const Type type_table[] = {
   { "prolog",       "pl,pro", NULL,                                                   NULL },
   { "python",       "py", NULL,                                                       NULL },
   { "Python",       "py,pyi,pyw", NULL,                                               "#!\\h*/.*\\Wpython[23]?(\\W.*)?\\n" },
-  { "r",            "R", NULL,                                                        NULL },
+  { "r",            "R,r", NULL,                                                      NULL },
   { "rpm",          "rpm", NULL,                                                      NULL },
   { "Rpm",          "rpm", NULL,                                                      "\\xed\\xab\\xee\\xdb" },
   { "rst",          "rst", NULL,                                                      NULL },
