@@ -4808,8 +4808,8 @@ in markdown:
                   `python', `Python', `r', `rpm', `Rpm', `rst', `rtf', `Rtf',
                   `ruby', `Ruby', `rust', `scala', `scheme', `seed7', `shell',
                   `Shell', `smalltalk', `sql', `svg', `swift', `tcl', `tex', `text',
-                  `tiff', `Tiff', `tt', `typescript', `verilog', `vhdl', `vim',
-                  `xml', `Xml', `yacc', `yaml', `zig'.
+                  `tiff', `Tiff', `tt', `typescript', `vala`, `verilog', `vhdl',
+                  `vim', `xml', `Xml', `yacc', `yaml', `zig'.
 
            --tabs[=NUM]
                   Set the tab size to NUM to expand tabs for option -k.  The value

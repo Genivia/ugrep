@@ -4641,6 +4641,7 @@ const Type type_table[] = {
   { "Tiff",         "tif,tiff", NULL,                                                 "\\x49\\x49\\x2a\\x00|\\x4d\\x4d\\x00\\x2a" },
   { "tt",           "tt,tt2,ttml", NULL,                                              NULL },
   { "typescript",   "ts,tsx", NULL,                                                   NULL },
+  { "vala",         "vala,vapi", NULL,                                                NULL },
   { "verilog",      "v,vh,sv", NULL,                                                  NULL },
   { "vhdl",         "vhd,vhdl", NULL,                                                 NULL },
   { "vim",          "vim", NULL,                                                      NULL },
