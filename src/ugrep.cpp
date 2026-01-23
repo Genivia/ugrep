@@ -4614,7 +4614,7 @@ const Type type_table[] = {
   { "ocaml",        "ml,mli,mll,mly", NULL,                                           NULL },
   { "org",          "org", NULL,                                                      NULL },
   { "parrot",       "pir,pasm,pmc,ops,pod,pg,tg", NULL,                               NULL },
-  { "pascal",       "pas,pp", NULL,                                                   NULL },
+  { "pascal",       "pas,pp,dpr,inc,lpr", NULL,                                                   NULL },
   { "pdf",          "pdf", NULL,                                                      NULL },
   { "Pdf",          "pdf", NULL,                                                      "\\x25\\x50\\x44\\x46\\x2d" },
   { "perl",         "perl,pl,PL,pm,pod,t,psgi", NULL,                                 NULL },
