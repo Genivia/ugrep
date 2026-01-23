@@ -4544,6 +4544,8 @@ const Encoding encoding_table[] = {
   { NULL, 0 }
 };
 
+static char const*const sh_files=".bash_login,.bash_logout,.bash_profile,.bashrc,.cshrc,.env,.kshrc,.login,.logout,.profile,.tcshrc,.zlogin,.zlogout,.zprofile,.zshenv,.zshrc,bash_login,bash_logout,bash_profile,bashrc,profile,zlogin,zlogout,zprofile,zshenv,zshrc";
+
 // table of file types for option -t, --file-type
 const Type type_table[] = {
   { "actionscript", "as,mxml", NULL,                                                  NULL },
@@ -4637,8 +4639,8 @@ const Type type_table[] = {
   { "scala",        "scala,sbt", NULL,                                                NULL },
   { "scheme",       "scm,ss,sld", NULL,                                               NULL },
   { "seed7",        "sd7,s7i", NULL,                                                  NULL },
-  { "shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", NULL,                       NULL },
-  { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", NULL,                       "#!\\h*/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
+  { "shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", sh_files,                   NULL },
+  { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", sh_files,                   "#!\\h*/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
   { "smalltalk",    "st", NULL,                                                       NULL },
   { "sql",          "sql,ctl", NULL,                                                  NULL },
   { "svg",          "svg", NULL,                                                      NULL },
