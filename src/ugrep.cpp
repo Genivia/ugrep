@@ -4646,7 +4646,7 @@ const Type type_table[] = {
   { "svg",          "svg", NULL,                                                      NULL },
   { "swift",        "swift", NULL,                                                    NULL },
   { "tcl",          "tcl,itcl,itk", NULL,                                             NULL },
-  { "tex",          "tex,cls,sty,bib", NULL,                                          NULL },
+  { "tex",          "tex,cls,sty,bib,dtx,ins,ltx", NULL,                              NULL },
   { "text",         "text,txt,TXT,md,rst,adoc", NULL,                                 NULL },
   { "tiff",         "tif,tiff", NULL,                                                 NULL },
   { "Tiff",         "tif,tiff", NULL,                                                 "\\x49\\x49\\x2a\\x00|\\x4d\\x4d\\x00\\x2a" },
