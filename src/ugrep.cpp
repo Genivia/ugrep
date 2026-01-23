@@ -4642,7 +4642,7 @@ const Type type_table[] = {
   { "shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", sh_files,                   NULL },
   { "Shell",        "sh,bash,dash,csh,tcsh,ksh,zsh,fish", sh_files,                   "#!\\h*/.*\\W(ba|da|t?c|k|z|fi)?sh(\\W.*)?\\n" },
   { "smalltalk",    "st", NULL,                                                       NULL },
-  { "sql",          "sql,ctl", NULL,                                                  NULL },
+  { "sql",          "sql,ctl,psql", NULL,                                             NULL },
   { "svg",          "svg", NULL,                                                      NULL },
   { "swift",        "swift", NULL,                                                    NULL },
   { "tcl",          "tcl,itcl,itk", NULL,                                             NULL },
