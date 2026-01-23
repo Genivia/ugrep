@@ -4575,7 +4575,7 @@ const Type type_table[] = {
   { "Dart",         "dart", NULL,                                                     "#!\\h*/.*\\Wdart(\\W.*)?\\n" },
   { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL, NULL },
   { "elisp",        "el", NULL,                                                       NULL },
-  { "elixir",       "ex,exs", NULL,                                                   NULL },
+  { "elixir",       "ex,exs,eex,heex,leex,livemd", NULL,                              NULL },
   { "erlang",       "erl,hrl", NULL,                                                  NULL },
   { "faust",        "dsp,lib", NULL,                                                  NULL },
   { "fennel",       "fnl", NULL,                                                      NULL },
