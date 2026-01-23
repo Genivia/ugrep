@@ -4586,6 +4586,7 @@ const Type type_table[] = {
   { "haskell",      "hs,lhs", NULL,                                                   NULL },
   { "html",         "htm,html,xhtml", NULL,                                           NULL },
   { "jade",         "jade", NULL,                                                     NULL },
+  { "janet",        "janet", NULL,                                                    NULL },
   { "java",         "java,properties", NULL,                                          NULL },
   { "jpeg",         "jpg,jpeg", NULL,                                                 NULL },
   { "Jpeg",         "jpg,jpeg", NULL,                                                 "\\xff\\xd8\\xff[\\xdb\\xe0\\xe1\\xee]" },
