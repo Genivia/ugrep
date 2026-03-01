@@ -9260,7 +9260,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
       return Type::DIRECTORY;
     }
   }
-  else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || flag_devices_action == Action::READ)
+  else if ((attr & FILE_ATTRIBUTE_DEVICE) == 0 || (is_argument && flag_devices_action == Action::UNSP) || flag_devices_action == Action::READ)
   {
     // --depth: recursion level not deep enough?
     if (flag_min_depth > 0 && level <= flag_min_depth)
@@ -9486,7 +9486,7 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
           }
         }
       }
-      else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : flag_devices_action == Action::READ)
+      else if (type == DIRENT_TYPE_REG ? !is_output(inode) : (type == DIRENT_TYPE_UNKNOWN || type == DIRENT_TYPE_LNK) && S_ISREG(buf.st_mode) ? !is_output(buf.st_ino) : (is_argument && flag_devices_action == Action::UNSP) || flag_devices_action == Action::READ)
       {
         // if symlinked files, then follow only if -R or -S is specified or if FILE is a command line argument
         if (!symlink || follow || flag_dereference_files)
