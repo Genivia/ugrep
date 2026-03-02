@@ -722,7 +722,10 @@ class Input {
         if (handler_ != NULL)
           k = (*handler_)(file_, s, k);
         if (k > 0)
+        {
+          clearerr(file_);
           return k;
+        }
         // if a non-recoverable error occurred, then return 0, permit non-blocking IO errors to continue
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
           return 0;

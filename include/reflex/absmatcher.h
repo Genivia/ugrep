@@ -1116,7 +1116,8 @@ class AbstractMatcher {
         if (s != NULL)
           return s + inclusive;
       }
-      if (eof_)
+      // got till EOF or buffer grows too large to reach the next EOL
+      if (eof_ || end_ - pos_ >= Const::BOLSZ)
         break;
       (void)grow();
       loc = end_;

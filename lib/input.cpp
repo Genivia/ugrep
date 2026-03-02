@@ -1033,6 +1033,21 @@ bool Input::file_ready()
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
   return true;
 #else
+  if (ferror(file_))
+  {
+    if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
+      return false;
+#if defined(__linux__)
+    // Linux has regular files that can be set non-blocking to raise EAGAIN e.g. /proc and /sys
+    if (errno == EAGAIN)
+    {
+      struct stat buf;
+      fstat(fileno(file_), &buf);
+      if (S_ISREG(buf.st_mode))
+        return false
+    }
+#endif
+  }
   while (true)
   {
     struct timeval tv;
@@ -1041,13 +1056,13 @@ bool Input::file_ready()
     FD_ZERO(&efds);
     FD_SET(0, &rfds);
     FD_SET(0, &efds);
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-    int r = ::select(fileno(file_) + 1, &rfds, NULL, &efds, &tv);
-    if (r < 0 && errno != EINTR)
-      return false;
-    if (r > 0)
+    tv.tv_sec = 0;
+    tv.tv_usec = 1000; // 1ms timeout
+    clearerr(file_);   // unset EAGAIN etc
+    if (::select(fileno(file_) + 1, &rfds, NULL, &efds, &tv) >= 0)
       return FD_ISSET(fileno(file_), &efds) == 0;
+    if (errno != EINTR)
+      return false;
   }
 #endif
 }

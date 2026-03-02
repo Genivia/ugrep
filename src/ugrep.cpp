@@ -3446,10 +3446,10 @@ struct Grep {
       return false;
     }
 
-#if !defined(OS_WIN) && !defined(__APPLE__)
+#if defined(__linux__)
     if (file_in != stdin && file_in != Static::source)
     {
-      // recursive searches and -Dskip should not block on devices and special "empty" regular files like in /proc and /sys
+      // Linux has regular files that can be set non-blocking to raise EAGAIN e.g. /proc and /sys
       if (flag_directories_action == Action::RECURSE || flag_devices_action != Action::READ)
       {
         int fd = fileno(file_in);
@@ -3954,14 +3954,15 @@ struct Grep {
 #endif
 
 #ifndef OS_WIN
-      if (input == stdin && !flag_quiet && !flag_files_with_matches && !flag_count)
+      if (!flag_quiet && !flag_files_with_matches && !flag_count)
       {
+        int fd = fileno(file_in);
         struct stat buf;
 
-        // if input is a character device (e.g. TTY) or a pipe, then make stdin nonblocking and register a stdin handler to continue reading and flush results to output, don't check for invalid Unicode input
-        if (fstat(0, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode)  | S_ISSOCK(buf.st_mode)))
+        // if input is a character device (e.g. TTY) or a pipe, then make it non-blocking and register a stdin handler to continue reading and flush results to output, don't check for invalid Unicode input
+        if (fstat(fd, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode) || S_ISSOCK(buf.st_mode)))
         {
-          interactive = (fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK) != -1);
+          interactive = (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK) != -1);
           if (interactive)
             matcher->in.set_handler(&stdin_handler);
         }
@@ -6698,15 +6699,12 @@ void init(int argc, const char **argv)
 
   // if no regex pattern is specified and no -e PATTERN and no -f FILE and not -Q, then exit with usage message
   if (Static::arg_pattern == NULL && pattern_args.empty() && flag_file.empty() && !flag_query)
-    usage(
-  "No search PATTERN specified.\n\n"
-  "Examples:\n"
-  "  ugrep \"pattern\" .\n"
-  "  ugrep \"\" .        (match all lines)\n\n"
-  "For more help, run: ugrep --help"
-);
-
-
+    usage("no search PATTERN specified\n\n"
+        "Examples:\n"
+        "  ugrep \"PATTERN\"       # match PATTERN\n"
+        "  ugrep -e \"-PATTERN\"   # match -PATTERN (including the leading dash)\n"
+        "  ugrep \"\"              # match all lines\n"
+        "  ugrep --match         # match all lines\n");
 
   // regex PATTERN should be a FILE argument when -Q or -e PATTERN is specified
   if (!flag_match && Static::arg_pattern != NULL && (flag_query || !pattern_args.empty()))
@@ -8039,7 +8037,7 @@ void ugrep()
       }
     }
   }
-  
+
   // update include-dir to search case insensitive directories collected from --iglob
   flag_include_iglob_dir_size += all_include_dir_from_iglob.size();
   flag_all_include_dir.insert(flag_all_include_dir.begin(), all_include_dir_from_iglob.begin(), all_include_dir_from_iglob.end());
@@ -8402,9 +8400,9 @@ void ugrep()
   {
     if (regex == "^$")
     {
-      regex.clear();
       flag_match = true;
       flag_line_regexp = true;
+      regex.clear();
     }
     else if (regex == "^" || regex == "$")
     {
@@ -8458,6 +8456,22 @@ void ugrep()
       copy_color(match_ms, color_ms);
       copy_color(match_mc, color_mc);
       copy_color(match_off, color_off);
+    }
+  }
+
+  // patterns .*, . and .+ are easy special cases to optimize for search
+  if (!flag_fixed_strings && !flag_dotall && Static::bcnf.singleton_or_undefined())
+  {
+    if (regex == ".*")
+    {
+      flag_match = true;
+      regex.clear();
+    }
+    else if (regex == "." || regex == ".+")
+    {
+      flag_match = true;
+      flag_empty = false;
+      regex.clear();
     }
   }
 
@@ -12108,10 +12122,6 @@ void Grep::search(const char *pathname, uint16_t cost)
               }
             }
 
-            // --max-count: max number of matches reached?
-            if (flag_max_count > 0 && matches > flag_max_count)
-              break;
-
             // output blocked?
             if (out.eof)
               goto exit_search;
@@ -12254,6 +12264,10 @@ void Grep::search(const char *pathname, uint16_t cost)
                 restline_last = last;
               }
             }
+
+            // --max-count: max number of matches reached?
+            if (flag_max_count > 0 && matches >= flag_max_count)
+              break;
 
             // no -u and no colors: if the match does not span more than one line, then skip to end of the line
             if (!flag_ungroup && !colorize)
@@ -12403,17 +12417,20 @@ void Grep::search(const char *pathname, uint16_t cost)
           }
         }
 
+        output_restline(flag_invert_match);
+
+        if (flag_max_count == 0 || matches < flag_max_count)
+        {
+          // get the remaining context after the last match to output
+          context = matcher->after();
+
+          if (context.len > 0)
+            any_line_handler(*matcher, context.buf, context.len, context.num);
+        }
+
         // --min-count: require at least min-count matches
         if (flag_min_count > 0 && matches < flag_min_count)
           matches = 0;
-
-        output_restline(flag_invert_match);
-
-        // get the remaining context after the last match to output
-        context = matcher->after();
-
-        if (context.len > 0)
-          any_line_handler(*matcher, context.buf, context.len, context.num);
 
         if (matches > 0 && (binfile || (binary && !flag_hex && !flag_with_hex)))
         {
@@ -13803,7 +13820,7 @@ void usage(const char *message, const char *arg, const char *valid)
   if (valid != NULL)
   {
     std::cerr << ", did you mean " << valid << "?" << std::endl;
-    std::cerr << "For more help on options, try `ugrep --help' or `ugrep --help WHAT'" << std::endl;
+    std::cerr << "For more help, run `ugrep --help' or `ugrep --help WHAT'" << std::endl;
   }
   else
   {
@@ -13811,7 +13828,7 @@ void usage(const char *message, const char *arg, const char *valid)
     while (*s != '\0' && *s != '-')
       ++s;
     std::cerr << std::endl;
-    std::cerr << "For more help on options, try `ugrep --help' or `ugrep --help ";
+    std::cerr << "For more help, run `ugrep --help' or `ugrep --help ";
     if (*s == '\0')
     {
       std::cerr << "WHAT'" << std::endl;
