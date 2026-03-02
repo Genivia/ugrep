@@ -3449,8 +3449,8 @@ struct Grep {
 #if defined(__linux__)
     if (file_in != stdin && file_in != Static::source)
     {
-      // Linux has regular files that can be set non-blocking to raise EAGAIN e.g. /proc and /sys
-      if (flag_directories_action == Action::RECURSE || flag_devices_action != Action::READ)
+      // Linux has system "regular files" that can be set non-blocking to raise EAGAIN e.g. in /proc and /sys
+      if (flag_devices_action != Action::READ)
       {
         int fd = fileno(file_in);
         int fl = fcntl(fd, F_GETFL);
