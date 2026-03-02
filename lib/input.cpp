@@ -1044,7 +1044,7 @@ bool Input::file_ready()
       struct stat buf;
       fstat(fileno(file_), &buf);
       if (S_ISREG(buf.st_mode))
-        return false
+        return false;
     }
 #endif
   }
