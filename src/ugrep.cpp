@@ -3446,6 +3446,10 @@ struct Grep {
       return false;
     }
 
+    // --filter: fork process to filter file, when applicable
+    if (!filter(file_in, pathname))
+      return false;
+
 #if defined(__linux__)
     if (file_in != stdin && file_in != Static::source)
     {
@@ -3453,16 +3457,12 @@ struct Grep {
       if (flag_devices_action != Action::READ)
       {
         int fd = fileno(file_in);
-        int fl = fcntl(fd, F_GETFL);
-        if (fl >= 0)
-          fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+        struct stat buf;
+        if (fstat(fd, &buf) == 0 && S_ISREG(buf.st_mode))
+          fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
       }
     }
 #endif
-
-    // --filter: fork process to filter file, when applicable
-    if (!filter(file_in, pathname))
-      return false;
 
 #ifdef HAVE_LIBZ
     if (flag_decompress)
@@ -3471,6 +3471,7 @@ struct Grep {
 
       // start decompression thread if not running, get pipe with decompressed input
       FILE *pipe_in = zthread.start(flag_zmax, pathname, file_in, find);
+
       if (pipe_in == NULL)
       {
         fclose(file_in);
@@ -3482,6 +3483,7 @@ struct Grep {
       input = reflex::Input(pipe_in, flag_encoding_type);
 
 #else
+
       (void)find; // appease -Wunused
 
       // create or open a new zstreambuf
@@ -3827,14 +3829,28 @@ struct Grep {
 
 #ifdef HAVE_LIBZ
 #ifdef WITH_DECOMPRESSION_THREAD
+
       if (flag_decompress)
+      {
+        // close the input FILE* and its underlying pipe previously created with pipe() and fdopen()
+        if (input.file() != NULL)
+        {
+          // close and unassign input, i.e. input.file() == NULL, also closes pipe_fd[0] per fdopen()
+          fclose(input.file());
+          input.clear();
+        }
+
         zthread.cancel();
+      }
+
 #else
+
       if (stream != NULL)
       {
         delete stream;
         stream = NULL;
       }
+
 #endif
 #endif
 
@@ -3954,7 +3970,7 @@ struct Grep {
 #endif
 
 #ifndef OS_WIN
-      if (!flag_quiet && !flag_files_with_matches && !flag_count)
+      if (!flag_decompress && !flag_quiet && !flag_files_with_matches && !flag_count)
       {
         int fd = fileno(file_in);
         struct stat buf;
