@@ -7092,6 +7092,31 @@ void init(int argc, const char **argv)
 
 #endif
 
+  // --ignore-file=FILE when FILE are pathnames: add globs to the exclude and exclude-dir lists with gitignore rules
+  auto ignore_file = flag_ignore_files.begin();
+  while (ignore_file != flag_ignore_files.end())
+  {
+    if (ignore_file->compare("-") == 0 || ignore_file->find(PATHSEPCHR) != std::string::npos)
+    {
+      FILE *file = NULL;
+
+      if (fopen_smart(&file, ignore_file->c_str(), "r") != 0)
+        error("option --ignore-files: cannot read", ignore_file->c_str());
+
+      // push globs imported from the file to the back of the vectors with gitignore flag = true
+      import_globs(file, flag_exclude, flag_exclude_dir, true);
+
+      if (file != stdin)
+        fclose(file);
+
+      flag_ignore_files.erase(ignore_file++);
+    }
+    else
+    {
+      ++ignore_file;
+    }
+  }
+
   // --exclude-from=FILE: add globs to the exclude and exclude-dir lists
   for (const auto& from : flag_exclude_from)
   {
@@ -14209,9 +14234,8 @@ void help(std::ostream& out)
             files.  Directories are specifically excluded when the glob ends in\n\
             a `/'.  Files and directories explicitly specified as command line\n\
             arguments are never ignored.  This option may be repeated to\n\
-            specify additional files.\n\
-            See also related option --exclude-from for a global set of\n\
-            exclusions.\n\
+            specify additional files.  See also related option --exclude-from\n\
+            for a global set of exclusions.\n\
     --no-ignore-files\n\
             Do not ignore files, i.e. cancel --ignore-files when specified.\n\
     --include=GLOB\n\
