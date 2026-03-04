@@ -3824,47 +3824,7 @@ struct Grep {
   {
     // check if the input has no error conditions, but do not check stdin which is nonblocking and handled differently
     if (file_in != NULL && file_in != stdin && file_in != Static::source && ferror(file_in))
-    {
       warning("cannot read", pathname);
-
-#ifdef HAVE_LIBZ
-#ifdef WITH_DECOMPRESSION_THREAD
-
-      if (flag_decompress)
-      {
-        // close the input FILE* and its underlying pipe previously created with pipe() and fdopen()
-        if (input.file() != NULL)
-        {
-          // close and unassign input, i.e. input.file() == NULL, also closes pipe_fd[0] per fdopen()
-          fclose(input.file());
-          input.clear();
-        }
-
-        zthread.cancel();
-      }
-
-#else
-
-      if (stream != NULL)
-      {
-        delete stream;
-        stream = NULL;
-      }
-
-#endif
-#endif
-
-      // close the current input file
-      if (file_in != NULL && file_in != stdin && file_in != Static::source)
-      {
-        fclose(file_in);
-        file_in = NULL;
-      }
-
-      input.clear();
-
-      return false;
-    }
 
 #ifdef HAVE_LIBZ
 #ifdef WITH_DECOMPRESSION_THREAD
