@@ -98,7 +98,11 @@ struct Zthread {
     pipe_fd[1] = -1;
   }
 
-  ~Zthread()
+  // no copy constructor
+  Zthread(const Zthread&) = delete;
+
+  // destructor
+  virtual ~Zthread()
   {
     // recursively join all stages of the decompression thread chain (--zmax>1), delete zstream
     join();
@@ -124,6 +128,7 @@ struct Zthread {
     // partnameref is not assigned yet, used only when this decompression thread is chained
     is_assigned = false;
 
+    // flag to inform main thread what's going on when it calls decompressing()
     is_compressed = false;
 
     // open pipe between the main thread or the previous decompression thread and this (new) decompression thread
@@ -233,12 +238,10 @@ struct Zthread {
       pipe_fd[0] = -1;
 
       // if extracting and the decompression filter thread is not yet waiting, then wait until decompression thread closed its end of the pipe
-      {
-        std::unique_lock<std::mutex> lock(pipe_mutex);
-        if (!is_waiting)
-          pipe_close.wait(lock);
-        lock.unlock();
-      }
+      std::unique_lock<std::mutex> lock(pipe_mutex);
+      if (!is_waiting)
+        pipe_close.wait(lock);
+      lock.unlock();
 
       // partnameref is not assigned yet, used only when this decompression thread is chained
       is_assigned = false;
@@ -254,8 +257,8 @@ struct Zthread {
           // if chained before another decompression thread
           if (is_chained)
           {
-            // use lock and wait for partname ready
-            std::unique_lock<std::mutex> lock(pipe_mutex);
+            // wait for partname ready
+            lock.lock();
             // notify the decompression filter thread of the new pipe
             pipe_ready.notify_one();
             // wait for the partname to be set by the next decompression thread in the ztchain
@@ -289,7 +292,7 @@ struct Zthread {
         pipe_ready.notify_one();
 
         // when an error occurred, we still need to notify the receiver in case it is waiting on the partname
-        std::unique_lock<std::mutex> lock(pipe_mutex);
+        lock.lock();
         is_assigned = true;
         part_ready.notify_one();
         lock.unlock();

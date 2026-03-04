@@ -1031,7 +1031,7 @@ bool Input::file_ready()
   if (file_ == NULL || feof(file_))
     return false;
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-  return true;
+  return !ferror(file_);
 #else
   if (ferror(file_))
   {
@@ -1042,9 +1042,8 @@ bool Input::file_ready()
     if (errno == EAGAIN)
     {
       struct stat buf;
-      fstat(fileno(file_), &buf);
-      if (S_ISREG(buf.st_mode))
-        return false;
+      if (fstat(fileno(file_), &buf) == 0 && S_ISREG(buf.st_mode))
+        return false
     }
 #endif
   }

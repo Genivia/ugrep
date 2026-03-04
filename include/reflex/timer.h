@@ -59,14 +59,14 @@ inline float timer_elapsed(timer_type& t) ///< timer to be updated
 {
   timer_type now;
   GetLocalTime(&now);
-  float sec = now.wMilliseconds;
-  sec -= t.wMilliseconds;
+  float ms = now.wMilliseconds;
+  ms -= t.wMilliseconds;
   t.wMilliseconds = now.wMilliseconds;
-  sec += 1000.0f * (now.wSecond - t.wSecond);
+  ms += 1000.0f * (now.wSecond - t.wSecond);
   t.wSecond = now.wSecond;
-  if (sec < 0.0)
-    sec += 60000.0;
-  return sec;
+  if (ms < 0.0)
+    ms += 60000.0;
+  return ms;
 }
 
 } // namespace reflex
@@ -91,14 +91,14 @@ inline float timer_elapsed(timer_type& t) ///< timer to be updated
 {
   timer_type now;
   gettimeofday(&now, NULL);
-  float sec = now.tv_usec;
-  sec -= t.tv_usec;
+  float ms = now.tv_usec;
+  ms -= t.tv_usec;
   t.tv_usec = now.tv_usec;
-  sec = 1000.0 * (now.tv_sec - t.tv_sec) + sec/1000.0;
+  ms = 1000.0 * (now.tv_sec - t.tv_sec) + ms/1000.0;
   t.tv_sec = now.tv_sec;
-  if (sec < 0.0)
-    sec += 60000.0;
-  return sec;
+  if (ms < 0.0)
+    ms += 60000.0;
+  return ms;
 }
 
 } // namespace reflex

@@ -4404,7 +4404,7 @@ void Pattern::analyze_dfa(DFA::State *start)
     }
     for (Hash i = 0; i < Const::HASH; ++i)
     {
-      if (pma_[i] != (1 << (8 * Const::PM_M)) - 1)
+      if (pma_[i] != (1 << (2 * Const::PM_M)) - 1)
       {
         if (isprint(i))
           DBGLOGN("pma['%c'] = %04x", i, pma_[i]);
@@ -4541,14 +4541,14 @@ void Pattern::gen_predict_match_transitions(uint16_t level, DFA::State *state, c
     std::pair<ORanges<Hash>,ORanges<Char> > *next_hashes = (level + 1 < Const::BITS && !next_accept) ? &level_hashes[next_state] : NULL;
     Char lo = edge.lo();
     Char hi = edge.hi();
-    DBGLOG("PM level %zu %p: %u~%u %s%s", level, state, lo, hi, next_accept ? "accept " : "", next_hashes ? "nexthashes" : "");
+    DBGLOG("PM level %hu %p: %u~%u %s%s", level, state, lo, hi, next_accept ? "accept " : "", next_hashes ? "nexthashes" : "");
     if (level < min_)
     {
       // populate bit array
       Bitap mask = ~(1 << level);
       for (Char ch = lo; ch <= hi; ++ch)
         bit_[ch] &= mask;
-      DBGLOG("%zu bitap %p: %u..%u -> %p", level, state, lo, hi, next_state);
+      DBGLOG("%hu bitap %p: %u..%u -> %p", level, state, lo, hi, next_state);
       // update tap_[] bitap hashed pairs at previous level using previous character ranges
       mask >>= 1;
       for (ORanges<Char>::iterator prev_range = previous.second.begin(); prev_range != previous.second.end(); ++prev_range)
