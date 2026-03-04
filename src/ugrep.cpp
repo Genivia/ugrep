@@ -8435,18 +8435,18 @@ void ugrep()
     }
   }
 
-  // patterns .*, . and .+ are easy special cases to optimize for search
+  // patterns .* and .+ are common easy special cases to optimize for search
   if (!flag_fixed_strings && !flag_dotall && Static::bcnf.singleton_or_undefined())
   {
     if (regex == ".*")
     {
       flag_match = true;
+      flag_empty = true;
       regex.clear();
     }
-    else if (regex == "." || regex == ".+")
+    else if (regex == ".+")
     {
       flag_match = true;
-      flag_empty = false;
       regex.clear();
     }
   }
