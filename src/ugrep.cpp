@@ -3446,6 +3446,9 @@ struct Grep {
       return false;
     }
 
+    // "interactive" means possibly slow input from a TTY or pipe
+    interactive = false;
+
     // --filter: fork process to filter file, when applicable
     if (!filter(file_in, pathname))
       return false;
@@ -3458,6 +3461,7 @@ struct Grep {
       {
         int fd = fileno(file_in);
         struct stat buf;
+
         if (fstat(fd, &buf) == 0 && S_ISREG(buf.st_mode))
           fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
       }
@@ -3508,6 +3512,22 @@ struct Grep {
 #else
     (void)find; // appease -Wunused
     input = reflex::Input(file_in, flag_encoding_type);
+#endif
+
+#ifndef OS_WIN
+    if (!flag_decompress && !flag_quiet && !flag_files_with_matches && !flag_count)
+    {
+      int fd = fileno(file_in);
+      struct stat buf;
+
+      // if input is a character device (e.g. TTY) or a pipe, then make it non-blocking and register a stdin handler to continue reading and flush results to output, don't check for invalid Unicode input
+      if (fstat(fd, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode) || S_ISSOCK(buf.st_mode)))
+        interactive = (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK) != -1);
+    }
+#else
+    // for Windows we don't check for invalid Unicode input, no stdin handler
+    if (input == stdin && !flag_quiet && !flag_files_with_matches && !flag_count)
+      interactive = true;
 #endif
 
     return true;
@@ -3903,9 +3923,6 @@ struct Grep {
     matches = 0;
     stop = false;
 
-    // "interactive" and possibly slow input from a standard input device or pipe
-    bool interactive = false;
-
     const char *base;
     size_t size;
 
@@ -3930,23 +3947,9 @@ struct Grep {
 #endif
 
 #ifndef OS_WIN
-      if (!flag_decompress && !flag_quiet && !flag_files_with_matches && !flag_count)
-      {
-        int fd = fileno(file_in);
-        struct stat buf;
-
-        // if input is a character device (e.g. TTY) or a pipe, then make it non-blocking and register a stdin handler to continue reading and flush results to output, don't check for invalid Unicode input
-        if (fstat(fd, &buf) == 0 && (S_ISCHR(buf.st_mode) || S_ISFIFO(buf.st_mode) || S_ISSOCK(buf.st_mode)))
-        {
-          interactive = (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK) != -1);
-          if (interactive)
-            matcher->in.set_handler(&stdin_handler);
-        }
-      }
-#else
-      // for Windows we don't check for invalid Unicode input, no stdin handler
-      if (input == stdin && !flag_quiet && !flag_files_with_matches && !flag_count)
-        interactive = true;
+        // set interactive search handler e.g. for slow stdin input
+        if (interactive)
+          matcher->in.set_handler(&stdin_handler);
 #endif
     }
 
@@ -4070,6 +4073,7 @@ struct Grep {
   MMap                           mmap;          // mmap state
   reflex::Input                  input;         // input to the matcher
   FILE                          *file_in;       // the current input file
+  bool                           interactive;   // the file being searched is a TTY or pipe
   bool                           binfile;       // the file being searched is a binary file
   size_t                         lineno;        // the line number of the last match
   bool                           heading;       // heading on/off, initially set to --with-filename
