@@ -1,4 +1,4 @@
-.TH UGREP "1" "July 02, 2025" "ugrep 7.5.0" "User Commands"
+.TH UGREP "1" "March 05, 2026" "ugrep 7.6.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -276,20 +276,21 @@ additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
 \fB\-D\fR \fIACTION\fR, \fB\-\-devices\fR=\fIACTION\fR
 If an input file is a device, FIFO or socket, use ACTION to process
-it.  By default, ACTION is `skip', which means that devices are
-silently skipped.  When ACTION is `read', devices read just as if
-they were ordinary files.
+it.  When ACTION is `skip', devices are ignored.  When ACTION is
+`read', devices are read just as if they were ordinary files.  The
+default ACTION is `skip', except for devices specified as arguments
+on the command line, which can be explicitly skipped with \fB\-D\fRskip.
 .TP
 \fB\-d\fR \fIACTION\fR, \fB\-\-directories\fR=\fIACTION\fR
-If an input file is a directory, use ACTION to process it.  By
-default, ACTION is `skip', i.e., silently skip directories unless
-specified on the command line.  When ACTION is `read', warn when
-directories are read as input.  When ACTION is `recurse', read all
-files under each directory, recursively, following symbolic links
-only if they are on the command line.  This is equivalent to the \fB\-r\fR
-option.  When ACTION is `dereference\-recurse', read all files under
-each directory, recursively, following symbolic links.  This is
-equivalent to the \fB\-R\fR option.
+If an input file is a directory, use ACTION to process it.  When
+ACTION is `read', warn when directories are read as input.  When
+ACTION is `recurse', read all files under each directory,
+recursively, following symbolic links only if they are on the
+command line.  This is equivalent to the \fB\-r\fR option.  When ACTION is
+`dereference\-recurse', read all files under each directory,
+recursively, following symbolic links.  This is equivalent to the
+\fB\-R\fR option.  When no files or directories are specified on the
+command line, ACTION defaults to `recurse` or option \fB\-r\fR.
 .TP
 \fB\-\-delay\fR=\fIDELAY\fR
 Set the default \fB\-Q\fR key response delay.  Default is 3 for 300ms.
@@ -358,10 +359,9 @@ Otherwise basenames are matched.  When a glob ends with a `/',
 directories are excluded as if \fB\-\-exclude\-dir\fR is specified.
 Otherwise files are excluded.  A glob starting with a `!' overrides
 previously\-specified exclusions by including matching files.  Lines
-starting with a `#' and empty lines in FILE are ignored.  When FILE
-is a `\-', standard input is read.  This option may be repeated.
-See also related option \fB\-\-ignore\-files\fR for subdirectory\-specific
-lists of exclusions.
+starting with a `#' in FILE are ignored.  When FILE is a `\-',
+standard input is read.  This option may be repeated.  See also
+related option \fB\-\-ignore\-files\fR for subdirectory\-specific exclusions.
 .TP
 \fB\-\-exclude\-fs\fR=\fIMOUNTS\fR
 Exclude file systems specified by MOUNTS from recursive searches.
@@ -386,6 +386,15 @@ exist, the GREP_PATH environment variable is used as path to FILE.
 If that fails, looks for FILE in /usr/local/share/ugrep/patterns.
 When FILE is a `\-', standard input is read.  Empty files contain no
 patterns; thus nothing is matched.  This option may be repeated.
+.TP
+\fB\-\-files\fR, \fB\-%\fR%
+Boolean file matching mode, the opposite of \fB\-\-lines\fR.  When combined
+with option \fB\-\-bool\fR, matches a file if all Boolean conditions are
+satisfied.  For example, \fB\-\-bool\fR \fB\-\-files\fR 'A B|C \fB\-D\fR' matches a file
+if some lines match `A', and some lines match either `B' or `C',
+and no line matches `D'.  See also options \fB\-\-and\fR, \fB\-\-andnot\fR, \fB\-\-not\fR,
+\fB\-\-bool\fR and \fB\-\-lines\fR.  The double short option \fB\-%\fR% enables options
+\fB\-\-bool\fR \fB\-\-files\fR.
 .TP
 \fB\-\-filter\fR=\fICOMMANDS\fR
 Filter files through the specified COMMANDS first before searching.
@@ -511,15 +520,12 @@ sensitive.
 Ignore files and directories matching the globs in each FILE that
 is encountered in recursive searches.  The default FILE is
 `.gitignore'.  Matching files and directories located in the
-directory of the FILE and in subdirectories below are ignored.
-Globbing syntax is the same as the \fB\-\-exclude\-from\fR=\fIFILE\fR gitignore
-syntax, but files and directories are excluded instead of only
-files.  Directories are specifically excluded when the glob ends in
-a `/'.  Files and directories explicitly specified as command line
-arguments are never ignored.  This option may be repeated to
-specify additional files.
-See also related option \fB\-\-exclude\-from\fR for a global set of
-exclusions.
+directory of the FILE and in subdirectories are ignored.  When FILE is
+a full pathname, FILE is read ahead of the recursive search and
+globs are globally applied to ignore files and directories.  When
+FILE is a `\-', standard input is read.  Globbing is the same as for
+\fB\-\-exclude\-from\fR=\fIFILE\fR, except that \fB\-\-ignore\-files\fR excludes files and
+also directories when globs match.  This option may be repeated.
 .TP
 \fB\-\-no\-ignore\-files\fR
 Do not ignore files, i.e. cancel \fB\-\-ignore\-files\fR when specified.
@@ -644,12 +650,20 @@ MIN to MAX matches.  For example, \fB\-m\fR1 outputs the first match and
 is specified, each individual match counts.  See also option \fB\-K\fR.
 .TP
 \fB\-\-match\fR
-Match all input.  Same as specifying an empty pattern to search.
+Match all lines.  Same as specifying an empty pattern to search.
 .TP
 \fB\-\-max\-files\fR=\fINUM\fR
 Restrict the number of files matched to NUM.  Note that \fB\-\-sort\fR or
 \fB\-J\fR1 may be specified to produce replicable results.  If \fB\-\-sort\fR is
 specified, then the number of threads spawned is limited to NUM.
+.TP
+\fB\-\-max\-size\fR=\fIMAX\fR
+Only search files whose physical size does not exceed MAX bytes.
+Suffix MAX with kb, mb, gb, tb for kilo, mega, giga, or terabytes.
+.TP
+\fB\-\-min\-size\fR=\fIMIN\fR
+Only search files whose physical size equals or exceeds MIN bytes.
+Suffix MIN with kb, mb, gb, tb for kilo, mega, giga, or terabytes.
 .TP
 \fB\-\-mmap\fR[=\fIMAX\fR]
 Use memory maps to search files.  By default, memory maps are used
@@ -710,15 +724,6 @@ the specified number of columns.
 \fB\-\-only\-line\-number\fR
 Only the line number of a matching line is output.  The line number
 counter is reset for each file processed.
-.TP
-\fB\-\-files\fR, \fB\-%\fR%
-Boolean file matching mode, the opposite of \fB\-\-lines\fR.  When combined
-with option \fB\-\-bool\fR, matches a file if all Boolean conditions are
-satisfied.  For example, \fB\-\-bool\fR \fB\-\-files\fR 'A B|C \fB\-D\fR' matches a file
-if some lines match `A', and some lines match either `B' or `C',
-and no line matches `D'.  See also options \fB\-\-and\fR, \fB\-\-andnot\fR, \fB\-\-not\fR,
-\fB\-\-bool\fR and \fB\-\-lines\fR.  The double short option \fB\-%\fR% enables options
-\fB\-\-bool\fR \fB\-\-files\fR.
 .TP
 \fB\-P\fR, \fB\-\-perl\-regexp\fR
 Interpret PATTERN as a Perl regular expression using PCRE2.
@@ -979,6 +984,8 @@ effectively ignored.  Specify \fB\-\-zmax\fR=2 to search compressed files
 and archives stored in cpio, pax, tar, zip and 7z archives.  NUM
 may range from 1 to 99 for up to 99 decompression and de\-archiving
 steps.  Increasing NUM values gradually degrades performance.
+.TP
+Specify `ugrep \fB\-\-help\fR WHAT' for help on WHAT.
 .SH "EXIT STATUS"
 The \fBugrep\fR utility exits with one of the following values:
 .IP 0
@@ -1023,17 +1030,19 @@ Globbing is used by options \fB-g\fR (\fB--glob\fR and \fB--iglob\fR),
 pathnames or basenames in recursive searches.  Glob arguments for these
 options should be quoted to prevent shell globbing.
 .PP
-Globbing supports gitignore syntax and the corresponding matching rules, except
-that a glob normally matches files but not directories.  If a glob ends in a
-path separator `/', then it matches directories but not files, as if
-\fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
-a path separator `/', the full pathname is matched.  Otherwise the basename of
-a file or directory is matched.  For example, \fB*.h\fR matches foo.h and
-bar/foo.h.  \fBbar/*.h\fR matches bar/foo.h but not foo.h and not
-bar/bar/foo.h.  Use a leading `./' or just `/' to force \fB/*.h\fR to match
-foo.h in the working directory but not bar/foo.h.
+Globbing with \fB--ignore-files\fR supports gitignore syntax and rules.
+This is also the case for all other globbing-related options, with the
+exception that a glob matches filenames, not directory names.  If a glob ends
+in a path separator `/', then it matches directory names, not filenames, as if
+\fB--include-dir\fR or \fB--exclude-dir\fR is specified.
 .PP
-When a glob starts with a `^' or a `!' as in \fB-g\fR^\fIGLOB\fR, the match is
+When a glob contains a path separator `/', the full pathname is matched.
+Otherwise the basename of a file or directory is matched.  For example,
+\fB*.h\fR matches foo.h and bar/foo.h.  \fBbar/*.h\fR matches bar/foo.h but not
+foo.h and not bar/bar/foo.h.  Use a leading `./' or just `/' to force
+\fB/*.h\fR to match foo.h in the working directory but not bar/foo.h.
+.PP
+When a glob starts with a `!' or a `^' as in \fB-g\fR^\fIGLOB\fR, the match is
 negated.  Likewise, a `!' (but not a `^') may be used with globs in the files
 specified \fB--include-from\fR, \fB--exclude-from\fR, and \fB--ignore-files\fR
 to negate the glob match.  Empty lines or lines starting with a `#' are
@@ -1093,13 +1102,11 @@ Matches a?b,                 but not a, b, ab, axb, a/b
 Note that exclude glob patterns take priority over include glob patterns when
 specified with options -g, --exclude, --exclude-dir, --include and include-dir.
 .PP
-Glob patterns specified with prefix `!' in any of the files associated with
---include-from, --exclude-from and --ignore-files will negate a previous glob
-match.  That is, any matching file or directory excluded by a previous glob
-pattern specified in the files associated with --exclude-from or --ignore-file
-will become included again.  Likewise, any matching file or directory included
-by a previous glob pattern specified in the files associated with
---include-from will become excluded again.
+Option --ignore-files specifies a file with gitignore-style globs, where the
+default file is .gitignore.  When ignore files are encountered in recursive
+searches, the search is narrowed by excluding filenames and directory names
+matching the globs; this gitignore glob-matching rule differs from option
+--exclude-from which requires globs ending in / to match directory names.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by

@@ -1299,8 +1299,14 @@ struct Zthread {
           }
           else
           {
-            buf[136] = '\0';
-            size = strtoull(reinterpret_cast<const char*>(buf + 124), NULL, 8);
+            // v7/ustar size stored in 11 octal digits padded with leading zeros or spaces followed by a space or NUL
+            char *octal = reinterpret_cast<char*>(buf + 124);
+            buf[135] = '\0';
+            size = strtoull(octal, &octal, 8);
+            // we could be festidious about zero size when tar/pax is corrupted,
+            // but it's not an issue to report it as a "binary file" mess when that happens
+            // if (size == 0 && *octal != ' ' && *octal != '\0')
+            //   break;
           }
 
           // header types
@@ -2265,7 +2271,7 @@ struct Grep {
 
 #ifndef OS_WIN
 
-  // extend the reflex::Input::Handler to handle nonblocking stdin from a character device (TTY) or from a pipe
+  // extend the reflex::Input::Handler to handle non-blocking input from a character device (TTY) or from a pipe
   struct StdInHandler : public reflex::Input::Handler {
 
     StdInHandler(Grep& grep)
@@ -3478,7 +3484,6 @@ struct Grep {
 
       // start decompression thread if not running, get pipe with decompressed input
       FILE *pipe_in = zthread.start(flag_zmax, pathname, file_in, find);
-
       if (pipe_in == NULL)
       {
         fclose(file_in);
@@ -3490,7 +3495,6 @@ struct Grep {
       input = reflex::Input(pipe_in, flag_encoding_type);
 
 #else
-
       (void)find; // appease -Wunused
 
       // create or open a new zstreambuf
@@ -3869,6 +3873,7 @@ struct Grep {
 
       // open pipe to the next file or part in an archive if there is a next file to extract
       FILE *pipe_in = zthread.open_next(pathname);
+
       if (pipe_in != NULL)
       {
         // assign the next extracted file as input to search
@@ -4085,7 +4090,7 @@ struct Grep {
   size_t                         matches;       // number of matches
   bool                           stop;          // stop searching when --max-files max reached
 #ifndef OS_WIN
-  StdInHandler                   stdin_handler; // a handler to handle nonblocking stdin from a TTY or a slow pipe
+  StdInHandler                   stdin_handler; // a handler to handle non-blocking input from a TTY or a slow pipe
 #endif
 #ifdef HAVE_LIBZ
 #ifdef WITH_DECOMPRESSION_THREAD
@@ -5420,7 +5425,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "glob-ignore-case") == 0)
                   flag_glob_ignore_case = true;
                 else if (strcmp(arg, "grep") == 0)
-                  flag_grep = true;
+                  flag_empty = flag_grep = true;
                 else if (strcmp(arg, "group-separator") == 0)
                   flag_group_separator = "--";
                 else if (strncmp(arg, "group-separator=", 16) == 0)
@@ -6338,6 +6343,7 @@ void init(int argc, const char **argv)
     // the 'grep' command is equivalent to 'ugrep --grep -G -. --sort'
     flag_basic_regexp = true;
     flag_grep = true;
+    flag_empty = true;
     flag_hidden = true;
     flag_sort = "name";
   }
@@ -6345,6 +6351,7 @@ void init(int argc, const char **argv)
   {
     // the 'egrep' command is equivalent to 'ugrep --grep -E -. --sort'
     flag_grep = true;
+    flag_empty = true;
     flag_hidden = true;
     flag_sort = "name";
   }
@@ -6353,6 +6360,7 @@ void init(int argc, const char **argv)
     // the 'fgrep' command is equivalent to 'ugrep --grep -F -. --sort'
     flag_fixed_strings = true;
     flag_grep = true;
+    flag_empty = true;
     flag_hidden = true;
     flag_sort = "name";
   }
@@ -6362,6 +6370,7 @@ void init(int argc, const char **argv)
     flag_decompress = true;
     flag_basic_regexp = true;
     flag_grep = true;
+    flag_empty = true;
     flag_hidden = true;
     flag_sort = "name";
   }
@@ -6370,6 +6379,7 @@ void init(int argc, const char **argv)
     // the 'zegrep' command is equivalent to 'ugrep --decompress --grep -E -. --sort'
     flag_decompress = true;
     flag_grep = true;
+    flag_empty = true;
     flag_hidden = true;
     flag_sort = "name";
   }
@@ -6379,6 +6389,7 @@ void init(int argc, const char **argv)
     flag_decompress = true;
     flag_fixed_strings = true;
     flag_grep = true;
+    flag_empty = true;
     flag_hidden = true;
     flag_sort = "name";
   }
@@ -6436,10 +6447,6 @@ void init(int argc, const char **argv)
     usage("option -P is not available in this build configuration of ugrep");
 #endif
   }
-
-  // --grep: enable -Y
-  if (flag_grep)
-    flag_empty = true;
 
   // -o (or -u) disables -Y to emulate grep behavior when ugrep is aliased to grep/egrep/fgrep
   if (flag_only_matching || flag_ungroup)
@@ -9748,6 +9755,7 @@ void Grep::recurse(size_t level, const char *pathname)
       ignore_filename.assign(pathname).append(PATHSEPSTR).append(ignore_file);
 
       FILE *file = NULL;
+
       if (fopenw_s(&file, ignore_filename.c_str(), "r") == 0)
       {
         // save current exclusions vector depths to restore afterwards
@@ -13501,12 +13509,12 @@ void import_globs(FILE *file, std::vector<std::string>& files, std::vector<std::
     // add glob to files or dirs using gitignore glob pattern rules
     if (!line.empty() && line.front() != '#')
     {
-      if (line.size() > 1 || (line.front() != '!' && line.front() != '^'))
+      if (line.size() > 1 || line.front() != '!') // negated matches start with ! (but not ^)
       {
         // if pathname is specified, then expand the local pathname to replace the root dir / in globs
         if (pathname != NULL && *pathname != '\0')
         {
-          size_t pos = (line.front() == '!' || line.front() == '^');
+          size_t pos = line.front() == '!'; // negated matches start with ! (but not ^)
 
           if (line.size() > pos && line.at(pos) == '/')
           {
@@ -14056,9 +14064,9 @@ void help(std::ostream& out)
             default ACTION is `skip', except for devices specified as arguments\n\
             on the command line, which can be explicitly skipped with -Dskip.\n\
     -d ACTION, --directories=ACTION\n\
-            If an input file is a directory, then use ACTION to process it.\n\
-            When ACTION is `read', warn when directories are read as input.\n\
-            When ACTION is `recurse', read all files under each directory,\n\
+            If an input file is a directory, use ACTION to process it.  When\n\
+            ACTION is `read', warn when directories are read as input.  When\n\
+            ACTION is `recurse', read all files under each directory,\n\
             recursively, following symbolic links only if they are on the\n\
             command line.  This is equivalent to the -r option.  When ACTION is\n\
             `dereference-recurse', read all files under each directory,\n\
@@ -14756,6 +14764,8 @@ void help(const char *what)
   if (what == NULL || *what == '\0')
   {
     help(std::cout);
+
+    std::cout << "\n    Specify `ugrep --help WHAT' for help on WHAT.\n\n";
   }
   else
   {
@@ -15016,9 +15026,8 @@ Gitignore-style globbing is performed by all glob-related options: -g (--glob),\
  /**         when at the end of a glob, matches everything after the /\n\
  \\?          a ? or any other character specified after the backslash\n\
 \n\
-A glob pattern starting with a ^ or a ! inverts the matching.  Instead of\n\
-matching a filename or directory name, the directory or file is ignored and\n\
-excluded from the search.\n\
+A glob pattern starting with a ! or a ^ inverts the match.  That is, instead of\n\
+matching a file or directory name, the file or directory is ignored.\n\
 \n\
 When a glob pattern contains a /, the full pathname is matched from the working\n\
 directory down.  Otherwise, the basename of a file or directory is matched in\n\
@@ -15027,29 +15036,31 @@ recursive searches.\n\
 When a glob pattern starts with ./ or just a single /, the glob is matched at\n\
 the working directory.\n\
 \n\
-When a glob pattern ends with a /, directories are matched.\n\
+When a glob pattern ends with a /, only directories are matched, not files.\n\
 \n\
 Option -g (--glob) performs glob matching with the specified glob pattern or\n\
-a set of comma-separated globs.  When a glob is preceded with a ^ or !, the\n\
+a set of comma-separated globs.  When a glob is preceded with a ! or ^, the\n\
 glob match is inverted by excluding matching files or directories.\n\
 \n\
 Option --iglob performs case-insensitive glob matching with the specified glob\n\
-pattern or a set of comma-separated globs.  When a glob is preceded with a ^\n\
-or !, the glob match is inverted by excluding matching files or directories.\n\
+pattern or a set of comma-separated globs.  When a glob is preceded with a !\n\
+or ^, the glob match is inverted by excluding matching files or directories.\n\
 \n\
 Option --glob-ignore-case performs case-insensitive glob matching in general,\n\
 except with the globs specified in --ignore-files, such as .gitignore.\n\
 \n\
 Option --ignore-files specifies a file with gitignore-style globs, where the\n\
-default file is .gitignore.  When one ore more ignore files are encountered in\n\
-recursive searches, the search is narrowed accordingly by excluding files and\n\
-directories matching the globs.\n\
+default file is .gitignore.  When ignore files are encountered in recursive\n\
+searches, the search is narrowed by excluding file and directory names matching\n\
+the globs.  The --ignore-files glob matching of both file and directory names\n\
+differs from all other glob-related options, such as --exclude-from, that\n\
+require globs ending in / to match directory names.\n\
 \n\
 Option -O (--file-extension) matches filename extensions, or ignores extensions\n\
-when preceded with a ^ or !.\n\
+when preceded with a ! or ^.\n\
 \n\
 Option -t (--file-type) matches file types, or ignores file types when\n\
-preceded with a ^ or a !.  Use -tlist to view the list of supported file types\n\
+preceded with a ! or a ^.  Use -tlist to view the list of supported file types\n\
 with corresponding glob patterns.\n\
 \n\
 Option --stats displays the search path globs applied to the matching files.\n\

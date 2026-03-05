@@ -172,6 +172,10 @@ void Stats::report(FILE *output)
     fprintf(output, "  --max-line=%zu" NEWLINESTR, flag_max_line);
   if (flag_sort != NULL)
     fprintf(output, "  --sort=%s" NEWLINESTR, flag_sort);
+  if (flag_min_size > 0)
+    fprintf(output, "  --min-size=%zu" NEWLINESTR, flag_min_size);
+  if (flag_max_size > 0)
+    fprintf(output, "  --max-size=%zu" NEWLINESTR, flag_max_size);
   for (const auto& i : ignore)
     fprintf(output, "    %s exclusions were applied to %s and its subdirectories" NEWLINESTR, i.c_str(), i.substr(0, i.find_last_of(PATHSEPCHR)).c_str());
   for (const auto& i : flag_file_magic)

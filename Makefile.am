@@ -120,9 +120,9 @@ uninstall-hook:
 		@rm -f $(DESTDIR)$(bindir)/ug+ $(DESTDIR)$(bindir)/ugrep+
 		@rm -rf $(DESTDIR)$(datadir)/ugrep
 
-.PHONY:		test
+.PHONY:		test check
 
-test check:		${UGREP}
+test check:	${UGREP}
 		@echo
 		@echo "*** SINGLE-THREADED TESTS ***"
 		@echo

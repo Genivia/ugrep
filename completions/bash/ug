@@ -255,6 +255,7 @@ cat <<'END'
 --exclude-fs=MOUNTS Exclude file systems specified by MOUNTS from recursive searches.
 -F, --fixed-strings Interpret pattern as a set of fixed strings, separated by newlines, any of which is to be matched.
 -f FILE, --file=FILE Read newline-separated patterns from FILE.
+--files, -%% Boolean file matching mode, the opposite of --lines.
 --filter=COMMANDS Filter files through the specified COMMANDS first before searching.
 --filter-magic-label=[+]LABEL:MAGIC Associate LABEL with files whose signature "magic bytes" match the MAGIC regex pattern.
 --format=FORMAT Output FORMAT-formatted matches.
@@ -293,8 +294,10 @@ cat <<'END'
 --lines Boolean line matching mode for option --bool, the default mode.
 -M MAGIC, --file-magic=MAGIC Only search files matching the magic signature pattern MAGIC.
 -m [MIN,][MAX], --min-count=MIN, --max-count=MAX Require MIN matches, stop after MAX matches when specified.
---match Match all input.
+--match Match all lines.
 --max-files=NUM Restrict the number of files matched to NUM.
+--max-size=MAX Only search files whose physical size does not exceed MAX bytes.
+--min-size=MIN Only search files whose physical size equals or exceeds MIN bytes.
 --mmap[=MAX] Use memory maps to search files.
 -N PATTERN, --neg-regexp=PATTERN Specify a negative PATTERN to reject specific -e PATTERN matches with a counter pattern.
 -n, --line-number Each output line is preceded by its relative line number in the file, starting at line 1.
@@ -304,7 +307,6 @@ cat <<'END'
 -O EXTENSIONS, --file-extension=EXTENSIONS Only search files whose filename extensions match the specified comma-separated list of EXTENSIONS, same as -g *.ext for each
 -o, --only-matching Only the matching part of a pattern match is output.
 --only-line-number Only the line number of a matching line is output.
---files, -%% Boolean file matching mode, the opposite of --lines.
 -P, --perl-regexp Interpret PATTERN as a Perl regular expression using PCRE2.
 -p, --no-dereference If -R or -r is specified, do not follow symbolic links, even when symbolic links are specified on the command line.
 --pager[=COMMAND] When output is sent to the terminal, uses COMMAND to page through the output.

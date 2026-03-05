@@ -1959,15 +1959,13 @@ Same, but with pretty output with headings, line numbers and column numbers
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
-            directory of the FILE and in subdirectories below are ignored.
-            Globbing syntax is the same as the --exclude-from=FILE gitignore
-            syntax, but files and directories are excluded instead of only
-            files.  Directories are specifically excluded when the glob ends in
-            a `/'.  Files and directories explicitly specified as command line
-            arguments are never ignored.  This option may be repeated to
-            specify additional files.
-            See also related option --exclude-from for a global set of
-            exclusions.
+            directory of the FILE and in subdirectories are ignored.  When
+            FILE is a full pathname, FILE is read ahead of the recursive
+            search and globs are globally applied to ignore files and
+            directories.  When FILE is a `-', standard input is read.
+            Globbing is the same as for --exclude-from=FILE, except that
+            --ignore-files excludes files and also directories when globs
+            match.  This option may be repeated.
     -g GLOBS, --glob=GLOBS
             Search only files whose name matches the specified comma-separated
             list of GLOBS, same as --include='glob' for each `glob' in GLOBS.
@@ -2251,15 +2249,13 @@ search the files:
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
-            directory of the FILE and in subdirectories below are ignored.
-            Globbing syntax is the same as the --exclude-from=FILE gitignore
-            syntax, but files and directories are excluded instead of only
-            files.  Directories are specifically excluded when the glob ends in
-            a `/'.  Files and directories explicitly specified as command line
-            arguments are never ignored.  This option may be repeated to
-            specify additional files.
-            See also related option --exclude-from for a global set of
-            exclusions.
+            directory of the FILE and in subdirectories are ignored.  When
+            FILE is a full pathname, FILE is read ahead of the recursive
+            search and globs are globally applied to ignore files and
+            directories.  When FILE is a `-', standard input is read.
+            Globbing is the same as for --exclude-from=FILE, except that
+            --ignore-files excludes files and also directories when globs
+            match.  This option may be repeated.
     -M MAGIC, --file-magic=MAGIC
             Only files matching the signature pattern MAGIC are searched.  The
             signature \"magic bytes\" at the start of a file are compared to
@@ -2727,15 +2723,13 @@ source):
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
-            directory of the FILE and in subdirectories below are ignored.
-            Globbing syntax is the same as the --exclude-from=FILE gitignore
-            syntax, but files and directories are excluded instead of only
-            files.  Directories are specifically excluded when the glob ends in
-            a `/'.  Files and directories explicitly specified as command line
-            arguments are never ignored.  This option may be repeated to
-            specify additional files.
-            See also related option --exclude-from for a global set of
-            exclusions.
+            directory of the FILE and in subdirectories are ignored.  When
+            FILE is a full pathname, FILE is read ahead of the recursive
+            search and globs are globally applied to ignore files and
+            directories.  When FILE is a `-', standard input is read.
+            Globbing is the same as for --exclude-from=FILE, except that
+            --ignore-files excludes files and also directories when globs
+            match.  This option may be repeated.
 
 Option `--ignore-files` looks for `.gitignore`, or the specified `FILE`, in
 recursive searches.  When `.gitignore`, or the specified `FILE`, is found while
@@ -2824,17 +2818,17 @@ implicit:
             to prevent shell globbing.  This option may be repeated.
     --exclude-from=FILE
             Read the globs from FILE and skip files and directories whose name
-            matches one or more globs.  A glob can use **, *, ?, and [...] as
-            wildcards, and \ to quote a wildcard or backslash character
-            literally.  When a glob contains a `/', full pathnames are matched.
-            Otherwise basenames are matched.  When a glob ends with a `/',
-            directories are excluded as if --exclude-dir is specified.
-            Otherwise files are excluded.  A glob starting with a `!' overrides
-            previously-specified exclusions by including matching files.  Lines
-            starting with a `#' and empty lines in FILE are ignored.  When FILE
+            matches one or more globs.  A glob may use **, *, ?, and [...] as
+            wildcards and \ to quote a wildcard or backslash character
+            literally.  When a glob contains a `/', full pathnames are
+            matched.  Otherwise basenames are matched.  When a glob ends with
+            a `/', directories are excluded as if --exclude-dir is specified.
+            Otherwise files are excluded.  A glob starting with a `!'
+            overrides previously-specified exclusions by including matching
+            files.  Lines starting with a `#' in FILE are ignored.  When FILE
             is a `-', standard input is read.  This option may be repeated.
             See also related option --ignore-files for subdirectory-specific
-            lists of exclusions.
+            exclusions.
     --from=FILE
             Read additional pathnames of files to search from FILE.  When FILE
             is a `-', standard input is read.  This option is useful with `find
@@ -2843,15 +2837,13 @@ implicit:
             Ignore files and directories matching the globs in each FILE that
             is encountered in recursive searches.  The default FILE is
             `.gitignore'.  Matching files and directories located in the
-            directory of the FILE and in subdirectories below are ignored.
-            Globbing syntax is the same as the --exclude-from=FILE gitignore
-            syntax, but files and directories are excluded instead of only
-            files.  Directories are specifically excluded when the glob ends in
-            a `/'.  Files and directories explicitly specified as command line
-            arguments are never ignored.  This option may be repeated to
-            specify additional files.
-            See also related option --exclude-from for a global set of
-            exclusions.
+            directory of the FILE and in subdirectories are ignored.  When
+            FILE is a full pathname, FILE is read ahead of the recursive
+            search and globs are globally applied to ignore files and
+            directories.  When FILE is a `-', standard input is read.
+            Globbing is the same as for --exclude-from=FILE, except that
+            --ignore-files excludes files and also directories when globs
+            match.  This option may be repeated.
     --include=GLOB
             Search only files whose name matches GLOB using wildcard matching,
             same as -g GLOB.  GLOB can use **, *, ?, and [...] as wildcards,
@@ -2981,9 +2973,17 @@ Same, but using option `-Ocpp` to match file name extensions:
     ug -rl -Ocpp 'xyz'
 
 To recursively list all files in the working directory and below that are not
-ignored by a specific .gitignore file:
+ignored by a specific .ignore file:
 
-    ug -rl '' --exclude-from=.gitignore
+    ug -rl '' --exclude-from=.ignore
+    ug -rl '' --ignore-files=./.ignore
+
+> `--ignore-files=FILE` with a `FILE` pathname (i.e. includes path separators)
+> behaves the same as `--exclude-from=FILE` with an absolute `FILE` to apply to
+> all files and directories to search.  However, `--ignore-files` differs
+> slightly in that globs match both files and directory names, whereas
+> `--exclude-from` globs match files only and match directories with the syntax
+> `glob/`.
 
 To recursively list all files in the working directory and below that are not
 ignored by one or more .gitignore files, when any are present:
@@ -4245,20 +4245,22 @@ in markdown:
 
            -D ACTION, --devices=ACTION
                   If an input file is a device, FIFO or socket, use ACTION to
-                  process it.  By default, ACTION is `skip', which means that
-                  devices are silently skipped.  When ACTION is `read', devices read
-                  just as if they were ordinary files.
+                  process it.  When ACTION is `skip', devices are ignored.  When
+                  ACTION is `read', devices are read just as if they were ordinary
+                  files.  The default ACTION is `skip', except for devices specified
+                  as arguments on the command line, which can be explicitly skipped
+                  with -Dskip.
 
            -d ACTION, --directories=ACTION
-                  If an input file is a directory, use ACTION to process it.  By
-                  default, ACTION is `skip', i.e., silently skip directories unless
-                  specified on the command line.  When ACTION is `read', warn when
-                  directories are read as input.  When ACTION is `recurse', read all
-                  files under each directory, recursively, following symbolic links
-                  only if they are on the command line.  This is equivalent to the
-                  -r option.  When ACTION is `dereference-recurse', read all files
-                  under each directory, recursively, following symbolic links.  This
-                  is equivalent to the -R option.
+                  If an input file is a directory, use ACTION to process it.  When
+                  ACTION is `read', warn when directories are read as input.  When
+                  ACTION is `recurse', read all files under each directory,
+                  recursively, following symbolic links only if they are on the
+                  command line.  This is equivalent to the -r option.  When ACTION
+                  is `dereference-recurse', read all files under each directory,
+                  recursively, following symbolic links.  This is equivalent to the
+                  -R option.  When no files or directories are specified on the
+                  command line, ACTION defaults to `recurse` or option -r.
 
            --delay=DELAY
                   Set the default -Q key response delay.  Default is 3 for 300ms.
@@ -4327,11 +4329,10 @@ in markdown:
                   a `/', directories are excluded as if --exclude-dir is specified.
                   Otherwise files are excluded.  A glob starting with a `!'
                   overrides previously-specified exclusions by including matching
-                  files.  Lines starting with a `#' and empty lines in FILE are
-                  ignored.  When FILE is a `-', standard input is read.  This option
-                  may be repeated.
+                  files.  Lines starting with a `#' in FILE are ignored.  When FILE
+                  is a `-', standard input is read.  This option may be repeated.
                   See also related option --ignore-files for subdirectory-specific
-                  lists of exclusions.
+                  exclusions.
 
            --exclude-fs=MOUNTS
                   Exclude file systems specified by MOUNTS from recursive searches.
@@ -4358,6 +4359,15 @@ in markdown:
                   input is read.  Empty files contain no patterns; thus nothing is
                   matched.  This option may be repeated.
 
+           --files, -%%
+                  Boolean file matching mode, the opposite of --lines.  When
+                  combined with option --bool, matches a file if all Boolean
+                  conditions are satisfied.  For example, --bool --files 'A B|C -D'
+                  matches a file if some lines match `A', and some lines match
+                  either `B' or `C', and no line matches `D'.  See also options
+                  --and, --andnot, --not, --bool and --lines.  The double short
+                  option -%% enables options --bool --files.
+
            --filter=COMMANDS
                   Filter files through the specified COMMANDS first before
                   searching.  COMMANDS is a comma-separated list of `exts:command
@@ -4371,7 +4381,8 @@ in markdown:
                   into a `-' when searching standard input.  When a `%' is not
                   specified, the filter command should read from standard input and
                   write to standard output.  Option --label=.ext may be used to
-                  specify extension `ext' when searching standard input.  This
+                  specify extension `ext' when searching standard input.  Note that
+                  `exts` filename extension matching is case insensitive.  This
                   option may be repeated.
 
            --filter-magic-label=[+]LABEL:MAGIC
@@ -4439,7 +4450,7 @@ in markdown:
            --heading, -+
                   Group matches per file.  Adds a heading and a line break between
                   results from different files.  This option is enabled by --pretty
-                  when the output is sent to a terminal.
+                  when the output is sent to the terminal.
 
            --help [WHAT], -? [WHAT]
                   Display a help message on options related to WHAT when specified.
@@ -4485,15 +4496,13 @@ in markdown:
                   Ignore files and directories matching the globs in each FILE that
                   is encountered in recursive searches.  The default FILE is
                   `.gitignore'.  Matching files and directories located in the
-                  directory of the FILE and in subdirectories below are ignored.
-                  Globbing syntax is the same as the --exclude-from=FILE gitignore
-                  syntax, but files and directories are excluded instead of only
-                  files.  Directories are specifically excluded when the glob ends
-                  in a `/'.  Files and directories explicitly specified as command
-                  line arguments are never ignored.  This option may be repeated to
-                  specify additional files.
-                  See also related option --exclude-from for a global set of
-                  exclusions.
+                  directory of the FILE and in subdirectories are ignored.  When
+                  FILE is a full pathname, FILE is read ahead of the recursive
+                  search and globs are globally applied to ignore files and
+                  directories.  When FILE is a `-', standard input is read.
+                  Globbing is the same as for --exclude-from=FILE, except that
+                  --ignore-files excludes files and also directories when globs
+                  match.  This option may be repeated.
 
            --no-ignore-files
                   Do not ignore files, i.e. cancel --ignore-files when specified.
@@ -4618,12 +4627,20 @@ in markdown:
                   option -K.
 
            --match
-                  Match all input.  Same as specifying an empty pattern to search.
+                  Match all lines.  Same as specifying an empty pattern to search.
 
            --max-files=NUM
                   Restrict the number of files matched to NUM.  Note that --sort or
                   -J1 may be specified to produce replicable results.  If --sort is
                   specified, then the number of threads spawned is limited to NUM.
+
+           --max-size=MAX
+                  Only search files whose physical size does not exceed MAX bytes.
+                  Suffix MAX with kb, mb, gb, tb for kilo, mega, giga, or terabytes.
+
+           --min-size=MIN
+                  Only search files whose physical size equals or exceeds MIN bytes.
+                  Suffix MIN with kb, mb, gb, tb for kilo, mega, giga, or terabytes.
 
            --mmap[=MAX]
                   Use memory maps to search files.  By default, memory maps are used
@@ -4664,7 +4681,10 @@ in markdown:
                   Instead of option --null-data, option --encoding=null-data treats
                   the input as a sequence of lines terminated by a zero byte without
                   affecting the output.  Option --null-data is not compatible with
-                  UTF-16/32 input.  See also options --encoding and --null.
+                  UTF-16/32 input.  Since ugrep matches multiple lines when patterns
+                  are specified containing a newline `\n' or `\R', this option is
+                  not required for multi-line matching.  See also options --encoding
+                  and --null.
 
            -O EXTENSIONS, --file-extension=EXTENSIONS
                   Only search files whose filename extensions match the specified
@@ -4683,15 +4703,6 @@ in markdown:
                   Only the line number of a matching line is output.  The line
                   number counter is reset for each file processed.
 
-           --files, -%%
-                  Boolean file matching mode, the opposite of --lines.  When
-                  combined with option --bool, matches a file if all Boolean
-                  conditions are satisfied.  For example, --bool --files 'A B|C -D'
-                  matches a file if some lines match `A', and some lines match
-                  either `B' or `C', and no line matches `D'.  See also options
-                  --and, --andnot, --not, --bool and --lines.  The double short
-                  option -%% enables options --bool --files.
-
            -P, --perl-regexp
                   Interpret PATTERN as a Perl regular expression using PCRE2.  Note
                   that Perl pattern matching differs from the default grep POSIX
@@ -4707,9 +4718,9 @@ in markdown:
                   defined or `less'.  Enables --heading and --line-buffered.
 
            --pretty[=WHEN]
-                  When output is sent to a terminal, enables --color, --heading, -n,
-                  --sort, --tree and -T when not explicitly disabled.  WHEN can be
-                  `never', `always', or `auto'.  The default is `auto'.
+                  When output is sent to the terminal, enables options --color,
+                  --heading, -n, --sort, --tree and -T when not explicitly disabled.
+                  WHEN can be `never', `always', or `auto'.  The default is `auto'.
 
            -Q[=DELAY], --query[=DELAY]
                   Query mode: start a TUI to perform interactive searches.  This
@@ -4844,7 +4855,7 @@ in markdown:
                   Output directories with matching files in a tree-like format for
                   option -c or --count, -l or --files-with-matches, -L or
                   --files-without-match.  This option is enabled by --pretty when
-                  the output is sent to a terminal.
+                  the output is sent to the terminal.
 
            -U, --ascii, --binary
                   Disables Unicode matching for ASCII and binary matching.  PATTERN
@@ -4943,7 +4954,8 @@ in markdown:
                   formats: gzip (.gz), compress (.Z), zip, 7z, bzip2 (.bz, .bz2,
                   .bzip2, .tbz, .tbz2, .tb2, .tz2), xz (.xz, .txz) and lzma
                   (requires suffix .lzma, .tlz), zstd (.zst, .zstd, .tzst), lz4
-                  (requires suffix .lz4), brotli (requires suffix .br).
+                  (requires suffix .lz4), brotli (requires suffix .br), bzip3
+                  (requires suffix .bz3).
 
            --zmax=NUM
                   When used with option -z or --decompress, searches the contents of
@@ -4955,6 +4967,8 @@ in markdown:
                   and archives stored in cpio, pax, tar, zip and 7z archives.  NUM
                   may range from 1 to 99 for up to 99 decompression and de-archiving
                   steps.  Increasing NUM values gradually degrades performance.
+
+           Specify `ugrep --help WHAT' for help on WHAT.
 
     EXIT STATUS
            The ugrep utility exits with one of the following values:
@@ -5002,17 +5016,19 @@ in markdown:
            Glob arguments for these options should be quoted to prevent shell
            globbing.
 
-           Globbing supports gitignore syntax and the corresponding matching rules,
-           except that a glob normally matches files but not directories.  If a glob
-           ends in a path separator `/', then it matches directories but not files,
-           as if --include-dir or --exclude-dir is specified.  When a glob contains
-           a path separator `/', the full pathname is matched.  Otherwise the
-           basename of a file or directory is matched.  For example, *.h matches
-           foo.h and bar/foo.h.  bar/*.h matches bar/foo.h but not foo.h and not
-           bar/bar/foo.h.  Use a leading `./' or just `/' to force /*.h to match
-           foo.h in the working directory but not bar/foo.h.
+           Globbing with --ignore-files supports gitignore syntax and rules.  This
+           is also the case for all other globbing-related options, with the
+           exception that a glob matches filenames, not directory names.  If a glob
+           ends in a path separator `/', then it matches directory names, not
+           filenames, as if --include-dir or --exclude-dir is specified.
 
-           When a glob starts with a `^' or a `!' as in -g^GLOB, the match is
+           When a glob contains a path separator `/', the full pathname is matched.
+           Otherwise the basename of a file or directory is matched.  For example,
+           *.h matches foo.h and bar/foo.h.  bar/*.h matches bar/foo.h but not foo.h
+           and not bar/bar/foo.h.  Use a leading `./' or just `/' to force /*.h to
+           match foo.h in the working directory but not bar/foo.h.
+
+           When a glob starts with a `!' or a `^' as in -g^GLOB, the match is
            negated.  Likewise, a `!' (but not a `^') may be used with globs in the
            files specified --include-from, --exclude-from, and --ignore-files to
            negate the glob match.  Empty lines or lines starting with a `#' are
@@ -5079,13 +5095,12 @@ in markdown:
            when specified with options -g, --exclude, --exclude-dir, --include and
            include-dir.
 
-           Glob patterns specified with prefix `!' in any of the files associated
-           with --include-from, --exclude-from and --ignore-files will negate a
-           previous glob match.  That is, any matching file or directory excluded by
-           a previous glob pattern specified in the files associated with --exclude-
-           from or --ignore-file will become included again.  Likewise, any matching
-           file or directory included by a previous glob pattern specified in the
-           files associated with --include-from will become excluded again.
+           Option --ignore-files specifies a file with gitignore-style globs, where
+           the default file is .gitignore.  When ignore files are encountered in
+           recursive searches, the search is narrowed by excluding filenames and
+           directory names matching the globs; this gitignore glob-matching rule
+           differs from option --exclude-from which requires globs ending in / to
+           match directory names.
 
     ENVIRONMENT
            GREP_PATH
@@ -5532,7 +5547,7 @@ in markdown:
 
 
 
-    ugrep 7.5.0                       June 18, 2025                         UGREP(1)
+    ugrep 7.6.0                       March 5, 2026                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

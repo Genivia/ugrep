@@ -211,17 +211,19 @@ Globbing is used by options \fB-g\fR (\fB--glob\fR and \fB--iglob\fR),
 pathnames or basenames in recursive searches.  Glob arguments for these
 options should be quoted to prevent shell globbing.
 .PP
-Globbing supports gitignore syntax and the corresponding matching rules, except
-that a glob normally matches files but not directories.  If a glob ends in a
-path separator `/', then it matches directories but not files, as if
-\fB--include-dir\fR or \fB--exclude-dir\fR is specified.  When a glob contains
-a path separator `/', the full pathname is matched.  Otherwise the basename of
-a file or directory is matched.  For example, \fB*.h\fR matches foo.h and
-bar/foo.h.  \fBbar/*.h\fR matches bar/foo.h but not foo.h and not
-bar/bar/foo.h.  Use a leading `./' or just `/' to force \fB/*.h\fR to match
-foo.h in the working directory but not bar/foo.h.
+Globbing with \fB--ignore-files\fR supports gitignore syntax and rules.
+This is also the case for all other globbing-related options, with the
+exception that a glob matches filenames, not directory names.  If a glob ends
+in a path separator `/', then it matches directory names, not filenames, as if
+\fB--include-dir\fR or \fB--exclude-dir\fR is specified.
 .PP
-When a glob starts with a `^' or a `!' as in \fB-g\fR^\fIGLOB\fR, the match is
+When a glob contains a path separator `/', the full pathname is matched.
+Otherwise the basename of a file or directory is matched.  For example,
+\fB*.h\fR matches foo.h and bar/foo.h.  \fBbar/*.h\fR matches bar/foo.h but not
+foo.h and not bar/bar/foo.h.  Use a leading `./' or just `/' to force
+\fB/*.h\fR to match foo.h in the working directory but not bar/foo.h.
+.PP
+When a glob starts with a `!' or a `^' as in \fB-g\fR^\fIGLOB\fR, the match is
 negated.  Likewise, a `!' (but not a `^') may be used with globs in the files
 specified \fB--include-from\fR, \fB--exclude-from\fR, and \fB--ignore-files\fR
 to negate the glob match.  Empty lines or lines starting with a `#' are
@@ -281,13 +283,11 @@ Matches a?b,                 but not a, b, ab, axb, a/b
 Note that exclude glob patterns take priority over include glob patterns when
 specified with options -g, --exclude, --exclude-dir, --include and include-dir.
 .PP
-Glob patterns specified with prefix `!' in any of the files associated with
---include-from, --exclude-from and --ignore-files will negate a previous glob
-match.  That is, any matching file or directory excluded by a previous glob
-pattern specified in the files associated with --exclude-from or --ignore-file
-will become included again.  Likewise, any matching file or directory included
-by a previous glob pattern specified in the files associated with
---include-from will become excluded again.
+Option --ignore-files specifies a file with gitignore-style globs, where the
+default file is .gitignore.  When ignore files are encountered in recursive
+searches, the search is narrowed by excluding filenames and directory names
+matching the globs; this gitignore glob-matching rule differs from option
+--exclude-from which requires globs ending in / to match directory names.
 .SH ENVIRONMENT
 .IP \fBGREP_PATH\fR
 May be used to specify a file path to pattern files.  The file path is used by
