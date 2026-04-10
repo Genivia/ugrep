@@ -3897,8 +3897,8 @@ struct Grep {
 
 #if defined(WITH_STDIN_DRAIN) && !defined(OS_WIN)
 
-    // drain stdin when non-seekable file such as a pipe until eof
-    if (file_in == stdin && !feof(stdin) && fseek(stdin, 0, SEEK_END) < 0 && errno != EINVAL)
+    // drain stdin when non-seekable file such as a pipe until eof, unless option -q is used
+    if (file_in == stdin && !flag_quiet && !feof(stdin) && fseek(stdin, 0, SEEK_END) < 0 && errno != EINVAL)
     {
       char buf[16384];
       while (input.get(buf, sizeof(buf)) > 0)
