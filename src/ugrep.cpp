@@ -3898,7 +3898,7 @@ struct Grep {
 #if defined(WITH_STDIN_DRAIN) && !defined(OS_WIN)
 
     // drain stdin when non-seekable file such as a pipe until eof, unless option -q is used
-    if (file_in == stdin && !flag_quiet && !feof(stdin) && fseek(stdin, 0, SEEK_END) < 0 && errno != EINVAL)
+    if (file_in == stdin && !flag_quiet && !flag_files_with_matches && flag_max_count == 0 && !feof(stdin) && fseek(stdin, 0, SEEK_END) < 0 && errno != EINVAL)
     {
       char buf[16384];
       while (input.get(buf, sizeof(buf)) > 0)
@@ -14381,10 +14381,9 @@ void help(std::ostream& out)
             is written.\n\
     -l, --files-with-matches\n\
             Only the names of files containing selected lines are written to\n\
-            standard output.  ugrep will only search a file until a match has\n\
-            been found, making searches potentially less expensive.  Pathnames\n\
-            are listed once per file searched.  If the standard input is\n\
-            searched, the string ``(standard input)'' is written.\n\
+            standard output.  Pathnames are listed once per file searched.  If\n\
+            the standard input is searched, the string ``(standard input)'' is\n\
+            written.  Stop reading input upon the first match.\n\
     --label=LABEL\n\
             Displays the LABEL value when input is read from standard input\n\
             where a file name would normally be printed in the output.\n\
@@ -14403,7 +14402,7 @@ void help(std::ostream& out)
             with options -O and -t.  Every file on the search path is read,\n\
             making recursive searches potentially more expensive.\n\
     -m [MIN,][MAX], --min-count=MIN, --max-count=MAX\n\
-            Require MIN matches, stop after MAX matches when specified.  Output\n\
+            Require MIN matches, stop reading input after MAX matches, output\n\
             MIN to MAX matches.  For example, -m1 outputs the first match and\n\
             -cm1, (with a comma) counts nonzero matches.  When -u or --ungroup\n\
             is specified, each individual match counts.  See also option -K.\n\
