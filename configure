@@ -12,7 +12,7 @@
 # This configure script is free software; the Free Software Foundation
 # gives unlimited permission to copy, distribute and modify it.
 #
-# Copyright (C) 2019-2025 Robert van Engelen, Genivia Inc.
+# Copyright (C) 2019-2026 Robert van Engelen, Genivia Inc.
 ## -------------------- ##
 ## M4sh Initialization. ##
 ## -------------------- ##
@@ -791,6 +791,7 @@ enable_silent_rules
 enable_dependency_tracking
 enable_sse2
 enable_avx2
+enable_avx512
 enable_neon
 with_pcre2
 with_boost_regex
@@ -1467,9 +1468,10 @@ Optional Features:
                           do not reject slow dependency extractors
   --disable-dependency-tracking
                           speeds up one-time build
-  --disable-sse2          disable SSE2 CPU extensions
-  --disable-avx2          disable AVX2/AVX512BW CPU extensions
-  --disable-neon          disable NEON/AArch64 CPU extensions
+  --disable-sse2          disable all SIMD SSE2/AVX2/AVX512 CPU extensions
+  --disable-avx2          disable SIMD AVX2/AVX512BW CPU extensions, keep SSE2
+  --disable-avx512        disable SIMD AVX512BW CPU extensions, keep SSE2/AVX2
+  --disable-neon          disable SIMD NEON/AArch64 CPU extensions
   --disable-7zip          to disable 7zip and no longer search .7z files (7z
                           requires more memory and takes long to decompress)
   --enable-static         build static ugrep binaries
@@ -1637,7 +1639,7 @@ Copyright (C) 2023 Free Software Foundation, Inc.
 This configure script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it.
 
-Copyright (C) 2019-2025 Robert van Engelen, Genivia Inc.
+Copyright (C) 2019-2026 Robert van Engelen, Genivia Inc.
 _ACEOF
   exit
 fi
@@ -8853,7 +8855,7 @@ PLATFORM=${host}
 # Use SIMD CPU extensions and manage cross compilation
 ################################################################################
 
-# --disable-sse2 fallback option if cross compilation fails to disable SSE2 CPU extensions
+# --disable-sse2 fallback option if cross compilation fails, disables SSE2/AVX2/AVX512BW CPU extensions
 # Check whether --enable-sse2 was given.
 if test ${enable_sse2+y}
 then :
@@ -8864,13 +8866,24 @@ esac
 fi
 
 
-# --disable-avx2 fallback option if cross compilation fails to disable AVX2/AVX512BW CPU extensions
+# --disable-avx2 fallback option if cross compilation fails, disables AVX2/AVX512BW CPU extensions
 # Check whether --enable-avx2 was given.
 if test ${enable_avx2+y}
 then :
   enableval=$enable_avx2; with_no_avx2="yes"
 else case e in #(
   e) with_no_avx2="no" ;;
+esac
+fi
+
+
+# --disable-avx512 fallback option if cross compilation fails, disables AVX512BW CPU extensions
+# Check whether --enable-avx512 was given.
+if test ${enable_avx512+y}
+then :
+  enableval=$enable_avx512; with_no_avx512="yes"
+else case e in #(
+  e) with_no_avx512="no" ;;
 esac
 fi
 
@@ -8932,8 +8945,9 @@ printf "%s\n" "$msse2_ok" >&6; }
             { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether ${CXX} supports AVX2/AVX512BW intrinsics" >&5
 printf %s "checking whether ${CXX} supports AVX2/AVX512BW intrinsics... " >&6; }
             save_CXXFLAGS=$CXXFLAGS
-            CXXFLAGS="-mavx512bw"
-            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+            if ! test "x$with_no_avx512" = "xyes"; then
+              CXXFLAGS="-mavx512bw"
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <immintrin.h>
 int
@@ -8952,10 +8966,36 @@ else case e in #(
 esac
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-            if test "x$mavx_ok" = "xyes"; then
-              SIMD_FLAGS="-msse2 -DHAVE_AVX512BW"
-              SIMD_AVX2_FLAGS="-mavx2"
-              SIMD_AVX512BW_FLAGS="-mavx512bw"
+              if test "x$mavx_ok" = "xyes"; then
+                SIMD_FLAGS="-msse2 -DHAVE_AVX512BW"
+                SIMD_AVX2_FLAGS="-mavx2"
+                SIMD_AVX512BW_FLAGS="-mavx512bw"
+              else
+                CXXFLAGS="-mavx2"
+                cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <immintrin.h>
+int
+main (void)
+{
+__m256i n = _mm256_set1_epi8(42); (void)_mm256_movemask_epi8(_mm256_and_si256(n, n));
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  mavx_ok=yes
+else case e in #(
+  e) mavx_ok=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+                if test "x$mavx_ok" = "xyes"; then
+                  SIMD_FLAGS="-msse2 -DHAVE_AVX2"
+                  SIMD_AVX2_FLAGS="-mavx2"
+                fi
+              fi
             else
               CXXFLAGS="-mavx2"
               cat confdefs.h - <<_ACEOF >conftest.$ac_ext
