@@ -250,6 +250,7 @@ void viifree(struct viizip *viizip)
   if (viizip == NULL)
     return;
 
+  ISzAlloc_Free(&viizip->alloc_main, viizip->look.buf);
   ISzAlloc_Free(&viizip->alloc_main, viizip->buf);
   SzFree(NULL, viizip->tmp);
   SzArEx_Free(&viizip->db, &viizip->alloc_main);
