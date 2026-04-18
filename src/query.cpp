@@ -581,7 +581,7 @@ void Query::draw()
 void Query::disp(int row)
 {
   Screen::normal();
-  if (row < rows_)
+  if (row < rows_ + append_)
   {
     if (selected_[row])
       Screen::select();
@@ -683,7 +683,7 @@ void Query::redraw()
   }
   else
   {
-    // do not show dots
+    // reset to 4 to do not show dots
     tick_ = 4;
 
     if (error_ == -1)
@@ -698,7 +698,7 @@ void Query::redraw()
       if (row_ < 0)
         row_ = 0;
 
-      int end = row_ + maxrows_ - 2;
+      int end = row_ + append_ + maxrows_ - 2;
 
       for (int i = row_; i < end; ++i)
         disp(i);
@@ -919,6 +919,7 @@ void Query::query()
     search_thread_.join();
 
   // join the stdin sender thread
+  stdin_stop = true;
   if (stdin_thread_.joinable())
     stdin_thread_.join();
 }
@@ -1482,6 +1483,8 @@ void Query::query_ui()
 // start a new search, cancel the previous search when still running
 void Query::search()
 {
+  stop_stdin();
+
   bool cancel = !eof_;
 
   if (cancel)
@@ -1492,6 +1495,22 @@ void Query::search()
 
     // graciously shut down ugrep() if still running
     Static::cancel_ugrep();
+  }
+
+  if (search_thread_.joinable())
+  {
+    if (cancel && error_ == -1)
+    {
+      const int banlen = 256;
+      char banner[banlen];
+      snprintf(banner, banlen, "restarting: please be patient while I cancel searching large files...%*s", banlen - 70, "");
+      Screen::normal();
+      Screen::invert();
+      Screen::put(maxrows_ - 1, 0, banner);
+      Screen::normal();
+    }
+
+    search_thread_.join();
   }
 
 #ifdef OS_WIN
@@ -1522,23 +1541,8 @@ void Query::search()
 
 #endif
 
-  if (search_thread_.joinable())
-  {
-    if (cancel && error_ == -1)
-    {
-      const int banlen = 256;
-      char banner[banlen];
-      snprintf(banner, banlen, "restarting: please be patient while I cancel searching large files...%*s", banlen - 70, "");
-      Screen::normal();
-      Screen::invert();
-      Screen::put(maxrows_ - 1, 0, banner);
-      Screen::normal();
-    }
-
-    search_thread_.join();
-  }
-
   eof_ = false;
+  append_ = false;
   row_ = 0;
   rows_ = 0;
   skip_ = 0;
@@ -1568,7 +1572,7 @@ void Query::search()
 
   set_flags();
 
-  set_stdin();
+  start_stdin();
 
   if (error_ == -1)
   {
@@ -1668,18 +1672,18 @@ bool Query::update()
   fetch(row_ - (row_ % Screen::rows) + 2 * Screen::rows);
 
   // display the viewable portion when updated
-  if (rows_ > begin && begin < row_ + maxrows_ - 2)
+  if (rows_ + append_ > begin && begin < row_ + append_ + maxrows_ - 2)
   {
     Screen::normal();
 
-    if (begin + maxrows_ - 2 > rows_)
-      begin = rows_ - maxrows_ + 2;
+    int end = rows_ + append_;
+
+    if (begin + maxrows_ - 2 > end)
+      begin = end - maxrows_ + 2;
     if (begin < 0)
       begin = 0;
     if (begin < row_)
       begin = row_;
-
-    int end = rows_;
 
     if (end > row_ + maxrows_ - 2)
       end = row_ + maxrows_ - 2;
@@ -1690,9 +1694,11 @@ bool Query::update()
 
   if (error_ == -1)
   {
-    if (tick_ < 8 && rows_ < row_ + maxrows_ - 2)
+    int end = rows_ + append_;
+
+    if (tick_ < 8 && end < row_ + maxrows_ - 2)
     {
-      int row = rows_ - row_ + 1;
+      int row = end - row_ + 1;
 
       // no dots and clear below when we hit eof
       if (eof_)
@@ -4115,34 +4121,22 @@ void Query::get_stdin()
   // if standard input is searched, then buffer all its text
   if (flag_stdin)
   {
-    reflex::BufferedInput input(stdin, flag_encoding_type);
+#ifndef OS_WIN
+    fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
+#endif
 
-    while (true)
-    {
-      size_t len = input.get(buffer_, QUERY_BUFFER_SIZE);
-      if (len == 0)
-        break;
-      stdin_buffer_.append(buffer_, len);
-    }
+    stdin_input_ = stdin;
+    stdin_input_.file_encoding(flag_encoding_type);
+    stdin_buffer_.clear();
   }
 }
 
-void Query::set_stdin()
+// start a new stdin sender thread and pipe from sender to the search engine
+void Query::start_stdin()
 {
   // if standard input is searched, start thread to reproduce its text on demand
   if (flag_stdin)
   {
-    // close the stdin pipe when open
-    if (Static::source != stdin && Static::source != NULL)
-    {
-      fclose(Static::source);
-      Static::source = NULL;
-    }
-
-    // join the stdin_sender
-    if (stdin_thread_.joinable())
-      stdin_thread_.join();
-
     // create a new pipe
     if (pipe(stdin_pipe_) < 0)
     {
@@ -4156,19 +4150,61 @@ void Query::set_stdin()
     Static::source = fdopen(stdin_pipe_[0], "rb");
 
     // run stdin_sender in the background to push buffered standard input down the pipe
+    stdin_stop = false;
     stdin_thread_ = std::thread(Query::stdin_sender, stdin_pipe_[1]);
   }
 }
 
+// stop stdin sender thread
+void Query::stop_stdin()
+{
+  if (flag_stdin)
+  {
+    // close the stdin pipe when open
+    if (Static::source != stdin && Static::source != NULL)
+      fclose(Static::source);
+
+    // join the stdin_sender
+    stdin_stop = true;
+    if (stdin_thread_.joinable())
+      stdin_thread_.join();
+  }
+}
+
 // push standard input down the specified pipe fd
-ssize_t Query::stdin_sender(int fd)
+void Query::stdin_sender(int fd)
 {
   // write the stdin data all at once, we can ignore the return value
-  ssize_t nwritten = write(fd, stdin_buffer_.c_str(), stdin_buffer_.size());
+  ssize_t len = stdin_buffer_.size(), nwritten = write(fd, stdin_buffer_.c_str(), len);
+
+#ifndef OS_WIN
+  while (!stdin_stop && !feof(stdin) && nwritten == len)
+  {
+    len = stdin_input_.file_get(buffer_, QUERY_BUFFER_SIZE);
+    if (len == 0)
+    {
+      struct timeval tv;
+      fd_set rfds, efds;
+      FD_ZERO(&rfds);
+      FD_ZERO(&efds);
+      FD_SET(0, &rfds);
+      FD_SET(0, &efds);
+      tv.tv_sec = 0;
+      tv.tv_usec = 10000; // 10ms timeout
+      clearerr(stdin);
+      if (::select(0 + 1, &rfds, NULL, &efds, &tv) >= 0 && FD_ISSET(0, &efds) != 0)
+        break;
+      nwritten = 0;
+    }
+    else
+    {
+      stdin_buffer_.append(buffer_, len);
+      nwritten = write(fd, buffer_, len);
+    }
+  }
+#endif
 
   close(fd);
-
-  return nwritten;
 }
 
 // true if view_[ref] has a valid filename/filepath identified by three \0 markers and differs from the given filename, then assigns filename
@@ -4413,9 +4449,11 @@ size_t                     Query::buflen_              = 0;
 char                       Query::buffer_[QUERY_BUFFER_SIZE];
 int                        Query::search_pipe_[2];
 std::thread                Query::search_thread_;
+reflex::Input              Query::stdin_input_;
 std::string                Query::stdin_buffer_;
 int                        Query::stdin_pipe_[2];
 std::thread                Query::stdin_thread_;
+volatile bool              Query::stdin_stop           = false;
 size_t                     Query::searched_            = 0;
 size_t                     Query::found_               = 0;
 int                        Query::tick_                = 0;

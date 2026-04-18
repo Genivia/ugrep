@@ -1033,6 +1033,7 @@ bool Input::file_ready()
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
   return !ferror(file_);
 #else
+  int fd = fileno(file_);
   if (ferror(file_))
   {
     if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
@@ -1042,7 +1043,7 @@ bool Input::file_ready()
     if (errno == EAGAIN)
     {
       struct stat buf;
-      if (fstat(fileno(file_), &buf) == 0 && S_ISREG(buf.st_mode))
+      if (fstat(fd, &buf) == 0 && S_ISREG(buf.st_mode))
         return false;
     }
 #endif
@@ -1053,13 +1054,13 @@ bool Input::file_ready()
     fd_set rfds, efds;
     FD_ZERO(&rfds);
     FD_ZERO(&efds);
-    FD_SET(0, &rfds);
-    FD_SET(0, &efds);
+    FD_SET(fd, &rfds);
+    FD_SET(fd, &efds);
     tv.tv_sec = 0;
-    tv.tv_usec = 1000; // 1ms timeout
-    clearerr(file_);   // unset EAGAIN etc
-    if (::select(fileno(file_) + 1, &rfds, NULL, &efds, &tv) >= 0)
-      return FD_ISSET(fileno(file_), &efds) == 0;
+    tv.tv_usec = 10000; // 10ms timeout
+    clearerr(file_);    // unset EAGAIN etc
+    if (::select(fd + 1, &rfds, NULL, &efds, &tv) >= 0)
+      return FD_ISSET(fd, &efds) == 0;
     if (errno != EINTR)
       return false;
   }

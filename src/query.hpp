@@ -263,9 +263,10 @@ class Query {
 
   static void get_stdin();
 
-  static void set_stdin();
+  static void start_stdin();
+  static void stop_stdin();
 
-  static ssize_t stdin_sender(int fd);
+  static void stdin_sender(int fd);
 
   static bool find_filename(int ref, std::string& filename, bool compare_dir = false, bool find_path = false, std::string *partname = NULL);
 
@@ -310,14 +311,16 @@ class Query {
   static std::vector<std::string> view_;        // search output text to display, incrementally fetched
   static std::vector<bool>        selected_;    // marked lines in view_[] selected in selection mode
   static bool                     eof_;         // end of results, no more results can be fetched
-  static bool                     append_;
+  static bool                     append_;      // flag to append search output to the last incomplete line
   static size_t                   buflen_;
   static char                     buffer_[QUERY_BUFFER_SIZE];
   static int                      search_pipe_[2];
   static std::thread              search_thread_;
+  static reflex::Input            stdin_input_;
   static std::string              stdin_buffer_;
   static int                      stdin_pipe_[2];
   static std::thread              stdin_thread_;
+  static volatile bool            stdin_stop;
   static size_t                   searched_;    // last update number of files searched
   static size_t                   found_;       // last update number of files found
   static int                      tick_;        // 100ms tick 0 to 7 or steady 8

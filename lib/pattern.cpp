@@ -4423,7 +4423,7 @@ void Pattern::gen_min(std::set<DFA::State*>& states)
   // find min between 0 and Const::BITS
   min_ = Const::BITS;
   std::set<DFA::State*> prev, next(states);
-  for (size_t level = 0; level < min_; ++level)
+  for (uint16_t level = 0; level < min_; ++level)
   {
     bool none = true;
     prev.clear();
