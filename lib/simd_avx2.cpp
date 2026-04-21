@@ -78,7 +78,7 @@ size_t simd_nlcount_avx2(const char *& b, const char *e)
 #endif
 }
 
-// Partially check if valid UTF-8 encoding
+// Check if valid UTF-8 encoding and does not include a NUL, but pass surrogates and 3/4 byte overlongs
 bool simd_isutf8_avx2(const char *& b, const char *e)
 {
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512BW)

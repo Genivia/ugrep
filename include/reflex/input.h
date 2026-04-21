@@ -632,7 +632,7 @@ class Input {
       return static_cast<unsigned char>(c);
     return EOF;
   }
-  /// Copy character sequence data into buffer.
+  /// Read and copy input character sequence data into buffer.
   size_t get(
       char  *s, ///< points to the string buffer to fill with input
       size_t n) ///< size of buffer pointed to by s

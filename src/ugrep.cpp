@@ -2281,11 +2281,8 @@ struct Grep {
 
     size_t operator()(FILE*, char *buf, size_t len)
     {
-      if (!flag_text && !flag_hex && !flag_with_hex && flag_encoding_type != reflex::Input::file_encoding::null_data && !grep.binfile)
-      {
-        // simpler form of binary file detection without Unicode UTF-8 validation, check for NULs like GNU grep
-        grep.binfile = (memchr(buf, 0, len) != NULL);
-      }
+      // simpler form of binary file detection without Unicode UTF-8 validation, check for NULs like GNU grep
+      grep.binfile = grep.binfile || (memchr(buf, 0, len) != NULL);
 
       return len;
     }
@@ -3996,9 +3993,9 @@ struct Grep {
         if (init_is_binary())
           return false;
       }
-      else if (!flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL && !flag_text && !flag_hex && !flag_with_hex)
+      else if (!flag_quiet && !flag_files_with_matches && !flag_count && flag_format == NULL && !flag_text && !flag_hex && !flag_with_hex && flag_encoding_type != reflex::Input::file_encoding::null_data)
       {
-        // not -q, -l, -c, --format, -a -X, -W: check if initial part of the file is binary
+        // not -q, -l, -c, --format, -a, -X, -W, -00: check if initial part of the file is binary
         binfile = init_is_binary();
 
         // detect binary input dynamically when more input is read after checking the inital input
@@ -4809,10 +4806,32 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
   std::string config_file(flag_config);
   FILE *file = NULL;
 
-  if (home || fopen_smart(&file, flag_config, "r") != 0)
+  if (!home)
   {
-    file = NULL;
+    // try opening a config file in the working directory
+    if (fopen_smart(&file, flag_config, "r") == 0)
+    {
+#ifndef OS_WIN
+      if (file != NULL && file != stdin)
+      {
+        // check if we own this config file located in the working directory
+        struct stat buf;
+        if (fstat(fileno(file), &buf) == 0 && buf.st_uid != getuid())
+        {
+          fclose(file);
+          file = NULL;
+        }
+      }
+#endif
+    }
+    else
+    {
+      file = NULL;
+    }
+  }
 
+  if (file == NULL)
+  {
     // if not in the working directory, then check the home directory
     if (Static::home_dir != NULL && *flag_config != '~' && *flag_config != PATHSEPCHR)
     {
