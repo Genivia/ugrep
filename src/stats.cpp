@@ -43,6 +43,10 @@ void Stats::report(FILE *output)
 {
   size_t sf = searched_files();
   size_t sd = searched_dirs();
+  size_t si = searched_indexed();
+  size_t ss = searched_skipped();
+  size_t sc = searched_changed();
+  size_t sa = searched_added();
   size_t sl = searched_lines();
   size_t ff = found_files();
   size_t fp = found_parts();
@@ -71,17 +75,17 @@ void Stats::report(FILE *output)
 
   if (flag_index && indexed > 0)
   {
-    fprintf(output, "Skipped %zu file%s of %zu (%.4g%%) not matching %zu indexes\n", skipped, (skipped == 1 ? "" : "s"), sf - ff, 100.0 * skipped / (sf - ff), indexed);
-    if (changed > 0 || added > 0)
+    fprintf(output, "Skipped %zu file%s of %zu (%.4g%%) not matching %zu indexes\n", ss, (ss == 1 ? "" : "s"), sf - ff, 100.0 * ss / (sf - ff), si);
+    if (sc > 0 || sa > 0)
     {
       fprintf(output, "Detected outdated or missing index files, run ugrep-indexer to re-index:\n");
-      if (changed > 1)
-        fprintf(output, "  searched %zu changed files\n", changed);
-      else if (changed == 1)
+      if (sc > 1)
+        fprintf(output, "  searched %zu changed files\n", sc);
+      else if (sc == 1)
         fprintf(output, "  searched 1 changed file\n");
-      if (added > 1)
-        fprintf(output, "  searched %zu new files\n", added);
-      else if (added == 1)
+      if (sa > 1)
+        fprintf(output, "  searched %zu new files\n", sa);
+      else if (sa == 1)
         fprintf(output, "  searched 1 new file\n");
     }
   }
@@ -200,12 +204,12 @@ void Stats::report(FILE *output)
 }
 
 reflex::timer_type       Stats::timer;
-size_t                   Stats::files   = 0;
-size_t                   Stats::dirs    = 0;
-size_t                   Stats::indexed = 0;
-size_t                   Stats::skipped = 0;
-size_t                   Stats::changed = 0;
-size_t                   Stats::added   = 0;
+std::atomic_size_t       Stats::files;
+std::atomic_size_t       Stats::dirs;
+std::atomic_size_t       Stats::indexed;
+std::atomic_size_t       Stats::skipped;
+std::atomic_size_t       Stats::changed;
+std::atomic_size_t       Stats::added;
 std::atomic_size_t       Stats::fileno;
 std::atomic_size_t       Stats::partno;
 std::atomic_size_t       Stats::matchno;

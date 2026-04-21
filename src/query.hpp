@@ -320,7 +320,7 @@ class Query {
   static std::string              stdin_buffer_;
   static int                      stdin_pipe_[2];
   static std::thread              stdin_thread_;
-  static volatile bool            stdin_stop;
+  static std::atomic_bool         stdin_stop;
   static size_t                   searched_;    // last update number of files searched
   static size_t                   found_;       // last update number of files found
   static int                      tick_;        // 100ms tick 0 to 7 or steady 8

@@ -851,13 +851,9 @@ void Query::query()
 #else
 
   signal(SIGINT, sigint);
-
   signal(SIGQUIT, sigint);
-
   signal(SIGTERM, sigint);
-
   signal(SIGPIPE, SIG_IGN);
-
   signal(SIGWINCH, sigwinch);
 
 #endif
@@ -890,7 +886,7 @@ void Query::query()
   VKey::cleanup();
   Screen::cleanup();
 
-  // check TTY again for color support, this time without --query
+  // check TTY a final time for color support to print results, if any, this time without --query
   flag_query = false;
   terminal();
 
@@ -909,10 +905,7 @@ void Query::query()
 
   // close the stdin pipe
   if (flag_stdin && Static::source != stdin && Static::source != NULL)
-  {
-    fclose(Static::source);
-    Static::source = NULL;
-  }
+    fclose(Static::source); // close source but don't reset to NULL, source is used by the search thread
 
   // join the search thread
   if (search_thread_.joinable())
@@ -1671,12 +1664,12 @@ bool Query::update()
   // fetch viewable portion plus one up to two screenfuls more
   fetch(row_ - (row_ % Screen::rows) + 2 * Screen::rows);
 
+  int end = rows_ + append_;
+
   // display the viewable portion when updated
-  if (rows_ + append_ > begin && begin < row_ + append_ + maxrows_ - 2)
+  if (end > begin && begin < row_ + maxrows_ - 2)
   {
     Screen::normal();
-
-    int end = rows_ + append_;
 
     if (begin + maxrows_ - 2 > end)
       begin = end - maxrows_ + 2;
@@ -1685,17 +1678,12 @@ bool Query::update()
     if (begin < row_)
       begin = row_;
 
-    if (end > row_ + maxrows_ - 2)
-      end = row_ + maxrows_ - 2;
-
-    for (int i = begin; i < end; ++i)
+    for (int i = begin; i < std::min(end, row_ + maxrows_ - 2); ++i)
       disp(i);
   }
 
   if (error_ == -1)
   {
-    int end = rows_ + append_;
-
     if (tick_ < 8 && end < row_ + maxrows_ - 2)
     {
       int row = end - row_ + 1;
@@ -1919,7 +1907,8 @@ bool Query::fetch(int row)
       if (!incomplete)
       {
         // added another row
-        ++rows_;
+        if (++rows_ < static_cast<int>(view_.size()))
+          view_[rows_].clear();
 
         // skip \n
         if (nlptr < buffer_ + buflen_)
@@ -1929,9 +1918,8 @@ bool Query::fetch(int row)
       // append the next chunk of text from the buffer
       append_ = incomplete;
 
+      // shift the buffer to make room
       buflen_ -= nlptr - buffer_;
-
-      // shift the buffer
       memmove(buffer_, nlptr, buflen_);
     }
   }
@@ -4118,10 +4106,11 @@ void Query::set_prompt()
 
 void Query::get_stdin()
 {
-  // if standard input is searched, then buffer all its text
+  // if standard input is searched, then dynamically buffer the input to search
   if (flag_stdin)
   {
 #ifndef OS_WIN
+    // make stdin non-blocking to read and buffer dynamically
     fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 #endif
 
@@ -4162,7 +4151,7 @@ void Query::stop_stdin()
   {
     // close the stdin pipe when open
     if (Static::source != stdin && Static::source != NULL)
-      fclose(Static::source);
+      fclose(Static::source); // close source but don't reset to NULL, source is used by the search thread
 
     // join the stdin_sender
     stdin_stop = true;
@@ -4174,15 +4163,21 @@ void Query::stop_stdin()
 // push standard input down the specified pipe fd
 void Query::stdin_sender(int fd)
 {
-  // write the stdin data all at once, we can ignore the return value
+  // write the stdin data all at once to the search pipe
+  char buf[QUERY_BUFFER_SIZE];
   ssize_t len = stdin_buffer_.size(), nwritten = write(fd, stdin_buffer_.c_str(), len);
 
-#ifndef OS_WIN
+  // when more stdin input arrives, buffer it and write it to the search pipe
   while (!stdin_stop && !feof(stdin) && nwritten == len)
   {
-    len = stdin_input_.file_get(buffer_, QUERY_BUFFER_SIZE);
+    len = stdin_input_.file_get(buf, QUERY_BUFFER_SIZE);
+
     if (len == 0)
     {
+      if (feof(stdin))
+        break;
+
+#ifndef OS_WIN
       struct timeval tv;
       fd_set rfds, efds;
       FD_ZERO(&rfds);
@@ -4194,15 +4189,16 @@ void Query::stdin_sender(int fd)
       clearerr(stdin);
       if (::select(0 + 1, &rfds, NULL, &efds, &tv) >= 0 && FD_ISSET(0, &efds) != 0)
         break;
+#endif
+
       nwritten = 0;
     }
     else
     {
-      stdin_buffer_.append(buffer_, len);
-      nwritten = write(fd, buffer_, len);
+      stdin_buffer_.append(buf, len);
+      nwritten = write(fd, buf, len);
     }
   }
-#endif
 
   close(fd);
 }
@@ -4453,7 +4449,7 @@ reflex::Input              Query::stdin_input_;
 std::string                Query::stdin_buffer_;
 int                        Query::stdin_pipe_[2];
 std::thread                Query::stdin_thread_;
-volatile bool              Query::stdin_stop           = false;
+std::atomic_bool           Query::stdin_stop;
 size_t                     Query::searched_            = 0;
 size_t                     Query::found_               = 0;
 int                        Query::tick_                = 0;

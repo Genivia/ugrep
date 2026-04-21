@@ -256,7 +256,7 @@ void Output::header(const char *pathname, const std::string& partname, bool& hea
   size_t columno = flag_column_number && matcher != NULL ? matcher->columno() + 1 : 1;
 
   // -Q: mark pathname with three \0 markers in headings, unless -a
-  bool nul = heading && flag_query && !flag_text;
+  bool nul = flag_query && heading && !flag_text;
 
   if (nul)
     chr('\0');

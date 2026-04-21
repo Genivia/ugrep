@@ -126,6 +126,30 @@ class Stats {
     return dirs;
   }
 
+  // number of indexed files visited
+  static size_t searched_indexed()
+  {
+    return indexed;
+  }
+
+  // numbder of indexed files skipped from search
+  static size_t searched_skipped()
+  {
+    return skipped;
+  }
+
+  // number of indexed files changed and searched (stale index file)
+  static size_t searched_changed()
+  {
+    return changed;
+  }
+
+  // number of non-indexed files added and searched (stale index file)
+  static size_t searched_added()
+  {
+    return added;
+  }
+
   // number of lines searched
   static size_t searched_lines()
   {
@@ -190,12 +214,12 @@ class Stats {
  protected:
 
   static reflex::timer_type       timer;   // elapsed wall-clock time in milli seconds (ms)
-  static size_t                   files;   // number of files searched, excluding files in archives
-  static size_t                   dirs;    // number of directories searched
-  static size_t                   indexed; // number of files found to be indexed
-  static size_t                   skipped; // number of files found to be indexed that were skipped as not matching
-  static size_t                   changed; // number of files found to be indexed but changed (stale index file)
-  static size_t                   added;   // number of files found to be added (stale index file)
+  static std::atomic_size_t       files;   // number of files searched, excluding files in archives
+  static std::atomic_size_t       dirs;    // number of directories searched
+  static std::atomic_size_t       indexed; // number of files found to be indexed
+  static std::atomic_size_t       skipped; // number of files found to be indexed that were skipped as not matching
+  static std::atomic_size_t       changed; // number of files found to be indexed but changed (stale index file)
+  static std::atomic_size_t       added;   // number of files found to be added (stale index file)
   static std::atomic_size_t       fileno;  // number of matching files, excluding files in archives, atomic for GrepWorker::search() update
   static std::atomic_size_t       partno;  // number of matching files, including files in archives, atomic for GrepWorker::search() update
   static std::atomic_size_t       lineno;  // number of lines searched cummulatively
