@@ -2529,7 +2529,7 @@ void Query::view()
       else
       {
 #ifdef OS_WIN
-        if (filename.find('"') != std::string::npos)
+        if (filename.empty() || filename.at(0) == '/' || filename.find('"') != std::string::npos)
         {
           // illegal filename in Windows, should never happen, but just in case
           Screen::alert();
@@ -2548,8 +2548,8 @@ void Query::view()
           Screen::alert();
           return;
         }
-        // view file in the pager using system() call
-        command.append(" '").append(filename).append("'");
+        // view file in the pager using system() call, double -- ends options
+        command.append(" -- '").append(filename).append("'");
 #endif
       }
 
