@@ -2482,13 +2482,6 @@ void Query::view()
 
     if (found)
     {
-
-      Screen::clear();
-      Screen::put("Waiting on ");
-      Screen::put(command.c_str());
-      Screen::put(" to finish");
-      Screen::home();
-
       // -n: add +line_number
       if (line_number > 0)
         command.append(" +").append(std::to_string(line_number));
@@ -2528,22 +2521,43 @@ void Query::view()
           catch (...)
           {
             // this should never happen, but just in case we ignore errors
+            Screen::alert();
+            return;
           }
         }
       }
       else
       {
-        // view file in the pager using system() call
-        command.append(" \"").append(filename).append("\"");
-
 #ifdef OS_WIN
+        if (filename.find('"') != std::string::npos)
+        {
+          // illegal filename in Windows, should never happen, but just in case
+          Screen::alert();
+          return;
+        }
+        // view file in the pager using Windows _wsystem() call
+        command.append(" \"").append(filename).append("\"");
         // Windows system() does not support non-ASCII, instead we use a wide string with _wsystem()
         wcommand = utf8_decode(command);
-
         // flush before calling _wsystem(), according to the Window's system API documentation
         // _flushall(); removed because this may cause the TUI to freeze
+#else
+        if (filename.find('\'') != std::string::npos)
+        {
+          // incorrect filename
+          Screen::alert();
+          return;
+        }
+        // view file in the pager using system() call
+        command.append(" '").append(filename).append("'");
 #endif
       }
+
+      Screen::clear();
+      Screen::put("Waiting on ");
+      Screen::put(command.c_str());
+      Screen::put(" to finish");
+      Screen::home();
 
       // pipe to pager was OK or executing the command is OK
       bool ok;

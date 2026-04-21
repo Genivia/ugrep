@@ -132,6 +132,8 @@ After this, you may want to test ugrep and install it (optional):
 #include <stringapiset.h>       // internationalization
 #include <direct.h>             // directory access
 #include <winsock.h>            // gethostname() for --hyperlink
+#include <securitybaseapi.h>    // GetTokenInformation()
+#include <aclapi.h>             // GetSecurityInfo()
 #pragma comment(lib, "Ws2_32.lib")
 
 #else
@@ -4811,18 +4813,45 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
     // try opening a config file in the working directory
     if (fopen_smart(&file, flag_config, "r") == 0)
     {
-#ifndef OS_WIN
       if (file != NULL && file != stdin)
       {
         // check if we own this config file located in the working directory
+#ifdef OS_WIN
+        HANDLE hFile = reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(file)));
+        PSID pSidOwner = NULL;
+        PSECURITY_DESCRIPTOR pSD = NULL;
+        if (GetSecurityInfo(hFile, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION, &pSidOwner, NULL, NULL, NULL, &pSD) == ERROR_SUCCESS)
+        {
+          HANDLE hToken = NULL;
+          if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+          {
+            DWORD dwBufferSize = 0;
+            GetTokenInformation(hToken, TokenUser, NULL, 0, &dwBufferSize);
+            PTOKEN_USER pTokenUser = reinterpret_cast<PTOKEN_USER>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwBufferSize));
+            if (pTokenUser != NULL)
+            {
+              if (!GetTokenInformation(hToken, TokenUser, pTokenUser, dwBufferSize, &dwBufferSize) ||
+                  !EqualSid(pSidOwner, pTokenUser->User.Sid))
+              {
+                fclose(file);
+                file = NULL;
+              }
+              HeapFree(GetProcessHeap(), 0, pTokenUser);
+            }
+            CloseHandle(hToken);
+          }
+          if (pSD)
+            LocalFree(pSD);
+        }
+#else
         struct stat buf;
         if (fstat(fileno(file), &buf) == 0 && buf.st_uid != getuid())
         {
           fclose(file);
           file = NULL;
         }
-      }
 #endif
+      }
     }
     else
     {
