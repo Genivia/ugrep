@@ -1,4 +1,4 @@
-.TH UGREP "1" "March 05, 2026" "ugrep 7.6.0" "User Commands"
+.TH UGREP "1" "April 21, 2026" "ugrep 7.7.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -602,7 +602,7 @@ Output file matches in JSON.  When \fB\-H\fR, \fB\-n\fR, \fB\-k\fR, or \fB\-b\fR
 additional values are output.  See also options \fB\-\-format\fR and \fB\-u\fR.
 .TP
 \fB\-K\fR [\fIMIN\fR,][\fIMAX\fR], \fB\-\-range\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-\-min\-line\fR=\fIMIN\fR, \fB\-\-max\-line\fR=\fIMAX\fR
-Start searching at line MIN, stop at line MAX when specified.
+Start searching at line MIN, stop reading input after line MAX.
 .TP
 \fB\-k\fR, \fB\-\-column\-number\fR
 The column number of a pattern match is displayed in front of the
@@ -617,10 +617,9 @@ is written.
 .TP
 \fB\-l\fR, \fB\-\-files\-with\-matches\fR
 Only the names of files containing selected lines are written to
-standard output.  ugrep will only search a file until a match has
-been found, making searches potentially less expensive.  Pathnames
-are listed once per file searched.  If the standard input is
-searched, the string ``(standard input)'' is written.
+standard output.  Pathnames are listed once per file searched.  If
+the standard input is searched, the string ``(standard input)'' is
+written.  Stop reading input upon the first match.
 .TP
 \fB\-\-label\fR=\fILABEL\fR
 Displays the LABEL value when input is read from standard input
@@ -644,7 +643,7 @@ with options \fB\-O\fR and \fB\-t\fR.  Every file on the search path is read,
 making recursive searches potentially more expensive.
 .TP
 \fB\-m\fR [\fIMIN\fR,][\fIMAX\fR], \fB\-\-min\-count\fR=\fIMIN\fR, \fB\-\-max\-count\fR=\fIMAX\fR
-Require MIN matches, stop after MAX matches when specified.  Output
+Require MIN matches, stop reading input upon MAX matches.  Output
 MIN to MAX matches.  For example, \fB\-m\fR1 outputs the first match and
 \fB\-c\fRm1, (with a comma) counts nonzero matches.  When \fB\-u\fR or \fB\-\-ungroup\fR
 is specified, each individual match counts.  See also option \fB\-K\fR.
@@ -971,8 +970,7 @@ bzip2 (.bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 xz (.xz, .txz) and lzma (requires suffix .lzma, .tlz),
 zstd (.zst, .zstd, .tzst),
 lz4 (requires suffix .lz4),
-brotli (requires suffix .br),
-bzip3 (requires suffix .bz3).
+brotli (requires suffix .br).
 .TP
 \fB\-\-zmax\fR=\fINUM\fR
 When used with option \fB\-z\fR or \fB\-\-decompress\fR, searches the contents of
