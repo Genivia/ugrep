@@ -2492,6 +2492,35 @@ void Query::view()
       std::wstring wcommand;
 #endif
 
+      Screen::clear();
+      Screen::invert();
+      Screen::put(command.c_str());
+      Screen::put(' ');
+      Screen::put(filename.c_str());
+      if (!partname.empty())
+      {
+        Screen::put('{');
+        Screen::put(partname.c_str());
+        Screen::put('}');
+      }
+      Screen::normal();
+      Screen::setpos(1, 0);
+
+#ifndef OS_WIN
+      // normal tty mode
+      VKey::cleanup();
+#endif
+
+      // executing the command is OK, unless checks fail, pipe fails, or command fails
+      bool ok = true;
+
+      // file was changed when viewed, e.g. by an editor?
+      bool changed = false;
+
+      // track elapsed time: if the command terminates very quickly within 500ms, then let the user press a key
+      reflex::timer_type et;
+      reflex::timer_start(et);
+
       if (flag_stdin && filename == flag_label)
       {
         // standard input is viewed via a pipe to the pager
@@ -2521,8 +2550,7 @@ void Query::view()
           catch (...)
           {
             // this should never happen, but just in case we ignore errors
-            Screen::alert();
-            return;
+            ok = false;
           }
         }
       }
@@ -2532,66 +2560,54 @@ void Query::view()
         if (filename.empty() || filename.at(0) == '/' || filename.find('"') != std::string::npos)
         {
           // illegal filename in Windows, should never happen, but just in case
-          Screen::alert();
-          return;
+          ok = false;
         }
-        // view file in the pager using Windows _wsystem() call
-        command.append(" \"").append(filename).append("\"");
-        // Windows system() does not support non-ASCII, instead we use a wide string with _wsystem()
-        wcommand = utf8_decode(command);
-        // flush before calling _wsystem(), according to the Window's system API documentation
-        // _flushall(); removed because this may cause the TUI to freeze
+        else
+        {
+          // view file in the pager using Windows _wsystem() call
+          command.append(" \"").append(filename).append("\"");
+          // Windows system() does not support non-ASCII, instead we use a wide string with _wsystem()
+          wcommand = utf8_decode(command);
+          // flush before calling _wsystem(), according to the Window's system API documentation
+          // _flushall(); removed because this may cause the TUI to freeze
+        }
 #else
         if (filename.find('\'') != std::string::npos)
         {
           // incorrect filename
-          Screen::alert();
-          return;
+          ok = false;
         }
-        // view file in the pager using system() call, double -- ends options
-        command.append(" -- '").append(filename).append("'");
-#endif
-      }
-
-      Screen::clear();
-      Screen::put("Waiting on ");
-      Screen::put(command.c_str());
-      Screen::put(" to finish");
-      Screen::home();
-
-      // pipe to pager was OK or executing the command is OK
-      bool ok;
-
-      if ((flag_stdin && filename == flag_label) || !partname.empty())
-      {
-        ok = (pager != NULL);
-      }
-      else
-      {
-#ifdef OS_WIN
-        ok = (_wsystem(wcommand.c_str()) == 0);
-#else
-        ok = (system(command.c_str()) == 0);
+        else
+        {
+          // view file in the pager using system() call, double -- ends options
+          command.append(" -- '").append(filename).append("'");
+        }
 #endif
       }
 
       if (ok)
       {
-#ifdef OS_WIN
-        if (strcmp(flag_view, "more") == 0)
+        if ((flag_stdin && filename == flag_label) || !partname.empty())
         {
-          Screen::setpos(Screen::rows - 1, 0);
-          Screen::put("(END) press a key");
-          Screen::alert();
-          VKey::flush();
-          VKey::get();
+          // popen() pipe to pager is OK?
+          ok = (pager != NULL);
+
+          if (ok)
+          {
+            // close the pipe to the pager
+            pclose(pager);
+            pager = NULL;
+          }
         }
+        else
+        {
+          // execute command, check if OK
+#ifdef OS_WIN
+          ok = (_wsystem(wcommand.c_str()) == 0);
+#else
+          ok = (system(command.c_str()) == 0);
 #endif
 
-        bool changed = false;
-
-        if (pager == NULL)
-        {
           // check if file was changed by the pager (when it is an editor)
 #ifdef OS_WIN
           _WIN32_FILE_ATTRIBUTE_DATA attr_after;
@@ -2609,28 +2625,50 @@ void Query::view()
 #endif
 #endif
         }
-        else
-        {
-          // close the pipe to the pager
-          pclose(pager);
-          pager = NULL;
-        }
+      }
 
-        if (changed)
+#ifndef OS_WIN
+      // resume RAW tty mode and flush the key buffer
+      VKey::setup(VKey::TTYRAW);
+#else
+      // flush the key buffer
+      VKey::flush();
+#endif
+
+      if (ok)
+      {
+        float ms = reflex::timer_elapsed(et);
+
+#ifdef OS_WIN
+        if (ms < 500 || strcmp(flag_view, "more") == 0)
+#else
+        if (ms < 500)
+#endif
         {
-          // file is changed, update the search results
-          search();
-          jump(ref);
+          // command terminated very quickly within 500ms
+          Screen::setpos(Screen::rows - 1, 0);
+          Screen::invert();
+          Screen::put("(END)");
+          Screen::normal();
+          Screen::put(" press a key ");
+          VKey::get();
         }
-        else
-        {
-          redraw();
-        }
+      }
+
+      if (changed)
+      {
+        // file is changed, update the search results
+        search();
+        jump(ref);
       }
       else
       {
-        Screen::alert();
         redraw();
+      }
+
+      if (!ok)
+      {
+        Screen::alert();
         message(std::string("failed: ").append(command));
       }
     }
