@@ -14689,8 +14689,9 @@ void help(std::ostream& out)
     -v, --invert-match\n\
             Selected lines are those not matching any of the specified\n\
             patterns.\n\
-    --view[=COMMAND]\n\
-            Use COMMAND to view/edit a file in -Q query TUI by pressing CTRL-Y.\n\
+    --view[=[+]COMMAND]\n\
+            Use COMMAND to view/edit a file in -Q query TUI by pressing CTRL-Y,\n\
+            +COMMAND waits for a key press after COMMAND terminated.\n\
     -W, --with-hex\n\
             Output binary matches in hexadecimal, leaving text matches alone.\n\
             This option is equivalent to the --binary-files=with-hex option.\n\

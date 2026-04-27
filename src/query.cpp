@@ -2370,13 +2370,14 @@ void Query::view()
   }
 
   // if no viewer, then give up
-  if (flag_view == NULL || *flag_view == '\0')
+  if (flag_view == NULL || *flag_view == '\0' || (*flag_view == '+' && flag_view[1] == '\0'))
   {
     Screen::alert();
     return;
   }
 
-  std::string command(flag_view);
+  bool keypress = (*flag_view == '+');
+  std::string command(flag_view + keypress);
   int ref = select_ >= 0 ? select_ : row_;
   size_t line_number = 0;
 
@@ -2518,8 +2519,6 @@ void Query::view()
       bool changed = false;
 
       // track elapsed time: if the command terminates very quickly within 500ms, then let the user press a key
-      reflex::timer_type et;
-      reflex::timer_start(et);
 
       if (flag_stdin && filename == flag_label)
       {
@@ -2637,12 +2636,10 @@ void Query::view()
 
       if (ok)
       {
-        float ms = reflex::timer_elapsed(et);
-
 #ifdef OS_WIN
-        if (ms < 500 || strcmp(flag_view, "more") == 0)
+        if (keypress || strcmp(flag_view, "more") == 0)
 #else
-        if (ms < 500)
+        if (keypress)
 #endif
         {
           // command terminated very quickly within 500ms

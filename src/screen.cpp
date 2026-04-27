@@ -567,11 +567,11 @@ int Screen::put(int row, int col, const char *text, size_t size, int skip, int w
             break;
 
           default:
-            if (*text == '\033' && text + 1 < end && (text[1] == '[' || text[1] == ']'))
+            if (*text == '\033' && text + 2 < end && (text[1] == '[' || (text[1] == ']' && text[2] == '8')))
             {
-              if (text + 1 < end && text[1] == '[')
+              if (text[1] == '[')
               {
-                // CSI \e[... sequence
+                // ANSI CSI \e[... sequence
                 next = text;
                 next += 2;
                 while (next < end && (*next < 0x40 || *next > 0x7e))
@@ -586,7 +586,7 @@ int Screen::put(int row, int col, const char *text, size_t size, int skip, int w
               }
               else
               {
-                // OSC \e]...BEL|ST sequence
+                // ANSI OSC \e]8...BEL|ST sequence (hyperlink)
                 next = text;
                 next += 2;
                 while (next < end && *next != '\a' && (*next != '\033' || (next + 1 < end && next[1] != '\\')))
@@ -703,11 +703,11 @@ int Screen::put(int row, int col, const char *text, size_t size, int skip, int w
           break;
 
         default:
-          if (*ptr == '\033' && ptr + 1 < end && (ptr[1] == '[' || ptr[1] == ']'))
+          if (*ptr == '\033' && ptr + 2 < end && (ptr[1] == '[' || (ptr[1] == ']' && ptr[2] == '8')))
           {
             if (ptr[1] == '[')
             {
-              // CSI \e[... sequence
+              // ANSI CSI \e[... sequence
               if (mono)
                 put(text, ptr - text);
               ptr += 2;
@@ -728,7 +728,7 @@ int Screen::put(int row, int col, const char *text, size_t size, int skip, int w
             }
             else
             {
-              // OSC \e]...BEL|ST sequence
+              // ANSI OSC \e]8...BEL|ST sequence (hyperlink)
               if (mono)
                 put(text, ptr - text);
               ptr += 2;
