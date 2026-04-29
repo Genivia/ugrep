@@ -1,4 +1,4 @@
-.TH UGREP "1" "April 21, 2026" "ugrep 7.7.0" "User Commands"
+.TH UGREP "1" "April 29, 2026" "ugrep 7.8.0" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -892,8 +892,9 @@ Display version with linked libraries and exit.
 Selected lines are those not matching any of the specified
 patterns.
 .TP
-\fB\-\-view\fR[=\fICOMMAND\fR]
-Use COMMAND to view/edit a file in \fB\-Q\fR query TUI by pressing CTRL\-Y.
+\fB\-\-view\fR[=[+]COMMAND]
+Use COMMAND to view/edit a file in \fB\-Q\fR query TUI by pressing CTRL\-Y,
++COMMAND waits for a key press after COMMAND terminated.
 .TP
 \fB\-W\fR, \fB\-\-with\-hex\fR
 Output binary matches in hexadecimal, leaving text matches alone.
@@ -970,7 +971,8 @@ bzip2 (.bz, .bz2, .bzip2, .tbz, .tbz2, .tb2, .tz2),
 xz (.xz, .txz) and lzma (requires suffix .lzma, .tlz),
 zstd (.zst, .zstd, .tzst),
 lz4 (requires suffix .lz4),
-brotli (requires suffix .br).
+brotli (requires suffix .br),
+bzip3 (requires suffix .bz3).
 .TP
 \fB\-\-zmax\fR=\fINUM\fR
 When used with option \fB\-z\fR or \fB\-\-decompress\fR, searches the contents of

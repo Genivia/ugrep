@@ -42,6 +42,7 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
+#include <chrono>
 #include <fcntl.h>
 
 #ifdef OS_WIN
@@ -2518,7 +2519,9 @@ void Query::view()
       // file was changed when viewed, e.g. by an editor?
       bool changed = false;
 
-      // track elapsed time: if the command terminates very quickly within 500ms, then let the user press a key
+      // track elapsed time: if the command terminates very quickly within 100ms, then wait 1s
+      reflex::timer_type et;
+      reflex::timer_start(et);
 
       if (flag_stdin && filename == flag_label)
       {
@@ -2634,22 +2637,23 @@ void Query::view()
       VKey::flush();
 #endif
 
-      if (ok)
-      {
 #ifdef OS_WIN
-        if (keypress || strcmp(flag_view, "more") == 0)
+      if (ok && (keypress || strcmp(flag_view, "more") == 0))
 #else
-        if (keypress)
+      if (ok && keypress)
 #endif
-        {
-          // command terminated very quickly within 500ms
-          Screen::setpos(Screen::rows - 1, 0);
-          Screen::invert();
-          Screen::put("(END)");
-          Screen::normal();
-          Screen::put(" press a key ");
-          VKey::get();
-        }
+      {
+        Screen::setpos(Screen::rows - 1, 0);
+        Screen::invert();
+        Screen::put("(END)");
+        Screen::normal();
+        Screen::put(" press a key ");
+        VKey::get();
+      }
+      else if (reflex::timer_elapsed(et) < 100)
+      {
+        // command terminated very quickly within 100ms
+        std::this_thread::sleep_for(std::chrono::seconds(1));
       }
 
       if (changed)

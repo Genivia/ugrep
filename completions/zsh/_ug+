@@ -117,7 +117,7 @@ $matchers{-P,--perl-regexp}'[Interpret PATTERN as a Perl regular expression usin
 {-u,--ungroup}'[Do not group multiple pattern matches on the same matched line]'
 {-V,--version}'[Display version with linked libraries and exit]'
 {-v,--invert-match}'[Selected lines are those not matching any of the specified patterns]'
---view'[Use COMMAND to view/edit a file in -Q query TUI by pressing CTRL-Y]'
+--view'[Use COMMAND to view/edit a file in -Q query TUI by pressing CTRL-Y, +COMMAND waits for a key press after COMMAND terminated]'
 {-W,--with-hex}'[Output binary matches in hexadecimal, leaving text matches alone]'
 {-w,--word-regexp}'[The PATTERN is searched for as a word, such that the matching text is preceded by a non-word character and is followed by a non-word character]'
 --width'[Truncate the output to NUM visible characters per line]'

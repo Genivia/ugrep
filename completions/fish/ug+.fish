@@ -110,7 +110,7 @@ complete -c ug+ -s U -l ascii -l binary -d 'Disables Unicode matching for ASCII 
 complete -c ug+ -s u -l ungroup -d 'Do not group multiple pattern matches on the same matched line'
 complete -c ug+ -s V -l version -d 'Display version with linked libraries and exit'
 complete -c ug+ -s v -l invert-match -d 'Selected lines are those not matching any of the specified patterns'
-complete -c ug+ -l view -d 'Use COMMAND to view/edit a file in -Q query TUI by pressing CTRL-Y'
+complete -c ug+ -l view -d 'Use COMMAND to view/edit a file in -Q query TUI by pressing CTRL-Y, +COMMAND waits for a key press after COMMAND terminated'
 complete -c ug+ -s W -l with-hex -d 'Output binary matches in hexadecimal, leaving text matches alone'
 complete -c ug+ -s w -l word-regexp -d 'The PATTERN is searched for as a word, such that the matching text is preceded by a non-word character and is followed by a non-word character'
 complete -c ug+ -l width -d 'Truncate the output to NUM visible characters per line'
