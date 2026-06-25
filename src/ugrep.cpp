@@ -4610,6 +4610,8 @@ const Type type_table[] = {
   { "less",         "less", NULL,                                                     NULL },
   { "lex",          "l,ll,lmm,lpp,lxx", NULL,                                         NULL },
   { "lisp",         "lisp,lsp", NULL,                                                 NULL },
+  { "lotus",        "wk1,wk2,wk3,wk4,wks,123", NULL,                                NULL },
+  { "Lotus",        "wk1,wk2,wk3,wk4,wks", NULL,                                    "\\x00\\x00\\x02\\x00|\\x00\\x00\\x1a\\x00|\\x00\\x00\\x04\\x00" },
   { "lua",          "lua", NULL,                                                      NULL },
   { "m4",           "m4", NULL,                                                       NULL },
   { "make",         "mk,mak", "makefile,Makefile,Makefile.Debug,Makefile.Release",    NULL },
@@ -5006,10 +5008,14 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
       fclose(file);
 
     if (errors)
+    {
+      std::cerr << "ugrep: Failed to resolve workspace version in " << config_file << '\n';
       exit(EXIT_ERROR);
+    }
   }
   else if (strcmp(flag_config, ".ugrep") != 0)
   {
+    std::cerr << "ugrep: Failed to resolve workspace version: cannot read " << flag_config << '\n';
     error("option --config: cannot read", flag_config);
   }
 
