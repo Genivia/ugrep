@@ -39,7 +39,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
 # include <io.h>
 # include <fcntl.h>
 # define off_t __int64
@@ -47,11 +47,7 @@
 # define fseeko _fseeki64
 #else
 # include <unistd.h> // off_t, fstat()
-# if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64)) && (defined(__MINGW32__) || defined(__MINGW64__)) && defined(_UCRT)
-#  include <winsock2.h>
-# else
-#  include <sys/select.h>
-# endif
+# include <sys/select.h>
 #endif
 
 namespace reflex {
@@ -653,7 +649,7 @@ void Input::file_init()
 {
   // attempt to determine the file size with fstat()
 #if !defined(HAVE_CONFIG_H) || defined(HAVE_FSTAT)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
   struct _stat st;
   if (_fstat(_fileno(file_), &st) == 0 && ((st.st_mode & S_IFMT) == S_IFREG) && st.st_size <= 4294967295LL)
 #else
@@ -1030,7 +1026,7 @@ bool Input::file_ready()
 {
   if (file_ == NULL || feof(file_))
     return false;
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
   return !ferror(file_);
 #else
   int fd = fileno(file_);

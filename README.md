@@ -3965,8 +3965,6 @@ in markdown:
 
     UGREP(1)                          User Commands                         UGREP(1)
 
-
-
     NAME
            ugrep, ug -- file pattern searcher
 
@@ -4408,7 +4406,7 @@ in markdown:
            --from=FILE
                   Read additional pathnames of files to search from FILE.  When FILE
                   is a `-', standard input is read.  This option is useful with
-                  `find
+                  `find ... -print | ugrep --from=- ...' to search specific files.
 
            -G, --basic-regexp
                   Interpret patterns as basic regular expressions (BREs).
@@ -4578,7 +4576,7 @@ in markdown:
                   additional values are output.  See also options --format and -u.
 
            -K [MIN,][MAX], --range=[MIN,][MAX], --min-line=MIN, --max-line=MAX
-                  Start searching at line MIN, stop at line MAX when specified.
+                  Start searching at line MIN, stop reading input after line MAX.
 
            -k, --column-number
                   The column number of a pattern match is displayed in front of the
@@ -4593,10 +4591,9 @@ in markdown:
 
            -l, --files-with-matches
                   Only the names of files containing selected lines are written to
-                  standard output.  ugrep will only search a file until a match has
-                  been found, making searches potentially less expensive.  Pathnames
-                  are listed once per file searched.  If the standard input is
-                  searched, the string ``(standard input)'' is written.
+                  standard output.  Pathnames are listed once per file searched.  If
+                  the standard input is searched, the string ``(standard input)'' is
+                  written.  Stop reading input upon the first match.
 
            --label=LABEL
                   Displays the LABEL value when input is read from standard input
@@ -4620,11 +4617,10 @@ in markdown:
                   making recursive searches potentially more expensive.
 
            -m [MIN,][MAX], --min-count=MIN, --max-count=MAX
-                  Require MIN matches, stop after MAX matches when specified.
-                  Output MIN to MAX matches.  For example, -m1 outputs the first
-                  match and -cm1, (with a comma) counts nonzero matches.  When -u or
-                  --ungroup is specified, each individual match counts.  See also
-                  option -K.
+                  Require MIN matches, stop reading input upon MAX matches.  Output
+                  MIN to MAX matches.  For example, -m1 outputs the first match and
+                  -cm1, (with a comma) counts nonzero matches.  When -u or --ungroup
+                  is specified, each individual match counts.  See also option -K.
 
            --match
                   Match all lines.  Same as specifying an empty pattern to search.
@@ -4875,9 +4871,9 @@ in markdown:
                   Selected lines are those not matching any of the specified
                   patterns.
 
-           --view[=COMMAND]
+           --view[=[+]COMMAND]
                   Use COMMAND to view/edit a file in -Q query TUI by pressing
-                  CTRL-Y.
+                  CTRL-Y, +COMMAND waits for a key press after COMMAND terminated.
 
            -W, --with-hex
                   Output binary matches in hexadecimal, leaving text matches alone.
@@ -5545,9 +5541,7 @@ in markdown:
     BUGS
            Report bugs at: <https://github.com/Genivia/ugrep/issues>
 
-
-
-    ugrep 7.6.0                       March 5, 2026                         UGREP(1)
+    ugrep 7.8.3                       July 30, 2026                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 

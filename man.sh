@@ -165,6 +165,7 @@ src/ugrep --help \
   -e 's/\[,\([-A-Z]\{1,\}\)\]/[,\\fI\1\\fR]/g' \
   -e 's/\[=\([-A-Z]\{1,\}\)\]/[=\\fI\1\\fR]/g' \
   -e 's/=\([-A-Z]\{1,\}\)/=\\fI\1\\fR/g' \
+  -e 's/\.\.\./\\\&.../g' \
 | sed -e 's/-/\\-/g' >> man/ugrep.1
 cat >> man/ugrep.1 << 'END'
 .SH "EXIT STATUS"
@@ -697,7 +698,7 @@ ugrep-indexer(1), grep(1), zgrep(1).
 Report bugs at: <https://github.com/Genivia/ugrep/issues>
 END
 
-man man/ugrep.1 | sed 's/.//g' > man.txt
+env MANWIDTH=80 man man/ugrep.1 | sed 's/.//g' > man.txt
 
 echo "ugrep $1 manual page created and saved in man/ugrep.1"
 echo "ugrep text-only man page created and saved as man.txt"

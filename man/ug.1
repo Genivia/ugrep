@@ -1,4 +1,4 @@
-.TH UGREP "1" "May 17, 2026" "ugrep 7.8.2" "User Commands"
+.TH UGREP "1" "July 30, 2026" "ugrep 7.8.3" "User Commands"
 .SH NAME
 \fBugrep\fR, \fBug\fR -- file pattern searcher
 .SH SYNOPSIS
@@ -295,7 +295,7 @@ command line, ACTION defaults to `recurse` or option \fB\-r\fR.
 \fB\-\-delay\fR=\fIDELAY\fR
 Set the default \fB\-Q\fR key response delay.  Default is 3 for 300ms.
 .TP
-\fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, ... \fB\-9\fR, \fB\-1\fR0, \fB\-1\fR1, ...
+\fB\-\-depth\fR=[\fIMIN\fR,][\fIMAX\fR], \fB\-1\fR, \fB\-2\fR, \fB\-3\fR, \&... \fB\-9\fR, \fB\-1\fR0, \fB\-1\fR1, \&...
 Restrict recursive searches from MIN to MAX directory levels deep,
 where \fB\-1\fR (\fB\-\-depth\fR=1) searches the specified path without recursing
 into subdirectories.  The short forms \fB\-3\fR \fB\-5\fR, \fB\-3\fR\-5 and \fB\-3\fR,5 search 3
@@ -333,7 +333,7 @@ that specifies raw binary PATTERN matching.  ENCODING can be:
 .TP
 \fB\-\-exclude\fR=\fIGLOB\fR
 Exclude files whose name matches GLOB, same as \fB\-g\fR ^GLOB.  GLOB can
-use **, *, ?, and [...] as wildcards and \\ to quote a wildcard or
+use **, *, ?, and [\&...] as wildcards and \\ to quote a wildcard or
 backslash character literally.  When GLOB contains a `/', full
 pathnames are matched.  Otherwise basenames are matched.  When GLOB
 ends with a `/', directories are excluded as if \fB\-\-exclude\-dir\fR is
@@ -343,7 +343,7 @@ quoted to prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-exclude\-dir\fR=\fIGLOB\fR
 Exclude directories whose name matches GLOB from recursive
-searches, same as \fB\-g\fR ^GLOB/.  GLOB may use **, *, ?, and [...] as
+searches, same as \fB\-g\fR ^GLOB/.  GLOB may use **, *, ?, and [\&...] as
 wildcards and \\ to quote a wildcard or backslash character
 literally.  When GLOB contains a `/', full pathnames are matched.
 Otherwise basenames are matched.  Note that \fB\-\-exclude\-dir\fR patterns
@@ -352,7 +352,7 @@ to prevent shell globbing.  This option may be repeated.
 .TP
 \fB\-\-exclude\-from\fR=\fIFILE\fR
 Read the globs from FILE and skip files and directories whose name
-matches one or more globs.  A glob may use **, *, ?, and [...] as
+matches one or more globs.  A glob may use **, *, ?, and [\&...] as
 wildcards and \\ to quote a wildcard or backslash character
 literally.  When a glob contains a `/', full pathnames are matched.
 Otherwise basenames are matched.  When a glob ends with a `/',
@@ -434,7 +434,7 @@ Spacing (blanks and tabs) in regular expressions are ignored.
 \fB\-\-from\fR=\fIFILE\fR
 Read additional pathnames of files to search from FILE.  When FILE
 is a `\-', standard input is read.  This option is useful with `find
-... \fB\-p\fRrint | ugrep \fB\-\-from\fR=\fI\-\fR ...' to search specific files.
+\&... \fB\-p\fRrint | ugrep \fB\-\-from\fR=\fI\-\fR \&...' to search specific files.
 .TP
 \fB\-G\fR, \fB\-\-basic\-regexp\fR
 Interpret patterns as basic regular expressions (BREs).
@@ -532,7 +532,7 @@ Do not ignore files, i.e. cancel \fB\-\-ignore\-files\fR when specified.
 .TP
 \fB\-\-include\fR=\fIGLOB\fR
 Only search files whose name matches GLOB, same as \fB\-g\fR \fIGLOB\fR.  GLOB
-may use **, *, ?, and [...] as wildcards and \\ to quote a wildcard
+may use **, *, ?, and [\&...] as wildcards and \\ to quote a wildcard
 or backslash character literally.  When GLOB contains a `/', full
 pathnames are matched and option \fB\-r\fR is enabled to recurse into
 directories if \fB\-d\fR, \fB\-r\fR or \fB\-R\fR is not already specified.  Otherwise
@@ -544,7 +544,7 @@ globbing.  This option may be repeated.
 .TP
 \fB\-\-include\-dir\fR=\fIGLOB\fR
 Only directories whose name matches GLOB are included in recursive
-searches, same as \fB\-g\fR \fIGLOB\fR/.  GLOB may use **, *, ?, and [...] as
+searches, same as \fB\-g\fR \fIGLOB\fR/.  GLOB may use **, *, ?, and [\&...] as
 wildcards and \\ to quote a wildcard or backslash character
 literally.  When GLOB contains a `/', full pathnames are matched
 and option \fB\-r\fR is enabled to recurse into directories if \fB\-d\fR, \fB\-r\fR or
@@ -556,7 +556,7 @@ option may be repeated.
 \fB\-\-include\-from\fR=\fIFILE\fR
 Read the globs from FILE and search only files and directories
 whose name matches one or more globs.  A glob may use **, *, ?, and
-[...] as wildcards and \\ to quote a wildcard or backslash
+[\&...] as wildcards and \\ to quote a wildcard or backslash
 character literally.  When a glob contains a `/', full pathnames
 are matched.  Otherwise basenames are matched.  When a glob ends
 with a `/', directories are included as if \fB\-\-include\-dir\fR is

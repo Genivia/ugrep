@@ -988,8 +988,8 @@ class AbstractMatcher {
   {
     return pos_ >= end_ && eof_;
   }
-  /// Set and force the end of input state.
-  inline void set_end(bool eof)
+  /// Set and force the end of input state (default argument is true), or attempt to read more input (argument is false).
+  inline void set_end(bool eof = true)
   {
     if (eof)
       flush();

@@ -1,4 +1,5 @@
-This directory contains a subset of the LZMA SDK lzma2301/C files
+This directory contains a subset of the LZMA SDK lzma2602/C files for 7z file
+decompression with the LZMA SDK decompression API w/o compression API
 
 LZMA SDK is available from https://7-zip.org/sdk.html
 
@@ -6,7 +7,8 @@ LZMA SDK is placed in the public domain.
 
 LZMA SDK by Igor Pavlov.
 
-Updated 23.01 to apply YOKOTA Hiroshi's patches:
+Updated to LZMA SDK 26.02.
+Previously updated to LZMA SDK 23.01 to apply YOKOTA Hiroshi's patches:
 https://salsa.debian.org/debian/7zip/-/blob/master/debian/patches/0002-Disable-hardware-acceleration-support-on-armel.patch?ref_type=heads
 
 Included in this directory is a new C API written for ugrep to simplify

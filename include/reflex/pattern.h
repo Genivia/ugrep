@@ -954,7 +954,7 @@ class Pattern {
     typedef std::list<State*> List;
     static const uint16_t ALLOC = 1024;           ///< allocate 1024 DFA states at a time, to improve performance
     static const uint16_t MAX_DEPTH = 256;        ///< analyze DFA up to states this deep to improve predict match
-    static const Index MAX_STATES = Const::GMAX;  ///< maximum number of DFA states is constrained by opcode table size
+    static const Index MAX_STATES = Const::GMAX/3;///< maximum number of DFA states is constrained by opcode table size
     static const Index MAX_EDGES = 16*Const::GMAX;///< maximum number of DFA edges is constrained by opcode table size
     static const Index DEAD_PATH = 1;             ///< state marker "path always and only reaches backedges" (a dead end)
     static const Index KEEP_PATH = MAX_DEPTH;     ///< state marker "required path" (from a newline edge)
