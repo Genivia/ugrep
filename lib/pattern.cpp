@@ -2255,7 +2255,7 @@ void Pattern::compile(
     if (state->accept > 0 && state->accept <= end_.size())
       acc_[state->accept - 1] = true;
     ++vno_;
-    if (vno_ > DFA::MAX_STATES || eno_ > DFA::MAX_EDGES)
+    if (vno_ > DFA::MAX_STATES || eno_ > DFA::MAX_EDGES || dfa_.pno > DFA::MAX_POSITIONS)
       error(regex_error::exceeds_limits, rex_.size());
   }
   delete[] table;

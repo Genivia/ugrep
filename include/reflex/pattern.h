@@ -956,12 +956,14 @@ class Pattern {
     static const uint16_t MAX_DEPTH = 256;        ///< analyze DFA up to states this deep to improve predict match
     static const Index MAX_STATES = Const::GMAX/3;///< maximum number of DFA states is constrained by opcode table size
     static const Index MAX_EDGES = 16*Const::GMAX;///< maximum number of DFA edges is constrained by opcode table size
+    static const size_t MAX_POSITIONS = 4194304;  ///< maximum accumulated positions over all DFA states; position sets dominate construction memory when counted repetition overlaps a preceding repeat, so this bounds worst-case memory to fail fast instead of exhausting RAM
     static const Index DEAD_PATH = 1;             ///< state marker "path always and only reaches backedges" (a dead end)
     static const Index KEEP_PATH = MAX_DEPTH;     ///< state marker "required path" (from a newline edge)
     static const Index LOOP_PATH = MAX_DEPTH + 1; ///< state marker "path reaches a backedge" (collect lookback chars)
     DFA()
       :
-        next(ALLOC)
+        next(ALLOC),
+        pno(0)
     { }
     ~DFA()
     {
@@ -974,6 +976,7 @@ class Pattern {
         delete[] *i;
       list.clear();
       next = ALLOC;
+      pno = 0;
     }
 #ifdef WITH_TREE_DFA
     /// new DFA state.
@@ -990,6 +993,7 @@ class Pattern {
     State *state(Positions& pos)
     {
       State *s = state();
+      pno += pos.size();
       s->swap(pos);
       return s;
     }
@@ -1004,6 +1008,7 @@ class Pattern {
     State *state(State *tnode, Positions& pos)
     {
       State *s = state(tnode);
+      pno += pos.size();
       s->swap(pos);
       return s;
     }
@@ -1036,11 +1041,13 @@ class Pattern {
         list.push_back(new State[ALLOC]);
         next = 0;
       }
+      pno += pos.size();
       return list.back()[next++].assign(node, pos);
     }
 #endif
     List     list; ///< block allocation list
     uint16_t next; ///< block allocation, next available slot in last block
+    size_t   pno;  ///< total positions accumulated in DFA states, to check against MAX_POSITIONS
   };
   /// Indexing hash finite state automaton for indexed file search.
   struct HFA {
