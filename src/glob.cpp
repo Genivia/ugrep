@@ -83,7 +83,7 @@
 //  a/**      matches a/x, a/y, a/x/y      but not a, b/x
 //  a\?b      matches a?b                  but not a, b, ab, axb, a/b
 
-// check if we are natively compiling for a Windows OS (not Cygwin and not MinGW)
+// check if we are natively compiling for a windows OS, but not Cygwin or MinGW
 #if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # define OS_WIN
 #endif
@@ -92,7 +92,7 @@
 #include <cstring>
 #include <cctype>
 
-#ifdef OS_WIN
+#ifdef OS_WIN // compiling for a windows OS, but not Cygwin or MinGW
 #define PATHSEP '\\'
 #else
 #define PATHSEP '/'

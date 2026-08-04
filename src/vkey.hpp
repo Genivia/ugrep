@@ -192,7 +192,7 @@ Unicode code point entry:
 
 #include "ugrep.hpp"
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
 #ifdef ENABLE_VIRTUAL_TERMINAL_INPUT
 # define VKEY_WIN
@@ -312,7 +312,7 @@ class VKey {
   // translate ANSI escape sequences, FN, and DEL keys
   static int ansi_esc(int ch);
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   // Windows console state
   static HANDLE hConIn;

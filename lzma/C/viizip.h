@@ -37,7 +37,7 @@
 #ifndef VIIZIP_H
 #define VIIZIP_H
 
-// check if we are compiling for a windows OS, but not Cygwin or MinGW
+/* check if we are compiling for a windows OS, but not Cygwin or MinGW */
 #if !defined(OS_WIN) && (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
 # define OS_WIN
 #endif

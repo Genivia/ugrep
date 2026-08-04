@@ -38,7 +38,7 @@
 #define UGREP_HPP
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "7.8.3"
+#define UGREP_VERSION "7.8.4"
 
 // disable mmap because mmap is almost always slower than the file reading speed improvements since 3.0.0
 #define WITH_NO_MMAP
@@ -66,15 +66,22 @@
 // use $XDG_CONFIG_HOME/ugrep/config for ug (or ugrep --config) when no .ugrep files are found, migh be confusing!
 // #define WITH_XDG_CONFIG_HOME
 
-// check if we are compiling for a windows OS, but not Cygwin or MinGW
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-# define OS_WIN
+// check if we are natively compiling for a windows OS, but not Cygwin
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
+# if defined(__MINGW32__) || defined(__MINGW64__)
+#  define OS_WIN_MINGW
+# else
+#  define OS_WIN
+# endif
+# define OS_WIN_OR_MINGW
 #endif
 
-#ifdef OS_WIN // compiling for a windows OS
+#ifdef OS_WIN_OR_MINGW // compiling for a windows OS, but not Cygwin
 
 // disable legacy min/max macros so we can use std::min and std::max
-#define NOMINMAX
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
 
 #include <windows.h>
 #include <tchar.h> 
@@ -88,16 +95,30 @@
 #include <string>
 #include <cstdint>
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #define STDIN_FILENO  0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-#define PATHSEPCHR '\\'
-#define PATHSEPSTR "\\"
-#define NEWLINESTR "\r\n" // Note: also hard-coded into Output class
+#ifdef OS_WIN
+# define PATHSEPCHR '\\'
+# define PATHSEPSTR "\\"
+# define NEWLINESTR "\r\n" // Note: also hard-coded into Output class
+#else
+# define PATHSEPCHR '/'
+# define PATHSEPSTR "/"
+# define NEWLINESTR "\n" // Note: Also hard-coded into Output class.
+#endif
 
+#ifdef OS_WIN
+# define O_RDONLY _O_RDONLY
+# define O_WRONLY _O_WRONLY
 // POSIX read() and write() return type is ssize_t
 typedef int ssize_t;
+#endif
 
 // POSIX strcasecmp
 inline int strcasecmp(const char *s1, const char *s2)
@@ -118,8 +139,8 @@ inline int pipe(int fd[2])
   HANDLE pipe_w = NULL;
   if (CreatePipe(&pipe_r, &pipe_w, NULL, 0))
   {
-    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), _O_RDONLY);
-    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), _O_WRONLY);
+    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), O_RDONLY);
+    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), O_WRONLY);
     return 0;
   }
   errno = GetLastError();
@@ -138,8 +159,8 @@ inline int pipe_inherit(int fd[2])
   sa.lpSecurityDescriptor = NULL; 
   if (CreatePipe(&pipe_r, &pipe_w, &sa, 0))
   {
-    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), _O_RDONLY);
-    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), _O_WRONLY);
+    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), O_RDONLY);
+    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), O_WRONLY);
     if (SetHandleInformation(reinterpret_cast<HANDLE>(_get_osfhandle(fd[0])), HANDLE_FLAG_INHERIT, 0))
       return 0;
     close(fd[0]);
@@ -148,6 +169,8 @@ inline int pipe_inherit(int fd[2])
   errno = GetLastError();
   return -1;
 }
+
+#ifdef OS_WIN
 
 // POSIX popen()
 inline FILE *popen(const char *command, const char *mode)
@@ -160,6 +183,8 @@ inline int pclose(FILE *stream)
 {
   return _pclose(stream);
 }
+
+#endif
 
 // wrap Windows _dupenv_s()
 inline int dupenv_s(char **ptr, const char *name)
@@ -229,7 +254,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
     hFile = CreateFileW(wfilename.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == INVALID_HANDLE_VALUE)
     return errno = (GetLastError() == ERROR_ACCESS_DENIED ? EACCES : ENOENT);
-  int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), _O_RDONLY);
+  int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), O_RDONLY);
   if (fd == -1)
   { 
     CloseHandle(hFile);
@@ -244,7 +269,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
   return 0;
 }
 
-#else // not compiling for a windows OS
+#else // not compiling for a windows OS or for windows OS MinGW
 
 #define _FILE_OFFSET_BITS 64
 
@@ -253,6 +278,8 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
+#include <string>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -296,8 +323,7 @@ inline int fopenw_s(FILE **file, const char *filename, const char *mode)
 # include <sys/resource.h>
 #endif
 
-#if defined(HAVE_F_RDAHEAD) || defined(HAVE_O_NOATIME)
-# include <fcntl.h>
+#if defined(HAVE_F_RDAHEAD)
 # ifndef O_NOATIME
 #  define O_NOATIME 0
 # endif
@@ -496,7 +522,6 @@ inline const char *utf8skipn(const char *s, size_t n, size_t k)
 #include <condition_variable>
 #include <map>
 #include <set>
-#include <string>
 #include <vector>
 
 // undefined size_t value
@@ -524,7 +549,7 @@ struct Static {
   // unique address and label to identify standard input path
   static const char *LABEL_STANDARD_INPUT;
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
 
   // output file stat() result is available and S_ISREG (regular file)
   static bool output_stat_result;

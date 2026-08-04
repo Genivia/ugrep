@@ -115,16 +115,24 @@ fi
 
 export GREP_COLORS='cx=hb:ms=hug:mc=ib+W:fn=h35:ln=32h:cn=1;32:bn=1;32:se=+36'
 
-# set ERR and DIFF to compare and report
+# set ERR to report
 
 function ERR() {
   echo "[1;31mError:[0m[1m ugrep --sort $1 [1;31mfailed[0m"
   exit 1
 }
 
-DIFF="diff -U1 -"
+# set DIFF to compare and report, MinGW should ignore CRL<->LF and ignore "binary" characters
 
-# prepare to test
+if test "$OSTYPE" = "msys" || ( test "$OSTYPE" = "cygwin" && test ! -z "$MSYSTEM" ) ; then
+  DIFF="diff -a -b -U1 -"
+else
+  DIFF="diff -U1 -"
+fi
+
+# prepare to test, w/o MinGW dir tests (no symlinks)
+
+if test "$OSTYPE" != "msys" && ( test "$OSTYPE" != "cygwin" || test -z "$MSYSTEM" ) ; then
 
 rm -rf dir1/ dir2/
 
@@ -182,6 +190,8 @@ printf .
 $UG -Rl --filter='sh:head -n1'           Hello dir1 | $DIFF out/dir--filter.out       || ERR "-Rl --filter='sh:head -n1' Hello dir1"
 
 rm -rf dir1 dir2
+
+fi
 
 for OPS in '' '-F' '-G' ; do
   printf .

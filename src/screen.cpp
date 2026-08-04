@@ -39,7 +39,7 @@
 #include <string>
 #include <fcntl.h>
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
 #include <signal.h>
 #endif
 
@@ -86,7 +86,7 @@ void Screen::setpos(int row, int col)
 // get the cursor position
 void Screen::getpos(int *row, int *col)
 {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   CONSOLE_SCREEN_BUFFER_INFO info;
   if (GetConsoleScreenBufferInfo(hConOut, &info))
@@ -157,7 +157,7 @@ retry:
 size_t Screen::getsize()
 {
   // get current window size from ioctl
-#if defined(OS_WIN)
+#if defined(OS_WIN_OR_MINGW)
   CONSOLE_SCREEN_BUFFER_INFO info;
   if (GetConsoleScreenBufferInfo(hConOut, &info))
   {
@@ -233,7 +233,7 @@ bool Screen::setup(const char *title)
 {
   good = true;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
 #ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 
@@ -318,7 +318,7 @@ bool Screen::setup(const char *title)
 // cleanup to restore main screen buffer
 void Screen::cleanup()
 {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   if (hConOut != INVALID_HANDLE_VALUE)
   {
@@ -876,7 +876,7 @@ int  Screen::cols = 80;    // number of screen columns
 bool Screen::mono = false; // monochrome
 bool Screen::good = false; // true if all previous screen operations were successful after setup()
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
 // Windows console state
 HANDLE Screen::hConOut;

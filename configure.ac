@@ -1,4 +1,4 @@
-AC_INIT([ugrep],[7.8.3],[https://github.com/Genivia/ugrep/issues],[ugrep],[https://ugrep.com])
+AC_INIT([ugrep],[7.8.4],[https://github.com/Genivia/ugrep/issues],[ugrep],[https://ugrep.com])
 AM_INIT_AUTOMAKE([foreign subdir-objects dist-xz no-dist-gzip])
 AC_CONFIG_HEADERS([config.h])
 AC_COPYRIGHT([Copyright (C) 2019-2026 Robert van Engelen, Genivia Inc.])
@@ -29,6 +29,9 @@ $ac_includes_default
 AC_CHECK_FUNCS([statfs statvfs])
 
 AC_CHECK_FUNCS([strncasecmp strnicmp _strnicmp])
+
+# For MinGW
+AC_CHECK_LIB([ws2_32], [WSAStartup])
 
 AX_PTHREAD
 

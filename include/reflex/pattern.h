@@ -956,7 +956,7 @@ class Pattern {
     static const uint16_t MAX_DEPTH = 256;        ///< analyze DFA up to states this deep to improve predict match
     static const Index MAX_STATES = Const::GMAX/3;///< maximum number of DFA states is constrained by opcode table size
     static const Index MAX_EDGES = 16*Const::GMAX;///< maximum number of DFA edges is constrained by opcode table size
-    static const size_t MAX_POSITIONS = 4194304;  ///< maximum accumulated positions over all DFA states; position sets dominate construction memory when counted repetition overlaps a preceding repeat, so this bounds worst-case memory to fail fast instead of exhausting RAM
+    static const Index MAX_POSITIONS = 4194304;   ///< maximum accumulated positions over all DFA states
     static const Index DEAD_PATH = 1;             ///< state marker "path always and only reaches backedges" (a dead end)
     static const Index KEEP_PATH = MAX_DEPTH;     ///< state marker "required path" (from a newline edge)
     static const Index LOOP_PATH = MAX_DEPTH + 1; ///< state marker "path reaches a backedge" (collect lookback chars)
@@ -997,7 +997,7 @@ class Pattern {
       s->swap(pos);
       return s;
     }
-    /// new DFA state with optional tree DFA node and positions, destroys pos.
+    /// new DFA state with optional tree DFA node and positions.
     State *state(State *tnode)
     {
       State *s = state();

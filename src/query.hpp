@@ -187,7 +187,7 @@ class Query {
 
   static void redraw();
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   static BOOL WINAPI sigint(DWORD);
 
@@ -336,7 +336,7 @@ class Query {
   static size_t                   fuzzy_;       // saved --fuzzy fuzzy distance
   static bool                     dotall_;      // saved --dotall flag
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   static HANDLE                   hPipe_;
   static OVERLAPPED               overlapped_;

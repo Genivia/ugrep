@@ -43,11 +43,16 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <fcntl.h>
+
+#ifdef OS_WIN_OR_MINGW
 
 #ifdef OS_WIN
-
+# define O_RDONLY _O_RDONLY
+# define O_WRONLY _O_WRONLY
 // POSIX read() and write() return type is ssize_t
 typedef int ssize_t;
+#endif
 
 // POSIX pipe() emulation
 inline int pipe(int fd[2])
@@ -56,8 +61,8 @@ inline int pipe(int fd[2])
   HANDLE pipe_w = NULL;
   if (CreatePipe(&pipe_r, &pipe_w, NULL, 0))
   {
-    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), _O_RDONLY);
-    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), _O_WRONLY);
+    fd[0] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_r), O_RDONLY);
+    fd[1] = _open_osfhandle(reinterpret_cast<intptr_t>(pipe_w), O_WRONLY);
     return 0;
   }
   errno = GetLastError();

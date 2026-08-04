@@ -43,7 +43,7 @@
 #include "7zCrc.h"
 #include "7zFile.h"
 
-#ifdef OS_WIN
+#if defined(OS_WIN) || defined(__MINGW32__) || defined(__MINGW64__)
 #include <io.h>
 #endif
 
@@ -220,7 +220,7 @@ struct viizip *viinew(FILE *file)
   viizip->buflen = 0;
   viizip->tmp = NULL;
   viizip->tmplen = 0;
-#ifdef OS_WIN
+#if defined(OS_WIN) || defined(__MINGW32__) || defined(__MINGW64__)
   viizip->stream.file.handle = (HANDLE)_get_osfhandle(_fileno(file));
 #else
   viizip->stream.file.fd = fileno(file);

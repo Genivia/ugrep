@@ -35,7 +35,7 @@
 */
 
 // DO NOT ALTER THIS LINE: updated by makemake.sh and we need it physically here for MSVC++ build from source
-#define UGREP_VERSION "7.8.3"
+#define UGREP_VERSION "7.8.4"
 
 // use a task-parallel thread to decompress the stream into a pipe to search, also handles nested archives
 #define WITH_DECOMPRESSION_THREAD
@@ -43,9 +43,14 @@
 // ignore hidden files and directories in archives, but ugrep will never find them anymore when searching hidden!
 #define WITH_SKIP_HIDDEN_ARCHIVES
 
-// check if we are compiling for a windows OS, but not Cygwin or MinGW
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
-# define OS_WIN
+// check if we are compiling for a windows OS, but not Cygwin
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
+# if defined(__MINGW32__) || defined(__MINGW64__)
+#  define OS_WIN_MINGW
+# else
+#  define OS_WIN
+# endif
+# define OS_WIN_OR_MINGW
 #endif
 
 // 64 bits off_t and fseeko
@@ -54,10 +59,12 @@
 // PRId64 PRIu64
 #define __STDC_FORMAT_MACROS
 
-#ifdef OS_WIN // compiling for a windows OS
+#ifdef OS_WIN_OR_MINGW // compiling for a windows OS, but not Cygwin
 
 // disable legacy min/max macros so we can use std::min and std::max
-#define NOMINMAX
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
 
 #include <windows.h>
 #include <tchar.h>
@@ -72,6 +79,10 @@
 #include <cstdint>
 #include <string>
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 // 64 bits off_t and fseeko
 #define off_t int64_t
 #define fseeko _fseeki64
@@ -81,8 +92,18 @@
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-#define PATHSEPCHR '\\'
-#define PATHSEPSTR "\\"
+#ifdef OS_WIN
+# define PATHSEPCHR '\\'
+# define PATHSEPSTR "\\"
+#else
+# define PATHSEPCHR '/'
+# define PATHSEPSTR "/"
+#endif
+
+#ifdef OS_WIN
+# define O_RDONLY _O_RDONLY
+# define O_WRONLY _O_WRONLY
+#endif
 
 // convert a wide Unicode string to an UTF-8 string
 std::string utf8_encode(const std::wstring &wstr)
@@ -120,7 +141,7 @@ int fopenw_s(FILE **file, const char *filename, const char *mode)
     hFile = CreateFileW(wfilename.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (hFile == INVALID_HANDLE_VALUE)
     return errno = (GetLastError() == ERROR_ACCESS_DENIED ? EACCES : ENOENT);
-  int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), _O_RDONLY);
+  int fd = _open_osfhandle(reinterpret_cast<intptr_t>(hFile), O_RDONLY);
   if (fd == -1)
   {
     CloseHandle(hFile);
@@ -152,8 +173,8 @@ inline uint64_t file_size(const WIN32_FIND_DATAW& ffd)
 
 #include <signal.h>
 #include <dirent.h>
-#include <sys/select.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
 #include <cstdlib>
@@ -165,10 +186,6 @@ inline uint64_t file_size(const WIN32_FIND_DATAW& ffd)
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
-#endif
-
-#if defined(HAVE_F_RDAHEAD)
-# include <fcntl.h>
 #endif
 
 #define PATHSEPCHR '/'
@@ -1161,7 +1178,7 @@ void cat(const std::string& pathname, std::stack<Entry>& dir_entries, std::vecto
   last_time = 0;
   index_time = 0;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   WIN32_FIND_DATAW ffd;
 
@@ -1181,6 +1198,8 @@ void cat(const std::string& pathname, std::stack<Entry>& dir_entries, std::vecto
       warning("cannot open directory", pathname.c_str());
     return;
   }
+
+  (void)num_links; // appease -Wunused
 
 #else
 
@@ -1225,7 +1244,7 @@ void cat(const std::string& pathname, std::stack<Entry>& dir_entries, std::vecto
 
   std::string entry_pathname;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   std::string cFileName;
 
@@ -2053,7 +2072,7 @@ void load_config(const char *config_filename)
 // where the magic happens
 int main(int argc, const char **argv)
 {
-#if !defined(OS_WIN) && defined(HAVE_LIBZ) && defined(WITH_DECOMPRESSION_THREAD)
+#if !defined(OS_WIN_OR_MINGW) && defined(HAVE_LIBZ) && defined(WITH_DECOMPRESSION_THREAD)
   // ignore SIGPIPE
   signal(SIGPIPE, SIG_IGN);
 #endif

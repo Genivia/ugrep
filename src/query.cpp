@@ -45,7 +45,7 @@
 #include <chrono>
 #include <fcntl.h>
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
 #include <direct.h>
 
@@ -714,10 +714,10 @@ void Query::redraw()
   }
 }
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
 // CTRL-C/BREAK handler
-BOOL WINAPI Query::sigint(DWORD signal)
+BOOL WINAPI Query::sigint(DWORD)
 {
   VKey::cleanup();
   Screen::cleanup();
@@ -844,7 +844,7 @@ void Query::query()
     abort("no ANSI terminal screen detected");
   }
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   // handle CTRL-C
   SetConsoleCtrlHandler(&sigint, TRUE);
@@ -1005,7 +1005,7 @@ void Query::query_ui()
 
           err = false;
         }
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
         else
         {
           // detect screen size changes here for Windows (no SIGWINCH)
@@ -1415,7 +1415,7 @@ void Query::query_ui()
           break;
 
         case VKey::CTRL_BS: // CTRL-\: terminate
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
           GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
 #else
           raise(SIGTERM);
@@ -1503,7 +1503,7 @@ void Query::search()
     search_thread_.join();
   }
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   hPipe_ = nonblocking_pipe(search_pipe_);
 
@@ -1778,7 +1778,7 @@ bool Query::fetch(int row)
       // no newline and buffer is not full and not EOF reached yet, get more data
       if (buflen_ < QUERY_BUFFER_SIZE && !eof_)
       {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
         // try to fetch more data from the non-blocking pipe when immediately available
         DWORD nread = 0;
@@ -2454,7 +2454,7 @@ void Query::view()
 
   if (found)
   {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
     _WIN32_FILE_ATTRIBUTE_DATA attr_before;
 #else
     struct stat buf;
@@ -2464,7 +2464,7 @@ void Query::view()
     if (!flag_stdin || filename != flag_label)
     {
       // check if the file exists and is a regular file, also get the file's last modification time
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
       found = GetFileAttributesExW(utf8_decode(filename).c_str(), GetFileExInfoStandard, &attr_before);
 #else
       found = stat(filename.c_str(), &buf) == 0 && S_ISREG(buf.st_mode);
@@ -2486,7 +2486,7 @@ void Query::view()
 
       FILE *pager = NULL;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
       std::wstring wcommand;
 #endif
 
@@ -2504,7 +2504,7 @@ void Query::view()
       Screen::normal();
       Screen::setpos(1, 0);
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
       // normal tty mode
       VKey::cleanup();
 #endif
@@ -2554,7 +2554,7 @@ void Query::view()
       }
       else
       {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
         if (filename.empty() || filename.at(0) == '/' || filename.find('"') != std::string::npos)
         {
           // illegal filename in Windows, should never happen, but just in case
@@ -2600,14 +2600,14 @@ void Query::view()
         else
         {
           // execute command, check if OK
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
           ok = (_wsystem(wcommand.c_str()) == 0);
 #else
           ok = (system(command.c_str()) == 0);
 #endif
 
           // check if file was changed by the pager (when it is an editor)
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
           _WIN32_FILE_ATTRIBUTE_DATA attr_after;
           changed = GetFileAttributesExW(utf8_decode(filename).c_str(), GetFileExInfoStandard, &attr_after) == 0 ||
             attr_before.ftLastWriteTime.dwLowDateTime != attr_after.ftLastWriteTime.dwLowDateTime ||
@@ -2625,7 +2625,7 @@ void Query::view()
         }
       }
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
       // resume RAW tty mode and flush the key buffer
       VKey::setup(VKey::TTYRAW);
 #else
@@ -3168,7 +3168,7 @@ bool Query::help()
 
     Screen::put(0, Screen::cols - 1, "?");
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
     while (true)
     {
@@ -3227,7 +3227,7 @@ bool Query::help()
           break;
 
         case VKey::CTRL_BS:
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
           GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
 #else
           raise(SIGTERM);
@@ -3727,7 +3727,7 @@ void Query::print()
   if (select_all_ && (!eof_ || buflen_ > 0))
   {
     // reading the search pipe should block until data is received
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
     blocking_ = true;
     pending_ = false;
 #else
@@ -4158,7 +4158,7 @@ void Query::get_stdin()
   // if standard input is searched, then dynamically buffer the input to search
   if (flag_stdin)
   {
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
     // make stdin non-blocking to read and buffer dynamically
     fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 #endif
@@ -4226,7 +4226,7 @@ void Query::stdin_sender(int fd)
       if (feof(stdin))
         break;
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
       struct timeval tv;
       fd_set rfds, efds;
       FD_ZERO(&rfds);
@@ -4514,7 +4514,7 @@ size_t                     Query::only_context_        = 20;
 size_t                     Query::fuzzy_               = 1;
 bool                       Query::dotall_              = false;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
 HANDLE                     Query::hPipe_;
 OVERLAPPED                 Query::overlapped_;

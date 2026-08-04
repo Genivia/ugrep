@@ -250,7 +250,7 @@ class Screen {
   // emit text
   static void put(const char *text, size_t size)
   {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
     DWORD nwritten;
     good = WriteFile(hConOut, text, static_cast<DWORD>(size), &nwritten, NULL) && good;
 #else
@@ -285,7 +285,7 @@ class Screen {
   static bool mono; // monochrome
   static bool good; // true if all previous screen operations were successful after setup()
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   // Windows console
   static HANDLE hConOut;

@@ -746,7 +746,7 @@ void VKey::flush()
   keybuf[1] = 0;
   keybuf[2] = 0;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   FlushConsoleInputBuffer(hConIn);
 
@@ -761,7 +761,7 @@ void VKey::flush()
 // setup vkey in VKey::NORMAL tty or VKey::TTYRAW raw tty mode (cfmakeraw), returns 0 on success <0 on failure
 bool VKey::setup(int mode)
 {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   hConIn = CreateFileA("CONIN$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
@@ -837,7 +837,7 @@ bool VKey::setup(int mode)
 // release vkey resources and restore tty
 void VKey::cleanup()
 {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   if (hConIn != INVALID_HANDLE_VALUE)
   {
@@ -898,7 +898,7 @@ void VKey::map_fn_key(unsigned num, const char *keys)
   }
 }
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
 // Windows console state
 HANDLE VKey::hConIn;

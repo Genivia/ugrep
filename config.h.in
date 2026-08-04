@@ -43,6 +43,9 @@
 /* Define to 1 if you have `lzma' library (-llzma) */
 #undef HAVE_LIBLZMA
 
+/* Define to 1 if you have the 'ws2_32' library (-lws2_32). */
+#undef HAVE_LIBWS2_32
+
 /* Define to 1 if you have `z' library (-lz) */
 #undef HAVE_LIBZ
 

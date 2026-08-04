@@ -95,9 +95,7 @@ After this, you may want to test ugrep and install it (optional):
 #include <chrono>
 #include <sstream>
 
-#ifdef OS_WIN
-
-// compiling for a windows OS, except Cygwin and MinGW
+#ifdef OS_WIN_OR_MINGW // compiling for a windows OS, but not Cygwin
 
 // optionally enable --color=auto by default
 // #define WITH_COLOR
@@ -134,11 +132,12 @@ After this, you may want to test ugrep and install it (optional):
 #include <winsock.h>            // gethostname() for --hyperlink
 #include <securitybaseapi.h>    // GetTokenInformation()
 #include <aclapi.h>             // GetSecurityInfo()
+
+#ifdef OS_WIN
 #pragma comment(lib, "Ws2_32.lib")
+#endif
 
-#else
-
-// not compiling for a windows OS
+#else // not compiling for a windows OS or for windows OS
 
 #include <signal.h>
 #include <dirent.h>
@@ -237,7 +236,7 @@ const char *color_error   = ""; // stderr error text
 const char *color_warning = ""; // stderr warning text
 const char *color_message = ""; // stderr error or warning message text
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
 
 // output file stat() result is available and S_ISREG (regular file)
 bool Static::output_stat_result  = false;
@@ -497,7 +496,7 @@ void cannot_decompress(const char *pathname, const char *message);
 void open_pager();
 void close_pager();
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
 // CTRL-C handler
 BOOL WINAPI sigint(DWORD signal)
@@ -540,7 +539,7 @@ static void set_this_thread_affinity_and_priority(size_t cpu)
 {
   // set affinity
 
-#if defined(OS_WIN) || defined(__CYGWIN__)
+#if defined(OS_WIN_OR_MINGW) || defined(__CYGWIN__)
 
   (void)SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu);
 
@@ -594,7 +593,7 @@ static void set_this_thread_affinity_and_priority(size_t cpu)
 
   // set priority
 
-#if defined(OS_WIN) || defined(__CYGWIN__)
+#if defined(OS_WIN_OR_MINGW) || defined(__CYGWIN__)
 
   (void)SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
@@ -662,7 +661,7 @@ void close_pager()
     pclose(Static::output);
 }
 
-// open a file where - means stdin/stdout and an initial ~ expands to home directory
+// open a file where - means stdin (mode "r") or stdout (mode "a" or "w") and an initial ~ expands to home directory
 int fopen_smart(FILE **file, const char *filename, const char *mode)
 {
   *file = NULL;
@@ -672,7 +671,7 @@ int fopen_smart(FILE **file, const char *filename, const char *mode)
 
   if (strcmp(filename, "-") == 0)
   {
-    *file = strchr(mode, 'w') == NULL ? stdin : stdout;
+    *file = strchr(mode, 'r') != NULL ? stdin : stdout;
     return 0;
   }
 
@@ -722,7 +721,8 @@ inline bool check_binary(const char *s, size_t n)
 // check if a file's inode is the current output file, to avoid searching the file we write to
 inline bool is_output(ino_t inode)
 {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
+  (void)inode;  // appease -Wunused
   return false; // TODO check that two FILE* on Windows are the same, is this possible?
 #else
   return Static::output_stat_regular && inode == Static::output_stat.st_ino;
@@ -1940,7 +1940,7 @@ struct Grep {
     uint64_t    info;
     uint16_t    cost;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
     // get modification time (micro seconds) from directory entry
     static uint64_t modified_time(const WIN32_FIND_DATAW& ffd)
@@ -3235,7 +3235,7 @@ struct Grep {
       matchers(matchers),
       file_in(NULL),
       bin_handler(*this)
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
     , stdin_handler(*this)
 #endif
 #ifdef HAVE_LIBZ
@@ -3544,7 +3544,7 @@ struct Grep {
     input = reflex::Input(file_in, flag_encoding_type);
 #endif
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
     if (!flag_decompress && !flag_quiet && !flag_files_with_matches && !flag_count)
     {
       int fd = fileno(file_in);
@@ -3667,7 +3667,7 @@ struct Grep {
 
         int fd[2];
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
         // Windows CreateProcess requires an "inherited" pipe handle specific to Windows
         bool ok = (pipe_inherit(fd) == 0);
 #else
@@ -3676,7 +3676,7 @@ struct Grep {
 
         if (ok)
         {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
           std::wstring wcommand(utf8_decode(command));
           size_t pathname_pos = 0;
@@ -3918,7 +3918,7 @@ struct Grep {
 #endif
 #endif
 
-#if defined(WITH_STDIN_DRAIN) && !defined(OS_WIN)
+#if defined(WITH_STDIN_DRAIN) && !defined(OS_WIN_OR_MINGW)
 
     // drain stdin when non-seekable file such as a pipe until eof, unless option -q is used
     if (file_in == stdin && !flag_quiet && !flag_files_with_matches && flag_max_count == 0 && flag_max_line == 0 &&
@@ -3978,7 +3978,7 @@ struct Grep {
       else
 #endif
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
         // set interactive search handler e.g. for slow stdin input
         if (interactive)
           matcher->in.set_handler(&stdin_handler);
@@ -4118,7 +4118,7 @@ struct Grep {
   size_t                         matches;       // number of matches
   bool                           stop;          // stop searching when --max-files max reached
   BinaryHandler                  bin_handler;   // a handler to detect binary input like GNU grep
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
   StdInHandler                   stdin_handler; // a handler to handle non-blocking input from a TTY or a slow pipe
 #endif
 #ifdef HAVE_LIBZ
@@ -4677,7 +4677,6 @@ int wmain(int argc, const wchar_t **wargv)
 int main(int argc, const char **argv)
 #endif
 {
-
 #ifdef OS_WIN
 
   // store UTF-8 arguments for the duration of main() and convert Unicode command line arguments wargv[] to UTF-8 arguments argv[]
@@ -4693,12 +4692,17 @@ int main(int argc, const char **argv)
 
 #else
 
+#ifdef OS_WIN_MINGW
+  // handle CTRL-C
+  SetConsoleCtrlHandler(&sigint, TRUE);
+#else
   // ignore SIGPIPE
   signal(SIGPIPE, SIG_IGN);
 
   // reset color on SIGINT and SIGTERM
   signal(SIGINT, sigint);
   signal(SIGTERM, sigint);
+#endif
 
 #endif
 
@@ -4817,7 +4821,7 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
       if (file != NULL && file != stdin)
       {
         // check if we own this config file located in the working directory
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
         HANDLE hFile = reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(file)));
         PSID pSidOwner = NULL;
         PSECURITY_DESCRIPTOR pSD = NULL;
@@ -6421,7 +6425,7 @@ void init(int argc, const char **argv)
 
   size_t len = strlen(program);
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
   // Windows: compare executable name up to a dot when present, e.g. "ug.exe" compares as "ug"
   const char *dot = strchr(program, '.');
   if (dot != NULL)
@@ -6797,6 +6801,9 @@ void init(int argc, const char **argv)
         "Examples:\n"
         "  ugrep \"PATTERN\"       # match PATTERN\n"
         "  ugrep -e \"-PATTERN\"   # match -PATTERN (including the leading dash)\n"
+#ifdef OS_WIN
+        "  ugrep -e \"/PATTERN\"   # match /PATTERN (including the leading slash)\n"
+#endif
         "  ugrep \"\"              # match all lines\n"
         "  ugrep --match         # match all lines\n");
 
@@ -6952,7 +6959,7 @@ void init(int argc, const char **argv)
   auto arg_file = Static::arg_files.begin();
   while (arg_file != Static::arg_files.end())
   {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
     DWORD attr = GetFileAttributesW(utf8_decode(*arg_file).c_str());
 
@@ -7519,7 +7526,7 @@ void init(int argc, const char **argv)
     abort("option --filter-magic-label: ", error.what());
   }
 
-#if defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
+#if defined(__CYGWIN__)
   // --filter: Cygwin forked process may hang when searching with multiple threads, force one worker thread
   if (!flag_filter.empty())
     flag_jobs = 1;
@@ -7539,7 +7546,7 @@ void terminal()
   }
   else if (!flag_quiet)
   {
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
 
     // if not to a TTY, is output sent to a pager or to /dev/null?
     if (!flag_tty_term)
@@ -7677,7 +7684,7 @@ void terminal()
       }
       else
       {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
         if (flag_tty_term)
         {
@@ -7910,7 +7917,7 @@ void set_terminal_hyperlink()
       // get host in hyperlink
       char host[80] = "localhost";
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
       WSADATA w;
       if (WSAStartup(MAKEWORD(1, 1), &w) == 0)
       {
@@ -9239,7 +9246,7 @@ void Grep::ugrep()
   }
   else
   {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
     const DWORD attr = INVALID_FILE_ATTRIBUTES;
 #else
     const uint32_t attr = 0;
@@ -9272,14 +9279,14 @@ void Grep::ugrep()
         case Type::DIRECTORY:
           if (flag_directories_action != Action::SKIP)
           {
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
             if (flag_dereference)
               vino = visited.insert(inode);
 #endif
 
             recurse(1, pathname);
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
             if (flag_dereference)
               visited.erase(vino.first);
 #endif
@@ -9303,7 +9310,9 @@ Grep::Type Grep::select(size_t level, const char *pathname, const char *basename
   if (*basename == '.' && !flag_hidden && !is_argument)
     return Type::SKIP;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
+
+  (void)type; (void)inode; (void)info; // appease -Wunused
 
   // use file attributes from FindFirstFileW() WIN32_FIND_DATAW dwFileAttributes otherwise attr == INVALID_FILE_ATTRIBUTES
   if (attr == INVALID_FILE_ATTRIBUTES)
@@ -9780,7 +9789,7 @@ void Grep::recurse(size_t level, const char *pathname)
   if (out.eof || out.cancelled())
     return;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   WIN32_FIND_DATAW ffd;
 
@@ -9880,7 +9889,7 @@ void Grep::recurse(size_t level, const char *pathname)
   std::vector<Entry> dir_entries;
   std::string entry_pathname;
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   std::string cFileName;
   uint64_t list = 0;
@@ -10447,7 +10456,7 @@ void Grep::recurse(size_t level, const char *pathname)
     if (out.eof || out.cancelled())
       break;
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
     // -R: check if this directory was visited before
     std::pair<std::set<ino_t>::iterator,bool> vino;
 
@@ -10463,7 +10472,7 @@ void Grep::recurse(size_t level, const char *pathname)
 
     recurse(level + 1, entry.pathname.c_str());
 
-#ifndef OS_WIN
+#ifndef OS_WIN_OR_MINGW
     if (flag_dereference)
       visited.erase(vino.first);
 #endif
@@ -14289,9 +14298,7 @@ void help(std::ostream& out)
 #endif
             "\
             When FILE is a `-', standard input is read.  Empty files contain no\n\
-            patterns; thus nothing is matched.  This option may be repeated.\n"
-#ifndef OS_WIN
-            "\
+            patterns; thus nothing is matched.  This option may be repeated.\n\
     --files, -%%\n\
             Boolean file matching mode, the opposite of --lines.  When combined\n\
             with option --bool, matches a file if all Boolean conditions are\n\
@@ -14320,9 +14327,7 @@ void help(std::ostream& out)
             MAGIC regex pattern.  Only files that have no filename extension\n\
             are labeled, unless +LABEL is specified.  When LABEL matches an\n\
             extension specified in --filter=COMMANDS, the corresponding command\n\
-            is invoked.  This option may be repeated.\n"
-#endif
-            "\
+            is invoked.  This option may be repeated.\n\
     --format=FORMAT\n\
             Output FORMAT-formatted matches.  For example --format='%f:%n:%O%~'\n\
             outputs matching lines `%O' with filename `%f` and line number `%n'\n\
@@ -14389,7 +14394,7 @@ void help(std::ostream& out)
             with --hexdump.  See also options -U, -W and -X.\n\
     --hidden, -.\n\
             Search "
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
             "Windows system and "
 #endif
             "hidden files and directories\n\
@@ -14853,6 +14858,9 @@ void help(std::ostream& out)
             ;
   if (flag_grep)
     out << "\nGrep compatibility mode: -Z and -z reassigned to --null and --null-data.\n";
+#ifdef OS_WIN
+  out << "\nWindows mode: short options may start with `-' or with `/'.\n";
+#endif
   out << "\n\
     Long options may start with `--no-' to disable, when applicable.\n\
 \n\
@@ -15317,18 +15325,20 @@ void warning(const char *message, const char *arg)
   if (!flag_no_messages)
   {
     const char *errmsg = NULL;
+#if defined(__STDC_LIB_EXT1__) || defined(OS_WIN_OR_MINGW)
+    char errbuf[256];
     if (errno)
     {
       // use safe strerror_s() instead of strerror() when available
-#if defined(__STDC_LIB_EXT1__) || defined(OS_WIN)
-      char errbuf[256];
       strerror_s(errbuf, sizeof(errbuf), errno);
       errmsg = errbuf;
-#else
-      errmsg = strerror(errno);
-#endif
     }
     fprintf(Static::errout, "%sugrep: %swarning:%s %s%s%s%s%c%s %s%s%s\n", color_off, color_warning, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", errmsg != NULL ? ':' : ' ', color_off, color_message, errmsg != NULL ? errmsg : "", color_off);
+#else
+    if (errno)
+      errmsg = strerror(errno);
+    fprintf(Static::errout, "%sugrep: %swarning:%s %s%s%s%s%c%s %s%s%s\n", color_off, color_warning, color_off, color_high, message != NULL ? message : "", message != NULL ? " " : "", arg != NULL ? arg : "", errmsg != NULL ? ':' : ' ', color_off, color_message, errmsg != NULL ? errmsg : "", color_off);
+#endif
   }
   ++Static::warnings;
 }
@@ -15337,7 +15347,7 @@ void warning(const char *message, const char *arg)
 void error(const char *message, const char *arg)
 {
   // use safe strerror_s() instead of strerror() when available
-#if defined(__STDC_LIB_EXT1__) || defined(OS_WIN)
+#if defined(__STDC_LIB_EXT1__) || defined(OS_WIN_OR_MINGW)
   char errmsg[256];
   strerror_s(errmsg, sizeof(errmsg), errno);
 #else
