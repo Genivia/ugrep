@@ -4669,17 +4669,19 @@ const Type type_table[] = {
   { NULL,           NULL, NULL,                                                       NULL }
 };
 
-#ifdef OS_WIN
-// ugrep main() for Windows to support wide string arguments and globbing
-int wmain(int argc, const wchar_t **wargv)
+#ifdef OS_WIN_OR_MINGW
+// ugrep main() for windows to support wide string arguments and globbing
+int main()
 #else
-// ugrep main()
+// ugrep main() for non-windows
 int main(int argc, const char **argv)
 #endif
 {
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   // store UTF-8 arguments for the duration of main() and convert Unicode command line arguments wargv[] to UTF-8 arguments argv[]
+  int argc = 0;
+  wchar_t **wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
   const char **argv = new const char *[argc];
   for (int i = 0; i < argc; ++i)
   {
@@ -4748,7 +4750,7 @@ int main(int argc, const char **argv)
     }
   }
 
-#ifdef OS_WIN
+#ifdef OS_WIN_OR_MINGW
 
   delete[] argv;
 
