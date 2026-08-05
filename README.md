@@ -5541,7 +5541,7 @@ in markdown:
     BUGS
            Report bugs at: <https://github.com/Genivia/ugrep/issues>
 
-    ugrep 7.8.4                      August 3, 2026                         UGREP(1)
+    ugrep 7.8.4                      August 5, 2026                         UGREP(1)
 
 🔝 [Back to table of contents](#toc)
 
