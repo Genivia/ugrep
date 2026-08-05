@@ -4671,7 +4671,13 @@ const Type type_table[] = {
 
 #ifdef OS_WIN_OR_MINGW
 // ugrep main() for windows to support wide string arguments and globbing
+#ifdef OS_WIN
+// ugrep wmain() for VS
+int wmain(int argc, const wchar_t **wargv)
+#else
+// ugrep main() for MinGW, pick up argc and wargv from CommandLineToArgvW()
 int main()
+#endif
 #else
 // ugrep main() for non-windows
 int main(int argc, const char **argv)
@@ -4679,9 +4685,12 @@ int main(int argc, const char **argv)
 {
 #ifdef OS_WIN_OR_MINGW
 
-  // store UTF-8 arguments for the duration of main() and convert Unicode command line arguments wargv[] to UTF-8 arguments argv[]
+#ifdef OS_WIN_MINGW
   int argc = 0;
   wchar_t **wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
+#endif
+
+  // store UTF-8 arguments for the duration of main() and convert Unicode command line arguments wargv[] to UTF-8 arguments argv[]
   const char **argv = new const char *[argc];
   for (int i = 0; i < argc; ++i)
   {
@@ -4694,17 +4703,12 @@ int main(int argc, const char **argv)
 
 #else
 
-#ifdef OS_WIN_MINGW
-  // handle CTRL-C
-  SetConsoleCtrlHandler(&sigint, TRUE);
-#else
   // ignore SIGPIPE
   signal(SIGPIPE, SIG_IGN);
 
   // reset color on SIGINT and SIGTERM
   signal(SIGINT, sigint);
   signal(SIGTERM, sigint);
-#endif
 
 #endif
 
