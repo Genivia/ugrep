@@ -54,9 +54,9 @@ namespace reflex {
 
 const unsigned short codepages[38][256] =
 {
-  // DOS CP 437 to Unicode
+  // DOS CP 437 to Unicode, but preserve 0 (NUL), 10 (LF), 13 (CR)
   {
-       0,0x263A,0x263B,0x2665,0x2666,0x2663,0x2660,0x2022,0x25D8,0x25CB,0x25D9,0x2642,0x2640,0x266A,0x266B,0x263C,
+       0,0x263A,0x263B,0x2665,0x2666,0x2663,0x2660,0x2022,0x25D8,0x25CB,    10,0x2642,0x2640,    13,0x266B,0x263C,
   0x25BA,0x25C4,0x2195,0x203C,0x00B6,0x00A7,0x25AC,0x21A8,0x2191,0x2193,0x2192,0x2190,0x221F,0x2194,0x25B2,0x25BC,
       32,    33,    34,    35,    36,    37,    38,    39,    40,    41,    42,    43,    44,    45,    46,    47,
       48,    49,    50,    51,    52,    53,    54,    55,    56,    57,    58,    59,    60,    61,    62,    63,
@@ -791,7 +791,7 @@ size_t Input::file_get(char *s, size_t n)
           {
             std::memcpy(t, utf8_, n);
             uidx_ = static_cast<unsigned short>(n);
-            ulen_ = static_cast<unsigned short>(l);
+            ulen_ = static_cast<unsigned short>(l - n);
             t += n;
             n = 0;
           }
@@ -830,7 +830,7 @@ size_t Input::file_get(char *s, size_t n)
           {
             std::memcpy(t, utf8_, n);
             uidx_ = static_cast<unsigned short>(n);
-            ulen_ = static_cast<unsigned short>(l);
+            ulen_ = static_cast<unsigned short>(l - n);
             t += n;
             n = 0;
           }
@@ -861,7 +861,7 @@ size_t Input::file_get(char *s, size_t n)
           {
             std::memcpy(t, utf8_, n);
             uidx_ = static_cast<unsigned short>(n);
-            ulen_ = static_cast<unsigned short>(l);
+            ulen_ = static_cast<unsigned short>(l - n);
             t += n;
             n = 0;
           }
@@ -892,7 +892,7 @@ size_t Input::file_get(char *s, size_t n)
           {
             std::memcpy(t, utf8_, n);
             uidx_ = static_cast<unsigned short>(n);
-            ulen_ = static_cast<unsigned short>(l);
+            ulen_ = static_cast<unsigned short>(l - n);
             t += n;
             n = 0;
           }
@@ -983,7 +983,7 @@ size_t Input::file_get(char *s, size_t n)
           {
             std::memcpy(t, utf8_, n);
             uidx_ = static_cast<unsigned short>(n);
-            ulen_ = static_cast<unsigned short>(l);
+            ulen_ = static_cast<unsigned short>(l - n);
             t += n;
             n = 0;
           }
