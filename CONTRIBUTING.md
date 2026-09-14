@@ -39,6 +39,11 @@ We love to hear from you!  [Contact us](https://www.genivia.com/contact.html).
 
 Contributions are covered under the [BSD-3 license](LICENSE.txt).
 
-Thanks!
+Authenticity: no AI was used in the creation of the ugrep source code and
+documentation.  Contributions must be authored by the submitter, with a few
+exceptions such as porting changes from another fork while maintaining
+attributions.  Contents sourced from AI tools such as LLMs, including but not
+limited to documentation files, source code, and configuration scrips, are not
+permitted as they are unauthored.
 
-Robert van Engelen, Genivia Inc.
+Thanks!
