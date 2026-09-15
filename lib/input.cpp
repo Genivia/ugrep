@@ -929,7 +929,7 @@ size_t Input::file_get(char *s, size_t n)
           else
           {
             uidx_ = 1;
-            ulen_ = 2;
+            ulen_ = 1;
           }
         }
       }
