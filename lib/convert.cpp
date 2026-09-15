@@ -401,7 +401,7 @@ static std::string convert_ranges(const char *pattern, size_t pos, ORanges<int>&
 {
   if (ranges.find('\n') != ranges.end())
     nl = true;
-  if (is_modified(mod, 'i') || (is_modified(mod, 'a') && is_modified(mod, 'u') && ranges.hi() > 0x7F))
+  if (is_modified(mod, 'a') && is_modified(mod, 'u') && ranges.hi() > 0x7F)
     convert_anycase_ranges(ranges);
   if (is_modified(mod, 'u') && ranges.hi() > 0x7F)
     return convert_unicode_ranges(ranges, flags, signature, par);
