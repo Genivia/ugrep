@@ -524,8 +524,7 @@ class zstreambuf : public std::streambuf {
         lzma_strm_->avail_in = zlen_ - zcur_;
 
         // initialize lzma decompress
-        uint64_t memlimit = 100 * 1024 * 1024; // 100 MB: files compressed with 'xz -9' require 65 MB to decompress
-        lzma_ret ret = lzma_auto_decoder(lzma_strm_, memlimit, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
+        lzma_ret ret = lzma_auto_decoder(lzma_strm_, XZ::MEMLIMIT, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
         if (ret != LZMA_OK)
         {
           cannot_decompress(pathname_, "lzma_auto_decoder failed");
@@ -1230,8 +1229,7 @@ class zstreambuf : public std::streambuf {
       try
       {
         xzfile_ = new XZ();
-        uint64_t memlimit = 100 * 1024 * 1024; // 100 MB: files compressed with 'xz -9' require 65 MB to decompress
-        lzma_ret ret = lzma_auto_decoder(&xzfile_->strm, memlimit, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
+        lzma_ret ret = lzma_auto_decoder(&xzfile_->strm, XZ::MEMLIMIT, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
         if (ret != LZMA_OK)
         {
           warning("lzma_stream_decoder failed", pathname);
@@ -1549,8 +1547,7 @@ class zstreambuf : public std::streambuf {
                 xzfile_ = new XZ();
                 xzfile_->strm.next_in  = buf_;
                 xzfile_->strm.avail_in = 6;
-                uint64_t memlimit = 100 * 1024 * 1024; // 100 MB: files compressed with 'xz -9' require 65 MB to decompress
-                lzma_ret ret = lzma_auto_decoder(&xzfile_->strm, memlimit, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
+                lzma_ret ret = lzma_auto_decoder(&xzfile_->strm, XZ::MEMLIMIT, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED);
                 if (ret != LZMA_OK)
                 {
                   warning("lzma_stream_decoder failed", pathname);
@@ -1841,6 +1838,8 @@ class zstreambuf : public std::streambuf {
     {
       lzma_end(&strm);
     }
+
+    static const uint64_t MEMLIMIT = 100 * 1024 * 1024; // 100 MB: files compressed with 'xz -9' require 65 MB to decompress
 
     lzma_stream   strm;
     unsigned char zbuf[Z_BUF_LEN];
