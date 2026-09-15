@@ -94,7 +94,7 @@ void CNF::OpTree::parse3(const char *& pattern)
 
   bool parens = false;
 
-  if (*pattern == '(' && (flag_fixed_strings || pattern[1] != '?'))
+  if (*pattern == '(' && (flag_mode == Mode::FIXED || pattern[1] != '?'))
   {
     // check if matching ending ) is followed by spacing or EOS or |, then it is OK to parse '(' <parse1> ')' and convert to CNF
     int level = 0;
@@ -120,7 +120,7 @@ void CNF::OpTree::parse3(const char *& pattern)
 
         --level;
       }
-      else if (*lookahead == '[' && !flag_fixed_strings)
+      else if (*lookahead == '[' && flag_mode != Mode::FIXED)
       {
         // skip [...]
         ++lookahead;
@@ -196,7 +196,7 @@ void CNF::OpTree::parse3(const char *& pattern)
         }
 
         // if not -x then quote the string with \Q and \E
-        if (!flag_fixed_strings)
+        if (flag_mode != Mode::FIXED)
           quote(quoted);
 
         regex.append(quoted);
@@ -206,7 +206,7 @@ void CNF::OpTree::parse3(const char *& pattern)
 
         pattern  = lookahead;
       }
-      else if (*lookahead == '[' && !flag_fixed_strings)
+      else if (*lookahead == '[' && flag_mode != Mode::FIXED)
       {
         // skip [...]
         ++lookahead;
@@ -256,7 +256,7 @@ void CNF::OpTree::parse3(const char *& pattern)
 
     if (flag_line_regexp && regex.empty())
       regex.assign("^$");
-    else if (flag_fixed_strings)
+    else if (flag_mode == Mode::FIXED)
       quote(regex);
 
     // -w and -x
@@ -418,7 +418,7 @@ void CNF::OpTree::convert(Terms& terms)
       {
         // pop unused ending '|' (or BRE '\|')
         terms.pop_back();
-        if (flag_basic_regexp)
+        if (flag_mode == Mode::BRE)
           terms.pop_back();
       }
     }
@@ -462,7 +462,7 @@ void CNF::OpTree::add_to(Terms& terms) const
     else if (regex.empty())
       term.front()->clear(); // empty pattern means anything matches
     else
-      term.front()->append(flag_basic_regexp ? "\\|" : "|").append(regex);
+      term.front()->append(flag_mode == Mode::BRE ? "\\|" : "|").append(regex);
 
     // empty pattern means anything matches
     if (term.front()->empty())
@@ -492,7 +492,7 @@ void CNF::new_pattern(PATTERN mask, const char *pattern)
     std::string spattern(pattern);
 
     // -F
-    if (flag_fixed_strings)
+    if (flag_mode == Mode::FIXED)
       quote(spattern);
 
     // -w and -x
@@ -526,7 +526,7 @@ void CNF::new_pattern(PATTERN mask, const char *pattern)
       else if (spattern.empty())
         term.front()->clear(); // empty pattern means anything matches
       else
-        term.front()->append(flag_basic_regexp ? "\\|" : "|").append(spattern);
+        term.front()->append(flag_mode == Mode::BRE ? "\\|" : "|").append(spattern);
 
       // empty pattern means anything matches
       if (term.front()->empty())
@@ -566,7 +566,7 @@ void CNF::split()
   if (flag_bool)
     return;
 
-  const char *sep = flag_fixed_strings ? "\\E|\\Q" : flag_basic_regexp ? "\\|" : "|";
+  const char *sep = flag_mode == Mode::FIXED ? "\\E|\\Q" : flag_mode == Mode::BRE ? "\\|" : "|";
 
   for (auto& i : terms)
   {
@@ -644,7 +644,7 @@ void CNF::report(FILE *output) const
 
     bool or_sep = false;
 
-    if (flag_fixed_strings)
+    if (flag_mode == Mode::FIXED)
       fprintf(output, "a string in ");
     else
       fprintf(output, "a pattern in ");
@@ -731,7 +731,7 @@ void CNF::report(FILE *output) const
 std::string CNF::adjoin() const
 {
   std::string adjoined;
-  const char *sep = flag_basic_regexp ? "\\|" : "|";
+  const char *sep = flag_mode == Mode::BRE ? "\\|" : "|";
 
   if (flag_files)
   {
@@ -765,7 +765,7 @@ std::string CNF::adjoin() const
   {
     // pop unused ending '|' (or BRE '\|')
     adjoined.pop_back();
-    if (flag_basic_regexp)
+    if (flag_mode == Mode::BRE)
       adjoined.pop_back();
   }
 

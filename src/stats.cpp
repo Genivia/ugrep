@@ -100,16 +100,18 @@ void Stats::report(FILE *output)
     for (const auto& i : flag_config_files)
       fprintf(output, "    using %s" NEWLINESTR, i.c_str());
   }
+  if (flag_fuzzy > 0)
+    fprintf(output, "  --fuzzy" NEWLINESTR);
   if (flag_bool)
     fprintf(output, "  --bool %s" NEWLINESTR, (flag_files ? "--files" : "--lines"));
-  if (flag_basic_regexp)
+  if (flag_mode == Mode::BRE)
     fprintf(output, "  --basic-regexp" NEWLINESTR);
-  else if (flag_fixed_strings)
+  else if (flag_mode == Mode::FIXED)
     fprintf(output, "  --fixed-strings" NEWLINESTR);
-  else if (flag_fuzzy > 0)
-    fprintf(output, "  --fuzzy" NEWLINESTR);
-  else if (flag_perl_regexp)
+  else if (flag_mode == Mode::PERL)
     fprintf(output, "  --perl-regexp" NEWLINESTR);
+  else
+    fprintf(output, "  --extended-regexp" NEWLINESTR);
   if (flag_decompress)
     fprintf(output, "  --decompress --zmax=%zu" NEWLINESTR, flag_zmax);
   if (flag_min_depth > 0 && flag_max_depth > 0)

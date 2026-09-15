@@ -68,10 +68,12 @@ enum class Sort { NA, NAME, BEST, SIZE, USED, CHANGED, CREATED, LIST };
 // -D, --devices and -d, --directories
 enum class Action { UNSP, SKIP, READ, RECURSE };
 
+// -E (default), -G, -F, -P matching modes
+enum class Mode { UNSP, ERE, BRE, FIXED, PERL };
+
 // ugrep command-line options
 extern bool flag_all_threads; // internal flag
 extern bool flag_any_line;
-extern bool flag_basic_regexp;
 extern bool flag_best_match;
 extern bool flag_bool;
 extern bool flag_color_term; // internal flag
@@ -85,7 +87,6 @@ extern bool flag_dereference_files;
 extern bool flag_files;
 extern bool flag_files_with_matches;
 extern bool flag_files_without_match;
-extern bool flag_fixed_strings;
 extern bool flag_glob_ignore_case;
 extern bool flag_grep; // internal flag
 extern bool flag_hex;
@@ -110,7 +111,6 @@ extern bool flag_null;
 extern bool flag_null_data;
 extern bool flag_only_line_number;
 extern bool flag_only_matching;
-extern bool flag_perl_regexp;
 extern bool flag_query;
 extern bool flag_quiet;
 extern bool flag_sort_rev; // internal flag
@@ -141,6 +141,7 @@ extern Flag flag_ungroup;
 extern Sort flag_sort_key; // internal flag
 extern Action flag_devices_action; // internal flag
 extern Action flag_directories_action; // internal flag
+extern Mode flag_mode;
 extern size_t flag_after_context;
 extern size_t flag_before_context;
 extern size_t flag_delay;

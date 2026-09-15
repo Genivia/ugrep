@@ -303,7 +303,6 @@ inline uint64_t fsid_to_uint64(fsid_t& fsid)
 // ugrep command-line options
 bool flag_all_threads              = false;
 bool flag_any_line                 = false;
-bool flag_basic_regexp             = false;
 bool flag_best_match               = false;
 bool flag_bool                     = false;
 bool flag_color_term               = false;
@@ -317,7 +316,6 @@ bool flag_dereference_files        = false;
 bool flag_files                    = false;
 bool flag_files_with_matches       = false;
 bool flag_files_without_match      = false;
-bool flag_fixed_strings            = false;
 bool flag_glob_ignore_case         = false;
 bool flag_grep                     = false;
 bool flag_hex                      = false;
@@ -342,7 +340,6 @@ bool flag_null                     = false;
 bool flag_null_data                = false;
 bool flag_only_line_number         = false;
 bool flag_only_matching            = false;
-bool flag_perl_regexp              = false;
 bool flag_query                    = false;
 bool flag_quiet                    = false;
 bool flag_sort_rev                 = false;
@@ -373,6 +370,7 @@ Flag flag_ungroup;
 Sort flag_sort_key                 = Sort::NA;
 Action flag_devices_action         = Action::UNSP;
 Action flag_directories_action     = Action::UNSP;
+Mode flag_mode                     = Mode::UNSP;
 size_t flag_after_context          = 0;
 size_t flag_before_context         = 0;
 size_t flag_delay                  = DEFAULT_QUERY_DELAY;
@@ -3971,7 +3969,7 @@ struct Grep {
 
 #if !defined(HAVE_PCRE2) && defined(HAVE_BOOST_REGEX)
       // buffer all input to work around Boost.Regex partial matching bug, but this may throw std::bad_alloc if the file is too large
-      if (flag_perl_regexp)
+      if (flag_mode == Mode::PERL)
       {
         matcher->buffer();
       }
@@ -4937,9 +4935,14 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
 
         options(pattern_args, 2, args);
 
-        if (Static::warnings > 0)
+        if (Static::warnings > 0 ||
+            flag_bool || flag_fuzzy || flag_mode != Mode::UNSP ||
+            flag_any_line || flag_count || flag_files_with_matches || flag_files_without_match ||
+            flag_invert_match || flag_line_regexp || flag_only_line_number || flag_only_matching ||
+            flag_replace || flag_text || flag_word_regexp)
         {
-          std::cerr << "ugrep: error in " << config_file << " at line " << lineno << '\n';
+          // reject invalid options and options that don't make sense for config
+          std::cerr << "ugrep: error in config file " << config_file << " at line " << lineno << '\n';
           errors = true;
         }
         else if (line.compare(0, 8, "--config") == 0)
@@ -4947,7 +4950,7 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
           // parse a config file, but do not recurse more than one level deep
           if (recurse)
           {
-            std::cerr << "ugrep: recursive configuration in " << config_file << " at line " << lineno << '\n';
+            std::cerr << "ugrep: error in config file " << config_file << " recursion at line " << lineno << '\n';
             errors = true;
           }
           else
@@ -4971,19 +4974,9 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
       ++lineno;
     }
 
-    // clear flags that don't make sense for config, clashing and confusing to allow
-    flag_any_line = false;
-    flag_basic_regexp = false;
-    flag_bool = false;
-    flag_count = false;
+    // silently ignore some options that don't make sense for config, clashing and confusing to allow
     flag_file.clear();
-    flag_files_with_matches = false;
-    flag_files_without_match = false;
-    flag_fixed_strings = false;
     flag_from.clear();
-    flag_fuzzy = 0;
-    flag_invert_match = false;
-    flag_line_regexp = false;
     flag_match = false;
     flag_max_count = 0;
     flag_max_files = 0;
@@ -4991,17 +4984,11 @@ static void load_config(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_
     flag_max_size = 0;
     flag_min_line = 0;
     flag_min_size = 0;
-    flag_only_line_number = false;
-    flag_only_matching = false;
     flag_pager = NULL;
-    flag_perl_regexp = false;
     flag_query = false;
     flag_quiet = false;
     flag_regexp.clear();
-    flag_replace = NULL;
     flag_save_config = NULL;
-    flag_text = false;
-    flag_word_regexp = false;
     if (wdir)
     {
       flag_view = NULL;
@@ -5351,7 +5338,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
 
               case 'b':
                 if (strcmp(arg, "basic-regexp") == 0)
-                  flag_basic_regexp = true;
+                  flag_mode = Mode::BRE;
                 else if (strcmp(arg, "before-context") == 0) // legacy form --before-context NUM
                   flag_before_context = strtonum(getloptarg(argc, argv, "", i), "invalid argument --before-context=");
                 else if (strncmp(arg, "before-context=", 15) == 0)
@@ -5462,7 +5449,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strncmp(arg, "exclude-fs=", 11) == 0)
                   flag_exclude_fs.emplace_back(getloptarg(argc, argv, arg + 11, i));
                 else if (strcmp(arg, "extended-regexp") == 0)
-                  flag_basic_regexp = false;
+                  flag_mode = Mode::ERE;
                 else if (strcmp(arg, "encoding") == 0)
                   usage("missing argument for --", arg);
                 else
@@ -5487,7 +5474,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "files-without-match") == 0)
                   flag_files_without_match = true;
                 else if (strcmp(arg, "fixed-strings") == 0)
-                  flag_fixed_strings = true;
+                  flag_mode = Mode::FIXED;
                 else if (strncmp(arg, "filter=", 7) == 0)
                   flag_filter.append(flag_filter.empty() ? "" : ",").append(getloptarg(argc, argv, arg + 7, i));
                 else if (strncmp(arg, "filter-magic-label=", 19) == 0)
@@ -5803,7 +5790,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
                 else if (strcmp(arg, "passthru") == 0)
                   flag_any_line = true;
                 else if (strcmp(arg, "perl-regexp") == 0)
-                  flag_perl_regexp = true;
+                  flag_mode = Mode::PERL;
                 else if (strcmp(arg, "pretty") == 0)
                   flag_pretty = Static::AUTO;
                 else if (strncmp(arg, "pretty=", 7) == 0)
@@ -5980,7 +5967,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'E':
-            flag_basic_regexp = false;
+            flag_mode = Mode::ERE;
             break;
 
           case 'e':
@@ -5989,7 +5976,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'F':
-            flag_fixed_strings = true;
+            flag_mode = Mode::FIXED;
             break;
 
           case 'f':
@@ -5998,7 +5985,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'G':
-            flag_basic_regexp = true;
+            flag_mode = Mode::BRE;
             break;
 
           case 'g':
@@ -6077,7 +6064,7 @@ void options(std::list<std::pair<CNF::PATTERN,const char*>>& pattern_args, int a
             break;
 
           case 'P':
-            flag_perl_regexp = true;
+            flag_mode = Mode::PERL;
             break;
 
           case 'p':
@@ -6449,7 +6436,7 @@ void init(int argc, const char **argv)
   else if (strncmp(program, "grep", len) == 0)
   {
     // the 'grep' command is equivalent to 'ugrep --grep -G -. --sort'
-    flag_basic_regexp = true;
+    flag_mode = Mode::BRE;
     flag_grep = true;
     flag_empty = true;
     flag_hidden = true;
@@ -6466,7 +6453,7 @@ void init(int argc, const char **argv)
   else if (strncmp(program, "fgrep", len) == 0)
   {
     // the 'fgrep' command is equivalent to 'ugrep --grep -F -. --sort'
-    flag_fixed_strings = true;
+    flag_mode = Mode::FIXED;
     flag_grep = true;
     flag_empty = true;
     flag_hidden = true;
@@ -6476,7 +6463,7 @@ void init(int argc, const char **argv)
   {
     // the 'zgrep' command is equivalent to 'ugrep --decompress --grep -G -. --sort'
     flag_decompress = true;
-    flag_basic_regexp = true;
+    flag_mode = Mode::BRE;
     flag_grep = true;
     flag_empty = true;
     flag_hidden = true;
@@ -6495,7 +6482,7 @@ void init(int argc, const char **argv)
   {
     // the 'zfgrep' command is equivalent to 'ugrep --decompress --grep -F -. --sort'
     flag_decompress = true;
-    flag_fixed_strings = true;
+    flag_mode = Mode::FIXED;
     flag_grep = true;
     flag_empty = true;
     flag_hidden = true;
@@ -6540,12 +6527,10 @@ void init(int argc, const char **argv)
   if (flag_zmax > 99)
     usage("option --zmax argument exceeds upper limit");
 
-  // -P disables -F, -G and -Z (P>F>G>E override) and does not allow -N patterns
-  if (flag_perl_regexp)
+  // -P is incompatible with option -Z and with -N patterns
+  if (flag_mode == Mode::PERL)
   {
 #if defined(HAVE_PCRE2) || defined(HAVE_BOOST_REGEX)
-    flag_fixed_strings = false;
-    flag_basic_regexp = false;
     if (flag_fuzzy > 0)
       usage("options -P and -Z are not compatible");
     for (const auto& arg : pattern_args)
@@ -6560,10 +6545,6 @@ void init(int argc, const char **argv)
   if (flag_only_matching || flag_ungroup)
     flag_empty = false;
 
-  // -F disables -G (P>F>G>E override)
-  if (flag_fixed_strings)
-    flag_basic_regexp = false;
-
   // -e, -N, --and, --andnot, --not
   if (!pattern_args.empty())
   {
@@ -6574,7 +6555,7 @@ void init(int argc, const char **argv)
       {
         if (arg.first == CNF::PATTERN::AND || arg.first == CNF::PATTERN::NOT)
           flag_bool = true;
-        else if (arg.first == CNF::PATTERN::NEG && flag_fixed_strings)
+        else if (arg.first == CNF::PATTERN::NEG && flag_mode == Mode::FIXED)
           usage("option -F with -% or -Q does not support -N PATTERN");
       }
 
@@ -8425,8 +8406,8 @@ void ugrep()
   if (!flag_file.empty())
   {
     // -F: make newline-separated lines in regex literal with \Q and \E
-    bool fixed_strings = flag_fixed_strings;
-    const char *bar = flag_basic_regexp ? "\\|" : "|";
+    bool fixed_strings = flag_mode == Mode::FIXED;
+    const char *bar = flag_mode == Mode::BRE ? "\\|" : "|";
 
     // PATTERN or -e PATTERN: add an ending '|' (or BRE '\|') to the regex to concatenate sub-expressions
     if (!regex.empty())
@@ -8519,7 +8500,7 @@ void ugrep()
     {
       // pop unused ending '|' (or BRE '\|') from the |-concatenated regexes in the regex string
       regex.pop_back();
-      if (flag_basic_regexp)
+      if (flag_mode == Mode::BRE)
         regex.pop_back();
     }
 
@@ -8528,7 +8509,7 @@ void ugrep()
   }
 
   // patterns ^, $ and ^$ are special cases to optimize for search
-  if (!flag_fixed_strings && Static::bcnf.singleton_or_undefined())
+  if (flag_mode != Mode::FIXED && Static::bcnf.singleton_or_undefined())
   {
     if (regex == "^$")
     {
@@ -8592,7 +8573,7 @@ void ugrep()
   }
 
   // patterns .* and .+ are common easy special cases to optimize for search
-  if (!flag_fixed_strings && !flag_dotall && Static::bcnf.singleton_or_undefined())
+  if (flag_mode != Mode::FIXED && !flag_dotall && Static::bcnf.singleton_or_undefined())
   {
     if (regex == ".*")
     {
@@ -8760,7 +8741,7 @@ void ugrep()
     convert_flags |= reflex::convert_flag::unicode;
 
   // -G: convert basic regex (BRE) to extended regex (ERE)
-  if (flag_basic_regexp)
+  if (flag_mode == Mode::BRE)
     convert_flags |= reflex::convert_flag::basic;
 
   // set reflex::Pattern options to enable multiline mode
@@ -8788,8 +8769,8 @@ void ugrep()
   // reflex::Matcher options
   std::string matcher_options;
 
-  // grep compatibility mode: literally match closing ) like GNU grep when not paired with ( unless -P or -F
-  if (flag_grep && !flag_perl_regexp && !flag_fixed_strings)
+  // grep compatibility mode: literally match closing ) like GNU grep when not paired with ( unless -F or -P
+  if (flag_grep && flag_mode != Mode::FIXED && flag_mode != Mode::PERL)
     convert_flags |= reflex::convert_flag::closing;
 
   // -Y or --empty: permit empty pattern matches
@@ -8811,7 +8792,7 @@ void ugrep()
   // --index: search is only possible with compatible options
   if (flag_index != NULL)
   {
-    if (flag_perl_regexp)
+    if (flag_mode == Mode::PERL)
       usage("options --index and -P (--perl-regexp) are not compatible");
     if (!flag_filter.empty())
       usage("options --index and --filter are not compatible");
@@ -8870,7 +8851,7 @@ void ugrep()
       }
     }
   }
-  else if (flag_perl_regexp)
+  else if (flag_mode == Mode::PERL)
   {
     // -P: Perl matching with PCRE2 or Boost.Regex
 #if defined(HAVE_PCRE2)
@@ -13533,7 +13514,7 @@ void Grep::find_text_preview(const char *filename, const char *findpart, size_t 
 
 #if !defined(HAVE_PCRE2) && defined(HAVE_BOOST_REGEX)
   // buffer all input to work around Boost.Regex partial matching bug, but this may throw std::bad_alloc if the file is too large
-  if (flag_perl_regexp)
+  if (flag_mode == Mode::PERL)
     matcher->buffer();
 #endif
 
@@ -15261,7 +15242,7 @@ void version()
 #endif
   std::cout << "ugrep " UGREP_VERSION;
   if (flag_grep)
-    std::cout << " (" << (flag_basic_regexp ? "" : flag_fixed_strings ? "f" : "e") << "grep compat)";
+    std::cout << " (" << (flag_mode == Mode::BRE ? "" : flag_mode == Mode::FIXED ? "f" : "e") << "grep compat)";
   std::cout << " " PLATFORM <<
 #if defined(HAVE_AVX512BW)
     (reflex::have_HW_AVX512BW() ? " +avx512" : (reflex::have_HW_AVX2() ? " +avx2" : reflex::have_HW_SSE2() ?  " +sse2" : " (no sse2!)")) <<

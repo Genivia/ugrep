@@ -178,14 +178,14 @@ class CNF {
     {
       // -x: make the regex line-anchored
       // -G requires \( \) instead of ( )
-      const char *xleft = flag_basic_regexp ? "^\\(" : "^(?:";
-      const char *xright = flag_basic_regexp ? "\\)$" : ")$";
+      const char *xleft = flag_mode == Mode::BRE ? "^\\(" : "^(?:";
+      const char *xright = flag_mode == Mode::BRE ? "\\)$" : ")$";
       pattern.insert(0, xleft).append(xright);
     }
     else if (flag_word_regexp)
     {
       // -w: make the regex word-anchored (or implicitly done with matcher option W instead of \< and \>)
-      if (flag_perl_regexp)
+      if (flag_mode == Mode::PERL)
       {
         // -P requires (?<!\w) (?!\w) instead of \< and \>
 #if defined(HAVE_PCRE2)

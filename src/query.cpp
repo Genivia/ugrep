@@ -190,7 +190,7 @@ void Query::display(int col, int len)
           ++look;
       }
     }
-    else if (!flag_fixed_strings)
+    else if (flag_mode != ::Mode::FIXED)
     {
       for (const char *look = line_; look < ptr; ++look)
       {
@@ -319,7 +319,7 @@ void Query::display(int col, int len)
             ptr = ++next + 1;
           }
         }
-        else if (!flag_fixed_strings)
+        else if (flag_mode != ::Mode::FIXED)
         {
           if (ch == '[' && !list && !literal && !braced)
           {
@@ -387,7 +387,7 @@ void Query::display(int col, int len)
           }
           else if (strchr("$()*+.?^|", ch) != NULL && !list && !literal && !braced)
           {
-            if (!flag_basic_regexp || strchr("()+?|", ch) == NULL)
+            if (flag_mode != ::Mode::BRE || strchr("()+?|", ch) == NULL)
             {
               Screen::put(ptr, next - ptr);
               Screen::normal();
@@ -420,7 +420,7 @@ void Query::display(int col, int len)
             if (prev == ' ' || prev == '|' || prev == '(' || prev == -1)
             {
               if (ch == '-' ||
-                  (flag_fixed_strings && (ch == '(' || ch == ')' || ch == '|')) ||
+                  (flag_mode == ::Mode::FIXED && (ch == '(' || ch == ')' || ch == '|')) ||
                   strncmp(next, "AND ", 4) == 0 ||
                   strncmp(next, "OR ", 3) == 0 ||
                   strncmp(next, "NOT ", 4) == 0)
@@ -438,7 +438,7 @@ void Query::display(int col, int len)
                 ch = ' ';
               }
             }
-            else if (flag_fixed_strings &&
+            else if (flag_mode == ::Mode::FIXED &&
                 (ch == '|' ||
                  (ch == ')' && (next + 1 >= end || next[1] == ' ' || next[1] == '|' || next[1] == ')'))))
             {
@@ -1949,7 +1949,7 @@ void Query::execute(int pipe_fd)
         error_ -= 4 + flag_ignore_case + flag_dotall + flag_free_space;
 
       // subtract 2 for -F
-      if (flag_fixed_strings && error_ >= 2)
+      if (flag_mode == ::Mode::FIXED && error_ >= 2)
         error_ -= 2;
 
       // subtract 2 or 3 for -x or -w
@@ -3936,8 +3936,8 @@ void Query::get_flags()
   flags_[2].flag = flag_byte_offset;
   flags_[3].flag = flag_after_context > 0 && flag_before_context > 0;
   flags_[4].flag = flag_count;
-  flags_[5].flag = flag_fixed_strings;
-  flags_[6].flag = flag_basic_regexp;
+  flags_[5].flag = flag_mode == ::Mode::FIXED;
+  flags_[6].flag = flag_mode == ::Mode::BRE;
   flags_[7].flag = !globs_.empty();
   flags_[8].flag = flag_with_filename;
   flags_[9].flag = flag_no_filename;
@@ -3948,7 +3948,7 @@ void Query::get_flags()
   flags_[14].flag = flag_files_with_matches;
   flags_[15].flag = flag_line_number;
   flags_[16].flag = flag_only_matching;
-  flags_[17].flag = flag_perl_regexp;
+  flags_[17].flag = flag_mode == ::Mode::PERL;
   flags_[18].flag = flag_directories_action == Action::RECURSE && flag_dereference;
   flags_[19].flag = flag_directories_action == Action::RECURSE && !flag_dereference;
   flags_[20].flag = flag_initial_tab;
@@ -4047,8 +4047,7 @@ void Query::set_flags()
   }
   flag_byte_offset = flags_[2].flag;
   flag_count = flags_[4].flag;
-  flag_fixed_strings = flags_[5].flag;
-  flag_basic_regexp = flags_[6].flag;
+  flag_mode = flags_[6].flag ? ::Mode::BRE : flags_[5].flag ? ::Mode::FIXED : flags_[17].flag ? ::Mode::PERL : ::Mode::ERE;
   flag_glob.clear();
   flag_iglob.clear();
   if (globbing_)
@@ -4065,7 +4064,6 @@ void Query::set_flags()
   flag_files_with_matches = flags_[14].flag;
   flag_line_number = flags_[15].flag;
   flag_only_matching = flags_[16].flag;
-  flag_perl_regexp = flags_[17].flag;
   if (flags_[18].flag)
     flag_directories_action = Action::RECURSE, flag_dereference = true;
   else if (flags_[19].flag)
