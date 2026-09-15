@@ -44,6 +44,7 @@ documentation.  Contributions must be authored by the submitter, with a few
 exceptions such as porting changes from another fork while maintaining
 attributions.  Contents sourced from AI tools such as LLMs, including but not
 limited to documentation files, source code, and configuration scrips, are not
-permitted as they are unauthored.
+permitted as they are unauthored and based on (trained on) copyright-protected
+sources.
 
 Thanks!
