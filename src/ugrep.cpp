@@ -4584,7 +4584,7 @@ const Type type_table[] = {
   { "csv",          "csv", NULL,                                                      NULL },
   { "dart",         "dart", NULL,                                                     NULL },
   { "Dart",         "dart", NULL,                                                     "#!\\h*/.*\\Wdart(\\W.*)?\\n" },
-  { "delphi",       "pas,int,dfm,nfm,dof,dpk,dproj,groupproj,bdsgroup,bdsproj", NULL, NULL },
+  { "delphi",       "pas,int,dfm,nfm,dof,dpk,dpr,dproj,groupproj,bdsgroup,bdsproj", NULL, NULL },
   { "elisp",        "el", NULL,                                                       NULL },
   { "elixir",       "ex,exs", NULL,                                                   NULL },
   { "erlang",       "erl,hrl", NULL,                                                  NULL },
